@@ -15,7 +15,7 @@ export default async (opts) => {
     // @ts-ignore
     'README.md': (await import('raw-loader!./README.md')).default,
     // @ts-ignore
-    '.remix/script.config.json': (await import('!!raw-loader!./.remix/script.config.json')).default
+    'remix.config.json': (await import('!!raw-loader!./remix.config')).default
   }
   return filesObj
 }

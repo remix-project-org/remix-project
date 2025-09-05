@@ -22,5 +22,7 @@ export default async () => {
     'README.txt': (await import('raw-loader!./README.txt')).default,
     // @ts-ignore
     '.prettierrc.json': (await import('raw-loader!./.prettierrc')).default,
+    // @ts-ignore
+    'remix.config.json': (await import('raw-loader!./remix.config')).default
   }
 }
