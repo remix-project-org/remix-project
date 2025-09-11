@@ -21,7 +21,6 @@ export class CompileTabLogic {
   public event
   public evmVersions: Array<string>
   public useFileConfiguration: boolean
-  public configFilePath: string
 
   constructor (api: ICompilerApi, contentImport) {
     this.api = api
@@ -71,14 +70,6 @@ export class CompileTabLogic {
     await this.setCompilerConfigContent()
   }
 
-  setConfigFilePath (path) {
-    this.configFilePath = path
-  }
-
-  getConfigFilePath () {
-    return this.configFilePath
-  }
-
   setRuns (runs) {
     this.runs = runs
     this.api.setCompilerQueryParameters({ runs: this.runs })
@@ -116,10 +107,15 @@ export class CompileTabLogic {
   }
 
   async setCompilerConfigContent () {
-    if (this.configFilePath && this.useFileConfiguration) {
-      this.api.readFile(this.configFilePath).then(content => {
-        this.compiler.set('configFileContent', content)
-      })
+    if (this.useFileConfiguration) {
+      const remixConfigPath = 'remix.config.json'
+      const configExists = await this.api.fileExists(remixConfigPath)
+
+      if (configExists) {
+        const configContent = await this.api.readFile(remixConfigPath)
+        const config = JSON.parse(configContent)
+        this.compiler.set('configFileContent', config['solidity-compiler'])
+      }
     }
   }
 

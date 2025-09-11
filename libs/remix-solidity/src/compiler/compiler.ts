@@ -37,7 +37,7 @@ export class Compiler {
       compilationStartTime: null,
       target: null,
       useFileConfiguration: false,
-      configFileContent: '',
+      configFileContent: {},
       compilerRetriggerMode: CompilerRetriggerMode.none,
       lastCompilationResult: {
         data: null,
@@ -138,7 +138,7 @@ export class Compiler {
             const { optimize, runs, evmVersion, language, useFileConfiguration, configFileContent, remappings, viaIR } = this.state
 
             if (useFileConfiguration) {
-              input = compilerInputForConfigFile(source.sources, JSON.parse(configFileContent))
+              input = compilerInputForConfigFile(source.sources, configFileContent)
             } else {
               input = compilerInput(source.sources, { optimize, runs, evmVersion, language, remappings, viaIR })
             }
@@ -216,7 +216,7 @@ export class Compiler {
             if (source && source.sources) {
               const { optimize, runs, evmVersion, language, remappings, useFileConfiguration, configFileContent, viaIR } = this.state
               if (useFileConfiguration) {
-                input = compilerInputForConfigFile(source.sources, JSON.parse(configFileContent))
+                input = compilerInputForConfigFile(source.sources, configFileContent)
               } else {
                 input = compilerInput(source.sources, { optimize, runs, evmVersion, language, remappings, viaIR })
               }
@@ -337,7 +337,7 @@ export class Compiler {
 
         try {
           if (useFileConfiguration) {
-            const compilerInput = JSON.parse(configFileContent)
+            const compilerInput = configFileContent
             if (compilerInput.settings.remappings?.length) compilerInput.settings.remappings.push(...remappings)
             else compilerInput.settings.remappings = remappings
             input = compilerInputForConfigFile(source.sources, compilerInput)

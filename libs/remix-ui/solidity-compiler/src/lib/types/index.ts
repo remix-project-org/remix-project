@@ -21,8 +21,6 @@ export interface CompilerContainerProps {
   compiledFileName: string,
   updateCurrentVersion: any,
   configurationSettings: ConfigurationSettings,
-  configFilePath: string,
-  setConfigFilePath: (path: string) => void,
   solJsonBinData: iSolJsonBinData
 }
 

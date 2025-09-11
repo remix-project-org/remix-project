@@ -74,6 +74,23 @@ export class ScriptRunnerBridgePlugin extends Plugin {
           dependencies: [],
         },
       }
+      const oldConfigExists = await this.plugin.call('fileManager', 'exists', oldConfigFileName)
+      const configExists = await this.plugin.call('fileManager', 'exists', configFileName)
+
+      if (oldConfigExists) {
+        const oldConfigContent = await this.plugin.call('fileManager', 'readFile', oldConfigFileName)
+        const oldConfig = JSON.parse(oldConfigContent)
+
+        if (configExists) {
+          const configContent = await this.plugin.call('fileManager', 'readFile', configFileName)
+          const config = JSON.parse(configContent)
+          config['script-runner'] = oldConfig
+          await this.plugin.call('fileManager', 'writeFile', configFileName, JSON.stringify(config, null, 2))
+        } else {
+          await this.plugin.call('fileManager', 'writeFile', configFileName, JSON.stringify({ 'script-runner': oldConfig }, null, 2))
+        }
+        await this.plugin.call('fileManager', 'remove', '.remix')
+      }
       await this.loadCustomConfig()
       await this.loadConfigurations()
       this.renderComponent()

@@ -11,6 +11,9 @@ import './css/style.css'
 import { iSolJsonBinData, iSolJsonBinDataBuild } from '@remix-project/remix-lib'
 import { appPlatformTypes, platformContext } from '@remix-ui/app'
 
+const oldConfigPath = 'compiler_config.json'
+const remixConfigPath = 'remix.config.json'
+
 export const SolidityCompiler = (props: SolidityCompilerProps) => {
   const {
     api,
@@ -23,7 +26,6 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     isFoundryProject: false,
     workspaceName: '',
     currentFile,
-    configFilePath: 'compiler_config.json',
     loading: false,
     compileTabLogic: null,
     compiler: null,
@@ -95,13 +97,25 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
         isFoundryProject: isFoundry
       }
     })
-  }
+    const oldConfigExists = await api.fileExists(oldConfigPath)
+    const configExists = await api.fileExists(remixConfigPath)
 
-  api.onFileRemoved = (path: string) => {
-    if (path === state.configFilePath)
-      setState((prevState) => {
-        return { ...prevState, configFilePath: '' }
-      })
+    if (oldConfigExists) {
+      const oldConfigContent = await api.readFile(oldConfigPath)
+      const oldConfig = JSON.parse(oldConfigContent)
+
+      if (configExists) {
+        const configContent = await api.readFile(remixConfigPath)
+        const config = JSON.parse(configContent)
+
+        config['solidity-compiler'] = oldConfig
+        await api.writeFile(remixConfigPath, JSON.stringify(config, null, 2))
+      } else {
+        await api.writeFile(remixConfigPath, JSON.stringify({ 'solidity-compiler': oldConfig }, null, 2))
+      }
+      // @ts-ignore
+      await api.call('fileManager', 'remove', oldConfigPath)
+    }
   }
 
   api.onNoFileSelected = () => {
@@ -183,12 +197,6 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     data.selectorList.unshift(builtin)
     setState((prevState) => {
       return { ...prevState, solJsonBinData: data }
-    })
-  }
-
-  const setConfigFilePath = (path: string) => {
-    setState((prevState) => {
-      return { ...prevState, configFilePath: path }
     })
   }
 
@@ -276,8 +284,6 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
           compiledFileName={currentFile}
           updateCurrentVersion={updateCurrentVersion}
           configurationSettings={configurationSettings}
-          configFilePath={state.configFilePath}
-          setConfigFilePath={setConfigFilePath}
           solJsonBinData={state.solJsonBinData}
         />
         {/* "compileErrors[currentFile]['contracts']" field will not be there in case of compilation errors */}
