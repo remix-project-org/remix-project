@@ -272,20 +272,14 @@ export type UrlParametersType = {
 }
 
 /**
- * Decode a base64‑encoded string that was produced by
- * percent‑escaping UTF‑8 bytes and then encoded with btoa().
+ * Decode a base64‑encoded string that was produced by TextEncoder with btoa().
  *
  * @param {string} b64Payload  The base64 payload you got from params.code
- * @returns {string}            The original UTF‑8 string
  */
-export const decodePercentEscapedBase64 = (b64Payload: string) => {
-  const rawByteString = atob(b64Payload);
-
-  const percentEscapedString = rawByteString.split('')
-    .map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
-    .join('')
-
-  return decodeURIComponent(percentEscapedString);
+export const decodeBase64 = (b64Payload: string) => {
+  const raw = atob(decodeURIComponent(b64Payload));
+  const bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDefault', opts?) => {
@@ -305,7 +299,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
         const hashed = bytesToHex(hash.keccakFromString(params.code))
 
         path = 'contract-' + hashed.replace('0x', '').substring(0, 10) + (params.language && params.language.toLowerCase() === 'yul' ? '.yul' : '.sol')
-        content = decodePercentEscapedBase64(params.code)
+        content = decodeBase64(params.code)
         await workspaceProvider.set(path, content)
       }
       if (params.shareCode) {
