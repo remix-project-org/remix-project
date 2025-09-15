@@ -231,6 +231,13 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
         compilerConfig = JSON.stringify(config, null, '\t')
       }
       await api.writeFile(remixConfigPath, compilerConfig)
+    } else {
+      const config = JSON.parse(configFileContent)
+
+      if (isFoundryProject) {
+        config.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib /forge-std/src/']
+      }
+      await api.writeFile(remixConfigPath, JSON.stringify({ 'solidity-compiler': config }, null, 2))
     }
   }
 
@@ -424,10 +431,22 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     })
   }
 
-  const compile = () => {
+  const compile = async () => {
     const currentFile = api.currentFile
 
     if (!isSolFileSelected()) return
+    if (state.useFileConfiguration) {
+      const exists = await api.fileExists(remixConfigPath)
+
+      if (exists) {
+        const remixConfig = await api.readFile(remixConfigPath)
+        const remixConfigContent = JSON.parse(remixConfig)
+
+        if (!remixConfigContent['solidity-compiler']) createNewConfigFile()
+      } else {
+        createNewConfigFile()
+      }
+    }
     _setCompilerVersionFromPragma(currentFile)
     let externalCompType
     if (hhCompilation) externalCompType = 'hardhat'
