@@ -224,13 +224,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
       const remixConfigContent = JSON.parse(remixConfig)
 
       let compilerConfig = remixConfigContent['solidity-compiler']
-      if (!compilerConfig) compilerConfig = configFileContent
-      if (isFoundryProject && !compilerConfig.includes('remappings')) {
-        const config = JSON.parse(compilerConfig)
-        config.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib /forge-std/src/']
-        compilerConfig = JSON.stringify(config, null, '\t')
+      if (!compilerConfig) compilerConfig = JSON.parse(configFileContent)
+      if (isFoundryProject && !compilerConfig.settings.remappings) {
+        compilerConfig.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib /forge-std/src/']
       }
-      await api.writeFile(remixConfigPath, compilerConfig)
+      await api.writeFile(remixConfigPath, JSON.stringify({ ...remixConfigContent, 'solidity-compiler': compilerConfig }, null, 2))
     } else {
       const config = JSON.parse(configFileContent)
 

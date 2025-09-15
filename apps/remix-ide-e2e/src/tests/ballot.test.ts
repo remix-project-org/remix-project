@@ -143,105 +143,15 @@ module.exports = {
 
   'Compile Ballot using config file  #group2': function (browser: NightwatchBrowser) {
     browser
-      .addFile('cf.json', { content: configFile })
+      .openFile('remix.config.json')
+      .setEditorValue(configFile)
       .clickLaunchIcon('solidity')
       .waitForElementVisible('*[data-id="scConfigExpander"]')
       .click('*[data-id="scConfigExpander"]')
       .waitForElementVisible('*[data-id="scFileConfiguration"]', 10000)
       .click('*[data-id="scFileConfiguration"]')
-      // the input field behaves badly, it would often not receive the value, so retrying it a few times for now is the best thing to do
-      .waitForElementVisible({
-        selector: '*[data-id="scConfigChangeFilePath"]',
-        abortOnFailure: false
-      }, 10000)
-      .click({
-        selector: '*[data-id="scConfigChangeFilePath"]',
-        suppressNotFoundErrors: true,
-        timeout: 1000
-      })
-      .click({
-        selector: '*[data-id="scConfigChangeFilePath"]',
-        suppressNotFoundErrors: true,
-        timeout: 1000
-      })
-      .click({
-        selector: '*[data-id="scConfigChangeFilePath"]',
-        suppressNotFoundErrors: true,
-        timeout: 1000
-      })
-
-      .waitForElementVisible('*[data-id="scConfigFilePathInput"]', 10000)
-      .sendKeys('*[data-id="scConfigFilePathInput"]', 'cf.json')
-      .sendKeys('*[data-id="scConfigFilePathInput"]', browser.Keys.ENTER)
-
-      .isVisible({
-        selector:"//*[@class='py-2 remixui_compilerConfigPath' and contains(.,'cf.json')]",
-        suppressNotFoundErrors: true,
-        locateStrategy: 'xpath'
-      }, (okVisible) => {
-        // if it's not there yet, try again
-        if (!okVisible.value) {
-          browser.waitForElementVisible({
-            selector: '*[data-id="scConfigChangeFilePath"]',
-            abortOnFailure: false
-          }, 10000)
-          .click({
-            selector: '*[data-id="scConfigChangeFilePath"]',
-            suppressNotFoundErrors: true,
-            timeout: 1000
-          })
-          .click({
-            selector: '*[data-id="scConfigChangeFilePath"]',
-            suppressNotFoundErrors: true,
-            timeout: 1000
-          })
-          .click({
-            selector: '*[data-id="scConfigChangeFilePath"]',
-            suppressNotFoundErrors: true,
-            timeout: 1000
-          })
-
-          .waitForElementVisible('*[data-id="scConfigFilePathInput"]', 10000)
-          .sendKeys('*[data-id="scConfigFilePathInput"]', 'cf.json')
-          .sendKeys('*[data-id="scConfigFilePathInput"]', browser.Keys.ENTER)
-        }
-      })
-
-      .isVisible({
-        selector:"//*[@class='py-2 remixui_compilerConfigPath' and contains(.,'cf.json')]",
-        suppressNotFoundErrors: true,
-        locateStrategy: 'xpath'
-      }, (okVisible) => {
-        if (!okVisible.value) {
-          // if it's still not there, try again
-          browser.waitForElementVisible({
-            selector: '*[data-id="scConfigChangeFilePath"]',
-            abortOnFailure: false
-          }, 10000)
-          .click({
-            selector: '*[data-id="scConfigChangeFilePath"]',
-            suppressNotFoundErrors: true,
-            timeout: 1000
-          })
-          .click({
-            selector: '*[data-id="scConfigChangeFilePath"]',
-            suppressNotFoundErrors: true,
-            timeout: 1000
-          })
-          .click({
-            selector: '*[data-id="scConfigChangeFilePath"]',
-            suppressNotFoundErrors: true,
-            timeout: 1000
-          })
-
-          .waitForElementVisible('*[data-id="scConfigFilePathInput"]', 10000)
-          .sendKeys('*[data-id="scConfigFilePathInput"]', 'cf.json')
-          .sendKeys('*[data-id="scConfigFilePathInput"]', browser.Keys.ENTER)
-        }
-      })
-
-      .pause(5000)
       .openFile('Untitled.sol')
+      .click('[data-id="compile-action"]')
       .verifyContracts(['Ballot'], { wait: 2000, runs: '300' })
   },
 
@@ -499,6 +409,7 @@ const ballotABI = `[
 
 const configFile = `
 {
+	"solidity-compiler": {
 	"language": "Solidity",
 	"settings": {
 		"optimizer": {
@@ -509,6 +420,7 @@ const configFile = `
 			"*": {
 			"": ["ast"],
       "*": ["abi", "metadata", "devdoc", "userdoc", "storageLayout", "evm.legacyAssembly", "evm.bytecode", "evm.deployedBytecode", "evm.methodIdentifiers", "evm.gasEstimates", "evm.assembly"]
+        }
 			}
 		}
 	}
