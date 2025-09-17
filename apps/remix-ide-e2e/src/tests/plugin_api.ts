@@ -63,6 +63,7 @@ const clickButton = async (browser: NightwatchBrowser, buttonText: string, waitR
   return new Promise((resolve) => {
     browser
       .scrollInto(`[data-id='${buttonText}']`)
+      .pause(1000)
       .useXpath()
       .waitForElementVisible(`//*[@data-id='${buttonText}']`).pause(100)
       .click(`//*[@data-id='${buttonText}']`, async () => {
@@ -168,7 +169,7 @@ module.exports = {
     })
   },
 
-  'Should connect a local plugin #pr': function (browser: NightwatchBrowser) {
+  'Should connect a local plugin ': function (browser: NightwatchBrowser) {
     browser.addLocalPlugin(localPluginData, true)
       // @ts-ignore
       .frame(0).useXpath()
@@ -263,37 +264,37 @@ module.exports = {
     await clickAndCheckLog(browser, 'fileManager-closeAllFiles', null, { event: 'noFileSelected', args: []}, null)
   },
 
-  'Should switch to file #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should switch to file #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'fileManager-switchFile', null, { event: 'currentFileChanged', args: ['contracts/1_Storage.sol']}, 'contracts/1_Storage.sol')
     await clickAndCheckLog(browser, 'fileManager-getCurrentFile', 'contracts/1_Storage.sol', null, null)
     await clickAndCheckLog(browser, 'fileManager-switchFile', null, { event: 'currentFileChanged', args: ['README.txt']}, 'README.txt')
     await clickAndCheckLog(browser, 'fileManager-getCurrentFile', 'README.txt', null, null)
   },
-  'Should write to file #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should write to file #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'fileManager-writeFile', null, { event: 'fileSaved', args: ['README.txt']}, ['README.txt', 'test'])
     browser.pause(4000, async () => {
       await clickAndCheckLog(browser, 'fileManager-getFile', 'test', null, 'README.txt')
     })
   },
-  'Should set file #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should set file #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'fileManager-setFile', null, { event: 'fileAdded', args: ['new.sol']}, ['new.sol', 'test'])
     await clickAndCheckLog(browser, 'fileManager-readFile', 'test', null, 'new.sol')
   },
-  'Should write to new file #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should write to new file #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'fileManager-writeFile', null, { event: 'fileAdded', args: ['testing.txt']}, ['testing.txt', 'test'])
     await clickAndCheckLog(browser, 'fileManager-readFile', 'test', null, 'testing.txt')
   },
-  'Should rename file #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should rename file #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'fileManager-rename', null, null, ['testing.txt', 'testrename.txt'])
     await clickAndCheckLog(browser, 'fileManager-readFile', 'test', null, 'testrename.txt')
   },
 
-  'Should create empty workspace #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should create empty workspace #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'filePanel-createWorkspace', null, null, ['emptyworkspace', true])
     await clickAndCheckLog(browser, 'filePanel-getCurrentWorkspace', { name: 'emptyworkspace', isLocalhost: false, absolutePath: '.workspaces/emptyworkspace' }, null, null)
     await clickAndCheckLog(browser, 'fileManager-readdir', {}, null, '/')
   },
-  'Should create workspace #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should create workspace #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'filePanel-createWorkspace', null, null, 'testspace')
     await clickAndCheckLog(browser, 'filePanel-getCurrentWorkspace', { name: 'testspace', isLocalhost: false, absolutePath: '.workspaces/testspace' }, null, null)
     await clickAndCheckLog(browser, 'fileManager-readdir', {
@@ -305,24 +306,24 @@ module.exports = {
       "remix.config.json": { "isDirectory": false },
     }, null, '/')
   },
-  'Should get all workspaces #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should get all workspaces #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'topbar-getWorkspaces', [{ name:"default_workspace",isGitRepo:false,hasGitSubmodules:false,isGist:null }, { name:"emptyworkspace",isGitRepo:false,hasGitSubmodules:false,isGist:null }, { name:"testspace",isGitRepo:false,hasGitSubmodules:false,isGist:null }], null, null)
   },
-  'Should have set workspace event #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should have set workspace event #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'filePanel-createWorkspace', null, { event: 'setWorkspace', args: [{ name: 'newspace', isLocalhost: false }]}, 'newspace')
   },
-  'Should have event when switching workspace #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should have event when switching workspace #group2': async function (browser: NightwatchBrowser) {
     // @ts-ignore
     browser.frameParent().useCss().clickLaunchIcon('filePanel').switchWorkspace('default_workspace').useXpath().click('//*[@data-id="verticalIconsKindlocalPlugin"]').frame(0, async () => {
       await clickAndCheckLog(browser, null, null, { event: 'setWorkspace', args: [{ name: 'default_workspace', isLocalhost: false }]}, null)
     })
   },
 
-  'Should rename workspace #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should rename workspace #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'filePanel-renameWorkspace', null, null, ['default_workspace', 'renamed'])
     await clickAndCheckLog(browser, 'topbar-getWorkspaces', [{ name:"emptyworkspace",isGitRepo:false,hasGitSubmodules:false,isGist:null },{ name:"testspace",isGitRepo:false,hasGitSubmodules:false,isGist:null },{ name:"newspace",isGitRepo:false,hasGitSubmodules:false,isGist:null },{ name:"renamed",isGitRepo:false,hasGitSubmodules:false,isGist:null }], null, null)
   },
-  'Should delete workspace #group2 #pr': async function (browser: NightwatchBrowser) {
+  'Should delete workspace #group2': async function (browser: NightwatchBrowser) {
     await clickAndCheckLog(browser, 'filePanel-deleteWorkspace', null, null, ['testspace'])
     await clickAndCheckLog(browser, 'topbar-getWorkspaces', [{ name:"emptyworkspace",isGitRepo:false,hasGitSubmodules:false,isGist:null },{ name:"newspace",isGitRepo:false,hasGitSubmodules:false,isGist:null },{ name:"renamed",isGitRepo:false,hasGitSubmodules:false,isGist:null }], null, null)
   },

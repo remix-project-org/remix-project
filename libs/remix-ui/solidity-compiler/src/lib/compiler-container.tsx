@@ -440,9 +440,9 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
         const remixConfig = await api.readFile(remixConfigPath)
         const remixConfigContent = JSON.parse(remixConfig)
 
-        if (!remixConfigContent['solidity-compiler']) createNewConfigFile()
+        if (!remixConfigContent['solidity-compiler']) await createNewConfigFile()
       } else {
-        createNewConfigFile()
+        await createNewConfigFile()
       }
     }
     _setCompilerVersionFromPragma(currentFile)

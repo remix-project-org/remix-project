@@ -1,6 +1,7 @@
 import { ICompilerApi } from '@remix-project/remix-lib'
 import { getValidLanguage, Compiler } from '@remix-project/remix-solidity'
 import { EventEmitter } from 'events'
+import { configFileContent } from '../compilerConfiguration'
 
 declare global {
   interface Window {
@@ -114,7 +115,16 @@ export class CompileTabLogic {
       if (configExists) {
         const configContent = await this.api.readFile(remixConfigPath)
         const config = JSON.parse(configContent)
-        this.compiler.set('configFileContent', config['solidity-compiler'])
+
+        if (config['solidity-compiler']) {
+          this.compiler.set('configFileContent', config['solidity-compiler'])
+        } else {
+          this.compiler.set('configFileContent', JSON.parse(configFileContent))
+          this.api.writeFile(remixConfigPath, JSON.stringify({ ...config, 'solidity-compiler': JSON.parse(configFileContent) }, null, 2))
+        }
+      } else {
+        this.compiler.set('configFileContent', JSON.parse(configFileContent))
+        this.api.writeFile(remixConfigPath, JSON.stringify({ 'solidity-compiler': JSON.parse(configFileContent) }, null, 2))
       }
     }
   }
