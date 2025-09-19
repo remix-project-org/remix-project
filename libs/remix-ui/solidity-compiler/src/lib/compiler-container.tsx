@@ -963,7 +963,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             </label>
           </div>
           <RenderIf condition={state.useFileConfiguration}>
-            <a data-id="view-noir-compilation-result" className="cursor-pointer text-decoration-none ms-4" href='#' onClick={handleConfigFileClick}>
+            <a data-id="view-solidity-config" className="cursor-pointer text-decoration-none ms-4" href='#' onClick={handleConfigFileClick}>
               <i className="text-secondary mt-1 pe-1 far fa-edit"></i> Update config remix.config.json
             </a>
           </RenderIf>

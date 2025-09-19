@@ -334,8 +334,10 @@ export class ScriptRunnerBridgePlugin extends Plugin {
 
         config['script-runner'] = content
         await this.plugin.call('fileManager', 'writeFile', configFileName, JSON.stringify(config, null, 2))
+        this.plugin.call('notification', 'toast', 'Updated script runner config in remix.config.json')
       } else {
         await this.plugin.call('fileManager', 'writeFile', configFileName, JSON.stringify({ 'script-runner': content }, null, 2))
+        this.plugin.call('notification', 'toast', 'Created script runner config in remix.config.json')
       }
     } catch (e) {}
     return
