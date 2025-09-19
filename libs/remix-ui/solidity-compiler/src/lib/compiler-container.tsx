@@ -197,8 +197,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
 
   useEffect(() => {
     compileTabLogic.setUseFileConfiguration(state.useFileConfiguration)
-    if (state.useFileConfiguration && workspaceName) {
-      // compileTabLogic.setConfigFilePath(configFilePath)
+    if (state.useFileConfiguration) {
       createNewConfigFile()
     }
   }, [state.useFileConfiguration])
@@ -223,12 +222,14 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
       const remixConfig = await api.readFile(remixConfigPath)
       const remixConfigContent = JSON.parse(remixConfig)
 
-      let compilerConfig = remixConfigContent['solidity-compiler']
-      if (!compilerConfig) compilerConfig = JSON.parse(configFileContent)
-      if (isFoundryProject && !compilerConfig.settings.remappings) {
-        compilerConfig.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib /forge-std/src/']
+      if (!remixConfigContent['solidity-compiler']) {
+        const compilerConfig = JSON.parse(configFileContent)
+
+        if (isFoundryProject && !compilerConfig.settings.remappings) {
+          compilerConfig.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib /forge-std/src/']
+          await api.writeFile(remixConfigPath, JSON.stringify({ ...remixConfigContent, 'solidity-compiler': compilerConfig }, null, 2))
+        }
       }
-      await api.writeFile(remixConfigPath, JSON.stringify({ ...remixConfigContent, 'solidity-compiler': compilerConfig }, null, 2))
     } else {
       const config = JSON.parse(configFileContent)
 
@@ -433,18 +434,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     const currentFile = api.currentFile
 
     if (!isSolFileSelected()) return
-    if (state.useFileConfiguration) {
-      const exists = await api.fileExists(remixConfigPath)
-
-      if (exists) {
-        const remixConfig = await api.readFile(remixConfigPath)
-        const remixConfigContent = JSON.parse(remixConfig)
-
-        if (!remixConfigContent['solidity-compiler']) await createNewConfigFile()
-      } else {
-        await createNewConfigFile()
-      }
-    }
+    if (state.useFileConfiguration) await createNewConfigFile()
     _setCompilerVersionFromPragma(currentFile)
     let externalCompType
     if (hhCompilation) externalCompType = 'hardhat'
