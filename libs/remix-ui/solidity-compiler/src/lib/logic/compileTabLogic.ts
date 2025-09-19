@@ -122,9 +122,6 @@ export class CompileTabLogic {
           this.compiler.set('configFileContent', JSON.parse(configFileContent))
           this.api.writeFile(remixConfigPath, JSON.stringify({ ...config, 'solidity-compiler': JSON.parse(configFileContent) }, null, 2))
         }
-      } else {
-        this.compiler.set('configFileContent', JSON.parse(configFileContent))
-        this.api.writeFile(remixConfigPath, JSON.stringify({ 'solidity-compiler': JSON.parse(configFileContent) }, null, 2))
       }
     }
   }

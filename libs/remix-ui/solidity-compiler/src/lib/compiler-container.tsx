@@ -3,7 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import semver from 'semver'
 import { CompilerContainerProps } from './types'
 import { ConfigurationSettings } from '@remix-project/remix-lib'
-import { checkSpecialChars, CustomTooltip, extractNameFromKey } from '@remix-ui/helper'
+import { checkSpecialChars, CustomTooltip, extractNameFromKey, RenderIf } from '@remix-ui/helper'
 import { canUseWorker, urlFromVersion, pathToURL } from '@remix-project/remix-solidity'
 import { compilerReducer, compilerInitialState } from './reducers/compiler'
 import { listenToEvents } from './actions/compiler'
@@ -197,9 +197,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
 
   useEffect(() => {
     compileTabLogic.setUseFileConfiguration(state.useFileConfiguration)
-    if (state.useFileConfiguration) {
-      createNewConfigFile()
-    }
   }, [state.useFileConfiguration])
 
   useEffect(() => {
@@ -227,8 +224,8 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
 
         if (isFoundryProject && !compilerConfig.settings.remappings) {
           compilerConfig.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib /forge-std/src/']
-          await api.writeFile(remixConfigPath, JSON.stringify({ ...remixConfigContent, 'solidity-compiler': compilerConfig }, null, 2))
         }
+        await api.writeFile(remixConfigPath, JSON.stringify({ ...remixConfigContent, 'solidity-compiler': compilerConfig }, null, 2))
       }
     } else {
       const config = JSON.parse(configFileContent)
@@ -686,6 +683,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     setToggleExpander(!toggleExpander)
   }
 
+  const handleConfigFileClick = async () => {
+    await createNewConfigFile()
+    await api.open(remixConfigPath)
+  }
+
   return (
     <section>
       <article>
@@ -960,6 +962,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               <FormattedMessage id="solidity.useConfigurationFile" />
             </label>
           </div>
+          <RenderIf condition={state.useFileConfiguration}>
+            <a data-id="view-noir-compilation-result" className="cursor-pointer text-decoration-none ms-4" href='#' onClick={handleConfigFileClick}>
+              <i className="text-secondary mt-1 pe-1 far fa-edit"></i> Update config remix.config.json
+            </a>
+          </RenderIf>
         </div>
         <div className="px-4">
           <button
