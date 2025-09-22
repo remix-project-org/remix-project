@@ -6,7 +6,7 @@ export interface ConversationStarter {
 
 export const CONVERSATION_STARTERS: ConversationStarter[] = [
   // Beginner Level (20 Questions)
-  { question: "", level: "beginner", category: "programming" },
+  { question: "What is the purpose of pragma statement", level: "beginner", category: "programming" },
   { question: "How to use blob storage?", level: "beginner", category: "Solidity" },
   { question: "What is the difference between storage, memory, and calldata in Solidity?", level: "beginner", category: "Solidity" },
   { question: "How are dynamic arrays stored in contract storage?", level: "beginner", category: "Solidity" },
