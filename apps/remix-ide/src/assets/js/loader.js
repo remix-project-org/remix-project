@@ -32,11 +32,13 @@ function trackDomain(domainToTrack, u, paqName) {
     _paq.push(['setTrackerUrl', u + 'matomo.php']);
     _paq.push(['setSiteId', domainToTrack]);
 
+    /* unplug from the EF matomo instance
     if (cloudDomainToTrack) {
       const secondaryTrackerUrl = 'https://ethereumfoundation.matomo.cloud/matomo.php'
       const secondaryWebsiteId = cloudDomainToTrack
       _paq.push(['addTracker', secondaryTrackerUrl, secondaryWebsiteId])
     }
+    */
 
     var d = document, g = d.createElement('script'), s = d.getElementsByTagName('script')[0];
     g.async = true; g.src = u + 'matomo.js'; s.parentNode.insertBefore(g, s);
