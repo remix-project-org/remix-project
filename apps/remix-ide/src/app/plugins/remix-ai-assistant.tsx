@@ -101,7 +101,7 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async handleActivity(type: string, payload: any) {
-    (window as any)._paq?.push(['trackEvent', 'remixai-assistant', type, `${payload}`])
+    (window as any)._paq?.push(['trackEvent', 'remixai-assistant', `${type}-${payload}`])
   }
 
   updateComponent(state: {
