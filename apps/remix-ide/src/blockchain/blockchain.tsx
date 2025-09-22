@@ -1133,6 +1133,10 @@ export class Blockchain extends Plugin {
         errorMessage = error.innerError.message
         errorData = error.innerError.data
         cb((await buildError(errorMessage, errorData)).message)
+      } else if (error.error) {
+        errorMessage = error.error.message
+        errorData = error.error.code
+        cb((await buildError(errorMessage, errorData)).message)
       } else if (error.message || error.data) {
         errorMessage = error.message
         errorData = error.data
