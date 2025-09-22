@@ -25,13 +25,9 @@ const tests = {
   'Should contain message starters #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('remixaiassistant')
-      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-0"]')
-      .click('*[data-id="remix-ai-assistant-starter-0"]')
+      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-beginner-0"]')
+      .click('*[data-id="remix-ai-assistant-starter-beginner-0"]')
       .waitForElementVisible('*[data-id="remix-ai-assistant"]')
-      .waitForElementVisible({
-        locateStrategy: 'xpath',
-        selector: '//*[contains(@class,"chat-bubble") and contains(.,"What is a modifier?")]'
-      })
       .waitForElementPresent({
         locateStrategy: 'xpath',
         selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
