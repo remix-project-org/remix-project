@@ -101,7 +101,6 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async handleActivity(type: string, payload: any) {
-    if ((type === 'promptSend') || (type === 'typing')) return
     (window as any)._paq?.push(['trackEvent', 'remixai-assistant', type, `${payload}`])
   }
 
