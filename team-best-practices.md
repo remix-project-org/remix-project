@@ -2,25 +2,25 @@
 # Team best practices
 
 This document aims to address contributors best practices of the following repositories:
- - Remix Project: https://github.com/ethereum/remix-project
- - Remix Libraries: https://github.com/ethereum/remix-project/tree/master/libs
+ - Remix Project: https://github.com/remix-project-org/remix-project
+ - Remix Libraries: https://github.com/remix-project-org/remix-project/tree/master/libs
 
 This document is not in its final version, **a team meeting which aims to address new/old best practices, feedback, workflows, all kind of issues related to how the team works together occurs every 2 weeks.**
 This document link to other specialized best practices (like coding best practices).
 
 Related links:
  - Public Website: https://remix-project.org
- - Awesome Remix: https://github.com/ethereum/awesome-remix
+ - Awesome Remix: https://github.com/remix-project-org/awesome-remix
  - Remix basic FAQ: https://hackmd.io/KVooMJhWRImCGq6zkDgW9A
  - Remix live: https://remix.ethereum.org
- - Remix alpha live: https://remix-alpha.ethereum.org
- - Remix beta live: https://remix-beta.ethereum.org
+ - Remix alpha live: https://alpha.remix.live
+ - Remix beta live: https://beta.remix.live
  - Remix-lib NPM module: https://www.npmjs.com/package/@remix-project/remix-lib
  - Remix-solidity NPM module: https://www.npmjs.com/package/@remix-project/remix-solidity
  - Remix-debug NPM module: https://www.npmjs.com/package/@remix-project/remix-debug
  - Remix-tests NPM module: https://www.npmjs.com/package/@remix-project/remix-tests
  - Remix documentation: http://remix-ide.readthedocs.io/en/latest/
- - Discord: https://discord.gg/KhDtC8mGqx
+ - Discord: https://discord.gg/Sacg4gchvS
  
 ---
 
@@ -61,7 +61,7 @@ Before starting coding, we should ensure all devs / contributors are aware of:
 - How to setup and get started (always up to date).
 - How to run tests.
 - Where to find documentation.
-- How to reach us through the communication channels - https://gitter.im/ethereum/remix, https://gitter.im/ethereum/remix-dev.
+- How to reach us through the communication channels - https://discord.gg/Sacg4gchvS
 - The following best practices:
 
 ---
@@ -112,7 +112,7 @@ Before starting coding, we should ensure all devs / contributors are aware of:
  ### 3) Merge:
 
  - Merging is possible after Review and Tests are ok and when the PR is approved.
- - After a merge, it is highly recommended to check the new code in `remix-alpha.ethereum.org`
+ - After a merge, it is highly recommended to check the new code in `alpha.remix.live`
 
 ---
 

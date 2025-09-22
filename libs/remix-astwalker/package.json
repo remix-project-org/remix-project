@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ethereum/remix-project.git"
+    "url": "git+https://github.com/remix-project-org/remix-project.git"
   },
   "keywords": [
     "Solidity",
@@ -21,9 +21,9 @@
   "author": "Remix Team",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ethereum/remix-project/issues"
+    "url": "https://github.com/remix-project-org/remix-project/issues"
   },
-  "homepage": "https://github.com/ethereum/remix-project/tree/master/libs/remix-astwalker#readme",
+  "homepage": "https://github.com/remix-project-org/remix-project/tree/master/libs/remix-astwalker#readme",
   "nyc": {
     "include": [
       "src/**/*.ts"

@@ -42,14 +42,6 @@ module.exports = {
         console.log('_paq', res)
       })
       .waitForElementNotVisible('*[data-id="matomoModalModalDialogModalBody-react"]')
-      .waitForElementVisible('*[data-id="beginnerbtn"]', 10000)
-      .pause(1000)
-      .click('[data-id="beginnerbtn"]')
-      .waitForElementNotPresent('*[data-id="beginnerbtn"]')
-      .waitForElementVisible({
-        selector: `//*[contains(text(), 'Welcome to Remix IDE')]`,
-        locateStrategy: 'xpath'
-      })
       .refreshPage()
       .waitForElementPresent({
         selector: `//*[@data-id='compilerloaded']`,
@@ -102,14 +94,6 @@ module.exports = {
       .click('*[data-id="matomoPerfAnalyticsToggleSwitch"]') // disable matomo perf analytics3
       .click('[data-id="managePreferencesModal-modal-footer-ok-react"]') // click on Save Preferences
       .pause(2000)
-      .waitForElementPresent('*[data-id="beginnerbtn"]', 10000)
-      .click('[data-id="beginnerbtn"]')
-      .waitForElementVisible({
-        selector: `//*[contains(text(), 'Welcome to Remix IDE')]`,
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible('*[id="remixTourSkipbtn"]')
-      .click('*[id="remixTourSkipbtn"]')
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
       .waitForElementVisible('*[data-id="settings-sidebar-analytics"]')
@@ -341,9 +325,7 @@ module.exports = {
         return (window as any)._paq
       }, [], (res) => {
         const expectedEvents = [
-          ["trackEvent", "App", "Preload", "start"],
-          ["trackEvent", "Storage", "activate", "indexedDB"],
-          ["trackEvent", "App", "load"],
+          ["trackEvent", "Storage", "activate", "indexedDB"]
         ];
 
         const actualEvents = (res as any).value;

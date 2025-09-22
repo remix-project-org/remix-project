@@ -157,7 +157,7 @@ export interface SettingsProps {
   delegationAuthorization: (contractAddress: string) => void,
   setPassphrase: (passphrase: string) => void,
   setMatchPassphrase: (passphrase: string) => void,
-  modal: (title: string, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void,
+  modal: (title: string | JSX.Element, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void,
   tooltip: (toasterMsg: string) => void,
   signMessageWithAddress: (account: string, message: string, modalContent: (hash: string, data: string) => JSX.Element, passphrase?: string) => void,
   passphrase: string,
@@ -176,7 +176,7 @@ export interface EnvironmentProps {
     error: string
   },
   setExecutionContext: (executionContext: { context: string }) => void
-  modal: (title: string, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void,
+  modal: (title: string | JSX.Element, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void,
   config: any,
   currentSelectedEnv?: string,
   udappState: RunTabState
@@ -205,7 +205,7 @@ export interface AccountProps {
   setPassphrase: (passphrase: string) => void,
   setMatchPassphrase: (passphrase: string) => void,
   tooltip: (toasterMsg: string) => void,
-  modal: (title: string, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void,
+  modal: (title: string | JSX.Element, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void,
   signMessageWithAddress: (account: string, message: string, modalContent: (hash: string, data: string) => JSX.Element, passphrase?: string) => void,
   passphrase: string,
   networkName: string
@@ -267,7 +267,7 @@ export interface ContractDropdownProps {
   },
   syncContracts: () => void,
   getSelectedContract: (contractName: string, compiler: CompilerAbstract) => ContractData,
-  modal: (title: string, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void,
+  modal: (title: string | JSX.Element, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void,
   passphrase: string,
   setPassphrase: (passphrase: string) => void,
   createInstance: (
@@ -364,7 +364,7 @@ export interface InstanceContainerProps {
 
 export interface Modal {
   hide?: boolean
-  title: string
+  title: string | JSX.Element
   // eslint-disable-next-line no-undef
   message: string | JSX.Element
   okLabel: string
@@ -418,7 +418,7 @@ export interface ContractGUIProps {
   proxy?: { deployments: { address: string, date: string, contractName: string }[] },
   isValidProxyAddress?: (address: string) => Promise<boolean>,
   isValidProxyUpgrade?: (proxyAddress: string) => Promise<LayoutCompatibilityReport | { ok: boolean, pass: boolean, warning: boolean }>,
-  modal?: (title: string, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void
+  modal?: (title: string | JSX.Element, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void, okBtnClass?: string, cancelBtnClass?: string) => void
   solcVersion?: { version: string, canReceive: boolean }
   setSolcVersion?: React.Dispatch<React.SetStateAction<{
     version: string;

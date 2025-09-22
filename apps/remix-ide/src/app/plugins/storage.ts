@@ -23,7 +23,7 @@ export class StoragePlugin extends Plugin {
       }
     }
     const _paq = (window as any)._paq = (window as any)._paq || []
-    _paq.push(['trackEvent', 'Storage', 'used', this.formatString(storage)]);
+    // _paq.push(['trackEvent', 'Storage', 'used', this.formatString(storage)]);
     return storage
   }
 

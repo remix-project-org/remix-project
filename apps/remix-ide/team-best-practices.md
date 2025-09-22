@@ -12,8 +12,8 @@ Related links:
  - Public WebSite: https://remix-project.org
  - Remix basic FAQ: https://hackmd.io/KVooMJhWRImCGq6zkDgW9A
  - Remix live: https://remix.ethereum.org
- - Remix alpha live: https://remix-alpha.ethereum.org
- - Remix beta live: https://remix-beta.ethereum.org
+ - Remix alpha live: https://alpha.remix.live
+ - Remix beta live: https://beta.remix.live
  - Remix-lib NPM module: https://www.npmjs.com/package/@remix-project/remix-lib
  - Remix-tests NPM module: https://www.npmjs.com/package/@remix-project/remix-tests
  - Remix-solidity NPM module: https://www.npmjs.com/package/@remix-project/remix-solidity
@@ -114,7 +114,7 @@ Before starting to coding, we should ensure all devs / contributors are aware of
  ### 3) Merge:
 
  - Merging is possible after Review and Tests are ok and when the PR is approved.
- - After a merge, it is highly recommended to check the new code in `remix-alpha.ethereum.org`
+ - After a merge, it is highly recommended to check the new code in `alpha.remix.live`
 
 ---
 
@@ -195,8 +195,8 @@ Before starting to coding, we should ensure all devs / contributors are aware of
 ### release process:
 
  - We release an `x.0.0` if there's a fundamental change in our UX design, which means users will need to readapt the way they use the app
- - after a week finishes, we publish/release a new version as **remix-beta.ethereum.org** and inform users so early adopters can test. after another week, when the next finished work is released as **remix-beta.ethereum.org**, the previous one becomes **remix.ethereum.org** and all users can start using it
- - a bot to automatically notify users about upcoming features on all channels whenever **remix-beta.ethereum.org** is updated
+ - after a week finishes, we publish/release a new version as **beta.remix.live** and inform users so early adopters can test. after another week, when the next finished work is released as **beta.remix.live**, the previous one becomes **remix.ethereum.org** and all users can start using it
+ - a bot to automatically notify users about upcoming features on all channels whenever **beta.remix.live** is updated
  - in case it's a major version increase - this announcement should be specially marked so people can check early instead of being confronted with drastic changes when **remix.ethereum.org** updates
 ### maintenance:
  - Setting up a "bug" time where we each take a bug for which:

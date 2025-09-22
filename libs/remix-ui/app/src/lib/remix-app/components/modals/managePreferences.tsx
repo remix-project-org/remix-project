@@ -121,7 +121,6 @@ const ManagePreferencesDialog = (props) => {
     _paq.push(['trackEvent', 'landingPage', 'MatomoAIModal', `MatomoPerfStatus: ${switcherState.current.matPerfSwitch}`])
     _paq.push(['trackEvent', 'landingPage', 'MatomoAIModal', `AICopilotStatus: ${switcherState.current.remixAISwitch}`])
     setVisible(false)
-    props.savePreferencesFn()
   }
 
   return <></>

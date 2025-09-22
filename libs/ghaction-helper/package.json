@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ethereum/remix-project.git"
+    "url": "git+https://github.com/remix-project-org/remix-project.git"
   },
   "keywords": [],
   "author": "@ioedeveloper",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/ethereum/remix-project/issues"
+    "url": "https://github.com/remix-project-org/remix-project/issues"
   },
-  "homepage": "https://github.com/ethereum/remix-project#readme",
+  "homepage": "https://github.com/remix-project-org/remix-project#readme",
   "devDependencies": {
     "@remix-project/remix-solidity": "^0.5.64",
     "@types/chai": "^4.3.4",

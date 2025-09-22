@@ -16,7 +16,7 @@ module.exports = {
       .waitForElementVisible('[data-id="fileSystemModalDialogModalBody-react"]')
       .click('[data-id="fileSystemModalDialogModalBody-react"]')
       .waitForElementVisible('[data-id="modalDialogCustomPromptTextClone"]')
-      .setValue('[data-id="modalDialogCustomPromptTextClone"]', 'https://github.com/ethereum/awesome-remix')
+      .setValue('[data-id="modalDialogCustomPromptTextClone"]', 'https://github.com/remix-project-org/awesome-remix')
       .click('[data-id="fileSystem-modal-footer-ok-react"]')
       .pause(3000)
       .windowHandles(function (result) {

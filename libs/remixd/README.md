@@ -33,7 +33,7 @@ If you were using the old one you need to:
 
 ## remixd command
 
-The remixd command without options shares present working directory and the shared Remix domain will be https://remix.ethereum.org, https://remix-alpha.ethereum.org, or https://remix-beta.ethereum.org
+The remixd command without options shares present working directory and the shared Remix domain will be https://remix.ethereum.org, https://alpha.remix.live, or https://beta.remix.live
 
 The remixd command is:
 ```

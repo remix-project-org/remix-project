@@ -18,7 +18,9 @@ export default async (opts) => {
     // @ts-ignore
     'scripts/web3-lib.ts': (await import('!!raw-loader!./scripts/web3-lib.ts')).default,
     // @ts-ignore
-    '.prettierrc.json': (await import('raw-loader!./.prettierrc')).default
+    '.prettierrc.json': (await import('raw-loader!./.prettierrc')).default,
+    // @ts-ignore
+    'remix.config.json': (await import('raw-loader!./remix.config')).default
   }
 
   // If no options is selected, opts.upgradeable will be undefined

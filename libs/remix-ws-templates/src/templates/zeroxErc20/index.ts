@@ -13,6 +13,8 @@ export default async () => {
     // @ts-ignore
     'tests/SampleERC20_test.sol': (await import('raw-loader!./tests/SampleERC20_test.sol')).default,
     // @ts-ignore
-    '.prettierrc.json': (await import('raw-loader!./.prettierrc')).default
+    '.prettierrc.json': (await import('raw-loader!./.prettierrc')).default,
+    // @ts-ignore
+    'remix.config.json': (await import('raw-loader!./remix.config')).default
   }
 }

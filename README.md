@@ -6,13 +6,13 @@
 <div align="center">
 
 
-[![CircleCI](https://img.shields.io/circleci/build/github/ethereum/remix-project?logo=circleci)](https://circleci.com/gh/ethereum/remix-project)
+[![CircleCI](https://img.shields.io/circleci/build/github/remix-project-org/remix-project?logo=circleci)](https://circleci.com/gh/remix-project-org/remix-project)
 [![Documentation Status](https://readthedocs.org/projects/remix-ide/badge/?version=latest)](https://remix-ide.readthedocs.io/en/latest/index.html)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat&logo=github)](https://github.com/ethereum/remix-project/blob/master/CONTRIBUTING.md)
-[![GitHub contributors](https://img.shields.io/github/contributors/ethereum/remix-project?style=flat&logo=github)](https://github.com/ethereum/remix-project/graphs/contributors)
-[![Awesome Remix](https://img.shields.io/badge/Awesome--Remix-resources-green?logo=awesomelists)](https://github.com/ethereum/awesome-remix)
-[![GitHub](https://img.shields.io/github/license/ethereum/remix-project)](https://github.com/ethereum/remix-project/blob/master/LICENSE)
-[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/KhDtC8mGqx)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat&logo=github)](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md)
+[![GitHub contributors](https://img.shields.io/github/contributors/remix-project-org/remix-project?style=flat&logo=github)](https://github.com/remix-project-org/remix-project/graphs/contributors)
+[![Awesome Remix](https://img.shields.io/badge/Awesome--Remix-resources-green?logo=awesomelists)](https://github.com/remix-project-org/awesome-remix)
+[![GitHub](https://img.shields.io/github/license/remix-project-org/remix-project)](https://github.com/remix-project-org/remix-project/blob/master/LICENSE)
+[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/Sacg4gchvS)
 [![X Follow](https://img.shields.io/twitter/follow/ethereumremix?style=flat&logo=x&color=green)](https://x.com/ethereumremix)
 
 </div>
@@ -28,9 +28,9 @@
 
 :point_right: Supported browsers: Firefox v100.0.1 & Chrome v101.0.4951.64. No support for Remix's use on tablets or smartphones or telephones.
 
-**Remix Desktop IDE**, see releases: [https://github.com/ethereum/remix-desktop/releases](https://github.com/ethereum/remix-desktop/releases)
+**Remix Desktop IDE**, see releases: [https://github.com/remix-project-org/remix-desktop/releases](https://github.com/remix-project-org/remix-desktop/releases)
 
-![Remix screenshot](https://github.com/ethereum/remix-project/raw/master/apps/remix-ide/remix-screenshot-400h.png)
+![Remix screenshot](https://github.com/remix-project-org/remix-project/raw/master/apps/remix-ide/remix-screenshot-400h.png)
 
 
 ## Remix libraries 
@@ -38,7 +38,7 @@ Remix libraries are essential for Remix IDE's native plugins. Read more about li
 
 ## Offline Usage
 
-The `gh-pages` branch of [remix-live](https://github.com/ethereum/remix-live) always has the latest stable build of Remix. It contains a ZIP file with the entire build. Download it to use offline.
+The `gh-pages` branch of [remix-live](https://github.com/remix-project-org/remix-live) always has the latest stable build of Remix. It contains a ZIP file with the entire build. Download it to use offline.
 
 Note: It contains the latest supported version of Solidity available at the time of the packaging. Other compiler versions can be used online only.
 
@@ -60,7 +60,7 @@ yarn global add nx
 * Clone the GitHub repository (`wget` need to be installed first):
 
 ```bash
-git clone https://github.com/ethereum/remix-project.git
+git clone https://github.com/remix-project-org/remix-project.git
 ```
 * Build and Run `remix-project`:
 
@@ -120,7 +120,7 @@ Then go to http://localhost:8080 and you can use your Remix instance.
 
 To fetch the docker-compose file without cloning this repo run:
 ```
-curl https://raw.githubusercontent.com/ethereum/remix-project/master/docker-compose.yaml > docker-compose.yaml
+curl https://raw.githubusercontent.com/remix-project-org/remix-project/master/docker-compose.yaml > docker-compose.yaml
 ```
 
 ### Troubleshooting
@@ -264,7 +264,7 @@ parameters:
 
 - Official website: https://remix-project.org
 - Official documentation: https://remix-ide.readthedocs.io/en/latest/
-- Curated list of Remix resources: https://github.com/ethereum/awesome-remix
+- Curated list of Remix resources: https://github.com/remix-project-org/awesome-remix
 - Medium: https://medium.com/remix-ide
 - X: https://x.com/ethereumremix
-- Join Discord: https://discord.gg/KhDtC8mGqx
+- Join Discord: https://discord.gg/Sacg4gchvS

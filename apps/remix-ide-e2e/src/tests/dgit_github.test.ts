@@ -87,11 +87,11 @@ module.exports = {
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-ethereum/awesome-remix-master"]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-remix-project-org/awesome-remix-master"]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-ethereum/awesome-remix-master"]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-remix-project-org/awesome-remix-master"]',
         locateStrategy: 'xpath'
       })
   },
@@ -357,7 +357,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="clone-panel"]')
       .click('*[data-id="clone-panel"]')
       .waitForElementVisible('*[data-id="clone-url"]')
-      .setValue('*[data-id="clone-url"]', 'https://github.com/ethereum/awesome-remix')
+      .setValue('*[data-id="clone-url"]', 'https://github.com/remix-project-org/awesome-remix')
       .waitForElementVisible('*[data-id="clone-branch"]')
       .setValue('*[data-id="clone-branch"]', 'master')
       .waitForElementVisible('*[data-id="clone-btn"]')

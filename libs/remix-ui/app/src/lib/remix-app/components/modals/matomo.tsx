@@ -10,7 +10,6 @@ declare global {
 const _paq = (window._paq = window._paq || [])
 
 interface MatomoDialogProps {
-  acceptAllFn: () => void
   managePreferencesFn: () => void
   hide: boolean
 }
@@ -72,7 +71,6 @@ const MatomoDialog = (props: MatomoDialogProps) => {
     settings.updateCopilotChoice(true) // Enable RemixAI copilot
     _paq.push(['trackEvent', 'landingPage', 'MatomoAIModal', 'AcceptClicked'])
     setVisible(false)
-    props.acceptAllFn()
   }
 
   const handleManagePreferencesClick = async () => {

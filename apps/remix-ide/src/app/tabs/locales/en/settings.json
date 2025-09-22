@@ -55,15 +55,15 @@
   "settings.services": "Connected Services",
   "settings.generalSettingsDescription": "Manage code editor settings, UI theme, language and analytics permissions.",
   "settings.analyticsDescription": "Control how Remix uses AI and analytics to improve your experience.",
-  "settings.aiDescription": "The Remix AI Assistant enhances your coding experience with smart suggestions and automated insights. Manage how AI interacts with your code and data.",
+  "settings.aiDescription": "The RemixAI Assistant enhances your coding experience with smart suggestions and automated insights. Manage how RemixAI interacts with your code and data.",
   "settings.servicesDescription": "Configure the settings for connected services, including Github, IPFS, Swarm, Sindri and Etherscan.",
-  "settings.matomoAnalyticsNoCookies": "Matomo Analytics (no cookies)",
+  "settings.matomoAnalyticsNoCookies": "Matomo Analytics (necessary, no cookies)",
   "settings.matomoAnalyticsNoCookiesDescription": "Help improve Remix with anonymous usage data.",
-  "settings.matomoAnalyticsWithCookies": "Matomo Analytics (with cookies)",
+  "settings.matomoAnalyticsWithCookies": "Matomo Performance Analytics (with cookies)",
   "settings.matomoAnalyticsWithCookiesDescription": "Enable tracking with cookies for more detailed insights.",
-  "settings.aiCopilot": "AI Copilot",
-  "settings.aiCopilotDescription": "AI Copilot assists with code suggestions and improvements.",
-  "settings.aiPrivacyPolicy": "AI Privacy & Data Usage",
+  "settings.aiCopilot": "RemixAI Copilot",
+  "settings.aiCopilotDescription": "RemixAI Copilot assists with code suggestions and improvements.",
+  "settings.aiPrivacyPolicy": "RemixAI Privacy & Data Usage",
   "settings.viewPrivacyPolicy": "View Privacy Policy",
-  "settings.aiPrivacyPolicyDescription": "Understand how AI processes your data."
+  "settings.aiPrivacyPolicyDescription": "Understand how RemixAI processes your data."
 }

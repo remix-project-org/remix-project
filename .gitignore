@@ -78,3 +78,7 @@ apps/remixdesktop/log_input_signals.txt
 apps/remixdesktop/log_input_signals_new.txt
 logs
 apps/remix-ide-e2e/src/extensions/chrome/metamask
+apps/remix-ide-e2e/tmp/
+
+# IDE - Cursor
+.cursor/

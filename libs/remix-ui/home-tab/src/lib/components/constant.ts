@@ -1,6 +1,6 @@
 const branches = {
-  'remix-beta.ethereum.org': 'beta',
-  'remix-alpha.ethereum.org': 'alpha',
+  'beta.remix.live': 'beta',
+  'alpha.remix.live': 'alpha',
   'remix.ethereum.org': 'live'
 }
 

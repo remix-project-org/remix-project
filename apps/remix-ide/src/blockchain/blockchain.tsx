@@ -144,9 +144,6 @@ export class Blockchain extends Plugin {
     // used to pin and select newly created forked state provider
     this.on('udapp', 'forkStateProviderAdded', (providerName) => {
       const name = `vm-fs-${providerName}`
-      this.emit('shouldAddProvidertoUdapp', name, this.getProviderObjByName(name))
-      this.pinnedProviders.push(name)
-      this.call('config', 'setAppParameter', 'settings/pinned-providers', JSON.stringify(this.pinnedProviders))
       _paq.push(['trackEvent', 'blockchain', 'providerPinned', name])
       this.emit('providersChanged')
       this.changeExecutionContext({ context: name }, null, null, null)
@@ -731,13 +728,13 @@ export class Blockchain extends Plugin {
   }
 
   addProvider(provider: Provider) {
-    if (this.pinnedProviders.includes(provider.name)) this.emit('shouldAddProvidertoUdapp', provider.name, provider)
+    this.emit('shouldAddProvidertoUdapp', provider.name, provider)
     this.executionContext.addProvider(provider)
     this.emit('providersChanged')
   }
 
   removeProvider(name) {
-    if (this.pinnedProviders.includes(name)) this.emit('shouldRemoveProviderFromUdapp', name, this.getProviderObjByName(name))
+    this.emit('shouldRemoveProviderFromUdapp', name, this.getProviderObjByName(name))
     this.executionContext.removeProvider(name)
     this.emit('providersChanged')
   }
@@ -797,8 +794,29 @@ export class Blockchain extends Plugin {
       (_) => this.executionContext.currentblockGasLimit()
     )
 
+    const logTransaction = (txhash, origin) => {
+      this.detectNetwork((error, network) => {
+        console.log(`transaction sent: ${txhash}`, network)
+        if (network && network.id) {
+          _paq.push(['trackEvent', 'udapp', `sendTransaction-from-${origin}`, `${txhash}-${network.id}`])
+        } else {
+          try {
+            const networkString = JSON.stringify(network)
+            _paq.push(['trackEvent', 'udapp', `sendTransaction-from-${origin}`, `${txhash}-${networkString}`])
+          } catch (e) {
+            _paq.push(['trackEvent', 'udapp', `sendTransaction-from-${origin}`, `${txhash}-unknownnetwork`])
+          }
+        }
+      })
+    }
+
+    this.on('web3Provider', 'transactionBroadcasted', (txhash) => {
+      logTransaction(txhash, 'plugin')
+    })
+
     web3Runner.event.register('transactionBroadcasted', (txhash, isUserOp) => {
       if (isUserOp) _paq.push(['trackEvent', 'udapp', 'safeSmartAccount', `txBroadcastedFromSmartAccount`])
+      logTransaction(txhash, 'gui')
       this.executionContext.detectNetwork(async (error, network) => {
         if (error || !network) return
         if (network.name === 'VM') return

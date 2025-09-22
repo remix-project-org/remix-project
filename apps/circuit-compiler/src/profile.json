@@ -11,7 +11,7 @@
   "icon": "assets/img/circom-icon-bw-800b.webp",
   "location": "sidePanel",
   "documentation": "",
-  "repo": "https://github.com/ethereum/remix-project/tree/master/apps/circuit-compiler",
+  "repo": "https://github.com/remix-project-org/remix-project/tree/master/apps/circuit-compiler",
   "maintainedBy": "Remix",
   "authorContact": ""
 }

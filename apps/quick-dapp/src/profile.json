@@ -10,7 +10,7 @@
   "icon": "assets/img/quickDappLogo.webp",
   "location": "mainPanel",
   "url": "plugins/quick-dapp/index.html",
-  "repo": "https://github.com/ethereum/remix-project/tree/master/apps/quick-dapp",
+  "repo": "https://github.com/remix-project-org/remix-project/tree/master/apps/quick-dapp",
   "maintainedBy": "Remix",
   "authorContact": "https://github.com/drafish",
   "targets": [

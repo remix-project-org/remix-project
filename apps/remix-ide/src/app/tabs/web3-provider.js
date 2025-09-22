@@ -55,6 +55,7 @@ export class Web3ProviderModule extends Plugin {
               if (payload.method === 'eth_sendTransaction') {
                 if (payload.params.length && !payload.params[0].to && message.result) {
                   setTimeout(async () => {
+                    this.emit('transactionBroadcasted', message.result)
                     const receipt = await this.tryTillReceiptAvailable(message.result)
                     if (!receipt.contractAddress) {
                       console.log('receipt available but contract address not present', receipt)

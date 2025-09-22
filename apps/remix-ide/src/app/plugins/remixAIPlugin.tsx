@@ -222,6 +222,8 @@ export class RemixAIPlugin extends Plugin {
     await statusCallback?.('Creating contracts and files...')
     const genResult = await this.contractor.writeContracts(result, userPrompt, statusCallback)
 
+    // revert provider
+    this.setAssistantProvider(await this.getAssistantProvider())
     if (genResult.includes('No payload')) return genResult
     await this.call('menuicons', 'select', 'filePanel')
     return genResult

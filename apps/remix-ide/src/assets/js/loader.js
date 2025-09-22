@@ -1,12 +1,12 @@
 const domains = {
-  'remix-alpha.ethereum.org': 27,
-  'remix-beta.ethereum.org': 25,
+  'alpha.remix.live': 27,
+  'beta.remix.live': 25,
   'remix.ethereum.org': 23,
   'localhost': 35 // remix desktop
 }
 const domainsOnPrem = {
-  'remix-alpha.ethereum.org': 1,
-  'remix-beta.ethereum.org': 2,
+  'alpha.remix.live': 1,
+  'beta.remix.live': 2,
   'remix.ethereum.org': 3,
   'localhost': 4 // remix desktop
 }

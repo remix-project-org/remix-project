@@ -11,7 +11,9 @@ module.exports = {
   'Check if RemixAI plugin is pinned #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="movePluginToLeft"]')
-      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-0"]')
+      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-beginner-0"]')
+      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-intermediate-1"]')
+      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-expert-2"]')
       .click('*[data-id="movePluginToLeft"]')
       .waitForElementVisible('*[data-pinnedPlugin="movePluginToRight-remixaiassistant"]')
   },

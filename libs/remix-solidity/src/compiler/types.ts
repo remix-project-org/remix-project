@@ -180,7 +180,7 @@ export interface CompilerState {
     compilationStartTime: number| null,
     target: string | null,
     useFileConfiguration: boolean,
-    configFileContent: string,
+    configFileContent: Record<string, any>,
     compilerRetriggerMode: CompilerRetriggerMode,
     lastCompilationResult: {
       data: CompilationResult | null,

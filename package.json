@@ -1,6 +1,6 @@
 {
   "name": "remix-project",
-  "version": "0.71.0",
+  "version": "1.0.0-dev",
   "license": "MIT",
   "description": "Remix Project Monorepo",
   "main": "index.js",
@@ -12,13 +12,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ethereum/remix-project.git"
+    "url": "git+https://github.com/remix-project-org/remix-project.git"
   },
   "author": "@yann300",
   "bugs": {
-    "url": "https://github.com/ethereum/remix-project/issues"
+    "url": "https://github.com/remix-project-org/remix-project/issues"
   },
-  "homepage": "https://github.com/ethereum/remix-project#readme",
+  "homepage": "https://github.com/remix-project-org/remix-project#readme",
   "bin": {
     "remix-ide": "./apps/remix-ide/bin/remix-ide"
   },

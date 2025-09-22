@@ -14,9 +14,9 @@
     "email": "remix@ethereum.org"
   },
   "bugs": {
-    "url": "https://github.com/ethereum/remix-project/issues"
+    "url": "https://github.com/remix-project-org/remix-project/issues"
   },
-  "homepage": "https://github.com/ethereum/remix-project#readme",
+  "homepage": "https://github.com/remix-project-org/remix-project#readme",
   "appId": "org.ethereum.remixdesktop",
   "mac": {
     "category": "public.app-category.productivity"

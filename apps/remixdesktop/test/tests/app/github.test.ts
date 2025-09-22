@@ -98,11 +98,11 @@ const tests = {
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-ethereum/awesome-remix-master"]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-remix-project-org/awesome-remix-master"]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-ethereum/awesome-remix-master"]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-remix-project-org/awesome-remix-master"]',
         locateStrategy: 'xpath'
       })
       .pause(5000)

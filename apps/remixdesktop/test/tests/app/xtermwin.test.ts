@@ -51,7 +51,7 @@ const tests = {
     browser
       .perform(function () {
         const actions = this.actions({ async: true })
-        return actions.sendKeys('git clone https://github.com/ethereum/awesome-remix').sendKeys(this.Keys.ENTER)
+        return actions.sendKeys('git clone https://github.com/remix-project-org/awesome-remix').sendKeys(this.Keys.ENTER)
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemawesome-remix"]', 10000)
       .click('*[data-id="treeViewLitreeViewItemawesome-remix"]')

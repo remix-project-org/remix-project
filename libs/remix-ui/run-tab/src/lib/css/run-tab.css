@@ -528,3 +528,84 @@
   line-height: 0.75rem;
   color: var(--runtab);
 }
+
+.modal-dialog:has([data-id="createSmartAccountModal"]) {
+  min-width: 600px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 90vh;
+}
+
+.udapp_account-toggle-container {
+  position: relative;
+  width: 100%;
+}
+
+.udapp_crow {
+  display: block;
+  margin-top: 8px;
+  position: relative;
+}
+
+.udapp_owner-chip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+}
+
+.udapp_owner-chip span {
+  padding: 0.1rem 0.4rem;
+  border-radius: .75rem;
+  font-size: 0.75em;
+  font-weight: 600;
+  border: 1px solid #888;
+  color: var(--text-light);
+}
+
+.udapp_owner-chip .fa-copy {
+  cursor: pointer;
+}
+
+.udapp_account-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+}
+
+.udapp_account-badge {
+  padding: 0.1rem 0.4rem;
+  border-radius: .75rem;
+  font-size: 0.75em;
+  font-weight: 600;
+  border: 1px solid #888;
+  color: var(--text-light);
+}
+
+.udapp_tree-view {
+  position: relative;
+  padding-left: 15px;
+}
+
+.udapp_tree-view::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 50%;
+  width: 1px;
+  background: #666;
+}
+
+.udapp_tree-view::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 10px;
+  height: 1px;
+  background: #666;
+}

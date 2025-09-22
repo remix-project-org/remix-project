@@ -54,7 +54,8 @@ declare global {
     remixFileSystemCallback: IndexedDBStorage
   }
 }
-
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const projectVersion = require('../../../../../../package.json').version
 const LOCALHOST = ' - connect to localhost - '
 const NO_WORKSPACE = ' - none - '
 const ELECTRON = 'electron'
@@ -445,7 +446,16 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
       for (const file in files) {
         try {
           const uniqueFileName = await createNonClashingNameAsync(file, plugin.fileManager)
-          await workspaceProvider.set(uniqueFileName, files[file])
+          if (file === 'remix.config.json') {
+            const remixConfig = JSON.parse(files[file])
+
+            remixConfig.project = template
+            remixConfig.version = projectVersion
+            remixConfig.IDE = window.location.hostname
+            await workspaceProvider.set(uniqueFileName, JSON.stringify(remixConfig, null, 2))
+          } else {
+            await workspaceProvider.set(uniqueFileName, files[file])
+          }
         } catch (error) {
           console.error(error)
         }

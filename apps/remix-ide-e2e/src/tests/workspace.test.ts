@@ -129,11 +129,12 @@ module.exports = {
       .currentWorkspaceIs('workspace_blank')
       .waitForElementPresent('*[data-id="treeViewUltreeViewMenu"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemremix.config.json"]')
       .execute(function () {
         const fileList = document.querySelector('*[data-id="treeViewUltreeViewMenu"]')
         return fileList.getElementsByTagName('li').length;
       }, [], function (result) {
-        browser.assert.equal(result.value, 1, 'Incorrect number of files');
+        browser.assert.equal(result.value, 2, 'Incorrect number of files');
       });
   },
 

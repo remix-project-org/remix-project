@@ -83,38 +83,6 @@ module.exports = {
   //     .checkElementStyle(':root', '--danger', remixIdeThemes.light.danger)
   // },
 
-
-
-  'Should load zh locale ': function (browser) {
-    browser.waitForElementVisible('*[data-id="settings-sidebar-general"]')
-      .click('*[data-id="settings-sidebar-general"]')
-      .pause(100)
-      .scrollAndClick('*[data-id="settingsTabDropdownTogglelocale"]')
-      .waitForElementVisible('[data-id="custom-dropdown-items"]')
-      .waitForElementVisible('[data-id="settingsTabDropdownItemzh"]')
-      .click('[data-id="settingsTabDropdownItemzh"]')
-      .pause(2000)
-      .assert.containsText('[data-id="settings-sidebar-header"] h2', '设置')
-      .assert.containsText('*[data-id="listenNetworkCheckInput"]', '监听所有交易')
-      .assert.containsText('*[data-id="settingsTabgenerate-contract-metadataLabel"]', '生成合约元数据')
-      .assert.containsText('*[data-id="settingsTabauto-completionLabel"]', '在编辑器中启用代码自动补全')
-      .assert.containsText('*[data-id="settingsTabshow-gasLabel"]', '在编辑器中展示 gas 预算')
-      .assert.containsText('*[data-id="settingsTabdisplay-errorsLabel"]', '编辑代码时展示错误提示')
-  },
-
-  'Should load en locale ': function (browser) {
-    browser.scrollAndClick('*[data-id="settingsTabDropdownTogglelocale"]')
-      .waitForElementVisible('[data-id="custom-dropdown-items"]')
-      .waitForElementVisible('[data-id="settingsTabDropdownItemen"]')
-      .click('[data-id="settingsTabDropdownItemen"]')
-      .pause(2000)
-      .assert.containsText('[data-id="settings-sidebar-header"] h2', 'Settings')
-      .assert.containsText('*[data-id="listenNetworkCheckInput"]', 'Listen on all transactions')
-      .assert.containsText('*[data-id="settingsTabgenerate-contract-metadataLabel"]', 'Generate contract metadata')
-      .assert.containsText('*[data-id="settingsTabauto-completionLabel"]', 'Enable code completion in editor')
-      .assert.containsText('*[data-id="settingsTabshow-gasLabel"]', 'Display gas estimates in editor')
-      .assert.containsText('*[data-id="settingsTabdisplay-errorsLabel"]', 'Display errors in editor while typing')
-  }
 }
 
 const remixIdeThemes = {

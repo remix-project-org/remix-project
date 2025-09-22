@@ -14,7 +14,7 @@
   "location": "hiddenPanel",
   "url": "",
   "documentation": "https://remix-ide.readthedocs.io/en/latest/static_analysis.html",
-  "repo": "https://github.com/ethereum/remix-project",
+  "repo": "https://github.com/remix-project-org/remix-project",
   "maintainedBy": "Remix",
   "authorContact": "remix@ethereum.org"
 }

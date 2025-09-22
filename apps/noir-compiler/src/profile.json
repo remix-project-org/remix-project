@@ -11,7 +11,7 @@
   "icon": "assets/img/noir-icon12.webp",
   "location": "sidePanel",
   "documentation": "",
-  "repo": "https://github.com/ethereum/remix-project/tree/master/apps/noir-compiler",
+  "repo": "https://github.com/remix-project-org/remix-project/tree/master/apps/noir-compiler",
   "maintainedBy": "Remix",
   "authorContact": ""
 }

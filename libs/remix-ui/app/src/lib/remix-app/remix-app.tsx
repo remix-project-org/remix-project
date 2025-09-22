@@ -2,7 +2,6 @@ import React, { useEffect, useReducer, useRef, useState } from 'react'
 import './style/remix-app.css'
 import { RemixUIMainPanel } from '@remix-ui/panel'
 import MatomoDialog from './components/modals/matomo'
-import EnterDialog from './components/modals/enter'
 import ManagePreferencesDialog from './components/modals/managePreferences'
 import OriginWarning from './components/modals/origin-warning'
 import DragBar from './components/dragbar/dragbar'
@@ -11,7 +10,6 @@ import AppDialogs from './components/modals/dialogs'
 import DialogViewPlugin from './components/modals/dialogViewPlugin'
 import { appProviderContextType, onLineContext, platformContext } from './context/context'
 import { IntlProvider } from 'react-intl'
-import { UsageTypes } from './types'
 import { appReducer } from './reducer/app'
 import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
@@ -29,7 +27,6 @@ interface IRemixAppUi {
 }
 const RemixApp = (props: IRemixAppUi) => {
   const [appReady, setAppReady] = useState<boolean>(false)
-  const [showEnterDialog, setShowEnterDialog] = useState<boolean>(false)
   const [showManagePreferencesDialog, setShowManagePreferencesDialog] = useState<boolean>(false)
   const [hideSidePanel, setHideSidePanel] = useState<boolean>(false)
   const [hidePinnedPanel, setHidePinnedPanel] = useState<boolean>(true)
@@ -46,8 +43,6 @@ const RemixApp = (props: IRemixAppUi) => {
   })
   const sidePanelRef = useRef(null)
   const pinnedPanelRef = useRef(null)
-
-  //console.log('RemixApp props', props)
 
   const [appState, appStateDispatch] = useReducer(appReducer, {
     ...appInitialState,
@@ -69,48 +64,6 @@ const RemixApp = (props: IRemixAppUi) => {
     }
     if (props.app) {
       activateApp()
-    }
-    let hadUsageTypeAsked = localStorage.getItem('hadUsageTypeAsked')
-
-    if (props.app.showMatomo) {
-      // if matomo dialog is displayed, it will take care of calling "setShowEnterDialog",
-      // if the user approves matomo tracking.
-      // so "showEnterDialog" stays false
-    } else {
-      // if matomo dialog isn't displayed, we show the "enter dialog" only if:
-      //  - it wasn't already set
-      //  - (and) if user has given consent
-      if (!hadUsageTypeAsked && props.app.matomoCurrentSetting) {
-        setShowEnterDialog(true)
-      }
-    }
-    if (hadUsageTypeAsked) {
-      // rewriting the data in user's local storage for consistency
-      switch (hadUsageTypeAsked) {
-      case '1': {
-        hadUsageTypeAsked ='beginner'
-        break
-      }
-      case '2': {
-        hadUsageTypeAsked ='prototyper'
-        break
-      }
-      case '3': {
-        hadUsageTypeAsked = 'advanced'
-        break
-      }
-      case '4': {
-        hadUsageTypeAsked = 'production'
-        break
-      }
-      default: {
-        // choosing beginner as default
-        hadUsageTypeAsked = 'beginner'
-        break
-      }
-      }
-      localStorage.setItem('hadUsageTypeAsked', hadUsageTypeAsked)
-      _paq.push(['trackEvent', 'userEntry', 'usageType', hadUsageTypeAsked])
     }
   }, [])
 
@@ -202,42 +155,6 @@ const RemixApp = (props: IRemixAppUi) => {
     appStateDispatch: appStateDispatch
   }
 
-  const handleUserChosenType = async (type) => {
-    setShowEnterDialog(false)
-    localStorage.setItem('hadUsageTypeAsked', type)
-    // Use the type to setup the UI accordingly
-    switch (type) {
-    case UsageTypes.Beginner: {
-      await props.app.appManager.call('manager', 'activatePlugin', 'LearnEth')
-      await props.app.appManager.call('walkthrough', 'start')
-      // const wName = 'Playground'
-      // const workspaces = await props.app.appManager.call('filePanel', 'getWorkspaces')
-      // if (!workspaces.find((workspace) => workspace.name === wName)) {
-      //   await props.app.appManager.call('filePanel', 'createWorkspace', wName, 'playground')
-      // }
-      // await props.app.appManager.call('filePanel', 'switchToWorkspace', { name: wName, isLocalHost: false })
-      break
-    }
-    case UsageTypes.Advance: {
-      // Here activate necessary plugins, walkthrough. Filter hometab features slides and plugins.
-      break
-    }
-    case UsageTypes.Prototyper: {
-      // Here activate necessary plugins, walkthrough. Filter hometab features slides and plugins.
-      break
-    }
-    case UsageTypes.Production: {
-      // Here activate necessary plugins, walkthrough. Filter hometab features slides and plugins.
-      break
-    }
-    default: throw new Error()
-    }
-    // enterDialog tracks first time users
-    // userEntry tracks both first time and returning users
-    _paq.push(['trackEvent', 'enterDialog', 'usageType', type])
-    _paq.push(['trackEvent', 'userEntry', 'usageType', type])
-  }
-
   return (
     //@ts-ignore
     <IntlProvider locale={locale.code} messages={locale.messages}>
@@ -245,9 +162,8 @@ const RemixApp = (props: IRemixAppUi) => {
         <onLineContext.Provider value={online}>
           <AppProvider value={value}>
             <OriginWarning></OriginWarning>
-            <MatomoDialog hide={!appReady} acceptAllFn={() => setShowEnterDialog(true)} managePreferencesFn={() => setShowManagePreferencesDialog(true)}></MatomoDialog>
-            {showEnterDialog && <EnterDialog handleUserChoice={(type) => handleUserChosenType(type)}></EnterDialog>}
-            {showManagePreferencesDialog && <ManagePreferencesDialog savePreferencesFn={() => setShowEnterDialog(true)}></ManagePreferencesDialog>}
+            <MatomoDialog hide={!appReady} managePreferencesFn={() => setShowManagePreferencesDialog(true)}></MatomoDialog>
+            {showManagePreferencesDialog && <ManagePreferencesDialog></ManagePreferencesDialog>}
             <div className='d-flex flex-column'>
               <div className='top-bar'>
                 {props.app.topBar.render()}

@@ -52,6 +52,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const [isOllamaFailureFallback, setIsOllamaFailureFallback] = useState(false)
   const [aiMode, setAiMode] = useState<'ask' | 'edit'>('ask')
+  const [themeTracker, setThemeTracker] = useState(null)
 
   const historyRef = useRef<HTMLDivElement | null>(null)
   const modelBtnRef = useRef(null)
@@ -204,6 +205,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   //   }
   //   fetchAssistantChoice()
   // }, [props.plugin])
+
+  useEffect(() => {
+    props.plugin.on('theme', 'themeChanged', (theme) => {
+      setThemeTracker(theme)
+    })
+    return () => {
+      props.plugin.off('theme', 'themeChanged')
+    }
+  })
 
   // bubble messages up to parent
   useEffect(() => {

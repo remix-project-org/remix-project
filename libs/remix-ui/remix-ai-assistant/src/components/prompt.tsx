@@ -118,7 +118,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             <div className="btn-group btn-group-sm" role="group">
               <button
                 type="button"
-                className={`btn ${aiMode === 'ask' ? 'btn-primary' : 'btn-outline-secondary'} px-2`}
+                className={`btn btn-sm ${aiMode === 'ask' ? 'btn-primary' : 'btn-outline-secondary'} px-2`}
                 onClick={() => {
                   setAiMode('ask')
                   _paq.push(['trackEvent', 'remixAI', 'ModeSwitch', 'ask'])
@@ -129,7 +129,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               </button>
               <button
                 type="button"
-                className={`btn ${aiMode === 'edit' ? 'btn-primary' : 'btn-outline-secondary'} px-2`}
+                className={`btn btn-sm ${aiMode === 'edit' ? 'btn-primary' : 'btn-outline-secondary'} px-2`}
                 onClick={() => {
                   setAiMode('edit')
                   _paq.push(['trackEvent', 'remixAI', 'ModeSwitch', 'edit'])

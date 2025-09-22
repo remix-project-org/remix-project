@@ -19,41 +19,47 @@ export function AccountUI(props: AccountProps) {
   })
   const [contractHasDelegation, setContractHasDelegation] = useState(false)
   const [enableDelegationAuthorization, setEnableDelegationAuthorization] = useState(false)
-  const [enableCSM, setEnableCSM] = useState(false)
   const [smartAccountSelected, setSmartAccountSelected] = useState(false)
 
   const messageRef = useRef('')
   const delegationAuthorizationAddressRef = useRef(null)
-  const ownerEOA = useRef(null)
 
   const intl = useIntl()
   const aaSupportedChainIds = ["11155111", "100"] // AA01: Add chain id here to show 'Create Smart Account' button in Udapp
-  const smartAccounts: string[] = aaSupportedChainIds.some(e => networkName.includes(e)) ? Object.keys(props.runTabPlugin.REACT_API.smartAccounts) : []
+
+  const smartAccountsData = props.runTabPlugin?.REACT_API?.smartAccounts || {}
+  const allSmartAccountsSet = new Set(Object.keys(smartAccountsData))
+  const ownerToSmartAccountsMap = new Map()
+
+  for (const [saAddress, saData] of Object.entries(smartAccountsData)) {
+    const owner = (saData as any)?.ownerEOA?.toLowerCase()
+    if (owner) {
+      if (!ownerToSmartAccountsMap.has(owner)) {
+        ownerToSmartAccountsMap.set(owner, [])
+      }
+      ownerToSmartAccountsMap.get(owner).push(saAddress)
+    }
+  }
+
+  const displayAccounts = []
+  for (const account of accounts) {
+    if (allSmartAccountsSet.has(account)) {
+      continue
+    }
+
+    displayAccounts.push(account)
+
+    const ownedSmartAccounts = ownerToSmartAccountsMap.get(account.toLowerCase())
+    if (ownedSmartAccounts) {
+      displayAccounts.push(...ownedSmartAccounts)
+    }
+  }
 
   useEffect(() => {
     if (accounts.length > 0 && !accounts.includes(selectedAccount)) {
       props.setAccount(accounts[0])
     }
   }, [accounts, selectedAccount])
-
-  // Comment this when not to show 'Create Smart Account' button
-  useEffect(() => {
-    if (aaSupportedChainIds.some(e => networkName.includes(e))) {
-      if (smartAccounts.length > 0 && smartAccounts.includes(selectedAccount)) {
-        setSmartAccountSelected(true)
-        setEnableCSM(false)
-        ownerEOA.current = props.runTabPlugin.REACT_API.smartAccounts[selectedAccount].ownerEOA
-      }
-      else {
-        setSmartAccountSelected(false)
-        setEnableCSM(true)
-        ownerEOA.current = null
-      }
-    } else {
-      setEnableCSM(false)
-      setSmartAccountSelected(false)
-    }
-  }, [selectedAccount])
 
   useEffect(() => {
     const run = async () => {
@@ -163,25 +169,60 @@ export function AccountUI(props: AccountProps) {
     }
   }, [selectExEnv, personalMode, networkName])
 
+  const displayAccount = loadedAccounts?.[selectedAccount] ?? shortenAddress(selectedAccount)
+
   const createSmartAccount = () => {
     props.modal(
-      intl.formatMessage({ id: 'udapp.createSmartAccountAlpha' }),
+      <div className="d-flex align-items-center">
+        <span className="badge bg-success me-2">Alpha</span>
+        <span>{intl.formatMessage({ id: 'udapp.createSmartAccount' })}</span>
+      </div>,
       (
         <div className="w-100" data-id="createSmartAccountModal">
-          <FormattedMessage id="udapp.createSmartAccountDesc1"/><br/>
-          <FormattedMessage id="udapp.createSmartAccountDesc2"/><br/><br/>
-          <a href={'https://docs.safe.global/advanced/smart-account-overview#safe-smart-account'}
+          <p className="mb-2">
+            <FormattedMessage id="udapp.createSmartAccountDesc1" />
+          </p>
+          <p className="mb-3">
+            <FormattedMessage id="udapp.createSmartAccountDesc2" />
+          </p>
+          <a
+            href="https://docs.safe.global/advanced/smart-account-overview#safe-smart-account"
             target="_blank"
-            onClick={() => _paq.push(['trackEvent', 'udapp', 'safeSmartAccount', 'learnMore'])}>
-                Learn more
-          </a><br/><br/>
-          <FormattedMessage id="udapp.createSmartAccountDesc3"/><br/><br/>
-          <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="createSmartAccountOwnerTooltip" tooltipText={"Owner address for Smart Account"}>
-            <input type="textbox" className="form-control" value={selectedAccount} disabled/>
-          </CustomTooltip><br/>
-          <FormattedMessage id="udapp.createSmartAccountDesc4"/><br/><br/>
-          <FormattedMessage id="udapp.createSmartAccountDesc5"/><br/><br/>
-          <p><FormattedMessage id="udapp.resetVmStateDesc3"/></p>
+            rel="noreferrer noopener"
+            onClick={() => _paq.push(['trackEvent', 'udapp', 'safeSmartAccount', 'learnMore'])}
+            className="mb-3 d-inline-block link-primary"
+          >
+            Learn more
+          </a>
+          <p className="mb-2">
+            <FormattedMessage id="udapp.createSmartAccountDesc3" />
+            <FormattedMessage id="udapp.createSmartAccountDesc4" />
+          </p>
+          { selectExEnv && selectExEnv.startsWith('injected') && (
+            <div className="alert alert-warning d-flex align-items-center" role="alert">
+              <i className="fas fa-exclamation-triangle me-2"></i>
+              <div>
+                <FormattedMessage id="udapp.createSmartAccountDesc5" />
+              </div>
+            </div>
+          )}
+          <label className="form-label text-uppercase text-muted small mb-1">
+            Account
+          </label>
+          <CustomTooltip
+            placement="top"
+            tooltipClasses="text-wrap"
+            tooltipId="createSmartAccountOwnerTooltip"
+            tooltipText={'Owner address for Smart Account'}
+          >
+            <input
+              type="text"
+              className="form-control"
+              value={displayAccount}
+              disabled
+              readOnly
+            />
+          </CustomTooltip>
         </div>
       ),
       intl.formatMessage({ id: 'udapp.continue' }),
@@ -384,14 +425,29 @@ export function AccountUI(props: AccountProps) {
 
   return (
     <div className="udapp_crow">
+      {(() => {
+        const isSmart = allSmartAccountsSet.has(selectedAccount)
+        if (!isSmart) return null
+
+        const owner = (smartAccountsData as any)[selectedAccount]?.ownerEOA
+        if (!owner) return null
+
+        return (
+          <div className="udapp_owner-chip">
+            <span>Owner: {shortenAddress(owner)}
+              <CopyToClipboard className="fas fa-copy ms-2" tip={intl.formatMessage({ id: 'udapp.copyOwnerAccount' })} content={owner} direction="top" />
+            </span>
+          </div>
+        )
+      })()}
       <label className="udapp_settingsLabel">
         <FormattedMessage id="udapp.account" />
-        {!smartAccountSelected ? <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixPlusWrapperTooltip" tooltipText={plusOpt.title}>
+        {!allSmartAccountsSet.has(selectedAccount) ? <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixPlusWrapperTooltip" tooltipText={plusOpt.title}>
           <span className="px-1" id="remixRunPlusWrapper">
             <i id="remixRunPlus" className={`fas fa-plus udapp_icon ${plusOpt.classList}`} aria-hidden="true" onClick={newAccount}></i>
           </span>
         </CustomTooltip> : null }
-        {!smartAccountSelected ? <CustomTooltip placement={'top'} tooltipClasses="text-nowrap" tooltipId="remixSignMsgTooltip" tooltipText={<FormattedMessage id="udapp.signMsgUsingAccount" />}>
+        {!allSmartAccountsSet.has(selectedAccount) ? <CustomTooltip placement={'top'} tooltipClasses="text-nowrap" tooltipId="remixSignMsgTooltip" tooltipText={<FormattedMessage id="udapp.signMsgUsingAccount" />}>
           <i id="remixRunSignMsg" data-id="settingsRemixRunSignMsg" className="mx-1 fas fa-edit udapp_icon" aria-hidden="true" onClick={signMessage}></i>
         </CustomTooltip> : null }
         <span className='mx-1'>
@@ -414,28 +470,64 @@ export function AccountUI(props: AccountProps) {
         {props.accounts.isRequesting && <i className="fa fa-spinner fa-pulse ms-2" aria-hidden="true"></i>}
       </label>
       <div className="udapp_account">
-        <Dropdown className="udapp_selectExEnvOptions" data-id="runTabSelectAccount">
-          <Dropdown.Toggle as={CustomToggle} icon={null} id="txorigin" data-id="runTabSelectAccount" className="btn btn-light btn-block w-100 d-inline-block border form-select">
-            {selectedAccount ? loadedAccounts[selectedAccount] : ''}
-          </Dropdown.Toggle>
-          <Dropdown.Menu as={CustomMenu} className="w-100 form-select" data-id="custom-dropdown-items">
-            {accounts && accounts.length > 0 ? accounts.map((value, index) => (
-              <Dropdown.Item
-                key={index}
-                eventKey={selectedAccount}
-                onClick={(e) => {
-                  props.setAccount(value)
-                }}
-                data-id={`txOriginSelectAccountItem-${value}`}
-              >
-                <span data-id={`${value}`}>
-                  {loadedAccounts[value]}
-                </span>
-              </Dropdown.Item>
-            )) : <Dropdown.Item></Dropdown.Item>}
-          </Dropdown.Menu>
-        </Dropdown>
+        <div className="udapp_account-toggle-container">
+          <Dropdown className="udapp_selectExEnvOptions" data-id="runTabSelectAccount">
+            <Dropdown.Toggle as={CustomToggle} icon={null} id="txorigin" data-id="runTabSelectAccount" className="btn btn-light btn-block w-100 d-inline-block border form-select">
+              { selectedAccount && loadedAccounts[selectedAccount] ? (
+                <div className="udapp_account-item">
+                  {(() => {
+                    const isSmartAccount = allSmartAccountsSet.has(selectedAccount)
+                    const isOwner = ownerToSmartAccountsMap.has(selectedAccount.toLowerCase())
+
+                    if (isSmartAccount || isOwner) {
+                      return (
+                        <span className="udapp_account-badge">
+                          {isSmartAccount ? 'Smart' : 'Owner'}
+                        </span>
+                      )
+                    }
+                    return null
+                  })()}
+                  <span>
+                    {(loadedAccounts[selectedAccount] || selectedAccount).replace(/\[SMART\]\s*/, '')}
+                  </span>
+                </div>
+              ) : '' }
+            </Dropdown.Toggle>
+
+            <Dropdown.Menu as={CustomMenu} className="w-100 form-select" data-id="custom-dropdown-items">
+              {displayAccounts.map((value) => {
+                const isSmartAccount = allSmartAccountsSet.has(value)
+                const isOwner = ownerToSmartAccountsMap.has(value.toLowerCase())
+                const displayName = (loadedAccounts[value] || value).replace(/\[SMART\]\s*/, '')
+
+                const itemContent = (
+                  <div className="udapp_account-item">
+                    {(isSmartAccount || isOwner) && (
+                      <span className="udapp_account-badge">
+                        {isSmartAccount ? 'Smart' : 'Owner'}
+                      </span>
+                    )}
+                    <span data-id={`${value}`}>
+                      {displayName}
+                    </span>
+                  </div>
+                )
+                return (
+                  <Dropdown.Item
+                    key={value}
+                    onClick={() => { props.setAccount(value) }}
+                    data-id={`txOriginSelectAccountItem-${value}`}
+                  >
+                    {isSmartAccount ? <div className="udapp_tree-view">{itemContent}</div> : itemContent}
+                  </Dropdown.Item>
+                )
+              })}
+            </Dropdown.Menu>
+          </Dropdown>
+        </div>
       </div>
+
       { contractHasDelegation ?
         <span className="alert-info badge text-bg-secondary">
           Delegation: {shortenAddress(delegationAuthorizationAddressRef.current || "")}
@@ -447,12 +539,7 @@ export function AccountUI(props: AccountProps) {
           </span></a>
         </span> : null
       }
-      { smartAccountSelected ? <span className="alert-info badge text-bg-secondary">
-          Owner: {shortenAddress(ownerEOA.current || '')}
-        <CopyToClipboard className="fas fa-copy ms-2 text-primary" tip={intl.formatMessage({ id: 'udapp.copyOwnerAccount' })} content={ownerEOA.current} direction="top" />
-      </span> : null
-      }
-      { enableCSM ? (<div className="mt-1">
+      { !allSmartAccountsSet.has(selectedAccount) && aaSupportedChainIds.some(e => networkName.includes(e)) ? (<div className="mt-1">
         <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixCSMPlusTooltip" tooltipText={intl.formatMessage({ id: 'udapp.createSmartAccount' })}>
           <button type="button" className="btn btn-sm btn-secondary w-100" onClick={() => createSmartAccount()}>
             <i id="createSmartAccountPlus" className="me-1 fas fa-plus" aria-hidden="true" style={{ "color": "#fff" }}></i>

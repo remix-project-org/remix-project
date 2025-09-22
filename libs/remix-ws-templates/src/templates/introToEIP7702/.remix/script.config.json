@@ -1,7 +1,0 @@
-{
-  "defaultConfig": "ethers6",
-  "customConfig": {
-    "baseConfiguration": "default",
-    "dependencies": []
-  }
-}

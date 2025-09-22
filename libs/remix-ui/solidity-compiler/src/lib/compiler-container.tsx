@@ -3,7 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import semver from 'semver'
 import { CompilerContainerProps } from './types'
 import { ConfigurationSettings } from '@remix-project/remix-lib'
-import { checkSpecialChars, CustomTooltip, extractNameFromKey } from '@remix-ui/helper'
+import { checkSpecialChars, CustomTooltip, extractNameFromKey, RenderIf } from '@remix-ui/helper'
 import { canUseWorker, urlFromVersion, pathToURL } from '@remix-project/remix-solidity'
 import { compilerReducer, compilerInitialState } from './reducers/compiler'
 import { listenToEvents } from './actions/compiler'
@@ -17,8 +17,6 @@ import './css/style.css'
 
 import { CompilerDropdown } from './components/compiler-dropdown'
 
-const defaultPath = 'compiler_config.json'
-
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,6 +24,7 @@ declare global {
   }
 }
 const _paq = (window._paq = window._paq || []) //eslint-disable-line
+const remixConfigPath = 'remix.config.json'
 
 export const CompilerContainer = (props: CompilerContainerProps) => {
   const online = useContext(onLineContext)
@@ -42,8 +41,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     isTruffleProject,
     isFoundryProject,
     workspaceName,
-    configFilePath,
-    setConfigFilePath,
     solJsonBinData,
     //@ts-ignore
     pluginProps
@@ -72,36 +69,15 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     onlyDownloaded: false,
     updatedVersionSelectorFromUrlQuery: false,
   })
-  const [showFilePathInput, setShowFilePathInput] = useState<boolean>(false)
   const [toggleExpander, setToggleExpander] = useState<boolean>(false)
   const [disableCompileButton, setDisableCompileButton] = useState<boolean>(false)
   const compileIcon = useRef(null)
   const promptMessageInput = useRef(null)
-  const configFilePathInput = useRef(null)
   const [hhCompilation, sethhCompilation] = useState(false)
   const [truffleCompilation, setTruffleCompilation] = useState(false)
   const [compilerContainer, dispatch] = useReducer(compilerReducer, compilerInitialState)
 
   const intl = useIntl()
-
-  useEffect(() => {
-    if (workspaceName) {
-      api.setAppParameter('configFilePath', defaultPath)
-      // reset 'createFileOnce' in case of new workspace creation
-      setState((prevState) => {
-        return { ...prevState, createFileOnce: true }
-      })
-      if (state.useFileConfiguration) {
-        api.fileExists(defaultPath).then((exists) => {
-          if (!exists && state.useFileConfiguration) {
-            configFilePathInput.current.value = defaultPath
-            createNewConfigFile()
-          }
-        })
-      }
-      setShowFilePathInput(false)
-    }
-  }, [workspaceName])
 
   useEffect(() => {
     if (online && state.onlyDownloaded){
@@ -112,22 +88,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
       return { ...prevState, onlyDownloaded: !online }
     })
   },[online])
-
-  useEffect(() => {
-    const listener = (event) => {
-      if (configFilePathInput.current !== event.target && event.target.innerText !== 'Create') {
-        setShowFilePathInput(false)
-        configFilePathInput.current.value = ''
-        return
-      }
-    }
-    document.addEventListener('mousedown', listener)
-    document.addEventListener('touchstart', listener)
-    return () => {
-      document.removeEventListener('mousedown', listener)
-      document.removeEventListener('touchstart', listener)
-    }
-  }, [])
 
   useEffect(() => {
     if (!solJsonBinData) return
@@ -167,10 +127,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
         const hideWarnings = ((await api.getAppParameter('hideWarnings')) as boolean) || false
         const includeNightlies = ((await api.getAppParameter('includeNightlies')) as boolean) || false
         const useFileConfiguration = ((await api.getAppParameter('useFileConfiguration')) as boolean) || false
-        let configFilePathSaved = await api.getAppParameter('configFilePath')
-        if (!configFilePathSaved || configFilePathSaved == '') configFilePathSaved = defaultPath
-
-        setConfigFilePath(configFilePathSaved)
 
         setState((prevState) => {
           const params = api.getCompilerQueryParameters()
@@ -241,18 +197,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
 
   useEffect(() => {
     compileTabLogic.setUseFileConfiguration(state.useFileConfiguration)
-    if (state.useFileConfiguration) {
-      compileTabLogic.setConfigFilePath(configFilePath)
-      if (state.createFileOnce && workspaceName) {
-        api.fileExists(defaultPath).then((exists) => {
-          if (!exists) createNewConfigFile()
-        })
-        setToggleExpander(true)
-        setState((prevState) => {
-          return { ...prevState, createFileOnce: false }
-        })
-      }
-    }
   }, [state.useFileConfiguration])
 
   useEffect(() => {
@@ -268,51 +212,28 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     })
   }
 
-  const openFile = async () => {
-    await api.open(configFilePath)
-  }
-
   const createNewConfigFile = async () => {
-    let filePath = configFilePathInput.current && configFilePathInput.current.value !== '' ? configFilePathInput.current.value : configFilePath
-    if (filePath === '') filePath = defaultPath
-    if (!filePath.endsWith('.json')) filePath = filePath + '.json'
+    const exists = await api.fileExists(remixConfigPath)
 
-    let compilerConfig = configFileContent
-    if (isFoundryProject && !compilerConfig.includes('remappings')) {
-      const config = JSON.parse(compilerConfig)
-      config.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib/forge-std/src/']
-      compilerConfig = JSON.stringify(config, null, '\t')
-    }
-    await api.writeFile(filePath, compilerConfig)
-    api.setAppParameter('configFilePath', filePath)
-    setConfigFilePath(filePath)
-    compileTabLogic.setConfigFilePath(filePath)
-    setShowFilePathInput(false)
-  }
+    if (exists) {
+      const remixConfig = await api.readFile(remixConfigPath)
+      const remixConfigContent = JSON.parse(remixConfig)
 
-  const handleConfigPathChange = async () => {
-    if (configFilePathInput.current.value !== '') {
-      if (!configFilePathInput.current.value.endsWith('.json')) configFilePathInput.current.value += '.json'
+      if (!remixConfigContent['solidity-compiler']) {
+        const compilerConfig = JSON.parse(configFileContent)
 
-      if (await api.fileExists(configFilePathInput.current.value)) {
-        api.setAppParameter('configFilePath', configFilePathInput.current.value)
-        setConfigFilePath(configFilePathInput.current.value)
-        compileTabLogic.setConfigFilePath(configFilePathInput.current.value)
-
-        setShowFilePathInput(false)
-      } else {
-        modal(
-          intl.formatMessage({ id: 'solidity.newConfigFileTitle' }),
-          intl.formatMessage({ id: 'solidity.newConfigFileMessage' }, { configFilePathInput: configFilePathInput.current.value }),
-          intl.formatMessage({ id: 'solidity.create' }),
-          async () => await createNewConfigFile(),
-          false,
-          intl.formatMessage({ id: 'solidity.cancel' }),
-          () => {
-            setShowFilePathInput(false)
-          }
-        )
+        if (isFoundryProject && !compilerConfig.settings.remappings) {
+          compilerConfig.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib /forge-std/src/']
+        }
+        await api.writeFile(remixConfigPath, JSON.stringify({ ...remixConfigContent, 'solidity-compiler': compilerConfig }, null, 2))
       }
+    } else {
+      const config = JSON.parse(configFileContent)
+
+      if (isFoundryProject) {
+        config.settings.remappings = ['ds-test/=lib/forge-std/lib/ds-test/src/', 'forge-std/=lib /forge-std/src/']
+      }
+      await api.writeFile(remixConfigPath, JSON.stringify({ 'solidity-compiler': config }, null, 2))
     }
   }
 
@@ -483,7 +404,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     compileIcon.current.classList.remove('remixui_spinningIcon')
     compileIcon.current.classList.remove('remixui_bouncingIcon')
     if (!state.autoCompile || (state.autoCompile && state.matomoAutocompileOnce)) {
-      _paq.push(['trackEvent', 'compiler', 'compiled', 'solCompilationFinishedTriggeredByUser'])
+      // _paq.push(['trackEvent', 'compiler', 'compiled', 'solCompilationFinishedTriggeredByUser'])
       _paq.push(['trackEvent', 'compiler', 'compiled', 'with_config_file_' + state.useFileConfiguration])
       _paq.push(['trackEvent', 'compiler', 'compiled', 'with_version_' + _retrieveVersion()])
       if (state.autoCompile && state.matomoAutocompileOnce) {
@@ -506,10 +427,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     })
   }
 
-  const compile = () => {
+  const compile = async () => {
     const currentFile = api.currentFile
 
     if (!isSolFileSelected()) return
+    if (state.useFileConfiguration) await createNewConfigFile()
     _setCompilerVersionFromPragma(currentFile)
     let externalCompType
     if (hhCompilation) externalCompType = 'hardhat'
@@ -759,6 +681,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
 
   const toggleConfigurations = () => {
     setToggleExpander(!toggleExpander)
+  }
+
+  const handleConfigFileClick = async () => {
+    await createNewConfigFile()
+    await api.open(remixConfigPath)
   }
 
   return (
@@ -1035,59 +962,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               <FormattedMessage id="solidity.useConfigurationFile" />
             </label>
           </div>
-          <div className={`pt-2 ms-4 ms-2 align-items-start justify-content-between d-flex`}>
-            {!showFilePathInput && state.useFileConfiguration && (
-              <CustomTooltip
-                placement="bottom"
-                tooltipId="configfileTooltip"
-                tooltipClasses="text-nowrap"
-                tooltipText={
-                  <span>
-                    <FormattedMessage id="solidity.tooltipText4" />
-                  </span>
-                }
-              >
-                <span
-                  onClick={
-                    configFilePath === ''
-                      ? () => {}
-                      : async () => {
-                        await openFile()
-                      }
-                  }
-                  className="py-2 remixui_compilerConfigPath"
-                >
-                  {configFilePath === '' ? intl.formatMessage({ id: 'solidity.noFileSelected1' }) : configFilePath}
-                </span>
-              </CustomTooltip>
-            )}
-            {!showFilePathInput && !state.useFileConfiguration && <span className="py-2 text-secondary">{configFilePath}</span>}
-            <input
-              ref={configFilePathInput}
-              className={`py-0 my-0 form-control ${showFilePathInput ? 'd-flex' : 'd-none'}`}
-              placeholder={'/folder_path/file_name.json'}
-              title={intl.formatMessage({ id: 'solidity.inputTitle1' })}
-              disabled={!state.useFileConfiguration}
-              data-id="scConfigFilePathInput"
-              onKeyPress={(event) => {
-                if (event.key === 'Enter') {
-                  handleConfigPathChange()
-                }
-              }}
-            />
-            {!showFilePathInput && (
-              <button
-                disabled={!state.useFileConfiguration}
-                data-id="scConfigChangeFilePath"
-                className="btn btn-sm btn-secondary"
-                onClick={() => {
-                  setShowFilePathInput(true)
-                }}
-              >
-                <FormattedMessage id="solidity.change" />
-              </button>
-            )}
-          </div>
+          <RenderIf condition={state.useFileConfiguration}>
+            <a data-id="view-solidity-config" className="cursor-pointer text-decoration-none ms-4" href='#' onClick={handleConfigFileClick}>
+              <i className="text-secondary mt-1 pe-1 far fa-edit"></i> Update config remix.config.json
+            </a>
+          </RenderIf>
         </div>
         <div className="px-4">
           <button
@@ -1095,19 +974,18 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             data-id="compilerContainerCompileBtn"
             className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
             onClick={compile}
-            disabled={(configFilePath === '' && state.useFileConfiguration) || disableCompileButton}
+            disabled={disableCompileButton}
           >
             <CustomTooltip
               placement="auto"
               tooltipId="overlay-tooltip-compile"
               tooltipText={
                 <div className="text-start">
-                  {!(configFilePath === '' && state.useFileConfiguration) && (
+                  {(
                     <div>
                       <b>Ctrl+S</b> <FormattedMessage id="solidity.toCompile" /> {state.compiledFileName.endsWith('.sol') ? state.compiledFileName : null}{' '}
                     </div>
                   )}
-                  {configFilePath === '' && state.useFileConfiguration && <div> <FormattedMessage id="solidity.noConfigFileSelected" /></div>}
                 </div>
               }
             >
@@ -1137,19 +1015,18 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               data-id="compilerContainerCompileAndRunBtn"
               className="btn btn-secondary btn-block d-block w-100 text-break  d-inline-block remixui_disabled mb-1 mt-1"
               onClick={compileAndRun}
-              disabled={(configFilePath === '' && state.useFileConfiguration) || disableCompileButton}
+              disabled={disableCompileButton}
             >
               <CustomTooltip
                 placement={'auto-end'}
                 tooltipId="overlay-tooltip-compile-run"
                 tooltipText={
                   <div className="text-start">
-                    {!(configFilePath === '' && state.useFileConfiguration) && (
+                    {(
                       <div>
                         <b>Ctrl+Shift+S</b> <FormattedMessage id="solidity.tooltipText3" />
                       </div>
                     )}
-                    {configFilePath === '' && state.useFileConfiguration && <div> <FormattedMessage id="solidity.noConfigFileSelected" /></div>}
                   </div>
                 }
               >

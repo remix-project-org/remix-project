@@ -61,14 +61,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ethereum/remix-project.git"
+    "url": "git+https://github.com/remix-project-org/remix-project.git"
   },
   "author": "Remix Team",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ethereum/remix-project/issues"
+    "url": "https://github.com/remix-project-org/remix-project/issues"
   },
-  "homepage": "https://github.com/ethereum/remix-project/tree/master/libs/remix-debug#readme",
+  "homepage": "https://github.com/remix-project-org/remix-project/tree/master/libs/remix-debug#readme",
   "typings": "src/index.d.ts",
   "gitHead": "bc0ca185acce16d08ae037829422b7d38e153128",
   "types": "./src/index.d.ts"

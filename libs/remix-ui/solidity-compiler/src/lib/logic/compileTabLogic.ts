@@ -1,6 +1,7 @@
 import { ICompilerApi } from '@remix-project/remix-lib'
 import { getValidLanguage, Compiler } from '@remix-project/remix-solidity'
 import { EventEmitter } from 'events'
+import { configFileContent } from '../compilerConfiguration'
 
 declare global {
   interface Window {
@@ -21,7 +22,6 @@ export class CompileTabLogic {
   public event
   public evmVersions: Array<string>
   public useFileConfiguration: boolean
-  public configFilePath: string
 
   constructor (api: ICompilerApi, contentImport) {
     this.api = api
@@ -71,14 +71,6 @@ export class CompileTabLogic {
     await this.setCompilerConfigContent()
   }
 
-  setConfigFilePath (path) {
-    this.configFilePath = path
-  }
-
-  getConfigFilePath () {
-    return this.configFilePath
-  }
-
   setRuns (runs) {
     this.runs = runs
     this.api.setCompilerQueryParameters({ runs: this.runs })
@@ -116,10 +108,21 @@ export class CompileTabLogic {
   }
 
   async setCompilerConfigContent () {
-    if (this.configFilePath && this.useFileConfiguration) {
-      this.api.readFile(this.configFilePath).then(content => {
-        this.compiler.set('configFileContent', content)
-      })
+    if (this.useFileConfiguration) {
+      const remixConfigPath = 'remix.config.json'
+      const configExists = await this.api.fileExists(remixConfigPath)
+
+      if (configExists) {
+        const configContent = await this.api.readFile(remixConfigPath)
+        const config = JSON.parse(configContent)
+
+        if (config['solidity-compiler']) {
+          this.compiler.set('configFileContent', config['solidity-compiler'])
+        } else {
+          this.compiler.set('configFileContent', JSON.parse(configFileContent))
+          this.api.writeFile(remixConfigPath, JSON.stringify({ ...config, 'solidity-compiler': JSON.parse(configFileContent) }, null, 2))
+        }
+      }
     }
   }
 

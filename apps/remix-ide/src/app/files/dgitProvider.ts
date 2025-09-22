@@ -48,6 +48,59 @@ export default class DGitProvider extends Plugin<any, CustomRemixApi> {
     return await this.call('config' as any, 'getAppParameter', 'settings/gist-access-token')
   }
 
+  private isValidGitHubToken(token: string): boolean {
+    if (!token || typeof token !== 'string') {
+      return false
+    }
+
+    // Remove whitespace
+    token = token.trim()
+
+    // Check for empty token
+    if (token.length === 0) {
+      return false
+    }
+
+    // GitHub token patterns:
+    // Personal Access Token (classic): ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (40 chars)
+    // Personal Access Token (fine-grained): github_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (varies)
+    // OAuth token: gho_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (40 chars)
+    // GitHub App token: ghs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (40 chars)
+    // GitHub App installation token: ghu_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (40 chars)
+    // Refresh token: ghr_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (40 chars)
+
+    const tokenPatterns = [
+      /^ghp_[A-Za-z0-9]{36}$/, // Personal Access Token (classic)
+      /^github_pat_[A-Za-z0-9_]{22,255}$/, // Personal Access Token (fine-grained)
+      /^gho_[A-Za-z0-9]{36}$/, // OAuth token
+      /^ghs_[A-Za-z0-9]{36}$/, // GitHub App token
+      /^ghu_[A-Za-z0-9]{36}$/, // GitHub App installation token
+      /^ghr_[A-Za-z0-9]{36}$/, // Refresh token
+    ]
+
+    // Check if token matches any known GitHub token pattern
+    const matchesPattern = tokenPatterns.some(pattern => pattern.test(token))
+
+    if (matchesPattern) {
+      return true
+    }
+
+    // Fallback: check if it looks like a legacy token (40 chars, alphanumeric)
+    // Some older tokens might not follow the new prefixed format
+    if (/^[A-Za-z0-9]{40}$/.test(token)) {
+      console.warn('Token appears to be a legacy GitHub token format')
+      return true
+    }
+
+    console.warn('Token does not match known GitHub token patterns:', {
+      length: token.length,
+      prefix: token.substring(0, 4),
+      hasValidChars: /^[A-Za-z0-9_]+$/.test(token)
+    })
+
+    return false
+  }
+
   async getAuthor(input) {
     const author: author = {
       name: '',
@@ -568,19 +621,32 @@ export default class DGitProvider extends Plugin<any, CustomRemixApi> {
   // OCTOKIT FEATURES
 
   async remotebranches(input: { owner: string, repo: string, token: string, page: number, per_page: number }) {
+    try {
+      // Quick validation to avoid unnecessary API calls
+      if (!this.isValidGitHubToken(input.token)) {
+        throw new Error('Invalid GitHub token format')
+      }
 
-    const octokit = new Octokit({
-      auth: input.token
-    })
+      const octokit = new Octokit({
+        auth: input.token,
+        retry: { enabled: false }
+      })
 
-    const data = await octokit.request('GET /repos/{owner}/{repo}/branches{?protected,per_page,page}', {
-      owner: input.owner,
-      repo: input.repo,
-      per_page: input.per_page || 100,
-      page: input.page || 1
-    })
+      const data = await octokit.request('GET /repos/{owner}/{repo}/branches{?protected,per_page,page}', {
+        owner: input.owner,
+        repo: input.repo,
+        per_page: input.per_page || 100,
+        page: input.page || 1
+      })
 
-    return data.data
+      return data.data
+    } catch (e) {
+      console.error('Error fetching remote branches:', e)
+      if (e.status === 403) {
+        console.error('GitHub API returned 403 Forbidden - check token permissions or rate limits')
+      }
+      throw e // Re-throw to let caller handle
+    }
   }
 
   async getGitHubUser(input: { token: string }): Promise<{
@@ -589,8 +655,15 @@ export default class DGitProvider extends Plugin<any, CustomRemixApi> {
     scopes: string[]
   }> {
     try {
+      // Quick validation to avoid unnecessary API calls
+      if (!this.isValidGitHubToken(input.token)) {
+        console.warn('Invalid GitHub token format, skipping API call')
+        return null
+      }
+
       const octokit = new Octokit({
-        auth: input.token
+        auth: input.token,
+        retry: { enabled: false }
       })
 
       const user = await octokit.request('GET /user', {
@@ -598,106 +671,143 @@ export default class DGitProvider extends Plugin<any, CustomRemixApi> {
           'X-GitHub-Api-Version': '2022-11-28'
         }
       })
-      const emails = await octokit.request('GET /user/emails')
+
+      let emails = { data: []}
+      try {
+        emails = await octokit.request('GET /user/emails')
+      } catch (emailError) {
+        console.warn('Could not fetch user emails:', emailError)
+        // Continue without emails if this fails
+      }
 
       const scopes = user.headers['x-oauth-scopes'] || ''
 
       return {
         user: {
-          ...user.data, isConnected:
-            user.data.login !== undefined && user.data.login !== null && user.data.login !== ''
+          ...user.data,
+          isConnected: user.data.login !== undefined && user.data.login !== null && user.data.login !== ''
         },
         emails: emails.data,
         scopes: scopes && scopes.split(',').map(scope => scope.trim())
       }
     } catch (e) {
+      console.error('Error in getGitHubUser:', e)
+      // Check if it's a 403 specifically
+      if (e.status === 403) {
+        console.error('GitHub API returned 403 Forbidden - check token permissions')
+      }
       return null
     }
   }
 
   async remotecommits(input: remoteCommitsInputType): Promise<pagedCommits[]> {
-
-    const octokit = new Octokit({
-      auth: input.token
-    })
-    input.length = input.length || 5
-    input.page = input.page || 1
-    const response = await octokit.request('GET /repos/{owner}/{repo}/commits', {
-      owner: input.owner,
-      repo: input.repo,
-      sha: input.branch,
-      per_page: input.length,
-      page: input.page
-    })
-    const pages: pagedCommits[] = []
-    const readCommitResults: ReadCommitResult[] = []
-    for (const githubApiCommit of response.data) {
-      const readCommitResult = {
-        oid: githubApiCommit.sha,
-        commit: {
-          author: {
-            name: githubApiCommit.commit.author.name,
-            email: githubApiCommit.commit.author.email,
-            timestamp: new Date(githubApiCommit.commit.author.date).getTime() / 1000,
-            timezoneOffset: new Date(githubApiCommit.commit.author.date).getTimezoneOffset()
-          },
-          committer: {
-            name: githubApiCommit.commit.committer.name,
-            email: githubApiCommit.commit.committer.email,
-            timestamp: new Date(githubApiCommit.commit.committer.date).getTime() / 1000,
-            timezoneOffset: new Date(githubApiCommit.commit.committer.date).getTimezoneOffset()
-          },
-          message: githubApiCommit.commit.message,
-          tree: githubApiCommit.commit.tree.sha,
-          parent: githubApiCommit.parents.map(parent => parent.sha)
-        },
-        payload: '' // You may need to reconstruct the commit object in Git's format if necessary
+    try {
+      // Quick validation to avoid unnecessary API calls
+      if (!this.isValidGitHubToken(input.token)) {
+        throw new Error('Invalid GitHub token format')
       }
-      readCommitResults.push(readCommitResult)
+
+      const octokit = new Octokit({
+        auth: input.token,
+        retry: { enabled: false }
+      })
+      input.length = input.length || 5
+      input.page = input.page || 1
+      const response = await octokit.request('GET /repos/{owner}/{repo}/commits', {
+        owner: input.owner,
+        repo: input.repo,
+        sha: input.branch,
+        per_page: input.length,
+        page: input.page
+      })
+      const pages: pagedCommits[] = []
+      const readCommitResults: ReadCommitResult[] = []
+      for (const githubApiCommit of response.data) {
+        const readCommitResult = {
+          oid: githubApiCommit.sha,
+          commit: {
+            author: {
+              name: githubApiCommit.commit.author.name,
+              email: githubApiCommit.commit.author.email,
+              timestamp: new Date(githubApiCommit.commit.author.date).getTime() / 1000,
+              timezoneOffset: new Date(githubApiCommit.commit.author.date).getTimezoneOffset()
+            },
+            committer: {
+              name: githubApiCommit.commit.committer.name,
+              email: githubApiCommit.commit.committer.email,
+              timestamp: new Date(githubApiCommit.commit.committer.date).getTime() / 1000,
+              timezoneOffset: new Date(githubApiCommit.commit.committer.date).getTimezoneOffset()
+            },
+            message: githubApiCommit.commit.message,
+            tree: githubApiCommit.commit.tree.sha,
+            parent: githubApiCommit.parents.map(parent => parent.sha)
+          },
+          payload: '' // You may need to reconstruct the commit object in Git's format if necessary
+        }
+        readCommitResults.push(readCommitResult)
+      }
+
+      // Check for the Link header to determine pagination
+      const linkHeader = response.headers.link;
+
+      let hasNextPage = false;
+      if (linkHeader) {
+        // A simple check for the presence of a 'next' relation in the Link header
+        hasNextPage = linkHeader.includes('rel="next"');
+      }
+
+      pages.push({
+        page: input.page,
+        perPage: input.length,
+        total: response.data.length,
+        hasNextPage: hasNextPage,
+        commits: readCommitResults
+      })
+      return pages
+    } catch (e) {
+      console.error('Error fetching remote commits:', e)
+      if (e.status === 403) {
+        console.error('GitHub API returned 403 Forbidden - check token permissions or rate limits')
+      }
+      throw e // Re-throw to let caller handle
     }
-
-    // Check for the Link header to determine pagination
-    const linkHeader = response.headers.link;
-
-    let hasNextPage = false;
-    if (linkHeader) {
-      // A simple check for the presence of a 'next' relation in the Link header
-      hasNextPage = linkHeader.includes('rel="next"');
-    }
-
-    pages.push({
-      page: input.page,
-      perPage: input.length,
-      total: response.data.length,
-      hasNextPage: hasNextPage,
-      commits: readCommitResults
-    })
-    return pages
   }
 
   async repositories(input: repositoriesInput) {
+    try {
+      // Quick validation to avoid unnecessary API calls
+      if (!this.isValidGitHubToken(input.token)) {
+        throw new Error('Invalid GitHub token format')
+      }
 
-    const accessToken = input.token;
+      const accessToken = input.token;
 
-    const page = input.page || 1
-    const perPage = input.per_page || 10
+      const page = input.page || 1
+      const perPage = input.per_page || 10
 
-    const baseURL = 'https://api.github.com/user/repos'
-    const repositories = []
-    const sort = 'updated'
-    const direction = 'desc'
+      const baseURL = 'https://api.github.com/user/repos'
+      const repositories = []
+      const sort = 'updated'
+      const direction = 'desc'
 
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`, // Include your GitHub access token
-      'Accept': 'application/vnd.github.v3+json', // GitHub API v3 media type
-    };
+      const headers = {
+        'Authorization': `Bearer ${accessToken}`, // Include your GitHub access token
+        'Accept': 'application/vnd.github.v3+json', // GitHub API v3 media type
+      };
 
-    const url = `${baseURL}?visibility=private,public&page=${page}&per_page=${perPage}&sort=${sort}&direction=${direction}`;
-    const response = await axios.get(url, { headers });
+      const url = `${baseURL}?visibility=private,public&page=${page}&per_page=${perPage}&sort=${sort}&direction=${direction}`;
+      const response = await axios.get(url, { headers });
 
-    repositories.push(...response.data);
+      repositories.push(...response.data);
 
-    return repositories
+      return repositories
+    } catch (e) {
+      console.error('Error fetching repositories:', e)
+      if (e.response?.status === 403) {
+        console.error('GitHub API returned 403 Forbidden - check token permissions or rate limits')
+      }
+      throw e // Re-throw to let caller handle
+    }
   }
 
 }

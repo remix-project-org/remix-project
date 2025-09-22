@@ -138,7 +138,7 @@ export default class CodeParserCompiler {
         this.compiler.set('evmVersion', state.evmVersion)
         this.compiler.set('language', state.language)
         this.compiler.set('runs', state.runs)
-        this.compiler.set('useFileConfiguration', true)
+        this.compiler.set('useFileConfiguration', state.useFileConfiguration)
         this.compiler.set('compilerRetriggerMode', CompilerRetriggerMode.retrigger)
 
         const configFileContent =

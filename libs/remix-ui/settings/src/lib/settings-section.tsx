@@ -39,10 +39,8 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
   const handleToggle = (name: string) => {
     if (state[name]) {
       const newValue = !state[name].value
-
       dispatch({ type: 'SET_LOADING', payload: { name: name } })
       dispatch({ type: 'SET_VALUE', payload: { name: name, value: newValue } })
-      // _paq.push(['disableCookies'])
       if (!newValue && formUIData[name]) {
         Object.keys(formUIData[name]).forEach((key) => {
           dispatch({ type: 'SET_VALUE', payload: { name: key, value: '' } })
@@ -50,6 +48,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
         dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: 'Credentials removed' } })
       }
       if (name === 'copilot/suggest/activate') plugin.emit('copilotChoiceUpdated', newValue)
+      if (name === 'matomo-perf-analytics') plugin.call('settings', 'updateMatomoPerfAnalyticsChoice', newValue)
       if (name === 'text-wrap') plugin.emit('textWrapChoiceUpdated', newValue)
     } else {
       console.error('Setting does not exist: ', name)
@@ -94,7 +93,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                   return (
                     <div className={`card border-0 rounded-0 ${isLastOption ? 'pt-3 pb-0' : isFirstOption ? 'border-bottom pb-3' : 'border-bottom py-3'}`} key={optionIndex}>
                       <div className="d-flex align-items-center">
-                        <h5 data-id={`settingsTab${option.name}Label`} className={`${isDark ? 'text-white' : 'text-black'} m-0`}>
+                        <h5 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`}>
                           <FormattedMessage id={option.label} />
                           {option.labelIconTooltip ?
                             <CustomTooltip tooltipText={<FormattedMessage id={option.labelIconTooltip} />}><i className={option.labelIcon}></i></CustomTooltip> :
@@ -102,7 +101,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                           }
                         </h5>
                         <div className="ms-auto">
-                          {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} />}
+                          {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
                           {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
                           {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
                         </div>

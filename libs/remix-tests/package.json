@@ -26,14 +26,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ethereum/remix-project.git"
+    "url": "git+https://github.com/remix-project-org/remix-project.git"
   },
   "author": "Remix Team",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ethereum/remix-project/issues"
+    "url": "https://github.com/remix-project-org/remix-project/issues"
   },
-  "homepage": "https://github.com/ethereum/remix-project/tree/master/libs/remix-tests#readme",
+  "homepage": "https://github.com/remix-project-org/remix-project/tree/master/libs/remix-tests#readme",
   "dependencies": {
     "@erebos/bzz-node": "^0.13.0",
     "@ethereumjs/block": "^10.0.0",

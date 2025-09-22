@@ -15,7 +15,7 @@ const _paq = (window._paq = window._paq || [])
 const profile = {
   name: 'settings',
   displayName: 'Settings',
-  methods: ['get', 'updateCopilotChoice', 'getCopilotSetting'],
+  methods: ['get', 'updateCopilotChoice', 'getCopilotSetting', 'updateMatomoPerfAnalyticsChoice'],
   events: [],
   icon: 'assets/img/settings.webp',
   description: 'Remix-IDE settings',
@@ -33,7 +33,6 @@ export default class SettingsTab extends ViewPlugin {
   editor: any
   private _deps: {
     themeModule: any
-    localeModule: any
   }
   element: HTMLDivElement
   public useMatomoAnalytics: any
@@ -48,7 +47,6 @@ export default class SettingsTab extends ViewPlugin {
     this.editor = editor
     this._deps = {
       themeModule: Registry.getInstance().get('themeModule').api,
-      localeModule: Registry.getInstance().get('localeModule').api
     }
     this.element = document.createElement('div')
     this.element.setAttribute('id', 'settingsTab')
@@ -82,7 +80,6 @@ export default class SettingsTab extends ViewPlugin {
         useMatomoPerfAnalytics={state.useMatomoPerfAnalytics}
         useCopilot={state.useCopilot}
         themeModule={state._deps.themeModule}
-        localeModule={state._deps.localeModule}
       />
     )
   }
@@ -129,6 +126,7 @@ export default class SettingsTab extends ViewPlugin {
     // set timestamp to local storage to track when the user has given consent
     localStorage.setItem('matomo-analytics-consent', Date.now().toString())
     this.useMatomoPerfAnalytics = isChecked
+    this.emit('matomoPerfAnalyticsChoiceUpdated', isChecked)
     if (!isChecked) {
       // revoke tracking consent for performance data
       _paq.push(['disableCookies'])

@@ -140,43 +140,58 @@ const tests = {
         })
       .clickLaunchIcon('filePanel')
   },
-  'Should show fork states provider in environment explorer & make txs using forked state #group1': function (browser: NightwatchBrowser) {
+  'Should show fork states provider in environment dropdown & make txs using forked state #group1': function (browser: NightwatchBrowser) {
+    const remixVMSpanXPath = "//span[contains(@class,'dropdown-item') and normalize-space()='Remix VM']"
     browser
       .clickLaunchIcon('udapp')
       .waitForElementVisible('[data-id="settingsSelectEnvOptions"]')
       .click('[data-id="settingsSelectEnvOptions"] button')
-      .waitForElementVisible(`[data-id="dropdown-item-another-chain"]`)
-      .click(`[data-id="dropdown-item-another-chain"]`)
-      .waitForElementVisible('[data-id="remixUIGSDeploy to an In-browser Forked State."]')
-      .waitForElementPresent('[data-id="remixUIGSforkedState_1"]')
-      .waitForElementPresent('[data-id="vm-fs-forkedState_1-pinned"]')
-      .waitForElementContainsText('[data-id="vm-fs-forkedState_1desc"]', 'Latest Block: 2')
-      .waitForElementNotPresent('[data-id="remixUIGSforkedState_2"]')
+      .execute(function(xpath) {
+          const element = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+          if (element) {
+            const event = new MouseEvent('mouseover', { 'view': window, 'bubbles': true, 'cancelable': true })
+            element.dispatchEvent(event)
+          }
+        },
+        [remixVMSpanXPath]
+      )
+      .waitForElementVisible(`[data-id="dropdown-item-vm-fs-forkedState_1"]`)
+      .click('[data-id="settingsSelectEnvOptions"] button')
       .switchEnvironment('vm-prague')
       .openFile('contracts/1_Storage.sol')
-      .verifyContracts(['Storage'])
+      .clickLaunchIcon('solidity')
+      .click('*[data-id="compilerContainerCompileBtn"]')
+      .pause(2000)
       .clickLaunchIcon('udapp')
+      .selectContract('Storage')
       .click('*[data-id="Deploy - transact (not payable)"]')
-      .waitForElementVisible('*[data-id="unpinnedInstance0xf8e81D47203A594245E36C48e151709F0C19fBe8"]')
+      .pause(5000)
       .click('*[data-id="fork-state-icon"]')
       .waitForElementVisible('*[data-id="udappNotifyModalDialogModalTitle-react"]')
+      .pause(2000)
       .click('input[data-id="modalDialogForkState"]')
       .setValue('input[data-id="modalDialogForkState"]', 'forkedState_2')
       .modalFooterOKClick('udappNotify')
       .waitForElementVisible('*[data-shared="tooltipPopup"]', 10000)
       .waitForElementContainsText('*[data-shared="tooltipPopup"]', `New environment 'forkedState_2' created with forked state.`)
-      // check if 'forkedState_2' is selected as current environment 
-      .waitForElementPresent('*[data-id="selected-provider-vm-fs-forkedState_2"]')
-      // check if 'forkedState_2' is present in environment explorer
-      .waitForElementPresent('[data-id="remixUIGSforkedState_2"]')
-      // check if 'forkedState_2' is pinned in environment explorer
-      .waitForElementPresent('[data-id="vm-fs-forkedState_2-pinned"]')
-      // 'forkedState_2' should have 3 blocks
-      .waitForElementContainsText('[data-id="vm-fs-forkedState_2desc"]', 'Latest Block: 3')
+      .assert.elementPresent('*[data-id="selected-provider-vm-fs-forkedState_2"]')
+      
+      .click('[data-id="settingsSelectEnvOptions"] button')
+      .execute(function(xpath) {
+          const element = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+          if (element) {
+            const event = new MouseEvent('mouseover', { 'view': window, 'bubbles': true, 'cancelable': true })
+            element.dispatchEvent(event)
+          }
+        },
+        [remixVMSpanXPath]
+      )
+
+      .waitForElementVisible(`[data-id="dropdown-item-vm-fs-forkedState_2"]`)
+      .click('[data-id="settingsSelectEnvOptions"] button')
       .click('*[data-id="Deploy - transact (not payable)"]')
       .clickInstance(0)
       .clickFunction('store - transact (not payable)', { types: 'uint256 num', values: '"555"' })
-      // block number should be 5 after 2 txs
       .testFunction('last',
         {
           status: '0x1 Transaction mined and execution succeed',
@@ -188,7 +203,9 @@ const tests = {
     browser
       .switchEnvironment('vm-prague')
       .openFile('contracts/1_Storage.sol')
-      .verifyContracts(['Storage'])
+      .clickLaunchIcon('solidity')
+      .click('*[data-id="compilerContainerCompileBtn"]')
+      .pause(2000)
       .clickLaunchIcon('udapp')
       .click('*[data-id="Deploy - transact (not payable)"]')
       .pause(10000)

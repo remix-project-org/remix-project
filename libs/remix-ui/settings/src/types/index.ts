@@ -47,6 +47,7 @@ export interface SettingsSection {
       name: keyof SettingsState,
       label: string,
       labelIcon?: string,
+      headerClass?: string,
       labelIconTooltip?: string,
       description?: string | JSX.Element,
       footnote?: {
@@ -93,7 +94,6 @@ export interface SettingsState {
   'copilot/suggest/activate': ConfigState
   'save-evm-state': ConfigState,
   'theme': ConfigState,
-  'locale': ConfigState,
   'github-config': ConfigState,
   'ipfs-config': ConfigState,
   'swarm-config': ConfigState,

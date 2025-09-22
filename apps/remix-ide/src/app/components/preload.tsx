@@ -10,7 +10,7 @@ import './styles/preload.css'
 import isElectron from 'is-electron'
 const _paq = (window._paq = window._paq || [])
 
-_paq.push(['trackEvent', 'App', 'Preload', 'start'])
+// _paq.push(['trackEvent', 'App', 'Preload', 'start'])
 
 export const Preload = (props: any) => {
   const [tip, setTip] = useState<string>('')

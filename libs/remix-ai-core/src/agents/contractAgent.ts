@@ -3,7 +3,7 @@ import { workspaceAgent } from "./workspaceAgent";
 import { CompilationResult } from "../types/types";
 import { compilecontracts, compilationParams } from "../helpers/compile";
 import { OllamaInferencer } from "../inferencers/local/ollamaInferencer"
-const COMPILATION_WARNING_MESSAGE = '⚠️**Warning**: The compilation failed. Please check the compilation errors in the Solidity compiler plugin. Enter `/continue` or `/c` if you want Remix AI to try again until a compilable solution is generated?'
+const COMPILATION_WARNING_MESSAGE = '⚠️**Warning**: The compilation failed. Please check the compilation errors in the Solidity compiler plugin. Enter `/continue` or `/c` if you want RemixAI to try again until a compilable solution is generated?'
 
 export class ContractAgent {
   plugin: any;

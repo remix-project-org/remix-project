@@ -125,25 +125,25 @@ function App() {
       <label>events</label>
       <Logger id="events" log={events}></Logger>
       <input className="form-control w-100" type="text" id="payload" placeholder="Enter payload here..." value={payload} onChange={handleChange} data-id="payload-input" />
-      {profiles.map((profile: Profile) => {
-        const methods = profile.methods.map((method: string) => {
+      {profiles.map((profile: Profile, index: number) => {
+        const methods = profile.methods.map((method: string, index: number) => {
           return (
-            <button id={`${profile.name}-${method}-${profile.name}`} data-id={`${profile.name}-${method}`} key={method} className="btn btn-primary btn-sm ms-1 mb-1" onClick={async () => await clientMethod(profile, method)}>
+            <button id={`${profile.name}-${method}-${profile.name}`} data-id={`${profile.name}-${method}`} key={index} className="btn btn-primary btn-sm ms-1 mb-1" onClick={async () => await clientMethod(profile, method)}>
               {method}
             </button>
           )
         })
         const events = profile.events
-          ? profile.events.map((event: string) => {
+          ? profile.events.map((event: string, index: number) => {
             return (
-              <label key={event} className="m-1">
+              <label key={index} className="m-1">
                 {event}
               </label>
             )
           })
           : null
         return (
-          <div key={profile.name} className="small border-bottom">
+          <div key={index} className="small border-bottom">
             <label className="text-uppercase">{profile.name}</label>
             <br/>
             {methods}

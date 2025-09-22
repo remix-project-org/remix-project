@@ -38,7 +38,7 @@
   },
   "author": "Remix Team",
   "license": "MIT",
-  "homepage": "https://github.com/ethereum/remix-project/tree/master/libs/remix-analyzer#readme",
+  "homepage": "https://github.com/remix-project-org/remix-project/tree/master/libs/remix-analyzer#readme",
   "devDependencies": {
     "@types/node": "^18.16.1",
     "babel-eslint": "^7.1.1",

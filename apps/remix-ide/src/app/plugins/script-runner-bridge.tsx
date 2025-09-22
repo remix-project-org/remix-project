@@ -22,7 +22,8 @@ const profile = {
   maintainedBy: 'Remix',
 }
 
-const configFileName = '.remix/script.config.json'
+const oldConfigFileName = '.remix/script.config.json'
+const configFileName = 'remix.config.json'
 
 let baseUrl = 'https://remix-project-org.github.io/script-runner-generator'
 const customBuildUrl = 'http://localhost:4000/build' // this will be used when the server is ready
@@ -72,6 +73,23 @@ export class ScriptRunnerBridgePlugin extends Plugin {
           baseConfiguration: 'default',
           dependencies: [],
         },
+      }
+      const oldConfigExists = await this.plugin.call('fileManager', 'exists', oldConfigFileName)
+      const configExists = await this.plugin.call('fileManager', 'exists', configFileName)
+
+      if (oldConfigExists) {
+        const oldConfigContent = await this.plugin.call('fileManager', 'readFile', oldConfigFileName)
+        const oldConfig = JSON.parse(oldConfigContent)
+
+        if (configExists) {
+          const configContent = await this.plugin.call('fileManager', 'readFile', configFileName)
+          const config = JSON.parse(configContent)
+          config['script-runner'] = oldConfig
+          await this.plugin.call('fileManager', 'writeFile', configFileName, JSON.stringify(config, null, 2))
+        } else {
+          await this.plugin.call('fileManager', 'writeFile', configFileName, JSON.stringify({ 'script-runner': oldConfig }, null, 2))
+        }
+        await this.plugin.call('fileManager', 'remove', '.remix')
       }
       await this.loadCustomConfig()
       await this.loadConfigurations()
@@ -259,7 +277,18 @@ export class ScriptRunnerBridgePlugin extends Plugin {
     try {
       const content = await this.plugin.call('fileManager', 'readFile', configFileName)
       const parsed = JSON.parse(content)
-      this.customConfig = parsed
+
+      if (parsed['script-runner']) {
+        this.customConfig = parsed['script-runner']
+      } else {
+        this.customConfig = {
+          defaultConfig: 'default',
+          customConfig: {
+            baseConfiguration: 'default',
+            dependencies: [],
+          },
+        }
+      }
     } catch (e) {
       this.customConfig = {
         defaultConfig: 'default',
@@ -274,7 +303,7 @@ export class ScriptRunnerBridgePlugin extends Plugin {
   async openCustomConfig() {
 
     try {
-      await this.plugin.call('fileManager', 'open', '.remix/script.config.json')
+      await this.plugin.call('fileManager', 'open', 'remix.config.json')
     } catch (e) {}
   }
 
@@ -297,16 +326,21 @@ export class ScriptRunnerBridgePlugin extends Plugin {
   }
 
   async saveCustomConfig(content: ScriptRunnerConfig) {
-    if (content.customConfig.dependencies.length === 0 && content.defaultConfig === 'default') {
-      try {
-        const exists = await this.plugin.call('fileManager', 'exists', '.remix/script.config.json')
-        if (exists) {
-          await this.plugin.call('fileManager', 'remove', '.remix/script.config.json')
-        }
-      } catch (e) {}
-      return
-    }
-    await this.plugin.call('fileManager', 'writeFile', '.remix/script.config.json', JSON.stringify(content, null, 2))
+    try {
+      const exists = await this.plugin.call('fileManager', 'exists', configFileName)
+      if (exists) {
+        const configContent = await this.plugin.call('fileManager', 'readFile', configFileName)
+        const config = JSON.parse(configContent)
+
+        config['script-runner'] = content
+        await this.plugin.call('fileManager', 'writeFile', configFileName, JSON.stringify(config, null, 2))
+        this.plugin.call('notification', 'toast', 'Updated script runner config in remix.config.json')
+      } else {
+        await this.plugin.call('fileManager', 'writeFile', configFileName, JSON.stringify({ 'script-runner': content }, null, 2))
+        this.plugin.call('notification', 'toast', 'Created script runner config in remix.config.json')
+      }
+    } catch (e) {}
+    return
   }
 
   async activateCustomScriptRunner(config: customScriptRunnerConfig) {

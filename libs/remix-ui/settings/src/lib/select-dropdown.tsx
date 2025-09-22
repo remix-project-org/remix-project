@@ -26,16 +26,6 @@ const SelectDropdown = ({ value, options, name, dispatch }: SelectDropdownProps)
       } else {
         console.error('Theme not found: ', value)
       }
-    } else if (name === 'locale') {
-      const localeModule = Registry.getInstance().get('localeModule').api
-      const locale = localeModule.getLocales().find((locale) => locale.code === value)
-
-      if (locale) {
-        localeModule.switchLocale(locale.code)
-        dispatch({ type: 'SET_VALUE', payload: { name: name, value: locale.localeName } })
-      } else {
-        console.error('Locale not found: ', value)
-      }
     } else {
       dispatch({ type: 'SET_VALUE', payload: { name: name, value: value } })
     }
