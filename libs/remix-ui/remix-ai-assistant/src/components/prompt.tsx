@@ -155,11 +155,9 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             value={input}
             disabled={isStreaming}
             onFocus={() => {
-              dispatchActivity('typing', input)
               maximizePanel()
             }}
             onChange={e => {
-              dispatchActivity('typing', e.target.value)
               setInput(e.target.value)
             }}
             onKeyDown={e => {
