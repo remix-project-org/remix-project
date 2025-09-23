@@ -145,6 +145,7 @@ module.exports = {
     browser
       .openFile('remix.config.json')
       .setEditorValue(configFile)
+      .pause(1000)
       .clickLaunchIcon('solidity')
       .waitForElementVisible('*[data-id="scConfigExpander"]')
       .click('*[data-id="scConfigExpander"]')
