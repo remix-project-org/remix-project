@@ -128,7 +128,7 @@ export class RemixURLResolver {
       // const req = 'http://localhost:8080/' + url
       const response: any = await fetch(req)
       const data = await response.text()
-      return { content: response.data, cleanUrl: url.replace('ipfs/', '') }
+      return { content: data, cleanUrl: url.replace('ipfs/', '') }
     } catch (e) {
       throw e
     }
