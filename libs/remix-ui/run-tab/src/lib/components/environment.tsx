@@ -13,7 +13,23 @@ export function EnvironmentUI(props: EnvironmentProps) {
   const vmStateName = useRef('')
   const providers = props.providers.providerList
   const [isSwitching, setIsSwitching] = useState(false)
-  const watchdogTimer = useRef<NodeJS.Timeout | null>(null)
+
+  const switchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    if (switchTimeoutRef.current) {
+      clearTimeout(switchTimeoutRef.current)
+    }
+    setIsSwitching(false)
+  }, [props.selectedEnv])
+
+  useEffect(() => {
+    return () => {
+      if (switchTimeoutRef.current) {
+        clearTimeout(switchTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const remixVMs = providers.filter(p => p.config.isVM)
   const injectedProviders = providers.filter(p => p.config.isInjected)
@@ -25,43 +41,22 @@ export function EnvironmentUI(props: EnvironmentProps) {
   const walletConnect = providers.find(p => p.name === 'walletconnect' || p.name === 'walletConnect')
   const httpProvider = providers.find(p => p.name === 'basic-http-provider' || p.name === 'web3Provider' || p.name === 'basicHttpProvider')
 
-  const stopSwitching = () => {
-    if (watchdogTimer.current) {
-      clearTimeout(watchdogTimer.current)
-      watchdogTimer.current = null
-    }
-    setIsSwitching(false)
-  }
-
-  useEffect(() => {
-    if (isSwitching) {
-      stopSwitching()
-    }
-  }, [props.selectedEnv])
-
-  const handleChangeExEnv = async (env: string) => {
+  const handleChangeExEnv = (env: string) => {
     if (props.selectedEnv === env || isSwitching) return
+
+    if (switchTimeoutRef.current) {
+      clearTimeout(switchTimeoutRef.current)
+    }
 
     setIsSwitching(true)
 
-    watchdogTimer.current = setTimeout(() => {
-      stopSwitching()
-    }, 10000)
+    switchTimeoutRef.current = setTimeout(() => {
+      setIsSwitching(false)
+    }, 8000)
 
-    const provider = providers.find((exEnv) => exEnv.name === env)
-
-    if (provider && typeof provider.init === 'function') {
-      try {
-        await provider.init()
-        props.setExecutionContext({ context: env })
-      } catch (e) {
-        stopSwitching()
-      }
-    } else {
-      setTimeout(() => {
-        props.setExecutionContext({ context: env })
-      }, 0)
-    }
+    const provider = props.providers.providerList.find((exEnv) => exEnv.name === env)
+    const context = provider.name
+    props.setExecutionContext({ context })
   }
 
   const currentProvider = props.providers.providerList.find((exEnv) => exEnv.name === props.selectedEnv)
