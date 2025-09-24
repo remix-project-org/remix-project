@@ -10,6 +10,7 @@ class RemixClient extends PluginClient {
   }
 
   startTutorial(name: any, branch: any, id: any): void {
+    (window as any).startTutorialCalled = true
     void router.navigate('/home')
     store.dispatch({
       type: 'workshop/loadRepo',

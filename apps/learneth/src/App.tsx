@@ -51,7 +51,9 @@ function App(): JSX.Element {
       callback: () => {
         // @ts-ignore
         remixClient.call('locale', 'currentLocale').then((locale: any) => {
-          loadRepo(locale)
+          if (!(window as any).startTutorialCalled) {
+            loadRepo(locale)
+          }
         })
         // @ts-ignore
         remixClient.on('locale', 'localeChanged', (locale: any) => {
