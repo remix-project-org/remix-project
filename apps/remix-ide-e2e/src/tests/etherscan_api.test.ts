@@ -33,7 +33,7 @@ const tests = {
       .execute(() => {
         (document.querySelector('*[data-id="basic-http-providerModalDialogContainer-react"] input[data-id="modalDialogCustomPromp"]') as any).focus()
       }, [], () => {})
-      .setValue('[data-id="modalDialogCustomPromp"]', 'https://go.getblock.io/ee42d0a88f314707be11dd799b122cb9') // sepolia
+      .setValue('[data-id="modalDialogCustomPromp"]', 'https://go.getblock.io/7fbe62b139884d2c9c1616ca0de8b5b2') // sepolia
       .modalFooterOKClick('basic-http-provider')
       .clickLaunchIcon('solidity') // compile
       .testContracts('Owner_1.sol', { content: verifiedContract }, ['Owner'])
