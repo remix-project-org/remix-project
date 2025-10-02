@@ -285,6 +285,8 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
           updateCurrentVersion={updateCurrentVersion}
           configurationSettings={configurationSettings}
           solJsonBinData={state.solJsonBinData}
+          setCompileErrors={setCompileErrors}
+          setBadgeStatus={setBadgeStatus}
         />
         {/* "compileErrors[currentFile]['contracts']" field will not be there in case of compilation errors */}
         {contractsFile && contractsFile[currentFile] && contractsFile[currentFile].contractsDetails

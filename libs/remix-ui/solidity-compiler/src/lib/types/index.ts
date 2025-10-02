@@ -21,7 +21,9 @@ export interface CompilerContainerProps {
   compiledFileName: string,
   updateCurrentVersion: any,
   configurationSettings: ConfigurationSettings,
-  solJsonBinData: iSolJsonBinData
+  solJsonBinData: iSolJsonBinData,
+  setCompileErrors: (errors: Record<string, CompileErrors>) => void
+  setBadgeStatus: (badgeStatus: Record<string, { key: string; title?: string; type?: string }>) => void
 }
 
 export interface ContractSelectionProps {
