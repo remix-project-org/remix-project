@@ -498,7 +498,9 @@ export const TabsUI = (props: TabsUIProps) => {
       if (tabsState.currentExt === 'vy') {
         await props.plugin.call(compilerName, 'vyperCompileCustomAction')
       } else {
-        await props.plugin.call(compilerName, 'compile', path)
+        await props.plugin.call(compilerName, 'compile', path).catch((error) => {
+          props.plugin.call('notification', 'toast', error.message)
+        })
       }
 
     } catch (e) {

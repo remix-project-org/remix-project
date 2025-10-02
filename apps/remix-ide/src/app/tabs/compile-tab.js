@@ -120,7 +120,7 @@ export default class CompileTab extends CompilerApiMixin(ViewPlugin) { // implem
 
   compile(fileName) {
     if (!isNative(this.currentRequest.from)) this.call('notification', 'toast', compileToastMsg(this.currentRequest.from, fileName))
-    super.compile(fileName)
+    return super.compile(fileName)
   }
 
   compileFile(event) {

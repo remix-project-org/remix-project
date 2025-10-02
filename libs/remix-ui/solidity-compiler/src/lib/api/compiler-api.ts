@@ -366,7 +366,9 @@ export const CompilerApiMixin = (Base) => class extends Base {
         if (this.currentFile && (this.currentFile.endsWith('.sol') || this.currentFile.endsWith('.yul'))) {
           if (await this.getAppParameter('hardhat-compilation')) this.compileTabLogic.runCompiler('hardhat')
           else if (await this.getAppParameter('truffle-compilation')) this.compileTabLogic.runCompiler('truffle')
-          else this.compileTabLogic.runCompiler(undefined)
+          else this.compileTabLogic.runCompiler(undefined).catch((error) => {
+            this.call('notification', 'toast', error.message)
+          })
         } else if (this.currentFile && this.currentFile.endsWith('.circom')) {
           await this.call('circuit-compiler', 'compile', this.currentFile)
         } else if (this.currentFile && this.currentFile.endsWith('.vy')) {
