@@ -266,5 +266,6 @@ parameters:
 - Official documentation: https://remix-ide.readthedocs.io/en/latest/
 - Curated list of Remix resources: https://github.com/remix-project-org/awesome-remix
 - Medium: https://medium.com/remix-ide
+- Linkedin: https://www.linkedin.com/company/ethereum-remix
 - X: https://x.com/ethereumremix
 - Join Discord: https://discord.gg/Sacg4gchvS
