@@ -40,6 +40,8 @@ export interface PromptAreaProps {
   maximizePanel: () => Promise<void>
   aiMode: 'ask' | 'edit'
   setAiMode: React.Dispatch<React.SetStateAction<'ask' | 'edit'>>
+  isMaximized: boolean
+  setIsMaximized: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 const _paq = (window._paq = window._paq || [])
@@ -77,7 +79,9 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   textareaRef,
   maximizePanel,
   aiMode,
-  setAiMode
+  setAiMode,
+  isMaximized,
+  setIsMaximized
 }) => {
 
   return (
@@ -155,7 +159,9 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             value={input}
             disabled={isStreaming}
             onFocus={() => {
-              maximizePanel()
+              if (!isMaximized) {
+                maximizePanel()
+              }
             }}
             onChange={e => {
               setInput(e.target.value)
