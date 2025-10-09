@@ -1,32 +1,81 @@
 {
-  "name": "remix-ai-core",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/remix-ai-core/src",
-  "projectType": "library",
-  "implicitDependencies": [
+  "name": "@remix-project/remixd",
+  "version": "0.6.55",
+  "description": "remix server: allow accessing file system from remix.ethereum.org and start a dev environment (see help section)",
+  "main": "index.js",
+  "types": "./index.d.ts",
+  "bin": {
+    "remixd": "./src/bin/remixd.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/remix-project-org/remix-project.git"
+  },
+  "keywords": [
+    "remix",
+    "ide",
+    "ethereum",
+    "solidity"
   ],
-  "targets": {
-    "build": {
-      "executor": "@nrwl/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/remix-ai-core",
-        "main": "libs/remix-ai-core/src/index.ts",
-        "tsConfig": "libs/remix-ai-core/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
-        "assets": [
-          "libs/remix-ai-core/*.md"
-        ]
-      }
-    },
-    "lint": {
-      "executor": "@nrwl/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-ai-core/**/*.ts"],
-        "eslintConfig": "libs/remix-ai-core/.eslintrc"
-      }
+  "author": "Remix Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/remix-project-org/remix-project/issues"
+  },
+  "homepage": "https://github.com/remix-project-org/remix-project#readme",
+  "dependencies": {
+    "@remix-project/remix-solidity": "^0.5.36",
+    "@remixproject/plugin": "0.3.33",
+    "@remixproject/plugin-api": "0.3.33",
+    "@remixproject/plugin-utils": "0.3.33",
+    "@remixproject/plugin-ws": "0.3.33",
+    "axios": "1.12.0",
+    "bn.js": "^5.1.2",
+    "chokidar": "^2.1.8",
+    "commander": "^9.4.1",
+
+    
+          
+            
+    
+
+          
+          Expand Down
+    
+    
+  
+    "fs-extra": "^3.0.1",
+    "isbinaryfile": "^3.0.2",
+    "latest-version": "^5.1.0",
+    "semver": "^6.3.0",
+    "ws": "^7.3.0"
+  },
+  "python": {
+    "execPath": "python3",
+    "dependencies": {
+      "vyper": ">=0.1.0b3"
     }
   },
-  "tags": []
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/fs-extra": "^9.0.1",
+    "@types/node": "^18.16.1",
+    "@types/ws": "^7.2.4",
+    "@typescript-eslint/eslint-plugin": "^3.2.0",
+    "@typescript-eslint/parser": "^3.2.0",
+    "eslint": "6.8.0",
+    "eslint-config-standard": "14.1.1",
+    "eslint-plugin-import": "2.20.2",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-promise": "4.2.1",
+    "eslint-plugin-standard": "4.0.1",
+    "nodemon": "^2.0.4",
+    "ts-node": "^8.10.1",
+    "typescript": "^3.9.3"
+  },
+  "typings": "index.d.ts",
+  "gitHead": "ba6b2b226349d035146bd6deb120fef3d499ed16"
 }
