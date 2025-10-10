@@ -81,12 +81,17 @@ export class NoirPluginClient extends PluginClient {
   async findProjectRoot(filePath: string): Promise<string | null> {
     const srcIndex = filePath.lastIndexOf('/src/')
 
-    if (srcIndex === -1) {
+    let potentialRoot = null
+
+    if (srcIndex > -1) {
+      potentialRoot = filePath.substring(0, srcIndex)
+    } else if (filePath.startsWith('src/')) {
+      potentialRoot = ''
+    } else {
       console.error(`File is not located within a 'src' directory: ${filePath}`)
       return null
     }
 
-    const potentialRoot = filePath.substring(0, srcIndex)
     const tomlPath = potentialRoot ? `${potentialRoot}/Nargo.toml` : 'Nargo.toml'
 
     // @ts-ignore
