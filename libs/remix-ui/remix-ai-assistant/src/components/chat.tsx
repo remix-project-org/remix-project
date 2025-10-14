@@ -1,14 +1,17 @@
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import rehypeRaw from "rehype-raw"
-import copy from "copy-to-clipboard"
-import { ChatMessage, assistantAvatar } from "../lib/types"
+import ReactMarkdown from 'react-markdown'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
+import remarkBreaks from 'remark-breaks'
+import copy from 'copy-to-clipboard'
+import { ChatMessage, assistantAvatar } from '../lib/types'
 import React, { useState, useEffect } from 'react'
-import { CustomTooltip } from "@remix-ui/helper"
+import { CustomTooltip } from '@remix-ui/helper'
 import {
   sampleConversationStarters,
   type ConversationStarter
-} from "../lib/conversationStarters"
+} from '../lib/conversationStarters'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -63,6 +66,8 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
   )
 }
 
+const content = []
+
 export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   messages,
   isStreaming,
@@ -103,12 +108,12 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                   )}
 
                   {msg.role === 'assistant' ? (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeRaw]}
+                    <Markdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      rehypePlugins={[rehypeRaw, rehypeSanitize]}
                       linkTarget="_blank"
                       components={{
-                        // Code blocks and inline code
+                      // Code blocks and inline code
                         code({ node, inline, className, children, ...props }) {
                           const text = String(children).replace(/\n$/, '')
                           const match = /language-(\w+)/.exec(className || '')
@@ -161,22 +166,22 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
 
                         // Headings
                         h1: ({ node, ...props }) => (
-                          <h1 className="ai-heading ai-h1" {...props} />
+                          <h1 className="ai-heading ai-h1 fs-5 mb-1" {...props} />
                         ),
                         h2: ({ node, ...props }) => (
-                          <h2 className="ai-heading ai-h2" {...props} />
+                          <h2 className="ai-heading ai-h2 fs-5 mb-1" {...props} />
                         ),
                         h3: ({ node, ...props }) => (
-                          <h3 className="ai-heading ai-h3" {...props} />
+                          <h3 className="ai-heading ai-h3 fs-5 mb-1" {...props} />
                         ),
                         h4: ({ node, ...props }) => (
-                          <h4 className="ai-heading ai-h4" {...props} />
+                          <h4 className="ai-heading ai-h4 fs-6 mb-1" {...props} />
                         ),
                         h5: ({ node, ...props }) => (
-                          <h5 className="ai-heading ai-h5" {...props} />
+                          <h5 className="ai-heading ai-h5 fs-6 mb-1" {...props} />
                         ),
                         h6: ({ node, ...props }) => (
-                          <h6 className="ai-heading ai-h6" {...props} />
+                          <h6 className="ai-heading ai-h6 fs-6 mb-1" {...props} />
                         ),
 
                         // Lists
@@ -237,7 +242,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                       }}
                     >
                       {msg.content}
-                    </ReactMarkdown>
+                    </Markdown>
                   ) : (
 
                     msg.content
@@ -282,7 +287,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
               </div>
             </div>
           )
-        }) //end of messages render
+        }) //end of messages renderconsole.log(content)
       )}
       {isStreaming && (
         <div className="text-center my-2">
