@@ -51,7 +51,6 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
       {/* Dynamic Conversation Starters */}
       <div className="d-flex flex-column mt-3" style={{ maxWidth: '400px' }}>
         {conversationStarters.map((starter, index) => (
-
           <button
             key={`${starter.level}-${index}`}
             data-id={`remix-ai-assistant-starter-${starter.level}-${index}`}

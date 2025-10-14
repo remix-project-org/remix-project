@@ -61,12 +61,13 @@ export class NoirPluginClient extends PluginClient {
     }
   }
 
-  async setupNargoToml(): Promise<void> {
+  async setupNargoToml(projectRoot: string): Promise<void> {
+    const tomlPath = projectRoot === '/' ? 'Nargo.toml' : `${projectRoot}/Nargo.toml`
     // @ts-ignore
-    const nargoTomlExists = await this.call('fileManager', 'exists', 'Nargo.toml')
+    const nargoTomlExists = await this.call('fileManager', 'exists', tomlPath)
 
     if (!nargoTomlExists) {
-      await this.call('fileManager', 'writeFile', 'Nargo.toml', DEFAULT_TOML_CONFIG)
+      await this.call('fileManager', 'writeFile', tomlPath, DEFAULT_TOML_CONFIG)
     }
   }
 
@@ -75,6 +76,34 @@ export class NoirPluginClient extends PluginClient {
     const random = Math.random().toString(36).substring(2, 15)
 
     return `req_${timestamp}_${random}`
+  }
+
+  async findProjectRoot(filePath: string): Promise<string | null> {
+    const srcIndex = filePath.lastIndexOf('/src/')
+
+    let potentialRoot = null
+
+    if (srcIndex > -1) {
+      potentialRoot = filePath.substring(0, srcIndex)
+    } else if (filePath.startsWith('src/')) {
+      potentialRoot = ''
+    } else {
+      console.error(`File is not located within a 'src' directory: ${filePath}`)
+      return null
+    }
+
+    const tomlPath = potentialRoot ? `${potentialRoot}/Nargo.toml` : 'Nargo.toml'
+
+    // @ts-ignore
+    const tomlExists = await this.call('fileManager', 'exists', tomlPath)
+
+    if (tomlExists) {
+      const projectRoot = potentialRoot || '/'
+      return projectRoot
+    } else {
+      console.error(`'Nargo.toml' not found at the expected project root: '${potentialRoot || '/'}'.`)
+      return null
+    }
   }
 
   async compile(path: string): Promise<void> {
@@ -86,15 +115,28 @@ export class NoirPluginClient extends PluginClient {
         path,
         id: requestID
       }
+
       if (this.ws.readyState === WebSocket.OPEN) {
+        const projectRoot = await this.findProjectRoot(path)
+
+        if (projectRoot === null) {
+          const errorMsg = `Invalid project structure for '${path}'. A '.nr' file must be inside a 'src' folder, and a 'Nargo.toml' file must exist in the project root directory.`
+          this.call('terminal', 'log', { type: 'error', value: errorMsg })
+          this.emit('statusChanged', { key: 'error', title: 'Invalid project structure', type: 'error' })
+          this.internalEvents.emit('noir_compiling_errored', new Error(errorMsg))
+          return
+        }
+
         this.ws.send(JSON.stringify({ requestId: requestID }))
         this.internalEvents.emit('noir_compiling_start')
         this.emit('statusChanged', { key: 'loading', title: 'Compiling Noir Program...', type: 'info' })
         // @ts-ignore
         this.call('terminal', 'log', { type: 'log', value: 'Compiling ' + path })
-        await this.setupNargoToml()
+
+        await this.setupNargoToml(projectRoot)
+
         // @ts-ignore
-        const zippedProject: Blob = await this.call('fileManager', 'download', '/', false, ['build'])
+        const zippedProject: Blob = await this.call('fileManager', 'download', projectRoot, false, ['build'])
         const formData = new FormData()
 
         formData.append('file', zippedProject, `${extractNameFromKey(path)}.zip`)
@@ -108,8 +150,11 @@ export class NoirPluginClient extends PluginClient {
         } else {
           const { compiledJson, proverToml } = response.data
 
-          this.call('fileManager', 'writeFile', 'build/program.json', compiledJson)
-          this.call('fileManager', 'writeFile', 'build/prover.toml', proverToml)
+          const buildPath = projectRoot === '/' ? 'build' : `${projectRoot}/build`
+
+          this.call('fileManager', 'writeFile', `${buildPath}/program.json`, compiledJson)
+          this.call('fileManager', 'writeFile', `${buildPath}/prover.toml`, proverToml)
+
           this.internalEvents.emit('noir_compiling_done')
           this.emit('statusChanged', { key: 'succeed', title: 'Noir circuit compiled successfully', type: 'success' })
           // @ts-ignore
