@@ -169,7 +169,7 @@ export class ContractVerificationPluginClient extends PluginClient {
         await this.call('terminal', 'log', { type: 'log', value: `Verifying with ${providerName}...` })
 
         if (providerName === 'Etherscan' || providerName === 'Routescan' || providerName === 'Blockscout') {
-          await new Promise(resolve => setTimeout(resolve, 10000))
+          await new Promise(resolve => setTimeout(resolve, 9000))
         }
 
         if (verifier && typeof verifier.verify === 'function') {
