@@ -18,6 +18,7 @@ export interface ChatHistoryComponentProps {
   sendPrompt: (prompt: string) => void
   recordFeedback: (msgId: string, next: 'like' | 'dislike' | 'none') => void
   historyRef: React.RefObject<HTMLDivElement>
+  theme: string
 }
 
 interface AiChatIntroProps {
@@ -77,7 +78,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   isStreaming,
   sendPrompt,
   recordFeedback,
-  historyRef
+  historyRef,
+  theme
 }) => {
   return (
     <div
@@ -135,7 +137,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                             return (
                               <div className="ai-code-block-wrapper">
                                 {language && (
-                                  <div className="ai-code-header">
+                                  <div className={`ai-code-header ${theme === 'Dark' ? 'text-white' : 'text-dark'}`}>
                                     <span className="ai-code-language">{language}</span>
                                     <button
                                       type="button"

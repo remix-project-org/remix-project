@@ -376,7 +376,7 @@
   color: var(--bs-body-color);
   padding: 0.2em 0.4em;
   border-radius: 3px;
-  font-size: 0.5em;
+  font-size: 0.75em;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
   white-space: pre-wrap;
   word-break: break-word;
@@ -390,6 +390,7 @@
   border: 1px solid var(--bs-border-color);
   border-radius: 6px;
   overflow: hidden;
+  font-size: 0.75em;
 }
 
 /* Code Header with Language Tag */
@@ -398,7 +399,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0.75rem;
-  background: rgba(110, 118, 129, 0.2);
+  background: rgba(112, 149, 200, 0.2);
   border-bottom: 1px solid var(--bs-border-color);
 }
 
@@ -406,7 +407,6 @@
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--bs-secondary);
   letter-spacing: 0.5px;
 }
 
