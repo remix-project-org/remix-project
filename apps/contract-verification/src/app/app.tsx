@@ -161,7 +161,7 @@ const App = () => {
         setSubmittedContracts((prev) => Object.assign({}, prev, changedSubmittedContracts))
       }
 
-      timer.current = setInterval(pollStatus, 1000)
+      timer.current = setInterval(pollStatus, 3000)
     }
   }, [submittedContracts])
 

@@ -144,7 +144,7 @@ export class EtherscanVerifier extends AbstractVerifier {
 
     if (!response.ok) {
       const responseText = await response.text()
-      console.error('Error on Etherscan API check verification status at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + responseText)
+      console.error('Error on API check verification status at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + responseText)
       throw new Error(responseText)
     }
 
@@ -163,12 +163,12 @@ export class EtherscanVerifier extends AbstractVerifier {
       return { status: 'already verified', receiptId }
     }
     if (checkStatusResponse.result === 'Unknown UID') {
-      console.error('Error on Etherscan API check verification status at ' + this.apiUrl + '\nStatus: ' + checkStatusResponse.status + '\nMessage: ' + checkStatusResponse.message + '\nResult: ' + checkStatusResponse.result)
+      console.error('Error on API check verification status at ' + this.apiUrl + '\nStatus: ' + checkStatusResponse.status + '\nMessage: ' + checkStatusResponse.message + '\nResult: ' + checkStatusResponse.result)
       return { status: 'failed', receiptId, message: checkStatusResponse.result }
     }
 
     if (checkStatusResponse.status !== '1' || !checkStatusResponse.message.startsWith('OK')) {
-      console.error('Error on Etherscan API check verification status at ' + this.apiUrl + '\nStatus: ' + checkStatusResponse.status + '\nMessage: ' + checkStatusResponse.message + '\nResult: ' + checkStatusResponse.result)
+      console.error('Error on API check verification status at ' + this.apiUrl + '\nStatus: ' + checkStatusResponse.status + '\nMessage: ' + checkStatusResponse.message + '\nResult: ' + checkStatusResponse.result)
       throw new Error(checkStatusResponse.result)
     }
 
