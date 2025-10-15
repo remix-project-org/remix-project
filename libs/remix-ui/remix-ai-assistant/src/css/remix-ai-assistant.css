@@ -376,7 +376,7 @@
   color: var(--bs-body-color);
   padding: 0.2em 0.4em;
   border-radius: 3px;
-  font-size: 0.95em;
+  font-size: 0.5em;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
   white-space: pre-wrap;
   word-break: break-word;

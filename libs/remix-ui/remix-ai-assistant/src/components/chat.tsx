@@ -1,10 +1,8 @@
 import ReactMarkdown from 'react-markdown'
-import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import remarkRehype from 'remark-rehype'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
-import remarkBreaks from 'remark-breaks'
+import rehypeHighlight from 'rehype-highlight'
 import copy from 'copy-to-clipboard'
 import { ChatMessage, assistantAvatar } from '../lib/types'
 import React, { useState, useEffect } from 'react'
@@ -142,7 +140,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                                     <span className="ai-code-language">{language}</span>
                                     <button
                                       type="button"
-                                      className="ai-copy-btn"
+                                      className="btn btn-sm btn-outline-info border border-info"
                                       onClick={() => copy(text)}
                                       title="Copy code"
                                     >
