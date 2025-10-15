@@ -647,3 +647,31 @@ mark,
     font-size: 0.85rem;
   }
 }
+
+
+
+.aiMarkup {
+  display: block;
+  white-space: normal;
+  line-height: var(--bs-body-line-height, 1.5);
+}
+
+/* remove default margins inside elements. Bootstrap is just too generous here.*/
+.aiMarkup :where(p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, table, hr) {
+  margin: 0 !important;
+}
+
+/* Add clean vertical spacing between elements.*/
+.aiMarkup > :where(* + *) {
+  margin-top: .95rem;
+}
+
+
+.aiMarkup :where(li + li) { margin-top: .45rem; }
+.aiMarkup pre { margin-top: .45rem; }
+
+.aiMarkup :where(h1) { margin-top: 1rem; }
+.aiMarkup :where(h2) { margin-top: .95rem; }
+.aiMarkup :where(h3) { margin-top: .85rem; }
+
+.aiMarkup hr { margin: .95rem 0; }
