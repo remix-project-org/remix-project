@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, MutableRefObject } from 'react'
 import '../css/remix-ai-assistant.css'
-import 'highlight.js/styles/github.css'
 
 import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, listModels, isOllamaAvailable } from '@remix/remix-ai-core'
 import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
