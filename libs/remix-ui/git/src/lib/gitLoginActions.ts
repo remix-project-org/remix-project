@@ -3,8 +3,7 @@ import { endpointUrls } from "@remix-endpoints-helper";
 import isElectron from "is-electron";
 import { saveToken } from "./pluginActions";
 import { loadGitHubUserFromToken } from "./gitactions";
-import { sendToMatomo } from "./pluginActions";
-import { gitMatomoEventTypes } from "../types";
+import { GitEvent, trackMatomoEvent } from "@remix-api";
 
 // Reference to the plugin - this will be set from listeners.ts
 let plugin: any = null;
@@ -12,6 +11,17 @@ let plugin: any = null;
 export const setLoginPlugin = (pluginInstance: any) => {
   plugin = pluginInstance;
 };
+
+// Helper function for tracking git events from library functions
+const trackGitEvent = (action: GitEvent['action'], name?: string, isClick: boolean = false) => {
+  if (!plugin) return
+  trackMatomoEvent(plugin, {
+    category: 'git',
+    action,
+    name,
+    isClick
+  })
+}
 
 // Get the GitHub OAuth client ID based on the platform
 const getClientId = async () => {
@@ -36,7 +46,7 @@ export const startGitHubLogin = async (): Promise<void> => {
   }
 
   try {
-    await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUB);
+    trackGitEvent("CONNECT_TO_GITHUB", undefined, true);
 
     if (isElectron()) {
       // For desktop/electron, use the githubAuthHandler plugin
@@ -46,7 +56,7 @@ export const startGitHubLogin = async (): Promise<void> => {
       await startWebPopupLogin();
     }
   } catch (error) {
-    await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUBFAIL);
+    trackGitEvent("CONNECT_TO_GITHUB_FAIL");
     throw error;
   }
 };
@@ -58,10 +68,10 @@ const startWebPopupLogin = async (): Promise<void> => {
   const scope = 'repo gist user:email read:user';
 
   const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code`;
-  await sendToMatomo(gitMatomoEventTypes.OPENLOGINMODAL)
+  trackGitEvent("OPEN_LOGIN_MODAL", undefined, true)
   const popup = window.open(url, '_blank', 'width=600,height=700');
   if (!popup) {
-    await sendToMatomo(gitMatomoEventTypes.LOGINMODALFAIL);
+    trackGitEvent("LOGIN_MODAL_FAIL");
     console.warn('Popup blocked or failed to open, falling back to device code flow.');
     throw new Error('Popup blocked - please allow popups for this site or use device code flow');
   }
@@ -75,7 +85,7 @@ const startWebPopupLogin = async (): Promise<void> => {
         try {
           await saveToken(token);
           await loadGitHubUserFromToken();
-          await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUBSUCCESS);
+          trackGitEvent("CONNECT_TO_GITHUB_SUCCESS");
           window.removeEventListener('message', messageListener);
           popup?.close();
           resolve();
@@ -85,7 +95,7 @@ const startWebPopupLogin = async (): Promise<void> => {
           reject(error);
         }
       } else if (event.data.type === 'GITHUB_AUTH_FAILURE') {
-        await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUBFAIL);
+        trackGitEvent("CONNECT_TO_GITHUB_FAIL");
         window.removeEventListener('message', messageListener);
         popup?.close();
         reject(new Error('GitHub authentication failed'));
@@ -107,7 +117,7 @@ const startWebPopupLogin = async (): Promise<void> => {
 
 // Device code flow fallback (can be called from components if needed)
 export const getDeviceCodeFromGitHub = async (): Promise<any> => {
-  await sendToMatomo(gitMatomoEventTypes.GETGITHUBDEVICECODE);
+  trackGitEvent("GET_GITHUB_DEVICECODE", undefined, true);
   try {
     const response = await axios({
       method: 'post',
@@ -121,11 +131,11 @@ export const getDeviceCodeFromGitHub = async (): Promise<any> => {
         'Accept': 'application/json'
       },
     });
-    await sendToMatomo(gitMatomoEventTypes.GET_GITHUB_DEVICECODE_SUCCESS);
+    trackGitEvent("GET_GITHUB_DEVICECODE_SUCCESS");
     return response.data;
 
   } catch (error) {
-    await sendToMatomo(gitMatomoEventTypes.GET_GITHUB_DEVICECODE_FAIL);
+    trackGitEvent("GET_GITHUB_DEVICECODE_FAIL");
     throw new Error('Failed to get device code from GitHub');
 
   }
@@ -134,7 +144,7 @@ export const getDeviceCodeFromGitHub = async (): Promise<any> => {
 
 // Connect using device code
 export const connectWithDeviceCode = async (deviceCode: string): Promise<void> => {
-  await sendToMatomo(gitMatomoEventTypes.DEVICECODEAUTH);
+  trackGitEvent("DEVICE_CODE_AUTH", undefined, true);
   try {
     const response = await axios({
       method: 'post',
@@ -153,16 +163,16 @@ export const connectWithDeviceCode = async (deviceCode: string): Promise<void> =
     const data = response.data;
 
     if (data.access_token) {
-      await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUBSUCCESS);
-      await sendToMatomo(gitMatomoEventTypes.DEVICE_CODE_AUTH_SUCCESS);
+      trackGitEvent("CONNECT_TO_GITHUB_SUCCESS");
+      trackGitEvent("DEVICE_CODE_AUTH_SUCCESS");
       await saveToken(data.access_token);
       await loadGitHubUserFromToken();
     } else {
-      await sendToMatomo(gitMatomoEventTypes.DEVICE_CODE_AUTH_FAIL);
+      trackGitEvent("DEVICE_CODE_AUTH_FAIL");
       throw new Error('Failed to get access token from device code');
     }
   } catch (error) {
-    await sendToMatomo(gitMatomoEventTypes.DEVICE_CODE_AUTH_FAIL);
+    trackGitEvent("DEVICE_CODE_AUTH_FAIL");
     throw new Error('Failed to connect with device code');
   }
 };
@@ -170,7 +180,7 @@ export const connectWithDeviceCode = async (deviceCode: string): Promise<void> =
 // Disconnect from GitHub
 export const disconnectFromGitHub = async (): Promise<void> => {
   try {
-    await sendToMatomo(gitMatomoEventTypes.DISCONNECTFROMGITHUB);
+    trackGitEvent("DISCONNECT_FROM_GITHUB", undefined, true);
     await saveToken(null);
     await loadGitHubUserFromToken();
   } catch (error) {

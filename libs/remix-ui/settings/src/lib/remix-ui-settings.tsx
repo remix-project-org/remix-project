@@ -24,7 +24,6 @@ export interface RemixUiSettingsProps {
   themeModule: ThemeModule
 }
 
-const _paq = (window._paq = window._paq || [])
 const settingsConfig = Registry.getInstance().get('settingsConfig').api
 
 const settingsSections: SettingsSection[] = [

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAppSelector } from '../../redux/hooks'
 import RepoImporter from '../../components/RepoImporter'
 import FiltersPanel from './FiltersPanel'
+import { trackMatomoEvent } from '@remix-api'
+import remixClient from '../../remix-client'
 import './index.css'
 
 type LevelKey = '1' | '2' | '3'
@@ -181,7 +183,12 @@ function HomePage(): JSX.Element {
                   <h5 className="card-title mb-1 title-clamp-2 text-body-emphasis">{r.name}</h5>
                   {!!r.subtitle && <p className="text-body-secondary small mb-2 subtitle-clamp-1 text-body-emphasis">{r.subtitle}</p>}
                   <p className="mt-2 mb-0 text-muted body-clamp-4">{r.preview}</p>
-                  <Link to={`/list?id=${r.id}`} className="stretched-link" onClick={() => (window as any)._paq.push(['trackEvent', 'learneth', 'start_workshop', r.name])}/>
+                  <Link to={`/list?id=${r.id}`} className="stretched-link" onClick={() => trackMatomoEvent(remixClient, { 
+                    category: 'learneth', 
+                    action: 'start_workshop', 
+                    name: r.name, 
+                    isClick: true 
+                  })}/>
                 </div>
               </article>
             ))

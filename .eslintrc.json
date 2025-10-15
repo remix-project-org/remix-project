@@ -60,7 +60,24 @@
         "object-curly-spacing": ["error", "always", { "arraysInObjects": false }],
         "no-trailing-spaces": "error",
         "no-multi-spaces": "error",
-        "no-multiple-empty-lines": ["error" , { "max": 1}]
+        "no-multiple-empty-lines": ["error" , { "max": 1}],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "MemberExpression[object.type='Identifier'][object.name='window'][property.type='Identifier'][property.name='_paq']",
+            "message": "Direct usage of window._paq is not allowed. Use one of these alternatives instead:\n  1. TrackingContext: track(eventBuilder)\n  2. MatomoManager: matomoManager.trackEvent(...)\n  3. Matomo Plugin: plugin.call('matomo', 'track', ...)\n  4. Helper: trackMatomoEvent(plugin, eventBuilder)"
+          },
+          {
+            "selector": "MemberExpression[object.type='MemberExpression'][object.object.type='Identifier'][object.object.name='window'][object.property.type='Identifier'][object.property.name='_paq']",
+            "message": "Direct usage of window._paq methods is not allowed. Use one of these alternatives instead:\n  1. TrackingContext: track(eventBuilder)\n  2. MatomoManager: matomoManager.trackEvent(...)\n  3. Matomo Plugin: plugin.call('matomo', 'track', ...)\n  4. Helper: trackMatomoEvent(plugin, eventBuilder)"
+          }
+        ]
+      }
+    },
+    {
+      "files": ["**/src/app/matomo/*.ts", "**/src/assets/js/**/*.js"],
+      "rules": {
+        "no-restricted-syntax": "off"
       }
     },
     {

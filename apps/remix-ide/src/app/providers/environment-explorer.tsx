@@ -6,8 +6,6 @@ import { EnvironmentExplorerUI, Provider } from '@remix-ui/environment-explorer'
 
 import * as packageJson from '../../../../../package.json'
 
-const _paq = (window._paq = window._paq || [])
-
 const profile = {
   name: 'environmentExplorer',
   displayName: 'Environment Explorer',

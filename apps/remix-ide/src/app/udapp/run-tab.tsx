@@ -1,6 +1,7 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import React from 'react' // eslint-disable-line
 import { RunTabUI } from '@remix-ui/run-tab'
+import { trackMatomoEvent } from '@remix-api'
 import { ViewPlugin } from '@remixproject/engine-web'
 import isElectron from 'is-electron'
 import { addressToString } from '@remix-ui/helper'
@@ -14,7 +15,6 @@ import type { CompilerArtefacts } from '@remix-project/core-plugin'
 import { ForkedVMStateProvider } from '../providers/vm-provider'
 import { Recorder } from '../tabs/runTab/model/recorder'
 import { EnvDropdownLabelStateType } from 'libs/remix-ui/run-tab/src/lib/types'
-const _paq = (window._paq = window._paq || [])
 
 export const providerLogos = {
   'injected-metamask-optimism': ['assets/img/optimism-ethereum-op-logo.png', 'assets/img/metamask.png'],
@@ -131,7 +131,7 @@ export class RunTab extends ViewPlugin {
   }
 
   sendTransaction(tx) {
-    _paq.push(['trackEvent', 'udapp', 'sendTx', 'udappTransaction'])
+    trackMatomoEvent(this, { category: 'udapp', action: 'sendTx', name: 'udappTransaction', isClick: true })
     return this.blockchain.sendTransaction(tx)
   }
 

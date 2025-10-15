@@ -15,8 +15,6 @@ export interface RemixUiCompileDetailsProps {
   saveAs: any
 }
 
-const _paq = (window._paq = window._paq || [])
-
 export function RemixUiCompileDetails({ plugin, contractProperties, selectedContract, saveAs, help, insertValue }: RemixUiCompileDetailsProps) {
 
   return (

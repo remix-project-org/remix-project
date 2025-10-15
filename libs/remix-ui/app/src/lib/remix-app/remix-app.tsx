@@ -15,13 +15,6 @@ import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
 import { desktopConnectionType } from '@remix-api'
 
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-const _paq = (window._paq = window._paq || [])
-
 interface IRemixAppUi {
   app: any
 }

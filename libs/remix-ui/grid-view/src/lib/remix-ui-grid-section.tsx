@@ -1,11 +1,5 @@
 import React, {createContext, ReactNode, useEffect, useState} from 'react' // eslint-disable-line
 import './remix-ui-grid-section.css'
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-const _paq = window._paq = window._paq || []
 
 // Define the type for the context value
 interface ChildCallbackContextType {

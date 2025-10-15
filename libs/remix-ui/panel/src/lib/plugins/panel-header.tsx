@@ -1,9 +1,10 @@
-import React, {useEffect, useState} from 'react' // eslint-disable-line
+import React, {useEffect, useState, useContext} from 'react' // eslint-disable-line
 import { FormattedMessage } from 'react-intl'
 import { PluginRecord } from '../types'
 import './panel.css'
 import { CustomTooltip, RenderIf, RenderIfNot } from '@remix-ui/helper'
-const _paq = (window._paq = window._paq || [])
+import { TrackingContext } from '@remix-ide/tracking'
+import { PluginPanelEvent } from '@remix-api'
 
 export interface RemixPanelProps {
   plugins: Record<string, PluginRecord>,
@@ -15,6 +16,7 @@ export interface RemixPanelProps {
 const RemixUIPanelHeader = (props: RemixPanelProps) => {
   const [plugin, setPlugin] = useState<PluginRecord>()
   const [toggleExpander, setToggleExpander] = useState<boolean>(false)
+  const { trackMatomoEvent } = useContext(TrackingContext)
 
   useEffect(() => {
     setToggleExpander(false)
@@ -32,12 +34,12 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
 
   const pinPlugin = () => {
     props.pinView && props.pinView(plugin.profile, plugin.view)
-    _paq.push(['trackEvent', 'PluginPanel', 'pinToRight', plugin.profile.name])
+    trackMatomoEvent?.({ category: 'pluginPanel', action: 'pinToRight', name: plugin.profile.name })
   }
 
   const unPinPlugin = () => {
     props.unPinView && props.unPinView(plugin.profile)
-    _paq.push(['trackEvent', 'PluginPanel', 'pinToLeft', plugin.profile.name])
+    trackMatomoEvent?.({ category: 'pluginPanel', action: 'pinToLeft', name: plugin.profile.name })
   }
 
   const closePlugin = async () => {

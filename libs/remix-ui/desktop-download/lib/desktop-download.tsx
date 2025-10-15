@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState, useContext } from 'react'
+import { DesktopDownloadEvent } from '@remix-api'
 import { CustomTooltip } from '@remix-ui/helper'
 import { FormattedMessage } from 'react-intl'
 import './desktop-download.css'
-
-const _paq = (window._paq = window._paq || []) // eslint-disable-line
+import { TrackingContext } from '@remix-ide/tracking'
 
 interface DesktopDownloadProps {
   className?: string
@@ -49,6 +49,8 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [detectedDownload, setDetectedDownload] = useState<DetectedDownload | null>(null)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends DesktopDownloadEvent = DesktopDownloadEvent>(event: T) => baseTrackEvent?.<T>(event)
 
   // Detect user's operating system
   const detectOS = (): 'windows' | 'macos' | 'linux' => {
@@ -192,13 +194,13 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
 
   // Track download click events
   const trackDownloadClick = (platform?: string, filename?: string, variant?: string) => {
-    const trackingData = [
-      'trackEvent',
-      'desktopDownload',
-      `${trackingContext}-${variant || 'button'}`,
-      platform ? `${platform}-${filename}` : 'releases-page'
-    ]
-    _paq.push(trackingData)
+    trackMatomoEvent({
+      category: 'desktopDownload',
+      action: 'click',
+      name: `${trackingContext}-${variant || 'button'}`,
+      value: platform ? `${platform}-${filename}` : 'releases-page',
+      isClick: true
+    })
   }
 
   // Load release data on component mount

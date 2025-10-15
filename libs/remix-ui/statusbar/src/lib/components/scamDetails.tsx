@@ -1,10 +1,10 @@
 import { ExtendedRefs, ReferenceType } from '@floating-ui/react'
-import React, { CSSProperties } from 'react'
+import React, { CSSProperties, useContext } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { ScamAlert } from '../remixui-statusbar-panel'
 import '../../css/statusbar.css'
-
-const _paq = (window._paq = window._paq || []) // eslint-disable-line
+import { TrackingContext } from '@remix-ide/tracking'
+import { HomeTabEvent } from '@remix-api'
 
 export interface ScamDetailsProps {
   refs: ExtendedRefs<ReferenceType>
@@ -14,6 +14,8 @@ export interface ScamDetailsProps {
 }
 
 export default function ScamDetails ({ refs, floatStyle, scamAlerts }: ScamDetailsProps) {
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends HomeTabEvent = HomeTabEvent>(event: T) => baseTrackEvent?.<T>(event)
 
   return (
     <div
@@ -41,8 +43,8 @@ export default function ScamDetails ({ refs, floatStyle, scamAlerts }: ScamDetai
                 <a
                   className={`remixui_home_text text-decoration-none ps-1`}
                   onClick={() => {
-                    index === 1 && _paq.push(['trackEvent', 'hometab', 'scamAlert', 'learnMore'])
-                    index === 2 && _paq.push(['trackEvent', 'hometab', 'scamAlert', 'safetyTips'])
+                    index === 1 && trackMatomoEvent({ category: 'hometab', action: 'scamAlert', name: 'learnMore', isClick: true })
+                    index === 2 && trackMatomoEvent({ category: 'hometab', action: 'scamAlert', name: 'safetyTips', isClick: true })
                   }}
                   target="__blank"
                   href={scamAlerts[index].url}

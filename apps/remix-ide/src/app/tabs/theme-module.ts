@@ -2,9 +2,19 @@ import { Plugin } from '@remixproject/engine'
 import { EventEmitter } from 'events'
 import { QueryParams } from '@remix-project/remix-lib'
 import * as packageJson from '../../../../../package.json'
-import {Registry} from '@remix-project/remix-lib'
-const isElectron = require('is-electron')
-const _paq = window._paq = window._paq || []
+import { Registry } from '@remix-project/remix-lib'
+import { trackMatomoEvent } from '@remix-api'
+import isElectron from 'is-electron'
+
+interface Theme {
+  name: string;
+  quality: 'dark' | 'light';
+  url: string;
+  backgroundColor: string;
+  textColor: string;
+  shapeColor: string;
+  fillColor: string;
+}
 
 //sol2uml dot files cannot work with css variables so hex values for colors are used
 const themes = [
@@ -23,6 +33,14 @@ const profile = {
 }
 
 export class ThemeModule extends Plugin {
+  events: EventEmitter;
+  _deps: { config?: any };
+  themes: { [key: string]: Theme };
+  currentThemeState: { queryTheme: string | null; currentTheme: string | null };
+  active: string;
+  forced: boolean;
+  initCallback?: () => void;
+
   constructor() {
     super(profile)
     this.events = new EventEmitter()
@@ -33,15 +51,16 @@ export class ThemeModule extends Plugin {
     themes.map((theme) => {
       this.themes[theme.name.toLocaleLowerCase()] = {
         ...theme,
+        quality: theme.quality as 'dark' | 'light',
         url: isElectron()
           ? theme.url
           : window.location.pathname.startsWith('/auth')
             ? window.location.origin + '/' + theme.url
             : window.location.origin + (window.location.pathname.startsWith('/address/') || window.location.pathname.endsWith('.sol') ? '/' : window.location.pathname) + theme.url
-      }
+      } as Theme
     })
-    this._paq = _paq
-    let queryTheme = (new QueryParams()).get().theme
+    // Tracking now handled via plugin API
+    let queryTheme = (new QueryParams()).get()['theme'] as string
     queryTheme = queryTheme && queryTheme.toLocaleLowerCase()
     queryTheme = this.themes[queryTheme] ? queryTheme : null
     let currentTheme = (this._deps.config && this._deps.config.get('settings/theme')) || null
@@ -55,7 +74,7 @@ export class ThemeModule extends Plugin {
   /** Return the active theme
    * @return {{ name: string, quality: string, url: string }} - The active theme
   */
-  currentTheme() {
+  currentTheme(): Theme {
     if (isElectron()) {
       const theme = 'https://remix.ethereum.org/' + this.themes[this.active].url.replace(/\\/g, '/').replace(/\/\//g, '/').replace(/\/$/g, '')
       return { ...this.themes[this.active], url: theme }
@@ -64,14 +83,14 @@ export class ThemeModule extends Plugin {
   }
 
   /** Returns all themes as an array */
-  getThemes() {
+  getThemes(): Theme[] {
     return Object.keys(this.themes).map(key => this.themes[key])
   }
 
   /**
    * Init the theme
    */
-  initTheme(callback) { // callback is setTimeOut in app.js which is always passed
+  initTheme(callback?: () => void): void { // callback is setTimeOut in app.js which is always passed
     if (callback) this.initCallback = callback
     if (this.active) {
       document.getElementById('theme-link') ? document.getElementById('theme-link').remove() : null
@@ -94,19 +113,17 @@ export class ThemeModule extends Plugin {
    * Change the current theme
    * @param {string} [themeName] - The name of the theme
    */
-  switchTheme (themeName) {
+  switchTheme(themeName?: string): void {
     themeName = themeName && themeName.toLocaleLowerCase()
     if (themeName && !Object.keys(this.themes).includes(themeName)) {
       throw new Error(`Theme ${themeName} doesn't exist`)
     }
     const next = themeName || this.active // Name
     if (next === this.active) return // --> exit out of this method
-    _paq.push(['trackEvent', 'themeModule', 'switchThemeTo', next])
+    trackMatomoEvent(this, { category: 'theme', action: 'switchThemeTo', name: next, isClick: true })
     const nextTheme = this.themes[next] // Theme
     if (!this.forced) this._deps.config.set('settings/theme', next)
     document.getElementById('theme-link') ? document.getElementById('theme-link').remove() : null
-
-    
 
     const theme = document.createElement('link')
     theme.setAttribute('rel', 'stylesheet')
@@ -134,7 +151,7 @@ export class ThemeModule extends Plugin {
    * fixes the inversion for images since this should be adjusted when we switch between dark/light qualified themes
    * @param {element} [image] - the dom element which invert should be fixed to increase visibility
    */
-  fixInvert(image) {
+  fixInvert(image?: HTMLElement): void {
     const invert = this.currentTheme().quality === 'dark' ? 1 : 0
     if (image) {
       image.style.filter = `invert(${invert})`

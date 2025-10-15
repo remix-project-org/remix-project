@@ -3,8 +3,8 @@ import React, { useContext, useCallback } from 'react'
 import { Button, ButtonGroup, Dropdown } from 'react-bootstrap'
 import { CustomTopbarMenu } from '@remix-ui/helper'
 import { AppContext } from '@remix-ui/app'
-
-const _paq = window._paq || []
+import { MatomoEvent, TopbarEvent } from '@remix-api'
+import { TrackingContext } from '@remix-ide/tracking'
 
 interface GitHubLoginProps {
   cloneGitRepository: () => void
@@ -20,6 +20,10 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
   loginWithGitHub
 }) => {
   const appContext = useContext(AppContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends MatomoEvent = TopbarEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   // Get the GitHub user state from app context
   const gitHubUser = appContext?.appState?.gitHubUser
@@ -89,7 +93,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
               data-id="github-dropdown-item-publish-to-gist"
               onClick={async () => {
                 await publishToGist()
-                _paq.push(['trackEvent', 'topbar', 'GIT', 'publishToGist'])
+                trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'publishToGist', isClick: true })
               }}
             >
               <i className="fab fa-github me-2"></i>
@@ -100,7 +104,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
               data-id="github-dropdown-item-disconnect"
               onClick={async () => {
                 await logOutOfGithub()
-                _paq.push(['trackEvent', 'topbar', 'GIT', 'logout'])
+                trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'logout', isClick: true })
               }}
               className="text-danger"
             >

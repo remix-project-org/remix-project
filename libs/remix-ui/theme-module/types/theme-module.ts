@@ -10,7 +10,7 @@ export interface ThemeModule extends Plugin<any, any> {
         config: any;
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    _paq: any
+
     element: HTMLDivElement;
     // eslint-disable-next-line @typescript-eslint/ban-types
     themes: {[key: string]: Theme};

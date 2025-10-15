@@ -19,7 +19,16 @@ import {
 import axios from "axios";
 import { RemoteInferencer } from "../remote/remoteInference";
 
-const _paq = (typeof window !== 'undefined' && (window as any)._paq) ? (window as any)._paq : []
+// Helper function to track events using MatomoManager instance
+function trackMatomoEvent(category: string, action: string, name?: string) {
+  try {
+    if (typeof window !== 'undefined' && (window as any)._matomoManagerInstance) {
+      (window as any)._matomoManagerInstance.trackEvent(category, action, name)
+    }
+  } catch (error) {
+    // Silent fail for tracking
+  }
+}
 const defaultErrorMessage = `Unable to get a response from Ollama server`;
 
 export class OllamaInferencer extends RemoteInferencer implements ICompletions, IGeneration {
@@ -42,29 +51,29 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
 
     this.ollama_host = await discoverOllamaHost();
     if (!this.ollama_host) {
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_initialize_failed', 'no_host_available']);
+      trackMatomoEvent('ai', 'remixAI', 'ollama_initialize_failed:no_host_available');
       throw new Error('Ollama is not available on any of the default ports');
     }
 
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_host_discovered', this.ollama_host]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_host_discovered:${this.ollama_host}`);
     // Default to generate endpoint, will be overridden per request type
     this.api_url = `${this.ollama_host}/api/generate`;
     this.isInitialized = true;
 
     try {
       const availableModels = await listModels();
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_models_found', availableModels.length.toString()]);
+      trackMatomoEvent('ai', 'remixAI', `ollama_models_found:${availableModels.length}`);
 
       if (availableModels.length > 0 && !availableModels.includes(this.model_name)) {
         // Prefer codestral model if available, otherwise use first available model
         const defaultModel = availableModels.find(m => m.includes('codestral')) || availableModels[0];
         const wasCodestralSelected = defaultModel.includes('codestral');
         this.model_name = defaultModel;
-        _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_model_auto_selected', `${this.model_name}|codestral:${wasCodestralSelected}`]);
+        trackMatomoEvent('ai', 'remixAI', `ollama_model_auto_selected:${this.model_name}|codestral:${wasCodestralSelected}`);
       }
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_initialize_success', this.model_name]);
+      trackMatomoEvent('ai', 'remixAI', `ollama_initialize_success:${this.model_name}`);
     } catch (error) {
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_model_selection_error', error.message || 'unknown_error']);
+      trackMatomoEvent('ai', 'remixAI', `ollama_model_selection_error:${error.message || 'unknown_error'}`);
       console.warn('Could not auto-select model. Make sure you have at least one model installed:', error);
     }
   }
@@ -373,7 +382,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
 
     if (hasNativeFIM) {
       // Native FIM support (prompt/suffix parameters)
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_fim_native', this.model_name]);
+      trackMatomoEvent('ai', 'remixAI', `ollama_fim_native:${this.model_name}`);
       payload = {
         model: this.model_name,
         prompt: prompt,
@@ -382,7 +391,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
         stop:options.stop
       };
     } else if (hasTokenFIM) {
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_fim_token_based', this.model_name]);
+      trackMatomoEvent('ai', 'remixAI', `ollama_fim_token_based:${this.model_name}`);
       const fimPrompt = this.fimManager.buildFIMPrompt(prompt, promptAfter, this.model_name);
       payload = {
         model: this.model_name,
@@ -391,7 +400,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
         stop:options.stop
       };
     } else {
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_completion_no_fim', this.model_name]);
+      trackMatomoEvent('ai', 'remixAI', `ollama_completion_no_fim:${this.model_name}`);
       const completionPrompt = await this.buildCompletionPrompt(prompt, promptAfter);
       payload = this._buildCompletionPayload(completionPrompt, CODE_COMPLETION_PROMPT);
       payload.stop = options.stop
@@ -403,22 +412,22 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
     if (result && this.currentSuffix) {
       const beforeLength = result.length;
       const cleaned = this.removeSuffixOverlap(result, this.currentSuffix);
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_suffix_overlap_removed', `before:${beforeLength}|after:${cleaned.length}`]);
+      trackMatomoEvent('ai', 'remixAI', `ollama_suffix_overlap_removed:before:${beforeLength}|after:${cleaned.length}`);
       return cleaned;
     }
 
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_code_completion_complete', `length:${result?.length || 0}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_code_completion_complete:length:${result?.length || 0}`);
     return result;
   }
 
   async code_insertion(msg_pfx: string, msg_sfx: string, ctxFiles: any, fileName: any, options: IParams = GenerationParams): Promise<any> {
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_code_insertion', `model:${this.model_name}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_code_insertion:model:${this.model_name}`);
     // Delegate to code_completion which already handles suffix overlap removal
     return await this.code_completion(msg_pfx, msg_sfx, ctxFiles, fileName, options);
   }
 
   async code_generation(prompt: string, options: IParams = GenerationParams): Promise<any> {
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_code_generation', `model:${this.model_name}|stream:${!!options.stream_result}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_code_generation:model:${this.model_name}|stream:${!!options.stream_result}`);
     const payload = this._buildPayload(prompt, options, CODE_GENERATION_PROMPT);
     if (options.stream_result) {
       return await this._streamInferenceRequest(payload, AIRequestType.GENERAL);
@@ -428,7 +437,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   async generate(userPrompt: string, options: IParams = GenerationParams): Promise<any> {
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_generate_contract', `model:${this.model_name}|stream:${!!options.stream_result}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_generate_contract:model:${this.model_name}|stream:${!!options.stream_result}`);
     const payload = this._buildPayload(userPrompt, options, CONTRACT_PROMPT);
     if (options.stream_result) {
       return await this._streamInferenceRequest(payload, AIRequestType.GENERAL);
@@ -438,7 +447,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   async generateWorkspace(prompt: string, options: IParams = GenerationParams): Promise<any> {
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_generate_workspace', `model:${this.model_name}|stream:${!!options.stream_result}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_generate_workspace:model:${this.model_name}|stream:${!!options.stream_result}`);
     const payload = this._buildPayload(prompt, options, WORKSPACE_PROMPT);
 
     if (options.stream_result) {
@@ -449,7 +458,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   async answer(prompt: string, options: IParams = GenerationParams): Promise<any> {
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_chat_answer', `model:${this.model_name}|stream:${!!options.stream_result}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_chat_answer:model:${this.model_name}|stream:${!!options.stream_result}`);
     const chatHistory = buildChatPrompt()
     const payload = this._buildPayload(prompt, options, CHAT_PROMPT, chatHistory);
     if (options.stream_result) {
@@ -460,7 +469,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   async code_explaining(prompt: string, context: string = "", options: IParams = GenerationParams): Promise<any> {
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_code_explaining', `model:${this.model_name}|stream:${!!options.stream_result}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_code_explaining:model:${this.model_name}|stream:${!!options.stream_result}`);
     const payload = this._buildPayload(prompt, options, CODE_EXPLANATION_PROMPT);
     if (options.stream_result) {
       return await this._streamInferenceRequest(payload, AIRequestType.GENERAL);
@@ -471,7 +480,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   async error_explaining(prompt: string, options: IParams = GenerationParams): Promise<any> {
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_error_explaining', `model:${this.model_name}|stream:${!!options.stream_result}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_error_explaining:model:${this.model_name}|stream:${!!options.stream_result}`);
     const payload = this._buildPayload(prompt, options, ERROR_EXPLANATION_PROMPT);
     if (options.stream_result) {
       return await this._streamInferenceRequest(payload, AIRequestType.GENERAL);
@@ -481,7 +490,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   async vulnerability_check(prompt: string, options: IParams = GenerationParams): Promise<any> {
-    _paq.push(['trackEvent', 'ai', 'remixAI', 'ollama_vulnerability_check', `model:${this.model_name}|stream:${!!options.stream_result}`]);
+    trackMatomoEvent('ai', 'remixAI', `ollama_vulnerability_check:model:${this.model_name}|stream:${!!options.stream_result}`);
     const payload = this._buildPayload(prompt, options, SECURITY_ANALYSIS_PROMPT);
     if (options.stream_result) {
       return await this._streamInferenceRequest(payload, AIRequestType.GENERAL);

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useContext } from "react";
 import { gitActionsContext, pluginActionsContext } from "../../state/context";
 import { gitPluginContext, loaderContext } from "../gitui";
 import { CustomTooltip } from "@remix-ui/helper";
@@ -6,18 +6,25 @@ import { CustomTooltip } from "@remix-ui/helper";
 import { useIntl, FormattedMessage } from "react-intl";
 import { CopyToClipboard } from "@remix-ui/clipboard";
 import { gitMatomoEventTypes } from "../../types";
-import { sendToMatomo } from "../../lib/pluginActions";
+import { GitEvent, MatomoEvent } from "@remix-api";
+import { TrackingContext } from "@remix-ide/tracking";
 
 export const GitHubCredentials = () => {
   const context = React.useContext(gitPluginContext)
   const pluginactions = React.useContext(pluginActionsContext)
   const loader = React.useContext(loaderContext)
   const actions = React.useContext(gitActionsContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const [githubToken, setGithubToken] = React.useState('')
   const [githubUsername, setGithubUsername] = React.useState('')
   const [githubEmail, setGithubEmail] = React.useState('')
   const [scopeWarning, setScopeWarning] = React.useState(false)
   const intl = useIntl()
+
+  // Component-specific tracker with default GitEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = GitEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   useEffect(() => {
     refresh()
@@ -45,7 +52,12 @@ export const GitHubCredentials = () => {
   }
 
   async function saveGithubToken() {
-    await sendToMatomo(gitMatomoEventTypes.SAVEMANUALGITHUBCREDENTIALS)
+    trackMatomoEvent({
+      category: 'git',
+      action: 'SAVE_MANUAL_GITHUB_CREDENTIALS',
+      name: 'SAVE_BUTTON',
+      isClick: true
+    })
     await pluginactions.saveGitHubCredentials({
       username: githubUsername,
       email: githubEmail,

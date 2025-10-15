@@ -1,15 +1,15 @@
 import { faArrowDown, faArrowUp, faArrowsUpDown, faArrowRotateRight } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { CustomTooltip } from '@remix-ui/helper'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useContext } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { gitActionsContext } from '../../state/context'
-import { branch, remote } from '@remix-api'
+import { branch, remote, GitEvent, MatomoEvent } from '@remix-api'
 import { defaultGitState, gitMatomoEventTypes, gitUIPanels } from '../../types'
 import { gitPluginContext } from '../gitui'
 import GitUIButton from './gituibutton'
 import { syncStateContext } from './sourceControlBase'
-import { sendToMatomo } from '../../lib/pluginActions'
+import { TrackingContext } from '@remix-ide/tracking'
 
 export interface SourceControlButtonsProps {
   panel: string
@@ -19,8 +19,14 @@ export const SourceControlButtons = (props: SourceControlButtonsProps) => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
   const syncState = React.useContext(syncStateContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const [branch, setBranch] = useState<branch>(syncState.branch)
   const [remote, setRemote] = useState<remote>(syncState.remote)
+
+  // Component-specific tracker with default GitEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = GitEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   const getRemote = () => {
     return remote ? remote : context.upstream ? context.upstream : context.defaultRemote ? context.defaultRemote : null
@@ -57,7 +63,12 @@ export const SourceControlButtons = (props: SourceControlButtonsProps) => {
   }
 
   const refresh = async () => {
-    await sendToMatomo(gitMatomoEventTypes.REFRESH)
+    trackMatomoEvent({
+      category: 'git',
+      action: 'REFRESH',
+      name: 'SOURCE_CONTROL_PANEL',
+      isClick: true
+    })
     await actions.getFileStatusMatrix(null)
     if (props.panel === gitUIPanels.BRANCHES) {
       await actions.getBranches()

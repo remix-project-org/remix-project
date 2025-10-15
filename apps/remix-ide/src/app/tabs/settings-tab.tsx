@@ -2,15 +2,10 @@
 import React from 'react' // eslint-disable-line
 import { ViewPlugin } from '@remixproject/engine-web'
 import * as packageJson from '../../../../../package.json'
-import {RemixUiSettings} from '@remix-ui/settings' //eslint-disable-line
+import { RemixUiSettings } from '@remix-ui/settings' //eslint-disable-line
 import { Registry } from '@remix-project/remix-lib'
 import { PluginViewWrapper } from '@remix-ui/helper'
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-const _paq = (window._paq = window._paq || [])
+import { InitializationPattern, TrackingMode, MatomoState, CustomRemixApi } from '@remix-api'
 
 const profile = {
   name: 'settings',
@@ -31,13 +26,21 @@ const profile = {
 export default class SettingsTab extends ViewPlugin {
   config: any = {}
   editor: any
+
+  // Type-safe method for Matomo plugin calls
+  private async callMatomo<K extends keyof CustomRemixApi['matomo']['methods']>(
+    method: K,
+    ...args: Parameters<CustomRemixApi['matomo']['methods'][K]>
+  ): Promise<ReturnType<CustomRemixApi['matomo']['methods'][K]>> {
+    return await this.call('matomo', method, ...args)
+  }
   private _deps: {
     themeModule: any
   }
   element: HTMLDivElement
   public useMatomoAnalytics: any
   public useMatomoPerfAnalytics: boolean
-  dispatch: React.Dispatch<any> = () => {}
+  dispatch: React.Dispatch<any> = () => { }
   constructor(config, editor) {
     super(profile)
     this.config = config
@@ -100,42 +103,31 @@ export default class SettingsTab extends ViewPlugin {
     })
   }
 
-  getCopilotSetting(){
+  getCopilotSetting() {
     return this.get('settings/copilot/suggest/activate')
   }
 
-  updateMatomoAnalyticsChoice(isChecked) {
-    this.config.set('settings/matomo-analytics', isChecked)
-    // set timestamp to local storage to track when the user has given consent
-    localStorage.setItem('matomo-analytics-consent', Date.now().toString())
-    this.useMatomoAnalytics = isChecked
-    if (!isChecked) {
-      // revoke tracking consent
-      _paq.push(['forgetConsentGiven']);
-    } else {
-      // user has given consent to process their data
-      _paq.push(['setConsentGiven']);
-    }
-    this.dispatch({
-      ...this
-    })
-  }
-
-  updateMatomoPerfAnalyticsChoice(isChecked) {
+  async updateMatomoPerfAnalyticsChoice(isChecked) {
+    console.log('[Matomo][settings] updateMatomoPerfAnalyticsChoice called with', isChecked)
     this.config.set('settings/matomo-perf-analytics', isChecked)
-    // set timestamp to local storage to track when the user has given consent
+    // Timestamp consent indicator (we treat enabling perf as granting cookie consent; disabling as revoking)
     localStorage.setItem('matomo-analytics-consent', Date.now().toString())
     this.useMatomoPerfAnalytics = isChecked
-    this.emit('matomoPerfAnalyticsChoiceUpdated', isChecked)
-    if (!isChecked) {
-      // revoke tracking consent for performance data
-      _paq.push(['disableCookies'])
+
+    const mode: TrackingMode = isChecked ? 'cookie' : 'anonymous'
+    const matomoState = await this.callMatomo('getState')
+    if (matomoState.initialized == false) {
+      const pattern: InitializationPattern = isChecked ? "immediate" : "anonymous"
+      await this.callMatomo('initialize', pattern)
+      console.log('[Matomo][settings] Matomo initialized with mode', pattern)
+      await this.callMatomo('processPreInitQueue')
     } else {
-      // user has given consent to process their performance data
-      _paq.push(['setCookieConsentGiven'])
+      await this.callMatomo('switchMode', mode)
     }
-    this.dispatch({
-      ...this
-    })
+
+    this.useMatomoAnalytics = true
+    this.emit('matomoPerfAnalyticsChoiceUpdated', isChecked);
+    this.dispatch({ ...this })
   }
+
 }

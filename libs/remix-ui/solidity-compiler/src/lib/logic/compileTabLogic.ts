@@ -3,13 +3,6 @@ import { getValidLanguage, Compiler } from '@remix-project/remix-solidity'
 import { EventEmitter } from 'events'
 import { configFileContent } from '../compilerConfiguration'
 
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-const _paq = window._paq = window._paq || []  //eslint-disable-line
-
 export class CompileTabLogic {
   public compiler
   public api: ICompilerApi
@@ -204,7 +197,9 @@ export class CompileTabLogic {
             `
             const configFilePath = 'remix-compiler.config.js'
             this.api.writeFile(configFilePath, fileContent)
-            _paq.push(['trackEvent', 'compiler', 'runCompile', 'compileWithHardhat'])
+            if (window._matomoManagerInstance) {
+              window._matomoManagerInstance.trackEvent('compiler', 'runCompile', 'compileWithHardhat')
+            }
             this.api.compileWithHardhat(configFilePath).then((result) => {
               this.api.logToTerminal({ type: 'log', value: result })
             }).catch((error) => {
@@ -230,7 +225,9 @@ export class CompileTabLogic {
             }`
             const configFilePath = 'remix-compiler.config.js'
             this.api.writeFile(configFilePath, fileContent)
-            _paq.push(['trackEvent', 'compiler', 'runCompile', 'compileWithTruffle'])
+            if (window._matomoManagerInstance) {
+              window._matomoManagerInstance.trackEvent('compiler', 'runCompile', 'compileWithTruffle')
+            }
             this.api.compileWithTruffle(configFilePath).then((result) => {
               this.api.logToTerminal({ type: 'log', value: result })
             }).catch((error) => {

@@ -1,17 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { gitActionsContext } from "../../../state/context";
 import { gitPluginContext } from "../../gitui";
 import { selectStyles, selectTheme } from "../../../types/styles";
 import Select, { Options, OptionsOrGroups } from 'react-select'
 import GitUIButton from "../../buttons/gituibutton";
-import { remote } from "@remix-api";
+import { remote, GitEvent, MatomoEvent } from "@remix-api";
 import { gitMatomoEventTypes } from "../../../types";
 import { relative } from "path";
-import { sendToMatomo } from "../../../lib/pluginActions";
+import { TrackingContext } from "@remix-ide/tracking";
 
 export const PushPull = () => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const [remoteBranch, setRemoteBranch] = useState('')
   const [localBranch, setLocalBranch] = useState('')
   const [localBranchOptions, setLocalBranchOptions] = useState<any>([]);
@@ -19,6 +20,11 @@ export const PushPull = () => {
   const [localRemotesOptions, setLocalRemotesOptions] = useState<any>([]);
   const [disabled, setDisabled] = useState(false)
   const [force, setForce] = useState(false)
+
+  // Component-specific tracker with default GitEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = GitEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   useEffect(() => {
     setRemoteBranch(context.currentBranch.name)
@@ -48,12 +54,22 @@ export const PushPull = () => {
   },[context.defaultRemote])
 
   const onRemoteBranchChange = async (value: string) => {
-    await sendToMatomo(gitMatomoEventTypes.SETREMOTEBRANCHINCOMMANDS)
+    trackMatomoEvent({
+      category: 'git',
+      action: 'SET_REMOTE_IN_COMMANDS',
+      name: 'SELECT_REMOTE_BRANCH',
+      isClick: true
+    })
     setRemoteBranch(value)
   }
 
   const onLocalBranchChange = async (value: any) => {
-    await sendToMatomo(gitMatomoEventTypes.SETLOCALBRANCHINCOMMANDS)
+    trackMatomoEvent({
+      category: 'git',
+      action: 'SET_LOCAL_BRANCH_IN_COMMANDS',
+      name: 'SELECT_LOCAL_BRANCH',
+      isClick: true
+    })
     setLocalBranch(value)
   }
 

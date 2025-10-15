@@ -22,8 +22,6 @@ export class StoragePlugin extends Plugin {
         quota: 5000000,
       }
     }
-    const _paq = (window as any)._paq = (window as any)._paq || []
-    // _paq.push(['trackEvent', 'Storage', 'used', this.formatString(storage)]);
     return storage
   }
 

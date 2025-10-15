@@ -15,6 +15,12 @@ parameters:
   run_flaky_tests:
     type: boolean
     default: false
+  run_lint_only:
+    type: boolean
+    default: false
+  run_build_only:
+    type: boolean
+    default: false
   resource_class:
     type: enum
     enum: ["small", "medium", "medium+", "large", "xlarge", "2xlarge"]
@@ -367,7 +373,7 @@ workflows:
               job: ["nogroup"]
               jobsize: ["1"]
               parallelism: [1]
-              scriptparameter: ["\\.pr"]
+              scriptparameter: ["\\.pr\\.js$"]
 
   run_flaky_tests:
     when: << pipeline.parameters.run_flaky_tests >>
@@ -507,5 +513,15 @@ workflows:
           filters:
             branches:
               only: remix_beta
+
+  lint_only:
+    when: << pipeline.parameters.run_lint_only >>
+    jobs:
+      - lint
+
+  build_only:
+    when: << pipeline.parameters.run_build_only >>
+    jobs:
+      - build
 
 # VS Code Extension Version: 1.5.1

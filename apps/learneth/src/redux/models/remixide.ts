@@ -2,6 +2,7 @@ import { toast } from 'react-toastify'
 import { type ModelType } from '../store'
 import remixClient from '../../remix-client'
 import { router } from '../../App'
+import { trackMatomoEvent } from '@remix-api'
 
 function getFilePath(file: string): string {
   const name = file.split('/')
@@ -46,12 +47,6 @@ const Model: ModelType = {
         },
       });
 
-      (window as any)._paq = {
-        push: (args) => {
-          remixClient.call('matomo' as any, 'track', args)
-        }
-      }
-
       yield router.navigate('/home')
     },
     *displayFile({ payload: step }, { select, put }) {
@@ -74,7 +69,7 @@ const Model: ModelType = {
         return
       }
 
-      (<any>window)._paq.push(['trackEvent', 'learneth', 'display_file', `${(step && step.name)}/${path}`])
+      trackMatomoEvent(remixClient, { category: 'learneth', action: 'displayFile', name: `${(step && step.name)}/${path}`, isClick: true })
 
       toast.info(`loading ${path} into IDE`)
       yield put({
@@ -101,7 +96,7 @@ const Model: ModelType = {
         })
         toast.dismiss()
       } catch (error) {
-        (<any>window)._paq.push(['trackEvent', 'learneth', 'display_file_error', error.message])
+        trackMatomoEvent(remixClient, { category: 'learneth', action: 'displayFileError', name: error.message, isClick: false })
         toast.dismiss()
         toast.error('File could not be loaded. Please try again.')
         yield put({
@@ -151,7 +146,7 @@ const Model: ModelType = {
             type: 'remixide/save',
             payload: { errors: ['Compiler failed to test this file']},
           });
-          (<any>window)._paq.push(['trackEvent', 'learneth', 'test_step_error', 'Compiler failed to test this file'])
+          trackMatomoEvent(remixClient, { category: 'learneth', action: 'testStepError', name: 'Compiler failed to test this file', isClick: false })
         } else {
           const success = result.totalFailing === 0;
           if (success) {
@@ -167,14 +162,14 @@ const Model: ModelType = {
               },
             })
           }
-          (<any>window)._paq.push(['trackEvent', 'learneth', 'test_step', success])
+          trackMatomoEvent(remixClient, { category: 'learneth', action: 'testStep', name: String(success), isClick: true })
         }
       } catch (err) {
         yield put({
           type: 'remixide/save',
           payload: { errors: [String(err)]},
         });
-        (<any>window)._paq.push(['trackEvent', 'learneth', 'test_step_error', err])
+        trackMatomoEvent(remixClient, { category: 'learneth', action: 'testStepError', name: String(err), isClick: false })
       }
       yield put({
         type: 'loading/save',
@@ -204,13 +199,13 @@ const Model: ModelType = {
         yield remixClient.call('fileManager', 'setFile', path, content)
         yield remixClient.call('fileManager', 'switchFile', `${path}`);
 
-        (<any>window)._paq.push(['trackEvent', 'learneth', 'show_answer', path])
+        trackMatomoEvent(remixClient, { category: 'learneth', action: 'showAnswer', name: path, isClick: true })
       } catch (err) {
         yield put({
           type: 'remixide/save',
           payload: { errors: [String(err)]},
         });
-        (<any>window)._paq.push(['trackEvent', 'learneth', 'show_answer_error', err.message])
+        trackMatomoEvent(remixClient, { category: 'learneth', action: 'showAnswerError', name: err.message, isClick: false })
       }
 
       toast.dismiss()
@@ -224,7 +219,7 @@ const Model: ModelType = {
     *testSolidityCompiler(_, { put, select }) {
       try {
         yield remixClient.call('solidity', 'getCompilationResult');
-        (<any>window)._paq.push(['trackEvent', 'learneth', 'test_solidity_compiler'])
+        trackMatomoEvent(remixClient, { category: 'learneth', action: 'testSolidityCompiler', isClick: true })
       } catch (err) {
         const errors = yield select((state) => state.remixide.errors)
         yield put({
@@ -233,7 +228,7 @@ const Model: ModelType = {
             errors: [...errors, "The `Solidity Compiler` is not yet activated.<br>Please activate it using the `SOLIDITY` button in the `Featured Plugins` section of the homepage.<img class='img-thumbnail mt-3' src='assets/activatesolidity.png'>"],
           },
         });
-        (<any>window)._paq.push(['trackEvent', 'learneth', 'test_solidity_compiler_error', err.message])
+        trackMatomoEvent(remixClient, { category: 'learneth', action: 'testSolidityCompilerError', name: err.message, isClick: false })
       }
     }
   },

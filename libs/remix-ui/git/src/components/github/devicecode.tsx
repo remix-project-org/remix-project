@@ -1,27 +1,38 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useContext } from "react";
 import { gitActionsContext, pluginActionsContext } from "../../state/context";
 import { gitPluginContext } from "../gitui";
 import axios from "axios";
 import { CopyToClipboard } from "@remix-ui/clipboard";
-import { sendToMatomo } from "../../lib/pluginActions";
-import { gitMatomoEventTypes } from "../../types";
 import { endpointUrls } from "@remix-endpoints-helper";
 import isElectron from "is-electron";
 import { startGitHubLogin, getDeviceCodeFromGitHub, connectWithDeviceCode, disconnectFromGitHub } from "../../lib/gitLoginActions";
+import { TrackingContext } from '@remix-ide/tracking';
+import { GitEvent, MatomoEvent } from '@remix-api';
 
 export const ConnectToGitHub = () => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
   const pluginActions = React.useContext(pluginActionsContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const [gitHubResponse, setGitHubResponse] = React.useState<any>(null)
   const [authorized, setAuthorized] = React.useState<boolean>(false)
   const [popupError, setPopupError] = useState(false)
   const [desktopIsLoading, setDesktopIsLoading] = React.useState<boolean>(false)
 
+  // Component-specific tracker with default GitEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = GitEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
+
   const popupRef = useRef<Window | null>(null)
 
   const openPopupLogin = useCallback(async () => {
-    await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUBBUTTON)
+    trackMatomoEvent({
+      category: 'git',
+      action: 'CONNECT_TO_GITHUB',
+      name: 'BUTTON_CLICK',
+      isClick: true
+    })
     try {
       if (isElectron()) {
         setDesktopIsLoading(true)
@@ -52,7 +63,12 @@ export const ConnectToGitHub = () => {
       setGitHubResponse(githubResponse)
     } catch (error) {
       console.error('Failed to get device code:', error)
-      await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUBFAIL)
+      trackMatomoEvent({
+        category: 'git',
+        action: 'CONNECT_TO_GITHUB',
+        name: 'DEVICE_CODE_FAIL',
+        isClick: true
+      })
     }
   }
 
@@ -62,7 +78,12 @@ export const ConnectToGitHub = () => {
       setAuthorized(true)
     } catch (error) {
       console.error('Failed to connect with device code:', error)
-      await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUBFAIL)
+      trackMatomoEvent({
+        category: 'git',
+        action: 'CONNECT_TO_GITHUB',
+        name: 'DEVICE_CODE_FAIL',
+        isClick: true
+      })
     }
   }
 
@@ -115,7 +136,12 @@ export const ConnectToGitHub = () => {
           <div className="input-group text-secondary mb-0 h6">
             <input disabled type="text" className="form-control" value={gitHubResponse.user_code} />
             <div className="input-group-append">
-              <CopyToClipboard callback={() => sendToMatomo(gitMatomoEventTypes.COPYGITHUBDEVICECODE)} content={gitHubResponse.user_code} data-id='copyToClipboardCopyIcon' className='far fa-copy ms-1 p-2 mt-1' direction={"top"} />
+              <CopyToClipboard callback={() => trackMatomoEvent({
+                category: 'git',
+                action: 'GITHUB_DEVICE_CODE_FLOW',
+                name: 'COPY_CODE',
+                isClick: true
+              })} content={gitHubResponse.user_code} data-id='copyToClipboardCopyIcon' className='far fa-copy ms-1 p-2 mt-1' direction={"top"} />
             </div>
           </div>
           <br></br>

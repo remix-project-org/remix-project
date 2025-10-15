@@ -3,12 +3,8 @@ import React, { useEffect, useState, useContext } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { ThemeContext } from '../themeContext'
 import { CustomTooltip } from '@remix-ui/helper'
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-const _paq = (window._paq = window._paq || []) //eslint-disable-line
+import { HomeTabEvent, MatomoEvent } from '@remix-api'
+import { TrackingContext } from '@remix-ide/tracking'
 
 enum VisibleTutorial {
   Basics,
@@ -27,12 +23,23 @@ function HomeTabLearn({ plugin }: HomeTabLearnProps) {
   })
 
   const themeFilter = useContext(ThemeContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+
+  // Component-specific tracker with default HomeTabEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = HomeTabEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   const startLearnEthTutorial = async (tutorial: 'basics' | 'soliditybeginner' | 'deploylibraries') => {
     await plugin.appManager.activatePlugin(['solidity', 'LearnEth', 'solidityUnitTesting'])
     plugin.verticalIcons.select('LearnEth')
     plugin.call('LearnEth', 'startTutorial', 'remix-project-org/remix-workshops', 'master', tutorial)
-    _paq.push(['trackEvent', 'hometab', 'startLearnEthTutorial', tutorial])
+    trackMatomoEvent({
+      category: 'hometab',
+      action: 'startLearnEthTutorial',
+      name: tutorial,
+      isClick: true
+    })
   }
 
   const goToLearnEthHome = async () => {

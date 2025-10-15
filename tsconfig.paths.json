@@ -208,6 +208,9 @@
             ],
             "@remix-ui/top-bar": [
               "libs/remix-ui/top-bar/src/index.ts"
+            ],
+            "@remix-ide/tracking": [
+              "apps/remix-ide/src/app/contexts/TrackingContext"
             ]
         }
     }

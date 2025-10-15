@@ -1,4 +1,5 @@
 import { ContractData, FuncABI, NetworkDeploymentFile, SolcBuildFile, OverSizeLimit } from "@remix-project/core-plugin"
+import { trackMatomoEvent } from '@remix-api'
 import { RunTab } from "../types/run-tab"
 import { CompilerAbstract as CompilerAbstractType } from '@remix-project/remix-solidity'
 import * as remixLib from '@remix-project/remix-lib'
@@ -11,13 +12,6 @@ import { addInstance } from "./actions"
 import { addressToString, logBuilder } from "@remix-ui/helper"
 import { Web3 } from "web3"
 
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-
-const _paq = window._paq = window._paq || []  //eslint-disable-line
 const txHelper = remixLib.execution.txHelper
 const txFormat = remixLib.execution.txFormat
 
@@ -31,11 +25,11 @@ const loadContractFromAddress = (plugin: RunTab, address, confirmCb, cb) => {
       } catch (e) {
         return cb('Failed to parse the current file as JSON ABI.')
       }
-      _paq.push(['trackEvent', 'udapp', 'useAtAddress' , 'AtAddressLoadWithABI'])
+      trackMatomoEvent(plugin, { category: 'udapp', action: 'useAtAddress', name: 'AtAddressLoadWithABI', isClick: true })
       cb(null, 'abi', abi)
     })
   } else {
-    _paq.push(['trackEvent', 'udapp', 'useAtAddress', 'AtAddressLoadWithArtifacts'])
+    trackMatomoEvent(plugin, { category: 'udapp', action: 'useAtAddress', name: 'AtAddressLoadWithArtifacts', isClick: true })
     cb(null, 'instance')
   }
 }
@@ -182,7 +176,7 @@ export const createInstance = async (
     plugin.compilersArtefacts.addResolvedContract(addressToString(address), data)
 
     if (isVerifyChecked) {
-      _paq.push(['trackEvent', 'udapp', 'DeployAndVerify', plugin.REACT_API.networkName])
+      trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployAndPublish', name: plugin.REACT_API.networkName, isClick: true })
 
       try {
         const status = plugin.blockchain.getCurrentNetworkStatus()
@@ -226,7 +220,7 @@ export const createInstance = async (
       }
 
     } else {
-      _paq.push(['trackEvent', 'udapp', 'DeployOnly', plugin.REACT_API.networkName])
+      trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployOnly', name: plugin.REACT_API.networkName, isClick: true })
     }
 
     if (isProxyDeployment) {
@@ -285,7 +279,7 @@ export const createInstance = async (
 }
 
 const deployContract = (plugin: RunTab, selectedContract, args, contractMetadata, compilerContracts, callbacks, confirmationCb) => {
-  _paq.push(['trackEvent', 'udapp', 'DeployContractTo', plugin.REACT_API.networkName])
+  trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployContractTo', name: plugin.REACT_API.networkName, isClick: true })
   const { statusCb } = callbacks
 
   if (!contractMetadata || (contractMetadata && contractMetadata.autoDeployLib)) {
@@ -350,10 +344,18 @@ export const runTransactions = (
   passphrasePrompt: (msg: string) => JSX.Element,
   funcIndex?: number) => {
   let callinfo = ''
-  if (lookupOnly) callinfo = 'call'
-  else if (funcABI.type === 'fallback' || funcABI.type === 'receive') callinfo = 'lowLevelinteractions'
-  else callinfo = 'transact'
-  _paq.push(['trackEvent', 'udapp', callinfo, plugin.REACT_API.networkName])
+  let eventAction
+  if (lookupOnly) {
+    callinfo = 'call'
+    eventAction = 'call'
+  } else if (funcABI.type === 'fallback' || funcABI.type === 'receive') {
+    callinfo = 'lowLevelinteractions'
+    eventAction = 'lowLevelinteractions'
+  } else {
+    callinfo = 'transact'
+    eventAction = 'transact'
+  }
+  trackMatomoEvent(plugin, { category: 'udapp', action: eventAction, name: plugin.REACT_API.networkName, isClick: true })
 
   const params = funcABI.type !== 'fallback' ? inputsValues : ''
   plugin.blockchain.runOrCallContractMethod(

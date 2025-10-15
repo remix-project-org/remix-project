@@ -7,12 +7,11 @@ import { Tab, Tabs, TabList, TabPanel } from 'react-tabs'
 import './remix-ui-tabs.css'
 import { values } from 'lodash'
 import { AppContext } from '@remix-ui/app'
+import { TrackingContext } from '@remix-ide/tracking'
 import { desktopConnectionType } from '@remix-api'
 import { CompileDropdown, RunScriptDropdown } from '@remix-ui/tabs'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import TabProxy from 'apps/remix-ide/src/app/panels/tab-proxy'
-
-const _paq = (window._paq = window._paq || [])
 
 /* eslint-disable-next-line */
 export interface TabsUIProps {
@@ -86,6 +85,7 @@ export const TabsUI = (props: TabsUIProps) => {
   const tabs = useRef(props.tabs)
   tabs.current = props.tabs // we do this to pass the tabs list to the onReady callbacks
   const appContext = useContext(AppContext)
+  const { trackMatomoEvent } = useContext(TrackingContext)
 
   const compileSeq = useRef(0)
   const compileWatchdog = useRef<number | null>(null)
@@ -259,7 +259,12 @@ export const TabsUI = (props: TabsUIProps) => {
     await props.plugin.call('menuicons', 'select', 'solidity')
     try {
       await props.plugin.call('solidity', 'compile', active().substr(active().indexOf('/') + 1, active().length))
-      _paq.push(['trackEvent', 'editor', 'publishFromEditor', storageType])
+      trackMatomoEvent?.({
+        category: 'editor',
+        action: 'publishFromEditor',
+        name: storageType,
+        isClick: true
+      })
 
       setTimeout(async () => {
         let buttonId
@@ -316,7 +321,12 @@ export const TabsUI = (props: TabsUIProps) => {
 })()`
 
         await props.plugin.call('fileManager', 'writeFile', newScriptPath, boilerplateContent)
-        _paq.push(['trackEvent', 'editor', 'runScript', 'new_script'])
+        trackMatomoEvent?.({
+          category: 'editor',
+          action: 'runScript',
+          name: 'new_script',
+          isClick: true
+        })
       } catch (e) {
         console.error(e)
         props.plugin.call('notification', 'toast', `Error creating new script: ${e.message}`)
@@ -346,7 +356,12 @@ export const TabsUI = (props: TabsUIProps) => {
       await props.plugin.call('scriptRunnerBridge', 'execute', content, path)
 
       setCompileState('compiled')
-      _paq.push(['trackEvent', 'editor', 'runScriptWithEnv', runnerKey])
+      trackMatomoEvent?.({
+        category: 'editor',
+        action: 'runScriptWithEnv',
+        name: runnerKey,
+        isClick: true
+      })
     } catch (e) {
       console.error(e)
       props.plugin.call('notification', 'toast', `Error running script: ${e.message}`)
@@ -426,7 +441,13 @@ export const TabsUI = (props: TabsUIProps) => {
 
   const handleCompileClick = async () => {
     setCompileState('compiling')
-    _paq.push(['trackEvent', 'editor', 'clickRunFromEditor', tabsState.currentExt])
+    console.log('Compiling from editor')
+    trackMatomoEvent?.({
+      category: 'editor',
+      action: 'clickRunFromEditor',
+      name: tabsState.currentExt,
+      isClick: true
+    })
 
     try {
       const activePathRaw = active()

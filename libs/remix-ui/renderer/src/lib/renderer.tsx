@@ -1,9 +1,10 @@
-import React, {useEffect, useState} from 'react' //eslint-disable-line
+import React, {useContext, useEffect, useState} from 'react' //eslint-disable-line
 import { useIntl } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { helper } from '@remix-project/remix-solidity'
+import { TrackingContext } from '@remix-ide/tracking'
+import { AIEvent } from '@remix-api'
 import './renderer.css'
-const _paq = (window._paq = window._paq || [])
 
 interface RendererProps {
   message: any
@@ -23,6 +24,7 @@ type RendererOptions = {
 
 export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
   const intl = useIntl()
+  const { trackMatomoEvent } = useContext(TrackingContext)
   const [messageText, setMessageText] = useState(null)
   const [editorOptions, setEditorOptions] = useState<RendererOptions>({
     useSpan: false,
@@ -100,7 +102,7 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
       setTimeout(async () => {
         await plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
       }, 500)
-      _paq.push(['trackEvent', 'ai', 'remixAI', 'error_explaining_SolidityError'])
+      trackMatomoEvent?.({ category: 'ai', action: 'error_explaining_SolidityError' })
     } catch (err) {
       console.error('unable to ask RemixAI')
       console.error(err)

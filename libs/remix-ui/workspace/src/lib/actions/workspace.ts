@@ -1,5 +1,6 @@
 import React from 'react'
 import { bytesToHex } from '@ethereumjs/util'
+import { trackMatomoEventAsync } from '@remix-api'
 import { hash } from '@remix-project/remix-lib'
 import { createNonClashingNameAsync } from '@remix-ui/helper'
 import { TEMPLATE_METADATA, TEMPLATE_NAMES } from '../utils/constants'
@@ -60,7 +61,6 @@ const LOCALHOST = ' - connect to localhost - '
 const NO_WORKSPACE = ' - none - '
 const ELECTRON = 'electron'
 const queryParams = new QueryParams()
-const _paq = (window._paq = window._paq || []) //eslint-disable-line
 let plugin: any, dgitPlugin: Plugin<any, CustomRemixApi>,dispatch: React.Dispatch<any>
 
 export const setPlugin = (filePanelPlugin, reducerDispatch) => {
@@ -239,12 +239,12 @@ export const populateWorkspace = async (
   if (workspaceTemplateName === 'semaphore' || workspaceTemplateName === 'hashchecker' || workspaceTemplateName === 'rln') {
     const isCircomActive = await plugin.call('manager', 'isActive', 'circuit-compiler')
     if (!isCircomActive) await plugin.call('manager', 'activatePlugin', 'circuit-compiler')
-    _paq.push(['trackEvent', 'circuit-compiler', 'template', 'create', workspaceTemplateName])
+    await trackMatomoEventAsync(plugin, { category: 'compiler', action: 'compiled', name: workspaceTemplateName, isClick: false })
   }
   if (workspaceTemplateName === 'multNr' || workspaceTemplateName === 'stealthDropNr') {
     const isNoirActive = await plugin.call('manager', 'isActive', 'noir-compiler')
     if (!isNoirActive) await plugin.call('manager', 'activatePlugin', 'noir-compiler')
-    _paq.push(['trackEvent', 'noir-compiler', 'template', 'create', workspaceTemplateName])
+    await trackMatomoEventAsync(plugin, { category: 'compiler', action: 'compiled', name: workspaceTemplateName, isClick: false })
   }
 }
 
@@ -301,7 +301,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
       let content
 
       if (params.code) {
-        _paq.push(['trackEvent', 'workspace', 'template', 'code-template-code-param'])
+        await trackMatomoEventAsync(plugin, { category: 'Workspace', action: 'switchWorkspace', name: 'code-template-code-param', isClick: false })
         const hashed = bytesToHex(hash.keccakFromString(params.code))
 
         path = 'contract-' + hashed.replace('0x', '').substring(0, 10) + (params.language && params.language.toLowerCase() === 'yul' ? '.yul' : '.sol')
@@ -309,7 +309,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
         await workspaceProvider.set(path, content)
       }
       if (params.shareCode) {
-        _paq.push(['trackEvent', 'workspace', 'template', 'code-template-shareCode-param'])
+        await trackMatomoEventAsync(plugin, { category: 'Workspace', action: 'switchWorkspace', name: 'code-template-shareCode-param', isClick: false })
         const host = '127.0.0.1'
         const port = 5001
         const protocol = 'http'
@@ -334,7 +334,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
         await workspaceProvider.set(path, content)
       }
       if (params.url) {
-        _paq.push(['trackEvent', 'workspace', 'template', 'code-template-url-param'])
+        await trackMatomoEventAsync(plugin, { category: 'Workspace', action: 'switchWorkspace', name: 'code-template-url-param', isClick: false })
         const data = await plugin.call('contentImport', 'resolve', params.url)
         path = data.cleanUrl
         content = data.content
@@ -358,7 +358,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
       }
       if (params.ghfolder) {
         try {
-          _paq.push(['trackEvent', 'workspace', 'template', 'code-template-ghfolder-param'])
+          await trackMatomoEventAsync(plugin, { category: 'Workspace', action: 'switchWorkspace', name: 'code-template-ghfolder-param', isClick: false })
           const files = await plugin.call('contentImport', 'resolveGithubFolder', params.ghfolder)
           for (const [path, content] of Object.entries(files)) {
             await workspaceProvider.set(path, content)
@@ -377,7 +377,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
   case 'gist-template':
     // creates a new workspace gist-sample and get the file from gist
     try {
-      _paq.push(['trackEvent', 'workspace', 'template', 'gist-template'])
+      await trackMatomoEventAsync(plugin, { category: 'Workspace', action: 'switchWorkspace', name: 'gist-template', isClick: false })
       const gistId = params.gist
       const response: AxiosResponse = await axios.get(`https://api.github.com/gists/${gistId}`)
       const data = response.data as { files: any }
@@ -440,7 +440,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
       const templateList = Object.keys(templateWithContent)
       if (!templateList.includes(template)) break
 
-      _paq.push(['trackEvent', 'workspace', 'template', template])
+      await trackMatomoEventAsync(plugin, { category: 'Workspace', action: 'switchWorkspace', name: template, isClick: false })
       // @ts-ignore
       const files = await templateWithContent[template](opts, plugin)
       for (const file in files) {

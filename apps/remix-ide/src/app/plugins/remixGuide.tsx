@@ -2,14 +2,13 @@
 import React, {useState} from 'react' // eslint-disable-line
 import { ViewPlugin } from '@remixproject/engine-web'
 import { PluginViewWrapper } from '@remix-ui/helper'
+import { trackMatomoEvent } from '@remix-api'
 import { RemixAppManager } from '../../remixAppManager'
 import { RemixUIGridView } from '@remix-ui/remix-ui-grid-view'
 import { RemixUIGridSection } from '@remix-ui/remix-ui-grid-section'
 import { RemixUIGridCell } from '@remix-ui/remix-ui-grid-cell'
 import * as Data from './remixGuideData.json'
 import './remixGuide.css'
-//@ts-ignore
-const _paq = (window._paq = window._paq || [])
 
 const profile = {
   name: 'remixGuide',
@@ -47,7 +46,7 @@ export class RemixGuidePlugin extends ViewPlugin {
     this.handleThemeChange()
     await this.call('tabs', 'focus', 'remixGuide')
     this.renderComponent()
-    _paq.push(['trackEvent', 'plugin', 'activated', 'remixGuide'])
+    trackMatomoEvent(this, { category: 'plugin', action: 'activated', name: 'remixGuide', isClick: true })
     // Read the data
     this.payload.data = Data
     this.handleKeyDown = (event) => {
@@ -135,7 +134,7 @@ export class RemixGuidePlugin extends ViewPlugin {
                     this.showVideo = true
                     this.videoID = cell.expandViewElement.videoID
                     this.renderComponent()
-                    _paq.push(['trackEvent', 'remixGuide', 'playGuide', cell.title])
+                    trackMatomoEvent(this, { category: 'remixGuide', action: 'playGuide', name: cell.title, isClick: true })
                   }}
                 >
                   <img

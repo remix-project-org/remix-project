@@ -7,12 +7,9 @@ import { FormattedMessage } from 'react-intl'
 import { HOME_TAB_PLUGIN_LIST } from './constant'
 import axios from 'axios'
 import { LoadingCard } from './LoaderPlaceholder'
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-const _paq = (window._paq = window._paq || []) //eslint-disable-line
+import { HomeTabEvent, MatomoEvent } from '@remix-api'
+import { TrackingContext } from '@remix-ide/tracking'
+
 interface HomeTabFeaturedPluginsProps {
   plugin: any
 }
@@ -39,7 +36,13 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
   const [pluginList, setPluginList] = useState<{ caption: string, plugins: PluginInfo[] }>({ caption: '', plugins: []})
   const [isLoading, setIsLoading] = useState(true)
   const theme = useContext(ThemeContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const isDark = theme.name === 'dark'
+
+  // Component-specific tracker with default HomeTabEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = HomeTabEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   useEffect(() => {
     async function getPluginList() {
@@ -63,11 +66,21 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
   const activateFeaturedPlugin = async (pluginId: string) => {
     setLoadingPlugins([...loadingPlugins, pluginId])
     if (await plugin.appManager.isActive(pluginId)) {
-      _paq.push(['trackEvent', 'hometab', 'featuredPluginsToggle', `deactivate-${pluginId}`])
+      trackMatomoEvent({
+        category: 'hometab',
+        action: 'featuredPluginsToggle',
+        name: `deactivate-${pluginId}`,
+        isClick: true
+      })
       await plugin.appManager.deactivatePlugin(pluginId)
       setActivePlugins(activePlugins.filter((id) => id !== pluginId))
     } else {
-      _paq.push(['trackEvent', 'hometab', 'featuredPluginsToggle', `activate-${pluginId}`])
+      trackMatomoEvent({
+        category: 'hometab',
+        action: 'featuredPluginsToggle',
+        name: `activate-${pluginId}`,
+        isClick: true
+      })
       await plugin.appManager.activatePlugin([pluginId])
       await plugin.verticalIcons.select(pluginId)
       setActivePlugins([...activePlugins, pluginId])
@@ -76,7 +89,12 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
   }
 
   const handleFeaturedPluginActionClick = async (pluginInfo: PluginInfo) => {
-    _paq.push(['trackEvent', 'hometab', 'featuredPluginsActionClick', pluginInfo.pluginTitle])
+    trackMatomoEvent({
+      category: 'hometab',
+      action: 'featuredPluginsActionClick',
+      name: pluginInfo.pluginTitle,
+      isClick: true
+    })
     if (pluginInfo.action.type === 'link') {
       window.open(pluginInfo.action.url, '_blank')
     } else if (pluginInfo.action.type === 'methodCall') {

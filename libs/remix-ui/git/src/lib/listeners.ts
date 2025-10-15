@@ -1,12 +1,12 @@
 
 import React from "react";
 import { setCanUseApp, setLoading, setRepoName, setGItHubToken, setLog, setGitHubUser, setUserEmails, setTimestamp, setDesktopWorkingDir, setVersion } from "../state/gitpayload";
-import { gitActionDispatch, gitMatomoEventTypes, gitUIPanels, storage } from "../types";
+import { gitActionDispatch, gitUIPanels, storage } from "../types";
 import { Plugin } from "@remixproject/engine";
 import { getBranches, getFileStatusMatrix, loadGitHubUserFromToken, getRemotes, gitlog, setPlugin, setStorage, init } from "./gitactions";
 import { Profile } from "@remixproject/plugin-utils";
-import { CustomRemixApi } from "@remix-api";
-import { saveToken, sendToMatomo, statusChanged } from "./pluginActions";
+import { CustomRemixApi, trackMatomoEvent } from "@remix-api";
+import { saveToken, statusChanged } from "./pluginActions";
 import { appPlatformTypes } from "@remix-ui/app";
 import { AppAction } from "@remix-ui/app";
 import { setLoginPlugin, startGitHubLogin, disconnectFromGitHub } from "./gitLoginActions";
@@ -239,7 +239,12 @@ export const setCallBacks = (viewPlugin: Plugin, gitDispatcher: React.Dispatch<g
   plugin.on('githubAuthHandler', 'onLogin', async (data: { token: string }) => {
     await saveToken(data.token)
     await loadGitHubUserFromToken()
-    await sendToMatomo(gitMatomoEventTypes.CONNECTTOGITHUBSUCCESS)
+    trackMatomoEvent(plugin, {
+      category: 'git',
+      action: 'CONNECT_TO_GITHUB_SUCCESS',
+      name: 'ON_LOGIN_EVENT',
+      isClick: false
+    })
   })
 
   callBackEnabled = true;

@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 import React from 'react'
-import { desktopConnection, desktopConnectionType } from '@remix-api'
+import { desktopConnection, desktopConnectionType, trackMatomoEvent } from '@remix-api'
 import { Blockchain } from '../../blockchain/blockchain'
 import { AppAction, AppModal, ModalTypes } from '@remix-ui/app'
 import { ViewPlugin } from '@remixproject/engine-web'
@@ -11,8 +11,6 @@ import isElectron from 'is-electron'
 import DesktopClientUI from '../components/DesktopClientUI' // Import the UI component
 import JSONbig from 'json-bigint'
 import { Provider } from '@remix-ui/environment-explorer'
-
-const _paq = (window._paq = window._paq || [])
 
 const profile = {
   name: 'desktopClient',
@@ -56,7 +54,7 @@ export class DesktopClient extends ViewPlugin {
 
   onActivation() {
     console.log('DesktopClient activated')
-    _paq.push(['trackEvent', 'plugin', 'activated', 'DesktopClient'])
+    trackMatomoEvent(this, { category: 'plugin', action: 'activated', name: 'DesktopClient', isClick: true })
 
     this.connectToWebSocket()
 

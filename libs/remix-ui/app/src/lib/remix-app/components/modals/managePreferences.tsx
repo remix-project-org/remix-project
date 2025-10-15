@@ -3,12 +3,8 @@ import { FormattedMessage } from 'react-intl'
 import { useDialogDispatchers } from '../../context/provider'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import { AppContext } from '../../context/context'
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-const _paq = (window._paq = window._paq || [])
+import { TrackingContext } from '@remix-ide/tracking'
+import { LandingPageEvent } from '@remix-api'
 
 const ManagePreferencesSwitcher = (prop: {
   setParentState: (state: any) => void
@@ -94,6 +90,7 @@ const ManagePreferencesSwitcher = (prop: {
 const ManagePreferencesDialog = (props) => {
   const { modal } = useDialogDispatchers()
   const { settings } = useContext(AppContext)
+  const { trackMatomoEvent } = useContext(TrackingContext)
   const [visible, setVisible] = useState<boolean>(true)
   const switcherState = useRef<Record<string, any>>(null)
 
@@ -114,12 +111,11 @@ const ManagePreferencesDialog = (props) => {
   }, [visible])
 
   const savePreferences = async () => {
-    _paq.push(['setConsentGiven']) // default consent to process their anonymous data
-    settings.updateMatomoAnalyticsChoice(true) // Always true for matomo Anonymous analytics
+    // Consent is managed by cookie consent system in settings
     settings.updateMatomoPerfAnalyticsChoice(switcherState.current.matPerfSwitch) // Enable/Disable Matomo Performance analytics
     settings.updateCopilotChoice(switcherState.current.remixAISwitch) // Enable/Disable RemixAI copilot
-    _paq.push(['trackEvent', 'landingPage', 'MatomoAIModal', `MatomoPerfStatus: ${switcherState.current.matPerfSwitch}`])
-    _paq.push(['trackEvent', 'landingPage', 'MatomoAIModal', `AICopilotStatus: ${switcherState.current.remixAISwitch}`])
+    trackMatomoEvent?.({ category: 'landingPage', action: 'MatomoAIModal', name: `MatomoPerfStatus: ${switcherState.current.matPerfSwitch}` })
+    trackMatomoEvent?.({ category: 'landingPage', action: 'MatomoAIModal', name: `AICopilotStatus: ${switcherState.current.remixAISwitch}` })
     setVisible(false)
   }
 

@@ -1,10 +1,9 @@
 import React from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
 import { PluginViewWrapper } from '@remix-ui/helper'
+import { trackMatomoEvent } from '@remix-api'
 import { RemixAppManager } from '../../remixAppManager'
 import { RemixUiCompileDetails } from '@remix-ui/solidity-compile-details'
-
-const _paq = (window._paq = window._paq || [])
 
 const profile = {
   name: 'compilationDetails',
@@ -35,7 +34,7 @@ export class CompilationDetailsPlugin extends ViewPlugin {
   }
 
   async onActivation() {
-    _paq.push(['trackEvent', 'plugin', 'activated', 'compilationDetails'])
+    trackMatomoEvent(this, { category: 'plugin', action: 'activated', name: 'compilationDetails', isClick: true })
   }
 
   onDeactivation(): void {

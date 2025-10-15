@@ -1,9 +1,11 @@
 import React, { useEffect, useReducer, useState, useContext } from 'react'
 import { add, addall, checkout, checkoutfile, clone, commit, createBranch, remoteBranches, repositories, rm, getCommitChanges, diff, resolveRef, getBranchCommits, setUpstreamRemote, loadGitHubUserFromToken, getBranches, getRemotes, remoteCommits, saveGitHubCredentials, getGitHubCredentialsFromLocalStorage, fetch, pull, push, setDefaultRemote, addRemote, removeRemote, sendToGitLog, clearGitLog, getBranchDifferences, getFileStatusMatrix, init, showAlert, gitlog, setStateGitLogCount } from '../lib/gitactions'
 import { loadFiles, setCallBacks } from '../lib/listeners'
-import { openDiff, openFile, openFolderInSameWindow, sendToMatomo, saveToken, setModifiedDecorator, setPlugin, setUntrackedDecorator, statusChanged, loginWithGitHub } from '../lib/pluginActions'
+import { openDiff, openFile, openFolderInSameWindow, saveToken, setModifiedDecorator, setPlugin, setUntrackedDecorator, statusChanged, loginWithGitHub } from '../lib/pluginActions'
 import { gitActionsContext, pluginActionsContext } from '../state/context'
 import { gitReducer } from '../state/gitreducer'
+import { TrackingContext } from '@remix-ide/tracking'
+import { GitEvent, MatomoEvent } from '@remix-api'
 import { IGitUi, defaultGitState, defaultLoaderState, gitMatomoEventTypes, gitState, gitUIPanels, loaderState } from '../types'
 import { Accordion, Button } from "react-bootstrap";
 import { CommitMessage } from './buttons/commitmessage'
@@ -48,6 +50,12 @@ export const GitUI = (props: IGitUi) => {
   const appContext = useContext(AppContext)
 
   const platform = useContext(platformContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+
+  // Component-specific tracker with default GitEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = GitEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   useEffect(() => {
     plugin.emit('statusChanged', {
@@ -131,7 +139,12 @@ export const GitUI = (props: IGitUi) => {
     const panelName = Object.keys(gitUIPanels)
       .filter(k => gitUIPanels[k] === activePanel);
     if (!(panelName && panelName[0])) return
-    sendToMatomo(gitMatomoEventTypes.OPENPANEL, [panelName && panelName[0]])
+    trackMatomoEvent({
+      category: 'git',
+      action: 'PANEL_NAVIGATION',
+      name: panelName[0],
+      isClick: true
+    })
   }, [activePanel])
 
   const gitActionsProviderValue = {

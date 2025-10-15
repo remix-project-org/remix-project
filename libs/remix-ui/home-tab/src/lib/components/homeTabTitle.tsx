@@ -4,9 +4,10 @@ import React, { useRef, useContext } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { CustomTooltip } from '@remix-ui/helper'
 import { ThemeContext } from '../themeContext'
+import { TrackingContext } from '@remix-ide/tracking'
+import { HomeTabEvent, MatomoEvent } from '@remix-api'
 import { Placement } from 'react-bootstrap/esm/types'
 import { DesktopDownload } from 'libs/remix-ui/desktop-download' // eslint-disable-line @nrwl/nx/enforce-module-boundaries
-const _paq = (window._paq = window._paq || []) // eslint-disable-line
 
 type HometabIconSection = {
   textToolip: JSX.Element
@@ -57,11 +58,22 @@ const iconButtons: HometabIconSection[] = [
 function HomeTabTitle() {
   const remiAudioEl = useRef(null)
   const theme = useContext(ThemeContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const isDark = theme.name === 'dark'
+
+  // Component-specific tracker with default HomeTabEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = HomeTabEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   const playRemi = async () => {
     remiAudioEl.current.play()
-    _paq.push(['trackEvent', 'hometab', 'titleCard', 'remiAudio'])
+    trackMatomoEvent({
+      category: 'hometab',
+      action: 'titleCard',
+      name: 'remiAudio',
+      isClick: true
+    })
   }
 
   const openLink = (url = '') => {
@@ -104,7 +116,12 @@ function HomeTabTitle() {
                   key={index}
                   onClick={() => {
                     openLink(button.urlLink)
-                    _paq.push(button.matomoTrackingEntry)
+                    trackMatomoEvent({
+                      category: 'hometab',
+                      action: 'titleCard',
+                      name: button.matomoTrackingEntry[3],
+                      isClick: true
+                    })
                   }}
                   className={`border-0 h-100 px-1 btn fab ${button.iconClass} text-dark`}
                 ></button>
@@ -113,8 +130,18 @@ function HomeTabTitle() {
           </span>
         </div>
         <div className="d-flex flex-row flex-wrap justify-content-between">
-          <a className="btn btn-secondary bg-dark text-decoration-none col-md-5" style={{ fontSize: '0.7rem', minWidth: '125px', color: isDark ? 'white' : 'black' }} href="https://remix-ide.readthedocs.io/en/latest" target="_blank" onClick={() => _paq.push(['trackEvent', 'hometab', 'titleCard', 'documentation'])}><FormattedMessage id="home.documentation" /></a>
-          <a className="btn btn-secondary bg-dark text-decoration-none col-md-5" style={{ fontSize: '0.7rem', minWidth: '125px', color: isDark ? 'white' : 'black' }} href="https://remix-project.org" target="_blank" onClick={() => _paq.push(['trackEvent', 'hometab', 'titleCard', 'webSite'])}><FormattedMessage id="home.website" /></a>
+          <a className="btn btn-secondary bg-dark text-decoration-none col-md-5" style={{ fontSize: '0.7rem', minWidth: '125px', color: isDark ? 'white' : 'black' }} href="https://remix-ide.readthedocs.io/en/latest" target="_blank" onClick={() => trackMatomoEvent({
+            category: 'hometab',
+            action: 'titleCard',
+            name: 'documentation',
+            isClick: true
+          })}><FormattedMessage id="home.documentation" /></a>
+          <a className="btn btn-secondary bg-dark text-decoration-none col-md-5" style={{ fontSize: '0.7rem', minWidth: '125px', color: isDark ? 'white' : 'black' }} href="https://remix-project.org" target="_blank" onClick={() => trackMatomoEvent({
+            category: 'hometab',
+            action: 'titleCard',
+            name: 'webSite',
+            isClick: true
+          })}><FormattedMessage id="home.website" /></a>
         </div>
         <DesktopDownload className='mt-3' compact trackingContext="hometab" />
       </div>

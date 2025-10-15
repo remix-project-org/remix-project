@@ -4,6 +4,8 @@ import groupBy from 'lodash/groupBy'
 import pick from 'lodash/pick'
 import { type ModelType } from '../store'
 import { router } from '../../App'
+import { trackMatomoEvent } from '@remix-api'
+import remixClient from '../../remix-client'
 
 // const apiUrl = 'http://localhost:3001';
 const apiUrl = 'https://learneth.api.remix.live'
@@ -96,7 +98,7 @@ const Model: ModelType = {
         })
 
         // Track error event
-        ;(<any>window)._paq?.push(['trackEvent', 'learneth', 'load_repo_error', `${payload.name}/${payload.branch}`])
+        trackMatomoEvent(remixClient, { category: 'learneth', action: 'load_repo_error', name: `${payload.name}/${payload.branch}`, isClick: false })
 
         return // Exit early on error
       }
@@ -186,7 +188,7 @@ const Model: ModelType = {
       }
       // we don't need to track the default repos
       if (payload.name !== 'ethereum/remix-workshops' && payload.name !== 'remix-project-org/remix-workshops') {
-        (<any>window)._paq.push(['trackEvent', 'learneth', 'load_repo', payload.name])
+        trackMatomoEvent(remixClient, { category: 'learneth', action: 'load_repo', name: payload.name, isClick: false })
       }
     },
     *resetAll({ payload }, { put }) {
@@ -203,7 +205,7 @@ const Model: ModelType = {
         type: 'workshop/loadRepo',
         payload: repoMap[payload.code]
       });
-      (<any>window)._paq.push(['trackEvent', 'learneth', 'reset_all'])
+      trackMatomoEvent(remixClient, { category: 'learneth', action: 'reset_all', isClick: true })
     },
   },
 }

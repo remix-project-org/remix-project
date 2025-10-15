@@ -1,5 +1,6 @@
 import { PluginClient } from '@remixproject/plugin'
 import { createClient } from '@remixproject/plugin-webview'
+import { trackMatomoEvent } from '@remix-api'
 import EventManager from 'events'
 import pathModule from 'path'
 import { compiler_list, parse, compile, generate_r1cs, generate_witness } from 'circom_wasm'
@@ -21,11 +22,6 @@ export class CircomPluginClient extends PluginClient {
   private lastParsedFiles: Record<string, string> = {}
   private lastCompiledFile: string = ''
   private compiler: typeof compilerV215 & typeof compilerV216 & typeof compilerV217 & typeof compilerV218
-  public _paq = {
-    push: (args) => {
-      this.call('matomo' as any, 'track', args)
-    }
-  }
 
   constructor() {
     super()
@@ -175,7 +171,7 @@ export class CircomPluginClient extends PluginClient {
         const circuitErrors = circuitApi.report()
 
         this.logCompilerReport(circuitErrors)
-        this._paq.push(['trackEvent', 'circuit-compiler', 'compile', 'Compilation failed'])
+        trackMatomoEvent(this, { category: 'circuitCompiler', action: 'compile', name: 'Compilation failed', isClick: true })
         throw new Error(circuitErrors)
       } else {
         this.lastCompiledFile = path
@@ -204,7 +200,7 @@ export class CircomPluginClient extends PluginClient {
           this.internalEvents.emit('circuit_parsing_done', parseErrors, filePathToId)
           this.emit('statusChanged', { key: 'succeed', title: 'circuit compiled successfully', type: 'success' })
         }
-        this._paq.push(['trackEvent', 'circuit-compiler', 'compile', 'Compilation successful'])
+        trackMatomoEvent(this, { category: 'circuitCompiler', action: 'compile', name: 'Compilation successful', isClick: true })
         circuitApi.log().map(log => {
           log && this.call('terminal', 'log', { type: 'log', value: log })
         })
@@ -286,7 +282,7 @@ export class CircomPluginClient extends PluginClient {
         const r1csErrors = r1csApi.report()
 
         this.logCompilerReport(r1csErrors)
-        this._paq.push(['trackEvent', 'circuit-compiler', 'generateR1cs', 'R1CS Generation failed'])
+        trackMatomoEvent(this, { category: 'circuitCompiler', action: 'generateR1cs', name: 'R1CS Generation failed', isClick: true })
         throw new Error(r1csErrors)
       } else {
         const fileName = extractNameFromKey(path)
@@ -294,7 +290,7 @@ export class CircomPluginClient extends PluginClient {
 
         // @ts-ignore
         await this.call('fileManager', 'writeFile', writePath, r1csProgram, true)
-        this._paq.push(['trackEvent', 'circuit-compiler', 'generateR1cs', 'R1CS Generation successful'])
+        trackMatomoEvent(this, { category: 'circuitCompiler', action: 'generateR1cs', name: 'R1CS Generation successful', isClick: true })
         r1csApi.log().map(log => {
           log && this.call('terminal', 'log', { type: 'log', value: log })
         })
@@ -342,7 +338,7 @@ export class CircomPluginClient extends PluginClient {
     const witness = this.compiler ? await this.compiler.generate_witness(dataRead, input) : await generate_witness(dataRead, input)
     // @ts-ignore
     await this.call('fileManager', 'writeFile', wasmPath.replace('.wasm', '.wtn'), witness, { encoding: null })
-    this._paq.push(['trackEvent', 'circuit-compiler', 'computeWitness', 'compiler.generate_witness', wasmPath.replace('.wasm', '.wtn')])
+    trackMatomoEvent(this, { category: 'circuitCompiler', action: 'computeWitness', name: wasmPath.replace('.wasm', '.wtn'), isClick: true })
     this.internalEvents.emit('circuit_computing_witness_done')
     this.emit('statusChanged', { key: 'succeed', title: 'witness computed successfully', type: 'success' })
     return witness

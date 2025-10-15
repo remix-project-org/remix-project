@@ -2,7 +2,15 @@ import { Plugin } from '@remixproject/engine'
 import { EventEmitter } from 'events'
 import { QueryParams } from '@remix-project/remix-lib'
 import * as packageJson from '../../../../../package.json'
-import {Registry} from '@remix-project/remix-lib'
+import { trackMatomoEvent } from '@remix-api'
+import { Registry } from '@remix-project/remix-lib'
+
+interface Locale {
+  code: string;
+  name: string;
+  localeName: string;
+  messages: any;
+}
 import enJson from './locales/en'
 import zhJson from './locales/zh'
 import esJson from './locales/es'
@@ -10,7 +18,6 @@ import frJson from './locales/fr'
 import itJson from './locales/it'
 import koJson from './locales/ko'
 import ruJson from './locales/ru'
-const _paq = window._paq = window._paq || []
 
 const locales = [
   { code: 'zh', name: 'Chinese Simplified', localeName: '简体中文', messages: zhJson },
@@ -31,6 +38,14 @@ const profile = {
 }
 
 export class LocaleModule extends Plugin {
+  events: EventEmitter;
+  _deps: { config?: any };
+  locales: { [key: string]: Locale };
+  queryParams: QueryParams;
+  currentLocaleState: { queryLocale: string | null; currentLocale: string | null };
+  active: string;
+  forced: boolean;
+
   constructor () {
     super(profile)
     this.events = new EventEmitter()
@@ -41,9 +56,9 @@ export class LocaleModule extends Plugin {
     locales.forEach((locale) => {
       this.locales[locale.code.toLocaleLowerCase()] = locale
     })
-    this._paq = _paq
+    // Tracking now handled via plugin API
     this.queryParams = new QueryParams()
-    let queryLocale = this.queryParams.get().lang
+    let queryLocale = this.queryParams.get()['lang'] as string
     queryLocale = queryLocale && queryLocale.toLocaleLowerCase()
     queryLocale = this.locales[queryLocale] ? queryLocale : null
     let currentLocale = (this._deps.config && this._deps.config.get('settings/locale')) || null
@@ -56,12 +71,12 @@ export class LocaleModule extends Plugin {
   }
 
   /** Return the active locale */
-  currentLocale () {
+  currentLocale (): Locale {
     return this.locales[this.active]
   }
 
   /** Returns all locales as an array */
-  getLocales () {
+  getLocales (): Locale[] {
     return Object.keys(this.locales).map(key => this.locales[key])
   }
 
@@ -69,15 +84,15 @@ export class LocaleModule extends Plugin {
    * Change the current locale
    * @param {string} [localeCode] - The code of the locale
    */
-  switchLocale (localeCode) {
+  switchLocale (localeCode?: string): void {
     localeCode = localeCode && localeCode.toLocaleLowerCase()
     if (localeCode && !Object.keys(this.locales).includes(localeCode)) {
       throw new Error(`Locale ${localeCode} doesn't exist`)
     }
     const next = localeCode || this.active // Name
     if (next === this.active) return // --> exit out of this method
-    _paq.push(['trackEvent', 'localeModule', 'switchTo', next])
-    
+    trackMatomoEvent(this, { category: 'locale', action: 'switchTo', name: next, isClick: true })
+
     const nextLocale = this.locales[next] // Locale
     if (!this.forced) this._deps.config.set('settings/locale', next)
 

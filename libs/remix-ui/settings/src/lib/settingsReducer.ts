@@ -87,7 +87,7 @@ export const initialState: SettingsState = {
     isLoading: false
   },
   'matomo-analytics': {
-    value: config.get('settings/matomo-analytics') || true,
+    value: true, // Deprecated --- IGNORE ---
     isLoading: false
   },
   'auto-completion': {

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { customScriptRunnerConfig, ProjectConfiguration } from "../types";
 import { CustomScriptRunner } from "./custom-script-runner";
 import ConfigSection from "./components/config-section";
-const _paq = (window._paq = window._paq || []) // eslint-disable-line
 
 export interface ScriptRunnerUIProps {
   loadScriptRunner: (config: ProjectConfiguration) => void;
@@ -43,7 +42,6 @@ export const ScriptRunnerUI = (props: ScriptRunnerUIProps) => {
             config={config}
             key={index}
             loadScriptRunner={loadScriptRunner}
-            _paq={_paq}
             activeConfig={activeConfig}
           />
         ))}

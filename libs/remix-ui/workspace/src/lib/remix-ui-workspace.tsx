@@ -15,13 +15,13 @@ import { contextMenuActions } from './utils'
 import FileExplorerContextMenu from './components/file-explorer-context-menu'
 import { customAction } from '@remixproject/plugin-api'
 import { AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
+import { TrackingContext } from '@remix-ide/tracking'
+import { MatomoEvent, HomeTabEvent, WorkspaceEvent } from '@remix-api'
 import { ElectronMenu } from './components/electron-menu'
 import { ElectronWorkspaceName } from './components/electron-workspace-name'
 import { branch } from '@remix-api'
 import { gitUIPanels } from '@remix-ui/git'
 import { createModalMessage } from './components/createModal'
-
-const _paq = (window._paq = window._paq || [])
 
 const canUpload = window.File || window.FileReader || window.FileList || window.Blob
 
@@ -52,6 +52,10 @@ export function Workspace() {
   const [canPaste, setCanPaste] = useState(false)
 
   const appContext = useContext(AppContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends MatomoEvent = WorkspaceEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   const [state, setState] = useState<WorkSpaceState>({
     ctrlKey: false,
@@ -218,7 +222,7 @@ export function Workspace() {
   ))
 
   const processLoading = (type: string) => {
-    _paq.push(['trackEvent', 'hometab', 'filesSection', 'importFrom' + type])
+    trackMatomoEvent<HomeTabEvent>({ category: 'hometab', action: 'filesSection', name: 'importFrom' + type, isClick: true })
     const contentImport = global.plugin.contentImport
     const workspace = global.plugin.fileManager.getProvider('workspace')
     const startsWith = modalState.importSource.substring(0, 4)
@@ -521,7 +525,7 @@ export function Workspace() {
     try {
       await global.dispatchSwitchToWorkspace(name)
       global.dispatchHandleExpandPath([])
-      _paq.push(['trackEvent', 'Workspace', 'switchWorkspace', name])
+      trackMatomoEvent({ category: 'Workspace', action: 'switchWorkspace', name: name, isClick: true })
     } catch (e) {
       global.modal(
         intl.formatMessage({ id: 'filePanel.workspace.switch' }),
@@ -859,10 +863,10 @@ export function Workspace() {
     try {
       if (branch.remote) {
         await global.dispatchCheckoutRemoteBranch(branch)
-        _paq.push(['trackEvent', 'Workspace', 'GIT', 'checkout_remote_branch'])
+        trackMatomoEvent({ category: 'Workspace', action: 'GIT', name: 'checkout_remote_branch', isClick: true })
       } else {
         await global.dispatchSwitchToBranch(branch)
-        _paq.push(['trackEvent', 'Workspace', 'GIT', 'switch_to_exisiting_branch'])
+        trackMatomoEvent({ category: 'Workspace', action: 'GIT', name: 'switch_to_existing_branch', isClick: true })
       }
     } catch (e) {
       console.error(e)
@@ -879,7 +883,7 @@ export function Workspace() {
   const switchToNewBranch = async () => {
     try {
       await global.dispatchCreateNewBranch(branchFilter)
-      _paq.push(['trackEvent', 'Workspace', 'GIT', 'switch_to_new_branch'])
+      trackMatomoEvent({ category: 'Workspace', action: 'GIT', name: 'switch_to_new_branch', isClick: true })
     } catch (e) {
       global.modal(
         intl.formatMessage({ id: 'filePanel.checkoutGitBranch' }),
@@ -923,7 +927,7 @@ export function Workspace() {
   const logInGithub = async () => {
     await global.plugin.call('menuicons', 'select', 'dgit');
     await global.plugin.call('dgit', 'open', gitUIPanels.GITHUB)
-    _paq.push(['trackEvent', 'Workspace', 'GIT', 'login'])
+    trackMatomoEvent({ category: 'Workspace', action: 'GIT', name: 'login', isClick: true })
   }
 
   const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean, mName: string}) => {

@@ -1,11 +1,12 @@
 /* eslint-disable prefer-const */
 import React from 'react'
+import { ViewPlugin } from '@remixproject/engine-web'
+import { PluginViewWrapper } from '@remix-ui/helper'
+import { trackMatomoEvent } from '@remix-api'
+import type { CompilerInput, CompilationSource } from '@remix-project/remix-solidity'
 import { Plugin } from '@remixproject/engine'
 import { customAction } from '@remixproject/plugin-api'
 import { concatSourceFiles, getDependencyGraph, normalizeContractPath } from '@remix-ui/solidity-compiler'
-import type { CompilerInput, CompilationSource } from '@remix-project/remix-solidity'
-
-const _paq = (window._paq = window._paq || [])
 
 const profile = {
   name: 'contractflattener',
@@ -31,7 +32,7 @@ export class ContractFlattener extends Plugin {
         }
       }
     })
-    _paq.push(['trackEvent', 'plugin', 'activated', 'contractFlattener'])
+    trackMatomoEvent(this, { category: 'plugin', action: 'activated', name: 'contractFlattener', isClick: false })
   }
 
   onDeactivation(): void {
@@ -68,7 +69,7 @@ export class ContractFlattener extends Plugin {
       console.warn(err)
     }
     await this.call('fileManager', 'writeFile', path, result)
-    _paq.push(['trackEvent', 'plugin', 'contractFlattener', 'flattenAContract'])
+    trackMatomoEvent(this, { category: 'plugin', action: 'contractFlattener', name: 'flattenAContract', isClick: false })
     // clean up memory references & return result
     sorted = null
     sources = null

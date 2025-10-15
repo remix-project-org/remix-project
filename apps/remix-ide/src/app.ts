@@ -94,6 +94,7 @@ import Config from './config'
 import FileManager from './app/files/fileManager'
 import FileProvider from "./app/files/fileProvider"
 import { appPlatformTypes } from '@remix-ui/app'
+import { MatomoEvent } from '@remix-api'
 
 import DGitProvider from './app/files/dgitProvider'
 import WorkspaceFileProvider from './app/files/workspaceFileProvider'
@@ -112,7 +113,7 @@ import TabProxy from './app/panels/tab-proxy.js'
 import { Plugin } from '@remixproject/engine'
 import BottomBarPanel from './app/components/bottom-bar-panel'
 
-const _paq = (window._paq = window._paq || [])
+// Tracking now handled by this.track() method using MatomoManager
 
 export class platformApi {
   get name() {
@@ -160,6 +161,18 @@ class AppComponent {
   settings: SettingsTab
   params: any
   desktopClientMode: boolean
+
+  // Tracking method that uses the global MatomoManager instance
+  track(event: MatomoEvent) {
+    try {
+      const matomoManager = window._matomoManagerInstance
+      if (matomoManager && matomoManager.trackEvent) {
+        matomoManager.trackEvent(event)
+      }
+    } catch (error) {
+      console.debug('Tracking error:', error)
+    }
+  }
   constructor() {
     const PlatFormAPi = new platformApi()
     Registry.getInstance().put({
@@ -217,36 +230,23 @@ class AppComponent {
     this.workspace = pluginLoader.get()
     if (pluginLoader.current === 'queryParams') {
       this.workspace.map((workspace) => {
-        _paq.push(['trackEvent', 'App', 'queryParams-activated', workspace])
+        this.track({ category: 'App', action: 'queryParams-activated', name: workspace, isClick: false })
       })
     }
     this.engine = new RemixEngine()
     this.engine.register(appManager)
 
-    const matomoDomains = {
-      'alpha.remix.live': 27,
-      'beta.remix.live': 25,
-      'remix.ethereum.org': 23,
-      '6fd22d6fe5549ad4c4d8fd3ca0b7816b.mod': 35 // remix desktop
-    }
+    // Check if we should show the Matomo consent dialog using the MatomoManager
+    const matomoManager = (window as any)._matomoManagerInstance;
+    const configApi = Registry.getInstance().get('config').api;
+    this.showMatomo = matomoManager ? matomoManager.shouldShowConsentDialog(configApi) : false;
 
-    // _paq.push(['trackEvent', 'App', 'load']);
-    this.matomoConfAlreadySet = Registry.getInstance().get('config').api.exists('settings/matomo-perf-analytics')
-    this.matomoCurrentSetting = Registry.getInstance().get('config').api.get('settings/matomo-perf-analytics')
+    // Store config values for backwards compatibility
+    this.matomoConfAlreadySet = configApi.exists('settings/matomo-perf-analytics');
+    this.matomoCurrentSetting = configApi.get('settings/matomo-perf-analytics');
 
-    const electronTracking = (window as any).electronAPI ? await (window as any).electronAPI.canTrackMatomo() : false
-
-    const lastMatomoCheck = window.localStorage.getItem('matomo-analytics-consent')
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-    const e2eforceMatomoToShow = window.localStorage.getItem('showMatomo') && window.localStorage.getItem('showMatomo') === 'true'
-    const contextShouldShowMatomo = matomoDomains[window.location.hostname] || e2eforceMatomoToShow || electronTracking
-    const shouldRenewConsent = this.matomoCurrentSetting === false && (!lastMatomoCheck || new Date(Number(lastMatomoCheck)) < sixMonthsAgo) // it is set to false for more than 6 months.
-    this.showMatomo = contextShouldShowMatomo && (!this.matomoConfAlreadySet || shouldRenewConsent)
-
-    if (this.showMatomo && shouldRenewConsent) {
-      _paq.push(['trackEvent', 'Matomo', 'refreshMatomoPermissions']);
+    if (this.showMatomo) {
+      this.track({ category: 'MatomoManager', action: 'showConsentDialog', isClick: false });
     }
 
     this.walkthroughService = new WalkthroughService(appManager)
@@ -685,7 +685,7 @@ class AppComponent {
               if (callDetails.length > 1) {
                 this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
                 // @todo(remove the timeout when activatePlugin is on 0.3.0)
-                _paq.push(['trackEvent', 'App', 'queryParams-calls', this.params.call])
+                this.track({ category: 'App', action: 'queryParamsCalls', name: this.params.call, isClick: false })
                 //@ts-ignore
                 await this.appManager.call(...callDetails).catch(console.error)
               }
@@ -696,7 +696,7 @@ class AppComponent {
 
               // call all functions in the list, one after the other
               for (const call of calls) {
-                _paq.push(['trackEvent', 'App', 'queryParams-calls', call])
+                this.track({ category: 'App', action: 'queryParamsCalls', name: call, isClick: false })
                 const callDetails = call.split('//')
                 if (callDetails.length > 1) {
                   this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)

@@ -13,13 +13,6 @@ import { DeployMode, MainnetPrompt } from '../types'
 import { runCurrentScenario, storeScenario } from './recorder'
 import { SolcInput, SolcOutput } from '@openzeppelin/upgrades-core'
 
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-
-const _paq = window._paq = window._paq || []  //eslint-disable-line
 let plugin: RunTab, dispatch: React.Dispatch<any> = () => {}
 
 export const initRunTab = (udapp: RunTab, resetEventsAndAccounts: boolean) => async (reducerDispatch: React.Dispatch<any>) => {

@@ -1,6 +1,9 @@
 import { RemixApp } from '@remix-ui/app'
 import axios from 'axios'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useState, useEffect, useRef, useContext } from 'react'
+import { FormattedMessage, useIntl } from 'react-intl'
+import { useTracking, TrackingProvider } from '../contexts/TrackingContext'
+import { TrackingFunction } from '../utils/TrackingFunction'
 import * as packageJson from '../../../../../package.json'
 import { fileSystem, fileSystems } from '../files/fileSystem'
 import { indexedDBFileSystem } from '../files/filesystems/indexedDB'
@@ -8,11 +11,16 @@ import { localStorageFS } from '../files/filesystems/localStorage'
 import { fileSystemUtility, migrationTestData } from '../files/filesystems/fileSystemUtility'
 import './styles/preload.css'
 import isElectron from 'is-electron'
-const _paq = (window._paq = window._paq || [])
 
 // _paq.push(['trackEvent', 'App', 'Preload', 'start'])
 
-export const Preload = (props: any) => {
+interface PreloadProps {
+  root: any;
+  trackingFunction: TrackingFunction;
+}
+
+export const Preload = (props: PreloadProps) => {
+  const { trackMatomoEvent } = useTracking()
   const [tip, setTip] = useState<string>('')
   const [supported, setSupported] = useState<boolean>(true)
   const [error, setError] = useState<boolean>(false)
@@ -36,11 +44,15 @@ export const Preload = (props: any) => {
       .then((AppComponent) => {
         const appComponent = new AppComponent.default()
         appComponent.run().then(() => {
-          props.root.render(<RemixApp app={appComponent} />)
+          props.root.render(
+            <TrackingProvider trackingFunction={props.trackingFunction}>
+              <RemixApp app={appComponent} />
+            </TrackingProvider>
+          )
         })
       })
       .catch((err) => {
-        _paq.push(['trackEvent', 'App', 'PreloadError', err && err.message])
+        trackMatomoEvent?.({ category: 'App', action: 'PreloadError', name: err && err.message, isClick: false })
         console.error('Error loading Remix:', err)
         setError(true)
       })
@@ -57,7 +69,7 @@ export const Preload = (props: any) => {
     setShowDownloader(false)
     const fsUtility = new fileSystemUtility()
     const migrationResult = await fsUtility.migrate(localStorageFileSystem.current, remixIndexedDB.current)
-    _paq.push(['trackEvent', 'Migrate', 'result', migrationResult ? 'success' : 'fail'])
+    trackMatomoEvent?.({ category: 'migrate', action: 'result', name: migrationResult ? 'success' : 'fail', isClick: false })
     await setFileSystems()
   }
 
@@ -68,10 +80,10 @@ export const Preload = (props: any) => {
     ])
     if (fsLoaded) {
       console.log(fsLoaded.name + ' activated')
-      _paq.push(['trackEvent', 'Storage', 'activate', fsLoaded.name])
+      trackMatomoEvent?.({ category: 'Storage', action: 'activate', name: fsLoaded.name, isClick: false })
       loadAppComponent()
     } else {
-      _paq.push(['trackEvent', 'Storage', 'error', 'no supported storage'])
+      trackMatomoEvent?.({ category: 'Storage', action: 'error', name: 'no supported storage', isClick: false })
       setSupported(false)
     }
   }
@@ -89,8 +101,8 @@ export const Preload = (props: any) => {
       return
     }
     async function loadStorage() {
-      ;(await remixFileSystems.current.addFileSystem(remixIndexedDB.current)) || _paq.push(['trackEvent', 'Storage', 'error', 'indexedDB not supported'])
-      ;(await remixFileSystems.current.addFileSystem(localStorageFileSystem.current)) || _paq.push(['trackEvent', 'Storage', 'error', 'localstorage not supported'])
+      ;(await remixFileSystems.current.addFileSystem(remixIndexedDB.current)) || trackMatomoEvent?.({ category: 'Storage', action: 'error', name: 'indexedDB not supported', isClick: false })
+      ;(await remixFileSystems.current.addFileSystem(localStorageFileSystem.current)) || trackMatomoEvent?.({ category: 'Storage', action: 'error', name: 'localstorage not supported', isClick: false })
       await testmigration()
       remixIndexedDB.current.loaded && (await remixIndexedDB.current.checkWorkspaces())
       localStorageFileSystem.current.loaded && (await localStorageFileSystem.current.checkWorkspaces())

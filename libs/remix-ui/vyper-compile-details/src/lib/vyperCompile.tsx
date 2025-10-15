@@ -5,7 +5,6 @@ import Tabs from 'react-bootstrap/Tabs'
 import Tab from 'react-bootstrap/Tab'
 import Button from 'react-bootstrap/Button'
 import { ABIDescription } from '@remixproject/plugin-api'
-const _paq = (window._paq = window._paq || [])
 
 export interface VyperCompilationResult {
   status?: 'success'

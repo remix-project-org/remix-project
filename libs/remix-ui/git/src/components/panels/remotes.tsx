@@ -1,16 +1,23 @@
-import React, { useEffect } from "react"
+import React, { useEffect, useContext } from "react"
 import { gitActionsContext } from "../../state/context"
 import { gitPluginContext } from "../gitui"
 import { Remoteselect } from "./remoteselect"
 import { RemotesImport } from "./remotesimport"
-import { sendToMatomo } from "../../lib/pluginActions"
+import { GitEvent, MatomoEvent } from "@remix-api"
 import { gitMatomoEventTypes } from "../../types"
+import { TrackingContext } from "@remix-ide/tracking"
 
 export const Remotes = () => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const [remoteName, setRemoteName] = React.useState<string>('')
   const [url, setUrl] = React.useState<string>('')
+
+  // Component-specific tracker with default GitEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = GitEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   const onRemoteNameChange = (value: string) => {
     setRemoteName(value)
@@ -20,7 +27,12 @@ export const Remotes = () => {
   }
 
   const addRemote = async () => {
-    await sendToMatomo(gitMatomoEventTypes.ADDMANUALREMOTE)
+    trackMatomoEvent({
+      category: 'git',
+      action: 'ADD_MANUAL_REMOTE',
+      name: 'ADD_REMOTE_ACTION',
+      isClick: true
+    })
     actions.addRemote({
       name: remoteName,
       url: url

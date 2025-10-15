@@ -5,17 +5,13 @@ import { TEMPLATE_NAMES, TEMPLATE_METADATA } from '@remix-ui/workspace'
 import { ThemeContext } from '../themeContext'
 import WorkspaceTemplate from './workspaceTemplate'
 import 'react-multi-carousel/lib/styles.css'
-import { appPlatformTypes, platformContext } from '@remix-ui/app'
+import { AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
+import { HomeTabEvent, MatomoEvent } from '@remix-api'
+import { TrackingContext } from '@remix-ide/tracking'
 import { Plugin } from "@remixproject/engine";
 import { CustomRemixApi } from '@remix-api'
 import { CustomTooltip } from '@remix-ui/helper'
 
-declare global {
-  interface Window {
-    _paq: any
-  }
-}
-const _paq = (window._paq = window._paq || []) //eslint-disable-line
 interface HomeTabGetStartedProps {
   plugin: any
 }
@@ -76,6 +72,13 @@ const workspaceTemplates: WorkspaceTemplate[] = [
 function HomeTabGetStarted({ plugin }: HomeTabGetStartedProps) {
   const platform = useContext(platformContext)
   const themeFilter = useContext(ThemeContext)
+  const appContext = useContext(AppContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+
+  // Component-specific tracker with default type, but allows overrides
+  const trackMatomoEvent = <T extends MatomoEvent = HomeTabEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
   const intl = useIntl()
   const carouselRef = useRef<any>({})
   const carouselRefDiv = useRef(null)
@@ -147,7 +150,12 @@ function HomeTabGetStarted({ plugin }: HomeTabGetStartedProps) {
       await plugin.call('filePanel', 'setWorkspace', templateDisplayName)
       plugin.verticalIcons.select('filePanel')
     }
-    _paq.push(['trackEvent', 'hometab', 'homeGetStarted', templateName])
+    trackMatomoEvent({
+      category: 'hometab',
+      action: 'homeGetStarted',
+      name: templateName,
+      isClick: true
+    })
   }
 
   return (
@@ -178,7 +186,6 @@ function HomeTabGetStarted({ plugin }: HomeTabGetStartedProps) {
                     }
                     onClick={async (e) => {
                       createWorkspace(template.templateName)
-                      _paq.push(['trackEvent', 'hometab', 'homeGetStarted', template.templateName])
                     }}
                     data-id={`homeTabGetStarted${template.templateName}`}
                   >

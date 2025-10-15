@@ -1,8 +1,9 @@
 // eslint-disable-next-line no-use-before-define
-import React from 'react'
+import React, { useContext } from 'react'
 import parse from 'html-react-parser'
 import { ScanReport } from '@remix-ui/helper'
-const _paq = (window._paq = window._paq || [])
+import { MatomoEvent, CompilerEvent } from '@remix-api'
+import { TrackingContext } from '@remix-ide/tracking'
 
 interface SolScanTableProps {
   scanReport: ScanReport
@@ -11,6 +12,10 @@ interface SolScanTableProps {
 
 export function SolScanTable(props: SolScanTableProps) {
   const { scanReport, fileName } = props
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends MatomoEvent = CompilerEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
   const { multi_file_scan_details, multi_file_scan_summary } = scanReport
 
   return (
@@ -56,7 +61,7 @@ export function SolScanTable(props: SolScanTableProps) {
           <p>For more details,&nbsp;
             <a href="https://solidityscan.com/?utm_campaign=remix&utm_source=remix"
               target='_blank'
-              onClick={() => _paq.push(['trackEvent', 'solidityCompiler', 'solidityScan', 'goToSolidityScan'])}>
+              onClick={() => trackMatomoEvent({ category: 'solidityCompiler', action: 'solidityScan', name: 'goToSolidityScan', isClick: true })}>
               go to SolidityScan.
             </a>
           </p>

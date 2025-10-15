@@ -2,6 +2,7 @@
 import React, { useEffect, useRef } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { CustomTooltip } from "@remix-ui/helper"
+import { trackMatomoEvent } from '@remix-api'
 import { AlertModal, AppModal } from '@remix-ui/app'
 import { ViewPlugin } from '@remixproject/engine-web'
 import { PluginViewWrapper } from '@remix-ui/helper'
@@ -12,11 +13,7 @@ import isElectron from 'is-electron'
 import type { Template, TemplateGroup } from '@remix-ui/workspace'
 import './templates-selection-plugin.css'
 import { templates } from './templates'
-import { AssistantParams } from '@remix/remix-ai-core'
 import { TEMPLATE_METADATA } from '@remix-ui/workspace'
-
-//@ts-ignore
-const _paq = (window._paq = window._paq || [])
 
 const profile = {
   name: 'templateSelection',
@@ -42,7 +39,7 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
     this.handleThemeChange()
     await this.call('tabs', 'focus', 'templateSelection')
     this.renderComponent()
-    _paq.push(['trackEvent', 'plugin', 'activated', 'remixGuide'])
+    trackMatomoEvent(this, { category: 'plugin', action: 'activated', name: 'remixGuide', isClick: true })
   }
 
   onDeactivation(): void {
@@ -171,7 +168,7 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
 
       const modalResult = await this.call('notification', 'modal', modal)
       if (!modalResult) return
-      _paq.push(['trackEvent', 'template-selection', 'createWorkspace', item.value])
+      trackMatomoEvent(this, { category: 'templateSelection', action: 'createWorkspace', name: item.value, isClick: true })
       this.emit('createWorkspaceReducerEvent', workspaceName, item.value, this.opts, false, errorCallback, initGit)
     }
 
@@ -181,7 +178,7 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
 
     const addToCurrentWorkspace = async (item: Template, templateGroup: TemplateGroup) => {
       this.opts = {}
-      _paq.push(['trackEvent', 'template-selection', 'addToCurrentWorkspace', item.value])
+      trackMatomoEvent(this, { category: 'templateSelection', action: 'addToCurrentWorkspace', name: item.value, isClick: true })
       if (templateGroup.hasOptions) {
         const modal: AppModal = {
           id: 'TemplatesSelection',

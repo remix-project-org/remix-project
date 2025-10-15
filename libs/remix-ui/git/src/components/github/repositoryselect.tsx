@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Select from 'react-select';
 import { gitActionsContext } from '../../state/context';
-import { repository } from '@remix-api';
+import { repository, GitEvent, MatomoEvent } from '@remix-api';
 import { gitMatomoEventTypes } from '../../types';
 import { selectStyles, selectTheme } from '../../types/styles';
 import { gitPluginContext } from '../gitui';
-import { sendToMatomo } from '../../lib/pluginActions';
+import { TrackingContext } from '@remix-ide/tracking';
 
 interface RepositorySelectProps {
   select: (repo: repository) => void;
@@ -16,9 +16,15 @@ const RepositorySelect = (props: RepositorySelectProps) => {
   const [repoOtions, setRepoOptions] = useState<any>([]);
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const [loading, setLoading] = useState(false)
   const [show, setShow] = useState(false)
   const [selected, setSelected] = useState<any>(null)
+
+  // Component-specific tracker with default GitEvent type
+  const trackMatomoEvent = <T extends MatomoEvent = GitEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
 
   useEffect(() => {
     if (context.repositories && context.repositories.length > 0) {
@@ -57,7 +63,12 @@ const RepositorySelect = (props: RepositorySelectProps) => {
   }
 
   const fetchRepositories = async () => {
-    await sendToMatomo(gitMatomoEventTypes.LOADREPOSITORIESFROMGITHUB)
+    trackMatomoEvent({
+      category: 'git',
+      action: 'LOAD_REPOSITORIES_FROM_GITHUB',
+      name: 'FETCH_BUTTON',
+      isClick: true
+    })
     try {
       setShow(true)
       setLoading(true)

@@ -3,6 +3,8 @@ import React, { useState, useEffect, forwardRef, ReactNode } from 'react'
 import { Button, Dropdown, Form } from 'react-bootstrap'
 import { useAppDispatch, useAppSelector } from '../../redux/hooks'
 import { CustomTooltip } from "@remix-ui/helper"
+import { trackMatomoEvent } from '@remix-api'
+import remixClient from '../../remix-client'
 import './index.css'
 
 interface CustomToggleProps {
@@ -55,14 +57,24 @@ function RepoImporter({ list, selectedRepo }: any): JSX.Element {
   const panelChange = () => { setOpen(!open) }
   const selectRepo = (repo: { name: string; branch: string }) => {
     dispatch({ type: 'workshop/loadRepo', payload: repo });
-    (window as any)._paq.push(['trackEvent', 'learneth', 'select_repo', `${repo.name}/${repo.branch}`])
+    trackMatomoEvent(remixClient, { 
+      category: 'learneth', 
+      action: 'select_repo', 
+      name: `${repo.name}/${repo.branch}`, 
+      isClick: true 
+    })
     setOpen(false)
   }
 
   const importRepo = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     dispatch({ type: 'workshop/loadRepo', payload: { name, branch } });   
-    (window as any)._paq.push(['trackEvent', 'learneth', 'import_repo', `${name}/${branch}`])
+    trackMatomoEvent(remixClient, { 
+      category: 'learneth', 
+      action: 'import_repo', 
+      name: `${name}/${branch}`, 
+      isClick: true 
+    })
     setOpen(false)
   }
 

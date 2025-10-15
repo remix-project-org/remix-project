@@ -1,11 +1,12 @@
 import React from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
 import { PluginViewWrapper } from '@remix-ui/helper'
+import { trackMatomoEvent } from '@remix-api'
 import { RemixAppManager } from '../../remixAppManager'
 import { RemixUiVyperCompileDetails } from '@remix-ui/vyper-compile-details'
 import { ThemeKeys, ThemeObject } from '@microlink/react-json-view'
 //@ts-ignore
-const _paq = (window._paq = window._paq || [])
+import * as packageJson from '../../../../../package.json'
 
 const profile = {
   name: 'vyperCompilationDetails',
@@ -41,7 +42,7 @@ export class VyperCompilationDetailsPlugin extends ViewPlugin {
     this.handleThemeChange()
     await this.call('tabs', 'focus', 'vyperCompilationDetails')
     this.renderComponent()
-    _paq.push(['trackEvent', 'plugin', 'activated', 'vyperCompilationDetails'])
+    trackMatomoEvent(this, { category: 'plugin', action: 'activated', name: 'vyperCompilationDetails', isClick: true })
   }
 
   onDeactivation(): void {

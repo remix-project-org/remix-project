@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
+import { trackMatomoEvent } from '@remix-api'
 import { SearchableChainDropdown, ContractAddressInput } from '../components'
 import { mergeChainSettingsWithDefaults, validConfiguration } from '../utils'
 import type { LookupResponse, VerifierIdentifier } from '../types'
@@ -59,14 +60,19 @@ export const LookupView = () => {
     }
   }
 
-  const sendToMatomo = async (eventAction: string, eventName: string) => {
-    await clientInstance.call('matomo' as any, 'track', ['trackEvent', 'ContractVerification', eventAction, eventName])
+  const sendToMatomo = async (eventName: string) => {
+    await trackMatomoEvent(clientInstance, { 
+      category: 'contractVerification', 
+      action: 'lookup', 
+      name: eventName, 
+      isClick: true 
+    });
   }
 
   const handleOpenInRemix = async (lookupResponse: LookupResponse) => {
     try {
       await clientInstance.saveToRemix(lookupResponse)
-      await sendToMatomo('lookup', 'openInRemix On: ' + selectedChain)
+      await sendToMatomo('openInRemix On: ' + selectedChain)
     } catch (err) {
       console.error(`Error while trying to open in Remix: ${err.message}`)
     }
