@@ -32,7 +32,7 @@
     "@remixproject/plugin-api": "0.3.33",
     "@remixproject/plugin-utils": "0.3.33",
     "@remixproject/plugin-ws": "0.3.33",
-    "axios": "1.8.2",
+    "axios": "1.12.0",
     "bn.js": "^5.1.2",
     "chokidar": "^2.1.8",
     "commander": "^9.4.1",
