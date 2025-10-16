@@ -64,6 +64,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const contextBtnRef = useRef(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const aiChatRef = useRef<HTMLDivElement>(null)
+  const userHasScrolledRef = useRef(false)
+  const lastMessageCountRef = useRef(0)
 
   useOnClickOutside([modelBtnRef, contextBtnRef], () => setShowAssistantOptions(false))
   useOnClickOutside([modelBtnRef, contextBtnRef], () => setShowContextOptions(false))
@@ -224,13 +226,25 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     props.onMessagesChange?.(messages)
   }, [messages, props.onMessagesChange])
 
-  // always scroll to bottom when messages change
+  // Smart auto-scroll: only scroll to bottom if:
   useEffect(() => {
     const node = historyRef.current
-    if (node && messages.length > 0) {
+    if (!node || messages.length === 0) return
+
+    const isAtBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 100
+    const userSentNewMessage = messages.length > lastMessageCountRef.current &&
+                                messages[messages.length - 1]?.role === 'user'
+    // Auto-scroll conditions:
+    // - User sent a new message (always scroll)
+    // - User hasn't manually scrolled up (userHasScrolledRef is false)
+    // - Currently streaming and user is near bottom
+    if (userSentNewMessage || !userHasScrolledRef.current || (isStreaming && isAtBottom)) {
       node.scrollTop = node.scrollHeight
+      userHasScrolledRef.current = false
     }
-  }, [messages])
+
+    lastMessageCountRef.current = messages.length
+  }, [messages, isStreaming])
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -662,11 +676,24 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   )
   const chatHistoryRef = useRef<HTMLElement | null>(null)
 
+  // Detect manual user scrolling
   useEffect(() => {
-    if (chatHistoryRef.current) {
-      chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight
+    const node = historyRef.current
+    if (!node) return
+
+    const handleScroll = () => {
+      const isAtBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 100
+
+      if (!isAtBottom) {
+        userHasScrolledRef.current = true
+      } else {
+        userHasScrolledRef.current = false
+      }
     }
-  }, [messages])
+
+    node.addEventListener('scroll', handleScroll)
+    return () => node.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const maximizePanel = async () => {
     await props.plugin.call('layout', 'maximisePinnedPanel')
