@@ -49,21 +49,37 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
 
   useEffect(() => {
     const checkSupport = async () => {
-      if (props.plugin) {
-        const supportedChain = await getSupportedChain(props.plugin)
-        const isSupported = !!supportedChain
-        setNetworkSupported(isSupported)
+      if (props.plugin && props.networkName) {
+        try {
+          const status = props.plugin.blockchain.getCurrentNetworkStatus()
+          if (status.error || !status.network) {
+            setNetworkSupported(false)
+            return
+          }
+          const currentChainId = status.network.id.toString()
 
-        if (isSupported) {
-          const saved = window.localStorage.getItem('deploy-verify-contract-checked')
-          setVerifyChecked(saved !== null ? JSON.parse(saved) : true)
-        } else {
-          setVerifyChecked(false)
+          const isSupported = await props.plugin.call(
+            'contract-verification',
+            'isVerificationSupportedForChain',
+            currentChainId
+          )
+
+          setNetworkSupported(isSupported)
+
+          if (isSupported) {
+            const saved = window.localStorage.getItem('deploy-verify-contract-checked')
+            setVerifyChecked(saved !== null ? JSON.parse(saved) : true)
+          } else {
+            setVerifyChecked(false)
+          }
+        } catch (e) {
+          console.error("Failed to check verification support:", e)
+          setNetworkSupported(false)
         }
       }
-    };
+    }
     checkSupport()
-  }, [props.networkName])
+  }, [props.networkName, props.plugin])
 
   useEffect(() => {
     enableContractNames(Object.keys(props.contracts.contractList).length > 0)
@@ -335,23 +351,6 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
   const isValidProxyUpgrade = (proxyAddress: string) => {
     const solcVersion = loadedContractData.metadata ? JSON.parse(loadedContractData.metadata).compiler.version : ''
     return props.isValidProxyUpgrade(proxyAddress, loadedContractData.contractName || loadedContractData.name, loadedContractData.compiler.source, loadedContractData.compiler.data, solcVersion)
-  }
-
-  const getSupportedChain = async (plugin: any): Promise<any> => {
-    try {
-      const response = await fetch('https://chainid.network/chains.json')
-      if (!response.ok) return null
-      const allChains = await response.json()
-
-      const status = plugin.blockchain.getCurrentNetworkStatus()
-      if (status.error || !status.network) return null
-
-      const currentChainId = parseInt(status.network.id)
-      return allChains.find(chain => chain.chainId === currentChainId) || null
-    } catch (e) {
-      console.error(e)
-      return null
-    }
   }
 
   const checkSumWarning = () => {

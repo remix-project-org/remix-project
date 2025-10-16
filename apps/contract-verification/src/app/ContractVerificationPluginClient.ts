@@ -13,7 +13,7 @@ export class ContractVerificationPluginClient extends PluginClient {
 
   constructor() {
     super()
-    this.methods = ['lookupAndSave', 'verifyOnDeploy']
+    this.methods = ['lookupAndSave', 'verifyOnDeploy', 'isVerificationSupportedForChain']
     this.internalEvents = new EventManager()
     createClient(this)
     this.onload()
@@ -126,24 +126,15 @@ export class ContractVerificationPluginClient extends PluginClient {
       const chainSettings = mergeChainSettingsWithDefaults(chainId, userSettings)
 
       const verificationPromises = []
+      const verifiers: VerifierIdentifier[] = ['Sourcify', 'Etherscan', 'Blockscout', 'Routescan']
 
-      if (validConfiguration(chainSettings, 'Sourcify')) {
-        verificationPromises.push(this._verifyWithProvider('Sourcify', submittedContract, compilerAbstract, chainId, chainSettings))
-      }
-
-      if (currentChain.explorers && currentChain.explorers.some(explorer => explorer.name.toLowerCase().includes('routescan'))) {
-        verificationPromises.push(this._verifyWithProvider('Routescan', submittedContract, compilerAbstract, chainId, chainSettings))
-      }
-
-      if (currentChain.explorers && currentChain.explorers.some(explorer => explorer.url.includes('blockscout'))) {
-        verificationPromises.push(this._verifyWithProvider('Blockscout', submittedContract, compilerAbstract, chainId, chainSettings))
-      }
-
-      if (currentChain.explorers && currentChain.explorers.some(explorer => explorer.name.includes('etherscan'))) {
-        if (etherscanApiKey) {
-          verificationPromises.push(this._verifyWithProvider('Etherscan', submittedContract, compilerAbstract, chainId, chainSettings))
-        } else {
-          await this.call('terminal', 'log', { type: 'warn', value: 'Etherscan verification skipped: API key not found in global Settings.' })
+      for (const verifier of verifiers) {
+        if (validConfiguration(chainSettings, verifier)) {
+          if (verifier === 'Etherscan' && !etherscanApiKey) {
+            this.call('terminal', 'log', { type: 'warn', value: 'Etherscan verification skipped: API key not provided for auto-verification.' })
+            continue
+          }
+          verificationPromises.push(this._verifyWithProvider(verifier, submittedContract, compilerAbstract, chainId, chainSettings))
         }
       }
 
@@ -155,6 +146,23 @@ export class ContractVerificationPluginClient extends PluginClient {
 
     } catch (error) {
       await this.call('terminal', 'log', { type: 'error', value: `An unexpected error occurred during verification: ${error.message}` })
+    }
+  }
+
+  async isVerificationSupportedForChain(chainId: string): Promise<boolean> {
+    try {
+      const userSettings = this.getUserSettingsFromLocalStorage()
+      const chainSettings = mergeChainSettingsWithDefaults(chainId, userSettings)
+
+      for (const verifierId of VERIFIERS) {
+        if (validConfiguration(chainSettings, verifierId as VerifierIdentifier)) {
+          return true
+        }
+      }
+      return false
+    } catch (e) {
+      console.error(e)
+      return false
     }
   }
 

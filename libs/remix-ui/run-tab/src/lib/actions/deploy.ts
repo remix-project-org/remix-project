@@ -191,7 +191,7 @@ export const createInstance = async (
         const currentChain = allChains.find(chain => chain.chainId === currentChainId)
 
         if (!currentChain) {
-          const errorMsg = `The current network (Chain ID: ${currentChainId}) is not supported for verification via this plugin. Please switch to a supported network like Sepolia or Mainnet.`
+          const errorMsg = `Could not find chain data for Chain ID: ${currentChainId}. Verification cannot proceed.`
           const errorLog = logBuilder(errorMsg)
           terminalLogger(plugin, errorLog)
           return

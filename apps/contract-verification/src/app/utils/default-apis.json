@@ -51,6 +51,9 @@
     "1101": {
       "explorerUrl": "https://zkevm.polygonscan.com"
     },
+    "59141": {
+      "explorerUrl": "https://sepolia.lineascan.build"
+    },
     "59144": {
       "explorerUrl": "https://lineascan.build"
     },
