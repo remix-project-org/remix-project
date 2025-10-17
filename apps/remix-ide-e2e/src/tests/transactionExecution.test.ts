@@ -343,7 +343,7 @@ module.exports = {
       .perform(async (done) => {
         try {
           console.log('getting the provider up..')
-          const provider = new JsonRpcProvider('https://go.getblock.io/1552e4e35bcf4efe8a78897cba5557f9')
+          const provider = new JsonRpcProvider('https://go.getblock.us/1552e4e35bcf4efe8a78897cba5557f9')
           currentBlockNumber = (await provider.getBlockNumber()) as number
           console.log('getBlockNumber', currentBlockNumber)
           done()
