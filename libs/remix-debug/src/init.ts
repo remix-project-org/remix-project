@@ -22,7 +22,7 @@ export function setProvider (web3, url) {
 
 export function web3DebugNode (network) {
   const web3DebugNodes = {
-    Main: 'https://go.getblock.io/1552e4e35bcf4efe8a78897cba5557f9',
+    Main: 'https://go.getblock.us/1552e4e35bcf4efe8a78897cba5557f9',
     Sepolia: 'https://go.getblock.io/7fbe62b139884d2c9c1616ca0de8b5b2'
   }
   if (web3DebugNodes[network]) {
