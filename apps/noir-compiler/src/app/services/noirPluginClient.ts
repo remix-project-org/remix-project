@@ -5,6 +5,14 @@ import { DEFAULT_TOML_CONFIG } from '../actions/constants'
 import NoirParser from './noirParser'
 import { extractNameFromKey } from '@remix-ui/helper'
 import axios from 'axios'
+import JSZip from 'jszip'
+import { VerifierInputs } from '../types'
+
+interface NoirAbi {
+  parameters: { name: string, type: any, visibility: 'public' | 'private' }[]
+  return_type?: { visibility: 'public' | 'private' }
+}
+
 export class NoirPluginClient extends PluginClient {
   public internalEvents: EventManager
   public parser: NoirParser
@@ -17,7 +25,7 @@ export class NoirPluginClient extends PluginClient {
 
   constructor() {
     super()
-    this.methods = ['init', 'parse', 'compile']
+    this.methods = ['init', 'parse', 'compile', 'generateProof']
     createClient(this)
     this.internalEvents = new EventManager()
     this.parser = new NoirParser()
@@ -69,6 +77,10 @@ export class NoirPluginClient extends PluginClient {
     if (!nargoTomlExists) {
       await this.call('fileManager', 'writeFile', tomlPath, DEFAULT_TOML_CONFIG)
     }
+  }
+
+  private bytesToHex(bytes: Uint8Array): string {
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
   generateRequestID(): string {
@@ -151,9 +163,10 @@ export class NoirPluginClient extends PluginClient {
           const { compiledJson, proverToml } = response.data
 
           const buildPath = projectRoot === '/' ? 'build' : `${projectRoot}/build`
-
           this.call('fileManager', 'writeFile', `${buildPath}/program.json`, compiledJson)
-          this.call('fileManager', 'writeFile', `${buildPath}/prover.toml`, proverToml)
+
+          const proverTomlPath = projectRoot === '/' ? 'Prover.toml' : `${projectRoot}/Prover.toml`
+          this.call('fileManager', 'writeFile', proverTomlPath, proverToml)
 
           this.internalEvents.emit('noir_compiling_done')
           this.emit('statusChanged', { key: 'succeed', title: 'Noir circuit compiled successfully', type: 'success' })
@@ -166,6 +179,140 @@ export class NoirPluginClient extends PluginClient {
       }
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  async generateProof(path: string): Promise<void> {
+    const requestID = this.generateRequestID()
+    console.log(`[${requestID}] New proof generation request for: ${path}`)
+
+    // this.internalEvents.emit('noir_proofing_start')
+    this.internalEvents.emit('noir_proofing_start')
+    this.emit('statusChanged', { key: 'loading', title: 'Generating Proof...', type: 'info' })
+    this.call('terminal', 'log', { type: 'log', value: 'Generating proof for ' + path })
+
+    let projectRoot: string | null = null
+
+    try {
+      if (this.ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket connection not open. Cannot generate proof.')
+      }
+      
+      projectRoot = await this.findProjectRoot(path)
+      if (projectRoot === null) {
+        throw new Error(`Invalid project structure for '${path}'. Could not find project root.`)
+      }
+
+      // @ts-ignore
+      const zippedProject: Blob = await this.call('fileManager', 'download', projectRoot, false)
+      const formData = new FormData()
+      formData.append('file', zippedProject, `${extractNameFromKey(path)}.zip`)
+
+      this.ws.send(JSON.stringify({ requestId: requestID }))
+    
+      // @ts-ignore
+      const response = await axios.post(`${BASE_URL}/generate-proof-with-verifier?requestId=${requestID}`, formData, {
+        responseType: 'blob'
+      })
+
+      if (response.status !== 200) {
+        try {
+          const errorJson = JSON.parse(await response.data.text())
+          throw new Error(errorJson.error || `Backend returned status ${response.status}`)
+        } catch (parseError) {
+          throw new Error(`Backend returned status ${response.status}: ${response.statusText}`)
+        }
+      }
+
+      const receivedBlob = response.data
+      this.call('terminal', 'log', { type: 'log', value: 'Received proof artifacts. Extracting files...' })
+
+      const zip = await JSZip.loadAsync(receivedBlob)
+      const buildPath = projectRoot === '/' ? 'build' : `${projectRoot}/build`
+      
+      const filesToSave = {
+        'proof': { path: `${buildPath}/proof`, type: 'hex' },
+        'vk': { path: `${buildPath}/vk`, type: 'hex' },
+        'verifier/solidity/Verifier.sol': { path: 'contracts/Verifier.sol', type: 'string' },
+        'program.json': { path: `${buildPath}/program.json`, type: 'string' },
+      }
+
+      for (const [zipPath, info] of Object.entries(filesToSave)) {
+        const file = zip.file(zipPath)
+        if (file) {
+          let content: string;
+          if (info.type === 'hex') {
+            const bytes = await file.async('uint8array');
+            content = this.bytesToHex(bytes);
+          } else {
+            content = await file.async('string');
+          }
+          await this.call('fileManager', 'writeFile', info.path, content)
+          // @ts-ignore
+          this.call('terminal', 'log', { type: 'log', value: `Wrote artifact: ${info.path}` })
+        }
+      }
+
+
+      this.call('terminal', 'log', { type: 'log', value: 'Formatting Verifier.sol inputs...' })
+      
+      const proofFile = zip.file('formatted_proof.txt');
+      const inputsFile = zip.file('formatted_public_inputs.json');
+
+      if (!proofFile || !inputsFile) {
+        throw new Error("Formatted proof or public inputs not found in zip response from backend.");
+      }
+
+      const formattedProof = await proofFile.async('string');
+      const formattedPublicInputsStr = await inputsFile.async('string');
+      const formattedPublicInputs = JSON.parse(formattedPublicInputsStr);
+      
+      const verifierInputs: VerifierInputs = {
+        proof: formattedProof,
+        publicInputs: formattedPublicInputs
+      }
+
+      this.internalEvents.emit('noir_proofing_done', verifierInputs)
+
+      this.emit('statusChanged', { key: 'succeed', title: 'Proof generated successfully', type: 'success' })
+      this.call('terminal', 'log', { type: 'log', value: 'Proof generation and file extraction complete.' })
+      // this.internalEvents.emit('noir_proofing_done')
+
+    } catch (e) {
+      console.error(`[${requestID}] Proof generation failed:`, e)
+      let errorMsg = e.message || 'Unknown error during proof generation'
+
+      if (e.response && e.response.data) {
+        try {
+          let errorData = e.response.data
+          
+          if (e.response.data instanceof Blob) {
+            const errorText = await e.response.data.text()
+            errorData = JSON.parse(errorText)
+          }
+
+          if (errorData.error) {
+            errorMsg = errorData.error
+          } else if (typeof errorData === 'string') {
+            errorMsg = errorData
+          }
+        } catch (parseError) {
+          console.error('Failed to parse backend error response:', parseError)
+          errorMsg = e.response.statusText || e.message
+        }
+      }
+      this.internalEvents.emit('noir_proofing_errored', e)
+      this.call('terminal', 'log', { type: 'error', value: errorMsg })
+      // this.internalEvents.emit('noir_proofing_errored', new Error(errorMsg))
+
+      if (projectRoot !== null) {
+        try {
+          const buildPath = projectRoot === '/' ? 'build' : `${projectRoot}/build`
+          await this.call('fileManager', 'writeFile', `${buildPath}/proof_error.log`, errorMsg)
+        } catch (logError) {
+          console.error('Failed to write error log file:', logError)
+        }
+      }
     }
   }
 
