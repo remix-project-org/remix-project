@@ -15,6 +15,8 @@ git checkout -b gh-pages
 git config user.name "$COMMIT_AUTHOR"
 git config user.email "$COMMIT_AUTHOR_EMAIL"
 
+echo "remix.ethereum.org" > CNAME
+
 echo "# Automatic build" > README.md
 echo "Built website from \`$SHA\`. See https://github.com/remix-project-org/remix-project/ for details." >> README.md
 echo "To use an offline copy, download \`remix-$SHA.zip\`." >> README.md
