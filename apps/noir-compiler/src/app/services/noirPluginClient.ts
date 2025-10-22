@@ -186,7 +186,6 @@ export class NoirPluginClient extends PluginClient {
     const requestID = this.generateRequestID()
     console.log(`[${requestID}] New proof generation request for: ${path}`)
 
-    // this.internalEvents.emit('noir_proofing_start')
     this.internalEvents.emit('noir_proofing_start')
     this.emit('statusChanged', { key: 'loading', title: 'Generating Proof...', type: 'info' })
     this.call('terminal', 'log', { type: 'log', value: 'Generating proof for ' + path })
@@ -209,7 +208,6 @@ export class NoirPluginClient extends PluginClient {
       formData.append('file', zippedProject, `${extractNameFromKey(path)}.zip`)
 
       this.ws.send(JSON.stringify({ requestId: requestID }))
-    
       // @ts-ignore
       const response = await axios.post(`${BASE_URL}/generate-proof-with-verifier?requestId=${requestID}`, formData, {
         responseType: 'blob'
@@ -229,54 +227,79 @@ export class NoirPluginClient extends PluginClient {
 
       const zip = await JSZip.loadAsync(receivedBlob)
       const buildPath = projectRoot === '/' ? 'build' : `${projectRoot}/build`
-      
+      const contractsPath = projectRoot === '/' ? 'contracts' : `${projectRoot}/contracts`
+      const scriptsPath = projectRoot === '/' ? 'scripts' : `${projectRoot}/scripts`
+
+      let formattedProof: string | null = null
+      let formattedPublicInputsStr: string | null = null
+
       const filesToSave = {
-        'proof': { path: `${buildPath}/proof`, type: 'hex' },
-        'vk': { path: `${buildPath}/vk`, type: 'hex' },
-        'verifier/solidity/Verifier.sol': { path: 'contracts/Verifier.sol', type: 'string' },
-        'program.json': { path: `${buildPath}/program.json`, type: 'string' },
+        'proof.bin': { path: `${buildPath}/proof.bin`, type: 'hex' },
+        'vk.bin': { path: `${buildPath}/vk.bin`, type: 'hex' },
+        'scripts/verify.ts': { path: `${scriptsPath}/verify.ts`, type: 'string', isScript: true },
+        'verifier/solidity/Verifier.sol': { path: `${contractsPath}/Verifier.sol`, type: 'string' },
+        'proof': { path: `${buildPath}/proof`, type: 'string', isProof: true },
+        'public_inputs': { path: `${buildPath}/public_inputs`, type: 'string', isPublicInputs: true },
       }
+
+      console.log('[Noir Plugin] Starting file extraction loop...')
 
       for (const [zipPath, info] of Object.entries(filesToSave)) {
         const file = zip.file(zipPath)
+        
         if (file) {
           let content: string;
+
           if (info.type === 'hex') {
             const bytes = await file.async('uint8array');
             content = this.bytesToHex(bytes);
           } else {
             content = await file.async('string');
           }
+          
+          // @ts-ignore
+          if (info.isProof) formattedProof = content
+          // @ts-ignore
+          if (info.isPublicInputs) formattedPublicInputsStr = content
+          // @ts-ignore
+          if (info.isScript) {
+            console.log(`[Noir Plugin] Found script file: ${zipPath}. Replacing placeholder with: '${buildPath}'`)
+            content = content.replace(/%%BUILD_PATH%%/g, buildPath)
+          }
+
           await this.call('fileManager', 'writeFile', info.path, content)
           // @ts-ignore
           this.call('terminal', 'log', { type: 'log', value: `Wrote artifact: ${info.path}` })
+        
+        } else {
+          // @ts-ignore
+          this.call('terminal', 'log', { type: 'warn', value: `Warning: File '${zipPath}' not found in zip from backend.` })
+          console.warn(`[Noir Plugin] File not found in zip: ${zipPath}`)
         }
       }
+      console.log('[Noir Plugin] File extraction loop finished.')
 
-
+      console.log('[Noir Plugin] Formatting verifier inputs...')
+      // @ts-ignore
       this.call('terminal', 'log', { type: 'log', value: 'Formatting Verifier.sol inputs...' })
-      
-      const proofFile = zip.file('formatted_proof.txt');
-      const inputsFile = zip.file('formatted_public_inputs.json');
 
-      if (!proofFile || !inputsFile) {
-        throw new Error("Formatted proof or public inputs not found in zip response from backend.");
+      if (!formattedProof || !formattedPublicInputsStr) {
+        console.error('[Noir Plugin] Error: formattedProof or formattedPublicInputsStr is null or empty after loop.')
+        throw new Error("Formatted proof or public inputs data could not be read from zip stream.")
       }
-
-      const formattedProof = await proofFile.async('string');
-      const formattedPublicInputsStr = await inputsFile.async('string');
-      const formattedPublicInputs = JSON.parse(formattedPublicInputsStr);
+      
+      const formattedPublicInputs = JSON.parse(formattedPublicInputsStr)
       
       const verifierInputs: VerifierInputs = {
         proof: formattedProof,
         publicInputs: formattedPublicInputs
       }
 
+      console.log('[Noir Plugin] Emitting noir_proofing_done with payload:', verifierInputs)
       this.internalEvents.emit('noir_proofing_done', verifierInputs)
 
       this.emit('statusChanged', { key: 'succeed', title: 'Proof generated successfully', type: 'success' })
       this.call('terminal', 'log', { type: 'log', value: 'Proof generation and file extraction complete.' })
-      // this.internalEvents.emit('noir_proofing_done')
 
     } catch (e) {
       console.error(`[${requestID}] Proof generation failed:`, e)
@@ -303,7 +326,6 @@ export class NoirPluginClient extends PluginClient {
       }
       this.internalEvents.emit('noir_proofing_errored', e)
       this.call('terminal', 'log', { type: 'error', value: errorMsg })
-      // this.internalEvents.emit('noir_proofing_errored', new Error(errorMsg))
 
       if (projectRoot !== null) {
         try {

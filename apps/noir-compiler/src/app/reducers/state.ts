@@ -46,7 +46,8 @@ export const appReducer = (state = appInitialState, action: Actions): AppState =
         status: action.payload,
         proofingStatus: 'idle',
         formattedProof: '',
-        formattedPublicInputs: []
+        formattedPublicInputs: [],
+        compilerFeedback: ''
       }
     }
     return {
@@ -60,7 +61,8 @@ export const appReducer = (state = appInitialState, action: Actions): AppState =
         ...state,
         proofingStatus: action.payload,
         formattedProof: '',
-        formattedPublicInputs: []
+        formattedPublicInputs: [],
+        compilerFeedback: ''
       }
     }
     return {
