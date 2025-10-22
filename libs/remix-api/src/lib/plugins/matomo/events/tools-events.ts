@@ -90,7 +90,7 @@ export interface RemixGuideEvent extends MatomoEventBase {
 }
 
 export interface TemplateSelectionEvent extends MatomoEventBase {
-  category: 'templateSelection';
+  category: 'template-selection';
   action: 
     | 'selectTemplate'
     | 'createWorkspace'
