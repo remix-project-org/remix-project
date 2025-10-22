@@ -6,7 +6,7 @@
  * import { trackMatomoEvent } from '@remix-api'
  * 
  * trackMatomoEvent(plugin, { category: 'ai', action: 'remixAI', name: 'code_generation', isClick: true })
- * trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployAndPublish', name: 'mainnet', isClick: true })
+ * trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployAndVerify', name: 'mainnet', isClick: true })
  * ```
  * 
  * @example Common Events
@@ -15,7 +15,7 @@
  * { category: 'ai', action: 'remixAI', isClick: true }, { category: 'ai', action: 'explainFunction', isClick: true }
  * 
  * // Contracts  
- * { category: 'udapp', action: 'DeployAndPublish', isClick: true }, { category: 'udapp', action: 'sendTransactionFromGui', isClick: true }
+ * { category: 'udapp', action: 'DeployAndVerify', isClick: true }, { category: 'udapp', action: 'sendTransactionFromGui', isClick: true }
  * 
  * // Editor
  * { category: 'editor', action: 'save', isClick: true }, { category: 'editor', action: 'format', isClick: true }

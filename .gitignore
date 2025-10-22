@@ -83,3 +83,7 @@ apps/remix-ide-e2e/tmp/
 # IDE - Cursor
 .cursor/
 PR_MESSAGE.md
+
+# Matomo audit files (local reference only)
+matomo-conversion-audit.txt
+matomo-fixes-diffs/
