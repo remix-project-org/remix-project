@@ -321,7 +321,7 @@ export function ContractGUI(props: ContractGUIProps) {
         (props.funcABI.inputs && props.funcABI.inputs.length > 0) || props.funcABI.type === 'fallback' || props.funcABI.type === 'receive' ? 'udapp_hasArgs' : ''
       }`}
     >
-      <div className="udapp_contractActionsContainerSingle" style={{ display: toggleContainer ? 'none' : 'flex' }}>
+      <div className="udapp_contractActionsContainerSingle pt-2" style={{ display: toggleContainer ? 'none' : 'flex' }}>
         <CustomTooltip
           delay={0}
           placement={'auto-end'}
