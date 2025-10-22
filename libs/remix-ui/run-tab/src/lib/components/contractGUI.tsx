@@ -32,6 +32,7 @@ export function ContractGUI(props: ContractGUIProps) {
   const multiFields = useRef<Array<HTMLInputElement | null>>([])
   const initializeFields = useRef<Array<HTMLInputElement | null>>([])
   const basicInputRef = useRef<HTMLInputElement>()
+  const [baseTitleForDataId, setBaseTitleForDataId] = useState<string>('')
 
   const intl = useIntl()
   useEffect(() => {
@@ -42,19 +43,34 @@ export function ContractGUI(props: ContractGUIProps) {
   }, [props.deployOption])
 
   useEffect(() => {
+    let newTitle = ''
+    let newBaseTitle = ''
+
     if (props.title) {
-      setTitle(props.title)
+      newTitle = props.title
     } else if (props.funcABI.name) {
-      setTitle(props.funcABI.name)
+      newTitle = props.funcABI.name
     } else {
-      setTitle(props.funcABI.type === 'receive' ? '(receive)' : '(fallback)')
+      newTitle = props.funcABI.type === 'receive' ? '(receive)' : '(fallback)'
     }
+
+    if (props.isDeploy) {
+      newBaseTitle = intl.formatMessage({ id: 'udapp.deploy', defaultMessage: 'Deploy' })
+    } else if (props.funcABI.name) {
+      newBaseTitle = props.funcABI.name
+    } else {
+      newBaseTitle = props.funcABI.type === 'receive' ? '(receive)' : '(fallback)'
+    }
+
+    setTitle(newTitle)
+    setBaseTitleForDataId(newBaseTitle)
+
     setBasicInput('')
     // we have the reset the fields before resetting the previous references.
     basicInputRef.current.value = ''
     multiFields.current.filter((el) => el !== null && el !== undefined).forEach((el) => (el.value = ''))
     multiFields.current = []
-  }, [props.title, props.funcABI])
+  }, [props.title, props.funcABI, props.isDeploy, intl])
 
   useEffect(() => {
     if (props.lookupOnly) {
@@ -63,7 +79,7 @@ export function ContractGUI(props: ContractGUIProps) {
         title: title + ' - call',
         content: 'call',
         classList: 'btn-primary',
-        dataId: title + ' - call'
+        dataId: baseTitleForDataId + ' - call'
       })
     } else if (props.funcABI.stateMutability === 'payable' || props.funcABI.payable) {
       //   // transact. stateMutability = payable
@@ -71,7 +87,7 @@ export function ContractGUI(props: ContractGUIProps) {
         title: title + ' - transact (payable)',
         content: 'transact',
         classList: 'btn-danger',
-        dataId: title + ' - transact (payable)'
+        dataId: baseTitleForDataId + ' - transact (payable)'
       })
     } else {
       //   // transact. stateMutability = nonpayable
@@ -79,10 +95,10 @@ export function ContractGUI(props: ContractGUIProps) {
         title: title + ' - transact (not payable)',
         content: 'transact',
         classList: 'btn-warning',
-        dataId: title + ' - transact (not payable)'
+        dataId: baseTitleForDataId + ' - transact (not payable)'
       })
     }
-  }, [props.lookupOnly, props.funcABI, title])
+  }, [props.lookupOnly, props.funcABI, title, baseTitleForDataId])
 
   const getEncodedCall = () => {
     const multiString = getMultiValsString(multiFields.current)
@@ -305,7 +321,7 @@ export function ContractGUI(props: ContractGUIProps) {
         (props.funcABI.inputs && props.funcABI.inputs.length > 0) || props.funcABI.type === 'fallback' || props.funcABI.type === 'receive' ? 'udapp_hasArgs' : ''
       }`}
     >
-      <div className="udapp_contractActionsContainerSingle pt-2" style={{ display: toggleContainer ? 'none' : 'flex' }}>
+      <div className="udapp_contractActionsContainerSingle" style={{ display: toggleContainer ? 'none' : 'flex' }}>
         <CustomTooltip
           delay={0}
           placement={'auto-end'}

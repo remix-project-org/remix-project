@@ -415,6 +415,13 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
       evmVersion = JSON.parse(loadedContractData.metadata).settings.evmVersion
     }
   } catch (err) {}
+
+  const deployButtonTitle = isVerifyChecked
+    ? intl.formatMessage({ id: 'udapp.deployAndVerify', defaultMessage: 'Deploy & Verify' })
+    : intl.formatMessage({ id: 'udapp.deploy' })
+
+  const deployButtonWidthClass = isVerifyChecked ? 'w-auto' : 'w-50'
+
   return (
     <div className="udapp_container mb-2" data-id="contractDropdownContainer">
       <div className="d-flex justify-content-between">
@@ -492,7 +499,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
             </span>
           }
         >
-          <span className="udapp_evmVersion badge alert-warning">
+          <span className="udapp_evmVersion badge alert-warning mb-2">
             <FormattedMessage id="udapp.evmVersion" />: {evmVersion}
           </span>
         </CustomTooltip>
@@ -501,8 +508,14 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
         <div className="udapp_deployDropdown">
           {((contractList[currentFile] && contractList[currentFile].filter((contract) => contract)) || []).length > 0 && loadedContractData && (
             <div>
+              {isNetworkSupported && (
+                <VerificationSettingsUI
+                  isVerifyChecked={isVerifyChecked}
+                  onVerifyCheckedChange={handleVerifyCheckedChange}
+                />
+              )}
               <ContractGUI
-                title={intl.formatMessage({ id: 'udapp.deploy' })}
+                title={deployButtonTitle}
                 getCompilerDetails={props.getCompilerDetails}
                 isDeploy={true}
                 deployOption={deployOptions[currentFile] && deployOptions[currentFile][currentContract] ? deployOptions[currentFile][currentContract].options : null}
@@ -512,7 +525,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
                 funcABI={constructorInterface}
                 clickCallBack={clickCallback}
                 inputs={constructorInputs}
-                widthClass="w-50"
+                widthClass={deployButtonWidthClass}
                 evmBC={loadedContractData.bytecodeObject}
                 lookupOnly={false}
                 proxy={props.proxy}
@@ -528,12 +541,6 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
                 plugin={props.plugin}
                 runTabState={props.runTabState}
               />
-              {isNetworkSupported && (
-                <VerificationSettingsUI
-                  isVerifyChecked={isVerifyChecked}
-                  onVerifyCheckedChange={handleVerifyCheckedChange}
-                />
-              )}
             </div>
           )}
         </div>
