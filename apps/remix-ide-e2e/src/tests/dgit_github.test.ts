@@ -44,6 +44,13 @@ module.exports = {
       .waitForElementVisible('*[data-id="connected-link-bunsenstraat"]')
       .waitForElementVisible('*[data-id="remotes-panel"]')
   },
+  'check the FE shows logged in user #group1 #group2': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible({
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        locateStrategy: 'xpath'
+      })
+  },
   // 'check the FE for the auth user #group1 #group2': function (browser: NightwatchBrowser) {
   //   browser
   //     .clickLaunchIcon('filePanel')
@@ -213,15 +220,38 @@ module.exports = {
         locateStrategy: 'xpath'
       })
   },
+  'reload page and check login persistence #group1': function (browser: NightwatchBrowser) {
+    browser
+      .refresh()
+      .pause(5000) // Wait for page to fully reload
+      .waitForElementVisible('*[data-id="remixIdeIconPanel"]', 10000)
+      .clickLaunchIcon('dgit')
+      .waitForElementVisible('*[data-id="github-panel"]')
+      .click('*[data-id="github-panel"]')
+      .waitForElementVisible('*[data-id="connected-as-bunsenstraat"]')
+      .waitForElementVisible('*[data-id="connected-img-bunsenstraat"]')
+      .waitForElementVisible('*[data-id="connected-link-bunsenstraat"]')
+  },
+  'check the FE shows logged in user after reload #group1': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible({
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        locateStrategy: 'xpath'
+      })
+  },
   'disconnect github #group1': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="github-panel"]')
-      .pause(1000)
-      .click('*[data-id="github-panel"]')
       .waitForElementVisible('*[data-id="disconnect-github"]')
       .pause(1000)
       .click('*[data-id="disconnect-github"]')
       .waitForElementNotPresent('*[data-id="connected-as-bunsenstraat"]')
+  },
+  'check the FE for the disconnected auth user #group1': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementNotPresent({
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        locateStrategy: 'xpath'
+      })
   },
   // 'check the FE for the disconnected auth user #group1': function (browser: NightwatchBrowser) {
   //   browser

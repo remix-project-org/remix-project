@@ -47,6 +47,12 @@ export const setCallBacks = (viewPlugin: Plugin, gitDispatcher: React.Dispatch<g
   // Initialize the login plugin reference
   setLoginPlugin(viewPlugin)
 
+  plugin.call('manager', 'isActive', 'dgitApi').then( (isActive) => {
+    if (isActive) {
+      loadGitHubUserFromToken();
+    }
+  });
+
   plugin.on("fileManager", "fileSaved", async (file: string) => {
     loadFileQueue.enqueue(async () => {
       loadFiles()
