@@ -119,7 +119,7 @@ function HomeTabTitle() {
                     trackMatomoEvent({
                       category: 'hometab',
                       action: 'titleCard',
-                      name: button.matomoTrackingEntry[3],
+                      name: button.matomoTrackingEntry[index],
                       isClick: true
                     })
                   }}
