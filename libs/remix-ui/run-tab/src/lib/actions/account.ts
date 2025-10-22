@@ -274,10 +274,10 @@ export const createSmartAccount = async (plugin: RunTab, dispatch: React.Dispatc
     smartAccountsObj[chainId] = plugin.REACT_API.smartAccounts
     localStorage.setItem(aaLocalStorageKey, JSON.stringify(smartAccountsObj))
     await fillAccountsList(plugin, dispatch)
-    await trackMatomoEvent(plugin, { category: 'udapp', action: 'safeSmartAccount', name: 'createdSuccessfully', isClick: true })
+    await trackMatomoEvent(plugin, { category: 'udapp', action: 'safeSmartAccount', name: `createdSuccessfullyForChainID:${chainId}`, isClick: false })
     return plugin.call('notification', 'toast', `Safe account ${safeAccount.address} created for owner ${account}`)
   } catch (error) {
-    await trackMatomoEvent(plugin, { category: 'udapp', action: 'safeSmartAccount', name: 'creationFailed', isClick: true })
+    await trackMatomoEvent(plugin, { category: 'udapp', action: 'safeSmartAccount', name: `creationFailedWithError:${error.message}`, isClick: false })
     console.error('Failed to create safe smart account: ', error)
     if (error.message.includes('User rejected the request')) return plugin.call('notification', 'toast', `User rejected the request to create safe smart account !!!`)
     else return plugin.call('notification', 'toast', `Failed to create safe smart account !!!`)
