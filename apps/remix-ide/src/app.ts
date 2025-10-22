@@ -685,7 +685,7 @@ class AppComponent {
               if (callDetails.length > 1) {
                 this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
                 // @todo(remove the timeout when activatePlugin is on 0.3.0)
-                this.track({ category: 'App', action: 'queryParamsCalls', name: this.params.call, isClick: false })
+                this.track({ category: 'App', action: 'queryParams-calls', name: this.params.call, isClick: false })
                 //@ts-ignore
                 await this.appManager.call(...callDetails).catch(console.error)
               }
@@ -696,7 +696,7 @@ class AppComponent {
 
               // call all functions in the list, one after the other
               for (const call of calls) {
-                this.track({ category: 'App', action: 'queryParamsCalls', name: call, isClick: false })
+                this.track({ category: 'App', action: 'queryParams-calls', name: call, isClick: false })
                 const callDetails = call.split('//')
                 if (callDetails.length > 1) {
                   this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)

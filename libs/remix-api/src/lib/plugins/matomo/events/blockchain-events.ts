@@ -38,7 +38,7 @@ export interface UdappEvent extends MatomoEventBase {
     | 'signUsingAccount'
     | 'contractDelegation'
     | 'useAtAddress'
-    | 'DeployAndPublish'
+    | 'DeployAndVerify'
     | 'DeployOnly'
     | 'DeployContractTo'
     | 'broadcastCompilationResult';

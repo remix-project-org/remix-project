@@ -525,7 +525,7 @@ export function Workspace() {
     try {
       await global.dispatchSwitchToWorkspace(name)
       global.dispatchHandleExpandPath([])
-      trackMatomoEvent({ category: 'Workspace', action: 'switchWorkspace', name: name, isClick: true })
+      trackMatomoEvent({ category: 'workspace', action: 'switchWorkspace', name: name, isClick: true })
     } catch (e) {
       global.modal(
         intl.formatMessage({ id: 'filePanel.workspace.switch' }),
@@ -863,10 +863,10 @@ export function Workspace() {
     try {
       if (branch.remote) {
         await global.dispatchCheckoutRemoteBranch(branch)
-        trackMatomoEvent({ category: 'Workspace', action: 'GIT', name: 'checkout_remote_branch', isClick: true })
+        trackMatomoEvent({ category: 'workspace', action: 'GIT', name: 'checkout_remote_branch', isClick: true })
       } else {
         await global.dispatchSwitchToBranch(branch)
-        trackMatomoEvent({ category: 'Workspace', action: 'GIT', name: 'switch_to_existing_branch', isClick: true })
+        trackMatomoEvent({ category: 'workspace', action: 'GIT', name: 'switch_to_existing_branch', isClick: true })
       }
     } catch (e) {
       console.error(e)
@@ -883,7 +883,7 @@ export function Workspace() {
   const switchToNewBranch = async () => {
     try {
       await global.dispatchCreateNewBranch(branchFilter)
-      trackMatomoEvent({ category: 'Workspace', action: 'GIT', name: 'switch_to_new_branch', isClick: true })
+      trackMatomoEvent({ category: 'workspace', action: 'GIT', name: 'switch_to_new_branch', isClick: true })
     } catch (e) {
       global.modal(
         intl.formatMessage({ id: 'filePanel.checkoutGitBranch' }),
@@ -927,7 +927,7 @@ export function Workspace() {
   const logInGithub = async () => {
     await global.plugin.call('menuicons', 'select', 'dgit');
     await global.plugin.call('dgit', 'open', gitUIPanels.GITHUB)
-    trackMatomoEvent({ category: 'Workspace', action: 'GIT', name: 'login', isClick: true })
+    trackMatomoEvent({ category: 'workspace', action: 'GIT', name: 'login', isClick: true })
   }
 
   const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean, mName: string}) => {

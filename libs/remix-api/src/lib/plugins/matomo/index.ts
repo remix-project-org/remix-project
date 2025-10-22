@@ -34,7 +34,7 @@ import type { HomeTabEvent, TopbarEvent, LayoutEvent, SettingsEvent, ThemeEvent,
 import type { FileExplorerEvent, WorkspaceEvent, StorageEvent, BackupEvent } from './events/file-events';
 import type { BlockchainEvent, UdappEvent, RunEvent } from './events/blockchain-events';
 import type { PluginEvent, ManagerEvent, PluginManagerEvent, AppEvent, MatomoManagerEvent, PluginPanelEvent, MigrateEvent } from './events/plugin-events';
-import type { DebuggerEvent, EditorEvent, SolidityUnitTestingEvent, SolidityStaticAnalyzerEvent, DesktopDownloadEvent, XTERMEvent, SolidityScriptEvent, RemixGuideEvent, TemplateSelectionEvent, ScriptExecutorEvent, GridViewEvent, SolidityUMLGenEvent, ScriptRunnerPluginEvent, CircuitCompilerEvent, ContractVerificationEvent, LearnethEvent } from './events/tools-events';
+import type { DebuggerEvent, EditorEvent, SolidityUnitTestingEvent, SolidityStaticAnalyzerEvent, DesktopDownloadEvent, XTERMEvent, SolidityScriptEvent, RemixGuideEvent, TemplateSelectionEvent, ScriptExecutorEvent, GridViewEvent, SolidityUMLGenEvent, ScriptRunnerPluginEvent, CircuitCompilerEvent, NoirCompilerEvent, ContractVerificationEvent, LearnethEvent } from './events/tools-events';
 
 // Union type of all Matomo events - includes base properties for compatibility
 export type MatomoEvent = (
@@ -95,6 +95,7 @@ export type MatomoEvent = (
   | SolidityUMLGenEvent
   | ScriptRunnerPluginEvent
   | CircuitCompilerEvent
+  | NoirCompilerEvent
   | ContractVerificationEvent
   | LearnethEvent
   

@@ -88,7 +88,7 @@ export class SolidityUmlGen extends ViewPlugin implements ISolidityUmlGen {
         })
         const payload = vizRenderStringSync(umlDot)
         this.updatedSvg = payload
-        trackMatomoEvent(this, { category: 'solidityUMLGen', action: 'umlgenerated', isClick: false })
+        trackMatomoEvent(this, { category: 'solidityumlgen', action: 'umlgenerated', isClick: false })
         this.renderComponent()
         await this.call('tabs', 'focus', 'solidityumlgen')
       } catch (error) {
@@ -125,7 +125,7 @@ export class SolidityUmlGen extends ViewPlugin implements ISolidityUmlGen {
   generateCustomAction = async (action: customAction) => {
     this.triggerGenerateUml = true
     this.updatedSvg = this.updatedSvg.startsWith('<?xml') ? '' : this.updatedSvg
-    trackMatomoEvent(this, { category: 'solidityUMLGen', action: 'activated', isClick: true })
+    trackMatomoEvent(this, { category: 'solidityumlgen', action: 'activated', isClick: true })
     await this.generateUml(action.path[0])
   }
 

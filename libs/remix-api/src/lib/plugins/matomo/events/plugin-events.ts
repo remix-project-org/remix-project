@@ -49,11 +49,11 @@ export interface AppEvent extends MatomoEventBase {
     | 'loaded'
     | 'error'
     | 'PreloadError'
-    | 'queryParamsCalls';
+    | 'queryParams-calls';
 }
 
 export interface MigrateEvent extends MatomoEventBase {
-  category: 'migrate';
+  category: 'Migrate';
   action: 
     | 'start'
     | 'complete'

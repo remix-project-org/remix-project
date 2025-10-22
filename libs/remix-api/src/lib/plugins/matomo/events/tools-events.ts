@@ -70,7 +70,7 @@ export interface XTERMEvent extends MatomoEventBase {
 }
 
 export interface SolidityScriptEvent extends MatomoEventBase {
-  category: 'solidityScript';
+  category: 'SolidityScript';
   action: 
     | 'execute'
     | 'deploy'
@@ -99,13 +99,13 @@ export interface TemplateSelectionEvent extends MatomoEventBase {
 }
 
 export interface ScriptExecutorEvent extends MatomoEventBase {
-  category: 'scriptExecutor';
+  category: 'ScriptExecutor';
   action: 
     | 'execute'
     | 'deploy'
     | 'run'
     | 'compile'
-    | 'compileAndRun';
+    | 'CompileAndRun';
 }
 
 
@@ -154,7 +154,7 @@ export interface ScriptExecutorEvent extends MatomoEventBase {
  * Solidity UML Generation Events - Type-safe builders
  */
 export interface SolidityUMLGenEvent extends MatomoEventBase {
-  category: 'solidityUMLGen';
+  category: 'solidityumlgen';
   action:
     | 'umlpngdownload'
     | 'umlpdfdownload'
@@ -171,14 +171,27 @@ export interface SolidityUMLGenEvent extends MatomoEventBase {
  * Circuit Compiler Events - Type-safe builders
  */
 export interface CircuitCompilerEvent extends MatomoEventBase {
-  category: 'circuitCompiler';
+  category: 'circuit-compiler';
   action:
     | 'compile'
     | 'generateProof'
     | 'error'
     | 'generateR1cs'
-    | 'computeWitness'
+    | 'compiler.generate_witness'
+    | 'template'
     | 'runSetupAndExport';
+}
+
+
+/**
+ * Noir Compiler Events - Type-safe builders
+ */
+export interface NoirCompilerEvent extends MatomoEventBase {
+  category: 'noir-compiler';
+  action:
+    | 'compile'
+    | 'template'
+    | 'error';
 }
 
 
@@ -204,14 +217,14 @@ export interface LearnethEvent extends MatomoEventBase {
     | 'lesson'
     | 'tutorial'
     | 'error'
-    | 'displayFile'
-    | 'displayFileError'
-    | 'testStep'
-    | 'testStepError'
-    | 'showAnswer'
-    | 'showAnswerError'
-    | 'testSolidityCompiler'
-    | 'testSolidityCompilerError'
+    | 'display_file'
+    | 'display_file_error'
+    | 'test_step'
+    | 'test_step_error'
+    | 'show_answer'
+    | 'show_answer_error'
+    | 'test_solidity_compiler'
+    | 'test_solidity_compiler_error'
     | 'start_workshop'
     | 'select_repo'
     | 'import_repo'

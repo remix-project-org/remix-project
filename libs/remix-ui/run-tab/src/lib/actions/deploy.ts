@@ -176,7 +176,7 @@ export const createInstance = async (
     plugin.compilersArtefacts.addResolvedContract(addressToString(address), data)
 
     if (isVerifyChecked) {
-      trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployAndPublish', name: plugin.REACT_API.networkName, isClick: true })
+      trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployAndVerify', name: plugin.REACT_API.networkName, isClick: true })
 
       try {
         const status = plugin.blockchain.getCurrentNetworkStatus()

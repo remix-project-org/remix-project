@@ -18,7 +18,7 @@ export class SolidityScript extends Plugin {
   }
 
   async execute(path: string, functionName: string = 'run') {
-    trackMatomoEvent(this, { category: 'solidityScript', action: 'execute', name: 'script', isClick: true })
+    trackMatomoEvent(this, { category: 'SolidityScript', action: 'execute', name: 'script', isClick: true })
     this.call('terminal', 'log', `Running free function '${functionName}' from ${path}...`)
     let content = await this.call('fileManager', 'readFile', path)
     const params = await this.call('solidity', 'getCompilerQueryParameters')

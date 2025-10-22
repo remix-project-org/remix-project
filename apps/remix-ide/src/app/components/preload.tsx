@@ -69,7 +69,7 @@ export const Preload = (props: PreloadProps) => {
     setShowDownloader(false)
     const fsUtility = new fileSystemUtility()
     const migrationResult = await fsUtility.migrate(localStorageFileSystem.current, remixIndexedDB.current)
-    trackMatomoEvent?.({ category: 'migrate', action: 'result', name: migrationResult ? 'success' : 'fail', isClick: false })
+    trackMatomoEvent?.({ category: 'Migrate', action: 'result', name: migrationResult ? 'success' : 'fail', isClick: false })
     await setFileSystems()
   }
 

@@ -21,7 +21,7 @@ export interface FileExplorerEvent extends MatomoEventBase {
 }
 
 export interface WorkspaceEvent extends MatomoEventBase {
-  category: 'Workspace';
+  category: 'workspace';
   action: 
     | 'switchWorkspace'
     | 'template'

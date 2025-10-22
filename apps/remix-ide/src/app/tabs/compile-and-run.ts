@@ -29,11 +29,11 @@ export class CompileAndRun extends Plugin {
             e.preventDefault()
             this.targetFileName = file
             await this.call('solidity', 'compile', file)
-            trackMatomoEvent(this, { category: 'scriptExecutor', action: 'compileAndRun', name: 'compile_solidity', isClick: true })
+            trackMatomoEvent(this, { category: 'ScriptExecutor', action: 'CompileAndRun', name: 'compile_solidity', isClick: true })
           } else if (file.endsWith('.js') || file.endsWith('.ts')) {
             e.preventDefault()
             this.runScript(file, false)
-            trackMatomoEvent(this, { category: 'scriptExecutor', action: 'compileAndRun', name: 'run_script', isClick: true })
+            trackMatomoEvent(this, { category: 'ScriptExecutor', action: 'CompileAndRun', name: 'run_script', isClick: true })
           }
         }
       }
@@ -42,7 +42,7 @@ export class CompileAndRun extends Plugin {
 
   runScriptAfterCompilation (fileName: string) {
     this.targetFileName = fileName
-    trackMatomoEvent(this, { category: 'scriptExecutor', action: 'compileAndRun', name: 'request_run_script', isClick: true })
+    trackMatomoEvent(this, { category: 'ScriptExecutor', action: 'CompileAndRun', name: 'request_run_script', isClick: true })
   }
 
   async runScript (fileName, clearAllInstances) {
@@ -73,7 +73,7 @@ export class CompileAndRun extends Plugin {
           const file = contract.object.devdoc['custom:dev-run-script']
           if (file) {
             this.runScript(file, true)
-            trackMatomoEvent(this, { category: 'scriptExecutor', action: 'compileAndRun', name: 'run_script_after_compile', isClick: true })
+            trackMatomoEvent(this, { category: 'ScriptExecutor', action: 'CompileAndRun', name: 'run_script_after_compile', isClick: true })
           } else {
             this.call('notification', 'toast', 'You have not set a script to run. Set it with @custom:dev-run-script NatSpec tag.')
           }
