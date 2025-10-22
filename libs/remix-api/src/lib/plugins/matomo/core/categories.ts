@@ -28,7 +28,8 @@ export const MatomoCategories = {
   SOLIDITY_SCRIPT: 'SolidityScript' as const,
   SCRIPT_EXECUTOR: 'ScriptExecutor' as const,
   LOCALE_MODULE: 'localeModule' as const,
-  THEME_MODULE: 'themeModule' as const
+  THEME_MODULE: 'themeModule' as const,
+  STATUS_BAR: 'statusBar' as const
 }
 
 // Common action constants used across multiple categories

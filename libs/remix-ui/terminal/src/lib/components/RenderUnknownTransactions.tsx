@@ -32,7 +32,7 @@ const RenderUnKnownTransactions = ({ tx, receipt, index, plugin, showTableHash, 
   let to = tx.to
 
   if (tx.isUserOp) {
-    trackMatomoEvent({ category: 'udapp', action: 'safeSmartAccount', name: 'txExecuted', value: 'successfully', isClick: false })
+    trackMatomoEvent({ category: 'udapp', action: 'safeSmartAccount', name: 'txExecutedSuccessfully', isClick: true })
     // Track event with signature: ExecutionFromModuleSuccess (index_topic_1 address module)
     // to get sender smart account address
     const fromAddrLog = receipt.logs.find(e => e.topics[0] === "0x6895c13664aa4f67288b25d7a21d7aaa34916e355fb9b6fae0a139a9085becb8")

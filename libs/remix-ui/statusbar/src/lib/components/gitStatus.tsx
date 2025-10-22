@@ -21,7 +21,7 @@ export default function GitStatus({ plugin, gitBranchName, setGitBranchName }: G
 
   const initializeNewGitRepo = async () => {
     await plugin.call('dgit', 'init')
-    trackMatomoEvent(plugin, { category: 'git', action: 'INIT', name: 'initNewRepo', isClick: false });
+    trackMatomoEvent(plugin, { category: 'statusBar', action: 'initNewRepo', isClick: true });
   }
 
   if (!appContext.appState.canUseGit) return null

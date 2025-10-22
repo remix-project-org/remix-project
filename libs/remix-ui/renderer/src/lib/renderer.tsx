@@ -102,7 +102,7 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
       setTimeout(async () => {
         await plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
       }, 500)
-      trackMatomoEvent?.({ category: 'ai', action: 'error_explaining_SolidityError' })
+      trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'error_explaining_SolidityError', isClick: true })
     } catch (err) {
       console.error('unable to ask RemixAI')
       console.error(err)

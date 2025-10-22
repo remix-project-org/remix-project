@@ -66,6 +66,27 @@ export interface LandingPageEvent extends MatomoEventBase {
     | 'MatomoAIModal';
 }
 
+export interface StatusBarEvent extends MatomoEventBase {
+  category: 'statusBar';
+  action: 
+    | 'initNewRepo';
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
