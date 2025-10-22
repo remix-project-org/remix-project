@@ -390,7 +390,7 @@ export function RemixUiTopbar() {
     try {
       await switchToWorkspace(name)
       handleExpandPath([])
-      trackMatomoEvent<WorkspaceEvent>({ category: 'Workspace', action: 'switchWorkspace', name: name, isClick: true })
+      trackMatomoEvent<WorkspaceEvent>({ category: 'workspace', action: 'switchWorkspace', name: name, isClick: true })
     } catch (e) {
       global.modal(
         intl.formatMessage({ id: 'filePanel.workspace.switch' }),
