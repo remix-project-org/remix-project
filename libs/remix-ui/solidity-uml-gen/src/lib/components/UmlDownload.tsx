@@ -81,7 +81,7 @@ export default function UmlDownload(props: UmlDownloadProps) {
           <Dropdown.Menu as={UmlCustomMenu} className="form-select">
             <Dropdown.Item
               onClick={() => {
-                trackMatomoEvent({ category: 'solidityUMLGen', action: 'umlpngdownload', name: 'downloadAsPng', isClick: true })
+                trackMatomoEvent({ category: 'solidityumlgen', action: 'umlpngdownload', name: 'downloadAsPng', isClick: true })
                 props.download('png')
               }}
               data-id="umlPngDownload"
@@ -103,7 +103,7 @@ export default function UmlDownload(props: UmlDownloadProps) {
             <Dropdown.Divider />
             <Dropdown.Item
               onClick={() => {
-                trackMatomoEvent({ category: 'solidityUMLGen', action: 'umlpdfdownload', name: 'downloadAsPdf', isClick: true })
+                trackMatomoEvent({ category: 'solidityumlgen', action: 'umlpdfdownload', name: 'downloadAsPdf', isClick: true })
                 props.download('pdf')
               }}
               data-id="umlPdfDownload"

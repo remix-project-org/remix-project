@@ -39,14 +39,14 @@ export class fileSystemUtility {
         console.log('file migration successful')
         return true
       } else {
-        track({ category: 'migrate', action: 'error', name: 'hash mismatch', isClick: false })
+        track({ category: 'Migrate', action: 'error', name: 'hash mismatch', isClick: false })
         console.log('file migration failed falling back to ' + fsFrom.name)
         fsTo.loaded = false
         return false
       }
     } catch (err) {
       console.log(err)
-      track({ category: 'migrate', action: 'error', name: err && err.message, isClick: false })
+      track({ category: 'Migrate', action: 'error', name: err && err.message, isClick: false })
       console.log('file migration failed falling back to ' + fsFrom.name)
       fsTo.loaded = false
       return false
