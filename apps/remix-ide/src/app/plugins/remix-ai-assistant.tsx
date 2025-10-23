@@ -102,8 +102,9 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async handleActivity(type: string, payload: any) {
-    // Use the proper type-safe tracking helper with RemixAI events
-    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: `${type}-${payload}`, isClick: true })
+    // Dynamic event name from ActivityType: 'typing', 'button', 'promptSend', 'streamStart', 'streamEnd'
+    // Original: _paq.push(['trackEvent', 'remixai-assistant', `${type}-${payload}`])
+    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: `remixai-assistant-${type}-${payload}` as any, isClick: true })
   }
 
   updateComponent(state: {

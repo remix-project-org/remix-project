@@ -3,22 +3,47 @@
  * 
  * This file contains all AI-related Matomo events including RemixAI interactions,
  * Ollama local AI, and code completion features.
+ * 
+ * STANDARDIZED PATTERN:
+ * - category: 'ai' (always)
+ * - action: 'remixAI' (always)
+ * - name: specific event identifier (type-safe)
  */
 
 import { MatomoEventBase } from '../core/base-types';
 
 export interface AIEvent extends MatomoEventBase {
   category: 'ai';
-  action: 
-    | 'remixAI'
-    | 'vulnerability_check_pasted_code'
-    | 'generateDocumentation'
-    | 'explainFunction'
+  action: 'remixAI';
+  name:
+    // Code completion & generation
     | 'Copilot_Completion_Accepted'
     | 'code_generation'
     | 'code_insertion'
     | 'code_completion'
+    | 'code_generation_did_show'
+    | 'code_insertion_did_show'
+    | 'code_completion_did_show'
+    | 'code_generation_partial_accept'
+    | 'code_insertion_partial_accept'
+    | 'code_completion_partial_accept'
+    | 'vulnerability_check_pasted_code'
+    | 'generateDocumentation'
+    | 'explainFunction'
+    | 'error_explaining_SolidityError'
+    // AI Context
     | 'AddingAIContext'
+    // RemixAI workspace & chat
+    | 'GenerateNewAIWorkspace'
+    | 'WorkspaceAgentEdit'
+    | 'remixAI_chat'
+    | 'GenerateNewAIWorkspaceFromEditMode'
+    | 'GenerateNewAIWorkspaceFromModal'
+    // AI Provider selection
+    | 'SetAIProvider'
+    | 'SetOllamaModel'
+    | 'ModeSwitch'
+    // Ollama host discovery
     | 'ollama_host_cache_hit'
     | 'ollama_port_check'
     | 'ollama_host_discovered_success'
@@ -26,47 +51,54 @@ export interface AIEvent extends MatomoEventBase {
     | 'ollama_host_discovery_failed'
     | 'ollama_availability_check'
     | 'ollama_availability_result'
+    | 'ollama_reset_host'
+    // Ollama models
     | 'ollama_list_models_start'
     | 'ollama_list_models_failed'
-    | 'ollama_reset_host'
     | 'ollama_pull_model_start'
     | 'ollama_pull_model_failed'
     | 'ollama_pull_model_success'
     | 'ollama_pull_model_error'
     | 'ollama_get_best'
     | 'ollama_get_best_model_error'
-    | 'ollama_initialize_failed'
-    | 'ollama_host_discovered'
     | 'ollama_models_found'
     | 'ollama_model_auto_selected'
+    | 'ollama_model_selected'
+    | 'ollama_model_set_backend_success'
+    | 'ollama_model_set_backend_failed'
+    | 'ollama_default_model_selected'
+    // Ollama initialization
+    | 'ollama_initialize_failed'
+    | 'ollama_host_discovered'
     | 'ollama_initialize_success'
     | 'ollama_model_selection_error'
+    // Ollama code operations
     | 'ollama_fim_native'
     | 'ollama_fim_token_based'
     | 'ollama_completion_no_fim'
     | 'ollama_suffix_overlap_removed'
     | 'ollama_code_completion_complete'
     | 'ollama_code_insertion'
+    | 'ollama_code_generation'
     | 'ollama_generate_contract'
     | 'ollama_generate_workspace'
     | 'ollama_chat_answer'
     | 'ollama_code_explaining'
     | 'ollama_error_explaining'
     | 'ollama_vulnerability_check'
+    // Ollama provider
     | 'ollama_provider_selected'
     | 'ollama_fallback_to_provider'
-    | 'ollama_default_model_selected'
     | 'ollama_unavailable'
     | 'ollama_connection_error'
-    | 'ollama_model_selected'
-    | 'ollama_model_set_backend_success'
-    | 'ollama_model_set_backend_failed';
+    // Assistant feedback (kebab-case to match original)
+    | 'like-response'
+    | 'dislike-response';
 }
 
-
-
 /**
- * RemixAI Events - Specific to RemixAI interactions
+ * @deprecated Use AIEvent with category: 'ai', action: 'remixAI' instead
+ * This interface is kept for backward compatibility during migration
  */
 export interface RemixAIEvent extends MatomoEventBase {
   category: 'remixAI';
@@ -78,15 +110,14 @@ export interface RemixAIEvent extends MatomoEventBase {
     | 'GenerateNewAIWorkspaceFromModal';
 }
 
-
-
 /**
- * RemixAI Assistant Events - Specific to assistant interactions
+ * @deprecated Use AIEvent with name: 'like-response' | 'dislike-response' instead
+ * This interface is kept for backward compatibility during migration
  */
 export interface RemixAIAssistantEvent extends MatomoEventBase {
-  category: 'remixAIAssistant';
+  category: 'remixai-assistant';
   action:
-    | 'likeResponse'
-    | 'dislikeResponse';
+    | 'like-response'
+    | 'dislike-response';
 }
 
