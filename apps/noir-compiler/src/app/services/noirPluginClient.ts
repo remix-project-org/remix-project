@@ -234,8 +234,7 @@ export class NoirPluginClient extends PluginClient {
       let formattedPublicInputsStr: string | null = null
 
       const filesToSave = {
-        'proof.bin': { path: `${buildPath}/proof.bin`, type: 'hex' },
-        'vk.bin': { path: `${buildPath}/vk.bin`, type: 'hex' },
+        'vk': { path: `${buildPath}/vk`, type: 'hex' },
         'scripts/verify.ts': { path: `${scriptsPath}/verify.ts`, type: 'string', isScript: true },
         'verifier/solidity/Verifier.sol': { path: `${contractsPath}/Verifier.sol`, type: 'string' },
         'proof': { path: `${buildPath}/proof`, type: 'string', isProof: true },

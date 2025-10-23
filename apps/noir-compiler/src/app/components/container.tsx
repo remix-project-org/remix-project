@@ -5,6 +5,9 @@ import { NoirAppContext } from '../contexts'
 import { CompileOptions } from '@remix-ui/helper'
 import { compileNoirCircuit } from '../actions'
 
+const NOIR_VERSION = 'v1.0.0-beta.12'
+const BARRETENBERG_VERSION = 'v0.85.0'
+
 export function Container () {
   const noirApp = useContext(NoirAppContext)
 
@@ -64,17 +67,27 @@ export function Container () {
       <article>
         <div className="pt-0 noir_section">
           <div className="mb-1">
-            <label className="noir_label form-check-label">
-              <FormattedMessage id="noir.compiler" />
-            </label>
-            <CustomTooltip
-              placement="bottom"
-              tooltipId="showNoirCompilerTooltip"
-              tooltipClasses="text-nowrap"
-              tooltipText='See compiler license'
-            >
-              <span className="far fa-file-certificate border-0 p-0 ms-2" onClick={() => showCompilerLicense()}></span>
-            </CustomTooltip>
+            <div className="d-flex align-items-center">
+              <label className="noir_label form-check-label">
+                <FormattedMessage id="noir.compiler" />
+              </label>
+              <CustomTooltip
+                placement="bottom"
+                tooltipId="showNoirCompilerTooltip"
+                tooltipClasses="text-nowrap"
+                tooltipText='See compiler license'
+              >
+                <span className="far fa-file-certificate border-0 p-0 ms-2" onClick={() => showCompilerLicense()}></span>
+              </CustomTooltip>
+              <CustomTooltip
+                placement="bottom"
+                tooltipId="noirVersionTooltip"
+                tooltipClasses="text-nowrap"
+                tooltipText={`Using Noir ${NOIR_VERSION} and Barretenberg ${BARRETENBERG_VERSION}`}
+              >
+                <span className="text-muted small ms-2">{NOIR_VERSION}</span>
+              </CustomTooltip>
+            </div>
             {/* <CompileOptions setCircuitAutoCompile={handleCircuitAutoCompile} setCircuitHideWarnings={handleCircuitHideWarnings} autoCompile={noirApp.appState.autoCompile} hideWarnings={noirApp.appState.hideWarnings} /> */}
             <hr></hr>
             <div>
