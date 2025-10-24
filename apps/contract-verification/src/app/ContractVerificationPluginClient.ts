@@ -9,6 +9,7 @@ import { CompilerAbstract } from '@remix-project/remix-solidity'
 
 export class ContractVerificationPluginClient extends PluginClient {
   public internalEvents: EventManager
+  private _isActivated: boolean = false
 
   constructor() {
     super()
@@ -19,7 +20,12 @@ export class ContractVerificationPluginClient extends PluginClient {
   }
 
   onActivation(): void {
+    this._isActivated = true
     this.internalEvents.emit('verification_activated')
+  }
+
+  isActivated(): boolean {
+    return this._isActivated
   }
 
   async lookupAndSave(verifierId: string, chainId: string, contractAddress: string): Promise<LookupResponse> {
