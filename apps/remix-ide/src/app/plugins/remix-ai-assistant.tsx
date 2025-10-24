@@ -102,9 +102,9 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async handleActivity(type: string, payload: any) {
-    // Dynamic event name from ActivityType: 'typing', 'button', 'promptSend', 'streamStart', 'streamEnd'
-    // Original: _paq.push(['trackEvent', 'remixai-assistant', `${type}-${payload}`])
-    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: `remixai-assistant-${type}-${payload}` as any, isClick: true })
+    // Never log user prompts - only track the activity type
+    const eventName = type === 'promptSend' ? 'remixai-assistant-promptSend' : `remixai-assistant-${type}-${payload}`;
+    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: eventName as any, isClick: true })
   }
 
   updateComponent(state: {
