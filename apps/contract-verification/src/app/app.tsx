@@ -41,7 +41,7 @@ const App = () => {
   const timer = useRef(null)
 
   useEffect(() => {
-    plugin.internalEvents.on('verification_activated', () => {
+    const initializePlugin = () => {
       // @ts-ignore
       plugin.call('locale', 'currentLocale').then((locale: any) => {
         setLocale(locale)
@@ -51,6 +51,7 @@ const App = () => {
       plugin.on('locale', 'localeChanged', (locale: any) => {
         setLocale(locale)
       })
+      
       // Fetch compiler artefacts initially
       plugin.call('compilerArtefacts' as any, 'getAllCompilerAbstracts').then((obj: any) => {
         setCompilationOutput(obj)
@@ -60,7 +61,17 @@ const App = () => {
       plugin.on('compilerArtefacts' as any, 'compilationSaved', (compilerAbstracts: { [key: string]: CompilerAbstract }) => {
         setCompilationOutput((prev) => ({ ...(prev || {}), ...compilerAbstracts }))
       })
-    })
+    }
+
+    // Check if plugin is already activated
+    if (plugin.isActivated()) {
+      initializePlugin()
+    } else {
+      // Listen for activation event if not yet activated
+      plugin.internalEvents.once('verification_activated', () => {
+        initializePlugin()
+      })
+    }
 
     // Fetch chains.json and update state
     fetch('https://chainid.network/chains.json')
