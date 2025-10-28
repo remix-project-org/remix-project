@@ -407,6 +407,12 @@ export const templates = (intl: any, plugin: any): TemplateGroup[] => {
       ],
     },
     {
+      name: "About Circles",
+      items: [
+        { value: "circles", tagList: [], displayName: 'About Circles', description: 'Templates for interacting with the Cicles Sdk' }
+      ]
+    },
+    {
       name: 'GitHub Actions',
       items: [
         { value: "runJsTestAction",

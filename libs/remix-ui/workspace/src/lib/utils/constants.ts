@@ -20,6 +20,7 @@ export const TEMPLATE_NAMES = {
   'uniswapV4HookBookMultiSigSwapHook': 'Uniswap V4 HookBook MultiSigSwapHook',
   'accountAbstraction': 'Account Abstraction Template',
   'introToEIP7702': 'Intro to EIP-7702',
+  'circles': 'About Circles'
 }
 
 export const TEMPLATE_METADATA: Record<string, TemplateType> = {

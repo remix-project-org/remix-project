@@ -32,6 +32,7 @@ export class RemixEngine extends Engine {
     if (name === 'contentImport') return { queueTimeout: 60000 * 3 }
     if (name === 'circom') return { queueTimeout: 60000 * 4 }
     if (name === 'noir-compiler') return { queueTimeout: 60000 * 4 }
+    if (name === 'circles') return { queueTimeout: 60000 * 4 }
     return { queueTimeout: 10000 }
   }
 
