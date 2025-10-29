@@ -51,19 +51,23 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
     const checkSupport = async () => {
       if (props.plugin && props.networkName) {
         try {
-          const status = props.plugin.blockchain.getCurrentNetworkStatus()
-          if (status.error || !status.network) {
-            setNetworkSupported(false)
-            return
+          const supportedChain = await getSupportedChain(props.plugin)
+          const chainExistsInList = !!supportedChain
+
+          let isConfigValid = false
+          if (chainExistsInList) {
+            const status = props.plugin.blockchain.getCurrentNetworkStatus()
+            const currentChainId = status?.network?.id?.toString()
+            if (currentChainId) {
+              isConfigValid = await props.plugin.call(
+                'contract-verification',
+                'isVerificationSupportedForChain',
+                currentChainId
+              )
+            }
           }
-          const currentChainId = status.network.id.toString()
 
-          const isSupported = await props.plugin.call(
-            'contract-verification',
-            'isVerificationSupportedForChain',
-            currentChainId
-          )
-
+          const isSupported = chainExistsInList && isConfigValid
           setNetworkSupported(isSupported)
 
           if (isSupported) {
@@ -75,7 +79,11 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
         } catch (e) {
           console.error("Failed to check verification support:", e)
           setNetworkSupported(false)
+          setVerifyChecked(false)
         }
+      } else {
+        setNetworkSupported(false)
+        setVerifyChecked(false)
       }
     }
     checkSupport()
@@ -351,6 +359,23 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
   const isValidProxyUpgrade = (proxyAddress: string) => {
     const solcVersion = loadedContractData.metadata ? JSON.parse(loadedContractData.metadata).compiler.version : ''
     return props.isValidProxyUpgrade(proxyAddress, loadedContractData.contractName || loadedContractData.name, loadedContractData.compiler.source, loadedContractData.compiler.data, solcVersion)
+  }
+
+  const getSupportedChain = async (plugin: any): Promise<any> => {
+    try {
+      const response = await fetch('https://chainid.network/chains.json')
+      if (!response.ok) return null
+      const allChains = await response.json()
+
+      const status = plugin.blockchain.getCurrentNetworkStatus()
+      if (status.error || !status.network) return null
+
+      const currentChainId = parseInt(status.network.id)
+      return allChains.find(chain => chain.chainId === currentChainId) || null
+    } catch (e) {
+      console.error(e)
+      return null
+    }
   }
 
   const checkSumWarning = () => {
