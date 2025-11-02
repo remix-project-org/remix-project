@@ -26,7 +26,7 @@ export class FoundryProvider extends AbstractProvider {
           <b>curl -L https://foundry.paradigm.xyz | bash</b>
         </div>
         <div className="p-1 ps-3">
-          <b>anvil</b>
+          <b>anvil --steps-tracing</b>
         </div>
         <div className="pt-2 pb-4">
           <FormattedMessage
