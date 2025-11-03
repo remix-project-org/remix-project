@@ -1,8 +1,10 @@
 'use strict'
+import axios from 'axios'
+const { endpointUrls } = require("@remix-endpoints-helper")
 import { EventManager } from '../eventManager'
 import type { Transaction as InternalTransaction } from './txRunner'
 import { Web3 } from 'web3'
-import { BrowserProvider } from 'ethers'
+import { BrowserProvider, ethers } from 'ethers'
 import { normalizeHexAddress } from '../helpers/uiHelper'
 import { aaSupportedNetworks, aaLocalStorageKey, getPimlicoBundlerURL, aaDeterminiticProxyAddress } from '../helpers/aaConstants'
 import { toBigInt, toHex, toChecksumAddress } from 'web3-utils'
@@ -29,6 +31,7 @@ export class TxRunnerWeb3 {
   }
 
   async _executeTx (tx, network, txFee, api, promptCb, callback) {
+    const ethersProvider = new BrowserProvider(this.getWeb3().currentProvider as any)
     if (network && network.lastBlock && network.lastBlock.baseFeePerGas) {
       // the sending stack (web3.js / metamask need to have the type defined)
       // this is to avoid the following issue: https://github.com/MetaMask/metamask-extension/issues/11824
@@ -48,9 +51,48 @@ export class TxRunnerWeb3 {
       if (tx.authorizationList) {
         tx.type = '0x4'
       }
+    } else {
+      const feeData = await ethersProvider.getFeeData()
+      console.log(feeData)
+      if (network && network.lastBlock && network.lastBlock.baseFeePerGas) {
+        tx.maxPriorityFeePerGas = toHex(feeData.maxPriorityFeePerGas)
+        tx.maxFeePerGas = toHex(feeData.maxFeePerGas)
+      } else {
+        tx.gasPrice = toHex(feeData.gasPrice)
+      }
     }
 
-    let currentDateTime = new Date();
+    let unsignedTxHash
+    if (this._api && !this._api.isVM()) {
+      try {
+        const nonce = await ethersProvider.getTransactionCount(tx.from, 'pending')
+        // For unsigned transactions, serialize and hash
+        const unsignedTx = ethers.Transaction.from({
+            to: tx.to,
+            nonce,
+            gasLimit: tx.gas,
+            gasPrice: tx.gasPrice,
+            data: tx.data,
+            value: BigInt(tx.value),
+            chainId: BigInt(network.id),
+            type: parseInt(tx.type),
+            maxFeePerGas: tx.maxFeePerGas,
+            maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
+            accessList: tx.accessList,
+        })
+
+        unsignedTxHash = ethers.keccak256(unsignedTx.unsignedSerialized);
+        
+        axios({
+          url: endpointUrls.registerTx,
+          method: 'POST',
+          data: { unsignedTxHash, from: tx.from, chainId: network.id },
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } catch (err) {
+        console.error('registerTx request exception', err)
+      }
+    }
 
     const cb = (err, resp, isCreation: boolean, isUserOp, contractAddress) => {
       if (err) {
@@ -63,6 +105,21 @@ export class TxRunnerWeb3 {
           const receipt = await tryTillReceiptAvailable(resp, this.getWeb3())
           const originTo = tx.to
           tx = await tryTillTxAvailable(resp, this.getWeb3())
+
+          if (this._api && !this._api.isVM()) {
+            // verify the sent tx.
+            try {
+              axios({
+                url: endpointUrls.registerTx + '/verify',
+                method: 'POST',
+                data: {r: toHex(tx.r), s: toHex(tx.s), v: toHex(tx.v), signedTxHash: tx.hash, unsignedTxHash },
+                headers: { 'Content-Type': 'application/json' }
+              })
+            } catch (err) {
+              console.debug('registerTx request exception', err)
+            }
+          }
+
           if (isCreation && !receipt.contractAddress) {
             // if it is a isCreation, contractAddress should be defined.
             // if it's not the case look for the event ContractCreated(uint256,address,uint256,bytes32) and extract the address
@@ -75,7 +132,6 @@ export class TxRunnerWeb3 {
               })
             }
           }
-          currentDateTime = new Date();
           if (isUserOp) {
             tx.isUserOp = isUserOp
             tx.originTo = originTo

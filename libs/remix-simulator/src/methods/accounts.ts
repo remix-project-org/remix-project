@@ -83,6 +83,7 @@ export class Web3Accounts {
       eth_accounts: this.eth_accounts.bind(this),
       eth_getBalance: this.eth_getBalance.bind(this),
       eth_sign: this.eth_sign.bind(this),
+      personal_sign: this.personal_sign.bind(this),
       eth_chainId: this.eth_chainId.bind(this),
       eth_signTypedData: this.eth_signTypedData_v4.bind(this), // default call is using V4
       eth_signTypedData_v4: this.eth_signTypedData_v4.bind(this),
@@ -118,6 +119,23 @@ export class Web3Accounts {
     const address = payload.params[0]
     const message = payload.params[1]
 
+    const privateKey = this.accountsKeys[toChecksumAddress(address)]
+    if (!privateKey) {
+      return cb(new Error('unknown account'))
+    }
+    const account = privateKeyToAccount(privateKey as string)
+
+    const data = account.sign(message)
+
+    cb(null, data.signature)
+  }
+
+  personal_sign (payload, cb) {
+    let message = payload.params[0]
+    const address = payload.params[1]
+
+    message = "\u0019Ethereum Signed Message:\n" + message.length + message
+  
     const privateKey = this.accountsKeys[toChecksumAddress(address)]
     if (!privateKey) {
       return cb(new Error('unknown account'))
