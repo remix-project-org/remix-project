@@ -207,10 +207,16 @@ jobs:
           name: Generate shard overview (human + JSON)
           command: |
             # Build overview.txt and overview.json next to manifest.json
-            if [ -f "${CACHE_PREFIX}/manifest.json" ]; then
-              node scripts/generate-shard-overview.js "${CACHE_PREFIX}" timings-current.json || true
+            PARALLEL=<< pipeline.parameters.e2e_parallelism >>
+            COMMIT_SHA=${CIRCLE_SHA1:-unknown}
+            CACHE_PREFIX="reports/shards/cache/${COMMIT_SHA}-shards${PARALLEL}"
+            MANIFEST_PATH="${CACHE_PREFIX}/manifest.json"
+            echo "Looking for manifest at: $MANIFEST_PATH"
+            if [ -f "$MANIFEST_PATH" ]; then
+              node scripts/generate-shard-overview.js "$CACHE_PREFIX" timings-current.json || true
             else
-              echo "No manifest found at ${CACHE_PREFIX}/manifest.json; skipping overview generation."
+              echo "No manifest found at $MANIFEST_PATH; skipping overview generation."
+              ls -la "$(dirname "$MANIFEST_PATH")" || true
             fi
       - save_cache:
           key: v1-shards-{{ .Environment.CIRCLE_SHA1 }}-<< pipeline.parameters.e2e_parallelism >>
