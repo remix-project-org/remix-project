@@ -186,6 +186,8 @@ jobs:
               | xargs -I {} basename {} \
               | sed 's/\.js$//' \
               | grep -v metamask)
+            # Persist full test list for visibility
+            printf '%s\n' "$TEST_NAMES" > reports/shards/all-tests.txt
             COUNT=$(printf '%s\n' "$TEST_NAMES" | wc -l | awk '{print $1}')
             echo "Found $COUNT enabled tests. Planning for $PARALLEL shard(s)."
             # Generate a manifest (index 0 is arbitrary; manifest includes all bins)
@@ -201,6 +203,15 @@ jobs:
               printf '%s\n' "$OUT" > "${CACHE_PREFIX}/files-$i.txt"
             done
             echo "Precomputed shard files saved under $CACHE_PREFIX"
+      - run:
+          name: Generate shard overview (human + JSON)
+          command: |
+            # Build overview.txt and overview.json next to manifest.json
+            if [ -f "${CACHE_PREFIX}/manifest.json" ]; then
+              node scripts/generate-shard-overview.js "${CACHE_PREFIX}" timings-current.json || true
+            else
+              echo "No manifest found at ${CACHE_PREFIX}/manifest.json; skipping overview generation."
+            fi
       - save_cache:
           key: v1-shards-{{ .Environment.CIRCLE_SHA1 }}-<< pipeline.parameters.e2e_parallelism >>
           paths:
@@ -210,6 +221,10 @@ jobs:
           paths:
             - remix-dist.tar.gz
             - reports/shards
+      - store_artifacts:
+          path: ./reports/shards
+      - store_artifacts:
+          path: ./timings-current.json
 
   build-plugin:
     docker:
