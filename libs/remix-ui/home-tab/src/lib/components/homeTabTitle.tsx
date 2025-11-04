@@ -136,7 +136,7 @@ function HomeTabTitle() {
             name: 'documentation',
             isClick: true
           })}><FormattedMessage id="home.documentation" /></a>
-          <a className="btn btn-secondary bg-dark text-decoration-none col-md-5" style={{ fontSize: '0.7rem', minWidth: '125px', color: isDark ? 'white' : 'black' }} href="https://remix-project.org" target="_blank" onClick={() => trackMatomoEvent({
+          <a className="btn btn-secondary bg-dark text-decoration-none col-md-5" style={{ fontSize: '0.7rem', minWidth: '125px', color: isDark ? 'white' : 'black' }} href="https://remix.live" target="_blank" onClick={() => trackMatomoEvent({
             category: 'hometab',
             action: 'titleCard',
             name: 'webSite',
