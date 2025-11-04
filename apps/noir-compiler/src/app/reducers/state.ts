@@ -69,7 +69,7 @@ export const appReducer = (state = appInitialState, action: Actions): AppState =
       ...state,
       proofingStatus: action.payload
     }
-  
+
   case 'SET_VERIFIER_INPUTS':
     return {
       ...state,

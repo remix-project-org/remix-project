@@ -33,7 +33,6 @@ export class NoirPluginClient extends PluginClient {
   }
 
   init(): void {
-    console.log('initializing noir plugin...')
   }
 
   onActivation(): void {
@@ -45,7 +44,6 @@ export class NoirPluginClient extends PluginClient {
     // @ts-ignore
     this.ws = new WebSocket(`${WS_URL}`)
     this.ws.onopen = () => {
-      console.log('WebSocket connection opened')
     }
     this.ws.onmessage = (event) => {
       const message = JSON.parse(event.data)
@@ -62,7 +60,6 @@ export class NoirPluginClient extends PluginClient {
       this.logFn('WebSocket error: ' + event)
     }
     this.ws.onclose = () => {
-      console.log('WebSocket connection closed')
       // restart the websocket connection
       this.ws = null
       setTimeout(this.setupWebSocketEvents.bind(this), 5000)
@@ -184,7 +181,6 @@ export class NoirPluginClient extends PluginClient {
 
   async generateProof(path: string): Promise<void> {
     const requestID = this.generateRequestID()
-    console.log(`[${requestID}] New proof generation request for: ${path}`)
 
     this.internalEvents.emit('noir_proofing_start')
     this.emit('statusChanged', { key: 'loading', title: 'Generating Proof...', type: 'info' })
@@ -196,7 +192,7 @@ export class NoirPluginClient extends PluginClient {
       if (this.ws.readyState !== WebSocket.OPEN) {
         throw new Error('WebSocket connection not open. Cannot generate proof.')
       }
-      
+
       projectRoot = await this.findProjectRoot(path)
       if (projectRoot === null) {
         throw new Error(`Invalid project structure for '${path}'. Could not find project root.`)
@@ -241,11 +237,9 @@ export class NoirPluginClient extends PluginClient {
         'public_inputs': { path: `${buildPath}/public_inputs`, type: 'string', isPublicInputs: true },
       }
 
-      console.log('[Noir Plugin] Starting file extraction loop...')
-
       for (const [zipPath, info] of Object.entries(filesToSave)) {
         const file = zip.file(zipPath)
-        
+
         if (file) {
           let content: string;
 
@@ -255,30 +249,25 @@ export class NoirPluginClient extends PluginClient {
           } else {
             content = await file.async('string');
           }
-          
+
           // @ts-ignore
           if (info.isProof) formattedProof = content
           // @ts-ignore
           if (info.isPublicInputs) formattedPublicInputsStr = content
           // @ts-ignore
           if (info.isScript) {
-            console.log(`[Noir Plugin] Found script file: ${zipPath}. Replacing placeholder with: '${buildPath}'`)
             content = content.replace(/%%BUILD_PATH%%/g, buildPath)
           }
 
           await this.call('fileManager', 'writeFile', info.path, content)
           // @ts-ignore
           this.call('terminal', 'log', { type: 'log', value: `Wrote artifact: ${info.path}` })
-        
+
         } else {
           // @ts-ignore
           this.call('terminal', 'log', { type: 'warn', value: `Warning: File '${zipPath}' not found in zip from backend.` })
-          console.warn(`[Noir Plugin] File not found in zip: ${zipPath}`)
         }
       }
-      console.log('[Noir Plugin] File extraction loop finished.')
-
-      console.log('[Noir Plugin] Formatting verifier inputs...')
       // @ts-ignore
       this.call('terminal', 'log', { type: 'log', value: 'Formatting Verifier.sol inputs...' })
 
@@ -286,15 +275,14 @@ export class NoirPluginClient extends PluginClient {
         console.error('[Noir Plugin] Error: formattedProof or formattedPublicInputsStr is null or empty after loop.')
         throw new Error("Formatted proof or public inputs data could not be read from zip stream.")
       }
-      
+
       const formattedPublicInputs = JSON.parse(formattedPublicInputsStr)
-      
+
       const verifierInputs: VerifierInputs = {
         proof: formattedProof,
         publicInputs: formattedPublicInputs
       }
 
-      console.log('[Noir Plugin] Emitting noir_proofing_done with payload:', verifierInputs)
       this.internalEvents.emit('noir_proofing_done', verifierInputs)
 
       this.emit('statusChanged', { key: 'succeed', title: 'Proof generated successfully', type: 'success' })
@@ -307,7 +295,7 @@ export class NoirPluginClient extends PluginClient {
       if (e.response && e.response.data) {
         try {
           let errorData = e.response.data
-          
+
           if (e.response.data instanceof Blob) {
             const errorText = await e.response.data.text()
             errorData = JSON.parse(errorText)
