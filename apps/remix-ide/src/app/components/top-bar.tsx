@@ -162,7 +162,7 @@ export class Topbar extends Plugin {
     const data: UpdateInfo[] = response
     const interim = data.find(x => x.action.label.includes('Release notes'))
     const targetUrl = interim.action.url
-    const currentReleaseVersion = interim.badge.split(' ')[0]
+    const currentReleaseVersion = packageJson.version
     return [targetUrl, currentReleaseVersion]
   }
 
