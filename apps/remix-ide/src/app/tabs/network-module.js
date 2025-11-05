@@ -4,7 +4,7 @@ import { ethers } from 'ethers'
 
 export const profile = {
   name: 'network',
-  description: 'Manage the network (mainnet, ropsten, goerli...) and the provider (web3, vm, injected)',
+  description: 'Manage the network (mainnet, goerli, sepolia,...) and the provider (web3, vm, injected)',
   methods: ['getNetworkProvider', 'getEndpoint', 'detectNetwork', 'addNetwork', 'removeNetwork'],
   version: packageJson.version,
   kind: 'network'

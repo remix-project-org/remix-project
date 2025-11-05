@@ -265,15 +265,6 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     try {
       const networkId = (await web3.getNetwork()).chainId
       trackMatomoEvent({ category: 'debugger', action: 'startDebugging', value: networkId, isClick: true })
-      if (networkId === 42) {
-        setState((prevState) => {
-          return {
-            ...prevState,
-            validationError: 'Unfortunately, the Kovan network is not supported.'
-          }
-        })
-        return
-      }
     } catch (e) {
       console.error(e)
     }
