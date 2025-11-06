@@ -40,7 +40,6 @@ import { Blockchain } from './blockchain/blockchain'
 import { MergeVMProvider, LondonVMProvider, BerlinVMProvider, ShanghaiVMProvider, CancunVMProvider, PectraVMProvider } from './app/providers/vm-provider'
 import { MainnetForkVMProvider } from './app/providers/mainnet-vm-fork-provider'
 import { SepoliaForkVMProvider } from './app/providers/sepolia-vm-fork-provider'
-import { GoerliForkVMProvider } from './app/providers/goerli-vm-fork-provider'
 import { CustomForkVMProvider } from './app/providers/custom-vm-fork-provider'
 import { HardhatProvider } from './app/providers/hardhat-provider'
 import { GanacheProvider } from './app/providers/ganache-provider'
@@ -350,7 +349,6 @@ class AppComponent {
     const vmProviderCustomFork = new CustomForkVMProvider(blockchain)
     const vmProviderMainnetFork = new MainnetForkVMProvider(blockchain)
     const vmProviderSepoliaFork = new SepoliaForkVMProvider(blockchain)
-    const vmProviderGoerliFork = new GoerliForkVMProvider(blockchain)
     const vmProviderShanghai = new ShanghaiVMProvider(blockchain)
     const vmProviderCancun = new CancunVMProvider(blockchain)
     const vmProviderPectra = new PectraVMProvider(blockchain)
@@ -435,7 +433,6 @@ class AppComponent {
       vmProviderBerlin,
       vmProviderLondon,
       vmProviderSepoliaFork,
-      vmProviderGoerliFork,
       vmProviderMainnetFork,
       vmProviderCustomFork,
       hardhatProvider,

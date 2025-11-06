@@ -27,7 +27,7 @@ const tests = {
   'Should verify a contract (contract is already verified) #group1': function (browser: NightwatchBrowser) {
     browser
       .frameParent()
-      .clickLaunchIcon('udapp') // switch to Goerli
+      .clickLaunchIcon('udapp') // switch to sepolia
       .switchEnvironment('basic-http-provider')
       .waitForElementPresent('[data-id="basic-http-provider-modal-footer-ok-react"]')
       .execute(() => {

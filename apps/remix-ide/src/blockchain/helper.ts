@@ -1,6 +1,5 @@
 const transactionDetailsLinks = {
   Main: 'https://www.etherscan.io/tx/',
-  Goerli: 'https://goerli.etherscan.io/tx/',
   Sepolia: 'https://sepolia.etherscan.io/tx/'
 }
 

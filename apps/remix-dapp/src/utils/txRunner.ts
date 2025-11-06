@@ -158,7 +158,6 @@ export class TxRunner {
     const id = Number(chainId)
     let name = '';
     if (id === 1) name = 'Main';
-    else if (id === 5) name = 'Goerli';
     else if (id === 11155111) name = 'Sepolia';
     else name = 'Custom';
 

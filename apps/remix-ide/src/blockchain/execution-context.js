@@ -233,9 +233,7 @@ export class ExecutionContext {
   txDetailsLink (network, hash) {
     const transactionDetailsLinks = {
       Main: 'https://www.etherscan.io/tx/',
-      Sepolia: 'https://sepolia.etherscan.io/tx/',
-      Goerli: 'https://goerli.etherscan.io/tx/'
-    }
+      Sepolia: 'https://sepolia.etherscan.io/tx/'    }
 
     if (transactionDetailsLinks[network]) {
       return transactionDetailsLinks[network] + hash

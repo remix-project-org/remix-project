@@ -723,7 +723,7 @@ contract C {
         }
 
         contract MyResolver {
-            // Same address for Mainnet, Goerli and other networks;
+            // Same address for Mainnet and other networks;
             ENS ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
             function resolve() public view returns(address) {
