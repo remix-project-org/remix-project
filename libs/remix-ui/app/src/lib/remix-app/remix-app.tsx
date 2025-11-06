@@ -125,8 +125,8 @@ const RemixApp = (props: IRemixAppUi) => {
       setLocale(nextLocale)
     })
 
-    props.app.pinnedPanel.events.on('pinnedPlugin', () => {
-      setHidePinnedPanel(false)
+    props.app.pinnedPanel.events.on('pinnedPlugin', (profile, isClosed) => {
+      if (!isClosed) setHidePinnedPanel(false)
     })
 
     props.app.pinnedPanel.events.on('unPinnedPlugin', () => {
