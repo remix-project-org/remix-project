@@ -55,6 +55,8 @@ export class PinnedPanel extends AbstractPanel {
     }
     this.loggedState = await this.call('pluginStateLogger', 'getPluginState', profile.name)
     this.addView(profile, view)
+    this.plugins[profile.name].pinned = true
+    this.plugins[profile.name].active = true
     let pinnedPanelState = window.localStorage.getItem('pinnedPanelState')
     let isClosed = false
     if (pinnedPanelState) {
@@ -63,13 +65,6 @@ export class PinnedPanel extends AbstractPanel {
         isClosed = true
         await this.closePlugin(profile)
       }
-      else {
-        this.plugins[profile.name].pinned = true
-        this.plugins[profile.name].active = true
-      }
-    } else {
-        this.plugins[profile.name].pinned = true
-        this.plugins[profile.name].active = true
     }
     this.renderComponent()
     this.events.emit('pinnedPlugin', profile, isClosed)
