@@ -29,7 +29,9 @@ export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: s
     chainId: [
       { id: 1, name: "Ethereum Mainnet" },
       { id: 100, name: "Gnosis Chain" },
-      { id: 11155111, name: "Sepolia" }
+      { id: 11155111, name: "Sepolia" },
+      { id: 42220, name: "Celo Mainnet" },
+      { id: 44787, name: "Celo Alfajores Testnet" },
     ],
     minCompilerVersion: "0.8.24+commit.e11b9ed9",
     evmVersion: 'prague'
