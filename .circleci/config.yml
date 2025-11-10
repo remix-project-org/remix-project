@@ -617,27 +617,6 @@ jobs:
       - store_artifacts:
           path: ./reports/screenshots
 
-  predeploy:
-    docker:
-      - image: cimg/node:20.19.0-browsers
-    resource_class: medium+
-    working_directory: ~/remix-project
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - v1-deps-{{ checksum "yarn.lock" }}
-      - run: yarn
-      - save_cache:
-          key: v1-deps-{{ checksum "yarn.lock" }}
-          paths:
-            - node_modules
-      - nx-build-with-fallback:
-          target: "remix-ide"
-          config: "--configuration=production"
-          memory: "8192"
-          fallback_command: "yarn build:production"
-
   deploy-build:
     docker:
       - image: cimg/node:20.19.0-browsers
@@ -809,6 +788,29 @@ workflows:
             - remix-libs
             - chrome-tests
             - plugins
+      - deploy-build:
+          script: "alpha"
+          requires:
+            - tests-passed
+          filters:
+            branches:
+              only: master
+      - deploy-build:
+          name: deploy-beta
+          script: "beta"
+          requires:
+            - tests-passed
+          filters:
+            branches:
+              only: remix_beta
+      - deploy-build:
+          name: deploy-live
+          script: "live"
+          requires:
+            - tests-passed
+          filters:
+            branches:
+              only: remix_live
       - post-failed-report:
           requires:
             - build
