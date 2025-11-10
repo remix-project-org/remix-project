@@ -20,7 +20,7 @@ const pinnedPanel = {
 export class PinnedPanel extends AbstractPanel {
   dispatch: React.Dispatch<any> = () => {}
   loggedState: Record<string, any>
-  pinnedPanelState: Record<string, any> // pluginProfile, isClosed 
+  pinnedPanelState: Record<string, any> // pluginProfile, isClosed
   highlightStamp: number
   closedPlugin: any
 
@@ -38,7 +38,7 @@ export class PinnedPanel extends AbstractPanel {
       }
     })
 
-    let pinnedPanelState = window.localStorage.getItem('pinnedPanelState')
+    const pinnedPanelState = window.localStorage.getItem('pinnedPanelState')
     if (!pinnedPanelState) window.localStorage.setItem('pinnedPanelState', JSON.stringify({}))
   }
 
@@ -61,7 +61,7 @@ export class PinnedPanel extends AbstractPanel {
     let isClosed = false
     if (pinnedPanelState) {
       pinnedPanelState = JSON.parse(pinnedPanelState)
-      if (pinnedPanelState['isClosed']) {    
+      if (pinnedPanelState['isClosed']) {
         isClosed = true
         await this.closePlugin(profile)
       }
@@ -90,7 +90,7 @@ export class PinnedPanel extends AbstractPanel {
     const pinnedPanel = document.querySelector('#pinned-panel')
     pinnedPanel.classList.add('d-none')
     this.closedPlugin = profile
-    window.localStorage.setItem('pinnedPanelState', JSON.stringify({pluginProfile: profile, isClosed: true}))
+    window.localStorage.setItem('pinnedPanelState', JSON.stringify({ pluginProfile: profile, isClosed: true }))
     this.events.emit('pluginClosed', profile)
     this.emit('pluginClosed', profile)
   }
@@ -99,7 +99,7 @@ export class PinnedPanel extends AbstractPanel {
     const pinnedPanel = document.querySelector('#pinned-panel')
     pinnedPanel.classList.remove('d-none')
     this.closedPlugin = null
-    window.localStorage.setItem('pinnedPanelState', JSON.stringify({pluginProfile: profile, isClosed: false}))
+    window.localStorage.setItem('pinnedPanelState', JSON.stringify({ pluginProfile: profile, isClosed: false }))
     this.events.emit('pluginMaximized', profile)
     this.emit('pluginMaximized', profile)
   }
