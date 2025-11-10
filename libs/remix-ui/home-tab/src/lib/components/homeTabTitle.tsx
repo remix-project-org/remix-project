@@ -49,7 +49,7 @@ const iconButtons: HometabIconSection[] = [
   {
     textToolip: <FormattedMessage id="home.joinUsOnDiscord" />,
     matomoTrackingEntry: ['trackEvent', 'hometab', 'titleCard', 'discord'],
-    urlLink: 'https://discord.gg/4b2rE9U4D2',
+    urlLink: 'https://discord.gg/snsrYVU4Q7',
     iconClass: 'fa-discord',
     placement: 'top'
   }
