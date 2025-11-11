@@ -45,7 +45,7 @@ export async function transcribeAudio(
   formData.append('model', model)
 
   try {
-    const response = await fetch('https://api.fireworks.ai/inference/v1/audio/transcriptions', {
+    const response = await fetch('https://audio-prod.api.fireworks.ai/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`
