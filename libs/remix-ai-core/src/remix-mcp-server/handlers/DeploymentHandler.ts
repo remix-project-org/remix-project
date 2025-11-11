@@ -22,6 +22,8 @@ import { getContractData } from '@remix-project/core-plugin'
 import type { TxResult } from '@remix-project/remix-lib';
 import { BrowserProvider } from "ethers"
 import { toNumber, ethers } from 'ethers'
+import { execution } from '@remix-project/remix-lib';
+const { txFormat, txHelper: { makeFullTypeDefinition } } = execution;
 
 /**
  * Deploy Contract Tool Handler
@@ -299,8 +301,9 @@ export class CallContractHandler extends BaseToolHandler {
 
       // TODO: Execute contract call via Remix Run Tab API
       const receipt = (txReturn.txResult.receipt)
+      console.log('function call transaction payload:', txReturn)
       const result: ContractInteractionResult = {
-        result: txReturn.returnValue,
+        result: isView ? txFormat.decodeResponse(txReturn.txResult.result, funcABI) : txReturn.returnValue,
         transactionHash: isView ? txReturn.txResult.transactionHash : receipt.hash,
         gasUsed: isView ? 0 : receipt.gasUsed,
         logs: isView ? undefined : receipt.logs,

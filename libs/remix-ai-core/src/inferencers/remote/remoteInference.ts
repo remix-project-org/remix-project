@@ -21,9 +21,36 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     this.event = new EventEmitter()
   }
 
+  protected sanitizePromptByteSize(prompt: string, maxBytes: number = 50000): string {
+    const encoder = new TextEncoder();
+    const promptBytes = encoder.encode(prompt); // rough estimation, real size might be 10% more
+
+    if (promptBytes.length <= maxBytes) {
+      return prompt;
+    }
+
+    let trimmedPrompt = prompt;
+    let currentBytes = promptBytes.length;
+
+    while (currentBytes > maxBytes && trimmedPrompt.length > 0) {
+      // Remove characters from the beginning (1% at a time for efficiency)
+      const charsToRemove = Math.max(1, Math.floor(trimmedPrompt.length * 0.01));
+      trimmedPrompt = trimmedPrompt.substring(charsToRemove);
+      currentBytes = encoder.encode(trimmedPrompt).length;
+    }
+
+    console.warn(`[RemoteInferencer] Prompt exceeded ${maxBytes} bytes. Trimmed from ${promptBytes.length} to ${currentBytes} bytes.`);
+    return trimmedPrompt;
+  }
+
   async _makeRequest(payload, rType:AIRequestType){
     this.event.emit("onInference")
     const requestURL = rType === AIRequestType.COMPLETION ? this.completion_url : this.api_url
+
+    // Sanitize prompt in payload if it exists
+    if (payload.prompt) {
+      payload.prompt = this.sanitizePromptByteSize(payload.prompt);
+    }
 
     try {
       const options = AIRequestType.COMPLETION ? { headers: { 'Content-Type': 'application/json', }, timeout: 3000 } : { headers: { 'Content-Type': 'application/json', } }
@@ -58,6 +85,12 @@ export class RemoteInferencer implements ICompletions, IGeneration {
 
   async _streamInferenceRequest(payload, rType:AIRequestType){
     let resultText = ""
+
+    // Sanitize prompt in payload if it exists
+    if (payload.prompt) {
+      payload.prompt = this.sanitizePromptByteSize(payload.prompt);
+    }
+
     try {
       this.event.emit('onInference')
       const requestURL = rType === AIRequestType.COMPLETION ? this.completion_url : this.api_url
@@ -131,7 +164,7 @@ export class RemoteInferencer implements ICompletions, IGeneration {
   }
 
   async answer(prompt, options:IParams=GenerationParams): Promise<any> {
-    options.chatHistory = options.provider === 'anthropic' || options.provider === 'mistralai' ? buildChatPrompt() : []
+    options.chatHistory = buildChatPrompt()
     const payload = { 'prompt': prompt, "endpoint":"answer", ...options }
     if (options.stream_result) return this._streamInferenceRequest(payload, AIRequestType.GENERAL)
     else return this._makeRequest(payload, AIRequestType.GENERAL)

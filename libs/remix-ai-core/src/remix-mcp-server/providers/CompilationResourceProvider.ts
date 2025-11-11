@@ -219,9 +219,22 @@ export class CompilationResourceProvider extends BaseResourceProvider {
     try {
       const compiledContracts = await plugin.call('compilerArtefacts', 'getAllContractDatas')
 
+      // Filter to only include abi and metadata for each contract
+      const filteredContracts = {};
+      for (const [fileName, fileContracts] of Object.entries(compiledContracts)) {
+        filteredContracts[fileName] = {};
+        for (const [contractName, contractData] of Object.entries(fileContracts as any)) {
+          const contract = contractData as any;
+          filteredContracts[fileName][contractName] = {
+            abi: contract.abi,
+            metadata: contract.metadata
+          };
+        }
+      }
+
       return this.createJsonContent('compilation://contracts', {
-        compiledContracts,
-        count: Object.keys(compiledContracts).length,
+        compiledContracts: filteredContracts,
+        count: Object.keys(filteredContracts).length,
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
