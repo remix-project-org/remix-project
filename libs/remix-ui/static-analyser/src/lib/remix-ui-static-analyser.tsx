@@ -123,7 +123,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
       setHints([])
       setSlitherWarnings([])
       setSsaWarnings([])
-    })    
+    })
   }, [state])
 
   useEffect(() => {
@@ -160,7 +160,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
       setTimeout(() => {
         props.event.trigger('staticAnalysisWarning', [-1])
       }, 500)
-    })    
+    })
     props.analysisModule.on('manager', 'pluginDeactivated', (plugin) => {
       // Hide 'Enable Slither Analysis' checkbox
       if (plugin.name === 'remixd') {
