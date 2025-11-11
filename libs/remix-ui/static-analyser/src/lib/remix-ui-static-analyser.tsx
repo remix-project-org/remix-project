@@ -123,7 +123,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
       setHints([])
       setSlitherWarnings([])
       setSsaWarnings([])
-    })
+    })    
   }, [state])
 
   useEffect(() => {
@@ -160,7 +160,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
       setTimeout(() => {
         props.event.trigger('staticAnalysisWarning', [-1])
       }, 500)
-    })
+    })    
     props.analysisModule.on('manager', 'pluginDeactivated', (plugin) => {
       // Hide 'Enable Slither Analysis' checkbox
       if (plugin.name === 'remixd') {
@@ -797,6 +797,45 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
       .flat()
       .every((el) => categoryIndex.includes(el))
   }
+
+  useEffect(() => {
+    const analyzeHandler = () => {
+      run(
+        state.data,
+        state.source,
+        state.file,
+        state,
+        props,
+        isSupportedVersion,
+        showSlither,
+        categoryIndex,
+        groupedModules,
+        runner,
+        trackMatomoEvent,
+        message,
+        showWarnings,
+        allWarnings,
+        warningContainer,
+        calculateWarningStateEntries,
+        warningState,
+        setHints,
+        hints,
+        setSlitherWarnings,
+        setSsaWarnings,
+        slitherEnabled,
+        setStartAnalysis,
+        solhintEnabled,
+        basicEnabled
+      )
+    }
+
+    props.analysisModule.on('solidityStaticAnalysis', 'analyze', analyzeHandler)
+
+    return () => {
+      props.analysisModule.off('solidityStaticAnalysis', 'analyze')
+    }
+  }, [state.data, state.source, state.file, state, props])
+
   return (
     <div className="analysis_3ECCBV px-3 pb-1">
       <div className="my-2 d-flex flex-column align-items-left">
