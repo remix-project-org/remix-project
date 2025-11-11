@@ -103,7 +103,7 @@ function HomePage(): JSX.Element {
           levelText,
           name: entity.name || '',
           subtitle: tags.join(', '),
-          preview: mdToPlain(entity.description?.content || '', 280),
+          preview: mdToPlain(entity.metadata?.data?.summary || '', 280),
           stepsLen: entity.steps?.length,
           duration: entity.metadata?.data?.duration,
           tags,
