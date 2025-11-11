@@ -67,40 +67,14 @@ export class SolidityScanHandler extends BaseToolHandler {
       // Process scan results into structured format
       const findings = [];
 
-      for (const template of scanReport.multi_file_scan_details || []) {
-        if (template.metric_wise_aggregated_findings?.length) {
-          for (const details of template.metric_wise_aggregated_findings) {
-            for (const finding of details.findings) {
-              findings.push({
-                metric: details.metric_name,
-                severity: details.severity || 'unknown',
-                title: finding.title || details.metric_name,
-                description: finding.description || details.description,
-                lineStart: finding.line_nos_start?.[0],
-                lineEnd: finding.line_nos_end?.[0],
-                file: template.file_name,
-                recommendation: finding.recommendation
-              });
-            }
-          }
-        }
-      }
 
       const result = {
         success: true,
         fileName,
         scanCompletedAt: new Date().toISOString(),
-        totalFindings: findings.length,
-        findings,
-        summary: {
-          critical: findings.filter(f => f.severity === 'critical').length,
-          high: findings.filter(f => f.severity === 'high').length,
-          medium: findings.filter(f => f.severity === 'medium').length,
-          low: findings.filter(f => f.severity === 'low').length,
-          informational: findings.filter(f => f.severity === 'informational').length
-        }
+        multi_file_scan_details: scanReport.multi_file_scan_details,
+        multi_file_scan_summary: scanReport.multi_file_scan_summary
       };
-
       return this.createSuccessResult(result);
 
     } catch (error) {

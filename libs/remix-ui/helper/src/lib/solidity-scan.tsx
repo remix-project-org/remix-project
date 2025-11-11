@@ -5,9 +5,6 @@ import { endpointUrls } from '@remix-endpoints-helper'
 import { ScanReport, SolScanTable } from '@remix-ui/helper'
 import { trackMatomoEvent } from '@remix-api'
 
-import { CopyToClipboard } from '@remix-ui/clipboard'
-import { CustomTooltip } from './components/custom-tooltip'
-
 export const handleSolidityScan = async (api: any, compiledFileName: string) => {
   await api.call('notification', 'toast', 'Processing data to scan...')
   await trackMatomoEvent(api, { category: 'solidityCompiler', action: 'solidityScan', name: 'initiateScan', isClick: false })
