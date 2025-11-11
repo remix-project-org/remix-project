@@ -11,8 +11,8 @@ import {
 import { Plugin } from '@remixproject/engine';
 
 /**
- * Solidity Scan Tool Handler
- * Analyzes Solidity code for security vulnerabilities and code quality issues
+ * Learneth tutorial Tool Handler
+ * Starts a tutorial using learneth
  */
 export class TutorialsHandler extends BaseToolHandler {
   name = 'tutorials';
@@ -40,7 +40,9 @@ export class TutorialsHandler extends BaseToolHandler {
 
   async execute(args: { tutorialId: string }, plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      plugin.call('LearnEth', 'startTutorial', "remix-project-org/remix-workshops", "master", args.tutorialId)
+      await plugin.call('LearnEth', 'startTutorial', "remix-project-org/remix-workshops", "master", args.tutorialId)
+      await plugin.call('sidePanel', 'showContent', 'LearnEth' )
+      return this.createSuccessResult(`Tutorial ${args.tutorialId} started successfully.`);
     } catch (error) {
       return this.createErrorResult(`Starting tutorial failed: ${error.message}`);
     }

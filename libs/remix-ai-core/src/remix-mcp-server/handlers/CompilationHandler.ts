@@ -76,6 +76,8 @@ export class SolidityCompileHandler extends BaseToolHandler {
     try {
       let compilerConfig: any = {};
 
+      await plugin.call('sidePanel', 'showContent', 'solidity' )
+
       try {
         // Try to get existing compiler config
         compilerConfig = await plugin.call('solidity' as any , 'getCurrentCompilerConfig');
@@ -374,6 +376,57 @@ export class CompileWithHardhatHandler extends BaseToolHandler {
 }
 
 /**
+ * Compile with Foundry Tool Handler
+ */
+export class CompileWithFoundryHandler extends BaseToolHandler {
+  name = 'compile_with_foundry';
+  description = 'Compile using Foundry framework';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      configPath: {
+        type: 'string',
+        description: 'Path to foundry.toml file',
+        default: 'foundry.toml'
+      }
+    }
+  };
+
+  getPermissions(): string[] {
+    return ['compile:foundry'];
+  }
+
+  validate(args: { configPath?: string }): boolean | string {
+    const types = this.validateTypes(args, { configPath: 'string' });
+    if (types !== true) return types;
+
+    return true;
+  }
+
+  async execute(args: { configPath?: string }, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      const configPath = args.configPath || 'foundry.toml';
+
+      // Check if hardhat config exists
+      const exists = await plugin.call('fileManager', 'exists', configPath);
+      if (!exists) {
+        return this.createErrorResult(`Foundry config file not found: ${configPath}`);
+      }
+
+      const result = await plugin.call('solidity' as any , 'compileWithFoundry', configPath);
+
+      return this.createSuccessResult({
+        success: true,
+        message: 'Compiled with Foundry successfully',
+        result: result
+      });
+    } catch (error) {
+      return this.createErrorResult(`Foundry compilation failed: ${error.message}`);
+    }
+  }
+}
+
+/**
  * Compile with Truffle Tool Handler
  */
 export class CompileWithTruffleHandler extends BaseToolHandler {
@@ -501,6 +554,14 @@ export function createCompilationTools(): RemixToolDefinition[] {
       category: ToolCategory.COMPILATION,
       permissions: ['compile:hardhat'],
       handler: new CompileWithHardhatHandler()
+    },
+    {
+      name: 'compile_with_foundry',
+      description: 'Compile using Foundry framework',
+      inputSchema: new CompileWithFoundryHandler().inputSchema,
+      category: ToolCategory.COMPILATION,
+      permissions: ['compile:foundry'],
+      handler: new CompileWithFoundryHandler()
     },
     {
       name: 'compile_with_truffle',
