@@ -64,10 +64,6 @@ export class SolidityScanHandler extends BaseToolHandler {
       // Use the core scanning function from remix-core-plugin
       const scanReport = await performSolidityScan(plugin, args.filePath);
 
-      // Process scan results into structured format
-      const findings = [];
-
-
       const result = {
         success: true,
         fileName,
