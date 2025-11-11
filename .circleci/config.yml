@@ -31,6 +31,9 @@ parameters:
   run_libs_only:
     type: boolean
     default: false
+  run_deploy_alpha:
+    type: boolean
+    default: false
 
   # Resource sizing
   resource_class:
@@ -620,7 +623,7 @@ jobs:
   deploy-build:
     docker:
       - image: cimg/node:20.19.0-browsers
-    resource_class: medium+
+    resource_class: large
     environment:
       COMMIT_AUTHOR_EMAIL: "yann@ethereum.org"
       COMMIT_AUTHOR: "Circle CI"
@@ -638,11 +641,7 @@ jobs:
           key: v1-deps-{{ checksum "yarn.lock" }}
           paths:
             - node_modules
-      - nx-build-with-fallback:
-          target: "remix-ide"
-          config: "--configuration=production"
-          memory: "8192"
-          fallback_command: "yarn build:production"
+      - run: yarn build:production
       - run: "./apps/remix-ide/ci/deploy_remix-<< parameters.script >>.sh"
 
 workflows:
@@ -850,3 +849,12 @@ workflows:
       - post-failed-report:
           requires:
             - build
+
+  deploy_alpha:
+    when: << pipeline.parameters.run_deploy_alpha >>
+    jobs:
+      - deploy-build:
+          script: "alpha"
+          filters:
+            branches:
+              only: master

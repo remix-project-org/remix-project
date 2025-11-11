@@ -74,7 +74,7 @@
     "downloadsolc_assets_e2e": "node ./apps/remix-ide/ci/download_e2e_assets.js",
     "make-mock-compiler": "node apps/remix-ide/ci/makeMockCompiler.js",
     "minify": "uglifyjs --in-source-map inline --source-map-inline -c warnings=false",
-    "build:production": "NODE_ENV=production nx build remix-ide --configuration=production --skip-nx-cache",
+    "build:production": "NODE_ENV=production node --max-old-space-size=8192 ./node_modules/.bin/nx build remix-ide --configuration=production --skip-nx-cache",
     "serve:production": "npx http-server ./dist/apps/remix-ide",
     "install_webdriver": "bash ./apps/remix-ide-e2e/install-webdriver.sh",
     "update_metamask": "bash ./apps/remix-ide-e2e/update_metamask.sh",
