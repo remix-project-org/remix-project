@@ -114,13 +114,8 @@ export class DeployContractHandler extends BaseToolHandler {
           const callbacks = { continueCb: (error, continueTxExecution, cancelCb) => {
             continueTxExecution()
           }, promptCb: () => {}, statusCb: (error) => {
-            console.log(error)
-            return this.createErrorResult(`Deployment error: ${error.message || error}`);
           }, finalCb: (error, contractObject, address: string, txResult: TxResult) => {
-            if (error) {
-              reject(error)
-              return this.createErrorResult(`Deployment error: ${error.message || error}`);
-            }
+            if (error) reject(error)
             resolve({ contractObject, address, txResult })
           } }
           const confirmationCb = (network, tx, gasEstimation, continueTxExecution, cancelCb) => {
@@ -308,7 +303,6 @@ export class CallContractHandler extends BaseToolHandler {
 
       // TODO: Execute contract call via Remix Run Tab API
       const receipt = (txReturn.txResult.receipt)
-      console.log('function call transaction payload:', txReturn)
       const result: ContractInteractionResult = {
         result: isView ? txFormat.decodeResponse(txReturn.txResult.result, funcABI) : txReturn.returnValue,
         transactionHash: isView ? txReturn.txResult.transactionHash : receipt.hash,
