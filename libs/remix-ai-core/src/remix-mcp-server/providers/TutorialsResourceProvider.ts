@@ -43,7 +43,6 @@ export class TutorialsResourceProvider extends BaseResourceProvider {
   }
 
   async getResourceContent(uri: string, plugin: Plugin): Promise<IMCPResourceContent> {
-    console.log('Getting resource content for URI:', uri);
     if (uri === 'tutorials://list') {
       return this.getTutorialsList(plugin);
     }
@@ -58,7 +57,6 @@ export class TutorialsResourceProvider extends BaseResourceProvider {
   private async getTutorialsList(plugin: Plugin): Promise<IMCPResourceContent> {
     try {
       const tutorials = await axios('https://raw.githubusercontent.com/remix-project-org/remix-workshops/refs/heads/json_desc/config-properties.json')
-      console.log(tutorials)
       return this.createJsonContent('tutorials://list', tutorials);
     } catch (error) {
       return this.createTextContent('tutorials://list', `Error getting tutorials: ${error.message}`);

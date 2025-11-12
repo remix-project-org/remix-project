@@ -24,8 +24,14 @@ export const HandleStreamResponse = async (streamResponse, cb: (streamText: stri
     // Check for missing body in the streamResponse
     if (!reader) {
       // most likely no stream response, so we can just return the result
-      cb(streamResponse.result)
-      done_cb?.("");
+      if (streamResponse.result) {
+        cb(streamResponse.result)
+        done_cb?.(streamResponse.result);
+      } else {
+        const errorMessage = "Error: Unable to to process your request. Try again!";
+        cb(errorMessage);
+        done_cb?.(errorMessage);
+      }
       return;
     }
 
@@ -44,7 +50,10 @@ export const HandleStreamResponse = async (streamResponse, cb: (streamText: stri
         }
       } catch (error) {
         console.error('Error parsing JSON:', error);
-        return; // Just log the error, without unnecessary return value
+        const errorMessage = "Error: Unable to decode the AI response. Please try again.";
+        cb(errorMessage);
+        done_cb?.(errorMessage);
+        return;
       }
     }
 
@@ -68,8 +77,14 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
   const toolCalls: Map<number, any> = new Map(); // Accumulate tool calls by index
 
   if (!reader) { // normal response, not a stream
-    cb(streamResponse.result)
-    done_cb?.(streamResponse.result, streamResponse?.threadId || "");
+    if (streamResponse.result) {
+      cb(streamResponse.result)
+      done_cb?.(streamResponse.result, streamResponse?.threadId || "");
+    } else {
+      const errorMessage = "Error: Unable to to process your request. Try again!";
+      cb(errorMessage);
+      done_cb?.(errorMessage, streamResponse?.threadId || "");
+    }
     return;
   }
 
@@ -90,6 +105,12 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
           done_cb?.(resultText, threadId);
           return;
         }
+
+        // Skip empty JSON strings
+        if (!jsonStr || jsonStr.length === 0) {
+          continue;
+        }
+
         try {
           const json = JSON.parse(jsonStr);
           threadId = json?.thread_id;
@@ -158,6 +179,9 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
           }
         } catch (e) {
           console.error("⚠️ OpenAI Stream parse error:", e);
+          console.error("Problematic JSON string:", jsonStr);
+          // Skip this chunk and continue processing the stream
+          continue;
         }
       }
     }
@@ -175,8 +199,14 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
   let resultText = "";
 
   if (!reader) { // normal response, not a stream
-    cb(streamResponse.result)
-    done_cb?.(streamResponse.result, streamResponse?.threadId || "");
+    if (streamResponse.result) {
+      cb(streamResponse.result)
+      done_cb?.(streamResponse.result, streamResponse?.threadId || "");
+    } else {
+      const errorMessage = "Error: Unable to to process your request. Try again!";
+      cb(errorMessage);
+      done_cb?.(errorMessage, streamResponse?.threadId || "");
+    }
     return;
   }
 
@@ -196,6 +226,11 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
           return;
         }
 
+        // Skip empty JSON strings
+        if (!jsonStr || jsonStr.length === 0) {
+          continue;
+        }
+
         try {
           const json = JSON.parse(jsonStr);
           threadId = json?.id || threadId;
@@ -212,6 +247,9 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
           }
         } catch (e) {
           console.error("MistralAI Stream parse error:", e);
+          console.error("Problematic JSON string:", jsonStr);
+          // Skip this chunk and continue processing the stream
+          continue;
         }
       }
     }
@@ -230,8 +268,14 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
   let currentBlockIndex: number = -1;
 
   if (!reader) { // normal response, not a stream
-    cb(streamResponse.result)
-    done_cb?.(streamResponse.result, streamResponse?.threadId || "");
+    if (streamResponse.result) {
+      cb(streamResponse.result)
+      done_cb?.(streamResponse.result, streamResponse?.threadId || "");
+    } else {
+      const errorMessage = "Error: Unable to to process your request. Try again!";
+      cb(errorMessage);
+      done_cb?.(errorMessage, streamResponse?.threadId || "");
+    }
     return;
   }
 
@@ -246,6 +290,12 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
     for (const line of lines) {
       if (line.startsWith("data: ")) {
         const jsonStr = line.replace(/^data: /, "").trim();
+
+        // Skip empty or invalid JSON strings
+        if (!jsonStr || jsonStr.length === 0) {
+          continue;
+        }
+
         try {
           const json = JSON.parse(jsonStr);
 
@@ -299,6 +349,9 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
           }
         } catch (e) {
           console.error("Anthropic Stream parse error:", e);
+          console.error("Problematic JSON string:", jsonStr);
+          // Skip this chunk and continue processing the stream
+          continue;
         }
       }
     }
@@ -315,8 +368,15 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
   let inThinking = false;
 
   if (!reader) { // normal response, not a stream
-    cb(streamResponse.result || streamResponse.response || "");
-    done_cb?.(streamResponse.result || streamResponse.response || "");
+    const result = streamResponse.result || streamResponse.response;
+    if (result) {
+      cb(result);
+      done_cb?.(result);
+    } else {
+      const errorMessage = "Error: Unable to to process your request. Try again!";
+      cb(errorMessage);
+      done_cb?.(errorMessage);
+    }
     return;
   }
 

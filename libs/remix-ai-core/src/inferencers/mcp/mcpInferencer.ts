@@ -1189,7 +1189,8 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
             // Send empty prompt - the tool results are in toolsMessages
             // Don't add extra prompts as they cause Anthropic to summarize instead of using full tool results
-            return { streamResponse: await super.answer('', followUpOptions), callback: toolExecutionCallback } as IAIStreamResponse;
+            if (options.provider === 'openai' || options.provider === 'mistralai') return { streamResponse: await super.answer(prompt, followUpOptions), callback: toolExecutionCallback } as IAIStreamResponse;
+            else return { streamResponse: await super.answer("", followUpOptions), callback: toolExecutionCallback } as IAIStreamResponse;
           }
         }
       }

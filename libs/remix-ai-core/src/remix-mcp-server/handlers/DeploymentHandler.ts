@@ -115,8 +115,12 @@ export class DeployContractHandler extends BaseToolHandler {
             continueTxExecution()
           }, promptCb: () => {}, statusCb: (error) => {
             console.log(error)
+            return this.createErrorResult(`Deployment error: ${error.message || error}`);
           }, finalCb: (error, contractObject, address: string, txResult: TxResult) => {
-            if (error) return reject(error)
+            if (error) {
+              reject(error)
+              return this.createErrorResult(`Deployment error: ${error.message || error}`);
+            }
             resolve({ contractObject, address, txResult })
           } }
           const confirmationCb = (network, tx, gasEstimation, continueTxExecution, cancelCb) => {
@@ -261,7 +265,7 @@ export class CallContractHandler extends BaseToolHandler {
       let txReturn
       try {
         txReturn = await new Promise((resolve, reject) => {
-          const params = funcABI.type !== 'fallback' ? args.args.join(',') : ''
+          const params = funcABI.type !== 'fallback' ? (args.args? args.args.join(',') : ''): ''
           plugin.call('blockchain', 'runOrCallContractMethod',
             args.contractName,
             args.abi,

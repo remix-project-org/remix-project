@@ -21,7 +21,17 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     this.event = new EventEmitter()
   }
 
-  protected sanitizePromptByteSize(prompt: string, maxBytes: number = 50000): string {
+  protected sanitizePromptByteSize(prompt: string, provider?: string): string {
+    // Provider-specific max byte limits
+    const providerLimits: Record<string, number> = {
+      'mistralai': 30000,
+      'anthropic': 40000,
+      'openai': 40000
+    };
+
+    // Get max bytes based on provider, default to 50KB
+    const maxBytes = provider ? (providerLimits[provider.toLowerCase()] || 50000) : 50000;
+
     const encoder = new TextEncoder();
     const promptBytes = encoder.encode(prompt); // rough estimation, real size might be 10% more
 
@@ -39,7 +49,7 @@ export class RemoteInferencer implements ICompletions, IGeneration {
       currentBytes = encoder.encode(trimmedPrompt).length;
     }
 
-    console.warn(`[RemoteInferencer] Prompt exceeded ${maxBytes} bytes. Trimmed from ${promptBytes.length} to ${currentBytes} bytes.`);
+    console.warn(`[RemoteInferencer] Prompt exceeded ${maxBytes} bytes for provider '${provider || 'default'}'. Trimmed from ${promptBytes.length} to ${currentBytes} bytes.`);
     return trimmedPrompt;
   }
 
@@ -49,7 +59,7 @@ export class RemoteInferencer implements ICompletions, IGeneration {
 
     // Sanitize prompt in payload if it exists
     if (payload.prompt) {
-      payload.prompt = this.sanitizePromptByteSize(payload.prompt);
+      payload.prompt = this.sanitizePromptByteSize(payload.prompt, payload.provider);
     }
 
     try {
@@ -88,7 +98,7 @@ export class RemoteInferencer implements ICompletions, IGeneration {
 
     // Sanitize prompt in payload if it exists
     if (payload.prompt) {
-      payload.prompt = this.sanitizePromptByteSize(payload.prompt);
+      payload.prompt = this.sanitizePromptByteSize(payload.prompt, payload.provider);
     }
 
     try {
