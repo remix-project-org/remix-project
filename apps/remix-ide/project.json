@@ -44,7 +44,8 @@
           "optimization": true,
           "generateIndexHtml": true,
           "extractCss": false,
-          "vendorChunk": false
+          "vendorChunk": false,
+          "verbose": true
         },
         "desktop": {
           "optimization": false,

@@ -623,7 +623,7 @@ jobs:
   deploy-build:
     docker:
       - image: cimg/node:20.19.0-browsers
-    resource_class: large
+    resource_class: xlarge
     environment:
       COMMIT_AUTHOR_EMAIL: "yann@ethereum.org"
       COMMIT_AUTHOR: "Circle CI"
@@ -641,8 +641,12 @@ jobs:
           key: v1-deps-{{ checksum "yarn.lock" }}
           paths:
             - node_modules
-      - run: yarn build:production
+      - run:
+          name: Build remix-ide for production
+          command: yarn build:production
+          no_output_timeout: 30m
       - run: "./apps/remix-ide/ci/deploy_remix-<< parameters.script >>.sh"
+
 
 workflows:
   run_file_tests:
