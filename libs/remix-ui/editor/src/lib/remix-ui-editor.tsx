@@ -1015,6 +1015,11 @@ export const EditorUI = (props: EditorUIProps) => {
         const message = intl.formatMessage({ id: 'editor.explainFunctionByAI' }, { content:context, currentFunction: currentFunction.current })
         await props.plugin.call('popupPanel', 'showPopupPanel', true)
         setTimeout(async () => {
+          // Check if pinned panel has a closed plugin and maximize it
+          const closedPlugin = await props.plugin.call('pinnedPanel', 'getClosedPlugin')
+          if (closedPlugin) {
+            await props.plugin.call('pinnedPanel', 'maximizePlugin', closedPlugin)
+          }
           await props.plugin.call('remixAI' as any, 'chatPipe', 'code_explaining', message, context)
         }, 500)
         trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'explainFunction', isClick: true })
@@ -1039,6 +1044,11 @@ export const EditorUI = (props: EditorUIProps) => {
 
         await props.plugin.call('popupPanel', 'showPopupPanel', true)
         setTimeout(async () => {
+          // Check if pinned panel has a closed plugin and maximize it
+          const closedPlugin = await props.plugin.call('pinnedPanel', 'getClosedPlugin')
+          if (closedPlugin) {
+            await props.plugin.call('pinnedPanel', 'maximizePlugin', closedPlugin)
+          }
           await props.plugin.call('remixAI' as any, 'chatPipe', 'code_explaining', selectedCode, content, pipeMessage)
         }, 500)
         trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'explainFunction', isClick: true })
