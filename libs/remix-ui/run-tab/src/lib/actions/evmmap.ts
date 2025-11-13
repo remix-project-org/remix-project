@@ -27,7 +27,7 @@ export type HardFork =
 export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: string }> = new Map([
   ['prague', {
     chainId: [
-
+      { id: 11155111, name: "Sepolia" },
     ],
     minCompilerVersion: "0.8.24+commit.e11b9ed9",
     evmVersion: 'prague'
@@ -35,6 +35,7 @@ export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: s
   ['cancun', {
     chainId: [
       { id: 5, name: "Goerli" },
+      { id: 11155111, name: "Sepolia" },
     ],
     minCompilerVersion: "0.8.24+commit.e11b9ed9",
     evmVersion: 'cancun'
@@ -42,6 +43,7 @@ export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: s
   ['shanghai', {
     chainId: [
       { id: 5, name: "Goerli" },
+      { id: 11155111, name: "Sepolia" },
     ],
     minCompilerVersion: "0.8.20+commit.a1b79de6",
     evmVersion: 'shanghai'
@@ -49,6 +51,7 @@ export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: s
   ['paris', {
     chainId: [
       { id: 5, name: "Goerli" },
+      { id: 11155111, name: "Sepolia" },
     ],
     minCompilerVersion: "0.8.18+commit.87f61d96",
     evmVersion: 'paris'
@@ -56,6 +59,7 @@ export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: s
   ['london', {
     chainId: [
       { id: 5, name: "Goerli" },
+      { id: 11155111, name: "Sepolia" },
     ],
     minCompilerVersion: "0.8.7+commit.e28d00a7",
     evmVersion: 'london'
@@ -63,6 +67,7 @@ export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: s
   ['berlin', {
     chainId: [
       { id: 5, name: "Goerli" },
+      { id: 11155111, name: "Sepolia" },
     ],
     minCompilerVersion: "0.8.5+commit.a4f2e591",
     evmVersion: 'berlin'
@@ -70,6 +75,7 @@ export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: s
   ['istanbul', {
     chainId: [
       { id: 5, name: "Goerli" },
+      { id: 11155111, name: "Sepolia" },
     ],
     minCompilerVersion: "0.5.14+commit.01f1aaa4",
     evmVersion: 'istanbul'
