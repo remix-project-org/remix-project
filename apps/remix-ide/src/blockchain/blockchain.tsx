@@ -123,6 +123,7 @@ export class Blockchain extends Plugin {
         this.registeredPluginEvents.push(plugin.name)
         this.on(plugin.name, 'chainChanged', () => {
           if (plugin.name === this.executionContext.executionContext) {
+            this.changeExecutionContext({ context: plugin.name }, null, null, null)
             this.detectNetwork((error, network) => {
               this.networkStatus = { network, error }
               if (network.networkNativeCurrency) this.networkNativeCurrency = network.networkNativeCurrency
