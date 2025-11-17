@@ -20,7 +20,7 @@ function track(event) {
 }
 if (typeof window !== 'undefined' && typeof window.ethereum !== 'undefined') {
   var injectedProvider = window.ethereum
-  provider = new ethers.BrowserProvider(injectedProvider)
+  provider = new ethers.BrowserProvider(injectedProvider, 'any')
 } else {
   provider = new ethers.JsonRpcProvider('http://localhost:8545')
 }
@@ -180,7 +180,7 @@ export class ExecutionContext {
         await network.init()
         this.currentFork = network.config.fork
         // injected
-        provider = new ethers.BrowserProvider(network.provider)
+        provider = new ethers.BrowserProvider(network.provider, 'any')
         this.executionContext = context
         this.isConnected = await this._updateChainContext()
         this.event.trigger('contextChanged', [context])
