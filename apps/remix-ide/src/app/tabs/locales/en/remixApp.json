@@ -19,7 +19,7 @@
   "remixApp.decline": "Decline",
 
   "remixApp.mpOp1Title": "Matomo Anonymous Analytics (Necessary)",
-  "remixApp.mpOp1Details": "Our use of anonymous analytics data helps us improve your experience by identifying bug and important UX improvements. This data can also be used in overall statistics on Remix use in the wider Web3 ecosystem",
+  "remixApp.mpOp1Details": "Our use of anonymous analytics data helps us improve your experience by identifying bugs and important UX improvements. This data can also be used in overall statistics on Remix use in the wider Web3 ecosystem",
   "remixApp.mpOp1Tooltip": "This is a necessary selection for a better experience of Remix IDE",
 
   "remixApp.mpOp2Title": "Matomo Performance Analytics",
