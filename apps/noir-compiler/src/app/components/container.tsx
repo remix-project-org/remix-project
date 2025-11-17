@@ -67,7 +67,6 @@ export function Container () {
       <article>
         <div className="pt-0 noir_section">
           <div className="mb-1">
-            <div className="d-flex align-items-center">
               <label className="noir_label form-check-label">
                 <FormattedMessage id="noir.compiler" />
               </label>
@@ -85,10 +84,22 @@ export function Container () {
                 tooltipClasses="text-nowrap"
                 tooltipText={`Using Noir ${NOIR_VERSION} and Barretenberg ${BARRETENBERG_VERSION}`}
               >
-                <span className="text-muted small ms-2">{NOIR_VERSION}</span>
+                <button
+                  className="btn btn-light btn-block w-100 d-inline-block border form-select"
+                  style={{
+                    cursor: 'default',
+                    opacity: 1,
+                    textAlign: 'left' 
+                  }}
+                >
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div className="font-sm" style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }}>
+                      { NOIR_VERSION }
+                    </div>
+                  </div>
+                </button>
               </CustomTooltip>
             </div>
-            {/* <CompileOptions setCircuitAutoCompile={handleCircuitAutoCompile} setCircuitHideWarnings={handleCircuitHideWarnings} autoCompile={noirApp.appState.autoCompile} hideWarnings={noirApp.appState.hideWarnings} /> */}
             <hr></hr>
             <div>
               <CompileBtn id="noir" plugin={noirApp.plugin} appState={noirApp.appState} compileAction={handleCompileClick} />
@@ -177,7 +188,6 @@ export function Container () {
               <CompilerFeedback feedback={noirApp.appState.compilerFeedback} filePathToId={noirApp.appState.filePathToId} openErrorLocation={handleOpenErrorLocation} hideWarnings={noirApp.appState.hideWarnings} askGPT={askGPT} />
             </RenderIf>
           </div>
-        </div>
       </article>
     </section>
   )
