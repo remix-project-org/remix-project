@@ -594,7 +594,7 @@ export class Blockchain extends Plugin {
       // TODO: this try catch feels like an anti pattern, can/should be
       // removed, but for now keeping the original logic
       try {
-        const fee = this.calculateFee(tx.gas, gasPrice)
+        const fee = this.calculateFee(tx.gasLimit, gasPrice)
         txFeeText = ' ' + this.fromWei(fee, false, 'ether') + ' Ether'
         priceStatus = true
       } catch (e) {

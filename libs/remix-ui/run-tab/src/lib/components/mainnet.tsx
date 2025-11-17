@@ -16,7 +16,6 @@ export function MainnetPrompt(props: MainnetProps) {
       if (gasPriceValue) onGasPriceChange(gasPriceValue)
       if (props.network && props.network.lastBlock && props.network.lastBlock.baseFeePerGas) {
         const baseFee = formatUnits(BigInt(props.network.lastBlock.baseFeePerGas), 'gwei')
-
         setBaseFee(baseFee)
         onMaxFeeChange(baseFee)
       }
@@ -102,7 +101,7 @@ export function MainnetPrompt(props: MainnetProps) {
           <span className="text-dark me-2">
             <FormattedMessage id="udapp.gasLimit" />:
           </span>
-          <span>{props.tx.gas}</span>
+          <span>{props.tx.gasLimit}</span>
         </div>
         {props.network.lastBlock.baseFeePerGas ? (
           <div>
@@ -169,9 +168,9 @@ export function MainnetPrompt(props: MainnetProps) {
           </span>
         </div>
       </div>
-      <div className="d-flex py-1 align-items-center form-check remixui_checkbox">
+      <div className="d-flex py-1 align-items-center form-check">
         <input className="form-check-input" id="confirmsetting" type="checkbox" />
-        <label className="m-0 form-check-label" htmlFor="confirmsetting">
+        <label className="ms-1 mt-1 form-check-label" htmlFor="confirmsetting">
           <FormattedMessage id="udapp.mainnetText3" />
         </label>
       </div>

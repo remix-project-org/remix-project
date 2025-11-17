@@ -162,8 +162,8 @@ export class Topbar extends Plugin {
   async getLatestReleaseNotesUrl () {
     const response = await this.getLatestUpdates()
     const data: UpdateInfo[] = response
-    const interim = data.find(x => x.action.label.includes('Release notes'))
-    const targetUrl = interim.action.url
+    const interim = data.find(x => x.action.label.toLowerCase().includes('release notes'))
+    const targetUrl = interim?.action?.url
     const currentReleaseVersion = packageJson.version
     return [targetUrl, currentReleaseVersion]
   }

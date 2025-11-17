@@ -227,7 +227,7 @@ export interface Tx {
   from: string,
   to: string,
   data: string,
-  gas: string
+  gasLimit?: string
 }
 
 export interface Network {
