@@ -33,14 +33,14 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       },
       {
         action: 'uploadFile',
-        title: 'Upload files into current workspace',
+        title: 'Upload files into current Workspace',
         icon: 'far fa-upload',
         placement: 'top',
         platforms:[appPlatformTypes.web]
       },
       {
         action: 'uploadFolder',
-        title: 'Upload folder into current workspace',
+        title: 'Upload folder into current Workspace',
         icon: 'far fa-folder-upload',
         placement: 'top',
         platforms:[appPlatformTypes.web]
@@ -61,14 +61,14 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       },
       {
         action: 'initializeWorkspaceAsGitRepo',
-        title: 'Initialize workspace as a git repository',
+        title: 'Initialize Workspace as a git repository',
         icon: 'fa-brands fa-git-alt',
         placement: 'top',
         platforms: [appPlatformTypes.web, appPlatformTypes.desktop]
       },
       {
         action: 'revealInExplorer',
-        title: 'Reveal workspace in explorer',
+        title: 'Reveal Workspace in explorer',
         icon: 'fas fa-eye',
         placement: 'top',
         platforms: [appPlatformTypes.desktop]

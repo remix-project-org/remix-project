@@ -416,7 +416,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
               setOpenSub(null)
             }}>
               <i className="fas fa-plus me-2"></i>
-                Create a new workspace
+                Create a new Workspace
             </button>
           </Dropdown.Item>
           <Dropdown.Divider className="border mb-0 mt-0 remixui_menuhr" style={{ pointerEvents: 'none' }} />

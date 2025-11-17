@@ -206,7 +206,7 @@ export const createWorkspace = async (
 }
 
 export const generateWorkspace = async () => {
-  await plugin.call('notification', 'alert', 'Your request is being processed. Please wait while I generate the workspace for you. It won\'t be long.')
+  await plugin.call('notification', 'alert', 'Your request is being processed. Please wait while I generate the Workspace for you. It won\'t be long.')
 }
 
 export const populateWorkspace = async (
@@ -219,7 +219,7 @@ export const populateWorkspace = async (
 ) => {
   const metadata = TEMPLATE_METADATA[workspaceTemplateName]
   if (metadata && metadata.type === 'plugin') {
-    plugin.call('notification', 'toast', 'Please wait while the workspace is being populated with the template.')
+    plugin.call('notification', 'toast', 'Please wait while the Workspace is being populated with the template.')
     dispatch(cloneRepositoryRequest())
     setTimeout(() => {
       plugin.call(metadata.name, metadata.endpoint, ...metadata.params).then(() => {
@@ -249,9 +249,9 @@ export const populateWorkspace = async (
 }
 
 export const createWorkspaceTemplate = async (workspaceName: string, template: WorkspaceTemplate = 'remixDefault', metadata?: TemplateType) => {
-  if (!workspaceName) throw new Error('workspace name cannot be empty')
+  if (!workspaceName) throw new Error('Workspace name cannot be empty')
   if (checkSpecialChars(workspaceName) || checkSlash(workspaceName)) throw new Error('special characters are not allowed')
-  if ((await workspaceExists(workspaceName)) && template === 'remixDefault') throw new Error('workspace already exists')
+  if ((await workspaceExists(workspaceName)) && template === 'remixDefault') throw new Error('Workspace already exists')
   else if (metadata && metadata.type === 'git') {
     dispatch(cloneRepositoryRequest())
     await dgitPlugin.call('dgitApi', 'clone', { url: metadata.url, branch: metadata.branch, workspaceName: workspaceName, depth: 10 })
@@ -517,7 +517,7 @@ export const renameWorkspace = async (oldName: string, workspaceName: string, cb
 export const renameWorkspaceFromProvider = async (oldName: string, workspaceName: string) => {
   if (!workspaceName) throw new Error('name cannot be empty')
   if (checkSpecialChars(workspaceName) || checkSlash(workspaceName)) throw new Error('special characters are not allowed')
-  if (await workspaceExists(workspaceName)) throw new Error('workspace already exists')
+  if (await workspaceExists(workspaceName)) throw new Error('Workspace already exists')
   const browserProvider = plugin.fileProviders.browser
   const workspaceProvider = plugin.fileProviders.workspace
   const workspacesPath = workspaceProvider.workspacesPath
