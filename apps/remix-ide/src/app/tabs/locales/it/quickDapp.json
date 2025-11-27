@@ -8,7 +8,7 @@
   "quickDapp.enterNetwork": "Inserisci la rete",
   "quickDapp.submit": "Invia",
   "quickDapp.text1": "QuickDapp funziona soltanto per il Fornitore Iniettato, al momento. Ulteriori fornitori saranno adottati nelle iterazioni future.",
-  "quickDapp.text2": "Il click sull'icona di modifica in un contratto distribuito, inserirà automaticamente i parametri.",
+  "quickDapp.text2": "Il click sull'icona della stella scintillante in un contratto distribuito, inserirà automaticamente i parametri.",
   "quickDapp.admin": "Admin",
   "quickDapp.resetFunctions": "Ripristina le funzioni",
   "quickDapp.deleteDapp": "Elimina dApp",
@@ -39,5 +39,6 @@
   "quickDapp.functionTitle": "Titolo della funzione",
   "quickDapp.functionInstructions": "Istruzioni per la funzione",
   "quickDapp.addColumn": "Aggiungi colonna",
-  "quickDapp.column": "Colonna"
+  "quickDapp.column": "Colonna",
+  "quickDapp.text7": "Non hai ancora creato nessuna dApp."
 }

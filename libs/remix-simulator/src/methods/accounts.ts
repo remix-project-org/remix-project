@@ -1,8 +1,7 @@
 import { signTypedData, SignTypedDataVersion, TypedMessage, MessageTypes } from '@metamask/eth-sig-util'
-import { privateToAddress, toChecksumAddress, isValidPrivate, createAddressFromString, toBytes, bytesToHex, Account } from '@ethereumjs/util'
+import { privateToAddress, toChecksumAddress, isValidPrivate, createAddressFromString, toBytes, bytesToHex, Account, intToHex } from '@ethereumjs/util'
 import type { PrefixedHexString } from '@ethereumjs/util'
-import { privateKeyToAccount } from 'web3-eth-accounts'
-import { toBigInt, toHex } from 'web3-utils'
+import { ethers, toBeArray, Wallet } from 'ethers'
 import * as crypto from 'crypto'
 
 type AccountType = {
@@ -56,10 +55,10 @@ export class Web3Accounts {
       const stateManager = this.vmContext.vm().stateManager
       const account = await stateManager.getAccount(createAddressFromString(addressStr))
       if (!account) {
-        const account = new Account(BigInt(0), toBigInt(balance || '0xf00000000000000001'))
+        const account = new Account(BigInt(0), BigInt(balance || '0xf00000000000000001'))
         await stateManager.putAccount(createAddressFromString(addressStr), account)
       } else {
-        account.balance = toBigInt(balance || '0xf00000000000000001')
+        account.balance = BigInt(balance || '0xf00000000000000001')
         await stateManager.putAccount(createAddressFromString(addressStr), account)
       }
     } catch (e) {
@@ -83,6 +82,7 @@ export class Web3Accounts {
       eth_accounts: this.eth_accounts.bind(this),
       eth_getBalance: this.eth_getBalance.bind(this),
       eth_sign: this.eth_sign.bind(this),
+      personal_sign: this.personal_sign.bind(this),
       eth_chainId: this.eth_chainId.bind(this),
       eth_signTypedData: this.eth_signTypedData_v4.bind(this), // default call is using V4
       eth_signTypedData_v4: this.eth_signTypedData_v4.bind(this),
@@ -106,9 +106,9 @@ export class Web3Accounts {
   eth_getBalance (payload, cb) {
     const address = payload.params[0]
     this.vmContext.vm().stateManager.getAccount(createAddressFromString(address)).then((account) => {
-      if (!account) return cb(null, toBigInt(0).toString(10))
-      if (!account.balance) return cb(null, toBigInt(0).toString(10))
-      cb(null, toBigInt(account.balance).toString(10))
+      if (!account) return cb(null, BigInt(0).toString(10))
+      if (!account.balance) return cb(null, BigInt(0).toString(10))
+      cb(null, BigInt(account.balance).toString(10))
     }).catch((error) => {
       cb(error)
     })
@@ -122,16 +122,29 @@ export class Web3Accounts {
     if (!privateKey) {
       return cb(new Error('unknown account'))
     }
-    const account = privateKeyToAccount(privateKey as string)
+    const wallet: Wallet = new ethers.Wallet(privateKey)
+    const signature = wallet.signMessageSync(toBeArray(message))
 
-    const data = account.sign(message)
+    cb(null, signature)
+  }
 
-    cb(null, data.signature)
+  personal_sign (payload, cb) {
+    const message = payload.params[0]
+    const address = payload.params[1]
+
+    const privateKey = this.accountsKeys[toChecksumAddress(address)]
+    if (!privateKey) {
+      return cb(new Error('unknown account'))
+    }
+    const wallet: Wallet = new ethers.Wallet(privateKey)
+    const signature = wallet.signMessageSync(toBeArray(message))
+
+    cb(null, signature)
   }
 
   eth_chainId (_payload, cb) {
     if (!this.options.chainId) return cb(null, '0x539') // 0x539 is hex of 1337
-    const id = (typeof this.options.chainId === 'number') ? toHex(this.options.chainId) : this.options.chainId
+    const id = (typeof this.options.chainId === 'number') ? intToHex(this.options.chainId) : this.options.chainId
     return cb(null, id)
   }
 

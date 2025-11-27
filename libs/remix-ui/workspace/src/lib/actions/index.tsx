@@ -682,11 +682,7 @@ export const signTypedData = async (path: string) => {
   }
 
   try {
-    const result = await web3.currentProvider.request({
-      method: 'eth_signTypedData_v4',
-      params: [settings.selectedAccount, parsed]
-    })
-
+    const result = await web3.send('eth_signTypedData_v4', [settings.selectedAccount, parsed])
     plugin.call('terminal', 'log', { type: 'log', value: `${path} signature using ${settings.selectedAccount} : ${result}` })
   } catch (e) {
     console.error(e)

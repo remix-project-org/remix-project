@@ -35,36 +35,30 @@ module.exports = {
 
   'Should create Remix default workspace with files #group1': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="workspacesSelect"]')
-      .click('*[data-id="workspacesSelect"]')
-      .waitForElementVisible('*[data-id="workspacecreate"]')
-      .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-remixDefault"]')
-      .scrollAndClick('*[data-id="create-remixDefault"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .scrollAndClick('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('*[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_remix_default')
-      // eslint-disable-next-line dot-notation
-      .execute(function () { document.querySelector('*[data-id="modalDialogCustomPromptTextCreate"]')['value'] = 'workspace_remix_default' })
-      .modalFooterOKClick('TemplatesSelection')
-      .pause(1000)
       .clickLaunchIcon('filePanel')
+      .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
+      .click('*[data-id="workspacecreate"]')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
+      .click('*[data-id="template-card-remixDefault-0"]')
+      .waitForElementVisible('*[data-id="workspace-details-section"]')
+      .waitForElementVisible('*[data-id="default-workspace-name-edit-icon"]')
+      .click('*[data-id="default-workspace-name-edit-icon"]')
+      .waitForElementVisible('*[data-id="workspace-name-input"]')
+      .setValue('*[data-id="workspace-name-input"]', 'workspace_remix_default')
+      .click('*[data-id="default-workspace-name-edit-icon"]')
+      .waitForElementVisible('*[data-id="default-workspace-name-span"]')
+      .assert.textContains('*[data-id="default-workspace-name-span"]', 'WORKSPACE_REMIX_DEFAULT', 'Workspace name is correct')
+      .pause(1000)
+      .click('*[data-id="validateWorkspaceButton"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/1_Storage.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/2_Owner.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/3_Ballot.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      // check js and ts files are not transformed
-      .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, './web3-lib')]",
-        locateStrategy: 'xpath'
-      })
-      .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`import { deploy } from './web3-lib'`) !== -1,
-          'Incorrect content')
-      })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .waitForElementPresent({
@@ -73,16 +67,6 @@ module.exports = {
       })
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`import { deploy } from './ethers-lib'`) !== -1,
-          'Incorrect content')
-      })
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .click('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, 'web3.eth.getAccounts')]",
-        locateStrategy: 'xpath'
-      })
-      .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`export const deploy = async (contractName: string, args: Array<any>, from?: string, gas?: number): Promise<Options> => {`) !== -1,
           'Incorrect content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/ethers-lib.ts"]')
@@ -113,19 +97,20 @@ module.exports = {
   'Should create blank workspace with no files #group1': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
-      .waitForElementVisible('*[data-id="workspacecreate"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementVisible('*[data-id="create-blank"]')
-      .click('*[data-id="create-blank"]')
-      .waitForElementPresent('*[data-id="TemplatesSelectionModalDialogModalTitle-react"]')
-      .assert.containsText('*[data-id="TemplatesSelectionModalDialogModalTitle-react"]', 'Create Workspace Using Template')
-      // .scrollAndClick('*[data-id="create-blank"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .scrollAndClick('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('*[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_blank')
-      // eslint-disable-next-line dot-notation
-      // .execute(function () { document.querySelector('*[data-id="modalDialogCustomPromptTextCreate"]')['value'] = 'workspace_blank' })
-      .click('*[data-id="TemplatesSelection-modal-footer-ok-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="template-card-blank-1"]')
+      .click('*[data-id="template-card-blank-1"]')
+      .waitForElementVisible('*[data-id="generic-template-section-blank"]')
+      .waitForElementVisible('*[data-id="workspace-name-blank-input"]')
+      .click('*[data-id="workspace-name-blank-input"]')
+      .setValue('*[data-id="workspace-name-blank-input"]', 'workspace_blank')
+      .assert.valueEquals('*[data-id="workspace-name-blank-input"]', 'workspace_blank', 'Workspace name is correct')
+      .pause(1000)
+      .click('*[data-id="validate-blankworkspace-button"]')
       .currentWorkspaceIs('workspace_blank')
       .waitForElementPresent('*[data-id="treeViewUltreeViewMenu"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
@@ -134,7 +119,7 @@ module.exports = {
         const fileList = document.querySelector('*[data-id="treeViewUltreeViewMenu"]')
         return fileList.getElementsByTagName('li').length;
       }, [], function (result) {
-        browser.assert.equal(result.value, 2, 'Incorrect number of files');
+        browser.assert.equal(result.value, 3, 'Incorrect number of files in workspace');
       });
   },
 
@@ -142,32 +127,42 @@ module.exports = {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
-      .waitForElementVisible('*[data-id="workspacecreate"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-ozerc20"]')
-      .scrollAndClick('*[data-id="create-ozerc20"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .scrollAndClick('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('*[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_erc20')
-      // eslint-disable-next-line dot-notation
-      .execute(function () { document.querySelector('*[data-id="modalDialogCustomPromptTextCreate"]')['value'] = 'workspace_erc20' })
-      .modalFooterOKClick('TemplatesSelection')
-      .pause(100)
-      .clickLaunchIcon('filePanel')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="contract-wizard-topcard"]')
+      .click('*[data-id="contract-wizard-topcard"]')
+      .waitForElementVisible('*[data-id="contract-wizard-container"]')
+      .waitForElementVisible('*[data-id="contract-wizard-token-name-input"]')
+      .click('*[data-id="contract-wizard-token-name-input"]')
+      .setValue('*[data-id="contract-wizard-token-name-input"]', 'TestToken')
+      .click('*[data-id="contract-wizard-mintable-checkbox"]')
+      .click('*[data-id="contract-wizard-burnable-checkbox"]')
+      .click('*[data-id="contract-wizard-pausable-checkbox"]')
+      .assert.selected('*[data-id="contract-wizard-access-ownable-radio"]', 'checked')
+      .click('*[data-id="contract-wizard-validate-workspace-button"]')
+      .perform(function () {
+        browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
+          browser.assert.not.ok(result.value as any, 'Scripts folder is not visible')
+            .clickLaunchIcon('filePanel')
+        })
+      })
+      .isVisible('*[data-id="treeViewLitreeViewItemremix.config.json"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      // check js and ts files are not transformed
-      .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, './web3-lib')]",
-        locateStrategy: 'xpath',
-      })
+      .isVisible('*[data-id="treeViewLitreeViewItemcontracts/TestToken.sol"]')
+      .click('*[data-id="treeViewLitreeViewItemcontracts/TestToken.sol"]')
+      .pause(1000)
       .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`import { deploy } from './web3-lib'`) !== -1,
-          'Incorrect content')
+        browser.assert.ok(content.indexOf(`contract TestToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {`) !== -1,
+          'Correct content')
       })
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
+      .click('*[data-id="compile-action"]')
+      .waitForElementVisible('#verticalIconsKindsolidity > i.remixui_status.fas.fa-check-circle.text-success.remixui_statusCheck')
+      .pause(1000)
+      // check js and ts files are not transformed
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .waitForElementPresent({
@@ -176,16 +171,6 @@ module.exports = {
       })
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`import { deploy } from './ethers-lib'`) !== -1,
-          'Incorrect content')
-      })
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .click('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, 'web3.eth.getAccounts')]",
-        locateStrategy: 'xpath'
-      })
-      .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`export const deploy = async (contractName: string, args: Array<any>, from?: string, gas?: number): Promise<Options> => {`) !== -1,
           'Incorrect content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/ethers-lib.ts"]')
@@ -199,58 +184,54 @@ module.exports = {
           'Incorrect content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests/MyToken_test.sol"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests/TestToken_test.sol"]')
   },
 
   'Should create ERC721 workspace with files #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
-      .waitForElementVisible('*[data-id="workspacecreate"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-ozerc721"]')
-      .scrollAndClick('*[data-id="create-ozerc721"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .scrollAndClick('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('*[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_erc721')
-      // eslint-disable-next-line dot-notation
-      .execute(function () { document.querySelector('*[data-id="modalDialogCustomPromptTextCreate"]')['value'] = 'workspace_erc721' })
-      .modalFooterOKClick('TemplatesSelection')
-      .pause(100)
-      .clickLaunchIcon('filePanel')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      // check js and ts files are not transformed
-      .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, './web3-lib')]",
-        locateStrategy: 'xpath'
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="contract-wizard-topcard"]')
+      .click('*[data-id="contract-wizard-topcard"]')
+      .waitForElementVisible('*[data-id="contract-wizard-container"]')
+      .waitForElementVisible('*[data-id="contract-wizard-token-name-input"]')
+      .setValue('*[data-id="contract-wizard-token-name-input"]', 'Test721Token')
+      .click('*[data-id="contract-wizard-contract-type-dropdown"]')
+      .click('*[data-id="contract-wizard-contract-type-dropdown-item-erc721"]')
+      .click('*[data-id="contract-wizard-mintable-checkbox"]')
+      .click('*[data-id="contract-wizard-burnable-checkbox"]')
+      .click('*[data-id="contract-wizard-pausable-checkbox"]')
+      .assert.selected('*[data-id="contract-wizard-access-ownable-radio"]', 'checked')
+      .click('*[data-id="contract-wizard-validate-workspace-button"]')
+      .perform(function() {
+        browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
+          browser.assert.not.ok(result.value as any, 'Scripts folder is not visible')
+            .clickLaunchIcon('filePanel')
+        })
       })
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
+      .isVisible('*[data-id="treeViewDivDraggableItemremix.config.json"]')
+      .isVisible('*[data-id="treeViewLitreeViewItemcontracts/Test721Token.sol"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
+      .click('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
+      .click('*[data-id="treeViewLitreeViewItemcontracts/Test721Token.sol"]')
       .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`import { deploy } from './web3-lib'`) !== -1,
+        browser.assert.ok(content.indexOf(`contract Test721Token is ERC721, ERC721Pausable, Ownable, ERC721Burnable {`) !== -1,
           'Incorrect content')
       })
+      .pause(300)
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
+      // .waitForElementVisible('*[data-id="treeViewDivtreeViewItemscripts/ethers-lib.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, './ethers-lib')]",
-        locateStrategy: 'xpath'
-      })
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`import { deploy } from './ethers-lib'`) !== -1,
-          'Incorrect content')
-      })
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .click('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, 'web3.eth.getAccounts')]",
-        locateStrategy: 'xpath'
-      })
-      .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`export const deploy = async (contractName: string, args: Array<any>, from?: string, gas?: number): Promise<Options> => {`) !== -1,
-          'Incorrect content')
+          'Correct content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/ethers-lib.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/ethers-lib.ts"]')
@@ -263,38 +244,43 @@ module.exports = {
           'Incorrect content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests/MyToken_test.sol"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests/Test721Token_test.sol"]')
   },
 
   'Should create ERC1155 workspace with files #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-ozerc1155"]')
-      .scrollAndClick('*[data-id="create-ozerc1155"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .scrollAndClick('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('*[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_erc1155')
-      // eslint-disable-next-line dot-notation
-      .execute(function () { document.querySelector('*[data-id="modalDialogCustomPromptTextCreate"]')['value'] = 'workspace_erc1155' })
-      .modalFooterOKClick('TemplatesSelection')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="contract-wizard-topcard"]')
+      .click('*[data-id="contract-wizard-topcard"]')
+      .waitForElementVisible('*[data-id="contract-wizard-container"]')
+      .click('*[data-id="contract-wizard-contract-type-dropdown"]')
+      .click('*[data-id="contract-wizard-contract-type-dropdown-item-erc1155"]')
+      .click('*[data-id="contract-wizard-mintable-checkbox"]')
+      .click('*[data-id="contract-wizard-burnable-checkbox"]')
+      .click('*[data-id="contract-wizard-pausable-checkbox"]')
+      .assert.selected('*[data-id="contract-wizard-access-ownable-radio"]', 'checked')
+      .click('*[data-id="contract-wizard-upgradability-uups-checkbox"]')
       .pause(100)
-      .clickLaunchIcon('filePanel')
+      .click('*[data-id="contract-wizard-validate-workspace-button"]')
+      .perform(function() {
+        browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
+          browser.assert.not.ok(result.value as any, 'Scripts folder is not visible')
+            .clickLaunchIcon('filePanel')
+        })
+      })
+      .pause(1000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
+      .click('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
+      .pause(1000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      // check js and ts files are not transformed
-      .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, './web3-lib')]",
-        locateStrategy: 'xpath'
-      })
-      .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`import { deploy } from './web3-lib'`) !== -1,
-          'Incorrect content')
-      })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .waitForElementPresent({
@@ -303,16 +289,6 @@ module.exports = {
       })
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`import { deploy } from './ethers-lib'`) !== -1,
-          'Incorrect content')
-      })
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .click('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, 'web3.eth.getAccounts')]",
-        locateStrategy: 'xpath'
-      })
-      .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`export const deploy = async (contractName: string, args: Array<any>, from?: string, gas?: number): Promise<Options> => {`) !== -1,
           'Incorrect content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/ethers-lib.ts"]')
@@ -333,39 +309,40 @@ module.exports = {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      // .waitForElementPresent(`*[data-id='create-ozerc1155{"upgradeable":"uups","mintable":true,"burnable":true,"pausable":true}']`)
-      // .scrollAndClick(`*[data-id='create-ozerc1155{"upgradeable":"uups","mintable":true,"burnable":true,"pausable":true}']`)
-      .waitForElementPresent('*[data-id="create-ozerc1155"]')
-      .scrollAndClick('*[data-id="create-ozerc1155"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .click('*[data-id="featureTypeMintable"]')
-      .click('*[data-id="featureTypeBurnable"]')
-      .click('*[data-id="featureTypePausable"]')
-      .click('*[data-id="upgradeTypeUups"]')
-      .modalFooterOKClick('TemplatesSelection')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="contract-wizard-topcard"]')
+      .click('*[data-id="contract-wizard-topcard"]')
+      .waitForElementVisible('*[data-id="contract-wizard-container"]')
+      .click('*[data-id="contract-wizard-contract-type-dropdown"]')
+      .click('*[data-id="contract-wizard-contract-type-dropdown-item-erc1155"]')
+      .click('*[data-id="contract-wizard-mintable-checkbox"]')
+      .click('*[data-id="contract-wizard-burnable-checkbox"]')
+      .click('*[data-id="contract-wizard-pausable-checkbox"]')
+      .assert.selected('*[data-id="contract-wizard-access-ownable-radio"]', 'checked')
+      .click('*[data-id="contract-wizard-upgradability-uups-checkbox"]')
       .pause(100)
-      .clickLaunchIcon('filePanel')
+      .click('*[data-id="contract-wizard-validate-workspace-button"]')
+      .perform(function() {
+        browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
+          browser.assert.not.ok(result.value as any, 'Scripts folder is not visible')
+            .clickLaunchIcon('filePanel')
+        })
+      })
+      .pause(1000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .pause(1000)
       .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`contract MyToken is Initializable, ERC1155Upgradeable, OwnableUpgradeable, ERC1155PausableUpgradeable, ERC1155BurnableUpgradeable, UUPSUpgradeable {`) !== -1,
+        browser.assert.ok(content.indexOf(`contract MyToken is Initializable, ERC1155Upgradeable, ERC1155PausableUpgradeable, OwnableUpgradeable, ERC1155BurnableUpgradeable, UUPSUpgradeable {`) !== -1,
           'Incorrect content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      // check js and ts files are not transformed
-      .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_web3.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, './web3-lib')]",
-        locateStrategy: 'xpath'
-      })
-      .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`import { deploy } from './web3-lib'`) !== -1,
-          'Incorrect content')
-      })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .waitForElementPresent({
@@ -375,18 +352,6 @@ module.exports = {
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`import { deploy } from './ethers-lib'`) !== -1,
           'Incorrect content')
-      })
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .click('*[data-id="treeViewLitreeViewItemscripts/web3-lib.ts"]')
-      .waitForElementPresent({
-        selector: "//div[contains(@class, 'view-line') and contains(.//span, 'web3.eth.getAccounts')]",
-        locateStrategy: 'xpath'
-      })
-      .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`export const deploy = async (contractName: string, args: Array<any>, from?: string, gas?: number): Promise<Options> => {`) !== -1,
-          'Incorrect content')
-        browser.assert.ok(content.indexOf(`gas: gas || 3600000`) !== -1,
-          'Incorrect gas cost')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/ethers-lib.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/ethers-lib.ts"]')
@@ -403,11 +368,18 @@ module.exports = {
   'Should create circom zkp hashchecker workspace #group1': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-hashchecker"]')
-      .scrollAndClick('*[data-id="create-hashchecker"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .modalFooterOKClick('TemplatesSelection')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .scrollInto('*[data-id="template-category-Circom ZKP"]')
+      .waitForElementVisible('*[data-id="template-card-semaphore-0"]')
+      .waitForElementPresent('*[data-id="template-card-hashchecker-1"]')
+      .click('*[data-id="template-card-hashchecker-1"]')
+      .waitForElementVisible('*[data-id="workspace-name-hashchecker-input"')
+      .setValue('*[data-id="workspace-name-hashchecker-input"]', 'Test Hashchecker Workspace')
+      .click('*[data-id="validate-hashcheckerworkspace-button"]')
       .pause(100)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcircuits"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcircuits/calculate_hash.circom"]')
@@ -440,14 +412,19 @@ module.exports = {
   'Should create two workspace and switch to the first one #group1': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-remixDefault"]')
-      .click('*[data-id="create-remixDefault"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .click('input[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('input[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_name')
-      // .modalFooterOKClick('TemplatesSelection')
-      .click('*[data-id="TemplatesSelection-modal-footer-ok-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
+      .click('*[data-id="template-card-remixDefault-0"]')
+      .waitForElementVisible('*[data-id="workspace-details-section"]')
+      .waitForElementVisible('*[data-id="default-workspace-name-edit-icon"]')
+      .click('*[data-id="default-workspace-name-edit-icon"]')
+      .waitForElementVisible('*[data-id="workspace-name-input"]')
+      .setValue('*[data-id="workspace-name-input"]', 'workspace_name')
+      .click('*[data-id="validateWorkspaceButton"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests"]')
       .click('*[data-id="treeViewLitreeViewItemtests"]')
       .addFile('test.sol', { content: 'test' })
@@ -457,14 +434,19 @@ module.exports = {
         locateStrategy: 'xpath'
       })
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-remixDefault"]')
-      .scrollAndClick('*[data-id="create-remixDefault"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .click('input[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('input[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_name_1')
-      // .modalFooterOKClick('TemplatesSelection')
-      .click('*[data-id="TemplatesSelection-modal-footer-ok-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
+      .click('*[data-id="template-card-remixDefault-0"]')
+      .waitForElementVisible('*[data-id="workspace-details-section"]')
+      .waitForElementVisible('*[data-id="default-workspace-name-edit-icon"]')
+      .click('*[data-id="default-workspace-name-edit-icon"]')
+      .waitForElementVisible('*[data-id="workspace-name-input"]')
+      .setValue('*[data-id="workspace-name-input"]', 'workspace_name_1')
+      .click('*[data-id="validateWorkspaceButton"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests"]')
       .waitForElementNotPresent('*[data-id="treeViewLitreeViewItemtest.sol"]')
       .switchWorkspace('workspace_name')
@@ -509,11 +491,13 @@ module.exports = {
       .click('*[data-id="topbarModalModalDialogModalFooter-react"] .modal-ok')
       .waitForElementVisible('*[data-id="workspacesSelect"]')
       .click('*[data-id="workspacesSelect"]')
-      .waitForElementVisible('*[data-id="dropdown-item-workspace_name"]')
-      .click('*[data-id="dropdown-item-workspace_name"]')
+      .waitForElementVisible('*[data-id="dropdown-item-workspace_name_renamed"]')
+      .click('*[data-id="dropdown-item-workspace_name_renamed"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="workspacesSelect"]')
+      .click('*[data-id="workspacesSelect"]')
+      .click('*[data-id="dropdown-item-ERC1155 - 1"]')
       .click('*[data-id="workspacesSelect"]')
       .waitForElementNotPresent(`[data-id="dropdown-item-workspace_name_1"]`)
       .end()
@@ -521,20 +505,21 @@ module.exports = {
 
   'Should create workspace for test #group2': function (browser: NightwatchBrowser) {
     browser
-      .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-ozerc1155"]')
-      .scrollAndClick('*[data-id="create-ozerc1155"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .scrollAndClick('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('*[data-id="modalDialogCustomPromptTextCreate"]', 'sometestworkspace')
-      .execute(function () { document.querySelector('*[data-id="modalDialogCustomPromptTextCreate"]')['value'] = 'sometestworkspace' })
-      .modalFooterOKClick('TemplatesSelection')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .waitForElementVisible('*[data-id="contract-wizard-topcard"]')
+      .click('*[data-id="contract-wizard-topcard"]')
+      .waitForElementVisible('*[data-id="contract-wizard-container"]')
+      .click('*[data-id="contract-wizard-validate-workspace-button"]')
+      .clickLaunchIcon('filePanel')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
-      .pause(2000)
   },
 
   'Should change the current workspace in localstorage to a non existent value, reload the page and see the workspace created #group2': function (browser: NightwatchBrowser) {
@@ -544,21 +529,37 @@ module.exports = {
       })
       .refreshPage()
       .clickLaunchIcon('filePanel')
-      .currentWorkspaceIs('sometestworkspace')
+      .currentWorkspaceIs('default_workspace')
   },
 
   'Should create workspace for next test #group2': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-ozerc1155"]')
-      .scrollAndClick('*[data-id="create-ozerc1155"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .scrollAndClick('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('*[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_db_test')
-      // eslint-disable-next-line dot-notation
-      .execute(function () { document.querySelector('*[data-id="modalDialogCustomPromptTextCreate"]')['value'] = 'workspace_db_test' })
-      .modalFooterOKClick('TemplatesSelection')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementPresent('*[data-id="template-card-ozerc1155-2"]')
+      .scrollAndClick('*[data-id="template-card-ozerc1155-2"]')
+      .waitForElementVisible('*[data-id="contract-wizard-container"]')
+      .click('*[data-id="contract-wizard-contract-type-dropdown"]')
+      .click('*[data-id="contract-wizard-contract-type-dropdown-item-erc1155"]')
+      .click('*[data-id="contract-wizard-mintable-checkbox"]')
+      .click('*[data-id="contract-wizard-burnable-checkbox"]')
+      .click('*[data-id="contract-wizard-pausable-checkbox"]')
+      .assert.selected('*[data-id="contract-wizard-access-ownable-radio"]', 'checked')
+      .click('*[data-id="contract-wizard-upgradability-uups-checkbox"]')
+      .pause(1000)
+      .click('*[data-id="contract-wizard-validate-workspace-button"]')
+      .perform(function () {
+        browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
+          console.log(result)
+          if (result.value === false) {
+            browser.clickLaunchIcon('filePanel')
+          }
+        })
+      })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
@@ -580,7 +581,11 @@ module.exports = {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
       .waitForElementPresent('*[data-id="create-uniswapV4HookBookMultiSigSwapHook"]')
       .scrollAndClick('*[data-id="create-uniswapV4HookBookMultiSigSwapHook"]')
       .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
@@ -603,6 +608,11 @@ module.exports = {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
+      .click('*[data-id="workspacecreate"]')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
       .click('*[data-id="workspaceaddcreate2solidityfactory"]')
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`contract Create2FactoryAssembly {`) !== -1,

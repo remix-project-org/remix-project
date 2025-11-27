@@ -2,9 +2,8 @@ import async, { ErrorCallback } from 'async'
 import { compileContractSources, writeTestAccountsContract } from './compiler'
 import { deployAll } from './deployer'
 import { runTest } from './testRunner'
-import { Web3 } from 'web3'
 import { EventEmitter } from 'events'
-import { Provider, extend } from '@remix-project/remix-simulator'
+import { extendProvider } from '@remix-project/remix-simulator'
 import {
   FinalResult, SrcIfc, compilationInterface, ASTInterface, Options,
   TestResultInterface, AstNode, CompilerConfiguration
@@ -15,7 +14,7 @@ export class UnitTestRunner {
   event
   accountsLibCode
   testsAccounts: string[] | null
-  web3
+  provider
   compiler
   compilerConfig
 
@@ -23,15 +22,15 @@ export class UnitTestRunner {
     this.event = new EventEmitter()
   }
 
-  async init (web3 = null, accounts = null) {
-    this.web3 = await this.createWeb3Provider(web3)
-    this.testsAccounts = accounts || (this.web3 && await this.web3.eth.getAccounts()) || []
+  async init (provider = null, accounts = null) {
+    this.provider = await this.createWeb3Provider(provider)
+    this.testsAccounts = accounts || (this.provider && await this.provider.send("eth_requestAccounts", []) ) || []
     this.accountsLibCode = writeTestAccountsContract(this.testsAccounts)
   }
 
-  async createWeb3Provider (optWeb3) {
-    const web3 = optWeb3
-    if (web3) extend(web3)
+  async createWeb3Provider (provider) {
+    const web3 = provider
+    if (web3) extendProvider(provider)
     return web3
   }
 
@@ -48,7 +47,7 @@ export class UnitTestRunner {
   async runTestSources (contractSources: SrcIfc, newCompilerConfig: CompilerConfiguration, testCallback, resultCallback, deployCb:any, finalCallback: any, importFileCb, opts: Options) {
     opts = opts || {}
     const sourceASTs: any = {}
-    if (opts.web3 || opts.accounts) this.init(opts.web3, opts.accounts)
+    if (opts.provider || opts.accounts) this.init(opts.provider, opts.accounts)
     async.waterfall([
       (next) => {
         compileContractSources(contractSources, newCompilerConfig, importFileCb, this, { accounts: this.testsAccounts, testFilePath: opts.testFilePath, event: this.event }, next)
@@ -57,17 +56,17 @@ export class UnitTestRunner {
         for (const filename in asts) {
           if (filename.endsWith('_test.sol')) { sourceASTs[filename] = asts[filename].ast }
         }
-        deployAll(compilationResult, this.web3, this.testsAccounts, false, deployCb, (err, contracts) => {
+        deployAll(compilationResult, this.provider, this.testsAccounts, false, deployCb, (err, contracts) => {
           if (err) {
             // If contract deployment fails because of 'Out of Gas' error, try again with double gas
             // This is temporary, should be removed when remix-tests will have a dedicated UI to
             // accept deployment params from UI
-            if (err.error.includes('The contract code couldn\'t be stored, please check your gas limit')) {
-              deployAll(compilationResult, this.web3, this.testsAccounts, true, deployCb, (error, contracts) => {
-                if (error) next([{ message: 'contract deployment failed after trying twice: ' + (error.innerError || error.error), severity: 'error' }]) // IDE expects errors in array
+            if (err.includes('missing revert data')) {
+              deployAll(compilationResult, this.provider, this.testsAccounts, true, deployCb, (error, contracts) => {
+                if (error) next([{ message: 'contract deployment failed after trying twice: ' + (error || error.error), severity: 'error' }]) // IDE expects errors in array
                 else next(null, compilationResult, contracts)
               })
-            } else { next([{ message: 'contract deployment failed: ' + (err.innerError || err.error), severity: 'error' }]) } // IDE expects errors in array
+            } else { next([{ message: 'contract deployment failed: ' + (err || err.error), severity: 'error' }]) } // IDE expects errors in array
           } else { next(null, compilationResult, contracts) }
         })
       },
@@ -109,7 +108,7 @@ export class UnitTestRunner {
 
         async.eachOfLimit(contractsToTest, 1, (contractName: string, index: string | number, cb: ErrorCallback) => {
           const fileAST: AstNode = sourceASTs[contracts[contractName]['filename']]
-          runTest(contractName, contracts[contractName], contractsToTestDetails[index], fileAST, { accounts: this.testsAccounts, web3: this.web3 }, _testCallback, (err, result) => {
+          runTest(contractName, contracts[contractName], contractsToTestDetails[index], fileAST, { accounts: this.testsAccounts, provider: this.provider }, _testCallback, (err, result) => {
             if (err) {
               return cb(err)
             }
@@ -135,7 +134,6 @@ export class UnitTestRunner {
           errors.forEach((error, _index) => {
             finalResults.errors.push({ context: error.context, value: error.value, message: error.errMsg })
           })
-
           next(null, finalResults)
         })
       }

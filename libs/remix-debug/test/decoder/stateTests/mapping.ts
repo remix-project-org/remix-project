@@ -28,7 +28,7 @@ module.exports = async function testMappingStorage (st, cb) {
       console.log(error)
       st.end(error)
     } else {
-      web3.eth.getTransactionReceipt(hash)
+      web3.getTransactionReceipt(hash)
         .then(tx => {
           // const storage = await this.vm.stateManager.dumpStorage(data.to)
           // web3.eth.getCode(tx.contractAddress).then((code) => console.log('code:---', code))
@@ -51,7 +51,7 @@ function testMapping (st, privateKey, contractAddress, output, compilationResult
         console.log(error)
         st.end(error)
       } else {
-        web3.eth.getTransaction(hash)
+        web3.getTransaction(hash)
           .then(tx => {
             const traceManager = new TraceManager({ web3 })
             const codeManager = new CodeManager(traceManager)

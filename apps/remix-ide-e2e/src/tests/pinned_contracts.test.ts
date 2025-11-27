@@ -43,15 +43,23 @@ module.exports = {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
       .click('*[data-id="workspacecreate"]')
-      .waitForElementPresent('*[data-id="create-remixDefault"]')
-      .scrollAndClick('*[data-id="create-remixDefault"]')
-      .waitForElementVisible('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .scrollAndClick('*[data-id="modalDialogCustomPromptTextCreate"]')
-      .setValue('*[data-id="modalDialogCustomPromptTextCreate"]', 'workspace_remix_default')
-      // eslint-disable-next-line dot-notation
-      .execute(function () { document.querySelector('*[data-id="modalDialogCustomPromptTextCreate"]')['value'] = 'workspace_remix_default' })
-      .modalFooterOKClick('TemplatesSelection')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
+      .click('*[data-id="template-card-remixDefault-0"]')
+      .waitForElementVisible('*[data-id="workspace-details-section"]')
+      .waitForElementVisible('*[data-id="default-workspace-name-edit-icon"]')
+      .click('*[data-id="default-workspace-name-edit-icon"]')
+      .waitForElementVisible('*[data-id="workspace-name-input"]')
+      .setValue('*[data-id="workspace-name-input"]', 'workspace_remix_default')
+      .click('*[data-id="default-workspace-name-edit-icon"]')
+      .waitForElementVisible('*[data-id="default-workspace-name-span"]')
+      .assert.textContains('*[data-id="default-workspace-name-span"]', 'WORKSPACE_REMIX_DEFAULT', 'Workspace name is correct')
+      .pause(1000)
+      .click('*[data-id="validateWorkspaceButton"]')
       .clickLaunchIcon('udapp')
       .assert.elementPresent('*[data-id="deployedContracts"]')
       .assert.textContains('*[data-id="deployedContractsBadge"]', '0')
@@ -78,7 +86,7 @@ module.exports = {
       .clickFunction('store - transact (not payable)', { types: 'uint256 num', values: '35' })
       .testFunction('last',
         {
-          status: '0x1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution succeed',
           'decoded input': { "uint256 num": "35" }
         })
       .clickFunction('retrieve - call')
@@ -102,7 +110,7 @@ module.exports = {
       .clickFunction('store - transact (not payable)', { types: 'uint256 num', values: '55' })
       .testFunction('last',
         {
-          status: '0x1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution succeed',
           'decoded input': { "uint256 num": "55" }
         })
       .clickFunction('retrieve - call')

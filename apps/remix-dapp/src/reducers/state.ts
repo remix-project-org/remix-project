@@ -13,7 +13,7 @@ export const appInitialState: any = {
     sendValue: '0',
     sendUnit: 'wei',
     gasLimit: 3000000,
-    networkName: 'Goerli',
+    networkName: 'Sepolia',
     loadedAccounts: {},
     isRequesting: false,
     isSuccessful: false,

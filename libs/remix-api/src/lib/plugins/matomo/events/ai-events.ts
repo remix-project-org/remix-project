@@ -16,6 +16,8 @@ export interface AIEvent extends MatomoEventBase {
   category: 'ai';
   action:
     | 'remixAI'
+    | 'SpeechToTextPrompt'
+    | 'StartAudioRecording'
     | 'error_explaining_SolidityError'
     | 'vulnerability_check_pasted_code'
     | 'generateDocumentation'

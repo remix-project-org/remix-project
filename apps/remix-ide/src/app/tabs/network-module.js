@@ -1,11 +1,10 @@
 import { Plugin } from '@remixproject/engine'
 import * as packageJson from '../../../../../package.json'
-import { Web3 } from 'web3'
-import IpcProvider from 'web3-providers-ipc'
+import { ethers } from 'ethers'
 
 export const profile = {
   name: 'network',
-  description: 'Manage the network (mainnet, ropsten, goerli...) and the provider (web3, vm, injected)',
+  description: 'Manage the network (mainnet, sepolia,...) and the provider (web3, vm, injected)',
   methods: ['getNetworkProvider', 'getEndpoint', 'detectNetwork', 'addNetwork', 'removeNetwork'],
   version: packageJson.version,
   kind: 'network'
@@ -56,7 +55,7 @@ export class NetworkModule extends Plugin {
 
   /** Add a custom network to the list of available networks */
   addNetwork (network) { // { name, url }
-    const provider = network.url === 'ipc' ? new IpcProvider() : new Web3.providers.HttpProvider(network.url)
+    const provider = network.url === 'ipc' ? new ethers.IpcProvider() : new ethers.JsonRpcProvider(network.url)
     this.blockchain.addProvider({ name: network.name, provider })
   }
 

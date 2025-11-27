@@ -19,7 +19,7 @@ tape('SourceLocationTracker', function (t) {
 
     codeManager.codeResolver.cacheExecutingCode('0x0d3a18d64dfe4f927832ab58d6451cecc4e517c5', '0x' + output.contracts['test.sol']['test'].evm.deployedBytecode.object)
 
-    const tx = web3Test.eth.getTransaction('0x20ef65b8b186ca942fcccd634f37074dde49b541c27994fc7596740ef44cfd52')
+    const tx = web3Test.getTransaction('0x20ef65b8b186ca942fcccd634f37074dde49b541c27994fc7596740ef44cfd52')
 
     traceManager.resolveTrace(tx).then(async () => {
 
@@ -50,7 +50,7 @@ tape('SourceLocationTracker', function (t) {
 
     codeManager.codeResolver.cacheExecutingCode('0x0d3a18d64dfe4f927832ab58d6451cecc4e517c5', '0x' + output.contracts['test.sol']['test'].evm.deployedBytecode.object)
 
-    const tx = web3Test.eth.getTransaction('0x20ef65b8b186ca942fcccd634f37074dde49b541c27994fc7596740ef44cfd53')
+    const tx = web3Test.getTransaction('0x20ef65b8b186ca942fcccd634f37074dde49b541c27994fc7596740ef44cfd53')
 
     traceManager.resolveTrace(tx).then(async () => {
 

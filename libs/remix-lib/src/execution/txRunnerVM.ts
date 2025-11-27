@@ -206,7 +206,7 @@ export class TxRunnerVM {
     runTx(vm, { tx, skipNonce: true, skipBalance: false }).then((result: RunTxResult) => {
       callback(null, {
         result,
-        transactionHash: bytesToHex(Buffer.from(tx.hash())),
+        transactionHash: bytesToHex((tx.hash())),
         block,
         tx
       })
@@ -221,7 +221,7 @@ export class TxRunnerVM {
       const result: RunTxResult = results.results[0]
       callback(null, {
         result,
-        transactionHash: tx ? bytesToHex(Buffer.from(tx.hash())) : null,
+        transactionHash: tx ? bytesToHex(tx.hash()) : null,
         block,
         tx
       })

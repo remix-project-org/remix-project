@@ -2,7 +2,6 @@
 import { BrowserProvider, Contract, InterfaceAbi } from "ethers"
 import { Provider } from '@remix-project/remix-simulator'
 import { getArtifactsByContractName } from './artifacts-helper'
-import { Web3 } from "web3"
 
 const providerConfig = {
   fork: global.fork || null,
@@ -16,8 +15,6 @@ global.remixProvider.init()
 global.web3Provider = new BrowserProvider(global.remixProvider)
 global.provider = global.web3Provider
 global.ethereum = global.web3Provider
-global.web3 = new Web3(global.web3Provider)
-global.web3.eth.setConfig(config)
 
 const isFactoryOptions = (signerOrOptions: any) => {
   if (!signerOrOptions || signerOrOptions === undefined || typeof(signerOrOptions.connect) === 'function') return false

@@ -1,4 +1,4 @@
-import { Web3 } from 'web3'
+import { ethers } from 'ethers'
 import { InjectedProviderDefault } from './injected-provider-default'
 
 export class InjectedCustomProvider extends InjectedProviderDefault {
@@ -28,7 +28,7 @@ export class InjectedCustomProvider extends InjectedProviderDefault {
 
   async init() {
     if (!this.chainId && this.rpcUrls.length > 0) {
-      const chainId = await new Web3(this.rpcUrls[0]).eth.getChainId()
+      const { chainId } = await new ethers.JsonRpcProvider(this.rpcUrls[0]).getNetwork()
       this.chainId = `0x${chainId.toString(16)}`
     }
     await super.init()

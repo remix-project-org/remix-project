@@ -22,7 +22,7 @@ module.exports = {
 
   'Run script using the widget #group2': function (browser: NightwatchBrowser) {
     browser
-      .openFile('scripts/deploy_with_web3.ts')
+      .openFile('scripts/deploy_with_ethers.ts')
       .click('[data-id="compile-action"]')
       .waitForElementVisible('[data-id="compile_group"] i.fa-check', 10000)
   },

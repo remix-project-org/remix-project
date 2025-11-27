@@ -1,6 +1,6 @@
 import async from 'async'
 import * as changeCase from 'change-case'
-import { Web3 } from 'web3'
+import { keccak256, AbiCoder, ContractTransactionResponse, toUtf8Bytes, Interface } from 'ethers'
 import assertionEvents from './assertionEvents'
 import {
   RunListInterface, TestCbInterface, TestResultInterface, ResultCbInterface,
@@ -183,28 +183,29 @@ function createRunList (jsonInterface: FunctionDescription[], fileAST: AstNode, 
   const availableFunctions: string[] = getAvailableFunctions(fileAST, testContractName)
   const testFunctionsInterface: FunctionDescription[] = getTestFunctionsInterface(jsonInterface, availableFunctions)
   const specialFunctionsInterface: Record<string, FunctionDescription> = getSpecialFunctionsInterface(jsonInterface)
+  const contractInterface: Interface = new Interface(jsonInterface)
   const runList: RunListInterface[] = []
 
   if (availableFunctions.includes('beforeAll')) {
     const func = specialFunctionsInterface['beforeAll']
-    runList.push({ name: 'beforeAll', inputs: func.inputs, signature: func.signature, type: 'internal', constant: isConstant(func), payable: isPayable(func) })
+    runList.push({ name: 'beforeAll', inputs: func.inputs, signature: contractInterface.getFunction(func.name).selector, type: 'internal', constant: isConstant(func), payable: isPayable(func) })
   }
 
   for (const func of testFunctionsInterface) {
     if (availableFunctions.includes('beforeEach')) {
       const func = specialFunctionsInterface['beforeEach']
-      runList.push({ name: 'beforeEach', inputs: func.inputs, signature: func.signature, type: 'internal', constant: isConstant(func), payable: isPayable(func) })
+      runList.push({ name: 'beforeEach', inputs: func.inputs, signature: contractInterface.getFunction(func.name).selector, type: 'internal', constant: isConstant(func), payable: isPayable(func) })
     }
-    if (func.name && func.inputs) runList.push({ name: func.name, inputs: func.inputs, signature: func.signature, type: 'test', constant: isConstant(func), payable: isPayable(func) })
+    if (func.name && func.inputs) runList.push({ name: func.name, inputs: func.inputs, signature: contractInterface.getFunction(func.name).selector, type: 'test', constant: isConstant(func), payable: isPayable(func) })
     if (availableFunctions.indexOf('afterEach') >= 0) {
       const func = specialFunctionsInterface['afterEach']
-      runList.push({ name: 'afterEach', inputs: func.inputs, signature: func.signature, type: 'internal', constant: isConstant(func), payable: isPayable(func) })
+      runList.push({ name: 'afterEach', inputs: func.inputs, signature: contractInterface.getFunction(func.name).selector, type: 'internal', constant: isConstant(func), payable: isPayable(func) })
     }
   }
 
   if (availableFunctions.indexOf('afterAll') >= 0) {
     const func = specialFunctionsInterface['afterAll']
-    runList.push({ name: 'afterAll', inputs: func.inputs, signature: func.signature, type: 'internal', constant: isConstant(func), payable: isPayable(func) })
+    runList.push({ name: 'afterAll', inputs: func.inputs, signature: contractInterface.getFunction(func.name).selector, type: 'internal', constant: isConstant(func), payable: isPayable(func) })
   }
 
   return runList
@@ -215,81 +216,84 @@ export function runTest (testName: string, testObject: any, contractDetails: Com
   let failureNum = 0
   let timePassed = 0
   const failedTransactions = {}
-  const isJSONInterfaceAvailable = testObject && testObject.options && testObject.options.jsonInterface
+  const isJSONInterfaceAvailable = testObject && testObject.interface && testObject.interface.fragments
   if (!isJSONInterfaceAvailable) { return resultsCallback(new Error('Contract interface not available'), { passingNum, failureNum, timePassed }) }
-  const runList: RunListInterface[] = createRunList(testObject.options.jsonInterface, fileAST, testName)
-  const web3 = opts.web3 || new Web3()
-  web3.eth.handleRevert = true // enables returning error reason on revert
+  const runList: RunListInterface[] = createRunList(testObject.interface.fragments, fileAST, testName)
+  const provider = opts.provider
   const accts: TestResultInterface = {
     type: 'accountList',
     value: opts.accounts
   }
   testCallback(undefined, accts)
-
+  const filename = testObject.filename
   const resp: TestResultInterface = {
     type: 'contract',
     value: testName,
-    filename: testObject.filename
+    filename
   }
   testCallback(undefined, resp)
-  async.eachOfLimit(runList, 1, function (func, index, next) {
+  async.eachOfLimit(runList, 1, async function (func, index, next) {
     let sender: string | null = null
     let hhLogs
-    if (func.signature) {
-      sender = getOverriddenSender(contractDetails.userdoc, func.signature, contractDetails.evm.methodIdentifiers)
-      if (opts.accounts && sender) {
-        sender = opts.accounts[sender]
-      }
-    }
     let sendParams: Record<string, any> | null = null
-    if (sender) sendParams = { from: sender }
-    if (func.inputs && func.inputs.length > 0) { return resultsCallback(new Error(`Method '${func.name}' can not have parameters inside a test contract`), { passingNum, failureNum, timePassed }) }
-    const method = testObject.methods[func.name].apply(testObject.methods[func.name], [])
     const startTime = Date.now()
+    if (func.inputs && func.inputs.length > 0) { return resultsCallback(new Error(`Method '${func.name}' can not have parameters inside a test contract`), { passingNum, failureNum, timePassed }) }
     let debugTxHash:string
     if (func.constant) {
       sendParams = {}
       const tagTimestamp = 'remix_tests_tag' + Date.now()
-      if (web3.remix && web3.remix.registerCallId) web3.remix.registerCallId(tagTimestamp)
-      method.call(sendParams).then(async (result) => {
-        const time = (Date.now() - startTime) / 1000.0
-        let tagTxHash
-        if (web3.remix && web3.remix.getHashFromTagBySimulator) tagTxHash = await web3.remix.getHashFromTagBySimulator(tagTimestamp)
-        if (web3.remix && web3.remix.getHHLogsForTx) hhLogs = await web3.remix.getHHLogsForTx(tagTxHash)
-        debugTxHash = tagTxHash
-        if (result) {
-          const resp: TestResultInterface = {
-            type: 'testPass',
-            value: changeCase.sentenceCase(func.name),
-            filename: testObject.filename,
-            time: time,
-            context: testName,
-            web3,
-            debugTxHash
-          }
-          if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
-          testCallback(undefined, resp)
-          passingNum += 1
-          timePassed += time
-        } else {
-          const resp: TestResultInterface = {
-            type: 'testFailure',
-            value: changeCase.sentenceCase(func.name),
-            filename: testObject.filename,
-            time: time,
-            errMsg: 'function returned false',
-            context: testName,
-            web3,
-            debugTxHash
-          }
-          if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
-          testCallback(undefined, resp)
-          failureNum += 1
-          timePassed += time
+      if (provider.remix && provider.remix.registerCallId) provider.remix.registerCallId(tagTimestamp)
+      const result = await testObject[func.name](sendParams)
+      const time = (Date.now() - startTime) / 1000.0
+      let tagTxHash
+      if (provider.remix && provider.remix.getHashFromTagBySimulator) tagTxHash = await provider.remix.getHashFromTagBySimulator(tagTimestamp)
+      if (provider.remix && provider.remix.getHHLogsForTx) hhLogs = await provider.remix.getHHLogsForTx(tagTxHash)
+      debugTxHash = tagTxHash
+      if (result) {
+        const resp: TestResultInterface = {
+          type: 'testPass',
+          value: changeCase.sentenceCase(func.name),
+          filename,
+          time: time,
+          context: testName,
+          provider,
+          debugTxHash
         }
-        next()
-      })
+        if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
+        testCallback(undefined, resp)
+        passingNum += 1
+        timePassed += time
+      } else {
+        const resp: TestResultInterface = {
+          type: 'testFailure',
+          value: changeCase.sentenceCase(func.name),
+          filename,
+          time: time,
+          errMsg: 'function returned false',
+          context: testName,
+          provider,
+          debugTxHash
+        }
+        if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
+        testCallback(undefined, resp)
+        failureNum += 1
+        timePassed += time
+      }
+      // Remix IDE SUT plugin requires call of next
+      // but in some node.js cases, next is not a function
+      return next ? next() : undefined
     } else {
+      if (func.signature) {
+        sender = getOverriddenSender(contractDetails.userdoc, func.signature, contractDetails.evm.methodIdentifiers)
+        if (opts.accounts && sender) {
+          sender = opts.accounts[sender]
+        }
+      }
+      if (sender) {
+        sendParams = { from: sender }
+        const signer = await provider.getSigner(sender)
+        testObject = testObject.connect(signer)
+      }
       if (func.payable) {
         const value = getProvidedValue(contractDetails.userdoc, func.signature, contractDetails.evm.methodIdentifiers)
         if (value) {
@@ -298,86 +302,106 @@ export function runTest (testName: string, testObject: any, contractDetails: Com
         }
       }
       if (!sendParams) sendParams = {}
-      sendParams.gas = 10000000 * 8
-      method.send(sendParams).on('receipt', async (receipt) => {
-        try {
-          debugTxHash = receipt.transactionHash
-          if (web3.remix && web3.remix.getHHLogsForTx) hhLogs = await web3.remix.getHHLogsForTx(receipt.transactionHash)
-          const time: number = (Date.now() - startTime) / 1000.0
-          const assertionEventHashes = assertionEvents.map(e => Web3.utils.sha3(e.name + '(' + e.params.join() + ')'))
-          let testPassed = false
-          for (const i in receipt.logs) {
-            let events = receipt.logs[i]
-            if (!Array.isArray(events)) events = [events]
-            for (const event of events) {
-              const eIndex = assertionEventHashes.indexOf(event.topics[0]) // event name topic will always be at index 0
-              if (eIndex >= 0) {
-                const testEvent = web3.eth.abi.decodeParameters(assertionEvents[eIndex].params, event.data)
-                if (!testEvent[0]) {
-                  const assertMethod = testEvent[2]
-                  if (assertMethod === 'ok') { // for 'Assert.ok' method
-                    testEvent[3] = 'false'
-                    testEvent[4] = 'true'
-                  }
-                  const location = getAssertMethodLocation(fileAST, testName, func.name, assertMethod)
-                  const resp: TestResultInterface = {
-                    type: 'testFailure',
-                    value: changeCase.sentenceCase(func.name),
-                    filename: testObject.filename,
-                    time: time,
-                    errMsg: testEvent[1],
-                    context: testName,
-                    assertMethod,
-                    returned: testEvent[3],
-                    expected: testEvent[4],
-                    location,
-                    web3,
-                    debugTxHash
-                  }
-                  if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
-                  testCallback(undefined, resp)
-                  failureNum += 1
-                  timePassed += time
-                  return next()
-                }
-                testPassed = true
-              }
-            }
+      sendParams.gasLimit = 10000000 * 8
+      try {
+        const txResponse: ContractTransactionResponse = await testObject[func.name](sendParams)
+        const receipt = await provider.getTransactionReceipt(txResponse.hash)
+        debugTxHash = receipt.hash
+        if (provider.remix && provider.remix.getHHLogsForTx) hhLogs = await provider.remix.getHHLogsForTx(receipt.hash)
+        const time: number = (Date.now() - startTime) / 1000.0
+        const assertionEventHashes = assertionEvents.map(e => keccak256(toUtf8Bytes(e.name + '(' + e.params.join() + ')')))
+        let testPassed = false
+        if (receipt.status === 0) {
+          const resp: TestResultInterface = {
+            type: 'testFailure',
+            value: changeCase.sentenceCase(func.name),
+            filename,
+            time: time,
+            errMsg: `Transaction with hash "${debugTxHash}" has been reverted by the EVM.`,
+            context: testName,
+            provider,
+            debugTxHash
           }
-
-          if (testPassed) {
-            const resp: TestResultInterface = {
-              type: 'testPass',
-              value: changeCase.sentenceCase(func.name),
-              filename: testObject.filename,
-              time: time,
-              context: testName,
-              web3,
-              debugTxHash
-            }
-            if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
-            testCallback(undefined, resp)
-            passingNum += 1
-            timePassed += time
-          } else if (hhLogs && hhLogs.length) {
-            const resp: TestResultInterface = {
-              type: 'logOnly',
-              value: changeCase.sentenceCase(func.name),
-              filename: testObject.filename,
-              time: time,
-              context: testName,
-              hhLogs
-            }
-            testCallback(undefined, resp)
-            timePassed += time
-          }
-
-          return next()
-        } catch (err) {
-          console.error(err)
-          return next(err)
+          if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
+          testCallback(undefined, resp)
+          failureNum += 1
+          timePassed += time
+          return next ? next() : undefined
         }
-      }).on('error', async (err) => {
+        for (const i in receipt.logs) {
+          let events = receipt.logs[i]
+          if (!Array.isArray(events)) events = [events]
+          for (const event of events) {
+            const eIndex = assertionEventHashes.indexOf(event.topics[0]) // event name topic will always be at index 0
+            if (eIndex >= 0) {
+              const testEventArray = AbiCoder.defaultAbiCoder().decode(assertionEvents[eIndex].params, event.data)
+              const testEvent = [...testEventArray] // Make it mutable
+              if (!testEvent[0]) {
+                const assertMethod = testEvent[2]
+                if (assertMethod === 'ok') { // for 'Assert.ok' method
+                  testEvent[3] = 'false'
+                  testEvent[4] = 'true'
+                }
+                const location = getAssertMethodLocation(fileAST, testName, func.name, assertMethod)
+
+                const resp: TestResultInterface = {
+                  type: 'testFailure',
+                  value: changeCase.sentenceCase(func.name),
+                  filename,
+                  time: time,
+                  errMsg: testEvent[1],
+                  context: testName,
+                  assertMethod,
+                  returned: testEvent[3],
+                  expected: testEvent[4],
+                  location,
+                  provider,
+                  debugTxHash
+                }
+                if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
+                testCallback(undefined, resp)
+                failureNum += 1
+                timePassed += time
+                return next ? next() : undefined
+              }
+              testPassed = true
+            }
+          }
+        }
+
+        if (testPassed) {
+          const resp: TestResultInterface = {
+            type: 'testPass',
+            value: changeCase.sentenceCase(func.name),
+            filename,
+            time: time,
+            context: testName,
+            provider,
+            debugTxHash
+          }
+          if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
+          testCallback(undefined, resp)
+          passingNum += 1
+          timePassed += time
+        } else if (hhLogs && hhLogs.length) {
+          const resp: TestResultInterface = {
+            type: 'logOnly',
+            value: changeCase.sentenceCase(func.name),
+            filename,
+            time: time,
+            context: testName,
+            hhLogs
+          }
+          testCallback(undefined, resp)
+          timePassed += time
+        }
+
+        return next ? next() : undefined
+      } catch (err) {
+        if (!err.receipt) {
+          console.error(err)
+          return next ? next(err) : undefined
+        }
         const time: number = (Date.now() - startTime) / 1000.0
         if (failedTransactions[err.receipt.transactionHash]) return // we are already aware of this transaction failing.
         failedTransactions[err.receipt.transactionHash] = time
@@ -387,24 +411,24 @@ export function runTest (testName: string, testObject: any, contractDetails: Com
         const resp: TestResultInterface = {
           type: 'testFailure',
           value: changeCase.sentenceCase(func.name),
-          filename: testObject.filename,
+          filename,
           time: time,
           errMsg,
           context: testName,
-          web3
+          provider
         }
         if (err.receipt) txHash = err.receipt.transactionHash
         else if (err.message.includes('Transaction has been reverted by the EVM')) {
           txHash = JSON.parse(err.message.replace('Transaction has been reverted by the EVM:', '')).transactionHash
         }
-        if (web3.remix && web3.remix.getHHLogsForTx && txHash) hhLogs = await web3.remix.getHHLogsForTx(txHash)
+        if (provider.remix && provider.remix.getHHLogsForTx && txHash) hhLogs = await provider.remix.getHHLogsForTx(txHash)
         if (hhLogs && hhLogs.length) resp.hhLogs = hhLogs
         resp.debugTxHash = txHash
         testCallback(undefined, resp)
         failureNum += 1
         timePassed += time
-        return next()
-      })
+        return next ? next() : undefined
+      }
     }
   }, function (error) {
     resultsCallback(error, { passingNum, failureNum, timePassed })

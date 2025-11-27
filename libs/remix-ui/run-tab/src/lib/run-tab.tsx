@@ -104,7 +104,6 @@ export function RunTabUI(props: RunTabProps) {
       }
     } catch (e) {
       setSolcVersion({ version, canReceive: true })
-      console.log(e)
     }
   }
 
@@ -451,17 +450,68 @@ export function RunTabUI(props: RunTabProps) {
             getVersion={getVersion}
             getFuncABIInputs={getFuncABIValues}
             exEnvironment={runTab.selectExEnv}
-            editInstance={(instance) => {
-              const { metadata, abi, object } = instance.contractData;
-              plugin.call('quick-dapp', 'edit', {
-                address: instance.address,
-                abi: abi,
-                name: instance.name,
+            editInstance={(addressOrInstance, abi, name, devdoc, metadata, htmlTemplate) => {
+
+              const payload = {
+                address: '',
+                abi: null,
+                name: '',
                 network: runTab.networkName,
-                devdoc: object.devdoc,
-                methodIdentifiers: object.evm.methodIdentifiers,
-                solcVersion: JSON.parse(metadata).compiler.version,
-              })
+                devdoc: null,
+                methodIdentifiers: null,
+                solcVersion: '',
+                htmlTemplate: null
+              }
+
+              let targetPlugin = 'quick-dapp'
+
+              try {
+                if (typeof addressOrInstance === 'object' && addressOrInstance !== null) {
+                  targetPlugin = 'quick-dapp'
+
+                  const instance = addressOrInstance as any
+                  const { metadata: metaFromInst, abi: abiFromInst, object } = instance.contractData || {}
+
+                  payload.address = instance.address
+                  payload.abi = abiFromInst
+                  payload.name = instance.name
+
+                  if (object) {
+                    payload.devdoc = object.devdoc
+                    payload.methodIdentifiers = object.evm?.methodIdentifiers
+                  }
+
+                  if (metaFromInst) {
+                    try {
+                      payload.solcVersion = JSON.parse(metaFromInst).compiler.version
+                    } catch (e) {
+                      console.warn('[RunTab] Failed to parse solcVersion from V1 metadata', e)
+                    }
+                  }
+
+                } else {
+                  targetPlugin = 'quick-dapp-v2'
+
+                  payload.address = addressOrInstance as string
+                  payload.abi = abi
+                  payload.name = name
+                  payload.devdoc = devdoc
+                  payload.htmlTemplate = htmlTemplate
+
+                  if (metadata) {
+                    try {
+                      payload.solcVersion = JSON.parse(metadata).compiler.version
+                    } catch (e) {
+                      console.warn('[RunTab] Failed to parse solcVersion from V2 metadata', e)
+                    }
+                  }
+                }
+
+                plugin.call(targetPlugin, 'edit', payload)
+
+              } catch (error) {
+                console.error('[RunTab] Critical Error in editInstance:', error)
+              }
             }}
           />
         </div>

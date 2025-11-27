@@ -45,21 +45,6 @@ const cmdLine = new CmdLine()
 cmdLine.connect('http', 'http://localhost:8545')
 cmdLine.loadCompilationResult(compilation)
 cmdLine.initDebugger()
-
-// var deployContract = function (cb) {
-//   let _web3 = cmdLine.debugger.debugger.web3
-//
-//   let blockNumber = null
-//   let txNumber = null
-//   let tx = null
-//
-//   let code = compilation.data.contracts[shortFilename].SimpleStorage.evm.bytecode.object
-//   console.dir('deploying...')
-//   console.dir(code)
-//   _web3.eth.sendTransaction({data: '0x' + code, from: _web3.eth.accounts[0], gas: 800000}, cb)
-// }
-
-// let _web3 = cmdLine.debugger.debugger.web3
 const tx = '0xf510c4f0b1d9ee262d7b9e9e87b4262f275fe029c2c733feef7dfa1e2b1e32aa'
 
 //  deployContract((err, tx) => {

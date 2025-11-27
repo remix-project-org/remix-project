@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
-import { fromWei, toBigInt, toWei } from 'web3-utils'
 import { MainnetProps } from '../types'
+import { formatUnits, parseUnits } from 'ethers'
 
 export function MainnetPrompt(props: MainnetProps) {
   const intl = useIntl()
@@ -15,8 +15,7 @@ export function MainnetPrompt(props: MainnetProps) {
       if (txFeeText) setTransactionFee(txFeeText)
       if (gasPriceValue) onGasPriceChange(gasPriceValue)
       if (props.network && props.network.lastBlock && props.network.lastBlock.baseFeePerGas) {
-        const baseFee = fromWei(toBigInt(props.network.lastBlock.baseFeePerGas), 'Gwei')
-
+        const baseFee = formatUnits(BigInt(props.network.lastBlock.baseFeePerGas), 'gwei')
         setBaseFee(baseFee)
         onMaxFeeChange(baseFee)
       }
@@ -26,7 +25,7 @@ export function MainnetPrompt(props: MainnetProps) {
 
   const onMaxFeeChange = (value: string) => {
     const maxFee = value
-    if (toBigInt(props.network.lastBlock.baseFeePerGas) > toBigInt(toWei(maxFee, 'Gwei'))) {
+    if (BigInt(props.network.lastBlock.baseFeePerGas) > BigInt(parseUnits(maxFee, 'gwei'))) {
       setTransactionFee(intl.formatMessage({ id: 'udapp.transactionFee' }))
       props.updateGasPriceStatus(false)
       props.updateConfirmSettings(true)
@@ -102,7 +101,7 @@ export function MainnetPrompt(props: MainnetProps) {
           <span className="text-dark me-2">
             <FormattedMessage id="udapp.gasLimit" />:
           </span>
-          <span>{props.tx.gas}</span>
+          <span>{props.tx.gasLimit}</span>
         </div>
         {props.network.lastBlock.baseFeePerGas ? (
           <div>
@@ -124,7 +123,7 @@ export function MainnetPrompt(props: MainnetProps) {
             <div className="align-items-center my-1" title={intl.formatMessage({ id: 'udapp.title2' })}>
               <div className="d-flex">
                 <span className="text-dark me-2 text-nowrap">
-                  <FormattedMessage id="udapp.maxFee" values={{ baseFeePerGas: fromWei(toBigInt(props.network.lastBlock.baseFeePerGas), 'Gwei') }} />:
+                  <FormattedMessage id="udapp.maxFee" values={{ baseFeePerGas: formatUnits(BigInt(props.network.lastBlock.baseFeePerGas), 'gwei') }} />:
                 </span>
                 <input
                   className="form-control me-1 text-end"
@@ -169,9 +168,9 @@ export function MainnetPrompt(props: MainnetProps) {
           </span>
         </div>
       </div>
-      <div className="d-flex py-1 align-items-center form-check remixui_checkbox">
+      <div className="d-flex py-1 align-items-center form-check">
         <input className="form-check-input" id="confirmsetting" type="checkbox" />
-        <label className="m-0 form-check-label" htmlFor="confirmsetting">
+        <label className="ms-1 mt-1 form-check-label" htmlFor="confirmsetting">
           <FormattedMessage id="udapp.mainnetText3" />
         </label>
       </div>

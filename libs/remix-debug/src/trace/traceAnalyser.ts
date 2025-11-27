@@ -24,7 +24,7 @@ export class TraceAnalyser {
     const callStack = [tx.to]
     this.traceCache.pushCall(trace[0], 0, callStack[0], callStack.slice(0))
     if (traceHelper.isContractCreation(tx.to)) {
-      this.traceCache.pushContractCreation(tx.to, tx.input)
+      this.traceCache.pushContractCreation(tx.to, tx.data)
     }
     this.buildCalldata(0, this.trace[0], tx, true)
     for (let k = 0; k < this.trace.length; k++) {
@@ -68,7 +68,7 @@ export class TraceAnalyser {
   buildCalldata (index, step, tx, newContext) {
     let calldata = ''
     if (index === 0) {
-      calldata = tx.input
+      calldata = tx.input || tx.data
       this.traceCache.pushCallDataChanges(index, calldata)
     } else if (!newContext) {
       const lastCall = this.traceCache.callsData[this.traceCache.callDataChanges[this.traceCache.callDataChanges.length - 2]]

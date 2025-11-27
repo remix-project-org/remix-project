@@ -22,6 +22,7 @@ const TopBarProfile = {
   description: '',
   version: packageJson.version,
   icon: '',
+  location: 'none',
   methods: ['getWorkspaces', 'createWorkspace', 'renameWorkspace', 'deleteWorkspace', 'getCurrentWorkspace', 'setWorkspace'],
   events: ['setWorkspace', 'workspaceRenamed', 'workspaceDeleted', 'workspaceCreated'],
 }
@@ -39,8 +40,9 @@ export class Topbar extends Plugin {
   registry: Registry
   fileProviders: any
   fileManager: any
+  desktopClientMode: boolean
 
-  constructor(filePanel: FilePanel, git: GitPlugin) {
+  constructor(filePanel: FilePanel, git: GitPlugin, desktopClientMode = false) {
     super(TopBarProfile)
     this.filePanel = filePanel
     this.registry = Registry.getInstance()
@@ -50,6 +52,7 @@ export class Topbar extends Plugin {
     this.git = git
     this.workspaces = []
     this.currentWorkspaceMetadata = null
+    this.desktopClientMode = desktopClientMode
   }
 
   onActivation(): void {
@@ -160,9 +163,9 @@ export class Topbar extends Plugin {
   async getLatestReleaseNotesUrl () {
     const response = await this.getLatestUpdates()
     const data: UpdateInfo[] = response
-    const interim = data.find(x => x.action.label.includes('Release notes'))
-    const targetUrl = interim.action.url
-    const currentReleaseVersion = interim.badge.split(' ')[0]
+    const interim = data.find(x => x.action.label.toLowerCase().includes('release notes'))
+    const targetUrl = interim?.action?.url
+    const currentReleaseVersion = packageJson.version
     return [targetUrl, currentReleaseVersion]
   }
 

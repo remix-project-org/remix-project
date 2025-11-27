@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { CustomTooltip } from "@remix-ui/helper"
 import { Link } from 'react-router-dom'
 import { useAppSelector } from '../../redux/hooks'
 import RepoImporter from '../../components/RepoImporter'
@@ -60,6 +61,13 @@ function HomePage(): JSX.Element {
   const [showFilters, setShowFilters] = useState(false)
   const [selectedLevels, setSelectedLevels] = useState<number[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [completedTutorials, setCompletedTutorials] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    // Load completed tutorials from localStorage
+    const completed = JSON.parse(localStorage.getItem('learneth_completed_tutorials') || '{}')
+    setCompletedTutorials(completed)
+  }, [])
 
   const allTags = useMemo(() => {
     if (!selectedRepo) return []
@@ -176,6 +184,14 @@ function HomePage(): JSX.Element {
                   <div className="d-flex align-items-center">
                     <Antenna level={r.levelNum} />
                     <span className="small fw-medium text-body-emphasis">{r.levelText}</span>
+                    {completedTutorials[r.id] && (
+                      <CustomTooltip
+                        placement={"auto"}
+                        tooltipId="tutorialCompletedTooltip"
+                        tooltipClasses="text-nowrap"
+                        tooltipText={<span>{'Completed'}</span>}
+                      ><i className="text-success ms-2 fas fa-check"></i></CustomTooltip>
+                    )}
                   </div>
                   <MetaRight stepsLen={r.stepsLen} duration={r.duration} />
                 </div>

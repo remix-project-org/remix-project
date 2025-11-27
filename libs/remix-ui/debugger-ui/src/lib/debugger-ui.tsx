@@ -261,19 +261,10 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
       return
     }
 
-    const web3 = optWeb3 || (state.opt.debugWithLocalNode ? await debuggerModule.web3() : await debuggerModule.getDebugWeb3())
+    const web3 = optWeb3 || (state.opt.debugWithLocalNode ? await debuggerModule.web3() : await debuggerModule.getDebugProvider())
     try {
-      const networkId = await web3.eth.net.getId()
+      const networkId = (await web3.getNetwork()).chainId
       trackMatomoEvent({ category: 'debugger', action: 'startDebugging', value: networkId, isClick: true })
-      if (networkId === 42) {
-        setState((prevState) => {
-          return {
-            ...prevState,
-            validationError: 'Unfortunately, the Kovan network is not supported.'
-          }
-        })
-        return
-      }
     } catch (e) {
       console.error(e)
     }
@@ -281,9 +272,9 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     let currentBlock
     let currentTransaction
     try {
-      currentReceipt = await web3.eth.getTransactionReceipt(txNumber)
-      currentBlock = await web3.eth.getBlock(currentReceipt.blockHash)
-      currentTransaction = await web3.eth.getTransaction(txNumber)
+      currentReceipt = await web3.getTransactionReceipt(txNumber)
+      currentBlock = await web3.getBlock(currentReceipt.blockHash)
+      currentTransaction = await web3.getTransaction(txNumber)
     } catch (e) {
       setState((prevState) => {
         return {

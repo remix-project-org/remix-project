@@ -1,0 +1,63 @@
+{
+  "rules": [
+    {
+      "type": "exactMatch",
+      "field": "displayName",
+      "value": "stealth drop",
+      "percentage": "95%"
+    },
+    {
+      "type": "includes",
+      "field": "displayName",
+      "value": "erc20",
+      "percentage": "97%"
+    },
+    {
+      "type": "templateType",
+      "field": "templateType.type",
+      "value": "git",
+      "percentage": "97%"
+    },
+    {
+      "type": "includes",
+      "field": "displayName",
+      "value": "intro to eip-7702",
+      "percentage": "40%"
+    },
+    {
+      "type": "includes",
+      "field": "displayName",
+      "value": "simple eip 7702",
+      "percentage": "40%"
+    },
+    {
+      "type": "includes",
+      "field": "templateGroup",
+      "value": "circom zkp",
+      "percentage": "50%"
+    },
+    {
+      "type": "includes",
+      "field": "templateGroup",
+      "value": "noir zkp",
+      "percentage": "98%"
+    },
+    {
+      "type": "exactMatch",
+      "field": "workspaceName",
+      "value": "blank",
+      "percentage": "50%"
+    },
+    {
+      "type": "exactMatch",
+      "field": "workspaceName",
+      "value": "MultiSig Wallet",
+      "percentage": "80%"
+    },
+    {
+      "type": "default",
+      "percentage": "50%"
+    }
+  ]
+}
+

@@ -144,10 +144,10 @@ export class Debugger {
     }
 
     if (txNumber.indexOf('0x') !== -1) {
-      tx = await web3.eth.getTransaction(txNumber)
+      tx = await web3.getTransaction(txNumber)
       if (!tx) throw new Error('cannot find transaction ' + txNumber)
     } else {
-      tx = await web3.eth.getTransactionFromBlock(blockNumber, txNumber)
+      tx = await web3.getTransactionFromBlock(blockNumber, txNumber)
       if (!tx) throw new Error('cannot find transaction ' + blockNumber + ' ' + txNumber)
     }
     return await this.debugTx(tx, loadingCb)

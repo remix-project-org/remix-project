@@ -59,11 +59,11 @@ module.exports = {
       .waitForElementVisible('span#ssaRemixtab')
       .click('span#ssaRemixtab')
       .waitForElementContainsText('span#ssaRemixtab > *[data-id="RemixStaticAnalysisErrorCount', '384')
-  
+
       .click('label[id="headingshowLibWarnings"]')
       .pause(1000)
       .waitForElementContainsText('span#ssaRemixtab > *[data-id="RemixStaticAnalysisErrorCount', '3')
-    
+
       .end()
   }
 }

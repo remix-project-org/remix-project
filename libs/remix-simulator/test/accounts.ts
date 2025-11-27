@@ -1,48 +1,57 @@
 /* global describe, before, it */
-import { Web3, FMT_BYTES, FMT_NUMBER } from 'web3'
 import { Provider } from '../src/index'
-const web3 = new Web3()
 import * as assert from 'assert'
+import { ethers, BrowserProvider } from "ethers"
 
 describe('Accounts', () => {
+  let ethersProvider: BrowserProvider
   before(async function () {
     const provider = new Provider()
     await provider.init()
-    web3.setProvider(provider as any)
+    ethersProvider = new ethers.BrowserProvider(provider as any)
   })
 
   describe('eth_getAccounts', () => {
     it('should get a list of accounts', async function () {
-      const accounts: string[] = await web3.eth.getAccounts()
+      const accounts: string[] = await ethersProvider.send("eth_requestAccounts", [])
       assert.notEqual(accounts.length, 0)
     })
   })
 
   describe('eth_getBalance', () => {
     it('should get an account balance', async () => {
-      const accounts: string[] = await web3.eth.getAccounts()
-      const balance0: string = await web3.eth.getBalance(accounts[0], undefined, { number: FMT_NUMBER.STR, bytes: FMT_BYTES.HEX })
-      const balance1: string = await web3.eth.getBalance(accounts[1], undefined, { number: FMT_NUMBER.STR, bytes: FMT_BYTES.HEX })
-      const balance2: string = await web3.eth.getBalance(accounts[2], undefined, { number: FMT_NUMBER.STR, bytes: FMT_BYTES.HEX })
+      const accounts: string[] = await ethersProvider.send("eth_requestAccounts", [])
+      const balance0: bigint = await ethersProvider.getBalance(accounts[0])
+      const balance1: bigint = await ethersProvider.getBalance(accounts[1])
+      const balance2: bigint = await ethersProvider.getBalance(accounts[2])
 
-      assert.deepEqual(balance0, '100000000000000000000')
-      assert.deepEqual(balance1, '100000000000000000000')
-      assert.deepEqual(balance2, '100000000000000000000')
+      assert.deepEqual(balance0.toString(), '100000000000000000000')
+      assert.deepEqual(balance1.toString(), '100000000000000000000')
+      assert.deepEqual(balance2.toString(), '100000000000000000000')
     })
   })
 
   describe('eth_sign', () => {
     it('should sign payloads', async () => {
-      const accounts: string[] = await web3.eth.getAccounts()
-      const signature = await web3.eth.sign(web3.utils.utf8ToHex('Hello world'), accounts[0])
-
+      const signer = await ethersProvider.getSigner()
+      const signature: any = await signer._legacySignMessage('Hello world') // _legacySignMessage uses 'eth_sign' internally
       assert.deepEqual(typeof signature === 'string' ? signature.length : signature.signature.length, 132)
+      assert.deepEqual(signature, "0x4bb5c87f889dcef489ce5965930a33cd4a5a4e20b5c44f9abb948a10f8b5cc5176398e92d9faf9168af3fbf3cb4ab12b99f9c88d34ab91242cc9490f71ca3f751c")
+    })
+  })
+
+  describe('personal_sign', () => {
+    it('should sign payloads', async () => {
+      const signer = await ethersProvider.getSigner()
+      const signature: any = await signer.signMessage('Hello world') // signMessage uses 'personal_sign' internally
+      assert.deepEqual(typeof signature === 'string' ? signature.length : signature.signature.length, 132)
+      assert.deepEqual(signature, "0x4bb5c87f889dcef489ce5965930a33cd4a5a4e20b5c44f9abb948a10f8b5cc5176398e92d9faf9168af3fbf3cb4ab12b99f9c88d34ab91242cc9490f71ca3f751c")
     })
   })
 
   describe('eth_signTypedData', () => {
     it('should sign typed data', async () => {
-      const accounts: string[] = await web3.eth.getAccounts()
+      const accounts: string[] = await ethersProvider.send("eth_requestAccounts", [])
       const typedData = {
         domain: {
           chainId: 1,
@@ -68,10 +77,7 @@ describe('Accounts', () => {
           ],
         },
       };
-      const result = await web3.currentProvider.request({
-        method: 'eth_signTypedData',
-        params: [accounts[0], typedData]
-      })
+      const result = await ethersProvider.send('eth_signTypedData', [accounts[0], typedData])
       assert.equal(result, '0x248d23de0e23231370db8aa21ad5908ca90c33ae2b8c611b906674bda6b1a8b85813f945c2ea896316e240089029619ab3d801a1b098c199bd462dd8026349da1c')
     })
   })

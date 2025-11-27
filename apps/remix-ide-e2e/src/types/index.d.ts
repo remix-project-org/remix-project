@@ -9,6 +9,7 @@ declare module 'nightwatch' {
     switchBrowserTab(indexOrTitle: number | string, forceReload?: boolean): NightwatchBrowser
     scrollAndClick(target: string): NightwatchBrowser
     scrollInto(target: string): NightwatchBrowser
+    openTemplateExplorer(): NightwatchBrowser
     testContracts(fileName: string, contractCode: NightwatchContractContent, compiledContractNames: string[]): NightwatchBrowser
     setEditorValue(value: string, callback?: () => void): NightwatchBrowser
     addFile(name: string, content: NightwatchContractContent, readMeFile?: string): NightwatchBrowser

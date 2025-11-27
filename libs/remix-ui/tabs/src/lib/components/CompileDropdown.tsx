@@ -148,7 +148,8 @@ export const CompileDropdown: React.FC<CompileDropdownProps> = ({ tabPath, plugi
       if (!isStaticAnalyzersActive) {
         await plugin.call('manager', 'activatePlugin', 'solidityStaticAnalysis')
       }
-      plugin.call('menuicons', 'select', 'solidityStaticAnalysis')
+      await plugin.call('menuicons', 'select', 'solidityStaticAnalysis')
+      setTimeout(() => plugin.call('solidityStaticAnalysis', 'analyze'), 500)
     }, 'Run Remix Analysis')
   }
 

@@ -1,11 +1,14 @@
 // eslint-disable-next-line no-use-before-define
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
+import IpfsHttpClient from 'ipfs-http-client'
 import { UdappProps } from '../types'
 import { FuncABI } from '@remix-project/core-plugin'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import * as remixLib from '@remix-project/remix-lib'
 import * as ethJSUtil from '@ethereumjs/util'
+import { ModalTypes } from '@remix-ui/app'
+import { QueryParams } from '@remix-project/remix-lib'
 import { ContractGUI } from './contractGUI'
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import { BN } from 'bn.js'
@@ -28,10 +31,32 @@ export function UniversalDappUI(props: UdappProps) {
   const [evmBC, setEvmBC] = useState(null)
   const [instanceBalance, setInstanceBalance] = useState(0)
 
+  const isGenerating = useRef(false)
+  const [useNewAiBuilder, setUseNewAiBuilder] = useState(false)
+
+  const checkUrlParams = useCallback(() => {
+    const qp = new QueryParams()
+    const hasFlag = qp.exists('experimental')
+
+    setUseNewAiBuilder(prev => {
+      if (prev !== hasFlag) {
+        return hasFlag
+      }
+      return prev
+    })
+  }, [])
+
+  useEffect(() => {
+    checkUrlParams()
+    window.addEventListener('hashchange', checkUrlParams)
+    return () => {
+      window.removeEventListener('hashchange', checkUrlParams)
+    }
+  }, [checkUrlParams])
+
   useEffect(() => {
     if (!props.instance.abi) {
       const abi = txHelper.sortAbiFunction(props.instance.contractData.abi)
-
       setContractABI(abi)
     } else {
       setContractABI(props.instance.abi)
@@ -299,17 +324,89 @@ export function UniversalDappUI(props: UdappProps) {
             </span>
             <div></div>
             <div className="btn d-flex p-0 align-self-center">
-              {props.exEnvironment && props.exEnvironment.startsWith('injected') && (
+
+              {/* [V2 Logic] New AI Builder Mode (Sparkles) */}
+              {useNewAiBuilder && props.exEnvironment && (
                 <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
                   <i
                     data-id="instanceEditIcon"
                     className="fas fa-sparkles"
+                    onClick={async () => {
+                      try {
+                        const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', props.instance.name)
+                        const description: string = await new Promise((resolve, reject) => {
+                          const modalMessage = (
+                            <ul className="p-3">
+                              <div className="mb-2">
+                                <span>Please describe how you would want the design to look like.</span>
+                              </div>
+                              <div>This might take up to 2 minutes.</div>
+                            </ul>
+                          )
+                          const modalContent = {
+                            id: 'generate-website-ai',
+                            title: 'Generate a Dapp UI with AI',
+                            message: modalMessage,
+                            placeholderText: 'E.g: "The website should have a dark theme, and show the account address and balance on top. The website should be responsive and look good on mobile. There should be a button to connect the wallet, and a button to refresh the balance, with a nice layout and design."',
+                            modalType: ModalTypes.textarea,
+                            okLabel: 'Generate',
+                            cancelLabel: 'Cancel',
+                            okFn: (value: string) => setTimeout(() => resolve(value), 0),
+                            cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
+                            hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
+                          }
+                          // @ts-ignore
+                          props.plugin.call('notification', 'modal', modalContent)
+                        })
+
+                        if (isGenerating.current) {
+                          await props.plugin.call('notification', 'toast', 'AI generation is already in progress.')
+                          return
+                        }
+
+                        isGenerating.current = true
+
+                        await props.plugin.call('ai-dapp-generator', 'resetDapp', address)
+                        try {
+                          await props.plugin.call('quick-dapp-v2', 'clearInstance')
+                        } catch (e) {
+                          console.warn('Quick Dapp clean up failed (plugin might not be loaded yet):', e)
+                        }
+
+                        try {
+                          await props.plugin.call('quick-dapp-v2', 'startAiLoading')
+                        } catch (e) {
+                          console.warn('Failed to start loading state:', e)
+                        }
+
+                        await generateAIDappWithPlugin(description, address, data, props)
+                        await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+                      } catch (error) {
+                        if (error.message !== 'Canceled' && error.message !== 'Hide') {
+                          console.error('Error generating DApp:', error)
+                          await props.plugin.call('terminal', 'log', { type: 'error', value: error.message })
+                        }
+                      } finally {
+                        isGenerating.current = false
+                      }
+                    }}
+                  ></i>
+                </CustomTooltip>
+              )}
+
+              {/* [V1 Logic] Legacy Edit Mode (Pencil) */}
+              {!useNewAiBuilder && props.exEnvironment && props.exEnvironment.startsWith('injected') && (
+                <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
+                  <i
+                    data-id="instanceEditIcon"
+                    className="fas fa-edit"
                     onClick={() => {
                       props.editInstance(props.instance)
                     }}
                   ></i>
                 </CustomTooltip>
               )}
+
             </div>
           </div>
           { props.instance.isPinned && props.instance.pinnedAt ? (
@@ -424,4 +521,59 @@ export function UniversalDappUI(props: UdappProps) {
       </div>
     </div>
   )
+}
+
+const generateAIDappWithPlugin = async (description: string, address: string, contractData: any, props: UdappProps) => {
+  try {
+    const pages: Record<string, string> = await props.plugin.call('ai-dapp-generator', 'generateDapp', {
+      description,
+      address,
+      abi: props.instance.abi || props.instance.contractData.abi,
+      chainId: props.plugin.REACT_API.chainId,
+      contractName: props.instance.name
+    })
+
+    try {
+      await props.plugin.call('fileManager', 'remove', 'dapp')
+    } catch (e) {
+    }
+    await props.plugin.call('fileManager', 'mkdir', 'dapp')
+
+    for (const [rawFilename, content] of Object.entries(pages)) {
+      const safeParts = rawFilename.replace(/\\/g, '/')
+        .split('/')
+        .filter(part => part !== '..' && part !== '.' && part !== '');
+
+      if (safeParts.length === 0) {
+        continue;
+      }
+      const safeFilename = safeParts.join('/');
+      const fullPath = 'dapp/' + safeFilename;
+
+      if (safeParts.length > 1) {
+        const subFolders = safeParts.slice(0, -1);
+        let currentPath = 'dapp';
+        for (const folder of subFolders) {
+          currentPath = `${currentPath}/${folder}`;
+          try {
+            await props.plugin.call('fileManager', 'mkdir', currentPath);
+          } catch (e) { }
+        }
+      }
+      await props.plugin.call('fileManager', 'writeFile', fullPath, content)
+    }
+
+    props.editInstance(
+      address,
+      props.instance.abi,
+      props.instance.name,
+      contractData.artefact.devdoc,
+      contractData.artefact.metadata,
+      pages
+    )
+
+  } catch (error) {
+    console.error('Error generating DApp:', error)
+    await props.plugin.call('terminal', 'log', { type: 'error', value: error.message })
+  }
 }

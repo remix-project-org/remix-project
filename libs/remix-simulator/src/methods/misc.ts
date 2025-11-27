@@ -1,4 +1,4 @@
-import { sha3 } from 'web3-utils'
+import { keccak256 } from 'ethers'
 const version = require('../../package.json').version
 
 export function methods () {
@@ -39,7 +39,7 @@ export function eth_hashrate (payload, cb) {
 
 export function web3_sha3 (payload, cb) {
   const str: string = payload.params[0]
-  cb(null, sha3(str))
+  cb(null, keccak256(str))
 }
 
 export function eth_getCompilers (payload, cb) {

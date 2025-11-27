@@ -83,5 +83,9 @@ export const modalReducer = (state: ModalState = ModalInitialState, action: Moda
       return { ...state, toasters: []}
     }
   }
+
+  case modalActionTypes.setTemplateExplorer: {
+    return { ...state, focusTemplateExplorer: action.payload }
+  }
   }
 }

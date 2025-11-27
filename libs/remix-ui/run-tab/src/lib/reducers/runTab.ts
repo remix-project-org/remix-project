@@ -59,7 +59,7 @@ export const runTabInitialState: RunTabState = {
   gasPriceStatus: false,
   confirmSettings: false,
   maxFee: '',
-  maxPriorityFee: '1',
+  maxPriorityFee: '.0001',
   baseFeePerGas: '',
   gasPrice: '',
   instances: {

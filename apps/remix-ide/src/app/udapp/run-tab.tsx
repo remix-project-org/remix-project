@@ -54,7 +54,11 @@ const profile = {
     'clearAllInstances',
     'addInstance',
     'resolveContractAndAddInstance',
-    'showPluginDetails'
+    'showPluginDetails',
+    'getRunTabAPI',
+    'getDeployedContracts',
+    'getAllDeployedInstances',
+    'setAccount'
   ]
 }
 
@@ -72,6 +76,8 @@ export class RunTab extends ViewPlugin {
   recorder: any
   REACT_API: any
   el: any
+  allTransactionHistory: Map<string, any> = new Map()
+
   constructor(blockchain: Blockchain, config: any, fileManager: any, editor: any, filePanel: any, compilersArtefacts: CompilerArtefacts, networkModule: any, fileProvider: any, engine: any) {
     super(profile)
     this.event = new EventManager()
@@ -96,6 +102,34 @@ export class RunTab extends ViewPlugin {
     })
   }
 
+  onActivation(): void {
+    // Listen for transaction execution events to collect deployment data
+    this.on('blockchain','transactionExecuted', (error, from, to, data, useCall, result, timestamp, payload) => {
+      console.log('[UDAPP] Transaction execution detected:', result.receipt.contractAddress)
+
+      if (!error && result && result.receipt && result.receipt.contractAddress) {
+
+        // Store deployment transaction data
+        const deploymentData = {
+          transactionHash: result.receipt.transactionHash,
+          blockHash: result.receipt.blockHash,
+          blockNumber: result.receipt.blockNumber,
+          gasUsed: result.receipt.gasUsed,
+          gasPrice: result.receipt.gasPrice || result.receipt.effectiveGasPrice || '0',
+          from: from,
+          to: to,
+          timestamp: timestamp,
+          status: result.receipt.status ? 'success' : 'failed',
+          constructorArgs: payload?.contractGuess?.constructorArgs || [],
+          contractName: payload?.contractData?.name || payload?.contractGuess?.name || 'Unknown',
+          value: result.receipt.value || '0'
+        }
+
+        this.allTransactionHistory.set(result.receipt.contractAddress, deploymentData)
+      }
+    })
+  }
+
   getSettings() {
     return new Promise((resolve, reject) => {
       resolve({
@@ -115,11 +149,21 @@ export class RunTab extends ViewPlugin {
     if (canCall) {
       env = typeof env === 'string' ? { context: env } : env
       this.emit('setEnvironmentModeReducer', env, this.currentRequest.from)
+      this.allTransactionHistory.clear()
     }
+  }
+
+  setAccount(address: string) {
+    this.emit('setAccountReducer', address)
+  }
+
+  getAllDeployedInstances() {
+    return this.REACT_API.instances?.instanceList
   }
 
   clearAllInstances() {
     this.emit('clearAllInstancesReducer')
+    this.allTransactionHistory.clear()
   }
 
   addInstance(address, abi, name, contractData?) {
@@ -137,6 +181,49 @@ export class RunTab extends ViewPlugin {
 
   getAccounts(cb) {
     return this.blockchain.getAccounts(cb)
+  }
+
+  getRunTabAPI(){
+    return this.REACT_API;
+  }
+
+  getDeployedContracts() {
+    if (!this.REACT_API || !this.REACT_API.instances) {
+      return {};
+    }
+    const instances = this.REACT_API.instances.instanceList || [];
+    const deployedContracts = {};
+    const currentProvider = this.REACT_API.selectExEnv || 'vm-london';
+
+    deployedContracts[currentProvider] = {};
+
+    instances.forEach((instance, index) => {
+      if (instance && instance.address) {
+        const txData = this.allTransactionHistory.get(instance.address)
+
+        const contractInstance = {
+          name: instance.name || txData?.contractName || 'Unknown',
+          address: instance.address,
+          abi: instance.contractData?.abi || instance.abi || [],
+          timestamp: txData?.timestamp ? new Date(txData.timestamp).toISOString() : new Date().toISOString(),
+          from: txData?.from || this.REACT_API.accounts?.selectedAccount || 'unknown',
+          transactionHash: txData?.transactionHash || 'unknown',
+          blockHash: txData?.blockHash,
+          blockNumber: Number(txData?.blockNumber) || 0,
+          gasUsed: Number(txData?.gasUsed)|| 0,
+          gasPrice: txData?.gasPrice || '0',
+          value: txData?.value || '0',
+          status: txData?.status || 'unknown',
+          constructorArgs: txData?.constructorArgs || [],
+          verified: false,
+          index: index
+        }
+
+        deployedContracts[currentProvider][instance.address] = contractInstance
+      }
+    });
+
+    return deployedContracts;
   }
 
   pendingTransactionsCount() {
@@ -375,6 +462,9 @@ class Provider {
   sendAsync (payload) {
     return this.udapp.call(this.name, 'sendAsync', payload)
   }
+  send (payload) {
+    return this.udapp.call(this.name, 'sendAsync', payload)
+  }
   request (payload): Promise<any> {
     return new Promise((resolve, reject) => {
       this.udapp.call(this.name, 'sendAsync', payload).then((response) => {
@@ -384,7 +474,7 @@ class Provider {
           resolve(response.result? response.result : response)
         }
       }).catch((err) => {
-        reject(err)
+        reject(err.error ? err.error : err)
       })
     })
   }

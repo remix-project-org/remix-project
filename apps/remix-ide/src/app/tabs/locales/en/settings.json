@@ -65,5 +65,12 @@
   "settings.aiCopilotDescription": "RemixAI Copilot assists with code suggestions and improvements.",
   "settings.aiPrivacyPolicy": "RemixAI Privacy & Data Usage",
   "settings.viewPrivacyPolicy": "View Privacy Policy",
-  "settings.aiPrivacyPolicyDescription": "Understand how RemixAI processes your data."
+  "settings.mcpServerConfiguration": "MCP Server Configuration",
+  "settings.mcpServerConfigurationDescription": "Connect to Model Context Protocol servers for enhanced AI context",
+  "settings.enableMCPEnhancement": "Enable MCP Integration",
+  "settings.enableMCPEnhancementDescription": "Manage your MCP server connections",
+  "settings.aiPrivacyPolicyDescription": "Understand how RemixAI processes your data.",
+  "settings.ollamaConfig": "Ollama URL Configuration",
+  "settings.ollamaConfigDescription": "Configure Ollama endpoint for local AI model integration",
+  "settings.ollama-endpoint": "ENDPOINT URL"
 }

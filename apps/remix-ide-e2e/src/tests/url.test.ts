@@ -201,6 +201,42 @@ module.exports = {
       })
   },
 
+  'Should load the code from URL & code params with ASCII punctuation and special character #group1': function (browser: NightwatchBrowser) {
+    browser
+      .url('http://127.0.0.1:8080/?#code=Ly8gU1BEWC1MaWNlbnNlLUlkZW50aWZpZXI6IE1JVAovLyBDb21wYXRpYmxlIHdpdGggT3BlblplcHBlbGluIENvbnRyYWN0cyBeNS40LjAKcHJhZ21hIHNvbGlkaXR5IF4wLjguMjc7CgppbXBvcnQge0Fic3RyYWN0U2lnbmVyfSBmcm9tICJAb3BlbnplcHBlbGluL2NvbnRyYWN0c0A1LjQuMC91dGlscy9jcnlwdG9ncmFwaHkvc2lnbmVycy9BYnN0cmFjdFNpZ25lci5zb2wiOwppbXBvcnQge0FjY291bnR9IGZyb20gIkBvcGVuemVwcGVsaW4vY29udHJhY3RzQDUuNC4wL2FjY291bnQvQWNjb3VudC5zb2wiOwppbXBvcnQge0FjY291bnRFUkM3NTc5fSBmcm9tICJAb3BlbnplcHBlbGluL2NvbnRyYWN0c0A1LjQuMC9hY2NvdW50L2V4dGVuc2lvbnMvZHJhZnQtQWNjb3VudEVSQzc1Nzkuc29sIjsKaW1wb3J0IHtFSVA3MTJ9IGZyb20gIkBvcGVuemVwcGVsaW4vY29udHJhY3RzQDUuNC4wL3V0aWxzL2NyeXB0b2dyYXBoeS9FSVA3MTIuc29sIjsKaW1wb3J0IHtFUkMxMTU1SG9sZGVyfSBmcm9tICJAb3BlbnplcHBlbGluL2NvbnRyYWN0c0A1LjQuMC90b2tlbi9FUkMxMTU1L3V0aWxzL0VSQzExNTVIb2xkZXIuc29sIjsKaW1wb3J0IHtFUkM3MjFIb2xkZXJ9IGZyb20gIkBvcGVuemVwcGVsaW4vY29udHJhY3RzQDUuNC4wL3Rva2VuL0VSQzcyMS91dGlscy9FUkM3MjFIb2xkZXIuc29sIjsKaW1wb3J0IHtFUkM3NzM5fSBmcm9tICJAb3BlbnplcHBlbGluL2NvbnRyYWN0c0A1LjQuMC91dGlscy9jcnlwdG9ncmFwaHkvc2lnbmVycy9kcmFmdC1FUkM3NzM5LnNvbCI7CmltcG9ydCB7UGFja2VkVXNlck9wZXJhdGlvbn0gZnJvbSAiQG9wZW56ZXBwZWxpbi9jb250cmFjdHNANS40LjAvaW50ZXJmYWNlcy9kcmFmdC1JRVJDNDMzNy5zb2wiOwppbXBvcnQge1NpZ25lckVDRFNBfSBmcm9tICJAb3BlbnplcHBlbGluL2NvbnRyYWN0c0A1LjQuMC91dGlscy9jcnlwdG9ncmFwaHkvc2lnbmVycy9TaWduZXJFQ0RTQS5zb2wiOwoKY29udHJhY3QgTXlBY2NvdW50IGlzIEFjY291bnQsIEVJUDcxMiwgRVJDNzczOSwgQWNjb3VudEVSQzc1NzksIFNpZ25lckVDRFNBLCBFUkM3MjFIb2xkZXIsIEVSQzExNTVIb2xkZXIgewogICAgY29uc3RydWN0b3IoYWRkcmVzcyBzaWduZXIpCiAgICAgICAgRUlQNzEyKHVuaWNvZGUiTXlBY2NvdW508J%2BMviIsICIxIikKICAgICAgICBTaWduZXJFQ0RTQShzaWduZXIpCiAgICB7fQoKICAgIGZ1bmN0aW9uIGlzVmFsaWRTaWduYXR1cmUoYnl0ZXMzMiBoYXNoLCBieXRlcyBjYWxsZGF0YSBzaWduYXR1cmUpCiAgICAgICAgcHVibGljCiAgICAgICAgdmlldwogICAgICAgIG92ZXJyaWRlKEFjY291bnRFUkM3NTc5LCBFUkM3NzM5KQogICAgICAgIHJldHVybnMgKGJ5dGVzNCkKICAgIHsKICAgICAgICAvLyBFUkMtNzczOSBjYW4gcmV0dXJuIHRoZSBFUkMtMTI3MSBtYWdpYyB2YWx1ZSwgMHhmZmZmZmZmZiAoaW52YWxpZCkgb3IgMHg3NzM5MDAwMSAoZGV0ZWN0aW9uKS4KICAgICAgICAvLyBJZiB0aGUgcmV0dXJuZWQgdmFsdWUgaXMgMHhmZmZmZmZmZiwgZmFsbGJhY2sgdG8gRVJDLTc1NzkgdmFsaWRhdGlvbi4KICAgICAgICBieXRlczQgZXJjNzczOW1hZ2ljID0gRVJDNzczOS5pc1ZhbGlkU2lnbmF0dXJlKGhhc2gsIHNpZ25hdHVyZSk7CiAgICAgICAgcmV0dXJuIGVyYzc3MzltYWdpYyA9PSBieXRlczQoMHhmZmZmZmZmZikgPyBBY2NvdW50RVJDNzU3OS5pc1ZhbGlkU2lnbmF0dXJlKGhhc2gsIHNpZ25hdHVyZSkgOiBlcmM3NzM5bWFnaWM7CiAgICB9CgogICAgLy8gVGhlIGZvbGxvd2luZyBmdW5jdGlvbnMgYXJlIG92ZXJyaWRlcyByZXF1aXJlZCBieSBTb2xpZGl0eS4KCiAgICBmdW5jdGlvbiBfdmFsaWRhdGVVc2VyT3AoUGFja2VkVXNlck9wZXJhdGlvbiBjYWxsZGF0YSB1c2VyT3AsIGJ5dGVzMzIgdXNlck9wSGFzaCkKICAgICAgICBpbnRlcm5hbAogICAgICAgIG92ZXJyaWRlKEFjY291bnQsIEFjY291bnRFUkM3NTc5KQogICAgICAgIHJldHVybnMgKHVpbnQyNTYpCiAgICB7CiAgICAgICAgcmV0dXJuIHN1cGVyLl92YWxpZGF0ZVVzZXJPcCh1c2VyT3AsIHVzZXJPcEhhc2gpOwogICAgfQoKICAgIC8vIElNUE9SVEFOVDogTWFrZSBzdXJlIFNpZ25lckVDRFNBIGlzIG1vc3QgZGVyaXZlZCB0aGFuIEFjY291bnRFUkM3NTc5CiAgICAvLyBpbiB0aGUgaW5oZXJpdGFuY2UgY2hhaW4gKGkuZS4gY29udHJhY3QgLi4uIGlzIEFjY291bnRFUkM3NTc5LCAuLi4sIFNpZ25lckVDRFNBKQogICAgLy8gdG8gZW5zdXJlIHRoZSBjb3JyZWN0IG9yZGVyIG9mIGZ1bmN0aW9uIHJlc29sdXRpb24uCiAgICAvLyBBY2NvdW50RVJDNzU3OSByZXR1cm5zIGZhbHNlIGZvciBfcmF3U2lnbmF0dXJlVmFsaWRhdGlvbgogICAgZnVuY3Rpb24gX3Jhd1NpZ25hdHVyZVZhbGlkYXRpb24oYnl0ZXMzMiBoYXNoLCBieXRlcyBjYWxsZGF0YSBzaWduYXR1cmUpCiAgICAgICAgaW50ZXJuYWwKICAgICAgICB2aWV3CiAgICAgICAgb3ZlcnJpZGUoU2lnbmVyRUNEU0EsIEFic3RyYWN0U2lnbmVyLCBBY2NvdW50RVJDNzU3OSkKICAgICAgICByZXR1cm5zIChib29sKQogICAgewogICAgICAgIHJldHVybiBzdXBlci5fcmF3U2lnbmF0dXJlVmFsaWRhdGlvbihoYXNoLCBzaWduYXR1cmUpOwogICAgfQp9Cg&lang=en&optimize=false&runs=200&evmVersion=null')
+      .refreshPage() // we do one reload for making sure we already have the default workspace
+
+      .waitForElementVisible('[data-id="compilerContainerCompileBtn"]')
+      .clickLaunchIcon('filePanel')
+      .waitForElementVisible({
+        selector: `//li[@data-id="treeViewLitreeViewItemcontract-e0bf950259.sol"]`,
+        locateStrategy: 'xpath'
+      })
+      .currentWorkspaceIs('code-sample')
+      .waitForElementVisible({
+        selector: '//*[@id="editorView"]',
+        locateStrategy: 'xpath'
+      })
+      .getEditorValue((content) => {
+        browser.assert.ok(content && content.indexOf(
+          '"MyAccount🌾"') !== -1,
+        'code has been loaded')
+      })
+      .getEditorValue((content) => {
+        browser.assert.ok(content && content.indexOf(
+          'return erc7739magic == bytes4(0xffffffff) ? AccountERC7579.isValidSignature(hash, signature) : erc7739magic;') !== -1,
+        'Account code has been loaded')
+      })
+      .url('http://127.0.0.1:8080') // refresh without loading the code sample
+      .pause(2000)
+      .currentWorkspaceIs('default_workspace')
+      .execute(() => {
+        return document.querySelector('[data-id="dropdown-item-code-sample"]') === null
+      }, [], (result) => {
+        browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
+      })
+  },
+
   'Should load the code from language & code params #group1': function (browser: NightwatchBrowser) {
     browser
 

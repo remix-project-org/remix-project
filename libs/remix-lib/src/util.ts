@@ -3,7 +3,6 @@ import { hash } from '@remix-project/remix-lib'
 import { setLengthLeft, toBytes, addHexPrefix } from '@ethereumjs/util'
 import stringSimilarity from 'string-similarity'
 import { BN } from 'bn.js'
-import { isBigInt } from 'web3-validator'
 
 /*
  contains misc util: @TODO should be split
@@ -174,7 +173,7 @@ export function buildCallPath (index, rootCall) {
   */
 // eslint-disable-next-line camelcase
 export function sha3_256 (value) {
-  if ((value.constructor && value.constructor.name === 'BigNumber') || BN.isBN(value) || isBigInt(value)) {
+  if ((value.constructor && value.constructor.name === 'BigNumber') || BN.isBN(value) || (typeof value === 'bigint')) {
     value = value.toString(16)
   }
   if (typeof value === 'number') {

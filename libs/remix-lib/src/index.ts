@@ -9,7 +9,7 @@ import * as txExecution from './execution/txExecution'
 import * as txHelper from './execution/txHelper'
 import * as txFormat from './execution/txFormat'
 import { TxListener } from './execution/txListener'
-import { TxRunner } from './execution/txRunner'
+import { TxRunner, TxResult } from './execution/txRunner'
 import { LogsManager } from './execution/logsManager'
 import { forkAt } from './execution/forkAt'
 import * as typeConversion from './execution/typeConversion'
@@ -43,4 +43,4 @@ const execution = {
   LogsManager,
   forkAt
 }
-export { EventManager, helpers, Storage, util, execution, hash, eip7702Constants }
+export { EventManager, helpers, Storage, util, execution, hash, eip7702Constants, TxResult }

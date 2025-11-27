@@ -14,14 +14,6 @@ export const sepolia = {
   rpcUrl: 'https://rpc.sepolia.org'
 }
 
-export const goerli = {
-  chainId: 5,
-  name: 'Goerli',
-  currency: 'ETH',
-  explorerUrl: 'https://goerli.etherscan.io',
-  rpcUrl: 'https://rpc.ankr.com/eth_goerli'
-}
-
 export const arbitrum = {
   chainId: 42161,
   name: 'Arbitrum',

@@ -6,7 +6,7 @@ import HomeTabRecentWorkspaces from './components/homeTabRecentWorkspaces'
 import HomeTabRecentWorkspacesElectron from './components/homeTabRecentWorkspacesElectron'
 import HomeTabScamAlert from './components/homeTabScamAlert'
 import HomeTabFeaturedPlugins from './components/homeTabFeaturedPlugins'
-import { AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
+import { appActionTypes, AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
 import { HomeTabEvent, MatomoEvent } from '@remix-api'
 import { TrackingContext } from '@remix-ide/tracking'
 import { HomeTabFileElectron } from './components/homeTabFileElectron'
@@ -74,8 +74,10 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
   }
 
   const openTemplateSelection = async () => {
-    await plugin.call('manager', 'activatePlugin', 'templateSelection')
-    await plugin.call('tabs', 'focus', 'templateSelection')
+    appContext.appStateDispatch({
+      type: appActionTypes.showGenericModal,
+      payload: true
+    })
     trackMatomoEvent({
       category: 'hometab',
       action: 'header',

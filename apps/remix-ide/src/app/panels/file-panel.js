@@ -44,7 +44,8 @@ const profile = {
     'loadTemplate',
     'clone',
     'isExpanded',
-    'isGist'
+    'isGist',
+    'workspaceExists'
   ],
   events: ['setWorkspace', 'workspaceRenamed', 'workspaceDeleted', 'workspaceCreated'],
   icon: 'assets/img/fileManager.webp',
@@ -148,6 +149,11 @@ export default class Filepanel extends ViewPlugin {
 
   getWorkspaces() {
     return this.workspaces
+  }
+
+  workspaceExists(name) {
+    if (!this.workspaces) return false
+    return this.workspaces.find((workspace) => workspace.name === name)
   }
 
   getAvailableWorkspaceName(name) {

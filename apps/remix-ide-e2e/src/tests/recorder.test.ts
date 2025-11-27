@@ -96,7 +96,7 @@ module.exports = {
       .pause(1000)
       .clickFunction('set2 - transact (not payable)', { types: 'uint256 _po', values: '10' })
       .testFunction('last', {
-        status: '0x1 Transaction mined and execution succeed',
+        status: '1 Transaction mined and execution succeed',
         'decoded input': { 'uint256 _po': '10' }
       })
   },

@@ -2,7 +2,6 @@ import React from 'react' // eslint-disable-line
 import { format } from 'util'
 import { Plugin } from '@remixproject/engine'
 import { compile, CompilerSettings } from '@remix-project/remix-solidity'
-import { Transaction } from 'web3-types'
 import { trackMatomoEvent } from '@remix-api'
 
 const profile = {
@@ -82,13 +81,15 @@ export class SolidityScript extends Plugin {
     }
 
     // deploy the contract
-    let tx: Transaction = {
+    let tx: any = {
       from: accounts[0],
       data: bytecode
     }
     let receipt
+    const signer = await web3.getSigner(tx.from || 0)
     try {
-      receipt = await web3.eth.sendTransaction(tx, null, { checkRevertBeforeSending: false, ignoreGasPricing: true })
+      const { hash } = await signer.sendTransaction(tx)
+      receipt = await web3.getTransactionReceipt(hash)
     } catch (e) {
       this.call('terminal', 'logHtml', e.message)
       return
@@ -102,13 +103,14 @@ export class SolidityScript extends Plugin {
     let receiptCall
 
     try {
-      receiptCall = await web3.eth.sendTransaction(tx, null, { checkRevertBeforeSending: false, ignoreGasPricing: true })
+      const { hash } = await signer.sendTransaction(tx)
+      receiptCall = await web3.getTransactionReceipt(hash)
     } catch (e) {
       this.call('terminal', 'logHtml', e.message)
       return
     }
 
-    const hhlogs = await web3.remix.getHHLogsForTx(receiptCall.transactionHash)
+    const hhlogs = await web3.remix.getHHLogsForTx(receiptCall.hash)
 
     if (hhlogs && hhlogs.length) {
       const finalLogs = (

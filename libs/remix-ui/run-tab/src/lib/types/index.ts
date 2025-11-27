@@ -29,6 +29,19 @@ export type SmartAccount = {
   ownerEOA: string
   timestamp: number
 }
+
+export interface UdappInstance {
+  contractData?: ContractData,
+  address: string,
+  balance?: number,
+  name: string,
+  decodedResponse?: Record<number, any>,
+  abi?: any,
+  isPinned?: boolean,
+  pinnedAt?: number,
+  filePath?: string
+}
+
 export type EnvDropdownLabelStateType = {
   name: string,
   value: string,
@@ -98,17 +111,7 @@ export interface RunTabState {
   baseFeePerGas: string,
   gasPrice: string,
   instances: {
-    instanceList: {
-      contractData?: ContractData,
-      address: string,
-      balance?: number,
-      name: string,
-      decodedResponse?: Record<number, any>,
-      abi?: any,
-      isPinned?: boolean,
-      pinnedAt?: number,
-      filePath?: string
-    }[],
+    instanceList: UdappInstance[],
     error: string
   },
   recorder: {
@@ -227,7 +230,7 @@ export interface Tx {
   from: string,
   to: string,
   data: string,
-  gas: string
+  gasLimit?: string
 }
 
 export interface Network {
@@ -320,17 +323,7 @@ export interface InstanceContainerProps {
   evmCheckComplete?: boolean
   runTabState: RunTabState
   instances: {
-    instanceList: {
-      contractData?: ContractData,
-      address: string,
-      balance?: number,
-      name: string,
-      decodedResponse?: Record<number, any>,
-      abi?: any,
-      isPinned?: boolean,
-      pinnedAt?: number,
-      filePath?: string
-    }[],
+    instanceList: UdappInstance[],
     error: string
   },
   clearInstances: () => void,
@@ -357,7 +350,14 @@ export interface InstanceContainerProps {
   sendValue: string,
   getFuncABIInputs: (funcABI: FuncABI) => string
   exEnvironment: string
-  editInstance: (instance) => void
+  editInstance: (
+    addressOrInstance: string | UdappInstance,
+    abi?: any,
+    name?: string,
+    devdoc?: any,
+    metadata?: string,
+    htmlTemplate?: any
+  ) => void
   plugin: RunTab
   solcVersion: { version: string, canReceive: boolean }
   getVersion: any
@@ -447,17 +447,7 @@ export interface UdappProps {
   getCompilerDetails: () => Promise<CheckStatus>
   evmCheckComplete?: boolean,
   runTabState: RunTabState
-  instance: {
-    contractData?: ContractData,
-    address: string,
-    balance?: number,
-    name: string,
-    decodedResponse?: Record<number, any>,
-    abi?: any,
-    isPinned?: boolean
-    pinnedAt?: number,
-    filePath?: string
-  },
+  instance: UdappInstance,
   context: 'memory' | 'blockchain',
   removeInstance: (index: number) => void,
   pinInstance: (index: number, pinnedAt: number, filePath: string) => void,
@@ -482,7 +472,14 @@ export interface UdappProps {
   sendValue: string,
   getFuncABIInputs: (funcABI: FuncABI) => string
   exEnvironment: string
-  editInstance: (instance) => void
+  editInstance: (
+    addressOrInstance: string | UdappInstance,
+    abi?: any,
+    name?: string,
+    devdoc?: any,
+    metadata?: string,
+    htmlTemplate?: any
+  ) => void
   plugin: RunTab
   solcVersion: { version: string, canReceive: boolean }
   getVersion: () => string

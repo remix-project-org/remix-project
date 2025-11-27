@@ -1,2 +1,2 @@
-export { Provider, extend, JSONRPCRequestPayload, JSONRPCResponsePayload, JSONRPCResponseCallback } from './provider'
+export { Provider, extendProvider, JSONRPCRequestPayload, JSONRPCResponsePayload, JSONRPCResponseCallback } from './provider'
 export { Server } from './server'

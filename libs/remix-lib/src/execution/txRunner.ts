@@ -1,6 +1,7 @@
 'use strict'
 import { EventManager } from '../eventManager'
 import { EOACode7702AuthorizationList } from '@ethereumjs/util'
+import type { TransactionReceipt } from 'ethers'
 /*
  * A type that represents a `0x`-prefixed hex string.
  */
@@ -19,6 +20,12 @@ export type Transaction = {
   signed?: boolean,
   authorizationList?: EOACode7702AuthorizationList
   type?: '0x1' | '0x2' | '0x4'
+}
+
+export type TxResult = {
+  receipt: TransactionReceipt,
+  transactionHash: string,
+  tx: any
 }
 
 export class TxRunner {

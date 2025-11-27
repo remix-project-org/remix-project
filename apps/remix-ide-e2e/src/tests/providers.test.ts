@@ -51,10 +51,13 @@ module.exports = {
       .pause(1000)
   },
   'Should switch to foundry provider, use the default foundry URL and succeed to connect #group1': function (browser: NightwatchBrowser) {
-    browser.switchEnvironment('foundry-provider')
-      .waitForElementVisible('*[data-id="foundry-providerModalDialogModalBody-react"]')
+    browser
+      .switchEnvironment('vm-cancun')
+      .pause(2000)
+      .switchEnvironment('foundry-provider')
+      .waitForElementVisible('*[data-id="foundry-providerModalDialogModalBody-react"]', 60000)
       .modalFooterOKClick('foundry-provider')
-      .waitForElementContainsText('*[data-id="settingsNetworkEnv"]', 'Custom (')
+      .waitForElementContainsText('*[data-id="settingsNetworkEnv"]', '1337) network')
   },
 
   'Should switch to custom provider #group2': function (browser: NightwatchBrowser) {
@@ -84,7 +87,7 @@ module.exports = {
       .waitForElementVisible({
         locateStrategy: 'xpath',
         selector: "//span[@class='text-danger' and contains(., 'exceed maximum block range')]"
-      })
+      }, 60000)
       .waitForElementPresent({ selector: `[data-id="selected-provider-ganache-provider"]`, timeout: 5000 })
   }
 }

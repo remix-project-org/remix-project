@@ -10,7 +10,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
   if (data.to) to = to + ' ' + shortenHexData(data.to)
   const val = data.value
   let hash = data.hash ? shortenHexData(data.hash) : ''
-  const input = data.input ? shortenHexData(data.input) : ''
+  const input = data.input ? shortenHexData(data.input) : (data.data ? shortenHexData(data.data) : '')
   const logs = opts.logs && opts.logs.raw && opts.logs.raw.length ? opts.logs.raw.length : 0
   const block = data.receipt ? data.receipt.blockNumber : data.blockNumber || ''
   const i = data.receipt ? data.transactionIndex : data.transactionIndex

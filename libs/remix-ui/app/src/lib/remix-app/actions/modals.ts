@@ -1,4 +1,4 @@
-import { AppModal } from '../interface'
+import { AppModal, GenericModal } from '../interface'
 
 type ActionMap<M extends { [index: string]: any }> = {
     [Key in keyof M]: M[Key] extends undefined
@@ -16,7 +16,8 @@ export const enum modalActionTypes {
   setToast = 'SET_TOAST',
   processQueue = 'PROCESS_QUEUEU',
   handleHideModal = 'HANDLE_HIDE_MODAL',
-  handleToaster = 'HANDLE_HIDE_TOAST'
+  handleToaster = 'HANDLE_HIDE_TOAST',
+  setTemplateExplorer = 'SET_TEMPLATE_EXPLORER'
 }
 
 type ModalPayload = {
@@ -24,7 +25,8 @@ type ModalPayload = {
   [modalActionTypes.handleHideModal]: any
   [modalActionTypes.setToast]: { message: string | JSX.Element, timestamp: number }
   [modalActionTypes.handleToaster]: any,
-  [modalActionTypes.processQueue]: any
+  [modalActionTypes.processQueue]: any,
+  [modalActionTypes.setTemplateExplorer]: GenericModal
 }
 
 export type ModalAction = ActionMap<ModalPayload>[keyof ActionMap<

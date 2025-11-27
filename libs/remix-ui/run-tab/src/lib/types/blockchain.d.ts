@@ -49,7 +49,7 @@ export class Blockchain extends Plugin<any, any> {
   signMessage(message: any, account: any, passphrase: any, cb: any): void;
   web3(): any;
   getTxListener(opts: any): any;
-  runOrCallContractMethod(contractName: any, contractAbi: any, funABI: any, contract: any, value: any, address: any, callType: any, lookupOnly: any, logMsg: any, logCallback: any, outputCb: any, confirmationCb: any, continueCb: any, promptCb: any): void;
+  runOrCallContractMethod(contractName: any, contractAbi: any, funABI: any, contract: any, value: any, address: any, callType: any, lookupOnly: any, logMsg: any, logCallback: any, outputCb: any, confirmationCb: any, continueCb: any, promptCb: any, finalCb?: any): void;
   context(): "memory" | "blockchain";
   resetAndInit(config: any, transactionContextAPI: any): void;
   transactionContextAPI: any;

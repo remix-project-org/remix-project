@@ -60,7 +60,6 @@ Commands:
 
     it('remix-tests running a test file', function() {
       const res = spawnSync(executablePath, [resolve(__dirname + '/examples_0/assert_ok_test.sol')])
-      //console.log(res.stdout.toString())
       // match initial lines
       console.log(res.stdout.toString())
       expect(res.stdout.toString().trim()).to.match(/:: Running tests using remix-tests ::/)

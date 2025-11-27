@@ -1,23 +1,10 @@
 'use strict'
-import { Web3, Web3PluginBase } from 'web3'
-import { toNumber } from 'web3-utils'
+import { toNumber, ethers } from 'ethers'
 
-export function extendWeb3 (web3) {
-  if (!web3.debug){
-    web3.registerPlugin(new Web3DebugPlugin())
-  }
-}
-
-export function loadWeb3 (url) {
-  if (!url) url = 'http://localhost:8545'
-  const web3 = new Web3()
-  web3.setProvider(new Web3.providers.HttpProvider(url))
-  extendWeb3(web3)
-  return web3
-}
-
-export function setProvider (web3, url) {
-  web3.setProvider(new web3.providers.HttpProvider(url))
+export function loadWeb3 (url = 'http://localhost:8545') {
+  const provider = new ethers.JsonRpcProvider(url)
+  extendProvider(provider)
+  return provider
 }
 
 export function web3DebugNode (network) {
@@ -31,32 +18,24 @@ export function web3DebugNode (network) {
   return null
 }
 
-class Web3DebugPlugin extends Web3PluginBase {
-  public pluginNamespace = 'debug'
+export function extendProvider (provider) { // Provider should be ethers.js provider
 
-  public preimage(key, cb) {
-    this.requestManager.send({
-      method: 'debug_preimage',
-      params: [key]
-    })
+  if (!provider.debug) provider.debug = {}
+
+  provider.debug.preimage = (key, cb) => {
+    provider.send('debug_preimage', [key])
       .then(result => cb(null, result))
       .catch(error => cb(error))
   }
 
-  public traceTransaction(txHash, options, cb) {
-    this.requestManager.send({
-      method: 'debug_traceTransaction',
-      params: [txHash, options]
-    })
+  provider.debug.traceTransaction = (txHash, options, cb) => {
+    provider.send('debug_traceTransaction', [txHash, options])
       .then(result => cb(null, result))
       .catch(error => cb(error))
   }
 
-  public storageRangeAt(txBlockHash, txIndex, address, start, maxSize, cb) {
-    this.requestManager.send({
-      method: 'debug_storageRangeAt',
-      params: [txBlockHash, toNumber(txIndex), address, start, maxSize]
-    })
+  provider.debug.storageRangeAt = (txBlockHash, txIndex, address, start, maxSize, cb) => {
+    provider.send('debug_storageRangeAt', [txBlockHash, toNumber(txIndex), address, start, maxSize])
       .then(result => cb(null, result))
       .catch(error => cb(error))
   }

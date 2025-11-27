@@ -25,6 +25,10 @@ export const listenOnPluginEvents = (filePanelPlugin) => {
     populateWorkspace(workspaceTemplateName, opts, isEmpty, cb)
   })
 
+  plugin.on('templateexplorermodal', 'addTemplateToWorkspaceReducerEvent', (workspaceTemplateName: WorkspaceTemplate, opts: any, isEmpty = false, cb: (err: Error, result?: string | number | boolean | Record<string, any>) => void) => {
+    populateWorkspace(workspaceTemplateName, opts, isEmpty, cb)
+  })
+
   plugin.on('filePanel', 'createWorkspaceReducerEvent', (name: string, workspaceTemplateName: WorkspaceTemplate, isEmpty = false, cb: (err: Error, result?: string | number | boolean | Record<string, any>) => void, isGitRepo: boolean) => {
     createWorkspace(name, workspaceTemplateName, null, isEmpty, cb, isGitRepo)
   })

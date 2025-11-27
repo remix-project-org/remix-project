@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, ReactElement, useContext } from 're
 import { FormattedMessage, useIntl } from 'react-intl'
 import * as semver from 'semver'
 import { eachOfSeries } from 'async' // eslint-disable-line
-import type Web3 from 'web3'
 import { canUseWorker, urlFromVersion } from '@remix-project/remix-solidity'
 import { Renderer } from '@remix-ui/renderer' // eslint-disable-line
 import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
@@ -30,7 +29,7 @@ interface TestResultInterface {
   expected?: string | number
   location?: string
   hhLogs?: []
-  web3?: Web3
+  provider?: any
   debugTxHash?: string
   rendered?: boolean
 }
@@ -257,11 +256,11 @@ export const SolidityUnitTesting = (props: Record<string, any>) => {
     return fileName ? fileName.replace(/\//g, '_').replace(/\./g, '_') + testSuite : fileName
   }
 
-  const startDebug = async (txHash: string, web3: Web3) => {
+  const startDebug = async (txHash: string, provider: any) => {
     isDebugging.current = true
     if (!(await testTab.appManager.isActive('debugger'))) await testTab.appManager.activatePlugin('debugger')
     testTab.call('menuicons', 'select', 'debugger')
-    testTab.call('debugger', 'debug', txHash, web3)
+    testTab.call('debugger', 'debug', txHash, provider)
   }
 
   const printHHLogs = (logsArr: Record<string, any>[], testName: string) => {
@@ -359,9 +358,9 @@ export const SolidityUnitTesting = (props: Record<string, any>) => {
       if (!test.rendered) {
         let debugBtn
         if (test.debugTxHash) {
-          const { web3, debugTxHash } = test
+          const { provider, debugTxHash } = test
           debugBtn = (
-            <div id={test.value.replaceAll(' ', '_')} className="btn border btn btn-sm ms-1" style={{ cursor: 'pointer' }} onClick={() => startDebug(debugTxHash, web3)}>
+            <div id={test.value.replaceAll(' ', '_')} className="btn border btn btn-sm ms-1" style={{ cursor: 'pointer' }} onClick={() => startDebug(debugTxHash, provider)}>
               <CustomTooltip
                 placement={'top-start'}
                 tooltipClasses="text-nowrap"

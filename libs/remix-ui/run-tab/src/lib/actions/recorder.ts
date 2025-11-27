@@ -6,7 +6,9 @@ import { confirmationHandler, continueHandler, promptHandler, terminalLogger } f
 import { displayNotification } from "./payload"
 
 const saveScenario = async (plugin: RunTab, newPath: string, provider, promptCb, cb) => {
-  const txJSON = JSON.stringify(plugin.recorder.getAll(), null, 2)
+  const txJSON = JSON.stringify(plugin.recorder.getAll(), (key, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  , 2)
 
   promptCb(async () => {
     try {

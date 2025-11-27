@@ -72,3 +72,370 @@ markdown {
   filter: brightness(90%);
   transition: filter 0.2s ease-in-out;
 }
+
+
+/* ========================================================
+   MODERN AI CHAT STYLING - VS Code / Cursor Style
+   ======================================================== */
+
+/* Paragraphs */
+.ai-paragraph {
+  margin: 0.5em 0;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.ai-paragraph:first-child {
+  margin-top: 0;
+}
+
+.ai-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+/* Headings */
+.ai-heading {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ai-heading:first-child {
+  margin-top: 0.5em;
+}
+
+.ai-h1 {
+  font-size: 1.85rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  padding-bottom: 0.3em;
+}
+
+.ai-h2 {
+  font-size: 1.6rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  padding-bottom: 0.3em;
+}
+
+.ai-h3 {
+  font-size: 1.35rem;
+}
+
+.ai-h4 {
+  font-size: 1.15rem;
+}
+
+.ai-h5 {
+  font-size: 1.05rem;
+}
+
+.ai-h6 {
+  font-size: 0.95rem;
+  color: var(--bs-secondary);
+}
+
+/* Inline Code */
+.ai-inline-code {
+  background: rgba(110, 118, 129, 0.4);
+  color: var(--bs-body-color);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.75em;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Code Block Wrapper */
+.ai-code-block-wrapper {
+  position: relative;
+  margin: 1em 0;
+  background: rgba(110, 118, 129, 0.15);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 0.75em;
+}
+
+/* Code Header with Language Tag */
+.ai-code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(112, 149, 200, 0.2);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.ai-code-language {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Copy Button Styles */
+.ai-copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--bs-secondary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+}
+
+.ai-copy-btn:hover {
+  background: var(--bs-tertiary-bg, rgba(0, 0, 0, 0.1));
+  color: var(--bs-emphasis-color);
+}
+
+.ai-copy-btn:active {
+  transform: scale(0.95);
+}
+
+.ai-copy-btn-absolute {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 10;
+}
+
+/* Code Pre */
+.ai-code-pre {
+  margin: 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  background: transparent;
+  line-height: 1.5;
+  font-size: 0.6rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+}
+
+.ai-code-pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+  font-size: inherit;
+  color: inherit;
+  white-space: pre;
+  word-break: normal;
+}
+
+/* Lists */
+.ai-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.ai-list-unordered {
+  list-style-type: disc;
+}
+
+.ai-list-ordered {
+  list-style-type: decimal;
+}
+
+.ai-list-item {
+  margin: 0.25em 0;
+  padding-left: 0.25rem;
+}
+
+.ai-list-item > .ai-list {
+  margin: 0.25em 0;
+}
+
+.ai-list-item > p {
+  margin: 0.25em 0;
+}
+
+/* Links */
+.ai-link {
+  color: var(--bs-link-color);
+  text-decoration: underline;
+  text-decoration-color: var(--bs-link-color);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: all 0.2s ease;
+}
+
+.ai-link:hover {
+  color: var(--bs-link-hover-color);
+  text-decoration-color: var(--bs-link-hover-color);
+  text-decoration-thickness: 2px;
+}
+
+/* Blockquotes */
+.ai-blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid var(--bs-primary, #0d6efd);
+  background: rgba(110, 118, 129, 0.15);
+  border-radius: 0 4px 4px 0;
+  color: var(--bs-body-color);
+  font-style: italic;
+}
+
+.ai-blockquote > p:first-child {
+  margin-top: 0;
+}
+
+.ai-blockquote > p:last-child {
+  margin-bottom: 0;
+}
+
+/* Highlighted text / mark elements */
+mark,
+.ai-paragraph mark,
+.ai-list-item mark {
+  background: rgba(255, 212, 59, 0.4);
+  color: var(--bs-body-color);
+  padding: 0.1em 0.2em;
+  border-radius: 2px;
+}
+
+/* Tables */
+.ai-table-wrapper {
+  margin: 1em 0;
+  overflow-x: auto;
+  border-radius: 6px;
+  border: 1px solid var(--bs-border-color);
+}
+
+.ai-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  background: transparent;
+}
+
+.ai-table-head {
+  background: rgba(110, 118, 129, 0.2);
+  border-bottom: 2px solid var(--bs-border-color);
+}
+
+.ai-table-header-cell {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--bs-body-color);
+  border-bottom: 2px solid var(--bs-border-color);
+}
+
+.ai-table-body .ai-table-row:nth-child(even) {
+  background: rgba(110, 118, 129, 0.1);
+}
+
+.ai-table-body .ai-table-row:hover {
+  background: rgba(110, 118, 129, 0.2);
+}
+
+.ai-table-cell {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.ai-table-body .ai-table-row:last-child .ai-table-cell {
+  border-bottom: none;
+}
+
+/* Horizontal Rule */
+.ai-divider {
+  margin: 1.5em 0;
+  border: none;
+  border-top: 1px solid var(--bs-border-color);
+  opacity: 0.5;
+}
+
+/* Strong and Emphasis */
+.ai-strong {
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-emphasis {
+  font-style: italic;
+}
+
+/* Improve chat bubble styling for better contrast */
+.chat-bubble {
+  background: var(--bs-body-bg) !important;
+  border: 1px solid var(--bs-border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Better scrollbar for code blocks */
+.ai-code-pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ai-code-pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-code-pre::-webkit-scrollbar-thumb {
+  background: var(--bs-secondary);
+  border-radius: 4px;
+}
+
+.ai-code-pre::-webkit-scrollbar-thumb:hover {
+  background: var(--bs-secondary-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ai-paragraph {
+    font-size: 0.9rem;
+  }
+
+  .ai-h1 {
+    font-size: 1.5rem;
+  }
+
+  .ai-h2 {
+    font-size: 1.25rem;
+  }
+
+  .ai-h3 {
+    font-size: 1.1rem;
+  }
+
+  .ai-code-pre {
+    font-size: 0.8rem;
+  }
+
+  .ai-table {
+    font-size: 0.85rem;
+  }
+}
+
+
+
+.aiMarkup {
+  display: block;
+  white-space: normal;
+  line-height: var(--bs-body-line-height, 1.5);
+}
+
+/* remove default margins inside elements. Bootstrap is just too generous here.*/
+.aiMarkup :where(p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, table, hr) {
+  margin: 0 !important;
+}
+
+/* Add clean vertical spacing between elements.*/
+.aiMarkup > :where(* + *) {
+  margin-top: .95rem;
+}
+
+
+.aiMarkup :where(li + li) { margin-top: .45rem; }
+.aiMarkup pre { margin-top: .45rem; }
+
+.aiMarkup :where(h1) { margin-top: 1rem; }
+.aiMarkup :where(h2) { margin-top: .95rem; }
+.aiMarkup :where(h3) { margin-top: .85rem; }
+
+.aiMarkup hr { margin: .95rem 0; }
+

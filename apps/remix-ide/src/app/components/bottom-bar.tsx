@@ -64,6 +64,12 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
     }
     setExplaining(true)
     try {
+      // Check if pinned panel has a closed plugin and maximize it
+      const closedPlugin = await plugin.call('pinnedPanel', 'getClosedPlugin')
+      if (closedPlugin) {
+        await plugin.call('pinnedPanel', 'maximizePlugin', closedPlugin)
+      }
+
       await plugin.call('menuicons', 'select', 'remixaiassistant')
       await new Promise((resolve) => setTimeout(resolve, 500))
       const content = await plugin.call('fileManager', 'readFile', currentFilePath)

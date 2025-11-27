@@ -3,22 +3,22 @@ import fs from './fileSystem'
 import { runTest } from './testRunner'
 import { TestResultInterface, ResultsInterface, CompilerConfiguration, compilationInterface, ASTInterface, Options, AstNode } from './types'
 import colors from 'colors'
-import { Web3 } from 'web3'
 import { format } from 'util'
 import { compileFileOrFiles } from './compiler'
 import { deployAll } from './deployer'
+import { BrowserProvider } from 'ethers'
 
 /**
  * @dev run test contract files (used for CLI)
  * @param filepath Path of file
  * @param isDirectory True, if path is a directory
- * @param web3 Web3
+ * @param provider BrowserProvider
  * @param finalCallback optional callback to run finally
  * @param opts Options
  */
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-export function runTestFiles (filepath: string, isDirectory: boolean, web3: Web3, compilerConfig: CompilerConfiguration, finalCallback: any = () => {}, opts?: Options) {
+export function runTestFiles (filepath: string, isDirectory: boolean, provider: BrowserProvider, compilerConfig: CompilerConfiguration, finalCallback: any = () => {}, opts?: Options) {
   opts = opts || {}
   compilerConfig = compilerConfig || {} as CompilerConfiguration
   const sourceASTs: any = {}
@@ -62,7 +62,7 @@ export function runTestFiles (filepath: string, isDirectory: boolean, web3: Web3
   async.waterfall([
     function getAccountList (next) {
       if (accounts) return next(null)
-      web3.eth.getAccounts()
+      provider.send("eth_requestAccounts", [])
         .then(_accounts => {
           accounts = _accounts
           next(null)
@@ -77,13 +77,13 @@ export function runTestFiles (filepath: string, isDirectory: boolean, web3: Web3
       for (const filename in asts) {
         if (filename.endsWith('_test.sol')) { sourceASTs[filename] = asts[filename].ast }
       }
-      deployAll(compilationResult, web3, accounts, false, null, (err, contracts) => {
+      deployAll(compilationResult, provider, accounts, false, null, (err, contracts) => {
         if (err) {
           // If contract deployment fails because of 'Out of Gas' error, try again with double gas
           // This is temporary, should be removed when remix-tests will have a dedicated UI to
           // accept deployment params from UI
           if (err.error.includes('The contract code couldn\'t be stored, please check your gas limit')) {
-            deployAll(compilationResult, web3, accounts, true, null, (error, contracts) => {
+            deployAll(compilationResult, provider, accounts, true, null, (error, contracts) => {
               if (error) next([{ message: 'contract deployment failed after trying twice: ' + (error.innerError || error.error), severity: 'error' }]) // IDE expects errors in array
               else next(null, compilationResult, contracts)
             })
@@ -150,7 +150,7 @@ export function runTestFiles (filepath: string, isDirectory: boolean, web3: Web3
       async.eachOfLimit(contractsToTest, 1, (contractName: string, index, cb) => {
         try {
           const fileAST: AstNode = sourceASTs[contracts[contractName]['filename']]
-          runTest(contractName, contracts[contractName], contractsToTestDetails[index], fileAST, { accounts, web3 }, _testCallback, (err, result) => {
+          runTest(contractName, contracts[contractName], contractsToTestDetails[index], fileAST, { accounts, provider }, _testCallback, (err, result) => {
             if (err) {
               console.log(err)
               return cb(err)

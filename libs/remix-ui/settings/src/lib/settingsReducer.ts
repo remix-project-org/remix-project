@@ -1,6 +1,6 @@
 import { Registry } from '@remix-project/remix-lib'
 import { SettingsActions, SettingsState } from '../types'
-
+import { resetOllamaHostOnSettingsChange } from '@remix/remix-ai-core';
 const config = Registry.getInstance().get('config').api
 const settingsConfig = Registry.getInstance().get('settingsConfig').api
 const defaultTheme = config.get('settings/theme') ? settingsConfig.themes.find((theme) => theme.name.toLowerCase() === config.get('settings/theme').toLowerCase()) : settingsConfig.themes[0]
@@ -16,12 +16,16 @@ const swarmPrivateBeeAddress = config.get('settings/swarm-private-bee-address') 
 const swarmPostageStampId = config.get('settings/swarm-postage-stamp-id') || ''
 const sindriAccessToken = config.get('settings/sindri-access-token') || ''
 const etherscanAccessToken = config.get('settings/etherscan-access-token') || ''
+const mcpServersEnable = config.get('settings/mcp/servers/enable') || false
+const mcpServerManagement = config.get('settings/mcp-server-management') || false
+const ollamaEndpoint = config.get('settings/ollama-endpoint') || 'http://localhost:11434'
 
 let githubConfig = config.get('settings/github-config') || false
 let ipfsConfig = config.get('settings/ipfs-config') || false
 let swarmConfig = config.get('settings/swarm-config') || false
 let sindriConfig = config.get('settings/sindri-config') || false
 let etherscanConfig = config.get('settings/etherscan-config') || false
+let ollamaConfig = config.get('settings/ollama-config') || false
 let generateContractMetadata = config.get('settings/generate-contract-metadata')
 let autoCompletion = config.get('settings/auto-completion')
 let showGas = config.get('settings/show-gas')
@@ -47,6 +51,10 @@ if (!sindriConfig && sindriAccessToken) {
 if (!etherscanConfig && etherscanAccessToken) {
   config.set('settings/etherscan-config', true)
   etherscanConfig = true
+}
+if (!ollamaConfig && ollamaEndpoint !== 'http://localhost:11434') {
+  config.set('settings/ollama-config', true)
+  ollamaConfig = true
 }
 if (typeof generateContractMetadata !== 'boolean') {
   config.set('settings/generate-contract-metadata', true)
@@ -186,6 +194,22 @@ export const initialState: SettingsState = {
     value: '',
     isLoading: false
   },
+  'mcp/servers/enable': {
+    value: mcpServersEnable,
+    isLoading: false
+  },
+  'mcp-server-management': {
+    value: mcpServerManagement,
+    isLoading: false
+  },
+  'ollama-config': {
+    value: ollamaConfig,
+    isLoading: false
+  },
+  'ollama-endpoint': {
+    value: ollamaEndpoint,
+    isLoading: false
+  },
   toaster: {
     value: '',
     isLoading: false
@@ -196,6 +220,15 @@ export const settingReducer = (state: SettingsState, action: SettingsActions): S
   switch (action.type) {
   case 'SET_VALUE':
     config.set('settings/' + action.payload.name, action.payload.value)
+    // Reset Ollama host cache when endpoint is changed
+    if (action.payload.name === 'ollama-endpoint') {
+      try {
+        resetOllamaHostOnSettingsChange();
+      } catch (error) {
+        // Ignore errors - Ollama functionality is optional
+      }
+    }
+
     return { ...state, [action.payload.name]: { ...state[action.payload.name], value: action.payload.value, isLoading: false } }
   case 'SET_LOADING':
     return { ...state, [action.payload.name]: { ...state[action.payload.name], isLoading: true } }

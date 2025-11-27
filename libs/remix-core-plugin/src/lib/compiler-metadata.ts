@@ -16,7 +16,7 @@ export class CompilerMetadata extends Plugin {
   buildInfoNames: Record<string, string>
   constructor () {
     super(profile)
-    this.networks = ['VM:-', 'main:1', 'ropsten:3', 'rinkeby:4', 'kovan:42', 'goerli:5', 'Custom']
+    this.networks = ['VM:-', 'main:1', 'sepolia:11155111', 'Custom']
     this.innerPath = 'artifacts'
     this.buildInfoNames = {}
   }

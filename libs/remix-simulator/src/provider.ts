@@ -12,7 +12,6 @@ import { Miner } from './methods/miner'
 import { Debug } from './methods/debug'
 import { EVM } from './methods/evm'
 import { VMContext } from './vm-context'
-import { Web3PluginBase } from 'web3'
 
 export interface JSONRPCRequestPayload {
   params: any[];
@@ -158,54 +157,31 @@ export class Provider {
   }
 }
 
-export function extend (web3) {
-  if (!web3.remix){
-    web3.registerPlugin(new Web3TestPlugin())
-  }
-}
+export function extendProvider (provider) { // Provider should be ethers.js provider
 
-class Web3TestPlugin extends Web3PluginBase {
-  public pluginNamespace = 'remix'
+  if (!provider.remix) provider.remix = {}
 
-  public getExecutionResultFromSimulator(transactionHash) {
-    return this.requestManager.send({
-      method: 'eth_getExecutionResultFromSimulator',
-      params: [transactionHash]
-    })
+  provider.remix.getExecutionResultFromSimulator = async (transactionHash) => {
+    return await provider.send('eth_getExecutionResultFromSimulator', [transactionHash])
   }
 
-  public getHHLogsForTx(transactionHash) {
-    return this.requestManager.send({
-      method: 'eth_getHHLogsForTx',
-      params: [transactionHash]
-    })
+  provider.remix.getHHLogsForTx = async (transactionHash) => {
+    return await provider.send('eth_getHHLogsForTx',[transactionHash])
   }
 
-  public getHashFromTagBySimulator(timestamp) {
-    return this.requestManager.send({
-      method: 'eth_getHashFromTagBySimulator',
-      params: [timestamp]
-    })
+  provider.remix.getHashFromTagBySimulator = async (timestamp) => {
+    return await provider.send('eth_getHashFromTagBySimulator', [timestamp])
   }
 
-  public registerCallId(id) {
-    return this.requestManager.send({
-      method: 'eth_registerCallId',
-      params: [id]
-    })
+  provider.remix.registerCallId = async (id) => {
+    return await provider.send('eth_registerCallId',[id])
   }
 
-  public getStateDb() {
-    return this.requestManager.send({
-      method: 'eth_getStateDb',
-      params: []
-    })
+  provider.remix.getStateDb = async () => {
+    return await provider.send('eth_getStateDb', [])
   }
 
-  public getBlocksData() {
-    return this.requestManager.send({
-      method: 'eth_getBlocksData',
-      params: []
-    })
+  provider.remix.getBlocksData = async () => {
+    return await provider.send('eth_getBlocksData',[])
   }
 }

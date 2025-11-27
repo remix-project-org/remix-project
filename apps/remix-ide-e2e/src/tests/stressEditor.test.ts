@@ -22,166 +22,166 @@ module.exports = {
         })
     }
     const fillContent = (content, mul) => {
-        let localContent = content
-        mul = 3 * mul
-        for (let k = 0 ; k < mul; k++) {
-            localContent += content
-        }
-        return localContent
+      let localContent = content
+      mul = 3 * mul
+      for (let k = 0 ; k < mul; k++) {
+        localContent += content
+      }
+      return localContent
     }
     browser.clickLaunchIcon('filePanel')
-    .perform((done) => {
+      .perform((done) => {
         const i = 0
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 1
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 2
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 3
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 4
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 5
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 6
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 7
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 8
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    }).perform((done) => {
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      }).perform((done) => {
         const i = 9
         const localContent = fillContent(content, i)
         contents[i] = localContent
         const name = 'test_' + i + '.sol'
         browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
-            .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
-            .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
-            .getText('.remix_ui_terminal_block', (result) => {
-                console.log(result)
-            })
-            .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
-            .setEditorValue(localContent)
-      done()
-    })
-    .pause(10000)
+          .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
+          .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)
+          .getText('.remix_ui_terminal_block', (result) => {
+            console.log(result)
+          })
+          .waitForElementVisible(`li[data-id="treeViewLitreeViewItem${name}"]`, 60000)
+          .setEditorValue(localContent)
+        done()
+      })
+      .pause(10000)
       .refreshPage()
       .perform(done => checkContent(0, done))
       .perform(done => checkContent(1, done))
@@ -202,12 +202,12 @@ const content = `
 
 pragma solidity >=0.7.0 <0.9.0;
 
-/** 
+/**
  * @title Ballot
  * @dev Implements voting process along with vote delegation|
  */
 contract Ballot {
-   
+
     struct Voter {
         uint weight; // weight is accumulated by delegation
         bool voted;  // if true, that person already voted
@@ -216,7 +216,7 @@ contract Ballot {
     }
 
     struct Proposal {
-        // If you can limit the length to a certain number of bytes, 
+        // If you can limit the length to a certain number of bytes,
         // always use one of bytes1 to bytes32 because they are much cheaper
         bytes32 name;   // short name (up to 32 bytes)
         uint voteCount; // number of accumulated votes
@@ -230,7 +230,7 @@ contract Ballot {
 
 function () test  {
 
-    /** 
+    /**
      * @dev Create a new ballot to choose one of 'proposalNames'.
      * @param proposalNames names of proposals
      */
@@ -248,8 +248,8 @@ function () test  {
             }));
         }
     }
-    
-    /** 
+
+    /**
      * @dev Give 'voter' the right to vote on this ballot. May only be called by 'chairperson'.
      * @param voter address of voter
      */
@@ -312,7 +312,7 @@ function () test  {
         proposals[proposal].voteCount += sender.weight;
     }
 
-    /** 
+    /**
      * @dev Computes the winning proposal taking all previous votes into account.
      * @return winningProposal_ index of winning proposal in the proposals array
      */
@@ -328,7 +328,7 @@ function () test  {
         }
     }
 
-    /** 
+    /**
      * @dev Calls winningProposal() function to get the index of the winner contained in the proposals array and then
      * @return winnerName_ the name of the winner
      */

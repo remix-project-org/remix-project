@@ -5,6 +5,7 @@ import { isArray } from 'lodash'
 import Editor, { DiffEditor, loader, Monaco } from '@monaco-editor/react'
 import { AppContext, AppModal } from '@remix-ui/app'
 import { MatomoEvent, EditorEvent, AIEvent } from '@remix-api'
+//@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
 import { ConsoleLogs, EventManager, QueryParams } from '@remix-project/remix-lib'
 import { reducerActions, reducerListener, initialState } from './actions/editor'
@@ -163,6 +164,7 @@ const contextMenuEvent = new EventManager()
 export const EditorUI = (props: EditorUIProps) => {
   const intl = useIntl()
   const appContext = useContext(AppContext)
+  //@ts-ignore
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = EditorEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
@@ -188,10 +190,10 @@ export const EditorUI = (props: EditorUIProps) => {
   \t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.editorKeyboardShortcuts' })}:\n
   \t\t\t\t\t\t\t\tCTRL + Alt + F : ${intl.formatMessage({ id: 'editor.editorKeyboardShortcuts.text1' })}\n
   \t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.importantLinks' })}:\n
-  \t\t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.importantLinks.text1' })}: https://remix-project.org/\n
+  \t\t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.importantLinks.text1' })}: https://remix.live/\n
   \t\t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.importantLinks.text2' })}: https://remix-ide.readthedocs.io/en/latest/\n
   \t\t\t\t\t\t\t\tGithub: https://github.com/ethereum/remix-project\n
-  \t\t\t\t\t\t\t\tDiscord: https://discord.gg/4b2rE9U4D2\n
+  \t\t\t\t\t\t\t\tDiscord: https://discord.gg/snsrYVU4Q7\n
   \t\t\t\t\t\t\t\tMedium: https://medium.com/remix-ide\n
   \t\t\t\t\t\t\t\tX: https://x.com/ethereumremix\n
   `
@@ -1018,6 +1020,11 @@ export const EditorUI = (props: EditorUIProps) => {
         const message = intl.formatMessage({ id: 'editor.explainFunctionByAI' }, { content:context, currentFunction: currentFunction.current })
         await props.plugin.call('popupPanel', 'showPopupPanel', true)
         setTimeout(async () => {
+          // Check if pinned panel has a closed plugin and maximize it
+          const closedPlugin = await props.plugin.call('pinnedPanel', 'getClosedPlugin')
+          if (closedPlugin) {
+            await props.plugin.call('pinnedPanel', 'maximizePlugin', closedPlugin)
+          }
           await props.plugin.call('remixAI' as any, 'chatPipe', 'code_explaining', message, context)
         }, 500)
         trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'explainFunction', isClick: true })
@@ -1042,6 +1049,11 @@ export const EditorUI = (props: EditorUIProps) => {
 
         await props.plugin.call('popupPanel', 'showPopupPanel', true)
         setTimeout(async () => {
+          // Check if pinned panel has a closed plugin and maximize it
+          const closedPlugin = await props.plugin.call('pinnedPanel', 'getClosedPlugin')
+          if (closedPlugin) {
+            await props.plugin.call('pinnedPanel', 'maximizePlugin', closedPlugin)
+          }
           await props.plugin.call('remixAI' as any, 'chatPipe', 'code_explaining', selectedCode, content, pipeMessage)
         }, 500)
         trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'explainFunction', isClick: true })
@@ -1196,6 +1208,92 @@ export const EditorUI = (props: EditorUIProps) => {
 
     // hide the module resolution error. We have to remove this when we know how to properly resolve imports.
     monacoRef.current.languages.typescript.typescriptDefaults.setDiagnosticsOptions({ diagnosticCodesToIgnore: [2792]})
+
+    // Configure TypeScript compiler options for JSX/TSX support
+    monacoRef.current.languages.typescript.typescriptDefaults.setCompilerOptions({
+      jsx: monacoRef.current.languages.typescript.JsxEmit.React,
+      jsxFactory: 'React.createElement',
+      reactNamespace: 'React',
+      allowNonTsExtensions: true,
+      allowJs: true,
+      target: monacoRef.current.languages.typescript.ScriptTarget.Latest,
+      moduleResolution: monacoRef.current.languages.typescript.ModuleResolutionKind.NodeJs,
+      module: monacoRef.current.languages.typescript.ModuleKind.ESNext,
+      noEmit: true,
+      esModuleInterop: true,
+      allowSyntheticDefaultImports: true,
+      skipLibCheck: true,
+      resolveJsonModule: true,
+      isolatedModules: true,
+    })
+
+    // Configure JavaScript compiler options for JSX support
+    monacoRef.current.languages.typescript.javascriptDefaults.setCompilerOptions({
+      jsx: monacoRef.current.languages.typescript.JsxEmit.React,
+      jsxFactory: 'React.createElement',
+      reactNamespace: 'React',
+      allowNonTsExtensions: true,
+      target: monacoRef.current.languages.typescript.ScriptTarget.Latest,
+      moduleResolution: monacoRef.current.languages.typescript.ModuleResolutionKind.NodeJs,
+      module: monacoRef.current.languages.typescript.ModuleKind.ESNext,
+      noEmit: true,
+      esModuleInterop: true,
+      allowSyntheticDefaultImports: true,
+      skipLibCheck: true,
+      resolveJsonModule: true,
+      isolatedModules: true,
+      checkJs: false,
+    })
+
+    // Enable JSX diagnostics for JavaScript
+    monacoRef.current.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+    })
+
+    // Enable HTML and CSS validation
+    monacoRef.current.languages.html.htmlDefaults.setOptions({
+      format: {
+        tabSize: 2,
+        insertSpaces: true,
+        wrapLineLength: 120,
+        unformatted: 'wbr',
+        contentUnformatted: 'pre,code,textarea',
+        indentInnerHtml: false,
+        preserveNewLines: true,
+        maxPreserveNewLines: null,
+        indentHandlebars: false,
+        endWithNewline: false,
+        extraLiners: 'head, body, /html',
+        wrapAttributes: 'auto'
+      },
+      suggest: { html5: true }
+    })
+
+    monacoRef.current.languages.css.cssDefaults.setOptions({
+      validate: true,
+      lint: {
+        compatibleVendorPrefixes: 'ignore',
+        vendorPrefix: 'warning',
+        duplicateProperties: 'warning',
+        emptyRules: 'warning',
+        importStatement: 'ignore',
+        boxModel: 'ignore',
+        universalSelector: 'ignore',
+        zeroUnits: 'ignore',
+        fontFaceProperties: 'warning',
+        hexColorLength: 'error',
+        argumentsInColorFunction: 'error',
+        unknownProperties: 'warning',
+        ieHack: 'ignore',
+        unknownVendorSpecificProperties: 'ignore',
+        propertyIgnoredDueToDisplay: 'warning',
+        important: 'ignore',
+        float: 'ignore',
+        idSelector: 'ignore'
+      }
+    })
+
     // Register a tokens provider for the language
     monacoRef.current.languages.setMonarchTokensProvider('remix-solidity', solidityTokensProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-solidity', solidityLanguageConfig as any)

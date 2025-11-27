@@ -79,7 +79,7 @@ export function AccountUI(props: AccountProps) {
         delegationAuthorizationAddressRef.current = null
         return
       }
-      const code = await props.runTabPlugin.blockchain.web3().eth.getCode(selectedAccount)
+      const code = await props.runTabPlugin.blockchain.web3().getCode(selectedAccount)
       if (code && code.startsWith(eip7702Constants.EIP7702_CODE_INDICATOR_FLAG)) {
         // see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7702.md delegation indicator
         const address = '0x' + code.replace(eip7702Constants.EIP7702_CODE_INDICATOR_FLAG, '')
@@ -454,7 +454,7 @@ export function AccountUI(props: AccountProps) {
           <i id="remixRunSignMsg" data-id="settingsRemixRunSignMsg" className="mx-1 fas fa-edit udapp_icon" aria-hidden="true" onClick={signMessage}></i>
         </CustomTooltip> : null }
         <span className='mx-1'>
-          <CopyToClipboard className="fas fa-copy p-0" tip={intl.formatMessage({ id: 'udapp.copyAccount' })} content={selectedAccount} direction="top" />
+          <CopyToClipboard data-id="udapp-copy-account-address" className="fas fa-copy p-0" tip={intl.formatMessage({ id: 'udapp.copyAccount' })} content={selectedAccount} direction="top" />
         </span>
         { enableDelegationAuthorization ? (<span className="mx-1 mt-1">
           <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixDelegationAuthTooltip" tooltipText={"Using EIP 7702 in Remix"}>

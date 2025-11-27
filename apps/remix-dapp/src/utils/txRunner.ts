@@ -1,16 +1,9 @@
-import Web3, {
-  FMT_NUMBER,
-  type EthExecutionAPI,
-  type SupportedProviders,
-  FMT_BYTES,
-  type Bytes,
-} from 'web3';
 import { addHexPrefix, toBytes } from '@ethereumjs/util';
 import { execution } from '@remix-project/remix-lib';
-import { toBigInt } from 'web3-utils';
 import { saveSettings } from '../actions';
+import { BrowserProvider, ethers, formatUnits, toNumber, TransactionReceipt, TransactionResponse } from 'ethers'
 
-const web3 = new Web3();
+const provider = ethers.getDefaultProvider()
 
 export const shortenAddress = (address: string, etherBalance?: string) => {
   const len = address.length;
@@ -29,12 +22,9 @@ async function pause() {
   });
 }
 
-async function tryTillReceiptAvailable(txhash: Bytes) {
+async function tryTillReceiptAvailable(txhash) {
   try {
-    const receipt = await web3.eth.getTransactionReceipt(txhash, {
-      number: FMT_NUMBER.NUMBER,
-      bytes: FMT_BYTES.HEX,
-    });
+    const receipt: TransactionReceipt = await provider.getTransactionReceipt(txhash);
     if (receipt) {
       if (!receipt.to && !receipt.contractAddress) {
         // this is a contract creation and the receipt doesn't contain a contract address. we have to keep polling...
@@ -52,12 +42,9 @@ async function tryTillReceiptAvailable(txhash: Bytes) {
   return await tryTillReceiptAvailable(txhash);
 }
 
-async function tryTillTxAvailable(txhash: Bytes) {
+async function tryTillTxAvailable(txhash) {
   try {
-    const tx = await web3.eth.getTransaction(txhash, {
-      number: FMT_NUMBER.NUMBER,
-      bytes: FMT_BYTES.HEX,
-    });
+    const tx: TransactionResponse = await provider.getTransaction(txhash, );
     if (tx?.blockHash) return tx;
     return tx;
   } catch (e) {
@@ -90,16 +77,13 @@ export class TxRunner {
     }, 30000);
   }
 
-  setProvider(
-    provider: string | SupportedProviders<EthExecutionAPI> | undefined
-  ) {
-    web3.setProvider(provider);
+  setProvider(provider) {
+    new ethers.BrowserProvider(provider)
   }
 
   getAccounts() {
     saveSettings({ isRequesting: true });
-    void web3.eth
-      .getAccounts()
+    (provider as any).send("eth_requestAccounts", [])
       .then(async (accounts) => {
         const loadedAccounts: any = {};
         for (const account of accounts) {
@@ -115,17 +99,18 @@ export class TxRunner {
   }
 
   async getBalanceInEther(address: string) {
-    const balance = await web3.eth.getBalance(address);
-    return Web3.utils.fromWei(balance.toString(10), 'ether');
+    const balance = await provider.getBalance(address);
+    return formatUnits(balance.toString(10), 'ether');
   }
 
   async getGasPrice() {
-    return await web3.eth.getGasPrice();
+    const { gasPrice } = await provider.getFeeData()
+    return gasPrice;
   }
 
   async runTx(tx: any, gasLimit: any, useCall: boolean) {
     if (useCall) {
-      const returnValue = await web3.eth.call({ ...tx, gas: gasLimit });
+      const returnValue = await provider.call({ ...tx, gasLimit });
 
       return toBytes(addHexPrefix(returnValue));
     }
@@ -147,8 +132,8 @@ export class TxRunner {
         txCopy.maxFeePerGas = Math.ceil(
           Number(
             (
-              toBigInt(network.lastBlock.baseFeePerGas) +
-              toBigInt(network.lastBlock.baseFeePerGas) / BigInt(3)
+              BigInt(network.lastBlock.baseFeePerGas) +
+              BigInt(network.lastBlock.baseFeePerGas) / BigInt(3)
             ).toString()
           )
         );
@@ -159,8 +144,8 @@ export class TxRunner {
     }
 
     try {
-      const gasEstimation = await web3.eth.estimateGas(txCopy);
-      tx.gas = !gasEstimation ? gasLimit : gasEstimation;
+      const gasEstimation = await provider.estimateGas(txCopy);
+      tx.gasLimit = !gasEstimation ? gasLimit : gasEstimation;
       return await this._executeTx(tx, network);
     } catch (error) {
       console.log(error);
@@ -169,18 +154,15 @@ export class TxRunner {
   }
 
   async detectNetwork() {
-    const id = Number(await web3.eth.net.getId());
+    const { chainId } = await provider.getNetwork()
+    const id = Number(chainId)
     let name = '';
     if (id === 1) name = 'Main';
-    else if (id === 3) name = 'Ropsten';
-    else if (id === 4) name = 'Rinkeby';
-    else if (id === 5) name = 'Goerli';
-    else if (id === 42) name = 'Kovan';
     else if (id === 11155111) name = 'Sepolia';
     else name = 'Custom';
 
     if (id === 1) {
-      const block = await web3.eth.getBlock(0);
+      const block = await provider.getBlock(0);
       if (block && block.hash !== this.mainNetGenesisHash) name = 'Custom';
       return {
         id,
@@ -205,18 +187,18 @@ export class TxRunner {
 
   async _updateChainContext() {
     try {
-      const block = await web3.eth.getBlock('latest');
+      const block = await provider.getBlock('latest');
       // we can't use the blockGasLimit cause the next blocks could have a lower limit : https://github.com/ethereum/remix/issues/506
       this.blockGasLimit = block?.gasLimit
         ? Math.floor(
-          Number(web3.utils.toNumber(block.gasLimit)) -
-              (5 * Number(web3.utils.toNumber(block.gasLimit))) / 1024
+          Number(toNumber(block.gasLimit)) -
+              (5 * Number(toNumber(block.gasLimit))) / 1024
         )
-        : web3.utils.toNumber(this.blockGasLimitDefault);
+        : toNumber(this.blockGasLimitDefault);
       this.lastBlock = block;
       try {
         this.currentFork = execution.forkAt(
-          await web3.eth.net.getId(),
+          (await provider.getNetwork()).chainId,
           block.number
         );
       } catch (e) {
@@ -247,19 +229,16 @@ export class TxRunner {
 
     let currentDateTime = new Date();
     try {
-      const { transactionHash } = await web3.eth.sendTransaction(
-        tx,
-        undefined,
-        { checkRevertBeforeSending: false, ignoreGasPricing: true }
-      );
-      const receipt = await tryTillReceiptAvailable(transactionHash);
-      tx = await tryTillTxAvailable(transactionHash);
+      const signer = await (provider as BrowserProvider).getSigner(tx.from || 0);
+      const { hash } = await signer.sendTransaction(tx);
+      const receipt = await tryTillReceiptAvailable(hash);
+      tx = await tryTillTxAvailable(hash);
 
       currentDateTime = new Date();
       return {
         receipt,
         tx,
-        transactionHash: receipt ? receipt.transactionHash : null,
+        transactionHash: receipt ? receipt.hash : null,
       };
     } catch (error: any) {
       console.log(

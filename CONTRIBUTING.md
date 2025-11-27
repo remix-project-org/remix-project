@@ -1,6 +1,6 @@
 # Contributing
 
-Everyone is welcome to contribute to Remix's codebase and please join our [Discord](https://discord.gg/4b2rE9U4D2).
+Everyone is welcome to contribute to Remix's codebase and please join our [Discord](https://discord.gg/snsrYVU4Q7).
 
 ## Development
 Remix libraries work closely with [Remix IDE](https://remix.ethereum.org). Each library has a README to explain its application.
@@ -24,7 +24,7 @@ Remix has four projects on CrowdIn
 1. [RemixUI](https://crowdin.com/project/remix-ui/) - for translating Remix's User Interface
 2. [Remix Docs](https://crowdin.com/project/remix-translation)  - for translating Remix's [Documentation](https://remix-ide.readthedocs.io)
 3. [LearnEth](https://crowdin.com/project/remix-learneth) - for translating the tutorials in Remix's tutorial plugin called [Learneth](https://remix.ethereum.org/?#activate=solidity,solidityUnitTesting,LearnEth)
-4. [Remix Project Website](https://crowdin.com/project/361d7e8c3b07220fa22e9d5a901b0021) - for translating the info site about [Remix](https://remix-project.org/)
+4. [Remix Project Website](https://crowdin.com/project/361d7e8c3b07220fa22e9d5a901b0021) - for translating the info site about [Remix](https://remix.live/)
 
 There are many languages, for each project.  But if you do not see your desired language, send us a note on CrowdIn or in the Remix Discord.
 

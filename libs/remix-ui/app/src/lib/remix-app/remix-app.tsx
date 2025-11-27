@@ -1,3 +1,4 @@
+/* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import React, { useEffect, useReducer, useRef, useState } from 'react'
 import './style/remix-app.css'
 import { RemixUIMainPanel } from '@remix-ui/panel'
@@ -14,6 +15,9 @@ import { appReducer } from './reducer/app'
 import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
 import { desktopConnectionType } from '@remix-api'
+import { RemixUiTemplateExplorerModal } from 'libs/remix-ui/template-explorer-modal/src/lib/remix-ui-template-explorer-modal'
+import { TemplateExplorerProvider } from 'libs/remix-ui/template-explorer-modal/context/template-explorer-context'
+import { AiWorkspaceGeneration } from './components/modals/aiworkspace-generation'
 
 interface IRemixAppUi {
   app: any
@@ -22,7 +26,7 @@ const RemixApp = (props: IRemixAppUi) => {
   const [appReady, setAppReady] = useState<boolean>(false)
   const [showManagePreferencesDialog, setShowManagePreferencesDialog] = useState<boolean>(false)
   const [hideSidePanel, setHideSidePanel] = useState<boolean>(false)
-  const [hidePinnedPanel, setHidePinnedPanel] = useState<boolean>(true)
+  const [hidePinnedPanel, setHidePinnedPanel] = useState<boolean>(props.app.desktopClientMode || true)
   const [maximiseLeftTrigger, setMaximiseLeftTrigger] = useState<number>(0)
   const [enhanceLeftTrigger, setEnhanceLeftTrigger] = useState<number>(0)
   const [resetLeftTrigger, setResetLeftTrigger] = useState<number>(0)
@@ -40,8 +44,22 @@ const RemixApp = (props: IRemixAppUi) => {
   const [appState, appStateDispatch] = useReducer(appReducer, {
     ...appInitialState,
     showPopupPanel: !window.localStorage.getItem('did_show_popup_panel') && !isElectron(),
-    connectedToDesktop: props.app.desktopClientMode ? desktopConnectionType .disconnected : desktopConnectionType .disabled
+    connectedToDesktop: props.app.desktopClientMode ? desktopConnectionType .disconnected : desktopConnectionType .disabled,
+    genericModalState: {
+      id: '',
+      title: <div>Default Title</div>,
+      message: <div>Default Message</div>,
+      footer: <div>Default Footer</div>,
+      okLabel: 'Default Ok Label',
+      okFn: () => { },
+      cancelLabel: 'Default Cancel Label',
+      cancelFn: () => { },
+      width: '720px',
+      height: '720px',
+      showModal: false
+    }
   })
+  const [isAiWorkspaceBeingGenerated, setIsAiWorkspaceBeingGenerated] = useState<boolean>(false)
 
   useEffect(() => {
     if (props.app.params && props.app.params.activate && props.app.params.activate.split(',').includes('desktopClient')){
@@ -125,13 +143,16 @@ const RemixApp = (props: IRemixAppUi) => {
       setLocale(nextLocale)
     })
 
-    props.app.pinnedPanel.events.on('pinnedPlugin', () => {
-      setHidePinnedPanel(false)
-    })
+    if (!props.app.desktopClientMode) {
 
-    props.app.pinnedPanel.events.on('unPinnedPlugin', () => {
-      setHidePinnedPanel(true)
-    })
+      props.app.pinnedPanel.events.on('unPinnedPlugin', () => {
+        setHidePinnedPanel(true)
+      })
+
+      props.app.pinnedPanel.events.on('pinnedPlugin', (profile, isClosed) => {
+        if (!isClosed) setHidePinnedPanel(false)
+      })
+    }
 
     setInterval(() => {
       setOnline(window.navigator.onLine)
@@ -145,7 +166,9 @@ const RemixApp = (props: IRemixAppUi) => {
     showEnter: props.app.showEnter,
     modal: props.app.notification,
     appState: appState,
-    appStateDispatch: appStateDispatch
+    appStateDispatch: appStateDispatch,
+    isAiWorkspaceBeingGenerated: isAiWorkspaceBeingGenerated,
+    setIsAiWorkspaceBeingGenerated: setIsAiWorkspaceBeingGenerated
   }
 
   return (
@@ -158,9 +181,11 @@ const RemixApp = (props: IRemixAppUi) => {
             <MatomoDialog hide={!appReady} managePreferencesFn={() => setShowManagePreferencesDialog(true)}></MatomoDialog>
             {showManagePreferencesDialog && <ManagePreferencesDialog></ManagePreferencesDialog>}
             <div className='d-flex flex-column'>
-              <div className='top-bar'>
-                {props.app.topBar.render()}
-              </div>
+              {!props.app.desktopClientMode && (
+                <div className='top-bar'>
+                  {props.app.topBar.render()}
+                </div>
+              )}
               <div className={`remixIDE ${appReady ? '' : 'd-none'}`} data-id="remixIDE">
                 <div id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">
                   {props.app.menuicons.render()}
@@ -211,6 +236,8 @@ const RemixApp = (props: IRemixAppUi) => {
             </div>
             <AppDialogs></AppDialogs>
             <DialogViewPlugin></DialogViewPlugin>
+            {appState.genericModalState.showModal && props.app.templateExplorerModal.render()
+            }
           </AppProvider>
         </onLineContext.Provider>
       </platformContext.Provider>

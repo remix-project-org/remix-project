@@ -33,7 +33,7 @@ module.exports = {
       .assert.containsText({
         selector: '[data-id^="txOriginSelectAccountItem-"]',
         index: 0
-      }, '100 ETH')
+      }, '100.0 ETH')
       .end()
   }
 }

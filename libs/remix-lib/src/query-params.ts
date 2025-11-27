@@ -11,9 +11,18 @@ export class QueryParams {
     let queryString = '#'
     const updatedKeys = Object.keys(currentParams)
     for (const y in updatedKeys) {
-      queryString += updatedKeys[y] + '=' + currentParams[updatedKeys[y]] + '&'
+      if (currentParams[updatedKeys[y]]) {
+        queryString += updatedKeys[y] + '=' + currentParams[updatedKeys[y]] + '&'
+      } else {
+        queryString += updatedKeys[y] + '&'
+      }
     }
     window.location.hash = queryString.slice(0, -1)
+  }
+
+  exists (key) {
+    const params = this.get()
+    return Object.keys(params).includes(key)
   }
 
   get () {

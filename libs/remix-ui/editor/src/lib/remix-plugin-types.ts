@@ -604,10 +604,11 @@ declare type MethodParams<T extends Api, K extends MethodKey<T>> = T extends Api
 declare type Network =
 | { id: '1', name: 'Main' }
 | { id: '2', name: 'Morden (deprecated)' }
-| { id: '3', name: 'Ropsten' }
-| { id: '4', name: 'Rinkeby' }
-| { id: '5', name: 'Goerli' }
-| { id: '42', name: 'Kovan' }
+| { id: '3', name: 'Ropsten (deprecated)' }
+| { id: '4', name: 'Rinkeby (deprecated)' }
+| { id: '5', name: 'Goerli (deprecated)' }
+| { id: '42', name: 'Kovan (deprecated)' }
+| { id: '11155111', name: 'Sepolia' }
 
 /** @deprecated: current version in Remix IDE. To improve to match standard JSON RPC methods */
 declare type NetworkProvider = 'vm' | 'injected' | 'web3'

@@ -57,7 +57,7 @@ const tests = {
       .clickFunction('store - transact (not payable)', { types: 'uint256 num', values: '"55"' })
       .testFunction('last',
         {
-          status: '0x1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution succeed',
           'decoded input': { 'uint256 num': '55' }
         })
       .clickFunction('retrieve - call')
@@ -114,7 +114,7 @@ const tests = {
       .clickFunction('store - transact (not payable)', { types: 'uint256 num', values: '"57"' })
       .testFunction('last',
         {
-          status: '0x1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution succeed',
           'decoded input': { 'uint256 num': '57' }
         })
       .clearConsole()
@@ -194,7 +194,7 @@ const tests = {
       .clickFunction('store - transact (not payable)', { types: 'uint256 num', values: '"555"' })
       .testFunction('last',
         {
-          status: '0x1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution succeed',
           'block number': '5',
           'decoded input': { 'uint256 num': '555' }
         })

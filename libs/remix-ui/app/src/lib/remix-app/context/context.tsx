@@ -11,6 +11,8 @@ export type appProviderContextType = {
   modal: any
   appState: AppState
   appStateDispatch: React.Dispatch<AppAction>
+  isAiWorkspaceBeingGenerated: boolean
+  setIsAiWorkspaceBeingGenerated: (isAiWorkspaceBeingGenerated: boolean) => void
 }
 
 export enum appPlatformTypes {

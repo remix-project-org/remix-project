@@ -214,7 +214,8 @@ export const TopbarProvider = (props: TopbarProviderProps) => {
     openRecentFolder,
     openRecentFolderInNewWindow,
     removeRecentFolder,
-    revealRecentFolderInExplorer
+    revealRecentFolderInExplorer,
+    desktopClientMode: plugin.desktopClientMode
   }
 
   return (

@@ -37,7 +37,7 @@ export interface TestResultInterface {
   expected?: string | number
   location?: string
   hhLogs?: []
-  web3?: any
+  provider?: any
   debugTxHash?: string
 }
 export interface TestCbInterface {
@@ -50,7 +50,7 @@ export interface ResultCbInterface {
 export interface Options {
   accounts?: string[] | null,
   testFilePath?: string
-  web3?: any
+  provider?: any
 }
 
 export interface CompilerConfiguration {

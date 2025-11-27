@@ -1,4 +1,5 @@
 export * from './lib/providers/FileSystemProvider'
 export * from './lib/contexts'
 export * from './lib/utils/constants'
+export * from './lib/utils/templates'
 export { FileType, FilePanelType } from './lib/types/index'

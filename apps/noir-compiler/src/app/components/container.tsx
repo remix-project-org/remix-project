@@ -5,8 +5,17 @@ import { NoirAppContext } from '../contexts'
 import { CompileOptions } from '@remix-ui/helper'
 import { compileNoirCircuit } from '../actions'
 
+const NOIR_VERSION = 'v1.0.0-beta.12'
+const BARRETENBERG_VERSION = 'v0.85.0'
+
 export function Container () {
   const noirApp = useContext(NoirAppContext)
+
+  const projectRoot = noirApp.appState.filePath.substring(0, noirApp.appState.filePath.lastIndexOf('/src/'))
+  const buildPath = projectRoot === '' ? 'build' : `${projectRoot}/build`
+  const contractsPath = projectRoot === '' ? 'contracts' : `${projectRoot}/contracts`
+  const scriptsPath = projectRoot === '' ? 'scripts' : `${projectRoot}/scripts`
+  const proverTomlPath = projectRoot === '' ? 'Prover.toml' : `${projectRoot}/Prover.toml`
 
   const showCompilerLicense = async (message = 'License not available') => {
     try {
@@ -37,41 +46,148 @@ export function Container () {
     compileNoirCircuit(noirApp.plugin, noirApp.appState)
   }
 
-  const handleViewProgramArtefact = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault()
-    noirApp.plugin.call('fileManager', 'open', 'build/program.json')
+  const handleGenerateProofClick = () => {
+    if (!noirApp.appState.filePath) {
+      console.error("No file path selected for generating proof.")
+      return
+    }
+    noirApp.plugin.generateProof(noirApp.appState.filePath)
   }
+
+  const handleViewFile = (e: React.MouseEvent<HTMLButtonElement>, filePath: string) => {
+    e.preventDefault()
+    noirApp.plugin.call('fileManager', 'open', filePath)
+  }
+
+
+  const formattedPublicInputsString = JSON.stringify(noirApp.appState.formattedPublicInputs, null, 2)
 
   return (
     <section>
       <article>
         <div className="pt-0 noir_section">
           <div className="mb-1">
-            <label className="noir_label form-check-label">
-              <FormattedMessage id="noir.compiler" />
-            </label>
-            <CustomTooltip
-              placement="bottom"
-              tooltipId="showNoirCompilerTooltip"
-              tooltipClasses="text-nowrap"
-              tooltipText='See compiler license'
-            >
-              <span className="far fa-file-certificate border-0 p-0 ms-2" onClick={() => showCompilerLicense()}></span>
-            </CustomTooltip>
-            <CompileOptions setCircuitAutoCompile={handleCircuitAutoCompile} setCircuitHideWarnings={handleCircuitHideWarnings} autoCompile={noirApp.appState.autoCompile} hideWarnings={noirApp.appState.hideWarnings} />
-            <div className="pb-2">
+              <label className="noir_label form-check-label">
+                <FormattedMessage id="noir.compiler" />
+              </label>
+              <CustomTooltip
+                placement="bottom"
+                tooltipId="showNoirCompilerTooltip"
+                tooltipClasses="text-nowrap"
+                tooltipText='See compiler license'
+              >
+                <span className="far fa-file-certificate border-0 p-0 ms-2" onClick={() => showCompilerLicense()}></span>
+              </CustomTooltip>
+              <CustomTooltip
+                placement="bottom"
+                tooltipId="noirVersionTooltip"
+                tooltipClasses="text-nowrap"
+                tooltipText={`Using Noir ${NOIR_VERSION} and Barretenberg ${BARRETENBERG_VERSION}`}
+              >
+                <button
+                  className="btn btn-light btn-block w-100 d-inline-block border form-select"
+                  style={{
+                    cursor: 'default',
+                    opacity: 1,
+                    textAlign: 'left' 
+                  }}
+                >
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div className="font-sm" style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }}>
+                      { NOIR_VERSION }
+                    </div>
+                  </div>
+                </button>
+              </CustomTooltip>
+            </div>
+            <hr></hr>
+            <div>
               <CompileBtn id="noir" plugin={noirApp.plugin} appState={noirApp.appState} compileAction={handleCompileClick} />
             </div>
-            <RenderIf condition={noirApp.appState.status !== 'compiling'}>
+            <RenderIf condition={noirApp.appState.status === 'succeed'}>
+              <>
+                <label className="noir_label form-check-label mt-3">
+                  <FormattedMessage id="noir.compilationArtifacts" defaultMessage="Compilation Artifacts" />
+                </label>
+                <button className="btn btn-sm btn-outline-info w-100 text-start mt-2" onClick={(e) => handleViewFile(e, `${buildPath}/program.json`)}>
+                  <div className="d-flex align-items-center">
+                    <i className="fas fa-file-invoice me-2"></i>
+                    <span>View Artifact</span>
+                  </div>
+                </button>
+                <hr></hr>
+                <div>
+                  <CustomTooltip
+                    placement="bottom-start"
+                    tooltipId="generateProofTooltip"
+                    tooltipClasses="text-nowrap"
+                    tooltipText='If your circuit has public inputs, edit Prover.toml before generating the proof.'
+                  >
+                    <button
+                      id="noir_generate_proof"
+                      className="btn btn-primary w-100"
+                      onClick={handleGenerateProofClick}
+                      disabled={noirApp.appState.proofingStatus === 'proofing' || noirApp.appState.status === 'compiling'}
+                    >
+                      {noirApp.appState.proofingStatus === 'proofing' ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                          <span className="ms-1">Generating Proof...</span>
+                        </>
+                      ) : (
+                        <FormattedMessage id="noir.generateProof" defaultMessage="Generate Proof" />
+                      )}
+                    </button>
+                  </CustomTooltip>
+                  <button className="btn btn-sm btn-outline-info w-100 text-start mt-2" onClick={(e) => handleViewFile(e, proverTomlPath)}>
+                    <div className="d-flex align-items-center">
+                      <i className="fas fa-file-invoice me-2"></i>
+                      <span>View Prover.toml</span>
+                    </div>
+                  </button>
+                </div>
+              </>   
+            </RenderIf>
+            <RenderIf condition={noirApp.appState.proofingStatus === 'succeed' && !!noirApp.appState.formattedProof}>
+              <div className="mt-3">
+                <label className="noir_label form-check-label">
+                  <FormattedMessage id="noir.proofArtifacts" defaultMessage="Proof Artifacts" />
+                </label>
+
+                <div className="d-flex flex-wrap justify-content-between mt-2">
+                  <button className="btn btn-sm btn-outline-info mb-1 flex-grow-1 text-start" onClick={(e) => handleViewFile(e, `${buildPath}/proof`)}>
+                    <div className="d-flex align-items-center">
+                      <i className="fas fa-file-code me-2"></i>
+                      <span>View Proof</span>
+                    </div>
+                  </button>
+                  <button className="btn btn-sm btn-outline-info mb-1 flex-grow-1 text-start" onClick={(e) => handleViewFile(e, `${buildPath}/public_inputs`)}>
+                    <div className="d-flex align-items-center">
+                      <i className="fas fa-file-invoice me-2"></i>
+                      <span>View Public Inputs</span>
+                    </div>
+                  </button>
+                </div>
+                <div className="d-flex flex-wrap justify-content-between">
+                  <button className="btn btn-sm btn-outline-info mb-1 flex-grow-1 text-start" onClick={(e) => handleViewFile(e, `${contractsPath}/Verifier.sol`)}>
+                    <div className="d-flex align-items-center">
+                      <i className="fab fa-ethereum me-2"></i>
+                      <span>View Verifier.sol</span>
+                    </div>
+                  </button>
+                  <button className="btn btn-sm btn-outline-info mb-1 flex-grow-1 text-start" onClick={(e) => handleViewFile(e, `${scriptsPath}/verify.ts`)}>
+                    <div className="d-flex align-items-center">
+                      <i className="fab fa-js-square me-2"></i>
+                      <span>View verify.ts</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </RenderIf>
+            <RenderIf condition={noirApp.appState.status !== 'compiling' && noirApp.appState.proofingStatus !== 'succeed'}>
               <CompilerFeedback feedback={noirApp.appState.compilerFeedback} filePathToId={noirApp.appState.filePathToId} openErrorLocation={handleOpenErrorLocation} hideWarnings={noirApp.appState.hideWarnings} askGPT={askGPT} />
             </RenderIf>
-            <RenderIf condition={noirApp.appState.status === 'succeed'}>
-              <a data-id="view-noir-compilation-result" className="cursor-pointer text-decoration-none" href='#' onClick={handleViewProgramArtefact}>
-                <i className="text-success mt-1 px-1 fas fa-check"></i> View compiled noir program artefact.
-              </a>
-            </RenderIf>
           </div>
-        </div>
       </article>
     </section>
   )

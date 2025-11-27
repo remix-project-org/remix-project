@@ -62,7 +62,6 @@ export class ContractAgent {
         }
         // check if file already exists
         await this.plugin.call('fileManager', 'writeFile', file.fileName, file.content)
-        await this.plugin.call('codeFormatter', 'format', file.fileName)
       }
       return "New workspace created: **" + this.workspaceName + "**\nUse the Hamburger menu to select it!"
     }

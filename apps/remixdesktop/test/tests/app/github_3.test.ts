@@ -3,8 +3,14 @@ import { NightwatchBrowser } from "nightwatch"
 function openTemplatesExplorer(browser: NightwatchBrowser) {
   browser
     .click('*[data-id="workspacesSelect"]')
+    .pause(2000)
     .click('*[data-id="workspacecreate"]')
-    .waitForElementPresent('*[data-id="create-remixDefault"]')
+    .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+    .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+    .click('*[data-id="template-explorer-template-container"]')
+    .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
+    .click('*[data-id="template-card-remixDefault-0"]')
+    .waitForElementVisible('*[data-id="workspace-details-section"]')
 }
 
 const useIsoGit = process.argv.includes('--use-isogit');
@@ -24,7 +30,6 @@ const tests = {
     openTemplatesExplorer(browser)
 
     browser
-      .scrollAndClick('*[data-id="create-remixDefault"]')
       .pause(3000)
       .windowHandles(function (result) {
         console.log(result.value)

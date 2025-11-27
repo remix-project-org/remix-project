@@ -9,7 +9,7 @@ This document is not in its final version, **a team meeting which aims to addres
 This document link to other specialised best practices (like coding best practices).
 
 Related links:
- - Public WebSite: https://remix-project.org
+ - Public WebSite: https://remix.live
  - Remix basic FAQ: https://hackmd.io/KVooMJhWRImCGq6zkDgW9A
  - Remix live: https://remix.ethereum.org
  - Remix alpha live: https://alpha.remix.live

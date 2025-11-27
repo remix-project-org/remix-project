@@ -18,7 +18,7 @@ module.exports = function (st, privateKey, contractBytecode, compilationResult, 
       if (error) {
         return st.fail(error)
       }
-      web3.eth.getTransaction(hash)
+      web3.getTransaction(hash)
         .then(tx => {
           tx.to = contractCreationToken('0')
           const traceManager = new TraceManager({ web3 })

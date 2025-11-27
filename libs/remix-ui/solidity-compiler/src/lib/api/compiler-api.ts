@@ -315,6 +315,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
         } else this.statusChanged({ key: 'succeed', title: 'Compilation successful', type: 'success' })
       } else {
         this.emit('compilationFailed', source.target, source, 'soljson', data, input, version)
+        this.compileTabLogic.compiler.state.lastCompilationResult = data
         const count = (data.errors ? data.errors.filter(error => error.severity === 'error').length : 0 + (data.error ? 1 : 0))
         this.statusChanged({ key: count, title: `Compilation failed with ${count} error${count > 1 ? 's' : ''}`, type: 'error' })
       }

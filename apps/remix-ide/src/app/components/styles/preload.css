@@ -1,9 +1,20 @@
 .preload-container {
+  position: relative; /* allow absolute positioning inside */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* centers .preload-main vertically */
+  align-items: center;     /* centers .preload-main horizontally */
+  height: 100vh;
+}
+
+/* Center the main content while allowing a footer-like tips area below */
+.preload-main {
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    height: 100vh;
+    justify-content: center;
+    width: 100%;
+    position: relative;
 }
 
 .preload-info-container {
@@ -20,5 +31,57 @@
 .preload-logo {
     min-width: 200px;
     max-width: 240px;
-    padding-bottom: 1.5rem !important;
+}
+
+/* Match index.html splash spinner exactly using theme variables */
+.pre-splash-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--bs-border-color-translucent, rgba(255,255,255,0.15));
+    border-top-color: var(--bs-primary, #3b82f6);
+    border-radius: 50%;
+    animation: pre-splash-spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes pre-splash-spin { to { transform: rotate(360deg); } }
+
+/* Match index.html splash typography */
+.preload-title {
+    margin-top: 12px;
+    font-size: 18px;
+    letter-spacing: 0.06em;
+    color: var(--bs-emphasis-color, #e6ecf8);
+    text-align: center;
+}
+
+.preload-sub {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--bs-secondary-color, #9aa7bd);
+    text-align: center;
+}
+
+/* Keep tips concise and stable in height */
+.remix_tips {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.remix_tips span {
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.preload-bottom.opt-out {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  transform: translateY(calc(50% + 60px)); /* 50% moves it to center, additional offset moves it below the content */
+  margin-top: 40px;
 }

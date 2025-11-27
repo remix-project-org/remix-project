@@ -11,6 +11,7 @@ export const TopbarContext = createContext<{
   openRecentFolder: (path: string) => Promise<void>,
   openRecentFolderInNewWindow: (path: string) => Promise<void>,
   removeRecentFolder: (path: string) => Promise<void>,
-  revealRecentFolderInExplorer: (path: string) => Promise<void>
+  revealRecentFolderInExplorer: (path: string) => Promise<void>,
+  desktopClientMode?: boolean
     }>(null)
 

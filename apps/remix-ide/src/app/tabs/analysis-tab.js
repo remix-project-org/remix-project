@@ -11,7 +11,7 @@ var EventManager = require('../../lib/events')
 const profile = {
   name: 'solidityStaticAnalysis',
   displayName: 'Solidity Analyzers',
-  methods: [],
+  methods: ['analyze'],
   events: [],
   icon: 'assets/img/staticAnalysis.webp',
   description: 'Analyze your code using Remix, Solhint and Slither.',
@@ -68,6 +68,10 @@ export default class AnalysisTab extends ViewPlugin {
         this.emit('statusChanged', { key: 'none' })
       }
     })
+  }
+
+  analyze () {
+    this.emit('analyze')
   }
 
   setDispatch (dispatch) {

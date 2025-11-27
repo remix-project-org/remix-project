@@ -42,5 +42,12 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
       connectedToDesktop: action.payload
     }
   }
+
+  case appActionTypes.showGenericModal: {
+    return {
+      ...state,
+      genericModalState: { ...state.genericModalState, showModal: action.payload }
+    }
+  }
   }
 }

@@ -6,13 +6,12 @@ import { CustomTooltip } from '@remix-ui/helper'
 import { ChildCallbackContext } from './remix-ui-grid-section'
 
 interface RemixUIGridCellProps {
-  plugin: any
   pinned?: boolean
   pinStateCallback?: any
   logo?: string
   logos?: string[]
   logoURL?: string
-  title: string
+  title?: string
   titleTooltip?: string
   hideTitle?: boolean
   tagList?: string[] // max 8, others will be ignored
@@ -21,7 +20,7 @@ interface RemixUIGridCellProps {
   children?: ReactNode
   expandViewEl?: any
   handleExpand?: any
-  id: string
+  id?: string
   searchKeywords?: string[]
 }
 

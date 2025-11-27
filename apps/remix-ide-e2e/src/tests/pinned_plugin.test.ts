@@ -35,6 +35,17 @@ module.exports = {
       .click('*[data-id="restoreClosedPlugin"]')
       .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-solidity"]')
   },
+  'Close Solidity Compiler Plugin, reload IDE, it should be closed and restore it #group1': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id="closePinnedPlugin"]')
+      .click('*[data-id="closePinnedPlugin"]')
+      .waitForElementNotVisible('*[data-pinnedplugin="movePluginToLeft-solidity"]')
+      .waitForElementVisible('*[data-id="restoreClosedPlugin"')
+      .refresh()
+      .waitForElementVisible('*[data-id="restoreClosedPlugin"')
+      .click('*[data-id="restoreClosedPlugin"]')
+      .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-solidity"]')
+  },
   'Swap pinned Solidity Compiler Plugin with RemixAI Assistant when pinned plugin is closed #group1': function (browser: NightwatchBrowser) {
     browser
       .refreshPage()
@@ -48,6 +59,12 @@ module.exports = {
       .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-udapp"]')
       .waitForElementVisible('*[data-id="movePluginToRight"]')
       .click('*[data-pinnedplugin="movePluginToLeft-udapp"]')
+      .end()
+  },
+  'Check if pannel is gone when the app is in destop client mode #group1': function (browser: NightwatchBrowser) {
+    browser
+      .url('http://127.0.0.1:8080/?#activate=udapp,desktopClient')
+      .waitForElementNotPresent('#pinned-panel')
       .end()
   }
 }

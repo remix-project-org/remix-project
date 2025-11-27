@@ -44,6 +44,19 @@ function App() {
         dispatch({ type: 'SET_COMPILER_FEEDBACK', payload: null })
       })
       plugin.internalEvents.on('noir_compiling_errored', noirCompilerErrored)
+
+      plugin.internalEvents.on('noir_proofing_start', () => {
+        dispatch({ type: 'SET_PROOFING_STATUS', payload: 'proofing' })
+      })
+      plugin.internalEvents.on('noir_proofing_done', (inputs) => {
+        dispatch({ type: 'SET_PROOFING_STATUS', payload: 'succeed' })
+        dispatch({ type: 'SET_VERIFIER_INPUTS', payload: inputs })
+      })
+      plugin.internalEvents.on('noir_proofing_errored', (error: Error) => {
+        dispatch({ type: 'SET_PROOFING_STATUS', payload: 'errored' })
+        dispatch({ type: 'SET_COMPILER_FEEDBACK', payload: error.message }) 
+      })
+
       setIsPluginActivated(true)
     })
   }, [])

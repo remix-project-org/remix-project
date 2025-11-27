@@ -96,7 +96,7 @@ export const EnvironmentExplorerUI = (props: environmentExplorerUIProps) => {
             >
               {section.providers.map(provider => (
                 <RemixUIGridCell
-                  plugin={this}
+                  // plugin={this}
                   title={provider.displayName}
                   logos={provider.logos}
                   classList='EECellStyle'

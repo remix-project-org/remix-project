@@ -26,7 +26,7 @@ export class CodeManager {
     this.codeResolver = new CodeResolver({
       getCode: async (address) => {
         return new Promise((resolve, reject) => {
-          this.traceManager.web3.eth.getCode(address)
+          this.traceManager.web3.getCode(address)
             .then(code => resolve(code))
             .catch(error => reject(error))
         })

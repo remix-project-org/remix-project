@@ -1,4 +1,4 @@
-import { toHex } from 'web3-utils'
+import { hexlify } from 'ethers'
 import { VMContext } from '../vm-context'
 import { bigIntToHex, bytesToHex } from '@ethereumjs/util'
 
@@ -116,7 +116,7 @@ export class Blocks {
             blockHash: bytesToHex(block.hash()),
             blockNumber: bigIntToHex(block.header.number),
             from: receipt.from,
-            gas: toHex(receipt.gas),
+            gas: hexlify(receipt.gas),
             chainId: '0xd05',
             gasPrice: '0x4a817c800', // 20000000000
             hash: receipt.transactionHash,
@@ -191,7 +191,7 @@ export class Blocks {
   }
 
   eth_getStorageAt (payload, cb) {
-    return this.vmContext.web3().eth.getStorageAt(
+    return this.vmContext.web3().getStorageAt(
       payload.params[0],
       payload.params[1],
       payload.params[2],

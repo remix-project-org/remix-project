@@ -67,7 +67,7 @@ export interface IModelResponse {
 }
 
 export interface ICompletions{
-  code_completion(context, ctxFiles, fileName, params:IParams): Promise<any>;
+  code_completion(prompt, context, ctxFiles, fileName, params:IParams): Promise<any>;
   code_insertion(msg_pfx, msg_sfx, ctxFiles, fileName, params:IParams): Promise<any>;
 }
 export interface IGeneration{
@@ -107,6 +107,11 @@ export interface IParams {
   stop?: string[];
   chatHistory?: any[];
   version: string;
+}
+
+export interface IAIStreamResponse{
+  streamResponse: any,
+  callback?: any
 }
 
 export enum AIRequestType {

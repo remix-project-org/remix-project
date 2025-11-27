@@ -734,7 +734,7 @@ module.exports = {
     /**
      * Simple pattern: User accepts cookies → has cookies + visitor ID → reload → same state
      */
-    'User accepts cookies #pr #group1': function (browser: NightwatchBrowser) {
+    'User accepts cookies #group1': function (browser: NightwatchBrowser) {
         browser
             .perform(() => startFreshTest(browser))
             .perform(() => setupAndCheckState(browser, 'Initial state'))
@@ -753,7 +753,7 @@ module.exports = {
     /**
      * Simple pattern: User rejects cookies → no cookies + no visitor ID → reload → same anonymous state
      */
-    'User rejects cookies (anonymous mode) #pr #group2': function (browser: NightwatchBrowser) {
+    'User rejects cookies (anonymous mode) #group2': function (browser: NightwatchBrowser) {
         browser
             .perform(() => startFreshTest(browser))
             .perform(() => setupAndCheckState(browser, 'Initial state'))
@@ -770,7 +770,7 @@ module.exports = {
     /**
      * Settings tab pattern: User switches preferences via Settings → Analytics
      */
-    'User switches settings via Settings tab #pr #group3': function (browser: NightwatchBrowser) {
+    'User switches settings via Settings tab #group3': function (browser: NightwatchBrowser) {
         browser
             .perform(() => startFreshTest(browser))
             .perform(() => setupAndCheckState(browser, 'Initial state'))
@@ -800,7 +800,7 @@ module.exports = {
     /**
      * Simple pattern: Prequeue → Accept → Queue flush to cookie mode
      */
-    'Prequeue flush to cookie mode #pr #group4': function (browser: NightwatchBrowser) {
+    'Prequeue flush to cookie mode #group4': function (browser: NightwatchBrowser) {
         browser
             .perform(() => startFreshTest(browser))
             .perform(() => setupAndCheckState(browser, 'Initial state'))
@@ -817,7 +817,7 @@ module.exports = {
     /**
      * Simple pattern: Prequeue → Reject → Queue flush to anonymous mode
      */
-    'Prequeue flush to anonymous mode #pr #group5': function (browser: NightwatchBrowser) {
+    'Prequeue flush to anonymous mode #group5': function (browser: NightwatchBrowser) {
         browser
             .perform(() => startFreshTest(browser))
             .perform(() => setupAndCheckState(browser, 'Initial state'))
@@ -834,7 +834,7 @@ module.exports = {
     /**
      * Simple pattern: Test both tracking methods work with dimension 3
      */
-    'Event tracking verification (plugin + context) #pr #group6': function (browser: NightwatchBrowser) {
+    'Event tracking verification (plugin + context) #group6': function (browser: NightwatchBrowser) {
         browser
             .perform(() => startFreshTest(browser))
             .perform(() => setupAndCheckState(browser, 'Initial state'))
@@ -868,7 +868,7 @@ module.exports = {
      * 3. Refresh page to trigger expiration check
      * 4. Verify consent dialog appears again
      */
-    'Consent expiration after 6 months #pr #group7': function (browser: NightwatchBrowser) {
+    'Consent expiration after 6 months #group7': function (browser: NightwatchBrowser) {
         browser
             .perform(() => startFreshTest(browser))
             
@@ -952,7 +952,7 @@ module.exports = {
      * 3. Test 7 months ago timestamp → should BE expired
      * 4. Validate the boundary calculation works correctly
      */
-    'Consent timestamp boundary test #pr #group8': function (browser: NightwatchBrowser) {
+    'Consent timestamp boundary test #group8': function (browser: NightwatchBrowser) {
         browser
             .perform(() => startFreshTest(browser))
             .perform(() => rejectConsent(browser)) // User declines analytics

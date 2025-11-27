@@ -31,10 +31,70 @@
 	<link rel="stylesheet" href="assets/fontawesome/css/all.css">
 	<script src="assets/js/browserfs.min.js"></script>
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+	<!-- Decide splash theme & inject theme CSS ASAP; update Desktop label/OS -->
+	<script src="assets/js/pre-splash.js"></script>
+
+	<!-- Inline minimal splash styles for earliest paint -->
+	<style>
+		/* Pre-splash shown before JS bundles load */
+		#pre-splash {
+			position: fixed;
+			inset: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			/* Use theme variable with safe fallback */
+			background: var(--bs-body-bg, #222336);
+			z-index: 9999;
+		}
+		#pre-splash .inner {
+			text-align: center;
+			/* Match body color */
+			color: var(--bs-body-color, #cfd6e4);
+			font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif;
+		}
+		#pre-splash .title {
+			margin-top: 12px;
+			font-size: 18px;
+			letter-spacing: 0.06em;
+			/* Emphasis color when available */
+			color: var(--bs-emphasis-color, #e6ecf8);
+		}
+		#pre-splash .sub {
+			margin-top: 4px;
+			font-size: 13px;
+			/* Secondary tone */
+			color: var(--bs-secondary-color, #9aa7bd);
+		}
+		#pre-splash .spinner {
+			margin-top: 16px;
+			width: 24px;
+			height: 24px;
+			/* Border matches theme (translucent), top uses primary color fallback */
+			border: 3px solid var(--bs-border-color-translucent, rgba(255,255,255,0.15));
+			border-top-color: var(--bs-primary, #3b82f6);
+			border-radius: 50%;
+			animation: pre-splash-spin 1s linear infinite;
+			display: inline-block;
+		}
+		@keyframes pre-splash-spin { to { transform: rotate(360deg); } }
+	</style>
 </head>
 
 <body>
 
+	<!-- Minimal splash screen to show instantly before React mounts -->
+	<div id="pre-splash" aria-hidden="true">
+		<div class="inner">
+			<img src="assets/img/remix-logo-blue.png" alt="Remix logo" width="64" height="64" />
+			<div id="pre-splash-title" class="title">REMIX IDE</div>
+			<div id="pre-splash-sub" class="sub">Loading…</div>
+			<div class="spinner" role="progressbar" aria-label="Loading"></div>
+		</div>
+	</div>
+
+	<!-- Electron/OS and theme work done in pre-splash.js -->
 	<div id="root"></div>
 	<!-- <script type="text/javascript" src="assets/js/loader.js"></script> -->
 	<script type="text/javascript" src="assets/js/intro.min.js"></script>

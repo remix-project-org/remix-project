@@ -20,7 +20,7 @@ export class LogsManager {
   checkBlock (blockNumber, block, web3) {
     eachOf(block.transactions, (tx: any, i, next) => {
       const txHash = bytesToHex(tx.hash())
-      web3.eth.getTransactionReceipt(txHash, (_error, receipt) => {
+      web3.getTransactionReceipt(txHash, (_error, receipt) => {
         if (!receipt) return next()
         for (const log of receipt.logs) {
           this.oldLogs.push({ type: 'block', blockNumber, block, tx, log, txNumber: i, receipt })

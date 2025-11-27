@@ -7,7 +7,6 @@ import { CodeManager } from './code/codeManager'
 import { contractCreationToken } from './trace/traceHelper'
 import { EventManager } from './eventManager'
 import { SolidityProxy, stateDecoder, localDecoder, InternalCallTree } from './solidity-decoder'
-import { extractStateVariables } from './solidity-decoder/stateDecoder'
 
 /**
   * Ethdebugger is a wrapper around a few classes that helps debug a transaction

@@ -9,7 +9,7 @@ This document is not in its final version, **a team meeting which aims to addres
 This document link to other specialized best practices (like coding best practices).
 
 Related links:
- - Public Website: https://remix-project.org
+ - Public Website: https://remix.live
  - Awesome Remix: https://github.com/remix-project-org/awesome-remix
  - Remix basic FAQ: https://hackmd.io/KVooMJhWRImCGq6zkDgW9A
  - Remix live: https://remix.ethereum.org
@@ -20,7 +20,7 @@ Related links:
  - Remix-debug NPM module: https://www.npmjs.com/package/@remix-project/remix-debug
  - Remix-tests NPM module: https://www.npmjs.com/package/@remix-project/remix-tests
  - Remix documentation: http://remix-ide.readthedocs.io/en/latest/
- - Discord: https://discord.gg/4b2rE9U4D2
+ - Discord: https://discord.gg/snsrYVU4Q7
  
 ---
 
@@ -61,7 +61,7 @@ Before starting coding, we should ensure all devs / contributors are aware of:
 - How to setup and get started (always up to date).
 - How to run tests.
 - Where to find documentation.
-- How to reach us through the communication channels - https://discord.gg/4b2rE9U4D2
+- How to reach us through the communication channels - https://discord.gg/snsrYVU4Q7
 - The following best practices:
 
 ---

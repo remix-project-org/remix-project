@@ -16,6 +16,7 @@ export interface ScanDetails {
   metric_wise_aggregated_findings?: Record<string, any>[]
   positions?: string
   template_details: ScanTemplate
+  file_name: string
 }
 
 export interface ScanReport {

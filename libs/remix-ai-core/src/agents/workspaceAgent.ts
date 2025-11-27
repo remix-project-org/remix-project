@@ -27,7 +27,6 @@ export class workspaceAgent {
       });
     })
     this.plugin.on('solidity', 'compilationFinished', async (file: string, source, languageVersion, data, input, version) => {
-
       this.localUsrFiles = await this.getLocalUserImports({
         file,
         source,

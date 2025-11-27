@@ -52,11 +52,6 @@ const TerminalWelcomeMessage = ({ packageJson, storage }) => {
         <FormattedMessage id="terminal.welcomeText9" />:
       </div>
       <ul className="ms-0 me-4">
-        <li key="web3-152">
-          <a target="_blank" href="https://web3js.readthedocs.io/en/1.0/">
-            web3.js
-          </a>
-        </li>
         <li key="ethers-console">
           <a target="_blank" href="https://docs.ethers.io">
             ethers.js

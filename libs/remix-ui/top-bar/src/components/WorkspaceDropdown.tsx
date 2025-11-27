@@ -54,6 +54,7 @@ interface WorkspacesDropdownProps {
   setCurrentMenuItemName: (workspaceName: string) => void
   setMenuItems: (menuItems: MenuItem[]) => void
   connectToLocalhost: () => void
+  openTemplateExplorer: () => void
 }
 
 function useClickOutside(refs: React.RefObject<HTMLElement>[], handler: () => void) {
@@ -77,7 +78,7 @@ const ITEM_LABELS = [
   "Fifth item",
 ]
 
-export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItems, NO_WORKSPACE, switchWorkspace, CustomToggle, createWorkspace, downloadCurrentWorkspace, restoreBackup, deleteAllWorkspaces, setCurrentMenuItemName, setMenuItems, renameCurrentWorkspace, deleteCurrentWorkspace, downloadWorkspaces, connectToLocalhost }) => {
+export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItems, NO_WORKSPACE, switchWorkspace, CustomToggle, createWorkspace, downloadCurrentWorkspace, restoreBackup, deleteAllWorkspaces, setCurrentMenuItemName, setMenuItems, renameCurrentWorkspace, deleteCurrentWorkspace, downloadWorkspaces, connectToLocalhost, openTemplateExplorer }) => {
   const [showMain, setShowMain] = useState(false)
   const [openSub, setOpenSub] = useState<number | null>(null)
   const global = useContext(TopbarContext)
@@ -261,6 +262,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
         className="px-2"
         data-id="topbar-custom-dropdown-items"
         show={showMain}
+        as={"div"}
       >
         <div id="scrollable-section" className="overflow-y-scroll" style={{ maxHeight: '160px' }}>
           {menuItems.map((item, idx) => {
@@ -402,7 +404,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
           <Dropdown.Item
             data-id="workspacecreate"
             onClick={(e) => {
-              createWorkspace()
+              openTemplateExplorer()
               setOpenSub(null)
             }}
             style={{
@@ -411,12 +413,12 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
             }}
           >
             <button className="w-100 btn btn-primary font-weight-light text-decoration-none mb-2 rounded-lg" onClick={(e) => {
-              createWorkspace()
+              openTemplateExplorer()
               setShowMain(false)
               setOpenSub(null)
             }}>
               <i className="fas fa-plus me-2"></i>
-                Create a new workspace
+                Create a new Workspace
             </button>
           </Dropdown.Item>
           <Dropdown.Divider className="border mb-0 mt-0 remixui_menuhr" style={{ pointerEvents: 'none' }} />

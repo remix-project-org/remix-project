@@ -1,10 +1,10 @@
 import { Command } from 'commander';
-import { Web3 } from 'web3'
+import { ethers, BrowserProvider } from "ethers"
 import path from 'path'
 import axios, { AxiosResponse } from 'axios'
 import { runTestFiles } from './runTestFiles'
 import fs from './fileSystem'
-import { Provider, extend } from '@remix-project/remix-simulator'
+import { Provider, extendProvider } from '@remix-project/remix-simulator'
 import { CompilerConfiguration } from './types'
 import Log from './logger'
 import colors from 'colors'
@@ -127,11 +127,11 @@ commander
       nodeUrl: options.nodeUrl || null,
       blockNumber: options.blockNumber || null
     }
-    const provider: any = new Provider(providerConfig)
-    await provider.init()
-    const web3 = new Web3(provider)
-    extend(web3)
-    runTestFiles(path.resolve(file_path), isDirectory, web3, compilerConfig, (error, totalPassing, totalFailing) => {
+    const simulatorProvider: any = new Provider(providerConfig)
+    await simulatorProvider.init()
+    const provider: BrowserProvider = new ethers.BrowserProvider(simulatorProvider as any)
+    extendProvider(provider)
+    runTestFiles(path.resolve(file_path), isDirectory, provider, compilerConfig, (error, totalPassing, totalFailing) => {
       if (error) process.exit(1)
       if (totalFailing > 0 && options.killProcess) process.exit(1)
     })

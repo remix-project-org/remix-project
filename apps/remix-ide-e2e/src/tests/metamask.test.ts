@@ -207,7 +207,7 @@ const tests = {
 
       .testFunction('last',
         {
-          status: '0x1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution succeed',
           'decoded input': { 'address to': '0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB' }
         })
   },
@@ -269,6 +269,24 @@ const tests = {
       .switchBrowserTab(0) // back to remix
       .pause(1000)
       .journalChildIncludes('0xec72bbabeb47a3a766af449674a45a91a6e94e35ebf0ae3c644b66def7bd387f1c0b34d970c9f4a1e9398535e5860b35e82b2a8931b7c9046b7766a53e66db3d1b')
+  },
+  'Should add and run sendETH script on Sepolia using MetaMask': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementPresent('*[data-id="remixIdeSidePanel"]')
+      .clickLaunchIcon('filePanel')
+      .addFile('sendETH.ts', { content: sendETHExample })
+      .openFile('sendETH.ts')
+      .pause(2000)
+      .clearConsole()
+      .rightClick('li[data-id="treeViewLitreeViewItemsendETH.ts"]')
+      .waitForElementVisible('*[id="menuitemrun"]')
+      .click('*[id="menuitemrun"]')
+      .pause(2000)
+      .switchBrowserTab(extension_url, true)
+      .waitForElementPresent('[data-testid="confirm-footer-button"]', 60000)
+      .scrollAndClick('[data-testid="confirm-footer-button"]')
+      .switchBrowserTab(0) // back to remix
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Transaction confirmed for', 120000)
   }  // main network tests
   , 'Should connect to Ethereum Main Network using MetaMask': function (browser: NightwatchBrowser) {
     browser.waitForElementPresent('*[data-id="remixIdeSidePanel"]')
@@ -340,6 +358,43 @@ const EIP712_Example = {
     ],
   },
 }
+
+const sendETHExample = `
+"use strict"
+
+import { ethers } from "ethers"
+
+async function sendEth() {
+    // Replace these with actual recipient addresses
+    const recipientAddresses = [
+        "0xefeaf7647997cc11ae1f99f6add557fa9d70a552"
+    ];
+
+    // Amount of ETH to send (0.05 ETH in wei)
+    const amount = ethers.parseEther("0.005");
+
+    // Get provider and signer from Remix environment
+    const provider = new ethers.BrowserProvider(web3Provider);
+    const signer = await provider.getSigner();
+
+    // Send ETH to each address
+    for (const address of recipientAddresses) {
+      
+        try {
+            const tx = await signer.sendTransaction({
+                to: address,
+                value: amount
+            });
+            await tx.wait();
+            console.log("Transaction confirmed for");
+        } catch (error) {
+            console.error("Failed to send to ");
+        }
+    }
+}
+
+sendEth().catch(console.error);
+`
 
 const sources = [
   {

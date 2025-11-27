@@ -1,8 +1,8 @@
 /**
  * Matomo Events - Modular Event System
  *
- * This is the main index for the split Matomo event system. 
- * It re-exports all events to maintain backward compatibility while 
+ * This is the main index for the split Matomo event system.
+ * It re-exports all events to maintain backward compatibility while
  * organizing the code into manageable modules.
  *
  * Usage:
@@ -34,7 +34,7 @@ import type { HomeTabEvent, TopbarEvent, LayoutEvent, SettingsEvent, ThemeEvent,
 import type { FileExplorerEvent, WorkspaceEvent, StorageEvent, BackupEvent } from './events/file-events';
 import type { BlockchainEvent, UdappEvent, RunEvent } from './events/blockchain-events';
 import type { PluginEvent, ManagerEvent, PluginManagerEvent, AppEvent, MatomoManagerEvent, PluginPanelEvent, MigrateEvent } from './events/plugin-events';
-import type { DebuggerEvent, EditorEvent, SolidityUnitTestingEvent, SolidityStaticAnalyzerEvent, DesktopDownloadEvent, XTERMEvent, SolidityScriptEvent, RemixGuideEvent, TemplateSelectionEvent, ScriptExecutorEvent, GridViewEvent, SolidityUMLGenEvent, ScriptRunnerPluginEvent, CircuitCompilerEvent, NoirCompilerEvent, ContractVerificationEvent, LearnethEvent } from './events/tools-events';
+import type { DebuggerEvent, EditorEvent, SolidityUnitTestingEvent, SolidityStaticAnalyzerEvent, DesktopDownloadEvent, XTERMEvent, SolidityScriptEvent, RemixGuideEvent, TemplateSelectionEvent, ScriptExecutorEvent, GridViewEvent, SolidityUMLGenEvent, ScriptRunnerPluginEvent, CircuitCompilerEvent, NoirCompilerEvent, ContractVerificationEvent, LearnethEvent, TemplateExplorerModalEvent } from './events/tools-events';
 
 // Union type of all Matomo events - includes base properties for compatibility
 export type MatomoEvent = (
@@ -59,7 +59,7 @@ export type MatomoEvent = (
   | LocaleEvent
   | LandingPageEvent
   | StatusBarEvent
-  
+
   // File Management events
   | FileExplorerEvent
   | WorkspaceEvent
@@ -90,6 +90,7 @@ export type MatomoEvent = (
   | SolidityScriptEvent
   | RemixGuideEvent
   | TemplateSelectionEvent
+  | TemplateExplorerModalEvent
   | ScriptExecutorEvent
   | GridViewEvent
   | SolidityUMLGenEvent
@@ -111,7 +112,7 @@ export type MatomoEvent = (
 // 2351-line file into appropriate category modules:
 //
 // - blockchain-events.ts     (BlockchainEvent, UdappEvent)
-// - file-events.ts           (FileExplorerEvent, WorkspaceEvent) 
+// - file-events.ts           (FileExplorerEvent, WorkspaceEvent)
 // - plugin-events.ts         (PluginEvent, ManagerEvent, etc.)
 // - app-events.ts            (AppEvent, StorageEvent, etc.)
 // - debug-events.ts          (DebuggerEvent, MatomoManagerEvent)
@@ -120,29 +121,29 @@ export type MatomoEvent = (
 // - learneth-events.ts       (LearnethEvent)
 // - desktop-events.ts        (DesktopDownloadEvent)
 // - editor-events.ts         (EditorEvent)
-// 
+//
 // Each would follow the same pattern:
 // 1. Define the TypeScript interface
 // 2. Export type-safe builder functions
 // 3. Keep files focused and manageable (~200-400 lines each)
 
-// For backward compatibility, the original matomo-events.ts file would 
+// For backward compatibility, the original matomo-events.ts file would
 // be replaced with just:
 //   export * from './matomo';
 
 // Example of how other files would be structured:
 
-/* 
+/*
 // blockchain-events.ts
 export interface BlockchainEvent extends MatomoEventBase {
-  category: 'blockchain';  
+  category: 'blockchain';
   action: 'providerChanged' | 'networkChanged' | 'accountChanged';
 }
 
 export const BlockchainEvents = {
   providerChanged: (name?: string, value?: string | number): BlockchainEvent => ({
     category: 'blockchain',
-    action: 'providerChanged', 
+    action: 'providerChanged',
     name,
     value,
     isClick: true

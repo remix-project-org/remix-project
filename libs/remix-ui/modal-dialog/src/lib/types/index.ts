@@ -31,4 +31,5 @@ export interface ModalDialogProps {
   cancelBtnClass?: string,
   preventBlur?: boolean
   placeholderText?: string
+  genericData?: any
 }

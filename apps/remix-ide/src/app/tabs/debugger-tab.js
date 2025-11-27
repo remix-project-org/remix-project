@@ -1,4 +1,3 @@
-import { Web3 } from 'web3'
 import { DebuggerUI } from '@remix-ui/debugger-ui' // eslint-disable-line
 import { DebuggerApiMixin } from '@remix-ui/debugger-ui'
 import { ViewPlugin } from '@remixproject/engine-web'
@@ -86,7 +85,7 @@ export default class DebuggerTab extends DebuggerApiMixin(ViewPlugin) {
         'timestamp': block.timestamp,
       }
       if (block.baseFeePerGas) {
-        blockContext['basefee'] = Web3.utils.toBigInt(block.baseFeePerGas).toString(10) + ` Wei (${block.baseFeePerGas})`
+        blockContext['basefee'] = BigInt(block.baseFeePerGas).toString(10) + ` Wei (${block.baseFeePerGas})`
       }
       const msg = {
         'sender': tx.from,

@@ -43,6 +43,7 @@ export default class Editor extends Plugin {
       yul: 'sol',
       mvir: 'move',
       js: 'javascript',
+      jsx: 'javascript',
       py: 'python',
       vy: 'python',
       zok: 'zokrates',
@@ -53,10 +54,13 @@ export default class Editor extends Plugin {
       rs: 'rust',
       cairo: 'cairo',
       ts: 'typescript',
+      tsx: 'typescript',
       move: 'move',
       circom: 'circom',
       nr: 'move',
-      toml: 'toml'
+      toml: 'toml',
+      html: 'html',
+      css: 'css'
     }
 
     this.activated = false
@@ -423,18 +427,49 @@ export default class Editor extends Plugin {
   }
 
   async handleTypeScriptDependenciesOf (path, content, readFile, exists) {
-    if (path.endsWith('.ts')) {
+    const isTsFile = path.endsWith('.ts') || path.endsWith('.tsx')
+    const isJsFile = path.endsWith('.js') || path.endsWith('.jsx')
+
+    if (isTsFile || isJsFile) {
       // extract the import, resolve their content
       // and add the imported files to Monaco through the `addModel`
       // so Monaco can provide auto completion
       const paths = path.split('/')
       paths.pop()
       const fromPath = paths.join('/') // get current execution context path
+      const language = isTsFile ? 'typescript' : 'javascript'
+
       for (const match of content.matchAll(/import\s+.*\s+from\s+(?:"(.*?)"|'(.*?)')/g)) {
         let pathDep = match[2]
         if (pathDep.startsWith('./') || pathDep.startsWith('../')) pathDep = resolve(fromPath, pathDep)
         if (pathDep.startsWith('/')) pathDep = pathDep.substring(1)
-        if (!pathDep.endsWith('.ts')) pathDep = pathDep + '.ts'
+
+        // Try different file extensions if no extension is provided
+        const extensions = isTsFile ? ['.ts', '.tsx', '.d.ts'] : ['.js', '.jsx']
+        let hasExtension = false
+        for (const ext of extensions) {
+          if (pathDep.endsWith(ext)) {
+            hasExtension = true
+            break
+          }
+        }
+
+        if (!hasExtension) {
+          // Try to find the file with different extensions
+          for (const ext of extensions) {
+            const pathWithExt = pathDep + ext
+            try {
+              const pathExists = await exists(pathWithExt)
+              if (pathExists) {
+                pathDep = pathWithExt
+                break
+              }
+            } catch (e) {
+              // continue to next extension
+            }
+          }
+        }
+
         try {
           // we can't use the fileManager plugin call directly
           // because it's itself called in a plugin context, and that causes a timeout in the plugin stack
@@ -443,7 +478,7 @@ export default class Editor extends Plugin {
           if (pathExists) {
             contentDep = await readFile(pathDep)
             if (contentDep !== '') {
-              this.emit('addModel', contentDep, 'typescript', pathDep, this.readOnlySessions[path])
+              this.emit('addModel', contentDep, language, pathDep, this.readOnlySessions[path])
             }
           } else {
             // console.log("The file ", pathDep, " can't be found.")

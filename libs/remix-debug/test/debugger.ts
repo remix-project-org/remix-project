@@ -161,7 +161,7 @@ contract Ballot {
     if (error) {
       throw error
     } else {
-      web3.eth.getTransaction(hash)
+      web3.getTransaction(hash)
         .then(tx => {
           const sources = {
             target: 'test.sol',

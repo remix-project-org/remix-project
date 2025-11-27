@@ -93,18 +93,34 @@ export class ThemeModule extends Plugin {
   initTheme(callback?: () => void): void { // callback is setTimeOut in app.js which is always passed
     if (callback) this.initCallback = callback
     if (this.active) {
-      document.getElementById('theme-link') ? document.getElementById('theme-link').remove() : null
+      const existingThemeLink = document.getElementById('theme-link')
+      if (existingThemeLink) existingThemeLink.remove()
       const nextTheme = this.themes[this.active] // Theme
       document.documentElement.style.setProperty('--theme', nextTheme.quality)
 
-      const theme = document.createElement('link')
-      theme.setAttribute('rel', 'stylesheet')
-      theme.setAttribute('href', nextTheme.url)
-      theme.setAttribute('id', 'theme-link')
-      theme.addEventListener('load', () => {
-        if (callback) callback()
-      })
-      document.head.insertBefore(theme, document.head.firstChild)
+      // Reuse preloaded theme link if present to avoid double loading
+      const preloaded = document.getElementById('pre-theme-css') as HTMLLinkElement | null
+      if (preloaded) {
+        preloaded.id = 'theme-link'
+        const desired = new URL(nextTheme.url, document.baseURI).href
+        const current = preloaded.href
+        if (current !== desired) {
+          preloaded.addEventListener('load', () => { if (callback) callback() }, { once: true })
+          preloaded.href = nextTheme.url
+        } else {
+          // Already loaded desired theme
+          if (callback) callback()
+        }
+      } else {
+        const theme = document.createElement('link')
+        theme.setAttribute('rel', 'stylesheet')
+        theme.setAttribute('href', nextTheme.url)
+        theme.setAttribute('id', 'theme-link')
+        theme.addEventListener('load', () => {
+          if (callback) callback()
+        })
+        document.head.insertBefore(theme, document.head.firstChild)
+      }
       //if (callback) callback()
     }
   }

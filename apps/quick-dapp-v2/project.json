@@ -1,0 +1,70 @@
+{
+  "name": "quick-dapp-v2",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/quick-dapp-v2/src",
+  "projectType": "application",
+  "implicitDependencies": [],
+  "targets": {
+    "build": {
+      "executor": "@nrwl/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "development",
+      "options": {
+        "compiler": "babel",
+        "outputPath": "dist/apps/quick-dapp-v2",
+        "index": "apps/quick-dapp-v2/src/index.html",
+        "baseHref": "./",
+        "main": "apps/quick-dapp-v2/src/main.tsx",
+        "polyfills": "apps/quick-dapp-v2/src/polyfills.ts",
+        "tsConfig": "apps/quick-dapp-v2/tsconfig.app.json",
+        "assets": ["apps/quick-dapp-v2/src/profile.json", "apps/quick-dapp-v2/src/assets/sparkling.png"],
+        "styles": ["apps/quick-dapp-v2/src/index.css"],
+        "scripts": [],
+        "webpackConfig": "apps/quick-dapp-v2/webpack.config.js"
+      },
+      "configurations": {
+        "development": {
+        },
+        "production": {
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/quick-dapp-v2/**/*.ts"],
+        "eslintConfig": "apps/quick-dapp-v2/.eslintrc"
+      }
+    },
+    "install": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "commands": [
+          "cd apps/quick-dapp-v2 && yarn"
+        ],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "executor": "@nrwl/webpack:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "quick-dapp-v2:build",
+        "hmr": true,
+        "baseHref": "/"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "quick-dapp-v2:build:development",
+          "port": 2025
+        },
+        "production": {
+          "buildTarget": "quick-dapp-v2:build:production"
+        }
+      }
+    }
+  },
+  "tags": []
+}

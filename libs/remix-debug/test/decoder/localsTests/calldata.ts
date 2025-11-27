@@ -16,7 +16,7 @@ module.exports = async function (st, privateKey, contractBytecode, compilationRe
   try {
     web3 = await (vmCall as any).getWeb3()
     const hash = await (vmCall as any).sendTx(web3, { nonce: 0, privateKey: privateKey }, undefined, 0, contractBytecode)
-    const receipt = await web3.eth.getTransactionReceipt(hash)
+    const receipt = await web3.getTransactionReceipt(hash)
     const to = receipt.contractAddress
     console.log('to', to)
     // call to level11
@@ -25,7 +25,7 @@ module.exports = async function (st, privateKey, contractBytecode, compilationRe
     return st.fail(e)
   }
   return new Promise((resolve) => {
-    web3.eth.getTransaction(txHash)
+    web3.getTransaction(txHash)
       .then(tx => {
         const traceManager = new TraceManager({ web3 })
         const codeManager = new CodeManager(traceManager)

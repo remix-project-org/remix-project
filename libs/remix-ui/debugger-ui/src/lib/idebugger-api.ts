@@ -48,7 +48,7 @@ export interface IDebuggerApi {
     fetchContractAndCompile: (address: string, currentReceipt: TransactionReceipt) => Promise<CompilerAbstract>
     getFile: (path: string) => Promise<string>
     setFile: (path: string, content: string) => Promise<void>
-    getDebugWeb3: () => any // returns an instance of web3.js, if applicable (mainet, goerli, ...) it returns a reference to a node from devops (so we are sure debug endpoint is available)
+    getDebugProvider: () => any // returns an instance of web3.js, if applicable (mainnet, goerli, ...) it returns a reference to a node from devops (so we are sure debug endpoint is available)
     web3: () => any // returns an instance of web3.js
     showMessage (title: string, message: string): void
     onStartDebugging (debuggerBackend: any): void // called when debug starts

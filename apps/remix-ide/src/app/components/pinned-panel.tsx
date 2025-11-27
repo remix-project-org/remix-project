@@ -20,6 +20,7 @@ const pinnedPanel = {
 export class PinnedPanel extends AbstractPanel {
   dispatch: React.Dispatch<any> = () => {}
   loggedState: Record<string, any>
+  pinnedPanelState: Record<string, any> // pluginProfile, isClosed
   highlightStamp: number
   closedPlugin: any
 
@@ -36,6 +37,9 @@ export class PinnedPanel extends AbstractPanel {
         super.remove(name)
       }
     })
+
+    const pinnedPanelState = window.localStorage.getItem('pinnedPanelState')
+    if (!pinnedPanelState) window.localStorage.setItem('pinnedPanelState', JSON.stringify({}))
   }
 
   async pinView (profile, view) {
@@ -53,9 +57,18 @@ export class PinnedPanel extends AbstractPanel {
     this.addView(profile, view)
     this.plugins[profile.name].pinned = true
     this.plugins[profile.name].active = true
+    let pinnedPanelState = window.localStorage.getItem('pinnedPanelState')
+    let isClosed = false
+    if (pinnedPanelState) {
+      pinnedPanelState = JSON.parse(pinnedPanelState)
+      if (pinnedPanelState['isClosed']) {
+        isClosed = true
+        await this.closePlugin(profile)
+      }
+    }
     this.renderComponent()
-    this.events.emit('pinnedPlugin', profile)
-    this.emit('pinnedPlugin', profile)
+    this.events.emit('pinnedPlugin', profile, isClosed)
+    this.emit('pinnedPlugin', profile, isClosed)
   }
 
   async unPinView (profile) {
@@ -77,6 +90,7 @@ export class PinnedPanel extends AbstractPanel {
     const pinnedPanel = document.querySelector('#pinned-panel')
     pinnedPanel.classList.add('d-none')
     this.closedPlugin = profile
+    window.localStorage.setItem('pinnedPanelState', JSON.stringify({ pluginProfile: profile, isClosed: true }))
     this.events.emit('pluginClosed', profile)
     this.emit('pluginClosed', profile)
   }
@@ -85,6 +99,7 @@ export class PinnedPanel extends AbstractPanel {
     const pinnedPanel = document.querySelector('#pinned-panel')
     pinnedPanel.classList.remove('d-none')
     this.closedPlugin = null
+    window.localStorage.setItem('pinnedPanelState', JSON.stringify({ pluginProfile: profile, isClosed: false }))
     this.events.emit('pluginMaximized', profile)
     this.emit('pluginMaximized', profile)
   }

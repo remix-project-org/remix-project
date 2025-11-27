@@ -12,7 +12,7 @@ tape('TraceManager', function (t) {
   })
 
   t.test('TraceManager.resolveTrace', function (st) {
-    const tx = web3Test.eth.getTransaction('0x20ef65b8b186ca942fcccd634f37074dde49b541c27994fc7596740ef44cfd51')
+    const tx = web3Test.getTransaction('0x20ef65b8b186ca942fcccd634f37074dde49b541c27994fc7596740ef44cfd51')
     traceManager.resolveTrace(tx).then(() => {
       st.end()
     }).catch(() => {

@@ -10,7 +10,7 @@ export function makeUdapp (blockchain, compilersArtefacts, logHtmlCallback) {
     if (_transactionReceipts[tx.hash]) {
       return cb(null, _transactionReceipts[tx.hash])
     }
-    let res = blockchain.web3().eth.getTransactionReceipt(tx.hash, (error, receipt) => {
+    let res = blockchain.web3().getTransactionReceipt(tx.hash, (error, receipt) => {
       if (error) {
         return cb(error)
       }

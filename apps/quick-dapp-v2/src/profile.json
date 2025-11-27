@@ -1,0 +1,19 @@
+{
+  "name": "quick-dapp-v2",
+  "displayName": "Quick Dapp V2",
+  "description": "Edit & deploy a Dapp",
+  "version": "1.0.0",
+  "methods": [
+    "edit"
+  ],
+  "kind": "none",
+  "icon": "assets/img/quickDappLogo.webp",
+  "location": "mainPanel",
+  "url": "plugins/quick-dapp-v2/index.html",
+  "repo": "https://github.com/remix-project-org/remix-project/tree/master/apps/quick-dapp-v2",
+  "maintainedBy": "Remix",
+  "authorContact": "https://github.com/drafish",
+  "targets": [
+    "remix"
+  ]
+}

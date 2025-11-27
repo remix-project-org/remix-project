@@ -1,3 +1,4 @@
+/* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import { Plugin } from '@remixproject/engine'
 import { LibraryProfile, MethodApi, StatusEvents } from '@remixproject/plugin-utils'
 import { AppModal } from '@remix-ui/app'
@@ -10,6 +11,7 @@ interface INotificationApi {
     modal: (args: AppModal) => void
     alert: (args: AlertModal) => void
     toast: (message: string) => void
+
   }
 }
 

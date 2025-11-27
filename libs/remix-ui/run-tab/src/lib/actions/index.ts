@@ -6,9 +6,9 @@ import { createNewBlockchainAccount, createSmartAccount, delegationAuthorization
 import { clearInstances, clearPopUp, removeInstance, pinInstance, unpinInstance, setAccount, setGasFee, setMatchPassphrasePrompt,
   setNetworkNameFromProvider, setPassphrasePrompt, setSelectedContract, setSendTransactionValue, setUnit,
   updateBaseFeePerGas, updateConfirmSettings, updateGasPrice, updateGasPriceStatus, updateMaxFee, updateMaxPriorityFee, updateScenarioPath } from './actions'
-import { createInstance, getContext, getFuncABIInputs, getSelectedContract, loadAddress, runTransactions, updateInstanceBalance, syncContractsInternal, isValidContractAddress, isValidContractUpgrade } from './deploy'
+import { createInstance, getContext, getFuncABIInputs, loadAddress, runTransactions, updateInstanceBalance, syncContractsInternal, isValidContractAddress, isValidContractUpgrade } from './deploy'
 import { CompilerAbstract as CompilerAbstractType } from '@remix-project/remix-solidity'
-import { ContractData, FuncABI, OverSizeLimit } from "@remix-project/core-plugin"
+import { ContractData, FuncABI, OverSizeLimit, getContractData } from "@remix-project/core-plugin"
 import { DeployMode, MainnetPrompt } from '../types'
 import { runCurrentScenario, storeScenario } from './recorder'
 import { SolcInput, SolcOutput } from '@openzeppelin/upgrades-core'
@@ -37,7 +37,7 @@ export const internalDelegationAuthorization = (contractAddress: string) => dele
 export const setPassphraseModal = (passphrase: string) => setPassphrasePrompt(dispatch, passphrase)
 export const setMatchPassphraseModal = (passphrase: string) => setMatchPassphrasePrompt(dispatch, passphrase)
 export const signMessage = (account: string, message: string, modalContent: (hash: string, data: string) => JSX.Element, passphrase?: string) => signMessageWithAddress(plugin, dispatch, account, message, modalContent, passphrase)
-export const fetchSelectedContract = (contractName: string, compiler: CompilerAbstractType) => getSelectedContract(contractName, compiler)
+export const fetchSelectedContract = (contractName: string, compiler: CompilerAbstractType) => getContractData(contractName, compiler)
 export const createNewInstance = async (selectedContract: ContractData, gasEstimationPrompt: (msg: string) => JSX.Element, passphrasePrompt: (msg: string) => JSX.Element, publishToStorage: (storage: 'ipfs' | 'swarm', contract: ContractData) => void, mainnetPrompt: MainnetPrompt, isOverSizePrompt: (values: OverSizeLimit) => JSX.Element, args, deployMode: DeployMode[], isVerifyChecked: boolean) => createInstance(plugin, dispatch, selectedContract, gasEstimationPrompt, passphrasePrompt, publishToStorage, mainnetPrompt, isOverSizePrompt, args, deployMode, isVerifyChecked)
 export const setSendValue = (value: string) => setSendTransactionValue(dispatch, value)
 export const setBaseFeePerGas = (baseFee: string) => updateBaseFeePerGas(dispatch, baseFee)

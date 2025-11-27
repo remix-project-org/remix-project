@@ -211,6 +211,9 @@
             ],
             "@remix-ide/tracking": [
               "apps/remix-ide/src/app/contexts/TrackingContext"
+            ],
+            "@remix-ui/template-explorer-modal": [
+              "libs/remix-ui/template-explorer-modal/src/index.ts"
             ]
         }
     }

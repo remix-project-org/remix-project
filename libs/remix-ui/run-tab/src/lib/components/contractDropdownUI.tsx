@@ -49,21 +49,45 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
 
   useEffect(() => {
     const checkSupport = async () => {
-      if (props.plugin) {
-        const supportedChain = await getSupportedChain(props.plugin)
-        const isSupported = !!supportedChain
-        setNetworkSupported(isSupported)
+      if (props.plugin && props.networkName) {
+        try {
+          const supportedChain = await getSupportedChain(props.plugin)
+          const chainExistsInList = !!supportedChain
 
-        if (isSupported) {
-          const saved = window.localStorage.getItem('deploy-verify-contract-checked')
-          setVerifyChecked(saved !== null ? JSON.parse(saved) : true)
-        } else {
+          let isConfigValid = false
+          if (chainExistsInList) {
+            const status = props.plugin.blockchain.getCurrentNetworkStatus()
+            const currentChainId = status?.network?.id?.toString()
+            if (currentChainId) {
+              isConfigValid = await props.plugin.call(
+                'contract-verification',
+                'isVerificationSupportedForChain',
+                currentChainId
+              )
+            }
+          }
+
+          const isSupported = chainExistsInList && isConfigValid
+          setNetworkSupported(isSupported)
+
+          if (isSupported) {
+            const saved = window.localStorage.getItem('deploy-verify-contract-checked')
+            setVerifyChecked(saved !== null ? JSON.parse(saved) : true)
+          } else {
+            setVerifyChecked(false)
+          }
+        } catch (e) {
+          console.error("Failed to check verification support:", e)
+          setNetworkSupported(false)
           setVerifyChecked(false)
         }
+      } else {
+        setNetworkSupported(false)
+        setVerifyChecked(false)
       }
-    };
+    }
     checkSupport()
-  }, [props.networkName])
+  }, [props.networkName, props.plugin])
 
   useEffect(() => {
     enableContractNames(Object.keys(props.contracts.contractList).length > 0)

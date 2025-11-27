@@ -382,7 +382,7 @@ module.exports = {
     }
 
     function resolveENS() view {
-        // Same address for Mainnet, Ropsten, Rinkerby, Gorli and other networks;
+        // Same address for Mainnet and other networks;
         ENS ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
         (,bytes32 node) = NameEncoder.dnsEncodeName("vitalik.eth");
         Resolver resolver = ens.resolver(node);

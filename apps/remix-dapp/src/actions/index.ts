@@ -1,6 +1,5 @@
 import axios from 'axios';
-import Web3 from 'web3';
-import { AbiCoder } from 'ethers';
+import { AbiCoder, parseUnits } from 'ethers';
 import BN from 'bn.js';
 import { execution } from '@remix-project/remix-lib';
 import { toBytes, addHexPrefix } from '@ethereumjs/util';
@@ -126,7 +125,7 @@ export const runTransactions = async (payload: any) => {
   console.log(payload);
   const { sendValue, sendUnit, gasLimit, selectedAccount } = state.settings;
   const { address, decodedResponse, name } = state.instance;
-  const value = Web3.utils.toWei(sendValue, sendUnit);
+  const value = parseUnits(sendValue, sendUnit);
 
   const tx = {
     to: address,

@@ -81,6 +81,7 @@ export class StatusBar extends Plugin<any, CustomRemixApi> implements StatusBarI
     this.on('settings', 'copilotChoiceChanged', (isAiActive: boolean) => {
       this.isAiActive = isAiActive
     })
+
     this.renderComponent()
   }
 

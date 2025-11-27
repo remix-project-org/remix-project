@@ -1,23 +1,20 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect, useReducer, useRef, SyntheticEvent, MouseEvent, useContext } from 'react' // eslint-disable-line
-import { FormattedMessage, useIntl } from 'react-intl'
+import React, { useState, useEffect, useReducer, useRef, SyntheticEvent, useContext } from 'react' // eslint-disable-line
+import { useIntl } from 'react-intl'
 import {
   registerCommandAction,
   registerLogScriptRunnerAction,
   registerInfoScriptRunnerAction,
   registerErrorScriptRunnerAction,
   registerWarnScriptRunnerAction,
-  listenOnNetworkAction,
   initListeningOnNetwork,
 } from './actions/terminalAction'
-import { isBigInt } from 'web3-validator'
-import { initialState, registerCommandReducer, addCommandHistoryReducer, registerScriptRunnerReducer } from './reducers/terminalReducer'
+import { initialState, addCommandHistoryReducer, registerScriptRunnerReducer } from './reducers/terminalReducer'
 import { getKeyOf, getValueOf, Objectfilter, matched } from './utils/utils'
 import { allCommands, allPrograms } from './commands' // eslint-disable-line
 import TerminalWelcomeMessage from './terminalWelcome' // eslint-disable-line
 import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
 import { ModalDialog } from '@remix-ui/modal-dialog' // eslint-disable-line
-import { CustomTooltip } from '@remix-ui/helper'
 
 import './remix-ui-terminal.css'
 import vm from 'vm'
@@ -571,7 +568,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
   const classNameBlock = 'remix_ui_terminal_block px-4 py-1 text-break'
 
   const replacer = (key, value) => {
-    if (isBigInt(value)) value = value.toString()
+    if (typeof value === 'bigint') value = value.toString()
     if (typeof value === 'function') value = value.toString()
     return value
   }

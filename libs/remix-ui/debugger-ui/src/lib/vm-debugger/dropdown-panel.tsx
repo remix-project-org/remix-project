@@ -4,8 +4,11 @@ import {TreeView, TreeViewItem} from '@remix-ui/tree-view' // eslint-disable-lin
 import {DropdownPanelProps, ExtractData, ExtractFunc} from '../../types' // eslint-disable-line
 import {CopyToClipboard} from '@remix-ui/clipboard' // eslint-disable-line
 import { initialState, reducer } from '../../reducers/calldata'
-import { isBigInt } from 'web3-validator'
 import './styles/dropdown-panel.css'
+
+const isBigInt = (value) => {
+  return typeof value === 'bigint'
+}
 
 export const DropdownPanel = (props: DropdownPanelProps) => {
   const intl = useIntl()
@@ -56,7 +59,7 @@ export const DropdownPanel = (props: DropdownPanelProps) => {
   }
   const formatSelfDefault = (key: string | number, data: ExtractData) => {
     let value
-    if (isBigInt(data.self)) data.self = data.self.toString()
+    if (isBigInt(data.self)) data.self = (data.self as any).toString()
     if (hexHighlight && typeof data.self === 'string') {
       const isHex = data.self.startsWith('0x') || hexHighlight
       if (isHex) {

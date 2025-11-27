@@ -246,7 +246,7 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
           ['ERC1155', 'primary'],
         ]}
         title='Workspace Templates'
-        description="Select a template to create a workspace or to add it to current workspace"
+        description="Select a template to create a Workspace or to add it to current Workspace"
       >
         {
           templates(window._intl, this).map(template => {
@@ -269,7 +269,7 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
                 if (!item.opts) {
                   return (
                     <RemixUIGridCell
-                      plugin={this}
+                      // plugin={this}
                       title={item.displayName}
                       key={item.name || index}
                       id={item.name}
@@ -350,7 +350,7 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
                 }
               })}
               {template.name === 'Cookbook' && <RemixUIGridCell
-                plugin={this}
+                // plugin={this}
                 title={"More from Cookbook"}
                 key={"cookbookMore"}
                 id={"cookBookMore"}

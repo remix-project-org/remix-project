@@ -25,7 +25,7 @@ module.exports = {
       .clickFunction('useTransientStorage - transact (not payable)')
       .testFunction('last',
         {
-          status: '0x1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution succeed',
           'decoded output': {
             0: 'uint256: out1 14',
             1: 'uint256: out2 15'
