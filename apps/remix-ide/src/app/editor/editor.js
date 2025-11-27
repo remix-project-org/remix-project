@@ -1,5 +1,6 @@
 'use strict'
 import React from 'react' // eslint-disable-line
+import { resolve } from 'path'
 import { EditorUI } from '@remix-ui/editor' // eslint-disable-line
 import { Plugin } from '@remixproject/engine'
 import * as packageJson from '../../../../../package.json'
@@ -412,6 +413,70 @@ export default class Editor extends Plugin {
     if (ext) ext = ext[0]
     else ext = 'txt'
     return ext && this.modes[ext] ? this.modes[ext] : this.modes.txt
+  }
+
+  async handleTypeScriptDependenciesOf (path, content, readFile, exists) {
+    const isTsFile = path.endsWith('.ts') || path.endsWith('.tsx')
+    const isJsFile = path.endsWith('.js') || path.endsWith('.jsx')
+
+    if (isTsFile || isJsFile) {
+      // extract the import, resolve their content
+      // and add the imported files to Monaco through the `addModel`
+      // so Monaco can provide auto completion
+      const paths = path.split('/')
+      paths.pop()
+      const fromPath = paths.join('/') // get current execution context path
+      const language = isTsFile ? 'typescript' : 'javascript'
+
+      for (const match of content.matchAll(/import\s+.*\s+from\s+(?:"(.*?)"|'(.*?)')/g)) {
+        let pathDep = match[2]
+        if (pathDep.startsWith('./') || pathDep.startsWith('../')) pathDep = resolve(fromPath, pathDep)
+        if (pathDep.startsWith('/')) pathDep = pathDep.substring(1)
+
+        // Try different file extensions if no extension is provided
+        const extensions = isTsFile ? ['.ts', '.tsx', '.d.ts'] : ['.js', '.jsx']
+        let hasExtension = false
+        for (const ext of extensions) {
+          if (pathDep.endsWith(ext)) {
+            hasExtension = true
+            break
+          }
+        }
+
+        if (!hasExtension) {
+          // Try to find the file with different extensions
+          for (const ext of extensions) {
+            const pathWithExt = pathDep + ext
+            try {
+              const pathExists = await exists(pathWithExt)
+              if (pathExists) {
+                pathDep = pathWithExt
+                break
+              }
+            } catch (e) {
+              // continue to next extension
+            }
+          }
+        }
+
+        try {
+          // we can't use the fileManager plugin call directly
+          // because it's itself called in a plugin context, and that causes a timeout in the plugin stack
+          const pathExists = await exists(pathDep)
+          let contentDep = ''
+          if (pathExists) {
+            contentDep = await readFile(pathDep)
+            if (contentDep !== '') {
+              this.emit('addModel', contentDep, language, pathDep, this.readOnlySessions[path])
+            }
+          } else {
+            console.log("The file ", pathDep, " can't be found.")
+          }
+        } catch (e) {
+          console.log(e)
+        }
+      }
+    }
   }
 
   /**
