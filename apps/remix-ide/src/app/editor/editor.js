@@ -1,6 +1,5 @@
 'use strict'
 import React from 'react' // eslint-disable-line
-import { resolve } from 'path'
 import { EditorUI } from '@remix-ui/editor' // eslint-disable-line
 import { Plugin } from '@remixproject/engine'
 import * as packageJson from '../../../../../package.json'
@@ -194,7 +193,7 @@ export default class Editor extends Plugin {
     })
     try {
       this.currentThemeType = (await this.call('theme', 'currentTheme')).quality
-    } catch (e) {}
+    } catch (e) {} // eslint-disable-line no-empty
     this.renderComponent()
   }
 
@@ -337,7 +336,7 @@ export default class Editor extends Plugin {
             try {
               const result = await startTypeLoadingProcess(packageToLoad)
               if (result && result.libs && result.libs.length > 0) {
-                 // Add all fetched type files to Monaco.
+                // Add all fetched type files to Monaco.
                 this.addExtraLibs(result.libs)
                 
                 // Update path mappings so TypeScript can find the types.
@@ -362,16 +361,16 @@ export default class Editor extends Plugin {
               }
             } catch (e) {
               // Crawler can fail, but we don't want to crash the whole process.
+              this.processedPackages.delete(basePackage)
               console.error(`[DIAGNOSE-DEEP-PASS] Crawler failed for "${basePackage}":`, e)
               this.call('notification', 'toast', `Failed to load types for package: ${basePackage}.`)
             }
           }))
           
-           // After all type loading is complete, re-enable type checking and apply the final state.
+          // After all type loading is complete, re-enable type checking and apply the final state.
           this.endTypesBatch()
 
         } catch (error) {
-          this.processedPackages.delete(basePackage)
           console.error('[DIAGNOSE-ONCHANGE] Critical error during type loading process:', error)
           this.endTypesBatch()
         }

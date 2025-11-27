@@ -32,7 +32,7 @@ import type { IPosition, IRange } from 'monaco-editor'
 import { GenerationParams } from '@remix/remix-ai-core';
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
 import { RemixTSCompletionProvider } from './providers/tsCompletionProvider'
-const _paq = (window._paq = window._paq || [])
+const _paq = (window._paq = window._paq || []) // eslint-disable-line
 
 // Key for localStorage
 const HIDE_PASTE_WARNING_KEY = 'remixide.hide_paste_warning';

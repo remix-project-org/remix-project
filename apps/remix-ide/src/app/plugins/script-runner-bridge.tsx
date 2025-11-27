@@ -32,20 +32,20 @@ const customBuildUrl = 'http://localhost:4000/build' // this will be used when t
  * Transforms the provided script content to make it executable in a browser environment.
  * * Key Transformation Logic:
  * 1. Hybrid Import Handling:
- * - Relative imports (starting with `.` or `/`) and libraries listed in `builtInDependencies` 
+ * - Relative imports (starting with `.` or `/`) and libraries listed in `builtInDependencies`
  * are preserved as standard static ES imports (hoisted to the top).
  * - External NPM packages are converted into dynamic `await import(...)` calls fetching from `cdn.jsdelivr.net`.
- * * 2. Multi-line Support: 
+ * * 2. Multi-line Support:
  * - Uses an enhanced Regex (`[\s\S]*?`) to correctly parse import statements that span multiple lines.
- * * 3. Async Wrapper: 
- * - Wraps the main execution logic (excluding static imports) in an `async IIFE` 
+ * * 3. Async Wrapper:
+ * - Wraps the main execution logic (excluding static imports) in an `async IIFE`
  * to enable top-level await behavior for the dynamic imports.
  * * 4. Syntax Adjustments:
  * - Handles various import styles: Destructuring (`{ a }`), Namespace (`* as a`), and Default (`a`).
  * - Removes `export` keywords to prevent syntax errors within the IIFE context.
  *
  * @param scriptContent - The original source code of the script to be transformed.
- * @param builtInDependencies - An array of package names that are pre-bundled or available in the runtime environment 
+ * @param builtInDependencies - An array of package names that are pre-bundled or available in the runtime environment
  * (e.g., ['chai', 'web3']) and should not be fetched from the CDN.
  * @returns The transformed script string, ready for runtime evaluation.
  */
@@ -61,18 +61,18 @@ function transformScriptForRuntime(scriptContent: string, builtInDependencies: s
       staticImports.push(match)
       return ''
     }
-    
+
     if (builtInDependencies.includes(packageName)) {
       staticImports.push(match)
       return ''
     }
-    
+
     dynamicImports.push({ importClause, packageName })
     return ''
   })
 
   let finalScript = ''
-  
+
   if (staticImports.length > 0) {
     finalScript += staticImports.join('\n') + '\n\n'
   }
@@ -280,7 +280,7 @@ export class ScriptRunnerBridgePlugin extends Plugin {
     }
     try {
       this.setIsLoading(this.activeConfig.name, true)
-       // Transforms the script into an executable format using the function defined above.
+      // Transforms the script into an executable format using the function defined above.
       const builtInDependencies = this.activeConfig.dependencies ? this.activeConfig.dependencies.map(dep => dep.name) : []
       const transformedScript = transformScriptForRuntime(script, builtInDependencies)
 

@@ -24,7 +24,7 @@ type ResolveResult = { finalUrl: string; content: string }
  * [Type Definition]
  * A cache map used to prevent duplicate network requests.
  * Key: The Request URL.
- * Value: The Promise of the request result. This allows concurrent requests 
+ * Value: The Promise of the request result. This allows concurrent requests
  * for the same URL to share the same Promise (Deduplication).
  */
 type FetchCache = Map<string, Promise<string | null>>
@@ -86,13 +86,13 @@ function guessDtsFromJs(jsPath: string): string[] {
 }
 
 /**
- * Parses 'exports', 'types', or 'typings' fields in package.json to map subpaths 
+ * Parses 'exports', 'types', or 'typings' fields in package.json to map subpaths
  * to their corresponding entry point URLs.
  */
 function buildExportTypeMap(pkgName: string, pkgJson: PackageJson): Record<string, string[]> {
   const map: Record<string, string[]> = {}
   const base = `${CDN_BASE}${pkgName}/`
-  
+
   // Helper: Validates the path and adds it to the map.
   const push = (subpath: string, relPath: string | undefined) => {
 
@@ -102,10 +102,10 @@ function buildExportTypeMap(pkgName: string, pkgJson: PackageJson): Record<strin
     }
 
     try {
-       new URL(relPath, base) 
+      new URL(relPath, base)
     } catch (e) {
-       console.warn(`[DIAG-PUSH-SKIP] Invalid relative path skipped: ${relPath}`)
-       return
+      console.warn(`[DIAG-PUSH-SKIP] Invalid relative path skipped: ${relPath}`)
+      return
     }
 
     if (/\.d\.[mc]?ts$/.test(relPath)) {
@@ -124,7 +124,7 @@ function buildExportTypeMap(pkgName: string, pkgJson: PackageJson): Record<strin
       push('.', exports.types)
       return map
     }
-    
+
     if (typeof exports === 'object') {
       for (const [subpath, condition] of Object.entries(exports)) {
         if (typeof condition === 'object' && condition !== null) {
@@ -132,7 +132,7 @@ function buildExportTypeMap(pkgName: string, pkgJson: PackageJson): Record<strin
             push(subpath, condition.types)
           } else {
             let fallbackPath = condition.import || condition.default
-            
+
             if (typeof fallbackPath === 'object' && fallbackPath !== null) {
               if (typeof fallbackPath.default === 'string') {
                 fallbackPath = fallbackPath.default
@@ -140,8 +140,8 @@ function buildExportTypeMap(pkgName: string, pkgJson: PackageJson): Record<strin
                 fallbackPath = undefined
               }
             }
-            
-            push(subpath, fallbackPath) 
+
+            push(subpath, fallbackPath)
           }
         } else if (typeof condition === 'string') {
           push(subpath, condition)
@@ -158,7 +158,7 @@ function buildExportTypeMap(pkgName: string, pkgJson: PackageJson): Record<strin
         push('.', entryPath)
       }
     }
-    
+
     if (Object.keys(map).length === 0) {
       // Final fallback: assume index.d.ts at root.
       push('.', 'index.d.ts')
@@ -213,9 +213,9 @@ async function tryFetchOne(urls: string[], fetchCache: FetchCache): Promise<Reso
  * - Passes 'fetchCache' down to all recursive calls to optimize network usage.
  */
 async function crawl(
-  entryUrl: string, 
-  pkgName: string, 
-  visited: Set<string>, 
+  entryUrl: string,
+  pkgName: string,
+  visited: Set<string>,
   fetchCache: FetchCache,
   enqueuePackage: (name: string) => void
 ): Promise<Library[]> {
@@ -231,21 +231,21 @@ async function crawl(
 
     // Fetch content using cache
     const res = await tryFetchOne(urlsToTry, fetchCache)
-    if(!res) return []
-    
+    if (!res) return []
+
     const { finalUrl, content } = res
     out.push({ filePath: toVirtual(finalUrl), content })
-    
+
     const subPromises: Promise<Library[]>[] = []
-    
+
     const crawlNext = (nextUrl: string) => {
       // Recurse only if not visited
       if (!visited.has(nextUrl)) subPromises.push(crawl(nextUrl, pkgName, visited, fetchCache, enqueuePackage))
     }
-    
+
     // 1. Parse Triple-slash references (/// <reference path="..." />)
     for (const m of content.matchAll(TRIPLE_SLASH_REF_RE)) crawlNext(new URL(m[1], finalUrl).href)
-    
+
     // 2. Parse Import/Export/Require statements
     for (const m of content.matchAll(IMPORT_ANY_RE)) {
       const spec = (m[1] || m[2] || m[3] || '').trim()
@@ -280,14 +280,14 @@ export async function startTypeLoadingProcess(packageName: string): Promise<{ ma
   async function loadPackage(pkgNameToLoad: string) {
     if (visitedPackages.has(pkgNameToLoad)) return
     visitedPackages.add(pkgNameToLoad)
-    
+
     let pkgJson: PackageJson
     let attemptedTypesFallback = false
-    
+
     // Loop to handle the @types fallback strategy
-    while (true) {
+    while (true) { // eslint-disable-line no-constant-condition
       let currentPkgName = pkgNameToLoad
-      
+
       // If the main package failed, try the @types scoped name
       if (attemptedTypesFallback) {
         currentPkgName = toTypesScopedName(pkgNameToLoad)
@@ -311,12 +311,12 @@ export async function startTypeLoadingProcess(packageName: string): Promise<{ ma
 
         const pendingDependencies = new Set<string>()
         const enqueuePackage = (p: string) => { if (!visitedPackages.has(p)) pendingDependencies.add(p) }
-        
+
         const crawlPromises: Promise<Library[]>[] = []
         for (const [subpath, urls] of Object.entries(exportMap)) {
           const entryPointUrl = urls[0]
           if (entryPointUrl) {
-            const pkgNameWithoutVersion = currentPkgName.replace(/@[\^~]?[\d\.\w-]+$/, '')
+            const pkgNameWithoutVersion = currentPkgName.replace(/@[\^~]?[\d.\w-]+$/, '')
             const virtualPathKey = subpath === '.' ? pkgNameWithoutVersion : `${pkgNameWithoutVersion}/${subpath.replace('./', '')}`
 
             subpathMap[virtualPathKey] = entryPointUrl.replace(CDN_BASE, '')
@@ -328,10 +328,10 @@ export async function startTypeLoadingProcess(packageName: string): Promise<{ ma
         const libsArrays = await Promise.all(crawlPromises)
         let totalCollectedFiles = 0
         libsArrays.forEach(libs => {
-            collected.push(...libs)
-            totalCollectedFiles += libs.length
+          collected.push(...libs)
+          totalCollectedFiles += libs.length
         })
-        
+
         // If package.json exists but no .d.ts files were found, try @types fallback
         if (totalCollectedFiles === 0 && !attemptedTypesFallback) {
           attemptedTypesFallback = true
@@ -342,7 +342,7 @@ export async function startTypeLoadingProcess(packageName: string): Promise<{ ma
         if (pendingDependencies.size > 0) {
           await Promise.all(Array.from(pendingDependencies).map(loadPackage))
         }
-        
+
         return
 
       } catch (e) {
