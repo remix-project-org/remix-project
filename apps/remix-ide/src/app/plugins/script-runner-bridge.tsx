@@ -71,7 +71,7 @@ function transformScriptForRuntime(scriptContent: string, builtInDependencies: s
       staticImports.push(match)
       return ''
     }
-    
+
     dynamicImports.push({ importClause, packageName })
     return ''
   })
