@@ -57,7 +57,7 @@
     "publish:remixd": "yarn build remixd && cd ./dist/libs/remixd && yarn publish && yarn run bumpVersion:remixd",
     "publish:libs": "yarn run build:libs && lerna publish --skip-git && yarn run bumpVersion:libs",
     "publishDev:libs": "yarn run build:libs && lerna publish --npm-tag alpha --skip-git && yarn run bumpVersion:libs",
-    "build:e2e": "node apps/remix-ide-e2e/src/buildGroupTests.js && tsc -p apps/remix-ide-e2e/tsconfig.e2e.json && node scripts/update-e2e-keywords.js",
+    "build:e2e": "node apps/remix-ide-e2e/src/cleanupGroupTests.js && node apps/remix-ide-e2e/src/buildGroupTests.js && tsc -p apps/remix-ide-e2e/tsconfig.e2e.json && node scripts/update-e2e-keywords.js",
     "inject-e2e-config": "node scripts/inject-e2e-config.js dist/apps/remix-ide \"http://127.0.0.1:8080/assets/js/soljson\" \"http://127.0.0.1:8080/assets/js/soljson\" \"http://127.0.0.1:9090/\"",
     "build:desktop": "rm -rf apps/remixdesktop/build/remix-ide && mkdir -p apps/remixdesktop/build && NX_DESKTOP_FROM_DIST=true node --max-old-space-size=8192 ./node_modules/.bin/nx build remix-ide --configuration=desktop && cp -r dist/apps/remix-ide apps/remixdesktop/build/remix-ide",
     "build:desktopwin": "cross-env NX_DESKTOP_FROM_DIST=true bash -c \"rm -rf apps/remixdesktop/build/remix-ide && mkdir -p apps/remixdesktop/build && node --max-old-space-size=8192 ./node_modules/.bin/nx build remix-ide --configuration=desktop && cp -r dist/apps/remix-ide apps/remixdesktop/build/remix-ide\"",
