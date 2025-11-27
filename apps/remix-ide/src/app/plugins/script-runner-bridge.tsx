@@ -67,6 +67,11 @@ function transformScriptForRuntime(scriptContent: string, builtInDependencies: s
       return ''
     }
 
+    if (packageName === 'hardhat') {
+      staticImports.push(match)
+      return ''
+    }
+    
     dynamicImports.push({ importClause, packageName })
     return ''
   })
