@@ -167,7 +167,6 @@ export default class Editor extends Plugin {
       })
       tsDefaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false })
       ts.typescriptDefaults.setEagerModelSync(true)
-      console.log('[DIAGNOSE-SETUP] CompilerOptions set to NodeNext and diagnostics enabled')
     })
     this.on('sidePanel', 'focusChanged', (name) => {
       this.keepDecorationsFor(name, 'sourceAnnotationsPerFile')
@@ -184,11 +183,18 @@ export default class Editor extends Plugin {
       this.currentFile = null
       this.renderComponent()
     })
+    this.on('scriptRunnerBridge', 'runnerChanged', async () => {
+      this.processedPackages.clear()
+      this.tsModuleMappings = {}
+
+      if (this.currentFile) {
+        clearTimeout(this.typeLoaderDebounce)
+        await this._onChange(this.currentFile)
+      }
+    })
     try {
       this.currentThemeType = (await this.call('theme', 'currentTheme')).quality
-    } catch (e) {
-      console.log('unable to select the theme ' + e.message)
-    }
+    } catch (e) {}
     this.renderComponent()
   }
 
@@ -199,8 +205,6 @@ export default class Editor extends Plugin {
 
   updateTsCompilerOptions() {
     if (!this.monaco) return
-    console.log('[DIAGNOSE-PATHS] Updating TS compiler options...')
-    console.log('[DIAGNOSE-PATHS] Current path mappings:', JSON.stringify(this.tsModuleMappings, null, 2))
     
     const tsDefaults = this.monaco.languages.typescript.typescriptDefaults
     const currentOptions = tsDefaults.getCompilerOptions()
@@ -209,7 +213,6 @@ export default class Editor extends Plugin {
       ...currentOptions,
       paths: { ...currentOptions.paths, ...this.tsModuleMappings }
     })
-    console.log('[DIAGNOSE-PATHS] TS compiler options updated.')
   }
   
   toggleTsDiagnostics(enable) {
@@ -219,7 +222,6 @@ export default class Editor extends Plugin {
       noSemanticValidation: !enable,
       noSyntaxValidation: false
     })
-    console.log(`[DIAGNOSE-DIAG] Semantic diagnostics ${enable ? 'enabled' : 'disabled'}`)
   }
 
   addShimForPackage(pkg) {
@@ -239,8 +241,6 @@ export default class Editor extends Plugin {
       this.shimDisposers.set(shimWildPath, d2)
     }
 
-    this.tsModuleMappings[pkg] = [shimMainPath.replace('file:///', '')]
-    this.tsModuleMappings[`${pkg}/*`] = [`${pkg}/*`]
   }
 
   removeShimsForPackage(pkg) {
@@ -258,7 +258,6 @@ export default class Editor extends Plugin {
     if (this.typesLoadingCount === 0) {
       this.toggleTsDiagnostics(false)
       this.triggerEvent('typesLoading', ['start'])
-      console.log('[DIAGNOSE-BATCH] Types batch started')
       this.call('notification', 'toast', 'Loading JS/TS type information...')
     }
     this.typesLoadingCount++
@@ -270,14 +269,12 @@ export default class Editor extends Plugin {
       this.updateTsCompilerOptions()
       this.toggleTsDiagnostics(true)
       this.triggerEvent('typesLoading', ['end'])
-      console.log('[DIAGNOSE-BATCH] Types batch ended')
       this.call('notification', 'toast', 'JS/TS types loaded successfully.')
     }
   }
 
   addExtraLibs(libs) {
     if (!this.monaco || !libs || libs.length === 0) return
-    console.log(`[DIAGNOSE-LIBS] Adding ${libs.length} new files to Monaco...`)
     
     const tsDefaults = this.monaco.languages.typescript.typescriptDefaults
     
@@ -286,7 +283,6 @@ export default class Editor extends Plugin {
         tsDefaults.addExtraLib(lib.content, lib.filePath)
       }
     })
-    console.log(`[DIAGNOSE-LIBS] Files added. Total extra libs now: ${Object.keys(tsDefaults.getExtraLibs()).length}.`)
   }
 
   // [2/4] The conductor, called on every editor content change to parse 'import' statements and trigger the type loading process.
@@ -317,8 +313,6 @@ export default class Editor extends Plugin {
 
           if (newBasePackages.length === 0) return
           
-          console.log('[DIAGNOSE] New base packages for analysis:', newBasePackages)
-          
           // Temporarily disable type checking during type loading to prevent error flickering.
           this.beginTypesBatch()
 
@@ -329,7 +323,6 @@ export default class Editor extends Plugin {
           })
           
           this.updateTsCompilerOptions()
-          console.log('[DIAGNOSE] Shims added. Red lines should disappear.')
 
           // [Phase 2: Deep Analysis]
           // In the background, fetch the actual type files to enable autocompletion.
@@ -340,13 +333,10 @@ export default class Editor extends Plugin {
       
             const libInfo = activeRunnerLibs.find(lib => lib.name === basePackage)
             const packageToLoad = libInfo ? `${libInfo.name}@${libInfo.version}` : basePackage
-            
-            console.log(`[DIAGNOSE] Preparing to load types for: "${packageToLoad}"`)
 
             try {
               const result = await startTypeLoadingProcess(packageToLoad)
               if (result && result.libs && result.libs.length > 0) {
-                console.log(`[DIAGNOSE-DEEP-PASS] "${basePackage}" deep pass complete. Adding ${result.libs.length} files.`)
                  // Add all fetched type files to Monaco.
                 this.addExtraLibs(result.libs)
                 
@@ -373,14 +363,15 @@ export default class Editor extends Plugin {
             } catch (e) {
               // Crawler can fail, but we don't want to crash the whole process.
               console.error(`[DIAGNOSE-DEEP-PASS] Crawler failed for "${basePackage}":`, e)
+              this.call('notification', 'toast', `Failed to load types for package: ${basePackage}.`)
             }
           }))
           
-          console.log('[DIAGNOSE] All processes finished.')
            // After all type loading is complete, re-enable type checking and apply the final state.
           this.endTypesBatch()
 
         } catch (error) {
+          this.processedPackages.delete(basePackage)
           console.error('[DIAGNOSE-ONCHANGE] Critical error during type loading process:', error)
           this.endTypesBatch()
         }
@@ -424,70 +415,6 @@ export default class Editor extends Plugin {
     if (ext) ext = ext[0]
     else ext = 'txt'
     return ext && this.modes[ext] ? this.modes[ext] : this.modes.txt
-  }
-
-  async handleTypeScriptDependenciesOf (path, content, readFile, exists) {
-    const isTsFile = path.endsWith('.ts') || path.endsWith('.tsx')
-    const isJsFile = path.endsWith('.js') || path.endsWith('.jsx')
-
-    if (isTsFile || isJsFile) {
-      // extract the import, resolve their content
-      // and add the imported files to Monaco through the `addModel`
-      // so Monaco can provide auto completion
-      const paths = path.split('/')
-      paths.pop()
-      const fromPath = paths.join('/') // get current execution context path
-      const language = isTsFile ? 'typescript' : 'javascript'
-
-      for (const match of content.matchAll(/import\s+.*\s+from\s+(?:"(.*?)"|'(.*?)')/g)) {
-        let pathDep = match[2]
-        if (pathDep.startsWith('./') || pathDep.startsWith('../')) pathDep = resolve(fromPath, pathDep)
-        if (pathDep.startsWith('/')) pathDep = pathDep.substring(1)
-
-        // Try different file extensions if no extension is provided
-        const extensions = isTsFile ? ['.ts', '.tsx', '.d.ts'] : ['.js', '.jsx']
-        let hasExtension = false
-        for (const ext of extensions) {
-          if (pathDep.endsWith(ext)) {
-            hasExtension = true
-            break
-          }
-        }
-
-        if (!hasExtension) {
-          // Try to find the file with different extensions
-          for (const ext of extensions) {
-            const pathWithExt = pathDep + ext
-            try {
-              const pathExists = await exists(pathWithExt)
-              if (pathExists) {
-                pathDep = pathWithExt
-                break
-              }
-            } catch (e) {
-              // continue to next extension
-            }
-          }
-        }
-
-        try {
-          // we can't use the fileManager plugin call directly
-          // because it's itself called in a plugin context, and that causes a timeout in the plugin stack
-          const pathExists = await exists(pathDep)
-          let contentDep = ''
-          if (pathExists) {
-            contentDep = await readFile(pathDep)
-            if (contentDep !== '') {
-              this.emit('addModel', contentDep, language, pathDep, this.readOnlySessions[path])
-            }
-          } else {
-            // console.log("The file ", pathDep, " can't be found.")
-          }
-        } catch (e) {
-          console.log(e)
-        }
-      }
-    }
   }
 
   /**

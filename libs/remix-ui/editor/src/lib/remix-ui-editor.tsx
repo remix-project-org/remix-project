@@ -1165,6 +1165,9 @@ export const EditorUI = (props: EditorUIProps) => {
     const editorService = editor._codeEditorService
     const openEditorBase = editorService.openCodeEditor.bind(editorService)
     editorService.openCodeEditor = async (input, source) => {
+      if (input && input.resource && input.resource.path.includes('__shims__')) {
+        return openEditorBase(input, source)
+      }
       const result = await openEditorBase(input, source)
       if (input && input.resource && input.resource.path) {
         try {
@@ -1208,42 +1211,6 @@ export const EditorUI = (props: EditorUIProps) => {
 
     // hide the module resolution error. We have to remove this when we know how to properly resolve imports.
     monacoRef.current.languages.typescript.typescriptDefaults.setDiagnosticsOptions({ diagnosticCodesToIgnore: [2792]})
-
-    // Configure TypeScript compiler options for JSX/TSX support
-    monacoRef.current.languages.typescript.typescriptDefaults.setCompilerOptions({
-      jsx: monacoRef.current.languages.typescript.JsxEmit.React,
-      jsxFactory: 'React.createElement',
-      reactNamespace: 'React',
-      allowNonTsExtensions: true,
-      allowJs: true,
-      target: monacoRef.current.languages.typescript.ScriptTarget.Latest,
-      moduleResolution: monacoRef.current.languages.typescript.ModuleResolutionKind.NodeJs,
-      module: monacoRef.current.languages.typescript.ModuleKind.ESNext,
-      noEmit: true,
-      esModuleInterop: true,
-      allowSyntheticDefaultImports: true,
-      skipLibCheck: true,
-      resolveJsonModule: true,
-      isolatedModules: true,
-    })
-
-    // Configure JavaScript compiler options for JSX support
-    monacoRef.current.languages.typescript.javascriptDefaults.setCompilerOptions({
-      jsx: monacoRef.current.languages.typescript.JsxEmit.React,
-      jsxFactory: 'React.createElement',
-      reactNamespace: 'React',
-      allowNonTsExtensions: true,
-      target: monacoRef.current.languages.typescript.ScriptTarget.Latest,
-      moduleResolution: monacoRef.current.languages.typescript.ModuleResolutionKind.NodeJs,
-      module: monacoRef.current.languages.typescript.ModuleKind.ESNext,
-      noEmit: true,
-      esModuleInterop: true,
-      allowSyntheticDefaultImports: true,
-      skipLibCheck: true,
-      resolveJsonModule: true,
-      isolatedModules: true,
-      checkJs: false,
-    })
 
     // Enable JSX diagnostics for JavaScript
     monacoRef.current.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
