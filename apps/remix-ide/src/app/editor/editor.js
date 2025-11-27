@@ -257,7 +257,6 @@ export default class Editor extends Plugin {
     if (this.typesLoadingCount === 0) {
       this.toggleTsDiagnostics(false)
       this.triggerEvent('typesLoading', ['start'])
-      this.call('notification', 'toast', 'Loading JS/TS type information...')
     }
     this.typesLoadingCount++
   }
@@ -268,7 +267,6 @@ export default class Editor extends Plugin {
       this.updateTsCompilerOptions()
       this.toggleTsDiagnostics(true)
       this.triggerEvent('typesLoading', ['end'])
-      this.call('notification', 'toast', 'JS/TS types loaded successfully.')
     }
   }
 
