@@ -16,7 +16,7 @@ fs.writeFileSync('./done.txt', data)
 console.log('done.txt updated')
 
 /*
- - go to https://docs.github.com/en/graphql/overview/explorer
+ - Login to Github CLI: gh auth login
  - set the correct project id
  - run the query (be careful, this only returns the first 100 elements)
  - save the JSON content as done.json
@@ -24,11 +24,10 @@ console.log('done.txt updated')
  - get the result in the file done.txt
 /*
 
-
-{
+ gh api graphql -f query='{
   repository(owner: "ethereum", name: "remix-project") {
     name
-    projectV2(number: 52) {
+    projectV2(number: 11) {
       url
       items(first: 100) {
         totalCount
@@ -48,5 +47,5 @@ console.log('done.txt updated')
       }
     }
   }
-}
+}'
 */
