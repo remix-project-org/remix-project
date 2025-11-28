@@ -130,6 +130,24 @@ function findNodeAtSourceLocation (astNodeType, sourceLocation, ast) {
   return found
 }
 
+export function nodesAtPositionForSourceLocation (astNodeType, sourceLocation, ast) {
+  const astWalker = new AstWalker()
+  const found = []
+  const callback = function (node) {
+    const nodeLocation = sourceLocationFromAstNode(node)
+    if (!nodeLocation) {
+      return
+    }
+    if (nodeLocation.start <= sourceLocation.start && nodeLocation.start + nodeLocation.length >= sourceLocation.start + sourceLocation.length) {
+      if (!astNodeType || astNodeType === node.nodeType) {
+        found.push(node)
+      }
+    }
+  }
+  astWalker.walkFull(ast.ast, callback)
+  return found
+}
+
 /**
  * get a list of nodes that are at the given @arg position
  *

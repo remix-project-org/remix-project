@@ -1,5 +1,6 @@
 'use strict'
 import { AstWalker } from '@remix-project/remix-astwalker'
+import { nodesAtPositionForSourceLocation } from '../source/sourceMappingDecoder'
 import { util } from '@remix-project/remix-lib'
 import { SourceLocationTracker } from '../source/sourceLocationTracker'
 import { EventManager } from '../eventManager'
@@ -50,6 +51,10 @@ export class InternalCallTree {
     [Key: number]: any
   }
 
+  codeManager: any
+  scopesMapping: any
+  processedFunctions: any
+
   /**
     * constructor
     *
@@ -66,6 +71,7 @@ export class InternalCallTree {
     this.solidityProxy = solidityProxy
     this.traceManager = traceManager
     this.offsetToLineColumnConverter = offsetToLineColumnConverter
+    this.codeManager = codeManager
     this.sourceLocationTracker = new SourceLocationTracker(codeManager, { debugWithGeneratedSources: opts.debugWithGeneratedSources })
     debuggerEvent.register('newTraceLoaded', async (trace) => {
       const time = Date.now()
@@ -131,6 +137,82 @@ export class InternalCallTree {
     this.constructorsStartExecution = {}
     this.pendingConstructor = null
     this.variables = {}
+
+    this.scopesMapping = {}
+    this.processedFunctions = []
+  }
+
+  /*
+  async printSolArtefacts (vmtraceIndex) {
+    const address = this.traceManager.getCurrentCalledAddressAt(vmtraceIndex)
+    const contractObj = await this.solidityProxy.contractObjectAtAddress(address)
+    const pc = this.traceManager.getCurrentPC(vmtraceIndex)
+    const scope = this.findEntryByRange(pc, contractObj.contract.evm.deployedBytecode.functionDebugData)
+    console.log(pc, scope, contractObj.contract.evm.deployedBytecode.functionDebugData)
+  }*/
+
+  async getFunctionDebugData (vmtraceIndex, isCreation) {
+    const address = this.traceManager.getCurrentCalledAddressAt(vmtraceIndex)
+    const contractObj = await this.solidityProxy.contractObjectAtAddress(address)
+    const debugData = isCreation ? contractObj.contract.evm.bytecode.functionDebugData : contractObj.contract.evm.deployedBytecode.functionDebugData    
+    const pc = this.traceManager.getCurrentPC(vmtraceIndex)
+    const key = this.findEntryByRange(pc, debugData)
+    return { key, value: debugData[key] }
+  }
+
+  async printResolveLocals (vmtraceIndex) {
+    const address = this.traceManager.getCurrentCalledAddressAt(vmtraceIndex)
+    const sourceLocation = await this.extractValidSourceLocation(vmtraceIndex, address)
+    // this doesn't yet handle generated sources
+    const ast = await this.solidityProxy.ast(sourceLocation, null, address)
+    const nodes = nodesAtPositionForSourceLocation('', sourceLocation, { ast })
+    const node = nodes.reverse().find((node) => {
+      return !!node.scope
+    })
+    if (!node) {
+      console.log('node not found')
+      return
+    }
+    const nodesbyScope = getAllItemByScope(this, ast, this.astWalker)
+    const nodesForScope = nodesbyScope[node.scope]
+    const locals = getVariableDeclarationForScope(nodesForScope)
+    return {
+      firstStep: 0,
+      isCreation: false,
+      gasCost: 0,
+      lastStep: 0,
+      locals
+    }
+  }
+
+  /**
+   * Find the entry in mapping whose range contains the given number.
+   * The range is defined between consecutive entryPoint values.
+   *
+   * @param {number} value - The number to search for
+   * @param {Object} mapping - Mapping of entries with entryPoint values
+   * @returns {string|null} The key of the matching entry, or null if not found
+   */
+  findEntryByRange(value: number, mapping: { [key: string]: { entryPoint: number, id: number } }): string | null {
+    // Convert mapping to sorted array of [key, entryPoint] pairs
+    const entries = Object.entries(mapping)
+      .map(([key, obj]) => ({ key, entryPoint: obj.entryPoint }))
+      .sort((a, b) => a.entryPoint - b.entryPoint)
+
+    // Find the entry whose range contains the value
+    for (let i = 0; i < entries.length; i++) {
+      const currentEntry = entries[i]
+      const nextEntry = entries[i + 1]
+
+      // Check if value is in range [currentEntry.entryPoint, nextEntry.entryPoint)
+      if (value >= currentEntry.entryPoint) {
+        if (!nextEntry || value < nextEntry.entryPoint) {
+          return currentEntry.key
+        }
+      }
+    }
+
+    return null
   }
 
   /**
@@ -139,6 +221,9 @@ export class InternalCallTree {
     * @param {Int} vmtraceIndex  - index on the vm trace
     */
   findScope (vmtraceIndex) {
+    
+    this.printResolveLocals(vmtraceIndex)
+
     let scopeId = this.findScopeId(vmtraceIndex)
     if (scopeId !== '' && !scopeId) return null
     let scope = this.scopes[scopeId]
@@ -248,18 +333,33 @@ async function buildTree (tree, step, scopeId, isCreation, functionDefinition?, 
   let previousValidSourceLocation = validSourceLocation || currentSourceLocation
   let compilationResult
   let currentAddress = ''
+  let currentFunctionDebugData
   while (step < tree.traceManager.trace.length) {
     let sourceLocation
     let validSourceLocation
     let address
-
+    let isFunctionEntryPoint = false
+    let functionDebugData
     try {
       address = tree.traceManager.getCurrentCalledAddressAt(step)
       sourceLocation = await tree.extractSourceLocation(step, address)
+      functionDebugData = await tree.getFunctionDebugData(step, isCreation, currentFunctionDebugData)
+      
+      if (functionDebugData && functionDebugData.value && functionDebugData.value.id && !tree.processedFunctions.includes(functionDebugData.value.id)) {
+        currentFunctionDebugData = functionDebugData
+        tree.processedFunctions.push(functionDebugData.value.id)
+        console.log('found', functionDebugData.value.id)
+        isFunctionEntryPoint = true
+      }
+
+      if (step === 92 || step === 93) {
+        console.log('start', sourceLocation)
+      }
 
       if (!includedSource(sourceLocation, currentSourceLocation)) {
-        tree.reducedTrace.push(step)
+        tree.reducedTrace.push(step)        
         currentSourceLocation = sourceLocation
+        // if (step === 92 || step === 93) console.log('not include', currentSourceLocation)
       }
       if (currentAddress !== address) {
         compilationResult = await tree.solidityProxy.compilationResult(address)
@@ -268,14 +368,20 @@ async function buildTree (tree, step, scopeId, isCreation, functionDefinition?, 
       const amountOfSources = tree.sourceLocationTracker.getTotalAmountOfSources(address, compilationResult.data.contracts)
       if (tree.sourceLocationTracker.isInvalidSourceLocation(currentSourceLocation, amountOfSources)) { // file is -1 or greater than amount of sources
         validSourceLocation = previousValidSourceLocation
-      } else
+      } else {
         validSourceLocation = currentSourceLocation
+        if (step === 92 || step === 93) console.log('valid', validSourceLocation, currentSourceLocation)
+      }
 
     } catch (e) {
       return { outStep: step, error: 'InternalCallTree - Error resolving source location. ' + step + ' ' + e }
     }
     if (!sourceLocation) {
       return { outStep: step, error: 'InternalCallTree - No source Location. ' + step }
+    }
+
+    if (step === 92 || step === 93) {
+      console.log('validSourceLocation', validSourceLocation, currentSourceLocation)
     }
     const stepDetail: StepDetail = tree.traceManager.trace[step]
     const nextStepDetail: StepDetail = tree.traceManager.trace[step + 1]
@@ -300,7 +406,10 @@ async function buildTree (tree, step, scopeId, isCreation, functionDefinition?, 
           }
         }
 
+        if (step === 92 || step === 93) console.log('bef offsetToLineColumn', validSourceLocation)
+        
         lineColumnPos = await tree.offsetToLineColumnConverter.offsetToLineColumn(validSourceLocation, validSourceLocation.file, sources, astSources)
+        if (step === 92 || step === 93) console.log('lineColumnPos', lineColumnPos)
         if (!tree.gasCostPerLine[validSourceLocation.file]) tree.gasCostPerLine[validSourceLocation.file] = {}
         if (!tree.gasCostPerLine[validSourceLocation.file][lineColumnPos.start.line]) {
           tree.gasCostPerLine[validSourceLocation.file][lineColumnPos.start.line] = {
@@ -315,18 +424,34 @@ async function buildTree (tree, step, scopeId, isCreation, functionDefinition?, 
       }
     }
 
-    tree.locationAndOpcodePerVMTraceIndex[step] = { sourceLocation, stepDetail, lineColumnPos, contractAddress: address }
+    if (step === 92 || step === 93) console.log('set locationAndOpcodePerVMTraceIndex', validSourceLocation, lineColumnPos, stepDetail)
+    tree.locationAndOpcodePerVMTraceIndex[step] = { sourceLocation: validSourceLocation, stepDetail, lineColumnPos, contractAddress: address }
     tree.scopes[scopeId].gasCost += stepDetail.gasCost
 
     const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)
     const generatedSources = getGeneratedSources(tree, scopeId, contractObj)
-    const functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
+    // const functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
 
     const isInternalTxInstrn = isCallInstruction(stepDetail)
     const isCreateInstrn = isCreateInstruction(stepDetail)
     // we are checking if we are jumping in a new CALL or in an internal function
 
-    const constructorExecutionStarts = tree.pendingConstructorExecutionAt > -1 && tree.pendingConstructorExecutionAt < validSourceLocation.start
+    const ast = Object.entries(compilationResult.data.sources).find((entry) => {
+      return (entry[1] as any).id === validSourceLocation.file
+    })
+
+    let functionDefinition
+    tree.astWalker.walkFull((ast[1] as any).ast, (node) => {
+      if (functionDebugData.value && node.id === functionDebugData.value.id) {
+        functionDefinition = node
+      }
+    })
+    // const nodesbyScope = getAllItemByScope(this, ast, this.astWalker)
+    
+    // const nodesForScope = nodesbyScope[functionDebugData.value.id]
+    //const locals = getVariableDeclarationForScope(nodesForScope)
+
+    const constructorExecutionStarts = functionDebugData.key === 'constructor_' + contractObj.name // tree.pendingConstructorExecutionAt > -1 && tree.pendingConstructorExecutionAt < validSourceLocation.start
     if (functionDefinition && functionDefinition.kind === 'constructor' && tree.pendingConstructorExecutionAt === -1 && !tree.constructorsStartExecution[functionDefinition.id]) {
       tree.pendingConstructorExecutionAt = validSourceLocation.start
       tree.pendingConstructorId = functionDefinition.id
@@ -334,7 +459,7 @@ async function buildTree (tree, step, scopeId, isCreation, functionDefinition?, 
       // from now on we'll be waiting for a change in the source location which will mark the beginning of the constructor execution.
       // constructorsStartExecution allows to keep track on which constructor has already been executed.
     }
-    const internalfunctionCall = functionDefinition && previousSourceLocation.jump === 'i'
+    const internalfunctionCall = isFunctionEntryPoint
     if (constructorExecutionStarts || isInternalTxInstrn || internalfunctionCall) {
       try {
         const newScopeId = scopeId === '' ? subScope.toString() : scopeId + '.' + subScope
@@ -525,3 +650,27 @@ function addParams (parameterList, tree, scopeId, states, contractObj, sourceLoc
   }
   return params
 }
+
+function getAllItemByScope (tree, ast, astWalker) {
+  if (Object.keys(tree.scopesMapping).length > 0) return tree.scopesMapping
+  astWalker.walkFull(ast, (node) => {
+    if (node.scope) {
+      if (!tree.scopesMapping[node.scope]) tree.scopesMapping[node.scope] = []
+      tree.scopesMapping[node.scope].push(node)
+    }    
+  })
+  return tree.scopesMapping
+}
+
+function getVariableDeclarationForScope (nodes) {
+  const ret = []
+  nodes.filter((node) => {
+    if (node.nodeType === 'VariableDeclaration' || node.nodeType === 'YulVariableDeclaration') {
+      ret.push(node)
+    }
+    const hasChild = node.initialValue && (node.nodeType === 'VariableDeclarationStatement' || node.nodeType === 'YulVariableDeclarationStatement')
+    if (hasChild) ret.push(node.declarations)
+  })
+  return ret 
+}
+

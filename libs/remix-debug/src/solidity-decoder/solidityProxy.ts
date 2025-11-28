@@ -101,7 +101,7 @@ export class SolidityProxy {
   }
 
   /**
-    * get the AST of the file declare in the @arg sourceLocation
+    * get the AST of the file declared in the @arg sourceLocation
     *
     * @param {Object} sourceLocation  - source location containing the 'file' to retrieve the AST from
     * @param {Object} generatedSources  - compiler generated sources
