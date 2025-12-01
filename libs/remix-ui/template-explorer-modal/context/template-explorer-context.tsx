@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useReducer, useSt
 import { TemplateCategory, TemplateExplorerContextType, TemplateExplorerWizardAction, TemplateItem } from '../types/template-explorer-types'
 import { initialState, templateExplorerReducer } from '../reducers/template-explorer-reducer'
 import { metadata, templatesRepository } from '../src/utils/helpers'
-import { AppContext } from '@remix-ui/app'
+import { appActionTypes, AppContext } from '@remix-ui/app'
 import { TemplateExplorerModalPlugin } from 'apps/remix-ide/src/app/plugins/template-explorer-modal'
 import { RemixUiTemplateExplorerModal } from 'libs/remix-ui/template-explorer-modal/src/lib/remix-ui-template-explorer-modal'
 import { TemplateExplorerModalFacade } from '../src/utils/workspaceUtils'
@@ -13,11 +13,11 @@ import TrackingContext from '@remix-ide/tracking'
 
 export const TemplateExplorerContext = createContext<TemplateExplorerContextType>({} as any)
 
-export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalPlugin }) => {
+export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalPlugin, fileMode: boolean, ipfsMode: boolean, httpImportMode: boolean }) => {
   const [state, dispatch] = useReducer(templateExplorerReducer, initialState)
   const [theme, setTheme] = useState<any>(null)
   const appContext = useContext(AppContext)
-  const { plugin } = props
+  const { plugin, fileMode, ipfsMode, httpImportMode } = props
   const facade = new TemplateExplorerModalFacade(plugin, appContext, dispatch, state)
   const templateCategoryStrategy = new TemplateCategoryStrategy()
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
@@ -25,8 +25,15 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
     baseTrackEvent?.<T>(event)
   }
   useEffect(() => {
+    const checkTheme = async () => {
+      if (theme === null) {
+        const currentTheme = await plugin.call('theme', 'currentTheme')
+        setTheme(currentTheme)
+      }
+    }
     dispatch({ type: TemplateExplorerWizardAction.SET_TEMPLATE_REPOSITORY, payload: templatesRepository })
     dispatch({ type: TemplateExplorerWizardAction.SET_METADATA, payload: metadata })
+    checkTheme()
   }, [])
 
   useEffect(() => {
@@ -44,6 +51,14 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
     }
     run()
   }, [])
+
+  useEffect(() => {
+    facade.setManageCategory(fileMode ? 'Files' : 'Template')
+  }, [fileMode])
+
+  useEffect(() => {
+    facade.orchestrateImportFromExternalSource()
+  }, [ipfsMode, httpImportMode])
 
   const generateUniqueWorkspaceName = async (name: string) => {
     try {
@@ -160,6 +175,8 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
       )
   }, [state.selectedTag, state.searchTerm, state.templateRepository])
 
+  const fileModeOnlyCategories = useMemo(() => new Set(['GitHub Actions', 'Contract Verification', 'Solidity CREATE2', 'Generic ZKP']), [])
+
   const dedupedTemplates = useMemo((): TemplateCategory[] => {
     const recentSet = new Set<string>((recentTemplates || []).map((t: any) => t && t.value))
     const seen = new Set<string>()
@@ -176,7 +193,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
       return unique
     }
 
-    const processedTemplates = (filteredTemplates || []).map((group: any) => ({
+    let processedTemplates = (filteredTemplates || []).map((group: any) => ({
       ...group,
       items: makeUniqueItems(group && group.items ? group.items : [])
     })).filter((g: any) => {
@@ -188,12 +205,20 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
       )
     })
 
+    if (state.manageCategory === 'Template') {
+      // Hide file-only categories when managing templates (workspace creation mode).
+      processedTemplates = processedTemplates.filter((category: TemplateCategory) => !fileModeOnlyCategories.has(category?.name))
+    } else if (state.manageCategory === 'Files') {
+      // In file mode, only surface the file-only categories.
+      processedTemplates = processedTemplates.filter((category: TemplateCategory) => fileModeOnlyCategories.has(category?.name))
+    }
+
     // Find Cookbook from the original template repository
     const cookbookTemplate = (state.templateRepository as TemplateCategory[] || []).find(x => x.name === 'Cookbook')
     const searchTerm = (state.searchTerm || '').trim().toLowerCase()
 
     // Only add Cookbook if there's no search term or if the search term contains "cookbook"
-    const shouldShowCookbook = !searchTerm || searchTerm.includes('cookbook')
+    const shouldShowCookbook = state.manageCategory !== 'Files' && (!searchTerm || searchTerm.includes('cookbook'))
 
     // If Cookbook exists and should be shown and is not already in processedTemplates, add it as the second item
     if (cookbookTemplate && shouldShowCookbook && !processedTemplates.find(t => t.name === 'Cookbook')) {
@@ -205,7 +230,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
     }
 
     return processedTemplates
-  }, [filteredTemplates, recentTemplates, state.templateRepository, state.searchTerm])
+  }, [filteredTemplates, recentTemplates, state.manageCategory, state.templateRepository, state.searchTerm, fileModeOnlyCategories])
 
   const handleTagClick = (tag: string) => {
     dispatch({ type: TemplateExplorerWizardAction.SET_SELECTED_TAG, payload: state.selectedTag === tag ? null : tag })
@@ -231,7 +256,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
     }
   }
 
-  const contextValue = { templateRepository: state.templateRepository, metadata: state.metadata, selectedTag: state.selectedTag, recentTemplates, filteredTemplates, dedupedTemplates, handleTagClick, clearFilter, addRecentTemplate, RECENT_KEY, allTags, plugin, setSearchTerm, dispatch, state, theme, facade, templateCategoryStrategy, generateUniqueWorkspaceName, trackMatomoEvent }
+  const contextValue = { templateRepository: state.templateRepository, metadata: state.metadata, selectedTag: state.selectedTag, recentTemplates, filteredTemplates, dedupedTemplates, handleTagClick, clearFilter, addRecentTemplate, RECENT_KEY, allTags, plugin, setSearchTerm, dispatch, state, theme, facade, templateCategoryStrategy, generateUniqueWorkspaceName, trackMatomoEvent, fileMode, ipfsMode, httpImportMode }
 
   return (
     <TemplateExplorerContext.Provider value={contextValue}>

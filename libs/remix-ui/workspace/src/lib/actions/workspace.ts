@@ -49,6 +49,7 @@ import { gitUIPanels } from '@remix-ui/git'
 import * as templates from '@remix-project/remix-ws-templates'
 import { Plugin } from "@remixproject/engine";
 import { CustomRemixApi, branch, cloneInputType } from '@remix-api'
+import { scriptTemplates } from './scriptTemplates'
 
 declare global {
   interface Window {
@@ -221,6 +222,19 @@ export const populateWorkspace = async (
   contractContent?: string,
   contractName?: string,
 ) => {
+
+  if (scriptTemplates.some(template => template.templateName === workspaceTemplateName)) {
+    const templateArtefact = scriptTemplates.find(template => template.templateName === workspaceTemplateName)?.templateArtefact
+    if (templateArtefact) {
+      for (const file of templateArtefact.files) {
+        const fileExists = await plugin.call('fileManager', 'exists', file)
+        if (fileExists) {
+          await plugin.call('notification', 'toast', 'File already exists in workspace. Nothing to do here!')
+          return
+        }
+      }
+    }
+  }
   const metadata = TEMPLATE_METADATA[workspaceTemplateName]
   if (metadata && metadata.type === 'plugin') {
     plugin.call('notification', 'toast', 'Please wait while the Workspace is being populated with the template.')

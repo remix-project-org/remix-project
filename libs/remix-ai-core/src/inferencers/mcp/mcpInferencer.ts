@@ -11,7 +11,7 @@ import {
   IMCPToolResult,
   IMCPConnectionStatus,
   IMCPInitializeResult,
-  IEnhancedMCPProviderParams,
+  IEnhancedMCPProviderParams
 } from "../../types/mcp";
 import { IntentAnalyzer } from "../../services/intentAnalyzer";
 import { ResourceScoring } from "../../services/resourceScoring";
@@ -46,10 +46,12 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
   private resourceScoring: ResourceScoring = new ResourceScoring();
   private remixMCPServer?: any; // Internal RemixMCPServer instance
   private MAX_TOOL_EXECUTIONS = 10;
+  private baseInferencer: RemoteInferencer; // The actual inferencer to use (could be Ollama or Remote)
 
-  constructor(servers: IMCPServer[] = [], apiUrl?: string, completionUrl?: string, remixMCPServer?: any) {
+  constructor(servers: IMCPServer[] = [], apiUrl?: string, completionUrl?: string, remixMCPServer?: any, baseInferencer?: RemoteInferencer) {
     super(apiUrl, completionUrl);
     this.remixMCPServer = remixMCPServer;
+    this.baseInferencer = baseInferencer;
     this.initializeMCPServers(servers);
   }
 
@@ -382,7 +384,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
     }
 
     try {
-      const response = await super.answer(enrichedPrompt, enhancedOptions);
+      const response = await this.baseInferencer.answer(enrichedPrompt, enhancedOptions);
       let toolExecutionCount = 0;
 
       const toolExecutionStatusCallback = async (tool_calls) => {
@@ -390,7 +392,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
         // avoid circular tooling
         if (toolExecutionCount >= this.MAX_TOOL_EXECUTIONS) {
           console.warn(`[MCP] Maximum tool execution iterations (${this.MAX_TOOL_EXECUTIONS}) reached`);
-          return { streamResponse: await super.answer(enrichedPrompt, options) };
+          return { streamResponse: await this.baseInferencer.answer(enrichedPrompt, options) };
         }
 
         toolExecutionCount++;
@@ -503,15 +505,15 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
             // Send empty prompt - the tool results are in toolsMessages
             // Don't add extra prompts as they cause Anthropic to summarize instead of using full tool results
-            if (options.provider === 'openai' || options.provider === 'mistralai') return { streamResponse: await super.answer(prompt, followUpOptions), callback: toolExecutionStatusCallback } as IAIStreamResponse;
-            else return { streamResponse: await super.answer("", followUpOptions), callback: toolExecutionStatusCallback } as IAIStreamResponse;
+            if (options.provider === 'openai' || options.provider === 'mistralai') return { streamResponse: await this.baseInferencer.answer(prompt, followUpOptions), callback: toolExecutionStatusCallback } as IAIStreamResponse;
+            else return { streamResponse: await this.baseInferencer.answer("", followUpOptions), callback: toolExecutionStatusCallback } as IAIStreamResponse;
           }
         }
       }
 
       return { streamResponse: response, callback:toolExecutionStatusCallback } as IAIStreamResponse;
     } catch (error) {
-      return { streamResponse: await super.answer(enrichedPrompt, options) };
+      return { streamResponse: await this.baseInferencer.answer(enrichedPrompt, options) };
     }
   }
 
@@ -529,7 +531,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
     };
 
     try {
-      const response = await super.code_explaining(prompt, enrichedContext, enhancedOptions);
+      const response = await this.baseInferencer.code_explaining(prompt, enrichedContext, enhancedOptions);
 
       if (response?.tool_calls && response.tool_calls.length > 0) {
         const toolResults = [];
@@ -587,13 +589,13 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
             ]
           };
 
-          return super.code_explaining("", "", followUpOptions);
+          return this.baseInferencer.code_explaining("", "", followUpOptions);
         }
       }
 
       return response;
     } catch (error) {
-      return super.code_explaining(prompt, enrichedContext, options);
+      return this.baseInferencer.code_explaining(prompt, enrichedContext, options);
     }
   }
 

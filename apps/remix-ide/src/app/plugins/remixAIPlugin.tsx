@@ -344,37 +344,6 @@ export class RemixAIPlugin extends Plugin {
           this.isInferencing = false
         })
       }
-    } else if (provider === 'mcp') {
-      // Switch to MCP inferencer
-      if (!this.mcpInferencer || !(this.mcpInferencer instanceof MCPInferencer)) {
-        this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer);
-        this.mcpInferencer.event.on('onInference', () => {
-          this.isInferencing = true
-        })
-        this.mcpInferencer.event.on('onInferenceDone', () => {
-          this.isInferencing = false
-        })
-        this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
-          console.log(`MCP server connected: ${serverName}`)
-        })
-        this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
-          console.error(`MCP server error (${serverName}):`, error)
-        })
-
-        // Connect to all configured servers
-        await this.mcpInferencer.connectAllServers();
-      }
-
-      this.remoteInferencer = this.mcpInferencer;
-
-      if (this.assistantProvider !== provider){
-        // clear the threadIds
-        this.assistantThreadId = ''
-        GenerationParams.threadId = ''
-        CompletionParams.threadId = ''
-        AssistantParams.threadId = ''
-      }
-      this.assistantProvider = provider
     } else if (provider === 'ollama') {
       const isAvailable = await isOllamaAvailable();
       if (!isAvailable) {
@@ -405,6 +374,22 @@ export class RemixAIPlugin extends Plugin {
       this.assistantProvider = provider
     } else {
       console.error(`Unknown assistant provider: ${provider}`)
+    }
+
+    // If MCP is enabled, update it to use the new Ollama inferencer
+    if (this.mcpEnabled) {
+      this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer, this.remoteInferencer);
+      this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
+      })
+      this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
+      })
+      this.mcpInferencer.event.on('onInference', () => {
+        this.isInferencing = true
+      })
+      this.mcpInferencer.event.on('onInferenceDone', () => {
+        this.isInferencing = false
+      })
+      await this.mcpInferencer.connectAllServers();
     }
   }
 
@@ -496,7 +481,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async getMCPResources(): Promise<Record<string, any[]>> {
-    if (this.assistantProvider === 'mcp' && this.mcpInferencer) {
+    if (this.mcpInferencer) {
       const resources = await this.mcpInferencer.getAllResources();
       return resources;
     }
@@ -504,7 +489,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async getMCPTools(): Promise<Record<string, any[]>> {
-    if (this.assistantProvider === 'mcp' && this.mcpInferencer) {
+    if (this.mcpInferencer) {
       const tools = await this.mcpInferencer.getAllTools();
       return tools;
     }
@@ -512,7 +497,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async executeMCPTool(serverName: string, toolName: string, arguments_: Record<string, any>): Promise<any> {
-    if (this.assistantProvider === 'mcp' && this.mcpInferencer) {
+    if (this.mcpInferencer) {
       const result = await this.mcpInferencer.executeTool(serverName, { name: toolName, arguments: arguments_ });
       return result;
     }
@@ -559,8 +544,8 @@ export class RemixAIPlugin extends Plugin {
       }
 
       // Initialize MCP inferencer if we have servers and it's not already initialized
-      if (this.mcpServers.length > 0 && !this.mcpInferencer && this.remixMCPServer) {
-        this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer);
+      if (this.mcpServers.length > 0 && !this.mcpInferencer && this.remixMCPServer && this.mcpEnabled) {
+        this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer, this.remoteInferencer);
         this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
         });
         this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
@@ -585,11 +570,17 @@ export class RemixAIPlugin extends Plugin {
     }
 
     if (!this.mcpInferencer) {
-      this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer);
+      this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer, this.remoteInferencer);
       this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
-      });
+      })
       this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
-      });
+      })
+      this.mcpInferencer.event.on('onInference', () => {
+        this.isInferencing = true
+      })
+      this.mcpInferencer.event.on('onInferenceDone', () => {
+        this.isInferencing = false
+      })
 
       await this.mcpInferencer.connectAllServers();
     }

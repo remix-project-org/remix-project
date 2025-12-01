@@ -5,7 +5,7 @@ import React from 'react'
 import { action, FileTree, WorkspaceTemplate } from '../types'
 import { ROOT_PATH } from '../utils/constants'
 import { displayNotification, displayPopUp, focusElement, fileAddedSuccess, fileRemovedSuccess, fileRenamedSuccess, folderAddedSuccess, loadLocalhostError, loadLocalhostRequest, loadLocalhostSuccess, removeContextMenuItem, removeFocus, rootFolderChangedSuccess, setContextMenuItem, setMode, setReadOnlyMode, setFileDecorationSuccess } from './payload'
-import { addInputField, createWorkspace, populateWorkspace, deleteWorkspace, fetchWorkspaceDirectory, renameWorkspace, switchToWorkspace, uploadFile, generateWorkspace } from './workspace'
+import { addInputField, createWorkspace, populateWorkspace, deleteWorkspace, fetchWorkspaceDirectory, renameWorkspace, switchToWorkspace, uploadFile, generateWorkspace, uploadFolder } from './workspace'
 
 const LOCALHOST = ' - connect to localhost - '
 let plugin, dispatch: React.Dispatch<any>
@@ -55,6 +55,10 @@ export const listenOnPluginEvents = (filePanelPlugin) => {
 
   plugin.on('filePanel', 'uploadFileReducerEvent', (dir: string, target, cb: (err: Error, result?: string | number | boolean | Record<string, any>) => void) => {
     uploadFile(target, dir, cb)
+  })
+
+  plugin.on('filePanel', 'uploadFolderReducerEvent', (dir: string, target, cb: (err: Error, result?: string | number | boolean | Record<string, any>) => void) => {
+    uploadFolder(target, dir, cb)
   })
 
   plugin.on('filePanel', 'switchToWorkspace', async (workspace) => {

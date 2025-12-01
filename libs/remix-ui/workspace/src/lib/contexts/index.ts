@@ -8,6 +8,7 @@ import { CustomRemixApi } from '@remix-api'
 export const FileSystemContext = createContext<{
   fs: any,
   plugin: any,
+  theme: any,
   modal:(title: string | JSX.Element, message: string | JSX.Element, okLabel: string, okFn: () => void, cancelLabel?: string, cancelFn?: () => void) => void,
   dispatchFetchDirectory:(path: string) => Promise<void>,
   dispatchAddInputField:(path: string, type: 'file' | 'folder') => Promise<void>,

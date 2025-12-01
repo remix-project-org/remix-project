@@ -6,7 +6,7 @@ const profile = {
   name: 'contentImport',
   displayName: 'content import',
   version: '0.0.1',
-  methods: ['resolve', 'resolveAndSave', 'isExternalUrl', 'resolveGithubFolder']
+  methods: ['resolve', 'resolveAndSave', 'isExternalUrl', 'resolveGithubFolder', 'import']
 }
 
 export type ResolvedImport = {
@@ -98,7 +98,28 @@ export class CompilerImports extends Plugin {
     })
   }
 
-  async import (url, force, loadingCb, cb) {
+  /**
+   * Resolves an external URL and retrieves its content using the URL resolver.
+   * This is an internal method that handles URL resolution with flexible parameter handling.
+   *
+   * The method supports two calling patterns:
+   * 1. import(url, force, loadingCb, cb) - with explicit boolean force parameter
+   * 2. import(url, loadingCb, cb) - without force parameter (force defaults to false)
+   *
+   * @param {string} url - The external URL to resolve. Can be various formats like HTTP URLs,
+   *                       IPFS URLs, GitHub addresses, etc.
+   * @param {boolean|Function} force - If boolean: whether to force re-resolution (bypass cache).
+   *                                   If function: treated as loadingCb (force defaults to false).
+   * @param {Function} loadingCb - Optional callback function called during loading/resolution.
+   *                               If force is a function, this parameter is treated as cb instead.
+   *                               Defaults to empty function if not provided.
+   * @param {Function} cb - Optional callback function called with the result: cb(error, content, cleanUrl, type, url).
+   *                        If force is a function, this parameter is ignored.
+   *                        Defaults to empty function if not provided.
+   * @returns {Promise<void>} - Promise that resolves when the import operation completes.
+   *                           The actual result is passed to the callback function.
+   */
+  async import (url: string, force: boolean | any, loadingCb: any, cb: any) {
     if (typeof force !== 'boolean') {
       const temp = loadingCb
       loadingCb = force

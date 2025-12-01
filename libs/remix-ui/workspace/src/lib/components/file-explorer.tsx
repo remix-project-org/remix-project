@@ -351,17 +351,6 @@ export const FileExplorer = (props: FileExplorerProps) => {
     }
   }
 
-  const publishToGist = (path?: string) => {
-    props.modal(
-      intl.formatMessage({ id: 'filePanel.createPublicGist' }),
-      intl.formatMessage({ id: 'filePanel.createPublicGistMsg4' }, { name }),
-      intl.formatMessage({ id: 'filePanel.ok' }),
-      () => toGist(path),
-      intl.formatMessage({ id: 'filePanel.cancel' }),
-      () => { }
-    )
-  }
-
   const handleClickFile = (path: string, type: WorkspaceElement) => {
     if (!state.ctrlKey) {
       props.dispatchHandleClickFile(path, type)
@@ -587,12 +576,6 @@ export const FileExplorer = (props: FileExplorerProps) => {
 
   }
 
-  const handleGitInit = async () => {
-    const isActive = await plugin.call('manager', 'isActive', 'dgit')
-    if (!isActive) await plugin.call('manager', 'activatePlugin', 'dgit')
-    await plugin.call('dgit', 'init')
-  }
-
   return (
     <div className="h-100 remixui_treeview" data-id="filePanelFileExplorerTree">
       <div ref={treeRef} tabIndex={0} style={{
@@ -609,23 +592,7 @@ export const FileExplorer = (props: FileExplorerProps) => {
             data-id={`treeViewDivMenu`}
             className={`d-flex flex-row align-items-center`}
           >
-            <span className="w-100 ps-2 mt-1">
-              <div onClick={handleFileExplorerMenuClick}>
-                <FileExplorerMenu
-                  title={''}
-                  menuItems={props.menuItems}
-                  createNewFile={handleNewFileInput}
-                  createNewFolder={handleNewFolderInput}
-                  publishToGist={publishToGist}
-                  uploadFile={uploadFile}
-                  uploadFolder={uploadFolder}
-                  importFromIpfs={props.importFromIpfs}
-                  importFromHttps={props.importFromHttps}
-                  handleGitInit={handleGitInit}
-                  revealInExplorer={() => dispatchRevealElectronFolderInExplorer(null)}
-                />
-              </div>
-            </span>
+
           </div>
         </div>
         <FlatTree

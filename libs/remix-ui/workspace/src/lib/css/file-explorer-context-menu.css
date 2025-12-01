@@ -24,3 +24,15 @@
   list-style: none;
   margin: 0px;
 }
+
+.remixui_liitem {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.remixui_liitem:hover {
+  background-color:  var(--custom-onsurface-layer-2);
+}

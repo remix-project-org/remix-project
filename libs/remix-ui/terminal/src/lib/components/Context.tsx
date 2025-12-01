@@ -13,7 +13,9 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
   const input = data.input ? shortenHexData(data.input) : (data.data ? shortenHexData(data.data) : '')
   const logs = opts.logs && opts.logs.raw && opts.logs.raw.length ? opts.logs.raw.length : 0
   const block = data.receipt ? data.receipt.blockNumber : data.blockNumber || ''
-  const i = data.receipt ? data.transactionIndex : data.transactionIndex
+  let txIndex
+  if (data.index == 0) txIndex = 0
+  else txIndex = data.index ? data.index.toString() : '-'
   const value = val ? typeConversion.toInt(val) : 0
   if (provider && provider.startsWith('vm')) {
     return (
@@ -46,7 +48,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
       <div>
         <span>
           <span className="remix_ui_terminal_tx">
-            [block:{block.toString()} txIndex:{i ? i.toString() : '-'}]
+            [block:{block.toString()} txIndex:{txIndex}]
           </span>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">from:</span> {from}
@@ -75,7 +77,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
       <div>
         <span>
           <span className="remix_ui_terminal_tx">
-            [block:{block.toString()} txIndex:{i ? i.toString() : '-'}]
+            [block:{block.toString()} txIndex:{txIndex}]
           </span>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">from:</span> {from}

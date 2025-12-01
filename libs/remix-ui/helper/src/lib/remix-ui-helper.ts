@@ -1,4 +1,5 @@
 import { bytesToHex, toChecksumAddress } from '@ethereumjs/util'
+import { ProcessLoadingParams } from '../types/remix-helper'
 
 export const extractNameFromKey = (key: string): string => {
   if (!key) return
@@ -172,5 +173,133 @@ export const getTimeAgo = (timestamp: number): string => {
   if (diffInSeconds > 0) return diffInSeconds === 1 ? '1 second ago' : `${diffInSeconds} seconds ago`
 
   return 'just now'
+}
+
+/**
+ * Processes the import of external content (files, contracts, etc.) from various sources
+ * such as IPFS, HTTPS URLs, or GitHub repositories into the Remix workspace.
+ *
+ * This function handles the complete import workflow including:
+ * - Tracking analytics events for the import action
+ * - Automatically adding IPFS protocol prefix if missing
+ * - Resolving and fetching content from external sources
+ * - Validating that files don't already exist in the workspace
+ * - Adding imported files to the workspace file system
+ * - Providing loading state updates and error handling
+ * - Automatically selecting the file panel after successful import
+ *
+ * @param {ProcessLoadingParams} params - Configuration object for the import process
+ * @param {string} params.type - The type/source of the import (e.g., 'ipfs', 'IPFS', 'https', 'HTTPS').
+ *                               Used for tracking analytics and determining file path structure.
+ * @param {string} params.importUrl - The full URL to import from. Can include protocol prefix (e.g., 'ipfs://...' or 'https://...').
+ *                                    For IPFS imports, if the prefix is missing, it will be automatically prepended.
+ * @param {any} params.contentImport - The contentImport plugin instance that handles URL resolution and content fetching.
+ *                                     Must have an `import(url, loadingCb, cb)` method.
+ * @param {any} params.workspaceProvider - The workspace file system provider instance from fileManager.
+ *                                         Must have `exists(filePath)` and `addExternal(filePath, content, url)` methods.
+ * @param {any} params.plugin - The main Remix plugin instance used for calling other plugins (e.g., menuicons).
+ *                              Must have a `call(pluginName, method, ...args)` method.
+ * @param {Function} [params.onLoading] - Optional callback function invoked during the import process with loading messages.
+ *                                        Receives a string parameter containing the current loading status message.
+ * @param {Function} [params.onSuccess] - Optional callback function invoked when the import completes successfully.
+ *                                        Called after the file has been added to the workspace and the file panel is selected.
+ * @param {Function} [params.onError] - Optional callback function invoked when an error occurs during import.
+ *                                      Receives either a string error message or an Error object.
+ *                                      Errors can occur from: network failures, file already exists, or workspace operations.
+ * @param {Function} [params.trackEvent] - Optional callback function for tracking analytics events.
+ *                                         Receives a MatomoEvent object. If not provided, tracking is skipped.
+ *
+ * @returns {Promise<void>} A Promise that resolves when the import process completes successfully,
+ *                          or rejects if an error occurs during the import. The promise resolves/rejects
+ *                          after all callbacks (onSuccess/onError) have been invoked.
+ *
+ * @example
+ * // Import from IPFS
+ * await processLoading({
+ *   type: 'ipfs',
+ *   importUrl: 'QmHash...', // Prefix will be added automatically
+ *   contentImport: global.plugin.contentImport,
+ *   workspaceProvider: global.plugin.fileManager.getProvider('workspace'),
+ *   plugin: global.plugin,
+ *   onLoading: (msg) => console.log('Loading:', msg),
+ *   onSuccess: () => console.log('Import successful!'),
+ *   onError: (error) => console.error('Import failed:', error),
+ *   trackEvent: trackMatomoEvent
+ * })
+ *
+ * @example
+ * // Import from HTTPS
+ * await processLoading({
+ *   type: 'https',
+ *   importUrl: 'https://example.com/contract.sol',
+ *   contentImport: plugin.contentImport,
+ *   workspaceProvider: workspaceProvider,
+ *   plugin: plugin,
+ *   onError: (error) => showToast(error)
+ * })
+ *
+ * @throws {Error} Rejects the returned Promise with an error if:
+ *                 - The content cannot be resolved or fetched from the URL
+ *                 - The file already exists in the workspace
+ *                 - Workspace operations fail
+ */
+export const processLoading = ({ type, importUrl, contentImport, workspaceProvider, plugin, onLoading, onSuccess, onError, trackEvent }: ProcessLoadingParams) => {
+  trackEvent({
+    category: 'hometab',
+    action: 'filesSection',
+    name: 'importFrom' + type,
+    isClick: true
+  })
+
+  // Handle IPFS prefix logic
+  let finalUrl = importUrl
+  const startsWith = importUrl.substring(0, 4)
+  if ((type === 'ipfs' || type === 'IPFS') && startsWith !== 'ipfs' && startsWith !== 'IPFS') {
+    finalUrl = 'ipfs://' + importUrl
+  }
+
+  // Loading callback
+  const loadingCb = (loadingMsg: string) => {
+    onLoading(loadingMsg)
+  }
+
+  // Completion callback
+  const cb = async (error, content, cleanUrl, type, url) => {
+    if (error) {
+      onError(error.message || error)
+      return
+    }
+
+    try {
+      const filePath = type + '/' + cleanUrl
+      if (await workspaceProvider.exists(filePath)) {
+        onError('File already exists in workspace')
+        return
+      }
+
+      workspaceProvider.addExternal(filePath, content, url)
+
+      // Select file panel if plugin is available
+      if (plugin && plugin.call) {
+        await plugin.call('menuicons', 'select', 'filePanel')
+      }
+
+      onSuccess()
+    } catch (e) {
+      onError(e.message || e)
+    }
+  }
+
+  // Execute import
+  return new Promise<void>((resolve, reject) => {
+    contentImport.import(finalUrl, loadingCb, (error: any, ...args: [any, string, string, string]) => {
+      cb(error, ...args)
+      if (error) {
+        reject(error)
+      } else {
+        resolve()
+      }
+    })
+  })
 }
 

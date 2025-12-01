@@ -83,6 +83,10 @@ export interface IParams {
   stop?: string[];
   chatHistory?: any[];
   version: string;
+  tools?: any[];
+  tool_choice?: string;
+  toolsMessages?: any[];
+  format?: string;
 }
 
 export interface IAIStreamResponse{

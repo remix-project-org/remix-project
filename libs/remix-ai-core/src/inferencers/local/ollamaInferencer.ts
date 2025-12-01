@@ -220,7 +220,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
     return Object.keys(options).length > 0 ? options : undefined;
   }
 
-  override async _makeRequest(payload: any, rType: AIRequestType): Promise<string> {
+  override async _makeRequest(payload: any, rType: AIRequestType): Promise<string | any> {
     this.event.emit("onInference");
 
     const endpoint = this.getEndpointForRequestType(rType);
@@ -241,6 +241,18 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
         system: payload.system
       };
       if (options) requestPayload.options = options;
+
+      if (payload.tools && Array.isArray(payload.tools) && payload.tools.length > 0) {
+        requestPayload.tools = payload.tools;
+      }
+
+      if (payload.tool_choice) {
+        requestPayload.tool_choice = payload.tool_choice;
+      }
+
+      if (payload.format) {
+        requestPayload.format = payload.format;
+      }
     }
 
     try {
@@ -263,7 +275,15 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
             text = sanitizeCompletionText(rawResponse);
           }
         } else {
-          text = result.data.message?.content || "";
+          const message = result.data.message;
+          text = message?.content || "";
+
+          if (message?.tool_calls && Array.isArray(message.tool_calls)) {
+            return {
+              content: text.trimStart(),
+              tool_calls: message.tool_calls
+            };
+          }
         }
         return text.trimStart();
       } else {
@@ -305,6 +325,18 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
       if (options) {
         streamPayload.options = options;
       }
+
+      if (payload.tools && Array.isArray(payload.tools) && payload.tools.length > 0) {
+        streamPayload.tools = payload.tools;
+      }
+
+      if (payload.tool_choice) {
+        streamPayload.tool_choice = payload.tool_choice;
+      }
+
+      if (payload.format) {
+        streamPayload.format = payload.format;
+      }
     }
 
     try {
@@ -343,10 +375,23 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   private _buildPayload(prompt: string, payload: any, system?: string, promptWithHistory?: any) {
+    if (promptWithHistory && promptWithHistory.length > 0) {
+      promptWithHistory.push({ role: "user", content: prompt });
+    }
+
+    let messages = (promptWithHistory && promptWithHistory.length > 0)
+      ? promptWithHistory
+      : [{ role: "user", content: prompt }];
+
+    // If toolsMessages are provided (from MCP tool execution), append them
+    if (payload.toolsMessages && Array.isArray(payload.toolsMessages)) {
+      messages = [...messages, ...payload.toolsMessages];
+    }
+
     return {
       model: this.model_name,
       system: system || CHAT_PROMPT,
-      messages: promptWithHistory ? promptWithHistory : [{ role: "assistant", content: system }, { role: "user", content: prompt }],
+      messages,
       ...payload
     };
   }
@@ -458,7 +503,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   async answer(prompt: string, options: IParams = GenerationParams): Promise<any> {
-    trackMatomoEvent('ai', 'remixAI', `ollama_chat_answer:model:${this.model_name}|stream:${!!options.stream_result}`);
+    trackMatomoEvent('ai', 'remixAI', `ollama_chat_answer:model:${this.model_name}|stream:${!!options.stream_result}|tools:${!!options.tools}`);
     const chatHistory = buildChatPrompt()
     const payload = this._buildPayload(prompt, options, CHAT_PROMPT, chatHistory);
     if (options.stream_result) {
@@ -469,7 +514,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
   }
 
   async code_explaining(prompt: string, context: string = "", options: IParams = GenerationParams): Promise<any> {
-    trackMatomoEvent('ai', 'remixAI', `ollama_code_explaining:model:${this.model_name}|stream:${!!options.stream_result}`);
+    trackMatomoEvent('ai', 'remixAI', `ollama_code_explaining:model:${this.model_name}|stream:${!!options.stream_result}|tools:${!!options.tools}`);
     const payload = this._buildPayload(prompt, options, CODE_EXPLANATION_PROMPT);
     if (options.stream_result) {
       return await this._streamInferenceRequest(payload, AIRequestType.GENERAL);

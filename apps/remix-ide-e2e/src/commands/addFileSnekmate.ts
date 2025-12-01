@@ -43,7 +43,9 @@ function addFileSnekmate(browser: NightwatchBrowser, name: string, content: Nigh
             done()
           })
       } else {
-        browser.click('[data-id="fileExplorerNewFilecreateNewFile"]')
+        browser
+          .rightClickCustom('[data-id="treeViewUltreeViewMenu"]')
+          .click('*[data-id="contextMenuItemnewFile"]')
           .waitForElementContainsText('*[data-id$="fileExplorerTreeItemInput"]', '', 60000)
           .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', name)
           .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', browser.Keys.ENTER)

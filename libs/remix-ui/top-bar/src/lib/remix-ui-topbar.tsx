@@ -70,6 +70,7 @@ export function RemixUiTopbar() {
   };
 
   async function openTemplateExplorer(): Promise<void> {
+    await global.plugin.call('templateexplorermodal', 'updateTemplateExplorerInFileMode', false)
     appContext.appStateDispatch({
       type: appActionTypes.showGenericModal,
       payload: true
@@ -629,7 +630,7 @@ export function RemixUiTopbar() {
               data-id="topbar-themeIcon-toggle"
               style={{
                 padding: '0.35rem 0.5rem',
-                fontSize: '0.8rem'
+                fontSize: '0.8rem',
               }}
               onClick={async () => {
                 setShowTheme(!showTheme)

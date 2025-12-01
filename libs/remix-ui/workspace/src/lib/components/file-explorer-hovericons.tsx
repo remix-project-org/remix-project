@@ -26,6 +26,7 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
                 tooltipClasses="text-nowrap"
               >
                 <span
+                  data-id="fileExplorerHoverIcons-createNewFolder"
                   className="far fa-folder fa-1x me-2 remixui_icons"
                   onClick={async (e) => {
                     e.stopPropagation()
@@ -44,6 +45,7 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
                 tooltipClasses="text-nowrap"
               >
                 <span
+                  data-id="fileExplorerHoverIcons-createNewFile"
                   className="far fa-file fa-1x remixui_icons me-2"
                   onClick={async (e) => {
                     e.stopPropagation()
@@ -65,6 +67,7 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
           tooltipClasses="text-nowrap"
         >
           <span
+            data-id="fileExplorerHoverIcons-rename"
             className="far fa-pen fa-1x remixui_icons me-2"
             onClick={(e) => {
               e.stopPropagation()
@@ -83,6 +86,7 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
           tooltipClasses="text-nowrap"
         >
           <span
+            data-id="fileExplorerHoverIcons-delete"
             className="far fa-trash fa-1x remixui_icons me-2"
             onClick={async (e) => {
               e.stopPropagation()

@@ -26,8 +26,8 @@ module.exports = {
       .refreshPage()
       .waitForElementVisible('*[data-id="remixIdeIconPanel"]', 10000)
       .click('li[data-id="treeViewLitreeViewItemREADME.txt"]') // focus on root directory
-      .waitForElementVisible('*[data-id="fileExplorerNewFilecreateNewFolder"]')
-      .click('[data-id="fileExplorerNewFilecreateNewFolder"]')
+      .rightClickCustom('[data-id="treeViewUltreeViewMenu"]')
+      .click('*[data-id="contextMenuItemnewFolder"]')
       .pause(1000)
       .waitForElementVisible('*[data-id$="fileExplorerTreeItemInput"]')
       .sendKeys('*[data-id$="fileExplorerTreeItemInput"]', 'Browser_Tests')

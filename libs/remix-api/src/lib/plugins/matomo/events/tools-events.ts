@@ -105,6 +105,7 @@ export interface TemplateExplorerModalEvent extends MatomoEventBase {
     | 'closeModal'
     | 'search'
     | 'addScriptsToWorkspace'
+    | 'addContractFileToWorkspace'
     | 'selectWorkspaceTemplate'
     | 'createWorkspaceFromTemplate'
     | 'createWorkspaceWithAiRequestSent'
@@ -113,6 +114,9 @@ export interface TemplateExplorerModalEvent extends MatomoEventBase {
     | 'topCardImportProject'
     | 'topCardContractWizard'
     | 'topCardCreateWithAi'
+    | 'topCardCreateFileWithAi'
+    | 'topCardImportFiles'
+    | 'topCardCreateContractWithWizard'
     | 'topCardCreateBlank'
     | 'createWorkspaceWithBasicTemplate'
     | 'contractTypeSelectedInContractWizard'
@@ -120,6 +124,8 @@ export interface TemplateExplorerModalEvent extends MatomoEventBase {
     | 'initializeAsGitRepoSelectedInOtherTemplates'
     | 'createWorkspaceWithContractWizard'
     | 'createWorkspaceWithGenericTemplate'
+    | 'importFiles'
+    | 'importHttps'
 }
 
 export interface ScriptExecutorEvent extends MatomoEventBase {

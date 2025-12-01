@@ -52,13 +52,9 @@ const darkTheme = EditorView.theme({
 
 export function ContractWizard () {
   const [showEditModal, setShowEditModal] = useState(false)
-  const { state, dispatch, theme, facade, generateUniqueWorkspaceName } = useContext(TemplateExplorerContext)
+  const { state, dispatch, theme, facade, generateUniqueWorkspaceName, trackMatomoEvent } = useContext(TemplateExplorerContext)
   const [uniqueWorkspaceName, setUniqueWorkspaceName] = useState(state.workspaceName)
   const strategy = state
-  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
-  const trackMatomoEvent = <T extends MatomoEvent = TemplateExplorerModalEvent>(event: T) => {
-    baseTrackEvent?.<T>(event)
-  }
 
   function toggleContractOption(key: keyof typeof strategy.contractOptions) {
     if (key === 'mintable') {
@@ -114,18 +110,46 @@ export function ContractWizard () {
     dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE, payload: templateMap[value] })
   }
 
+  const validateAndCreateWorkspace = async () => {
+    dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: uniqueWorkspaceName })
+    await facade.createWorkspace({
+      workspaceName: uniqueWorkspaceName,
+      workspaceTemplateName: state.workspaceTemplateChosen.value,
+      opts: state.contractOptions,
+      isEmpty: false,
+      isGitRepo: state.initializeAsGitRepo,
+      createCommit: true,
+      contractContent: state.contractCode,
+      contractName: state.tokenName
+    })
+    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithContractWizard', name: 'success' })
+    facade.closeWizard()
+  }
+
+  const validateAndCreateContractFile = async () => {
+    const exists = await facade.plugin.call('fileManager', 'exists', '/contracts')
+    if (!exists) {
+      await facade.plugin.call('fileManager', 'mkdir', 'contracts')
+    }
+    await facade.plugin.call('fileManager', 'writeFileNoRewrite', `/contracts/${state.contractName}.sol`, state.contractCode)
+    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'addContractFileToWorkspace' })
+    facade.closeWizard()
+    await facade.plugin.call('fileManager', 'open', `/contracts/${state.contractName}.sol`)
+    await facade.plugin.call('notification', 'toast', 'Contract file created successfully')
+  }
+
   return (
     <section className="container-fluid">
       <div className="row g-3">
         <div className="col-12 d-flex align-items-center justify-content-between">
-          <div className="d-flex align-items-center gap-2">
+          {state.manageCategory === 'Template' ? <div className="d-flex align-items-center gap-2">
             {showEditModal ? <input data-id="contract-wizard-workspace-name-input" className="form-control form-control-sm" value={uniqueWorkspaceName} onChange={(e) => {
               setUniqueWorkspaceName(e.target.value)
             }} /> : <span data-id="contract-wizard-workspace-name-span" className={`fw-semibold fs-6 ${theme?.name === 'Light' ? 'text-dark' : 'text-white'}`}>
               {uniqueWorkspaceName}
             </span>}
             <i data-id="contract-wizard-edit-icon" className={`${showEditModal ? 'fas fa-lock ms-4' : " ms-4 fas fa-edit"}`} onClick={() => setShowEditModal(!showEditModal)}></i>
-          </div>
+          </div> : <div className="w-50"></div>}
           <ContractTagSelector switching={switching} />
         </div>
 
@@ -206,31 +230,26 @@ export function ContractWizard () {
               extensions={[javascript({ typescript: true }),vscodeDark, darkTheme]}
             />
           </div>
-          <div className="d-flex justify-content-between align-items-center gap-3 mt-3">
-            <div className="form-check m-0">
+          <div className="d-flex mt-3 justify-content-between align-items-center gap-3">
+            {state.manageCategory === 'Template' ? <div className="form-check m-0">
               <>
                 <input data-id="contract-wizard-initialize-as-git-repo-checkbox" className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo}
                   onChange={(e) => dispatch({ type: ContractWizardAction.INITIALIZE_AS_GIT_REPO_UPDATE, payload: e.target.checked })} />
                 <label className="form-check-label" htmlFor="initGit">Initialize as a Git repository</label>
               </>
-            </div>
+            </div> : <div className="w-50"></div>}
 
-            <button data-id="contract-wizard-validate-workspace-button" className="btn btn-primary btn-sm" onClick={async () => {
-              dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: uniqueWorkspaceName })
-              await facade.createWorkspace({
-                workspaceName: uniqueWorkspaceName,
-                workspaceTemplateName: state.workspaceTemplateChosen.value,
-                opts: state.contractOptions,
-                isEmpty: false,
-                isGitRepo: state.initializeAsGitRepo,
-                createCommit: true,
-                contractContent: state.contractCode,
-                contractName: state.tokenName
-              })
-              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithContractWizard', name: 'success' })
-              facade.closeWizard()
-            }}>
-              <i className="far fa-check me-2"></i> Validate workspace</button>
+            <button data-id="contract-wizard-validate-workspace-button" className="btn btn-primary btn-sm justify-content-end" onClick={async () => {
+              if (state.manageCategory === 'Files') {
+                await validateAndCreateContractFile()
+              } else {
+                await validateAndCreateWorkspace()
+              }
+            }}
+            >
+              <i className="far fa-check me-2"></i>
+              {state.manageCategory === 'Files' ? 'Create contract file' : 'Validate workspace'}
+            </button>
           </div>
         </div>
       </div>

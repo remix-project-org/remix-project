@@ -7,12 +7,13 @@ import { EventEmitter } from 'events'
 import * as packageJson from '../../../../../package.json'
 import { TemplateExplorerProvider } from 'libs/remix-ui/template-explorer-modal/context/template-explorer-context'
 import { WorkspaceTemplate } from 'libs/remix-ui/workspace/src/lib/types'
+import { TemplateExplorerModalFacade } from 'libs/remix-ui/template-explorer-modal/src/utils/workspaceUtils'
 
 const pluginProfile = {
   name: 'templateexplorermodal',
   displayName: 'Template Explorer Modal',
   description: 'Template Explorer Modal',
-  methods: ['addArtefactsToWorkspace'],
+  methods: ['addArtefactsToWorkspace', 'updateTemplateExplorerInFileMode', 'importFromExternal', 'resetIpfsMode', 'resetFileMode', 'importFromHttps', 'resetHttpsMode'],
   events: [],
   maintainedBy: 'Remix',
   kind: 'templateexplorermodal',
@@ -25,14 +26,21 @@ const pluginProfile = {
 export class TemplateExplorerModalPlugin extends Plugin {
   element: HTMLDivElement
   dispatch: React.Dispatch<any> = () => { }
-  event: any
+  event: EventEmitter
   appStateDispatch: any
+  fileMode: boolean
+  ipfsMode: boolean
+  httpImportMode: boolean
+
   constructor() {
     super(pluginProfile)
     this.element = document.createElement('div')
     this.element.setAttribute('id', 'template-explorer-modal')
     this.dispatch = () => { }
     this.event = new EventEmitter()
+    this.fileMode = false
+    this.ipfsMode = false
+    this.httpImportMode = false
   }
 
   async onActivation(): Promise<void> {
@@ -47,6 +55,38 @@ export class TemplateExplorerModalPlugin extends Plugin {
     })
   }
 
+  updateTemplateExplorerInFileMode(fileMode: boolean) {
+    if (this.fileMode === fileMode) return
+    this.fileMode = fileMode
+    this.renderComponent()
+  }
+
+  resetFileMode() {
+    this.fileMode = false
+    this.renderComponent()
+  }
+
+  resetIpfsMode() {
+    this.ipfsMode = false
+    this.renderComponent()
+  }
+
+  resetHttpsMode() {
+    this.httpImportMode = false
+    this.renderComponent()
+  }
+
+  importFromExternal(ipfsMode: boolean) {
+    if (this.ipfsMode === ipfsMode) return
+    this.ipfsMode = ipfsMode
+    this.renderComponent()
+  }
+
+  importFromHttps(httpImportMode: boolean) {
+    if (this.httpImportMode === httpImportMode) return
+    this.httpImportMode = httpImportMode
+    this.renderComponent()
+  }
   onDeactivation(): void {
 
   }
@@ -68,15 +108,18 @@ export class TemplateExplorerModalPlugin extends Plugin {
     )
   }
 
-  renderComponent(): void {
+  renderComponent() {
     this.dispatch({
-      ...this
+      ...this,
+      ipfsMode: this.ipfsMode,
+      fileMode: this.fileMode,
+      httpImportMode: this.httpImportMode,
     })
   }
 
   updateComponent(state: any) {
     return (
-      <TemplateExplorerProvider plugin={state} />
+      <TemplateExplorerProvider fileMode={state.fileMode} plugin={state} ipfsMode={state.ipfsMode} httpImportMode={state.httpImportMode} />
     )
   }
 }

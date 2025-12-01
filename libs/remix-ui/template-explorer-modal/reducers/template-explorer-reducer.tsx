@@ -36,7 +36,8 @@ export const initialState: TemplateExplorerWizardState = {
   contractCode: erc20.erc20DefaultNoOptions('MyToken'),
   contractImport: '',
   tokenName: 'MyToken',
-  contractName: 'MyToken'
+  contractName: 'MyToken',
+  manageCategory: 'Template'
 }
 
 export const templateExplorerReducer = (state: TemplateExplorerWizardState, action: any) => {
@@ -61,6 +62,9 @@ export const templateExplorerReducer = (state: TemplateExplorerWizardState, acti
   }
   case TemplateExplorerWizardAction.SET_WORKSPACE_NAME:{
     return { ...state, workspaceName: action.payload }
+  }
+  case TemplateExplorerWizardAction.SET_MANAGE_CATEGORY:{
+    return { ...state, manageCategory: action.payload }
   }
   case TemplateExplorerWizardAction.SET_DEFAULT_WORKSPACE_NAME:{
     return { ...state, defaultWorkspaceName: action.payload }

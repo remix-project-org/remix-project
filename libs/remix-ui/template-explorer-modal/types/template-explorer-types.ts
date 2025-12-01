@@ -38,9 +38,10 @@ export interface TemplateExplorerWizardState {
   contractImport?: string
   contractName?: string
   tokenName?: string
+  manageCategory: 'Template' | 'Files'
 }
 
-export type WizardStep = 'template' | 'finishSetup' | 'wizard' | 'import' | 'genAI' | 'generic' | 'remixdefault' | 'cookbook' | 'back' | 'reset' | 'ModifyWorkspace' | 'confirm' | 'scripts'
+export type WizardStep = 'template' | 'finishSetup' | 'wizard' | 'import' | 'genAI' | 'generic' | 'remixdefault' | 'cookbook' | 'back' | 'reset' | 'ModifyWorkspace' | 'confirm' | 'scripts' | 'aiFileGeneration' | 'importFiles' | 'importHttps'
 
 export interface TemplateExplorerContextType {
   plugin: TemplateExplorerModalPlugin
@@ -63,6 +64,9 @@ export interface TemplateExplorerContextType {
   templateCategoryStrategy: TemplateCategoryStrategy
   generateUniqueWorkspaceName: (name: string) => Promise<string>
   trackMatomoEvent: <T extends MatomoEvent = TemplateExplorerModalEvent>(event: T) => void
+  fileMode: boolean
+  ipfsMode: boolean
+  httpImportMode: boolean
 }
 
 export enum TemplateExplorerWizardAction {
@@ -91,7 +95,10 @@ export enum TemplateExplorerWizardAction {
   SET_SEARCH_TERM = 'SET_SEARCH_TERM',
   SET_WIZARD_STEP = 'SET_WIZARD_STEP',
   RESET_STATE = 'RESET_STATE',
-  SET_WORKSPACE_TEMPLATE_TYPE = 'SET_WORKSPACE_TEMPLATE_TYPE'
+  SET_WORKSPACE_TEMPLATE_TYPE = 'SET_WORKSPACE_TEMPLATE_TYPE',
+  SET_MANAGE_CATEGORY = 'SET_MANAGE_CATEGORY',
+  IMPORT_FILES = 'IMPORT_FILES',
+  IMPORT_HTTPS = 'IMPORT_HTTPS'
 }
 
 export interface TemplateItem {

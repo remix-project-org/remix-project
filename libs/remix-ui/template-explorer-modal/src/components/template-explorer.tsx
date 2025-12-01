@@ -9,11 +9,12 @@ export function TemplateExplorer() {
   const { metadata, dedupedTemplates, plugin, dispatch, facade, templateCategoryStrategy, theme, trackMatomoEvent } = useContext(TemplateExplorerContext)
 
   return (
-    <div data-id="template-explorer-template-container" className="template-explorer-container overflow-y-auto">
+
+    <div data-id="template-explorer-template-container" className={theme?.name === 'Dark' ? 'template-explorer-container overflow-y-auto text-white-force' : 'template-explorer-container overflow-y-auto text-dark'}>
 
       {dedupedTemplates?.map((template: TemplateCategory, templateIndex) => (
         <div key={template.name} className="template-category mb-4" data-id={`template-category-${template.name}`}>
-          <h4 className="category-title mb-3 text-dark">
+          <h4 className={theme?.name === 'Dark' ? 'category-title mb-3 text-white-force' : 'category-title mb-3 text-dark'}>
             {template.name.toUpperCase()}
           </h4>
 
@@ -38,12 +39,12 @@ export function TemplateExplorer() {
                 <div
                   data-id={`template-card-${item.value}-${itemIndex}`}
                   key={`${templateIndex}-${itemIndex}`}
-                  className="template-card bg-light border-0"
+                  className={theme?.name === 'Dark'? "template-card bg-light border-0 px-3 py-3" : "template-card bg-dark border-0 px-3 py-3"}
                   onClick={async () => {
                     if (item.value === 'cookbook') {
                       await plugin.call('manager', 'activatePlugin', 'cookbookdev')
                       await plugin.call('sidePanel', 'focus', 'cookbookdev')
-                      // trackMatomoEvent({ category: 'templateExplorerModal', action: 'selectWorkspaceTemplate', value: item.value })
+                      trackMatomoEvent({ category: 'templateExplorerModal', action: 'selectWorkspaceTemplate', value: item.value })
                       facade.closeWizard()
                       return
                     }
@@ -56,14 +57,14 @@ export function TemplateExplorer() {
                   }}
                 >
                   <div className="card-header mb-1">
-                    <h6 className={`card-title mb-1 ${theme?.name === 'Light' ? 'card-title-light' : 'card-title-dark'}`}>
+                    <h6 className={`card-title mb-1 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'card-title-light'}`}>
                       {item.displayName || item.value}
                     </h6>
 
                   </div>
                   <div className="card-body d-flex flex-column justify-content-between overflow-y-auto">
                     {item.description && (
-                      <p className="card-description mb-1 text-dark text-wrap text-truncate overflow-hidden">
+                      <p className={theme?.name === 'Dark' ? 'card-description mb-1 text-dark text-wrap text-truncate overflow-hidden' : 'card-description mb-1 text-dark text-wrap text-truncate overflow-hidden'}>
                         {item.description}
                       </p>
                     )}
@@ -72,22 +73,22 @@ export function TemplateExplorer() {
                       <div className="options-badges d-flex flex-wrap">
                         {item.opts.upgradeable && (
                           <span className="badge bg-success badge-uups">
-                            UUPS
+                      UUPS
                           </span>
                         )}
                         {item.opts.mintable && (
                           <span className="badge bg-warning text-dark badge-mint">
-                            Mint
+                      Mint
                           </span>
                         )}
                         {item.opts.burnable && (
                           <span className="badge bg-danger badge-burn">
-                            Burn
+                      Burn
                           </span>
                         )}
                         {item.opts.pausable && (
                           <span className="badge bg-secondary badge-pause">
-                            Pause
+                      Pause
                           </span>
                         )}
                       </div>

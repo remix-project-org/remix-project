@@ -31,6 +31,7 @@ const profile = {
   methods: [
     'createNewFile',
     'uploadFile',
+    'uploadFolder',
     'echoCall',
     'getCurrentWorkspace',
     'getAvailableWorkspaceName',
@@ -183,6 +184,15 @@ export default class Filepanel extends ViewPlugin {
   uploadFile(target) {
     return new Promise((resolve, reject) => {
       return this.emit('uploadFileReducerEvent', '/', target, (err, data) => {
+        if (err) reject(err)
+        else resolve(data)
+      })
+    })
+  }
+
+  uploadFolder(target) {
+    return new Promise((resolve, reject) => {
+      this.emit('uploadFolderReducerEvent', '/', target, (err, data) => {
         if (err) reject(err)
         else resolve(data)
       })

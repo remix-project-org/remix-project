@@ -7,7 +7,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: transparent;
+  background-color: rgba(0, 0, 0, 0.7);
 }
 
 .template-explorer-modal-container {
@@ -97,10 +97,9 @@
 }
 
 .template-card {
-  width: 180px;
+  width: 205px;
   height: 110px;
   border-radius: 6px;
-  padding: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   cursor: pointer;
@@ -159,7 +158,7 @@
 }
 
 .workspace-details-section {
-  height: 80%;
+  height: 85%;
 }
 
 .workspace-details-content-wrapper {
@@ -178,4 +177,33 @@
   min-width: 70%;
   border-top-right-radius: 10px;
   border-bottom-right-radius: 10px;
+}
+
+.import-files {
+  cursor: pointer;
+}
+
+.import-files:hover {
+  background-color: transparent;
+  cursor: pointer !important;
+}
+
+.import-option-item {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.import-option-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.text-white-force {
+  color: #fff !important;
+}
+
+.text-white-dimmed {
+  color: #ebf3f9 !important;
 }
