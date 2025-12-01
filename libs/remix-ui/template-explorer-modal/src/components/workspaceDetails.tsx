@@ -81,7 +81,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
           />
         </div>
       </div>
-      <div className="d-flex justify-content-between align-items-center gap-3 mt-3">
+      <div className="d-flex justify-content-between align-items-center gap-3 mb-2 p-2">
         <div className="form-check m-0">
           <>
             <input data-id="initGitRepositoryLabel" className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo}

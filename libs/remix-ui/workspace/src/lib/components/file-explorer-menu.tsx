@@ -133,7 +133,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                   className="d-flex flex-row align-items-center justify-items-start me-5 w-50"
                 >
                   <i className="far fa-plus text-white me-2"></i>
-                  <span className="text-white fw-semibold">Create</span>
+                  <span className="text-white fw-semibold" style={{ fontSize: '1.05rem' }}>Create</span>
                 </div>
               </Dropdown.Toggle>
               <Dropdown.Menu className="w-100 custom-dropdown-items bg-light">
