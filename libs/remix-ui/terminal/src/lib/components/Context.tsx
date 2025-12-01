@@ -13,7 +13,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
   const input = data.input ? shortenHexData(data.input) : (data.data ? shortenHexData(data.data) : '')
   const logs = opts.logs && opts.logs.raw && opts.logs.raw.length ? opts.logs.raw.length : 0
   const block = data.receipt ? data.receipt.blockNumber : data.blockNumber || ''
-  let txIndex 
+  let txIndex
   if (data.index == 0) txIndex = 0
   else txIndex = data.index ? data.index.toString() : '-'
   const value = val ? typeConversion.toInt(val) : 0
