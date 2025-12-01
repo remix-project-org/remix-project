@@ -866,7 +866,7 @@ export const EditorUI = (props: EditorUIProps) => {
         props.plugin.call('notification', 'modal', modalContent)
         trackMatomoEvent({ category: 'editor', action: 'onDidPaste', name: 'more_than_10_lines', isClick: false })
       }
-    })    
+    })
 
     // add context menu items
     const zoominAction = {
