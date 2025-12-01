@@ -1,6 +1,5 @@
 'use strict'
 import React from 'react' // eslint-disable-line
-import { resolve } from 'path'
 import { EditorUI } from '@remix-ui/editor' // eslint-disable-line
 import { Plugin } from '@remixproject/engine'
 import * as packageJson from '../../../../../package.json'
@@ -147,6 +146,19 @@ export default class Editor extends Plugin {
     this.emit(name, ...params) // plugin stack
   }
 
+  resolveRelativePath(basePath, relativePath) {
+    const stack = basePath.split('/')
+    stack.pop()
+    
+    const parts = relativePath.split('/')
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i] === '.') continue
+      if (parts[i] === '..') stack.pop()
+      else stack.push(parts[i])
+    }
+    return stack.join('/')
+  }
+
   async onActivation () {
     this.activated = true
     this.on('editor', 'editorMounted', () => {
@@ -181,6 +193,14 @@ export default class Editor extends Plugin {
     })
     this.on('fileManager', 'noFileSelected', async () => {
       this.currentFile = null
+      this.renderComponent()
+    })
+    this.on('fileManager', 'currentFileChanged', (currentFile) => {
+      if (this.currentFile === currentFile) return
+      this.currentFile = currentFile
+      if (currentFile && (currentFile.endsWith('.ts') || currentFile.endsWith('.js') || currentFile.endsWith('.tsx') || currentFile.endsWith('.jsx'))) {
+        this._onChange(currentFile)
+      }
       this.renderComponent()
     })
     this.on('scriptRunnerBridge', 'runnerChanged', async () => {
@@ -283,12 +303,13 @@ export default class Editor extends Plugin {
     })
   }
 
-  // [2/4] The conductor, called on every editor content change to parse 'import' statements and trigger the type loading process.
+  // The conductor, called on every editor content change to parse 'import' statements and trigger the type loading process.
   async _onChange (file) {
     this.triggerEvent('didChangeFile', [file])
     
-    if (this.monaco && (file.endsWith('.ts') || file.endsWith('.js'))) {
+    if (this.monaco && (file.endsWith('.ts') || file.endsWith('.js') || file.endsWith('.tsx') || file.endsWith('.jsx'))) {
       clearTimeout(this.typeLoaderDebounce)
+      
       this.typeLoaderDebounce = setTimeout(async () => {
         if (!this.monaco) return
         const model = this.monaco.editor.getModel(this.monaco.Uri.parse(file))
@@ -296,81 +317,101 @@ export default class Editor extends Plugin {
         const code = model.getValue()
 
         try {
-          const IMPORT_ANY_RE =
-            /(?:import|export)\s+[^'"]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g
+          const IMPORT_ANY_RE = /(?:import|export)\s+[^'"]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g
           
-          const rawImports = [...code.matchAll(IMPORT_ANY_RE)]
+          const allImports = [...code.matchAll(IMPORT_ANY_RE)]
             .map(m => (m[1] || m[2] || m[3] || '').trim())
-            .filter(p => p && !p.startsWith('.') && !p.startsWith('file://'))
+            .filter(p => p)
 
-          const uniqueImports = [...new Set(rawImports)]
+          const externalImports = allImports.filter(p => !p.startsWith('.') && !p.startsWith('/') && !p.startsWith('file://'))
+          const localImports = allImports.filter(p => p.startsWith('.') || p.startsWith('/'))
+
+          const uniqueExternalImports = [...new Set(externalImports)]
           const getBasePackage = (p) => p.startsWith('@') ? p.split('/').slice(0, 2).join('/') : p.split('/')[0]
           
-          const newBasePackages = [...new Set(uniqueImports.map(getBasePackage))]
+          const newBasePackages = [...new Set(uniqueExternalImports.map(getBasePackage))]
             .filter(p => !this.processedPackages.has(p))
 
-          if (newBasePackages.length === 0) return
-          
-          // Temporarily disable type checking during type loading to prevent error flickering.
-          this.beginTypesBatch()
+          if (newBasePackages.length > 0) {
+            this.beginTypesBatch()
+             
+            uniqueExternalImports.forEach(pkgImport => this.addShimForPackage(pkgImport))
+            this.updateTsCompilerOptions()
 
-          // [Phase 1: Fast Feedback]
-          // Add temporary type definitions (shims) first to immediately remove red underlines on import statements.
-          uniqueImports.forEach(pkgImport => {
-            this.addShimForPackage(pkgImport)
-          })
-          
-          this.updateTsCompilerOptions()
+            await Promise.all(newBasePackages.map(async (basePackage) => {
+              this.processedPackages.add(basePackage)
+              const activeRunnerLibs = await this.call('scriptRunnerBridge', 'getActiveRunnerLibs')
+              const libInfo = activeRunnerLibs.find(lib => lib.name === basePackage)
+              const packageToLoad = libInfo ? `${libInfo.name}@${libInfo.version}` : basePackage
 
-          // [Phase 2: Deep Analysis]
-          // In the background, fetch the actual type files to enable autocompletion.
-          await Promise.all(newBasePackages.map(async (basePackage) => {
-            this.processedPackages.add(basePackage)
-            
-            const activeRunnerLibs = await this.call('scriptRunnerBridge', 'getActiveRunnerLibs')
-      
-            const libInfo = activeRunnerLibs.find(lib => lib.name === basePackage)
-            const packageToLoad = libInfo ? `${libInfo.name}@${libInfo.version}` : basePackage
+              try {
+                const result = await startTypeLoadingProcess(packageToLoad)
+                if (result && result.libs && result.libs.length > 0) {
+                  this.addExtraLibs(result.libs)
+                  if (result.subpathMap) {
+                    for (const [subpath, virtualPath] of Object.entries(result.subpathMap)) {
+                      this.tsModuleMappings[subpath] = [virtualPath]
+                    }
+                  }
+                  if (result.mainVirtualPath) {
+                    this.tsModuleMappings[basePackage] = [result.mainVirtualPath.replace('file:///node_modules/', '')]
+                  }
+                  this.tsModuleMappings[`${basePackage}/*`] = [`${basePackage}/*`]
+                    
+                  uniqueExternalImports
+                    .filter(p => getBasePackage(p) === basePackage)
+                    .forEach(p => this.removeShimsForPackage(p))
+                }
+              } catch (e) {
+                this.processedPackages.delete(basePackage)
+                console.error(`[DIAGNOSE-DEEP-PASS] Crawler failed for "${basePackage}":`, e)
+              }
+            }))
+            this.endTypesBatch()
+          }
 
-            try {
-              const result = await startTypeLoadingProcess(packageToLoad)
-              if (result && result.libs && result.libs.length > 0) {
-                // Add all fetched type files to Monaco.
-                this.addExtraLibs(result.libs)
-                
-                // Update path mappings so TypeScript can find the types.
-                if (result.subpathMap) {
-                  for (const [subpath, virtualPath] of Object.entries(result.subpathMap)) {
-                    this.tsModuleMappings[subpath] = [virtualPath]
+          if (localImports.length > 0) {
+            const currentFileType = file.endsWith('.ts') || file.endsWith('.tsx') ? 'typescript' : 'javascript'
+            const extensions = currentFileType === 'typescript' 
+              ? ['.ts', '.tsx', '.d.ts', '/index.ts', '/index.tsx'] 
+              : ['.js', '.jsx', '/index.js', '/index.jsx']
+
+            await Promise.all(localImports.map(async (importPath) => {
+              let resolvedPath = importPath
+              
+              if (importPath.startsWith('./') || importPath.startsWith('../')) {
+                resolvedPath = this.resolveRelativePath(file, importPath)
+              } else if (importPath.startsWith('/')) {
+                resolvedPath = importPath.substring(1)
+              }
+
+              let finalPath = null
+              
+              if (await this.call('fileManager', 'exists', resolvedPath) && (await this.call('fileManager', 'isFile', resolvedPath))) {
+                finalPath = resolvedPath
+              } else {
+                for (const ext of extensions) {
+                  const tryPath = resolvedPath + ext
+                  if (await this.call('fileManager', 'exists', tryPath)) {
+                    finalPath = tryPath
+                    break
                   }
                 }
-                if (result.mainVirtualPath) {
-                  this.tsModuleMappings[basePackage] = [result.mainVirtualPath.replace('file:///node_modules/', '')]
-                }
-                this.tsModuleMappings[`${basePackage}/*`] = [`${basePackage}/*`]
-                
-                // Remove the temporary shims now that the real types are loaded.
-                uniqueImports
-                  .filter(p => getBasePackage(p) === basePackage)
-                  .forEach(p => this.removeShimsForPackage(p))
-
-              } else {
-                // Shim will remain if no types are found.
-                console.warn(`[DIAGNOSE-DEEP-PASS] No types found for "${basePackage}". Shim will remain.`)
               }
-            } catch (e) {
-              // Crawler can fail, but we don't want to crash the whole process.
-              this.processedPackages.delete(basePackage)
-              console.error(`[DIAGNOSE-DEEP-PASS] Crawler failed for "${basePackage}":`, e)
-              this.call('notification', 'toast', `Failed to load types for package: ${basePackage}.`)
-            }
-          }))
-          
-          // After all type loading is complete, re-enable type checking and apply the final state.
-          this.endTypesBatch()
+
+              if (finalPath) {
+                try {
+                  const content = await this.call('fileManager', 'readFile', finalPath)
+                  if (content) {
+                    this.emit('addModel', content, currentFileType, finalPath, false)
+                  }
+                } catch (e) {} // eslint-disable-line no-empty
+              }
+            }))
+          }
 
         } catch (error) {
-          console.error('[DIAGNOSE-ONCHANGE] Critical error during type loading process:', error)
+          console.error('[DIAGNOSE-ONCHANGE] Critical error:', error)
           this.endTypesBatch()
         }
       }, 1500)
@@ -416,67 +457,7 @@ export default class Editor extends Plugin {
   }
 
   async handleTypeScriptDependenciesOf (path, content, readFile, exists) {
-    const isTsFile = path.endsWith('.ts') || path.endsWith('.tsx')
-    const isJsFile = path.endsWith('.js') || path.endsWith('.jsx')
-
-    if (isTsFile || isJsFile) {
-      // extract the import, resolve their content
-      // and add the imported files to Monaco through the `addModel`
-      // so Monaco can provide auto completion
-      const paths = path.split('/')
-      paths.pop()
-      const fromPath = paths.join('/') // get current execution context path
-      const language = isTsFile ? 'typescript' : 'javascript'
-
-      for (const match of content.matchAll(/import\s+.*\s+from\s+(?:"(.*?)"|'(.*?)')/g)) {
-        let pathDep = match[2]
-        if (pathDep.startsWith('./') || pathDep.startsWith('../')) pathDep = resolve(fromPath, pathDep)
-        if (pathDep.startsWith('/')) pathDep = pathDep.substring(1)
-
-        // Try different file extensions if no extension is provided
-        const extensions = isTsFile ? ['.ts', '.tsx', '.d.ts'] : ['.js', '.jsx']
-        let hasExtension = false
-        for (const ext of extensions) {
-          if (pathDep.endsWith(ext)) {
-            hasExtension = true
-            break
-          }
-        }
-
-        if (!hasExtension) {
-          // Try to find the file with different extensions
-          for (const ext of extensions) {
-            const pathWithExt = pathDep + ext
-            try {
-              const pathExists = await exists(pathWithExt)
-              if (pathExists) {
-                pathDep = pathWithExt
-                break
-              }
-            } catch (e) {
-              // continue to next extension
-            }
-          }
-        }
-
-        try {
-          // we can't use the fileManager plugin call directly
-          // because it's itself called in a plugin context, and that causes a timeout in the plugin stack
-          const pathExists = await exists(pathDep)
-          let contentDep = ''
-          if (pathExists) {
-            contentDep = await readFile(pathDep)
-            if (contentDep !== '') {
-              this.emit('addModel', contentDep, language, pathDep, this.readOnlySessions[path])
-            }
-          } else {
-            console.log("The file ", pathDep, " can't be found.")
-          }
-        } catch (e) {
-          console.log(e)
-        }
-      }
-    }
+    await this._onChange(path)
   }
 
   /**
