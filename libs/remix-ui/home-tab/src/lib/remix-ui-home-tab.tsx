@@ -37,6 +37,8 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
     themeQuality: themes.light
   })
 
+  const [isTerminalHidden, setIsTerminalHidden] = useState<boolean>(false)
+
   useEffect(() => {
     plugin.call('theme', 'currentTheme').then((theme) => {
       // update theme quality. To be used for for images
@@ -55,6 +57,17 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
           themeQuality: theme.quality === 'dark' ? themes.dark : themes.light
         }
       })
+    })
+
+    // Listen to terminal panel visibility events
+    plugin.call('terminal', 'isPanelHidden').then((hidden) => {
+      setIsTerminalHidden(hidden)
+    })
+    plugin.on('terminal', 'terminalPanelShown', () => {
+      setIsTerminalHidden(false)
+    })
+    plugin.on('terminal', 'terminalPanelHidden', () => {
+      setIsTerminalHidden(true)
     })
   }, [])
 
@@ -103,7 +116,7 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
               <HomeTabTitle />
               {!(platform === appPlatformTypes.desktop) ? <HomeTabRecentWorkspaces plugin={plugin} /> : <HomeTabRecentWorkspacesElectron plugin={plugin} />}
             </div>
-            <div className="col-lg-4 col-xl-7 col-sm-12" style={{ overflowY: 'auto', maxHeight: '61vh' }}>
+            <div className="col-lg-4 col-xl-7 col-sm-12" style={{ overflowY: 'auto', maxHeight: isTerminalHidden ? '85vh' : '61vh' }}>
               <HomeTabUpdates plugin={plugin} />
               <HomeTabFeaturedPlugins plugin={plugin} />
             </div>

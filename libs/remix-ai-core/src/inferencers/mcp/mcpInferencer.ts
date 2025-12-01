@@ -385,7 +385,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
       const response = await super.answer(enrichedPrompt, enhancedOptions);
       let toolExecutionCount = 0;
 
-      const toolExecutionCallback = async (tool_calls) => {
+      const toolExecutionStatusCallback = async (tool_calls) => {
 
         // avoid circular tooling
         if (toolExecutionCount >= this.MAX_TOOL_EXECUTIONS) {
@@ -503,13 +503,13 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
             // Send empty prompt - the tool results are in toolsMessages
             // Don't add extra prompts as they cause Anthropic to summarize instead of using full tool results
-            if (options.provider === 'openai' || options.provider === 'mistralai') return { streamResponse: await super.answer(prompt, followUpOptions), callback: toolExecutionCallback } as IAIStreamResponse;
-            else return { streamResponse: await super.answer("", followUpOptions), callback: toolExecutionCallback } as IAIStreamResponse;
+            if (options.provider === 'openai' || options.provider === 'mistralai') return { streamResponse: await super.answer(prompt, followUpOptions), callback: toolExecutionStatusCallback } as IAIStreamResponse;
+            else return { streamResponse: await super.answer("", followUpOptions), callback: toolExecutionStatusCallback } as IAIStreamResponse;
           }
         }
       }
 
-      return { streamResponse: response, callback:toolExecutionCallback } as IAIStreamResponse;
+      return { streamResponse: response, callback:toolExecutionStatusCallback } as IAIStreamResponse;
     } catch (error) {
       return { streamResponse: await super.answer(enrichedPrompt, options) };
     }

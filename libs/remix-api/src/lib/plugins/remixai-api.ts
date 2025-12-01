@@ -1,4 +1,4 @@
-import { IModel, IParams, IRemoteModel } from "@remix/remix-ai-core";
+import { IParams, IRemoteModel } from "@remix/remix-ai-core";
 import { StatusEvents } from "@remixproject/plugin-utils";
 
 export interface IRemixAI {
@@ -18,7 +18,7 @@ export interface IRemixAI {
     initializeModelBackend(local: boolean, generalModel?, completionModel?): Promise<void>,
     chatPipe(pipeMessage: string): Promise<void>,
     ProcessChatRequestBuffer(params:IParams): Promise<void>,
-    initialize(model1?:IModel, model2?:IModel, remoteModel?:IRemoteModel, useRemote?:boolean): Promise<void>,
+    initialize(remoteModel?:IRemoteModel, useRemote?:boolean): Promise<void>,
     vulnerability_check(prompt: string, params?): Promise<string | null>,
   }
 }

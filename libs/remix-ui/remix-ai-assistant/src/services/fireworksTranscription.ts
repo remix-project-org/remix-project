@@ -3,10 +3,10 @@
  * Provides speech-to-text transcription using Fireworks API
  */
 
+import { endpointUrls } from "@remix-endpoints-helper"
 export interface TranscriptionOptions {
   model?: string
   language?: string
-  apiKey: string
 }
 
 export interface TranscriptionResult {
@@ -33,11 +33,7 @@ export async function transcribeAudio(
   audioBlob: Blob,
   options: TranscriptionOptions
 ): Promise<TranscriptionResult> {
-  const { model = 'whisper-v3', apiKey } = options
-
-  if (!apiKey) {
-    throw new FireworksTranscriptionError('Fireworks API key is required')
-  }
+  const { model = 'whisper-v3' } = options
 
   // Create form data
   const formData = new FormData()
@@ -45,11 +41,8 @@ export async function transcribeAudio(
   formData.append('model', model)
 
   try {
-    const response = await fetch('https://audio-prod.api.fireworks.ai/v1/audio/transcriptions', {
+    const response = await fetch(endpointUrls.audio + "/transcribe", {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
-      },
       body: formData
     })
 

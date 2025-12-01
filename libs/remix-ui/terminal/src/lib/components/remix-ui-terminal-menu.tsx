@@ -38,7 +38,7 @@ export const RemixUITerminalMenu = (props: RemixUiTerminalProps) => {
     >
       <div className="h-80 mx-3 align-items-center remix_ui_terminal_listenOnNetwork form-check">
         <input
-          className="form-check-input mt-1"
+          className="form-check-input"
           id="listenNetworkCheck"
           onChange={listenOnNetwork}
           type="checkbox"
@@ -46,7 +46,6 @@ export const RemixUITerminalMenu = (props: RemixUiTerminalProps) => {
         />
         <label
           className="form-check-label text-nowrap"
-          style={{ paddingTop: '0.125rem' }}
           htmlFor="listenNetworkCheck"
           data-id="listenNetworkCheckInput"
         >

@@ -16,7 +16,7 @@
   "terminal.welcomeText9": "The following libraries are accessible",
   "terminal.welcomeText10": "Type the library name to see available commands",
   "terminal.text1": "This type of command has been deprecated and is not functioning anymore. Please run remix.help() to list available commands.",
-  "terminal.hideTerminal": "Hide Terminal",
+  "terminal.hideTerminal": "Hide Panel",
   "terminal.showTerminal": "Show Terminal",
   "terminal.clearConsole": "Clear console",
   "terminal.pendingTransactions": "Pending Transactions",

@@ -6,7 +6,7 @@ console.log('preload.ts', new Date().toLocaleTimeString())
 
 /* preload script needs statically defined API for each plugin */
 
-const exposedPLugins = ['fs', 'git', 'xterm', 'isogit', 'electronconfig', 'electronTemplates', 'ripgrep', 'compilerloader', 'appUpdater', 'slither', 'foundry', 'hardhat', 'remixAID', 'circom', 'desktopHost', 'githubAuthHandler']
+const exposedPLugins = ['fs', 'git', 'xterm', 'isogit', 'electronconfig', 'electronTemplates', 'ripgrep', 'compilerloader', 'appUpdater', 'slither', 'foundry', 'hardhat', 'circom', 'desktopHost', 'githubAuthHandler']
 
 let webContentsId: number | undefined
 
@@ -37,6 +37,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
       }
     }
   })
-
 
 })

@@ -10,8 +10,7 @@ export interface RemixPanelProps {
   plugins: Record<string, PluginRecord>,
   pinView?: (profile: PluginRecord['profile'], view: PluginRecord['view']) => void,
   unPinView?: (profile: PluginRecord['profile']) => void,
-  closePlugin?: (profile: PluginRecord['profile']) => void,
-  maximizePlugin?: (profile: PluginRecord['profile']) => void
+  togglePanel?: () => void
 }
 const RemixUIPanelHeader = (props: RemixPanelProps) => {
   const [plugin, setPlugin] = useState<PluginRecord>()
@@ -42,15 +41,15 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
     trackMatomoEvent?.({ category: 'pluginPanel', action: 'pinToLeft', name: plugin.profile.name })
   }
 
-  const closePlugin = async () => {
-    props.closePlugin && props.closePlugin(plugin.profile)
+  const togglePanelHandler = () => {
+    props.togglePanel && props.togglePanel()
   }
 
   const tooltipChild = <i className={`px-1 ms-2 pt-1 pb-2 ${!toggleExpander ? 'fas fa-angle-right' : 'fas fa-angle-down bg-light'}`} aria-hidden="true"></i>
 
   return (
     <header className="d-flex flex-column">
-      <div className="swapitHeader px-3 pt-2 pb-0 d-flex flex-row">
+      <div className="swapitHeader ps-3 pe-2 pt-2 pb-0 d-flex flex-row">
         <h6 className="pt-0 mb-1" data-id="sidePanelSwapitTitle">
           {plugin?.profile?.name && <FormattedMessage id={`${plugin.profile.name}.displayName`} defaultMessage={plugin?.profile?.displayName || plugin?.profile?.name} />}
         </h6>
@@ -82,22 +81,22 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
                     <>
                       <div className='d-flex' data-id="movePluginToLeft" data-pinnedplugin={`movePluginToLeft-${plugin.profile.name}`} onClick={unPinPlugin}>
                         <CustomTooltip placement="auto-end" tooltipId="unPinnedMsg" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="panel.unPinnedMsg" />}>
-                          <i aria-hidden="true" className="mt-1 px-2 fak fa-fa-dock-l"></i>
+                          <div className="codicon codicon-layout-sidebar-left-dock ms-2 fs-6 fw-bold lh-1" style={{ marginTop: '2px' }}></div>
                         </CustomTooltip>
                       </div>
-                      <CustomTooltip placement="bottom-end" tooltipText="Hide pinned Plugin">
-                        <i
-                          className="fa-solid fa-compress ms-2 fs-5"
-                          onClick={closePlugin}
-                          data-id="closePinnedPlugin"
-                        ></i>
+                      <CustomTooltip placement="bottom-end" tooltipText="Hide Panel">
+                        <div
+                          className="codicon codicon-close ms-2 fs-5 fw-bold"
+                          onClick={togglePanelHandler}
+                          data-id="hideRightSidePanel"
+                        ></div>
                       </CustomTooltip>
                     </>
                   </RenderIf>
                   <RenderIfNot condition={plugin.pinned}>
                     <div className='d-flex' data-id="movePluginToRight" data-pinnedplugin={`movePluginToRight-${plugin.profile.name}`} onClick={pinPlugin}>
                       <CustomTooltip placement="auto-end" tooltipId="pinnedMsg" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="panel.pinnedMsg" />}>
-                        <i aria-hidden="true" className="mt-1 px-1 ps-2 fak fa-fa-dock-r"></i>
+                        <div className="codicon codicon-layout-sidebar-right-dock ms-2 fs-6 fw-bold lh-1" style={{ marginTop: '2px' }}></div>
                       </CustomTooltip>
                     </div>
                   </RenderIfNot>

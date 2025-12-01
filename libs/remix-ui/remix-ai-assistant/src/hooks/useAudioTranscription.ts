@@ -7,7 +7,6 @@ import { AudioRecorder } from '../utils/audioRecorder'
 import { transcribeAudio, FireworksTranscriptionError } from '../services/fireworksTranscription'
 
 export interface UseAudioTranscriptionOptions {
-  apiKey: string
   model?: string
   onTranscriptionComplete?: (text: string) => void
   onError?: (error: Error) => void
@@ -47,7 +46,6 @@ export function useAudioTranscription(
           try {
             // Transcribe the audio
             const result = await transcribeAudio(audioBlob, {
-              apiKey: options.apiKey,
               model: options.model
             })
 

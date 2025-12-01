@@ -23,17 +23,20 @@ export const RemixUITerminalBar = (props: RemixUiTerminalProps) => {
   return (<>
     <div className="remix_ui_terminal_bar d-flex">
       <div
-        className="remix_ui_terminal_menu justify-content-between d-flex w-100 align-items-center position-relative border-top border-dark bg-light"
+        className="remix_ui_terminal_menu d-flex w-100 align-items-center position-relative border-top border-dark bg-light"
         ref={terminalMenu}
         data-id="terminalToggleMenu"
       >
-        <RemixUITerminalMenuToggle {...props} />
         {platform === appPlatformTypes.desktop ?
-          <div className='d-flex flex-row w-100 justify-content-between '>
+          <div className='d-flex flex-row w-100 justify-content-end align-items-center'>
             <RemixUITerminalMenuButtons {...props} />
             {xtermState.showOutput? <RemixUITerminalMenu {...props} />: <RemixUIXtermMenu {...props} />}
+            <RemixUITerminalMenuToggle {...props} />
           </div> :
-          <RemixUITerminalMenu {...props} />
+          <div className='d-flex flex-row w-100 justify-content-end align-items-center'>
+            <RemixUITerminalMenu {...props} />
+            <RemixUITerminalMenuToggle {...props} />
+          </div>
         }
       </div>
     </div></>

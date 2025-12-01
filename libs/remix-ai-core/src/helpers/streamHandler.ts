@@ -68,6 +68,7 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
   // Handle both IAIStreamResponse format and plain response for backward compatibility
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const tool_callback = aiResponse?.callback
+  const toolExecutionStatusCallback = aiResponse?.toolExecutionStatusCallback
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
@@ -143,7 +144,13 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
 
           // Check if this is the finish reason for tool calls
           if (json.choices?.[0]?.finish_reason === "tool_calls" && tool_callback && toolCalls.size > 0) {
+            toolExecutionStatusCallback?.(true);
             const response = await tool_callback(Array.from(toolCalls.values()))
+            toolExecutionStatusCallback?.(false);
+            // Keep the callback attached for recursive calls
+            if (response && typeof response === 'object') {
+              response.toolExecutionStatusCallback = toolExecutionStatusCallback;
+            }
             cb("\n\n");
             HandleOpenAIResponse(response, cb, done_cb)
             return;
@@ -191,6 +198,7 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
   // Handle both IAIStreamResponse format and plain response for backward compatibility
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const tool_callback = aiResponse?.callback
+  const toolExecutionStatusCallback = aiResponse?.toolExecutionStatusCallback
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
@@ -234,7 +242,13 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
           const json = JSON.parse(jsonStr);
           threadId = json?.id || threadId;
           if (json.choices[0].delta.tool_calls && tool_callback){
+            toolExecutionStatusCallback?.(true);
             const response = await tool_callback(json.choices[0].delta.tool_calls)
+            // Keep the callback attached for recursive calls
+            if (response && typeof response === 'object') {
+              response.toolExecutionStatusCallback = toolExecutionStatusCallback;
+            }
+            toolExecutionStatusCallback?.(false);
             cb("\n\n");
             HandleMistralAIResponse(response, cb, done_cb)
           } else if (json.choices[0].delta.content){
@@ -259,6 +273,7 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
   // Handle both IAIStreamResponse format and plain response for backward compatibility
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const tool_callback = aiResponse?.callback
+  const toolExecutionStatusCallback = aiResponse?.toolExecutionStatusCallback
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
@@ -334,7 +349,13 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
             }));
 
             if (toolCalls.length > 0) {
+              toolExecutionStatusCallback?.(true);
               const response = await tool_callback(toolCalls)
+              toolExecutionStatusCallback?.(false);
+              // Keep the callback attached for recursive calls
+              if (response && typeof response === 'object') {
+                response.toolExecutionStatusCallback = toolExecutionStatusCallback;
+              }
               cb("\n\n");
               HandleAnthropicResponse(response, cb, done_cb)
               return;
@@ -361,6 +382,7 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
   // Handle both IAIStreamResponse format and plain response for backward compatibility
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const tool_callback = aiResponse?.callback
+  const toolExecutionStatusCallback = aiResponse?.toolExecutionStatusCallback
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
   let resultText = "";
@@ -395,7 +417,13 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
 
           // Handle tool calls in Ollama format
           if (parsed.message?.tool_calls && tool_callback) {
+            toolExecutionStatusCallback?.(true);
             const response = await tool_callback(parsed.message.tool_calls)
+            toolExecutionStatusCallback?.(false);
+            // Keep the callback attached for recursive calls
+            if (response && typeof response === 'object') {
+              response.toolExecutionStatusCallback = toolExecutionStatusCallback;
+            }
             cb("\n\n");
             HandleOllamaResponse(response, cb, done_cb, reasoning_cb)
             return;

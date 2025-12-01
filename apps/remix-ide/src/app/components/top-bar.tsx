@@ -56,12 +56,6 @@ export class Topbar extends Plugin {
   }
 
   onActivation(): void {
-    this.on('pinnedPanel', 'pluginClosed', (profile) => {
-      this.event.emit('pluginIsClosed', profile)
-    })
-    this.on('pinnedPanel', 'pluginMaximized', (profile) => {
-      this.event.emit('pluginIsMaximized', profile)
-    })
     this.renderComponent()
   }
 

@@ -14,6 +14,7 @@ type EndpointUrls = {
     vyper2: string;
     solidityScanWebSocket: string;
     gitHubLoginProxy: string;
+    audio;
 };
 
 const defaultUrls: EndpointUrls = {
@@ -32,6 +33,7 @@ const defaultUrls: EndpointUrls = {
   completion: 'https://completion.api.remix.live',
   solidityScanWebSocket: 'wss://solidityscan.api.remix.live',
   gitHubLoginProxy: 'https://github-login-proxy.api.remix.live',
+  audio: 'https://audio.api.remix.live',
 };
 
 const endpointPathMap: Record<keyof EndpointUrls, string> = {
@@ -50,6 +52,7 @@ const endpointPathMap: Record<keyof EndpointUrls, string> = {
   vyper2: 'vyper2',
   solidityScanWebSocket: '',
   gitHubLoginProxy: 'github-login-proxy',
+  audio: 'audio',
 };
 
 const prefix = process.env.NX_ENDPOINTS_URL;

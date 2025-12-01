@@ -675,3 +675,23 @@ mark,
 .aiMarkup :where(h3) { margin-top: .85rem; }
 
 .aiMarkup hr { margin: .95rem 0; }
+
+/* Tool execution indicator */
+.tool-execution-indicator {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: rgba(88, 166, 255, 0.1);
+  border-left: 3px solid rgba(88, 166, 255, 0.5);
+}
+
+.tool-execution-indicator i {
+  color: #58a6ff;
+  font-size: 1rem;
+}
+
+.tool-execution-indicator span {
+  color: inherit;
+}

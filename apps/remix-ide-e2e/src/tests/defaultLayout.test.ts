@@ -48,17 +48,14 @@ module.exports = {
       .assert.containsText('h6[data-id="sidePanelSwapitTitle"]', 'FILE EXPLORER')
   },
 
-  'Toggles Terminal': function (browser: NightwatchBrowser) {
+  'Hides Terminal': function (browser: NightwatchBrowser) {
     browser.waitForElementVisible('div[data-id="terminalContainer"]')
       .assert.elementPresent('div[data-id="terminalCli"]')
       .assert.elementPresent('div[data-id="terminalContainer"]')
       .waitForElementVisible('div[data-id="terminalContainer"]')
       .waitForElementVisible('div[data-id="terminalCli"]')
-      .click('i[data-id="terminalToggleIcon"]')
-      .checkElementStyle('div[data-id="terminalToggleMenu"]', 'height', '35px')
-      .assert.not.elementPresent('div[data-id="terminalCli"]')
-      .click('i[data-id="terminalToggleIcon"]')
-      .waitForElementVisible('div[data-id="terminalCli"]')
+      .click('i[data-id="hideBottomPanel"]')
+      .waitForElementNotVisible('div[data-id="terminalCli"]')
   },
 
   'Switch Tabs using tabs icon': function (browser: NightwatchBrowser) {

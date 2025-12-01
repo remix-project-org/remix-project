@@ -103,7 +103,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme }: Icon
                 className={`remixui_icon_ai ms-1  pt-1`}
                 onClick={() => {
                   if (iconRecord.pinned) {
-                    verticalIconPlugin.call('pinnedPanel', 'highlight')
+                    verticalIconPlugin.call('rightSidePanel', 'highlight')
                   } else {
                     (verticalIconPlugin as any).toggle(name)
                   }
@@ -131,7 +131,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme }: Icon
                 className={`remixui_icon m-0  pt-1`}
                 onClick={() => {
                   if (iconRecord.pinned) {
-                    verticalIconPlugin.call('pinnedPanel', 'highlight')
+                    verticalIconPlugin.call('rightSidePanel', 'highlight')
                   } else {
                     (verticalIconPlugin as any).toggle(name)
                   }

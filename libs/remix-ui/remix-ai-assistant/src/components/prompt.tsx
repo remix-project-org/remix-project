@@ -3,7 +3,6 @@ import React, { MutableRefObject, Ref, useContext, useEffect, useRef, useState }
 import GroupListMenu from "./contextOptMenu"
 import { AiContextType, groupListType } from '../types/componentTypes'
 import { AiAssistantType } from '../types/componentTypes'
-import { CustomTooltip } from "@remix-ui/helper"
 import { AIEvent, MatomoEvent } from '@remix-api';
 import { TrackingContext } from '@remix-ide/tracking'
 

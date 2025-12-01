@@ -10,11 +10,10 @@ import { ISettings } from "./plugins/settings-api"
 import { IExtendedTerminalApi } from "./plugins/terminal-api"
 import { IFilePanelApi } from "./plugins/filePanel-api"
 import { ISidePanelApi } from "./plugins/sidePanel-api"
-import { IPinnedPanelApi } from "./plugins/pinned-panel-api"
+import { IRightSidePanelApi } from "./plugins/rightSidePanel-api"
 import { ILayoutApi } from "./plugins/layout-api"
 import { IMatomoApi } from "./plugins/matomo-api"
 import { IRemixAI } from "./plugins/remixai-api"
-import { IRemixAID } from "./plugins/remixAIDesktop-api"
 import { IMenuIconsApi } from "./plugins/menuicons-api"
 import { IDgitPlugin } from "./plugins/dgitplugin-api"
 import { IPopupPanelAPI } from "./plugins/popuppanel-api"
@@ -37,12 +36,11 @@ export interface ICustomRemixApi extends IRemixApi {
   fs: IFs
   filePanel: IFilePanelApi
   sidePanel: ISidePanelApi
-  pinnedPanel: IPinnedPanelApi
+  rightSidePanel: IRightSidePanelApi
   layout: ILayoutApi
   matomo: IMatomoApi
   menuicons: IMenuIconsApi
   remixAI: IRemixAI,
-  remixAID: IRemixAID
   desktopClient: IDesktopClient
   githubAuthHandler: IGitHubAuthHandlerApi
 }

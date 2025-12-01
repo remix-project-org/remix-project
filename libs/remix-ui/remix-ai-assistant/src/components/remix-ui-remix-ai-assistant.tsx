@@ -88,7 +88,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     error: transcriptionError,
     toggleRecording
   } = useAudioTranscription({
-    apiKey: 'fw_3ZZeKZ67JHvZKahmHUvo8XTR',
     model: 'whisper-v3',
     onTranscriptionComplete: async (text) => {
       if (sendPromptRef.current) {
@@ -427,6 +426,19 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           ...prev,
           { id: assistantId, role: 'assistant', content: '', timestamp: Date.now(), sentiment: 'none' }
         ])
+
+        // Add tool execution callback to response object
+        const toolExecutionStatusCallback = (isExecuting: boolean) => {
+          setMessages(prev =>
+            prev.map(m => (m.id === assistantId ? { ...m, isExecutingTools: isExecuting } : m))
+          )
+        }
+
+        // Attach the callback to the response if it's an object
+        if (response && typeof response === 'object') {
+          response.toolExecutionStatusCallback = toolExecutionStatusCallback
+        }
+
         switch (assistantChoice) {
         case 'openai':
           HandleOpenAIResponse(
@@ -803,7 +815,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [])
 
   const maximizePanel = async () => {
-    await props.plugin.call('layout', 'maximisePinnedPanel')
+    await props.plugin.call('layout', 'maximiseRightSidePanel')
     setIsMaximized(true) // ensured that expansion of the panel is stateful
   }
 

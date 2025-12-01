@@ -187,10 +187,10 @@ export const DebuggerApiMixin = (Base) => class extends Base {
   showMessage (title: string, message: string) {}
 
   async onStartDebugging (debuggerBackend: any) {
-    const pinnedPlugin = await this.call('pinnedPanel', 'currentFocus')
+    const pinnedPlugin = await this.call('rightSidePanel', 'currentFocus')
 
     if (pinnedPlugin === 'debugger') {
-      this.call('layout', 'maximisePinnedPanel')
+      this.call('layout', 'maximiseRightSidePanel')
     } else {
       this.call('layout', 'maximiseSidePanel')
     }
@@ -199,10 +199,10 @@ export const DebuggerApiMixin = (Base) => class extends Base {
   }
 
   async onStopDebugging () {
-    const pinnedPlugin = await this.call('pinnedPanel', 'currentFocus')
+    const pinnedPlugin = await this.call('rightSidePanel', 'currentFocus')
 
     if (pinnedPlugin === 'debugger') {
-      this.call('layout', 'resetPinnedPanel')
+      this.call('layout', 'resetRightSidePanel')
     } else {
       this.call('layout', 'resetSidePanel')
     }

@@ -6,7 +6,7 @@ import { QueryParams } from '@remix-project/remix-lib'
 const profile: Profile = {
   name: 'layout',
   description: 'layout',
-  methods: ['minimize', 'minimizeSidePanel', 'maximiseSidePanel', 'resetSidePanel', 'maximizeTerminal', 'maximisePinnedPanel', 'resetPinnedPanel']
+  methods: ['minimize', 'minimizeSidePanel', 'maximiseSidePanel', 'resetSidePanel', 'maximizeTerminal', 'maximiseRightSidePanel', 'resetRightSidePanel']
 }
 
 interface panelState {
@@ -100,18 +100,33 @@ export class Layout extends Plugin {
       }
     })
 
-    this.on('pinnedPanel', 'pinnedPlugin', async (name) => {
-      const current = await this.call('pinnedPanel', 'currentFocus')
+    this.on('rightSidePanel', 'pinnedPlugin', async (name) => {
+      const current = await this.call('rightSidePanel', 'currentFocus')
       if (this.enhanced[current]) {
-        this.event.emit('enhancepinnedpanel')
+        this.event.emit('enhanceRightSidePanel')
       }
 
       if (this.maximized[current]) {
-        this.event.emit('maximisepinnedpanel')
+        this.event.emit('maximiseRightSidePanel')
       }
 
       if (!this.enhanced[current] && !this.maximized[current]) {
-        this.event.emit('resetpinnedpanel')
+        this.event.emit('resetRightSidePanel')
+      }
+    })
+
+    this.on('rightSidePanel', 'rightSidePanelShown', async () => {
+      const current = await this.call('rightSidePanel', 'currentFocus')
+      if (this.enhanced[current]) {
+        this.event.emit('enhanceRightSidePanel')
+      }
+
+      if (this.maximized[current]) {
+        this.event.emit('maximiseRightSidePanel')
+      }
+
+      if (!this.enhanced[current] && !this.maximized[current]) {
+        this.event.emit('resetRightSidePanel')
       }
     })
 
@@ -155,10 +170,10 @@ export class Layout extends Plugin {
     this.event.emit('maximisesidepanel')
   }
 
-  async maximisePinnedPanel () {
-    const current = await this.call('pinnedPanel', 'currentFocus')
+  async maximiseRightSidePanel () {
+    const current = await this.call('rightSidePanel', 'currentFocus')
     this.maximized[current] = true
-    this.event.emit('maximisepinnedpanel')
+    this.event.emit('maximiseRightSidePanel')
   }
 
   async maximizeTerminal() {
@@ -173,9 +188,9 @@ export class Layout extends Plugin {
     this.event.emit('resetsidepanel')
   }
 
-  async resetPinnedPanel () {
-    const current = await this.call('pinnedPanel', 'currentFocus')
+  async resetRightSidePanel () {
+    const current = await this.call('rightSidePanel', 'currentFocus')
     this.enhanced[current] = false
-    this.event.emit('resetpinnedpanel')
+    this.event.emit('resetRightSidePanel')
   }
 }

@@ -8837,6 +8837,11 @@
   dependencies:
     resolve "^1.10.0"
 
+"@vscode/codicons@^0.0.43":
+  version "0.0.43"
+  resolved "https://registry.yarnpkg.com/@vscode/codicons/-/codicons-0.0.43.tgz#14a3bc218544b381c54917697b802d6d89ae083d"
+  integrity sha512-8sf8WOBoZkyUi8ogCm5ycHJJGhwOEG3E9b64+JIx+m6bCExdkc30VwCwr94cXUU1opmRD0CTCWLcN46I8WLJIg==
+
 "@walletconnect/core@2.20.2":
   version "2.20.2"
   resolved "https://registry.yarnpkg.com/@walletconnect/core/-/core-2.20.2.tgz#525cdea073d75d49571350945bc8165d9fd88ab5"

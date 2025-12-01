@@ -11,7 +11,6 @@ import { RipgrepPlugin } from './plugins/ripgrepPlugin';
 import { CompilerLoaderPlugin } from './plugins/compilerLoader';
 import { SlitherPlugin } from './plugins/slitherPlugin';
 import { AppUpdaterPlugin } from './plugins/appUpdater';
-import { RemixAIDesktopPlugin } from './plugins/remixAIDektop';
 import { FoundryPlugin } from './plugins/foundryPlugin';
 import { HardhatPlugin } from './plugins/hardhatPlugin';
 import { CircomElectronPlugin } from './plugins/circomElectronBasePlugin';
@@ -32,7 +31,6 @@ const slitherPlugin = new SlitherPlugin()
 const appUpdaterPlugin = new AppUpdaterPlugin()
 const foundryPlugin = new FoundryPlugin()
 const hardhatPlugin = new HardhatPlugin()
-const remixAIDesktopPlugin = new RemixAIDesktopPlugin()
 const circomPlugin = new CircomElectronPlugin()
 const desktopHostPlugin = new DesktopHostPlugin()
 export const githubAuthHandlerPlugin  = new GitHubAuthHandler()
@@ -49,7 +47,6 @@ engine.register(slitherPlugin)
 engine.register(foundryPlugin)
 engine.register(appUpdaterPlugin)
 engine.register(hardhatPlugin)
-engine.register(remixAIDesktopPlugin)
 engine.register(circomPlugin)
 engine.register(desktopHostPlugin)
 engine.register(githubAuthHandlerPlugin)

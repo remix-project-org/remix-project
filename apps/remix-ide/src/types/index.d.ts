@@ -134,7 +134,7 @@ export type PluginNames = 'manager' |
   'remixAID' |
   'solhint' |
   'dgit' |
-  'pinnedPanel' |
+  'rightSidePanel' |
   'pluginStateLogger' |
   'environmentExplorer' |
   'templateSelection' |

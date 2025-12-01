@@ -5,9 +5,9 @@ export interface ILayoutApi {
     events:{
     } & StatusEvents
     methods: {
-        maximisePinnedPanel: () => void
+        maximiseRightSidePanel: () => void
         maximiseSidePanel: () => void
-        resetPinnedPanel: () => void
+        resetRightSidePanel: () => void
         resetSidePanel: () => void
     }
 }

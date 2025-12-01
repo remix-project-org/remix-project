@@ -32,13 +32,6 @@ export default class TabProxy extends Plugin {
       this.renderComponent()
     })
 
-    this.on('pinnedPanel', 'pluginClosed', (profile) => {
-      this.event.emit('pluginIsClosed', profile)
-    })
-    this.on('pinnedPanel', 'pluginMaximized', (profile) => {
-      this.event.emit('pluginIsMaximized', profile)
-    })
-
     this.on('fileManager', 'filesAllClosed', () => {
       this.call('manager', 'activatePlugin', 'home')
       this.focus('home')

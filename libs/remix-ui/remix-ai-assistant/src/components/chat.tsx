@@ -116,6 +116,12 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                     )}
                   </div>
                 </div>
+                {msg.role === 'assistant' && msg.isExecutingTools && (
+                  <div className="tool-execution-indicator mt-2 text-muted">
+                    <i className="fa fa-spinner fa-spin me-2"></i>
+                    <span>Executing tools...</span>
+                  </div>
+                )}
 
                 {/* Feedback buttons */}
                 {msg.role === 'assistant' && (

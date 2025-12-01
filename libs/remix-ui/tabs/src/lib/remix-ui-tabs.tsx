@@ -90,8 +90,6 @@ export const TabsUI = (props: TabsUIProps) => {
   const compileSeq = useRef(0)
   const compileWatchdog = useRef<number | null>(null)
   const settledSeqRef = useRef<number>(0)
-  const [maximized, setMaximized] = useState<boolean>(false)
-  const [closedPlugin, setClosedPlugin] = useState<any>(null)
 
   const [compileState, setCompileState] = useState<'idle' | 'compiling' | 'compiled'>('idle')
 
@@ -105,16 +103,7 @@ export const TabsUI = (props: TabsUIProps) => {
   }, [tabsState.selectedIndex])
 
   useEffect(() => {
-    props.plugin.event.on('pluginIsClosed', (profile) => {
-      setClosedPlugin(profile)
-      if (maximized) {
-        setMaximized(false)
-      }
-    })
-    props.plugin.event.on('pluginIsMaximized', () => {
-      setClosedPlugin(null)
-      setMaximized(true)
-    })
+    // Removed pluginIsClosed listener as the event is no longer emitted
   }, [])
 
   // Toggle the copilot in editor when clicked to update in status bar

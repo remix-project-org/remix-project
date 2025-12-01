@@ -34,10 +34,9 @@ if (
 // get system home dir
 const homeDir = app.getPath('userData')
 
-
 const windowSet = new Set<BrowserWindow>([]);
 export const createWindow = async (dir?: string): Promise<void> => {
-  await app.whenReady(); 
+  await app.whenReady();
   // reize factor
   let resizeFactor = 0.8
   // if the window is too small the size is 100%
@@ -61,7 +60,7 @@ export const createWindow = async (dir?: string): Promise<void> => {
       zoomFactor: (isE2E ? 0.5 : 1.0),
     },
   });
-  
+
   // Ensure zoom is applied after content loads (some pages reset it on load)
   if (isE2E) {
     const applyZoom = () => {
@@ -73,8 +72,7 @@ export const createWindow = async (dir?: string): Promise<void> => {
     mainWindow.webContents.on('did-navigate-in-page', applyZoom);
     mainWindow.webContents.on('did-navigate', applyZoom);
   }
-  
-  
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url); // Open URL in user's browser.
     return { action: "deny" }; // Prevent the app from opening the URL.
@@ -132,7 +130,7 @@ app.on('activate', () => {
 });
 
 if (!isE2E) {
-  
+
   app.setAsDefaultProtocolClient('remix')
   // windows only
   const gotTheLock = app.requestSingleInstanceLock();
@@ -158,7 +156,7 @@ if (!isE2E) {
       }
     });
   }
-  
+
 }
 
 function handleRemixUrl(url: string) {
@@ -178,18 +176,18 @@ function handleRemixUrl(url: string) {
     }
 
     switch (fullPath) {
-      case '/auth/callback': {
-        const code = searchParams.get('code');
-        if (code) {
-          githubAuthHandlerPlugin?.exchangeCodeForToken(code);
-          console.log('Auth exchange', code);
-        }
-        break;
+    case '/auth/callback': {
+      const code = searchParams.get('code');
+      if (code) {
+        githubAuthHandlerPlugin?.exchangeCodeForToken(code);
+        console.log('Auth exchange', code);
       }
+      break;
+    }
 
-      default:
-        console.warn('Unknown remix:// URL path:', fullPath);
-        break;
+    default:
+      console.warn('Unknown remix:// URL path:', fullPath);
+      break;
     }
   } catch (err) {
     console.error('Failed to handle remix:// URL:', err);
@@ -245,8 +243,6 @@ if (!isE2E) {
   });
 }
 
-
-
 const showAbout = () => {
   void dialog.showMessageBox({
     title: `About Remix`,
@@ -274,20 +270,19 @@ import main from './menus/main';
 import { trackEvent } from './utils/matamo';
 import { githubAuthHandlerPlugin } from './engine';
 
-
 const commandKeys: Record<string, string> = {
   'window:new': 'CmdOrCtrl+N',
   'folder:open': 'CmdOrCtrl+O',
 };
 
 const menu = [...(process.platform === 'darwin' ? [darwinMenu(commandKeys, execCommand, showAbout)] : []),
-FileMenu(commandKeys, execCommand),
-GitMenu(commandKeys, execCommand),
-EditMenu(commandKeys, execCommand),
-ViewMenu(commandKeys, execCommand),
-TerminalMenu(commandKeys, execCommand),
-WindowMenu(commandKeys, execCommand, []),
-HelpMenu(commandKeys, execCommand),
+  FileMenu(commandKeys, execCommand),
+  GitMenu(commandKeys, execCommand),
+  EditMenu(commandKeys, execCommand),
+  ViewMenu(commandKeys, execCommand),
+  TerminalMenu(commandKeys, execCommand),
+  WindowMenu(commandKeys, execCommand, []),
+  HelpMenu(commandKeys, execCommand),
 ]
 if (!isE2E || isE2ELocal)
   Menu.setApplicationMenu(Menu.buildFromTemplate(menu))
