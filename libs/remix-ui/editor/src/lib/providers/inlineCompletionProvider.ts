@@ -208,8 +208,8 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
     const parsedData = data.trimStart()
     const item: monacoTypes.languages.InlineCompletion = {
       insertText: parsedData,
-      range: new monacoTypes.Range(position.lineNumber, position.column, position.lineNumber, position.column)
-    };
+      range: new this.monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
+    }
 
     this.currentCompletion.text = parsedData
     this.currentCompletion.item = item
@@ -234,7 +234,7 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
       this.task = 'code_insertion'
       const item: monacoTypes.languages.InlineCompletion = {
         insertText: generatedText,
-        range: new monacoTypes.Range(position.lineNumber, position.column, position.lineNumber, position.column)
+        range: new this.monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
       };
 
       this.currentCompletion.text = generatedText
@@ -268,12 +268,10 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
       }
       clean = clean.replace(word, '')
       clean = this.process_completion(clean, word_after)
-
       const item: monacoTypes.languages.InlineCompletion = {
         insertText: clean,
-        range: new monacoTypes.Range(position.lineNumber, position.column, position.lineNumber, position.column)
+        range: new this.monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
       };
-
       this.currentCompletion.text = clean
       this.currentCompletion.item = item
       return {

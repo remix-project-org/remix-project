@@ -203,6 +203,7 @@ export const EditorUI = (props: EditorUIProps) => {
   const currentFileRef = useRef('')
   const currentUrlRef = useRef('')
   const currentDecoratorListCollectionRef = useRef({})
+  const inlineCompletionProviderRef = useRef<RemixInLineCompletionProvider|null>(null)
 
   // const currentDecorations = useRef({ sourceAnnotationsPerFile: {}, markerPerFile: {} }) // decorations that are currently in use by the editor
   // const registeredDecorations = useRef({}) // registered decorations
@@ -473,8 +474,6 @@ export const EditorUI = (props: EditorUIProps) => {
       monacoRef.current.editor.setModelLanguage(file.model, 'remix-noir')
     }
   }, [props.currentFile, props.isDiff])
-
-  const inlineCompletionProvider = new RemixInLineCompletionProvider(props, monacoRef.current, trackMatomoEvent)
 
   const convertToMonacoDecoration = (decoration: lineText | sourceAnnotation | sourceMarker, typeOfDecoration: string) => {
     if (typeOfDecoration === 'sourceAnnotationsPerFile') {
@@ -771,6 +770,18 @@ export const EditorUI = (props: EditorUIProps) => {
       }
     })
 
+    editor.onDidChangeModelContent((e) => {
+      if (inlineCompletionProviderRef.current && inlineCompletionProviderRef.current.currentCompletion) {
+        const changes = e.changes;
+        // Check if the change matches the current completion
+        if (changes.some(change => change.text === inlineCompletionProviderRef.current.currentCompletion.item.insertText)) {
+          inlineCompletionProviderRef.current.currentCompletion.onAccepted()
+          inlineCompletionProviderRef.current.currentCompletion.accepted = true
+          trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'Copilot_Completion_Accepted', isClick: true })
+        }
+      }
+    });
+
     editor.onDidPaste(async (e) => {
       const shouldShowWarning = localStorage.getItem(HIDE_PASTE_WARNING_KEY) !== 'true';
       // Only show the modal if the user hasn't opted out
@@ -855,19 +866,7 @@ export const EditorUI = (props: EditorUIProps) => {
         props.plugin.call('notification', 'modal', modalContent)
         trackMatomoEvent({ category: 'editor', action: 'onDidPaste', name: 'more_than_10_lines', isClick: false })
       }
-    })
-
-    editor.onDidChangeModelContent((e) => {
-      if (inlineCompletionProvider.currentCompletion) {
-        const changes = e.changes;
-        // Check if the change matches the current completion
-        if (changes.some(change => change.text === inlineCompletionProvider.currentCompletion.item.insertText)) {
-          inlineCompletionProvider.currentCompletion.onAccepted()
-          inlineCompletionProvider.currentCompletion.accepted = true
-          trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'Copilot_Completion_Accepted', isClick: true })
-        }
-      }
-    });
+    })    
 
     // add context menu items
     const zoominAction = {
@@ -1186,7 +1185,11 @@ export const EditorUI = (props: EditorUIProps) => {
   }
 
   function handleEditorWillMount(monaco) {
+
     monacoRef.current = monaco
+
+    inlineCompletionProviderRef.current = new RemixInLineCompletionProvider(props, monacoRef.current, trackMatomoEvent)
+
     // Register a new language
     monacoRef.current.languages.register({ id: 'remix-solidity' })
     monacoRef.current.languages.register({ id: 'remix-cairo' })
@@ -1293,7 +1296,7 @@ export const EditorUI = (props: EditorUIProps) => {
 
     monacoRef.current.languages.setMonarchTokensProvider('remix-cairo', cairoTokensProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-cairo', cairoLanguageConfig as any)
-    monacoRef.current.languages.registerInlineCompletionsProvider('remix-cairo', inlineCompletionProvider)
+    monacoRef.current.languages.registerInlineCompletionsProvider('remix-cairo', inlineCompletionProviderRef.current)
 
     monacoRef.current.languages.setMonarchTokensProvider('remix-zokrates', zokratesTokensProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-zokrates', zokratesLanguageConfig as any)
@@ -1303,21 +1306,21 @@ export const EditorUI = (props: EditorUIProps) => {
 
     monacoRef.current.languages.setMonarchTokensProvider('remix-circom', circomTokensProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-circom', circomLanguageConfig(monacoRef.current) as any)
-    monacoRef.current.languages.registerInlineCompletionsProvider('remix-circom', inlineCompletionProvider)
+    monacoRef.current.languages.registerInlineCompletionsProvider('remix-circom', inlineCompletionProviderRef.current)
 
     monacoRef.current.languages.setMonarchTokensProvider('remix-toml', tomlTokenProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-toml', tomlLanguageConfig as any)
 
     monacoRef.current.languages.setMonarchTokensProvider('remix-noir', noirTokensProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-noir', noirLanguageConfig as any)
-    monacoRef.current.languages.registerInlineCompletionsProvider('remix-noir', inlineCompletionProvider)
+    monacoRef.current.languages.registerInlineCompletionsProvider('remix-noir', inlineCompletionProviderRef.current)
 
     monacoRef.current.languages.registerDefinitionProvider('remix-solidity', new RemixDefinitionProvider(props, monaco))
     monacoRef.current.languages.registerDocumentHighlightProvider('remix-solidity', new RemixHighLightProvider(props, monaco))
     monacoRef.current.languages.registerReferenceProvider('remix-solidity', new RemixReferenceProvider(props, monaco))
     monacoRef.current.languages.registerHoverProvider('remix-solidity', new RemixHoverProvider(props, monaco))
     monacoRef.current.languages.registerCompletionItemProvider('remix-solidity', new RemixCompletionProvider(props, monaco))
-    monacoRef.current.languages.registerInlineCompletionsProvider('remix-solidity', inlineCompletionProvider)
+    monacoRef.current.languages.registerInlineCompletionsProvider('remix-solidity', inlineCompletionProviderRef.current)
     monaco.languages.registerCodeActionProvider('remix-solidity', new RemixCodeActionProvider(props, monaco))
 
     loadTypes(monacoRef.current)
