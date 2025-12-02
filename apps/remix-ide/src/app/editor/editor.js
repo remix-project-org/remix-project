@@ -306,7 +306,6 @@ export default class Editor extends Plugin {
   // The conductor, called on every editor content change to parse 'import' statements and trigger the type loading process.
   async _onChange (file) {
     this.triggerEvent('didChangeFile', [file])
-    
     if (this.monaco && (file.endsWith('.ts') || file.endsWith('.js') || file.endsWith('.tsx') || file.endsWith('.jsx'))) {
       clearTimeout(this.typeLoaderDebounce)
       
@@ -319,97 +318,54 @@ export default class Editor extends Plugin {
         try {
           const IMPORT_ANY_RE = /(?:import|export)\s+[^'"]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g
           
-          const allImports = [...code.matchAll(IMPORT_ANY_RE)]
+          const rawImports = [...code.matchAll(IMPORT_ANY_RE)]
             .map(m => (m[1] || m[2] || m[3] || '').trim())
-            .filter(p => p)
+            .filter(p => p && !p.startsWith('.') && !p.startsWith('/') && !p.startsWith('file://'))
 
-          const externalImports = allImports.filter(p => !p.startsWith('.') && !p.startsWith('/') && !p.startsWith('file://'))
-          const localImports = allImports.filter(p => p.startsWith('.') || p.startsWith('/'))
-
-          const uniqueExternalImports = [...new Set(externalImports)]
+          const uniqueImports = [...new Set(rawImports)]
           const getBasePackage = (p) => p.startsWith('@') ? p.split('/').slice(0, 2).join('/') : p.split('/')[0]
           
-          const newBasePackages = [...new Set(uniqueExternalImports.map(getBasePackage))]
+          const newBasePackages = [...new Set(uniqueImports.map(getBasePackage))]
             .filter(p => !this.processedPackages.has(p))
 
-          if (newBasePackages.length > 0) {
-            this.beginTypesBatch()
-             
-            uniqueExternalImports.forEach(pkgImport => this.addShimForPackage(pkgImport))
-            this.updateTsCompilerOptions()
+          if (newBasePackages.length === 0) return
+          
+          this.beginTypesBatch()
 
-            await Promise.all(newBasePackages.map(async (basePackage) => {
-              this.processedPackages.add(basePackage)
-              const activeRunnerLibs = await this.call('scriptRunnerBridge', 'getActiveRunnerLibs')
-              const libInfo = activeRunnerLibs.find(lib => lib.name === basePackage)
-              const packageToLoad = libInfo ? `${libInfo.name}@${libInfo.version}` : basePackage
+          uniqueImports.forEach(pkgImport => this.addShimForPackage(pkgImport))
+          this.updateTsCompilerOptions()
 
-              try {
-                const result = await startTypeLoadingProcess(packageToLoad)
-                if (result && result.libs && result.libs.length > 0) {
-                  this.addExtraLibs(result.libs)
-                  if (result.subpathMap) {
-                    for (const [subpath, virtualPath] of Object.entries(result.subpathMap)) {
-                      this.tsModuleMappings[subpath] = [virtualPath]
-                    }
-                  }
-                  if (result.mainVirtualPath) {
-                    this.tsModuleMappings[basePackage] = [result.mainVirtualPath.replace('file:///node_modules/', '')]
-                  }
-                  this.tsModuleMappings[`${basePackage}/*`] = [`${basePackage}/*`]
-                    
-                  uniqueExternalImports
-                    .filter(p => getBasePackage(p) === basePackage)
-                    .forEach(p => this.removeShimsForPackage(p))
-                }
-              } catch (e) {
-                this.processedPackages.delete(basePackage)
-                console.error(`[DIAGNOSE-DEEP-PASS] Crawler failed for "${basePackage}":`, e)
-              }
-            }))
-            this.endTypesBatch()
-          }
+          await Promise.all(newBasePackages.map(async (basePackage) => {
+            this.processedPackages.add(basePackage)
+            
+            const activeRunnerLibs = await this.call('scriptRunnerBridge', 'getActiveRunnerLibs')
+            const libInfo = activeRunnerLibs.find(lib => lib.name === basePackage)
+            const packageToLoad = libInfo ? `${libInfo.name}@${libInfo.version}` : basePackage
 
-          if (localImports.length > 0) {
-            const currentFileType = file.endsWith('.ts') || file.endsWith('.tsx') ? 'typescript' : 'javascript'
-            const extensions = currentFileType === 'typescript' 
-              ? ['.ts', '.tsx', '.d.ts', '/index.ts', '/index.tsx'] 
-              : ['.js', '.jsx', '/index.js', '/index.jsx']
-
-            await Promise.all(localImports.map(async (importPath) => {
-              let resolvedPath = importPath
-              
-              if (importPath.startsWith('./') || importPath.startsWith('../')) {
-                resolvedPath = this.resolveRelativePath(file, importPath)
-              } else if (importPath.startsWith('/')) {
-                resolvedPath = importPath.substring(1)
-              }
-
-              let finalPath = null
-              
-              if (await this.call('fileManager', 'exists', resolvedPath) && (await this.call('fileManager', 'isFile', resolvedPath))) {
-                finalPath = resolvedPath
-              } else {
-                for (const ext of extensions) {
-                  const tryPath = resolvedPath + ext
-                  if (await this.call('fileManager', 'exists', tryPath)) {
-                    finalPath = tryPath
-                    break
+            try {
+              const result = await startTypeLoadingProcess(packageToLoad)
+              if (result && result.libs && result.libs.length > 0) {
+                this.addExtraLibs(result.libs)
+                if (result.subpathMap) {
+                  for (const [subpath, virtualPath] of Object.entries(result.subpathMap)) {
+                    this.tsModuleMappings[subpath] = [virtualPath]
                   }
                 }
+                if (result.mainVirtualPath) {
+                  this.tsModuleMappings[basePackage] = [result.mainVirtualPath.replace('file:///node_modules/', '')]
+                }
+                this.tsModuleMappings[`${basePackage}/*`] = [`${basePackage}/*`]
+                
+                uniqueImports
+                  .filter(p => getBasePackage(p) === basePackage)
+                  .forEach(p => this.removeShimsForPackage(p))
               }
-
-              if (finalPath) {
-                try {
-                  const content = await this.call('fileManager', 'readFile', finalPath)
-                  if (content) {
-                    this.emit('addModel', content, currentFileType, finalPath, false)
-                  }
-                } catch (e) {} // eslint-disable-line no-empty
-              }
-            }))
-          }
-
+            } catch (e) {
+              this.processedPackages.delete(basePackage)
+              console.error(`[DIAGNOSE-DEEP-PASS] Crawler failed for "${basePackage}":`, e)
+            }
+          }))
+          this.endTypesBatch()
         } catch (error) {
           console.error('[DIAGNOSE-ONCHANGE] Critical error:', error)
           this.endTypesBatch()
@@ -456,8 +412,65 @@ export default class Editor extends Plugin {
     return ext && this.modes[ext] ? this.modes[ext] : this.modes.txt
   }
 
-  async handleTypeScriptDependenciesOf (path, content, readFile, exists) {
-    await this._onChange(path)
+  async handleTypeScriptDependenciesOf(path, content, readFile, exists) {
+    this._onChange(path)
+
+    const isTsFile = path.endsWith('.ts') || path.endsWith('.tsx')
+    const isJsFile = path.endsWith('.js') || path.endsWith('.jsx')
+
+    if (isTsFile || isJsFile) {
+      const paths = path.split('/')
+      paths.pop()
+      const fromPath = paths.join('/') 
+      const language = isTsFile ? 'typescript' : 'javascript'
+
+      for (const match of content.matchAll(/import\s+.*\s+from\s+(?:"(.*?)"|'(.*?)')/g)) {
+        let pathDep = match[1] || match[2]
+        if (!pathDep) continue
+
+        if (pathDep.startsWith('./') || pathDep.startsWith('../')) {
+           pathDep = resolveRelativePath(fromPath, pathDep)
+        } else if (pathDep.startsWith('/')) {
+           pathDep = pathDep.substring(1)
+        } else {
+           continue
+        }
+
+        const extensions = isTsFile ? ['.ts', '.tsx', '.d.ts'] : ['.js', '.jsx']
+        let hasExtension = false
+        for (const ext of extensions) {
+          if (pathDep.endsWith(ext)) {
+            hasExtension = true
+            break
+          }
+        }
+
+        if (!hasExtension) {
+          for (const ext of extensions) {
+            const pathWithExt = pathDep + ext
+            try {
+              const pathExists = await exists(pathWithExt)
+              if (pathExists) {
+                pathDep = pathWithExt
+                break
+              }
+            } catch (e) {} // eslint-disable-line no-empty
+          }
+        }
+
+        try {
+          const pathExists = await exists(pathDep)
+          if (pathExists) {
+            const contentDep = await readFile(pathDep)
+            if (contentDep !== '') {
+              this.emit('addModel', contentDep, language, pathDep, this.readOnlySessions[path])
+            }
+          }
+        } catch (e) {
+          console.log(e)
+        }
+      }
+    }
   }
 
   /**
