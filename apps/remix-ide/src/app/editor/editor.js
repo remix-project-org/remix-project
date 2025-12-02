@@ -413,7 +413,11 @@ export default class Editor extends Plugin {
   }
 
   async handleTypeScriptDependenciesOf(path, content, readFile, exists) {
-    this._onChange(path)
+    const isJsOrTs = path.endsWith('.js') || path.endsWith('.jsx') || path.endsWith('.ts') || path.endsWith('.tsx')
+    
+    if (isJsOrTs) {
+      this._onChange(path)
+    }
 
     const isTsFile = path.endsWith('.ts') || path.endsWith('.tsx')
     const isJsFile = path.endsWith('.js') || path.endsWith('.jsx')
