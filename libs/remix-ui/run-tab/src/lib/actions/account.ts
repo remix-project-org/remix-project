@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { shortenAddress } from "@remix-ui/helper"
 import { RunTab } from "../types/run-tab"
 import { trackMatomoEvent } from '@remix-api'

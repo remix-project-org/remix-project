@@ -601,7 +601,7 @@ export function RemixUiTopbar() {
                   if (leftPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'showLeftSidePanelClicked', isClick: true })
                   else trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'hideLeftSidePanelClicked', isClick: true })
                   plugin.call('sidePanel', 'togglePanel')
-                  }
+                }
                 }
               ></div>
             </CustomTooltip>
@@ -613,7 +613,7 @@ export function RemixUiTopbar() {
                   if (bottomPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'showTerminalPanelClicked', isClick: true })
                   else trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'hideTerminalPanelClicked', isClick: true })
                   plugin.call('terminal', 'togglePanel')
-                  }
+                }
                 }
               ></div>
             </CustomTooltip>
