@@ -102,6 +102,7 @@ export class TemplateExplorerModalFacade {
         return await workspaceProvider.addExternal(path, content, url)
       }
     }
+    console.log('an error in ipfs import', contentImport)
     await processLoading({
       type,
       importUrl: url,
@@ -113,6 +114,7 @@ export class TemplateExplorerModalFacade {
         this.closeWizard()
       },
       onError: (err) => {
+        this.closeWizard()
         this.plugin.call('notification', 'alert', {
           id: 'importError',
           title: 'Import Error',
