@@ -64,7 +64,7 @@ export function TopCards() {
             }
             dispatch({ type: TemplateExplorerWizardAction.IMPORT_FILES, payload: 'importFiles' })
             dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'importFiles' })
-            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'importFiles', name: 'success' })
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'importFiles', isClick: true })
           }}
           data-id="importOptionsMenuIPFS"
         >
@@ -87,7 +87,7 @@ export function TopCards() {
               if (e.target.files.length === 0 || !e.target.files) return
               await uploadFile(e.target, '/')
               setImportFiles(false)
-              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'importFiles', name: 'success' })
+              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'importFiles', isClick: true })
               facade.closeWizard()
               await plugin.call('notification', 'toast', 'Files imported successfully')
             }}
@@ -102,7 +102,7 @@ export function TopCards() {
             }
             dispatch({ type: TemplateExplorerWizardAction.IMPORT_HTTPS, payload: 'importHttps' })
             dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'importHttps' })
-            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'importHttps', name: 'success' })
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'importHttps', isClick: true })
           }}
           data-id="importOptionsMenuHTTPS"
         >
@@ -124,11 +124,11 @@ export function TopCards() {
                 dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE_GROUP, payload: 'Generic' })
                 dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: 'Blank' })
                 dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'generic' })
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateBlankWorkspace', name: 'success' })
+                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateBlankWorkspace', isClick: true })
               } else {
                 await createNewFile('blank', '/')
                 facade.closeWizard()
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateBlankFile', name: 'success' })
+                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateBlankFile', isClick: true })
                 plugin.call('notification', 'toast', 'File created successfully')
               }
             }}
@@ -168,7 +168,7 @@ export function TopCards() {
                   await plugin.call('menuicons', 'select', 'remixaiassistant')
                   await new Promise((resolve) => setTimeout(resolve, 500))
                 }
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateWithAi', name: 'success' })
+                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateWithAi', isClick: true })
               } else {
                 const hiddenPlugin = await plugin.call('rightSidePanel', 'getHiddenPlugin')
                 if (hiddenPlugin && hiddenPlugin.name === aiPluginProfile.name) {
@@ -180,7 +180,7 @@ export function TopCards() {
                   await new Promise((resolve) => setTimeout(resolve, 500))
                 }
                 facade.closeWizard()
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateFileWithAi', name: 'success' })
+                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateFileWithAi', isClick: true })
               }
               aiPluginProfile = null
             }}
@@ -213,11 +213,11 @@ export function TopCards() {
               if (state.manageCategory === 'Template') {
                 dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
                 facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract' }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizard', name: 'success' })
+                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizard', isClick: true })
               } else {
                 dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
                 facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract' }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizardCreateFile', name: 'success' })
+                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizardCreateFile', isClick: true })
               }
             }}
             style={{
@@ -292,7 +292,7 @@ export function TopCards() {
                   facade.closeWizard()
                   relativePath = null
                   targetFolder = null
-                  trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardImportProject', name: 'success' })
+                  trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardImportProject', isClick: true })
                 }}
                 {...enableDirUpload}
               />) : null

@@ -102,7 +102,6 @@ export class TemplateExplorerModalFacade {
         return await workspaceProvider.addExternal(path, content, url)
       }
     }
-    console.log('an error in ipfs import', contentImport)
     await processLoading({
       type,
       importUrl: url,

@@ -118,6 +118,8 @@ export interface TemplateExplorerModalEvent extends MatomoEventBase {
     | 'topCardImportFiles'
     | 'topCardCreateContractWithWizard'
     | 'topCardContractWizardCreateFile'
+    | 'clearFilterButtonClick'
+    | 'tagSelected'
     | 'topCardCreateBlankWorkspace'
     | 'topCardCreateBlankFile'
     | 'createWorkspaceWithBasicTemplate'

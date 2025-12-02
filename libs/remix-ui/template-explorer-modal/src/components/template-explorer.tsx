@@ -44,13 +44,13 @@ export function TemplateExplorer() {
                     if (item.value === 'cookbook') {
                       await plugin.call('manager', 'activatePlugin', 'cookbookdev')
                       await plugin.call('sidePanel', 'focus', 'cookbookdev')
-                      trackMatomoEvent({ category: 'templateExplorerModal', action: 'selectWorkspaceTemplate', value: item.value })
+                      trackMatomoEvent({ category: 'templateExplorerModal', action: 'selectWorkspaceTemplate', value: item.value, isClick: true })
                       facade.closeWizard()
                       return
                     }
                     dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE_TYPE, payload: item.value })
                     facade.switchWizardScreen(dispatch, item, template, templateCategoryStrategy)
-                    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'selectWorkspaceTemplate', name: item.value })
+                    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'selectWorkspaceTemplate', name: item.value, isClick: true })
                     if (item.displayName.toLowerCase().includes('ai')) {
                       await plugin.call('sidePanel', 'pinView', await plugin.call('remixaiassistant', 'getProfile'))
                     }

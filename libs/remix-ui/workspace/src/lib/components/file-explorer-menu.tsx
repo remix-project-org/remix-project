@@ -127,7 +127,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                   setIsCreateMenuOpen((prev) => !prev)
                   trackMatomoEvent({
                     category: MatomoCategories.FILE_EXPLORER,
-                    action: 'createMenuButtonOpen'
+                    action: 'createMenuButtonOpen',
+                    isClick: true
                   })
                 }}
                 style={{
@@ -153,7 +154,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                         await global.plugin.call('notification', 'toast', 'File created successfully')
                         trackMatomoEvent({
                           category: MatomoCategories.FILE_EXPLORER,
-                          action: 'createBlankFile'
+                          action: 'createBlankFile',
+                          isClick: true
                         })
                       }}
                     >
@@ -177,7 +179,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                         })
                         trackMatomoEvent({
                           category: MatomoCategories.FILE_EXPLORER,
-                          action: 'createNewFile'
+                          action: 'createNewFile',
+                          isClick: true
                         })
                       }}
                     >
@@ -197,7 +200,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                         props.createNewFolder()
                         trackMatomoEvent({
                           category: MatomoCategories.FILE_EXPLORER,
-                          action: 'createNewFolder'
+                          action: 'createNewFolder',
+                          isClick: true
                         })
                       }}
                     >
@@ -221,7 +225,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                         })
                         trackMatomoEvent({
                           category: MatomoCategories.FILE_EXPLORER,
-                          action: 'importFromIpfs'
+                          action: 'importFromIpfs',
+                          isClick: true
                         })
                       }}
                     >
@@ -243,7 +248,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                         itemAction(action)
                         trackMatomoEvent({
                           category: MatomoCategories.FILE_EXPLORER,
-                          action: 'importFromLocalFileSystem'
+                          action: 'importFromLocalFileSystem',
+                          isClick: true
                         })
                       }}
                     >
@@ -267,7 +273,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                         })
                         trackMatomoEvent({
                           category: MatomoCategories.FILE_EXPLORER,
-                          action: 'importFromHttps'
+                          action: 'importFromHttps',
+                          isClick: true
                         })
                       }}
                     >

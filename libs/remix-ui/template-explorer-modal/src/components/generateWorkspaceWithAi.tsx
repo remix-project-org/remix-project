@@ -29,22 +29,22 @@ export function GenerateWorkspaceWithAi() {
             }
 
             await plugin.call('remixaiassistant', 'handleExternalMessage', 'Please wait while the workspace is being generated!')
-            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiRequestSent', name: state.workspaceName })
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiRequestSent', name: state.workspaceName, isClick: true })
             const result = await plugin.call('remixAI' as any, 'generate', state.workspaceName, statusCallback)
             if (result.includes('No payload')) {
               await plugin.call('remixaiassistant', 'handleExternalMessage', 'Unfortunately, the workspace generation failed. Please try again with a different prompt.')
-              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiFailed', name: state.workspaceName })
+              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiFailed', name: state.workspaceName, isClick: true })
               return
             }
 
             if (result.toLowerCase().includes('failed') && result.toLowerCase().includes('please try again with')) {
               await plugin.call('remixaiassistant', 'handleExternalMessage', 'Unfortunately, the workspace generation failed. Please try again with a different prompt.')
-              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiFailed', name: state.workspaceName })
+              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiFailed', name: state.workspaceName, isClick: true })
               return
             }
 
             await plugin.call('remixaiassistant', 'handleExternalMessage', 'The workspace has been generated successfully!')
-            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiSucceeded', name: state.workspaceName })
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiSucceeded', name: state.workspaceName, isClick: true })
           }}>
             <i className="fa-solid fa-magic me-2"></i>
           Generate my Workspace
