@@ -27,8 +27,9 @@ export interface TopbarEvent extends MatomoEventBase {
   category: 'topbar';
   action:
     | 'GIT'
-    | 'panelShown'
-    | 'panelHidden'
+    | 'leftSidePanel'
+    | 'terminalPanel'
+    | 'rightSidePanel'
     | 'header';
 }
 

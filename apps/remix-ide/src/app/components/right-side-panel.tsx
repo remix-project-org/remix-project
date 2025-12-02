@@ -5,6 +5,7 @@ import { PluginRecord, RemixPluginPanel } from '@remix-ui/panel'
 import packageJson from '../../../../../package.json'
 import { RemixUIPanelHeader } from '@remix-ui/panel'
 import { PluginViewWrapper } from '@remix-ui/helper'
+import { trackMatomoEvent } from '@remix-api'
 
 const rightSidePanel = {
   name: 'rightSidePanel',
@@ -61,6 +62,7 @@ export class RightSidePanel extends AbstractPanel {
       if (this.isHidden) {
         const pinnedPanel = document.querySelector('#right-side-panel')
         pinnedPanel?.classList.add('d-none')
+        trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnLoad', isClick: false })
         this.emit('rightSidePanelHidden')
         this.events.emit('rightSidePanelHidden')
       }
@@ -76,6 +78,7 @@ export class RightSidePanel extends AbstractPanel {
       window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
       const pinnedPanel = document.querySelector('#right-side-panel')
       pinnedPanel?.classList.add('d-none')
+      trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'InitializeDefaultAndHiddenOnLoad', isClick: false })
       this.emit('rightSidePanelHidden')
       this.events.emit('rightSidePanelHidden')
     }
@@ -126,7 +129,7 @@ export class RightSidePanel extends AbstractPanel {
       this.events.emit('rightSidePanelShown')
       this.emit('rightSidePanelShown')
     }
-
+    trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnPluginPinned', isClick: false })
     // Save pinned plugin profile to panelStates
     const updatedPanelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
     updatedPanelStates.rightSidePanel = {
@@ -156,6 +159,7 @@ export class RightSidePanel extends AbstractPanel {
       pluginProfile: null
     }
     window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
+    trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnPluginUnpinned', isClick: false })
     this.renderComponent()
     this.events.emit('unPinnedPlugin', profile)
     this.emit('unPinnedPlugin', profile)
@@ -180,6 +184,7 @@ export class RightSidePanel extends AbstractPanel {
       // Ensure the panel is hidden and toggle icon is off
       if (!this.isHidden) {
         this.isHidden = true
+        trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnToggleIconClickAndNoPluginPinned', isClick: false })
         pinnedPanel?.classList.add('d-none')
         this.emit('rightSidePanelHidden')
         this.events.emit('rightSidePanelHidden')
@@ -196,12 +201,14 @@ export class RightSidePanel extends AbstractPanel {
     if (this.isHidden) {
       this.isHidden = false
       pinnedPanel?.classList.remove('d-none')
+      trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnToggleIconClick', isClick: false })
       this.emit('rightSidePanelShown')
       this.events.emit('rightSidePanelShown')
     } else {
       this.isHidden = true
       this.hiddenPlugin = pluginProfile
       pinnedPanel?.classList.add('d-none')
+      trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnToggleIconClick', isClick: false })
       this.emit('rightSidePanelHidden')
       this.events.emit('rightSidePanelHidden')
     }
@@ -225,6 +232,7 @@ export class RightSidePanel extends AbstractPanel {
       this.isHidden = false
       this.hiddenPlugin = null
       pinnedPanel?.classList.remove('d-none')
+      trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnVerticalIconClick', isClick: false })
       this.emit('rightSidePanelShown')
       this.events.emit('rightSidePanelShown')
 
