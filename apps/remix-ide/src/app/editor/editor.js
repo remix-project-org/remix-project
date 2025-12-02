@@ -429,11 +429,11 @@ export default class Editor extends Plugin {
         if (!pathDep) continue
 
         if (pathDep.startsWith('./') || pathDep.startsWith('../')) {
-           pathDep = resolveRelativePath(fromPath, pathDep)
+          pathDep = this.resolveRelativePath(fromPath, pathDep)
         } else if (pathDep.startsWith('/')) {
-           pathDep = pathDep.substring(1)
+          pathDep = pathDep.substring(1)
         } else {
-           continue
+          continue
         }
 
         const extensions = isTsFile ? ['.ts', '.tsx', '.d.ts'] : ['.js', '.jsx']
