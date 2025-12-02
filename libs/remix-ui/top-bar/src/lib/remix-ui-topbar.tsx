@@ -598,7 +598,8 @@ export function RemixUiTopbar() {
                 className={`codicon codicon-layout-sidebar-left${leftPanelHidden ? '-off' : ''} fs-5`}
                 data-id="toggleLeftSidePanelIcon"
                 onClick={() => {
-                  trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'toggleIconClicked', isClick: true })
+                  if (leftPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'showLeftSidePanelClicked', isClick: true })
+                  else trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'hideLeftSidePanelClicked', isClick: true })
                   plugin.call('sidePanel', 'togglePanel')
                   }
                 }
@@ -609,7 +610,8 @@ export function RemixUiTopbar() {
                 className={`codicon codicon-layout-panel${bottomPanelHidden ? '-off' : ''} fs-5`}
                 data-id="toggleBottomPanelIcon"
                 onClick={() => {
-                  trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'toggleIconClicked', isClick: true })
+                  if (bottomPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'showTerminalPanelClicked', isClick: true })
+                  else trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'hideTerminalPanelClicked', isClick: true })
                   plugin.call('terminal', 'togglePanel')
                   }
                 }
@@ -620,7 +622,8 @@ export function RemixUiTopbar() {
                 className={`codicon codicon-layout-sidebar-right${rightPanelHidden ? '-off' : ''} fs-5`}
                 data-id="toggleRightSidePanelIcon"
                 onClick={() => {
-                  trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'toggleIconClicked', isClick: true })
+                  if (rightPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'showRightSidePanelClicked', isClick: true })
+                  else trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'hideRightSidePanelClicked', isClick: true })
                   plugin.call('rightSidePanel', 'togglePanel')
                 }
                 }
