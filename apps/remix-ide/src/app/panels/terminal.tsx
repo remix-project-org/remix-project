@@ -10,6 +10,7 @@ import EventManager from '../../lib/events'
 
 import { CompilerImports } from '@remix-project/core-plugin' // eslint-disable-line
 import { RemixUiXterminals } from '@remix-ui/xterm'
+import { trackMatomoEvent } from '@remix-api'
 
 const KONSOLES = []
 
@@ -125,6 +126,7 @@ export default class Terminal extends Plugin {
       if (this.isHidden) {
         const terminalPanel = document.querySelector('.terminal-wrap')
         terminalPanel?.classList.add('d-none')
+        trackMatomoEvent(this, { category: 'topbar', action: 'terminalPanel', name: 'hiddenOnLoad', isClick: false })
       }
     } else {
       // Initialize with default state if not found
@@ -164,6 +166,7 @@ export default class Terminal extends Plugin {
     const terminalPanel = document.querySelector('.terminal-wrap')
     this.isHidden = false
     terminalPanel?.classList.remove('d-none')
+    trackMatomoEvent(this, { category: 'topbar', action: 'terminalPanel', name: 'shownOnLog', isClick: false })
     this.emit('terminalPanelShown')
 
     // Persist the state
@@ -180,10 +183,12 @@ export default class Terminal extends Plugin {
     if (this.isHidden) {
       this.isHidden = false
       terminalPanel?.classList.remove('d-none')
+      trackMatomoEvent(this, { category: 'topbar', action: 'terminalPanel', name: 'shownOnToggleIconClick', isClick: false })
       this.emit('terminalPanelShown')
     } else {
       this.isHidden = true
       terminalPanel?.classList.add('d-none')
+      trackMatomoEvent(this, { category: 'topbar', action: 'terminalPanel', name: 'hiddenOnToggleIconClick', isClick: false })
       this.emit('terminalPanelHidden')
     }
     // Persist the hidden state and plugin profile to panelStates
