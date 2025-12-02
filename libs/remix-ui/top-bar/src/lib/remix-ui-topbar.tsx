@@ -107,25 +107,31 @@ export function RemixUiTopbar() {
     // Listen to left side panel events
     plugin.on('sidePanel', 'leftSidePanelHidden', () => {
       setLeftPanelHidden(true)
+      trackMatomoEvent({ category: 'topbar', action: 'panelHidden', name: 'leftSidePanel', isClick: true })
     })
     plugin.on('sidePanel', 'leftSidePanelShown', () => {
       setLeftPanelHidden(false)
+      trackMatomoEvent({ category: 'topbar', action: 'panelShown', name: 'leftSidePanel', isClick: true })
     })
 
     // Listen to terminal panel events
     plugin.on('terminal', 'terminalPanelHidden', () => {
       setBottomPanelHidden(true)
+      trackMatomoEvent({ category: 'topbar', action: 'panelHidden', name: 'terminalPanel', isClick: true })
     })
     plugin.on('terminal', 'terminalPanelShown', () => {
       setBottomPanelHidden(false)
+      trackMatomoEvent({ category: 'topbar', action: 'panelShown', name: 'terminalPanel', isClick: true })
     })
 
     // Listen to right side panel events
     plugin.on('rightSidePanel', 'rightSidePanelHidden', () => {
       setRightPanelHidden(true)
+      trackMatomoEvent({ category: 'topbar', action: 'panelHidden', name: 'rightSidePanel', isClick: true })
     })
     plugin.on('rightSidePanel', 'rightSidePanelShown', () => {
       setRightPanelHidden(false)
+      trackMatomoEvent({ category: 'topbar', action: 'panelShown', name: 'rightSidePanel', isClick: true })
     })
 
     // Initialize panel states from localStorage
