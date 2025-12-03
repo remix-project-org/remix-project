@@ -4,9 +4,11 @@ import { FormattedMessage } from 'react-intl'
 import { NoirAppContext } from '../contexts'
 import { CompileOptions } from '@remix-ui/helper'
 import { compileNoirCircuit } from '../actions'
+import { trackMatomoEvent, MatomoCategories } from '@remix-api'
 
 const NOIR_VERSION = 'v1.0.0-beta.12'
 const BARRETENBERG_VERSION = 'v0.85.0'
+const MATOMO_CATEGORY = MatomoCategories.NOIR_COMPILER
 
 export function Container () {
   const noirApp = useContext(NoirAppContext)
@@ -32,17 +34,10 @@ export function Container () {
 
   const handleOpenErrorLocation = async (report: CompilerReport) => {}
 
-  const handleCircuitAutoCompile = (value: boolean) => {
-    noirApp.dispatch({ type: 'SET_AUTO_COMPILE', payload: value })
-  }
-
-  const handleCircuitHideWarnings = (value: boolean) => {
-    noirApp.dispatch({ type: 'SET_HIDE_WARNINGS', payload: value })
-  }
-
   const askGPT = async (report: CompilerReport) => {}
 
   const handleCompileClick = () => {
+    trackMatomoEvent(this, { category: MATOMO_CATEGORY, action: 'compile', name: 'compile_btn_click', isClick: true })
     compileNoirCircuit(noirApp.plugin, noirApp.appState)
   }
 
@@ -51,16 +46,16 @@ export function Container () {
       console.error("No file path selected for generating proof.")
       return
     }
+    trackMatomoEvent(this, { category: MATOMO_CATEGORY, action: 'generate_proof', name: 'generate_proof_btn_click', isClick: true })
     noirApp.plugin.generateProof(noirApp.appState.filePath)
   }
 
   const handleViewFile = (e: React.MouseEvent<HTMLButtonElement>, filePath: string) => {
     e.preventDefault()
+    const fileName = filePath.split('/').pop() || filePath
+    trackMatomoEvent(this, { category: MATOMO_CATEGORY, action: 'view_file', name: fileName, isClick: true })
     noirApp.plugin.call('fileManager', 'open', filePath)
   }
-
-
-  const formattedPublicInputsString = JSON.stringify(noirApp.appState.formattedPublicInputs, null, 2)
 
   return (
     <section>

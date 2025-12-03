@@ -30,7 +30,8 @@ export const MatomoCategories = {
   SCRIPT_EXECUTOR: 'ScriptExecutor' as const,
   LOCALE_MODULE: 'localeModule' as const,
   THEME_MODULE: 'themeModule' as const,
-  STATUS_BAR: 'statusBar' as const
+  STATUS_BAR: 'statusBar' as const,
+  NOIR_COMPILER: 'noir-compiler' as const
 }
 
 // Common action constants used across multiple categories
