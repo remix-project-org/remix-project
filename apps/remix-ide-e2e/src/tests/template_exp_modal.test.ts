@@ -240,6 +240,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.github/workflows"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.github/workflows/run-js-test.yml"]')
       .click('*[data-id="treeViewLitreeViewItem.github/workflows/run-js-test.yml"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`name: Running Mocha Chai Solidity Unit Tests`) !== -1,
           'Correct content')
@@ -259,6 +260,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.github/workflows"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.github/workflows/run-slither-action.yml"]')
       .click('*[data-id="treeViewLitreeViewItem.github/workflows/run-slither-action.yml"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`name: Slither Analysis`) !== -1,
           'Correct content')
@@ -276,6 +278,7 @@ module.exports = {
       .click('*[data-id="template-card-contractCreate2Factory-0"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/libs"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts/libs/create2-factory.sol"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`contract Create2Factory {`) !== -1,
           'Correct content')
@@ -293,6 +296,7 @@ module.exports = {
       .click('*[data-id="template-card-contractDeployerScripts-1"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/contract-deployer/basic-contract-deploy.ts"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`export const deploy = async (contractName: string, args: Array<any>, accountIndex?: number): Promise<ethers.Contract> => {`) !== -1,
           'Correct content')
@@ -311,6 +315,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/etherscan"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/etherscan/receiptGuidScript.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/etherscan/receiptGuidScript.ts"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`export const receiptStatus = async (apikey: string, guid: string, isProxyContract?: boolean) => {`) !== -1,
           'Correct content')
