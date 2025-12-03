@@ -89,7 +89,6 @@ export function GenericWorkspaceTemplate() {
               <input data-id={`initializeAsGitRepo-${state.workspaceTemplateChosen.value}`} className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo}
                 onChange={(e) => {
                   dispatch({ type: ContractWizardAction.INITIALIZE_AS_GIT_REPO_UPDATE, payload: e.target.checked })
-                  trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'initializeAsGitRepoSelectedInOtherTemplates', name: 'success' })
                 }} />
               <label className="form-check-label" htmlFor="initGit">Initialize as a Git repository</label>
             </>
@@ -106,7 +105,7 @@ export function GenericWorkspaceTemplate() {
               contractContent: state.contractCode,
               contractName: state.tokenName
             })
-            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithGenericTemplate', name: 'success' })
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithGenericTemplate', name: state.workspaceTemplateChosen.value, isClick: true })
             facade.closeWizard()
           }}>Finish</button>
         </div>

@@ -25,7 +25,7 @@ class AsyncDebouncedQueue {
 
   enqueue(callback: AsyncCallback, customDelay?: number): void {
     if (this.queues.has(callback)) {
-      clearTimeout(this.queues.get(callback)!.timer);
+      clearTimeout(this.queues.get(callback)?.timer);
     }
 
     const timer = setTimeout(async () => {

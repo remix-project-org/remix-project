@@ -25,7 +25,7 @@ export function ImportFromIpfs(props: any) {
         const type = externalResourceName.startsWith('ipfs://') ? 'ipfs' : 'https'
         await facade.processLoadingExternalUrls(externalResourceName, type)
         facade.closeWizard()
-        trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'importFiles', name: externalResourceName.startsWith('ipf') ? 'importFromIpfs' : 'importFromHttps' })
+        trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'importFiles', name: externalResourceName.startsWith('ipf') ? 'importFromIpfs' : 'importFromHttps', isClick: true })
       }}
       disabled={externalResourceName.length < 7}
       >

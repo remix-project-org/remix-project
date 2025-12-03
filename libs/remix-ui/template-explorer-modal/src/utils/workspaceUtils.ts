@@ -113,6 +113,7 @@ export class TemplateExplorerModalFacade {
         this.closeWizard()
       },
       onError: (err) => {
+        this.closeWizard()
         this.plugin.call('notification', 'alert', {
           id: 'importError',
           title: 'Import Error',

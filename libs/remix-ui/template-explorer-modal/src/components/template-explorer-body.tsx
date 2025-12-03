@@ -3,6 +3,7 @@ import { TemplateExplorer } from './template-explorer'
 import { TopCards } from './topCards'
 import { TemplateExplorerContext } from '../../context/template-explorer-context'
 import { NotFound } from './notfound'
+import { MatomoCategories } from '@remix-api'
 
 export function TemplateExplorerBody() {
   const { selectedTag, allTags, handleTagClick, clearFilter, dedupedTemplates, state, theme, trackMatomoEvent } = useContext(TemplateExplorerContext)
@@ -30,7 +31,10 @@ export function TemplateExplorerBody() {
                     <span
                       key={tag as any}
                       className={`template-tag badge rounded-pill p-2 fw-light ${selectedTag === tag ? 'badge rounded-pill text-info p-2 fw-light' : 'badge rounded-pill text-bg-light p-2 fw-light'}`}
-                      onClick={() => handleTagClick(tag as any)}
+                      onClick={() => {
+                        handleTagClick(tag as any)
+                        trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'tagSelected', name: tag, isClick: true })
+                      }}
                     >
                       {tag as any}
                     </span>
@@ -39,7 +43,10 @@ export function TemplateExplorerBody() {
                     <small>
                       <span
                         className="p-0 ms-2 text-warning fw-light"
-                        onClick={clearFilter}
+                        onClick={() => {
+                          clearFilter()
+                          trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'clearFilterButtonClick', isClick: true })
+                        }}
                       >
                 Clear filter
                       </span>

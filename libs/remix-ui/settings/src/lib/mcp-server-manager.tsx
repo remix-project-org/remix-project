@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useState, useEffect } from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
 import { IMCPServer } from '@remix/remix-ai-core'
@@ -86,10 +87,17 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
     try {
       setIsSaving(true)
 
+      // Validate required fields
+      if (!formData.name || !formData.transport) {
+        console.error('Name and transport are required fields')
+        setIsSaving(false)
+        return
+      }
+
       const server: IMCPServer = {
-        name: formData.name!,
+        name: formData.name,
         description: formData.description,
-        transport: formData.transport!,
+        transport: formData.transport,
         command: formData.transport === 'stdio' ? formData.command : undefined,
         args: formData.transport === 'stdio' ? formData.args : undefined,
         url: formData.transport !== 'stdio' ? formData.url : undefined,

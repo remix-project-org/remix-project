@@ -108,6 +108,7 @@ export function ContractWizard () {
 
     dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: value.toUpperCase() })
     dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE, payload: templateMap[value] })
+    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'contractTypeSelectedInContractWizard', name: value.toUpperCase(), isClick: true })
   }
 
   const validateAndCreateWorkspace = async () => {
@@ -122,7 +123,7 @@ export function ContractWizard () {
       contractContent: state.contractCode,
       contractName: state.tokenName
     })
-    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithContractWizard', name: 'success' })
+    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithContractWizard', name: state.workspaceTemplateChosen.value, isClick: true })
     facade.closeWizard()
   }
 
@@ -132,7 +133,7 @@ export function ContractWizard () {
       await facade.plugin.call('fileManager', 'mkdir', 'contracts')
     }
     await facade.plugin.call('fileManager', 'writeFileNoRewrite', `/contracts/${state.contractName}.sol`, state.contractCode)
-    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'addContractFileToWorkspace' })
+    trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'addContractFileToWorkspace', name: state.contractName, isClick: true })
     facade.closeWizard()
     await facade.plugin.call('fileManager', 'open', `/contracts/${state.contractName}.sol`)
     await facade.plugin.call('notification', 'toast', 'Contract file created successfully')
