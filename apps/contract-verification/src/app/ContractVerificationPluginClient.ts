@@ -74,7 +74,9 @@ export class ContractVerificationPluginClient extends PluginClient {
     try {
       await this.call('terminal', 'log', { type: 'log', value: 'Verification process started...' })
 
-      const { chainId, currentChain, contractAddress, contractName, compilationResult, constructorArgs, etherscanApiKey } = data
+      const { chainId, currentChain, contractAddress, contractName, compilationResult, constructorArgs } = data
+
+      const globalEtherscanApiKey = data.etherscanApiKey
 
       if (!currentChain) {
         await this.call('terminal', 'log', { type: 'error', value: 'Chain data was not provided for verification.' })
@@ -82,26 +84,18 @@ export class ContractVerificationPluginClient extends PluginClient {
       }
 
       const userSettings = this.getUserSettingsFromLocalStorage()
+      const chainSettings = mergeChainSettingsWithDefaults(chainId, userSettings)
+      const localEtherscanApiKey = chainSettings.verifiers['Etherscan']?.apiKey
+      const effectiveApiKey = globalEtherscanApiKey || localEtherscanApiKey
 
-      if (etherscanApiKey) {
-        if (!userSettings.chains[chainId]) {
-          userSettings.chains[chainId] = { verifiers: {} }
+      if (effectiveApiKey) {
+        if (!chainSettings.verifiers['Etherscan']) {
+          chainSettings.verifiers['Etherscan'] = {}
         }
+        chainSettings.verifiers['Etherscan'].apiKey = effectiveApiKey
 
-        if (!userSettings.chains[chainId].verifiers.Etherscan) {
-          userSettings.chains[chainId].verifiers.Etherscan = {}
-        }
-        userSettings.chains[chainId].verifiers.Etherscan.apiKey = etherscanApiKey
-
-        if (!userSettings.chains[chainId].verifiers.Routescan) {
-          userSettings.chains[chainId].verifiers.Routescan = {}
-        }
-        if (!userSettings.chains[chainId].verifiers.Routescan.apiKey){
-          userSettings.chains[chainId].verifiers.Routescan.apiKey = "placeholder"
-        }
-
-        window.localStorage.setItem("contract-verification:settings", JSON.stringify(userSettings))
-
+        const source = globalEtherscanApiKey ? "Remix Settings" : "Plugin Settings"
+        await this.call('terminal', 'log', { type: 'info', value: `Using Etherscan API Key from: ${source}` })
       }
 
       const submittedContracts: SubmittedContracts = JSON.parse(window.localStorage.getItem('contract-verification:submitted-contracts') || '{}')
@@ -123,18 +117,17 @@ export class ContractVerificationPluginClient extends PluginClient {
       }
 
       const compilerAbstract: CompilerAbstract = compilationResult
-      const chainSettings = mergeChainSettingsWithDefaults(chainId, userSettings)
-
       const verificationPromises = []
       const verifiers: VerifierIdentifier[] = ['Sourcify', 'Etherscan', 'Blockscout', 'Routescan']
 
       for (const verifier of verifiers) {
+        if (verifier === 'Etherscan' && !effectiveApiKey) {
+          await this.call('terminal', 'log', { type: 'warn', value: 'Etherscan verification skipped: API key not provided.' })
+          await this.call('terminal', 'log', { type: 'warn', value: `Please input the API key in Remix Settings OR Contract Verification Plugin Settings.` })
+          continue
+        }
+
         if (validConfiguration(chainSettings, verifier)) {
-          if (verifier === 'Etherscan' && !etherscanApiKey) {
-            this.call('terminal', 'log', { type: 'warn', value: 'Etherscan verification skipped: API key not provided for auto-verification.' })
-            this.call('terminal', 'log', { type: 'warn', value: `Go to contract verification plugin's settings tab & input the API key.` })
-            continue
-          }
           verificationPromises.push(this._verifyWithProvider(verifier, submittedContract, compilerAbstract, chainId, chainSettings))
         }
       }
