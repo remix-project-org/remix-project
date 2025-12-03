@@ -30,7 +30,8 @@ export const MatomoCategories = {
   SCRIPT_EXECUTOR: 'ScriptExecutor' as const,
   LOCALE_MODULE: 'localeModule' as const,
   THEME_MODULE: 'themeModule' as const,
-  STATUS_BAR: 'statusBar' as const
+  STATUS_BAR: 'statusBar' as const,
+  QUICK_DAPP_V2: 'quick-dapp-v2' as const
 }
 
 // Common action constants used across multiple categories

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Form, Button, Card } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
 import './ChatBox.css';
+import { trackMatomoEvent } from '@remix-api'
 
 interface Message {
   id: string;
@@ -32,6 +33,13 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, onUpdateCode }) => {
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
+
+    trackMatomoEvent(this, {
+      category: 'quick-dapp-v2',
+      action: 'update',
+      name: 'chat_request',
+      isClick: true
+    })
 
     const newMessage: Message = {
       id: Date.now().toString(),
