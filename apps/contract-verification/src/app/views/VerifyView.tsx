@@ -202,7 +202,9 @@ export const VerifyView = () => {
         setContractAddressError={setContractAddressError}
       />
       <CustomTooltip tooltipText="Please compile and select the solidity contract you need to verify.">
-        <ContractDropdown label="Contract Name" id="contract-dropdown-1" selectedContract={selectedContract} setSelectedContract={setSelectedContract} />
+        <div>
+          <ContractDropdown label="Contract Name" id="contract-dropdown-1" selectedContract={selectedContract} setSelectedContract={setSelectedContract} />
+        </div>
       </CustomTooltip>
       {selectedContract && <ConstructorArguments
         abiEncodedConstructorArgs={abiEncodedConstructorArgs}
