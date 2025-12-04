@@ -15,11 +15,51 @@ export class InBrowserVite {
   private initialized = false;
   private initPromise: Promise<void> | null = null;
 
+  private async ensureEsbuildLoaded(): Promise<void> {
+    if ((window as any).esbuild) {
+      return;
+    }
+
+    const existingScript = document.querySelector('script[src*="esbuild-wasm"]');
+
+    if (existingScript) {
+      const maxRetries = 100;
+      for (let i = 0; i < maxRetries; i++) {
+        if ((window as any).esbuild) {
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      console.warn('[InBrowserVite] Timeout waiting for existing script tag. Trying dynamic injection.');
+    }
+
+    return new Promise((resolve, reject) => {
+      if ((window as any).esbuild) return resolve();
+
+      const script = document.createElement('script');
+      script.src = "https://unpkg.com/esbuild-wasm@0.25.12/lib/browser.min.js";
+      script.async = true;
+      script.onload = () => {
+        if ((window as any).esbuild) {
+            resolve();
+        } else {
+            reject(new Error('Script loaded but window.esbuild is missing'));
+        }
+      };
+      script.onerror = () => reject(new Error('Failed to load esbuild-wasm script from CDN'));
+      document.head.appendChild(script);
+    });
+  }
+
   /**
    * Initialize esbuild-wasm. This is async and should be called before build.
    * Subsequent calls return the same initialization promise.
    */
   async initialize(): Promise<void> {
+    if (this.initialized && this.esbuild) {
+        return;
+    }
+
     if (globalInitPromise) {
       await globalInitPromise;
       this.esbuild = globalEsbuild;
@@ -29,22 +69,27 @@ export class InBrowserVite {
 
     globalInitPromise = (async () => {
       try {
-        // @ts-ignore 
-        if (!window.esbuild) {
-          throw new Error('esbuild not found on window. Make sure to include esbuild-wasm script.');
-        }
+        await this.ensureEsbuildLoaded();
+        
         const esbuild = (window as any).esbuild;
         
-        await esbuild.initialize({
-          wasmURL: "https://unpkg.com/esbuild-wasm@0.25.12/esbuild.wasm",
-          worker: true,
-        });
+        try {
+            await esbuild.initialize({
+                wasmURL: "https://unpkg.com/esbuild-wasm@0.25.12/esbuild.wasm",
+                worker: true,
+            });
+        } catch (initErr: any) {
+            if (!initErr.message.includes('initialize') && !initErr.message.includes('already')) {
+                throw initErr;
+            }
+        }
         
         console.log('[InBrowserVite-LOG] ✅ esbuild initialized ');
         globalEsbuild = esbuild;
 
       } catch (err) {
         globalInitPromise = null;
+        console.error(err);
         throw new Error(`esbuild initialization failed: ${err.message}`);
       }
     })();
@@ -69,11 +114,15 @@ export class InBrowserVite {
    */
   async build(files: Map<string, string>, entry?: string): Promise<BuildResult> {
     if (!this.isReady()) {
-      return {
-        js: '',
-        success: false,
-        error: 'esbuild not initialized. Call initialize() first.',
-      };
+      try {
+        await this.initialize();
+      } catch (e: any) {
+        return {
+          js: '',
+          success: false,
+          error: `Auto-initialization failed: ${e.message}`,
+        };
+      }
     }
 
     try {
