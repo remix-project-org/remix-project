@@ -64,8 +64,9 @@
 }
 
 .pluginsContainer {
-    height: 100%;
-    overflow-y: auto;
+    height: 96dvh;
+    box-sizing: border-box;
+    /* overflow-y: auto; */
 }
 
 .titleInfo {
@@ -95,12 +96,14 @@ iframe {
 .plugItIn {
     display: none;
     height: 100%;
+    box-sizing: border-box;
 }
 
 .plugItIn>div {
-    overflow-y: scroll;
+    box-sizing: border-box;
+    overflow-y: auto;
     overflow-x: hidden;
-    height: 100%;
+    height: 97dvh;
     width: 100%;
 }
 

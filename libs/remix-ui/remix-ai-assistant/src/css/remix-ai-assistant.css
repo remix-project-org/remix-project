@@ -695,3 +695,20 @@ mark,
 .tool-execution-indicator span {
   color: inherit;
 }
+
+.plugin-ai-assistant-responsive {
+  height: 90dvh;
+}
+
+.remix-ai-assistant-responsive {
+  height: 89.5dvh;
+}
+
+@media screen and (min-width: 2160px) {
+.plugin-ai-assistant-responsive {
+  height: 97dvh;
+}
+.remix-ai-assistant-responsive {
+  height: 92dvh;
+}
+}

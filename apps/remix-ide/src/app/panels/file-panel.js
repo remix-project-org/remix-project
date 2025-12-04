@@ -84,7 +84,7 @@ export default class Filepanel extends ViewPlugin {
 
   render() {
     return (
-      <div id="fileExplorerView">
+      <div id="fileExplorerView" className="p-0 fe-git-panel-responsive">
         <PluginViewWrapper plugin={this} />
       </div>
     )

@@ -120,4 +120,20 @@
   .checkout-input {
     font-size: 10px !important;
   }
-  
+
+  .fe-git-panel-responsive {
+    height: 90dvh;
+  }
+
+  .workspace-height-responsive {
+    height: 89.5dvh;
+  }
+
+@media screen and (min-width: 2160px) {
+  .fe-git-panel-responsive {
+    height: 97dvh;
+  }
+  .workspace-height-responsive {
+    height: 92dvh;
+  }
+}

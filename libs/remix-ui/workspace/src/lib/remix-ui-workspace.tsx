@@ -1029,8 +1029,8 @@ export function Workspace() {
   }
 
   return (
-    <div className="d-flex flex-column justify-content-between h-100">
-      <span className="w-100 px-2 mt-3">
+    <div className="d-flex flex-column justify-content-between workspace-height-responsive">
+      <div className="w-100 px-2 mt-3">
         <div>
           <FileExplorerMenu
             title={''}
@@ -1046,11 +1046,11 @@ export function Workspace() {
             revealInExplorer={() => global.dispatchRevealElectronFolderInExplorer(null)}
           />
         </div>
-      </span>
+      </div>
       <div
         className="remixui_container overflow-auto"
         style={{
-          maxHeight: selectedWorkspace && selectedWorkspace.isGitRepo ? '95dvh' : '100dvh'
+          maxHeight: selectedWorkspace && selectedWorkspace.isGitRepo ? '91dvh' : '100dvh'
         }}
         onContextMenu={(e) => {
           e.preventDefault()
