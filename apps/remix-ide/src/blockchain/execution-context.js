@@ -31,11 +31,11 @@ if (typeof window !== 'undefined' && typeof window.ethereum !== 'undefined') {
 export class ExecutionContext {
   constructor () {
     this.event = new EventManager()
-    this.executionContext = 'vm-prague'
+    this.executionContext = 'vm-osaka'
     this.lastBlock = null
     this.blockGasLimitDefault = 4300000
     this.blockGasLimit = this.blockGasLimitDefault
-    this.currentFork = 'prague'
+    this.currentFork = 'osaka'
     this.mainNetGenesisHash = '0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3'
     this.customNetWorks = {}
     this.blocks = {}
@@ -46,7 +46,7 @@ export class ExecutionContext {
   }
 
   init (config) {
-    this.executionContext = 'vm-prague'
+    this.executionContext = 'vm-osaka'
     this.event.trigger('contextChanged', [this.executionContext])
   }
 
@@ -136,7 +136,7 @@ export class ExecutionContext {
 
   removeProvider (name) {
     if (name && this.customNetWorks[name]) {
-      if (this.executionContext === name) this.setContext('vm-prague', null, null, null)
+      if (this.executionContext === name) this.setContext('vm-osaka', null, null, null)
       delete this.customNetWorks[name]
       this.event.trigger('removeProvider', [name])
     }
@@ -211,7 +211,7 @@ export class ExecutionContext {
         try {
           this.currentFork = execution.forkAt((await provider.getNetwork()).chainId, block.number)
         } catch (e) {
-          this.currentFork = 'prague'
+          this.currentFork = 'osaka'
           console.log(`unable to detect fork, defaulting to ${this.currentFork}..`)
           console.error(e)
         }

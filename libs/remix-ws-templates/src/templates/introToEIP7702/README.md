@@ -18,7 +18,7 @@ This demo will show an example of a batched transaction. Before batching with EI
 Assign a piece of code to an EOA:
 
 - Compile `MyToken.sol`, `Example7702.sol`, and `Spender.sol` using Solidity version 0.8.28.
-- In Deploy & Run's **CONTRACT** select box, choose **Simple7702Account** and deploy it to the Remix VM (Prague) network.
+- In Deploy & Run's **CONTRACT** select box, choose **Simple7702Account** and deploy it to the Remix VM (Prague) or  Remix VM (Osaka) network.
 - Copy the deployed contract's address.
 - Click the **Authorize Delegation** button and paste the contract's address into the modal.
 - In Deploy and Run, check the new deployed contract. It has the same address as the EOA that was assigned to SIMPLE7702ACCOUNT.

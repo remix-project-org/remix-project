@@ -38,7 +38,6 @@ module.exports = {
         (document.querySelector('input[data-id="modalDialogCustomPromptTextClone"]') as any).focus()
       }, [], () => { })
       .setValue('input[data-id="modalDialogCustomPromptTextClone"]', testData.invalidURL)
-      .pause()
       .waitForElementVisible('*[data-id="topbarModalModalDialogModalFooter-react"]')
       .click('[data-id="topbarModal-modal-footer-ok-react"]') // submitted
       //.waitForElementVisible('*[data-shared="tooltipPopup"]')

@@ -135,7 +135,7 @@ export function RunTabUI(props: RunTabProps) {
     // if no contract file is open, don't do anything
     if (compilerState.target !== null) {
       const targetChainId = runTab.chainId
-      const ideDefault = fetchDetails && fetchDetails.evmVersion !== null ? fetchDetails.evmVersion : 'prague'
+      const ideDefault = fetchDetails && fetchDetails.evmVersion !== null ? fetchDetails.evmVersion : 'osaka'
       const IsCompatible = isChainCompatible(ideDefault, targetChainId)
       const chain = await returnCompatibleChain(ideDefault, targetChainId)
       if (chain === undefined) {

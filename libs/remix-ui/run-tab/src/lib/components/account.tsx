@@ -66,7 +66,7 @@ export function AccountUI(props: AccountProps) {
 
   useEffect(() => {
     const run = async () => {
-      if (selectExEnv !== 'vm-prague' && selectExEnv !== 'vm-mainnet-fork') {
+      if (selectExEnv !== 'vm-osaka' && selectExEnv !== 'vm-prague' && selectExEnv !== 'vm-mainnet-fork') {
         setEnableDelegationAuthorization(false)
         setContractHasDelegation(false)
         delegationAuthorizationAddressRef.current = null
@@ -107,6 +107,13 @@ export function AccountUI(props: AccountProps) {
       })
     } else {
       switch (selectExEnv) {
+      case 'vm-osaka':
+        setPlusOpt({
+          classList: '',
+          title: intl.formatMessage({ id: 'udapp.createNewAccount' })
+        })
+        break
+
       case 'vm-prague':
         setPlusOpt({
           classList: '',

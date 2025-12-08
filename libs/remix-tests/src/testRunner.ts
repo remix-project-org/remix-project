@@ -302,7 +302,7 @@ export function runTest (testName: string, testObject: any, contractDetails: Com
         }
       }
       if (!sendParams) sendParams = {}
-      sendParams.gasLimit = 10000000 * 8
+      sendParams.gasLimit = 16777216 // Set to EIP-7825 Transaction Gas Limit Cap, 2^24
       try {
         const txResponse: ContractTransactionResponse = await testObject[func.name](sendParams)
         const receipt = await provider.getTransactionReceipt(txResponse.hash)

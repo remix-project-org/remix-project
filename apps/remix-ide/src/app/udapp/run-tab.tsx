@@ -252,6 +252,7 @@ export class RunTab extends ViewPlugin {
       'vm-london': 'Deploy to the in-browser virtual machine running the London fork.',
       'vm-berlin': 'Deploy to the in-browser virtual machine running the Berlin fork.',
       'vm-prague': 'Deploy to the in-browser virtual machine running the Prague fork.',
+      'vm-osaka': 'Deploy to the in-browser virtual machine running the Osaka fork.',
       'vm-mainnet-fork': 'Deploy to a fork of the Ethereum mainnet latest block in the in-browser virtual machine.',
       'vm-sepolia-fork': 'Deploy to a fork of the Sepolia testnet latest block in the in-browser virtual machine.',
       'vm-custom-fork': 'Deploy to a fork of a custom network in the in-browser virtual machine.',
@@ -359,15 +360,16 @@ export class RunTab extends ViewPlugin {
 
     // VM
     const titleVM = 'Execution environment is local to Remix.  Data is only saved to browser memory and will vanish upon reload.'
-    await addProvider(1, 'vm-prague', 'Remix VM (Prague)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-prague/state.json', fork: 'prague' }, 'settingsVMPectraMode', titleVM)
-    await addProvider(2, 'vm-cancun', 'Remix VM (Cancun)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-cancun/state.json', fork: 'cancun' }, 'settingsVMCancunMode', titleVM)
+    await addProvider(1, 'vm-osaka', 'Remix VM (Osaka)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-osaka/state.json', fork: 'osaka' }, 'settingsVMFusakaMode', titleVM)
+    await addProvider(2, 'vm-prague', 'Remix VM (Prague)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-prague/state.json', fork: 'prague' }, 'settingsVMPectraMode', titleVM)
+    await addProvider(3, 'vm-cancun', 'Remix VM (Cancun)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-cancun/state.json', fork: 'cancun' }, 'settingsVMCancunMode', titleVM)
     await addProvider(50, 'vm-shanghai', 'Remix VM (Shanghai)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-shanghai/state.json', fork: 'shanghai' }, 'settingsVMShanghaiMode', titleVM)
     await addProvider(51, 'vm-paris', 'Remix VM (Paris)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-paris/state.json', fork: 'paris' }, 'settingsVMParisMode', titleVM)
     await addProvider(52, 'vm-london', 'Remix VM (London)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-london/state.json', fork: 'london' }, 'settingsVMLondonMode', titleVM)
     await addProvider(53, 'vm-berlin', 'Remix VM (Berlin)', { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-berlin/state.json', fork: 'berlin' }, 'settingsVMBerlinMode', titleVM)
-    await addProvider(3, 'vm-mainnet-fork', 'Remix VM - Mainnet fork', { isInjected: false, isVM: true, isVMStateForked: true, isRpcForkedState: true, fork: 'prague' }, 'settingsVMMainnetMode', titleVM)
-    await addProvider(4, 'vm-sepolia-fork', 'Remix VM - Sepolia fork', { isInjected: false, isVM: true, isVMStateForked: true, isRpcForkedState: true, fork: 'prague' }, 'settingsVMSepoliaMode', titleVM)
-    await addProvider(5, 'vm-custom-fork', 'Remix VM - Custom fork', { isInjected: false, isVM: true, isVMStateForked: true, isRpcForkedState: true, fork: '' }, 'settingsVMCustomMode', titleVM)
+    await addProvider(4, 'vm-mainnet-fork', 'Remix VM - Mainnet fork', { isInjected: false, isVM: true, isVMStateForked: true, isRpcForkedState: true, fork: 'osaka' }, 'settingsVMMainnetMode', titleVM)
+    await addProvider(5, 'vm-sepolia-fork', 'Remix VM - Sepolia fork', { isInjected: false, isVM: true, isVMStateForked: true, isRpcForkedState: true, fork: 'osaka' }, 'settingsVMSepoliaMode', titleVM)
+    await addProvider(6, 'vm-custom-fork', 'Remix VM - Custom fork', { isInjected: false, isVM: true, isVMStateForked: true, isRpcForkedState: true, fork: '' }, 'settingsVMCustomMode', titleVM)
 
     // Forked VM States
     const addFVSProvider = async(stateFilePath, pos) => {

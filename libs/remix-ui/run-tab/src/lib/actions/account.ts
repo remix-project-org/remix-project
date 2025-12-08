@@ -135,7 +135,6 @@ export const delegationAuthorization = async (contractAddress: string, plugin: R
   const pKey = await ethersProvider.send('eth_getPKey', [plugin.REACT_API.accounts.selectedAccount])
   const authSignerPKey = new BaseWallet(new SigningKey(bytesToHex(pKey)), ethersProvider)
   const auth = await authSignerPKey.authorize({ address: contractAddress, chainId: 0 });
-
   const signerForAuth = Object.keys(plugin.REACT_API.accounts.loadedAccounts).find((a) => a !== plugin.REACT_API.accounts.selectedAccount)
   const signer = await ethersProvider.getSigner(signerForAuth)
   let tx

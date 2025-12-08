@@ -33,7 +33,7 @@ export const createModalMessage = async (
         <label
           htmlFor="initGitRepository"
           data-id="initGitRepositoryLabel"
-          className="m-0 form-check-label udapp_checkboxAlign"
+          className="ms-1 form-check-label udapp_checkboxAlign"
           title={window._intl.formatMessage({ id: 'filePanel.initGitRepoTitle' })}
         >
           <FormattedMessage id="filePanel.initGitRepositoryLabel" />
