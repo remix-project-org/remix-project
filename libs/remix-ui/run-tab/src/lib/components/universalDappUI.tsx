@@ -530,7 +530,7 @@ const generateAIDappWithPlugin = async (description: string, address: string, co
       category: 'quick-dapp-v2',
       action: 'generate',
       name: 'start',
-      isClick: true
+      isClick: false
     })
     const pages: Record<string, string> = await props.plugin.call('ai-dapp-generator', 'generateDapp', {
       description,
