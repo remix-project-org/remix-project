@@ -123,7 +123,7 @@ export class ContractVerificationPluginClient extends PluginClient {
       for (const verifier of verifiers) {
         if (verifier === 'Etherscan' && !effectiveApiKey) {
           await this.call('terminal', 'log', { type: 'warn', value: 'Etherscan verification skipped: API key not provided.' })
-          await this.call('terminal', 'log', { type: 'warn', value: `Please input the API key in Remix Settings OR Contract Verification Plugin Settings.` })
+          await this.call('terminal', 'log', { type: 'warn', value: `Please input the API key in Remix Settings - Connected Services OR Contract Verification Plugin Settings.` })
           continue
         }
 
