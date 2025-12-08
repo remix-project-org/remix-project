@@ -31,7 +31,7 @@ export const MatomoCategories = {
   LOCALE_MODULE: 'localeModule' as const,
   THEME_MODULE: 'themeModule' as const,
   STATUS_BAR: 'statusBar' as const,
-  NOIR_COMPILER: 'noir-compiler' as const
+  NOIR_COMPILER: 'noir-compiler' as const,
   QUICK_DAPP_V2: 'quick-dapp-v2' as const
 }
 
