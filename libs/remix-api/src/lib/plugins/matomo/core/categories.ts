@@ -32,6 +32,7 @@ export const MatomoCategories = {
   THEME_MODULE: 'themeModule' as const,
   STATUS_BAR: 'statusBar' as const,
   NOIR_COMPILER: 'noir-compiler' as const
+  QUICK_DAPP_V2: 'quick-dapp-v2' as const
 }
 
 // Common action constants used across multiple categories

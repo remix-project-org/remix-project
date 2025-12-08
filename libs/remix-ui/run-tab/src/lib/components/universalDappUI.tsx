@@ -15,6 +15,7 @@ import { BN } from 'bn.js'
 import { CustomTooltip, is0XPrefixed, isHexadecimal, isNumeric, shortenAddress } from '@remix-ui/helper'
 import { TrackingContext } from '@remix-ide/tracking'
 import { UdappEvent } from '@remix-api'
+import { trackMatomoEvent } from '@remix-api'
 
 const txHelper = remixLib.execution.txHelper
 
@@ -525,6 +526,12 @@ export function UniversalDappUI(props: UdappProps) {
 
 const generateAIDappWithPlugin = async (description: string, address: string, contractData: any, props: UdappProps) => {
   try {
+    trackMatomoEvent(this, {
+      category: 'quick-dapp-v2',
+      action: 'generate',
+      name: 'start',
+      isClick: false
+    })
     const pages: Record<string, string> = await props.plugin.call('ai-dapp-generator', 'generateDapp', {
       description,
       address,
@@ -572,7 +579,21 @@ const generateAIDappWithPlugin = async (description: string, address: string, co
       pages
     )
 
+    trackMatomoEvent(this, {
+      category: 'quick-dapp-v2',
+      action: 'generate',
+      name: 'success',
+      isClick: false
+    })
+
   } catch (error) {
+    trackMatomoEvent(this, {
+      category: 'quick-dapp-v2',
+      action: 'error',
+      name: 'generation_failed',
+      value: error.message,
+      isClick: false
+    })
     console.error('Error generating DApp:', error)
     await props.plugin.call('terminal', 'log', { type: 'error', value: error.message })
   }

@@ -286,3 +286,17 @@ export interface ScriptRunnerPluginEvent extends MatomoEventBase {
     | 'executeScript'
     | 'configChanged';
 }
+
+
+/**
+ * Quick DApp V2 Events - Type-safe builders
+ */
+export interface QuickDappV2Event extends MatomoEventBase {
+  category: 'quick-dapp-v2';
+  action:
+    | 'generate'
+    | 'update'
+    | 'deploy_ipfs'
+    | 'register_ens'
+    | 'error';
+}

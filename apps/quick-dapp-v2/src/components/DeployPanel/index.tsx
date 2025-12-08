@@ -9,6 +9,7 @@ import {
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
+import { trackMatomoEvent } from '@remix-api'
 
 // const REMIX_ENDPOINT_IPFS = 'http://localhost:4000/quickdapp-ipfs';
 // const REMIX_ENDPOINT_ENS = 'http://localhost:4000/ens-service';
@@ -94,6 +95,14 @@ function DeployPanel(): JSX.Element {
     }
 
     try {
+
+      trackMatomoEvent(this, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'start',
+        isClick: true
+      })
+
       const indexHtmlContent = filesMap.get('/index.html');
       if (!indexHtmlContent) {
         throw new Error("Cannot find index.html");
@@ -157,6 +166,12 @@ function DeployPanel(): JSX.Element {
         error: '' 
       });
 
+      trackMatomoEvent(this, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'success',
+        isClick: false
+      })
     } catch (e: any) {
       console.error(e);
       setDeployResult({ cid: '', gatewayUrl: '', error: `Upload failed: ${e.message}` });
@@ -190,6 +205,12 @@ function DeployPanel(): JSX.Element {
     }
 
     try {
+      trackMatomoEvent(this, {
+        category: 'quick-dapp-v2',
+        action: 'register_ens',
+        name: 'start',
+        isClick: true
+      })
       const provider = new ethers.BrowserProvider(window.ethereum as any);
       const accounts = await provider.send('eth_requestAccounts', []);
       const ownerAddress = accounts[0];
@@ -219,6 +240,12 @@ function DeployPanel(): JSX.Element {
         domain: data.domain
       });
 
+      trackMatomoEvent(this, {
+        category: 'quick-dapp-v2',
+        action: 'register_ens',
+        name: 'success',
+        isClick: false
+      })
     } catch (e: any) {
       console.error(e);
       setEnsResult({ ...ensResult, error: `ENS Error: ${e.message}` });
