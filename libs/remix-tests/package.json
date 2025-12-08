@@ -1,6 +1,6 @@
 {
   "name": "@remix-project/remix-tests",
-  "version": "0.2.81",
+  "version": "0.2.82",
   "description": "Tool to test Solidity smart contracts",
   "main": "src/index.js",
   "types": "./src/index.d.ts",
@@ -36,15 +36,15 @@
   "homepage": "https://github.com/remix-project-org/remix-project/tree/master/libs/remix-tests#readme",
   "dependencies": {
     "@erebos/bzz-node": "^0.13.0",
-    "@ethereumjs/block": "^10.0.0",
-    "@ethereumjs/common": "^10.0.0",
-    "@ethereumjs/tx": "github:yann300/ethereumjs-vm#fixV10",
-    "@ethereumjs/util": "^10.0.0",
-    "@ethereumjs/vm": "^10.0.0",
-    "@remix-project/remix-lib": "^0.5.88",
-    "@remix-project/remix-simulator": "^0.2.81",
-    "@remix-project/remix-solidity": "^0.5.67",
-    "@remix-project/remix-url-resolver": "^0.0.42",
+    "@ethereumjs/block": "^10.1.0",
+    "@ethereumjs/common": "^10.1.0",
+    "@ethereumjs/tx": "github:yann300/ethereumjs-vm#tx_release_10.1.0",
+    "@ethereumjs/util": "^10.1.0",
+    "@ethereumjs/vm": "^10.1.0",
+    "@remix-project/remix-lib": "^0.5.89",
+    "@remix-project/remix-simulator": "^0.2.82",
+    "@remix-project/remix-solidity": "^0.5.68",
+    "@remix-project/remix-url-resolver": "^0.0.43",
     "ansi-gray": "^0.1.1",
     "async": "^2.6.0",
     "axios": "1.8.2",
@@ -77,16 +77,16 @@
     "typescript": "^3.3.1"
   },
   "resolutions": {
-    "@ethereumjs/blockchain": "^10.0.0",
-    "@ethereumjs/block": "^10.0.0",
-    "@ethereumjs/common": "^10.0.0",
-    "@ethereumjs/evm": "^10.0.0",
-    "@ethereumjs/statemanager": "^10.0.0",
-    "@ethereumjs/tx": "github:yann300/ethereumjs-vm#fixV10",
-    "@ethereumjs/util": "^10.0.0",
-    "@ethereumjs/vm": "^10.0.0",
-    "@ethereumjs/binarytree": "^10.0.0"
+    "@ethereumjs/blockchain": "^10.1.0",
+    "@ethereumjs/block": "^10.1.0",
+    "@ethereumjs/common": "^10.1.0",
+    "@ethereumjs/evm": "^10.1.0",
+    "@ethereumjs/statemanager": "^10.1.0",
+    "@ethereumjs/tx": "github:yann300/ethereumjs-vm#tx_release_10.1.0",
+    "@ethereumjs/util": "^10.1.0",
+    "@ethereumjs/vm": "^10.1.0",
+    "@ethereumjs/binarytree": "^10.1.0"
   },
   "typings": "src/index.d.ts",
-  "gitHead": "ac0a5fe3707736c51ecd6c3b9ab51bbefd747563"
+  "gitHead": "33dbb1756c2ffef00fad8b9ec32f7664850182cb"
 }

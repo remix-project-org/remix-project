@@ -136,6 +136,9 @@ export class CompilerImports extends Plugin {
       await this.setToken()
       resolved = await this.urlResolver.resolve(url, [], force)
       const { content, cleanUrl, type } = resolved
+      if (content && (content as string).includes('500 Internal server error') ) {
+        return cb(new Error('500 Internal server error'))
+      }
       cb(null, content, cleanUrl, type, url)
     } catch (e) {
       return cb(new Error('not found ' + url))

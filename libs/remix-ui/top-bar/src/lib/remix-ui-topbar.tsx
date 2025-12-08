@@ -107,25 +107,31 @@ export function RemixUiTopbar() {
     // Listen to left side panel events
     plugin.on('sidePanel', 'leftSidePanelHidden', () => {
       setLeftPanelHidden(true)
+      trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'panelHidden', isClick: false })
     })
     plugin.on('sidePanel', 'leftSidePanelShown', () => {
       setLeftPanelHidden(false)
+      trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'panelShown', isClick: false })
     })
 
     // Listen to terminal panel events
     plugin.on('terminal', 'terminalPanelHidden', () => {
       setBottomPanelHidden(true)
+      trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'panelHidden', isClick: false })
     })
     plugin.on('terminal', 'terminalPanelShown', () => {
       setBottomPanelHidden(false)
+      trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'panelShown', isClick: false })
     })
 
     // Listen to right side panel events
     plugin.on('rightSidePanel', 'rightSidePanelHidden', () => {
       setRightPanelHidden(true)
+      trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'panelHidden', isClick: false })
     })
     plugin.on('rightSidePanel', 'rightSidePanelShown', () => {
       setRightPanelHidden(false)
+      trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'panelShown', isClick: false })
     })
 
     // Initialize panel states from localStorage
@@ -591,21 +597,36 @@ export function RemixUiTopbar() {
               <div
                 className={`codicon codicon-layout-sidebar-left${leftPanelHidden ? '-off' : ''} fs-5`}
                 data-id="toggleLeftSidePanelIcon"
-                onClick={() => plugin.call('sidePanel', 'togglePanel')}
+                onClick={() => {
+                  if (leftPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'showLeftSidePanelClicked', isClick: true })
+                  else trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'hideLeftSidePanelClicked', isClick: true })
+                  plugin.call('sidePanel', 'togglePanel')
+                }
+                }
               ></div>
             </CustomTooltip>
             <CustomTooltip placement="bottom-start" tooltipText={`Toggle Bottom Panel`}>
               <div
                 className={`codicon codicon-layout-panel${bottomPanelHidden ? '-off' : ''} fs-5`}
                 data-id="toggleBottomPanelIcon"
-                onClick={() => plugin.call('terminal', 'togglePanel')}
+                onClick={() => {
+                  if (bottomPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'showTerminalPanelClicked', isClick: true })
+                  else trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'hideTerminalPanelClicked', isClick: true })
+                  plugin.call('terminal', 'togglePanel')
+                }
+                }
               ></div>
             </CustomTooltip>
             <CustomTooltip placement="bottom-start" tooltipText={`Toggle Right Side Panel`}>
               <div
                 className={`codicon codicon-layout-sidebar-right${rightPanelHidden ? '-off' : ''} fs-5`}
                 data-id="toggleRightSidePanelIcon"
-                onClick={() => plugin.call('rightSidePanel', 'togglePanel')}
+                onClick={() => {
+                  if (rightPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'showRightSidePanelClicked', isClick: true })
+                  else trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'hideRightSidePanelClicked', isClick: true })
+                  plugin.call('rightSidePanel', 'togglePanel')
+                }
+                }
               ></div>
             </CustomTooltip>
           </div>

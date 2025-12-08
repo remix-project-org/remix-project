@@ -1,6 +1,6 @@
 /**
  * File Events - File explorer and workspace management tracking events
- * 
+ *
  * This file contains all file management related Matomo events.
  */
 
@@ -8,8 +8,15 @@ import { MatomoEventBase } from '../core/base-types';
 
 export interface FileExplorerEvent extends MatomoEventBase {
   category: 'fileExplorer';
-  action: 
+  action:
     | 'contextMenu'
+    | 'createMenuButtonOpen'
+    | 'createBlankFile'
+    | 'createNewFile'
+    | 'createNewFolder'
+    | 'importFromIpfs'
+    | 'importFromLocalFileSystem'
+    | 'importFromHttps'
     | 'workspaceMenu'
     | 'fileAction'
     | 'deleteKey'
@@ -22,7 +29,7 @@ export interface FileExplorerEvent extends MatomoEventBase {
 
 export interface WorkspaceEvent extends MatomoEventBase {
   category: 'workspace';
-  action: 
+  action:
     | 'switchWorkspace'
     | 'template'
     | 'GIT';
@@ -30,14 +37,14 @@ export interface WorkspaceEvent extends MatomoEventBase {
 
 export interface StorageEvent extends MatomoEventBase {
   category: 'Storage';
-  action: 
+  action:
     | 'activate'
     | 'error';
 }
 
 export interface BackupEvent extends MatomoEventBase {
   category: 'Backup';
-  action: 
+  action:
     | 'create'
     | 'restore'
     | 'error'

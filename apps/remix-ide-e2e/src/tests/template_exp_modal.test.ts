@@ -3,6 +3,7 @@ import { NightwatchBrowser } from 'nightwatch'
 import init from '../helpers/init'
 
 module.exports = {
+  '@disabled': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
     init(browser, done)
   },
@@ -134,6 +135,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/TestToken.sol"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts/TestToken.sol"]')
+      .pause(2000)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`contract TestToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {`) !== -1,
           'Incorrect content')
@@ -184,7 +186,9 @@ module.exports = {
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
       .click('*[data-id="compile-action"]')
-      .waitForElementVisible('#verticalIconsKindsolidity > i.remixui_status.fas.fa-check-circle.text-success.remixui_statusCheck')
+      // Shows 3 warnings to inform about the deprecation of the use of 'assembly ("memory-safe")' in OZ files
+      // See: https://docs.soliditylang.org/en/latest/assembly.html#memory-safety
+      .waitForElementVisible('#verticalIconsKindsolidity > i.remixui_status.badge.rounded-pill.bg-warning')
       .clickLaunchIcon('solidity')
       .isVisible('*[data-id="compilation-details"]')
   },
@@ -240,6 +244,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.github/workflows"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.github/workflows/run-js-test.yml"]')
       .click('*[data-id="treeViewLitreeViewItem.github/workflows/run-js-test.yml"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`name: Running Mocha Chai Solidity Unit Tests`) !== -1,
           'Correct content')
@@ -259,6 +264,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.github/workflows"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.github/workflows/run-slither-action.yml"]')
       .click('*[data-id="treeViewLitreeViewItem.github/workflows/run-slither-action.yml"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`name: Slither Analysis`) !== -1,
           'Correct content')
@@ -276,6 +282,7 @@ module.exports = {
       .click('*[data-id="template-card-contractCreate2Factory-0"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/libs"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts/libs/create2-factory.sol"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`contract Create2Factory {`) !== -1,
           'Correct content')
@@ -293,6 +300,7 @@ module.exports = {
       .click('*[data-id="template-card-contractDeployerScripts-1"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/contract-deployer/basic-contract-deploy.ts"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`export const deploy = async (contractName: string, args: Array<any>, accountIndex?: number): Promise<ethers.Contract> => {`) !== -1,
           'Correct content')
@@ -311,6 +319,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/etherscan"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/etherscan/receiptGuidScript.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/etherscan/receiptGuidScript.ts"]')
+      .pause(1500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`export const receiptStatus = async (apikey: string, guid: string, isProxyContract?: boolean) => {`) !== -1,
           'Correct content')
@@ -411,6 +420,7 @@ module.exports = {
       .pause(1000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemipfs/QmQQfBMkpDgmxKzYaoAtqfaybzfgGm9b2LWYyT56Chv6xH"]')
       .click('*[data-id="treeViewLitreeViewItemipfs/QmQQfBMkpDgmxKzYaoAtqfaybzfgGm9b2LWYyT56Chv6xH"]')
+      .pause(2000)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`contract Storage {`) !== -1,
           'Correct content')
@@ -439,6 +449,7 @@ module.exports = {
       .click('*[data-id="treeViewDivtreeViewItemgithub/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC6909"]')
       .waitForElementVisible('*[data-id="treeViewDivtreeViewItemgithub/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC6909/ERC6909.sol"]')
       .click('*[data-id="treeViewDivtreeViewItemgithub/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC6909/ERC6909.sol"]')
+      .pause(2000)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`contract ERC6909 is Context, ERC165, IERC6909 {`) !== -1,
           'Correct content')

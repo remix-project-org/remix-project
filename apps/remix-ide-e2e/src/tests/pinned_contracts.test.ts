@@ -35,7 +35,7 @@ module.exports = {
       .switchEnvironment('vm-cancun')
       .assert.elementPresent('*[data-id="deployedContracts"]')
       .assert.textContains('*[data-id="deployedContractsBadge"]', '0')
-      .switchEnvironment('vm-prague')
+      .switchEnvironment('vm-osaka')
       .assert.textContains('*[data-id="deployedContractsBadge"]', '1')
       .assert.elementPresent('*[data-id="pinnedInstance0xd9145CCE52D386f254917e481eB44e9943F39138"]')
   },

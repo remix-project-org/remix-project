@@ -99,7 +99,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
             isGitRepo: state.initializeAsGitRepo,
             createCommit: true
           })
-          trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithBasicTemplate', name: 'success' })
+          trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithBasicTemplate', isClick: true })
           facade.closeWizard()
           dispatch({ type: TemplateExplorerWizardAction.RESET_STATE })
         }}>

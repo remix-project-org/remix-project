@@ -15,7 +15,7 @@ const tests = {
   'Should show fork and delete VM state icons #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="selected-provider-vm-prague"]', 30000)
+      .waitForElementVisible('*[data-id="selected-provider-vm-osaka"]', 30000)
       .waitForElementVisible('*[data-id="fork-state-icon"]')
       .waitForElementVisible('*[data-id="delete-state-icon"]')
   },
@@ -84,7 +84,7 @@ const tests = {
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`"latestBlockNumber": "0x2"`) !== -1)
         browser.assert.ok(content.indexOf(`"stateName": "forkedState_1"`) !== -1)
-        browser.assert.ok(content.indexOf(`"forkName": "prague"`) !== -1)
+        browser.assert.ok(content.indexOf(`"forkName": "osaka"`) !== -1)
         browser.assert.ok(content.indexOf(`"savingTimestamp":`) !== -1)
         browser.assert.ok(content.indexOf(`"db":`) !== -1)
         browser.assert.ok(content.indexOf(`"blocks":`) !== -1)
@@ -157,7 +157,7 @@ const tests = {
       )
       .waitForElementVisible(`[data-id="dropdown-item-vm-fs-forkedState_1"]`)
       .click('[data-id="settingsSelectEnvOptions"] button')
-      .switchEnvironment('vm-prague')
+      .switchEnvironment('vm-osaka')
       .openFile('contracts/1_Storage.sol')
       .clickLaunchIcon('solidity')
       .click('*[data-id="compilerContainerCompileBtn"]')

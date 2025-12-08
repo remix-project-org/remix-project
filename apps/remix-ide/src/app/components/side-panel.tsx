@@ -5,7 +5,7 @@ import { RemixPluginPanel } from '@remix-ui/panel'
 import packageJson from '../../../../../package.json'
 import { RemixUIPanelHeader } from '@remix-ui/panel'
 import { PluginViewWrapper } from '@remix-ui/helper'
-// const csjs = require('csjs-inject')
+import { trackMatomoEvent } from '@remix-api'
 
 const sidePanel = {
   name: 'sidePanel',
@@ -39,6 +39,7 @@ export class SidePanel extends AbstractPanel {
       if (this.isHidden) {
         const sidePanel = document.querySelector('#side-panel')
         sidePanel?.classList.add('d-none')
+        trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'hiddenOnLoad', isClick: false })
       }
     } else {
       // Initialize with default state if not found
@@ -69,6 +70,7 @@ export class SidePanel extends AbstractPanel {
         panelStates.leftSidePanel.pluginProfile = this.plugins[name]?.profile
         window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
 
+        trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'shownOnVerticalIconClick', isClick: false })
         this.showContent(name)
         this.emit('leftSidePanelShown')
         this.events.emit('leftSidePanelShown')
@@ -92,6 +94,7 @@ export class SidePanel extends AbstractPanel {
         }
         window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
 
+        trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'hiddenOnVerticalIconClick', isClick: false })
         // Emit explicit panel state events for proper synchronization
         this.emit('leftSidePanelHidden')
         this.events.emit('leftSidePanelHidden')
@@ -134,6 +137,7 @@ export class SidePanel extends AbstractPanel {
         panelStates.leftSidePanel.pluginProfile = this.plugins[name]?.profile
         window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
 
+        trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'shownOnForceShowContent', isClick: false })
         this.showContent(name)
         this.emit('leftSidePanelShown')
         this.events.emit('leftSidePanelShown')
@@ -207,11 +211,13 @@ export class SidePanel extends AbstractPanel {
     if (this.isHidden) {
       this.isHidden = false
       sidePanel?.classList.remove('d-none')
+      trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'shownOnToggleIconClick', isClick: false })
       this.emit('leftSidePanelShown')
       this.events.emit('leftSidePanelShown')
     } else {
       this.isHidden = true
       sidePanel?.classList.add('d-none')
+      trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'hiddenOnToggleIconClick', isClick: false })
       this.emit('leftSidePanelHidden')
       this.events.emit('leftSidePanelHidden')
     }

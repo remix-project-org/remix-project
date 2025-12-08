@@ -184,7 +184,7 @@ export class Transactions {
       payload.params[0].to = toChecksumAddress(payload.params[0].to)
     }
 
-    payload.params[0].gas = 10000000 * 10
+    payload.params[0].gas = 16777216 // Equal to EIP-7825 Transaction Gas Limit Cap, 2^24
     this.vmContext.web3().recordVMSteps(false)
     this.txRunnerInstance.internalRunner.standaloneTx = true
     processTx(this.txRunnerInstance, payload, true, (error, value: VMexecutionResult) => {

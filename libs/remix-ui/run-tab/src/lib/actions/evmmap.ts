@@ -10,6 +10,7 @@ export type ChainCompatibleInfo = {
 }
 
 export type HardFork =
+  | 'osaka'
   | 'prague'
   | 'cancun'
   | 'shanghai'
@@ -25,6 +26,12 @@ export type HardFork =
   | 'homestead'
 
 export const evmMap: Map<HardFork, { chainId: ChainInfo[], minCompilerVersion: string }> = new Map([
+  ['osaka', {
+    chainId: [
+    ],
+    minCompilerVersion: "v0.8.31+commit.fd3a2265",
+    evmVersion: 'osaka'
+  }],
   ['prague', {
     chainId: [
     ],

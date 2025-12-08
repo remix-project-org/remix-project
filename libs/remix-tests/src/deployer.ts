@@ -61,10 +61,11 @@ export function deployAll (compileResult: compilationInterface, provider: Browse
         deployObject.getDeployTransaction().then((tx: TransactionResponse) => {
           provider.estimateGas(tx).then((gasValue) => {
             const gasBase = Math.ceil(Number(gasValue) * 1.2)
-            const gas = withDoubleGas ? gasBase * 2 : gasBase
+            let gasLimit = withDoubleGas ? gasBase * 2 : gasBase
+            if (gasLimit > 16777216) gasLimit = 16777216 // Set to EIP-7825 Transaction Gas Limit Cap, 2^24
             deployObject.deploy({
               from: accounts[0],
-              gasLimit: gas
+              gasLimit
             }).then(async function (deployContractObj: BaseContract) {
               const deployTx = deployContractObj.deploymentTransaction()
               const receipt: TransactionReceipt = await provider.getTransactionReceipt(deployTx.hash)

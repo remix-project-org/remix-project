@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useState, useRef, useEffect } from 'react'
 import './DropdownMenu.css'
 import { ArrowRightSm } from '@remix-ui/tabs'
