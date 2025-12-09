@@ -49,10 +49,10 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
         [contract.id]: {
           ...currentContract,
           receipts: (currentContract.receipts || []).map(r =>
-            r === receipt ? { ...r, status: 'pending' as VerificationStatus, message: 'Retrying...' } : r
+            r.verifierInfo.name === receipt.verifierInfo.name ? { ...r, status: 'pending' as VerificationStatus, message: 'Retrying...' } : r
           ),
           proxyReceipts: (currentContract.proxyReceipts || []).map(r =>
-            r === receipt ? { ...r, status: 'pending' as VerificationStatus, message: 'Retrying...' } : r
+            r.verifierInfo.name === receipt.verifierInfo.name ? { ...r, status: 'pending' as VerificationStatus, message: 'Retrying...' } : r
           )
         }
       }
@@ -68,13 +68,23 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
       
       const verifier = getVerifier(receipt.verifierInfo.name, verifierSettings)
 
+      const TIMEOUT_MS = 30000
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Verification timed out after ${TIMEOUT_MS / 1000} seconds.`))
+        }, TIMEOUT_MS)
+      })
+
       let response
 
       if (receipt.isProxyReceipt) {
         if (!verifier.verifyProxy) {
           throw new Error(`Proxy verification not supported by ${receipt.verifierInfo.name}`)
         }
-        response = await verifier.verifyProxy(contract)
+        response = await Promise.race([
+          verifier.verifyProxy(contract),
+          timeoutPromise
+        ])
       } else {
         const compilerAbstract = Object.values(compilationOutput || {}).find(
           (abstract: CompilerAbstract) => 
@@ -88,7 +98,10 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
           throw new Error(userMessage) 
         }
 
-        response = await verifier.verify(contract, compilerAbstract)
+        response = await Promise.race([
+          verifier.verify(contract, compilerAbstract),
+          timeoutPromise
+        ])
       }
 
       setSubmittedContracts(prev => {
@@ -99,10 +112,10 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
           [contract.id]: {
             ...currentContract,
             receipts: (currentContract.receipts || []).map(r =>
-              r === receipt ? { ...r, ...response, receiptId: response.receiptId || undefined, status: response.status, message: response.message } : r
+              r.verifierInfo.name === receipt.verifierInfo.name ? { ...r, ...response, receiptId: response.receiptId || undefined, status: response.status, message: response.message } : r
             ),
             proxyReceipts: (currentContract.proxyReceipts || []).map(r =>
-              r === receipt ? { ...r, ...response, receiptId: response.receiptId || undefined, status: response.status, message: response.message } : r
+              r.verifierInfo.name === receipt.verifierInfo.name ? { ...r, ...response, receiptId: response.receiptId || undefined, status: response.status, message: response.message } : r
             )
           }
         }
@@ -118,10 +131,10 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
           [contract.id]: {
             ...currentContract,
             receipts: (currentContract.receipts || []).map(r =>
-              r === receipt ? { ...r, status: 'failed' as VerificationStatus, message: e.message } : r
+              r.verifierInfo.name === receipt.verifierInfo.name ? { ...r, status: 'failed' as VerificationStatus, message: e.message } : r
             ),
             proxyReceipts: (currentContract.proxyReceipts || []).map(r =>
-              r === receipt ? { ...r, status: 'failed' as VerificationStatus, message: e.message } : r
+              r.verifierInfo.name === receipt.verifierInfo.name ? { ...r, status: 'failed' as VerificationStatus, message: e.message } : r
             )
           }
         }
