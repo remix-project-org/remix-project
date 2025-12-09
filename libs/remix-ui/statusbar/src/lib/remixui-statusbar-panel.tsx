@@ -116,7 +116,7 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
               <div className="remixui_statusbar d-flex w-100 justify-content-start p-0 ms-3 text-white">  
                 <span className="spinner-border spinner-border-sm me-2" role="status">                  
                 </span>
-                <span className="">loading typescript</span>
+                <span className="">loading typescript types</span>
               </div>}
           </div>
 
