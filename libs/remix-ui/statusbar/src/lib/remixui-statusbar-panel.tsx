@@ -122,7 +122,7 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
 
           <div className="w-100 remixui_statusbar">
             <DidYouKnow />
-          </div>          
+          </div>
 
           <div className="remixui_statusbar d-flex w-100 justify-content-end p-0">
 
