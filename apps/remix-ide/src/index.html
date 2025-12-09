@@ -80,6 +80,15 @@
 		}
 		@keyframes pre-splash-spin { to { transform: rotate(360deg); } }
 	</style>
+	<script>
+		function isProbablyMobile() {
+			return (
+				window.matchMedia("(max-width: 768px)").matches &&
+				("ontouchstart" in window || navigator.maxTouchPoints > 0)
+			);
+		}
+		if (isProbablyMobile()) window.location.replace("https://mobile.remix.live");
+	</script>
 </head>
 
 <body>
