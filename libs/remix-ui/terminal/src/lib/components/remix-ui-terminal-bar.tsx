@@ -23,7 +23,7 @@ export const RemixUITerminalBar = (props: RemixUiTerminalProps) => {
   return (<>
     <div className="remix_ui_terminal_bar d-flex">
       <div
-        className="remix_ui_terminal_menu d-flex w-100 align-items-center position-relative border-top border-dark bg-light"
+        className="remix_ui_terminal_menu d-flex w-100 align-items-center position-relative border-top border-dark"
         ref={terminalMenu}
         data-id="terminalToggleMenu"
       >
