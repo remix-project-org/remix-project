@@ -155,8 +155,8 @@ const App = () => {
               }
             } catch (e) {
               receipt.failedChecks++
-              // Only retry 20 times
-              if (receipt.failedChecks >= 20) {
+              // Only retry 25 times
+              if (receipt.failedChecks >= 25) {
                 receipt.status = 'failed'
                 receipt.message = e.message
               }

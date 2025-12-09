@@ -176,8 +176,10 @@ export class ContractVerificationPluginClient extends PluginClient {
 
         await this.call('terminal', 'log', { type: 'log', value: `Verifying with ${providerName}...` })
 
-        if (providerName === 'Etherscan' || providerName === 'Routescan' || providerName === 'Blockscout') {
-          await new Promise(resolve => setTimeout(resolve, 9000))
+        if (providerName === 'Routescan') {
+          await new Promise(resolve => setTimeout(resolve, 20000))
+        } else if (providerName === 'Etherscan' || providerName === 'Blockscout') {
+          await new Promise(resolve => setTimeout(resolve, 10000))
         }
 
         if (verifier && typeof verifier.verify === 'function') {
@@ -194,11 +196,11 @@ export class ContractVerificationPluginClient extends PluginClient {
             failedChecks: 0
           }
 
-          const successMessage = `${providerName} verification successful.`
+          const successMessage = `${providerName} verification request submitted successful.`
           await this.call('terminal', 'log', { type: 'info', value: successMessage })
 
           if (result.lookupUrl) {
-            const textMessage = `${result.lookupUrl}`
+            const textMessage = `View Code: ${result.lookupUrl}`
             await this.call('terminal', 'log', { type: 'info', value: textMessage })
           }
         } else {

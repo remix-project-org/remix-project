@@ -28,17 +28,6 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
     setExpanded(!expanded)
   }
 
-  const isRetryAvailable = useMemo(() => {
-    if (!compilationOutput) return false
-    
-    const compilerAbstract = Object.values(compilationOutput || {}).find(
-      (abstract: CompilerAbstract) => 
-        abstract.data.contracts[contract.filePath] &&
-        abstract.data.contracts[contract.filePath][contract.contractName]
-    )
-    return !!compilerAbstract
-  }, [compilationOutput, contract.filePath, contract.contractName])
-
   const handleRetryVerification = async (receipt: VerificationReceipt) => {
     setSubmittedContracts(prev => {
       const currentContract = prev[contract.id]
@@ -182,7 +171,7 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
 
         <div>
           <span className="fw-bold">Verified at: </span>
-          <ReceiptsBody receipts={contract.receipts} handleRetry={handleRetryVerification} isRetryAvailable={isRetryAvailable} />
+          <ReceiptsBody receipts={contract.receipts} handleRetry={handleRetryVerification} isRetryAvailable={true} />
         </div>
 
         {hasProxy && (
@@ -196,7 +185,7 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
             </div>
             <div>
               <span className="fw-bold">Proxy verified at: </span>
-              <ReceiptsBody receipts={contract.proxyReceipts} handleRetry={handleRetryVerification} isRetryAvailable={isRetryAvailable} />
+              <ReceiptsBody receipts={contract.proxyReceipts} handleRetry={handleRetryVerification} isRetryAvailable={true} />
             </div>
           </>
         )}
@@ -215,56 +204,71 @@ const ReceiptsBody = ({ receipts, handleRetry, isRetryAvailable }: {
       {receipts.map((receipt) => (
         <li
           key={`${receipt.contractId}-${receipt.verifierInfo.name}${receipt.isProxyReceipt ? '-proxy' : ''}-${receipt.receiptId}`}
-          className="list-group-item d-flex flex-row align-items-baseline"
+          className="list-group-item d-flex flex-column"
         >
-          <CustomTooltip
-            placement="top"
-            tooltipClasses=" text-break"
-            tooltipTextClasses="text-capitalize"
-            tooltipText={`Status: ${receipt.status}${receipt.message ? `, Message: ${receipt.message}` : ''}`}
-          >
-            <span className="me-2">
-              {['verified', 'partially verified', 'already verified'].includes(receipt.status) ?
-                <i className="fas fa-check text-success px-1"></i> :
-                receipt.status === 'exactly verified' || receipt.status === 'fully verified' ?
-                  <i className="fas fa-check-double text-success px-1"></i> :
-                  receipt.status === 'failed' ?
-                    <i className="fas fa-xmark text-warning px-1"></i> :
-                    ['pending', 'awaiting implementation verification', 'Retrying...'].includes(receipt.status) ?
-                      <i className="fas fa-spinner fa-spin px-1"></i> :
-                      <i className="fas fa-question px-1"></i>
-              }
-            </span>
-          </CustomTooltip>
-          {receipt.status === 'failed' && isRetryAvailable && (
-            <CustomTooltip placement="top" tooltipText="Retry Verification">
-              <button
-                className="btn btn-sm p-0 me-2"
-                style={{ border: 'none', background: 'none', color: 'var(--primary)' }}
-                onClick={() => handleRetry(receipt)}
-              >
-                <i className="fas fa-redo" style={{ fontSize: '0.6rem' }}></i>
-              </button>
+          <div className="d-flex flex-row align-items-baseline w-100">
+            <CustomTooltip
+              placement="top"
+              tooltipClasses=" text-break"
+              tooltipTextClasses="text-capitalize"
+              tooltipText={`Status: ${receipt.status}${receipt.message ? `, Message: ${receipt.message}` : ''}`}
+            >
+              <span className="me-2">
+                {['verified', 'partially verified', 'already verified'].includes(receipt.status) ?
+                  <i className="fas fa-check text-success px-1"></i> :
+                  receipt.status === 'exactly verified' || receipt.status === 'fully verified' ?
+                    <i className="fas fa-check-double text-success px-1"></i> :
+                    receipt.status === 'failed' ?
+                      <i className="fas fa-xmark text-danger px-1"></i> :
+                      ['pending', 'awaiting implementation verification', 'Retrying...'].includes(receipt.status) ?
+                        <i className="fas fa-spinner fa-spin px-1"></i> :
+                        <i className="fas fa-question px-1"></i>
+                }
+              </span>
             </CustomTooltip>
-          )}
-          <div className="d-flex flex-row w-100 justify-content-between">
-            <div>
-              <CustomTooltip placement="top" tooltipClasses=" text-break" tooltipText={`API: ${receipt.verifierInfo.apiUrl}`}>
-                <span className="fw-bold pe-2">{receipt.verifierInfo.name}</span>
+            {receipt.status === 'failed' && isRetryAvailable && (
+              <CustomTooltip placement="top" tooltipText="Retry Verification">
+                <button
+                  className="btn btn-sm p-0 me-2"
+                  style={{ border: 'none', background: 'none', color: 'var(--primary)' }}
+                  onClick={() => handleRetry(receipt)}
+                >
+                  <i className="fas fa-redo" style={{ fontSize: '0.6rem' }}></i>
+                </button>
               </CustomTooltip>
-              {
-                !!receipt.receiptLookupUrl && <CustomTooltip placement="top" tooltipClasses=" text-break" tooltipText="View verification details">
-                  <a href={receipt.receiptLookupUrl} target="_blank" className="fa fas fa-receipt" rel="noreferrer"></a>
+            )}
+            <div className="d-flex flex-row w-100 justify-content-between">
+              <div>
+                <CustomTooltip placement="top" tooltipClasses=" text-break" tooltipText={`API: ${receipt.verifierInfo.apiUrl}`}>
+                  <span className="fw-bold pe-2">{receipt.verifierInfo.name}</span>
                 </CustomTooltip>
-              }
-            </div>
-            <div className="ms-1">
-              {!!receipt.lookupUrl && receipt.verifierInfo.name === 'Blockscout' ?
-                <CopyToClipboard classList="pe-0 py-0" tip="Copy code URL" content={receipt.lookupUrl} direction="top" /> :
-                !!receipt.lookupUrl && <a href={receipt.lookupUrl} target="_blank" className="fa fas fa-arrow-up-right-from-square" rel="noreferrer"></a>
-              }
+                {!!receipt.receiptLookupUrl && 
+                  <CustomTooltip placement="top" tooltipText="View verification details">
+                    <a href={receipt.receiptLookupUrl} target="_blank" className="fa fas fa-receipt" rel="noreferrer"></a>
+                  </CustomTooltip>
+                }
+              </div>
+              <div className="ms-1">
+                {!!receipt.lookupUrl && receipt.verifierInfo.name === 'Blockscout' ?
+                  <CopyToClipboard classList="pe-0 py-0" tip="Copy code URL" content={receipt.lookupUrl} direction="top" /> :
+                  !!receipt.lookupUrl && <a href={receipt.lookupUrl} target="_blank" className="fa fas fa-arrow-up-right-from-square" rel="noreferrer"></a>
+                }
+              </div>
             </div>
           </div>
+          {receipt.status === 'failed' && (
+            <div className="text-danger small mt-1 ps-4 d-flex align-items-center">
+              <i className="fas fa-exclamation-circle me-1"></i>
+              <span>
+                Verify failed. Please retry.
+                {receipt.message && (
+                  <span className="text-muted ms-1" style={{ fontSize: '0.85em' }}>
+                    ({receipt.message.length > 50 ? receipt.message.substring(0, 50) + '...' : receipt.message})
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
         </li>
       ))}
     </ul>
