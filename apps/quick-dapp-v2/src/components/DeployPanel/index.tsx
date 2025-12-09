@@ -19,6 +19,7 @@ const REMIX_ENDPOINT_ENS = 'https://quickdapp-ens.api.remix.live';
 function DeployPanel(): JSX.Element {
   const intl = useIntl()
   const { appState, dispatch } = useContext(AppContext);
+  const { activeDapp } = appState;
   const { title, details, logo } = appState.instance; 
   
   const [isDeploying, setIsDeploying] = useState(false);
@@ -64,6 +65,11 @@ function DeployPanel(): JSX.Element {
   }
 
   const handleIpfsDeploy = async () => {
+    if (!activeDapp) {
+      alert("No active dapp selected");
+      return;
+    }
+
     setIsDeploying(true);
     setDeployResult({ cid: '', gatewayUrl: '', error: '' });
 
@@ -76,10 +82,12 @@ function DeployPanel(): JSX.Element {
       await builder.initialize();
 
       filesMap = new Map<string, string>();
-      await readDappFiles('dapp', filesMap);
+      
+      const dappRootPath = `dapps/${activeDapp.slug}`;
+      await readDappFiles(dappRootPath, filesMap, dappRootPath.length);
 
       if (filesMap.size === 0) {
-        throw new Error("No DApp files");
+        throw new Error(`No DApp files found in ${dappRootPath}`);
       }
 
       jsResult = await builder.build(filesMap, '/src/main.jsx');
@@ -131,9 +139,15 @@ function DeployPanel(): JSX.Element {
           };
         </script>
       `;
-      modifiedHtml = modifiedHtml.replace('</head>', `${injectionScript}\n</head>`);
+      
+      if (modifiedHtml.includes('</head>')) {
+        modifiedHtml = modifiedHtml.replace('</head>', `${injectionScript}\n</head>`);
+      } else {
+        modifiedHtml = `<html><head>${injectionScript}</head>${modifiedHtml}</html>`;
+      }
       
       const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
+      
       modifiedHtml = modifiedHtml.replace(
         /<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, 
         inlineScript

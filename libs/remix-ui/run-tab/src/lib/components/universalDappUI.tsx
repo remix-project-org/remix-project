@@ -369,19 +369,21 @@ export function UniversalDappUI(props: UdappProps) {
 
                         await props.plugin.call('ai-dapp-generator', 'resetDapp', address)
                         try {
-                          await props.plugin.call('quick-dapp-v2', 'clearInstance')
+                          await props.plugin.call('quick-dapp-v2', 'createDapp', {
+                            description: description,
+                            contractName: props.instance.name,
+                            address: address,
+                            abi: props.instance.abi || props.instance.contractData.abi,
+                            chainId: props.plugin.REACT_API.chainId,
+                            compilerData: data
+                          })
+                          
+                          await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+                          
                         } catch (e) {
-                          console.warn('Quick Dapp clean up failed (plugin might not be loaded yet):', e)
+                          console.error("Quick Dapp V2 call failed:", e);
+                          await props.plugin.call('notification', 'toast', 'Failed to call Quick Dapp V2 plugin.')
                         }
-
-                        try {
-                          await props.plugin.call('quick-dapp-v2', 'startAiLoading')
-                        } catch (e) {
-                          console.warn('Failed to start loading state:', e)
-                        }
-
-                        await generateAIDappWithPlugin(description, address, data, props)
-                        await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
                       } catch (error) {
                         if (error.message !== 'Canceled' && error.message !== 'Hide') {
                           console.error('Error generating DApp:', error)
