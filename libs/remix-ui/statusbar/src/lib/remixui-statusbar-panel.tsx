@@ -28,6 +28,7 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
   const [scamAlerts, setScamAlerts] = useState<ScamAlert[]>([])
   const [gitBranchName, setGitBranchName] = useState('')
   const [isAiActive, setIsAiActive] = useState(false)
+  const [isTypeLoadingActive, setIsTypeLoadingActive] = useState(false)
   const { refs, context, floatingStyles } = useFloating({
     open: showScamDetails,
     onOpenChange: setShowScamDetails,
@@ -58,6 +59,11 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
       setScamAlerts(response.data.alerts)
     }
     getScamAlerts()
+
+    statusBarPlugin.on('editor', 'typesLoading' as any, (status: string) => {
+      status === 'start' ? setIsTypeLoadingActive(true) : setIsTypeLoadingActive(false)
+    })
+  
     return () => {
       abortController.abort()
     }
@@ -106,11 +112,17 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
             <div className="remixui_statusbar remixui_statusbar_gitstatus">
               <GitStatus plugin={statusBarPlugin} gitBranchName={gitBranchName} setGitBranchName={setGitBranchName} />
             </div>
+            {isTypeLoadingActive &&
+              <div className="remixui_statusbar d-flex w-100 justify-content-start p-0 ms-3 text-white">  
+                <span className="spinner-border spinner-border-sm me-2" role="status">                  
+                </span>
+                <span className="">loading typescript</span>
+              </div>}
           </div>
 
           <div className="w-100 remixui_statusbar">
             <DidYouKnow />
-          </div>
+          </div>          
 
           <div className="remixui_statusbar d-flex w-100 justify-content-end p-0">
 
