@@ -40,6 +40,10 @@ export default class CodeParserGasService {
       return
     }
     this.plugin.currentFile = await this.plugin.call('fileManager', 'file')
+    if (!this.plugin.currentFile || !this.plugin.currentFile.endsWith('.sol')) {
+      await this.plugin.call('editor', 'discardLineTexts')
+      return
+    }
     // cast from the remix-plugin interface to the solidity one. Should be fixed when remix-plugin move to the remix-project repository
     const extractedFiledNodes = await this.plugin._extractFileNodes(this.plugin.currentFile, this.plugin.compilerAbstract as unknown as lastCompilationResult)
     if (extractedFiledNodes) {
