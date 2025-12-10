@@ -129,7 +129,7 @@
     height: 89.5dvh;
   }
 
-@media screen and (min-width: 2160px) {
+@media screen and (min-width: 600px) {
   .fe-git-panel-responsive {
     height: 97dvh;
   }
@@ -137,3 +137,4 @@
     height: 92dvh;
   }
 }
+
