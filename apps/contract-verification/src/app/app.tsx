@@ -21,7 +21,7 @@ const App = () => {
   const [themeType, setThemeType] = useState<ThemeType>('dark')
   const [settings, setSettings] = useLocalStorage<ContractVerificationSettings>('contract-verification:settings', { chains: {} })
   const [submittedContracts, setSubmittedContracts] = useLocalStorage<SubmittedContracts>('contract-verification:submitted-contracts', {})
-  const [chains, setChains] = useState<Chain[]>([]) // State to hold the chains data
+  const [chains, setChains] = useState<Chain[]>([]) 
   const [compilationOutput, setCompilationOutput] = useState<{ [key: string]: CompilerAbstract } | undefined>()
 
   // Form values:
@@ -52,28 +52,23 @@ const App = () => {
         setLocale(locale)
       })
 
-      // Fetch compiler artefacts initially
       plugin.call('compilerArtefacts' as any, 'getAllCompilerAbstracts').then((obj: any) => {
         setCompilationOutput(obj)
       })
 
-      // Subscribe to compilations
       plugin.on('compilerArtefacts' as any, 'compilationSaved', (compilerAbstracts: { [key: string]: CompilerAbstract }) => {
         setCompilationOutput((prev) => ({ ...(prev || {}), ...compilerAbstracts }))
       })
     }
 
-    // Check if plugin is already activated
     if (plugin.isActivated()) {
       initializePlugin()
     } else {
-      // Listen for activation event if not yet activated
       plugin.internalEvents.once('verification_activated', () => {
         initializePlugin()
       })
     }
 
-    // Fetch chains.json and update state
     fetch('https://chainid.network/chains.json')
       .then((response) => response.json())
       .then((data) => setChains(data))
@@ -87,7 +82,6 @@ const App = () => {
     }
     plugin.internalEvents.on('submissionUpdated', submissionUpdatedListener)
 
-    // Clean up on unmount
     return () => {
       plugin.off('compilerArtefacts' as any, 'compilationSaved')
       plugin.internalEvents.removeListener('submissionUpdated', submissionUpdatedListener)
@@ -98,7 +92,6 @@ const App = () => {
   useEffect(() => {
     const getPendingReceipts = (submissions: SubmittedContracts) => {
       const pendingReceipts: VerificationReceipt[] = []
-      // Check statuses of receipts
       for (const submission of Object.values(submissions)) {
         for (const receipt of submission.receipts) {
           if (receipt.status === 'pending') {
@@ -124,24 +117,26 @@ const App = () => {
 
       const pollStatus = async () => {
         const changedSubmittedContracts = { ...submittedContracts }
+        const now = new Date().getTime()
 
         for (const receipt of pendingReceipts) {
-          await new Promise((resolve) => setTimeout(resolve, 500)) // avoid api rate limit exceeding.
+          await new Promise((resolve) => setTimeout(resolve, 500)) 
 
-          const { verifierInfo, receiptId } = receipt
+          const { verifierInfo, receiptId, contractId } = receipt
+          
+          const contract = changedSubmittedContracts[contractId]
+          const submissionTime = new Date(contract.date).getTime()
+          const isTimedOut = (now - submissionTime) > 30000
+
           if (receiptId) {
-            const contract = changedSubmittedContracts[receipt.contractId]
             const chainSettings = mergeChainSettingsWithDefaults(contract.chainId, settings)
             let verifierSettings = { ...chainSettings.verifiers[verifierInfo.name] }
-
-            let usingGlobalKey = false
 
             if (verifierInfo.name === 'Etherscan' && !verifierSettings.apiKey) {
               try {
                 const globalApiKey = await plugin.call('config' as any, 'getAppParameter', 'etherscan-access-token')
                 if (globalApiKey) {
                   verifierSettings = { ...verifierSettings, apiKey: globalApiKey }
-                  usingGlobalKey = true
                 }
               } catch (e) { }
             }
@@ -175,28 +170,32 @@ const App = () => {
                 response = await verifier.checkVerificationStatus(receiptId, contract.chainId)
               }
 
-              if (response.status === 'pending') {
-                try {
-                  const lookupResult = await verifier.lookup(contract.address, contract.chainId)
-                  if (lookupResult.status === 'verified' || lookupResult.status === 'already verified' || lookupResult.status === 'fully verified') {
-                    response.status = 'verified'
-                    response.lookupUrl = lookupResult.lookupUrl
-                    response.message = 'Verified (Confirmed via Lookup)'
-                  }
-                } catch (lookupError) {}
-              }
 
               const { status, message, lookupUrl } = response
               const prevStatus = receipt.status
-              receipt.status = status
-              receipt.message = message
-              if (lookupUrl) {
-                receipt.lookupUrl = lookupUrl
+              
+              if (status === 'pending' && isTimedOut) {
+                receipt.status = 'failed'
+                receipt.message = 'Verification timed out (30s).'
+                
+                plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Polling timed out. Please check the explorer manually.` })
+                
+                if (contract.address && verifierInfo.name === 'Blockscout') {
+                     plugin.call('terminal', 'log', { type: 'info', value: `Blockscout often verifies silently. Check here: https://eth-sepolia.blockscout.com/address/${contract.address}?tab=contract` })
+                }
+              } else {
+                receipt.status = status
+                receipt.message = message
+                if (lookupUrl) {
+                  receipt.lookupUrl = lookupUrl
+                }
               }
 
-              if (prevStatus === 'pending' && status !== 'pending') {
+              if (prevStatus === 'pending' && receipt.status !== 'pending') {
+                const finalStatus = receipt.status
                 const successStatuses = ['verified', 'partially verified', 'already verified', 'exactly verified', 'fully verified']
-                if (successStatuses.includes(status)) {
+                
+                if (successStatuses.includes(finalStatus)) {
                   if (receipt.lookupUrl) {
                     const htmlContent = `<span class="text-success">[${verifierInfo.name}] Verification Successful!</span> &nbsp;<a href="${receipt.lookupUrl}" target="_blank">View Code</a>`
                     await plugin.call('terminal' as any, 'logHtml', { value: htmlContent })
@@ -204,17 +203,18 @@ const App = () => {
                     const htmlContent = `<span class="text-success">[${verifierInfo.name}] Verification Successful!</span>`
                     await plugin.call('terminal' as any, 'logHtml', { value: htmlContent })
                   }
-                } else if (status === 'failed') {
-                  plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed: Please open the "Contract Verification" plugin to retry.` })
+                } else if (finalStatus === 'failed') {
+                    if (receipt.message !== 'Verification timed out (30s).') {
+                        plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed: Please open the "Contract Verification" plugin to retry.` })
+                    }
                   
-                  if (verifierInfo.name === 'Etherscan' && !chainSettings.verifiers['Etherscan']?.apiKey) {
-                    plugin.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
-                  }
+                    if (verifierInfo.name === 'Etherscan' && !chainSettings.verifiers['Etherscan']?.apiKey) {
+                        plugin.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+                    }
                 }
               }
             } catch (e) {
               receipt.failedChecks++
-              // Only retry 10 times
               if (receipt.failedChecks >= 10) {
                 receipt.status = 'failed'
                 receipt.message = e.message

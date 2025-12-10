@@ -78,8 +78,7 @@ export class ContractVerificationPluginClient extends PluginClient {
       return
     }
 
-    await this.call('terminal', 'log', { type: 'info', value: `[Verification] Contract deployed. Starting verification process for ${contractName}...` });
-    await new Promise(resolve => setTimeout(resolve, 7000));
+    await this.call('terminal', 'log', { type: 'info', value: `[Verification] Contract deployed. Checking explorers for registration...` });
 
     try {
       const allArtifacts = await this.call('compilerArtefacts' as any, 'getAllCompilerAbstracts')
@@ -147,7 +146,6 @@ export class ContractVerificationPluginClient extends PluginClient {
             await this.call('terminal', 'log', { type: 'warn', value: `Please input the API key in Remix Settings - Connected Services OR Contract Verification Plugin Settings.` })
             continue
           }
-
           if (hasApiUrl && etherscanApiKeySource === 'global') {
             await this.call('terminal', 'log', { type: 'log', value: '[Etherscan] Using API key from Remix global settings.' })
           }
@@ -186,6 +184,33 @@ export class ContractVerificationPluginClient extends PluginClient {
           const verifierSettings = chainSettings.verifiers[verifierId]
           const verifier = getVerifier(verifierId, verifierSettings)
 
+          let isExplorerReady = false
+          let checkAttempts = 0
+          const maxCheckAttempts = 10
+
+          while (checkAttempts < maxCheckAttempts) {
+            checkAttempts++
+            try {
+              await verifier.lookup(address, chainId)
+              isExplorerReady = true
+              break
+            } catch (lookupError: any) {
+              const errMsg = lookupError.message || ''
+              if (errMsg.includes('does not exist') || errMsg.includes('Unable to locate ContractCode') || errMsg.includes('not found')) {
+                await new Promise(r => setTimeout(r, 3000))
+                continue
+              }
+              break
+            }
+          }
+
+          if (!isExplorerReady) {
+            const msg = `Contract not found on ${verifierId} after 30s. Explorer indexing timed out.`
+            await this.call('terminal', 'log', { type: 'error', value: `[${verifierId}] ${msg}` })
+            await this.updateReceiptStatus(contractId, verifierId, { status: 'failed', message: msg })
+            return
+          }
+
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Timeout (15s limit exceeded)')), 15000)
           )
@@ -213,7 +238,8 @@ export class ContractVerificationPluginClient extends PluginClient {
             }
           } else if (result.status === 'failed') {
             const msg = result.message || 'Unknown failure'
-            await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Verification Failed: Please open the "Contract Verification" plugin to check details.` })
+            await this.call('terminal', 'log', { type: 'error', value: `[${verifierId}] Verification Failed: ${msg}` })
+            await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Please open the "Contract Verification" plugin to retry.` })
 
             if (verifierId === 'Etherscan' && !pluginApiKey) {
               await this.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
@@ -230,7 +256,10 @@ export class ContractVerificationPluginClient extends PluginClient {
             message: errorMsg
           })
 
-          await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Verification Failed: Please open the "Contract Verification" plugin to retry.` })
+          // [Aniket Feedback]: 에러 메시지 그대로 출력
+          await this.call('terminal', 'log', { type: 'error', value: `[${verifierId}] Verification Error: ${errorMsg}` })
+          await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Please open the "Contract Verification" plugin to retry.` })
+
           if (verifierId === 'Etherscan' && !pluginApiKey) {
             await this.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
           }
