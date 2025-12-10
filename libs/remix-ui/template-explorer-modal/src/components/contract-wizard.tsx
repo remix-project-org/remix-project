@@ -149,7 +149,7 @@ export function ContractWizard () {
             }} /> : <span data-id="contract-wizard-workspace-name-span" className={`fw-semibold fs-6 ${theme?.name === 'Light' ? 'text-dark' : 'text-white'}`}>
               {uniqueWorkspaceName}
             </span>}
-            <i data-id="contract-wizard-edit-icon" className={`${showEditModal ? 'fas fa-lock ms-4' : " ms-4 fas fa-edit"}`} onClick={() => setShowEditModal(!showEditModal)}></i>
+            <i data-id="contract-wizard-edit-icon" className={`${showEditModal ? 'fas fa-lock ms-2' : " ms-2 fas fa-edit"}`} onClick={() => setShowEditModal(!showEditModal)}></i>
           </div> : <div className="w-50"></div>}
           <ContractTagSelector switching={switching} />
         </div>
@@ -249,7 +249,7 @@ export function ContractWizard () {
             }}
             >
               <i className="far fa-check me-2"></i>
-              {state.manageCategory === 'Files' ? 'Create contract file' : 'Validate workspace'}
+              {state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}
             </button>
           </div>
         </div>

@@ -47,14 +47,14 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
 
   return (
     <section data-id="workspace-details-section" className="d-flex flex-column gap-3 bg-light workspace-details-section">
-      <div className="p-3 d-flex flex-row align-items-center text-dark">
+      <div className="p-3 d-flex flex-row align-items-center">
         { showEditWorkspaceName ? <input data-id="workspace-name-input" type="text" className="form-control form-control-sm" value={uniqueWorkspaceName} onChange={(e) => {
           setUniqueWorkspaceName(e.target.value)
           dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: uniqueWorkspaceName })
-        }} /> : <span data-id="default-workspace-name-span" className="text-uppercase small fw-semibold fs-6">
+        }} /> : <span data-id="default-workspace-name-span" className={`text-uppercase small fw-semibold fs-6 ${theme?.name === 'Light' ? 'text-dark' : 'text-white'}`}>
           {uniqueWorkspaceName}
         </span> }
-        <i data-id="default-workspace-name-edit-icon" className="fa-solid fa-edit ms-2" onClick={() => setShowEditWorkspaceName(!showEditWorkspaceName)}></i>
+        <i data-id="default-workspace-name-edit-icon" className={`${showEditWorkspaceName ? 'fas fa-lock ms-2' : "ms-2 fas fa-edit"}`} onClick={() => setShowEditWorkspaceName(!showEditWorkspaceName)}></i>
       </div>
       <div className="d-flex flex-row h-100 pt-1 ps-3 pe-3 pb-3 workspace-details-content-wrapper">
         <div className="workspace-details-file-explorer">
