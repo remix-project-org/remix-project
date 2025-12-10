@@ -249,14 +249,17 @@ export class ContractVerificationPluginClient extends PluginClient {
           }
 
         } catch (error: any) {
-          const errorMsg = error.message || 'Unknown error'
+          let errorMsg = error.message || 'Unknown error'
+
+          if (errorMsg.trim().startsWith('<') || errorMsg.includes('<!DOCTYPE html>')) {
+            errorMsg = 'Explorer API returned an Internal Server Error (500). Service might be unstable.';
+          }
 
           await this.updateReceiptStatus(contractId, verifierId, {
             status: 'failed',
             message: errorMsg
           })
 
-          // [Aniket Feedback]: 에러 메시지 그대로 출력
           await this.call('terminal', 'log', { type: 'error', value: `[${verifierId}] Verification Error: ${errorMsg}` })
           await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Please open the "Contract Verification" plugin to retry.` })
 

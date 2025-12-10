@@ -215,10 +215,19 @@ const App = () => {
               }
             } catch (e) {
               receipt.failedChecks++
+              
+              let errorMsg = e.message || 'Unknown error'
+              
+              if (errorMsg.trim().startsWith('<') || errorMsg.includes('<!DOCTYPE html>')) {
+                 errorMsg = 'Explorer API Error (500)'
+              }
+
+              // Only retry 10 times
               if (receipt.failedChecks >= 10) {
                 receipt.status = 'failed'
-                receipt.message = e.message
-                plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed after ${receipt.failedChecks} attempts: ${e.message}` })
+                receipt.message = errorMsg
+                
+                plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed after ${receipt.failedChecks} attempts: ${errorMsg}` })
                 plugin.call('terminal', 'log', { type: 'warn', value: `Please open the "Contract Verification" plugin to retry.` })
                 
                 if (verifierInfo.name === 'Etherscan' && !chainSettings.verifiers['Etherscan']?.apiKey) {
