@@ -24,7 +24,6 @@ const App = () => {
   const [chains, setChains] = useState<Chain[]>([]) 
   const [compilationOutput, setCompilationOutput] = useState<{ [key: string]: CompilerAbstract } | undefined>()
 
-  // Form values:
   const [selectedChain, setSelectedChain] = useState<Chain | undefined>()
   const [contractAddress, setContractAddress] = useState('')
   const [contractAddressError, setContractAddressError] = useState('')
@@ -46,16 +45,13 @@ const App = () => {
       plugin.call('locale', 'currentLocale').then((locale: any) => {
         setLocale(locale)
       })
-
       // @ts-ignore
       plugin.on('locale', 'localeChanged', (locale: any) => {
         setLocale(locale)
       })
-
       plugin.call('compilerArtefacts' as any, 'getAllCompilerAbstracts').then((obj: any) => {
         setCompilationOutput(obj)
       })
-
       plugin.on('compilerArtefacts' as any, 'compilationSaved', (compilerAbstracts: { [key: string]: CompilerAbstract }) => {
         setCompilationOutput((prev) => ({ ...(prev || {}), ...compilerAbstracts }))
       })
@@ -117,16 +113,16 @@ const App = () => {
 
       const pollStatus = async () => {
         const changedSubmittedContracts = { ...submittedContracts }
-        const now = new Date().getTime()
 
         for (const receipt of pendingReceipts) {
           await new Promise((resolve) => setTimeout(resolve, 500)) 
 
           const { verifierInfo, receiptId, contractId } = receipt
-          
           const contract = changedSubmittedContracts[contractId]
-          const submissionTime = new Date(contract.date).getTime()
-          const isTimedOut = (now - submissionTime) > 30000
+
+          if (receipt.failedChecks >= 10) {
+            receipt.failedChecks = 0
+          }
 
           if (receiptId) {
             const chainSettings = mergeChainSettingsWithDefaults(contract.chainId, settings)
@@ -170,32 +166,28 @@ const App = () => {
                 response = await verifier.checkVerificationStatus(receiptId, contract.chainId)
               }
 
+              if (response.status === 'pending') {
+                 receipt.failedChecks++
+              }
+
+              if (receipt.failedChecks >= 10) {
+                 response.status = 'failed'
+                 response.message = 'Verification timed out (30s limit).'
+              }
 
               const { status, message, lookupUrl } = response
               const prevStatus = receipt.status
               
-              if (status === 'pending' && isTimedOut) {
-                receipt.status = 'failed'
-                receipt.message = 'Verification timed out (30s).'
-                
-                plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Polling timed out. Please check the explorer manually.` })
-                
-                if (contract.address && verifierInfo.name === 'Blockscout') {
-                     plugin.call('terminal', 'log', { type: 'info', value: `Blockscout often verifies silently. Check here: https://eth-sepolia.blockscout.com/address/${contract.address}?tab=contract` })
-                }
-              } else {
-                receipt.status = status
-                receipt.message = message
-                if (lookupUrl) {
-                  receipt.lookupUrl = lookupUrl
-                }
+              receipt.status = status
+              receipt.message = message
+              if (lookupUrl) {
+                receipt.lookupUrl = lookupUrl
               }
 
-              if (prevStatus === 'pending' && receipt.status !== 'pending') {
-                const finalStatus = receipt.status
+              if (prevStatus === 'pending' && status !== 'pending') {
                 const successStatuses = ['verified', 'partially verified', 'already verified', 'exactly verified', 'fully verified']
                 
-                if (successStatuses.includes(finalStatus)) {
+                if (successStatuses.includes(status)) {
                   if (receipt.lookupUrl) {
                     const htmlContent = `<span class="text-success">[${verifierInfo.name}] Verification Successful!</span> &nbsp;<a href="${receipt.lookupUrl}" target="_blank">View Code</a>`
                     await plugin.call('terminal' as any, 'logHtml', { value: htmlContent })
@@ -203,13 +195,16 @@ const App = () => {
                     const htmlContent = `<span class="text-success">[${verifierInfo.name}] Verification Successful!</span>`
                     await plugin.call('terminal' as any, 'logHtml', { value: htmlContent })
                   }
-                } else if (finalStatus === 'failed') {
-                    if (receipt.message !== 'Verification timed out (30s).') {
-                        plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed: Please open the "Contract Verification" plugin to retry.` })
+                } else if (status === 'failed') {
+                    if (message === 'Verification timed out (30s limit).') {
+                        plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Polling timed out. Please open the "Contract Verification" plugin to check details.` })
+                    } else {
+                        plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed: ${message || 'Unknown reason'}` })
+                        plugin.call('terminal', 'log', { type: 'warn', value: `Please open the "Contract Verification" plugin to retry.` })
                     }
                   
                     if (verifierInfo.name === 'Etherscan' && !chainSettings.verifiers['Etherscan']?.apiKey) {
-                        plugin.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+                        plugin.call('terminal', 'log', { type: 'info', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
                     }
                 }
               }
@@ -219,19 +214,25 @@ const App = () => {
               let errorMsg = e.message || 'Unknown error'
               
               if (errorMsg.trim().startsWith('<') || errorMsg.includes('<!DOCTYPE html>')) {
-                 errorMsg = 'Explorer API Error (500)'
+                 errorMsg = 'Explorer API Error (500)';
+              }
+              if (errorMsg.includes('404')) {
+                 errorMsg = 'Pending registration (404)';
               }
 
-              // Only retry 10 times
               if (receipt.failedChecks >= 10) {
                 receipt.status = 'failed'
                 receipt.message = errorMsg
                 
-                plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed after ${receipt.failedChecks} attempts: ${errorMsg}` })
-                plugin.call('terminal', 'log', { type: 'warn', value: `Please open the "Contract Verification" plugin to retry.` })
+                if (errorMsg.includes('404')) {
+                     plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Polling timed out (404). Please open the "Contract Verification" plugin to check details.` })
+                } else {
+                     plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed after ${receipt.failedChecks} attempts: ${errorMsg}` })
+                     plugin.call('terminal', 'log', { type: 'warn', value: `Please open the "Contract Verification" plugin to retry.` })
+                }
                 
                 if (verifierInfo.name === 'Etherscan' && !chainSettings.verifiers['Etherscan']?.apiKey) {
-                    plugin.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+                    plugin.call('terminal', 'log', { type: 'info', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
                 }
               }
             }

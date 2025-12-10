@@ -13,7 +13,7 @@ interface AccordionReceiptProps {
 }
 
 export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, index }) => {
-  const { chains, settings, compilationOutput, setSubmittedContracts } = React.useContext(AppContext)
+  const { chains, settings, compilationOutput, setSubmittedContracts, clientInstance } = React.useContext(AppContext)
 
   const [expanded, setExpanded] = React.useState(false)
 
@@ -91,6 +91,15 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
           verifier.verify(contract, compilerAbstract),
           timeoutPromise
         ])
+      }
+
+      const successStatuses = ['verified', 'partially verified', 'already verified', 'exactly verified', 'fully verified']
+    
+      if (successStatuses.includes(response.status)) {
+        const link = response.lookupUrl ? `&nbsp;<a href="${response.lookupUrl}" target="_blank">View Code</a>` : '';
+        const htmlContent = `<span class="text-success">[${receipt.verifierInfo.name}] Verification Successful!</span> ${link}`;
+        
+        await clientInstance.call('terminal' as any, 'logHtml', { value: htmlContent });
       }
 
       setSubmittedContracts(prev => {

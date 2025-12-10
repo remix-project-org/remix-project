@@ -78,14 +78,16 @@ export class ContractVerificationPluginClient extends PluginClient {
       return
     }
 
-    await this.call('terminal', 'log', { type: 'info', value: `[Verification] Contract deployed. Checking explorers for registration...` });
+    await this.call('terminal', 'log', { type: 'info', value: `[Verification] Contract deployed. Checking explorers for registration...` })
+
+    await new Promise(resolve => setTimeout(resolve, 5000))
 
     try {
       const allArtifacts = await this.call('compilerArtefacts' as any, 'getAllCompilerAbstracts')
       const compilerAbstract = allArtifacts ? allArtifacts[filePath] : undefined
 
       if (!compilerAbstract) {
-        await this.call('terminal', 'log', { type: 'error', value: `[Verification] Artifacts not found for ${contractName}.` })
+        await this.call('terminal', 'log', { type: 'warn', value: `[Verification] Artifacts not found for ${contractName}.` })
         return
       }
 
@@ -195,8 +197,13 @@ export class ContractVerificationPluginClient extends PluginClient {
               isExplorerReady = true
               break
             } catch (lookupError: any) {
-              const errMsg = lookupError.message || ''
-              if (errMsg.includes('does not exist') || errMsg.includes('Unable to locate ContractCode') || errMsg.includes('not found')) {
+              let errMsg = lookupError.message || ''
+
+              if (errMsg.trim().startsWith('<') || errMsg.includes('<!DOCTYPE html>')) {
+                errMsg = 'Explorer API Error (500)'
+              }
+
+              if (errMsg.includes('does not exist') || errMsg.includes('Unable to locate ContractCode') || errMsg.includes('not found') || errMsg.includes('500') || errMsg.includes('404')) {
                 await new Promise(r => setTimeout(r, 3000))
                 continue
               }
@@ -206,7 +213,7 @@ export class ContractVerificationPluginClient extends PluginClient {
 
           if (!isExplorerReady) {
             const msg = `Contract not found on ${verifierId} after 30s. Explorer indexing timed out.`
-            await this.call('terminal', 'log', { type: 'error', value: `[${verifierId}] ${msg}` })
+            await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] ${msg}` })
             await this.updateReceiptStatus(contractId, verifierId, { status: 'failed', message: msg })
             return
           }
@@ -238,11 +245,11 @@ export class ContractVerificationPluginClient extends PluginClient {
             }
           } else if (result.status === 'failed') {
             const msg = result.message || 'Unknown failure'
-            await this.call('terminal', 'log', { type: 'error', value: `[${verifierId}] Verification Failed: ${msg}` })
+            await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Verification Failed: ${msg}` })
             await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Please open the "Contract Verification" plugin to retry.` })
 
             if (verifierId === 'Etherscan' && !pluginApiKey) {
-              await this.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+              await this.call('terminal', 'log', { type: 'info', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
             }
           } else if (result.status === 'pending' && result.receiptId) {
             await this.call('terminal', 'log', { type: 'log', value: `[${verifierId}] Verification submitted. Awaiting confirmation...` })
@@ -252,7 +259,7 @@ export class ContractVerificationPluginClient extends PluginClient {
           let errorMsg = error.message || 'Unknown error'
 
           if (errorMsg.trim().startsWith('<') || errorMsg.includes('<!DOCTYPE html>')) {
-            errorMsg = 'Explorer API returned an Internal Server Error (500). Service might be unstable.';
+            errorMsg = 'Explorer API Error (500)'
           }
 
           await this.updateReceiptStatus(contractId, verifierId, {
@@ -260,11 +267,11 @@ export class ContractVerificationPluginClient extends PluginClient {
             message: errorMsg
           })
 
-          await this.call('terminal', 'log', { type: 'error', value: `[${verifierId}] Verification Error: ${errorMsg}` })
+          await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Verification Error: ${errorMsg}` })
           await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Please open the "Contract Verification" plugin to retry.` })
 
           if (verifierId === 'Etherscan' && !pluginApiKey) {
-            await this.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+            await this.call('terminal', 'log', { type: 'info', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
           }
         }
       }
