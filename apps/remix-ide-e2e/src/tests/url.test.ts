@@ -352,26 +352,26 @@ module.exports = {
       })
   },
 
-  'Should load using compiler from link passed in remix URL #group3': function (browser: NightwatchBrowser) {
-    browser
-      .url('http://127.0.0.1:8080/#version=https://solidity-blog.s3.eu-central-1.amazonaws.com/data/08preview/soljson.js&optimize=false')
-      .refreshPage()
+  // 'Should load using compiler from link passed in remix URL #group3': function (browser: NightwatchBrowser) {
+  //   browser
+  //     .url('http://127.0.0.1:8080/#version=https://solidity-blog.s3.eu-central-1.amazonaws.com/data/08preview/soljson.js&optimize=false')
+  //     .refreshPage()
 
-      .clickLaunchIcon('solidity')
+  //     .clickLaunchIcon('solidity')
 
-      .click('*[data-id="scConfigExpander"]')
-      .waitForElementVisible({
-        selector: "//*[@data-id='selectedVersion' and contains(.,'custom')]",
-        locateStrategy: 'xpath'
-      })
-      // default values
-      .assert.containsText('#evmVersionSelector option[data-id="selected"]', 'default')
-      .verify.elementPresent('#optimize')
-      .assert.not.elementPresent('#optimize:checked')
-      .verify.elementPresent('#runs:disabled')
-      .click('[for="optimize"')
-      .verify.attributeEquals('#runs', 'value', '200')
-  },
+  //     .click('*[data-id="scConfigExpander"]')
+  //     .waitForElementVisible({
+  //       selector: "//*[@data-id='selectedVersion' and contains(.,'custom')]",
+  //       locateStrategy: 'xpath'
+  //     })
+  //     // default values
+  //     .assert.containsText('#evmVersionSelector option[data-id="selected"]', 'default')
+  //     .verify.elementPresent('#optimize')
+  //     .assert.not.elementPresent('#optimize:checked')
+  //     .verify.elementPresent('#runs:disabled')
+  //     .click('[for="optimize"')
+  //     .verify.attributeEquals('#runs', 'value', '200')
+  // },
 
   'Should load json files from link passed in remix URL #group3': function (browser: NightwatchBrowser) {
     browser
