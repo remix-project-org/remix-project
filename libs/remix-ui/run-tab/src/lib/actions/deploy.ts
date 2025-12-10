@@ -108,7 +108,7 @@ export const createInstance = async (
   gasEstimationPrompt: (msg: string) => JSX.Element,
   passphrasePrompt: (msg: string) => JSX.Element,
   publishToStorage: (storage: 'ipfs' | 'swarm',
-  contract: ContractData) => void,
+    contract: ContractData) => void,
   mainnetPrompt: MainnetPrompt,
   isOverSizePrompt: (values: OverSizeLimit) => JSX.Element,
   args,
@@ -137,43 +137,26 @@ export const createInstance = async (
 
       try {
         const status = plugin.blockchain.getCurrentNetworkStatus()
-        if (status.error || !status.network) {
-          throw new Error(`Could not get network status: ${status.error || 'Unknown error'}`)
+        const currentChainId = status?.network?.id
+
+        if (currentChainId) {
+
+          setTimeout(() => {
+            plugin.call('contract-verification', 'verifyOnDeploy', {
+              contractName: selectedContract.name,
+              filePath: selectedContract.contract.file,
+              address: addressToString(address),
+              chainId: currentChainId,
+              args: args
+            }).catch(e => console.error("Verification trigger failed:", e))
+          }, 1000)
+
+        } else {
+          console.error("Network ID not found, skipping verification.")
         }
-        const currentChainId = parseInt(status.network.id)
-
-        const response = await fetch('https://chainid.network/chains.json')
-        if (!response.ok) throw new Error('Could not fetch chains list from chainid.network.')
-        const allChains = await response.json()
-        const currentChain = allChains.find(chain => chain.chainId === currentChainId)
-
-        if (!currentChain) {
-          const errorMsg = `Could not find chain data for Chain ID: ${currentChainId}. Verification cannot proceed.`
-          const errorLog = logBuilder(errorMsg)
-          terminalLogger(plugin, errorLog)
-          return
-        }
-
-        const etherscanApiKey = await plugin.call('config', 'getAppParameter', 'etherscan-access-token')
-
-        const verificationData = {
-          chainId: currentChainId.toString(),
-          currentChain: currentChain,
-          contractAddress: addressToString(address),
-          contractName: selectedContract.name,
-          compilationResult: await plugin.compilersArtefacts.getCompilerAbstract(selectedContract.contract.file),
-          constructorArgs: args,
-          etherscanApiKey: etherscanApiKey
-        }
-
-        setTimeout(async () => {
-          await plugin.call('contract-verification', 'verifyOnDeploy', verificationData)
-        }, 1500)
 
       } catch (e) {
-        const errorMsg = `Verification setup failed: ${e.message}`
-        const errorLog = logBuilder(errorMsg)
-        terminalLogger(plugin, errorLog)
+        console.error("Error triggering verification:", e)
       }
 
     } else {
@@ -295,7 +278,7 @@ export const runTransactions = (
   contractName: string,
   contractABI, contract,
   address,
-  logMsg:string,
+  logMsg: string,
   mainnetPrompt: MainnetPrompt,
   gasEstimationPrompt: (msg: string) => JSX.Element,
   passphrasePrompt: (msg: string) => JSX.Element,

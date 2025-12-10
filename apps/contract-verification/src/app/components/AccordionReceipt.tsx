@@ -57,7 +57,7 @@ export const AccordionReceipt: React.FC<AccordionReceiptProps> = ({ contract, in
       
       const verifier = getVerifier(receipt.verifierInfo.name, verifierSettings)
 
-      const TIMEOUT_MS = 30000
+      const TIMEOUT_MS = 10000
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           reject(new Error(`Verification timed out after ${TIMEOUT_MS / 1000} seconds.`))

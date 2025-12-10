@@ -51,7 +51,7 @@ const App = () => {
       plugin.on('locale', 'localeChanged', (locale: any) => {
         setLocale(locale)
       })
-      
+
       // Fetch compiler artefacts initially
       plugin.call('compilerArtefacts' as any, 'getAllCompilerAbstracts').then((obj: any) => {
         setCompilationOutput(obj)
@@ -132,11 +132,38 @@ const App = () => {
           if (receiptId) {
             const contract = changedSubmittedContracts[receipt.contractId]
             const chainSettings = mergeChainSettingsWithDefaults(contract.chainId, settings)
-            const verifierSettings = chainSettings.verifiers[verifierInfo.name]
+            let verifierSettings = { ...chainSettings.verifiers[verifierInfo.name] }
 
-            // In case the user overwrites the API later, prefer the one stored in localStorage
-            const verifier = getVerifier(verifierInfo.name, { ...verifierSettings, apiUrl: verifierInfo.apiUrl })
+            let usingGlobalKey = false
+
+            if (verifierInfo.name === 'Etherscan' && !verifierSettings.apiKey) {
+              try {
+                const globalApiKey = await plugin.call('config' as any, 'getAppParameter', 'etherscan-access-token')
+                if (globalApiKey) {
+                  verifierSettings = { ...verifierSettings, apiKey: globalApiKey }
+                  usingGlobalKey = true
+                }
+              } catch (e) { }
+            }
+
+            if (verifierInfo.name === 'Etherscan' && !verifierSettings.apiKey) {
+              receipt.status = 'failed'
+              receipt.message = 'API key not configured'
+              continue
+            }
+
+            let verifier
+            try {
+              verifier = getVerifier(verifierInfo.name, { ...verifierSettings, apiUrl: verifierInfo.apiUrl })
+            } catch (e) {
+              receipt.status = 'failed'
+              receipt.message = e.message || 'Failed to initialize verifier'
+              continue
+            }
+
             if (!verifier.checkVerificationStatus) {
+              receipt.status = 'failed'
+              receipt.message = 'Status check not supported for this verifier'
               continue
             }
 
@@ -147,18 +174,56 @@ const App = () => {
               } else {
                 response = await verifier.checkVerificationStatus(receiptId, contract.chainId)
               }
+
+              if (response.status === 'pending') {
+                try {
+                  const lookupResult = await verifier.lookup(contract.address, contract.chainId)
+                  if (lookupResult.status === 'verified' || lookupResult.status === 'already verified' || lookupResult.status === 'fully verified') {
+                    response.status = 'verified'
+                    response.lookupUrl = lookupResult.lookupUrl
+                    response.message = 'Verified (Confirmed via Lookup)'
+                  }
+                } catch (lookupError) {}
+              }
+
               const { status, message, lookupUrl } = response
+              const prevStatus = receipt.status
               receipt.status = status
               receipt.message = message
               if (lookupUrl) {
                 receipt.lookupUrl = lookupUrl
               }
+
+              if (prevStatus === 'pending' && status !== 'pending') {
+                const successStatuses = ['verified', 'partially verified', 'already verified', 'exactly verified', 'fully verified']
+                if (successStatuses.includes(status)) {
+                  if (receipt.lookupUrl) {
+                    const htmlContent = `<span class="text-success">[${verifierInfo.name}] Verification Successful!</span> &nbsp;<a href="${receipt.lookupUrl}" target="_blank">View Code</a>`
+                    await plugin.call('terminal' as any, 'logHtml', { value: htmlContent })
+                  } else {
+                    const htmlContent = `<span class="text-success">[${verifierInfo.name}] Verification Successful!</span>`
+                    await plugin.call('terminal' as any, 'logHtml', { value: htmlContent })
+                  }
+                } else if (status === 'failed') {
+                  plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed: Please open the "Contract Verification" plugin to retry.` })
+                  
+                  if (verifierInfo.name === 'Etherscan' && !chainSettings.verifiers['Etherscan']?.apiKey) {
+                    plugin.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+                  }
+                }
+              }
             } catch (e) {
               receipt.failedChecks++
-              // Only retry 25 times
-              if (receipt.failedChecks >= 25) {
+              // Only retry 10 times
+              if (receipt.failedChecks >= 10) {
                 receipt.status = 'failed'
                 receipt.message = e.message
+                plugin.call('terminal', 'log', { type: 'warn', value: `[${verifierInfo.name}] Verification Failed after ${receipt.failedChecks} attempts: ${e.message}` })
+                plugin.call('terminal', 'log', { type: 'warn', value: `Please open the "Contract Verification" plugin to retry.` })
+                
+                if (verifierInfo.name === 'Etherscan' && !chainSettings.verifiers['Etherscan']?.apiKey) {
+                    plugin.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+                }
               }
             }
           }

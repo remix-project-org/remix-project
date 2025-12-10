@@ -1,11 +1,11 @@
 import { PluginClient } from '@remixproject/plugin'
 import { createClient } from '@remixproject/plugin-webview'
-
 import EventManager from 'events'
-import { VERIFIERS, type ChainSettings,Chain, type ContractVerificationSettings, type LookupResponse, type VerifierIdentifier, SubmittedContract, SubmittedContracts, VerificationReceipt } from './types'
+import { VERIFIERS, type ChainSettings, Chain, type ContractVerificationSettings, type LookupResponse, type VerifierIdentifier, SubmittedContract, SubmittedContracts, VerificationReceipt } from './types'
 import { mergeChainSettingsWithDefaults, validConfiguration } from './utils'
 import { getVerifier } from './Verifiers'
 import { CompilerAbstract } from '@remix-project/remix-solidity'
+import { AbiCoder } from 'ethers'
 
 export class ContractVerificationPluginClient extends PluginClient {
   public internalEvents: EventManager
@@ -59,87 +59,202 @@ export class ContractVerificationPluginClient extends PluginClient {
     for (const source of lookupResponse.sourceFiles ?? []) {
       try {
         await this.call('fileManager', 'setFile', source.path, source.content)
-      } catch (err) {
+      } catch (err: any) {
         throw new Error(`Error while creating file ${source.path}: ${err.message}`)
       }
     }
     try {
       await this.call('fileManager', 'open', lookupResponse.targetFilePath)
-    } catch (err) {
+    } catch (err: any) {
       throw new Error(`Error focusing file ${lookupResponse.targetFilePath}: ${err.message}`)
     }
   }
 
-  verifyOnDeploy = async (data: any): Promise<void> => {
+  verifyOnDeploy = async (payload: any): Promise<void> => {
+    const { contractName, filePath, address, chainId, args } = payload
+
+    if (!contractName || !filePath || !address || !chainId) {
+      console.error('Missing deployment data. Verification skipped.')
+      return
+    }
+
+    await this.call('terminal', 'log', { type: 'info', value: `[Verification] Contract deployed. Starting verification process for ${contractName}...` });
+    await new Promise(resolve => setTimeout(resolve, 7000));
+
     try {
-      await this.call('terminal', 'log', { type: 'log', value: 'Verification process started...' })
+      const allArtifacts = await this.call('compilerArtefacts' as any, 'getAllCompilerAbstracts')
+      const compilerAbstract = allArtifacts ? allArtifacts[filePath] : undefined
 
-      const { chainId, currentChain, contractAddress, contractName, compilationResult, constructorArgs } = data
-
-      const globalEtherscanApiKey = data.etherscanApiKey
-
-      if (!currentChain) {
-        await this.call('terminal', 'log', { type: 'error', value: 'Chain data was not provided for verification.' })
+      if (!compilerAbstract) {
+        await this.call('terminal', 'log', { type: 'error', value: `[Verification] Artifacts not found for ${contractName}.` })
         return
       }
 
-      const userSettings = this.getUserSettingsFromLocalStorage()
-      const chainSettings = mergeChainSettingsWithDefaults(chainId, userSettings)
-      const localEtherscanApiKey = chainSettings.verifiers['Etherscan']?.apiKey
-      const effectiveApiKey = globalEtherscanApiKey || localEtherscanApiKey
+      let abiEncodedConstructorArgs = ''
+      try {
+        const contractData = compilerAbstract.data.contracts[filePath][contractName]
+        const abi = contractData.abi
+        const constructor = abi.find((item: any) => item.type === 'constructor')
 
-      if (effectiveApiKey) {
-        if (!chainSettings.verifiers['Etherscan']) {
-          chainSettings.verifiers['Etherscan'] = {}
+        if (constructor && constructor.inputs.length > 0 && args && args.length > 0) {
+          const abiCoder = new AbiCoder()
+          const types = constructor.inputs.map((input: any) => input.type)
+          abiEncodedConstructorArgs = abiCoder.encode(types, args).replace('0x', '')
         }
-        chainSettings.verifiers['Etherscan'].apiKey = effectiveApiKey
-
-        const source = globalEtherscanApiKey ? "Remix Settings" : "Plugin Settings"
-        await this.call('terminal', 'log', { type: 'info', value: `Using Etherscan API Key from: ${source}` })
+      } catch (err: any) {
+        console.warn(`Encoding Warning: ${err.message}`)
       }
 
-      const submittedContracts: SubmittedContracts = JSON.parse(window.localStorage.getItem('contract-verification:submitted-contracts') || '{}')
+      const userSettings = this.getUserSettingsFromLocalStorage()
+      const chainSettings = mergeChainSettingsWithDefaults(chainId.toString(), userSettings)
 
-      const filePath = Object.keys(compilationResult.data.contracts).find(path =>
-        compilationResult.data.contracts[path][contractName]
-      )
-      if (!filePath) throw new Error(`Could not find file path for contract ${contractName}`)
+      let globalApiKey = ''
+      try {
+        globalApiKey = await this.call('config' as any, 'getAppParameter', 'etherscan-access-token') || ''
+      } catch (e) { }
 
+      const pluginApiKey = chainSettings.verifiers['Etherscan']?.apiKey || ''
+
+      let etherscanApiKeySource = ''
+      if (pluginApiKey) {
+        etherscanApiKeySource = 'plugin'
+      } else if (globalApiKey) {
+        etherscanApiKeySource = 'global'
+        if (!chainSettings.verifiers['Etherscan']) chainSettings.verifiers['Etherscan'] = {}
+        chainSettings.verifiers['Etherscan'].apiKey = globalApiKey
+      }
+
+      const contractId = `${chainId}-${address}-${new Date().getTime()}`
       const submittedContract: SubmittedContract = {
-        id: `${chainId}-${contractAddress}`,
-        address: contractAddress,
-        chainId: chainId,
+        id: contractId,
+        address: address,
+        chainId: chainId.toString(),
         filePath: filePath,
         contractName: contractName,
-        abiEncodedConstructorArgs: constructorArgs,
-        date: new Date().toISOString(),
+        abiEncodedConstructorArgs: abiEncodedConstructorArgs,
+        date: new Date().toUTCString(),
         receipts: []
       }
-
-      const compilerAbstract: CompilerAbstract = compilationResult
-      const verificationPromises = []
       const verifiers: VerifierIdentifier[] = ['Sourcify', 'Etherscan', 'Blockscout', 'Routescan']
+      const activeVerifiers: VerifierIdentifier[] = []
 
-      for (const verifier of verifiers) {
-        if (verifier === 'Etherscan' && !effectiveApiKey) {
-          await this.call('terminal', 'log', { type: 'warn', value: 'Etherscan verification skipped: API key not provided.' })
-          await this.call('terminal', 'log', { type: 'warn', value: `Please input the API key in Remix Settings - Connected Services OR Contract Verification Plugin Settings.` })
-          continue
+      for (const verifierId of verifiers) {
+        if (verifierId === 'Etherscan') {
+          const hasApiUrl = !!chainSettings.verifiers['Etherscan']?.apiUrl
+
+          if (hasApiUrl && !etherscanApiKeySource) {
+            await this.call('terminal', 'log', { type: 'warn', value: 'Etherscan verification skipped: API key not provided.' })
+            await this.call('terminal', 'log', { type: 'warn', value: `Please input the API key in Remix Settings - Connected Services OR Contract Verification Plugin Settings.` })
+            continue
+          }
+
+          if (hasApiUrl && etherscanApiKeySource === 'global') {
+            await this.call('terminal', 'log', { type: 'log', value: '[Etherscan] Using API key from Remix global settings.' })
+          }
         }
 
-        if (validConfiguration(chainSettings, verifier)) {
-          verificationPromises.push(this._verifyWithProvider(verifier, submittedContract, compilerAbstract, chainId, chainSettings))
+        if (validConfiguration(chainSettings, verifierId)) {
+          activeVerifiers.push(verifierId)
+          submittedContract.receipts.push({
+            verifierInfo: { name: verifierId, apiUrl: chainSettings.verifiers[verifierId].apiUrl },
+            status: 'pending',
+            contractId: contractId,
+            isProxyReceipt: false,
+            failedChecks: 0
+          })
         }
       }
 
-      await Promise.all(verificationPromises)
+      if (activeVerifiers.length === 0) {
+        await this.call('terminal', 'log', { type: 'warn', value: `[Verification] No valid verifiers configured for chain ${chainId}.` })
+        return
+      }
 
-      submittedContracts[submittedContract.id] = submittedContract
-      window.localStorage.setItem('contract-verification:submitted-contracts', JSON.stringify(submittedContracts))
+      const saveInitialState = () => {
+        const currentData = JSON.parse(window.localStorage.getItem('contract-verification:submitted-contracts') || '{}')
+        currentData[contractId] = submittedContract
+        window.localStorage.setItem('contract-verification:submitted-contracts', JSON.stringify(currentData))
+        this.internalEvents.emit('submissionUpdated')
+        setTimeout(() => {
+          this.internalEvents.emit('submissionUpdated')
+        }, 1000)
+      }
+      saveInitialState()
+
+      const runSingleVerification = async (verifierId: VerifierIdentifier) => {
+        try {
+          const verifierSettings = chainSettings.verifiers[verifierId]
+          const verifier = getVerifier(verifierId, verifierSettings)
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout (15s limit exceeded)')), 15000)
+          )
+
+          // @ts-ignore
+          const verificationTask = verifier.verify(submittedContract, compilerAbstract)
+          const result: any = await Promise.race([verificationTask, timeoutPromise])
+
+          await this.updateReceiptStatus(contractId, verifierId, {
+            status: result.status,
+            message: result.message,
+            receiptId: result.receiptId,
+            lookupUrl: result.lookupUrl
+          })
+
+          const successStatuses = ['verified', 'partially verified', 'already verified', 'exactly verified', 'fully verified']
+
+          if (successStatuses.includes(result.status)) {
+            if (result.lookupUrl) {
+              const htmlContent = `<span class="text-success">[${verifierId}] Verification Successful!</span> &nbsp;<a href="${result.lookupUrl}" target="_blank">View Code</a>`;
+              await this.call('terminal' as any, 'logHtml', { value: htmlContent });
+            } else {
+              const htmlContent = `<span class="text-success">[${verifierId}] Verification Successful!</span>`;
+              await this.call('terminal' as any, 'logHtml', { value: htmlContent });
+            }
+          } else if (result.status === 'failed') {
+            const msg = result.message || 'Unknown failure'
+            await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Verification Failed: Please open the "Contract Verification" plugin to check details.` })
+
+            if (verifierId === 'Etherscan' && !pluginApiKey) {
+              await this.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+            }
+          } else if (result.status === 'pending' && result.receiptId) {
+            await this.call('terminal', 'log', { type: 'log', value: `[${verifierId}] Verification submitted. Awaiting confirmation...` })
+          }
+
+        } catch (error: any) {
+          const errorMsg = error.message || 'Unknown error'
+
+          await this.updateReceiptStatus(contractId, verifierId, {
+            status: 'failed',
+            message: errorMsg
+          })
+
+          await this.call('terminal', 'log', { type: 'warn', value: `[${verifierId}] Verification Failed: Please open the "Contract Verification" plugin to retry.` })
+          if (verifierId === 'Etherscan' && !pluginApiKey) {
+            await this.call('terminal', 'log', { type: 'warn', value: `Note: To retry Etherscan verification in the plugin, you must save your API key in the plugin settings.` })
+          }
+        }
+      }
+
+      activeVerifiers.forEach(verifierId => runSingleVerification(verifierId))
+
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  private async updateReceiptStatus(contractId: string, verifierId: VerifierIdentifier, updates: any) {
+    const data = JSON.parse(window.localStorage.getItem('contract-verification:submitted-contracts') || '{}')
+    const contract = data[contractId]
+    if (!contract) return
+
+    const receiptIndex = contract.receipts.findIndex((r: any) => r.verifierInfo.name === verifierId)
+    if (receiptIndex !== -1) {
+      contract.receipts[receiptIndex] = { ...contract.receipts[receiptIndex], ...updates }
+
+      window.localStorage.setItem('contract-verification:submitted-contracts', JSON.stringify(data))
       this.internalEvents.emit('submissionUpdated')
-
-    } catch (error) {
-      await this.call('terminal', 'log', { type: 'error', value: `An unexpected error occurred during verification: ${error.message}` })
     }
   }
 
@@ -157,91 +272,6 @@ export class ContractVerificationPluginClient extends PluginClient {
     } catch (e) {
       console.error(e)
       return false
-    }
-  }
-
-  private _verifyWithProvider = async (
-    providerName: VerifierIdentifier,
-    submittedContract: SubmittedContract,
-    compilerAbstract: CompilerAbstract,
-    chainId: string,
-    chainSettings: ChainSettings
-  ): Promise<void> => {
-    let receipt: VerificationReceipt
-    const verifierSettings = chainSettings.verifiers[providerName]
-    const verifier = getVerifier(providerName, verifierSettings)
-
-    try {
-      if (validConfiguration(chainSettings, providerName)) {
-
-        await this.call('terminal', 'log', { type: 'log', value: `Verifying with ${providerName}...` })
-
-        if (providerName === 'Routescan') {
-          await new Promise(resolve => setTimeout(resolve, 20000))
-        } else if (providerName === 'Etherscan' || providerName === 'Blockscout') {
-          await new Promise(resolve => setTimeout(resolve, 10000))
-        }
-
-        if (verifier && typeof verifier.verify === 'function') {
-          const result = await verifier.verify(submittedContract, compilerAbstract)
-
-          receipt = {
-            receiptId: result.receiptId || undefined,
-            verifierInfo: { name: providerName, apiUrl: verifier.apiUrl },
-            status: result.status,
-            message: result.message,
-            lookupUrl: result.lookupUrl,
-            contractId: submittedContract.id,
-            isProxyReceipt: false,
-            failedChecks: 0
-          }
-
-          const successMessage = `${providerName} verification request submitted successful.`
-          await this.call('terminal', 'log', { type: 'info', value: successMessage })
-
-          if (result.lookupUrl) {
-            const textMessage = `View Code: ${result.lookupUrl}`
-            await this.call('terminal', 'log', { type: 'info', value: textMessage })
-          }
-        } else {
-          throw new Error(`${providerName} verifier is not properly configured or does not support direct verification.`)
-        }
-      }
-    } catch (e) {
-      if (e.message.includes('Unable to locate ContractCode')) {
-        const checkUrl = `${verifier.explorerUrl}/address/${submittedContract.address}`;
-        const friendlyMessage = `Initial verification failed, possibly due to a sync delay. Please check the status manually.`
-
-        await this.call('terminal', 'log', { type: 'warn', value: `${providerName}: ${friendlyMessage}` })
-
-        const textMessage = `Check Manually: ${checkUrl}`
-        await this.call('terminal', 'log', { type: 'info', value: textMessage })
-
-        receipt = {
-          verifierInfo: { name: providerName, apiUrl: verifier?.apiUrl || 'N/A' },
-          status: 'failed',
-          message: 'Failed initially (sync delay), check manually.',
-          contractId: submittedContract.id,
-          isProxyReceipt: false,
-          failedChecks: 0
-        }
-
-      } else {
-        receipt = {
-          verifierInfo: { name: providerName, apiUrl: verifier?.apiUrl || 'N/A' },
-          status: 'failed',
-          message: e.message,
-          contractId: submittedContract.id,
-          isProxyReceipt: false,
-          failedChecks: 0
-        }
-        await this.call('terminal', 'log', { type: 'error', value: `${providerName} verification failed: ${e.message}` })
-      }
-
-    } finally {
-      if (receipt) {
-        submittedContract.receipts.push(receipt)
-      }
     }
   }
 
