@@ -197,6 +197,7 @@
     "ganache": "^7.9.1",
     "graphql": "^16.8.1",
     "html-react-parser": "^3.0.4",
+    "html-to-image": "^1.11.13",
     "http-server": "^14.1.1",
     "intro.js": "^4.1.0",
     "isbinaryfile": "^3.0.2",
