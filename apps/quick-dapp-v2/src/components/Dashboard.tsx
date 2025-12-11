@@ -18,39 +18,47 @@ const Dashboard: React.FC<DashboardProps> = ({
   onDeleteAll,
   onDeleteOne 
 }) => {
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [dappToDelete, setDappToDelete] = useState<string | null>(null);
+
+  const confirmDeleteOne = () => {
+    if (dappToDelete && onDeleteOne) {
+      onDeleteOne(dappToDelete);
+    }
+    setDappToDelete(null);
+  };
 
   return (
     <div className="container-fluid p-4" style={{ minHeight: '100vh' }}>
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
         <div>
-          <h3 className="fw-bold mb-1">Quick Dapp</h3>
-          <p className="text-muted mb-0">Edit and deploy your dapps.</p>
+          <h3 className="fw-bold mb-1 text-body">Quick Dapp</h3>
+          <p className="text-secondary mb-0">Edit and deploy your dapps.</p>
         </div>
         <div className="d-flex gap-2 mt-3 mt-md-0">
           <Button variant="primary" onClick={onCreateNew}>
             <i className="fas fa-plus me-2"></i> Create a new dapp
           </Button>
           {dapps.length > 0 && (
-            <Button variant="outline-danger" onClick={() => setShowDeleteModal(true)}>
+            <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)}>
               <i className="fas fa-trash me-2"></i> Delete all dapps
             </Button>
           )}
         </div>
       </div>
 
-      <div className="bg-dark rounded p-3 mb-4 d-flex flex-column flex-sm-row justify-content-between align-items-center border border-secondary">
-        <h5 className="mb-2 mb-sm-0 text-white">
+      <div className="rounded p-3 mb-4 d-flex flex-column flex-sm-row justify-content-between align-items-center border">
+        <h5 className="mb-2 mb-sm-0 text-body">
           Your dapps <span className="badge bg-secondary ms-2">{dapps.length}</span>
         </h5>
         
         <div className="d-flex gap-2">
-          <Form.Select size="sm" className="bg-dark text-light border-secondary" style={{ width: 'auto' }}>
+          <Form.Select size="sm" className="border-secondary" style={{ width: 'auto' }}>
             <option>All Chains</option>
             <option>Remix VM</option>
             <option>Sepolia</option>
           </Form.Select>
-          <Form.Select size="sm" className="bg-dark text-light border-secondary" style={{ width: 'auto' }}>
+          <Form.Select size="sm" className="border-secondary" style={{ width: 'auto' }}>
             <option>Newest first</option>
             <option>Oldest first</option>
           </Form.Select>
@@ -72,26 +80,43 @@ const Dashboard: React.FC<DashboardProps> = ({
               key={dapp.id} 
               dapp={dapp} 
               onClick={() => onOpen(dapp)}
-              onDelete={() => onDeleteOne && onDeleteOne(dapp.slug)}
+              onDelete={() => setDappToDelete(dapp.slug)}
             />
           ))
         )}
       </div>
 
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton className="bg-dark text-light border-secondary">
+      <Modal show={!!dappToDelete} onHide={() => setDappToDelete(null)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Delete Dapp?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete this dapp? This action cannot be undone.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setDappToDelete(null)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={confirmDeleteOne}>
+            Yes, Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showDeleteAllModal} onHide={() => setShowDeleteAllModal(false)} centered>
+        <Modal.Header closeButton>
           <Modal.Title>Delete All Dapps?</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-dark text-light">
+        <Modal.Body>
           Are you sure you want to delete all your dapps? This action cannot be undone.
         </Modal.Body>
-        <Modal.Footer className="bg-dark border-secondary">
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteAllModal(false)}>
             Cancel
           </Button>
           <Button variant="danger" onClick={() => {
             if (onDeleteAll) onDeleteAll();
-            setShowDeleteModal(false);
+            setShowDeleteAllModal(false);
           }}>
             Yes, Delete All
           </Button>

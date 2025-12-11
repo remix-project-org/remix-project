@@ -4,6 +4,19 @@ import { EventEmitter } from 'events';
 import { DappManager } from './utils/DappManager';
 import { initInstance, emptyInstance, setAiLoading } from './actions';
 
+const getNetworkName = (chainId: number | string): string => {
+  const id = Number(chainId);
+  switch (id) {
+    case 1: return 'Mainnet';
+    case 11155111: return 'Sepolia';
+    case 5: return 'Goerli';
+    case 137: return 'Polygon';
+    case 42161: return 'Arbitrum';
+    case 10: return 'Optimism';
+    default: return `Chain ${id}`;
+  }
+};
+
 export class RemixClient extends PluginClient {
   public dappManager: DappManager;
   public internalEvents: EventEmitter;
@@ -51,12 +64,14 @@ export class RemixClient extends PluginClient {
       this.internalEvents.emit('creatingDappStart');
       this.emit('statusChanged', { key: 'loading', value: true, title: 'Generating DApp...' });
       
+      const networkName = getNetworkName(payload.chainId);
+
       const contractData = {
         address: payload.address,
         name: payload.contractName,
         abi: payload.abi,
         chainId: payload.chainId,
-        networkName: 'Unknown' 
+        networkName
       };
 
       const newDappConfig = await this.dappManager.createDapp(payload.contractName, contractData);

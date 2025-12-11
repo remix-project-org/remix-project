@@ -143,4 +143,32 @@ export class DappManager {
        await this.deleteDapp(dapp.slug);
      }
   }
+
+  async updateDappConfig(slug: string, updates: Partial<DappConfig>): Promise<DappConfig | null> {
+    try {
+      const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
+      const content = await this.plugin.call('fileManager', 'readFile', configPath);
+      
+      if (!content) throw new Error('Config file not found');
+
+      const currentConfig: DappConfig = JSON.parse(content);
+      
+      const newConfig: DappConfig = {
+        ...currentConfig,
+        ...updates,
+        deployment: {
+          ...currentConfig.deployment,
+          ...(updates.deployment || {})
+        },
+        updatedAt: Date.now()
+      };
+
+      await this.plugin.call('fileManager', 'writeFile', configPath, JSON.stringify(newConfig, null, 2));
+      return newConfig;
+
+    } catch (e) {
+      console.error('[DappManager] Failed to update config:', e);
+      return null;
+    }
+  }
 }

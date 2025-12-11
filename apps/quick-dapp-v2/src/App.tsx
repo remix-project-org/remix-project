@@ -125,22 +125,19 @@ function App(): JSX.Element {
   }, [dappManager, dispatch]);
 
   const handleDeleteOne = async (slug: string) => {
-    if (window.confirm('Are you sure you want to delete this dapp?')) {
-      await dappManager.deleteDapp(slug);
-      const updatedDapps = await dappManager.getDapps();
-      dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
-      if (updatedDapps.length === 0) {
-        dispatch({ type: 'SET_VIEW', payload: 'create' });
-      }
+    await dappManager.deleteDapp(slug);
+    const updatedDapps = await dappManager.getDapps();
+    dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
+    
+    if (updatedDapps.length === 0) {
+      dispatch({ type: 'SET_VIEW', payload: 'create' });
     }
   };
 
   const handleDeleteAll = async () => {
-    if (window.confirm('Are you sure you want to delete ALL dapps?')) {
-      await dappManager.deleteAllDapps();
-      dispatch({ type: 'SET_DAPPS', payload: [] });
-      dispatch({ type: 'SET_VIEW', payload: 'create' });
-    }
+    await dappManager.deleteAllDapps();
+    dispatch({ type: 'SET_DAPPS', payload: [] });
+    dispatch({ type: 'SET_VIEW', payload: 'create' });
   };
 
   const renderContent = () => {
@@ -177,20 +174,6 @@ function App(): JSX.Element {
 
         return (
           <div className="d-flex flex-column h-100">
-             <div className="py-2 px-3 border-bottom d-flex align-items-center bg-light">
-                <button 
-                  className="btn btn-sm btn-outline-secondary me-3"
-                  onClick={async () => {
-                    const updatedDapps = await dappManager.getDapps();
-                    dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
-                    dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
-                    dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
-                  }}
-                >
-                  <i className="fas fa-arrow-left me-1"></i> Back
-                </button>
-                <span className="fw-bold">{appState.activeDapp.name}</span>
-             </div>
              <div className="flex-grow-1 position-relative" style={{ overflow: 'hidden' }}>
                 <div className="container-fluid pt-3 h-100">
                    <EditHtmlTemplate />
