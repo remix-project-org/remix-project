@@ -87,7 +87,11 @@
 				("ontouchstart" in window || navigator.maxTouchPoints > 0)
 			);
 		}
-		if (isProbablyMobile()) window.location.replace("https://mobile.remix.live");
+    const noMobileRedirect = window.location &&
+      ((window.location.search && window.location.search.indexOf('nomobileredirect') !== -1) || (window.location.hash && window.location.hash.indexOf('nomobileredirect') !== -1))
+		if (!noMobileRedirect && isProbablyMobile()) {
+      window.location.replace("https://mobile.remix.live")
+    }
 	</script>
 </head>
 
