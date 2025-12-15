@@ -64,8 +64,8 @@
 }
 
 .pluginsContainer {
-    height: 96dvh;
-    box-sizing: border-box;
+    height: 100%;
+    /* box-sizing: border-box; */
     /* overflow-y: auto; */
 }
 
@@ -103,7 +103,7 @@ iframe {
     box-sizing: border-box;
     overflow-y: auto;
     overflow-x: hidden;
-    height: 97dvh;
+    height: 100%;
     width: 100%;
 }
 

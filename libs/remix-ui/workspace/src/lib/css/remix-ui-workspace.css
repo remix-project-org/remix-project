@@ -138,3 +138,22 @@
   }
 }
 
+@media screen and (min-height: 1000px) {
+  .workspace-height-responsive {
+    height: 92dvh;
+  }
+
+  .fe-git-panel-responsive {
+    height: 97dvh;
+  }
+}
+
+@media screen and (min-height: 700px) {
+  .workspace-height-responsive {
+    height: 90dvh;
+  }
+
+  .fe-git-panel-responsive {
+    height: 95dvh;
+  }
+}
