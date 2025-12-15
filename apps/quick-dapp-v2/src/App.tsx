@@ -1,9 +1,7 @@
 import React, { useEffect, useReducer, useState, useMemo } from 'react';
 import { IntlProvider } from 'react-intl'
 import CreateInstance from './components/CreateInstance';
-import EditInstance from './components/EditInstance';
 import EditHtmlTemplate from './components/EditHtmlTemplate';
-import DeployPanel from './components/DeployPanel';
 import LoadingScreen from './components/LoadingScreen';
 import Dashboard from './components/Dashboard';
 import { appInitialState, appReducer } from './reducers/state';
@@ -22,9 +20,12 @@ function App(): JSX.Element {
   const [locale, setLocale] = useState<{code: string; messages: any}>({
     code: 'en',
     messages: null,
-  })
+  });
+
   const [appState, dispatch] = useReducer(appReducer, appInitialState);
   
+  const [isAppLoading, setIsAppLoading] = useState(true);
+
   const dappManager = useMemo(() => new DappManager(remixClient as any), []);
 
   useEffect(() => {
@@ -33,44 +34,31 @@ function App(): JSX.Element {
 
   useEffect(() => {
     initDispatch(dispatch);
-    updateState(appState);
-
+    
     const initApp = async () => {
-      await connectRemix();
+      setIsAppLoading(true);
       
-      remixClient.call('theme', 'currentTheme').then((theme: any) => {
-        selectTheme(theme.name);
-      });
-      remixClient.on('theme', 'themeChanged', (theme: any) => {
-        selectTheme(theme.name);
-      });
-
-      // @ts-ignore
-      remixClient.call('locale', 'currentLocale').then((locale: any) => {
-        setLocale(locale)
-      })
-      // @ts-ignore
-      remixClient.on('locale', 'localeChanged', (locale: any) => {
-        setLocale(locale)
-      })
-
-      // @ts-ignore
-      remixClient.on('ai-dapp-generator', 'generationProgress', (progress: any) => {
-        if (progress.status === 'started') {
-          dispatch({ type: 'SET_AI_LOADING', payload: true });
-        }
-      });
-      // @ts-ignore
-      remixClient.on('ai-dapp-generator', 'dappGenerated', () => {
-        dispatch({ type: 'SET_AI_LOADING', payload: false });
-      });
-      // @ts-ignore
-      remixClient.on('ai-dapp-generator', 'dappUpdated', () => {
-        dispatch({ type: 'SET_AI_LOADING', payload: false });
-      });
-
       try {
-        const dapps = await dappManager.getDapps();
+        await connectRemix();
+        
+        remixClient.call('theme', 'currentTheme').then((theme: any) => selectTheme(theme.name));
+        remixClient.on('theme', 'themeChanged', (theme: any) => selectTheme(theme.name));
+
+        // @ts-ignore
+        remixClient.call('locale', 'currentLocale').then((l: any) => setLocale(l));
+        // @ts-ignore
+        remixClient.on('locale', 'localeChanged', (l: any) => setLocale(l));
+
+        // @ts-ignore
+        remixClient.on('ai-dapp-generator', 'generationProgress', (progress: any) => {
+          if (progress.status === 'started') dispatch({ type: 'SET_AI_LOADING', payload: true });
+        });
+        // @ts-ignore
+        remixClient.on('ai-dapp-generator', 'dappGenerated', () => dispatch({ type: 'SET_AI_LOADING', payload: false }));
+        // @ts-ignore
+        remixClient.on('ai-dapp-generator', 'dappUpdated', () => dispatch({ type: 'SET_AI_LOADING', payload: false }));
+
+        const dapps = (await dappManager.getDapps()) || [];
         dispatch({ type: 'SET_DAPPS', payload: dapps });
 
         if (dapps.length > 0) {
@@ -78,9 +66,13 @@ function App(): JSX.Element {
         } else {
           dispatch({ type: 'SET_VIEW', payload: 'create' });
         }
+
       } catch (e) {
-        console.error("Failed to load dapps", e);
+        console.error("Failed to load app", e);
+        dispatch({ type: 'SET_DAPPS', payload: [] });
+        dispatch({ type: 'SET_VIEW', payload: 'create' });
       } finally {
+        setIsAppLoading(false);
         dispatch({ type: 'SET_LOADING', payload: { screen: false } });
       }
     };
@@ -88,27 +80,19 @@ function App(): JSX.Element {
     initApp();
 
     const onCreatingStart = () => {
-      console.log('App: Creating Dapp Started');
       dispatch({ type: 'SET_VIEW', payload: 'create' });
       dispatch({ type: 'SET_AI_LOADING', payload: true });
     };
 
     const onDappCreated = async (newDappConfig: any) => {
-      console.log('App: Dapp Created', newDappConfig);
-      
       const updatedDapps = await dappManager.getDapps();
       dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
-      
       dispatch({ type: 'SET_ACTIVE_DAPP', payload: newDappConfig });
       dispatch({ type: 'SET_VIEW', payload: 'editor' });
-      
-      setTimeout(() => {
-        dispatch({ type: 'SET_AI_LOADING', payload: false });
-      }, 100);
+      setTimeout(() => dispatch({ type: 'SET_AI_LOADING', payload: false }), 100);
     };
 
-    const onCreatingError = (error: any) => {
-      console.error('App: Creating Dapp Error', error);
+    const onCreatingError = () => {
       dispatch({ type: 'SET_AI_LOADING', payload: false });
     };
 
@@ -121,12 +105,11 @@ function App(): JSX.Element {
       remixClient.internalEvents.off('dappCreated', onDappCreated);
       remixClient.internalEvents.off('creatingDappError', onCreatingError);
     };
-
   }, [dappManager, dispatch]);
 
   const handleDeleteOne = async (slug: string) => {
     await dappManager.deleteDapp(slug);
-    const updatedDapps = await dappManager.getDapps();
+    const updatedDapps = (await dappManager.getDapps()) || [];
     dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
     
     if (updatedDapps.length === 0) {
@@ -141,6 +124,23 @@ function App(): JSX.Element {
   };
 
   const renderContent = () => {
+    if (isAppLoading || !locale.messages) {
+      return (
+        <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '80vh' }}>
+          <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
+          <p className="text-muted">Loading QuickDapp...</p>
+        </div>
+      );
+    }
+
+    if (!appState.dapps || appState.dapps.length === 0) {
+       return (
+         <div className="container-fluid pt-3">
+            <CreateInstance isAiLoading={appState.isAiLoading} /> 
+         </div>
+       );
+    }
+
     switch (appState.view) {
       case 'dashboard':
         return (
@@ -157,21 +157,7 @@ function App(): JSX.Element {
         );
 
       case 'editor':
-        if (!appState.activeDapp) {
-           return (
-             <div className="d-flex flex-column justify-content-center align-items-center h-100">
-               <i className="fas fa-spinner fa-spin fa-2x mb-3"></i>
-               <p>Loading DApp Editor...</p>
-               <button 
-                 className="btn btn-sm btn-link"
-                 onClick={() => dispatch({ type: 'SET_VIEW', payload: 'dashboard' })}
-               >
-                 Back to Dashboard
-               </button>
-             </div>
-           );
-        }
-
+        if (!appState.activeDapp) return null;
         return (
           <div className="d-flex flex-column h-100">
              <div className="flex-grow-1 position-relative" style={{ overflow: 'hidden' }}>
@@ -185,9 +171,9 @@ function App(): JSX.Element {
       case 'create':
       default:
         return (
-          <div className="row m-0 pt-3">
-             {!appState.isAiLoading && appState.dapps.length > 0 && (
-               <div className="col-12 mb-3 px-4">
+          <div className="container-fluid pt-3">
+             {!appState.isAiLoading && (
+               <div className="mb-3 px-2">
                   <button 
                     className="btn btn-sm btn-link text-decoration-none px-0"
                     onClick={() => dispatch({ type: 'SET_VIEW', payload: 'dashboard' })}
@@ -196,36 +182,18 @@ function App(): JSX.Element {
                   </button>
                </div>
              )}
-             
-             {Object.keys(appState.instance.abi).length > 0 && !appState.isAiLoading && !appState.dapps.length ? (
-                <>
-                  <EditInstance />
-                  <DeployPanel />
-                </>
-             ) : (
-                <CreateInstance isAiLoading={appState.isAiLoading} />
-             )}
+             <CreateInstance isAiLoading={appState.isAiLoading} />
           </div>
         );
     }
   };
 
   return (
-    <AppContext.Provider
-      value={{
-        dispatch,
-        appState,
-        dappManager,
-      }}
-    >
+    <AppContext.Provider value={{ dispatch, appState, dappManager }}>
       <IntlProvider locale={locale.code} messages={locale.messages || {}}>
-        {!locale.messages ? (
-          <div className="text-center pt-5">
-            <i className="fas fa-spinner fa-spin fa-2x"></i>
-          </div>
-        ) : (
-          renderContent()
-        )}
+        <div className="App">
+           {renderContent()}
+        </div>
         <LoadingScreen />
       </IntlProvider>
     </AppContext.Provider>

@@ -1,21 +1,24 @@
-import { useContext } from 'react';
+import React, { useContext } from 'react';
 import { omitBy } from 'lodash';
 import { useIntl } from 'react-intl';
-import { MultipleContainers } from '../MultipleContainers';
 import { AppContext } from '../../contexts';
-import ImageUpload from '../ImageUpload'
+import ImageUpload from '../ImageUpload';
 
 function EditInstance(): JSX.Element {
-  const intl = useIntl()
+  const intl = useIntl();
   const { appState, dispatch } = useContext(AppContext);
-  const { abi, items, containers, title, details, userInput, natSpec } =
-    appState.instance;
+  
+  const { title, details, userInput, natSpec } = appState.instance;
+
   return (
-    <div className="col-9 d-inline-block row">
+    <div className="container-fluid">
       <div className="row">
-        <ImageUpload />
-        <div className="col-9 ps-0">
-          <div className="my-2 p-3 bg-light">
+        <div className="mb-3">
+            <ImageUpload />
+        </div>
+        <div className="col-12 ps-0">
+          <div className="mb-3 p-3 bg-light border rounded">
+            <label className="form-label fw-bold">Dapp Title</label>
             <input
               data-id="dappTitle"
               className="form-control"
@@ -35,10 +38,12 @@ function EditInstance(): JSX.Element {
               }}
             />
           </div>
-          <div className="my-2 p-3 bg-light">
+          <div className="mb-3 p-3 bg-light border rounded">
+            <label className="form-label fw-bold">Description / Instructions</label>
             <textarea
               data-id="dappInstructions"
               className="form-control"
+              rows={4}
               placeholder={intl.formatMessage({ id: 'quickDapp.dappInstructions' })}
               value={details}
               onChange={({ target: { value } }) => {
@@ -57,28 +62,6 @@ function EditInstance(): JSX.Element {
           </div>
         </div>
       </div>
-      <MultipleContainers
-        abi={abi}
-        items={items}
-        containers={containers}
-        setItemsAndContainers={(
-          newItems: any = items,
-          newContainers: any = containers
-        ) => {
-          dispatch({
-            type: 'SET_INSTANCE',
-            payload: {
-              items: newItems,
-              containers: newContainers,
-            },
-          });
-        }}
-        handle
-        scrollable
-        containerStyle={{
-          maxHeight: '90vh',
-        }}
-      />
     </div>
   );
 }

@@ -40,7 +40,7 @@ export const appReducer = (state = appInitialState, action: any): AppState => {
       return { ...state, view: action.payload };
 
     case 'SET_DAPPS':
-      return { ...state, dapps: action.payload };
+      return { ...state, dapps: action.payload || [] };
 
     case 'SET_AI_LOADING':
       return { ...state, isAiLoading: action.payload };

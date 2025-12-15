@@ -1,5 +1,5 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
-import { Button, Row, Col, Card } from 'react-bootstrap';
+import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { Button, Row, Col, Card, Modal } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { toPng } from 'html-to-image';
 import { AppContext } from '../../contexts';
@@ -51,6 +51,90 @@ function EditHtmlTemplate(): JSX.Element {
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const builderRef = useRef<InBrowserVite | null>(null);
+  const [isExperimental, setIsExperimental] = useState(false);
+
+  const [notificationModal, setNotificationModal] = useState({
+    show: false,
+    title: '',
+    message: '' as React.ReactNode,
+    variant: 'primary'
+  });
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const handleDeleteDapp = async () => {
+    if (!activeDapp || !dappManager) return;
+    
+    try {
+      await dappManager.deleteDapp(activeDapp.slug);
+      
+      let updatedDapps = await dappManager.getDapps();
+      if (!updatedDapps || !Array.isArray(updatedDapps)) {
+        updatedDapps = [];
+      }
+
+      console.log('[QuickDapp-Debug] updatedDapps for dispatch:', updatedDapps);
+
+      dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
+      dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
+      setShowDeleteModal(false);
+      
+      if (updatedDapps.length === 0) {
+        console.log('No dapps left, switching to Create View');
+        dispatch({ type: 'SET_VIEW', payload: 'create' });
+      } else {
+        dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
+      }
+
+    } catch (e: any) {
+      console.error('Delete failed:', e);
+      setNotificationModal({
+        show: true,
+        title: 'Delete Failed',
+        message: `Could not delete dapp: ${e.message}`,
+        variant: 'danger'
+      });
+      setShowDeleteModal(false);
+    }
+  };
+
+  const closeNotificationModal = () => {
+    setNotificationModal(prev => ({ ...prev, show: false }));
+  };
+
+  const checkUrlParams = useCallback(() => {
+    const targetFlag = 'experimental';
+    let hasFlag = false;
+
+    if (window.location.href.includes(targetFlag)) {
+      hasFlag = true;
+    }
+
+    if (!hasFlag && document.referrer && document.referrer.includes(targetFlag)) {
+      hasFlag = true;
+    }
+
+    if (!hasFlag) {
+      try {
+        if (window.parent && window.parent.location.href.includes(targetFlag)) {
+          hasFlag = true;
+        }
+      } catch (e) {}
+    }
+
+    setIsExperimental(prev => {
+      if (prev !== hasFlag) return hasFlag;
+      return prev;
+    });
+  }, []);
+
+  useEffect(() => {
+    checkUrlParams();
+    window.addEventListener('hashchange', checkUrlParams);
+    return () => {
+      window.removeEventListener('hashchange', checkUrlParams);
+    };
+  }, [checkUrlParams]);
 
   const handleBack = async () => {
     if (!isAiUpdating && !isBuilding) {
@@ -95,7 +179,7 @@ function EditHtmlTemplate(): JSX.Element {
     }
   };
   
-  const runBuild = async () => {
+  const runBuild = async (showNotification: boolean = false) => {
     if (!iframeRef.current || !activeDapp) return;
     if (isBuilding) return;
 
@@ -149,12 +233,12 @@ function EditHtmlTemplate(): JSX.Element {
     let logoDataUrl = logo || '';
 
     if (logo && logo.byteLength > 0 && typeof logo !== 'string') {
-      try {
-        const base64data = btoa(
-            new Uint8Array(logo).reduce((data, byte) => data + String.fromCharCode(byte), '')
-        );
-        logoDataUrl = 'data:image/jpeg;base64,' + base64data;
-      } catch (e) {}
+        try {
+            const base64data = btoa(
+                new Uint8Array(logo).reduce((data, byte) => data + String.fromCharCode(byte), '')
+            );
+            logoDataUrl = 'data:image/jpeg;base64,' + base64data;
+        } catch (e) {}
     }
 
     const injectionScript = `
@@ -209,6 +293,33 @@ function EditHtmlTemplate(): JSX.Element {
         doc.close();
       }
 
+      if (showNotification) {
+        if (activeDapp.status === 'deployed') {
+          setNotificationModal({
+            show: true,
+            title: 'Preview Updated',
+            message: (
+              <div>
+                <p>The preview has been refreshed with your changes.</p>
+                <div className="alert alert-warning mb-0">
+                  <i className="fas fa-exclamation-triangle me-2"></i>
+                  <strong>Warning:</strong> The currently deployed (live) version is now outdated. 
+                  You must <strong>"Deploy to IPFS"</strong> again to update the live site.
+                </div>
+              </div>
+            ),
+            variant: 'warning'
+          });
+        } else {
+          setNotificationModal({
+            show: true,
+            title: 'Preview Updated',
+            message: 'Your preview has been successfully refreshed.',
+            variant: 'success'
+          });
+        }
+      }
+
     } catch (e: any) {
       setIframeError(`Preview Error: ${e.message}`);
       setShowIframe(false);
@@ -219,6 +330,21 @@ function EditHtmlTemplate(): JSX.Element {
 
   const handleChatMessage = async (message: string) => {
     if (!activeDapp) return;
+
+    if (!isExperimental) {
+      setNotificationModal({
+        show: true,
+        title: 'Feature Locked',
+        message: (
+          <div>
+            <p>AI updates are only available in <strong>experimental mode</strong>.</p>
+            <p>Please add <code>?experimental</code> to the URL and <strong>refresh</strong> the page.</p>
+          </div>
+        ),
+        variant: 'danger'
+      });
+      return;
+    }
     
     dispatch({ 
       type: 'SET_DAPP_PROCESSING', 
@@ -251,9 +377,39 @@ function EditHtmlTemplate(): JSX.Element {
         await remixClient.call('fileManager', 'writeFile', fullPath, content);
       }
 
+      if (activeDapp.status === 'deployed') {
+        setNotificationModal({
+          show: true,
+          title: 'Code Updated',
+          message: (
+            <div>
+              <p>The AI has successfully updated your dapp code.</p>
+              <div className="alert alert-warning mb-0">
+                <i className="fas fa-exclamation-triangle me-2"></i>
+                <strong>Action Required:</strong> The live IPFS deployment is now outdated. 
+                Please go to the Deploy panel and click <strong>"Deploy to IPFS"</strong> to publish these changes.
+              </div>
+            </div>
+          ),
+          variant: 'warning'
+        });
+      } else {
+        setNotificationModal({
+          show: true,
+          title: 'Update Successful',
+          message: 'The AI has successfully updated your dapp code.',
+          variant: 'success'
+        });
+      }
+
     } catch (error: any) {
       console.error('Update failed:', error);
-      setIframeError('Failed to update: ' + error.message);
+      setNotificationModal({
+        show: true,
+        title: 'Update Failed',
+        message: `Failed to update dapp: ${error.message}`,
+        variant: 'danger'
+      });
     } finally {
       dispatch({ 
         type: 'SET_DAPP_PROCESSING', 
@@ -287,7 +443,7 @@ function EditHtmlTemplate(): JSX.Element {
   useEffect(() => {
     if (isBuilderReady && activeDapp && !isAiUpdating) {
       setTimeout(() => {
-        runBuild();
+        runBuild(false);
       }, 0);
     }
   }, [isBuilderReady, isAiUpdating, activeDapp?.slug]);
@@ -296,7 +452,7 @@ function EditHtmlTemplate(): JSX.Element {
 
   return (
     <div className="d-flex flex-column h-100">
-      <div className="py-2 px-3 border-bottom d-flex align-items-center flex-shrink-0">
+      <div className="py-2 px-3 border-bottom d-flex align-items-center bg-light flex-shrink-0">
         <button 
           className="btn btn-sm btn-secondary me-3"
           onClick={handleBack}
@@ -328,23 +484,23 @@ function EditHtmlTemplate(): JSX.Element {
                     </h5>
                     <div className="d-flex gap-2">
                       <Button 
-                          variant="outline-secondary" 
-                          size="sm" 
-                          onClick={captureAndSaveThumbnail}
-                          disabled={isBuilding || isCapturing}
-                          title="Capture Thumbnail"
-                        >
-                          <i className={`fas ${isCapturing ? 'fa-spinner fa-spin' : 'fa-camera'}`}></i>
-                        </Button>
-                        {/* <Button 
-                          variant="primary" 
-                          size="sm" 
-                          onClick={() => runBuild()} 
-                          disabled={isBuilding || isAiUpdating}
-                          data-id="quick-dapp-apply-changes"
-                        >
-                          {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
-                        </Button> */}
+                        variant="primary" 
+                        size="sm" 
+                        onClick={() => runBuild(true)}
+                        disabled={isBuilding || isAiUpdating}
+                        data-id="quick-dapp-apply-changes"
+                      >
+                        {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
+                      </Button>
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        onClick={() => setShowDeleteModal(true)}
+                        disabled={isBuilding || isCapturing}
+                        title="Delete this Dapp"
+                      >
+                        <i className="fas fa-trash me-1"></i> Delete Dapp
+                      </Button>
                     </div>
                   </div>
                   
@@ -400,6 +556,40 @@ function EditHtmlTemplate(): JSX.Element {
           </Row>
         </div>
       </div>
+      <Modal show={notificationModal.show} onHide={closeNotificationModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title className={
+            notificationModal.variant === 'danger' ? 'text-danger' : 
+            notificationModal.variant === 'warning' ? 'text-warning' : 'text-success'
+          }>
+            {notificationModal.title}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {notificationModal.message}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={closeNotificationModal}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Delete Dapp?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete this dapp? This action cannot be undone.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDeleteDapp}>
+            Yes, Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

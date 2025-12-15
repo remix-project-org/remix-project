@@ -2,7 +2,6 @@ import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Form, Button, Alert, Card, Collapse } from 'react-bootstrap';
 import { ethers } from 'ethers';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { emptyInstance, resetInstance } from '../../actions';
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
@@ -186,8 +185,8 @@ function DeployPanel(): JSX.Element {
     const targetCid = deployResult.cid || activeDapp?.deployment?.ipfsCid;
 
     if (!activeDapp || !targetCid) {
-      setEnsResult({ ...ensResult, error: 'IPFS CID is missing. Deploy first.' });
-      return;
+        setEnsResult({ ...ensResult, error: 'IPFS CID is missing. Deploy first.' });
+        return;
     }
 
     setIsEnsLoading(true);
@@ -421,24 +420,6 @@ function DeployPanel(): JSX.Element {
           </Collapse>
         </Card>
       )}
-
-      <div className="mt-3">
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => { resetInstance(); handleRemoveLogo(); }}
-        >
-          <FormattedMessage id="quickDapp.resetFunctions" />
-        </Button>
-        <Button
-          size="sm"
-          variant="danger"
-          className="ms-3"
-          onClick={() => { emptyInstance(); }}
-        >
-          <FormattedMessage id="quickDapp.deleteDapp" />
-        </Button>
-      </div>
 
     </div>
   );

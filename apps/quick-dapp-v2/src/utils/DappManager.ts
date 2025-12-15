@@ -22,10 +22,16 @@ export class DappManager {
 
   async getDapps(): Promise<DappConfig[]> {
     try {
-      await this.ensureBasePath();
+      try {
+        await this.ensureBasePath();
+      } catch (e) {
+        return []; 
+      }
       
       const files = await this.plugin.call('fileManager', 'readdir', BASE_PATH);
-      if (!files) return [];
+      if (!files || typeof files !== 'object') {
+        return [];
+      }
 
       const configs: DappConfig[] = [];
 
@@ -38,8 +44,14 @@ export class DappManager {
             if (!slug || slug === BASE_PATH) continue;
 
             const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
-            const content = await this.plugin.call('fileManager', 'readFile', configPath);
-            
+
+            let content;
+            try {
+               content = await this.plugin.call('fileManager', 'readFile', configPath);
+            } catch (err) {
+               continue;
+            }
+
             if (content) {
               const config = JSON.parse(content);
               config.slug = slug;
@@ -58,7 +70,7 @@ export class DappManager {
           }
         }
       }
-      return configs.sort((a, b) => b.createdAt - a.createdAt);
+      return (configs || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch (e) {
       console.error('[DappManager] Critical error loading dapps:', e);
       return []; 

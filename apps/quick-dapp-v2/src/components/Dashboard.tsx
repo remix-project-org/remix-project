@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button, Form, Modal } from 'react-bootstrap';
 import { DappConfig } from '../types/dapp';
 import DappCard from './DappCard';
@@ -20,6 +20,44 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [dappToDelete, setDappToDelete] = useState<string | null>(null);
+
+  const [selectedNetwork, setSelectedNetwork] = useState<string>('All Chains');
+  const [sortOrder, setSortOrder] = useState<string>('newest');
+
+  const availableNetworks = useMemo(() => {
+    const networks = new Set<string>();
+    dapps.forEach(dapp => {
+      if (dapp.contract.networkName) {
+        networks.add(dapp.contract.networkName);
+      } else {
+        networks.add('Unknown Network');
+      }
+    });
+    return Array.from(networks).sort();
+  }, [dapps]);
+
+  const filteredAndSortedDapps = useMemo(() => {
+    let result = [...dapps];
+
+    if (selectedNetwork !== 'All Chains') {
+      result = result.filter(dapp => 
+        (dapp.contract.networkName || 'Unknown Network') === selectedNetwork
+      );
+    }
+
+    result.sort((a, b) => {
+      const dateA = a.createdAt || 0;
+      const dateB = b.createdAt || 0;
+
+      if (sortOrder === 'newest') {
+        return dateB - dateA;
+      } else {
+        return dateA - dateB;
+      }
+    });
+
+    return result;
+  }, [dapps, selectedNetwork, sortOrder]);
 
   const confirmDeleteOne = () => {
     if (dappToDelete && onDeleteOne) {
@@ -49,33 +87,56 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <div className="rounded p-3 mb-4 d-flex flex-column flex-sm-row justify-content-between align-items-center border">
         <h5 className="mb-2 mb-sm-0 text-body">
-          Your dapps <span className="badge bg-secondary ms-2">{dapps.length}</span>
+          Your dapps <span className="badge bg-secondary ms-2">{filteredAndSortedDapps.length}</span>
+          {filteredAndSortedDapps.length !== dapps.length && (
+            <small className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
+              (filtered from {dapps.length})
+            </small>
+          )}
         </h5>
         
         <div className="d-flex gap-2">
-          <Form.Select size="sm" className="border-secondary" style={{ width: 'auto' }}>
-            <option>All Chains</option>
-            <option>Remix VM</option>
-            <option>Sepolia</option>
+          <Form.Select 
+            size="sm" 
+            className="border-secondary" 
+            style={{ width: 'auto' }}
+            value={selectedNetwork}
+            onChange={(e) => setSelectedNetwork(e.target.value)}
+          >
+            <option value="All Chains">All Chains</option>
+            {availableNetworks.map(network => (
+              <option key={network} value={network}>{network}</option>
+            ))}
           </Form.Select>
-          <Form.Select size="sm" className="border-secondary" style={{ width: 'auto' }}>
-            <option>Newest first</option>
-            <option>Oldest first</option>
+
+          <Form.Select 
+            size="sm" 
+            className="border-secondary" 
+            style={{ width: 'auto' }}
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
           </Form.Select>
         </div>
       </div>
 
       <div className="row">
-        {dapps.length === 0 ? (
+        {filteredAndSortedDapps.length === 0 ? (
           <div className="col-12 text-center py-5">
             <div className="text-muted">
               <i className="fas fa-box-open fa-3x mb-3"></i>
               <h5>No dapps found</h5>
-              <p>Create your first dapp to get started!</p>
+              {dapps.length > 0 ? (
+                 <p>Try changing the filters.</p>
+              ) : (
+                 <p>Create your first dapp to get started!</p>
+              )}
             </div>
           </div>
         ) : (
-          dapps.map((dapp) => (
+          filteredAndSortedDapps.map((dapp) => (
             <DappCard 
               key={dapp.id} 
               dapp={dapp} 
