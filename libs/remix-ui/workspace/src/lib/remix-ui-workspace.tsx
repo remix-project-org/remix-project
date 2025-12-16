@@ -1027,7 +1027,7 @@ export function Workspace() {
       () => { }
     )
   }
-  const [workspaceHeight, setWorkspaceHeight] = useState(window.innerHeight < 750 ? 85 : window.innerHeight < 1000 ? 89.6 : 92)
+  const [workspaceHeight, setWorkspaceHeight] = useState(window.innerHeight < 750 ? 87 : window.innerHeight < 1000 ? 89.6 : 92)
 
   useEffect(() => {
     console.log('height', window.innerHeight)
