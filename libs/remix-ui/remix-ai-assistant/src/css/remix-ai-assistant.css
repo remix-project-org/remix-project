@@ -712,3 +712,30 @@ mark,
   height: 92dvh;
 }
 }
+
+@media screen and (max-height: 1100px) {
+  .plugin-ai-assistant-responsive {
+    height: 88dvh;
+  }
+  .remix-ai-assistant-responsive {
+    height: 87.6dvh;
+  }
+}
+
+@media screen and (max-height: 1115px) {
+  .plugin-ai-assistant-responsive {
+    height: 87.6vh;
+  }
+  .remix-ai-assistant-responsive {
+    height: 87vh;
+  }
+}
+
+@media screen and (min-height: 1000px) {
+  .plugin-ai-assistant-responsive {
+    height: 97vh;
+  }
+  .remix-ai-assistant-responsive {
+    height: 97vh;
+  }
+}

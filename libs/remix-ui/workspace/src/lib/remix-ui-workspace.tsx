@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useContext, ChangeEvent, useReducer} from 'react' // eslint-disable-line
+import React, {useState, useEffect, useRef, useContext, ChangeEvent, useReducer, useMemo} from 'react' // eslint-disable-line
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Dropdown } from 'react-bootstrap'
 import { CustomIconsToggle, CustomMenu, CustomToggle, CustomTooltip, extractNameFromKey, extractParentFromKey } from '@remix-ui/helper'
@@ -1027,9 +1027,27 @@ export function Workspace() {
       () => { }
     )
   }
+  const [workspaceHeight, setWorkspaceHeight] = useState(window.innerHeight < 1000 ? 89.6 : 92)
+
+  useEffect(() => {
+    console.log('height', window.innerHeight)
+    if (selectedWorkspace && selectedWorkspace.isGitRepo) {
+      // if (window.innerHeight < 1000) {
+      //   setWorkspaceHeight('87.6dvh')
+      // } else if (window.innerHeight < 1120) {
+      //   setWorkspaceHeight('89.5dvh')
+      // } else if (window.innerHeight > 1121){
+      //   setWorkspaceHeight('97dvh')
+      // }
+    }
+    // if (window.innerHeight < 1000) {
+    //   setWorkspaceHeight(5)
+    // }
+    // setWorkspaceHeight(60 - 2.67)
+  }, [window.innerHeight])
 
   return (
-    <div className="d-flex flex-column justify-content-between workspace-height-responsive">
+    <div className="d-flex flex-column justify-content-between" style={{ height: `${workspaceHeight}dvh` }}>
       <div className="w-100 px-2 mt-3">
         <div>
           <FileExplorerMenu

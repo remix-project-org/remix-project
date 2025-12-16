@@ -129,31 +129,32 @@
     height: 89.5dvh;
   }
 
-@media screen and (min-width: 600px) {
+/* @media screen and (min-width: 600px) {
   .fe-git-panel-responsive {
     height: 97dvh;
   }
   .workspace-height-responsive {
     height: 92dvh;
   }
-}
+} */
 
 @media screen and (min-height: 1000px) {
   .workspace-height-responsive {
-    height: 92dvh;
+    height: 92vh;
+    background-color: 'brown' !important;
   }
 
   .fe-git-panel-responsive {
-    height: 97dvh;
+    height: 97vh;
   }
 }
 
-@media screen and (min-height: 700px) {
+@media screen and (max-height: 1100px) {
   .workspace-height-responsive {
-    height: 90dvh;
+    height: 88vh;
   }
 
   .fe-git-panel-responsive {
-    height: 95dvh;
+    height: 95vh;
   }
 }
