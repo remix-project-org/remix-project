@@ -105,9 +105,7 @@ export class RemixAIAssistant extends ViewPlugin {
   render() {
     return (
       <div id="remix-ai-assistant"
-        data-id="remix-ai-assistant"
-        className="plugin-ai-assistant-responsive"
-      >
+        data-id="remix-ai-assistant">
         <PluginViewWrapper plugin={this} />
       </div>
     )
