@@ -51,6 +51,18 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
         const response = await axios.get(HOME_TAB_PLUGIN_LIST)
 
         response.data && setPluginList(response.data)
+
+        // Initialize active plugins state based on current plugin status
+        if (response.data && response.data.plugins) {
+          const currentlyActive = []
+          for (const pluginInfo of response.data.plugins) {
+            if (await plugin.appManager.isActive(pluginInfo.pluginId)) {
+              currentlyActive.push(pluginInfo.pluginId)
+            }
+          }
+          setActivePlugins(currentlyActive)
+        }
+
         setIsLoading(false)
       } catch (error) {
         console.error('Error fetching plugin list:', error)
@@ -58,9 +70,35 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
     }
     getPluginList()
 
-    plugin.on('manager', 'activate', (plugin: { name: string }) => {
-      setActivePlugins(activePlugins => [...activePlugins, plugin.name])
-    })
+    const onActivate = (pluginProfile: any) => {
+      try {
+        const pluginName = pluginProfile?.name || pluginProfile?.profile?.name
+        if (pluginName) {
+          setActivePlugins(activePlugins => [...activePlugins, pluginName])
+        }
+      } catch (error) {
+        console.error('Error handling plugin activation:', error)
+      }
+    }
+
+    const onDeactivate = (pluginProfile: any) => {
+      try {
+        const pluginName = pluginProfile?.name || pluginProfile?.profile?.name
+        if (pluginName) {
+          setActivePlugins(activePlugins => activePlugins.filter((id) => id !== pluginName))
+        }
+      } catch (error) {
+        console.error('Error handling plugin deactivation:', error)
+      }
+    }
+
+    plugin.appManager.event.on('activate', onActivate)
+    plugin.appManager.event.on('deactivate', onDeactivate)
+
+    return () => {
+      plugin.appManager.event.off('activate', onActivate)
+      plugin.appManager.event.off('deactivate', onDeactivate)
+    }
   }, [])
 
   const activateFeaturedPlugin = async (pluginId: string) => {

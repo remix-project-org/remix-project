@@ -832,7 +832,12 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
     props.analysisModule.on('solidityStaticAnalysis', 'analyze', analyzeHandler)
 
     return () => {
-      props.analysisModule.off('solidityStaticAnalysis', 'analyze')
+      try {
+        props.analysisModule.off('solidityStaticAnalysis', 'analyze')
+      } catch (error) {
+        // Plugin may already be deactivated, ignore the error
+        console.debug('Could not remove event listener from solidityStaticAnalysis:', error.message)
+      }
     }
   }, [state.data, state.source, state.file, state, props])
 
