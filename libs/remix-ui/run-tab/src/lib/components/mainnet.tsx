@@ -105,7 +105,7 @@ export function MainnetPrompt(props: MainnetProps) {
         </div>
         {props.network.lastBlock.baseFeePerGas ? (
           <div>
-            <div className="align-items-center my-1" title={intl.formatMessage({ id: 'udapp.title1' })}>
+            <div className="align-items-center my-1">
               <div className="d-flex">
                 <span className="text-dark me-2 text-nowrap">
                   <FormattedMessage id="udapp.maxPriorityFee" />:
@@ -117,10 +117,10 @@ export function MainnetPrompt(props: MainnetProps) {
                   onInput={(e: any) => onMaxPriorityFeeChange(e.target.value)}
                   defaultValue={props.maxPriorityFee}
                 />
-                <span title="visit https://ethgasstation.info for current gas price info.">Gwei</span>
+                <span>Gwei</span>
               </div>
             </div>
-            <div className="align-items-center my-1" title={intl.formatMessage({ id: 'udapp.title2' })}>
+            <div className="align-items-center my-1">
               <div className="d-flex">
                 <span className="text-dark me-2 text-nowrap">
                   <FormattedMessage id="udapp.maxFee" values={{ baseFeePerGas: formatUnits(BigInt(props.network.lastBlock.baseFeePerGas), 'gwei') }} />:

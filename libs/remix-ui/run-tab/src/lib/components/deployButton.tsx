@@ -18,7 +18,6 @@ export function DeployButton(props: DeployButtonProps) {
         <Dropdown as={ButtonGroup}>
           <button
             onClick={props.handleActionClick}
-            title={props.buttonOptions.title}
             className={`udapp_instanceButton ${props.buttonOptions.widthClass} btn btn-sm ${props.buttonOptions.classList}`}
             data-id={props.buttonOptions.dataId}
           >

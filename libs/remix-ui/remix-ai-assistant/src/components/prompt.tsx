@@ -134,7 +134,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                   setAiMode('ask')
                   trackMatomoEvent({ category: 'ai', action: 'ModeSwitch', name: 'ask', isClick: true })
                 }}
-                title="Ask mode - Chat with AI"
               >
                 Ask
               </button>
@@ -145,7 +144,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                   setAiMode('edit')
                   trackMatomoEvent({ category: 'ai', action: 'ModeSwitch', name: 'edit', isClick: true })
                 }}
-                title="Edit mode - Edit workspace code"
               >
                 Edit
               </button>
@@ -216,7 +214,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               data-id="remix-ai-record-audio"
               className={`btn btn-text btn-sm small fw-light mt-2 align-self-end border border-text rounded ${isRecording ? 'btn-danger text-white' : 'text-secondary'}`}
               onClick={handleRecord}
-              title={isRecording ? 'Stop recording' : 'Record audio'}
             >
               <i className={`fa ${isRecording ? 'fa-stop' : 'fa-microphone'} me-1`}></i>
               {isRecording ? 'Stop' : 'Audio Prompt'}

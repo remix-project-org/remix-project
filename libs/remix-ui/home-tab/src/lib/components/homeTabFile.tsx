@@ -222,7 +222,6 @@ function HomeTabFile({ plugin }: HomeTabFileProps) {
                   <FormattedMessage id="home.openFile" />
                 </label>
                 <input
-                  title="open file"
                   type="file"
                   id="openFileInput"
                   onChange={async (event) => {

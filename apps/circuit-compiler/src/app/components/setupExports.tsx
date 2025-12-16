@@ -80,7 +80,6 @@ export function SetupExports () {
             <input
               className="form-check-input"
               type="checkbox"
-              title="Export Verifier Contract"
               id="circuitExportVerifierContract"
               onChange={() => circuitApp.dispatch({ type: 'SET_EXPORT_VERIFICATION_CONTRACT', payload: !circuitApp.appState.exportVerificationContract })}
               checked={circuitApp.appState.exportVerificationContract}
@@ -93,7 +92,6 @@ export function SetupExports () {
             <input
               className="form-check-input"
               type="checkbox"
-              title="Export Verification Key"
               id="circuitExportVerificationKey"
               onChange={() => circuitApp.dispatch({ type: 'SET_EXPORT_VERIFICATION_KEY', payload: !circuitApp.appState.exportVerificationKey })}
               checked={circuitApp.appState.exportVerificationKey}

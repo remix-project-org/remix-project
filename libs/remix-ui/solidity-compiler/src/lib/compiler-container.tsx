@@ -800,7 +800,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               onChange={handleAutoCompile}
               data-id="compilerContainerAutoCompile"
               id="autoCompile"
-              title="Auto compile"
               checked={state.autoCompile}
             />
             <label className="form-check-label" htmlFor="autoCompile">
@@ -813,7 +812,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               onChange={handleHideWarningsChange}
               id="hideWarningsBox"
               type="checkbox"
-              title="Hide warnings"
               checked={state.hideWarnings}
             />
             <label className="form-check-label" htmlFor="hideWarningsBox">
@@ -827,7 +825,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                 onChange={updatehhCompilation}
                 id="enableHardhat"
                 type="checkbox"
-                title="Enable Hardhat Compilation"
                 checked={hhCompilation}
               />
               <label className="form-check-label" htmlFor="enableHardhat">
@@ -856,7 +853,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                 onChange={updateTruffleCompilation}
                 id="enableTruffle"
                 type="checkbox"
-                title="Enable Truffle Compilation"
                 checked={truffleCompilation}
               />
               <label className="form-check-label" htmlFor="enableTruffle">

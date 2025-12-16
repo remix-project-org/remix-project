@@ -14,7 +14,6 @@ export function GenerateProof () {
         <input
           className="form-check-input"
           type="checkbox"
-          title="Export Verifier Calldata"
           id="circuitExportVerifierCalldata"
           onChange={() => circuitApp.dispatch({ type: 'SET_EXPORT_VERIFIER_CALLDATA', payload: !circuitApp.appState.exportVerifierCalldata })}
           checked={circuitApp.appState.exportVerifierCalldata}

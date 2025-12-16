@@ -143,7 +143,6 @@ export default function StepListPage(): JSX.Element {
                               type="button"
                               className="btn btn-sm btn-outline-info border border-info"
                               onClick={() => copy(text)}
-                              title="Copy code"
                             >
                               <i className="fa-regular fa-copy"></i>
                             </button>
@@ -154,7 +153,6 @@ export default function StepListPage(): JSX.Element {
                             type="button"
                             className="ai-copy-btn ai-copy-btn-absolute"
                             onClick={() => copy(text)}
-                            title="Copy code"
                           >
                             <i className="fa-regular fa-copy"></i>
                           </button>

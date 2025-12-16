@@ -20,7 +20,6 @@ const CheckTxStatus = ({ tx, type }: any) => {
     return (
       <i
         className="remix_ui_terminal_txStatus d-flex me-3 fas fa-circle-thin"
-        title="Status not available"
       ></i>
     );
   }

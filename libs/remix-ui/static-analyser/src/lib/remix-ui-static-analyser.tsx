@@ -207,7 +207,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
     <span> </span>
   )
 }
-      <span className="" title={Position in ${fileName}}>Pos: ${locationString}</span>
+      <span className="">Pos: ${locationString}</span>
       </span>`
   }
 
