@@ -1044,7 +1044,7 @@ export function Workspace() {
     //   setWorkspaceHeight(5)
     // }
     // setWorkspaceHeight(60 - 2.67)
-  }, [window.innerHeight])
+  }, [])
 
   return (
     <div className="d-flex flex-column justify-content-between" style={{ height: `${workspaceHeight}dvh` }}>
