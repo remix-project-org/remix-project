@@ -320,11 +320,11 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
             <h2 className={`d-inline-block pe-5 ${state.themeQuality.name === 'dark' ? 'text-white' : 'text-black'}`} style={{ width: '7.8em' }}><FormattedMessage id="settings.displayName" /></h2>
             <div className='d-flex flex-grow-1 remix-settings-search' style={{ maxWidth: '53.5em', minHeight: '4em' }}>
               <span className="input-group-text rounded-0 border-end-0 pe-0" style={{ backgroundColor: state.themeQuality.name === 'dark' ? 'var(--custom-onsurface-layer-4)' : 'var(--bs-body-bg)' }}><i className="fa fa-search"></i></span>
-              <input type="text" className="form-control shadow-none h-100 rounded-0 border-start-0 no-outline" placeholder="Search settings" style={{ minWidth: '21.5em', width: '100%' }} value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input type="text" className="form-control shadow-none h-100 rounded-0 border-start-0 no-outline w-100" placeholder="Search settings" style={{ minWidth: '21.5em' }} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
           </div>
         </div>
-        {filteredSections.length === 0 ? <div className="text-info text-center" style={{ cursor: 'pointer' }}>No match found</div> :
+        {filteredSections.length === 0 ? <div className="text-info text-center cursor-pointer">No match found</div> :
           <div className="d-flex flex-wrap align-items-stretch flex-fill" style={{ minHeight: 0 }}>
             {/* Sidebar */}
             <div
@@ -339,8 +339,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
                   >
                     <a
                       data-id={`settings-sidebar-${section.key}`}
-                      className="nav-link p-0"
-                      style={{ cursor: 'pointer' }}
+                      className="nav-link p-0 cursor-pointer"
                       onClick={() => {
                         setSelected(section.key)
                         setFilteredSection(section)
@@ -355,8 +354,8 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
             </div>
             {/* Main Content */}
             <div
-              className="flex-column p-0 flex-grow-1"
-              style={{ minWidth: 0, flexBasis: '27.3em', flexGrow: 1, flexShrink: 1, maxWidth: '50%', minHeight: 0 }}
+              className="flex-column p-0 flex-grow-1 flex-shrink-1 mw-50"
+              style={{ minWidth: 0, flexBasis: '27.3em', minHeight: 0 }}
             >
               <div className="remix-settings-main h-100 overflow-auto" style={{ maxWidth: '53.5em' }}>
                 <SettingsSectionUI plugin={props.plugin} section={filteredSection} state={settingsState} dispatch={dispatch} />
