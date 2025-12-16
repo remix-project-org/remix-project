@@ -16,6 +16,7 @@ export interface FileExplorerEvent extends MatomoEventBase {
     | 'createNewFolder'
     | 'importFromIpfs'
     | 'importFromLocalFileSystem'
+    | 'uploadFolder'
     | 'importFromHttps'
     | 'workspaceMenu'
     | 'fileAction'
