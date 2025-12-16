@@ -313,7 +313,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
   return (
     <ThemeContext.Provider value={state.themeQuality}>
       {settingsState.toaster.value ? <Toaster message={settingsState.toaster.value as string} /> : null}
-      <div className="container-fluid bg-light" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div className="container-fluid bg-light h-100 d-flex flex-column">
         <div className='pt-5'></div>
         <div className='d-flex flex-row pb-4'>
           <div data-id="settings-sidebar-header" className="input-group ps-5 remix-settings-sidebar">
@@ -325,7 +325,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
           </div>
         </div>
         {filteredSections.length === 0 ? <div className="text-info text-center" style={{ cursor: 'pointer' }}>No match found</div> :
-          <div className="d-flex flex-wrap align-items-stretch" style={{ flex: '1 1 auto', minHeight: 0 }}>
+          <div className="d-flex flex-wrap align-items-stretch flex-fill" style={{ minHeight: 0 }}>
             {/* Sidebar */}
             <div
               className="flex-column bg-transparent p-0 px-5 remix-settings-sidebar"
@@ -358,7 +358,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
               className="flex-column p-0 flex-grow-1"
               style={{ minWidth: 0, flexBasis: '27.3em', flexGrow: 1, flexShrink: 1, maxWidth: '50%', minHeight: 0 }}
             >
-              <div className="remix-settings-main" style={{ maxWidth: '53.5em', overflowY: 'auto', height: '100%' }}>
+              <div className="remix-settings-main h-100 overflow-auto" style={{ maxWidth: '53.5em' }}>
                 <SettingsSectionUI plugin={props.plugin} section={filteredSection} state={settingsState} dispatch={dispatch} />
               </div>
             </div>

@@ -67,7 +67,7 @@ export default class SettingsTab extends ViewPlugin {
 
   render() {
     return (
-      <div id="settingsTab" className="bg-light" style={{ height: '100%', overflow: 'auto' }}>
+      <div id="settingsTab" className="bg-light h-100 overflow-auto">
         <PluginViewWrapper plugin={this} />
       </div>
     )
