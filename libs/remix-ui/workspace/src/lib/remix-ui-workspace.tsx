@@ -1027,24 +1027,7 @@ export function Workspace() {
       () => { }
     )
   }
-  const [workspaceHeight, setWorkspaceHeight] = useState(window.innerHeight < 750 ? 87 : window.innerHeight < 1000 ? 89.6 : 92)
-
-  useEffect(() => {
-    console.log('height', window.innerHeight)
-    if (selectedWorkspace && selectedWorkspace.isGitRepo) {
-      // if (window.innerHeight < 1000) {
-      //   setWorkspaceHeight('87.6dvh')
-      // } else if (window.innerHeight < 1120) {
-      //   setWorkspaceHeight('89.5dvh')
-      // } else if (window.innerHeight > 1121){
-      //   setWorkspaceHeight('97dvh')
-      // }
-    }
-    // if (window.innerHeight < 1000) {
-    //   setWorkspaceHeight(5)
-    // }
-    // setWorkspaceHeight(60 - 2.67)
-  }, [])
+  const [workspaceHeight, setWorkspaceHeight] = useState(window.innerHeight < 750 ? 87 : window.innerHeight < 1000 ? 89.6 : 93)
 
   return (
     <div className="d-flex flex-column justify-content-between" style={{ height: `${workspaceHeight}dvh` }}>
