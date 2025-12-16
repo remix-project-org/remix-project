@@ -33,6 +33,7 @@ import { createDebuggingTools } from './handlers/DebuggingHandler';
 import { createCodeAnalysisTools } from './handlers/CodeAnalysisHandler';
 import { createTutorialsTools } from './handlers/TutorialsHandler';
 import { createAmpTools } from './handlers/AmpHandler';
+import { createMathUtilsTools } from './handlers/MathUtilsHandler';
 
 // Import resource providers
 import { ProjectResourceProvider } from './providers/ProjectResourceProvider';
@@ -463,6 +464,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       // Register Amp tools
       const ampTools = createAmpTools();
       this._tools.registerBatch(ampTools);
+
+      // Register Math Utils tools
+      const mathUtilsTools = createMathUtilsTools();
+      this._tools.registerBatch(mathUtilsTools);
 
       const totalTools = this._tools.list().length;
 

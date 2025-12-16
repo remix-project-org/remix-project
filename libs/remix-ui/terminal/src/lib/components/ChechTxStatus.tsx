@@ -9,7 +9,7 @@ const CheckTxStatus = ({ tx, type }) => {
   } else if (tx.status === 0 || tx.status === '0x0' || tx.status === false) {
     return <i className="remix_ui_terminal_txStatus remix_ui_terminal_failed fas fa-times-circle"></i>
   } else {
-    return <i className="remix_ui_terminal_txStatus fas fa-circle-thin" title="Status not available"></i>
+    return <i className="remix_ui_terminal_txStatus fas fa-circle-thin"></i>
   }
 }
 

@@ -11,6 +11,7 @@ import {
   DeployContractArgs,
   CallContractArgs,
   SendTransactionArgs,
+  SimulateTransactionArgs,
   DeploymentResult,
   AccountInfo,
   ContractInteractionResult,
@@ -405,7 +406,7 @@ export class SendTransactionHandler extends BaseToolHandler {
         type: 'string',
         description: 'Gas price in wei'
       },
-      account: {
+      from: {
         type: 'string',
         description: 'Account to send from'
       }
@@ -427,7 +428,7 @@ export class SendTransactionHandler extends BaseToolHandler {
       data: 'string',
       gasLimit: 'number',
       gasPrice: 'string',
-      account: 'string'
+      from: 'string'
     });
     if (types !== true) return types;
 
@@ -445,7 +446,7 @@ export class SendTransactionHandler extends BaseToolHandler {
   async execute(args: SendTransactionArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       // Get accounts
-      const sendAccount = args.account
+      const sendAccount = args.from
 
       if (!sendAccount) {
         return this.createErrorResult('No account available for sending transaction');
@@ -453,7 +454,7 @@ export class SendTransactionHandler extends BaseToolHandler {
       const ethersProvider: BrowserProvider = await plugin.call('blockchain', 'web3')
       const signer = await ethersProvider.getSigner();
       const tx = await signer.sendTransaction({
-        from: args.account,
+        from: args.from,
         to: args.to,
         value: args.value || '0',
         data: args.data,
@@ -466,7 +467,7 @@ export class SendTransactionHandler extends BaseToolHandler {
       const result = {
         success: true,
         transactionHash: receipt.hash,
-        from: args.account,
+        from: args.from,
         to: args.to,
         value: args.value || '0',
         gasUsed: toNumber(receipt.gasUsed),
@@ -606,11 +607,11 @@ export class GetAccountBalanceHandler extends BaseToolHandler {
   async execute(args: { account: string }, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       const web3 = await plugin.call('blockchain', 'web3')
-      const balance = await web3.eth.getBalance(args.account)
+      const balance = await web3.getBalance(args.account)
       return this.createSuccessResult({
         success: true,
         account: args.account,
-        balance: web3.utils.fromWei(balance, 'ether'),
+        balance: formatEther(balance),
         unit: 'ETH'
       })
     } catch (error) {
@@ -807,6 +808,129 @@ export class GetCurrentEnvironmentHandler extends BaseToolHandler {
 }
 
 /**
+ * Simulate Transaction Tool Handler
+ */
+export class SimulateTransactionHandler extends BaseToolHandler {
+  name = 'simulate_transaction';
+  description = 'Simulate a transaction using eth_simulateV1 RPC endpoint';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      from: {
+        type: 'string',
+        description: 'From address',
+        pattern: '^0x[a-fA-F0-9]{40}$'
+      },
+      to: {
+        type: 'string',
+        description: 'To address (optional for contract creation)',
+        pattern: '^0x[a-fA-F0-9]{40}$'
+      },
+      value: {
+        type: 'string',
+        description: 'Value in wei in decimal value (optional)',
+        default: '0'
+      },
+      maxFeePerGas: {
+        type: 'string',
+        description: 'maxFeePerGas in wei in decimal value (optional)',
+        default: '0'
+      },
+      data: {
+        type: 'string',
+        description: 'Transaction data (hex)',
+        pattern: '^0x[a-fA-F0-9]*$'
+      },
+      validation: {
+        type: 'boolean',
+        description: 'Enable validation',
+        default: true
+      },
+      traceTransfers: {
+        type: 'boolean',
+        description: 'Enable trace transfers',
+        default: true
+      },
+      shouldDecodeLogs: {
+        type: 'boolean',
+        description: 'Whether to decode logs',
+        default: true
+      }
+    },
+    required: ['from']
+  };
+
+  getPermissions(): string[] {
+    return ['transaction:simulate'];
+  }
+
+  validate(args: SimulateTransactionArgs): boolean | string {
+    const required = this.validateRequired(args, ['from']);
+    if (required !== true) return required;
+
+    const types = this.validateTypes(args, {
+      from: 'string',
+      to: 'string',
+      value: 'string',
+      maxFeePerGas: 'string',
+      data: 'string',
+      validation: 'boolean',
+      traceTransfers: 'boolean',
+      shouldDecodeLogs: 'boolean'
+    });
+    if (types !== true) return types;
+
+    if (!args.from.match(/^0x[a-fA-F0-9]{40}$/)) {
+      return 'Invalid from address format';
+    }
+
+    if (args.to && !args.to.match(/^0x[a-fA-F0-9]{40}$/)) {
+      return 'Invalid to address format';
+    }
+
+    if (args.data && !args.data.match(/^0x[a-fA-F0-9]*$/)) {
+      return 'Invalid data format (must be hex)';
+    }
+
+    return true;
+  }
+
+  async execute(args: SimulateTransactionArgs, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      // Call the transactionSimulator plugin's simulateTransaction method
+      const value = args.value ? '0x' + BigInt(args.value).toString(16) : null
+      const maxFeePerGas = args.maxFeePerGas ? '0x' + BigInt(args.maxFeePerGas).toString(16) : null
+      const simulationResult = await plugin.call(
+        'transactionSimulator',
+        'simulateTransaction',
+        args.from,
+        args.to,
+        value,
+        maxFeePerGas,
+        args.data,
+        args.validation !== false,
+        args.traceTransfers !== false,
+        args.shouldDecodeLogs !== false
+      );
+
+      if (!simulationResult.success) {
+        return this.createErrorResult(
+          `Simulation failed: ${simulationResult.error || 'Unknown error'}`
+        );
+      }
+
+      return this.createSuccessResult({
+        success: true,
+        ...simulationResult
+      });
+
+    } catch (error) {
+      return this.createErrorResult(`Transaction simulation failed: ${error.message}`);
+    }
+  }
+}
+
+/**
  * Create deployment and interaction tool definitions
  */
 export function createDeploymentTools(): RemixToolDefinition[] {
@@ -890,6 +1014,14 @@ export function createDeploymentTools(): RemixToolDefinition[] {
       category: ToolCategory.DEPLOYMENT,
       permissions: ['transaction:send'],
       handler: new RunScriptHandler()
+    },
+    {
+      name: 'simulate_transaction',
+      description: 'Simulate a transaction using eth_simulateV1 RPC endpoint',
+      inputSchema: new SimulateTransactionHandler().inputSchema,
+      category: ToolCategory.DEPLOYMENT,
+      permissions: ['transaction:simulate'],
+      handler: new SimulateTransactionHandler()
     }
   ];
 }

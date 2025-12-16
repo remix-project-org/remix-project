@@ -116,7 +116,7 @@ export const DebuggerApiMixin = (Base) => class extends Base {
       web3 = this.web3()
     }
     if (!web3) {
-      const webDebugNode = init.web3DebugNode(network.name)
+      const webDebugNode = init.web3DebugNode(network.id)
       web3 = !webDebugNode ? this.web3() : webDebugNode
     }
     init.extendProvider(web3)

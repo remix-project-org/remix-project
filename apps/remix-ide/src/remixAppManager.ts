@@ -95,7 +95,8 @@ let requiredModules = [
   'topbar',
   'templateexplorermodal',
   'githubAuthHandler',
-  'desktopClient'
+  'desktopClient',
+  'transactionSimulator'
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)

@@ -18,6 +18,7 @@ export { createDeploymentTools } from './handlers/DeploymentHandler';
 export { createDebuggingTools } from './handlers/DebuggingHandler';
 export { createCodeAnalysisTools } from './handlers/CodeAnalysisHandler';
 export { createAmpTools } from './handlers/AmpHandler';
+export { createMathUtilsTools } from './handlers/MathUtilsHandler';
 
 // Resource Providers
 export { ProjectResourceProvider } from './providers/ProjectResourceProvider';

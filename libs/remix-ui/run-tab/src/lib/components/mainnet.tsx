@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
+import { CustomTooltip } from '@remix-ui/helper'
 import { MainnetProps } from '../types'
 import { formatUnits, parseUnits } from 'ethers'
 
@@ -105,37 +106,55 @@ export function MainnetPrompt(props: MainnetProps) {
         </div>
         {props.network.lastBlock.baseFeePerGas ? (
           <div>
-            <div className="align-items-center my-1" title={intl.formatMessage({ id: 'udapp.title1' })}>
-              <div className="d-flex">
-                <span className="text-dark me-2 text-nowrap">
-                  <FormattedMessage id="udapp.maxPriorityFee" />:
-                </span>
-                <input
-                  className="form-control me-1 text-end"
-                  style={{ height: '1.2rem', width: '6rem' }}
-                  id="maxpriorityfee"
-                  onInput={(e: any) => onMaxPriorityFeeChange(e.target.value)}
-                  defaultValue={props.maxPriorityFee}
-                />
-                <span title="visit https://ethgasstation.info for current gas price info.">Gwei</span>
+            <CustomTooltip
+              placement="top"
+              tooltipText={intl.formatMessage({ id: 'udapp.title1' })}
+              tooltipId="maxPriorityFeeTooltip"
+            >
+              <div className="align-items-center my-1">
+                <div className="d-flex">
+                  <span className="text-dark me-2 text-nowrap">
+                    <FormattedMessage id="udapp.maxPriorityFee" />:
+                  </span>
+                  <input
+                    className="form-control me-1 text-end"
+                    style={{ height: '1.2rem', width: '6rem' }}
+                    id="maxpriorityfee"
+                    onInput={(e: any) => onMaxPriorityFeeChange(e.target.value)}
+                    defaultValue={props.maxPriorityFee}
+                  />
+                  <CustomTooltip
+                    placement="top"
+                    tooltipText="visit https://ethgasstation.info for current gas price info."
+                    tooltipId="gweiTooltip"
+                  >
+                    <span>Gwei</span>
+                  </CustomTooltip>
+                </div>
               </div>
-            </div>
-            <div className="align-items-center my-1" title={intl.formatMessage({ id: 'udapp.title2' })}>
-              <div className="d-flex">
-                <span className="text-dark me-2 text-nowrap">
-                  <FormattedMessage id="udapp.maxFee" values={{ baseFeePerGas: formatUnits(BigInt(props.network.lastBlock.baseFeePerGas), 'gwei') }} />:
-                </span>
-                <input
-                  className="form-control me-1 text-end"
-                  style={{ height: '1.2rem', width: '6rem' }}
-                  id="maxfee"
-                  onInput={(e: any) => onMaxFeeChange(e.target.value)}
-                  defaultValue={baseFee}
-                />
-                <span>Gwei</span>
-                <span className="text-dark ms-2"></span>
+            </CustomTooltip>
+            <CustomTooltip
+              placement="top"
+              tooltipText={intl.formatMessage({ id: 'udapp.title2' })}
+              tooltipId="maxFeeTooltip"
+            >
+              <div className="align-items-center my-1">
+                <div className="d-flex">
+                  <span className="text-dark me-2 text-nowrap">
+                    <FormattedMessage id="udapp.maxFee" values={{ baseFeePerGas: formatUnits(BigInt(props.network.lastBlock.baseFeePerGas), 'gwei') }} />:
+                  </span>
+                  <input
+                    className="form-control me-1 text-end"
+                    style={{ height: '1.2rem', width: '6rem' }}
+                    id="maxfee"
+                    onInput={(e: any) => onMaxFeeChange(e.target.value)}
+                    defaultValue={baseFee}
+                  />
+                  <span>Gwei</span>
+                  <span className="text-dark ms-2"></span>
+                </div>
               </div>
-            </div>
+            </CustomTooltip>
           </div>
         ) : (
           <div className="d-flex align-items-center my-1">

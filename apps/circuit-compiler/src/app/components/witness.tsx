@@ -53,7 +53,6 @@ export function WitnessSection () {
             <input
               className="form-check-input"
               type="checkbox"
-              title="Export Witness As JSON"
               id="circuitExportWtnsJson"
               onChange={() => { dispatch({ type: 'SET_EXPORT_WTNS_JSON', payload: !exportWtnsJson }) }}
               checked={exportWtnsJson}

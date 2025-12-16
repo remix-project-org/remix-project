@@ -220,7 +220,7 @@ export const PushPull = () => {
       />
 
       <div className="pt-3 d-flex align-items-center remixui_compilerConfig form-check">
-        <input checked={force} onChange={e => onForceChange(e)} className="form-check-input" type="checkbox" data-id="compilerContainerAutoCompile" id="forcepush" title="Force Push" />
+        <input checked={force} onChange={e => onForceChange(e)} className="form-check-input" type="checkbox" data-id="compilerContainerAutoCompile" id="forcepush" />
         <label className="form-check-label ms-1" htmlFor="forcepush">Force push</label>
       </div>
 

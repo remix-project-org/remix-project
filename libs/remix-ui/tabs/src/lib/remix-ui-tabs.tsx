@@ -474,7 +474,18 @@ export const TabsUI = (props: TabsUIProps) => {
       }
 
       await props.plugin.call('fileManager', 'saveCurrentFile')
-      await props.plugin.call('manager', 'activatePlugin', compilerName)
+      try {
+        await props.plugin.call('manager', 'activatePlugin', compilerName)
+      } catch (e: any) {
+        const isNoir = compilerName === 'noir-compiler'
+        const isAlreadyRendered = typeof e.message === 'string' && e.message.includes('already rendered')
+
+        if (isNoir && isAlreadyRendered) {
+          console.warn('Noir plugin is already active, skipping activation to proceed with compilation.')
+        } else {
+          throw e
+        }
+      }
 
       const mySeq = ++compileSeq.current
       const startedAt = Date.now()

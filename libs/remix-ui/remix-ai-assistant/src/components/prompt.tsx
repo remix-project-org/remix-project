@@ -5,6 +5,7 @@ import { AiContextType, groupListType } from '../types/componentTypes'
 import { AiAssistantType } from '../types/componentTypes'
 import { AIEvent, MatomoEvent } from '@remix-api';
 import { TrackingContext } from '@remix-ide/tracking'
+import { CustomTooltip } from '@remix-ui/helper'
 
 // PromptArea component
 export interface PromptAreaProps {
@@ -127,28 +128,38 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
           <div className="d-flex justify-content-center align-items-center gap-2">
             {/* Ask/Edit Mode Toggle */}
             <div className="btn-group btn-group-sm" role="group">
-              <button
-                type="button"
-                className={`btn btn-sm ${aiMode === 'ask' ? 'btn-primary' : 'btn-outline-secondary'} px-2`}
-                onClick={() => {
-                  setAiMode('ask')
-                  trackMatomoEvent({ category: 'ai', action: 'ModeSwitch', name: 'ask', isClick: true })
-                }}
-                title="Ask mode - Chat with AI"
+              <CustomTooltip
+                placement="top"
+                tooltipText="Ask mode - Chat with AI"
+                tooltipId="askModeTooltip"
               >
-                Ask
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${aiMode === 'edit' ? 'btn-primary' : 'btn-outline-secondary'} px-2`}
-                onClick={() => {
-                  setAiMode('edit')
-                  trackMatomoEvent({ category: 'ai', action: 'ModeSwitch', name: 'edit', isClick: true })
-                }}
-                title="Edit mode - Edit workspace code"
+                <button
+                  type="button"
+                  className={`btn btn-sm ${aiMode === 'ask' ? 'btn-primary' : 'btn-outline-secondary'} px-2`}
+                  onClick={() => {
+                    setAiMode('ask')
+                    trackMatomoEvent({ category: 'ai', action: 'ModeSwitch', name: 'ask', isClick: true })
+                  }}
+                >
+                  Ask
+                </button>
+              </CustomTooltip>
+              <CustomTooltip
+                placement="top"
+                tooltipText="Edit mode - Edit workspace code"
+                tooltipId="editModeTooltip"
               >
-                Edit
-              </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${aiMode === 'edit' ? 'btn-primary' : 'btn-outline-secondary'} px-2`}
+                  onClick={() => {
+                    setAiMode('edit')
+                    trackMatomoEvent({ category: 'ai', action: 'ModeSwitch', name: 'edit', isClick: true })
+                  }}
+                >
+                  Edit
+                </button>
+              </CustomTooltip>
             </div>
             <span
               className="badge align-self-center text-bg-info fw-light rounded"
@@ -212,15 +223,20 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 </button>
               )}
             </div>
-            <button
-              data-id="remix-ai-record-audio"
-              className={`btn btn-text btn-sm small fw-light mt-2 align-self-end border border-text rounded ${isRecording ? 'btn-danger text-white' : 'text-secondary'}`}
-              onClick={handleRecord}
-              title={isRecording ? 'Stop recording' : 'Record audio'}
+            <CustomTooltip
+              placement="top"
+              tooltipText={isRecording ? 'Stop recording' : 'Record audio'}
+              tooltipId="audioPromptTooltip"
             >
-              <i className={`fa ${isRecording ? 'fa-stop' : 'fa-microphone'} me-1`}></i>
-              {isRecording ? 'Stop' : 'Audio Prompt'}
-            </button>
+              <button
+                data-id="remix-ai-record-audio"
+                className={`btn btn-text btn-sm small fw-light mt-2 align-self-end border border-text rounded ${isRecording ? 'btn-danger text-white' : 'text-secondary'}`}
+                onClick={handleRecord}
+              >
+                <i className={`fa ${isRecording ? 'fa-stop' : 'fa-microphone'} me-1`}></i>
+                {isRecording ? 'Stop' : 'Audio Prompt'}
+              </button>
+            </CustomTooltip>
             <button
               data-id="remix-ai-workspace-generate"
               className="btn btn-text btn-sm small fw-light text-secondary mt-2 align-self-end border border-text rounded"

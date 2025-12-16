@@ -155,7 +155,6 @@ export const CompileOptions = ({ autoCompile, hideWarnings, setCircuitAutoCompil
         className="form-check-input"
         type="checkbox"
         onChange={(e) => setCircuitAutoCompile(e.target.checked)}
-        title="Auto compile"
         checked={autoCompile}
         id="autoCompileCircuit"
       />
@@ -168,7 +167,6 @@ export const CompileOptions = ({ autoCompile, hideWarnings, setCircuitAutoCompil
         className="form-check-input"
         onChange={(e) => setCircuitHideWarnings(e.target.checked)}
         type="checkbox"
-        title="Hide warnings"
         checked={hideWarnings}
         id="hideCircuitWarnings"
       />
