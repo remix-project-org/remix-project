@@ -104,19 +104,12 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
   //   return (<></>)
   // }
 
-  const [windowHeight, setWindowHeight] = useState(window.innerHeight)
-
-  useEffect(() => {
-    setWindowHeight(window.innerHeight)
-  }, [window.innerHeight])
-
   return (
     <div className="d-flex flex-column w-100" data-id="remixUIHTAll">
       <ThemeContext.Provider value={state.themeQuality}>
         <div className="container-fluid">
           <div className="row">
             <div className="d-flex w-100 m-3 justify-content-end">
-              <h4 className="me-4">height: {windowHeight}</h4>
               <button className="btn btn-secondary btn-md me-3" onClick={startLearnEth}><i className="fa-solid fa-book me-1"></i><FormattedMessage id="home.startLearning" /></button>
               <button data-id="landingPageImportFromTemplate" className="btn btn-primary btn-md me-2" onClick={openTemplateSelection}><i className="fa-solid fa-plus me-1"></i><FormattedMessage id="home.createNewWorkspace" /></button>
             </div>
