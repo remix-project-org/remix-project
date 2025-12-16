@@ -16,6 +16,7 @@ export function TopCards() {
   const importCardRef = useRef<HTMLDivElement>(null)
   const importOptionRef = useRef(null)
   const importFileInputRef = useRef(null)
+  const importFolderInputRef = useRef(null)
   useOnClickOutside([importCardRef, importOptionRef], () => setImportFiles(false))
 
   useEffect(() => {
@@ -68,7 +69,8 @@ export function TopCards() {
           }}
           data-id="importOptionsMenuIPFS"
         >
-          <i className="me-2 far fa-cube"></i><span className="fw-light">Import from IPFS</span></li>
+          <i className="me-2 far fa-cube"></i><span className="fw-light">Import from IPFS</span>
+        </li>
         <li
           className="d-flex flex-row align-items-center import-option-item"
           onClick={() => {
@@ -93,6 +95,33 @@ export function TopCards() {
             }}
           />
           <span className="fw-light">Import from local file system</span>
+        </li>
+        <li
+          className="d-flex flex-row align-items-center import-option-item"
+          onClick={() => {
+            importFolderInputRef.current?.click()
+          }}
+          data-id="importOptionsMenuLocalFileSystem"
+        >
+          <i className="me-2 fa-solid fa-folder-upload"></i>
+          <input
+            ref={importFolderInputRef}
+            type="file"
+            id="importFoldersInput"
+            multiple
+            {...enableDirUpload}
+            className="d-none"
+            onChange={async (e) => {
+              e.stopPropagation()
+              if (e.target.files.length === 0 || !e.target.files) return
+              await uploadFolder(e.target, '/')
+              setImportFiles(false)
+              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'uploadFolder', isClick: true })
+              facade.closeWizard()
+              await plugin.call('notification', 'toast', 'Folders imported successfully')
+            }}
+          />
+          <span className="fw-light">Import folders from local filesystem</span>
         </li>
         <li
           className="d-flex flex-row align-items-center import-option-item"
