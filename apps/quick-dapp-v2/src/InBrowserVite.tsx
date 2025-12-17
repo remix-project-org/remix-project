@@ -12,6 +12,7 @@ const IMPORTS_MAP: Record<string, string> = {
   'react-dom/client': 'https://esm.sh/react-dom@18.2.0/client',
   'react-dom': 'https://esm.sh/react-dom@18.2.0',
   'ethers': 'https://esm.sh/ethers@6.11.1',
+  '@farcaster/miniapp-sdk': 'https://esm.sh/@farcaster/miniapp-sdk@0.2.1',
 };
 
 let globalInitPromise: Promise<void> | null = null;

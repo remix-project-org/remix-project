@@ -335,24 +335,45 @@ export function UniversalDappUI(props: UdappProps) {
                     onClick={async () => {
                       try {
                         const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', props.instance.name)
-                        const description: string = await new Promise((resolve, reject) => {
+                        const descriptionObj: { text: string, isBaseMiniApp: boolean } = await new Promise((resolve, reject) => {
                           const modalMessage = (
-                            <ul className="p-3">
-                              <div className="mb-2">
+                            <div className="p-3">
+                              <div className="mb-3">
                                 <span>Please describe how you would want the design to look like.</span>
                               </div>
-                              <div>This might take up to 2 minutes.</div>
-                            </ul>
+                              <textarea 
+                                id="ai-description-input" 
+                                className="form-control mb-3" 
+                                rows={4} 
+                                placeholder='E.g: "The website should have a dark theme..."'
+                              ></textarea>
+                              
+                              <div className="form-check">
+                                <input className="form-check-input" type="checkbox" id="base-miniapp-checkbox" />
+                                <label className="form-check-label" htmlFor="base-miniapp-checkbox">
+                                  Create as Base Mini App (Farcaster Frame)
+                                </label>
+                              </div>
+                              
+                              <div className="mt-2 text-muted small">This might take up to 2 minutes.</div>
+                            </div>
                           )
                           const modalContent = {
                             id: 'generate-website-ai',
                             title: 'Generate a Dapp UI with AI',
                             message: modalMessage,
-                            placeholderText: 'E.g: "The website should have a dark theme, and show the account address and balance on top. The website should be responsive and look good on mobile. There should be a button to connect the wallet, and a button to refresh the balance, with a nice layout and design."',
-                            modalType: ModalTypes.textarea,
+                            modalType: 'custom',
                             okLabel: 'Generate',
                             cancelLabel: 'Cancel',
-                            okFn: (value: string) => setTimeout(() => resolve(value), 0),
+                            okFn: () => {
+                              const descInput = document.getElementById('ai-description-input') as HTMLTextAreaElement;
+                              const checkInput = document.getElementById('base-miniapp-checkbox') as HTMLInputElement;
+                                
+                              resolve({
+                                text: descInput ? descInput.value : '',
+                                isBaseMiniApp: checkInput ? checkInput.checked : false
+                              });
+                            },
                             cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
                             hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
                           }
@@ -364,18 +385,21 @@ export function UniversalDappUI(props: UdappProps) {
                           await props.plugin.call('notification', 'toast', 'AI generation is already in progress.')
                           return
                         }
+                        
+                        console.log('[UniversalDappUI] User Input:', descriptionObj);
 
                         isGenerating.current = true
 
                         await props.plugin.call('ai-dapp-generator', 'resetDapp', address)
                         try {
                           await props.plugin.call('quick-dapp-v2', 'createDapp', {
-                            description: description,
+                            description: descriptionObj.text,
                             contractName: props.instance.name,
                             address: address,
                             abi: props.instance.abi || props.instance.contractData.abi,
                             chainId: props.plugin.REACT_API.chainId,
-                            compilerData: data
+                            compilerData: data,
+                            isBaseMiniApp: descriptionObj.isBaseMiniApp 
                           })
                           
                           await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')

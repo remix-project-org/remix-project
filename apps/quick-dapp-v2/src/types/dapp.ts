@@ -29,6 +29,7 @@ export interface DappConfig {
     title: string;
     details: string;
     logo?: string;
+    isBaseMiniApp?: boolean;
   };
   
   thumbnailPath?: string;

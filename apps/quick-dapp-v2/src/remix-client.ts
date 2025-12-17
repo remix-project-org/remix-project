@@ -58,7 +58,8 @@ export class RemixClient extends PluginClient {
     address: string, 
     abi: any, 
     chainId: number,
-    compilerData: any 
+    compilerData: any,
+    isBaseMiniApp: boolean
   }) {
     try {
       this.internalEvents.emit('creatingDappStart');
@@ -74,15 +75,20 @@ export class RemixClient extends PluginClient {
         networkName
       };
 
-      const newDappConfig = await this.dappManager.createDapp(payload.contractName, contractData);
-      
+      const newDappConfig = await this.dappManager.createDapp(
+        payload.contractName, 
+        contractData, 
+        payload.isBaseMiniApp
+      );
+            
       // @ts-ignore
       const pages = await this.call('ai-dapp-generator', 'generateDapp', {
         description: payload.description,
         address: payload.address,
         abi: payload.abi,
         chainId: payload.chainId,
-        contractName: payload.contractName
+        contractName: payload.contractName,
+        isBaseMiniApp: payload.isBaseMiniApp
       });
 
       await this.dappManager.saveGeneratedFiles(newDappConfig.slug, pages);

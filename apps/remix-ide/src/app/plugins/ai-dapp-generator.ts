@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { INITIAL_SYSTEM_PROMPT, FOLLOW_UP_SYSTEM_PROMPT, UPDATE_PAGE_START, UPDATE_PAGE_END, SEARCH_START, DIVIDER, REPLACE_END, NEW_PAGE_END, NEW_PAGE_START } from './prompt'
+import { INITIAL_SYSTEM_PROMPT, FOLLOW_UP_SYSTEM_PROMPT, BASE_MINI_APP_SYSTEM_PROMPT, UPDATE_PAGE_START, UPDATE_PAGE_END, SEARCH_START, DIVIDER, REPLACE_END, NEW_PAGE_END, NEW_PAGE_START } from './prompt'
 
 const profile = {
   name: 'ai-dapp-generator',
@@ -16,6 +16,8 @@ interface GenerateDappOptions {
   abi: any[]
   chainId: string | number
   contractName: string
+  hasImage?: boolean
+  isBaseMiniApp?: boolean
 }
 
 interface DappGenerationContext {
@@ -39,6 +41,8 @@ export class AIDappGenerator extends Plugin {
    */
   async generateDapp(options: GenerateDappOptions): Promise<Pages> {
     try {
+      console.log('[AIDappGenerator] Generating Dapp. Options:', JSON.stringify(options, null, 2));
+
       await this.call('notification', 'toast', 'Generating the DApp, please wait... it can take up to 2 minutes depending on the contract complexity.')
       this.emit('generationProgress', { status: 'started', address: options.address })
 
@@ -49,7 +53,15 @@ export class AIDappGenerator extends Plugin {
         { role: 'user', content: message }
       ]
 
-      const htmlContent = await this.callLLMAPI(messagesToSend, INITIAL_SYSTEM_PROMPT)
+      let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
+      if (options.isBaseMiniApp) {
+        console.log('[AIDappGenerator] 🟢 Switching to BASE_MINI_APP_SYSTEM_PROMPT')
+        selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
+      } else {
+        console.log('[AIDappGenerator] 🔵 Using standard INITIAL_SYSTEM_PROMPT')
+      }
+
+      const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, options.hasImage)
 
       const pages = parsePages(htmlContent)
       context.messages = [
@@ -77,7 +89,7 @@ export class AIDappGenerator extends Plugin {
   /**
    * Update an existing DApp with new description
    */
-  async updateDapp(address: string, description: string, currentFiles: Pages): Promise<Pages> {
+  async updateDapp(address: string, description: string, currentFiles: Pages, hasImage: boolean = false): Promise<Pages> {
     const context = this.getOrCreateContext(address)
 
     if (context.messages.length === 0) {
@@ -88,7 +100,7 @@ export class AIDappGenerator extends Plugin {
     context.messages.push({ role: 'user', content: message })
 
     try {
-      const htmlContent = await this.callLLMAPI(context.messages, FOLLOW_UP_SYSTEM_PROMPT)
+      const htmlContent = await this.callLLMAPI(context.messages, FOLLOW_UP_SYSTEM_PROMPT, hasImage)
 
       const pages = parsePages(htmlContent)
 
@@ -172,10 +184,10 @@ export class AIDappGenerator extends Plugin {
     }
   }
 
-  private createInitialMessage(options: GenerateDappOptions): string {
+  private createInitialMessage(options: GenerateDappOptions): string | any[] {
     const providerCode = this.getProviderCode()
 
-    return `
+    const basePrompt = `
       You MUST generate a new DApp based on the following requirements.
       
       **MOST IMPORTANT RULE:** You MUST follow the file structure and code templates
@@ -331,7 +343,7 @@ export class AIDappGenerator extends Plugin {
 
       **User's Design Request:**
       Please build the DApp based on this description:
-      "${options.description}"
+      "If there is an attached file, see attached image design and ${options.description}"
       
       **Provider Code:**
       Also, ensure the following provider injection script is in the \`<head>\`
@@ -341,15 +353,26 @@ export class AIDappGenerator extends Plugin {
       Remember: Return ALL project files in the 'START_TITLE' format as
       instructed in the system prompt.
     `
+
+    if (Array.isArray(options.description)) {
+       return options.description.map(part => {
+         if (part.type === 'text') {
+           return {
+             type: 'text',
+             text: `${basePrompt}\n\nUser Context:\n${part.text}`
+           }
+         }
+         return part
+       });
+    }
   }
 
-  private createUpdateMessage(description: string, currentFiles: Pages): string {
-    const filesString = JSON.stringify(currentFiles, null, 2);
-    return `
+  private createUpdateMessage(description: string, currentFiles: Pages): string | any[] {
+    const filesString = JSON.stringify(currentFiles, null, 2)
+    const contextInstruction = `
       IMPORTANT: The user has provided context in this message (like new Title or Details).
       You MUST prioritize the information in this message over the
       file contents I am providing below.
-      
       User's request and context:
       ${description}
 
@@ -361,6 +384,22 @@ export class AIDappGenerator extends Plugin {
       Please apply the update. Remember to return ALL project files 
       in the 'START_TITLE' format and follow the
       window.__QUICK_DAPP_CONFIG__ template.
+    `
+
+    if (Array.isArray(description)) {
+      return description.map(part => {
+        if (part.type === 'text') {
+          return { 
+            type: 'text', 
+            text: `User's request:\n${part.text}\n\n${contextInstruction}`
+          };
+        }
+        return part;
+      })
+    }
+
+    return `
+      ${contextInstruction}
     `
   }
 
@@ -375,9 +414,9 @@ export class AIDappGenerator extends Plugin {
 </script>`
   }
 
-  private async callLLMAPI(messages: any[], systemPrompt: string): Promise<string> {
-    const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate";
-    // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate";
+  private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false): Promise<string> {
+    // const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
+    const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
     try {
       const response = await fetch(BACKEND_URL, {
@@ -388,13 +427,14 @@ export class AIDappGenerator extends Plugin {
         },
         body: JSON.stringify({
           messages,
-          systemPrompt
+          systemPrompt,
+          hasImage
         })
       });
 
       if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Backend Error: ${errText}`);
+        const errText = await response.text()
+        throw new Error(`Backend Error: ${errText}`)
       }
 
       const json = await response.json();

@@ -14,15 +14,15 @@ interface Message {
 
 interface ChatBoxProps {
   onSendMessage?: (message: string, imageBase64?: string) => void;
-  onUpdateCode?: (code: string) => void;
+  isLoading: boolean;
 }
 
-const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, onUpdateCode }) => {
+const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
   const intl = useIntl();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,7 +58,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, onUpdateCode }) => {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() && !selectedImage) return;
+    if (!inputMessage.trim() && !selectedImage || isLoading) return;
 
     trackMatomoEvent(this, {
       category: 'quick-dapp-v2',
@@ -83,8 +83,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, onUpdateCode }) => {
 
     setInputMessage('');
     setSelectedImage(null);
-    setIsLoading(true);
-
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -96,26 +94,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, onUpdateCode }) => {
 
   return (
     <Card className="chat-box-container">
-      <Card.Body className="chat-box-body" style={{ overflowY: 'auto', flex: 1 }}>
-        {messages.map((msg) => (
-          <div key={msg.id} className={`mb-2 ${msg.role === 'user' ? 'text-end' : 'text-start'}`}>
-            <div className={`d-inline-block p-2 rounded ${msg.role === 'user' ? 'bg-primary text-white' : 'bg-light text-dark'}`} style={{ maxWidth: '80%' }}>
-              {msg.imageUrl && (
-                <div className="mb-2">
-                  <img src={msg.imageUrl} alt="User upload" style={{ maxWidth: '100%', borderRadius: '4px', maxHeight: '200px' }} />
-                </div>
-              )}
-              {msg.content && <div>{msg.content}</div>}
-            </div>
-            <div className="text-muted small mt-1">
-               {msg.role === 'user' ? 'You' : 'RemixAI'} • {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </Card.Body>
       <Card.Footer className="chat-box-footer d-flex flex-column">
-        
         {selectedImage && (
           <div className="mb-2 position-relative d-inline-block align-self-start">
             <img 

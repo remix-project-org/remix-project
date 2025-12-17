@@ -328,7 +328,7 @@ function EditHtmlTemplate(): JSX.Element {
     setIsBuilding(false);
   }
 
-  const handleChatMessage = async (message: string) => {
+  const handleChatMessage = async (message: string, imageBase64?: string) => {
     if (!activeDapp) return;
 
     if (!isExperimental) {
@@ -363,13 +363,27 @@ function EditHtmlTemplate(): JSX.Element {
         }
       }
       
+      let userPrompt: any = message;
+      if (imageBase64) {
+        userPrompt = [
+          { type: 'text', text: message },
+          { 
+            type: 'image_url', 
+            image_url: { 
+              url: imageBase64 
+            } 
+          }
+        ];
+      }
+
       const pages: Record<string, string> = await remixClient.call(
         // @ts-ignore
         'ai-dapp-generator',
         'updateDapp',
         activeDapp.contract.address,
-        message,
-        currentFilesObject
+        userPrompt,
+        currentFilesObject,
+        !!imageBase64
       );
       
       for (const [rawFilename, content] of Object.entries(pages)) {
@@ -473,7 +487,7 @@ function EditHtmlTemplate(): JSX.Element {
             <Col xs={12} lg={8} className="pe-3 d-flex flex-column h-100">
               <Row>
                 <div className="flex-grow-1 mb-3" style={{ minHeight: '30px' }}>
-                  <ChatBox onSendMessage={handleChatMessage} />
+                  <ChatBox onSendMessage={handleChatMessage} isLoading={isAiUpdating}/>
                 </div>
               </Row>
               <Row className="flex-grow-1 mb-3">
