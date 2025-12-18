@@ -79,6 +79,11 @@
 
   .branches-dropdown {
     max-width: 16rem;
+    overflow-x: hidden !important;
+  }
+
+  .branches-dropdown ul {
+    overflow-x: hidden !important;
   }
 
   .custom-dropdown-items a {
