@@ -88,7 +88,7 @@ module.exports = {
       })
   },
 
-  'Test NPM Import (with unpkg.com) #pr #group3': function (browser: NightwatchBrowser) {
+  'Test NPM Import (with unpkg.com) #group3': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .click('li[data-id="treeViewLitreeViewItemREADME.txt"')
