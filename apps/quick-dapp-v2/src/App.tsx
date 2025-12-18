@@ -61,7 +61,9 @@ function App(): JSX.Element {
         const dapps = (await dappManager.getDapps()) || [];
         dispatch({ type: 'SET_DAPPS', payload: dapps });
 
-        if (dapps.length > 0) {
+        const validDapps = dapps.filter((d: any) => d.config?.status !== 'draft');
+
+        if (validDapps.length > 0) {
           dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
         } else {
           dispatch({ type: 'SET_VIEW', payload: 'create' });
@@ -129,6 +131,14 @@ function App(): JSX.Element {
         <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '80vh' }}>
           <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
           <p className="text-muted">Loading QuickDapp...</p>
+        </div>
+      );
+    }
+
+    if (appState.isAiLoading) {
+      return (
+        <div className="container-fluid">
+           <CreateInstance isAiLoading={true} />
         </div>
       );
     }

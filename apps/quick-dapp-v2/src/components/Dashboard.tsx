@@ -24,9 +24,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [selectedNetwork, setSelectedNetwork] = useState<string>('All Chains');
   const [sortOrder, setSortOrder] = useState<string>('newest');
 
+  const validDapps = useMemo(() => {
+    return dapps.filter((dapp: any) => dapp.config?.status !== 'draft' && dapp.config?.status !== 'creating');
+  }, [dapps]);
+
   const availableNetworks = useMemo(() => {
     const networks = new Set<string>();
-    dapps.forEach(dapp => {
+    validDapps.forEach(dapp => {
       if (dapp.contract.networkName) {
         networks.add(dapp.contract.networkName);
       } else {
@@ -34,10 +38,10 @@ const Dashboard: React.FC<DashboardProps> = ({
       }
     });
     return Array.from(networks).sort();
-  }, [dapps]);
+  }, [validDapps]);
 
   const filteredAndSortedDapps = useMemo(() => {
-    let result = [...dapps];
+    let result = [...validDapps];
 
     if (selectedNetwork !== 'All Chains') {
       result = result.filter(dapp => 
@@ -57,7 +61,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
 
     return result;
-  }, [dapps, selectedNetwork, sortOrder]);
+  }, [validDapps, selectedNetwork, sortOrder]);
 
   const confirmDeleteOne = () => {
     if (dappToDelete && onDeleteOne) {
@@ -77,7 +81,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <Button variant="primary" onClick={onCreateNew}>
             <i className="fas fa-plus me-2"></i> Create a new dapp
           </Button>
-          {dapps.length > 0 && (
+          {validDapps.length > 0 && (
             <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)}>
               <i className="fas fa-trash me-2"></i> Delete all dapps
             </Button>
@@ -88,9 +92,9 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="rounded p-3 mb-4 d-flex flex-column flex-sm-row justify-content-between align-items-center border">
         <h5 className="mb-2 mb-sm-0 text-body">
           Your dapps <span className="badge bg-secondary ms-2">{filteredAndSortedDapps.length}</span>
-          {filteredAndSortedDapps.length !== dapps.length && (
+          {filteredAndSortedDapps.length !== validDapps.length && (
             <small className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
-              (filtered from {dapps.length})
+              (filtered from {validDapps.length})
             </small>
           )}
         </h5>
@@ -128,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="text-muted">
               <i className="fas fa-box-open fa-3x mb-3"></i>
               <h5>No dapps found</h5>
-              {dapps.length > 0 ? (
+              {validDapps.length > 0 ? (
                  <p>Try changing the filters.</p>
               ) : (
                  <p>Create your first dapp to get started!</p>

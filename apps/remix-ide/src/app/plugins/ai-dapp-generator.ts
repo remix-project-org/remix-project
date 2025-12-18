@@ -55,10 +55,10 @@ export class AIDappGenerator extends Plugin {
 
       let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
       if (options.isBaseMiniApp) {
-        console.log('[AIDappGenerator] 🟢 Switching to BASE_MINI_APP_SYSTEM_PROMPT')
+        console.log('[AIDappGenerator] Switching to BASE_MINI_APP_SYSTEM_PROMPT')
         selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
       } else {
-        console.log('[AIDappGenerator] 🔵 Using standard INITIAL_SYSTEM_PROMPT')
+        console.log('[AIDappGenerator] Using standard INITIAL_SYSTEM_PROMPT')
       }
 
       const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, options.hasImage)
@@ -187,171 +187,51 @@ export class AIDappGenerator extends Plugin {
   private createInitialMessage(options: GenerateDappOptions): string | any[] {
     const providerCode = this.getProviderCode()
 
+    const userDescription = Array.isArray(options.description) 
+      ? options.description.map(p => p.type === 'text' ? p.text : '').join('\n') 
+      : options.description;
+
     const basePrompt = `
-      You MUST generate a new DApp based on the following requirements.
+      You are generating a new DApp.
       
-      **MOST IMPORTANT RULE:** You MUST follow the file structure and code templates
-      defined in the system prompt. Specifically, you MUST use the
-      \`window.__QUICK_DAPP_CONFIG__\` object in \`index.html\` and \`src/App.jsx\`
-      to handle the DApp's title, details, and logo.
+      **CRITICAL INSTRUCTION - USER PRIORITY:**
+      The user has provided specific design or functional requirements below.
+      You MUST prioritize the user's request (theme, language, features) over
+      any default templates or examples provided in the system prompt.
       
-      **Contract Details:**
+      >>> USER REQUEST START >>>
+      "${userDescription}"
+      <<< USER REQUEST END <<<
+
+      If the user asked for a specific language (e.g. Korean), use it for all UI text.
+      If the user asked for a specific theme (e.g. Dark), implement it using Tailwind classes.
+
+      ---------------------------------------------------------
+      **TECHNICAL CONSTRAINTS (DO NOT BREAK THESE):**
+      
+      **1. File Structure:** Follow the \`window.__QUICK_DAPP_CONFIG__\` pattern.
+      
+      **2. Contract Details:**
       - Address: ${options.address}
       - Chain ID: ${options.chainId} (Decimal), 0x${Number(options.chainId).toString(16)} (Hex)
       - ABI: ${JSON.stringify(options.abi)}
 
-      **UI/UX REQUIREMENTS (RainbowKit Style):**
-      1. **No Default Alerts:** Do NOT use \`window.alert\`. Use modern UI elements (e.g., error text below buttons).
-      2. **Connection State:** - Before connection: Show a centered "Connect Wallet" button.
-         - After connection: Show the **Connected Address** (e.g., 0x12...34) and a **"Disconnect"** button clearly.
-      3. **Network Check:** If on the wrong network, show a "Wrong Network" warning and a **"Switch Network"** button.
-      4. **Feedback:** Show loading spinners or "Loading..." text during async actions.
+      **3. Code Patterns (React + Ethers v6):**
+      - Use \`useState\` and \`useEffect\`.
+      - Implement \`connectWallet\` and \`switchNetwork\` (Error 4902 handling).
+      - Check \`window.ethereum\` existence.
+      - Use \`ethers.BrowserProvider\`.
 
-      **CODE PATTERN REQUIREMENTS (React + Ethers v6):**
-      
-      In \`src/App.jsx\`, you MUST implement the following robust patterns.
-      
-      **1. Constants & State:**
-      Define the target chain ID in Hex format for MetaMask.
-      \`\`\`javascript
-      const TARGET_CHAIN_HEX = "0x${Number(options.chainId).toString(16)}";
-      const TARGET_CHAIN_DECIMAL = ${options.chainId};
-      
-      const [walletState, setWalletState] = useState({
-        isConnected: false,
-        chainId: null,
-        address: '',
-        isConnecting: false,
-        error: ''
-      });
-      \`\`\`
+      **4. UI/UX Requirements:**
+      - Show "Connect Wallet" button when disconnected.
+      - Show "Wrong Network" warning if chain ID mismatches.
+      - Use loading spinners for async actions.
 
-      **2. Robust Network Switching (CRITICAL):**
-      You MUST handle the case where the network is not added to the user's wallet (Error 4902).
-      \`\`\`javascript
-      const switchNetwork = async () => {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: TARGET_CHAIN_HEX }],
-          });
-          // Success: The page will likely reload or the chainChanged event will fire
-          return true;
-        } catch (error) {
-          // Error Code 4902 means the chain has not been added to MetaMask.
-          if (error.code === 4902) {
-             try {
-               await window.ethereum.request({
-                 method: 'wallet_addEthereumChain',
-                 params: [{
-                   chainId: TARGET_CHAIN_HEX,
-                   // You can add generic placeholders for rpcUrls if not known, 
-                   // or rely on the user to add it manually if this fails.
-                 }]
-               });
-               return true;
-             } catch (addError) {
-               console.error("Failed to add chain:", addError);
-               setWalletState(prev => ({ ...prev, error: "Failed to add network to wallet." }));
-               return false;
-             }
-          }
-          console.error("Failed to switch network:", error);
-          setWalletState(prev => ({ ...prev, error: "Failed to switch network: " + error.message }));
-          return false;
-        }
-      };
-      \`\`\`
-
-      **3. Disconnect Logic:**
-      Always reset state completely.
-      \`\`\`javascript
-      const disconnectWallet = () => {
-        setWalletState({
-          isConnected: false,
-          chainId: null,
-          address: '',
-          isConnecting: false,
-          error: ''
-        });
-        setContract(null);
-      };
-      \`\`\`
-
-      **4. Connection Logic:**
-      Check the network immediately after connecting.
-      \`\`\`javascript
-      const connectWallet = async () => {
-        if (!window.ethereum) {
-          setWalletState(prev => ({ ...prev, error: "MetaMask not found" }));
-          return;
-        }
-        setWalletState(prev => ({ ...prev, isConnecting: true, error: '' }));
-        
-        try {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          const accounts = await provider.send("eth_requestAccounts", []);
-          const network = await provider.getNetwork();
-          const currentChainId = Number(network.chainId); // Convert bigint to number
-          
-          const isCorrectChain = currentChainId === TARGET_CHAIN_DECIMAL;
-          
-          setWalletState({
-            isConnected: true,
-            chainId: currentChainId,
-            address: accounts[0],
-            isConnecting: false,
-            error: isCorrectChain ? '' : 'Wrong Network. Please switch.'
-          });
-          
-          // Optional: Auto-switch if wrong network
-          if (!isCorrectChain) {
-             await switchNetwork(); 
-          }
-
-        } catch (err) {
-          setWalletState(prev => ({ ...prev, isConnecting: false, error: err.message }));
-        }
-      };
-      \`\`\`
-
-      **5. UI Rendering Logic:**
-      \`\`\`jsx
-      <nav>
-        {walletState.isConnected ? (
-          <div className="flex items-center gap-4">
-            <span className="badge">
-               {walletState.chainId === TARGET_CHAIN_DECIMAL ? "Connected" : "Wrong Network"}
-            </span>
-            <span className="address">{walletState.address.slice(0,6)}...</span>
-            <button onClick={disconnectWallet} className="btn-disconnect">
-              Disconnect
-            </button>
-          </div>
-        ) : (
-          <button onClick={connectWallet}>Connect Wallet</button>
-        )}
-      </nav>
-      {/* Show explicit switch button if connected but wrong network */}
-      {walletState.isConnected && walletState.chainId !== TARGET_CHAIN_DECIMAL && (
-        <div className="alert-warning">
-           <p>You are on the wrong network.</p>
-           <button onClick={switchNetwork}>Switch to Correct Network</button>
-        </div>
-      )}
-      \`\`\`
-
-      **User's Design Request:**
-      Please build the DApp based on this description:
-      "If there is an attached file, see attached image design and ${options.description}"
-      
-      **Provider Code:**
-      Also, ensure the following provider injection script is in the \`<head>\`
-      of \`index.html\`:
+      **5. Provider Injection:**
+      Ensure this script is in \`<head>\` of \`index.html\`:
       ${providerCode}
 
-      Remember: Return ALL project files in the 'START_TITLE' format as
-      instructed in the system prompt.
+      Remember: Return ALL project files in the 'START_TITLE' format.
     `
 
     if (Array.isArray(options.description)) {
@@ -359,12 +239,14 @@ export class AIDappGenerator extends Plugin {
          if (part.type === 'text') {
            return {
              type: 'text',
-             text: `${basePrompt}\n\nUser Context:\n${part.text}`
+             text: basePrompt
            }
          }
          return part
        });
     }
+    
+    return basePrompt;
   }
 
   private createUpdateMessage(description: string, currentFiles: Pages): string | any[] {

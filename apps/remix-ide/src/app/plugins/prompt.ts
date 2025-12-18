@@ -265,7 +265,7 @@ ${TITLE_PAGE_START}index.html${TITLE_PAGE_END}
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <meta property="fc:frame" content="vNext" />
-    <meta name="fc:miniapp" content='{"version":"next","imageUrl":"https://via.placeholder.com/300","button":{"title":"Launch App","action":{"type":"launch_miniapp","name":"Mini App","url":"https://google.com"}}}' />
+    <meta name="fc:miniapp" content='{"version":"next","imageUrl":"https://github.com/remix-project-org.png","button":{"title":"Launch App","action":{"type":"launch_miniapp","name":"Mini App","url":"https://google.com"}}}' />
     
     <script>
       window.__QUICK_DAPP_CONFIG__ = window.__QUICK_DAPP_CONFIG__ || { 
