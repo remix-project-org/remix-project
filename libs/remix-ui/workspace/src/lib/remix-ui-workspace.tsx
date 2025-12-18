@@ -48,6 +48,8 @@ export function Workspace() {
   const workspaceRenameInput = useRef()
   const intl = useIntl()
   const cloneUrlRef = useRef<HTMLInputElement>()
+  const fileExplorerRef = useRef<HTMLDivElement>()
+  const [fileExplorerWidth, setFileExplorerWidth] = useState<number>(320)
   const filteredBranches = selectedWorkspace ? (selectedWorkspace.branches || []).filter((branch) => branch.name.includes(branchFilter) && branch.name !== 'HEAD').slice(0, 20) : []
   const currentBranch = selectedWorkspace ? selectedWorkspace.currentBranch : null
 
@@ -194,6 +196,22 @@ export function Workspace() {
     global.plugin.on('finishedGistPublish', (folderName) => {
     })
   }, [])
+
+  useEffect(() => {
+    if (!fileExplorerRef.current) return
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setFileExplorerWidth(entry.contentRect.width)
+      }
+    })
+
+    resizeObserver.observe(fileExplorerRef.current)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [fileExplorerRef.current])
 
   const showFullMessage = async (title: string, loadItem: string, examples: Array<string>, prefix = '') => {
     setModalState((prevState) => {
@@ -1052,6 +1070,7 @@ export function Workspace() {
         </div>
       </div>
       <div
+        ref={fileExplorerRef}
         className="remixui_container overflow-auto h-100"
         style={{
           display: 'flex',
@@ -1233,7 +1252,7 @@ export function Workspace() {
           marginBottom: '0 !important',
           flexShrink: 0
         }}>
-          <div className="d-flex justify-content-between p-1 w-100">
+          <div className="d-flex justify-content-between p-1 w-100 mb-2">
             <div className="text-uppercase text-dark pt-1 px-1">GIT</div>
             { selectedWorkspace.hasGitSubmodules?
               <>
@@ -1281,14 +1300,14 @@ export function Workspace() {
                   >
                     {global.fs.browser.isRequestingCloning ? <i className="fad fa-spinner fa-spin"></i> : (currentBranch && currentBranch.name) || '-none-'}
                   </Dropdown.Toggle>
-                  <Dropdown.Menu as={CustomMenu} className="form-select branches-dropdown">
+                  <Dropdown.Menu as={CustomMenu} className="form-select branches-dropdown" style={{ width: `${fileExplorerWidth * 0.7}px` }}>
                     <div data-id="custom-dropdown-menu">
                       <div className="d-flex text-dark" style={{ fontSize: 14, fontWeight: 'bold' }}>
-                        <span className="mt-2 ms-2 me-auto">
+                        <span className="mb-2 ms-2 me-auto">
                           <FormattedMessage id="filePanel.switchBranches" />
                         </span>
                         <div
-                          className="pt-2 pe-2"
+                          className="pe-2"
                           onClick={() => {
                             toggleBranches(false)
                           }}
@@ -1307,7 +1326,7 @@ export function Workspace() {
                           data-id="workspaceGitInput"
                         />
                       </div>
-                      <div className="border-top" style={{ maxHeight: 120, overflowY: 'scroll' }} data-id="custom-dropdown-items">
+                      <div className="border-top" style={{ maxHeight: 150, overflowY: 'scroll' }} data-id="custom-dropdown-items">
                         {filteredBranches.length > 0 ? (
                           filteredBranches.map((branch, index) => {
                             return (
