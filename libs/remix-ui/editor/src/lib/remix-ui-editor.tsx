@@ -913,6 +913,19 @@ export const EditorUI = (props: EditorUIProps) => {
       },
     }
 
+    const sendSnippetAction = {
+      id: 'sendSnippet',
+      label: 'Send Snippet',
+      contextMenuOrder: 0, // choose the order
+      contextMenuGroupId: 'circles', // create a new grouping
+      run: async () => {
+        const selectedCode = editor.getModel().getValueInRange(editor.getSelection())
+        if (selectedCode) {
+          await props.plugin.call('circles', 'addSnippet', selectedCode)
+        }
+      },
+    }
+
     let gptGenerateDocumentationAction
 
     const executeGptGenerateDocumentationAction = (functionNode) => {
@@ -1092,6 +1105,7 @@ export const EditorUI = (props: EditorUIProps) => {
     editor.addAction(formatAction)
     editor.addAction(zoomOutAction)
     editor.addAction(zoominAction)
+    editor.addAction(sendSnippetAction)
     freeFunctionAction = editor.addAction(executeFreeFunctionAction)
     gptGenerateDocumentationAction = editor.addAction(executeGptGenerateDocumentationAction(null))
     gptExplainFunctionAction = editor.addAction(executegptExplainFunctionAction)
