@@ -88,8 +88,9 @@ module.exports = {
       })
   },
 
-  'Test NPM Import (with unpkg.com) #group3': function (browser: NightwatchBrowser) {
+  'Test NPM Import (with unpkg.com) #pr #group3': function (browser: NightwatchBrowser) {
     browser
+      .click('[for="autoCompile"]') // set Auto compile off, as it sometimes sets the compiler version to latest
       .setSolidityCompilerVersion('soljson-v0.8.7+commit.e28d00a7.js')
       .waitForElementPresent({
         selector: `//*[@data-id='compilerloaded' and @data-version='soljson-v0.8.7+commit.e28d00a7.js']`,
@@ -115,6 +116,8 @@ module.exports = {
         timeout: 120000,
       })
       .verifyContracts(['test13', 'ERC20'], { wait: 30000 })
+      .clickLaunchIcon('solidity')
+      .click('[for="autoCompile"]') // Enable Auto compile again
   },
 
   'Test NPM Import (with unpkg.com) and the package.json contains a module remapping #group3': function (browser: NightwatchBrowser) {

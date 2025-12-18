@@ -111,7 +111,7 @@ module.exports = {
       })
   },
 
-  'Should display correct source highlighting while debugging a contract which has ABIEncoderV2 #group2': function (browser: NightwatchBrowser) {
+  'Should display correct source highlighting while debugging a contract which has ABIEncoderV2 #pr #group2': function (browser: NightwatchBrowser) {
     /*
       localVariable_step266_ABIEncoder and localVariable_step717_ABIEncoder
       still contains unwanted values (related to decoding calldata types)
@@ -120,6 +120,7 @@ module.exports = {
     browser
       .clearConsole().clearTransactions()
       .clickLaunchIcon('solidity')
+      .click('[for="autoCompile"]') // set Auto compile off, as it sometimes sets the compiler version to latest
       .setSolidityCompilerVersion('soljson-v0.6.12+commit.27d51765.js')
       .testContracts('withABIEncoderV2.sol', sources[2]['withABIEncoderV2.sol'], ['test'])
       .clickLaunchIcon('udapp')
@@ -150,6 +151,8 @@ module.exports = {
       .goToVMTraceStep(717)
       .checkVariableDebug('soliditylocals', localVariable_step717_ABIEncoder) // all locals should be initiaed
       .clearTransactions()
+      .clickLaunchIcon('solidity')
+      .click('[for="autoCompile"]') // Enable Auto compile again
   },
 
   'Should load more solidity locals array #group3': function (browser: NightwatchBrowser) {
