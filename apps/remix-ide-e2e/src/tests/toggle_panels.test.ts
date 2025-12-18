@@ -190,6 +190,36 @@ module.exports = {
       .waitForElementVisible('.codicon-layout-sidebar-right-off')
       .waitForElementNotVisible('#right-side-panel')
   },
+  'Left side panel should show after workspace creation when hidden #group1': function (browser: NightwatchBrowser) {
+    browser
+      // Show the left side panel if it's hidden (from previous test)
+      .click('*[data-id="toggleLeftSidePanelIcon"]')
+      .waitForElementVisible('#side-panel')
+      .waitForElementVisible('.codicon-layout-sidebar-left')
+      // Now hide the left side panel to test our feature
+      .click('*[data-id="toggleLeftSidePanelIcon"]')
+      .waitForElementVisible('.codicon-layout-sidebar-left-off')
+      .waitForElementNotVisible('#side-panel')
+      // Open the workspace dropdown
+      .waitForElementVisible('*[data-id="workspacesSelect"]')
+      .click('*[data-id="workspacesSelect"]')
+      .pause(2000)
+      // Click on "Create Workspace" menu item
+      .waitForElementVisible('*[data-id="workspacecreate"]')
+      .click('*[data-id="workspacecreate"]')
+      .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+      .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+      .click('*[data-id="template-explorer-template-container"]')
+      .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
+      .click('*[data-id="template-card-remixDefault-0"]')
+      .waitForElementVisible('*[data-id="workspace-details-section"]')
+      .pause(1000)
+      .click('*[data-id="validateWorkspaceButton"]')
+      .pause(2000)
+      // Verify the left side panel is now visible after workspace creation
+      .waitForElementVisible('#side-panel', 5000)
+      .waitForElementVisible('.codicon-layout-sidebar-left')
+  },
   'Check if right side panel is hidden when app is in desktop client mode #group1': function (browser: NightwatchBrowser) {
     browser
       .url('http://127.0.0.1:8080/?#activate=udapp,desktopClient')
