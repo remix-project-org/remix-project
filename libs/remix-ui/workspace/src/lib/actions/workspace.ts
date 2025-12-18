@@ -159,6 +159,16 @@ export const createWorkspace = async (
     await plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
     await plugin.workspaceCreated(workspaceName)
 
+    // Show left side panel if it's hidden after successful workspace creation
+    try {
+      const isHidden = await plugin.call('sidePanel', 'isPanelHidden')
+      if (isHidden) {
+        await plugin.call('sidePanel', 'togglePanel')
+      }
+    } catch (e) {
+      console.log('Could not check/update side panel visibility:', e)
+    }
+
     if (isGitRepo && createCommit) {
       const name = await plugin.call('settings', 'get', 'settings/github-user-name')
       const email = await plugin.call('settings', 'get', 'settings/github-email')
