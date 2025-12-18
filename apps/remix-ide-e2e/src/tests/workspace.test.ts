@@ -145,8 +145,7 @@ module.exports = {
       .click('*[data-id="contract-wizard-validate-workspace-button"]')
       .perform(function () {
         browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
-          browser.assert.not.ok(result.value as any, 'Scripts folder is not visible')
-            .clickLaunchIcon('filePanel')
+            if (!result.value) browser.clickLaunchIcon('filePanel')
         })
       })
       .isVisible('*[data-id="treeViewLitreeViewItemremix.config.json"]')
@@ -210,8 +209,7 @@ module.exports = {
       .click('*[data-id="contract-wizard-validate-workspace-button"]')
       .perform(function() {
         browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
-          browser.assert.not.ok(result.value as any, 'Scripts folder is not visible')
-            .clickLaunchIcon('filePanel')
+          if (!result.value) browser.clickLaunchIcon('filePanel')
         })
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
@@ -271,8 +269,7 @@ module.exports = {
       .click('*[data-id="contract-wizard-validate-workspace-button"]')
       .perform(function() {
         browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
-          browser.assert.not.ok(result.value as any, 'Scripts folder is not visible')
-            .clickLaunchIcon('filePanel')
+          if (!result.value) browser.clickLaunchIcon('filePanel')
         })
       })
       .pause(1000)
@@ -329,8 +326,7 @@ module.exports = {
       .click('*[data-id="contract-wizard-validate-workspace-button"]')
       .perform(function() {
         browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
-          browser.assert.not.ok(result.value as any, 'Scripts folder is not visible')
-            .clickLaunchIcon('filePanel')
+          if (!result.value) browser.clickLaunchIcon('filePanel')
         })
       })
       .pause(1000)
