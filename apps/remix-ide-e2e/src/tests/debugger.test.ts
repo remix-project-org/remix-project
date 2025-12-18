@@ -118,9 +118,8 @@ module.exports = {
       This is still an issue @todo(https://github.com/ethereum/remix-project/issues/481), so this test will fail when this issue is fixed
     */
     browser
-      .clearConsole().clearTransactions()
+      .refreshPage()
       .clickLaunchIcon('solidity')
-      .click('[for="autoCompile"]') // set Auto compile off, as it sometimes sets the compiler version to latest
       .setSolidityCompilerVersion('soljson-v0.6.12+commit.27d51765.js')
       .testContracts('withABIEncoderV2.sol', sources[2]['withABIEncoderV2.sol'], ['test'])
       .clickLaunchIcon('udapp')
@@ -151,8 +150,6 @@ module.exports = {
       .goToVMTraceStep(717)
       .checkVariableDebug('soliditylocals', localVariable_step717_ABIEncoder) // all locals should be initiaed
       .clearTransactions()
-      .clickLaunchIcon('solidity')
-      .click('[for="autoCompile"]') // Enable Auto compile again
   },
 
   'Should load more solidity locals array #group3': function (browser: NightwatchBrowser) {
