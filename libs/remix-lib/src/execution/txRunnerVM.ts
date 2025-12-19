@@ -118,18 +118,20 @@ export class TxRunnerVM {
           // Typed transaction (EIP-2718): first byte is the transaction type
           if (txType === 0x02) {
             // EIP-1559 transaction
-            tx = createFeeMarket1559TxFromRLP(txData, { common: this.commonContext })
+            // Don't pass common - let it derive chain ID from the signed transaction
+            tx = createFeeMarket1559TxFromRLP(txData)
           } else {
             // For other transaction types, try to parse as EIP-1559 first, then fall back to legacy
             try {
-              tx = createFeeMarket1559TxFromRLP(txData, { common: this.commonContext })
+              tx = createFeeMarket1559TxFromRLP(txData)
             } catch (e) {
-              tx = createLegacyTxFromRLP(txData, { common: this.commonContext })
+              tx = createLegacyTxFromRLP(txData)
             }
           }
         } else {
           // Legacy transaction (RLP-encoded, starts with 0xc0 or higher for a list)
-          tx = createLegacyTxFromRLP(txData, { common: this.commonContext })
+          // Don't pass common - let it derive chain ID from the signed transaction
+          tx = createLegacyTxFromRLP(txData)
         }
       }
       else {
