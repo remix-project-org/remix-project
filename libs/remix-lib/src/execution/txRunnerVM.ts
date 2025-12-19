@@ -108,10 +108,28 @@ export class TxRunnerVM {
       const EIP1559 = this.commonContext.hardfork() !== 'berlin' // berlin is the only pre eip1559 fork that we handle.
       let tx
       if (signed) {
-        if (!EIP1559) {
-          tx = createLegacyTxFromRLP(hexToBytes(data as PrefixedHexString), { common: this.commonContext })
+        const txData = hexToBytes(data as PrefixedHexString)
+        // Check the actual transaction type from the serialized data
+        // Legacy transactions start with 0xf8 or higher (RLP list encoding)
+        // EIP-1559 transactions start with 0x02 (transaction type byte)
+        const txType = txData[0]
+
+        if (txType <= 0x7f) {
+          // Typed transaction (EIP-2718): first byte is the transaction type
+          if (txType === 0x02) {
+            // EIP-1559 transaction
+            tx = createFeeMarket1559TxFromRLP(txData, { common: this.commonContext })
+          } else {
+            // For other transaction types, try to parse as EIP-1559 first, then fall back to legacy
+            try {
+              tx = createFeeMarket1559TxFromRLP(txData, { common: this.commonContext })
+            } catch (e) {
+              tx = createLegacyTxFromRLP(txData, { common: this.commonContext })
+            }
+          }
         } else {
-          tx = createFeeMarket1559TxFromRLP(hexToBytes(data as PrefixedHexString), { common: this.commonContext })
+          // Legacy transaction (RLP-encoded, starts with 0xc0 or higher for a list)
+          tx = createLegacyTxFromRLP(txData, { common: this.commonContext })
         }
       }
       else {
