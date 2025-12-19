@@ -777,7 +777,7 @@ ${toolsList}`,
           const result = await this.executeTool(targetServer, innerToolCall);
           return result
         },
-        50000 // 50 second timeout
+        60000 * 10, // 10 minutes
       );
 
       // Execute the code

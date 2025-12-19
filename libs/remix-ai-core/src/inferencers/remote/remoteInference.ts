@@ -173,6 +173,13 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     else return this._makeRequest(payload, AIRequestType.COMPLETION)
   }
 
+  async basic_prompt(prompt, options:IParams=GenerationParams): Promise<any> {
+    options.chatHistory = []
+    const payload = { 'prompt': prompt, "endpoint":"answer", ...options }
+    if (options.stream_result) return this._streamInferenceRequest(payload, AIRequestType.GENERAL)
+    else return this._makeRequest(payload, AIRequestType.GENERAL)
+  }
+
   async answer(prompt, options:IParams=GenerationParams): Promise<any> {
     options.chatHistory = buildChatPrompt()
     const payload = { 'prompt': prompt, "endpoint":"answer", ...options }

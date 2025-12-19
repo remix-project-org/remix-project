@@ -467,8 +467,12 @@ export const TabsUI = (props: TabsUIProps) => {
           // Perform the Amp query
           props.plugin.call('notification', 'toast', 'Performing the query...')
           const data = await props.plugin.call('amp', 'performAmpQuery', content, baseUrl, authToken)
+          const result = {
+            query: content,
+            data
+          }
           const resultPath = `./amp/results/query-${Date.now()}.json`
-          await props.plugin.call('fileManager', 'writeFile', resultPath, JSON.stringify(data, null, '\t'))
+          await props.plugin.call('fileManager', 'writeFile', resultPath, JSON.stringify(result, null, '\t'))
           props.plugin.call('notification', 'toast',`Query done. Result has been added to ${resultPath}`)
           setCompileState('compiled')
         } catch (e) {

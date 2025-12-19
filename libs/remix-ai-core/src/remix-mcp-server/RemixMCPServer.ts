@@ -364,7 +364,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
         console.log(`[RemixMCPServer] Input validation PASSED for tool '${call.name}'`);
       }
 
-      const timeout = this._config.toolTimeout || 60000;
+      const timeout = this._config.toolTimeout || 60000 * 10 // 10 minutes;;
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Tool execution timeout')), timeout);
       });

@@ -17,7 +17,7 @@ type chatRequestBufferT<T> = {
 const profile = {
   name: 'remixAI',
   displayName: 'RemixAI',
-  methods: ['code_generation', 'code_completion', 'setContextFiles',
+  methods: ['code_generation', 'code_completion', 'setContextFiles', 'basic_prompt',
     "answer", "code_explaining", "generateWorkspace", "fixWorspaceErrors",
     "code_insertion", "error_explaining", "vulnerability_check", 'generate',
     "initialize", 'chatPipe', 'ProcessChatRequestBuffer', 'isChatRequestPending',
@@ -101,6 +101,14 @@ export class RemixAIPlugin extends Plugin {
     }
 
     return true
+  }
+
+  async basic_prompt(prompt: string) {
+    const option =  { ...GenerationParams }
+    option.stream = false
+    option.stream_result = false
+    option.return_stream_response = false
+    return await this.remoteInferencer.basic_prompt(prompt, option)
   }
 
   async code_generation(prompt: string, params: IParams=CompletionParams): Promise<any> {

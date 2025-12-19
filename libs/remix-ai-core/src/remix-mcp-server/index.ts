@@ -90,7 +90,7 @@ export async function createRemixMCPServer(
     description: 'In-browser MCP server for Remix IDE providing comprehensive smart contract development tools',
     debug: false,
     maxConcurrentTools: 10,
-    toolTimeout: 30000,
+    toolTimeout: 60000 * 10, // 10 minutes
     resourceCacheTTL: 5000,
     enableResourceCache: false,
     security: enableSecurity ? {
