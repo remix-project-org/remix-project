@@ -1289,6 +1289,7 @@ export function Workspace() {
               tooltipId="branchesDropdown"
               tooltipClasses="text-nowrap"
               tooltipText={'Current branch: ' + (currentBranch && currentBranch.name) || 'Branches'}
+              hide={showBranches}
             >
               <div className="pt-0 me-2" data-id="workspaceGitBranchesDropdown">
                 <Dropdown style={{ height: 30, maxWidth: "6rem", minWidth: "6rem" }} onToggle={toggleBranches} show={showBranches} drop={'up'}>
@@ -1330,27 +1331,34 @@ export function Workspace() {
                         {filteredBranches.length > 0 ? (
                           filteredBranches.map((branch, index) => {
                             return (
-                              <Dropdown.Item
+                              <CustomTooltip
                                 key={index}
-                                onClick={() => {
-                                  switchToBranch(branch)
-                                }}
-                                title={intl.formatMessage({ id: `filePanel.switchToBranch${branch.remote ? 'Title1' : 'Title2'}` })}
+                                placement="right"
+                                tooltipId={`branchTooltip-${index}`}
+                                tooltipClasses="text-nowrap"
+                                tooltipText={intl.formatMessage({ id: `filePanel.switchToBranch${branch.remote ? 'Title1' : 'Title2'}` })}
                               >
-                                <div data-id={`workspaceGit-${branch.remote ? `${branch.remote.name}/${branch.name}` : branch.name}`}>
-                                  {currentBranch && currentBranch.name === branch.name && !branch.remote ? (
-                                    <span>
-                                      &#10003; <i className="far fa-code-branch"></i>
-                                      <span className="ps-1">{branch.name}</span>
-                                    </span>
-                                  ) : (
-                                    <span className="ps-3">
-                                      <i className={`far ${branch.remote ? 'fa-cloud' : 'fa-code-branch'}`}></i>
-                                      <span className="ps-1">{branch.remote ? `${branch.remote.name}/${branch.name}` : branch.name}</span>
-                                    </span>
-                                  )}
-                                </div>
-                              </Dropdown.Item>
+                                <Dropdown.Item
+                                  onClick={() => {
+                                    switchToBranch(branch)
+                                  }}
+                                  className='p-1'
+                                >
+                                  <div data-id={`workspaceGit-${branch.remote ? `${branch.remote.name}/${branch.name}` : branch.name}`}>
+                                    {currentBranch && currentBranch.name === branch.name && !branch.remote ? (
+                                      <span className="ms-1">
+                                        &#10003; <i className="far fa-code-branch"></i>
+                                        <span className="ps-1">{branch.name}</span>
+                                      </span>
+                                    ) : (
+                                      <span className="ps-3">
+                                        <i className={`far ${branch.remote ? 'fa-cloud' : 'fa-code-branch'}`}></i>
+                                        <span className="ps-1">{branch.remote ? `${branch.remote.name}/${branch.name}` : branch.name}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </Dropdown.Item>
+                              </CustomTooltip>
                             )
                           })
                         ) : (
