@@ -43,17 +43,20 @@ interface ITabsState {
   selectedIndex: number
   fileDecorations: fileDecoration[]
   currentExt: string
+  name: string
 }
 interface ITabsAction {
   type: string
   payload: any
   ext?: string
+  name?: string
 }
 
 const initialTabsState: ITabsState = {
   selectedIndex: -1,
   fileDecorations: [],
-  currentExt: ''
+  currentExt: '',
+  name: ''
 }
 
 const tabsReducer = (state: ITabsState, action: ITabsAction) => {
@@ -62,7 +65,8 @@ const tabsReducer = (state: ITabsState, action: ITabsAction) => {
     return {
       ...state,
       currentExt: action.ext,
-      selectedIndex: action.payload
+      selectedIndex: action.payload,
+      name: action.name
     }
   case 'SET_FILE_DECORATIONS':
     return {
@@ -93,6 +97,8 @@ export const TabsUI = (props: TabsUIProps) => {
 
   const [compileState, setCompileState] = useState<'idle' | 'compiling' | 'compiled'>('idle')
 
+  const isVegaVisualization = tabsState.name && tabsState.name.indexOf('amp/vega-specs/') !== -1 && tabsState.currentExt === 'json'
+   
   useEffect(() => {
     if (props.tabs[tabsState.selectedIndex] && props.tabs[tabsState.selectedIndex].show) {
       tabsRef.current[tabsState.selectedIndex].scrollIntoView({
@@ -183,7 +189,7 @@ export const TabsUI = (props: TabsUIProps) => {
     currentIndexRef.current = index
     const ext = getExt(name)
     props.plugin.emit('extChanged', ext)
-    dispatch({ type: 'SELECT_INDEX', payload: index, ext: getExt(name) })
+    dispatch({ type: 'SELECT_INDEX', payload: index, ext: getExt(name), name })
   }
 
   const setFileDecorations = (fileStates: fileDecoration[]) => {
@@ -436,7 +442,7 @@ export const TabsUI = (props: TabsUIProps) => {
       name: tabsState.currentExt,
       isClick: true
     })
-
+    
     try {
       const activePathRaw = active()
       if (!activePathRaw || activePathRaw.indexOf('/') === -1) {
@@ -482,6 +488,17 @@ export const TabsUI = (props: TabsUIProps) => {
         }
         return
       }
+
+      
+      if (isVegaVisualization) {
+        try {
+          const file = await props.plugin.call('fileManager', 'getCurrentFile')
+          await props.plugin.call('vega', 'generateVisualization', file)
+        } catch (e) {
+          props.plugin.call('terminal', 'log', { type: 'error', value: e.message})
+        } 
+      }
+
 
       const compilerName = {
         sol: 'solidity',
@@ -556,9 +573,12 @@ export const TabsUI = (props: TabsUIProps) => {
   const onNotify = (text: string, duration?: number) => {
     props.plugin.call('notification', 'toast', text, duration)
   }
+
   let mainLabel = ''
   if (tabsState.currentExt === 'sql') {
     mainLabel = 'Run SQL'
+  } else if (isVegaVisualization) {
+    mainLabel = 'Generate Visualization'
   } else {
     mainLabel = (tabsState.currentExt === 'js' || tabsState.currentExt === 'ts')
       ? (compileState === 'compiling' ? "Run script" :
@@ -608,6 +628,10 @@ export const TabsUI = (props: TabsUIProps) => {
     )
   }
 
+  let btnDisabled = compileState === 'compiling' || !PlayExtList.includes(tabsState.currentExt)
+  if (isVegaVisualization) {
+    btnDisabled = false
+  }
   return (
     <div
       className={`remix-ui-tabs justify-content-between  border-0 header nav-tabs ${
@@ -647,7 +671,7 @@ export const TabsUI = (props: TabsUIProps) => {
                     whiteSpace: "nowrap",
                     borderRadius: "4px 0 0 4px"
                   }}
-                  disabled={!(PlayExtList.includes(tabsState.currentExt)) || compileState === 'compiling'}
+                  disabled={btnDisabled}
                   onClick={handleCompileClick}
                 >
                   <i className={

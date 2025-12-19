@@ -164,7 +164,9 @@ export function isNative(name) {
     'LearnEth',
     'noir-compiler',
     'remixaiassistant',
-    'templateexplorermodal'
+    'templateexplorermodal',
+    'amp',
+    'vega'
   ]
   return nativePlugins.includes(name) || requiredModules.includes(name) || isInjectedProvider(name) || isVM(name) || isScriptRunner(name)
 }
