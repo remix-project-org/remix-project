@@ -165,6 +165,7 @@
     "brace": "^0.8.0",
     "cbor": "^10.0.3",
     "change-case": "^4.1.1",
+    "chart.js": "^4.5.1",
     "chokidar": "^2.1.8",
     "circom_wasm": "https://github.com/remix-project-org/circom_wasm.git",
     "color-support": "^1.1.3",
