@@ -347,7 +347,7 @@ class AppComponent {
     // ----------------- vega (generate visualization) ------------------------
     const vega = new VegaPlugin()
 
-     // ----------------- vega (generate visualization) ------------------------
+    // ----------------- vega (generate visualization) ------------------------
     const chartjs = new ChartJsPlugin()
 
     // ----------------- compilation metadata generation service ---------

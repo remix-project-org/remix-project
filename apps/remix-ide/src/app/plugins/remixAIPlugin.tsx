@@ -104,7 +104,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async basic_prompt(prompt: string) {
-    const option =  { ...GenerationParams }
+    const option = { ...GenerationParams }
     option.stream = false
     option.stream_result = false
     option.return_stream_response = false
