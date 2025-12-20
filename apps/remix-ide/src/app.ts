@@ -29,7 +29,7 @@ import { ContractFlattener } from './app/plugins/contractFlattener'
 
 import { WalkthroughService } from './walkthroughService'
 
-import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, VegaPlugin } from '@remix-project/core-plugin'
+import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, VegaPlugin, ChartJsPlugin } from '@remix-project/core-plugin'
 
 import { Registry } from '@remix-project/remix-lib'
 import { ConfigPlugin } from './app/plugins/config'
@@ -344,8 +344,11 @@ class AppComponent {
     // ----------------- amp (thegraph) ------------------------
     const amp = new AmpPlugin()
 
-     // ----------------- vega (generate visualization) ------------------------
+    // ----------------- vega (generate visualization) ------------------------
     const vega = new VegaPlugin()
+
+     // ----------------- vega (generate visualization) ------------------------
+    const chartjs = new ChartJsPlugin()
 
     // ----------------- compilation metadata generation service ---------
     const compilerMetadataGenerator = new CompilerMetadata()
@@ -480,7 +483,8 @@ class AppComponent {
       remixAiAssistant,
       walletConnect,
       amp,
-      vega
+      vega,
+      chartjs
     ])
 
     //---- fs plugin
