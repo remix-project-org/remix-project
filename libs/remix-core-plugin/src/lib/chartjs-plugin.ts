@@ -125,6 +125,7 @@ export class ChartJsPlugin extends Plugin {
       const data = await this.postIpfs(formData)
 
       // Wait for IPFS availability
+      /*
       try {
         await this.checkAvailability(data.gatewayUrl)
       } catch (e) {
@@ -133,6 +134,7 @@ export class ChartJsPlugin extends Plugin {
           value: 'IPFS gateway might be slow to respond, but the chart was uploaded successfully'
         })
       }
+      */
 
       await this.call('notification', 'toast', 'hideToaster', toastIdChart)
       toastIdChart = await this.call('notification', 'toast', 'Getting the markdown file ready...', 200000)
@@ -143,11 +145,12 @@ export class ChartJsPlugin extends Plugin {
 
       // Save markdown file with the chart
       title = title || `${chartType}_chart_${Date.now()}`
-      await this.saveMdFile(title, data.gatewayUrl, description)
+      const markdownFile = await this.saveMdFile(title, data.gatewayUrl, description)
 
       await this.call('notification', 'toast', 'hideToaster', toastIdChart)
       await this.call('notification', 'toast', 'hideToaster', toastId)
-      return data.gatewayUrl
+      this.call('notification', 'toast', 'The visualization and the markdown file has been created. The visualization will be visible in short time.')
+      return { pngUrl: data.gatewayUrl, markdownFile }
     } catch (error) {
       this.call('terminal', 'log', {
         type: 'error',
@@ -166,7 +169,7 @@ export class ChartJsPlugin extends Plugin {
 ${description}
 ![Chart image](${chartUrl})`
       await this.call('fileManager', 'writeFile', mdFile, mdContent)
-      await this.call('doc-viewer' as any, 'viewDocs', [mdFile])
+      return mdFile
     } catch (e) {
       this.call('terminal', 'log', {
         type: 'error',
