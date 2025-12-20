@@ -115,11 +115,11 @@ export class VegaPlugin extends Plugin {
         }
       }
     } catch (e) {
-      this.call('notification', 'terminal', 'log', { type: 'error', value: `${e.message}. The file has been saved at ${vegaSpecPath}` })
+      this.call('terminal', 'log', { type: 'error', value: `${e.message}. The file has been saved at ${vegaSpecPath}` })
     }
 
     if (timeout) {
-      this.call('notification', 'terminal', 'log', { type: 'error', value: `Unable to compute a correct vega specs. The file has been saved at ${vegaSpecPath}` })
+      this.call('terminal', 'log', { type: 'error', value: `Unable to compute a correct vega specs. The file has been saved at ${vegaSpecPath}` })
     }
     this.call('fileManager', 'writeFile', vegaSpecPath, JSON.stringify(JSON.parse(vegaSpecs), null, '\t'))
     
@@ -208,12 +208,12 @@ const cleanJson = (content) => {
 }
 
 const lintPrompt = (spec, error) => {
-  return `You are a Vega-Lite compiler-aware validator, You generate Vega-Lite v5 specifications
+  return `You are a Vega-Lite compiler-aware validator, You generate Vega-Lite v6 specifications
 The following error has been thrown by vegaEmbed. fix it and make sure the spec has no more issues.
 Error thrown by vegaEmbed: ${error}
 
 Input:
-- A Vega-Lite v5 spec
+- A Vega-Lite v6 spec
 - A Vega error message
 
 Task:
@@ -246,7 +246,7 @@ When fixing duplicate signal errors:
 
 FINAL CHECK
 - Ensure no selection name would generate duplicate internal signals.
-- Ensure the output is valid Vega-Lite v5 JSON.
+- Ensure the output is valid Vega-Lite v6 JSON.
 
 Current spec which fails linting:
 ${spec}
@@ -256,9 +256,9 @@ Output ONLY the corrected Vega-Lite spec, with no explanation.
 }
 
 const visualizationPrompt = (query, schema, goal, rows) => {
-  return `You are a Vega-Lite compiler-aware validator, You generate Vega-Lite v5 specifications.
+  return `You are a Vega-Lite compiler-aware validator, You generate Vega-Lite v6 specifications.
 
-Your task is to generate Vega-Lite v5 specifications.
+Your task is to generate Vega-Lite v6 specifications.
 
 Rules you must enforce:
 
@@ -286,7 +286,7 @@ If a violation is found:
 
 FINAL CHECK
 - Ensure no selection name would generate duplicate internal signals.
-- Ensure the output is valid Vega-Lite v5 JSON.
+- Ensure the output is valid Vega-Lite v6 JSON.
 
 Output ONLY the corrected Vega-Lite spec.
 
