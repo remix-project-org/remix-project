@@ -279,52 +279,6 @@ export class AmpDatasetListHandler extends BaseToolHandler {
 }
 
 /**
- * Amp Dataset Manifest Tool Handler
- */
-export class AmpVisualizationHandler extends BaseToolHandler {
-  name = 'amp_dataset_visualization';
-  description = 'Convert data from a given file path to a Vega-Lite v5 JSON specification and generate its visualization using Vega-Lite';
-  inputSchema = {
-    type: 'object',
-    properties: {
-      path: {
-        type: 'string',
-        description: 'a file path containing the data to convert.'
-      },
-      query: {
-        type: 'string',
-        description: 'query used to produced the data.'
-      },
-      description: {
-        type: 'string',
-        description: 'detals about how the view should look like.'
-      }
-    },
-    required: []
-  }
-
-  getPermissions(): string[] {
-    return ['amp:dataset:visualization'];
-  }
-
-  validate(args: AmpVisualizationArgs): boolean | string {
-    return true;
-  }
-
-  async execute(args: AmpVisualizationArgs, plugin: Plugin): Promise<IMCPToolResult> {
-    try {
-      const specs = await plugin.call('vega', 'generateSpecsFromAmpData', args.path, args.query, args.description)
-      await plugin.call('vega', 'generateVisualizationAndEnsureLinting', JSON.stringify(specs), path.basename(args.path))
-      return this.createSuccessResult('visualization created successfully');
-    } catch (error) {
-      console.error('Amp dataset listt fetch error:', error);
-      const errorMessage = error
-      return this.createErrorResult(`visualization failed to be created successfully: ${errorMessage}`);
-    }
-  }
-}
-
-/**
  * Create Amp tool definitions
  */
 export function createAmpTools(): RemixToolDefinition[] {
@@ -352,14 +306,6 @@ export function createAmpTools(): RemixToolDefinition[] {
       category: ToolCategory.ANALYSIS,
       permissions: ['amp:dataset:list'],
       handler: new AmpDatasetListHandler()
-    },
-    {
-      name: 'amp_dataset_visualization',
-      description: 'Fetch list of available dataset',
-      inputSchema: new AmpVisualizationHandler().inputSchema,
-      category: ToolCategory.ANALYSIS,
-      permissions: ['amp:dataset:visualization'],
-      handler: new AmpVisualizationHandler()
     }
   ];
 }
