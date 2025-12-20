@@ -4,7 +4,6 @@
  *
  * Provides functionality to query data using the Amp hosted server
  */
-const path = require("path");
 import { IMCPToolResult } from '../../types/mcp';
 import { BaseToolHandler } from '../registry/RemixToolRegistry';
 import {
@@ -111,12 +110,6 @@ export interface AmpDatasetManifestArgs {
   version: string;
 }
 
-export interface AmpVisualizationArgs {
-  path: string
-  query: string
-  description: string
-}
-
 /**
  * Amp Dataset Manifest result types
  */
@@ -132,11 +125,6 @@ export interface AmpDatasetManifestResult {
  * Amp Dataset List result types
  */
 export interface AmpDatasetListResult {
-  success: boolean;
-  result: any
-}
-
-export interface AmpVisualizationResult {
   success: boolean;
   result: any
 }

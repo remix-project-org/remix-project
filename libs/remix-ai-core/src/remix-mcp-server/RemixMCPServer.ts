@@ -809,7 +809,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       const foundryHardhatTools = createFoundryHardhatTools();
       this._tools.registerBatch(foundryHardhatTools);
 
-      // Register Foundry and Hardhat tools
+      // Register Chartjs tool
       const chartJsTools = createChartJsTools();
       this._tools.registerBatch(chartJsTools);
 
