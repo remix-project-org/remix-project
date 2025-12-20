@@ -31,6 +31,7 @@ import { createFileManagementTools } from './handlers/FileManagementHandler';
 import { createDeploymentTools } from './handlers/DeploymentHandler';
 import { createDebuggingTools } from './handlers/DebuggingHandler';
 import { createCodeAnalysisTools } from './handlers/CodeAnalysisHandler';
+import { createChartJsTools } from './handlers/ChartJsHandler';
 import { createTutorialsTools } from './handlers/TutorialsHandler';
 import { createAmpTools } from './handlers/AmpHandler';
 import { createMathUtilsTools } from './handlers/MathUtilsHandler';
@@ -807,6 +808,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       // Register Foundry and Hardhat tools
       const foundryHardhatTools = createFoundryHardhatTools();
       this._tools.registerBatch(foundryHardhatTools);
+
+      // Register Foundry and Hardhat tools
+      const chartJsTools = createChartJsTools();
+      this._tools.registerBatch(chartJsTools);
 
       const totalTools = this._tools.list().length;
 

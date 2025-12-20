@@ -23,6 +23,7 @@ export { createCompilationTools } from './handlers/CompilationHandler';
 export { createDeploymentTools } from './handlers/DeploymentHandler';
 export { createDebuggingTools } from './handlers/DebuggingHandler';
 export { createCodeAnalysisTools } from './handlers/CodeAnalysisHandler';
+export { createChartJsTools } from './handlers/ChartJsHandler';
 export { createAmpTools } from './handlers/AmpHandler';
 export { createMathUtilsTools } from './handlers/MathUtilsHandler';
 export { createFoundryHardhatTools } from './handlers/FoundryHardhatHandler';
