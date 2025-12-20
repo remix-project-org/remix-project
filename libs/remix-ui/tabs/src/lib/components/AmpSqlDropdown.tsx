@@ -19,7 +19,11 @@ const AmpSqlDropdown: React.FC<AmpSqlDropdownProps> = ({ plugin, disabled, onNot
       onNotify?.('Performing the query...')
       const data = await plugin.call('amp', 'performAmpQuery', content, baseUrl, authToken)
       const resultPath = `./amp/results/query-${Date.now()}.json`
-      await plugin.call('fileManager', 'writeFile', resultPath, JSON.stringify(data, null, '\t'))
+      const result = {
+        query: content,
+        data
+      }
+      await plugin.call('fileManager', 'writeFile', resultPath, JSON.stringify(result, null, '\t'))
       const message = `You will find in the file located at ${resultPath} the output of the following query: ${content}. Sum up and Analyze this result.`
       // Show right side panel if it's hidden
       const isPanelHidden = await plugin.call('rightSidePanel', 'isPanelHidden')
@@ -39,9 +43,34 @@ const AmpSqlDropdown: React.FC<AmpSqlDropdownProps> = ({ plugin, disabled, onNot
       onNotify?.('Performing the query...')
       const data = await plugin.call('amp', 'performAmpQuery', content, baseUrl, authToken)
       const resultPath = `./amp/results/query-${Date.now()}.json`
-      await plugin.call('fileManager', 'writeFile', resultPath, JSON.stringify(data, null, '\t'))
-      const message = `I want to generate a visualization for this data. 1) Give me a very short summary of the data 2) let me explain you what I need. 3)
-      call the tool amp_dataset_visualization with the description of what I need, the path ${resultPath} and the query ${content}.
+      const result = {
+        query: content,
+        data
+      }
+      const sample = data.length > 1 ? data.slice(0, 2) : data
+      await plugin.call('fileManager', 'writeFile', resultPath, JSON.stringify(result, null, '\t'))
+      const message = `I want to generate a visualization for the data located at ${resultPath} 1) Give me a very short summary of the data 2) Stop here and let me explain you what I need. 3)
+      call the tool chartjs_generate with the chartType, dataTransformFn and rawDataPath.
+      Also this is very important, follow these rules to generate dataTransformFn:
+      
+      You are an expert JavaScript developer.
+      Given this data sample (JSON array):
+
+      ${JSON.stringify(sample, null, 2)}
+
+      1. Converts numeric string fields to numbers.
+      2. Filters out or handles null/zero values appropriately.
+      3. Returns a Chart.js-ready object including:
+        - labels (if applicable)
+        - datasets
+        - x and y fields for scatter/line charts
+        - scales configuration for linear or time axes
+      4. Properly handles very large numbers (e.g., by scaling down if needed)
+      5. Uses a reusable, clean function structure with comments.
+        
+      Assume the user wants to plot numeric values against either timestamps or numeric keys.
+      Do not include any HTML; just return the JS function.
+      ;
       `
       
       // Show right side panel if it's hidden
