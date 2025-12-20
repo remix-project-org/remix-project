@@ -14,6 +14,25 @@ export class VegaPlugin extends Plugin {
     super(profile)
   }
 
+  onActivation(): void {
+    /*
+      <script src="assets/js/vega/vega.js"></script>
+      <script src="assets/js/vega/vega-lite.js"></script>
+      <script src="assets/js/vega/vega-embed.js"></script>
+    */
+    const vega = document.createElement('script')
+    vega.setAttribute('src','assets/js/vega/vega.js')
+    document.head.appendChild(vega)
+
+    const vegaLite = document.createElement('script')
+    vegaLite.setAttribute('src','assets/js/vega/vega-lite.js')
+    document.head.appendChild(vegaLite)
+
+    const vegaEmbed = document.createElement('script')
+    vegaEmbed.setAttribute('src','assets/js/vega/vega-lite.js')
+    document.head.appendChild(vegaEmbed)
+  }
+
   async generateVisualization (filePath: string) {    
     const vegaSpecs = await this.call('fileManager', 'readFile', filePath)
     const parsed = JSON.parse(vegaSpecs)
@@ -98,7 +117,6 @@ export class VegaPlugin extends Plugin {
       while (!built && !timeout) {
         incr++
         try {
-          console.log('compiling vega', vegaSpecs)        
           if (!built && incr > 2) timeout = true
           // @ts-ignore
           const result = await vegaEmbed(`#${id}`, JSON.parse(cleanJson(vegaSpecs)), {
@@ -119,7 +137,7 @@ export class VegaPlugin extends Plugin {
     }
 
     if (timeout) {
-      this.call('terminal', 'log', { type: 'error', value: `Unable to compute a correct vega specs. The file has been saved at ${vegaSpecPath}` })
+      this.call('terminal', 'log', { type: 'error', value: `Unable to compute a correct vega specs. The file has been saved to ${vegaSpecPath}` })
     }
     this.call('fileManager', 'writeFile', vegaSpecPath, JSON.stringify(JSON.parse(vegaSpecs), null, '\t'))
     
