@@ -60,7 +60,8 @@ export default class Editor extends Plugin {
       toml: 'toml',
       html: 'html',
       css: 'css',
-      sql: 'sql'
+      sql: 'sql',
+      md: 'md'
     }
 
     this.activated = false

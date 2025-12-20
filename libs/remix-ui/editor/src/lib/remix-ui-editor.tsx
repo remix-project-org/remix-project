@@ -478,6 +478,8 @@ export const EditorUI = (props: EditorUIProps) => {
       monacoRef.current.editor.setModelLanguage(file.model, 'remix-noir')
     } else if (file.language === 'sql') {
       monacoRef.current.editor.setModelLanguage(file.model, 'remix-sql')
+    } else if (file.language === 'md') {
+      monacoRef.current.editor.setModelLanguage(file.model, 'markdown')
     }
   }, [props.currentFile, props.isDiff])
 
