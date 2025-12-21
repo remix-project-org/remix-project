@@ -33,7 +33,7 @@ export class VegaPlugin extends Plugin {
     document.head.appendChild(vegaEmbed)
   }
 
-  async generateVisualization (filePath: string) {    
+  async generateVisualization (filePath: string) {
     const vegaSpecs = await this.call('fileManager', 'readFile', filePath)
     const parsed = JSON.parse(vegaSpecs)
     const domElement = document.createElement('div');
@@ -42,7 +42,7 @@ export class VegaPlugin extends Plugin {
     document.body.appendChild(domElement);
     // @ts-ignore
     const result = await vegaEmbed(`#${id}`, parsed, {
-      renderer: "svg",   // important for clean export
+      renderer: "svg", // important for clean export
       actions: false
     })
     const png = await result.view.toImageURL("png")
@@ -66,20 +66,20 @@ export class VegaPlugin extends Plugin {
 
   async generateSpecsFromAmpData (dataPath: string, query: string, description: string) {
     const content = await this.call('fileManager', 'readFile', dataPath)
-    const jsonContent = JSON.parse(content)   
-    
+    const jsonContent = JSON.parse(content)
+
     const toastid = await this.call('notification', 'toast', 'Creating the specification, this will take some time, please be patient...', 60000 * 5)
 
     // getting the prompt ready
-    const sample =  jsonContent.length > 5 ? jsonContent.slice(0, 6) : jsonContent
-    
+    const sample = jsonContent.length > 5 ? jsonContent.slice(0, 6) : jsonContent
+
     // extract the schema
     const schema = await this.call('remixAI', 'basic_prompt', schemaExtraction(JSON.stringify(sample)))
-    
+
     // generate the spec
     let specs = await this.call('remixAI', 'basic_prompt', visualizationPrompt(query, cleanJson(schema.result), description, JSON.stringify(sample)))
     specs = cleanJson(specs.result)
-    
+
     // uploading the data for vega lite
     const contentData = new FormData();
     contentData.append("file", new Blob([content], { type: "text/plain" }));
@@ -88,8 +88,8 @@ export class VegaPlugin extends Plugin {
       await checkAvailability(ipfsRes.gatewayUrl)
     } catch (e) {
       throw new Error('Unable to process the data')
-    }      
-    
+    }
+
     // putting the data ref in the spec
     const parsed = JSON.parse(specs)
     parsed.data = {
@@ -102,7 +102,7 @@ export class VegaPlugin extends Plugin {
     return parsed
   }
 
-  async generateVisualizationAndEnsureLinting (vegaSpecs, name)  {
+  async generateVisualizationAndEnsureLinting (vegaSpecs, name) {
     let incr = 0
     const domElement = document.createElement('div');
     const id = `chart_${Date.now()}`
@@ -113,18 +113,18 @@ export class VegaPlugin extends Plugin {
     let png
     let timeout = false
     try {
-      let built = false      
+      let built = false
       while (!built && !timeout) {
         incr++
         try {
           if (!built && incr > 2) timeout = true
           // @ts-ignore
           const result = await vegaEmbed(`#${id}`, JSON.parse(cleanJson(vegaSpecs)), {
-            renderer: "svg",   // important for clean export
+            renderer: "svg", // important for clean export
             actions: false
           })
           png = await result.view.toImageURL("png")
-          built = true          
+          built = true
         } catch (e) {
           // lint
           console.log('error', e, e.message)
@@ -140,17 +140,17 @@ export class VegaPlugin extends Plugin {
       this.call('terminal', 'log', { type: 'error', value: `Unable to compute a correct vega specs. The file has been saved to ${vegaSpecPath}` })
     }
     this.call('fileManager', 'writeFile', vegaSpecPath, JSON.stringify(JSON.parse(vegaSpecs), null, '\t'))
-    
+
     // uploading the chart img
     const response = await fetch(png);
-    const formData = new FormData()      
+    const formData = new FormData()
     const blob = await response.blob();
     formData.append("file", blob, 'chart.png')
     const data = await postIpfs(formData)
     try {
       await checkAvailability(data.gatewayUrl)
     } catch (e) {}
-    
+
     document.body.removeChild(domElement)
 
     // getting the md file ready
@@ -167,8 +167,8 @@ export class VegaPlugin extends Plugin {
       await this.call('fileManager', 'writeFile', mdFile, mdContent)
       await this.call('doc-viewer' as any, 'viewDocs', [mdFile])
     } catch (e) {
-      this.call('terminal', 'log', { type: 'error', value: `Unableto save MD file, please verify the JSON structure. ${e.message} `})
-    }    
+      this.call('terminal', 'log', { type: 'error', value: `Unableto save MD file, please verify the JSON structure. ${e.message} ` })
+    }
   }
 }
 
@@ -327,7 +327,7 @@ Other Constraints (if any):
 Return ONLY the Vega-Lite JSON spec, with no explanation.`
 }
 
-const schemaExtraction = (data) => { 
+const schemaExtraction = (data) => {
   return `You are a schema extraction engine.
 You must follow the instructions exactly and output only valid JSON.
 

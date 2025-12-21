@@ -72,12 +72,12 @@ const AmpSqlDropdown: React.FC<AmpSqlDropdownProps> = ({ plugin, disabled, onNot
       Do not include any HTML; just return the JS function.
       ;
       `
-      
+
       // Show right side panel if it's hidden
       const isPanelHidden = await plugin.call('rightSidePanel', 'isPanelHidden')
       if (isPanelHidden) {
         await plugin.call('rightSidePanel', 'togglePanel')
-      }      
+      }
       await plugin.call('menuicons', 'select', 'remixaiassistant')
 
       plugin.call('remixaiassistant', 'chatPipe', message)

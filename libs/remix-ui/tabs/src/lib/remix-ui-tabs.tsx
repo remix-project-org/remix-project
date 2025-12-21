@@ -98,7 +98,7 @@ export const TabsUI = (props: TabsUIProps) => {
   const [compileState, setCompileState] = useState<'idle' | 'compiling' | 'compiled'>('idle')
 
   const isVegaVisualization = tabsState.name && tabsState.name.indexOf('amp/vega-specs/') !== -1 && tabsState.currentExt === 'json'
-   
+
   useEffect(() => {
     if (props.tabs[tabsState.selectedIndex] && props.tabs[tabsState.selectedIndex].show) {
       tabsRef.current[tabsState.selectedIndex].scrollIntoView({
@@ -442,7 +442,7 @@ export const TabsUI = (props: TabsUIProps) => {
       name: tabsState.currentExt,
       isClick: true
     })
-    
+
     try {
       const activePathRaw = active()
       if (!activePathRaw || activePathRaw.indexOf('/') === -1) {
@@ -489,16 +489,14 @@ export const TabsUI = (props: TabsUIProps) => {
         return
       }
 
-      
       if (isVegaVisualization) {
         try {
           const file = await props.plugin.call('fileManager', 'getCurrentFile')
           await props.plugin.call('vega', 'generateVisualization', file)
         } catch (e) {
-          props.plugin.call('terminal', 'log', { type: 'error', value: e.message})
-        } 
+          props.plugin.call('terminal', 'log', { type: 'error', value: e.message })
+        }
       }
-
 
       const compilerName = {
         sol: 'solidity',
