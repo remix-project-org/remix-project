@@ -17,7 +17,6 @@ interface IMCPServerManagerProps {
 export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) => {
   const [servers, setServers] = useState<IMCPServer[]>([])
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, IMCPConnectionStatus>>({})
-  const [showAddForm, setShowAddForm] = useState(false)
   const [editingServer, setEditingServer] = useState<IMCPServer | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [alchemyEnabled, setAlchemyEnabled] = useState(false)
@@ -220,14 +219,12 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
       enabled: true,
       timeout: 30000
     })
-    setShowAddForm(false)
     setEditingServer(null)
   }
 
   const editServer = (server: IMCPServer) => {
     setFormData(server)
     setEditingServer(server)
-    setShowAddForm(true)
   }
 
   const getStatusIcon = (status?: IMCPConnectionStatus) => {
@@ -250,141 +247,7 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
     <div className="mcp-server-manager">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h6 className="mb-0">MCP Servers</h6>
-        <button
-          className="btn btn-sm btn-primary"
-          onClick={() => setShowAddForm(!showAddForm)}
-        >
-          {showAddForm ? 'Cancel' : 'Add Server'}
-        </button>
       </div>
-
-      {showAddForm && (
-        <div className="card mb-3">
-          <div className="card-body">
-            <h6>{editingServer ? 'Edit Server' : 'Add New MCP Server'}</h6>
-
-            <div className="form-group mb-2">
-              <label className="form-label">Name *</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                value={formData.name || ''}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Server name"
-              />
-            </div>
-
-            <div className="form-group mb-2">
-              <label className="form-label">Description</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Optional description"
-              />
-            </div>
-
-            <div className="form-group mb-2">
-              <label className="form-label">Transport *</label>
-              <select
-                className="form-control form-control-sm"
-                value={formData.transport}
-                onChange={(e) => setFormData({ ...formData, transport: e.target.value as 'stdio' | 'sse' | 'websocket' | 'http' | 'internal' })}
-              >
-                <option value="stdio" disabled>Standard I/O</option>
-                <option value="sse">Server-Sent Events</option>
-                <option value="websocket">WebSocket</option>
-                <option value="http">HTTP (REST)</option>
-                <option value="internal">Internal (Built-in)</option>
-              </select>
-            </div>
-
-            {formData.transport === 'internal' ? (
-              <div className="alert alert-info">
-                <small>Internal servers are built into Remix IDE and don't require additional configuration.</small>
-              </div>
-            ) : formData.transport === 'stdio' ? (
-              <>
-                <div className="form-group mb-2">
-                  <label className="form-label">Command *</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    value={formData.command?.join(' ') || ''}
-                    onChange={(e) => setFormData({ ...formData, command: e.target.value.split(' ').filter(Boolean) })}
-                    placeholder="python -m mcp_server"
-                  />
-                </div>
-                <div className="form-group mb-2">
-                  <label className="form-label">Arguments</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    value={formData.args?.join(' ') || ''}
-                    onChange={(e) => setFormData({ ...formData, args: e.target.value.split(' ').filter(Boolean) })}
-                    placeholder="--port 8080"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="form-group mb-2">
-                <label className="form-label">URL *</label>
-                <input
-                  type="url"
-                  className="form-control form-control-sm"
-                  value={formData.url || ''}
-                  onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                  placeholder={
-                    formData.transport === 'sse' ? 'http://localhost:8080/sse' :
-                      formData.transport === 'http' ? 'http://localhost:8080/mcp' :
-                        'ws://localhost:8080/ws'
-                  }
-                />
-              </div>
-            )}
-
-            <div className="form-group mb-2">
-              <label className="form-label">Timeout (ms)</label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                value={formData.timeout || 30000}
-                onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) || 30000 })}
-                min="1000"
-                max="300000"
-              />
-            </div>
-
-            <div className="form-check mb-2">
-              <input
-                type="checkbox"
-                className="form-check-input"
-                checked={formData.autoStart || false}
-                onChange={(e) => setFormData({ ...formData, autoStart: e.target.checked })}
-              />
-              <label className="form-check-label">Auto-start server</label>
-            </div>
-
-            <div className="d-flex gap-2">
-              <button
-                className="btn btn-sm btn-primary"
-                onClick={saveServer}
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : editingServer ? 'Update Server' : 'Add Server'}
-              </button>
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={resetForm}
-                disabled={isSaving}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="mcp-servers-list">
         {servers.length === 0 ? (
