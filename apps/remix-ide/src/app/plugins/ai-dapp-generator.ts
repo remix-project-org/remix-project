@@ -95,8 +95,10 @@ export class AIDappGenerator extends Plugin {
     if (context.messages.length === 0) {
       throw new Error('No existing DApp found for this address. Please generate one first.')
     }
-
+    console.log('[AIDappGenerator] updateDapp Input Description:', JSON.stringify(description, null, 2));
     const message = this.createUpdateMessage(description, currentFiles)
+
+    console.log('[AIDappGenerator] Constructed Message Payload:', JSON.stringify(message, null, 2));
     context.messages.push({ role: 'user', content: message })
 
     try {
@@ -180,7 +182,28 @@ export class AIDappGenerator extends Plugin {
   private saveContext(address: string, context: DappGenerationContext): void {
     this.contexts.set(address, context)
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('ai-dapp-' + address, JSON.stringify(context.messages))
+      try {
+        const messagesToSave = context.messages.map(msg => {
+          const newMsg = { ...msg };
+          
+          if (Array.isArray(newMsg.content)) {
+            newMsg.content = newMsg.content.map((part: any) => {
+              if (part.type === 'image_url' && part.image_url?.url?.startsWith('data:')) {
+                return {
+                  type: 'image_url',
+                  image_url: { url: '[IMAGE_DATA_REMOVED_TO_SAVE_SPACE]' }
+                };
+              }
+              return part;
+            });
+          }
+          return newMsg;
+        });
+
+        localStorage.setItem('ai-dapp-' + address, JSON.stringify(messagesToSave))
+      } catch (e) {
+        console.warn('[AIDappGenerator] Failed to save context to localStorage (Quota Exceeded). History might be lost on reload.');
+      }
     }
   }
 
@@ -249,40 +272,73 @@ export class AIDappGenerator extends Plugin {
     return basePrompt;
   }
 
-  private createUpdateMessage(description: string, currentFiles: Pages): string | any[] {
-    const filesString = JSON.stringify(currentFiles, null, 2)
-    const contextInstruction = `
-      IMPORTANT: The user has provided context in this message (like new Title or Details).
-      You MUST prioritize the information in this message over the
-      file contents I am providing below.
-      User's request and context:
-      ${description}
+  private createUpdateMessage(description: string | any[], currentFiles: Pages): string | any[] {
+    
+    const filteredFiles: Pages = {};
+    for (const [fileName, content] of Object.entries(currentFiles)) {
+      if (fileName === 'index.html' || fileName.startsWith('src/')) {
+        filteredFiles[fileName] = content;
+      }
+    }
+    
+    const filesString = JSON.stringify(filteredFiles, null, 2);
+
+    const textOnlyInstruction = `
+      IMPORTANT: The user has provided context in this message.
+      Prioritize the user's request over the file contents below.
+      
+      User's request:
+      ${Array.isArray(description) ? description.map(p => p.text).join('\n') : description}
 
       ---
-      
-      Here is the full code of my current project (which might be outdated):
+      Current Project Code (Partial View):
       ${filesString}
 
-      Please apply the update. Remember to return ALL project files 
-      in the 'START_TITLE' format and follow the
-      window.__QUICK_DAPP_CONFIG__ template.
+      Please apply the update. 
+      **CRITICAL REQUIREMENT:** 1. Return ALL project files (index.html, src/App.jsx, etc).
+      2. You MUST use the format: <<<<<<< START_TITLE filename >>>>>>> END_TITLE
+      3. Do NOT provide explanations, only the code blocks.
     `
 
     if (Array.isArray(description)) {
+      console.log('[AIDappGenerator] Processing Image Mode: ZERO-SHOT REWRITE');
+      
       return description.map(part => {
         if (part.type === 'text') {
+          const visionInstruction = `
+          # 🚨 UI RECONSTRUCTION TASK 🚨
+          
+          The user has provided an **IMAGE**. This is the **TARGET UI**.
+          
+          **YOUR TASK:**
+          1. **IGNORE** the styles in the reference code below.
+          2. **RECREATE** the \`App.jsx\` and \`index.html\` to match the visual style of the attached image **PIXEL-PERFECTLY**.
+          3. Use **Tailwind CSS** to match the colors, spacing, and layout of the image.
+          4. **RETAIN** the blockchain logic (ethers.js integration, ABI, Address) from the reference code.
+
+          **CRITICAL:**
+          - Do NOT assume the reference code has the correct design. It does NOT.
+          - The Image is the ONLY source of truth for design.
+
+          ---
+          **USER REQUEST:**
+          "${part.text}"
+          
+          ---
+          **REFERENCE LOGIC (Use ONLY for ABI/Address/ChainID):**
+          ${filesString}
+          `;
+
           return { 
             type: 'text', 
-            text: `User's request:\n${part.text}\n\n${contextInstruction}`
+            text: visionInstruction
           };
         }
         return part;
       })
     }
 
-    return `
-      ${contextInstruction}
-    `
+    return textOnlyInstruction;
   }
 
   private getProviderCode(): string {
@@ -299,6 +355,12 @@ export class AIDappGenerator extends Plugin {
   private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false): Promise<string> {
     // const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
     const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
+
+    console.log('[AIDappGenerator] calling LLM API with body:', JSON.stringify({
+        messages,
+        systemPrompt: systemPrompt.substring(0, 100) + "...",
+        hasImage
+    }, null, 2));
 
     try {
       const response = await fetch(BACKEND_URL, {
