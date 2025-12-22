@@ -20,6 +20,7 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingServer, setEditingServer] = useState<IMCPServer | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [alchemyEnabled, setAlchemyEnabled] = useState(false)
   const [formData, setFormData] = useState<Partial<IMCPServer>>({
     name: '',
     description: '',
@@ -496,6 +497,8 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
           <span className="text-muted ms-1">○</span> Disconnected
         </p>
       </div>
+
+      <hr className="my-4" />
     </div>
   )
 }

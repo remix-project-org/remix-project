@@ -31,6 +31,7 @@ export class CodeExecutor {
   private toolsCalled: string[] = [];
   private toolCallRecords: IToolCallRecord[] = [];
   private consoleOutput: string[] = [];
+  private pendingToolCalls: Promise<any>[] = []; // Track pending tool calls
 
   constructor(
     private executeToolCallback: (toolCall: IMCPToolCall) => Promise<IMCPToolResult>,
@@ -46,12 +47,21 @@ export class CodeExecutor {
     this.toolsCalled = [];
     this.toolCallRecords = [];
     this.consoleOutput = [];
+    this.pendingToolCalls = [];
 
     try {
       this.validateCode(code);
       console.log('[MCP Code mode] - Executing code \n', code)
       const context = this.createExecutionContext();
       const result = await this.executeWithTimeout(code, context);
+
+      // CRITICAL: race condition - Wait for all pending tool calls to complete before returning
+      if (this.pendingToolCalls.length > 0) {
+        console.log(`[MCP Code mode] - Waiting for ${this.pendingToolCalls.length} pending tool call(s) to complete...`);
+        await Promise.allSettled(this.pendingToolCalls);
+        console.log(`[MCP Code mode] - All tool calls completed`);
+      }
+
       const executionTime = Date.now() - startTime;
 
       return {
@@ -109,18 +119,22 @@ export class CodeExecutor {
         const toolStartTime = Date.now();
         self.toolsCalled.push(name);
 
-        const result = await self.executeToolCallback({ name, arguments: args });
-        const toolExecutionTime = Date.now() - toolStartTime;
+        const toolPromise = (async () => {
+          const result = await self.executeToolCallback({ name, arguments: args });
+          const toolExecutionTime = Date.now() - toolStartTime;
 
-        // Record full tool call details
-        self.toolCallRecords.push({
-          name,
-          arguments: args,
-          result,
-          executionTime: toolExecutionTime
-        });
+          self.toolCallRecords.push({
+            name,
+            arguments: args,
+            result,
+            executionTime: toolExecutionTime
+          });
 
-        return result;
+          return result;
+        })();
+
+        self.pendingToolCalls.push(toolPromise);
+        return toolPromise;
       },
       console: {
         log: (...args: any[]) => {

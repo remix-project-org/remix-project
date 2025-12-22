@@ -245,8 +245,7 @@ export class MCPClient {
   }
 
   private async sendHTTPRequest(request: any): Promise<any> {
-    const contractType = new URL(this.server.url).pathname.split('/')[2]
-    const response = await fetch(endpointUrls.mcpCorsProxy + '/' + contractType, {
+    const response = await fetch(this.server.url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -555,7 +554,6 @@ export class MCPClient {
       };
 
       return this.tools;
-
     } else if (this.server.transport === 'websocket' && this.wsConnection) {
       return new Promise((resolve, reject) => {
         const requestId = this.getNextRequestId();
