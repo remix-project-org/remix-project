@@ -14,7 +14,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, title }) => {
     <NavLink
       data-id={`${title}Tab`}
       to={to}
-      className={({ isActive }) => 'text-decoration-none d-flex px-1 py-1 flex-column justify-content-center small ' + (isActive ? "bg-light border-top border-start border-end" : "border-0 bg-transparent")}
+      className={({ isActive }) => 'text-decoration-none d-flex px-1 py-1 flex-column justify-content-center ' + (isActive ? "bg-light text-dark border-top border-start border-end" : "border-0 bg-transparent")}
     >
       <span className=''>
         <span>{icon}</span>
