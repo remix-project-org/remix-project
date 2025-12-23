@@ -19,6 +19,133 @@ import { trackMatomoEvent } from '@remix-api'
 
 const txHelper = remixLib.execution.txHelper
 
+const AIRequestForm = ({ 
+  onMount 
+}: { 
+  onMount: (getValues: () => Promise<any>) => void 
+}) => {
+  const [description, setDescription] = useState("");
+  const [isBaseMiniApp, setIsBaseMiniApp] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileError, setFileError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    onMount(async () => {
+      let imageBase64 = undefined;
+      
+      if (previewUrl) {
+         imageBase64 = previewUrl;
+      }
+
+      return {
+        text: description,
+        isBaseMiniApp,
+        image: imageBase64
+      };
+    });
+  }, [onMount, description, isBaseMiniApp, previewUrl]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setFileError("");
+    
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setFileError("File is too large (>10MB).");
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="p-3">
+      <div className="mb-3">
+        <span>Please describe how you would want the design to look like.</span>
+      </div>
+      
+      <textarea 
+        className="form-control mb-3" 
+        rows={4} 
+        placeholder='E.g: "The website should have a dark theme..."'
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+      ></textarea>
+
+      <div className="mb-3">
+        <div className="d-flex align-items-center gap-2">
+          <input 
+            type="file" 
+            id="ai-image-input" 
+            accept="image/*" 
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+          
+          <button 
+            className="btn btn-secondary btn-sm d-flex align-items-center gap-2"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <i className="fas fa-image"></i>
+            {previewUrl ? "Change Image" : "Upload Reference Image"}
+          </button>
+          
+          <span className="text-muted small ms-2">Optional</span>
+        </div>
+        
+        {fileError && <div className="text-danger small mt-1">{fileError}</div>}
+
+        {previewUrl && (
+          <div className="mt-2 position-relative d-inline-block border rounded overflow-hidden">
+            <img 
+              src={previewUrl} 
+              alt="Preview" 
+              style={{ height: '80px', width: 'auto', display: 'block' }} 
+            />
+            <button 
+              onClick={handleRemoveImage}
+              className="position-absolute top-0 end-0 btn btn-danger btn-sm p-0 d-flex align-items-center justify-content-center"
+              style={{ width: '20px', height: '20px', borderRadius: '0 0 0 4px' }}
+              title="Remove image"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+      </div>
+      
+      <div className="form-check">
+        <input 
+          className="form-check-input" 
+          type="checkbox" 
+          id="base-miniapp-checkbox"
+          checked={isBaseMiniApp}
+          onChange={(e) => setIsBaseMiniApp(e.target.checked)} 
+        />
+        <label className="form-check-label" htmlFor="base-miniapp-checkbox">
+          Create as Base Mini App (Farcaster Frame)
+        </label>
+      </div>
+      
+      <div className="mt-2 text-muted small">This might take up to 2 minutes.</div>
+    </div>
+  );
+};
+
 export function UniversalDappUI(props: UdappProps) {
   const intl = useIntl()
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
@@ -335,48 +462,31 @@ export function UniversalDappUI(props: UdappProps) {
                     onClick={async () => {
                       try {
                         const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', props.instance.name)
-                        const descriptionObj: { text: string, isBaseMiniApp: boolean } = await new Promise((resolve, reject) => {
-                          const modalMessage = (
-                            <div className="p-3">
-                              <div className="mb-3">
-                                <span>Please describe how you would want the design to look like.</span>
-                              </div>
-                              <textarea 
-                                id="ai-description-input" 
-                                className="form-control mb-3" 
-                                rows={4} 
-                                placeholder='E.g: "The website should have a dark theme..."'
-                              ></textarea>
-                              
-                              <div className="form-check">
-                                <input className="form-check-input" type="checkbox" id="base-miniapp-checkbox" />
-                                <label className="form-check-label" htmlFor="base-miniapp-checkbox">
-                                  Create as Base Mini App (Farcaster Frame)
-                                </label>
-                              </div>
-                              
-                              <div className="mt-2 text-muted small">This might take up to 2 minutes.</div>
-                            </div>
-                          )
+                        
+                        const descriptionObj: { text: string, isBaseMiniApp: boolean, image?: string } = await new Promise((resolve, reject) => {
+                          
+                          let getFormData: () => Promise<any>;
+
                           const modalContent = {
                             id: 'generate-website-ai',
                             title: 'Generate a Dapp UI with AI',
-                            message: modalMessage,
+                            message: <AIRequestForm onMount={(fn) => { getFormData = fn; }} />,
                             modalType: 'custom',
                             okLabel: 'Generate',
                             cancelLabel: 'Cancel',
-                            okFn: () => {
-                              const descInput = document.getElementById('ai-description-input') as HTMLTextAreaElement;
-                              const checkInput = document.getElementById('base-miniapp-checkbox') as HTMLInputElement;
-                                
-                              resolve({
-                                text: descInput ? descInput.value : '',
-                                isBaseMiniApp: checkInput ? checkInput.checked : false
-                              });
+                            
+                            okFn: async () => {
+                              if (getFormData) {
+                                const formData = await getFormData();
+                                resolve(formData);
+                              } else {
+                                reject(new Error("Form data not initialized"));
+                              }
                             },
                             cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
                             hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
                           }
+                          
                           // @ts-ignore
                           props.plugin.call('notification', 'modal', modalContent)
                         })
@@ -386,7 +496,7 @@ export function UniversalDappUI(props: UdappProps) {
                           return
                         }
                         
-                        console.log('[UniversalDappUI] User Input:', descriptionObj);
+                        console.log('[UniversalDappUI] Generating with Image:', descriptionObj.image ? 'Yes' : 'No');
 
                         isGenerating.current = true
 
@@ -399,7 +509,8 @@ export function UniversalDappUI(props: UdappProps) {
                             abi: props.instance.abi || props.instance.contractData.abi,
                             chainId: props.plugin.REACT_API.chainId,
                             compilerData: data,
-                            isBaseMiniApp: descriptionObj.isBaseMiniApp 
+                            isBaseMiniApp: descriptionObj.isBaseMiniApp,
+                            image: descriptionObj.image
                           })
                           
                           await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')

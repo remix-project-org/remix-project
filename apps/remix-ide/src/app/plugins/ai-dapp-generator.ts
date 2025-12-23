@@ -18,6 +18,7 @@ interface GenerateDappOptions {
   contractName: string
   hasImage?: boolean
   isBaseMiniApp?: boolean
+  image?: string
 }
 
 interface DappGenerationContext {
@@ -43,6 +44,8 @@ export class AIDappGenerator extends Plugin {
     try {
       console.log('[AIDappGenerator] Generating Dapp. Options:', JSON.stringify(options, null, 2));
 
+      const hasImage = !!options.image;
+
       await this.call('notification', 'toast', 'Generating the DApp, please wait... it can take up to 2 minutes depending on the contract complexity.')
       this.emit('generationProgress', { status: 'started', address: options.address })
 
@@ -61,7 +64,7 @@ export class AIDappGenerator extends Plugin {
         console.log('[AIDappGenerator] Using standard INITIAL_SYSTEM_PROMPT')
       }
 
-      const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, options.hasImage)
+      const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage)
 
       const pages = parsePages(htmlContent)
       context.messages = [
@@ -214,6 +217,30 @@ export class AIDappGenerator extends Plugin {
       ? options.description.map(p => p.type === 'text' ? p.text : '').join('\n') 
       : options.description;
 
+    const technicalConstraints = `
+      **TECHNICAL CONSTRAINTS (STRICTLY FOLLOW THESE):**
+      
+      1. **STYLING (Tailwind CSS ONLY):**
+          - Do NOT use custom CSS classes like "card", "btn", "navbar". 
+          - USE ONLY Tailwind utility classes directly in JSX (e.g., \`className="bg-white p-4 rounded shadow"\`).
+          - Ensure the UI looks exactly like the image provided.
+
+      2. **Ethers.js v6 RULES (CRITICAL):**
+          - \`provider.getSigner()\` is ASYNC. You MUST use \`await provider.getSigner()\`.
+          - When writing data, ALWAYS wait for the transaction: 
+            \`const tx = await contract.method(); await tx.wait();\`
+          - Use \`ethers.BrowserProvider(window.ethereum)\`.
+
+      3. **Files & Structure:**
+          - Return \`index.html\`, \`src/main.jsx\`, \`src/App.jsx\`, \`src/index.css\`.
+          - Inject provider script in \`index.html\` <head>.
+          - Use \`window.__QUICK_DAPP_CONFIG__\` for titles/logos.
+
+      4. **Functionality:**
+          - Connect Wallet button must be visible.
+          - Handle "User rejected request" errors gracefully.
+    `;
+
     const basePrompt = `
       You are generating a new DApp.
       
@@ -224,6 +251,7 @@ export class AIDappGenerator extends Plugin {
       
       >>> USER REQUEST START >>>
       "${userDescription}"
+      ${technicalConstraints}
       <<< USER REQUEST END <<<
 
       If the user asked for a specific language (e.g. Korean), use it for all UI text.
@@ -257,16 +285,49 @@ export class AIDappGenerator extends Plugin {
       Remember: Return ALL project files in the 'START_TITLE' format.
     `
 
-    if (Array.isArray(options.description)) {
-       return options.description.map(part => {
-         if (part.type === 'text') {
-           return {
-             type: 'text',
-             text: basePrompt
-           }
-         }
-         return part
-       });
+    if (options.image) {
+      console.log('[AIDappGenerator] Vision Mode: Creating Initial Message with Image');
+      
+      const visionPrompt = `
+      # VISION-DRIVEN DAPP GENERATION
+      
+      The user has provided an **IMAGE** as the **TARGET DESIGN** (Single Source of Truth).
+      
+      **YOUR MISSION:**
+      1. **VISUAL:** Ignore standard templates. Build the UI (HTML/Tailwind) to match the attached image **PIXEL-PERFECTLY**.
+      2. **LOGIC:** Implement the features requested in the text below using the Technical Constraints.
+      
+      **STRATEGY:**
+      - **Look at the image first.** Identify the layout, colors, buttons, and typography.
+      - Write the \`index.html\` and \`src/App.jsx\` to replicate that visual structure.
+      - Then, wire up the blockchain logic (ethers.js) into that structure.
+
+      ---
+      **USER TEXT REQUEST:**
+      "${userDescription}"
+      ${technicalConstraints}
+      
+      **TECHNICAL CONSTRAINTS (MANDATORY):**
+      - Address: ${options.address}
+      - Chain ID: ${options.chainId}
+      - ABI: ${JSON.stringify(options.abi)}
+      - **MUST** include the provider injection script in <head>.
+      - **MUST** output index.html, src/main.jsx, src/App.jsx.
+      
+      **PROVIDER SCRIPT TO INJECT:**
+      ${providerCode}
+      `;
+
+      return [
+        {
+          type: 'image_url',
+          image_url: { url: options.image } 
+        },
+        {
+          type: 'text',
+          text: visionPrompt
+        }
+      ];
     }
     
     return basePrompt;
@@ -395,10 +456,17 @@ export class AIDappGenerator extends Plugin {
 const cleanFileContent = (content: string, filename: string): string => {
   let cleaned = content.trim()
 
-  cleaned = cleaned.replace(/^```[\w-]*\n?/gm, '')
-  cleaned = cleaned.replace(/```$/gm, '')
+  const codeBlockRegex = /```[\w-]*\n([\s\S]*?)\n?```/;
+  const match = cleaned.match(codeBlockRegex);
 
-  const strayTags = ['javascript', 'typescript', 'html', 'css', 'jsx', 'tsx', 'json']
+  if (match && match[1]) {
+    cleaned = match[1].trim();
+  } else {
+    cleaned = cleaned.replace(/^```[\w-]*\n?/gm, '')
+    cleaned = cleaned.replace(/```$/gm, '')
+  }
+
+  const strayTags = ['javascript', 'typescript', 'html', 'css', 'jsx', 'tsx', 'json', 'bash']
   for (const tag of strayTags) {
     if (cleaned.toLowerCase().startsWith(tag)) {
       const regex = new RegExp(`^${tag}\\s*\\n?`, 'i')

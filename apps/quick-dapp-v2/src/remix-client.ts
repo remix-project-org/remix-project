@@ -59,7 +59,8 @@ export class RemixClient extends PluginClient {
     abi: any, 
     chainId: number,
     compilerData: any,
-    isBaseMiniApp: boolean
+    isBaseMiniApp: boolean,
+    image?: string
   }) {
     try {
       this.internalEvents.emit('creatingDappStart');
@@ -88,7 +89,8 @@ export class RemixClient extends PluginClient {
         abi: payload.abi,
         chainId: payload.chainId,
         contractName: payload.contractName,
-        isBaseMiniApp: payload.isBaseMiniApp
+        isBaseMiniApp: payload.isBaseMiniApp,
+        image: payload.image
       });
 
       await this.dappManager.saveGeneratedFiles(newDappConfig.slug, pages);
