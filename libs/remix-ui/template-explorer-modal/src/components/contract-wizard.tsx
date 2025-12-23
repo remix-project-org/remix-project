@@ -230,27 +230,27 @@ export function ContractWizard () {
               }}
               extensions={[javascript({ typescript: true }),vscodeDark, darkTheme]}
             />
-          </div>
-          <div className="d-flex mt-3 justify-content-between align-items-center gap-3">
-            {state.manageCategory === 'Template' ? <div className="form-check m-0">
-              <>
-                <input data-id="contract-wizard-initialize-as-git-repo-checkbox" className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo}
-                  onChange={(e) => dispatch({ type: ContractWizardAction.INITIALIZE_AS_GIT_REPO_UPDATE, payload: e.target.checked })} />
-                <label className="form-check-label" htmlFor="initGit">Initialize as a Git repository</label>
-              </>
-            </div> : <div className="w-50"></div>}
+            <div className="d-flex mt-5 justify-content-between align-items-center gap-3 mb-2">
+              {state.manageCategory === 'Template' ? <div className="form-check ms-2">
+                <>
+                  <input data-id="contract-wizard-initialize-as-git-repo-checkbox" className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo}
+                    onChange={(e) => dispatch({ type: ContractWizardAction.INITIALIZE_AS_GIT_REPO_UPDATE, payload: e.target.checked })} />
+                  <label className="form-check-label" htmlFor="initGit">Initialize as a Git repository</label>
+                </>
+              </div> : <div className="w-50"></div>}
 
-            <button data-id="contract-wizard-validate-workspace-button" className="btn btn-primary btn-sm justify-content-end" onClick={async () => {
-              if (state.manageCategory === 'Files') {
-                await validateAndCreateContractFile()
-              } else {
-                await validateAndCreateWorkspace()
-              }
-            }}
-            >
-              <i className="far fa-check me-2"></i>
-              {state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}
-            </button>
+              <button data-id="contract-wizard-validate-workspace-button" className="btn btn-primary btn-sm me-2 justify-content-end" onClick={async () => {
+                if (state.manageCategory === 'Files') {
+                  await validateAndCreateContractFile()
+                } else {
+                  await validateAndCreateWorkspace()
+                }
+              }}
+              >
+                <i className="far fa-check me-2"></i>
+                {state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
