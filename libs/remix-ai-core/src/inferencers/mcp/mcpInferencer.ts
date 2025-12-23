@@ -387,7 +387,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
       const response = await this.baseInferencer.answer(enrichedPrompt, enhancedOptions);
       let toolExecutionCount = 0;
 
-      const toolExecutionStatusCallback = async (tool_calls) => {
+      const toolExecutionStatusCallback = async (tool_calls, uiCallback) => {
 
         // avoid circular tooling
         if (toolExecutionCount >= this.MAX_TOOL_EXECUTIONS) {
@@ -405,7 +405,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
             try {
               // Convert LLM tool call to internal MCP format
               const mcpToolCall = this.convertLLMToolCallToMCP(llmToolCall);
-              const result = await this.executeToolForLLM(mcpToolCall);
+              const result = await this.executeToolForLLM(mcpToolCall, uiCallback);
               console.log(`[MCP] Tool ${mcpToolCall.name} executed successfully`);
               console.log("[MCP] Tool result", result);
 
@@ -446,6 +446,10 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
                 });
               }
             } catch (error) {
+              if (uiCallback) {
+                uiCallback(false);
+              }
+
               console.error(`[MCP] Tool execution error for ${llmToolCall.function?.name}:`, error);
               const errorContent = `Error executing tool: ${error.message}`;
 
@@ -505,13 +509,25 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
             // Send empty prompt - the tool results are in toolsMessages
             // Don't add extra prompts as they cause Anthropic to summarize instead of using full tool results
-            if (options.provider === 'openai' || options.provider === 'mistralai') return { streamResponse: await this.baseInferencer.answer(prompt, followUpOptions), callback: toolExecutionStatusCallback } as IAIStreamResponse;
-            else return { streamResponse: await this.baseInferencer.answer("", followUpOptions), callback: toolExecutionStatusCallback } as IAIStreamResponse;
+            if (options.provider === 'openai' || options.provider === 'mistralai') {
+              return {
+                streamResponse: await this.baseInferencer.answer(prompt, followUpOptions),
+                callback: toolExecutionStatusCallback
+              } as IAIStreamResponse;
+            } else {
+              return {
+                streamResponse: await this.baseInferencer.answer("", followUpOptions),
+                callback: toolExecutionStatusCallback
+              } as IAIStreamResponse;
+            }
           }
         }
       }
 
-      return { streamResponse: response, callback:toolExecutionStatusCallback } as IAIStreamResponse;
+      return {
+        streamResponse: response,
+        callback: toolExecutionStatusCallback
+      } as IAIStreamResponse;
     } catch (error) {
       return { streamResponse: await this.baseInferencer.answer(enrichedPrompt, options) };
     }
@@ -748,7 +764,7 @@ ${toolsList}`,
   /**
    * Execute a tool call from the LLM
    */
-  async executeToolForLLM(toolCall: IMCPToolCall): Promise<IMCPToolResult> {
+  async executeToolForLLM(toolCall: IMCPToolCall, uiCallback?: any): Promise<IMCPToolResult> {
     // Handle code execution mode
     if (toolCall.name === 'execute_tool') {
       const code = toolCall.arguments?.code;
@@ -774,7 +790,14 @@ ${toolsList}`,
             throw new Error(`Tool '${innerToolCall.name}' not found in any connected MCP server`);
           }
 
+          if (uiCallback){
+            console.log('on UI tool callback', innerToolCall.name, innerToolCall.arguments)
+            uiCallback(true, innerToolCall.name, innerToolCall.arguments);
+          }
           const result = await this.executeTool(targetServer, innerToolCall);
+          if (uiCallback){
+            uiCallback(false)
+          }
           return result
         },
         60000 * 10, // 10 minutes

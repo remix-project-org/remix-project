@@ -5,6 +5,8 @@ export type ChatMessage = {
   timestamp: number
   sentiment?: 'none' | 'like' | 'dislike'
   isExecutingTools?: boolean
+  executingToolName?: string
+  executingToolArgs?: Record<string, any>
 }
 
 export const assistantAvatar = 'assets/img/remixai-logoDefault.webp'//'assets/img/aiLogo.svg'

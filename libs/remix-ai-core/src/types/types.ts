@@ -92,7 +92,7 @@ export interface IParams {
 export interface IAIStreamResponse{
   streamResponse: any,
   callback?: any,
-  toolExecutionStatusCallback?: (isExecuting: boolean) => void
+  toolExecutionStatusCallback?: (isExecuting: boolean, toolName?: string, toolArgs?: Record<string, any>) => void
 }
 
 export enum AIRequestType {

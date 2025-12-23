@@ -1,6 +1,6 @@
 import React from 'react'
-import { NavLink } from 'react-router-dom'
-import { useIntl, FormattedMessage } from 'react-intl'
+import { NavLink, useLocation } from 'react-router-dom'
+import { FormattedMessage } from 'react-intl'
 
 interface NavItemProps {
   to: string
@@ -9,16 +9,18 @@ interface NavItemProps {
 }
 
 const NavItem: React.FC<NavItemProps> = ({ to, icon, title }) => {
-  const intl = useIntl()
+  const location = useLocation()
+  const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
+
   return (
     <NavLink
       data-id={`${title}Tab`}
       to={to}
-      className={({ isActive }) => 'text-decoration-none d-flex px-1 py-1 flex-column justify-content-center small ' + (isActive ? "bg-light border-top border-start border-end" : "border-0 bg-transparent")}
+      className={`text-decoration-none d-flex px-1 py-1 flex-column justify-content-center ${isActive ? 'bg-light text-dark border-top border-start border-end' : 'bg-transparent border-0'}`}
     >
-      <span className=''>
-        <span>{icon}</span>
-        <span className="ms-2">{title}</span>
+      <span>
+        <span style={{ marginLeft: "0.15rem"}}>{icon}</span>
+        <span style={{ marginLeft: "0.35rem"}}>{title}</span>
       </span>
     </NavLink>
   )
@@ -26,7 +28,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, title }) => {
 
 export const NavMenu = () => {
   return (
-    <nav className="d-flex medium flex-row w-100" style={{ backgroundColor: 'var(--bs-body-bg)!important' }}>
+    <nav className="d-flex medium flex-row w-100 bg-body">
       <NavItem to="/" icon={<i className="fas fa-home"></i>} title={ <FormattedMessage id="contract-verification.verifyNavTitle" defaultMessage={'Verify'} /> } />
       <NavItem to="/receipts" icon={<i className="fas fa-receipt"></i>} title={ <FormattedMessage id="contract-verification.receiptsNavTitle" defaultMessage={'Receipts'} /> } />
       <NavItem to="/lookup" icon={<i className="fas fa-search"></i>} title={ <FormattedMessage id="contract-verification.lookupNavTitle" defaultMessage={'Lookup'} /> } />

@@ -386,10 +386,26 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
       setMessages(prev => [...prev, userMsg])
 
-      /** append streaming chunks helper (kept identical) */
+      // Track tool execution timeout to clear it when content arrives
+      let clearToolTimeout: NodeJS.Timeout | null = null
+
+      /** append streaming chunks helper - clears tool status when content arrives */
       const appendAssistantChunk = (msgId: string, chunk: string) => {
+        // Clear any pending tool status timeout since content is now displaying
+        if (clearToolTimeout) {
+          clearTimeout(clearToolTimeout)
+          clearToolTimeout = null
+        }
+
         setMessages(prev =>
-          prev.map(m => (m.id === msgId ? { ...m, content: m.content + chunk } : m))
+          prev.map(m => (m.id === msgId ? {
+            ...m,
+            content: m.content + chunk,
+            // Clear tool execution status when content starts arriving
+            isExecutingTools: false,
+            executingToolName: undefined,
+            executingToolArgs: undefined
+          } : m))
         )
       }
 
@@ -446,16 +462,79 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           { id: assistantId, role: 'assistant', content: '', timestamp: Date.now(), sentiment: 'none' }
         ])
 
-        // Add tool execution callback to response object
-        const toolExecutionStatusCallback = (isExecuting: boolean) => {
-          setMessages(prev =>
-            prev.map(m => (m.id === assistantId ? { ...m, isExecutingTools: isExecuting } : m))
-          )
+        // Add tool execution callback with minimum display time
+        let toolExecutionStartTime: number | null = null
+
+        const uiToolCallback = (isExecuting: boolean, toolName?: string, toolArgs?: Record<string, any>) => {
+          const MIN_DISPLAY_TIME = 2000 // 2 seconds
+
+          // Clear any pending timeout
+          if (clearToolTimeout) {
+            clearTimeout(clearToolTimeout)
+            clearToolTimeout = null
+          }
+
+          if (isExecuting) {
+            // Tool execution starting or updating - show immediately
+            if (!toolExecutionStartTime) {
+              toolExecutionStartTime = Date.now()
+            }
+            setMessages(prev =>
+              prev.map(m => (m.id === assistantId ? {
+                ...m,
+                isExecutingTools: isExecuting,
+                executingToolName: toolName,
+                executingToolArgs: toolArgs
+              } : m))
+            )
+          } else {
+            // Tool execution ending - check minimum display time
+            if (toolExecutionStartTime) {
+              const elapsedTime = Date.now() - toolExecutionStartTime
+              const remainingTime = MIN_DISPLAY_TIME - elapsedTime
+
+              if (remainingTime > 0) {
+                // Not enough time has passed - delay the clearing
+                clearToolTimeout = setTimeout(() => {
+                  setMessages(prev =>
+                    prev.map(m => (m.id === assistantId ? {
+                      ...m,
+                      isExecutingTools: false,
+                      executingToolName: undefined,
+                      executingToolArgs: undefined
+                    } : m))
+                  )
+                  toolExecutionStartTime = null
+                }, remainingTime)
+              } else {
+                // Enough time has passed - clear immediately
+                setMessages(prev =>
+                  prev.map(m => (m.id === assistantId ? {
+                    ...m,
+                    isExecutingTools: false,
+                    executingToolName: undefined,
+                    executingToolArgs: undefined
+                  } : m))
+                )
+                toolExecutionStartTime = null
+              }
+            } else {
+              // No start time recorded - clear immediately
+              setMessages(prev =>
+                prev.map(m => (m.id === assistantId ? {
+                  ...m,
+                  isExecutingTools: false,
+                  executingToolName: undefined,
+                  executingToolArgs: undefined
+                } : m))
+              )
+            }
+          }
         }
 
         // Attach the callback to the response if it's an object
         if (response && typeof response === 'object') {
-          response.toolExecutionStatusCallback = toolExecutionStatusCallback
+          response.uiToolCallback = uiToolCallback
         }
 
         switch (assistantChoice) {

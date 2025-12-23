@@ -12,6 +12,7 @@ import {
   type ConversationStarter
 } from '../lib/conversationStarters'
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
+import { getToolExecutionMessage } from '../lib/toolDescriptions'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -101,25 +102,35 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
 
               {/* Bubble */}
               <div data-id="ai-response-chat-bubble-section" className="overflow-y-scroll" style={{ width: '90%' }}>
-                <div className={`chat-bubble p-2 rounded ${bubbleClass}`} data-id="ai-user-chat-bubble">
-                  {msg.role === 'user' && (
-                    <small className="text-uppercase fw-bold text-secondary d-block mb-1">
-                      You
-                    </small>
-                  )}
-
-                  <div className="aiMarkup lh-base text-wrap">
-                    {msg.role === 'assistant' ? (
-                      RemixMarkdownViewer(theme, msg.content)
-                    ) : (
-                      msg.content
+                {/* Only render bubble if there's content OR not currently executing tools */}
+                {(msg.content || !msg.isExecutingTools) && (
+                  <div className={`chat-bubble p-2 rounded ${bubbleClass}`} data-id="ai-user-chat-bubble">
+                    {msg.role === 'user' && (
+                      <small className="text-uppercase fw-bold text-secondary d-block mb-1">
+                        You
+                      </small>
                     )}
+
+                    <div className="aiMarkup lh-base text-wrap">
+                      {msg.role === 'assistant' ? (
+                        RemixMarkdownViewer(theme, msg.content)
+                      ) : (
+                        msg.content
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
                 {msg.role === 'assistant' && msg.isExecutingTools && (
-                  <div className="tool-execution-indicator mt-2 text-muted">
+                  <div className="tool-execution-indicator text-muted">
                     <i className="fa fa-spinner fa-spin me-2"></i>
-                    <span>Executing tools...</span>
+                    <span>
+                      {msg.executingToolName
+                        ? getToolExecutionMessage({
+                          toolName: msg.executingToolName,
+                          arguments: msg.executingToolArgs
+                        })
+                        : 'Executing tools...'}
+                    </span>
                   </div>
                 )}
 
