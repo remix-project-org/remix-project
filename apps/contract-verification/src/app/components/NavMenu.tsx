@@ -9,7 +9,6 @@ interface NavItemProps {
 }
 
 const NavItem: React.FC<NavItemProps> = ({ to, icon, title }) => {
-  const intl = useIntl()
   return (
     <NavLink
       data-id={`${title}Tab`}
@@ -17,8 +16,8 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, title }) => {
       className={({ isActive }) => 'text-decoration-none d-flex px-1 py-1 flex-column justify-content-center ' + (isActive ? "bg-light text-dark border-top border-start border-end" : "border-0 bg-transparent")}
     >
       <span className=''>
-        <span>{icon}</span>
-        <span className="ms-2">{title}</span>
+        <span style={{ marginLeft: "0.15rem"}}>{icon}</span>
+        <span style={{ marginLeft: "0.35rem"}}>{title}</span>
       </span>
     </NavLink>
   )
