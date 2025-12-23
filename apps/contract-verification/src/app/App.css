@@ -6,7 +6,7 @@ body {
   margin: 0;
 }
 
-a:focus {
+a:focus:not([data-id$="Tab"]) {
   background-color: var(--bg-light) !important;
 }
 
