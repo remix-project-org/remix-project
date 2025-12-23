@@ -356,8 +356,9 @@ export function TopCards() {
             data-id="create-git-clone"
             className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
             onClick={async () => {
-              facade.closeWizard()
-              showCloneModal()
+              // facade.closeWizard()
+              // showCloneModal()
+              dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'gitClone' })
               trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardGitClone', isClick: true })
             }}
             style={{

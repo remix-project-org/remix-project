@@ -35,6 +35,7 @@ export const initialState: TemplateExplorerWizardState = {
   },
   contractCode: erc20.erc20DefaultNoOptions('MyToken'),
   contractImport: '',
+  gitUrl: '',
   tokenName: 'MyToken',
   contractName: 'MyToken',
   manageCategory: 'Template'

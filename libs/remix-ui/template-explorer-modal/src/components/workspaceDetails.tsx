@@ -46,7 +46,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
   }, [state.contractType, state.contractTag])
 
   return (
-    <section data-id="workspace-details-section" className="d-flex flex-column gap-3 bg-light workspace-details-section">
+    <section data-id="workspace-details-section" className="d-flex flex-column gap-3 bg-light workspace-details-section h-100">
       <div className="p-3 d-flex flex-row align-items-center">
         { showEditWorkspaceName ? <input data-id="workspace-name-input" type="text" className="form-control form-control-sm" value={uniqueWorkspaceName} onChange={(e) => {
           setUniqueWorkspaceName(e.target.value)

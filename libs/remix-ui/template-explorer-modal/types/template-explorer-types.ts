@@ -38,10 +38,11 @@ export interface TemplateExplorerWizardState {
   contractImport?: string
   contractName?: string
   tokenName?: string
+  gitUrl?: string
   manageCategory: 'Template' | 'Files'
 }
 
-export type WizardStep = 'template' | 'finishSetup' | 'wizard' | 'import' | 'genAI' | 'generic' | 'remixdefault' | 'cookbook' | 'back' | 'reset' | 'ModifyWorkspace' | 'confirm' | 'scripts' | 'aiFileGeneration' | 'importFiles' | 'importHttps'
+export type WizardStep = 'template' | 'finishSetup' | 'wizard' | 'import' | 'genAI' | 'generic' | 'remixdefault' | 'cookbook' | 'back' | 'reset' | 'ModifyWorkspace' | 'confirm' | 'scripts' | 'aiFileGeneration' | 'importFiles' | 'importHttps' | 'gitClone'
 
 export interface TemplateExplorerContextType {
   plugin: TemplateExplorerModalPlugin
@@ -98,7 +99,8 @@ export enum TemplateExplorerWizardAction {
   SET_WORKSPACE_TEMPLATE_TYPE = 'SET_WORKSPACE_TEMPLATE_TYPE',
   SET_MANAGE_CATEGORY = 'SET_MANAGE_CATEGORY',
   IMPORT_FILES = 'IMPORT_FILES',
-  IMPORT_HTTPS = 'IMPORT_HTTPS'
+  IMPORT_HTTPS = 'IMPORT_HTTPS',
+  SET_GIT_URL = 'SET_GIT_URL',
 }
 
 export interface TemplateItem {

@@ -11,7 +11,8 @@ import { FinalScreen } from '../components/finalScreen'
 import { MatomoEvent, TemplateExplorerModalEvent,WorkspaceEvent } from '@remix-api'
 import TrackingContext from '@remix-ide/tracking'
 import { ImportFromIpfs } from '../components/importFromIpfs'
-import { TemplateExplorerWizardAction } from '../../types/template-explorer-types'
+import { TemplateExplorerWizardAction, TemplateExplorerWizardState } from '../../types/template-explorer-types'
+import { GitCloneScreen } from '../components/gitCloneScreen'
 
 export interface RemixUiTemplateExplorerModalProps {
   dispatch: any
@@ -28,7 +29,7 @@ export function RemixUiTemplateExplorerModal (props: RemixUiTemplateExplorerModa
   return (
     <section data-id="template-explorer-modal-react" data-path={`templateExplorerModal-${state.manageCategory}`}>
       <section className="template-explorer-modal-background" style={{ zIndex: 8888 }}>
-        <div className="template-explorer-modal-container border bg-dark p-2" style={{ width: '768px' }}>
+        <div className="template-explorer-modal-container border bg-dark p-2" style={{ width: '768px', height: parseHeight(state) }}>
           <div className="template-explorer-modal-close-container bg-dark mb-3 w-100 d-flex flex-row justify-content-between align-items-center">
             {state.wizardStep === 'template' || state.wizardStep === 'reset' ? <div className="d-flex flex-row gap-2 w-100 mx-3 my-2">
               <input
@@ -74,9 +75,14 @@ export function RemixUiTemplateExplorerModal (props: RemixUiTemplateExplorerModa
           {state.wizardStep === 'remixdefault' ? <WorkspaceDetails strategy={state} /> : null}
           {state.wizardStep === 'importFiles' ? <ImportFromIpfs /> : null}
           {state.wizardStep === 'importHttps' ? <ImportFromIpfs /> : null}
+          {state.wizardStep === 'gitClone' ? <GitCloneScreen /> : null}
         </div>
       </section>
     </section>
   )
+}
+
+function parseHeight(state: TemplateExplorerWizardState) {
+  return state.wizardStep === 'reset' || state.wizardStep === 'template' ? '' : state.wizardStep === 'gitClone' || state.wizardStep === 'genAI' || state.wizardStep === 'importFiles' || state.wizardStep === 'importHttps' || state.wizardStep === 'generic' || state.wizardStep === 'remixdefault' ? '720px' : ''
 }
 
