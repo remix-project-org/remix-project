@@ -217,28 +217,88 @@ export class AIDappGenerator extends Plugin {
       ? options.description.map(p => p.type === 'text' ? p.text : '').join('\n') 
       : options.description;
 
+    const architectureInstructions = `
+      **ARCHITECTURE INSTRUCTIONS :**
+
+      1. **Analyze the Request:** - Split complex UIs into \`src/pages/Home.jsx\`, \`src/pages/Dashboard.jsx\`, etc.
+      
+      2. **Routing (ZERO DEPENDENCY MODE):**
+         - **STOP! Do NOT use \`react-router-dom\`.** It causes version conflicts.
+         - **Implement a simple Hash Router manually** in \`src/App.jsx\`.
+         - Use \`useState\` and \`window.location.hash\` to switch pages.
+         - Example Pattern for App.jsx:
+           \`\`\`javascript
+           const [route, setRoute] = useState(window.location.hash || '#/');
+           useEffect(() => {
+             const onHashChange = () => setRoute(window.location.hash || '#/');
+             window.addEventListener('hashchange', onHashChange);
+             return () => window.removeEventListener('hashchange', onHashChange);
+           }, []);
+           
+           // Navigation Function
+           const navigate = (path) => window.location.hash = path;
+           
+           // Render
+           return (
+             <div>
+               <Navbar navigate={navigate} />
+               {route === '#/' && <Home />}
+               {route === '#/dashboard' && <Dashboard />}
+             </div>
+           );
+           \`\`\`
+
+      3. **File Structure Target:**
+         - \`index.html\` (Simple Import Map)
+         - \`src/main.jsx\`
+         - \`src/App.jsx\` (Manual Router Logic)
+         - \`src/index.css\` (Tailwind)
+         - \`src/pages/*.jsx\`
+    `;
+
     const technicalConstraints = `
       **TECHNICAL CONSTRAINTS (STRICTLY FOLLOW THESE):**
       
-      1. **STYLING (Tailwind CSS ONLY):**
+      1. **DEPENDENCY MANAGEMENT (SIMPLE IMPORT MAP):**
+         - Use this SIMPLIFIED Import Map in \`index.html\` <head>.
+         - **Do NOT** include react-router-dom.
+           \`\`\`html
+           <script type="importmap">
+           {
+             "imports": {
+               "react": "https://esm.sh/react@18.2.0",
+               "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+               "ethers": "https://esm.sh/ethers@6.11.1"
+             }
+           }
+           </script>
+           \`\`\`
+         - In JSX files, use: \`import React, { useState, useEffect } from "react";\`
+
+      2. **STYLING (Tailwind CSS ONLY):**
           - Do NOT use custom CSS classes like "card", "btn", "navbar". 
           - USE ONLY Tailwind utility classes directly in JSX (e.g., \`className="bg-white p-4 rounded shadow"\`).
           - Ensure the UI looks exactly like the image provided.
 
-      2. **Ethers.js v6 RULES (CRITICAL):**
+      3. **Ethers.js v6 RULES (CRITICAL):**
           - \`provider.getSigner()\` is ASYNC. You MUST use \`await provider.getSigner()\`.
           - When writing data, ALWAYS wait for the transaction: 
             \`const tx = await contract.method(); await tx.wait();\`
           - Use \`ethers.BrowserProvider(window.ethereum)\`.
 
-      3. **Files & Structure:**
-          - Return \`index.html\`, \`src/main.jsx\`, \`src/App.jsx\`, \`src/index.css\`.
+      4. **Files & Structure:**
+          - At a minimum, the following files must be returned. \`index.html\`, \`src/main.jsx\`, \`src/App.jsx\`, \`src/index.css\`.
           - Inject provider script in \`index.html\` <head>.
           - Use \`window.__QUICK_DAPP_CONFIG__\` for titles/logos.
 
-      4. **Functionality:**
+      5. **Functionality:**
           - Connect Wallet button must be visible.
           - Handle "User rejected request" errors gracefully.
+
+      6. **Output Format:**
+         - Return ALL files using \`<<<<<<< START_TITLE filename >>>>>>> END_TITLE\` format.
+         - **Do NOT** omit any file. output full content.
+         - **Minimal Comments:** To save token space, avoid verbose comments.
     `;
 
     const basePrompt = `
@@ -251,6 +311,8 @@ export class AIDappGenerator extends Plugin {
       
       >>> USER REQUEST START >>>
       "${userDescription}"
+
+      ${architectureInstructions}
       ${technicalConstraints}
       <<< USER REQUEST END <<<
 
@@ -305,6 +367,8 @@ export class AIDappGenerator extends Plugin {
       ---
       **USER TEXT REQUEST:**
       "${userDescription}"
+
+      ${architectureInstructions}
       ${technicalConstraints}
       
       **TECHNICAL CONSTRAINTS (MANDATORY):**
