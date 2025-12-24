@@ -29,11 +29,12 @@ module.exports = {
     browser.waitForElementVisible('div[data-id="mainPanelPluginsContainer"]')
       .waitForElementVisible('div[data-id="landingPageHomeContainer"]')
       .waitForElementVisible('div[data-id="remixUIHTAll"]')
-      .waitForElementVisible('div[data-id="terminalContainer"]')
   },
 
   'Loads terminal': function (browser: NightwatchBrowser) {
     browser
+      // Terminal is hidden by default, so show it first
+      .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('div[data-id="terminalCli"]', 10000)
       .journalLastChildIncludes('Welcome to Remix')
   },
@@ -49,7 +50,9 @@ module.exports = {
   },
 
   'Hides Terminal': function (browser: NightwatchBrowser) {
-    browser.waitForElementVisible('div[data-id="terminalContainer"]')
+    browser
+      // Terminal should already be visible from previous test
+      .waitForElementVisible('div[data-id="terminalContainer"]')
       .assert.elementPresent('div[data-id="terminalCli"]')
       .assert.elementPresent('div[data-id="terminalContainer"]')
       .waitForElementVisible('div[data-id="terminalContainer"]')

@@ -147,12 +147,15 @@ export default class Terminal extends Plugin {
       }
     } else {
       // Initialize with default state if not found
-      this.isHidden = false
+      this.isHidden = true
       panelStates.bottomPanel = {
         isHidden: this.isHidden,
         pluginProfile: this.profile
       }
       window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
+      // Apply d-none class to hide the terminal on initial load
+      const terminalPanel = document.querySelector('.terminal-wrap')
+      terminalPanel?.classList.add('d-none')
     }
   }
 

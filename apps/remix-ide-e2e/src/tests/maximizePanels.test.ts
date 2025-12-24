@@ -81,9 +81,9 @@ module.exports = {
       .waitForElementVisible('.mainpanel')
       .assert.not.hasClass('.mainpanel', 'd-none')
   },
-  'Verify terminal panel is visible again when right panel is minimized #group1': function (browser: NightwatchBrowser) {
+  'Verify terminal panel remains hidden when right panel is minimized (since it was hidden initially) #group1': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('.terminal-wrap')
+      .waitForElementNotVisible('.terminal-wrap')
   },
   'Maximize and then hide right panel #group1': function (browser: NightwatchBrowser) {
     browser
@@ -174,6 +174,8 @@ module.exports = {
   },
   'Maximize bottom panel #group2': function (browser: NightwatchBrowser) {
     browser
+      // Terminal is hidden by default, so show it first
+      .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap')
       .waitForElementVisible('*[data-id="maximizeBottomPanel"]')
       .click('*[data-id="maximizeBottomPanel"]')

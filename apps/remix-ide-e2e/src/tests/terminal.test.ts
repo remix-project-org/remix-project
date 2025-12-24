@@ -13,6 +13,8 @@ module.exports = {
   },
   'Should execution a simple console command #group1': function (browser: NightwatchBrowser) {
     browser
+      // Terminal is hidden by default, so show it first
+      .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('*[data-id="terminalCli"]', 10000)
       .executeScriptInTerminal('console.log(1 + 1)')
       .pause(2000)

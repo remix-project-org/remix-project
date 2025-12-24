@@ -105,9 +105,8 @@ module.exports = {
       .click('*[data-id="toggleLeftSidePanelIcon"]')
       .waitForElementVisible('.codicon-layout-sidebar-left-off')
       .waitForElementNotVisible('#side-panel')
-      // Make sure other panels are visible
+      // Make sure other panels are visible (except terminal which is hidden by default)
       .waitForElementVisible('#right-side-panel')
-      .waitForElementVisible('.terminal-wrap')
   },
   'Reload & use vertical icon panel and top bar toggle icon to toggle left side bar #group1': function (browser: NightwatchBrowser) {
     browser
@@ -128,6 +127,9 @@ module.exports = {
   },
   'Hide bottom terminal panel using toggle icon on top bar #group1': function (browser: NightwatchBrowser) {
     browser
+      // Terminal is hidden by default, so show it first
+      .waitForElementVisible('.codicon-layout-panel-off')
+      .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap')
       .waitForElementVisible('.codicon-layout-panel')
       .click('*[data-id="toggleBottomPanelIcon"]')
@@ -139,6 +141,8 @@ module.exports = {
   },
   'Hide bottom terminal panel using hideBottomPanel icon (close icon) #group1': function (browser: NightwatchBrowser) {
     browser
+      // Terminal is hidden by default, so show it first
+      .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap')
       .waitForElementVisible('*[data-id="hideBottomPanel"]')
       .click('*[data-id="hideBottomPanel"]')
@@ -156,6 +160,7 @@ module.exports = {
   },
   'Terminal panel automatically unhides when log is added #group1': function (browser: NightwatchBrowser) {
     browser
+      // Terminal should be visible from previous test, hide it first
       .waitForElementVisible('.terminal-wrap')
       .click('*[data-id="hideBottomPanel"]')
       .waitForElementNotVisible('.terminal-wrap')
