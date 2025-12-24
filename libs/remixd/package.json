@@ -1,6 +1,6 @@
 {
   "name": "@remix-project/remixd",
-  "version": "0.6.59",
+  "version": "0.6.60",
   "description": "remix server: allow accessing file system from remix.ethereum.org and start a dev environment (see help section)",
   "main": "index.js",
   "types": "./index.d.ts",
