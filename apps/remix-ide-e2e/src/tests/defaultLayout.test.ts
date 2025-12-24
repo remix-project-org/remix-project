@@ -33,8 +33,7 @@ module.exports = {
 
   'Loads terminal': function (browser: NightwatchBrowser) {
     browser
-      // Terminal is hidden by default, so show it first
-      .click('*[data-id="toggleBottomPanelIcon"]')
+      // Terminal is shown by init.ts for e2e tests
       .waitForElementVisible('div[data-id="terminalCli"]', 10000)
       .journalLastChildIncludes('Welcome to Remix')
   },

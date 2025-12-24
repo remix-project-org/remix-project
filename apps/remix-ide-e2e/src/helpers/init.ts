@@ -28,6 +28,14 @@ export default function (browser: NightwatchBrowser, callback: VoidFunction, url
     .verifyLoad()
     .enableClipBoard()
     .perform((done) => {
+      // Show terminal panel for e2e tests (it's hidden by default in the app)
+      browser
+        .waitForElementVisible('*[data-id="toggleBottomPanelIcon"]', 10000)
+        .click('*[data-id="toggleBottomPanelIcon"]')
+        .waitForElementVisible('.terminal-wrap', 10000)
+        .perform(() => done())
+    })
+    .perform((done) => {
       browser.execute(function () { // hide tooltips for Bootstrap 5
         function addStyle(styleString) {
           const style = document.createElement('style');

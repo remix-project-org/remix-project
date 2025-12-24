@@ -127,9 +127,7 @@ module.exports = {
   },
   'Hide bottom terminal panel using toggle icon on top bar #group1': function (browser: NightwatchBrowser) {
     browser
-      // Terminal is hidden by default, so show it first
-      .waitForElementVisible('.codicon-layout-panel-off')
-      .click('*[data-id="toggleBottomPanelIcon"]')
+      // Terminal is shown by init.ts for e2e tests
       .waitForElementVisible('.terminal-wrap')
       .waitForElementVisible('.codicon-layout-panel')
       .click('*[data-id="toggleBottomPanelIcon"]')
@@ -141,8 +139,7 @@ module.exports = {
   },
   'Hide bottom terminal panel using hideBottomPanel icon (close icon) #group1': function (browser: NightwatchBrowser) {
     browser
-      // Terminal is hidden by default, so show it first
-      .click('*[data-id="toggleBottomPanelIcon"]')
+      // Terminal is shown by init.ts for e2e tests
       .waitForElementVisible('.terminal-wrap')
       .waitForElementVisible('*[data-id="hideBottomPanel"]')
       .click('*[data-id="hideBottomPanel"]')
@@ -154,7 +151,7 @@ module.exports = {
       // Hide again using hideBottomPanel
       .click('*[data-id="hideBottomPanel"]')
       .waitForElementNotVisible('.terminal-wrap')
-      // Show again using hideBottomPanel (requires clicking top bar toggle first to show terminal bar)
+      // Show again using top bar toggle
       .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap')
   },
