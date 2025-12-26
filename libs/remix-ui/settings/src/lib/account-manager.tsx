@@ -76,7 +76,6 @@ export const AccountManager: React.FC<AccountManagerProps> = ({ plugin }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAllTransactions, setShowAllTransactions] = useState(false)
-  const [enableLogin, setEnableLogin] = useState<boolean>(false)
 
   const loadAccounts = async () => {
     try {
@@ -190,21 +189,12 @@ export const AccountManager: React.FC<AccountManagerProps> = ({ plugin }) => {
   }
 
   useEffect(() => {
-    // Check enableLogin flag
-    const checkLoginEnabled = () => {
-      const enabled = localStorage.getItem('enableLogin') === 'true';
-      setEnableLogin(enabled);
-    };
-    checkLoginEnabled();
-
     loadAccounts()
 
     // Listen for auth state changes via plugin events (login/logout)
     const onAuthStateChanged = async (_payload: any) => {
       // Reload everything when auth state changes
       await loadAccounts()
-      // Also recheck enableLogin flag when auth state changes
-      checkLoginEnabled()
     }
 
     try {
@@ -249,10 +239,6 @@ export const AccountManager: React.FC<AccountManagerProps> = ({ plugin }) => {
 
   const handleLinkSIWE = () => {
     handleLinkProvider('siwe')
-  }
-
-  if (!enableLogin) {
-    return null;
   }
 
   if (loading) {

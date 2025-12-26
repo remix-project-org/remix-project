@@ -78,7 +78,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
           onClick={() => setShowModal(true)}
           data-id="login-button"
         >
-          Log In
+          Sign In
         </button>
         {showModal && <LoginModal onClose={() => setShowModal(false)} />}
       </>
