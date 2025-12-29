@@ -1,0 +1,72 @@
+/* Login Modal Custom Styles */
+
+.login-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2000;
+}
+
+.login-modal-dialog {
+  max-width: 800px;
+  width: 90%;
+}
+
+.login-modal-content {
+  border-radius: 10px;
+}
+
+.login-modal-left-section {
+  width: 40%;
+  background-image: url('https://raw.githubusercontent.com/remix-project-org/remix-dynamics/refs/heads/live/images/illusion.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 2rem;
+  min-height: 500px;
+}
+
+.login-modal-gradient-overlay {
+  background: linear-gradient(135deg, rgba(8, 18, 42, 0.95) 0%, rgba(18, 32, 62, 0.92) 50%, rgba(8, 18, 42, 0.95) 100%);
+  z-index: 1;
+}
+
+.login-modal-content-wrapper {
+  z-index: 2;
+}
+
+.login-modal-list-icon {
+  font-size: 1.25rem;
+  color: #7dd3fc;
+}
+
+.login-modal-list-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: #7dd3fc;
+}
+
+.login-modal-right-section {
+  width: 60%;
+}
+
+.login-modal-close-btn {
+  cursor: pointer;
+}
+
+.login-modal-provider-icon {
+  font-size: 1.5rem;
+  width: 32px;
+}
+
+.login-modal-provider-btn {
+  cursor: pointer;
+}
+
+.login-modal-provider-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

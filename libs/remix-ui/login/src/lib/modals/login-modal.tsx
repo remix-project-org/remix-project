@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { AuthProvider } from '@remix-api'
 import { useAuth } from '../../../../app/src/lib/remix-app/context/auth-context'
 import { endpointUrls } from '@remix-endpoints-helper'
+import './login-modal.css'
 
 interface LoginModalProps {
   onClose: () => void
@@ -139,91 +140,103 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
 
   return (
     <div
-      className="modal d-flex"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 2000,
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
+      className="modal d-flex align-items-center justify-content-center login-modal-backdrop"
       onClick={onClose}
     >
       <div
-        className="modal-dialog modal-dialog-centered"
+        className="modal-dialog modal-dialog-centered login-modal-dialog"
         role="document"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '500px', width: '90%' }}
       >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Log in to Remix IDE</h5>
-            <div className="close" data-id="loginModal" onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer' }}>
-              <i className="fas fa-times"></i>
+        <div className="modal-content d-flex flex-row overflow-hidden login-modal-content">
+          {/* Left Section - 40% width */}
+          <div className="d-flex flex-column justify-content-center align-items-center position-relative login-modal-left-section">
+            {/* Dark blue gradient overlay for better text readability */}
+            <div className="position-absolute top-0 start-0 end-0 bottom-0 login-modal-gradient-overlay" />
+
+            {/* Content with higher z-index to appear above overlay */}
+            <div className="text-start w-100 position-relative login-modal-content-wrapper">
+              <ul className="list-unstyled p-0 m-0">
+                <li className="mb-4 d-flex align-items-center">
+                  <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <span className="login-modal-list-text">Save progress</span>
+                </li>
+                <li className="mb-4 d-flex align-items-center">
+                  <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <span className="login-modal-list-text">Unlock additional features</span>
+                </li>
+                <li className="mb-4 d-flex align-items-center">
+                  <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <span className="login-modal-list-text">Securely recover ETH address</span>
+                </li>
+              </ul>
             </div>
           </div>
-          <div className="modal-body">
-            <p className="text-muted mb-4">
-              Choose your preferred authentication method to access special Remix features and manage your credits.
-            </p>
 
-            {error && (
-              <div className="alert alert-danger" role="alert">
-                <strong>Error:</strong> {error}
+          {/* Right Section - 60% width */}
+          <div className="d-flex flex-column login-modal-right-section">
+            <div className="modal-header">
+              <h5 className="modal-title">Remix IDE</h5>
+              <div className="close ms-auto login-modal-close-btn" data-id="loginModal" onClick={onClose}>
+                <i className="fas fa-times"></i>
               </div>
-            )}
+            </div>
+            <div className="modal-body">
+              <p className="text-muted mb-4">
+                Log in or register to unlock our wide range of features
+              </p>
 
-            {loadingProviders ? (
-              <div className="text-center py-5">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading providers...</span>
+              {error && (
+                <div className="alert alert-danger" role="alert">
+                  <strong>Error:</strong> {error}
                 </div>
-                <p className="text-muted mt-3">Loading authentication methods...</p>
-              </div>
-            ) : providers.length === 0 ? (
-              <div className="alert alert-warning" role="alert">
-                No authentication providers are currently available. Please try again later.
-              </div>
-            ) : (
-              <div className="list-group">
-                {providers.map((provider) => (
-                  <button
-                    key={provider.id}
-                    className="list-group-item list-group-item-action d-flex align-items-center py-3"
-                    onClick={() => handleLogin(provider.id)}
-                    disabled={loading || !provider.enabled}
-                    style={{
-                      cursor: loading || !provider.enabled ? 'not-allowed' : 'pointer',
-                      opacity: loading || !provider.enabled ? 0.6 : 1
-                    }}
-                  >
-                    <span className="me-3" style={{ fontSize: '1.5rem', width: '32px', textAlign: 'center' }}>
-                      {provider.icon}
-                    </span>
-                    <div className="flex-grow-1 text-start">
-                      <div className="fw-bold">{provider.label}</div>
-                      <small className="text-muted">{provider.description}</small>
-                    </div>
-                    {loading && (
-                      <div className="spinner-border spinner-border-sm text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+              )}
 
-            <div className="mt-4 text-center">
-              <small className="text-muted">
-                By signing in, you agree to our{' '}
-                <a href="https://remix.live/termsandconditions" target="_blank" rel="noopener noreferrer">
-                  Terms and Conditions
-                </a>
-              </small>
+              {loadingProviders ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading providers...</span>
+                  </div>
+                  <p className="text-muted mt-3">Loading authentication methods...</p>
+                </div>
+              ) : providers.length === 0 ? (
+                <div className="alert alert-warning" role="alert">
+                  No authentication providers are currently available. Please try again later.
+                </div>
+              ) : (
+                <div className="list-group">
+                  {providers.map((provider) => (
+                    <button
+                      key={provider.id}
+                      className={`list-group-item list-group-item-action d-flex align-items-center py-3 login-modal-provider-btn ${loading || !provider.enabled ? '' : ''}`}
+                      onClick={() => handleLogin(provider.id)}
+                      disabled={loading || !provider.enabled}
+                    >
+                      <span className="me-3 text-center login-modal-provider-icon">
+                        {provider.icon}
+                      </span>
+                      <div className="flex-grow-1 text-start">
+                        <div className="fw-bold">{provider.label}</div>
+                        <small className="text-muted">{provider.description}</small>
+                      </div>
+                      {loading && (
+                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 text-center">
+                <small className="text-muted">
+                  By signing in, you agree to our{' '}
+                  <a href="https://remix.live/termsandconditions" target="_blank" rel="noopener noreferrer">
+                    Terms and Conditions
+                  </a>
+                </small>
+              </div>
             </div>
           </div>
         </div>
