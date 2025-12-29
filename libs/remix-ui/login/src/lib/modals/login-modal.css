@@ -10,7 +10,7 @@
 }
 
 .login-modal-dialog {
-  max-width: 800px;
+  max-width: 725px;
   width: 90%;
 }
 
@@ -44,7 +44,6 @@
 
 .login-modal-list-text {
   font-size: 0.95rem;
-  font-weight: 500;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   color: #7dd3fc;
 }
@@ -69,4 +68,25 @@
 .login-modal-provider-btn:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.no-hover-effect:hover {
+  background-color: var(--bs-btn-bg) !important;
+  border-color: var(--bs-btn-border-color) !important;
+  color: var(--bs-btn-color) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Font size utilities */
+.fs-small {
+  font-size: 0.8rem;
+}
+
+.fs-small-medium {
+  font-size: 0.875rem;
+}
+
+.fs-medium {
+  font-size: 0.9rem;
 }

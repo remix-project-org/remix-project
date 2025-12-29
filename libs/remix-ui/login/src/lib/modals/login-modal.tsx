@@ -64,10 +64,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
           },
           {
             id: 'siwe',
-            label: 'Ethereum Wallet',
+            label: 'Connect Ethereum Wallet',
             icon: <i className="fab fa-ethereum"></i>,
             description: 'Sign in with MetaMask, Coinbase Wallet, or any Ethereum wallet',
             enabled: data.providers?.includes('siwe') ?? false
+          },
+          {
+            id: 'email',
+            label: 'Email',
+            icon: <i className="fas fa-envelope"></i>,
+            description: 'Sign in with your email address',
+            enabled: true
           },
           {
             id: 'apple',
@@ -118,6 +125,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
             label: 'Ethereum Wallet',
             icon: <i className="fab fa-ethereum"></i>,
             description: 'Sign in with MetaMask, Coinbase Wallet, or any Ethereum wallet',
+            enabled: true
+          },
+          {
+            id: 'email',
+            label: 'Email',
+            icon: <i className="fas fa-envelope"></i>,
+            description: 'Sign in with your email address',
             enabled: true
           }
         ])
@@ -175,16 +189,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
 
           {/* Right Section - 60% width */}
           <div className="d-flex flex-column login-modal-right-section">
-            <div className="modal-header">
-              <h5 className="modal-title">Remix IDE</h5>
-              <div className="close ms-auto login-modal-close-btn" data-id="loginModal" onClick={onClose}>
-                <i className="fas fa-times"></i>
+            <div className="modal-header border-0 flex-column align-items-start">
+              <div className="d-flex w-100 align-items-center mb-2">
+                <h5 className="modal-title mb-0">Remix IDE</h5>
+                <div className="close ms-auto login-modal-close-btn fs-5" data-id="loginModal" onClick={onClose}>
+                  <i className="fas fa-times text-dark"></i>
+                </div>
               </div>
-            </div>
-            <div className="modal-body">
-              <p className="text-muted mb-4">
+              <p className="text-muted mb-0 fs-small-medium">
                 Log in or register to unlock our wide range of features
               </p>
+            </div>
+            <div className="modal-body">
 
               {error && (
                 <div className="alert alert-danger" role="alert">
@@ -204,38 +220,65 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                   No authentication providers are currently available. Please try again later.
                 </div>
               ) : (
-                <div className="list-group">
-                  {providers.map((provider) => (
+                <div>
+                  {/* Ethereum Wallet - Primary button at top */}
+                  {providers.filter(p => p.id === 'siwe').map((provider) => (
                     <button
                       key={provider.id}
-                      className={`list-group-item list-group-item-action d-flex align-items-center py-3 login-modal-provider-btn ${loading || !provider.enabled ? '' : ''}`}
+                      className="btn btn-primary w-100 d-flex align-items-center justify-content-center py-2 mb-3"
                       onClick={() => handleLogin(provider.id)}
                       disabled={loading || !provider.enabled}
                     >
-                      <span className="me-3 text-center login-modal-provider-icon">
+                      <span className="me-1 login-modal-provider-icon fs-medium">
                         {provider.icon}
                       </span>
-                      <div className="flex-grow-1 text-start">
-                        <div className="fw-bold">{provider.label}</div>
-                        <small className="text-muted">{provider.description}</small>
-                      </div>
+                      <span className="fw-medium fs-medium">{provider.label}</span>
                       {loading && (
-                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                        <div className="spinner-border spinner-border-sm text-white ms-2" role="status">
                           <span className="visually-hidden">Loading...</span>
                         </div>
                       )}
                     </button>
                   ))}
+
+                  {/* Divider with "or" text */}
+                  <div className="d-flex align-items-center my-4">
+                    <hr className="flex-grow-1" />
+                    <span className="px-3 text-muted">or</span>
+                    <hr className="flex-grow-1" />
+                  </div>
+
+                  {/* Other providers - Light buttons */}
+                  <div className="d-flex flex-column gap-2">
+                    {providers.filter(p => p.id !== 'siwe').map((provider) => (
+                      <button
+                        key={provider.id}
+                        className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2 no-hover-effect"
+                        onClick={() => handleLogin(provider.id)}
+                        disabled={loading || !provider.enabled}
+                      >
+                        <span className="me-2 login-modal-provider-icon fs-medium">
+                          {provider.icon}
+                        </span>
+                        <span className="fs-medium">Continue with {provider.label}</span>
+                        {loading && (
+                          <div className="spinner-border spinner-border-sm text-primary ms-2" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
               <div className="mt-4 text-center">
-                <small className="text-muted">
-                  By signing in, you agree to our{' '}
+                <p className="text-muted mb-0 fs-small">
+                  By continuing, you agree to our{' '}
                   <a href="https://remix.live/termsandconditions" target="_blank" rel="noopener noreferrer">
                     Terms and Conditions
                   </a>
-                </small>
+                </p>
               </div>
             </div>
           </div>

@@ -7,7 +7,7 @@ export interface AuthUser {
   picture?: string
   address?: string
   chainId?: number
-  provider?: 'google' | 'github' | 'apple' | 'discord' | 'coinbase' | 'siwe'
+  provider?: 'google' | 'github' | 'apple' | 'discord' | 'coinbase' | 'siwe' | 'email'
 }
 
 export interface AuthState {
@@ -16,7 +16,7 @@ export interface AuthState {
   token: string | null
 }
 
-export type AuthProvider = 'google' | 'github' | 'apple' | 'discord' | 'coinbase' | 'siwe'
+export type AuthProvider = 'google' | 'github' | 'apple' | 'discord' | 'coinbase' | 'siwe' | 'email' 
 
 export interface ISSOApi {
   events: {
