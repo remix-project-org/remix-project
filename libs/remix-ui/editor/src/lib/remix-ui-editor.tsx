@@ -1223,6 +1223,12 @@ export const EditorUI = (props: EditorUIProps) => {
 
     monacoRef.current = monaco
     props.setMonaco(monaco)
+
+    // Initialize the inline completion provider
+    // By creating the provider instance before registering it, Monaco now has a proper object to work with instead of null,
+    // preventing the WeakMap error when processing keystrokes.
+    inlineCompletionProviderRef.current = new RemixInLineCompletionProvider(props, monaco, trackMatomoEvent)
+
     // Register a new language
     monacoRef.current.languages.register({ id: 'remix-solidity' })
     monacoRef.current.languages.register({ id: 'remix-cairo' })
