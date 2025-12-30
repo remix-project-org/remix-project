@@ -17,7 +17,7 @@ interface ProviderConfig {
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
-  const { login, loading, error } = useAuth()
+  const { login, loading, error, dispatch } = useAuth()
   const [providers, setProviders] = useState<ProviderConfig[]>([])
   const [loadingProviders, setLoadingProviders] = useState(true)
   const [showEmailInput, setShowEmailInput] = useState(false)
@@ -142,7 +142,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     }
 
     fetchSupportedProviders()
-  }, [])
+
+    // Cleanup function to reset state when modal unmounts
+    return () => {
+      setShowEmailInput(false)
+      setEmailValue('')
+      dispatch({ type: 'CLEAR_ERROR' })
+    }
+  }, [dispatch])
 
   const handleLogin = async (provider: AuthProvider) => {
     if (provider === 'email') {
@@ -228,12 +235,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
             </div>
             <div className="modal-body flex-grow-1">
 
-              {error && (
-                <div className="alert alert-danger" role="alert">
-                  <strong>Error:</strong> {error}
-                </div>
-              )}
-
               {loadingProviders ? (
                 <div className="text-center py-5">
                   <div className="spinner-border text-primary" role="status">
@@ -247,7 +248,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                 </div>
               ) : showEmailInput ? (
                 /* Email Input View */
-                <div className="d-flex flex-column justify-content-center h-100">
+                <div className="d-flex flex-column h-100">
+                  {/* Error container with fixed height to prevent layout shift */}
+                  <div className="login-modal-error-container">
+                    {error && (
+                      <div className="alert alert-danger mb-0" role="alert">
+                        <strong>Error:</strong> {error}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="mb-3">
                     <label htmlFor="email-input" className="form-label text-muted fs-small-medium">
                       Email address
@@ -259,7 +269,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                       placeholder="Enter your email"
                       value={emailValue}
                       onChange={(e) => setEmailValue(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleEmailSubmit()}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEmailSubmit()}
                       autoFocus
                     />
                   </div>
@@ -292,6 +302,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               ) : (
                 /* Provider Buttons View */
                 <div>
+                  {error && (
+                    <div className="alert alert-danger" role="alert">
+                      <strong>Error:</strong> {error}
+                    </div>
+                  )}
+
                   {/* Ethereum Wallet - Primary button at top */}
                   {providers.filter(p => p.id === 'siwe').map((provider) => (
                     <button

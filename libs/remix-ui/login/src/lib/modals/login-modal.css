@@ -7,6 +7,7 @@
   right: 0;
   bottom: 0;
   z-index: 2000;
+  background-color: rgba(0, 0, 0, 0.5);
 }
 
 .login-modal-dialog {
@@ -76,6 +77,17 @@
   color: var(--bs-btn-color) !important;
   transform: none !important;
   box-shadow: none !important;
+}
+
+/* Error container with fixed height to prevent layout shift */
+.login-modal-error-container {
+  min-height: 58px;
+  margin-bottom: 1rem;
+}
+
+.login-modal-error-container:empty {
+  min-height: 0;
+  margin-bottom: 0;
 }
 
 /* Terms and Conditions Bar */
