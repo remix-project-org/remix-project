@@ -20,6 +20,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   const { login, loading, error } = useAuth()
   const [providers, setProviders] = useState<ProviderConfig[]>([])
   const [loadingProviders, setLoadingProviders] = useState(true)
+  const [showEmailInput, setShowEmailInput] = useState(false)
+  const [emailValue, setEmailValue] = useState('')
 
   useEffect(() => {
     const fetchSupportedProviders = async () => {
@@ -143,6 +145,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   }, [])
 
   const handleLogin = async (provider: AuthProvider) => {
+    if (provider === 'email') {
+      setShowEmailInput(true)
+      return
+    }
+
     try {
       await login(provider)
       // Modal will auto-close via auth state change
@@ -150,6 +157,25 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       // Error is handled by context
       console.error('[LoginModal] Login failed:', err)
     }
+  }
+
+  const handleEmailSubmit = async () => {
+    if (!emailValue.trim()) {
+      return
+    }
+
+    try {
+      await login('email')
+      // Modal will auto-close via auth state change
+    } catch (err) {
+      // Error is handled by context
+      console.error('[LoginModal] Email login failed:', err)
+    }
+  }
+
+  const handleBackToProviders = () => {
+    setShowEmailInput(false)
+    setEmailValue('')
   }
 
   return (
@@ -200,7 +226,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                 Log in or register to unlock our wide range of features
               </p>
             </div>
-            <div className="modal-body">
+            <div className="modal-body flex-grow-1">
 
               {error && (
                 <div className="alert alert-danger" role="alert">
@@ -219,7 +245,52 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                 <div className="alert alert-warning" role="alert">
                   No authentication providers are currently available. Please try again later.
                 </div>
+              ) : showEmailInput ? (
+                /* Email Input View */
+                <div className="d-flex flex-column justify-content-center h-100">
+                  <div className="mb-3">
+                    <label htmlFor="email-input" className="form-label text-muted fs-small-medium">
+                      Email address
+                    </label>
+                    <input
+                      id="email-input"
+                      type="email"
+                      className="form-control"
+                      placeholder="Enter your email"
+                      value={emailValue}
+                      onChange={(e) => setEmailValue(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleEmailSubmit()}
+                      autoFocus
+                    />
+                  </div>
+
+                  <button
+                    className="btn btn-primary w-100 d-flex align-items-center justify-content-center py-2 mb-3"
+                    onClick={handleEmailSubmit}
+                    disabled={loading || !emailValue.trim()}
+                  >
+                    <span className="me-1">
+                      <i className="fas fa-envelope"></i>
+                    </span>
+                    <span className="fw-medium fs-medium">Continue with Email</span>
+                    {loading && (
+                      <div className="spinner-border spinner-border-sm text-white ms-2" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                    )}
+                  </button>
+
+                  <div className="text-center">
+                    <button
+                      className="btn btn-link text-decoration-none p-0 fs-small-medium"
+                      onClick={handleBackToProviders}
+                    >
+                      Choose another method
+                    </button>
+                  </div>
+                </div>
               ) : (
+                /* Provider Buttons View */
                 <div>
                   {/* Ethereum Wallet - Primary button at top */}
                   {providers.filter(p => p.id === 'siwe').map((provider) => (
@@ -271,15 +342,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="mt-4 text-center">
-                <p className="text-muted mb-0 fs-small">
-                  By continuing, you agree to our{' '}
-                  <a href="https://remix.live/termsandconditions" target="_blank" rel="noopener noreferrer">
-                    Terms and Conditions
-                  </a>
-                </p>
-              </div>
+            {/* Terms and Conditions Bar */}
+            <div className="login-modal-terms-bar">
+              <p className="text-muted mb-0 fs-small">
+                By continuing, you agree to our{' '}
+                <a href="https://remix.live/termsandconditions" target="_blank" rel="noopener noreferrer">
+                  Terms and Conditions
+                </a>
+              </p>
             </div>
           </div>
         </div>

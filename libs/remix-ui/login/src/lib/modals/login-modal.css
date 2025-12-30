@@ -78,6 +78,15 @@
   box-shadow: none !important;
 }
 
+/* Terms and Conditions Bar */
+.login-modal-terms-bar {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: var(--bs-light);
+  text-align: center;
+  margin-top: auto;
+}
+
 /* Font size utilities */
 .fs-small {
   font-size: 0.8rem;
