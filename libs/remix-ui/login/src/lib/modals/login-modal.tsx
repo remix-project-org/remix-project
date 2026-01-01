@@ -381,7 +381,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                     <input
                       id="otp-input"
                       type="text"
-                      className="form-control form-control-lg text-center fw-bold shadow-sm"
+                      className="form-control text-center fw-bold shadow-sm"
                       placeholder="000000"
                       maxLength={6}
                       value={otpValue}
@@ -391,7 +391,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                       }}
                       onKeyDown={(e) => e.key === 'Enter' && handleOtpSubmit()}
                       autoFocus
-                      style={{ letterSpacing: '0.5rem', fontSize: '1.5rem' }}
+                      style={{ letterSpacing: '0.5rem', fontSize: '1.25rem' }}
                     />
                     <small className="form-text text-muted d-block mt-2">
                       Please check your email for the verification code
@@ -403,7 +403,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                     onClick={handleOtpSubmit}
                     disabled={loading || otpValue.length !== 6}
                   >
-                    <span className="fw-medium fs-5">Verify OTP</span>
+                    <span className="fw-medium fs-medium">Verify OTP</span>
                     {loading && (
                       <div className="spinner-border spinner-border-sm text-white ms-2" role="status">
                         <span className="visually-hidden">Loading...</span>
@@ -411,12 +411,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                     )}
                   </button>
 
-                  <div className="text-center mt-2">
+                  <div className="text-center">
                     <button
                       className="btn btn-link text-decoration-none text-muted p-0 fs-small-medium"
                       onClick={handleTryAnotherEmail}
                     >
-                      <i className="fas fa-arrow-left me-2"></i>
                       Try another email
                     </button>
                   </div>
@@ -440,7 +439,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                     <input
                       id="email-input"
                       type="email"
-                      className="form-control form-control-lg shadow-sm"
+                      className="form-control shadow-sm"
                       placeholder="Enter your email"
                       value={emailValue}
                       onChange={(e) => setEmailValue(e.target.value)}
@@ -457,10 +456,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                     onClick={handleEmailSubmit}
                     disabled={loading || !emailValue.trim()}
                   >
-                    <span className="me-2">
-                      <i className="fas fa-envelope"></i>
-                    </span>
-                    <span className="fw-medium fs-5">Continue with Email</span>
+                    <span className="fw-medium fs-medium">Continue with Email</span>
                     {loading && (
                       <div className="spinner-border spinner-border-sm text-white ms-2" role="status">
                         <span className="visually-hidden">Loading...</span>
@@ -468,12 +464,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                     )}
                   </button>
 
-                  <div className="text-center mt-2">
+                  <div className="text-center">
                     <button
                       className="btn btn-link text-decoration-none text-muted p-0 fs-small-medium"
                       onClick={handleBackToProviders}
                     >
-                      <i className="fas fa-arrow-left me-2"></i>
                       Choose another method
                     </button>
                   </div>
