@@ -76,16 +76,16 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
 
   return (
     <>
-      <h4 className={`${isDark ? 'text-white' : 'text-black'} py-3`}>{<FormattedMessage id={section.label} />}</h4>
-      <span className={`${isDark ? 'text-white' : 'text-black'}`}>{<FormattedMessage id={section.description} />}</span>
+      <h4 className={`${isDark ? 'text-white' : 'text-black'} py-3`} style={{ fontSize: '1.5rem' }}>{<FormattedMessage id={section.label} />}</h4>
+      <span className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '0.95rem' }}>{<FormattedMessage id={section.description} />}</span>
       {(section.subSections || []).map((subSection, subSectionIndex) => {
         const isLastItem = subSectionIndex === section.subSections.length - 1
 
         return (
           <div key={subSectionIndex} className='pt-5'>
-            {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`}>{subSection.title}</h5>}
+            {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}>{subSection.title}</h5>}
             <div className={`card ${isDark ? 'text-light' : 'text-dark'} border-0 ${isLastItem ? 'mb-4' : ''}`}>
-              <div className="card-body">
+              <div className="card-body" style={{ padding: '1rem' }}>
                 {subSection.options.map((option, optionIndex) => {
                   const isFirstOption = optionIndex === 0
                   const isLastOption = optionIndex === subSection.options.length - 1
@@ -93,15 +93,15 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                   const selectValue = state[option.name] && typeof state[option.name].value === 'string' ? state[option.name].value as string : ''
 
                   return (
-                    <div className={`card border-0 rounded-0 ${isLastOption ? 'pt-3 pb-0' : isFirstOption ? 'border-bottom pb-3' : 'border-bottom py-3'}`} key={optionIndex}>
+                    <div className={`card border-0 rounded-0 ${isLastOption ? 'pt-2 pb-0' : isFirstOption ? 'border-bottom pb-2' : 'border-bottom py-2'}`} key={optionIndex}>
                       <div className="d-flex align-items-center">
-                        <h5 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`}>
+                        <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
                           <FormattedMessage id={option.label} />
                           {option.labelIconTooltip ?
                             <CustomTooltip tooltipText={<FormattedMessage id={option.labelIconTooltip} />}><i className={option.labelIcon}></i></CustomTooltip> :
                             option.labelIcon && <i className={option.labelIcon}></i>
                           }
-                        </h5>
+                        </h6>
                         <div className="ms-auto">
                           {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
                           {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
@@ -110,7 +110,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                           {option.type === 'custom' && option.customComponent === 'accountManager' && <span></span>}
                         </div>
                       </div>
-                      {option.description && <span className="text-secondary mt-1">{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
+                      {option.description && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
                       {option.type === 'custom' && option.customComponent === 'mcpServerManager' && (
                         <div className="mt-3">
                           <IMCPServerManager plugin={plugin} />
