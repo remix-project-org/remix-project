@@ -342,21 +342,21 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
       {settingsState.toaster.value ? <Toaster message={settingsState.toaster.value as string} /> : null}
       <div className="container-fluid bg-light h-100 d-flex flex-column">
         <div className='pt-5'></div>
-        <div className='d-flex flex-row pb-4'>
-          <div data-id="settings-sidebar-header" className="input-group ps-5 remix-settings-sidebar">
-            <h2 className={`d-inline-block pe-5 ${state.themeQuality.name === 'dark' ? 'text-white' : 'text-black'}`} style={{ width: '7.8em' }}><FormattedMessage id="settings.displayName" /></h2>
-            <div className='d-flex flex-grow-1 remix-settings-search' style={{ maxWidth: '53.5em', minHeight: '4em' }}>
-              <span className="input-group-text rounded-0 border-end-0 pe-0" style={{ backgroundColor: state.themeQuality.name === 'dark' ? 'var(--custom-onsurface-layer-4)' : 'var(--bs-body-bg)' }}><i className="fa fa-search"></i></span>
-              <input type="text" className="form-control shadow-none h-100 rounded-0 border-start-0 no-outline w-100" placeholder="Search settings" style={{ minWidth: '21.5em' }} value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
+        <div className='d-flex flex-row pb-4' style={{ gap: '2rem' }}>
+          <div data-id="settings-sidebar-header" className="ps-5 remix-settings-sidebar" style={{ width: '28.2em' }}>
+            <h2 className={`${state.themeQuality.name === 'dark' ? 'text-white' : 'text-black'}`}><FormattedMessage id="settings.displayName" /></h2>
+          </div>
+          <div className='d-flex flex-grow-1 remix-settings-search' style={{ maxWidth: '53.5em', minHeight: '4em' }}>
+            <span className="input-group-text rounded-0 border-end-0 pe-0" style={{ backgroundColor: state.themeQuality.name === 'dark' ? 'var(--custom-onsurface-layer-4)' : 'var(--bs-body-bg)' }}><i className="fa fa-search"></i></span>
+            <input type="text" className="form-control shadow-none h-100 rounded-0 border-start-0 no-outline w-100" placeholder="Search settings" style={{ minWidth: '21.5em' }} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         </div>
         {filteredSections.length === 0 ? <div className="text-info text-center cursor-pointer">No match found</div> :
-          <div className="d-flex flex-wrap align-items-stretch flex-fill" style={{ minHeight: 0 }}>
+          <div className="d-flex flex-wrap align-items-stretch flex-fill" style={{ minHeight: 0, overflow: 'hidden', gap: '2rem' }}>
             {/* Sidebar */}
             <div
-              className="flex-column bg-transparent p-0 px-5 remix-settings-sidebar"
-              style={{ width: '28.2em' }}
+              className="flex-column bg-transparent p-0 px-5 remix-settings-sidebar overflow-auto"
+              style={{ width: '28.2em', height: '100%' }}
             >
               <ul className="list-unstyled">
                 {filteredSections.map((section, index) => (
@@ -382,7 +382,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
             {/* Main Content */}
             <div
               className="flex-column p-0 flex-grow-1 flex-shrink-1 mw-50"
-              style={{ minWidth: 0, flexBasis: '27.3em', minHeight: 0 }}
+              style={{ minWidth: 0, flexBasis: '27.3em', height: '100%' }}
             >
               <div className="remix-settings-main h-100 overflow-auto" style={{ maxWidth: '53.5em' }}>
                 <SettingsSectionUI plugin={props.plugin} section={filteredSection} state={settingsState} dispatch={dispatch} />
