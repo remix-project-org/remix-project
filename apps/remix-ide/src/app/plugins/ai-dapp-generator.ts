@@ -19,6 +19,7 @@ interface GenerateDappOptions {
   hasImage?: boolean
   isBaseMiniApp?: boolean
   image?: string
+  slug?: string
 }
 
 interface DappGenerationContext {
@@ -40,89 +41,122 @@ export class AIDappGenerator extends Plugin {
   /**
    * Generate a new DApp or update an existing one
    */
-  async generateDapp(options: GenerateDappOptions): Promise<Pages> {
-    try {
-      console.log('[AIDappGenerator] Generating Dapp. Options:', JSON.stringify(options, null, 2));
+  async generateDapp(options: GenerateDappOptions & { slug: string }): Promise<void> {
+    console.log('[DEBUG-AI] generateDapp called via RPC.');
+    
+    this.processGeneration(options).catch(err => {
+      console.error("[DEBUG-AI] ❌ Background process crashed:", err);
+      this.call('terminal', 'log', { type: 'error', value: err.message });
+    });
 
-      const hasImage = !!options.image;
+    console.log('[DEBUG-AI] Returning immediate success to prevent timeout.');
+    return;
+  }
 
-      await this.call('notification', 'toast', 'Generating the DApp, please wait... it can take up to 2 minutes depending on the contract complexity.')
-      this.emit('generationProgress', { status: 'started', address: options.address })
+  private async processGeneration(options: GenerateDappOptions & { slug: string }) {
+    console.log(`[DEBUG-AI] Starting processGeneration for slug: ${options.slug}`);
+    const hasImage = !!options.image;
 
-      const context = this.getOrCreateContext(options.address)
+    await this.call('notification', 'toast', 'Generating... (Logs in console)')
+    this.emit('generationProgress', { status: 'started', address: options.address })
 
-      const message = this.createInitialMessage(options)
-      const messagesToSend = [
-        { role: 'user', content: message }
-      ]
+    const context = this.getOrCreateContext(options.address)
+    const message = this.createInitialMessage(options)
+    const messagesToSend = [{ role: 'user', content: message }]
 
-      let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
-      if (options.isBaseMiniApp) {
-        console.log('[AIDappGenerator] Switching to BASE_MINI_APP_SYSTEM_PROMPT')
-        selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
-      } else {
-        console.log('[AIDappGenerator] Using standard INITIAL_SYSTEM_PROMPT')
-      }
-
-      const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage)
-
-      const pages = parsePages(htmlContent)
-      context.messages = [
-        { role: 'user', content: message },
-        { role: 'assistant', content: htmlContent }
-      ]
-      this.saveContext(options.address, context)
-
-      this.emit('dappGenerated', {
-        address: options.address,
-        content: null,
-        isUpdate: false
-      })
-
-      await this.call('notification', 'toast', 'The DApp has been generated successfully!')
-
-      return pages
-
-    } catch (error) {
-      await this.call('terminal', 'log', { type: 'error', value: error.message })
-      throw error
+    let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
+    if (options.isBaseMiniApp) {
+      selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
     }
+
+    console.log('[DEBUG-AI] Calling LLM API...');
+    const startTime = Date.now();
+    
+    const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage);
+    
+    const duration = (Date.now() - startTime) / 1000;
+    console.log(`[DEBUG-AI] LLM responded in ${duration}s.`);
+    console.log('[DEBUG-AI] Raw content length:', htmlContent?.length);
+    
+    const pages = parsePages(htmlContent);
+    const pageKeys = Object.keys(pages);
+    console.log('[DEBUG-AI] Parsed Pages Keys:', pageKeys);
+
+    if (pageKeys.length === 0) {
+      console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
+      console.log('[DEBUG-AI] Raw Content Start:', htmlContent.substring(0, 500));
+    }
+
+    context.messages = [
+      { role: 'user', content: message },
+      { role: 'assistant', content: htmlContent }
+    ]
+    this.saveContext(options.address, context)
+
+    console.log('[DEBUG-AI] Emitting dappGenerated event...');
+    
+    this.emit('dappGenerated', {
+      address: options.address,
+      slug: options.slug, 
+      content: pages, 
+      isUpdate: false
+    });
+    
+    console.log('[DEBUG-AI] Event emitted.');
+    await this.call('notification', 'toast', 'Generation Complete!');
   }
 
   /**
    * Update an existing DApp with new description
    */
-  async updateDapp(address: string, description: string, currentFiles: Pages, hasImage: boolean = false): Promise<Pages> {
-    const context = this.getOrCreateContext(address)
+  async updateDapp(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string): Promise<void> {
+    console.log('[DEBUG-AI] updateDapp called for slug:', slug);
+
+    this.processUpdate(address, description, currentFiles, hasImage, slug).catch(err => {
+      console.error("[DEBUG-AI] ❌ Background update crashed:", err);
+      this.call('terminal', 'log', { type: 'error', value: err.message });
+    });
+
+    return;
+  }
+
+  private async processUpdate(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string) {
+    console.log('[DEBUG-AI] processing update...');
+    const context = this.getOrCreateContext(address);
 
     if (context.messages.length === 0) {
-      throw new Error('No existing DApp found for this address. Please generate one first.')
+      await this.call('terminal', 'log', { type: 'error', value: 'No context found for this dapp.' });
+      return;
     }
-    console.log('[AIDappGenerator] updateDapp Input Description:', JSON.stringify(description, null, 2));
-    const message = this.createUpdateMessage(description, currentFiles)
 
-    console.log('[AIDappGenerator] Constructed Message Payload:', JSON.stringify(message, null, 2));
-    context.messages.push({ role: 'user', content: message })
+    const message = this.createUpdateMessage(description, currentFiles);
+    context.messages.push({ role: 'user', content: message });
 
     try {
-      const htmlContent = await this.callLLMAPI(context.messages, FOLLOW_UP_SYSTEM_PROMPT, hasImage)
+      const htmlContent = await this.callLLMAPI(context.messages, FOLLOW_UP_SYSTEM_PROMPT, hasImage);
 
-      const pages = parsePages(htmlContent)
-
+      const pages = parsePages(htmlContent);
+      
       if (Object.keys(pages).length === 0) {
-        throw new Error("AI failed to return valid file structure. Check logs.");
+        throw new Error("AI failed to return valid file structure.");
       }
 
-      context.messages.push({ role: 'assistant', content: htmlContent })
-      this.saveContext(address, context)
+      context.messages.push({ role: 'assistant', content: htmlContent });
+      this.saveContext(address, context);
 
-      this.emit('dappUpdated', { address, content: pages })
-      return pages
+      this.emit('dappGenerated', { 
+        address, 
+        slug,
+        content: pages, 
+        isUpdate: true
+      });
 
-    } catch (error) {
-      // Remove the failed message from context
-      context.messages.pop()
-      throw error
+      console.log('[DEBUG-AI] Update event emitted.');
+
+    } catch (error: any) {
+      context.messages.pop();
+      console.error('[DEBUG-AI] Update failed:', error);
+      this.call('terminal', 'log', { type: 'error', value: `Update failed: ${error.message}` });
     }
   }
 
@@ -568,15 +602,11 @@ const ensureCompleteHtml = (html: string): string => {
 };
 
 const parsePages = (content: string) => {
-  const pages = {}
-  const markerRegex = /<<<<<<< START_TITLE (.*?) >>>>>>> END_TITLE/g
-
-  if (!content.match(markerRegex)) {
-    return pages
-  }
+  const pages: Record<string, string> = {}
+  const markerRegex = /<{3,}\s*START_TITLE\s+(.*?)\s+>{3,}\s*END_TITLE/g
 
   const parts = content.split(markerRegex)
-
+  
   for (let i = 1; i < parts.length; i += 2) {
     const filename = parts[i].trim()
     const rawFileContent = parts[i + 1]

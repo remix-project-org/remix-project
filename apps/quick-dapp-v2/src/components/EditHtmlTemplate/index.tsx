@@ -376,55 +376,39 @@ function EditHtmlTemplate(): JSX.Element {
         ];
       }
 
-      const pages: Record<string, string> = await remixClient.call(
+      remixClient.call(
         // @ts-ignore
         'ai-dapp-generator',
         'updateDapp',
         activeDapp.contract.address,
         userPrompt,
         currentFilesObject,
-        !!imageBase64
-      );
-      
-      for (const [rawFilename, content] of Object.entries(pages)) {
-        const fullPath = `${dappRootPath}/${rawFilename}`;
-        await remixClient.call('fileManager', 'writeFile', fullPath, content);
-      }
+        !!imageBase64,
+        activeDapp.slug
+      ).catch((e: any) => {
+        console.error("Update Trigger Failed:", e);
+        setNotificationModal({
+          show: true,
+          title: 'Request Failed',
+          message: `Could not send request to AI: ${e.message}`,
+          variant: 'danger'
+        });
+        dispatch({ 
+          type: 'SET_DAPP_PROCESSING', 
+          payload: { slug: activeDapp.slug, isProcessing: false } 
+        });
+      });
 
-      if (activeDapp.status === 'deployed') {
-        setNotificationModal({
-          show: true,
-          title: 'Code Updated',
-          message: (
-            <div>
-              <p>The AI has successfully updated your dapp code.</p>
-              <div className="alert alert-warning mb-0">
-                <i className="fas fa-exclamation-triangle me-2"></i>
-                <strong>Action Required:</strong> The live IPFS deployment is now outdated. 
-                Please go to the Deploy panel and click <strong>"Deploy to IPFS"</strong> to publish these changes.
-              </div>
-            </div>
-          ),
-          variant: 'warning'
-        });
-      } else {
-        setNotificationModal({
-          show: true,
-          title: 'Update Successful',
-          message: 'The AI has successfully updated your dapp code.',
-          variant: 'success'
-        });
-      }
+      console.log('[EditHtmlTemplate] Update request sent. Waiting for event...');
 
     } catch (error: any) {
-      console.error('Update failed:', error);
+      console.error('Update setup failed:', error);
       setNotificationModal({
         show: true,
-        title: 'Update Failed',
-        message: `Failed to update dapp: ${error.message}`,
+        title: 'Update Error',
+        message: `Failed to prepare update: ${error.message}`,
         variant: 'danger'
       });
-    } finally {
       dispatch({ 
         type: 'SET_DAPP_PROCESSING', 
         payload: { slug: activeDapp.slug, isProcessing: false } 
@@ -461,6 +445,45 @@ function EditHtmlTemplate(): JSX.Element {
       }, 0);
     }
   }, [isBuilderReady, isAiUpdating, activeDapp?.slug]);
+
+  useEffect(() => {
+    const onDappUpdated = (data: any) => {
+      if (activeDapp && data.slug === activeDapp.slug) {
+        console.log('[EditHtmlTemplate] Update received, refreshing preview...');
+        
+        dispatch({ 
+          type: 'SET_DAPP_PROCESSING', 
+          payload: { slug: activeDapp.slug, isProcessing: false } 
+        });
+
+        setNotificationModal({
+          show: true,
+          title: 'Update Successful',
+          message: 'The AI has updated your dapp code. Check the preview.',
+          variant: 'success'
+        });
+
+        setTimeout(() => runBuild(true), 500);
+      }
+    };
+
+    const onDappError = () => {
+       if (activeDapp) {
+         dispatch({ 
+            type: 'SET_DAPP_PROCESSING', 
+            payload: { slug: activeDapp.slug, isProcessing: false } 
+          });
+       }
+    };
+
+    remixClient.internalEvents.on('dappUpdated', onDappUpdated);
+    remixClient.internalEvents.on('creatingDappError', onDappError);
+
+    return () => {
+      remixClient.internalEvents.off('dappUpdated', onDappUpdated);
+      remixClient.internalEvents.off('creatingDappError', onDappError);
+    };
+  }, [activeDapp, dispatch]);
 
   if (!activeDapp) return <div className="p-3">No active dapp selected.</div>;
 

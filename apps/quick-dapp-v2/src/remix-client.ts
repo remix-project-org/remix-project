@@ -28,6 +28,47 @@ export class RemixClient extends PluginClient {
     createClient(this);
     // @ts-ignore
     this.dappManager = new DappManager(this);
+    console.log('[DEBUG-CLIENT] Constructor initialized.');
+
+    this.onload(() => {
+      // @ts-ignore
+      this.on('ai-dapp-generator', 'dappGenerated', async (data: any) => {
+        console.log('[DEBUG-CLIENT] Event received:', data);
+
+        if (!data.slug || !data.content) return;
+
+        try {
+          console.log(`[DEBUG-CLIENT] Saving files for ${data.slug}...`);
+          await this.dappManager.saveGeneratedFiles(data.slug, data.content);
+
+          if (data.isUpdate) {
+            console.log('[DEBUG-CLIENT] Update finished. Emitting dappUpdated...');
+            
+            this.internalEvents.emit('dappUpdated', { 
+              slug: data.slug,
+              files: data.content 
+            });
+            
+            // @ts-ignore
+            this.call('notification', 'toast', 'DApp code updated successfully.');
+
+          } else {
+            const config = await this.dappManager.getDappConfig(data.slug);
+            if (config) {
+              this.internalEvents.emit('dappCreated', config);
+              // @ts-ignore
+              this.call('notification', 'toast', `DApp '${config.name}' created!`);
+            }
+          }
+
+        } catch (e: any) {
+          console.error('[DEBUG-CLIENT] Error handling event:', e);
+          this.internalEvents.emit('creatingDappError', e.message);
+        } finally {
+          this.emit('statusChanged', { key: 'loading', value: false, title: '' });
+        }
+      });
+    });
   }
 
   edit({ address, abi, network, name, devdoc, methodIdentifiers, solcVersion, htmlTemplate, pages }: any): void {
@@ -52,22 +93,14 @@ export class RemixClient extends PluginClient {
     setAiLoading(true);
   }
 
-  async createDapp(payload: { 
-    description: string, 
-    contractName: string, 
-    address: string, 
-    abi: any, 
-    chainId: number,
-    compilerData: any,
-    isBaseMiniApp: boolean,
-    image?: string
-  }) {
+  async createDapp(payload: any) {
     try {
+      console.log('[DEBUG-CLIENT] createDapp called with:', payload.contractName);
+      
       this.internalEvents.emit('creatingDappStart');
       this.emit('statusChanged', { key: 'loading', value: true, title: 'Generating DApp...' });
       
       const networkName = getNetworkName(payload.chainId);
-
       const contractData = {
         address: payload.address,
         name: payload.contractName,
@@ -76,36 +109,37 @@ export class RemixClient extends PluginClient {
         networkName
       };
 
+      console.log('[DEBUG-CLIENT] Creating initial Dapp config...');
       const newDappConfig = await this.dappManager.createDapp(
         payload.contractName, 
         contractData, 
         payload.isBaseMiniApp
       );
-            
+      
+      console.log(`[DEBUG-CLIENT] Initial config created. Slug: ${newDappConfig.slug}`);
       // @ts-ignore
-      const pages = await this.call('ai-dapp-generator', 'generateDapp', {
+      this.call('ai-dapp-generator', 'generateDapp', {
         description: payload.description,
         address: payload.address,
         abi: payload.abi,
         chainId: payload.chainId,
         contractName: payload.contractName,
         isBaseMiniApp: payload.isBaseMiniApp,
-        image: payload.image
+        image: payload.image,
+        slug: newDappConfig.slug 
+      }).then(() => {
+        console.log('[DEBUG-CLIENT] AI Trigger sent successfully (Ack received).');
+      }).catch((e: any) => {
+        console.error('[DEBUG-CLIENT] ❌ AI Trigger Failed:', e);
+        this.internalEvents.emit('creatingDappError', "Failed to trigger AI generation");
+        this.emit('statusChanged', { key: 'loading', value: false, title: '' });
       });
 
-      await this.dappManager.saveGeneratedFiles(newDappConfig.slug, pages);
-
-      this.internalEvents.emit('dappCreated', newDappConfig);
-      
-      // @ts-ignore
-      this.call('notification', 'toast', `DApp '${newDappConfig.name}' created successfully!`);
+      console.log('[DEBUG-CLIENT] createDapp finished (waiting for event).');
 
     } catch (e: any) {
-      console.error(e);
+      console.error('[DEBUG-CLIENT] ❌ createDapp Exception:', e);
       this.internalEvents.emit('creatingDappError', e.message);
-      // @ts-ignore
-      this.call('notification', 'toast', 'Failed to create DApp: ' + e.message);
-    } finally {
       this.emit('statusChanged', { key: 'loading', value: false, title: '' });
     }
   }

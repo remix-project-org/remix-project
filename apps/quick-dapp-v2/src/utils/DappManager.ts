@@ -161,9 +161,17 @@ export class DappManager {
   }
 
   async saveGeneratedFiles(slug: string, pages: Record<string, string>) {
+    console.log(`[DEBUG-MANAGER] saveGeneratedFiles called for ${slug}`);
     const basePath = `${BASE_PATH}/${slug}`;
 
+    if (!pages || Object.keys(pages).length === 0) {
+      console.warn('[DEBUG-MANAGER] ⚠️ No pages to save.');
+      return;
+    }
+
     for (const [rawFilename, content] of Object.entries(pages)) {
+      console.log(`[DEBUG-MANAGER] Processing file: ${rawFilename}`);
+
       const safeParts = rawFilename.replace(/\\/g, '/')
         .split('/')
         .filter(part => part !== '..' && part !== '.' && part !== '');
@@ -183,7 +191,12 @@ export class DappManager {
         }
       }
 
-      await this.plugin.call('fileManager', 'writeFile', fullPath, content);
+      try {
+        await this.plugin.call('fileManager', 'writeFile', fullPath, content);
+        console.log(`[DEBUG-MANAGER] ✅ Wrote: ${fullPath}`);
+      } catch (e) {
+        console.error(`[DEBUG-MANAGER] ❌ Failed to write ${fullPath}:`, e);
+      }
     }
   }
 
@@ -225,4 +238,18 @@ export class DappManager {
       return null;
     }
   }
+
+  async getDappConfig(slug: string): Promise<DappConfig | null> {
+    try {
+      const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
+      const content = await this.plugin.call('fileManager', 'readFile', configPath);
+      if (content) {
+        return JSON.parse(content);
+      }
+    } catch (e) {
+      console.warn(`[DappManager] Failed to read config for ${slug}`, e);
+    }
+    return null;
+  }
+
 }
