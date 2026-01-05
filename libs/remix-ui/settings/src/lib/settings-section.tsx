@@ -84,11 +84,11 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
         const isLastItem = subSectionIndex === section.subSections.length - 1
 
         return (
-          <div key={subSectionIndex} className='pt-5'>
+          <div key={subSectionIndex} className='pt-3'>
             {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}>{subSection.title}</h5>}
-            {subSection.description && <p className={`small text-muted mb-3`}>{subSection.description}</p>}
+            {subSection.description && <p className={`text-muted mb-3`} style={{ fontSize: '0.85rem' }}>{subSection.description}</p>}
             <div className={`card ${isDark ? 'text-light' : 'text-dark'} border-0 ${isLastItem ? 'mb-4' : ''}`}>
-              <div className="card-body" style={{ padding: '1rem' }}>
+              <div className="card-body" style={{ padding: '0.75rem' }}>
                 {subSection.options.map((option, optionIndex) => {
                   const isFirstOption = optionIndex === 0
                   const isLastOption = optionIndex === subSection.options.length - 1

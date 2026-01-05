@@ -55,7 +55,6 @@ interface ConnectedAccountsProps {
 
 export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) => {
   const [accounts, setAccounts] = useState<LinkedAccount[]>([])
-  const [primary, setPrimary] = useState<LinkedAccount | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [enableLogin, setEnableLogin] = useState<boolean>(false)
@@ -88,7 +87,6 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
       }
 
       const data: AccountsResponse = await response.json()
-      setPrimary(data.primary)
       setAccounts(data.accounts)
     } catch (err: any) {
       console.error('Error loading accounts:', err)
@@ -187,14 +185,14 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
 
   return (
     <div>
-      <div className="list-group mb-4">
+      <div className="list-group mb-3">
         {accounts.map((account) => (
           <div
             key={account.id}
             className={`list-group-item ${account.isPrimary ? 'border-primary border-2' : ''}`}
           >
-            <div className="d-flex align-items-start">
-              <div className={`badge ${getProviderColor(account.provider)} mr-3 p-2`} style={{ fontSize: '1.2em' }}>
+            <div className="d-flex align-items-start gap-3">
+              <div className={`badge ${getProviderColor(account.provider)} d-flex align-items-center justify-content-center rounded-circle flex-shrink-0`} style={{ width: '40px', height: '40px', fontSize: '1.2em' }}>
                 {getProviderIcon(account.provider)}
               </div>
               <div className="flex-grow-1">
@@ -212,81 +210,93 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
                 {account.name && (
                   <div className="small text-muted">{account.name}</div>
                 )}
-                <div className="small text-muted">
+                <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
                   Connected: {new Date(account.created_at).toLocaleDateString()}
                 </div>
+              </div>
+              <div className="d-flex flex-column align-items-end">
+                {account.picture && (
+                  <img
+                    src={account.picture}
+                    alt={account.name || 'Profile'}
+                    className="rounded-circle"
+                    style={{ width: '40px', height: '40px' }}
+                  />
+                )}
                 {account.last_login_at && (
-                  <div className="small text-muted">
-                    Last login: {new Date(account.last_login_at).toLocaleString()}
+                  <div className="small text-muted text-end mt-2" style={{ fontSize: '0.75rem' }}>
+                    Last login:<br />{new Date(account.last_login_at).toLocaleString()}
                   </div>
                 )}
               </div>
-              {account.picture && (
-                <img
-                  src={account.picture}
-                  alt={account.name || 'Profile'}
-                  className="rounded-circle"
-                  style={{ width: '40px', height: '40px' }}
-                />
-              )}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="card bg-light mb-3">
-        <div className="card-body">
-          <h6 className="card-title">
-            <i className="fas fa-plus-circle mr-2"></i>
-            Link Additional Accounts
-          </h6>
-          <p className="card-text small text-muted mb-3">
-            Connect more authentication providers to your account. Accounts with matching emails are automatically linked.
-          </p>
-          <div className="btn-group btn-group-sm" role="group">
-            {!accounts.some(a => a.provider === 'github') && (
-              <button
-                className="btn btn-outline-secondary"
-                onClick={handleLinkGitHub}
-              >
-                <i className="fab fa-github mr-1"></i>
-                GitHub
-              </button>
-            )}
-            {!accounts.some(a => a.provider === 'google') && (
-              <button
-                className="btn btn-outline-primary"
-                onClick={handleLinkGoogle}
-              >
-                <i className="fab fa-google mr-1"></i>
-                Google
-              </button>
-            )}
-            {!accounts.some(a => a.provider === 'discord') && (
-              <button
-                className="btn btn-outline-info"
-                onClick={handleLinkDiscord}
-              >
-                <i className="fab fa-discord mr-1"></i>
-                Discord
-              </button>
-            )}
-            {!accounts.some(a => a.provider === 'siwe') && (
-              <button
-                className="btn btn-outline-warning"
-                onClick={handleLinkSIWE}
-              >
-                <i className="fas fa-wallet mr-1"></i>
-                Ethereum (SIWE)
-              </button>
-            )}
-          </div>
+      <div className="mb-2">
+        <h6 className="mb-2">
+          Link Additional Accounts
+        </h6>
+        <p className="text-muted mb-2" style={{ fontSize: '0.85rem' }}>
+          Connect more authentication providers to your account. Accounts with matching emails are automatically linked.
+        </p>
+        <div className="d-flex flex-column gap-2">
+          {!accounts.some(a => a.provider === 'github') && (
+            <button
+              className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2"
+              onClick={handleLinkGitHub}
+            >
+              <span className="me-2 fs-medium">
+                <i className="fab fa-github"></i>
+              </span>
+              <span className="fs-medium">Connect with GitHub</span>
+            </button>
+          )}
+          {!accounts.some(a => a.provider === 'google') && (
+            <button
+              className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2"
+              onClick={handleLinkGoogle}
+            >
+              <span className="me-2 fs-medium">
+                <i className="fab fa-google"></i>
+              </span>
+              <span className="fs-medium">Continue with Google</span>
+            </button>
+          )}
+          {!accounts.some(a => a.provider === 'discord') && (
+            <button
+              className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2"
+              onClick={handleLinkDiscord}
+            >
+              <span className="me-2 fs-medium">
+                <i className="fab fa-discord"></i>
+              </span>
+              <span className="fs-medium">Connect with Discord</span>
+            </button>
+          )}
+          {!accounts.some(a => a.provider === 'siwe') && (
+            <button
+              className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2"
+              onClick={handleLinkSIWE}
+            >
+              <span className="me-2 fs-medium">
+                <i className="fab fa-ethereum"></i>
+              </span>
+              <span className="fs-medium">Connect Ethereum Wallet (SIWE)</span>
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="alert alert-info" role="alert">
-        <i className="fas fa-info-circle mr-2"></i>
-        <strong>Automatic Linking:</strong> When you log in with a new provider using the same email, accounts are automatically linked!
+      <div className="alert alert-info mt-2" role="alert">
+        <div className="d-flex align-items-start">
+          <i className="fas fa-info-circle me-1 mt-1"></i>
+          <div>
+            <strong>Automatic Linking</strong><br />
+            When you log in with a new provider using the same email, accounts are automatically linked!
+          </div>
+        </div>
       </div>
     </div>
   )

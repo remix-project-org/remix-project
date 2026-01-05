@@ -144,33 +144,31 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
 
   return (
     <div>
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="row">
-            <div className="col-md-4 mb-3">
-              <div className="text-center p-3 bg-light rounded">
-                <div className="h2 mb-0 font-weight-bold text-primary">{credits.balance.toLocaleString()}</div>
-                <small className="text-muted">Total Credits</small>
-              </div>
-            </div>
-            <div className="col-md-4 mb-3">
-              <div className="text-center p-3 bg-light rounded">
-                <div className="h4 mb-0 text-success">{credits.free_credits.toLocaleString()}</div>
-                <small className="text-muted">Free Credits</small>
-              </div>
-            </div>
-            <div className="col-md-4 mb-3">
-              <div className="text-center p-3 bg-light rounded">
-                <div className="h4 mb-0 text-info">{credits.paid_credits.toLocaleString()}</div>
-                <small className="text-muted">Paid Credits</small>
-              </div>
+      <div className="mb-2">
+        <div className="row">
+          <div className="col-md-4 mb-2">
+            <div className="text-center p-3 bg-light rounded">
+              <div className="h4 mb-0 font-weight-bold text-primary">{credits.balance.toLocaleString()}</div>
+              <small className="text-muted">Total Credits</small>
             </div>
           </div>
-          <p className="small text-muted mb-0">
-            <i className="fas fa-info-circle mr-1"></i>
-            Credits are shared across all your linked accounts
-          </p>
+          <div className="col-md-4 mb-2">
+            <div className="text-center p-3 bg-light rounded">
+              <div className="h4 mb-0 text-success">{credits.free_credits.toLocaleString()}</div>
+              <small className="text-muted">Free Credits</small>
+            </div>
+          </div>
+          <div className="col-md-4 mb-2">
+            <div className="text-center p-3 bg-light rounded">
+              <div className="h4 mb-0 text-info">{credits.paid_credits.toLocaleString()}</div>
+              <small className="text-muted">Paid Credits</small>
+            </div>
+          </div>
         </div>
+        <p className="text-muted mb-0" style={{ fontSize: '0.85rem' }}>
+          <i className="fas fa-info-circle me-1"></i>
+          Credits are shared across all your linked accounts
+        </p>
       </div>
 
       {transactions && transactions.length > 0 && (
