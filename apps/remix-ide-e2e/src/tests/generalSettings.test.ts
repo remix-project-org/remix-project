@@ -11,7 +11,7 @@ module.exports = {
     browser.waitForElementVisible('*[data-id="remixIdeIconPanel"]', 10000)
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
-      .waitForElementContainsText('[data-id="settings-sidebar-header"] h2', 'Settings')
+      .waitForElementContainsText('[data-id="settings-sidebar-header"] h3', 'Settings')
   },
 
   'Should activate `generate contract metadata` ': function (browser) {
