@@ -8,6 +8,8 @@ import type { ViewPlugin } from '@remixproject/engine-web'
 import { CustomTooltip } from '@remix-ui/helper'
 import { IMCPServerManager } from './mcp-server-manager'
 import { AccountManager } from './account-manager'
+import { CreditsBalance } from './credits-balance'
+import { ConnectedAccounts } from './connected-accounts'
 
 type SettingsSectionUIProps = {
   plugin: ViewPlugin,
@@ -84,6 +86,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
         return (
           <div key={subSectionIndex} className='pt-5'>
             {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}>{subSection.title}</h5>}
+            {subSection.description && <p className={`small text-muted mb-3`}>{subSection.description}</p>}
             <div className={`card ${isDark ? 'text-light' : 'text-dark'} border-0 ${isLastItem ? 'mb-4' : ''}`}>
               <div className="card-body" style={{ padding: '1rem' }}>
                 {subSection.options.map((option, optionIndex) => {
@@ -94,23 +97,27 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
 
                   return (
                     <div className={`card border-0 rounded-0 ${isLastOption ? 'pt-2 pb-0' : isFirstOption ? 'border-bottom pb-2' : 'border-bottom py-2'}`} key={optionIndex}>
-                      <div className="d-flex align-items-center">
-                        <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
-                          <FormattedMessage id={option.label} />
-                          {option.labelIconTooltip ?
-                            <CustomTooltip tooltipText={<FormattedMessage id={option.labelIconTooltip} />}><i className={option.labelIcon}></i></CustomTooltip> :
-                            option.labelIcon && <i className={option.labelIcon}></i>
-                          }
-                        </h6>
-                        <div className="ms-auto">
-                          {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
-                          {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
-                          {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
-                          {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
-                          {option.type === 'custom' && option.customComponent === 'accountManager' && <span></span>}
+                      {option.label && option.label.length > 0 && (
+                        <div className="d-flex align-items-center">
+                          <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
+                            <FormattedMessage id={option.label} />
+                            {option.labelIconTooltip ?
+                              <CustomTooltip tooltipText={<FormattedMessage id={option.labelIconTooltip} />}><i className={option.labelIcon}></i></CustomTooltip> :
+                              option.labelIcon && <i className={option.labelIcon}></i>
+                            }
+                          </h6>
+                          <div className="ms-auto">
+                            {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
+                            {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
+                            {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
+                            {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
+                            {option.type === 'custom' && option.customComponent === 'accountManager' && <span></span>}
+                            {option.type === 'custom' && option.customComponent === 'creditsBalance' && <span></span>}
+                            {option.type === 'custom' && option.customComponent === 'connectedAccounts' && <span></span>}
+                          </div>
                         </div>
-                      </div>
-                      {option.description && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
+                      )}
+                      {option.description && option.label && option.label.length > 0 && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
                       {option.type === 'custom' && option.customComponent === 'mcpServerManager' && (
                         <div className="mt-3">
                           <IMCPServerManager plugin={plugin} />
@@ -119,6 +126,16 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                       {option.type === 'custom' && option.customComponent === 'accountManager' && (
                         <div className="mt-3">
                           <AccountManager plugin={plugin} />
+                        </div>
+                      )}
+                      {option.type === 'custom' && option.customComponent === 'creditsBalance' && (
+                        <div className="mt-3">
+                          <CreditsBalance plugin={plugin} />
+                        </div>
+                      )}
+                      {option.type === 'custom' && option.customComponent === 'connectedAccounts' && (
+                        <div className="mt-3">
+                          <ConnectedAccounts plugin={plugin} />
                         </div>
                       )}
                       {

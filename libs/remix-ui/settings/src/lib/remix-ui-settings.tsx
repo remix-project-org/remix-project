@@ -87,12 +87,22 @@ const settingsSections: SettingsSection[] = [
   },
   { key: 'account', label: 'settings.account', description: 'settings.accountDescription', subSections: [
     {
+      title: 'Credits Balance',
       options: [{
-        name: 'account-manager',
-        label: 'settings.linkedAccounts',
-        description: 'settings.linkedAccountsDescription',
+        name: 'credits-balance',
+        label: '',
         type: 'custom' as const,
-        customComponent: 'accountManager'
+        customComponent: 'creditsBalance'
+      }]
+    },
+    {
+      title: 'Connected Accounts',
+      description: 'Link multiple authentication providers to access your account from anywhere. All linked accounts share the same credits and subscriptions.',
+      options: [{
+        name: 'connected-accounts',
+        label: '',
+        type: 'custom' as const,
+        customComponent: 'connectedAccounts'
       }]
     }
   ]},
@@ -265,7 +275,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
       })
     })
 
-    props.plugin.on('theme', 'themeChanged', (theme) => {
+    props.plugin.on('theme', 'themeChanged', (theme: any) => {
       setState((prevState) => {
         dispatch({ type: 'SET_VALUE', payload: { name: 'theme', value: theme.name } })
         return {
@@ -275,11 +285,11 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
       })
     })
 
-    props.plugin.on('settings', 'copilotChoiceUpdated', (isChecked) => {
+    props.plugin.on('settings', 'copilotChoiceUpdated', (isChecked: any) => {
       dispatch({ type: 'SET_VALUE', payload: { name: 'copilot/suggest/activate', value: isChecked } })
     })
 
-    props.plugin.on('settings', 'matomoPerfAnalyticsChoiceUpdated', (isChecked) => {
+    props.plugin.on('settings', 'matomoPerfAnalyticsChoiceUpdated', (isChecked: any) => {
       dispatch({ type: 'SET_VALUE', payload: { name: 'matomo-perf-analytics', value: isChecked } })
     })
 

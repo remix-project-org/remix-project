@@ -206,6 +206,14 @@ export const initialState: SettingsState = {
     value: '',
     isLoading: false
   },
+  'credits-balance': {
+    value: '',
+    isLoading: false
+  },
+  'connected-accounts': {
+    value: '',
+    isLoading: false
+  },
   'ollama-config': {
     value: ollamaConfig,
     isLoading: false
