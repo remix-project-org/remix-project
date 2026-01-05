@@ -135,6 +135,11 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
     this.resourceCache.clear()
   }
 
+  private isCacheValid(cachedEntry: { content: IMCPResourceContent, timestamp: number }): boolean {
+    const now = Date.now();
+    return (now - cachedEntry.timestamp) < this.CACHE_TTL;
+  }
+
   async addMCPServer(server: IMCPServer): Promise<void> {
     if (this.mcpClients.has(server.name)) {
       throw new Error(`MCP server ${server.name} already exists`);
@@ -312,10 +317,23 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
         try {
           // Try to get from cache first
-          let content = null //this.resourceCache.get(resource.uri);
-          const client = this.mcpClients.get(serverName);
-          if (client) {
-            content = await client.readResource(resource.uri);
+          let content: IMCPResourceContent | null = null;
+          const cachedEntry = this.resourceCache.get(resource.uri);
+
+          if (cachedEntry && this.isCacheValid(cachedEntry)) {
+            console.log(`[MCPInferencer] Using cached resource: ${resource.uri}`);
+            content = cachedEntry.content;
+          } else {
+            const client = this.mcpClients.get(serverName);
+            if (client) {
+              content = await client.readResource(resource.uri);
+              if (content) {
+                this.resourceCache.set(resource.uri, {
+                  content,
+                  timestamp: Date.now()
+                });
+              }
+            }
           }
 
           if (content?.text) {
@@ -360,7 +378,23 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
             continue;
           }
 
-          const content = await client.readResource(resource.uri);
+          let content: IMCPResourceContent;
+          const cachedEntry = this.resourceCache.get(resource.uri);
+
+          if (cachedEntry && this.isCacheValid(cachedEntry)) {
+            console.log(`[MCPInferencer] Using cached resource: ${resource.uri}`);
+            content = cachedEntry.content;
+          } else {
+            content = await client.readResource(resource.uri);
+            // Cache the fetched content
+            if (content) {
+              this.resourceCache.set(resource.uri, {
+                content,
+                timestamp: Date.now()
+              });
+            }
+          }
+
           if (content.text) {
             mcpContext += `\n--- Resource: ${resource.name} (${resource.uri}) ---\n`;
             mcpContext += content.text;
