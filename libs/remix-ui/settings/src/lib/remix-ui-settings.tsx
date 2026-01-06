@@ -87,31 +87,11 @@ const settingsSections: SettingsSection[] = [
   },
   { key: 'account', label: 'settings.account', description: 'settings.accountDescription', subSections: [
     {
-      title: 'Profile',
       options: [{
-        name: 'profile-section',
+        name: 'account-manager',
         label: '',
         type: 'custom' as const,
-        customComponent: 'profileSection'
-      }]
-    },
-    {
-      title: 'Credits Balance',
-      options: [{
-        name: 'credits-balance',
-        label: '',
-        type: 'custom' as const,
-        customComponent: 'creditsBalance'
-      }]
-    },
-    {
-      title: 'Connected Accounts',
-      description: 'Link multiple authentication providers to access your account from anywhere. All linked accounts share the same credits and subscriptions.',
-      options: [{
-        name: 'connected-accounts',
-        label: '',
-        type: 'custom' as const,
-        customComponent: 'connectedAccounts'
+        customComponent: 'accountManager'
       }]
     }
   ]},

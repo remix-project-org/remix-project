@@ -19,6 +19,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
   const [error, setError] = useState<string | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const loadProfile = async () => {
@@ -31,6 +32,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
         const user = await plugin.call('auth', 'getUser')
 
         if (user) {
+          setIsLoggedIn(true)
           // Map AuthUser to UserProfile
           const profileData: UserProfile = {
             username: user.name || '',
@@ -40,25 +42,16 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
           setProfile(profileData)
           setEditedProfile(profileData)
         } else {
-          // No user logged in, use empty profile for development
-          const defaultProfile: UserProfile = {
-            username: '',
-            email: '',
-            avatar_url: ''
-          }
-          setProfile(defaultProfile)
-          setEditedProfile(defaultProfile)
+          setIsLoggedIn(false)
+          // No user logged in
+          setProfile(null)
+          setEditedProfile(null)
         }
       } catch (authErr) {
         console.log('Auth plugin not available or user not logged in')
-        // Use empty profile for development
-        const defaultProfile: UserProfile = {
-          username: '',
-          email: '',
-          avatar_url: ''
-        }
-        setProfile(defaultProfile)
-        setEditedProfile(defaultProfile)
+        setIsLoggedIn(false)
+        setProfile(null)
+        setEditedProfile(null)
       }
     } catch (err: any) {
       console.error('Error loading profile:', err)
@@ -185,6 +178,11 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
         <span className="ms-2">Loading profile...</span>
       </div>
     )
+  }
+
+  // Hide profile section if user is not logged in
+  if (!isLoggedIn) {
+    return null
   }
 
   // Use profile data or fallback to editedProfile or empty values

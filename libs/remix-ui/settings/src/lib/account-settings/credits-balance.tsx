@@ -26,9 +26,18 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
   const [loading, setLoading] = useState(true)
   const [showAllTransactions, setShowAllTransactions] = useState(false)
   const [enableLogin, setEnableLogin] = useState<boolean>(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   const loadCredits = async () => {
     try {
+      // Check if user is logged in via auth plugin
+      try {
+        const user = await plugin.call('auth', 'getUser')
+        setIsLoggedIn(!!user)
+      } catch (authErr) {
+        setIsLoggedIn(false)
+      }
+
       const token = localStorage.getItem('remix_access_token')
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
@@ -45,6 +54,7 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
 
       if (response.status === 401) {
         setCredits(null)
+        setIsLoggedIn(false)
         return
       }
 
@@ -136,6 +146,11 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
         <span className="ml-2">Loading credits...</span>
       </div>
     )
+  }
+
+  // Hide credits section if user is not logged in
+  if (!isLoggedIn) {
+    return null
   }
 
   if (!credits) {
