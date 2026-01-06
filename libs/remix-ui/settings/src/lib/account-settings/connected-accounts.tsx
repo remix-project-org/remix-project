@@ -1,53 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { endpointUrls } from '@remix-endpoints-helper'
-
-interface LinkedAccount {
-  id: number
-  user_id: string
-  provider: string
-  name?: string
-  picture?: string
-  isPrimary: boolean
-  isLinked: boolean
-  has_access_token?: boolean
-  created_at: string
-  last_login_at?: string
-}
-
-interface AccountsResponse {
-  primary: LinkedAccount
-  accounts: LinkedAccount[]
-}
-
-const getProviderIcon = (provider: string) => {
-  switch (provider) {
-  case 'github':
-    return <i className="fab fa-github"></i>
-  case 'google':
-    return <i className="fab fa-google"></i>
-  case 'discord':
-    return <i className="fab fa-discord"></i>
-  case 'siwe':
-    return <i className="fab fa-ethereum"></i>
-  default:
-    return <i className="fas fa-sign-in-alt"></i>
-  }
-}
-
-const getProviderColor = (provider: string) => {
-  switch (provider) {
-  case 'github':
-    return 'bg-secondary text-white'
-  case 'google':
-    return 'bg-primary text-white'
-  case 'discord':
-    return 'bg-info text-white'
-  case 'siwe':
-    return 'bg-warning text-dark'
-  default:
-    return 'bg-dark text-white'
-  }
-}
+import { LinkedAccount, loadAccountsFromAPI, linkAccountProvider, getProviderIcon, getProviderColor } from './account-utils'
 
 interface ConnectedAccountsProps {
   plugin: any
@@ -64,29 +16,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
       setLoading(true)
       setError(null)
 
-      const token = localStorage.getItem('remix_access_token')
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const response = await fetch(`${endpointUrls.sso}/accounts`, {
-        credentials: 'include',
-        headers
-      })
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          setError('Not logged in. Please log in with Google, GitHub, Discord, or wallet to manage accounts.')
-          return
-        }
-        throw new Error('Failed to load accounts')
-      }
-
-      const data: AccountsResponse = await response.json()
+      const data = await loadAccountsFromAPI()
       setAccounts(data.accounts)
     } catch (err: any) {
       console.error('Error loading accounts:', err)
@@ -127,7 +57,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
 
   const handleLinkProvider = async (provider: string) => {
     try {
-      await plugin.call('auth', 'linkAccount', provider)
+      await linkAccountProvider(plugin, provider)
       await loadAccounts()
     } catch (error: any) {
       console.error('Failed to link account:', error)
@@ -135,21 +65,10 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
     }
   }
 
-  const handleLinkGitHub = () => {
-    handleLinkProvider('github')
-  }
-
-  const handleLinkGoogle = () => {
-    handleLinkProvider('google')
-  }
-
-  const handleLinkDiscord = () => {
-    handleLinkProvider('discord')
-  }
-
-  const handleLinkSIWE = () => {
-    handleLinkProvider('siwe')
-  }
+  const handleLinkGitHub = () => handleLinkProvider('github')
+  const handleLinkGoogle = () => handleLinkProvider('google')
+  const handleLinkDiscord = () => handleLinkProvider('discord')
+  const handleLinkSIWE = () => handleLinkProvider('siwe')
 
   if (!enableLogin) {
     return null
@@ -161,7 +80,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
         <div className="spinner-border spinner-border-sm" role="status">
           <span className="sr-only">Loading...</span>
         </div>
-        <span className="ml-2">Loading accounts...</span>
+        <span className="ms-2">Loading accounts...</span>
       </div>
     )
   }
@@ -169,7 +88,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
   if (error) {
     return (
       <div className="alert alert-warning p-3" role="alert">
-        <i className="fas fa-exclamation-triangle mr-2"></i>
+        <i className="fas fa-exclamation-triangle me-2"></i>
         {error}
       </div>
     )
@@ -189,9 +108,9 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
         {accounts.map((account) => (
           <div
             key={account.id}
-            className={`list-group-item ${account.isPrimary ? 'border-primary border-2' : ''}`}
+            className={`list-group-item`}
           >
-            <div className="d-flex align-items-start gap-3">
+            <div className="d-flex align-items-start gap-3 mt-1">
               <div className={`badge ${getProviderColor(account.provider)} d-flex align-items-center justify-content-center rounded-circle flex-shrink-0`} style={{ width: '40px', height: '40px', fontSize: '1.2em' }}>
                 {getProviderIcon(account.provider)}
               </div>
@@ -199,20 +118,17 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
                 <div className="d-flex align-items-center mb-1">
                   <span className="font-weight-bold text-capitalize">{account.provider}</span>
                   {account.isPrimary && (
-                    <span className="badge badge-primary ml-2">Primary</span>
+                    <span className="badge bg-primary ms-2">Primary</span>
                   )}
                   {account.has_access_token && (
-                    <span className="badge badge-success ml-2">
+                    <span className="badge bg-success ms-2">
                       <i className="fas fa-key mr-1"></i>Token Stored
                     </span>
                   )}
                 </div>
                 {account.name && (
-                  <div className="small text-muted">{account.name}</div>
+                  <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{account.name}</div>
                 )}
-                <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
-                  Connected: {new Date(account.created_at).toLocaleDateString()}
-                </div>
               </div>
               <div className="d-flex flex-column align-items-end">
                 {account.picture && (
@@ -223,12 +139,17 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
                     style={{ width: '40px', height: '40px' }}
                   />
                 )}
-                {account.last_login_at && (
-                  <div className="small text-muted text-end mt-2" style={{ fontSize: '0.75rem' }}>
-                    Last login:<br />{new Date(account.last_login_at).toLocaleString()}
-                  </div>
-                )}
               </div>
+            </div>
+            <div className="mt-2">
+              <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                Connected: {new Date(account.created_at).toLocaleDateString()}
+              </span>
+              {account.last_login_at && (
+                <span className="text-muted" style={{ fontSize: '0.75rem', float: 'right' }}>
+                  Last login: {new Date(account.last_login_at).toLocaleString()}
+                </span>
+              )}
             </div>
           </div>
         ))}

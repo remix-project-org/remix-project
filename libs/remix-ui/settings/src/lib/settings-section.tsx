@@ -7,9 +7,7 @@ import { ThemeContext } from '@remix-ui/home-tab'
 import type { ViewPlugin } from '@remixproject/engine-web'
 import { CustomTooltip } from '@remix-ui/helper'
 import { IMCPServerManager } from './mcp-server-manager'
-import { AccountManager } from './account-manager'
-import { CreditsBalance } from './credits-balance'
-import { ConnectedAccounts } from './connected-accounts'
+import { AccountManager, CreditsBalance, ConnectedAccounts } from './account-settings'
 
 type SettingsSectionUIProps = {
   plugin: ViewPlugin,
