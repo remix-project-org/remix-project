@@ -62,25 +62,75 @@ function EditHtmlTemplate(): JSX.Element {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  useEffect(() => {
+    const onDappUpdated = (data: any) => {
+      if (activeDapp && data.slug === activeDapp.slug) {
+        console.log('[EditHtmlTemplate] Update received, refreshing preview...');
+        
+        dispatch({ 
+          type: 'SET_DAPP_PROCESSING', 
+          payload: { slug: activeDapp.slug, isProcessing: false } 
+        });
+
+        if (activeDapp.status === 'deployed') {
+            setNotificationModal({
+              show: true,
+              title: 'Code Updated',
+              message: (
+                <div>
+                  <p>The AI has successfully updated your dapp code.</p>
+                  <div className="alert alert-warning mb-0">
+                    <i className="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Action Required:</strong> The live IPFS deployment is outdated. 
+                    Please <strong>"Deploy to IPFS"</strong> again.
+                  </div>
+                </div>
+              ),
+              variant: 'warning'
+            });
+        } else {
+            setNotificationModal({
+              show: true,
+              title: 'Update Successful',
+              message: 'The AI has successfully updated your dapp code.',
+              variant: 'success'
+            });
+        }
+
+        setTimeout(() => runBuild(true), 500);
+      }
+    };
+
+    const onDappError = () => {
+      if (activeDapp) {
+        dispatch({ 
+          type: 'SET_DAPP_PROCESSING', 
+          payload: { slug: activeDapp.slug, isProcessing: false } 
+        });
+      }
+    };
+
+    remixClient.internalEvents.on('dappUpdated', onDappUpdated);
+    remixClient.internalEvents.on('creatingDappError', onDappError);
+
+    return () => {
+      remixClient.internalEvents.off('dappUpdated', onDappUpdated);
+      remixClient.internalEvents.off('creatingDappError', onDappError);
+    };
+  }, [activeDapp, dispatch]); 
+
   const handleDeleteDapp = async () => {
     if (!activeDapp || !dappManager) return;
-    
     try {
       await dappManager.deleteDapp(activeDapp.slug);
-      
       let updatedDapps = await dappManager.getDapps();
-      if (!updatedDapps || !Array.isArray(updatedDapps)) {
-        updatedDapps = [];
-      }
-
-      console.log('[QuickDapp-Debug] updatedDapps for dispatch:', updatedDapps);
+      if (!updatedDapps) updatedDapps = [];
 
       dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
       dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
       setShowDeleteModal(false);
       
       if (updatedDapps.length === 0) {
-        console.log('No dapps left, switching to Create View');
         dispatch({ type: 'SET_VIEW', payload: 'create' });
       } else {
         dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
@@ -88,12 +138,6 @@ function EditHtmlTemplate(): JSX.Element {
 
     } catch (e: any) {
       console.error('Delete failed:', e);
-      setNotificationModal({
-        show: true,
-        title: 'Delete Failed',
-        message: `Could not delete dapp: ${e.message}`,
-        variant: 'danger'
-      });
       setShowDeleteModal(false);
     }
   };
@@ -105,47 +149,28 @@ function EditHtmlTemplate(): JSX.Element {
   const checkUrlParams = useCallback(() => {
     const targetFlag = 'experimental';
     let hasFlag = false;
-
-    if (window.location.href.includes(targetFlag)) {
-      hasFlag = true;
-    }
-
-    if (!hasFlag && document.referrer && document.referrer.includes(targetFlag)) {
-      hasFlag = true;
-    }
-
-    if (!hasFlag) {
-      try {
-        if (window.parent && window.parent.location.href.includes(targetFlag)) {
-          hasFlag = true;
-        }
-      } catch (e) {}
-    }
-
-    setIsExperimental(prev => {
-      if (prev !== hasFlag) return hasFlag;
-      return prev;
-    });
+    if (window.location.href.includes(targetFlag)) hasFlag = true;
+    if (!hasFlag && document.referrer && document.referrer.includes(targetFlag)) hasFlag = true;
+    try {
+      if (window.parent && window.parent.location.href.includes(targetFlag)) hasFlag = true;
+    } catch (e) {}
+    setIsExperimental(prev => (prev !== hasFlag ? hasFlag : prev));
   }, []);
 
   useEffect(() => {
     checkUrlParams();
     window.addEventListener('hashchange', checkUrlParams);
-    return () => {
-      window.removeEventListener('hashchange', checkUrlParams);
-    };
+    return () => window.removeEventListener('hashchange', checkUrlParams);
   }, [checkUrlParams]);
 
   const handleBack = async () => {
     if (!isAiUpdating && !isBuilding) {
       await captureAndSaveThumbnail();
     }
-
     if (dappManager) {
       const updatedDapps = await dappManager.getDapps();
       dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
     }
-
     dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
     dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
   };
@@ -171,7 +196,6 @@ function EditHtmlTemplate(): JSX.Element {
 
       const previewPath = `dapps/${activeDapp.slug}/preview.png`;
       await remixClient.call('fileManager', 'writeFile', previewPath, dataUrl);
-      console.log('[Capture] Thumbnail updated.');
     } catch (error) {
       console.error('[Capture] Failed:', error);
     } finally {
@@ -191,6 +215,8 @@ function EditHtmlTemplate(): JSX.Element {
     setIsBuilding(true);
     setIframeError('');
     setShowIframe(true);
+
+    const { title, details, logo } = appState.instance;
 
     const builder = builderRef.current;
     const mapFiles = new Map<string, string>();
@@ -217,7 +243,6 @@ function EditHtmlTemplate(): JSX.Element {
       }
 
     } catch (e: any) {
-      console.error('Error reading DApp files:', e);
       setIframeError(`Failed to read DApp files: ${e.message}`);
       setIsBuilding(false);
       return;
@@ -229,16 +254,9 @@ function EditHtmlTemplate(): JSX.Element {
       return;
     }
 
-    const { title, details, logo } = activeDapp.config;
-    let logoDataUrl = logo || '';
-
-    if (logo && logo.byteLength > 0 && typeof logo !== 'string') {
-        try {
-            const base64data = btoa(
-                new Uint8Array(logo).reduce((data, byte) => data + String.fromCharCode(byte), '')
-            );
-            logoDataUrl = 'data:image/jpeg;base64,' + base64data;
-        } catch (e) {}
+    let logoDataUrl = '';
+    if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
+        logoDataUrl = logo;
     }
 
     const injectionScript = `
@@ -294,30 +312,12 @@ function EditHtmlTemplate(): JSX.Element {
       }
 
       if (showNotification) {
-        if (activeDapp.status === 'deployed') {
-          setNotificationModal({
+         setNotificationModal({
             show: true,
             title: 'Preview Updated',
-            message: (
-              <div>
-                <p>The preview has been refreshed with your changes.</p>
-                <div className="alert alert-warning mb-0">
-                  <i className="fas fa-exclamation-triangle me-2"></i>
-                  <strong>Warning:</strong> The currently deployed (live) version is now outdated. 
-                  You must <strong>"Deploy to IPFS"</strong> again to update the live site.
-                </div>
-              </div>
-            ),
-            variant: 'warning'
-          });
-        } else {
-          setNotificationModal({
-            show: true,
-            title: 'Preview Updated',
-            message: 'Your preview has been successfully refreshed.',
+            message: 'Preview refreshed successfully.',
             variant: 'success'
-          });
-        }
+         });
       }
 
     } catch (e: any) {
@@ -330,7 +330,6 @@ function EditHtmlTemplate(): JSX.Element {
 
   const handleChatMessage = async (message: string, imageBase64?: string) => {
     if (!activeDapp) return;
-
     if (!isExperimental) {
       setNotificationModal({
         show: true,
@@ -365,15 +364,7 @@ function EditHtmlTemplate(): JSX.Element {
       
       let userPrompt: any = message;
       if (imageBase64) {
-        userPrompt = [
-          { type: 'text', text: message },
-          { 
-            type: 'image_url', 
-            image_url: { 
-              url: imageBase64 
-            } 
-          }
-        ];
+        userPrompt = [ { type: 'text', text: message }, { type: 'image_url', image_url: { url: imageBase64 } } ];
       }
 
       remixClient.call(
@@ -384,35 +375,15 @@ function EditHtmlTemplate(): JSX.Element {
         userPrompt,
         currentFilesObject,
         !!imageBase64,
-        activeDapp.slug
+        activeDapp.slug 
       ).catch((e: any) => {
         console.error("Update Trigger Failed:", e);
-        setNotificationModal({
-          show: true,
-          title: 'Request Failed',
-          message: `Could not send request to AI: ${e.message}`,
-          variant: 'danger'
-        });
-        dispatch({ 
-          type: 'SET_DAPP_PROCESSING', 
-          payload: { slug: activeDapp.slug, isProcessing: false } 
-        });
+        dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: activeDapp.slug, isProcessing: false } });
       });
-
-      console.log('[EditHtmlTemplate] Update request sent. Waiting for event...');
 
     } catch (error: any) {
       console.error('Update setup failed:', error);
-      setNotificationModal({
-        show: true,
-        title: 'Update Error',
-        message: `Failed to prepare update: ${error.message}`,
-        variant: 'danger'
-      });
-      dispatch({ 
-        type: 'SET_DAPP_PROCESSING', 
-        payload: { slug: activeDapp.slug, isProcessing: false } 
-      });
+      dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: activeDapp.slug, isProcessing: false } });
     }
   };
 
@@ -429,9 +400,7 @@ function EditHtmlTemplate(): JSX.Element {
         }
       } catch (err: any) {
         console.error('Failed to initialize InBrowserVite:', err);
-        if (mounted) {
-          setIframeError(`Failed to initialize builder: ${err.message}`);
-        }
+        if (mounted) setIframeError(`Failed to initialize builder: ${err.message}`);
       }
     }
     initBuilder();
@@ -442,48 +411,9 @@ function EditHtmlTemplate(): JSX.Element {
     if (isBuilderReady && activeDapp && !isAiUpdating) {
       setTimeout(() => {
         runBuild(false);
-      }, 0);
+      }, 100);
     }
   }, [isBuilderReady, isAiUpdating, activeDapp?.slug]);
-
-  useEffect(() => {
-    const onDappUpdated = (data: any) => {
-      if (activeDapp && data.slug === activeDapp.slug) {
-        console.log('[EditHtmlTemplate] Update received, refreshing preview...');
-        
-        dispatch({ 
-          type: 'SET_DAPP_PROCESSING', 
-          payload: { slug: activeDapp.slug, isProcessing: false } 
-        });
-
-        setNotificationModal({
-          show: true,
-          title: 'Update Successful',
-          message: 'The AI has updated your dapp code. Check the preview.',
-          variant: 'success'
-        });
-
-        setTimeout(() => runBuild(true), 500);
-      }
-    };
-
-    const onDappError = () => {
-       if (activeDapp) {
-         dispatch({ 
-            type: 'SET_DAPP_PROCESSING', 
-            payload: { slug: activeDapp.slug, isProcessing: false } 
-          });
-       }
-    };
-
-    remixClient.internalEvents.on('dappUpdated', onDappUpdated);
-    remixClient.internalEvents.on('creatingDappError', onDappError);
-
-    return () => {
-      remixClient.internalEvents.off('dappUpdated', onDappUpdated);
-      remixClient.internalEvents.off('creatingDappError', onDappError);
-    };
-  }, [activeDapp, dispatch]);
 
   if (!activeDapp) return <div className="p-3">No active dapp selected.</div>;
 
@@ -495,11 +425,7 @@ function EditHtmlTemplate(): JSX.Element {
           onClick={handleBack}
           disabled={isCapturing}
         >
-          {isCapturing ? (
-            <><i className="fas fa-spinner fa-spin me-1"></i> Saving...</>
-          ) : (
-            <><i className="fas fa-arrow-left me-1"></i> Back</>
-          )}
+          {isCapturing ? <><i className="fas fa-spinner fa-spin me-1"></i> Saving...</> : <><i className="fas fa-arrow-left me-1"></i> Back</>}
         </button>
         <span className="fw-bold text-body">{activeDapp.name}</span>
       </div>
@@ -525,7 +451,6 @@ function EditHtmlTemplate(): JSX.Element {
                         size="sm" 
                         onClick={() => runBuild(true)}
                         disabled={isBuilding || isAiUpdating}
-                        data-id="quick-dapp-apply-changes"
                       >
                         {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
                       </Button>
@@ -534,7 +459,6 @@ function EditHtmlTemplate(): JSX.Element {
                         size="sm" 
                         onClick={() => setShowDeleteModal(true)}
                         disabled={isBuilding || isCapturing}
-                        title="Delete this Dapp"
                       >
                         <i className="fas fa-trash me-1"></i> Delete Dapp
                       </Button>
@@ -543,33 +467,18 @@ function EditHtmlTemplate(): JSX.Element {
                   
                   <Card className="border flex-grow-1 d-flex position-relative">
                     <Card.Body className="p-0 d-flex flex-column position-relative" style={{ overflow: 'hidden' }}>
-                      
                       {isAiUpdating && (
-                        <div 
-                          className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white" 
-                          style={{ zIndex: 10, opacity: 0.9 }}
-                        >
+                        <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white" style={{ zIndex: 10, opacity: 0.9 }}>
                           <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
-                          <h6 className="text-muted">
-                            Your dapp is being created by RemixAI Assistant.
-                          </h6>
+                          <h6 className="text-muted">Your dapp is being updated by RemixAI Assistant.</h6>
                         </div>
                       )}
-
                       <iframe
                         ref={iframeRef}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          minHeight: '800px',
-                          border: 'none',
-                          backgroundColor: 'white',
-                          display: iframeError ? 'none' : 'block'
-                        }}
+                        style={{ width: '100%', height: '100%', minHeight: '800px', border: 'none', backgroundColor: 'white', display: iframeError ? 'none' : 'block' }}
                         title="dApp Preview"
                         sandbox="allow-popups allow-scripts allow-same-origin allow-forms allow-top-navigation"
                       />
-                      
                       {iframeError && (
                         <div className="d-flex align-items-center justify-content-center h-100 text-center p-4">
                           <div>
@@ -584,7 +493,6 @@ function EditHtmlTemplate(): JSX.Element {
                 </Col>
               </Row>
             </Col>
-
             <Col xs={12} lg={4} className="d-flex flex-column h-100">
               <div className="flex-shrink-0">
                 <DeployPanel />
@@ -593,38 +501,26 @@ function EditHtmlTemplate(): JSX.Element {
           </Row>
         </div>
       </div>
+      
+      {/* Modals */}
       <Modal show={notificationModal.show} onHide={closeNotificationModal} centered>
         <Modal.Header closeButton>
-          <Modal.Title className={
-            notificationModal.variant === 'danger' ? 'text-danger' : 
-            notificationModal.variant === 'warning' ? 'text-warning' : 'text-success'
-          }>
+          <Modal.Title className={notificationModal.variant === 'danger' ? 'text-danger' : notificationModal.variant === 'warning' ? 'text-warning' : 'text-success'}>
             {notificationModal.title}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          {notificationModal.message}
-        </Modal.Body>
+        <Modal.Body>{notificationModal.message}</Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={closeNotificationModal}>
-            Close
-          </Button>
+          <Button variant="secondary" onClick={closeNotificationModal}>Close</Button>
         </Modal.Footer>
       </Modal>
+
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Delete Dapp?</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to delete this dapp? This action cannot be undone.
-        </Modal.Body>
+        <Modal.Header closeButton><Modal.Title>Delete Dapp?</Modal.Title></Modal.Header>
+        <Modal.Body>Are you sure you want to delete this dapp? This action cannot be undone.</Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDeleteDapp}>
-            Yes, Delete
-          </Button>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
+          <Button variant="danger" onClick={handleDeleteDapp}>Yes, Delete</Button>
         </Modal.Footer>
       </Modal>
     </div>

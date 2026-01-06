@@ -251,6 +251,49 @@ export class AIDappGenerator extends Plugin {
       ? options.description.map(p => p.type === 'text' ? p.text : '').join('\n') 
       : options.description;
 
+    const functionNames = options.abi
+      .filter((item: any) => item.type === 'function')
+      .map((item: any) => `- ${item.name} (${item.stateMutability})`)
+      .join('\n');
+
+    const contractMandate = `
+      **🚨 MANDATORY SMART CONTRACT INTEGRATION 🚨**
+      
+      You MUST integrate the provided Smart Contract into the UI.
+      A DApp with only UI and no logic is a FAILURE.
+
+      **Contract Details:**
+      - **Address:** \`${options.address}\`
+      - **Chain ID:** ${options.chainId}
+      - **ABI Functions to Implement:**
+      ${functionNames}
+
+      **Integration Rules:**
+      1. **Connect Wallet:** Must include a button to connect MetaMask/Wallet.
+      2. **Read Functions:** Display data from 'view'/'pure' functions on the screen.
+      3. **Write Functions:** Create Forms/Buttons to trigger 'payable'/'nonpayable' functions.
+      4. **Feedback:** Show loading states and success/error toasts for transactions.
+    `;
+
+    const dynamicContentRules = `
+      **🚨 DYNAMIC CONTENT RULES (CRITICAL) 🚨**
+      The DApp creates a shell that passes configuration via \`window.__QUICK_DAPP_CONFIG__\`.
+      
+      1. **NO HARDCODED TEXT/LOGOS:**
+         - Even if the user asks for "Binance Style", **DO NOT** write "Binance" as the main title.
+         - **DO NOT** hardcode an <img> tag with a random URL unless it's a background or icon.
+      
+      2. **USE CONFIG VARIABLES:**
+         - In \`App.jsx\`, read config: \`const config = window.__QUICK_DAPP_CONFIG__ || {};\`
+         - **Title:** Use \`{config.title}\` for the main header (Navbar/Hero).
+         - **Logo:** Use \`{config.logo}\`. Render it ONLY if it exists: \`{config.logo && <img src={config.logo} ... />}\`.
+         - **Description:** Use \`{config.details}\` for the sub-header or about section.
+         
+      3. **FALLBACK:**
+         - Only if \`config.title\` is missing, fall back to "My DApp".
+         - BUT ALWAYS prioritize the \`config\` object variables.
+    `;
+    
     const architectureInstructions = `
       **ARCHITECTURE INSTRUCTIONS :**
 
@@ -345,10 +388,12 @@ export class AIDappGenerator extends Plugin {
       
       >>> USER REQUEST START >>>
       "${userDescription}"
+      <<< USER REQUEST END <<<
 
+      ${contractMandate}
+      ${dynamicContentRules}
       ${architectureInstructions}
       ${technicalConstraints}
-      <<< USER REQUEST END <<<
 
       If the user asked for a specific language (e.g. Korean), use it for all UI text.
       If the user asked for a specific theme (e.g. Dark), implement it using Tailwind classes.
@@ -392,7 +437,18 @@ export class AIDappGenerator extends Plugin {
       **YOUR MISSION:**
       1. **VISUAL:** Ignore standard templates. Build the UI (HTML/Tailwind) to match the attached image **PIXEL-PERFECTLY**.
       2. **LOGIC:** Implement the features requested in the text below using the Technical Constraints.
-      
+      3. **LOGIC (From Contract):**
+      - The image is just a mock-up. You MUST inject the real Smart Contract logic into it.
+      - **Contract Address:** \`${options.address}\`
+      - **Chain ID:** ${options.chainId}
+      - **ABI Functions to Wire Up:**
+      ${functionNames}
+      4. **DYNAMIC CONFIG (Critical):**
+      - Replace the image's logo with \`{config.logo}\`.
+      - Replace the image's main heading with \`{config.title}\`.
+      - Replace the image's subtitle with \`{config.details}\`.
+      - **DO NOT hardcode text found in the image for the Title/Logo.**
+
       **STRATEGY:**
       - **Look at the image first.** Identify the layout, colors, buttons, and typography.
       - Write the \`index.html\` and \`src/App.jsx\` to replicate that visual structure.

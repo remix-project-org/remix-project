@@ -10,24 +10,26 @@ export interface AppState {
   dappProcessing: Record<string, boolean>;
 }
 
+const initialInstanceState = {
+  name: '',
+  address: '',
+  network: '',
+  htmlTemplate: '',
+  abi: {},
+  title: '',
+  details: '',
+  logo: null,
+  userInput: { methods: {} },
+  natSpec: { checked: false, methods: {} },
+};
+
 export const appInitialState: AppState = {
   loading: { screen: true },
   isAiLoading: false,
   view: 'loading',
   dapps: [],
   activeDapp: null,
-  instance: {
-    name: '',
-    address: '',
-    network: '',
-    htmlTemplate: '',
-    abi: {},
-    title: '',
-    details: '',
-    logo: null,
-    userInput: { methods: {} },
-    natSpec: { checked: false, methods: {} },
-  },
+  instance: { ...initialInstanceState },
   dappProcessing: {},
 };
 
@@ -37,6 +39,14 @@ export const appReducer = (state = appInitialState, action: any): AppState => {
       return { ...state, loading: { ...state.loading, ...action.payload } };
     
     case 'SET_VIEW':
+      if (action.payload === 'create') {
+        return {
+          ...state,
+          view: action.payload,
+          activeDapp: null,
+          instance: { ...initialInstanceState }
+        };
+      }
       return { ...state, view: action.payload };
 
     case 'SET_DAPPS':
@@ -47,23 +57,27 @@ export const appReducer = (state = appInitialState, action: any): AppState => {
 
     case 'SET_ACTIVE_DAPP':
       const dapp = action.payload as DappConfig | null;
+      
       if (!dapp) {
         return { 
           ...state, 
           activeDapp: null,
+          instance: { ...initialInstanceState } 
         };
       }
+
       return { 
         ...state, 
         activeDapp: dapp,
         instance: {
-            ...state.instance,
-            name: dapp.name,
-            address: dapp.contract.address,
-            abi: dapp.contract.abi,
-            title: dapp.config.title,
-            details: dapp.config.details,
-            htmlTemplate: 'loaded', 
+          ...state.instance,
+          name: dapp.name,
+          address: dapp.contract.address,
+          abi: dapp.contract.abi,
+          title: dapp.config?.title || '',
+          details: dapp.config?.details || '',
+          logo: dapp.config?.logo || null, 
+          htmlTemplate: 'loaded', 
         }
       };
 
@@ -71,13 +85,16 @@ export const appReducer = (state = appInitialState, action: any): AppState => {
       return { ...state, instance: { ...state.instance, ...action.payload } };
 
     case 'SET_DAPP_PROCESSING':
-    return {
-      ...state,
-      dappProcessing: {
-        ...state.dappProcessing,
-        [action.payload.slug]: action.payload.isProcessing
-      }
-    };
+      return {
+        ...state,
+        dappProcessing: {
+          ...state.dappProcessing,
+          [action.payload.slug]: action.payload.isProcessing
+        }
+      };
+
+    case 'RESET_INSTANCE':
+      return { ...state, instance: { ...initialInstanceState } };
 
     default:
       return state;

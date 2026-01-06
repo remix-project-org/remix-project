@@ -1,5 +1,5 @@
 import React, { useContext, useState, useRef, useEffect } from 'react';
-import { Form, Button, Alert, Card, Collapse } from 'react-bootstrap';
+import { Form, Button, Alert, Card, Collapse, Spinner } from 'react-bootstrap';
 import { ethers } from 'ethers';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { AppContext } from '../../contexts';
@@ -16,6 +16,7 @@ function DeployPanel(): JSX.Element {
   const intl = useIntl();
   const { appState, dispatch, dappManager } = useContext(AppContext);
   const { activeDapp } = appState;
+  
   const { title, details, logo } = appState.instance; 
   
   const [currentStep, setCurrentStep] = useState(1); 
@@ -40,7 +41,9 @@ function DeployPanel(): JSX.Element {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(true);
   const [isEnsOpen, setIsEnsOpen] = useState(true);
-  const [ensError, setEnsError] = useState('');
+  
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -75,10 +78,56 @@ function DeployPanel(): JSX.Element {
     return '';
   };
 
-  // ===========================================================================
-  // [🔴 Base Mini App Logic]
-  // ===========================================================================
-  
+  const handleRemoveLogo = () => {
+    dispatch({ type: 'SET_INSTANCE', payload: { logo: null } });
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const handleSaveConfig = async () => {
+    if (!dappManager || !activeDapp) return;
+    setIsSavingConfig(true);
+    
+    try {
+      const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
+        config: {
+          ...activeDapp.config,
+          title: title || '',
+          details: details || '',
+          logo: logo || undefined
+        }
+      });
+
+      if (updatedConfig) {
+        dispatch({ type: 'SET_ACTIVE_DAPP', payload: updatedConfig });
+        // @ts-ignore
+        await remixClient.call('notification', 'toast', 'Configuration saved successfully!');
+      }
+    } catch (e: any) {
+      console.error("Save failed", e);
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', 'Failed to save configuration: ' + e.message);
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+            dispatch({ type: 'SET_INSTANCE', payload: { logo: reader.result } });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // [Base Mini App Wizard Logic]
+  // ---------------------------------------------------------------------------
   const handleStep1Config = async () => {
     if (!baseEnsName || !baseAppIdMeta) {
       // @ts-ignore
@@ -91,11 +140,9 @@ function DeployPanel(): JSX.Element {
       await remixClient.call('notification', 'toast', "Invalid ENS Name: " + nameError);
       return;
     }
-
     try {
       setBaseFlowLoading(true);
       addLog("Reading index.html...");
-      
       const indexHtmlPath = `dapps/${activeDapp.slug}/index.html`;
       // @ts-ignore
       let content = await remixClient.call('fileManager', 'readFile', indexHtmlPath);
@@ -106,8 +153,6 @@ function DeployPanel(): JSX.Element {
       addLog("Injected Base App ID Meta Tag.");
 
       const targetUrl = `https://${baseEnsName}.remixdapp.eth.limo`;
-      addLog(`Setting Mini App URL to: ${targetUrl}`);
-
       const fcMetaRegex = /(<meta\s+name=["']fc:miniapp["']\s+content=')([^']*)(')/;
       const match = content.match(fcMetaRegex);
 
@@ -115,36 +160,24 @@ function DeployPanel(): JSX.Element {
         try {
           const jsonStr = match[2]; 
           const jsonObj = JSON.parse(jsonStr);
-            
           if (jsonObj.button && jsonObj.button.action) {
-              jsonObj.button.action.url = targetUrl;
+            jsonObj.button.action.url = targetUrl;
           } else {
-              jsonObj.url = targetUrl;
+            jsonObj.url = targetUrl;
           }
-
           const newJsonStr = JSON.stringify(jsonObj);
           content = content.replace(fcMetaRegex, `$1${newJsonStr}$3`);
-          addLog("Updated fc:miniapp URL.");
-        } catch (parseErr) {
-          addLog("Warning: Failed to parse existing fc:miniapp JSON. Skipping URL update.");
-        }
+        } catch (parseErr) {}
       } else {
         const newMeta = `<meta name="fc:miniapp" content='{"version":"next","imageUrl":"https://github.com/remix-project-org.png","button":{"title":"Launch","action":{"type":"launch_miniapp","name":"${title}","url":"${targetUrl}"}}}' />`;
         content = content.replace('</head>', `    ${newMeta}\n  </head>`);
-        addLog("Injected new fc:miniapp tag.");
       }
 
       // @ts-ignore
       await remixClient.call('fileManager', 'writeFile', indexHtmlPath, content);
-      // @ts-ignore
-      await remixClient.call('notification', 'toast', "Config Saved! Proceed to Deployment.");
-      addLog("Saved index.html configuration.");
-
       setCurrentStep(2); 
-
     } catch (e: any) {
       console.error(e);
-      addLog("Error: " + e.message);
       // @ts-ignore
       await remixClient.call('notification', 'toast', "Configuration failed: " + e.message);
     } finally {
@@ -156,13 +189,8 @@ function DeployPanel(): JSX.Element {
     try {
       setBaseFlowLoading(true);
       addLog(`Starting ${stepName}...`);
-
-      addLog("Uploading to IPFS...");
       const cid = await handleIpfsDeploy(); 
       if (!cid) throw new Error("IPFS Upload failed");
-      addLog(`IPFS Deployed: ${cid}`);
-
-      addLog(`Linking ENS: ${baseEnsName}.remixdapp.eth -> ${cid}`);
       
       if (typeof window.ethereum === 'undefined') throw new Error("MetaMask not found");
       const provider = new ethers.BrowserProvider(window.ethereum as any);
@@ -182,81 +210,40 @@ function DeployPanel(): JSX.Element {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'ENS Registration failed');
 
-      const successMsg = stepName === "Final Re-Deployment" 
-          ? "Final Deploy Success! Check Base Dev now." 
-          : "Deploy & ENS Success! Go to Step 3.";
-      
-      // @ts-ignore
-      await remixClient.call('notification', 'toast', successMsg);
-
-      addLog(`ENS Success! TX: ${data.txHash}`);
-      
-      setEnsResult({
-          success: 'Linked',
-          error: '',
-          txHash: data.txHash,
-          domain: data.domain
-      });
-
+      setEnsResult({ success: 'Linked', error: '', txHash: data.txHash, domain: data.domain });
       return true;
-
     } catch (e: any) {
-        console.error(e);
-        addLog("Error: " + e.message);
-        // @ts-ignore
-        await remixClient.call('notification', 'toast', "Deploy failed: " + e.message);
-        return false;
+      console.error(e);
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', "Deploy failed: " + e.message);
+      return false;
     } finally {
-        setBaseFlowLoading(false);
+      setBaseFlowLoading(false);
     }
   };
 
   const handleStep2Deploy = async () => {
-    const success = await executeDeployAndEns("First Deployment");
-    if (success) setCurrentStep(3);
+    if (await executeDeployAndEns("First Deployment")) setCurrentStep(3);
   };
 
   const handleStep3Association = async () => {
     if (!baseAssociationJson) return;
-
     try {
       setBaseFlowLoading(true);
-      addLog("Parsing Association JSON...");
-      
       let parsed;
-      try {
-          parsed = JSON.parse(baseAssociationJson);
-      } catch (e) {
-          throw new Error("Invalid JSON format");
-      }
+      try { parsed = JSON.parse(baseAssociationJson); } catch (e) { throw new Error("Invalid JSON"); }
 
-      let associationData;
-      if (parsed.accountAssociation) {
-          associationData = parsed.accountAssociation;
-      } else if (parsed.header && parsed.payload && parsed.signature) {
-          associationData = parsed;
-      } else {
-          throw new Error("JSON must contain accountAssociation object OR header/payload/signature fields.");
-      }
-
-      addLog("Valid JSON found. Updating manifest...");
-
+      let associationData = parsed.accountAssociation || parsed;
       const manifestPath = `dapps/${activeDapp.slug}/.well-known/farcaster.json`;
       // @ts-ignore
       const content = await remixClient.call('fileManager', 'readFile', manifestPath);
       const manifest = content ? JSON.parse(content) : {};
-
       manifest.accountAssociation = associationData;
 
       // @ts-ignore
       await remixClient.call('fileManager', 'writeFile', manifestPath, JSON.stringify(manifest, null, 2));
-      addLog("Manifest updated locally.");
-
       setCurrentStep(4);
-
     } catch (e: any) {
-      console.error(e);
-      addLog("Error: " + e.message);
       // @ts-ignore
       await remixClient.call('notification', 'toast', "Manifest update failed: " + e.message);
     } finally {
@@ -265,40 +252,40 @@ function DeployPanel(): JSX.Element {
   };
 
   const handleStep4Finalize = async () => {
-    const success = await executeDeployAndEns("Final Re-Deployment");
-    if (success) {
-      addLog("All steps completed! You can now publish on base.dev");
+    if (await executeDeployAndEns("Final Re-Deployment")) {
       // @ts-ignore
       await remixClient.call('notification', 'toast', 'Base Mini App Ready!');
     }
   };
   
+  // ---------------------------------------------------------------------------
+  // [IPFS Deployment Logic]
+  // ---------------------------------------------------------------------------
   const handleIpfsDeploy = async (): Promise<string | null> => {
     if (!activeDapp) return null;
     setDeployResult({ cid: '', gatewayUrl: '', error: '' });
+    setIsDeploying(true);
 
     let builder: InBrowserVite;
-    let jsResult;
-    let filesMap = new Map<string, string>();
-
+    
     try {
       builder = new InBrowserVite();
       await builder.initialize();
       const dappRootPath = `dapps/${activeDapp.slug}`;
+      const filesMap = new Map<string, string>();
       await readDappFiles(dappRootPath, filesMap, dappRootPath.length);
 
       if (filesMap.size === 0) throw new Error("No DApp files");
-      jsResult = await builder.build(filesMap, '/src/main.jsx');
+      const jsResult = await builder.build(filesMap, '/src/main.jsx');
       if (!jsResult.success) throw new Error(`Build failed: ${jsResult.error}`);
 
       let indexHtmlContent = filesMap.get('/index.html') || '';
-      let logoDataUrl = logo || '';
-      if (logo && logo.byteLength > 0 && typeof logo !== 'string') {
-        try {
-          const base64data = btoa(new Uint8Array(logo as ArrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-          logoDataUrl = 'data:image/jpeg;base64,' + base64data;
-        } catch (e) {}
+      
+      let logoDataUrl = '';
+      if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
+        logoDataUrl = logo;
       }
+
       const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title||'')},details:${JSON.stringify(details||'')}};</script>`;
       
       let modifiedHtml = indexHtmlContent;
@@ -319,18 +306,12 @@ function DeployPanel(): JSX.Element {
           // @ts-ignore
           const manifestContent = await remixClient.call('fileManager', 'readFile', manifestPath);
           
-          if (!manifestContent) {
-              throw new Error("Manifest file is empty or missing!");
+          if (manifestContent) {
+            const manifestBlob = new Blob([manifestContent], { type: 'application/json' });
+            formData.append('files', manifestBlob, '.well-known:::farcaster.json');
           }
-          console.log('[Deploy] Uploading Manifest Content:', manifestContent);
-
-          const manifestBlob = new Blob([manifestContent], { type: 'application/json' });
-          formData.append('files', manifestBlob, '.well-known:::farcaster.json');
-          console.log('[Deploy] Added farcaster.json to deployment payload');
-          
         } catch (e: any) {
           console.error('[Deploy] Manifest Error:', e);
-          throw new Error(`Failed to read Manifest file: ${e.message}`);
         }
       }
 
@@ -344,32 +325,59 @@ function DeployPanel(): JSX.Element {
         const newConfig = await dappManager.updateDappConfig(activeDapp.slug, {
           status: 'deployed',
           lastDeployedAt: Date.now(),
-          deployment: { ...activeDapp.deployment, ipfsCid: data.ipfsHash, gatewayUrl: data.gatewayUrl }
+          deployment: { ...activeDapp.deployment, ipfsCid: data.ipfsHash, gatewayUrl: data.gatewayUrl },
+          config: {
+            ...activeDapp.config,
+            title: title || '',
+            details: details || '',
+            logo: logoDataUrl || undefined
+          }
         });
         if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
       }
+      setIsDeploying(false);
       return data.ipfsHash;
 
     } catch (e: any) {
       console.error(e);
       setDeployResult({ cid: '', gatewayUrl: '', error: `Upload failed: ${e.message}` });
+      setIsDeploying(false);
       return null;
     }
   };
 
-  const handleRemoveLogo = () => {
-    dispatch({ type: 'SET_INSTANCE', payload: { logo: null } });
-    if (logoInputRef.current) logoInputRef.current.value = '';
-  };
+  const renderEditForm = () => (
+    <div className="mb-3">
+      <Form.Group className="mb-3">
+        <Form.Label className="text-uppercase mb-0 form-label">Dapp logo</Form.Label>
+        {logo && typeof logo === 'string' && (
+          <div className="mt-2 mb-2 position-relative d-inline-block border bg-white rounded p-1">
+            <img src={logo} alt="Preview" style={{height: '60px', maxWidth: '100%', objectFit: 'contain'}} onError={(e)=>e.currentTarget.style.display='none'}/>
+            <span onClick={handleRemoveLogo} style={{cursor:'pointer', position: 'absolute', top: -10, right: -10}} className="badge bg-danger rounded-circle"><i className="fas fa-times"></i></span>
+          </div>
+        )}
+        <Form.Control ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} className="mt-1" />
+      </Form.Group>
+      <Form.Group className="mb-3">
+        <Form.Label className="text-uppercase mb-0 form-label">Dapp Title</Form.Label>
+        <Form.Control value={title} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { title: value } })} />
+      </Form.Group>
+      <Form.Group className="mb-3">
+        <Form.Label className="text-uppercase mb-0 form-label">Dapp Description</Form.Label>
+        <Form.Control as="textarea" rows={3} value={details} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { details: value } })} />
+      </Form.Group>
+      
+      <div className="d-grid">
+        <Button variant="primary" className="w-100" onClick={handleSaveConfig} disabled={isSavingConfig}>
+          {isSavingConfig ? <><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Saving...</> : 'Save Configuration'}
+        </Button>
+      </div>
+    </div>
+  );
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader: any = new FileReader()
-      reader.onloadend = () => dispatch({ type: 'SET_INSTANCE', payload: { logo: reader.result } })
-      reader.readAsArrayBuffer(e.target.files[0])
-    }
-  }
-
+  // ---------------------------------------------------------------------------
+  // [Render]
+  // ---------------------------------------------------------------------------
   if (activeDapp?.config?.isBaseMiniApp) {
     return (
       <div className="base-wizard-container">
@@ -378,8 +386,8 @@ function DeployPanel(): JSX.Element {
             <i className="fas fa-rocket me-2"></i>Base Mini App Wizard
           </Card.Header>
           <Card.Body>
-            {/* Step Indicator */}
-            <div className="d-flex justify-content-between mb-4 position-relative">
+             {/* Step Indicator */}
+             <div className="d-flex justify-content-between mb-4 position-relative">
                 {[1, 2, 3, 4].map(step => (
                   <div key={step} className={`text-center ${currentStep >= step ? 'text-primary' : 'text-muted'}`} style={{zIndex: 1, width: '25%'}}>
                     <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${currentStep === step ? 'bg-primary text-white' : (currentStep > step ? 'bg-primary text-white' : 'bg-light border')}`} style={{width: 30, height: 30}}>
@@ -395,100 +403,43 @@ function DeployPanel(): JSX.Element {
                 </div>
             </div>
 
-            {/* Step 1: Configuration */}
             {currentStep === 1 && (
               <div>
                 <h6 className="fw-bold mb-3">Step 1: Configuration</h6>
+                <Card className="mb-3 bg-light border-0"><Card.Body>{renderEditForm()}</Card.Body></Card>
                 <Form.Group className="mb-3">
-                  <Form.Label>1. Choose ENS Name (Subdomain)</Form.Label>
+                  <Form.Label>ENS Name (Subdomain)</Form.Label>
                   <div className="input-group">
-                    <Form.Control 
-                      type="text" 
-                      placeholder="myapp" 
-                      value={baseEnsName}
-                      onChange={e => setBaseEnsName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
-                    />
+                    <Form.Control type="text" placeholder="myapp" value={baseEnsName} onChange={e => setBaseEnsName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
                     <span className="input-group-text">.remixdapp.eth</span>
                   </div>
-                  <Form.Text className="text-muted">Target URL: <code>https://{baseEnsName || '...'}.remixdapp.eth.limo</code></Form.Text>
                 </Form.Group>
-
                 <Form.Group className="mb-3">
-                  <Form.Label>
-                    2. Base App ID Meta Tag
-                    <a href="https://www.base.dev" target="_blank" rel="noreferrer" className="ms-2 small text-decoration-none">
-                      (Get it from base.dev <i className="fas fa-external-link-alt"></i>)
-                    </a>
-                  </Form.Label>
-                  <Form.Control 
-                    as="textarea" rows={2}
-                    placeholder='<meta name="base:app_id" content="..." />'
-                    value={baseAppIdMeta}
-                    onChange={e => setBaseAppIdMeta(e.target.value)}
-                    />
-                  <Form.Text className="text-muted">Copy entire tag from base.dev</Form.Text>
+                  <Form.Label>Base App ID Meta Tag</Form.Label>
+                  <Form.Control as="textarea" rows={2} placeholder='<meta name="base:app_id" ... />' value={baseAppIdMeta} onChange={e => setBaseAppIdMeta(e.target.value)} />
                 </Form.Group>
-
-                <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading}>
-                  {baseFlowLoading ? 'Processing...' : 'Save Config & Next'}
-                </Button>
-                <div className="mt-2 text-muted small text-center">
-                  After saving, you will deploy (Step 2) and then verify on base.dev.
-                </div>
+                <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading}>{baseFlowLoading ? 'Processing...' : 'Save Config & Next'}</Button>
               </div>
             )}
-
-            {/* Step 2: First Deploy */}
+            
             {currentStep === 2 && (
               <div>
                 <h6 className="fw-bold mb-3">Step 2: Initial Deployment</h6>
-                <Alert variant="info" className="small">
-                  We will deploy your app to IPFS and link it to <strong>{baseEnsName}.remixdapp.eth</strong>.
-                </Alert>
-                <Button variant="primary" className="w-100" onClick={handleStep2Deploy} disabled={baseFlowLoading}>
-                  {baseFlowLoading ? 'Deploying...' : 'Deploy to IPFS & Register ENS'}
-                </Button>
+                <Button variant="primary" className="w-100" onClick={handleStep2Deploy} disabled={baseFlowLoading}>{baseFlowLoading ? 'Deploying...' : 'Deploy to IPFS & Register ENS'}</Button>
               </div>
             )}
-
-            {/* Step 3: Association */}
             {currentStep === 3 && (
               <div>
                 <h6 className="fw-bold mb-3">Step 3: Verify Ownership</h6>
-                <ol className="small ps-3 mb-3">
-                  <li>Go to <a href="https://www.base.dev" target="_blank" rel="noreferrer">Base Dev</a>.</li>
-                  <li>Verify URL: <code className="user-select-all">https://{baseEnsName}.remixdapp.eth.limo</code></li>
-                  <li>Go to Mini App Tools tab.</li>
-                  <li>Copy the JSON (Account Association).</li>
-                </ol>
-                <Form.Group className="mb-3">
-                  <Form.Label>Paste JSON</Form.Label>
-                  <Form.Control 
-                    as="textarea" rows={4}
-                    placeholder='{ "accountAssociation": { ... } }'
-                    value={baseAssociationJson}
-                    onChange={e => setBaseAssociationJson(e.target.value)}
-                  />
-                </Form.Group>
-                <Button className="w-100" onClick={handleStep3Association} disabled={baseFlowLoading}>
-                  {baseFlowLoading ? 'Updating...' : 'Update Manifest & Next'}
-                </Button>
+                <p className="small">Verify at <a href="https://www.base.dev" target="_blank" rel="noreferrer">Base Dev</a> with URL: <code>https://{baseEnsName}.remixdapp.eth.limo</code></p>
+                <Form.Control as="textarea" rows={4} placeholder='Paste JSON here...' value={baseAssociationJson} onChange={e => setBaseAssociationJson(e.target.value)} className="mb-3"/>
+                <Button className="w-100" onClick={handleStep3Association} disabled={baseFlowLoading}>{baseFlowLoading ? 'Updating...' : 'Update Manifest & Next'}</Button>
               </div>
             )}
-
-            {/* Step 4: Finalize */}
             {currentStep === 4 && (
               <div>
                 <h6 className="fw-bold mb-3">Step 4: Finalize</h6>
-                <Alert variant="warning" className="small">
-                  Manifest updated. We need to re-deploy so the new file is live on IPFS/ENS.
-                </Alert>
-                <Button variant="success" className="w-100 mb-3" onClick={handleStep4Finalize} disabled={baseFlowLoading}>
-                  {baseFlowLoading ? 'Deploying...' : 'Re-Deploy & Update ENS'}
-                </Button>
-                <div className="text-center small text-muted">
-                  After this, your Base verification should turn GREEN! 🟢
-                </div>
+                <Button variant="success" className="w-100" onClick={handleStep4Finalize} disabled={baseFlowLoading}>{baseFlowLoading ? 'Deploying...' : 'Re-Deploy & Update ENS'}</Button>
               </div>
             )}
           </Card.Body>
@@ -497,6 +448,7 @@ function DeployPanel(): JSX.Element {
     );
   } 
 
+  // Standard DApp UI
   const displayCid = deployResult.cid || activeDapp?.deployment?.ipfsCid;
   const displayGateway = deployResult.gatewayUrl || activeDapp?.deployment?.gatewayUrl;
   const displayEnsSuccess = ensResult.success || (activeDapp?.deployment?.ensDomain ? `Linked: ${activeDapp.deployment.ensDomain}` : '');
@@ -510,23 +462,12 @@ function DeployPanel(): JSX.Element {
         </Card.Header>
         <Collapse in={isDetailsOpen}>
           <Card.Body>
-            <Form.Group className="mb-3">
-              <Form.Label className="text-uppercase mb-0">Dapp logo</Form.Label>
-              {logo && <span onClick={handleRemoveLogo} style={{cursor:'pointer'}} className="ms-2 text-danger"><i className="fas fa-trash"></i></span>}
-              <Form.Control ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label className="text-uppercase mb-0">Dapp Title</Form.Label>
-              <Form.Control value={title} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { title: value } })} />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label className="text-uppercase mb-0">Dapp Description</Form.Label>
-              <Form.Control as="textarea" rows={3} value={details} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { details: value } })} />
-            </Form.Group>
+            {renderEditForm()}
           </Card.Body>
         </Collapse>
       </Card>
       
+      {/* IPFS Deploy */}
       <Card className="mb-2">
         <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
           Publish to IPFS <i className={`fas ${isPublishOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
@@ -548,6 +489,7 @@ function DeployPanel(): JSX.Element {
         </Collapse>
       </Card>
 
+      {/* ENS Panel */}
       {displayCid && (
         <Card className="mb-2">
           <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">

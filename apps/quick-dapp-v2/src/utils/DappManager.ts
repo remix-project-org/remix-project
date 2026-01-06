@@ -11,6 +11,48 @@ export class DappManager {
     this.plugin = plugin;
   }
 
+  private normalizeLogo(logo: any): string | null {
+    if (!logo) return null;
+
+    if (typeof logo === 'string') {
+      if (logo === '[object Object]') return null;
+      return logo;
+    }
+
+    if (logo && logo.type === 'Buffer' && Array.isArray(logo.data)) {
+      try {
+        const base64 = btoa(
+          new Uint8Array(logo.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+        return `data:image/jpeg;base64,${base64}`;
+      } catch (e) {
+        console.warn('[DappManager] Failed to convert Buffer logo', e);
+        return null;
+      }
+    }
+
+    if (logo instanceof ArrayBuffer || logo instanceof Uint8Array || (logo as any).buffer) {
+      try {
+        const buffer = logo instanceof ArrayBuffer ? logo : (logo as any).buffer || logo;
+        const base64 = btoa(
+          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+        return `data:image/jpeg;base64,${base64}`;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  private sanitizeConfig(config: DappConfig): DappConfig {
+    if (config.config && config.config.logo) {
+      config.config.logo = this.normalizeLogo(config.config.logo) as string | undefined;
+    }
+    return config;
+  }
+
   async ensureBasePath() {
     try {
       await this.plugin.call('fileManager', 'readdir', BASE_PATH);
@@ -63,7 +105,7 @@ export class DappManager {
                   config.thumbnailPath = previewContent;
                 }
               } catch (e) {}
-              configs.push(config);
+              configs.push(this.sanitizeConfig(config));
             }
           } catch (e) {
             console.warn(`[DappManager] Failed to read config for ${rawPath}`, e);
@@ -155,7 +197,8 @@ export class DappManager {
 
   async saveConfig(slug: string, config: DappConfig): Promise<void> {
     config.updatedAt = Date.now();
-    const content = JSON.stringify(config, null, 2);
+    const sanitized = this.sanitizeConfig(config);
+    const content = JSON.stringify(sanitized, null, 2);
     const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
     await this.plugin.call('fileManager', 'writeFile', configPath, content);
   }
@@ -211,6 +254,21 @@ export class DappManager {
      }
   }
 
+  async getDappConfig(slug: string): Promise<DappConfig | null> {
+    try {
+      const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
+      const content = await this.plugin.call('fileManager', 'readFile', configPath);
+      if (content) {
+        const config = JSON.parse(content);
+        config.slug = slug;
+        return this.sanitizeConfig(config);
+      }
+    } catch (e) {
+      console.warn(`[DappManager] Failed to read config for ${slug}`, e);
+    }
+    return null;
+  }
+
   async updateDappConfig(slug: string, updates: Partial<DappConfig>): Promise<DappConfig | null> {
     try {
       const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
@@ -223,33 +281,26 @@ export class DappManager {
       const newConfig: DappConfig = {
         ...currentConfig,
         ...updates,
+        config: {
+          ...currentConfig.config,
+          ...(updates.config || {})
+        },
         deployment: {
           ...currentConfig.deployment,
           ...(updates.deployment || {})
         },
         updatedAt: Date.now()
       };
+      
+      const sanitizedConfig = this.sanitizeConfig(newConfig);
 
-      await this.plugin.call('fileManager', 'writeFile', configPath, JSON.stringify(newConfig, null, 2));
-      return newConfig;
+      await this.plugin.call('fileManager', 'writeFile', configPath, JSON.stringify(sanitizedConfig, null, 2));
+      return sanitizedConfig;
 
     } catch (e) {
       console.error('[DappManager] Failed to update config:', e);
       return null;
     }
-  }
-
-  async getDappConfig(slug: string): Promise<DappConfig | null> {
-    try {
-      const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
-      const content = await this.plugin.call('fileManager', 'readFile', configPath);
-      if (content) {
-        return JSON.parse(content);
-      }
-    } catch (e) {
-      console.warn(`[DappManager] Failed to read config for ${slug}`, e);
-    }
-    return null;
   }
 
 }
