@@ -568,8 +568,8 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false): Promise<string> {
-    // const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
-    const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
+    const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
+    // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
     console.log('[AIDappGenerator] calling LLM API with body:', JSON.stringify({
         messages,
