@@ -52,11 +52,11 @@ export class CodeCompletionAgent {
   }
 
   listenForChanges() {
-    this.props.on('fileManager', 'fileAdded', (path) => { this.indexed = { isIndexed: false, reason:"fileAdded" } });
-    this.props.on('fileManager', 'fileRemoved', (path) => { this.indexed = { isIndexed: false, reason:"fileRemoved" } });
-    this.props.on('filePanel', 'workspaceCreated', () => { this.indexed = { isIndexed: false, reason:"workspaceCreated" } });
-    this.props.on('filePanel', 'workspaceRenamed', () => { this.indexed = { isIndexed: false, reason:"workspaceRenamed" }});
-    this.props.on('filePanel', 'workspaceDeleted', () => { this.indexed = { isIndexed: false, reason:"workspaceDeleted" } });
+    this.props.on('remixAI', 'fileAdded', (path) => { this.indexed = { isIndexed: false, reason:"fileAdded" } });
+    this.props.on('remixAI', 'fileRemoved', (path) => { this.indexed = { isIndexed: false, reason:"fileRemoved" } });
+    this.props.on('remixAI', 'workspaceCreated', () => { this.indexed = { isIndexed: false, reason:"workspaceCreated" } });
+    this.props.on('remixAI', 'workspaceRenamed', () => { this.indexed = { isIndexed: false, reason:"workspaceRenamed" }});
+    this.props.on('remixAI', 'workspaceDeleted', () => { this.indexed = { isIndexed: false, reason:"workspaceDeleted" } });
   }
 
   async getDcocuments() {

@@ -672,6 +672,10 @@ export class MCPClient {
     return this.server.name;
   }
 
+  getServer(): IMCPServer {
+    return this.server;
+  }
+
   on(event: string, listener: (...args: any[]) => void): void {
     this.eventEmitter.on(event, listener);
   }

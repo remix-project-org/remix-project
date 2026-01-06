@@ -52,12 +52,8 @@ export class SecurityAgent {
   constructor(plugin) {
     this.basePlugin = plugin;
 
-    this.basePlugin.on('fileManager', 'fileAdded', (path) => { });
-    this.basePlugin.on('fileManager', 'fileChanged', (path) => { //this.modifiedFile(path)
-    });
-
-    this.basePlugin.on('fileManager', 'fileRemoved', (path) => { this.removeFileFromReport(path) });
-    this.basePlugin.on('fileManager', 'fileRenamed', (oldName, newName) => {
+    this.basePlugin.on('remixAI', 'fileRemoved', (path) => { this.removeFileFromReport(path) });
+    this.basePlugin.on('remixAI', 'fileRenamed', (oldName, newName) => {
       this.removeFileFromReport(oldName);
       this.addFileToReport(newName);
     });

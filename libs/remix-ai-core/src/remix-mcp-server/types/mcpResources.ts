@@ -263,4 +263,7 @@ export interface ResourceProviderRegistry {
   getResourceContent(uri: string): Promise<IMCPResourceContent>;
   subscribe(callback: (event: ResourceUpdateEvent) => void): void;
   unsubscribe(callback: (event: ResourceUpdateEvent) => void): void;
+  clearCache(): void;
+  invalidateProvider(providerName: string): void;
+  invalidateByPattern(pattern: string | RegExp): void;
 }

@@ -763,7 +763,46 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
   clearCache(): void {
     this._resourceCache.clear();
+    this._resources.clearCache();
     this.emit('cache-cleared');
+  }
+
+  /**
+   * Invalidate cache for a specific resource URI
+   */
+  invalidateResourceCache(uri: string): void {
+    if (this._resourceCache.delete(uri)) {
+      console.log(`[RemixMCPServer] Cache invalidated for resource: ${uri}`);
+      this.emit('cache-invalidated', uri);
+    }
+  }
+
+  /**
+   * Invalidate cache for resources matching a URI pattern
+   */
+  invalidateResourceCacheByPattern(pattern: string | RegExp): void {
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    let invalidatedCount = 0;
+
+    for (const [uri] of this._resourceCache) {
+      if (regex.test(uri)) {
+        this._resourceCache.delete(uri);
+        invalidatedCount++;
+      }
+    }
+
+    if (invalidatedCount > 0) {
+      console.log(`[RemixMCPServer] Invalidated ${invalidatedCount} resource cache(s) matching pattern: ${pattern}`);
+      this.emit('cache-invalidated-batch', invalidatedCount, pattern);
+    }
+  }
+
+  /**
+   * Invalidate provider cache
+   */
+  invalidateProviderCache(providerName: string): void {
+    this._resources.invalidateProvider(providerName);
+    this.emit('provider-cache-invalidated', providerName);
   }
 
   async refreshResources(): Promise<void> {
@@ -923,6 +962,68 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
     } catch (error) {
       console.log(`Failed to initialize default resource providers: ${error.message}`, 'error');
       throw error;
+    }
+  }
+
+  /**
+   * Handle cache invalidation for different event types
+   * Called by RemixAIPlugin when plugin events occur
+   */
+  public handlePluginEvent(eventType: string, data?: any): void {
+    console.log(`[RemixMCPServer] Handling plugin event: ${eventType}`);
+
+    switch (eventType) {
+    case 'fileSaved':
+    case 'fileAdded':
+      this.invalidateProviderCache('project');
+      break;
+    case 'fileRemoved':
+      this.invalidateProviderCache('project');
+      if (data?.file) {
+        console.log(`[RemixMCPServer] Invalidating cache for file: ${data.file}`);
+        this.invalidateResourceCacheByPattern(data.file);
+      }
+      break;
+
+    case 'fileRenamed':
+      this.invalidateProviderCache('project');
+      if (data?.oldFile) {
+        console.log(`[RemixMCPServer] Invalidating cache for old file: ${data.oldFile}`);
+        this.invalidateResourceCacheByPattern(data.oldFile);
+      }
+      if (data?.newFile) {
+        console.log(`[RemixMCPServer] Invalidating cache for new file: ${data.newFile}`);
+        this.invalidateResourceCacheByPattern(data.newFile);
+      }
+      break;
+
+    case 'compilationFinished':
+      this.invalidateProviderCache('compilation');
+      if (data?.file) {
+        console.log(`[RemixMCPServer] Invalidating cache for compiled file: ${data.file}`);
+        this.invalidateResourceCacheByPattern(data.file);
+      }
+      break;
+
+    case 'contractCreated':
+      console.log(`[RemixMCPServer] Invalidating deployment cache for event: ${eventType}`);
+      this.invalidateProviderCache('deployment');
+      break;
+    case 'instanceAdded':
+      console.log(`[RemixMCPServer] Invalidating deployment cache for event: ${eventType}`);
+      this.invalidateProviderCache('deployment');
+      break;
+    case 'transactionExecuted':
+      console.log(`[RemixMCPServer] Invalidating deployment cache for event: ${eventType}`);
+      this.invalidateProviderCache('deployment');
+      break;
+    case 'transactionBroadcasted':
+      console.log(`[RemixMCPServer] Invalidating deployment cache for event: ${eventType}`);
+      this.invalidateProviderCache('deployment');
+      break;
+
+    default:
+      console.warn(`[RemixMCPServer] Unknown event type: ${eventType}`);
     }
   }
 

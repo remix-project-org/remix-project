@@ -29,7 +29,7 @@ const profile = {
     'enableMCPEnhancement', 'disableMCPEnhancement', 'isMCPEnabled', 'getIMCPServers',
     'clearCaches'
   ],
-  events: [],
+  events: ['fileSaved', 'fileAdded', 'fileRemoved', 'fileRenamed', 'compilationFinished', 'contractCreated', 'instanceAdded', 'transactionExecuted', 'transactionBroadcasted'],
   icon: 'assets/img/remix-logo-blue.png',
   description: 'RemixAI provides AI services to Remix IDE.',
   kind: '',
@@ -111,9 +111,17 @@ export class RemixAIPlugin extends Plugin {
 
     this.on('blockchain', 'transactionExecuted', async () => {
       this.clearCaches()
+      if (this.remixMCPServer) {
+        this.remixMCPServer.handlePluginEvent('transactionExecuted');
+      }
+      this.emit('transactionExecuted');
     })
     this.on('web3Provider', 'transactionBroadcasted', (txhash) => {
       this.clearCaches()
+      if (this.remixMCPServer) {
+        this.remixMCPServer.handlePluginEvent('transactionBroadcasted');
+      }
+      this.emit('transactionBroadcasted', txhash);
     });
 
     (window as any).getRemixAIPlugin = this
@@ -123,6 +131,56 @@ export class RemixAIPlugin extends Plugin {
     const hasFlag = qp.exists('experimental')
     if (hasFlag) {
       this.remixMCPServer = await createRemixMCPServer(this)
+
+      // Set up event listeners for cache invalidation
+      this.on('fileManager', 'fileSaved', (file: string) => {
+        if (this.remixMCPServer) {
+          this.remixMCPServer.handlePluginEvent('fileSaved', { file });
+        }
+        this.emit('fileSaved', file);
+      });
+
+      this.on('fileManager', 'fileAdded', (file: string) => {
+        if (this.remixMCPServer) {
+          this.remixMCPServer.handlePluginEvent('fileAdded', { file });
+        }
+        this.emit('fileAdded', file);
+      });
+
+      this.on('fileManager', 'fileRemoved', (file: string) => {
+        if (this.remixMCPServer) {
+          this.remixMCPServer.handlePluginEvent('fileRemoved', { file });
+        }
+        this.emit('fileRemoved', file);
+      });
+
+      this.on('fileManager', 'fileRenamed', (oldFile: string, newFile: string) => {
+        if (this.remixMCPServer) {
+          this.remixMCPServer.handlePluginEvent('fileRenamed', { oldFile, newFile });
+        }
+        this.emit('fileRenamed', oldFile, newFile);
+      });
+
+      this.on('solidity', 'compilationFinished', (file: string, source: any, languageVersion: string, data: any) => {
+        if (this.remixMCPServer) {
+          this.remixMCPServer.handlePluginEvent('compilationFinished', { file });
+        }
+        this.emit('compilationFinished', file, source, languageVersion, data);
+      });
+
+      this.on('blockchain', 'contractCreated', (contract: any) => {
+        if (this.remixMCPServer) {
+          this.remixMCPServer.handlePluginEvent('contractCreated');
+        }
+        this.emit('contractCreated', contract);
+      });
+
+      this.on('udapp', 'instanceAdded', (instance: any) => {
+        if (this.remixMCPServer) {
+          this.remixMCPServer.handlePluginEvent('instanceAdded');
+        }
+        this.emit('instanceAdded', instance);
+      });
     }
 
     return true
@@ -654,6 +712,9 @@ export class RemixAIPlugin extends Plugin {
   clearCaches(){
     if (this.mcpInferencer){
       this.mcpInferencer.resetResourceCache()
+    }
+    if (this.remixMCPServer) {
+      this.remixMCPServer.clearCache();
     }
   }
 }

@@ -184,6 +184,30 @@ export class RemixResourceProviderRegistry implements ResourceProviderRegistry {
     this.resourceCache.clear();
   }
 
+  invalidateProvider(providerName: string): void {
+    this.resourceCache.delete(providerName);
+    console.log(`[ResourceRegistry] Cache invalidated for provider: ${providerName}`);
+  }
+
+  /**
+   * Invalidate cache for providers matching a pattern
+   */
+  invalidateByPattern(pattern: string | RegExp): void {
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    let invalidatedCount = 0;
+
+    for (const [name] of this.resourceCache) {
+      if (regex.test(name)) {
+        this.resourceCache.delete(name);
+        invalidatedCount++;
+      }
+    }
+
+    if (invalidatedCount > 0) {
+      console.log(`[ResourceRegistry] Invalidated ${invalidatedCount} provider cache(s) matching pattern: ${pattern}`);
+    }
+  }
+
   /**
    * Refresh resources from all providers
    */

@@ -16,7 +16,7 @@ export class workspaceAgent {
     this.plugin = props;
     this.localUsrFiles = {};
     // event listeners
-    this.plugin.on('solidity', 'compilationFailed', async (file: string, source, languageVersion, data, input, version) => {
+    this.plugin.on('remixAI', 'compilationFailed', async (file: string, source, languageVersion, data, input, version) => {
       this.localUsrFiles = await this.getLocalUserImports({
         file,
         source,
@@ -26,7 +26,7 @@ export class workspaceAgent {
         version
       });
     })
-    this.plugin.on('solidity', 'compilationFinished', async (file: string, source, languageVersion, data, input, version) => {
+    this.plugin.on('remixAI', 'compilationFinished', async (file: string, source, languageVersion, data, input, version) => {
       this.localUsrFiles = await this.getLocalUserImports({
         file,
         source,

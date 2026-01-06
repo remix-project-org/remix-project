@@ -128,16 +128,26 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
   async disconnectAllServers(): Promise<void> {
     const promises = Array.from(this.mcpClients.values()).map(client => client.disconnect());
     await Promise.allSettled(promises);
-    this.resourceCache.clear();
+    this.extResourceCache.clear();
   }
 
   async resetResourceCache(){
-    this.resourceCache.clear()
+    this.extResourceCache.clear()
+    this.remixMCPServer.clearCache()
   }
 
   private isCacheValid(cachedEntry: { content: IMCPResourceContent, timestamp: number }): boolean {
     const now = Date.now();
     return (now - cachedEntry.timestamp) < this.CACHE_TTL;
+  }
+
+  private shouldCacheServer(serverName: string): boolean {
+    const client = this.mcpClients.get(serverName);
+    if (!client) return false;
+
+    // Only cache external servers (http, stdio, etc.)
+    // Skip internal server - it has RemixMCPServer cache with event-based invalidation
+    return client.getServer().transport !== 'internal';
   }
 
   async addMCPServer(server: IMCPServer): Promise<void> {
@@ -316,9 +326,10 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
         const { resource, serverName } = scoredResource;
 
         try {
-          // Try to get from cache first
+          // Try to get from cache first (only for external servers)
           let content: IMCPResourceContent | null = null;
-          const cachedEntry = this.resourceCache.get(resource.uri);
+          const shouldCache = this.shouldCacheServer(serverName);
+          const cachedEntry = shouldCache ? this.extResourceCache.get(resource.uri) : null;
 
           if (cachedEntry && this.isCacheValid(cachedEntry)) {
             console.log(`[MCPInferencer] Using cached resource: ${resource.uri}`);
@@ -327,8 +338,8 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
             const client = this.mcpClients.get(serverName);
             if (client) {
               content = await client.readResource(resource.uri);
-              if (content) {
-                this.resourceCache.set(resource.uri, {
+              if (content && shouldCache) {
+                this.extResourceCache.set(resource.uri, {
                   content,
                   timestamp: Date.now()
                 });
@@ -379,16 +390,16 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
           }
 
           let content: IMCPResourceContent;
-          const cachedEntry = this.resourceCache.get(resource.uri);
+          const shouldCache = this.shouldCacheServer(serverName);
+          const cachedEntry = shouldCache ? this.extResourceCache.get(resource.uri) : null;
 
           if (cachedEntry && this.isCacheValid(cachedEntry)) {
             console.log(`[MCPInferencer] Using cached resource: ${resource.uri}`);
             content = cachedEntry.content;
           } else {
             content = await client.readResource(resource.uri);
-            // Cache the fetched content
-            if (content) {
-              this.resourceCache.set(resource.uri, {
+            if (content && shouldCache) {
+              this.extResourceCache.set(resource.uri, {
                 content,
                 timestamp: Date.now()
               });
