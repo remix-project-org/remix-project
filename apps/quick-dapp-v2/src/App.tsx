@@ -9,7 +9,6 @@ import {
   connectRemix,
   initDispatch,
   updateState,
-  selectTheme,
 } from './actions';
 import { AppContext } from './contexts';
 import remixClient from './remix-client';
@@ -41,9 +40,6 @@ function App(): JSX.Element {
       try {
         await connectRemix();
         
-        remixClient.call('theme', 'currentTheme').then((theme: any) => selectTheme(theme.name));
-        remixClient.on('theme', 'themeChanged', (theme: any) => selectTheme(theme.name));
-
         // @ts-ignore
         remixClient.call('locale', 'currentLocale').then((l: any) => setLocale(l));
         // @ts-ignore

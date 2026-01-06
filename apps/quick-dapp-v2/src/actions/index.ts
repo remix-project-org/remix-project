@@ -3,7 +3,6 @@ import { omitBy } from 'lodash';
 import semver from 'semver';
 import { execution } from '@remix-project/remix-lib';
 import remixClient from '../remix-client';
-import { themeMap } from '../components/DeployPanel/theme';
 
 const { encodeFunctionId } = execution.txHelper;
 
@@ -262,20 +261,6 @@ export const emptyInstance = async () => {
       natSpec: { checked: false, methods: {} },
     },
   });
-};
-
-export const selectTheme = async (selectedTheme: string) => {
-  await dispatch({ type: 'SET_INSTANCE', payload: { theme: selectedTheme } });
-
-  const linkEles = document.querySelectorAll('link');
-  const nextTheme = themeMap[selectedTheme]; // Theme
-  for (const link of linkEles) {
-    if (link.href.indexOf('/assets/css/themes/') > 0) {
-      link.href = 'https://remix.ethereum.org/' + nextTheme.url;
-      document.documentElement.style.setProperty('--theme', nextTheme.quality);
-      break;
-    }
-  }
 };
 
 export const setAiLoading = async (isLoading: boolean) => {
