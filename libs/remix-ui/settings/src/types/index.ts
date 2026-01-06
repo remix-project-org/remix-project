@@ -117,6 +117,7 @@ export interface SettingsState {
   'mcp/servers/enable': ConfigState,
   'mcp-server-management': ConfigState,
   'account-manager': ConfigState,
+  'profile-section': ConfigState,
   'credits-balance': ConfigState,
   'connected-accounts': ConfigState,
   'ollama-config': ConfigState,

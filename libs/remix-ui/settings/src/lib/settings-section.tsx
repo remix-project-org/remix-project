@@ -7,7 +7,7 @@ import { ThemeContext } from '@remix-ui/home-tab'
 import type { ViewPlugin } from '@remixproject/engine-web'
 import { CustomTooltip } from '@remix-ui/helper'
 import { IMCPServerManager } from './mcp-server-manager'
-import { AccountManager, CreditsBalance, ConnectedAccounts } from './account-settings'
+import { AccountManager, ProfileSection, CreditsBalance, ConnectedAccounts } from './account-settings'
 
 type SettingsSectionUIProps = {
   plugin: ViewPlugin,
@@ -86,15 +86,20 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
             {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}>{subSection.title}</h5>}
             {subSection.description && <p className={`text-muted mb-3`} style={{ fontSize: '0.85rem' }}>{subSection.description}</p>}
             <div className={`card ${isDark ? 'text-light' : 'text-dark'} border-0 ${isLastItem ? 'mb-4' : ''}`}>
-              <div className="card-body" style={{ padding: '0.75rem' }}>
+              <div className={`card-body ${section.key === 'account' ? 'pt-1' : ''}`} style={section.key === 'account' ? {} : { padding: '0.75rem' }}>
                 {subSection.options.map((option, optionIndex) => {
                   const isFirstOption = optionIndex === 0
                   const isLastOption = optionIndex === subSection.options.length - 1
                   const toggleValue = state[option.name] && typeof state[option.name].value === 'boolean' ? state[option.name].value as boolean : false
                   const selectValue = state[option.name] && typeof state[option.name].value === 'string' ? state[option.name].value as string : ''
 
+                  const isAccountSection = section.key === 'account'
+                  const paddingClass = isAccountSection
+                    ? (isLastOption ? 'pt-0 pb-0' : isFirstOption ? 'border-bottom pb-1' : 'border-bottom py-1')
+                    : (isLastOption ? 'pt-2 pb-0' : isFirstOption ? 'border-bottom pb-2' : 'border-bottom py-2')
+
                   return (
-                    <div className={`card border-0 rounded-0 ${isLastOption ? 'pt-2 pb-0' : isFirstOption ? 'border-bottom pb-2' : 'border-bottom py-2'}`} key={optionIndex}>
+                    <div className={`card border-0 rounded-0 ${paddingClass}`} key={optionIndex}>
                       {option.label && option.label.length > 0 && (
                         <div className="d-flex align-items-center">
                           <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
@@ -110,6 +115,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                             {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
                             {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'accountManager' && <span></span>}
+                            {option.type === 'custom' && option.customComponent === 'profileSection' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'creditsBalance' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'connectedAccounts' && <span></span>}
                           </div>
@@ -124,6 +130,11 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                       {option.type === 'custom' && option.customComponent === 'accountManager' && (
                         <div className="mt-3">
                           <AccountManager plugin={plugin} />
+                        </div>
+                      )}
+                      {option.type === 'custom' && option.customComponent === 'profileSection' && (
+                        <div className="mt-3">
+                          <ProfileSection plugin={plugin} />
                         </div>
                       )}
                       {option.type === 'custom' && option.customComponent === 'creditsBalance' && (

@@ -87,6 +87,15 @@ const settingsSections: SettingsSection[] = [
   },
   { key: 'account', label: 'settings.account', description: 'settings.accountDescription', subSections: [
     {
+      title: 'Profile',
+      options: [{
+        name: 'profile-section',
+        label: '',
+        type: 'custom' as const,
+        customComponent: 'profileSection'
+      }]
+    },
+    {
       title: 'Credits Balance',
       options: [{
         name: 'credits-balance',
