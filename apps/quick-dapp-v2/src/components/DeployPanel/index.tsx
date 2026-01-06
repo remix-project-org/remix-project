@@ -7,9 +7,9 @@ import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
 import remixClient from '../../remix-client';
 
-// const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live';
+const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live';
 const REMIX_ENDPOINT_ENS = 'https://quickdapp-ens.api.remix.live';
-const REMIX_ENDPOINT_IPFS = 'http://localhost:4000/quickdapp-ipfs';
+// const REMIX_ENDPOINT_IPFS = 'http://localhost:4000/quickdapp-ipfs';
 // const REMIX_ENDPOINT_ENS = 'http://localhost:4000/ens-service';
 
 function DeployPanel(): JSX.Element {
