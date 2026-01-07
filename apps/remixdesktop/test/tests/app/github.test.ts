@@ -101,11 +101,11 @@ const tests = {
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "remix-learneth-plugin")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "awesome-remix")]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "remix-learneth-plugin")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "awesome-remix")]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
@@ -121,11 +121,11 @@ const tests = {
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-EthereumRemix/remix-learneth-plugin-master"]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-remix-project-org/awesome-remix-master"]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-EthereumRemix/remix-learneth-plugin-master"]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-remix-project-org/awesome-remix-master"]',
         locateStrategy: 'xpath'
       })
       .pause(5000)
