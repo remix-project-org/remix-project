@@ -7,7 +7,7 @@ import { ThemeContext } from '@remix-ui/home-tab'
 import type { ViewPlugin } from '@remixproject/engine-web'
 import { CustomTooltip } from '@remix-ui/helper'
 import { IMCPServerManager } from './mcp-server-manager'
-import { AccountManager, ProfileSection, CreditsBalance, ConnectedAccounts } from './account-settings'
+import { ProfileSection, CreditsBalance, ConnectedAccounts } from './account-settings'
 
 type SettingsSectionUIProps = {
   plugin: ViewPlugin,
@@ -20,6 +20,8 @@ type ButtonOptions = SettingsSection['subSections'][0]['options'][0]['buttonOpti
 
 export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, section, state, dispatch }) => {
   const [formUIData, setFormUIData] = useState<{ [key in keyof SettingsState]: Record<keyof SettingsState, string> }>({} as any)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true) // Default to true for non-auth sections
+  const [authLoading, setAuthLoading] = useState<boolean>(false)
   const theme = useContext(ThemeContext)
   const isDark = theme.name === 'dark'
   const intl = useIntl()
@@ -37,6 +39,43 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       })
     }
   }, [section])
+
+  // Check authentication for sections that require it
+  useEffect(() => {
+    if (section?.requiresAuth) {
+      const checkAuth = async () => {
+        try {
+          setAuthLoading(true)
+          const user = await plugin.call('auth', 'getUser')
+          setIsLoggedIn(!!user)
+        } catch (err) {
+          setIsLoggedIn(false)
+        } finally {
+          setAuthLoading(false)
+        }
+      }
+
+      checkAuth()
+
+      const onAuthStateChanged = async () => {
+        await checkAuth()
+      }
+
+      try {
+        plugin.on('auth', 'authStateChanged', onAuthStateChanged)
+      } catch (e) {
+        // noop
+      }
+
+      return () => {
+        try {
+          plugin.off('auth', 'authStateChanged')
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+  }, [section, plugin])
 
   const handleToggle = (name: string) => {
     if (state[name]) {
@@ -78,7 +117,29 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
     <>
       <h4 className={`${isDark ? 'text-white' : 'text-black'} py-3`} style={{ fontSize: '1.5rem' }}>{<FormattedMessage id={section.label} />}</h4>
       <span className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '0.95rem' }}>{<FormattedMessage id={section.description} />}</span>
-      {(section.subSections || []).map((subSection, subSectionIndex) => {
+
+      {/* Show loading state for auth-required sections */}
+      {section.requiresAuth && authLoading && (
+        <div className="pt-3">
+          <div className="spinner-border spinner-border-sm" role="status">
+            <span className="sr-only">Loading...</span>
+          </div>
+          <span className="ms-2">Loading...</span>
+        </div>
+      )}
+
+      {/* Show warning for auth-required sections when not logged in */}
+      {section.requiresAuth && !authLoading && !isLoggedIn && (
+        <div className="pt-3">
+          <div className="alert alert-warning" role="alert">
+            <i className="fas fa-exclamation-triangle me-2"></i>
+            Not logged in. Please log in with Google, GitHub, Discord, or wallet to manage accounts.
+          </div>
+        </div>
+      )}
+
+      {/* Show subsections only if auth is not required OR user is logged in */}
+      {(!section.requiresAuth || (section.requiresAuth && isLoggedIn && !authLoading)) && (section.subSections || []).map((subSection, subSectionIndex) => {
         const isLastItem = subSectionIndex === section.subSections.length - 1
 
         return (
@@ -114,7 +175,6 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                             {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
                             {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
                             {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
-                            {option.type === 'custom' && option.customComponent === 'accountManager' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'profileSection' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'creditsBalance' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'connectedAccounts' && <span></span>}
@@ -125,11 +185,6 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                       {option.type === 'custom' && option.customComponent === 'mcpServerManager' && (
                         <div className="mt-3">
                           <IMCPServerManager plugin={plugin} />
-                        </div>
-                      )}
-                      {option.type === 'custom' && option.customComponent === 'accountManager' && (
-                        <div className="mt-3">
-                          <AccountManager plugin={plugin} />
                         </div>
                       )}
                       {option.type === 'custom' && option.customComponent === 'profileSection' && (

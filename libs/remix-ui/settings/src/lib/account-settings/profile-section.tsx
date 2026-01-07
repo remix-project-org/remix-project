@@ -39,26 +39,9 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
           }
           setProfile(profileData)
           setEditedProfile(profileData)
-        } else {
-          // No user logged in, use empty profile for development
-          const defaultProfile: UserProfile = {
-            username: '',
-            email: '',
-            avatar_url: ''
-          }
-          setProfile(defaultProfile)
-          setEditedProfile(defaultProfile)
         }
       } catch (authErr) {
         console.log('Auth plugin not available or user not logged in')
-        // Use empty profile for development
-        const defaultProfile: UserProfile = {
-          username: '',
-          email: '',
-          avatar_url: ''
-        }
-        setProfile(defaultProfile)
-        setEditedProfile(defaultProfile)
       }
     } catch (err: any) {
       console.error('Error loading profile:', err)

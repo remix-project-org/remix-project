@@ -85,36 +85,42 @@ const settingsSections: SettingsSection[] = [
       }
     ]
   },
-  { key: 'account', label: 'settings.account', description: 'settings.accountDescription', subSections: [
-    {
-      title: 'Profile',
-      options: [{
-        name: 'profile-section',
-        label: '',
-        type: 'custom' as const,
-        customComponent: 'profileSection'
-      }]
-    },
-    {
-      title: 'Credits Balance',
-      options: [{
-        name: 'credits-balance',
-        label: '',
-        type: 'custom' as const,
-        customComponent: 'creditsBalance'
-      }]
-    },
-    {
-      title: 'Connected Accounts',
-      description: 'Link multiple authentication providers to access your account from anywhere. All linked accounts share the same credits and subscriptions.',
-      options: [{
-        name: 'connected-accounts',
-        label: '',
-        type: 'custom' as const,
-        customComponent: 'connectedAccounts'
-      }]
-    }
-  ]},
+  {
+    key: 'account',
+    label: 'settings.account',
+    description: 'settings.accountDescription',
+    requiresAuth: true, // Special flag for auth-required sections
+    subSections: [
+      {
+        title: 'Profile',
+        options: [{
+          name: 'profile-section',
+          label: '',
+          type: 'custom' as const,
+          customComponent: 'profileSection'
+        }]
+      },
+      {
+        title: 'Credits Balance',
+        options: [{
+          name: 'credits-balance',
+          label: '',
+          type: 'custom' as const,
+          customComponent: 'creditsBalance'
+        }]
+      },
+      {
+        title: 'Connected Accounts',
+        description: 'Link multiple authentication providers to access your account from anywhere. All linked accounts share the same credits and subscriptions.',
+        options: [{
+          name: 'connected-accounts',
+          label: '',
+          type: 'custom' as const,
+          customComponent: 'connectedAccounts'
+        }]
+      }
+    ]
+  },
   { key: 'analytics', label: 'settings.analytics', description: 'settings.analyticsDescription', subSections: [
     { options: [{
       name: 'matomo-analytics',

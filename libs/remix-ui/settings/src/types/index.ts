@@ -41,6 +41,7 @@ export interface SettingsSection {
   key: string
   label: string
   description: string,
+  requiresAuth?: boolean, // Flag to indicate this section requires authentication
   subSections: {
     title?: string,
     description?: string,
