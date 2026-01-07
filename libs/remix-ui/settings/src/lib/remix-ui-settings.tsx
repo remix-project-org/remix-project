@@ -37,6 +37,18 @@ const settingsSections: SettingsSection[] = [
     description: 'settings.generalSettingsDescription',
     subSections: [
       {
+        title: 'Appearance',
+        options: [{
+          name: 'theme',
+          label: 'settings.theme',
+          type: 'select',
+          selectOptions: settingsConfig.themes.map((theme) => ({
+            label: theme.name + ' (' + theme.quality + ')',
+            value: theme.name
+          }))
+        }]
+      },
+      {
         title: 'Code editor',
         options: [{
           name: 'generate-contract-metadata',
@@ -69,18 +81,6 @@ const settingsSections: SettingsSection[] = [
           name: 'save-evm-state',
           label: 'settings.enableSaveEnvState',
           type: 'toggle'
-        }]
-      },
-      {
-        title: 'Appearance',
-        options: [{
-          name: 'theme',
-          label: 'settings.theme',
-          type: 'select',
-          selectOptions: settingsConfig.themes.map((theme) => ({
-            label: theme.name + ' (' + theme.quality + ')',
-            value: theme.name
-          }))
         }]
       }
     ]
