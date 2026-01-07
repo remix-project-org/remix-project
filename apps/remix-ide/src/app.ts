@@ -284,10 +284,6 @@ class AppComponent {
     // ----------------- editor service ----------------------------
     const editor = new Editor() // wrapper around ace editor
     Registry.getInstance().put({ api: editor, name: 'editor' })
-    editor.event.register('requiringToSaveCurrentfile', (currentFile) => {
-      fileManager.saveCurrentFile()
-      if (currentFile.endsWith('.circom')) this.appManager.activatePlugin(['circuit-compiler'])
-    })
 
     // ----------------- fileManager service ----------------------------
     const fileManager = new FileManager(editor, appManager)

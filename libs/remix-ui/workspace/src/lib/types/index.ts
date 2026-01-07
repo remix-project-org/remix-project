@@ -198,6 +198,7 @@ export interface FileExplorerContextMenuProps {
   createNewFolder: (parentFolder?: string) => void
   deletePath: (path: string | string[]) => void
   renamePath: (path: string, type: string) => void
+  saveFile: (path: string) => void
   downloadPath: (path: string) => void
   hideContextMenu: () => void
   publishToGist?: (path?: string) => void

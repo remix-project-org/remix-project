@@ -32,6 +32,9 @@
   font-size: medium;
   cursor: pointer;
 }
+.close-tabs-modified {
+  visibility: visible;
+}
 .iconImage {
   width: 1rem;
   height: 1rem;

@@ -29,7 +29,7 @@ const profile = {
     'readFile', 'copyFile', 'copyDir', 'rename', 'mkdir', 'readdir', 'dirList', 'fileList', 'remove', 'getCurrentFile', 'getFile',
     'getFolder', 'setFile', 'switchFile', 'refresh', 'getProviderOf', 'getProviderByName', 'getPathFromUrl', 'getUrlFromPath',
     'saveCurrentFile', 'setBatchFiles', 'isGitRepo', 'isFile', 'isDirectory', 'hasGitSubmodule', 'copyFolderToJson', 'diff',
-    'hasGitSubmodules', 'getOpenedFiles', 'download'
+    'hasGitSubmodules', 'getOpenedFiles', 'download', 'saveFile', 'currentWorkspace'
   ],
   kind: 'file-system'
 }
@@ -589,6 +589,10 @@ export default class FileManager extends Plugin {
   }
 
   async closeFile(name) {
+    const manuallySave = await this.call('config', 'getAppParameter', 'manual-file-saving')
+    if (!manuallySave) {
+      await this.saveFile(name)
+    }
     delete this.openedFiles[name]
     if (!Object.keys(this.openedFiles).length) {
       this._deps.config.set('currentFile', '')
@@ -614,14 +618,18 @@ export default class FileManager extends Plugin {
     if (!provider) throw createError({ code: 'ENOENT', message: `${path} not available` })
     // TODO: change provider to Promise
     return new Promise((resolve, reject) => {
-      if (this.currentFile() === path) {
-        const editorContent = this.editor.currentContent()
-        if (editorContent) resolve(editorContent)
+      const run = async () => {
+        const manuallySave = await this.call('config', 'getAppParameter', 'manual-file-saving')
+        if (this.currentFile() === path && !manuallySave) {
+          const editorContent = this.editor.currentContent()
+          if (editorContent) resolve(editorContent)
+        }
+        provider.get(path, (err, content) => {
+          if (err) reject(err)
+          resolve(content)
+        }, options)
       }
-      provider.get(path, (err, content) => {
-        if (err) reject(err)
-        resolve(content)
-      }, options)
+      run()
     })
   }
 
@@ -643,11 +651,15 @@ export default class FileManager extends Plugin {
     // TODO : Add permission
     // TODO : Change Provider to Promise
     return new Promise((resolve, reject) => {
-      provider.set(path, content, async (error) => {
-        if (error) reject(error)
-        this.syncEditor(path)
-        this.emit('fileSaved', path)
-        resolve(true)
+      provider.get(path, (error, oldContent) => {
+        if (oldContent === content) // no need to rewrite the same content
+          return resolve(true)
+        provider.set(path, content, async (error) => {
+          if (error) reject(error)
+          this.syncEditor(path)
+          this.emit('fileSaved', path)
+          resolve(true)
+        }, options)
       }, options)
     })
   }
@@ -702,14 +714,12 @@ export default class FileManager extends Plugin {
     }
   }
 
-  async unselectCurrentFile() {
-    await this.saveCurrentFile()
-    this._deps.config.set('currentFile', '')
-    this.emit('noFileSelected')
-  }
-
   async diff(change: commitChange) {
-    await this.saveCurrentFile()
+    const manuallySave = await this.call('config', 'getAppParameter', 'manual-file-saving')
+    if (!manuallySave) {
+      await this.saveFile()
+    }
+
     this._deps.config.set('currentFile', '')
     // TODO: Only keep `this.emit` (issue#2210)
     this.emit('noFileSelected')
@@ -746,7 +756,12 @@ export default class FileManager extends Plugin {
       file = this.normalize(file)
       const resolved = this.getPathFromUrl(file)
       file = resolved.file
-      await this.saveCurrentFile()
+
+      const manuallySave = await this.call('config', 'getAppParameter', 'manual-file-saving')
+      if (!manuallySave) {
+        await this.saveFile(file)
+      }
+
       // we always open the file in the editor, even if it's the same as the current one if the editor is in diff mode
       if (this.currentFile() === file && !this.editor.isDiff) return
 
@@ -769,6 +784,7 @@ export default class FileManager extends Plugin {
       } catch (e) {
         console.log('unable to handle TypeScript dependencies of', file)
       }
+
       if (provider.isReadOnly(file)) {
         await this.editor.openReadOnly(file, content)
       } else {
@@ -852,8 +868,8 @@ export default class FileManager extends Plugin {
     return this.appManager.isActive('remixd')
   }
 
-  async saveCurrentFile() {
-    const currentFile = this._deps.config.get('currentFile')
+  async saveFile(path?) {
+    const currentFile = path || this._deps.config.get('currentFile')
     if (currentFile && this.editor.current()) {
       const input = this.editor.get(currentFile)
       if ((input !== null) && (input !== undefined)) {
@@ -861,6 +877,7 @@ export default class FileManager extends Plugin {
         if (provider) {
           // use old content as default if save operation fails.
           provider.get(currentFile, (error, oldContent) => {
+            if (oldContent === input) return // does not need to save if content is the same
             provider.set(currentFile, input, (error) => {
               if (error) {
                 if (error.message) this.call('notification', 'toast',

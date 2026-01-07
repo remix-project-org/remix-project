@@ -75,6 +75,18 @@ export default class TabProxy extends Plugin {
       }
     })
 
+    this.on('editor', 'contentChanged', async (currentFile) => {
+      const manuallySave = await this.call('config', 'getAppParameter', 'manual-file-saving')
+      const workspace = this.fileManager.currentWorkspace()
+      this.tabsApi.fileIsModifying(workspace + '/' + currentFile, manuallySave)
+    })
+
+    this.on('fileManager', 'fileSaved', async (currentFile) => {
+      const manuallySave = await this.call('config', 'getAppParameter', 'manual-file-saving')
+      const workspace = this.fileManager.currentWorkspace()
+      this.tabsApi.fileStateIsClean(workspace + '/' + currentFile, manuallySave)
+    })
+
     this.on('fileManager', 'currentFileChanged', (file) => {
       const workspace = this.fileManager.currentWorkspace()
 

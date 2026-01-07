@@ -24,6 +24,13 @@ export const contextMenuActions: MenuItems = [{
   label: '',
   group: 0
 }, {
+  id: 'saveFile',
+  name: 'Save',
+  type: ['file'],
+  multiselect: false,
+  label: '',
+  group: 0
+}, {
   id: 'delete',
   name: 'Delete',
   type: ['file', 'folder'],

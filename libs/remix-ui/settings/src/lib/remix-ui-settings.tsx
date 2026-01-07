@@ -69,6 +69,11 @@ const settingsSections: SettingsSection[] = [
           name: 'save-evm-state',
           label: 'settings.enableSaveEnvState',
           type: 'toggle'
+        },
+        {
+          name: 'manual-file-saving',
+          label: 'settings.manualFileSaving',
+          type: 'toggle'
         }]
       },
       {

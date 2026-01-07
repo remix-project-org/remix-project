@@ -812,6 +812,10 @@ export function Workspace() {
     )
   }
 
+  const saveFile = async (path: string) => {
+    global.plugin.call('fileManager', 'saveFile', path)
+  }
+
   const toGist = (path?: string) => {
     global.dispatchPublishToGist(path)
   }
@@ -1392,6 +1396,7 @@ export function Workspace() {
           createNewFile={handleNewFileInput}
           createNewFolder={handleNewFolderInput}
           deletePath={deletePath}
+          saveFile={saveFile}
           renamePath={editModeOn}
           runScript={runScript}
           signTypedData={signTypedData}

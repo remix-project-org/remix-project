@@ -691,7 +691,7 @@ export function RemixUiTopbar() {
             }}
             data-id="topbar-settingsIcon"
           >
-            <i className="fa fa-cog"></i>
+            <i className="fa fa-cog fs-5"></i>
           </span>
         </div>
       </div>

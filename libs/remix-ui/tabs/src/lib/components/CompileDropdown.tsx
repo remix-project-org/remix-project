@@ -25,7 +25,6 @@ export const CompileDropdown: React.FC<CompileDropdownProps> = ({ tabPath, plugi
     setCompileState('compiling')
 
     try {
-      await plugin.call('fileManager', 'saveCurrentFile')
       await plugin.call('manager', 'activatePlugin', 'solidity')
 
       const startedAt = Date.now()

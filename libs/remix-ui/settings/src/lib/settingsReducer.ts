@@ -78,6 +78,10 @@ if (typeof saveEvmState !== 'boolean') {
 }
 
 export const initialState: SettingsState = {
+  'manual-file-saving': {
+    value: config.get('settings/manual-file-saving') || false,
+    isLoading: false
+  },
   'generate-contract-metadata': {
     value: generateContractMetadata,
     isLoading: false

@@ -30,12 +30,16 @@ function App() {
           plugin.parse(filePath)
         }
       })
-      // @ts-ignore
-      plugin.on('editor', 'contentChanged', async (path: string, content: string) => {
+      const parseFile = async (path: string, content: string) => {
         if (path.endsWith('.nr')) {
           setIsContentChanged(true)
           plugin.parse(path, content)
         }
+      }
+      // @ts-ignore
+      plugin.on('fileManager', 'fileSaved', async (path: string) => {
+        const currentFile = await plugin.call('fileManager', 'getCurrentFile')
+        if (path === currentFile) parseFile(path, await plugin.call('fileManager', 'readFile', path))
       })
       // noir compiling events
       plugin.internalEvents.on('noir_compiling_start', () => dispatch({ type: 'SET_COMPILER_STATUS', payload: 'compiling' }))

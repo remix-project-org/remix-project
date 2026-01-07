@@ -1,4 +1,5 @@
 import { fileDecoration, FileDecorationIcons } from '@remix-ui/file-decorators'
+import { AppModal } from '@remix-ui/app'
 import { CustomTooltip } from '@remix-ui/helper'
 import { Plugin } from '@remixproject/engine'
 import React, { useState, useRef, useEffect, useReducer, useContext } from 'react' // eslint-disable-line
@@ -34,6 +35,7 @@ export interface Tab {
   title: string
   tooltip: string
   show: boolean
+  isModified?: boolean
 }
 export interface TabsUIApi {
   activateTab: (name: string) => void
@@ -44,6 +46,7 @@ interface ITabsState {
   fileDecorations: fileDecoration[]
   currentExt: string
   name: string
+  modifiedFiles: { [key: string]: boolean }
 }
 interface ITabsAction {
   type: string
@@ -56,7 +59,8 @@ const initialTabsState: ITabsState = {
   selectedIndex: -1,
   fileDecorations: [],
   currentExt: '',
-  name: ''
+  name: '',
+  modifiedFiles: {}
 }
 
 const tabsReducer = (state: ITabsState, action: ITabsAction) => {
@@ -73,6 +77,17 @@ const tabsReducer = (state: ITabsState, action: ITabsAction) => {
       ...state,
       fileDecorations: action.payload as fileDecoration[]
     }
+  case 'ADD_MODIFIED_FILE':
+    return {
+      ...state,
+      modifiedFiles: { ...state.modifiedFiles, [action.payload]: true }
+    }
+  case 'REMOVE_MODIFIED_FILE':
+    delete state.modifiedFiles[action.payload]
+    return {
+      ...state,
+      modifiedFiles: state.modifiedFiles
+    }
   default:
     return state
   }
@@ -86,6 +101,7 @@ export const TabsUI = (props: TabsUIProps) => {
   const tabsRef = useRef({})
   const tabsElement = useRef(null)
   const [ai_switch, setAI_switch] = useState<boolean>(true)
+  const [hoveredTabIndex, setHoveredTabIndex] = useState<number | null>(null)
   const tabs = useRef(props.tabs)
   tabs.current = props.tabs // we do this to pass the tabs list to the onReady callbacks
   const appContext = useContext(AppContext)
@@ -107,10 +123,6 @@ export const TabsUI = (props: TabsUIProps) => {
       })
     }
   }, [tabsState.selectedIndex])
-
-  useEffect(() => {
-    // Removed pluginIsClosed listener as the event is no longer emitted
-  }, [])
 
   // Toggle the copilot in editor when clicked to update in status bar
   useEffect(() => {
@@ -147,11 +159,17 @@ export const TabsUI = (props: TabsUIProps) => {
   }
 
   const renderTab = (tab: Tab, index) => {
+    const isModified = tabsState.modifiedFiles[tab.name]
     const classNameImg = 'my-1 me-1 text-dark ' + tab.iconClass
     const classNameTab = 'nav-item nav-link d-flex justify-content-center align-items-center px-2 py-1 tab' + (index === currentIndexRef.current ? ' active' : '')
+    const closeTabsClass = 'close-tabs' + (isModified ? ' close-tabs-modified' : '')
     const invert = props.themeQuality === 'dark' ? 'invert(1)' : 'invert(0)'
+
+    const mouseIsHovering = hoveredTabIndex === index
+    const showClose = !isModified ? true : mouseIsHovering
+    const tooltipText = isModified ? `(unsaved) ${tab.tooltip}` : tab.tooltip
     return (
-      <CustomTooltip tooltipId="tabsActive" tooltipText={tab.tooltip} placement="bottom-start">
+      <CustomTooltip tooltipId="tabsActive" tooltipText={tooltipText} placement="bottom-start">
         <div
           ref={(el) => {
             tabsRef.current[index] = el
@@ -160,18 +178,44 @@ export const TabsUI = (props: TabsUIProps) => {
           data-id={index === currentIndexRef.current ? 'tab-active' : ''}
           data-path={tab.name}
         >
-          {tab.icon ? <img className="my-1 me-1 iconImage" src={tab.icon} /> : <i className={classNameImg}></i>}
+          <div className="d-flex align-items-center position-relative">
+            {tab.icon ? <img className="my-1 me-1 iconImage" src={tab.icon} /> : <i className={classNameImg}></i>}
+          </div>
           <span className={`title-tabs ${getFileDecorationClasses(tab)}`}>{tab.title}</span>
           {getFileDecorationIcons(tab)}
           <span
-            className="close-tabs"
+            className={closeTabsClass}
             data-id={`close_${tab.name}`}
+            onMouseEnter={() => setHoveredTabIndex(index)}
+            onMouseLeave={() => setHoveredTabIndex(null)}
             onClick={(event) => {
-              props.onClose(index)
               event.stopPropagation()
+              if (isModified) {
+                const modal: AppModal = {
+                  id: 'SaveFile',
+                  title: 'Unsaved Changes',
+                  message: `Do you want to save changes to ${tab.name} before closing?`,
+                  okLabel: 'Save',
+                  cancelLabel: 'Don\'t Save',
+                  cancelFn: () => {
+                    fileStateIsClean(tab.name, true)
+                    props.onClose(index)
+                  },
+                  okFn: async () => {
+                    // remove the workspace name
+                    const currentWorkspace = await props.plugin.call('fileManager', 'currentWorkspace')
+                    const filePath = tab.name.startsWith(currentWorkspace) ? tab.name.slice(currentWorkspace.length + 1) : tab.name
+                    await props.plugin.call('fileManager', 'saveFile', filePath)
+                    props.onClose(index)
+                  }
+                }
+                props.plugin.call('notification', 'modal', modal)
+              } else {
+                props.onClose(index)
+              }
             }}
           >
-            <i className="text-dark fas fa-times"></i>
+            <i className={`text-dark fas ${showClose ? 'fa-times' : 'fa-circle fa-xs'}`}></i>
           </span>
         </div>
       </CustomTooltip>
@@ -197,6 +241,23 @@ export const TabsUI = (props: TabsUIProps) => {
     dispatch({ type: 'SET_FILE_DECORATIONS', payload: fileStates })
   }
 
+  const fileIsModifying = (filePath: string, manuallySave: boolean) => {
+    const currentPath = props.tabs[tabsState.selectedIndex]?.name
+
+    if (currentPath && currentPath.endsWith(filePath)) {
+      setCompileState('idle')
+    }
+    if (manuallySave) {
+      dispatch({ type: 'ADD_MODIFIED_FILE', payload: filePath })
+    }
+  }
+
+  const fileStateIsClean = (filePath: string, manuallySave: boolean) => {
+    if (manuallySave) {
+      dispatch({ type: 'REMOVE_MODIFIED_FILE', payload: filePath })
+    }
+  }
+
   const transformScroll = (event) => {
     if (!event.deltaY) {
       return
@@ -210,7 +271,9 @@ export const TabsUI = (props: TabsUIProps) => {
     props.onReady({
       activateTab,
       active,
-      setFileDecorations
+      setFileDecorations,
+      fileIsModifying,
+      fileStateIsClean
     })
     return () => {
       if (tabsElement.current) tabsElement.current.removeEventListener('wheel', transformScroll)
@@ -227,25 +290,6 @@ export const TabsUI = (props: TabsUIProps) => {
   useEffect(() => {
     setCompileState('idle')
   }, [tabsState.selectedIndex])
-
-  useEffect(() => {
-    if (!props.plugin || tabsState.selectedIndex < 0) return
-
-    const currentPath = props.tabs[tabsState.selectedIndex]?.name
-    if (!currentPath) return
-
-    const listener = (path: string) => {
-      if (currentPath.endsWith(path)) {
-        setCompileState('idle')
-      }
-    }
-
-    props.plugin.on('editor', 'contentChanged', listener)
-
-    return () => {
-      props.plugin.off('editor', 'contentChanged')
-    }
-  }, [tabsState.selectedIndex, props.plugin, props.tabs])
 
   const handleCompileAndPublish = async (storageType: 'ipfs' | 'swarm') => {
     setCompileState('compiling')
@@ -511,7 +555,6 @@ export const TabsUI = (props: TabsUIProps) => {
         return
       }
 
-      await props.plugin.call('fileManager', 'saveCurrentFile')
       try {
         await props.plugin.call('manager', 'activatePlugin', compilerName)
       } catch (e: any) {

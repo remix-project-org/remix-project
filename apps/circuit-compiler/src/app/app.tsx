@@ -36,12 +36,16 @@ function App() {
           plugin.parse(filePath)
         }
       })
-      // @ts-ignore
-      plugin.on('editor', 'contentChanged', async (path: string, content: string) => {
+      const parseFile = async (path: string, content: string) => {
         setIsContentChanged(true)
         if (path.endsWith('.circom')) {
           plugin.parse(path, content)
         }
+      }
+      // @ts-ignore
+      plugin.on('fileManager', 'fileSaved', async (path: string) => {
+        const currentFile = await plugin.call('fileManager', 'getCurrentFile')
+        if (path === currentFile) parseFile(path, await plugin.call('fileManager', 'readFile', path))
       })
       setIsPluginActivated(true)
     })

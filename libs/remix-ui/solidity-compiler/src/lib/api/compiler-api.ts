@@ -214,7 +214,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
   }
 
   saveCurrentFile () {
-    return this.call('fileManager', 'saveCurrentFile')
+    return this.call('fileManager', 'saveFile')
   }
 
   resetResults() {
@@ -234,6 +234,13 @@ export const CompilerApiMixin = (Base) => class extends Base {
     this.on('editor', 'contentChanged', () => {
       this.statusChanged({ key: 'edited', title: 'The content has changed, needs recompilation', type: 'info' })
       if (this.onContentChanged) this.onContentChanged()
+    })
+
+    this.on('fileManager', 'fileSaved', (path) => {
+      if (path === this.currentFile) {
+        this.statusChanged({ key: 'edited', title: 'The content has changed, needs recompilation', type: 'info' })
+        if (this.onContentChanged) this.onContentChanged()
+      }
     })
 
     this.data.eventHandlers.onLoadingCompiler = (url) => {
@@ -384,11 +391,12 @@ export const CompilerApiMixin = (Base) => class extends Base {
     }
     this.on('themeModule', 'themeChanged', this.data.eventHandlers.onThemeChanged)
 
-    // Run the compiler instead of trying to save the website
+    // Run the compiler on Ctrl+S / Cmd+S
     this.data.eventHandlers.onKeyDown = async (e) => {
       // ctrl+s or command+s
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.keyCode === 83 && this.currentFile !== '') {
         e.preventDefault()
+        await this.call('fileManager', 'saveFile')
         if (this.currentFile && (this.currentFile.endsWith('.sol') || this.currentFile.endsWith('.yul'))) {
           if (await this.getAppParameter('hardhat-compilation')) this.compileTabLogic.runCompiler('hardhat')
           else if (await this.getAppParameter('truffle-compilation')) this.compileTabLogic.runCompiler('truffle')

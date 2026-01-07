@@ -38,8 +38,8 @@ export interface ICompilerApi {
     writeFile: (file: string, content: any) => Promise<void>
     readFile: (file: string) => Promise<string>
     open: (file: string) => void
-    saveCurrentFile: () => void
     runScriptAfterCompilation: (fileName: string) => void,
+    saveCurrentFile: () => void
 
     logToTerminal: (log: terminalLog) => void
 

@@ -49,6 +49,7 @@
   "settings.ipfs-project-secret": "PROJECT SECRET",
   "settings.analyticsInRemix": "Analytics in Remix IDE",
   "settings.enableSaveEnvState": "Save environment state",
+  "settings.manualFileSaving": "Save file manually",
   "settings.generalSettings": "General Settings",
   "settings.account": "Account & Authentication",
   "settings.analytics": "Analytics",

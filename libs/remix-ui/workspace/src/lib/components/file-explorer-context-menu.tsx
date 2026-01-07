@@ -21,6 +21,7 @@ export const FileExplorerContextMenu = (props: FileExplorerContextMenuProps) => 
     createNewFile,
     createNewFolder,
     deletePath,
+    saveFile,
     renamePath,
     hideContextMenu,
     pushChangesToGist,
@@ -178,6 +179,10 @@ export const FileExplorerContextMenu = (props: FileExplorerContextMenuProps) => 
               case 'Rename':
                 renamePath(path, type)
                 trackMatomoEvent({ category: 'fileExplorer', action: 'contextMenu', name: 'rename', isClick: true })
+                break
+              case 'Save':
+                saveFile(path)
+                trackMatomoEvent({ category: 'fileExplorer', action: 'contextMenu', name: 'saveFile', isClick: true })
                 break
               case 'Delete':
                 deletePath(getPath())

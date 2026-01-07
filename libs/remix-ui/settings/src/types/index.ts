@@ -84,6 +84,7 @@ interface ConfigState {
 }
 
 export interface SettingsState {
+  'manual-file-saving': ConfigState,
   'generate-contract-metadata': ConfigState
   'text-wrap': ConfigState
   'personal-mode': ConfigState

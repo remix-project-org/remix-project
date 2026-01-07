@@ -6,6 +6,7 @@ import * as packageJson from '../../../../../package.json'
 import { PluginViewWrapper } from '@remix-ui/helper'
 
 import { startTypeLoadingProcess } from './type-fetcher'
+import { setIn } from 'formik'
 
 const EventManager = require('../../lib/events')
 
@@ -87,6 +88,15 @@ export default class Editor extends Plugin {
 
     this.typesLoadingCount = 0
     this.shimDisposers = new Map()
+
+    /*
+    Test:
+    setInterval(() => {
+      Object.entries(this.sessions).map(([path, session]) => {
+        console.log(path, session.getValue())
+      })
+    }, 2000)
+    */
   }
 
 
@@ -213,6 +223,9 @@ export default class Editor extends Plugin {
         clearTimeout(this.typeLoaderDebounce)
         await this._onChange(this.currentFile)
       }
+    })
+    this.on('fileManager', 'fileClosed', (file) => {
+      this.discard(file)
     })
     try {
       this.currentThemeType = (await this.call('theme', 'currentTheme')).quality
@@ -387,9 +400,11 @@ export default class Editor extends Plugin {
       window.clearTimeout(this.saveTimeout)
     }
 
+    const manuallySave = await this.call('config', 'getAppParameter', 'manual-file-saving')
     this.saveTimeout = window.setTimeout(() => {
       this.triggerEvent('contentChanged', [currentFile, input])
-      this.triggerEvent('requiringToSaveCurrentfile', [currentFile])
+      if (manuallySave) return
+      this.call('fileManager', 'saveFile', currentFile)
     }, 500)
   }
 
@@ -417,9 +432,11 @@ export default class Editor extends Plugin {
   async handleTypeScriptDependenciesOf(path, content, readFile, exists) {
     const isJsOrTs = path.endsWith('.js') || path.endsWith('.jsx') || path.endsWith('.ts') || path.endsWith('.tsx')
     
+    /*
     if (isJsOrTs) {
       this._onChange(path)
     }
+    */
 
     const isTsFile = path.endsWith('.ts') || path.endsWith('.tsx')
     const isJsFile = path.endsWith('.js') || path.endsWith('.jsx')
@@ -487,7 +504,6 @@ export default class Editor extends Plugin {
    */
   async _createSession (path, content, mode, readOnly) {
     if (!this.activated) return
-
     this.emit('addModel', content, mode, path, readOnly || this.readOnlySessions[path])
     return {
       path,
@@ -567,8 +583,6 @@ export default class Editor extends Plugin {
       this.readOnlySessions[path] = false
       const session = await this._createSession(path, content, this._getMode(path))
       this.sessions[path] = session
-    } else if (this.sessions[path].getValue() !== content) {
-      this.sessions[path].setValue(content)
     }
     this._switchSession(path)
   }
