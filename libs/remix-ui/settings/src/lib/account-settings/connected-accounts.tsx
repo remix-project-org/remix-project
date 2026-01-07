@@ -143,10 +143,12 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
             </div>
             <div className="mt-2">
               <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                <i className="fas fa-link me-1" style={{ fontSize: '0.65rem' }}></i>
                 Connected: {new Date(account.created_at).toLocaleDateString()}
               </span>
               {account.last_login_at && (
                 <span className="text-muted" style={{ fontSize: '0.75rem', float: 'right' }}>
+                  <i className="fas fa-clock me-1" style={{ fontSize: '0.65rem' }}></i>
                   Last login: {new Date(account.last_login_at).toLocaleString()}
                 </span>
               )}
