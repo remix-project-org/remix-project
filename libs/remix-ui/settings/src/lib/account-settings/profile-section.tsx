@@ -19,6 +19,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
   const [error, setError] = useState<string | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
+  const [loginProvider, setLoginProvider] = useState<string | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const loadProfile = async () => {
@@ -31,6 +32,9 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
         const user = await plugin.call('auth', 'getUser')
 
         if (user) {
+          // Store the login provider
+          setLoginProvider(user.provider || null)
+
           // Map AuthUser to UserProfile
           const profileData: UserProfile = {
             username: user.name || '',
@@ -173,12 +177,22 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
   // Use profile data or fallback to editedProfile or empty values
   const displayProfile = profile || editedProfile || { username: '', email: '', avatar_url: '' }
 
+  // Only allow editing if logged in with email
+  const isEditable = loginProvider === 'email'
+
   return (
     <div>
       {error && (
         <div className="alert alert-danger p-2 mb-3" role="alert">
           <i className="fas fa-exclamation-circle me-2"></i>
           {error}
+        </div>
+      )}
+
+      {!isEditable && loginProvider && (
+        <div className="alert alert-info p-2 mb-3" role="alert">
+          <i className="fas fa-info-circle me-2"></i>
+          Profile editing is only available for email login. You are currently logged in with {loginProvider}.
         </div>
       )}
 
@@ -202,6 +216,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                 type="button"
                 className="btn btn-sm btn-secondary d-flex align-items-center justify-content-center mx-auto"
                 onClick={handleUploadClick}
+                disabled={!isEditable}
                 style={{ gap: '0.25rem' }}
               >
                 <i className="fas fa-upload"></i>
@@ -212,6 +227,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                 type="file"
                 accept="image/*"
                 onChange={handleAvatarUpload}
+                disabled={!isEditable}
                 style={{ display: 'none' }}
               />
             </div>
@@ -226,6 +242,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                 value={editedProfile?.username || ''}
                 onChange={(e) => handleFieldChange('username', e.target.value)}
                 placeholder="Enter username"
+                disabled={!isEditable}
+                readOnly={!isEditable}
               />
             </div>
 
@@ -237,6 +255,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                 value={editedProfile?.email || ''}
                 onChange={(e) => handleFieldChange('email', e.target.value)}
                 placeholder="Enter email"
+                disabled={!isEditable}
+                readOnly={!isEditable}
               />
             </div>
 
