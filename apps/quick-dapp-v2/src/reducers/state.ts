@@ -35,68 +35,69 @@ export const appInitialState: AppState = {
 
 export const appReducer = (state = appInitialState, action: any): AppState => {
   switch (action.type) {
-    case 'SET_LOADING':
-      return { ...state, loading: { ...state.loading, ...action.payload } };
-    
-    case 'SET_VIEW':
-      if (action.payload === 'create') {
-        return {
-          ...state,
-          view: action.payload,
-          activeDapp: null,
-          instance: { ...initialInstanceState }
-        };
-      }
-      return { ...state, view: action.payload };
+  case 'SET_LOADING':
+    return { ...state, loading: { ...state.loading, ...action.payload } };
 
-    case 'SET_DAPPS':
-      return { ...state, dapps: action.payload || [] };
-
-    case 'SET_AI_LOADING':
-      return { ...state, isAiLoading: action.payload };
-
-    case 'SET_ACTIVE_DAPP':
-      const dapp = action.payload as DappConfig | null;
-      
-      if (!dapp) {
-        return { 
-          ...state, 
-          activeDapp: null,
-          instance: { ...initialInstanceState } 
-        };
-      }
-
-      return { 
-        ...state, 
-        activeDapp: dapp,
-        instance: {
-          ...state.instance,
-          name: dapp.name,
-          address: dapp.contract.address,
-          abi: dapp.contract.abi,
-          title: dapp.config?.title || '',
-          details: dapp.config?.details || '',
-          logo: dapp.config?.logo || null, 
-          htmlTemplate: 'loaded', 
-        }
-      };
-
-    case 'SET_INSTANCE':
-      return { ...state, instance: { ...state.instance, ...action.payload } };
-
-    case 'SET_DAPP_PROCESSING':
+  case 'SET_VIEW':
+    if (action.payload === 'create') {
       return {
         ...state,
-        dappProcessing: {
-          ...state.dappProcessing,
-          [action.payload.slug]: action.payload.isProcessing
-        }
+        view: action.payload,
+        activeDapp: null,
+        instance: { ...initialInstanceState }
       };
+    }
+    return { ...state, view: action.payload };
 
-    case 'RESET_INSTANCE':
-      return { ...state, instance: { ...initialInstanceState } };
+  case 'SET_DAPPS':
+    return { ...state, dapps: action.payload || []};
 
-    default:
-      return state;
+  case 'SET_AI_LOADING':
+    return { ...state, isAiLoading: action.payload };
+
+  case 'SET_ACTIVE_DAPP': {
+    const dapp = action.payload as DappConfig | null;
+
+    if (!dapp) {
+      return {
+        ...state,
+        activeDapp: null,
+        instance: { ...initialInstanceState }
+      };
+    }
+
+    return {
+      ...state,
+      activeDapp: dapp,
+      instance: {
+        ...state.instance,
+        name: dapp.name,
+        address: dapp.contract.address,
+        abi: dapp.contract.abi,
+        title: dapp.config?.title || '',
+        details: dapp.config?.details || '',
+        logo: dapp.config?.logo || null,
+        htmlTemplate: 'loaded',
+      }
+    };
+  }
+
+  case 'SET_INSTANCE':
+    return { ...state, instance: { ...state.instance, ...action.payload } };
+
+  case 'SET_DAPP_PROCESSING':
+    return {
+      ...state,
+      dappProcessing: {
+        ...state.dappProcessing,
+        [action.payload.slug]: action.payload.isProcessing
+      }
+    };
+
+  case 'RESET_INSTANCE':
+    return { ...state, instance: { ...initialInstanceState } };
+
+  default:
+    return state;
   }
 };

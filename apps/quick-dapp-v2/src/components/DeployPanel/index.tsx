@@ -350,13 +350,13 @@ function DeployPanel(): JSX.Element {
     <div className="mb-3">
       <Form.Group className="mb-3">
         <Form.Label className="text-uppercase mb-0 form-label">Dapp logo</Form.Label>
+        <Form.Control ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} className="mt-1" />
         {logo && typeof logo === 'string' && (
           <div className="mt-2 mb-2 position-relative d-inline-block border bg-white rounded p-1">
             <img src={logo} alt="Preview" style={{height: '60px', maxWidth: '100%', objectFit: 'contain'}} onError={(e)=>e.currentTarget.style.display='none'}/>
             <span onClick={handleRemoveLogo} style={{cursor:'pointer', position: 'absolute', top: -10, right: -10}} className="badge bg-danger rounded-circle"><i className="fas fa-times"></i></span>
           </div>
         )}
-        <Form.Control ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} className="mt-1" />
       </Form.Group>
       <Form.Group className="mb-3">
         <Form.Label className="text-uppercase mb-0 form-label">Dapp Title</Form.Label>
@@ -453,6 +453,7 @@ function DeployPanel(): JSX.Element {
   const displayGateway = deployResult.gatewayUrl || activeDapp?.deployment?.gatewayUrl;
   const displayEnsSuccess = ensResult.success || (activeDapp?.deployment?.ensDomain ? `Linked: ${activeDapp.deployment.ensDomain}` : '');
   const ensButtonText = isEnsLoading ? (displayEnsSuccess ? 'Updating...' : 'Registering...') : (displayEnsSuccess ? 'Update Content Hash' : 'Register Subdomain');
+  const currentEnsDomain = ensResult.domain || activeDapp?.deployment?.ensDomain;
 
   return (
     <div>
@@ -530,7 +531,36 @@ function DeployPanel(): JSX.Element {
                   finally { setIsEnsLoading(false) }
                 })();
               }} disabled={isEnsLoading || !ensName}>{isEnsLoading ? 'Processing...' : ensButtonText}</Button>
-              {displayEnsSuccess && <Alert variant="success" className="mt-3">{displayEnsSuccess}</Alert>}
+              {currentEnsDomain && (
+                <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }}>
+                  <div className="fw-bold mb-1">
+                    <i className="fas fa-check-circle me-2"></i>ENS Linked!
+                  </div>
+                  <div>
+                    <a 
+                      href={`https://${currentEnsDomain}.limo`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-decoration-underline fw-bold"
+                    >
+                      https://{currentEnsDomain}.limo
+                    </a>
+                  </div>
+                  {ensResult.txHash && (
+                    <div className="mt-2 small">
+                      <span className="text-muted">Tx: </span>
+                      <a 
+                        href={`https://sepolia.arbiscan.io/tx/${ensResult.txHash}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-muted text-decoration-none"
+                      >
+                        View on Explorer <i className="fas fa-external-link-alt small"></i>
+                      </a>
+                    </div>
+                  )}
+                </Alert>
+              )}
               {ensResult.error && <Alert variant="danger" className="mt-3">{ensResult.error}</Alert>}
             </Card.Body>
           </Collapse>

@@ -43,7 +43,7 @@ export class AIDappGenerator extends Plugin {
    */
   async generateDapp(options: GenerateDappOptions & { slug: string }): Promise<void> {
     console.log('[DEBUG-AI] generateDapp called via RPC.');
-    
+
     this.processGeneration(options).catch(err => {
       console.error("[DEBUG-AI] ❌ Background process crashed:", err);
       this.call('terminal', 'log', { type: 'error', value: err.message });
@@ -71,13 +71,13 @@ export class AIDappGenerator extends Plugin {
 
     console.log('[DEBUG-AI] Calling LLM API...');
     const startTime = Date.now();
-    
+
     const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage);
-    
+
     const duration = (Date.now() - startTime) / 1000;
     console.log(`[DEBUG-AI] LLM responded in ${duration}s.`);
     console.log('[DEBUG-AI] Raw content length:', htmlContent?.length);
-    
+
     const pages = parsePages(htmlContent);
     const pageKeys = Object.keys(pages);
     console.log('[DEBUG-AI] Parsed Pages Keys:', pageKeys);
@@ -94,14 +94,14 @@ export class AIDappGenerator extends Plugin {
     this.saveContext(options.address, context)
 
     console.log('[DEBUG-AI] Emitting dappGenerated event...');
-    
+
     this.emit('dappGenerated', {
       address: options.address,
-      slug: options.slug, 
-      content: pages, 
+      slug: options.slug,
+      content: pages,
       isUpdate: false
     });
-    
+
     console.log('[DEBUG-AI] Event emitted.');
     await this.call('notification', 'toast', 'Generation Complete!');
   }
@@ -136,7 +136,7 @@ export class AIDappGenerator extends Plugin {
       const htmlContent = await this.callLLMAPI(context.messages, FOLLOW_UP_SYSTEM_PROMPT, hasImage);
 
       const pages = parsePages(htmlContent);
-      
+
       if (Object.keys(pages).length === 0) {
         throw new Error("AI failed to return valid file structure.");
       }
@@ -144,10 +144,10 @@ export class AIDappGenerator extends Plugin {
       context.messages.push({ role: 'assistant', content: htmlContent });
       this.saveContext(address, context);
 
-      this.emit('dappGenerated', { 
-        address, 
+      this.emit('dappGenerated', {
+        address,
         slug,
-        content: pages, 
+        content: pages,
         isUpdate: true
       });
 
@@ -222,7 +222,7 @@ export class AIDappGenerator extends Plugin {
       try {
         const messagesToSave = context.messages.map(msg => {
           const newMsg = { ...msg };
-          
+
           if (Array.isArray(newMsg.content)) {
             newMsg.content = newMsg.content.map((part: any) => {
               if (part.type === 'image_url' && part.image_url?.url?.startsWith('data:')) {
@@ -247,8 +247,8 @@ export class AIDappGenerator extends Plugin {
   private createInitialMessage(options: GenerateDappOptions): string | any[] {
     const providerCode = this.getProviderCode()
 
-    const userDescription = Array.isArray(options.description) 
-      ? options.description.map(p => p.type === 'text' ? p.text : '').join('\n') 
+    const userDescription = Array.isArray(options.description)
+      ? options.description.map(p => p.type === 'text' ? p.text : '').join('\n')
       : options.description;
 
     const functionNames = options.abi
@@ -293,7 +293,7 @@ export class AIDappGenerator extends Plugin {
          - Only if \`config.title\` is missing, fall back to "My DApp".
          - BUT ALWAYS prioritize the \`config\` object variables.
     `;
-    
+
     const architectureInstructions = `
       **ARCHITECTURE INSTRUCTIONS :**
 
@@ -358,10 +358,17 @@ export class AIDappGenerator extends Plugin {
           - Ensure the UI looks exactly like the image provided.
 
       3. **Ethers.js v6 RULES (CRITICAL):**
-          - \`provider.getSigner()\` is ASYNC. You MUST use \`await provider.getSigner()\`.
-          - When writing data, ALWAYS wait for the transaction: 
-            \`const tx = await contract.method(); await tx.wait();\`
-          - Use \`ethers.BrowserProvider(window.ethereum)\`.
+          - **Read-Only:** For 'view'/'pure' functions, use \`new ethers.Contract(addr, abi, provider)\`.
+          - **Write (Transaction):** For 'nonpayable'/'payable' functions, YOU MUST USE A SIGNER.
+            \`\`\`javascript
+            // Inside the button click handler:
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner(); // <--- CRITICAL
+            const contractWithSigner = new ethers.Contract(address, abi, signer); 
+            const tx = await contractWithSigner.functionName(args);
+            await tx.wait();
+            \`\`\`
+          - **NEVER** try to send a transaction with a Provider-only contract instance. It will throw "UNSUPPORTED_OPERATION".
 
       4. **Files & Structure:**
           - At a minimum, the following files must be returned. \`index.html\`, \`src/main.jsx\`, \`src/App.jsx\`, \`src/index.css\`.
@@ -428,7 +435,7 @@ export class AIDappGenerator extends Plugin {
 
     if (options.image) {
       console.log('[AIDappGenerator] Vision Mode: Creating Initial Message with Image');
-      
+
       const visionPrompt = `
       # VISION-DRIVEN DAPP GENERATION
       
@@ -475,7 +482,7 @@ export class AIDappGenerator extends Plugin {
       return [
         {
           type: 'image_url',
-          image_url: { url: options.image } 
+          image_url: { url: options.image }
         },
         {
           type: 'text',
@@ -483,19 +490,19 @@ export class AIDappGenerator extends Plugin {
         }
       ];
     }
-    
+
     return basePrompt;
   }
 
   private createUpdateMessage(description: string | any[], currentFiles: Pages): string | any[] {
-    
+
     const filteredFiles: Pages = {};
     for (const [fileName, content] of Object.entries(currentFiles)) {
       if (fileName === 'index.html' || fileName.startsWith('src/')) {
         filteredFiles[fileName] = content;
       }
     }
-    
+
     const filesString = JSON.stringify(filteredFiles, null, 2);
 
     const textOnlyInstruction = `
@@ -517,7 +524,7 @@ export class AIDappGenerator extends Plugin {
 
     if (Array.isArray(description)) {
       console.log('[AIDappGenerator] Processing Image Mode: ZERO-SHOT REWRITE');
-      
+
       return description.map(part => {
         if (part.type === 'text') {
           const visionInstruction = `
@@ -544,8 +551,8 @@ export class AIDappGenerator extends Plugin {
           ${filesString}
           `;
 
-          return { 
-            type: 'text', 
+          return {
+            type: 'text',
             text: visionInstruction
           };
         }
@@ -572,9 +579,9 @@ export class AIDappGenerator extends Plugin {
     // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
     console.log('[AIDappGenerator] calling LLM API with body:', JSON.stringify({
-        messages,
-        systemPrompt: systemPrompt.substring(0, 100) + "...",
-        hasImage
+      messages,
+      systemPrompt: systemPrompt.substring(0, 100) + "...",
+      hasImage
     }, null, 2));
 
     try {
@@ -662,7 +669,7 @@ const parsePages = (content: string) => {
   const markerRegex = /<{3,}\s*START_TITLE\s+(.*?)\s+>{3,}\s*END_TITLE/g
 
   const parts = content.split(markerRegex)
-  
+
   for (let i = 1; i < parts.length; i += 2) {
     const filename = parts[i].trim()
     const rawFileContent = parts[i + 1]

@@ -67,9 +67,9 @@ export class DappManager {
       try {
         await this.ensureBasePath();
       } catch (e) {
-        return []; 
+        return [];
       }
-      
+
       const files = await this.plugin.call('fileManager', 'readdir', BASE_PATH);
       if (!files || typeof files !== 'object') {
         return [];
@@ -89,15 +89,15 @@ export class DappManager {
 
             let content;
             try {
-               content = await this.plugin.call('fileManager', 'readFile', configPath);
+              content = await this.plugin.call('fileManager', 'readFile', configPath);
             } catch (err) {
-               continue;
+              continue;
             }
 
             if (content) {
               const config = JSON.parse(content);
               config.slug = slug;
-              
+
               try {
                 const previewPath = `${BASE_PATH}/${slug}/preview.png`;
                 const previewContent = await this.plugin.call('fileManager', 'readFile', previewPath);
@@ -115,7 +115,7 @@ export class DappManager {
       return (configs || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch (e) {
       console.error('[DappManager] Critical error loading dapps:', e);
-      return []; 
+      return [];
     }
   }
 
@@ -153,12 +153,12 @@ export class DappManager {
     await this.plugin.call('fileManager', 'mkdir', folderPath);
     await this.saveConfig(slug, initialConfig);
     await this.plugin.call('fileManager', 'mkdir', `${folderPath}/src`);
-    
+
     if (isBaseMiniApp) {
       console.log('[DappManager] Generating .well-known/farcaster.json for Base Mini App');
       try {
         await this.plugin.call('fileManager', 'mkdir', `${folderPath}/.well-known`);
-        
+
         const manifestContent = {
           "accountAssociation": {
             "header": "",
@@ -185,7 +185,7 @@ export class DappManager {
             "noindex": true
           }
         };
-          
+
         await this.plugin.call('fileManager', 'writeFile', `${folderPath}/.well-known/farcaster.json`, JSON.stringify(manifestContent, null, 2));
       } catch (e) {
         console.error('[DappManager] Failed to create .well-known folder or file', e);
@@ -222,7 +222,7 @@ export class DappManager {
       if (safeParts.length === 0) continue;
 
       const fullPath = `${basePath}/${safeParts.join('/')}`;
-      
+
       if (safeParts.length > 1) {
         const subFolders = safeParts.slice(0, -1);
         let currentPath = basePath;
@@ -248,10 +248,10 @@ export class DappManager {
   }
 
   async deleteAllDapps(): Promise<void> {
-     const dapps = await this.getDapps();
-     for (const dapp of dapps) {
-       await this.deleteDapp(dapp.slug);
-     }
+    const dapps = await this.getDapps();
+    for (const dapp of dapps) {
+      await this.deleteDapp(dapp.slug);
+    }
   }
 
   async getDappConfig(slug: string): Promise<DappConfig | null> {
@@ -273,11 +273,11 @@ export class DappManager {
     try {
       const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
       const content = await this.plugin.call('fileManager', 'readFile', configPath);
-      
+
       if (!content) throw new Error('Config file not found');
 
       const currentConfig: DappConfig = JSON.parse(content);
-      
+
       const newConfig: DappConfig = {
         ...currentConfig,
         ...updates,
@@ -291,7 +291,7 @@ export class DappManager {
         },
         updatedAt: Date.now()
       };
-      
+
       const sanitizedConfig = this.sanitizeConfig(newConfig);
 
       await this.plugin.call('fileManager', 'writeFile', configPath, JSON.stringify(sanitizedConfig, null, 2));

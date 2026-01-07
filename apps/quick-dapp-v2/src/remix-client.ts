@@ -7,13 +7,13 @@ import { initInstance, emptyInstance, setAiLoading } from './actions';
 const getNetworkName = (chainId: number | string): string => {
   const id = Number(chainId);
   switch (id) {
-    case 1: return 'Mainnet';
-    case 11155111: return 'Sepolia';
-    case 5: return 'Goerli';
-    case 137: return 'Polygon';
-    case 42161: return 'Arbitrum';
-    case 10: return 'Optimism';
-    default: return `Chain ${id}`;
+  case 1: return 'Mainnet';
+  case 11155111: return 'Sepolia';
+  case 5: return 'Goerli';
+  case 137: return 'Polygon';
+  case 42161: return 'Arbitrum';
+  case 10: return 'Optimism';
+  default: return `Chain ${id}`;
   }
 };
 
@@ -43,12 +43,12 @@ export class RemixClient extends PluginClient {
 
           if (data.isUpdate) {
             console.log('[DEBUG-CLIENT] Update finished. Emitting dappUpdated...');
-            
-            this.internalEvents.emit('dappUpdated', { 
+
+            this.internalEvents.emit('dappUpdated', {
               slug: data.slug,
-              files: data.content 
+              files: data.content
             });
-            
+
             // @ts-ignore
             this.call('notification', 'toast', 'DApp code updated successfully.');
 
@@ -96,10 +96,10 @@ export class RemixClient extends PluginClient {
   async createDapp(payload: any) {
     try {
       console.log('[DEBUG-CLIENT] createDapp called with:', payload.contractName);
-      
+
       this.internalEvents.emit('creatingDappStart');
       this.emit('statusChanged', { key: 'loading', value: true, title: 'Generating DApp...' });
-      
+
       const networkName = getNetworkName(payload.chainId);
       const contractData = {
         address: payload.address,
@@ -111,11 +111,11 @@ export class RemixClient extends PluginClient {
 
       console.log('[DEBUG-CLIENT] Creating initial Dapp config...');
       const newDappConfig = await this.dappManager.createDapp(
-        payload.contractName, 
-        contractData, 
+        payload.contractName,
+        contractData,
         payload.isBaseMiniApp
       );
-      
+
       console.log(`[DEBUG-CLIENT] Initial config created. Slug: ${newDappConfig.slug}`);
       // @ts-ignore
       this.call('ai-dapp-generator', 'generateDapp', {
@@ -126,7 +126,7 @@ export class RemixClient extends PluginClient {
         contractName: payload.contractName,
         isBaseMiniApp: payload.isBaseMiniApp,
         image: payload.image,
-        slug: newDappConfig.slug 
+        slug: newDappConfig.slug
       }).then(() => {
         console.log('[DEBUG-CLIENT] AI Trigger sent successfully (Ack received).');
       }).catch((e: any) => {

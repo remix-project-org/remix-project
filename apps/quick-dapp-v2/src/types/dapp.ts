@@ -5,7 +5,7 @@ export interface DappConfig {
   id: string;
   slug: string;
   name: string;
-  
+
   contract: {
     address: string;
     name: string;
@@ -18,7 +18,7 @@ export interface DappConfig {
   createdAt: number;
   updatedAt: number;
   lastDeployedAt?: number;
-  
+
   deployment?: {
     ipfsCid?: string;
     gatewayUrl?: string;
@@ -31,6 +31,6 @@ export interface DappConfig {
     logo?: string;
     isBaseMiniApp?: boolean;
   };
-  
+
   thumbnailPath?: string;
 }
