@@ -100,11 +100,11 @@ const tests = {
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
-        selector: '//*[@data-id="remotes-panel-content"]//*[contains(text(), "remix-learneth-plugin")]',
+        selector: '//*[@data-id="remotes-panel-content"]//*[contains(text(), "awesome-remix")]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="remotes-panel-content"]//*[contains(text(), "remix-learneth-plugin")]',
+        selector: '//*[@data-id="remotes-panel-content"]//*[contains(text(), "awesome-remix")]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({

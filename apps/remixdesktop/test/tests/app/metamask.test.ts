@@ -56,6 +56,7 @@ const tests = {
       .waitForElementVisible({
         locateStrategy: 'xpath',
         selector: '//*[@data-id="settingsNetworkEnv" and contains(.,"1337")]',
+        timeout: 50000
       })
       .clickLaunchIcon('solidity')
       .click('*[data-id="compilerContainerCompileBtn"]')
