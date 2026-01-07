@@ -126,7 +126,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                   setShowDropdown(false)
                 }}
               >
-                <i className="fas fa-bug user-menu-item-icon user-menu-icon-bug"></i>
+                <i className="fas fa-bug user-menu-item-icon"></i>
                 Report a Bug
               </button>
 
@@ -138,7 +138,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                   setShowDropdown(false)
                 }}
               >
-                <i className="fas fa-lightbulb user-menu-item-icon user-menu-icon-feature"></i>
+                <i className="fas fa-lightbulb user-menu-item-icon"></i>
                 Request a Feature
               </button>
 
@@ -150,7 +150,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                   setShowDropdown(false)
                 }}
               >
-                <i className="fas fa-question-circle user-menu-item-icon user-menu-icon-support"></i>
+                <i className="fas fa-question-circle user-menu-item-icon"></i>
                 Get Support
               </button>
 

@@ -111,13 +111,12 @@
 .user-menu-credits-icon {
   width: 16px;
   text-align: center;
-  color: var(--bs-warning, #f39c12);
   margin-right: 12px;
 }
 
 .user-menu-credits-balance {
-  color: var(--bs-warning, #f39c12);
   font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .user-menu-divider {
@@ -141,18 +140,6 @@
 
 .user-menu-item-danger:hover {
   background-color: var(--bs-body-bg, #222336);
-}
-
-.user-menu-icon-bug {
-  color: var(--bs-danger, #e74c3c);
-}
-
-.user-menu-icon-feature {
-  color: var(--bs-info, #3498db);
-}
-
-.user-menu-icon-support {
-  color: var(--bs-success, #00bc8c);
 }
 
 .user-menu-backdrop {
