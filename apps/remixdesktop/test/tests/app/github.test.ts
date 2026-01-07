@@ -68,15 +68,15 @@ const tests = {
   },
   'check if the settings are loaded #group1 #group2': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="connected-as-bunsenstraat"]')
-      .waitForElementVisible('*[data-id="connected-img-bunsenstraat"]')
-      .waitForElementVisible('*[data-id="connected-link-bunsenstraat"]')
+      .waitForElementVisible('*[data-id="connected-as-EthereumRemix"]')
+      .waitForElementVisible('*[data-id="connected-img-EthereumRemix"]')
+      .waitForElementVisible('*[data-id="connected-link-EthereumRemix"]')
       .waitForElementVisible('*[data-id="remotes-panel"]')
   },
   'check the FE shows logged in user #group1 #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
         locateStrategy: 'xpath'
       })
   },
@@ -101,11 +101,11 @@ const tests = {
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "remix-learneth-plugin")]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "remix-learneth-plugin")]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
@@ -121,11 +121,11 @@ const tests = {
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-remix-project-org/awesome-remix-master"]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-EthereumRemix/remix-learneth-plugin-master"]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-remix-project-org/awesome-remix-master"]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="clonebtn-EthereumRemix/remix-learneth-plugin-master"]',
         locateStrategy: 'xpath'
       })
       .pause(5000)
@@ -140,7 +140,7 @@ const tests = {
   'check if user is still logged in after cloning #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
         locateStrategy: 'xpath'
       })
   },
@@ -272,12 +272,12 @@ const tests = {
       .pause(1000)
       .click('*[data-id="disconnect-github"]')
 
-      .waitForElementNotPresent('*[data-id="connected-as-bunsenstraat"]')
+      .waitForElementNotPresent('*[data-id="connected-as-EthereumRemix"]')
   },
   'check the FE for the disconnected auth user #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementNotPresent({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
         locateStrategy: 'xpath'
       })
   },
