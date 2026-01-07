@@ -1,3 +1,7 @@
+.remix-settings-main {
+  padding-right: 1rem !important;
+}
+
 @media (max-width: 1100px) {
     .remix-settings-sidebar {
       min-width: 0 !important;
@@ -9,6 +13,7 @@
 
     .remix-settings-main {
       padding-left: 3em !important;
+      padding-right: 1rem !important;
     }
   }
 /* For 13-inch Mac */
@@ -23,6 +28,7 @@
 
     .remix-settings-main {
       padding-left: 3em !important;
+      padding-right: 1rem !important;
     }
 }
 

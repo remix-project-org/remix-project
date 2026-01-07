@@ -368,7 +368,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
       <div className="container-fluid bg-light h-100 d-flex flex-column">
         <div className='pt-5'></div>
         <div className='d-flex flex-row pb-4 gap-4'>
-          <div data-id="settings-sidebar-header" className="ps-3 remix-settings-sidebar" style={{ width: '28.2em' }}>
+          <div data-id="settings-sidebar-header" className="ps-3 remix-settings-sidebar" style={{ width: '24em' }}>
             <h3 className={`fw-semibold ${state.themeQuality.name === 'dark' ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.5rem' }}><FormattedMessage id="settings.displayName" /></h3>
           </div>
           <div className='d-flex flex-grow-1 remix-settings-search' style={{ maxWidth: '53.5em', minHeight: '4em' }}>
@@ -381,7 +381,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
             {/* Sidebar */}
             <div
               className="flex-column bg-transparent p-0 px-3 remix-settings-sidebar overflow-auto"
-              style={{ width: '28.2em', height: '100%' }}
+              style={{ width: '25em', height: '100%' }}
             >
               <ul className="list-unstyled">
                 {filteredSections.map((section, index) => (
