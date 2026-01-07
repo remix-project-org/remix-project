@@ -142,6 +142,22 @@
   background-color: var(--bs-body-bg, #222336);
 }
 
+.user-menu-theme-toggle {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.user-menu-theme-toggle .btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.user-menu-theme-toggle .btn:hover {
+  background: transparent;
+}
+
 .user-menu-backdrop {
   position: fixed;
   top: 0;

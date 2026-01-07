@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { AuthUser, AuthProvider, LinkedAccount, AccountsResponse } from '@remix-api'
 import type { Credits } from '../../../app/src/lib/remix-app/context/auth-context'
+import { ToggleSwitch } from '@remix-ui/toggle'
 import './user-menu-compact.css'
+
+interface Theme {
+  name: string
+  quality: string
+}
 
 interface UserMenuCompactProps {
   user: AuthUser
@@ -14,6 +20,9 @@ interface UserMenuCompactProps {
   getProviderDisplayName: (provider: string) => string
   getUserDisplayName: () => string
   getLinkedAccounts?: () => Promise<AccountsResponse | null>
+  themes?: Theme[]
+  currentTheme?: string
+  onThemeChange?: (themeName: string) => void
 }
 
 const getProviderIcon = (provider: AuthProvider | string) => {
@@ -37,12 +46,12 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
   onManageAccounts,
   getProviderDisplayName,
   getUserDisplayName,
-  getLinkedAccounts
+  getLinkedAccounts,
+  themes,
+  currentTheme,
+  onThemeChange
 }) => {
   const [showDropdown, setShowDropdown] = useState(false)
-
-  // All available providers including GitHub
-  const allProviders: AuthProvider[] = ['google', 'github', 'discord', 'siwe']
 
   return (
     <div className={`position-relative ${className}`}>
@@ -153,6 +162,33 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                 <i className="fas fa-question-circle user-menu-item-icon"></i>
                 Get Support
               </button>
+
+              {/* Theme Selection */}
+              {themes && themes.length > 0 && onThemeChange && (() => {
+                // Find dark and light themes
+                const darkTheme = themes.find(t => t.quality.toLowerCase() === 'dark')
+                const lightTheme = themes.find(t => t.quality.toLowerCase() === 'light')
+                const isDarkMode = currentTheme && darkTheme && currentTheme.toLowerCase() === darkTheme.name.toLowerCase()
+
+                return (
+                  <div className="user-menu-item user-menu-theme-toggle">
+                    <i className="fas fa-palette user-menu-item-icon"></i>
+                    <span className="flex-grow-1">{isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
+                    <ToggleSwitch
+                      id="user-menu-theme-toggle"
+                      isOn={isDarkMode}
+                      size="lg"
+                      onClick={() => {
+                        if (isDarkMode && lightTheme) {
+                          onThemeChange(lightTheme.name)
+                        } else if (!isDarkMode && darkTheme) {
+                          onThemeChange(darkTheme.name)
+                        }
+                      }}
+                    />
+                  </div>
+                )
+              })()}
 
               <div className="dropdown-divider user-menu-divider"></div>
 

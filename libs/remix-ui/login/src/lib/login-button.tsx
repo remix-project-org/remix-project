@@ -21,6 +21,27 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
 }) => {
   const { isAuthenticated, user, credits, logout, login } = useAuth()
   const [showModal, setShowModal] = useState(false)
+  const [themes, setThemes] = useState<Array<{ name: string; quality: string }>>([])
+  const [currentTheme, setCurrentTheme] = useState<string>('')
+
+  useEffect(() => {
+    if (plugin && typeof plugin.call === 'function') {
+      (async () => {
+        try {
+          const themeModule = await plugin.call('theme', 'getThemes')
+          if (themeModule) {
+            setThemes(themeModule)
+          }
+          const active = await plugin.call('theme', 'currentTheme')
+          if (active) {
+            setCurrentTheme(active.name)
+          }
+        } catch (err) {
+          console.log('[LoginButton] Theme module not available:', err)
+        }
+      })()
+    }
+  }, [plugin])
 
   const handleLogout = async () => {
     await logout()
@@ -70,6 +91,17 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
     return user.sub
   }
 
+  const handleThemeChange = async (themeName: string) => {
+    if (plugin && typeof plugin.call === 'function') {
+      try {
+        await plugin.call('theme', 'switchTheme', themeName)
+        setCurrentTheme(themeName)
+      } catch (err) {
+        console.error('[LoginButton] Failed to switch theme:', err)
+      }
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <>
@@ -111,6 +143,9 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
         onManageAccounts={handleManageAccounts}
         getProviderDisplayName={getProviderDisplayName}
         getUserDisplayName={getUserDisplayName}
+        themes={themes}
+        currentTheme={currentTheme}
+        onThemeChange={handleThemeChange}
       />
     )
   }

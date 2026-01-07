@@ -205,7 +205,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                 style={{ gap: '0.25rem' }}
               >
                 <i className="fas fa-upload"></i>
-                <span>Upload Image</span>
+                <span>Upload</span>
               </button>
               <input
                 ref={fileInputRef}
