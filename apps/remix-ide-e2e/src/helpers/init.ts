@@ -141,10 +141,6 @@ function initModules(browser: NightwatchBrowser, callback: VoidFunction) {
     .click('*[data-id="github-configSwitch"]')
     .setValue('[data-id="settingsTabgist-access-token"]', process.env.gist_token)
     .click('[data-id="settingsTabSavegithub-config"]')
-    .waitForElementVisible('*[data-id="topbar-themeIcon-toggle"]')
-    .click('*[data-id="topbar-themeIcon-toggle"]')
-    .waitForElementVisible('*[data-id="topbar-themeIcon-light"]')
-    .click('*[data-id="topbar-themeIcon-light"]')
     // .click('[data-id="settingsTabThemeLabelFlatly"]') // e2e tests were initially developed with Flatly. Some tests are failing with the default one (Dark), because the dark theme put uppercase everywhere.
     .perform(() => { callback() })
 }

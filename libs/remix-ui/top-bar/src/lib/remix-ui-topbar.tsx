@@ -621,13 +621,13 @@ export function RemixUiTopbar() {
                 plugin={plugin}
                 variant="compact"
                 showCredits={true}
-                className="ms-3 me-3"
+                className="ms-3"
               />
             )}
           </>
           <span
             style={{ fontSize: '1.5rem', cursor: 'pointer' }}
-            className=""
+            className="ms-3"
             onClick={async () => {
               const isActive = await plugin.call('manager', 'isActive', 'settings')
               if (!isActive) await plugin.call('manager', 'activatePlugin', 'settings')
