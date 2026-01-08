@@ -119,7 +119,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               {assistantChoice === 'ollama' && availableModels.length > 0 && (
                 <button
                   onClick={handleSetModel}
-                  className="btn btn-text btn-sm small font-weight-light text-secondary mt-2 align-self-end border border-text rounded ms-2"
+                  className="btn btn-sm small font-weight-light text-secondary mt-2 align-self-end border border-text rounded ms-2"
                   ref={modelSelectorBtnRef}
                   data-id="ollama-model-selector"
                 >
@@ -130,17 +130,17 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               )}
             </div>
             <CustomTooltip
-              placement="top"
-              tooltipText={isRecording ? 'Stop recording' : 'Record audio'}
+              placement="bottom"
+              tooltipText={isRecording ? 'Stop recording' : 'Voice input'}
               tooltipId="audioPromptTooltip"
             >
               <button
                 data-id="remix-ai-record-audio"
-                className={`btn btn-text btn-sm small fw-light mt-2 align-self-end border border-text rounded ${isRecording ? 'btn-danger text-white' : 'text-secondary'}`}
+                className={`btn btn-sm rounded-circle align-items-center justify-content-center d-flex small fw-light mt-2  border border-text rounded ${isRecording ? 'btn-danger text-white' : 'text-secondary'}`}
                 onClick={handleRecord}
               >
                 <i className={`fa ${isRecording ? 'fa-stop' : 'fa-microphone'} me-1`}></i>
-                {isRecording ? 'Stop' : 'Audio Prompt'}
+                {/* {isRecording ? 'Stop' : 'Audio Prompt'} */}
               </button>
             </CustomTooltip>
             <button
