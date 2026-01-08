@@ -26,6 +26,11 @@
   cursor: row-resize;
 }
 
+/* Hide dragbar when terminal panel is hidden */
+.dragbar_terminal:has(+ .terminal-wrap.d-none) {
+  display: none !important;
+}
+
 /* Hide dragbar when terminal panel is maximized */
 .dragbar_terminal:has(+ .terminal-wrap.maximized):hover,
 .dragbar_terminal:has(+ .terminal-wrap.maximized).ondrag,
