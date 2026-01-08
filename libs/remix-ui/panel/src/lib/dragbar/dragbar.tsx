@@ -36,6 +36,11 @@ const DragBar = (props: IRemixDragBarUi) => {
   useEffect(() => {
     window.addEventListener('resize', handleResize)
 
+    // Initial position calculation after a delay to ensure DOM is ready
+    const initialTimer = setTimeout(() => {
+      handleResize()
+    }, 100)
+
     // Watch for terminal element changes (class/style changes when d-none is added/removed)
     const terminalElement = props.refObject.current
     let observer: MutationObserver | null = null
@@ -57,6 +62,7 @@ const DragBar = (props: IRemixDragBarUi) => {
     }
 
     return () => {
+      clearTimeout(initialTimer)
       window.removeEventListener('resize', handleResize)
       observer?.disconnect()
     }
