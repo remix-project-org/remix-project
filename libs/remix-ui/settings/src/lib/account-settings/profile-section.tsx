@@ -200,16 +200,26 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
         <div className="row">
           <div className="col-md-3 mb-3 mb-md-0 text-center">
             <div className="mb-2 position-relative d-inline-block">
-              <img
-                src={avatarPreview || editedProfile?.avatar_url || displayProfile.avatar_url || 'https://via.placeholder.com/100'}
-                alt="Profile Avatar"
-                className="rounded-circle"
-                style={{ width: '100px', height: '100px', objectFit: 'cover' }}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.src = 'https://via.placeholder.com/100'
-                }}
-              />
+              {(avatarPreview || editedProfile?.avatar_url || displayProfile.avatar_url) ? (
+                <img
+                  src={avatarPreview || editedProfile?.avatar_url || displayProfile.avatar_url}
+                  alt="Profile Avatar"
+                  className="rounded-circle"
+                  style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.src = 'https://via.placeholder.com/100?text=Not+Available'
+                  }}
+                />
+              ) : (
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white"
+                  style={{ width: '100px', height: '100px', fontSize: '0.7rem' }}
+                  title="Avatar not available"
+                >
+                  Not available
+                </div>
+              )}
             </div>
             <div>
               <button
@@ -241,7 +251,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                 className="form-control form-control-sm"
                 value={editedProfile?.username || ''}
                 onChange={(e) => handleFieldChange('username', e.target.value)}
-                placeholder="Enter username"
+                placeholder={isEditable ? "Enter username" : (!editedProfile?.username || editedProfile.username === '') ? "Not available" : ""}
                 disabled={!isEditable}
                 readOnly={!isEditable}
               />
@@ -254,7 +264,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                 className="form-control form-control-sm"
                 value={editedProfile?.email || ''}
                 onChange={(e) => handleFieldChange('email', e.target.value)}
-                placeholder="Enter email"
+                placeholder={isEditable ? "Enter email" : (!editedProfile?.email || editedProfile.email === '') ? "Not available" : ""}
                 disabled={!isEditable}
                 readOnly={!isEditable}
               />
