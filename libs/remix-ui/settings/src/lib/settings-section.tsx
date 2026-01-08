@@ -8,6 +8,7 @@ import type { ViewPlugin } from '@remixproject/engine-web'
 import { CustomTooltip } from '@remix-ui/helper'
 import { IMCPServerManager } from './mcp-server-manager'
 import { AccountManager } from './account-manager'
+import { WalletManager } from './wallet-manager'
 
 type SettingsSectionUIProps = {
   plugin: ViewPlugin,
@@ -108,6 +109,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                           {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
                           {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
                           {option.type === 'custom' && option.customComponent === 'accountManager' && <span></span>}
+                          {option.type === 'custom' && option.customComponent === 'walletManager' && <span></span>}
                         </div>
                       </div>
                       {option.description && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
@@ -119,6 +121,11 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                       {option.type === 'custom' && option.customComponent === 'accountManager' && (
                         <div className="mt-3">
                           <AccountManager plugin={plugin} />
+                        </div>
+                      )}
+                      {option.type === 'custom' && option.customComponent === 'walletManager' && (
+                        <div className="mt-3">
+                          <WalletManager plugin={plugin} />
                         </div>
                       )}
                       {

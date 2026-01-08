@@ -214,6 +214,10 @@ export const initialState: SettingsState = {
     value: ollamaEndpoint,
     isLoading: false
   },
+  'wallet-manager': {
+    value: '',
+    isLoading: false
+  },
   toaster: {
     value: '',
     isLoading: false

@@ -96,6 +96,17 @@ const settingsSections: SettingsSection[] = [
       }]
     }
   ]},
+  { key: 'wallet', label: 'settings.wallet', description: 'settings.walletDescription', subSections: [
+    {
+      options: [{
+        name: 'wallet-manager',
+        label: 'settings.remixWallet',
+        description: 'settings.remixWalletDescription',
+        type: 'custom' as const,
+        customComponent: 'walletManager'
+      }]
+    }
+  ]},
   { key: 'analytics', label: 'settings.analytics', description: 'settings.analyticsDescription', subSections: [
     { options: [{
       name: 'matomo-analytics',

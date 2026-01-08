@@ -53,6 +53,8 @@ import { TransactionSimulator } from './app/plugins/transaction-simulator'
 import { CodeFormat } from './app/plugins/code-format'
 import { CompilationDetailsPlugin } from './app/plugins/compile-details'
 import { AuthPlugin } from './app/plugins/auth-plugin'
+import { RemixWalletPlugin } from './app/plugins/wallet-plugin'
+import { RemixWalletProvider } from './app/providers/remix-wallet-provider'
 import { RemixGuidePlugin } from './app/plugins/remixGuide'
 import { TemplatesPlugin } from './app/plugins/remix-templates'
 import { fsPlugin } from './app/plugins/electron/fsPlugin'
@@ -167,6 +169,7 @@ class AppComponent {
   templateExplorerModal: TemplateExplorerModalPlugin
   settings: SettingsTab
   authPlugin: AuthPlugin
+  remixWalletPlugin: RemixWalletPlugin
   params: any
   desktopClientMode: boolean
 
@@ -390,6 +393,7 @@ class AppComponent {
     const ganacheProvider = new GanacheProvider(blockchain)
     const foundryProvider = new FoundryProvider(blockchain)
     const externalHttpProvider = new ExternalHttpProvider(blockchain)
+    const remixWalletProvider = new RemixWalletProvider()
 
     const environmentExplorer = new EnvironmentExplorer()
     // ----------------- convert offset to line/column service -----------
@@ -476,6 +480,7 @@ class AppComponent {
       ganacheProvider,
       foundryProvider,
       externalHttpProvider,
+      remixWalletProvider,
       environmentExplorer,
       this.walkthroughService,
       search,
@@ -595,6 +600,7 @@ class AppComponent {
     )
 
     this.authPlugin = new AuthPlugin()
+    this.remixWalletPlugin = new RemixWalletPlugin()
 
     this.engine.register([
       compileTab,
@@ -608,7 +614,8 @@ class AppComponent {
       deployLibraries,
       openZeppelinProxy,
       run.recorder,
-      this.authPlugin
+      this.authPlugin,
+      this.remixWalletPlugin
     ])
     this.engine.register([templateExplorerModal, this.topBar])
 
@@ -677,6 +684,8 @@ class AppComponent {
     ])
 
     await this.appManager.activatePlugin(['auth'])
+    await this.appManager.activatePlugin(['remixWallet'])
+    await this.appManager.activatePlugin(['remix-wallet-provider'])
     await this.appManager.activatePlugin(['settings'])
 
     await this.appManager.activatePlugin(['walkthrough', 'storage', 'storageMonitor', 'search', 'compileAndRun', 'recorder', 'dgitApi', 'dgit'])

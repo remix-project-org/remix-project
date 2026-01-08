@@ -421,6 +421,9 @@ export class RunTab extends ViewPlugin {
     // wallet connect
     await addProvider(6, 'walletconnect', 'WalletConnect', { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' })
 
+    // Remix Wallet - for users logged in with OAuth
+    await addProvider(7, 'remix-wallet-provider', 'Remix Wallet', { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' })
+
     // external provider
     await addProvider(10, 'basic-http-provider', 'Custom - External Http Provider', { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' })
     await addProvider(20, 'hardhat-provider', 'Dev - Hardhat Provider', { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' })

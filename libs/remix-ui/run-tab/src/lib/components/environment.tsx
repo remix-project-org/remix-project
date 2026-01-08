@@ -43,6 +43,7 @@ export function EnvironmentUI(props: EnvironmentProps) {
   }
   const devProviders = providers.filter(isDevByLabel)
   const walletConnect = providers.find(p => p.name === 'walletconnect' || p.name === 'walletConnect')
+  const remixWallet = providers.find(p => p.name === 'remix-wallet-provider')
   const httpProvider = providers.find(p => p.name === 'basic-http-provider' || p.name === 'web3Provider' || p.name === 'basicHttpProvider')
   const electrOnProvider = providers.find(p => p.name === 'desktopHost')
 
@@ -263,6 +264,16 @@ export function EnvironmentUI(props: EnvironmentProps) {
                 data-id={`dropdown-item-${walletConnect.name}`}
               >
                 {walletConnect.displayName}
+              </Dropdown.Item>
+            )}
+
+            {remixWallet && (
+              <Dropdown.Item
+                key={remixWallet.name}
+                onClick={() => handleChangeExEnv(remixWallet.name)}
+                data-id={`dropdown-item-${remixWallet.name}`}
+              >
+                {remixWallet.displayName}
               </Dropdown.Item>
             )}
 

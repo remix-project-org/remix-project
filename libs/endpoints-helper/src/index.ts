@@ -18,6 +18,7 @@ type EndpointUrls = {
     sso: string;
     billing: string;
     credits: string;
+    wallet: string;
     audio;
 };
 
@@ -41,6 +42,7 @@ const defaultUrls: EndpointUrls = {
   sso: 'https://auth.api.remix.live:8443/sso',
   billing: 'https://auth.api.remix.live:8443//billing',
   credits: 'https://auth.api.remix.live:8443/credits',
+  wallet: 'https://auth.api.remix.live:8443/wallet',
   audio: 'https://audio.api.remix.live',
 };
 
@@ -64,6 +66,7 @@ const endpointPathMap: Record<keyof EndpointUrls, string> = {
   sso: 'sso',
   billing: 'billing',
   credits: 'credits',
+  wallet: 'wallet',
   audio: 'audio',
 };
 
@@ -101,6 +104,9 @@ const localhostUrls: EndpointUrls = {
   // BILLING service (port 3002)
   billing: 'http://localhost:3002/billing',
   credits: 'http://localhost:3002/credits',
+  
+  // WALLET service (same as AUTH on port 3001)
+  wallet: 'http://localhost:3001/wallet',
   audio: 'http://localhost:3004/audio',
 };
 

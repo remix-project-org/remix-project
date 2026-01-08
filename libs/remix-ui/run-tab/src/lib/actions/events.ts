@@ -26,6 +26,26 @@ export const setupEvents = (plugin: RunTab) => {
     provider: null,
     chainId: null
   }
+  
+  // Subscribe to remix-wallet-provider accountsChanged directly (since it may be activated before run-tab initializes)
+  console.log('[RemixWallet] Setting up direct accountsChanged listener')
+  plugin.on('remix-wallet-provider', 'accountsChanged', async (accounts: Array<string>) => {
+    console.log('[RemixWallet] accountsChanged received (direct):', accounts)
+    const accountsMap = {}
+
+    await Promise.all(accounts.map(async (account) => {
+      const balance = await plugin.blockchain.getBalanceInEther(account)
+      const updated = shortenAddress(account, balance)
+      console.log('[RemixWallet] Account balance:', account, balance)
+      accountsMap[account] = updated
+    }))
+    console.log('[RemixWallet] Dispatching accounts:', accountsMap)
+    dispatch(fetchAccountsListSuccess(accountsMap))
+    if (accounts.length > 0) {
+      dispatch(setSelectedAccount(accounts[0]))
+    }
+  })
+
   plugin.on('remixAI', 'setValueRequest', (value, unit) => {
     dispatch(setSendUnit(unit))
     dispatch(setSendValue(value))
@@ -159,6 +179,8 @@ export const setupEvents = (plugin: RunTab) => {
           dispatch(fetchAccountsListSuccess(accountsMap))
         })
       }
+      // Note: remix-wallet-provider listener is set up at the start of setupEvents since
+      // it may be activated before run-tab initializes
     }
   })
 
