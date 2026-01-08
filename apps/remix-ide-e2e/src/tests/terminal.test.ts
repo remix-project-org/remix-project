@@ -9,11 +9,38 @@ const runMasterTests: boolean = (branch ? (isMasterBranch ? true : false) : true
 module.exports = {
   '@disabled': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    init(browser, done, 'http://127.0.0.1:8080?plugins=solidity,udapp', false)
+    init(browser, done, 'http://127.0.0.1:8080?plugins=solidity,udapp', false, undefined, true, false)
   },
+
+  'Terminal dragbar should not be visible on load #group1': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id="toggleBottomPanelIcon"]', 10000)
+      .assert.hasClass('.terminal-wrap', 'd-none')
+      .assert.not.elementPresent('.dragbar_terminal')
+  },
+
+  'Terminal dragbar should be visible when terminal is visible #group1': function (browser: NightwatchBrowser) {
+    browser
+      .click('*[data-id="toggleBottomPanelIcon"]')
+      .waitForElementVisible('.terminal-wrap', 5000)
+      .assert.not.hasClass('.terminal-wrap', 'd-none')
+      .waitForElementVisible('.dragbar_terminal', 2000)
+      .assert.elementPresent('.dragbar_terminal')
+  },
+
+  'Terminal dragbar should stay visible after reload when terminal is visible #group1': function (browser: NightwatchBrowser) {
+    browser
+      .refresh()
+      .waitForElementVisible('.terminal-wrap', 10000)
+      .assert.not.hasClass('.terminal-wrap', 'd-none')
+      .waitForElementVisible('.dragbar_terminal', 2000)
+      .assert.elementPresent('.dragbar_terminal')
+  },
+
   'Should execution a simple console command #group1': function (browser: NightwatchBrowser) {
     browser
-      // Terminal is shown by init.ts for e2e tests
+      // Terminal should already be visible from previous test, but ensure it's showing
+      .waitForElementVisible('.terminal-wrap', 5000)
       .waitForElementVisible('*[data-id="terminalCli"]', 10000)
       .executeScriptInTerminal('console.log(1 + 1)')
       .pause(2000)
@@ -440,6 +467,7 @@ module.exports = {
       })
       .useCss()
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'test running free function', 120000)
+      .end()
   }
 }
 

@@ -9,7 +9,7 @@ type LoadPlugin = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function (browser: NightwatchBrowser, callback: VoidFunction, url?: string, preloadPlugins = true, loadPlugin?: LoadPlugin, hideToolTips: boolean = true): void {
+export default function (browser: NightwatchBrowser, callback: VoidFunction, url?: string, preloadPlugins = true, loadPlugin?: LoadPlugin, hideToolTips: boolean = true, showTerminal: boolean = true): void {
   browser
     .url(url || 'http://127.0.0.1:8080')
     .pause(5000)
@@ -28,6 +28,7 @@ export default function (browser: NightwatchBrowser, callback: VoidFunction, url
     .verifyLoad()
     .enableClipBoard()
     .perform((done) => {
+      if (!showTerminal) return done()
       // Show terminal panel for e2e tests (it's hidden by default in the app)
       browser
         .waitForElementVisible('*[data-id="toggleBottomPanelIcon"]', 10000)
