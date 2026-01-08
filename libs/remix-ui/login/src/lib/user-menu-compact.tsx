@@ -155,13 +155,15 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
               <button
                 className="dropdown-item user-menu-item"
                 onClick={() => {
-                  window.open('https://remix-ide.readthedocs.io/en/latest/', '_blank')
+                  window.open('https://discord.gg/qhpCQGWkmf', '_blank')
                   setShowDropdown(false)
                 }}
               >
                 <i className="fas fa-question-circle user-menu-item-icon"></i>
                 Get Support
               </button>
+
+              <div className="dropdown-divider user-menu-divider"></div>
 
               {/* Theme Selection */}
               {themes && themes.length > 0 && onThemeChange && (() => {
