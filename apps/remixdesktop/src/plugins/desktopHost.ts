@@ -125,9 +125,20 @@ export class DesktopHostPluginClient extends ElectronBasePluginClient {
   }
 
   async openInCI() {
-    const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+      ]
+    });
     const page = await browser.newPage();
-    await page.goto(`http://localhost:${ports.http_port}/?activate=udapp,desktopClient&desktopClientPort=${ports.websocket_port}`);
+    await page.goto(
+      `http://localhost:${ports.http_port}/?activate=udapp,desktopClient&desktopClientPort=${ports.websocket_port}`,
+      { waitUntil: 'networkidle0', timeout: 30000 }
+    );
   }
 
 
