@@ -185,33 +185,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             </button>
           </div>
         </div>
-        {/* {contextChoice !== 'none' && contextFiles.length > 0 && (
-          <div className="mt-2 d-flex flex-wrap gap-1 overflow-y-auto" style={{ maxHeight: '110px' }}>
-            {contextFiles.slice(0, 6).map(f => {
-              const name = f.split('/').pop()
-              return (
-                <span
-                  key={f}
-                  className="badge text-bg-info me-1 aiContext-file text-success"
-                  style={{ cursor: 'pointer' }}
-                  onClick={clearContext}
-                >
-                  {name}
-                  <i className="fa fa-times ms-1 ms-1" style={{ cursor: 'pointer' }}></i>
-                </span>
-              )
-            })}
-            {contextFiles.length > 6 && (
-              <span
-                className="badge text-bg-info"
-                style={{ cursor: 'pointer' }}
-                onClick={clearContext}
-              >
-              … {contextFiles.length - 6} more <i className="fa fa-times ms-1" style={{ cursor: 'pointer' }}></i>
-              </span>
-            )}
-          </div>
-        )} */}
       </div>
     </>
   )
