@@ -6,6 +6,7 @@ import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
 import remixClient from '../../remix-client';
+import { trackMatomoEvent } from '@remix-api';
 
 const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live';
 const REMIX_ENDPOINT_ENS = 'https://quickdapp-ens.api.remix.live';
@@ -266,6 +267,13 @@ function DeployPanel(): JSX.Element {
     setDeployResult({ cid: '', gatewayUrl: '', error: '' });
     setIsDeploying(true);
 
+    trackMatomoEvent(remixClient, {
+      category: 'quick-dapp-v2',
+      action: 'deploy_ipfs',
+      name: 'start',
+      isClick: true
+    });
+
     let builder: InBrowserVite;
     
     try {
@@ -320,6 +328,13 @@ function DeployPanel(): JSX.Element {
 
       const data = await response.json();
       setDeployResult({ cid: data.ipfsHash, gatewayUrl: data.gatewayUrl, error: '' });
+
+      trackMatomoEvent(remixClient, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'success',
+        isClick: false
+      });
 
       if (dappManager) {
         const newConfig = await dappManager.updateDappConfig(activeDapp.slug, {
@@ -511,6 +526,13 @@ function DeployPanel(): JSX.Element {
                 setIsEnsLoading(true);
                 setEnsResult({success:'', error:'', txHash:'', domain:''});
                 
+                trackMatomoEvent(remixClient, {
+                  category: 'quick-dapp-v2',
+                  action: 'register_ens',
+                  name: 'start',
+                  isClick: true
+                });
+
                 (async () => {
                   try {
                     if (typeof window.ethereum === 'undefined') throw new Error("MetaMask missing");
@@ -523,6 +545,12 @@ function DeployPanel(): JSX.Element {
                     const data = await response.json();
                     if(!response.ok) throw new Error(data.error);
                     setEnsResult({success:'Success!', error:'', txHash:data.txHash, domain:data.domain});
+                    trackMatomoEvent(remixClient, {
+                      category: 'quick-dapp-v2',
+                      action: 'register_ens',
+                      name: 'success',
+                      isClick: false
+                    });
                     if(dappManager) {
                       const newConfig = await dappManager.updateDappConfig(activeDapp.slug, {deployment:{...activeDapp.deployment, ensDomain: data.domain}});
                       if(newConfig) dispatch({type:'SET_ACTIVE_DAPP', payload:newConfig});
