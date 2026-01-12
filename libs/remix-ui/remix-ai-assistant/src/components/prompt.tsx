@@ -34,6 +34,7 @@ export interface PromptAreaProps {
   maximizePanel: () => Promise<void>
   isMaximized: boolean
   setIsMaximized: React.Dispatch<React.SetStateAction<boolean>>
+  themeTracker: any
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -61,7 +62,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   textareaRef,
   maximizePanel,
   isMaximized,
-  setIsMaximized
+  setIsMaximized,
+  themeTracker
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = AIEvent>(event: T) => {
@@ -90,14 +92,17 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
           <span
             className="btn btn-sm small rounded-3 align-self-center fw-light"
             // eslint-disable-next-line no-constant-condition
-            style={{ backgroundColor: true ? '#2b3b4d' : '#c6e8f1', color: '#2de7f3' }}
+            style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'dark' ? '#2b3b4d' : '#c6e8f1', color: themeTracker && themeTracker.name.toLowerCase() === 'light' ? '#1ea2aa' : '#2de7f3' }}
           >
             <i className="fa fa-info-circle me-1"></i>
             AI beta
           </span>
         </div>
         <div className="ai-chat-input d-flex flex-column">
-          <div className="d-flex flex-column border rounded-3">
+          <div
+            className="d-flex flex-column border rounded-3"
+            style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#e4e8f1' : '' }}
+          >
             <textarea
               ref={textareaRef}
               style={{ flexGrow: 1, outline: 'none', resize: 'none', font: 'inherit', color: 'inherit', backgroundColor: 'transparent', boxShadow: 'none' }}
@@ -123,12 +128,14 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               isRecording={isRecording}
               isStreaming={isStreaming}
               handleSend={handleSend}
+              themeTracker={themeTracker}
             /> : null }
             { isRecording ? <PromptActiveButtons
               handleRecordingStoppage={handleRecord}
               isStreaming={isStreaming}
               handleSend={handleSend}
               isRecording={isRecording}
+              themeTracker={themeTracker}
             /> : null }
           </div>
 
@@ -153,27 +160,26 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               )}
               test
             </div> */}
-            <button className="btn d-flex rounded-4 justify-content-between align-items-center gap-2" style={{ backgroundColor: '#2b3b4d', color: '#2de7f3' }}>
-              <i className="far fa-copy"></i>
+            <button className="btn d-flex rounded-4 justify-content-between align-items-center gap-2" style={{ backgroundColor: themeTracker && themeTracker.name.toLowerCase() === 'light' ? '#c7e8f1' :'#2b3b4d', color: themeTracker && themeTracker.name.toLowerCase() === 'light' ? '#1ea2aa' :'#2de7f3' }}>
+              <i className="far fa-copy me-1"></i>
               <span>File</span>
             </button>
-            <button className="btn d-flex rounded-4 justify-content-between align-items-center gap-2" style={{ backgroundColor: '#333446', }}>
-              <i className="fas fa-brain"></i>
+            <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}>
+              <i className="fas fa-brain me-1"></i>
               <span>Learn</span>
             </button>
-            <button className="btn d-flex rounded-4 justify-content-between align-items-center gap-2" style={{ backgroundColor: '#333446', }}>
-              <i className="fas fa-list"></i>
+            <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}>
+              <i className="fas fa-list me-1"></i>
               <span className="text-nowrap">Plan a project</span>
             </button>
-            <button className="btn w-auto d-flex rounded-4 justify-content-between align-items-center gap-2" style={{ backgroundColor: '#333446', }}>
-              <i className="fas fa-plus"></i>
+            <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}>
+              <i className="fas fa-plus me-1"></i>
               <span className="text-nowrap">New workspace</span>
             </button>
             <button
               data-id="remix-ai-workspace-generate"
-              className="btn fw-light rounded-4 text-nowrap"
+              className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}
               onClick={handleGenerateWorkspace}
-              style={{ backgroundColor: '#333446', }}
             >
               {'Create new workspace with AI'}
             </button>

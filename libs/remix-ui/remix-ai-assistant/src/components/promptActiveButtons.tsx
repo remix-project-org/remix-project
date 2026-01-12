@@ -7,6 +7,7 @@ interface PromptActiveButtonsProps {
   isStreaming: boolean
   isRecording: boolean
   handleSend: () => void
+  themeTracker: any
 }
 
 export function PromptActiveButtons(props: PromptActiveButtonsProps) {
@@ -19,7 +20,7 @@ export function PromptActiveButtons(props: PromptActiveButtonsProps) {
         <i className="fas fa-trash me-2 text-danger"></i>
       </button>
       <div>
-        <i className="fas fa-microphone" style={{ color: '#2de7f3' }}></i>
+        <i className="fas fa-microphone" style={{ color: props.themeTracker && props.themeTracker.name === 'light' ? '#1ea2aa' : '#2de7f3' }}></i>
         <PromptRecordingCounter isRecording={props.isRecording} />
       </div>
       <PromptSubmitButton backgroundColor="#2de7f3" handleSend={props.handleSend} isStreaming={props.isStreaming} />

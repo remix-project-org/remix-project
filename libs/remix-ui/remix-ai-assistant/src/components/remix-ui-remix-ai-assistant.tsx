@@ -204,13 +204,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // }, [props.plugin])
 
   useEffect(() => {
+    props.plugin.call('theme', 'currentTheme')
+      .then((theme) => setThemeTracker(theme))
+      .catch((error) => console.log(error))
+
     props.plugin.on('theme', 'themeChanged', (theme) => {
       setThemeTracker(theme)
     })
     return () => {
       props.plugin.off('theme', 'themeChanged')
     }
-  })
+  }, [])
 
   // bubble messages up to parent
   useEffect(() => {
@@ -894,6 +898,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           textareaRef={textareaRef}
           isMaximized={isMaximized}
           setIsMaximized={setIsMaximized}
+          themeTracker={themeTracker}
         />
       </section>
     </div>

@@ -8,6 +8,7 @@ interface PromptDefaultProps {
   isRecording: boolean
   isStreaming: boolean
   handleSend: () => void
+  themeTracker: any
 }
 
 export function PromptDefault(props: PromptDefaultProps) {
@@ -27,7 +28,7 @@ export function PromptDefault(props: PromptDefaultProps) {
         Audio Prompt
         </button>
       </CustomTooltip>
-      <PromptSubmitButton backgroundColor="#2de7f3" handleSend={props.handleSend} isStreaming={props.isStreaming} />
+      <PromptSubmitButton backgroundColor={props.themeTracker && props.themeTracker.name.toLowerCase() === 'light' ? '#1ea2aa' : "#2de7f3"} handleSend={props.handleSend} isStreaming={props.isStreaming} />
     </div>
   )
 }
