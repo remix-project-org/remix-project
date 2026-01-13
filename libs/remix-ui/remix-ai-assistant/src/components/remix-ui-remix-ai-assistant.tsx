@@ -204,13 +204,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // }, [props.plugin])
 
   useEffect(() => {
+    props.plugin.call('theme', 'currentTheme')
+      .then((theme) => setThemeTracker(theme))
+      .catch((error) => console.log(error))
+
     props.plugin.on('theme', 'themeChanged', (theme) => {
       setThemeTracker(theme)
     })
     return () => {
       props.plugin.off('theme', 'themeChanged')
     }
-  })
+  }, [])
 
   // bubble messages up to parent
   useEffect(() => {
@@ -790,6 +794,31 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setIsMaximized(true) // ensured that expansion of the panel is stateful
   }
 
+  const [modelOpt, setModelOpt] = useState({ top: 0, left: 0 })
+  const menuRef = useRef<any>()
+
+  useEffect(() => {
+    if (showAssistantOptions && modelBtnRef.current && menuRef.current) {
+      // Use requestAnimationFrame to ensure menu is rendered and has dimensions
+      requestAnimationFrame(() => {
+        const modelBtn = modelBtnRef.current
+        const menu = menuRef.current
+
+        if (modelBtn && menu) {
+          const modelBtnRect = modelBtn.getBoundingClientRect()
+          const menuHeight = menu.offsetHeight
+
+          // Position menu above the button using fixed positioning (viewport coordinates)
+          // Align menu's right edge with button's right edge
+          setModelOpt({
+            top: modelBtnRect.top - menuHeight - 8,
+            left: modelBtnRect.right - 80 // Small gap from the right edge
+          })
+        }
+      })
+    }
+  }, [showAssistantOptions])
+
   return (
     <div
       className="d-flex flex-column w-100 overflow-x-hidden h-100"
@@ -816,8 +845,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       >
         {showAssistantOptions && (
           <div
-            className="pt-2 mb-2 z-3 bg-light border border-text w-75"
-            style={{ borderRadius: '8px' }}
+            className="pt-2 mb-2 z-3 bg-light border border-text position-fixed"
+            style={{ borderRadius: '8px', top: modelOpt.top, left: modelOpt.left, zIndex: 1000, minWidth: '300px', maxWidth: '400px' }}
+            ref={menuRef}
           >
             <div className="text-uppercase ms-2 mb-2 small">AI Assistant Provider</div>
             <GroupListMenu
@@ -850,7 +880,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         )}
         {showModelOptions && assistantChoice === 'ollama' && (
           <div
-            className="pt-2 mb-2 z-3 bg-light border border-text w-75"
+            className="pt-2 mb-2 z-3 bg-light border border-text w-75 position-absolute"
             style={{ borderRadius: '8px' }}
           >
             <div className="text-uppercase ml-2 mb-2 small">Ollama Model</div>
@@ -894,6 +924,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           textareaRef={textareaRef}
           isMaximized={isMaximized}
           setIsMaximized={setIsMaximized}
+          themeTracker={themeTracker}
         />
       </section>
     </div>

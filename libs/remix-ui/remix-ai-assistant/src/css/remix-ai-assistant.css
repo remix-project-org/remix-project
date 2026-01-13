@@ -695,3 +695,19 @@ mark,
 .tool-execution-indicator span {
   color: inherit;
 }
+
+.btn-remix-light {
+  background-color: #f0f3fa !important;
+}
+
+.btn-remix-light:hover {
+  background-color: #e4e8f7 !important;
+}
+
+.btn-remix-dark {
+  background-color: #333446 !important;
+}
+
+.btn-remix-dark:hover {
+  background-color: #353646 !important;
+}
