@@ -126,7 +126,9 @@ export class RemixClient extends PluginClient {
         contractName: payload.contractName,
         isBaseMiniApp: payload.isBaseMiniApp,
         image: payload.image,
-        slug: newDappConfig.slug
+        slug: newDappConfig.slug,
+        figmaUrl: payload.figmaUrl,
+        figmaToken: payload.figmaToken
       }).then(() => {
         console.log('[DEBUG-CLIENT] AI Trigger sent successfully (Ack received).');
       }).catch((e: any) => {

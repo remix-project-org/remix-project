@@ -20,6 +20,8 @@ interface GenerateDappOptions {
   isBaseMiniApp?: boolean
   image?: string
   slug?: string
+  figmaUrl?: string
+  figmaToken?: string
 }
 
 interface DappGenerationContext {
@@ -44,13 +46,112 @@ export class AIDappGenerator extends Plugin {
   async generateDapp(options: GenerateDappOptions & { slug: string }): Promise<void> {
     console.log('[DEBUG-AI] generateDapp called via RPC.');
 
-    this.processGeneration(options).catch(err => {
-      console.error("[DEBUG-AI] ❌ Background process crashed:", err);
-      this.call('terminal', 'log', { type: 'error', value: err.message });
-    });
+    if (options.figmaUrl && options.figmaToken) {
+      this.processFigmaGeneration(options).catch(err => {
+        console.error("[DEBUG-AI] Figma process crashed:", err);
+        this.call('terminal', 'log', { type: 'error', value: err.message });
+      });
+    } else {
+      this.processGeneration(options).catch(err => {
+        console.error("[DEBUG-AI] Background process crashed:", err);
+        this.call('terminal', 'log', { type: 'error', value: err.message });
+      });
+    }
 
     console.log('[DEBUG-AI] Returning immediate success to prevent timeout.');
     return;
+  }
+
+  private async processFigmaGeneration(options: GenerateDappOptions & { slug: string }) {
+    console.log(`[DEBUG-AI] Starting Figma Generation for slug: ${options.slug}`);
+    
+    await this.call('notification', 'toast', 'Analyzing Figma Design... (This may take time)')
+    this.emit('generationProgress', { status: 'started', address: options.address })
+
+    const context = this.getOrCreateContext(options.address)
+
+    const contractInfo = {
+        address: options.address,
+        abi: options.abi,
+        chainId: options.chainId,
+        name: options.contractName
+    };
+
+    try {
+        const startTime = Date.now();
+        console.log('[DEBUG-AI] Calling Figma Generator API...');
+
+        const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate"; 
+        // const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
+
+        const htmlContent = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
+            figmaToken: options.figmaToken,
+            figmaUrl: options.figmaUrl,
+            userPrompt: options.description,
+            contractInfo: contractInfo,
+            isBaseMiniApp: options.isBaseMiniApp
+        });
+
+        const duration = (Date.now() - startTime) / 1000;
+        console.log(`[DEBUG-AI] Figma Backend responded in ${duration}s.`);
+
+        const pages = parsePages(htmlContent);
+        
+        if (Object.keys(pages).length === 0) {
+            throw new Error("AI failed to return valid file structure from Figma design.");
+        }
+
+        context.messages.push({ 
+          role: 'user', 
+          content: `Generated from Figma: ${options.figmaUrl}\nInstructions: ${options.description}` 
+        });
+        context.messages.push({ role: 'assistant', content: htmlContent });
+        this.saveContext(options.address, context);
+
+        this.emit('dappGenerated', {
+            address: options.address,
+            slug: options.slug,
+            content: pages,
+            isUpdate: false
+        });
+
+        await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
+
+    } catch (error: any) {
+        console.error('[DEBUG-AI] Figma Generation Failed:', error);
+        this.emit('dappGenerated', {
+          address: options.address,
+          slug: options.slug,
+          content: {},
+          isUpdate: false
+        });
+        throw error;
+    }
+  }
+
+  private async callFigmaAPI(url: string, payload: any): Promise<string> {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text()
+        throw new Error(`Figma Backend Error: ${errText}`)
+      }
+
+      const json = await response.json();
+      return json.content;
+
+    } catch (error) {
+      console.error('[AI-DAPP] Figma API Call Failed:', error);
+      throw error;
+    }
   }
 
   private async processGeneration(options: GenerateDappOptions & { slug: string }) {

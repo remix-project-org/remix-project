@@ -207,7 +207,7 @@ function EditHtmlTemplate(): JSX.Element {
     if (!iframeRef.current || !activeDapp) return;
     if (isBuilding) return;
 
-    if (!isBuilderReady || !builderRef.current || !builderRef.current.isReady()) {
+    if (!builderRef.current || !builderRef.current.isReady()) {
       setIframeError('Builder is initializing...');
       return;
     }
@@ -419,7 +419,7 @@ function EditHtmlTemplate(): JSX.Element {
 
   return (
     <div className="d-flex flex-column h-100">
-      <div className="py-2 px-3 border-bottom d-flex align-items-center bg-light flex-shrink-0">
+      <div className="py-2 px-3 border-bottom d-flex align-items-center flex-shrink-0">
         <button 
           className="btn btn-sm btn-secondary me-3"
           onClick={handleBack}
@@ -427,7 +427,21 @@ function EditHtmlTemplate(): JSX.Element {
         >
           {isCapturing ? <><i className="fas fa-spinner fa-spin me-1"></i> Saving...</> : <><i className="fas fa-arrow-left me-1"></i> Back</>}
         </button>
-        <span className="fw-bold text-body">{activeDapp.name}</span>
+        <div className="d-flex align-items-center flex-wrap gap-2">
+          <span className="fw-bold text-body" style={{fontSize: '1.1rem'}}>
+            {activeDapp.config.title || activeDapp.name}
+          </span>
+          <span className="badge bg-secondary opacity-75">
+            {activeDapp.contract.networkName}
+          </span>
+          <div className="vr mx-1 text-secondary opacity-50" style={{ height: '1.2rem' }}></div>
+          <div className="d-flex align-items-center text-muted" title="Location in File Explorer">
+            <i className="far fa-folder-open me-2 opacity-75"></i>
+            <span className="font-monospace small opacity-75">
+              dapps/{activeDapp.slug}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="flex-grow-1 position-relative" style={{ overflow: 'hidden' }}>
