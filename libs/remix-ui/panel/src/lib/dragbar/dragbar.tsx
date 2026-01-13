@@ -35,14 +35,43 @@ const DragBar = (props: IRemixDragBarUi) => {
 
   useEffect(() => {
     window.addEventListener('resize', handleResize)
-    // TODO: not a good way to wait on the ref doms element to be rendered of course
-    setTimeout(() => handleResize(), 2000)
-    return () => window.removeEventListener('resize', handleResize)
+
+    // Initial position calculation after a delay to ensure DOM is ready
+    const initialTimer = setTimeout(() => {
+      handleResize()
+    }, 100)
+
+    // Watch for terminal element changes (class/style changes when d-none is added/removed)
+    const terminalElement = props.refObject.current
+    let observer: MutationObserver | null = null
+
+    if (terminalElement) {
+      observer = new MutationObserver(() => {
+        // Wait for layout to settle after d-none is removed
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            handleResize()
+          })
+        })
+      })
+
+      observer.observe(terminalElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style']
+      })
+    }
+
+    return () => {
+      clearTimeout(initialTimer)
+      window.removeEventListener('resize', handleResize)
+      observer?.disconnect()
+    }
   }, [])
 
   function startDrag() {
     setDragState(true)
   }
+
   return (
     <>
       <div className={`overlay ${dragState ? '' : 'd-none'}`}></div>

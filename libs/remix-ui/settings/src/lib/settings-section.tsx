@@ -7,7 +7,7 @@ import { ThemeContext } from '@remix-ui/home-tab'
 import type { ViewPlugin } from '@remixproject/engine-web'
 import { CustomTooltip } from '@remix-ui/helper'
 import { IMCPServerManager } from './mcp-server-manager'
-import { AccountManager } from './account-manager'
+import { ProfileSection, CreditsBalance, ConnectedAccounts } from './account-settings'
 
 type SettingsSectionUIProps = {
   plugin: ViewPlugin,
@@ -20,6 +20,8 @@ type ButtonOptions = SettingsSection['subSections'][0]['options'][0]['buttonOpti
 
 export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, section, state, dispatch }) => {
   const [formUIData, setFormUIData] = useState<{ [key in keyof SettingsState]: Record<keyof SettingsState, string> }>({} as any)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true) // Default to true for non-auth sections
+  const [authLoading, setAuthLoading] = useState<boolean>(false)
   const theme = useContext(ThemeContext)
   const isDark = theme.name === 'dark'
   const intl = useIntl()
@@ -37,6 +39,43 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       })
     }
   }, [section])
+
+  // Check authentication for sections that require it
+  useEffect(() => {
+    if (section?.requiresAuth) {
+      const checkAuth = async () => {
+        try {
+          setAuthLoading(true)
+          const user = await plugin.call('auth', 'getUser')
+          setIsLoggedIn(!!user)
+        } catch (err) {
+          setIsLoggedIn(false)
+        } finally {
+          setAuthLoading(false)
+        }
+      }
+
+      checkAuth()
+
+      const onAuthStateChanged = async () => {
+        await checkAuth()
+      }
+
+      try {
+        plugin.on('auth', 'authStateChanged', onAuthStateChanged)
+      } catch (e) {
+        // noop
+      }
+
+      return () => {
+        try {
+          plugin.off('auth', 'authStateChanged')
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+  }, [section, plugin])
 
   const handleToggle = (name: string) => {
     if (state[name]) {
@@ -78,47 +117,89 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
     <>
       <h4 className={`${isDark ? 'text-white' : 'text-black'} py-3`} style={{ fontSize: '1.5rem' }}>{<FormattedMessage id={section.label} />}</h4>
       <span className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '0.95rem' }}>{<FormattedMessage id={section.description} />}</span>
-      {(section.subSections || []).map((subSection, subSectionIndex) => {
+
+      {/* Show loading state for auth-required sections */}
+      {section.requiresAuth && authLoading && (
+        <div className="pt-3">
+          <div className="spinner-border spinner-border-sm" role="status">
+            <span className="sr-only">Loading...</span>
+          </div>
+          <span className="ms-2">Loading...</span>
+        </div>
+      )}
+
+      {/* Show warning for auth-required sections when not logged in */}
+      {section.requiresAuth && !authLoading && !isLoggedIn && (
+        <div className="pt-3">
+          <div className="alert alert-warning" role="alert">
+            <i className="fas fa-exclamation-triangle me-2"></i>
+            Not logged in. Please log in with Google, GitHub, Discord, or wallet to manage accounts.
+          </div>
+        </div>
+      )}
+
+      {/* Show subsections only if auth is not required OR user is logged in */}
+      {(!section.requiresAuth || (section.requiresAuth && isLoggedIn && !authLoading)) && (section.subSections || []).map((subSection, subSectionIndex) => {
         const isLastItem = subSectionIndex === section.subSections.length - 1
 
         return (
-          <div key={subSectionIndex} className='pt-5'>
+          <div key={subSectionIndex} className='pt-3'>
             {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}>{subSection.title}</h5>}
+            {subSection.description && <p className={`text-muted mb-3`} style={{ fontSize: '0.85rem' }}>{subSection.description}</p>}
             <div className={`card ${isDark ? 'text-light' : 'text-dark'} border-0 ${isLastItem ? 'mb-4' : ''}`}>
-              <div className="card-body" style={{ padding: '1rem' }}>
+              <div className={`card-body ${section.key === 'account' ? 'pt-1' : ''}`} style={section.key === 'account' ? {} : { padding: '0.75rem' }}>
                 {subSection.options.map((option, optionIndex) => {
                   const isFirstOption = optionIndex === 0
                   const isLastOption = optionIndex === subSection.options.length - 1
                   const toggleValue = state[option.name] && typeof state[option.name].value === 'boolean' ? state[option.name].value as boolean : false
                   const selectValue = state[option.name] && typeof state[option.name].value === 'string' ? state[option.name].value as string : ''
 
+                  const isAccountSection = section.key === 'account'
+                  const paddingClass = isAccountSection
+                    ? (isLastOption ? 'pt-0 pb-0' : isFirstOption ? 'border-bottom pb-1' : 'border-bottom py-1')
+                    : (isLastOption ? 'pt-2 pb-0' : isFirstOption ? 'border-bottom pb-2' : 'border-bottom py-2')
+
                   return (
-                    <div className={`card border-0 rounded-0 ${isLastOption ? 'pt-2 pb-0' : isFirstOption ? 'border-bottom pb-2' : 'border-bottom py-2'}`} key={optionIndex}>
-                      <div className="d-flex align-items-center">
-                        <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
-                          <FormattedMessage id={option.label} />
-                          {option.labelIconTooltip ?
-                            <CustomTooltip tooltipText={<FormattedMessage id={option.labelIconTooltip} />}><i className={option.labelIcon}></i></CustomTooltip> :
-                            option.labelIcon && <i className={option.labelIcon}></i>
-                          }
-                        </h6>
-                        <div className="ms-auto">
-                          {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
-                          {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
-                          {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
-                          {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
-                          {option.type === 'custom' && option.customComponent === 'accountManager' && <span></span>}
+                    <div className={`card border-0 rounded-0 ${paddingClass}`} key={optionIndex}>
+                      {option.label && option.label.length > 0 && (
+                        <div className="d-flex align-items-center">
+                          <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
+                            <FormattedMessage id={option.label} />
+                            {option.labelIconTooltip ?
+                              <CustomTooltip tooltipText={<FormattedMessage id={option.labelIconTooltip} />}><i className={option.labelIcon}></i></CustomTooltip> :
+                              option.labelIcon && <i className={option.labelIcon}></i>
+                            }
+                          </h6>
+                          <div className="ms-auto">
+                            {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
+                            {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
+                            {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
+                            {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
+                            {option.type === 'custom' && option.customComponent === 'profileSection' && <span></span>}
+                            {option.type === 'custom' && option.customComponent === 'creditsBalance' && <span></span>}
+                            {option.type === 'custom' && option.customComponent === 'connectedAccounts' && <span></span>}
+                          </div>
                         </div>
-                      </div>
-                      {option.description && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
+                      )}
+                      {option.description && option.label && option.label.length > 0 && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
                       {option.type === 'custom' && option.customComponent === 'mcpServerManager' && (
                         <div className="mt-3">
                           <IMCPServerManager plugin={plugin} />
                         </div>
                       )}
-                      {option.type === 'custom' && option.customComponent === 'accountManager' && (
+                      {option.type === 'custom' && option.customComponent === 'profileSection' && (
                         <div className="mt-3">
-                          <AccountManager plugin={plugin} />
+                          <ProfileSection plugin={plugin} />
+                        </div>
+                      )}
+                      {option.type === 'custom' && option.customComponent === 'creditsBalance' && (
+                        <div className="mt-3">
+                          <CreditsBalance plugin={plugin} />
+                        </div>
+                      )}
+                      {option.type === 'custom' && option.customComponent === 'connectedAccounts' && (
+                        <div className="mt-3">
+                          <ConnectedAccounts plugin={plugin} />
                         </div>
                       )}
                       {

@@ -41,8 +41,10 @@ export interface SettingsSection {
   key: string
   label: string
   description: string,
+  requiresAuth?: boolean, // Flag to indicate this section requires authentication
   subSections: {
     title?: string,
+    description?: string,
     options: {
       name: keyof SettingsState,
       label: string,
@@ -116,6 +118,9 @@ export interface SettingsState {
   'mcp/servers/enable': ConfigState,
   'mcp-server-management': ConfigState,
   'account-manager': ConfigState,
+  'profile-section': ConfigState,
+  'credits-balance': ConfigState,
+  'connected-accounts': ConfigState,
   'ollama-config': ConfigState,
   'ollama-endpoint': ConfigState,
   toaster: ConfigState

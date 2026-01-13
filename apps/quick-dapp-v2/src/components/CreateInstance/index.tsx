@@ -35,9 +35,9 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
               <FormattedMessage id="quickDapp.text2" />
             </div>
           </Alert>
-          <div className="mt-4 mb-3">
+          {/* <div className="mt-4 mb-3">
             <FormattedMessage id="quickDapp.text7" />
-          </div>
+          </div> */}
         </>
       )}
     </div>

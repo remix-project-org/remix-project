@@ -824,7 +824,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       className="d-flex flex-column w-100 overflow-x-hidden h-100"
       ref={aiChatRef}
     >
-      <section id="remix-ai-chat-history" className="h-83 d-flex flex-column p-2 overflow-x-hidden" style={{ flex: 7, overflowY: 'scroll' }} ref={chatHistoryRef}>
+      <section id="remix-ai-chat-history" className="h-83 d-flex flex-column p-2 overflow-x-hidden" style={{ flex: 1, overflowY: 'scroll' }} ref={chatHistoryRef}>
         <div data-id="remix-ai-assistant-ready"></div>
         {/* hidden hook for E2E tests: data-streaming="true|false" */}
         <div
@@ -841,7 +841,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           theme={themeTracker?.name}
         />
       </section>
-      <section id="remix-ai-prompt-area" className="mt-1" style={{ flex: 1 }}
+      <section id="remix-ai-prompt-area" className="mt-1" style={{ minHeight: '140px', maxHeight: '180px' }}
       >
         {showAssistantOptions && (
           <div

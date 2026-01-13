@@ -9,7 +9,7 @@ pre {
 }
 .remixIDE            {
   width              : 100%;
-  height             : 95vh;
+  flex               : 1;
   overflow           : hidden;
   flex-direction     : row;
   display            : flex;
@@ -20,7 +20,6 @@ pre {
   overflow           : hidden;
   flex               : 1;
   min-width          : 320px;
-  padding-bottom     : 1.4rem;
 }
 .iconpanel           {
   display            : flex;
@@ -28,14 +27,12 @@ pre {
   overflow           : hidden;
   width              : 50px;
   user-select        : none;
-  padding-bottom     : 1.4rem;
 }
 .sidepanel           {
   display            : flex;
   flex-direction     : row-reverse;
   width              : 320px;
   transition         : width 0.25s;
-  padding-bottom     : 0.4rem;
 }
 .statusBar           {
 
@@ -47,7 +44,6 @@ pre {
 .pinnedpanel           {
   width              : 320px;
   transition         : width 0.25s;
-  padding-bottom     : 1.4rem;
 }
 .right-panel-maximized {
   width              : 50% !important;

@@ -1,457 +1,600 @@
-import React, { useContext, useState, useRef } from 'react';
-import { Form, Button, Alert, Card, Collapse } from 'react-bootstrap';
+import React, { useContext, useState, useRef, useEffect } from 'react';
+import { Form, Button, Alert, Card, Collapse, Spinner } from 'react-bootstrap';
 import { ethers } from 'ethers';
 import { FormattedMessage, useIntl } from 'react-intl';
-import {
-  emptyInstance,
-  resetInstance,
-} from '../../actions';
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
-import { trackMatomoEvent } from '@remix-api'
+import remixClient from '../../remix-client';
+import { trackMatomoEvent } from '@remix-api';
 
-// const REMIX_ENDPOINT_IPFS = 'http://localhost:4000/quickdapp-ipfs';
-// const REMIX_ENDPOINT_ENS = 'http://localhost:4000/ens-service';
 const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live';
 const REMIX_ENDPOINT_ENS = 'https://quickdapp-ens.api.remix.live';
+// const REMIX_ENDPOINT_IPFS = 'http://localhost:4000/quickdapp-ipfs';
+// const REMIX_ENDPOINT_ENS = 'http://localhost:4000/ens-service';
 
 function DeployPanel(): JSX.Element {
-  const intl = useIntl()
-  const { appState, dispatch } = useContext(AppContext);
+  const intl = useIntl();
+  const { appState, dispatch, dappManager } = useContext(AppContext);
+  const { activeDapp } = appState;
+  
   const { title, details, logo } = appState.instance; 
   
-  const [isDeploying, setIsDeploying] = useState(false);
-  const [deployResult, setDeployResult] = useState({ cid: '', gatewayUrl: '', error: '' }); 
-
-  const [ensName, setEnsName] = useState('');
+  const [currentStep, setCurrentStep] = useState(1); 
+  const [baseEnsName, setBaseEnsName] = useState(''); 
+  const [baseAppIdMeta, setBaseAppIdMeta] = useState(''); 
+  const [baseAssociationJson, setBaseAssociationJson] = useState(''); 
+  const [baseFlowLoading, setBaseFlowLoading] = useState(false);
+  const [baseLogs, setBaseLogs] = useState<string[]>([]); 
+  
+  const [deployResult, setDeployResult] = useState({ 
+    cid: activeDapp?.deployment?.ipfsCid || '', 
+    gatewayUrl: activeDapp?.deployment?.gatewayUrl || '', 
+    error: '' 
+  }); 
+  const [ensName, setEnsName] = useState(''); 
   const [isEnsLoading, setIsEnsLoading] = useState(false);
-  const [ensResult, setEnsResult] = useState({ success: '', error: '', txHash: '', domain: '' });
-
-  const [isDetailsOpen, setIsDetailsOpen] = useState(true);
+  const [ensResult, setEnsResult] = useState({ 
+    success: activeDapp?.deployment?.ensDomain ? `Linked: ${activeDapp.deployment.ensDomain}` : '', 
+    error: '', txHash: '', domain: activeDapp?.deployment?.ensDomain || '' 
+  });
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(true);
   const [isEnsOpen, setIsEnsOpen] = useState(true);
-  const [ensError, setEnsError] = useState('');
+  
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (activeDapp?.deployment) {
+      setDeployResult(prev => ({
+        ...prev,
+        cid: activeDapp.deployment?.ipfsCid || prev.cid,
+        gatewayUrl: activeDapp.deployment?.gatewayUrl || prev.gatewayUrl
+      }));
+      if (activeDapp.deployment.ensDomain) {
+        setEnsResult(prev => ({
+          ...prev,
+          success: `Linked: ${activeDapp.deployment.ensDomain}`,
+          domain: activeDapp.deployment.ensDomain!
+        }));
+        if (activeDapp.config.isBaseMiniApp && currentStep === 1) {
+          const namePart = activeDapp.deployment.ensDomain.split('.')[0];
+          setBaseEnsName(namePart);
+        }
+      }
+    }
+  }, [activeDapp?.id, activeDapp?.deployment]);
+
+  const addLog = (msg: string) => setBaseLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+
   const validateEnsName = (name: string) => {
     const regex = /^[a-z0-9-]+$/;
-    
     if (!name) return '';
     if (name.length < 3) return 'Name must be at least 3 characters.';
     if (!regex.test(name)) return 'Only lowercase letters, numbers, and hyphens are allowed.';
     if (name.startsWith('-') || name.endsWith('-')) return 'Name cannot start or end with a hyphen.';
-    
     return '';
   };
 
   const handleRemoveLogo = () => {
     dispatch({ type: 'SET_INSTANCE', payload: { logo: null } });
-    if (logoInputRef.current) {
-      logoInputRef.current.value = '';
-    }
+    if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
-  const handleImageChange = (e: any) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader: any = new FileReader()
-      reader.onloadend = () => {
-        dispatch({ type: 'SET_INSTANCE', payload: { logo: reader.result } })
-      }
-      reader.readAsArrayBuffer(e.target.files[0])
-    }
-  }
-
-  const handleIpfsDeploy = async () => {
-    setIsDeploying(true);
-    setDeployResult({ cid: '', gatewayUrl: '', error: '' });
-
-    let builder: InBrowserVite;
-    let jsResult: { js: string; success: boolean; error?: string };
-    let filesMap: Map<string, string>;
-
+  const handleSaveConfig = async () => {
+    if (!dappManager || !activeDapp) return;
+    setIsSavingConfig(true);
+    
     try {
-      builder = new InBrowserVite();
-      await builder.initialize();
-
-      filesMap = new Map<string, string>();
-      await readDappFiles('dapp', filesMap);
-
-      if (filesMap.size === 0) {
-        throw new Error("No DApp files");
-      }
-
-      jsResult = await builder.build(filesMap, '/src/main.jsx');
-      if (!jsResult.success) {
-        throw new Error(`DApp build failed: ${jsResult.error}`);
-      }
-
-    } catch (e: any) {
-      console.error(e);
-      setDeployResult({ cid: '', gatewayUrl: '', error: `Build failed: ${e.message}` });
-      setIsDeploying(false);
-      return;
-    }
-
-    try {
-
-      trackMatomoEvent(this, {
-        category: 'quick-dapp-v2',
-        action: 'deploy_ipfs',
-        name: 'start',
-        isClick: true
-      })
-
-      const indexHtmlContent = filesMap.get('/index.html');
-      if (!indexHtmlContent) {
-        throw new Error("Cannot find index.html");
-      }
-
-      let modifiedHtml = indexHtmlContent;
-
-      let logoDataUrl = '';
-      if (logo && logo.byteLength > 0) {
-        try {
-          const base64data = btoa(
-            new Uint8Array(logo).reduce((data, byte) => data + String.fromCharCode(byte), '')
-          );
-          logoDataUrl = 'data:image/jpeg;base64,' + base64data;
-        } catch (err) {
-          console.error('Logo conversion failed during deploy:', err);
+      const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
+        config: {
+          ...activeDapp.config,
+          title: title || '',
+          details: details || '',
+          logo: logo || undefined
         }
-      }
-
-      const injectionScript = `
-        <script>
-          window.__QUICK_DAPP_CONFIG__ = {
-            logo: "${logoDataUrl}",
-            title: ${JSON.stringify(title || '')},
-            details: ${JSON.stringify(details || '')}
-          };
-        </script>
-      `;
-      modifiedHtml = modifiedHtml.replace('</head>', `${injectionScript}\n</head>`);
-      
-      const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
-      modifiedHtml = modifiedHtml.replace(
-        /<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, 
-        inlineScript
-      );
-      
-      modifiedHtml = modifiedHtml.replace(
-        /<link rel="stylesheet"[^>]*href="(?:\/|\.\/)?src\/index\.css"[^>]*>/, 
-        ''
-      );
-
-      const formData = new FormData();
-      const blob = new Blob([modifiedHtml], { type: 'text/html' });
-      formData.append('file', blob, 'index.html');
-
-      const response = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, {
-        method: 'POST',
-        body: formData
       });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Server Error: ${errText}`);
+      if (updatedConfig) {
+        dispatch({ type: 'SET_ACTIVE_DAPP', payload: updatedConfig });
+        // @ts-ignore
+        await remixClient.call('notification', 'toast', 'Configuration saved successfully!');
       }
-
-      const data = await response.json();
-      
-      setDeployResult({ 
-        cid: data.ipfsHash, 
-        gatewayUrl: data.gatewayUrl,
-        error: '' 
-      });
-
-      trackMatomoEvent(this, {
-        category: 'quick-dapp-v2',
-        action: 'deploy_ipfs',
-        name: 'success',
-        isClick: false
-      })
     } catch (e: any) {
-      console.error(e);
-      setDeployResult({ cid: '', gatewayUrl: '', error: `Upload failed: ${e.message}` });
+      console.error("Save failed", e);
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', 'Failed to save configuration: ' + e.message);
     } finally {
-      setIsDeploying(false);
+      setIsSavingConfig(false);
     }
   };
-  
-  const handleEnsLink = async () => {
-    setIsEnsLoading(true);
-    setEnsResult({ success: '', error: '', txHash: '', domain: '' });
 
-    const label = ensName.trim().toLowerCase();
-    
-    const validationError = validateEnsName(label);
-    if (validationError) {
-        setEnsError(validationError);
-        return;
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+            dispatch({ type: 'SET_INSTANCE', payload: { logo: reader.result } });
+        }
+      };
+      reader.readAsDataURL(file);
     }
+  };
 
-    if (!label || !deployResult.cid) {
-      setEnsResult({ ...ensResult, error: 'ENS label or IPFS CID is missing.' });
-      setIsEnsLoading(false);
+  // ---------------------------------------------------------------------------
+  // [Base Mini App Wizard Logic]
+  // ---------------------------------------------------------------------------
+  const handleStep1Config = async () => {
+    if (!baseEnsName || !baseAppIdMeta) {
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', "Please fill in both ENS Name and App ID Meta Tag.");
       return;
     }
-    
-    if (typeof window.ethereum === 'undefined') {
-      setEnsResult({ ...ensResult, error: 'MetaMask is required to verify ownership.' });
-      setIsEnsLoading(false);
+    const nameError = validateEnsName(baseEnsName);
+    if (nameError) {
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', "Invalid ENS Name: " + nameError);
       return;
     }
-
     try {
-      trackMatomoEvent(this, {
-        category: 'quick-dapp-v2',
-        action: 'register_ens',
-        name: 'start',
-        isClick: true
-      })
+      setBaseFlowLoading(true);
+      addLog("Reading index.html...");
+      const indexHtmlPath = `dapps/${activeDapp.slug}/index.html`;
+      // @ts-ignore
+      let content = await remixClient.call('fileManager', 'readFile', indexHtmlPath);
+      if (!content) throw new Error("index.html not found");
+
+      content = content.replace(/<meta\s+name=["']base:app_id["'][^>]*>/gi, '');
+      content = content.replace('</head>', `    ${baseAppIdMeta}\n  </head>`);
+      addLog("Injected Base App ID Meta Tag.");
+
+      const targetUrl = `https://${baseEnsName}.remixdapp.eth.limo`;
+      const fcMetaRegex = /(<meta\s+name=["']fc:miniapp["']\s+content=')([^']*)(')/;
+      const match = content.match(fcMetaRegex);
+
+      if (match) {
+        try {
+          const jsonStr = match[2]; 
+          const jsonObj = JSON.parse(jsonStr);
+          if (jsonObj.button && jsonObj.button.action) {
+            jsonObj.button.action.url = targetUrl;
+          } else {
+            jsonObj.url = targetUrl;
+          }
+          const newJsonStr = JSON.stringify(jsonObj);
+          content = content.replace(fcMetaRegex, `$1${newJsonStr}$3`);
+        } catch (parseErr) {}
+      } else {
+        const newMeta = `<meta name="fc:miniapp" content='{"version":"next","imageUrl":"https://github.com/remix-project-org.png","button":{"title":"Launch","action":{"type":"launch_miniapp","name":"${title}","url":"${targetUrl}"}}}' />`;
+        content = content.replace('</head>', `    ${newMeta}\n  </head>`);
+      }
+
+      // @ts-ignore
+      await remixClient.call('fileManager', 'writeFile', indexHtmlPath, content);
+      setCurrentStep(2); 
+    } catch (e: any) {
+      console.error(e);
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', "Configuration failed: " + e.message);
+    } finally {
+      setBaseFlowLoading(false);
+    }
+  };
+
+  const executeDeployAndEns = async (stepName: string) => {
+    try {
+      setBaseFlowLoading(true);
+      addLog(`Starting ${stepName}...`);
+      const cid = await handleIpfsDeploy(); 
+      if (!cid) throw new Error("IPFS Upload failed");
+      
+      if (typeof window.ethereum === 'undefined') throw new Error("MetaMask not found");
       const provider = new ethers.BrowserProvider(window.ethereum as any);
       const accounts = await provider.send('eth_requestAccounts', []);
       const ownerAddress = accounts[0];
 
       const response = await fetch(`${REMIX_ENDPOINT_ENS}/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          label: label,
+          label: baseEnsName.toLowerCase(),
           owner: ownerAddress,
-          contentHash: deployResult.cid
+          contentHash: cid
         })
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'ENS Registration failed');
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
-
-      setEnsResult({
-        success: `Successfully registered!`,
-        error: '',
-        txHash: data.txHash,
-        domain: data.domain
-      });
-
-      trackMatomoEvent(this, {
-        category: 'quick-dapp-v2',
-        action: 'register_ens',
-        name: 'success',
-        isClick: false
-      })
+      setEnsResult({ success: 'Linked', error: '', txHash: data.txHash, domain: data.domain });
+      return true;
     } catch (e: any) {
       console.error(e);
-      setEnsResult({ ...ensResult, error: `ENS Error: ${e.message}` });
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', "Deploy failed: " + e.message);
+      return false;
     } finally {
-      setIsEnsLoading(false);
+      setBaseFlowLoading(false);
     }
   };
 
+  const handleStep2Deploy = async () => {
+    if (await executeDeployAndEns("First Deployment")) setCurrentStep(3);
+  };
+
+  const handleStep3Association = async () => {
+    if (!baseAssociationJson) return;
+    try {
+      setBaseFlowLoading(true);
+      let parsed;
+      try { parsed = JSON.parse(baseAssociationJson); } catch (e) { throw new Error("Invalid JSON"); }
+
+      let associationData = parsed.accountAssociation || parsed;
+      const manifestPath = `dapps/${activeDapp.slug}/.well-known/farcaster.json`;
+      // @ts-ignore
+      const content = await remixClient.call('fileManager', 'readFile', manifestPath);
+      const manifest = content ? JSON.parse(content) : {};
+      manifest.accountAssociation = associationData;
+
+      // @ts-ignore
+      await remixClient.call('fileManager', 'writeFile', manifestPath, JSON.stringify(manifest, null, 2));
+      setCurrentStep(4);
+    } catch (e: any) {
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', "Manifest update failed: " + e.message);
+    } finally {
+      setBaseFlowLoading(false);
+    }
+  };
+
+  const handleStep4Finalize = async () => {
+    if (await executeDeployAndEns("Final Re-Deployment")) {
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', 'Base Mini App Ready!');
+    }
+  };
+  
+  // ---------------------------------------------------------------------------
+  // [IPFS Deployment Logic]
+  // ---------------------------------------------------------------------------
+  const handleIpfsDeploy = async (): Promise<string | null> => {
+    if (!activeDapp) return null;
+    setDeployResult({ cid: '', gatewayUrl: '', error: '' });
+    setIsDeploying(true);
+
+    trackMatomoEvent(remixClient, {
+      category: 'quick-dapp-v2',
+      action: 'deploy_ipfs',
+      name: 'start',
+      isClick: true
+    });
+
+    let builder: InBrowserVite;
+    
+    try {
+      builder = new InBrowserVite();
+      await builder.initialize();
+      const dappRootPath = `dapps/${activeDapp.slug}`;
+      const filesMap = new Map<string, string>();
+      await readDappFiles(dappRootPath, filesMap, dappRootPath.length);
+
+      if (filesMap.size === 0) throw new Error("No DApp files");
+      const jsResult = await builder.build(filesMap, '/src/main.jsx');
+      if (!jsResult.success) throw new Error(`Build failed: ${jsResult.error}`);
+
+      let indexHtmlContent = filesMap.get('/index.html') || '';
+      
+      let logoDataUrl = '';
+      if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
+        logoDataUrl = logo;
+      }
+
+      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title||'')},details:${JSON.stringify(details||'')}};</script>`;
+      
+      let modifiedHtml = indexHtmlContent;
+      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${injectionScript}\n</head>`);
+      else modifiedHtml = `<html><head>${injectionScript}</head>${modifiedHtml}</html>`;
+      
+      const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
+      modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
+      modifiedHtml = modifiedHtml.replace(/<link rel="stylesheet"[^>]*href="(?:\/|\.\/)?src\/index\.css"[^>]*>/, '');
+
+      const formData = new FormData();
+      const htmlBlob = new Blob([modifiedHtml], { type: 'text/html' });
+      formData.append('files', htmlBlob, 'index.html');
+
+      if (activeDapp.config?.isBaseMiniApp) {
+        try {
+          const manifestPath = `dapps/${activeDapp.slug}/.well-known/farcaster.json`;
+          // @ts-ignore
+          const manifestContent = await remixClient.call('fileManager', 'readFile', manifestPath);
+          
+          if (manifestContent) {
+            const manifestBlob = new Blob([manifestContent], { type: 'application/json' });
+            formData.append('files', manifestBlob, '.well-known:::farcaster.json');
+          }
+        } catch (e: any) {
+          console.error('[Deploy] Manifest Error:', e);
+        }
+      }
+
+      const response = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error(await response.text());
+
+      const data = await response.json();
+      setDeployResult({ cid: data.ipfsHash, gatewayUrl: data.gatewayUrl, error: '' });
+
+      trackMatomoEvent(remixClient, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'success',
+        isClick: false
+      });
+
+      if (dappManager) {
+        const newConfig = await dappManager.updateDappConfig(activeDapp.slug, {
+          status: 'deployed',
+          lastDeployedAt: Date.now(),
+          deployment: { ...activeDapp.deployment, ipfsCid: data.ipfsHash, gatewayUrl: data.gatewayUrl },
+          config: {
+            ...activeDapp.config,
+            title: title || '',
+            details: details || '',
+            logo: logoDataUrl || undefined
+          }
+        });
+        if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+      }
+      setIsDeploying(false);
+      return data.ipfsHash;
+
+    } catch (e: any) {
+      console.error(e);
+      setDeployResult({ cid: '', gatewayUrl: '', error: `Upload failed: ${e.message}` });
+      setIsDeploying(false);
+      return null;
+    }
+  };
+
+  const renderEditForm = () => (
+    <div className="mb-3">
+      <Form.Group className="mb-3">
+        <Form.Label className="text-uppercase mb-0 form-label">Dapp logo</Form.Label>
+        <Form.Control ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} className="mt-1" />
+        {logo && typeof logo === 'string' && (
+          <div className="mt-2 mb-2 position-relative d-inline-block border bg-white rounded p-1">
+            <img src={logo} alt="Preview" style={{height: '60px', maxWidth: '100%', objectFit: 'contain'}} onError={(e)=>e.currentTarget.style.display='none'}/>
+            <span onClick={handleRemoveLogo} style={{cursor:'pointer', position: 'absolute', top: -10, right: -10}} className="badge bg-danger rounded-circle"><i className="fas fa-times"></i></span>
+          </div>
+        )}
+      </Form.Group>
+      <Form.Group className="mb-3">
+        <Form.Label className="text-uppercase mb-0 form-label">Dapp Title</Form.Label>
+        <Form.Control value={title} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { title: value } })} />
+      </Form.Group>
+      <Form.Group className="mb-3">
+        <Form.Label className="text-uppercase mb-0 form-label">Dapp Description</Form.Label>
+        <Form.Control as="textarea" rows={3} value={details} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { details: value } })} />
+      </Form.Group>
+      
+      <div className="d-grid">
+        <Button variant="primary" className="w-100" onClick={handleSaveConfig} disabled={isSavingConfig}>
+          {isSavingConfig ? <><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Saving...</> : 'Save Configuration'}
+        </Button>
+      </div>
+    </div>
+  );
+
+  // ---------------------------------------------------------------------------
+  // [Render]
+  // ---------------------------------------------------------------------------
+  if (activeDapp?.config?.isBaseMiniApp) {
+    return (
+      <div className="base-wizard-container">
+        <Card className="mb-3 border-primary">
+          <Card.Header className="bg-primary text-white fw-bold">
+            <i className="fas fa-rocket me-2"></i>Base Mini App Wizard
+          </Card.Header>
+          <Card.Body>
+             {/* Step Indicator */}
+             <div className="d-flex justify-content-between mb-4 position-relative">
+                {[1, 2, 3, 4].map(step => (
+                  <div key={step} className={`text-center ${currentStep >= step ? 'text-primary' : 'text-muted'}`} style={{zIndex: 1, width: '25%'}}>
+                    <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${currentStep === step ? 'bg-primary text-white' : (currentStep > step ? 'bg-primary text-white' : 'bg-light border')}`} style={{width: 30, height: 30}}>
+                      {currentStep > step ? <i className="fas fa-check"></i> : step}
+                    </div>
+                    <small className="d-block fw-bold" style={{fontSize: '0.7rem'}}>
+                      {step === 1 ? 'Config' : step === 2 ? 'Deploy' : step === 3 ? 'Sign' : 'Finish'}
+                    </small>
+                  </div>
+                ))}
+                <div className="position-absolute top-0 start-0 w-100 bg-light" style={{height: 2, top: 15, zIndex: 0}}>
+                    <div className="bg-primary h-100" style={{width: `${(currentStep - 1) * 33}%`, transition: 'width 0.3s'}}></div>
+                </div>
+            </div>
+
+            {currentStep === 1 && (
+              <div>
+                <h6 className="fw-bold mb-3">Step 1: Configuration</h6>
+                <Card className="mb-3 bg-light border-0"><Card.Body>{renderEditForm()}</Card.Body></Card>
+                <Form.Group className="mb-3">
+                  <Form.Label>ENS Name (Subdomain)</Form.Label>
+                  <div className="input-group">
+                    <Form.Control type="text" placeholder="myapp" value={baseEnsName} onChange={e => setBaseEnsName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
+                    <span className="input-group-text">.remixdapp.eth</span>
+                  </div>
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Base App ID Meta Tag</Form.Label>
+                  <Form.Control as="textarea" rows={2} placeholder='<meta name="base:app_id" ... />' value={baseAppIdMeta} onChange={e => setBaseAppIdMeta(e.target.value)} />
+                </Form.Group>
+                <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading}>{baseFlowLoading ? 'Processing...' : 'Save Config & Next'}</Button>
+              </div>
+            )}
+            
+            {currentStep === 2 && (
+              <div>
+                <h6 className="fw-bold mb-3">Step 2: Initial Deployment</h6>
+                <Button variant="primary" className="w-100" onClick={handleStep2Deploy} disabled={baseFlowLoading}>{baseFlowLoading ? 'Deploying...' : 'Deploy to IPFS & Register ENS'}</Button>
+              </div>
+            )}
+            {currentStep === 3 && (
+              <div>
+                <h6 className="fw-bold mb-3">Step 3: Verify Ownership</h6>
+                <p className="small">Verify at <a href="https://www.base.dev" target="_blank" rel="noreferrer">Base Dev</a> with URL: <code>https://{baseEnsName}.remixdapp.eth.limo</code></p>
+                <Form.Control as="textarea" rows={4} placeholder='Paste JSON here...' value={baseAssociationJson} onChange={e => setBaseAssociationJson(e.target.value)} className="mb-3"/>
+                <Button className="w-100" onClick={handleStep3Association} disabled={baseFlowLoading}>{baseFlowLoading ? 'Updating...' : 'Update Manifest & Next'}</Button>
+              </div>
+            )}
+            {currentStep === 4 && (
+              <div>
+                <h6 className="fw-bold mb-3">Step 4: Finalize</h6>
+                <Button variant="success" className="w-100" onClick={handleStep4Finalize} disabled={baseFlowLoading}>{baseFlowLoading ? 'Deploying...' : 'Re-Deploy & Update ENS'}</Button>
+              </div>
+            )}
+          </Card.Body>
+        </Card>
+      </div>
+    );
+  } 
+
+  // Standard DApp UI
+  const displayCid = deployResult.cid || activeDapp?.deployment?.ipfsCid;
+  const displayGateway = deployResult.gatewayUrl || activeDapp?.deployment?.gatewayUrl;
+  const displayEnsSuccess = ensResult.success || (activeDapp?.deployment?.ensDomain ? `Linked: ${activeDapp.deployment.ensDomain}` : '');
+  const ensButtonText = isEnsLoading ? (displayEnsSuccess ? 'Updating...' : 'Registering...') : (displayEnsSuccess ? 'Update Content Hash' : 'Register Subdomain');
+  const currentEnsDomain = ensResult.domain || activeDapp?.deployment?.ensDomain;
+
   return (
     <div>
-      {/* Dapp Details Card */}
       <Card className="mb-2">
-        <Card.Header
-          onClick={() => setIsDetailsOpen(!isDetailsOpen)}
-          style={{ cursor: 'pointer' }}
-          className="d-flex justify-content-between bg-transparent border-0"
-        >
-          Dapp details
-          <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+        <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+          Dapp details <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isDetailsOpen}>
           <Card.Body>
-            <Form.Group className="mb-3">
-              <Form.Label className="text-uppercase mb-0">Dapp logo</Form.Label>
-              {logo && logo.byteLength > 0 && (
-                <span onClick={handleRemoveLogo} style={{ cursor: 'pointer' }} className="ms-2 text-danger">
-                  <i className="fas fa-trash"></i>
-                </span>
-              )}
-              <Form.Control ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} />
-              <Form.Text className="text-muted">64x64px (Optional)</Form.Text>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label className="text-uppercase mb-0">Dapp Title</Form.Label>
-              <Form.Control
-                placeholder={intl.formatMessage({ id: 'quickDapp.dappTitle' })}
-                value={title}
-                onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { title: value } })}
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label className="text-uppercase mb-0">Dapp Description</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                placeholder={intl.formatMessage({ id: 'quickDapp.dappInstructions' })}
-                value={details}
-                onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { details: value } })}
-              />
-            </Form.Group>
+            {renderEditForm()}
           </Card.Body>
         </Collapse>
       </Card>
       
-      {/* Publish Settings Card */}
+      {/* IPFS Deploy */}
       <Card className="mb-2">
-        <Card.Header
-          onClick={() => setIsPublishOpen(!isPublishOpen)}
-          style={{ cursor: 'pointer' }}
-          className="d-flex justify-content-between bg-transparent border-0"
-        >
-          Publish to IPFS
-          <i className={`fas ${isPublishOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+        <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+          Publish to IPFS <i className={`fas ${isPublishOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isPublishOpen}>
           <Card.Body>
-            <Alert variant="info">
-              <i className="fas fa-info-circle me-2"></i>
-              Deploy your DApp to IPFS using Remix's gateway. No personal IPFS keys required.
-            </Alert>
-              
-            <Button
-              variant="primary"
-              className="w-100"
-              onClick={handleIpfsDeploy}
-              disabled={isDeploying}
-            >
-              {isDeploying ? (
-                <><i className="fas fa-spinner fa-spin me-1"></i> Uploading to IPFS...</>
-              ) : (
-                <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />
-              )}
+            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying}>
+              {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
             </Button>
-
-            {deployResult.cid && (
+            {displayCid && (
               <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }}>
                 <div className="fw-bold">Deployed Successfully!</div>
-                <div><strong>CID:</strong> {deployResult.cid}</div>
-                <div className="mt-1">
-                  <strong>Domain:</strong> <a href={deployResult.gatewayUrl} target="_blank" rel="noopener noreferrer">View DApp</a>
-                </div>
+                <div><strong>CID:</strong> {displayCid}</div>
+                {displayGateway && <div className="mt-1"><a href={displayGateway} target="_blank" rel="noopener noreferrer">View DApp</a></div>}
               </Alert>
             )}
-            {deployResult.error && (
-              <Alert variant="danger" className="mt-3 small">
-                {deployResult.error}
-              </Alert>
-            )}
+            {deployResult.error && <Alert variant="danger" className="mt-3 small">{deployResult.error}</Alert>}
           </Card.Body>
         </Collapse>
       </Card>
 
-      {/* ENS Linking Card */}
-      {deployResult.cid && (
+      {/* ENS Panel */}
+      {displayCid && (
         <Card className="mb-2">
-          <Card.Header
-            onClick={() => setIsEnsOpen(!isEnsOpen)}
-            style={{ cursor: 'pointer' }}
-            className="d-flex justify-content-between bg-transparent border-0"
-          >
-            Register ENS (Arbitrum)
-            <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+          <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+            Register ENS (Arbitrum) <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
           <Collapse in={isEnsOpen}>
             <Card.Body>
-              <Alert variant="info">
-                <i className="fas fa-gas-pump me-2"></i>
-                Register a <strong>.remixdapp.eth</strong> subdomain on Arbitrum. 
-                Remix covers the gas fees!
-              </Alert>
+              <Alert variant="info">Register <strong>.remixdapp.eth</strong> on Arbitrum.</Alert>
               <Form.Group className="mb-2">
-                <Form.Label className="text-uppercase mb-0">Subdomain Label</Form.Label>
                 <div className="input-group">
-                  <Form.Control 
-                    type="text" 
-                    placeholder="myapp" 
-                    value={ensName} 
-                    onChange={(e) => {
-                      const val = e.target.value.toLowerCase();
-                      setEnsName(val);
-                      const errorMsg = validateEnsName(val);
-                      setEnsError(errorMsg);
-                      if (ensResult.success || ensResult.error) {
-                        setEnsResult({ success: '', error: '', txHash: '', domain: '' });
-                      }
-                    }}
-                    isInvalid={!!ensError}
-                  />
+                  <Form.Control type="text" placeholder="myapp" value={ensName} onChange={(e) => {setEnsName(e.target.value.toLowerCase()); setEnsResult({...ensResult, success: ''})}} />
                   <span className="input-group-text">.remixdapp.eth</span>
                 </div>
-                {ensError && (
-                  <Form.Text className="text-danger">
-                    <i className="fas fa-exclamation-circle me-1"></i>
-                    {ensError}
-                  </Form.Text>
-                )}
-                {!ensError && ensName && !ensResult.success && (
-                  <Form.Text className="text-success">
-                    <i className="fas fa-check-circle me-1"></i>
-                    Valid name format
-                  </Form.Text>
-                )}
               </Form.Group>
+              <Button variant="secondary" className="w-100" onClick={() => {
+                const targetCid = deployResult.cid || activeDapp?.deployment?.ipfsCid;
+                if(!targetCid) return;
+                setIsEnsLoading(true);
+                setEnsResult({success:'', error:'', txHash:'', domain:''});
+                
+                trackMatomoEvent(remixClient, {
+                  category: 'quick-dapp-v2',
+                  action: 'register_ens',
+                  name: 'start',
+                  isClick: true
+                });
 
-              <Button 
-                variant="secondary" 
-                className="w-100" 
-                onClick={handleEnsLink} 
-                disabled={isEnsLoading || !ensName || !!ensError}
-              >
-                {isEnsLoading ? (
-                  <><i className="fas fa-spinner fa-spin me-1"></i> Registering...</>
-                ) : (
-                  'Register Subdomain'
-                )}
-              </Button>
-
-              {ensResult.success && (
-                <Alert variant="success" className="mt-3">
-                  <div>{ensResult.success}</div>
-                  <div className="mt-1">
-                    <strong>Domain:</strong> <a href={`https://${ensResult.domain}.limo`} target="_blank" rel="noreferrer">{ensResult.domain}</a>
+                (async () => {
+                  try {
+                    if (typeof window.ethereum === 'undefined') throw new Error("MetaMask missing");
+                    const provider = new ethers.BrowserProvider(window.ethereum as any);
+                    const accounts = await provider.send('eth_requestAccounts', []);
+                    const response = await fetch(`${REMIX_ENDPOINT_ENS}/register`, {
+                      method: 'POST', headers: {'Content-Type':'application/json'},
+                      body: JSON.stringify({ label: ensName, owner: accounts[0], contentHash: targetCid })
+                    });
+                    const data = await response.json();
+                    if(!response.ok) throw new Error(data.error);
+                    setEnsResult({success:'Success!', error:'', txHash:data.txHash, domain:data.domain});
+                    trackMatomoEvent(remixClient, {
+                      category: 'quick-dapp-v2',
+                      action: 'register_ens',
+                      name: 'success',
+                      isClick: false
+                    });
+                    if(dappManager) {
+                      const newConfig = await dappManager.updateDappConfig(activeDapp.slug, {deployment:{...activeDapp.deployment, ensDomain: data.domain}});
+                      if(newConfig) dispatch({type:'SET_ACTIVE_DAPP', payload:newConfig});
+                    }
+                  } catch(e:any) { setEnsResult(prev=>({...prev, error: e.message})) } 
+                  finally { setIsEnsLoading(false) }
+                })();
+              }} disabled={isEnsLoading || !ensName}>{isEnsLoading ? 'Processing...' : ensButtonText}</Button>
+              {currentEnsDomain && (
+                <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }}>
+                  <div className="fw-bold mb-1">
+                    <i className="fas fa-check-circle me-2"></i>ENS Linked!
                   </div>
+                  <div>
+                    <a 
+                      href={`https://${currentEnsDomain}.limo`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-decoration-underline fw-bold"
+                    >
+                      https://{currentEnsDomain}.limo
+                    </a>
+                  </div>
+                  {ensResult.txHash && (
+                    <div className="mt-2 small">
+                      <span className="text-muted">Tx: </span>
+                      <a 
+                        href={`https://sepolia.arbiscan.io/tx/${ensResult.txHash}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-muted text-decoration-none"
+                      >
+                        View on Explorer <i className="fas fa-external-link-alt small"></i>
+                      </a>
+                    </div>
+                  )}
                 </Alert>
               )}
-              {ensResult.error && (
-                <Alert variant="danger" className="mt-3 small">{ensResult.error}</Alert>
-              )}
-
+              {ensResult.error && <Alert variant="danger" className="mt-3">{ensResult.error}</Alert>}
             </Card.Body>
           </Collapse>
         </Card>
       )}
-
-      <div className="mt-3">
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => { resetInstance(); handleRemoveLogo(); }}
-        >
-          <FormattedMessage id="quickDapp.resetFunctions" />
-        </Button>
-        <Button
-          size="sm"
-          variant="danger"
-          className="ms-3"
-          onClick={() => { emptyInstance(); }}
-        >
-          <FormattedMessage id="quickDapp.deleteDapp" />
-        </Button>
-      </div>
-
     </div>
   );
 }
-
 export default DeployPanel;

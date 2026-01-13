@@ -10,6 +10,7 @@
     "cid": "multiformats/cid",
     "esbuild-wasm": "^0.25.12",
     "ethers": "^6.15.0",
+    "html-to-image": "^1.11.13",
     "ipfs-http-client": "^47.0.1"
   }
 }

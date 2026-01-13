@@ -58,48 +58,59 @@ module.exports = {
       .pause(100)
       .assert.containsText('[data-id="settingsTabgist-access-token"]', '')
   },
-  // These e2e should be enabled after settings panel refactoring
-  // 'Should load dark theme ': function (browser: NightwatchBrowser) {
-  //   browser.waitForElementVisible('*[data-id="verticalIconsKindsettings"]', 5000)
-  //     .scrollAndClick('*[data-id="settingsTabThemeLabelDark"]')
-  //     .pause(2000)
-  //     .checkElementStyle(':root', '--primary', remixIdeThemes.dark.primary)
-  //     .checkElementStyle(':root', '--secondary', remixIdeThemes.dark.secondary)
-  //     .checkElementStyle(':root', '--success', remixIdeThemes.dark.success)
-  //     .checkElementStyle(':root', '--info', remixIdeThemes.dark.info)
-  //     .checkElementStyle(':root', '--warning', remixIdeThemes.dark.warning)
-  //     .checkElementStyle(':root', '--danger', remixIdeThemes.dark.danger)
-  // },
 
-  // 'Should load light theme ': function (browser: NightwatchBrowser) {
-  //   browser.waitForElementVisible('*[data-id="verticalIconsKindsettings"]', 5000)
-  //     .scrollAndClick('*[data-id="settingsTabThemeLabelLight"]')
-  //     .pause(2000)
-  //     .checkElementStyle(':root', '--primary', remixIdeThemes.light.primary)
-  //     .checkElementStyle(':root', '--secondary', remixIdeThemes.light.secondary)
-  //     .checkElementStyle(':root', '--success', remixIdeThemes.light.success)
-  //     .checkElementStyle(':root', '--info', remixIdeThemes.light.info)
-  //     .checkElementStyle(':root', '--warning', remixIdeThemes.light.warning)
-  //     .checkElementStyle(':root', '--danger', remixIdeThemes.light.danger)
-  // },
+  'Should switch to Dark theme from Appearance section': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
+      .click('*[data-id="topbar-settingsIcon"]')
+      .waitForElementVisible('*[data-id="settings-sidebar-general"]')
+      .click('*[data-id="settings-sidebar-general"]')
+      .waitForElementVisible('*[data-id="settingsTabthemeLabel"]')
+      .click('*[data-id="settingsTabDropdownToggletheme"]')
+      .waitForElementVisible('*[data-id="settingsTabDropdownItemDark"]')
+      .click('*[data-id="settingsTabDropdownItemDark"]')
+      .pause(2000)
+      .checkElementStyle(':root', '--bs-primary', remixIdeThemes.dark.primary)
+      .checkElementStyle(':root', '--bs-secondary', remixIdeThemes.dark.secondary)
+      .checkElementStyle(':root', '--bs-success', remixIdeThemes.dark.success)
+      .checkElementStyle(':root', '--bs-info', remixIdeThemes.dark.info)
+      .checkElementStyle(':root', '--bs-warning', remixIdeThemes.dark.warning)
+      .checkElementStyle(':root', '--bs-danger', remixIdeThemes.dark.danger)
+  },
+
+  'Should switch to Light theme from Appearance section': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id="settingsTabthemeLabel"]')
+      .click('*[data-id="settingsTabDropdownToggletheme"]')
+      .waitForElementVisible('*[data-id="settingsTabDropdownItemLight"]')
+      .click('*[data-id="settingsTabDropdownItemLight"]')
+      .pause(2000)
+      .checkElementStyle(':root', '--bs-primary', remixIdeThemes.light.primary)
+      .checkElementStyle(':root', '--bs-secondary', remixIdeThemes.light.secondary)
+      .checkElementStyle(':root', '--bs-success', remixIdeThemes.light.success)
+      .checkElementStyle(':root', '--bs-info', remixIdeThemes.light.info)
+      .checkElementStyle(':root', '--bs-warning', remixIdeThemes.light.warning)
+      .checkElementStyle(':root', '--bs-danger', remixIdeThemes.light.danger)
+      .end()
+  },
 
 }
 
 const remixIdeThemes = {
   dark: {
     primary: '#007aa6',
-    secondary: '#595c76',
-    success: '#32ba89',
-    info: '#086CB5',
-    warning: '#c97539',
-    danger: '#b84040'
+    secondary: '#444',
+    success: '#00bc8c',
+    info: '#3498db',
+    warning: '#f39c12',
+    danger: '#e74c3c'
   },
   light: {
     primary: '#007aa6',
-    secondary: '#b3bcc483',
-    success: '#32ba89',
-    info: '#007aa6',
-    warning: '#c97539',
-    danger: '#b84040'
+    secondary: '#a2a3bd',
+    success: '#18bc9c',
+    info: '#3498db',
+    warning: '#f39c12',
+    danger: '#e74c3c'
   }
 }

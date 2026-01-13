@@ -9,7 +9,7 @@ type LoadPlugin = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function (browser: NightwatchBrowser, callback: VoidFunction, url?: string, preloadPlugins = true, loadPlugin?: LoadPlugin, hideToolTips: boolean = true): void {
+export default function (browser: NightwatchBrowser, callback: VoidFunction, url?: string, preloadPlugins = true, loadPlugin?: LoadPlugin, hideToolTips: boolean = true, showTerminal: boolean = true): void {
   browser
     .url(url || 'http://127.0.0.1:8080')
     .pause(5000)
@@ -28,6 +28,7 @@ export default function (browser: NightwatchBrowser, callback: VoidFunction, url
     .verifyLoad()
     .enableClipBoard()
     .perform((done) => {
+      if (!showTerminal) return done()
       // Show terminal panel for e2e tests (it's hidden by default in the app)
       browser
         .waitForElementVisible('*[data-id="toggleBottomPanelIcon"]', 10000)
@@ -141,10 +142,6 @@ function initModules(browser: NightwatchBrowser, callback: VoidFunction) {
     .click('*[data-id="github-configSwitch"]')
     .setValue('[data-id="settingsTabgist-access-token"]', process.env.gist_token)
     .click('[data-id="settingsTabSavegithub-config"]')
-    .waitForElementVisible('*[data-id="topbar-themeIcon-toggle"]')
-    .click('*[data-id="topbar-themeIcon-toggle"]')
-    .waitForElementVisible('*[data-id="topbar-themeIcon-light"]')
-    .click('*[data-id="topbar-themeIcon-light"]')
     // .click('[data-id="settingsTabThemeLabelFlatly"]') // e2e tests were initially developed with Flatly. Some tests are failing with the default one (Dark), because the dark theme put uppercase everywhere.
     .perform(() => { callback() })
 }

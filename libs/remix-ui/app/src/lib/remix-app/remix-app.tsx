@@ -199,7 +199,7 @@ const RemixApp = (props: IRemixAppUi) => {
               <OriginWarning></OriginWarning>
               <MatomoDialog hide={!appReady} managePreferencesFn={() => setShowManagePreferencesDialog(true)}></MatomoDialog>
               {showManagePreferencesDialog && <ManagePreferencesDialog></ManagePreferencesDialog>}
-              <div className='d-flex flex-column'>
+              <div className="d-flex flex-column col-12 vh-100">
                 {!props.app.desktopClientMode && (
                   <div className='top-bar'>
                     {props.app.topBar.render()}
@@ -249,7 +249,7 @@ const RemixApp = (props: IRemixAppUi) => {
                   <div>{props.app.hiddenPanel.render()}</div>
                 </div>
                 {/* <div>{props.app.popupPanel.render()}</div> */}
-                <div className="statusBar fixed-bottom">
+                <div className="statusBar">
                   {props.app.statusBar.render()}
                 </div>
               </div>

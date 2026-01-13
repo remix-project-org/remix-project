@@ -172,7 +172,8 @@ export function isNative(name) {
     'templateexplorermodal',
     'amp',
     'vega',
-    'chartjs'
+    'chartjs',
+    'quick-dapp-v2'
   ]
   return nativePlugins.includes(name) || requiredModules.includes(name) || isInjectedProvider(name) || isVM(name) || isScriptRunner(name)
 }

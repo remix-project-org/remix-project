@@ -7,6 +7,14 @@ export interface BuildResult {
   error?: string;
 }
 
+const IMPORTS_MAP: Record<string, string> = {
+  'react': 'https://esm.sh/react@18.2.0',
+  'react-dom/client': 'https://esm.sh/react-dom@18.2.0/client',
+  'react-dom': 'https://esm.sh/react-dom@18.2.0',
+  'ethers': 'https://esm.sh/ethers@6.11.1',
+  '@farcaster/miniapp-sdk': 'https://esm.sh/@farcaster/miniapp-sdk@0.2.1',
+};
+
 let globalInitPromise: Promise<void> | null = null;
 let globalEsbuild: any = null;
 
@@ -239,6 +247,11 @@ export class InBrowserVite {
             return { path: args.path, namespace: 'external' };
           }
 
+          if (IMPORTS_MAP[args.path]) {
+            // console.log(`[InBrowserVite] Pinned '${args.path}' -> ${IMPORTS_MAP[args.path]}`);
+            return { path: IMPORTS_MAP[args.path], external: true };
+          }
+          
           // Check if this bare specifier exists as a local file
           // Try common locations (with and without leading slash)
           const possiblePaths = [
