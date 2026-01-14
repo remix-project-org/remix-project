@@ -180,7 +180,6 @@ export const createWorkspace = async (
         // commit the template as first commit
         plugin.call('notification', 'toast', 'Creating initial git commit ...')
 
-        console.log(' ppp , o')
         await dgitPlugin.call('dgit', 'init')
         if (!isEmpty) await loadWorkspacePreset(workspaceTemplateName, opts, contractContent, contractName)
         const status = await dgitPlugin.call('dgitApi', 'status', { ref: 'HEAD' })
