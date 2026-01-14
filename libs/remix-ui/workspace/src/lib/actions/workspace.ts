@@ -173,6 +173,7 @@ export const createWorkspace = async (
       const email = await plugin.call('settings', 'get', 'settings/github-email')
       const currentBranch: branch = await dgitPlugin.call('dgitApi', 'currentbranch')
 
+      console.log('pp ', isGitRepo)
       if (!currentBranch) {
         // if (!name || !email) {
         //   await plugin.call('notification', 'toast', 'To use Git features, add username and email to the Github section of the Git plugin.')
@@ -180,6 +181,7 @@ export const createWorkspace = async (
         // commit the template as first commit
         plugin.call('notification', 'toast', 'Creating initial git commit ...')
 
+        console.log(' ppp , o')
         await dgitPlugin.call('dgit', 'init')
         if (!isEmpty) await loadWorkspacePreset(workspaceTemplateName, opts, contractContent, contractName)
         const status = await dgitPlugin.call('dgitApi', 'status', { ref: 'HEAD' })
