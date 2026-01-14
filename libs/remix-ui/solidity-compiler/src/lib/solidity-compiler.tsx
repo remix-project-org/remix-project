@@ -91,7 +91,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     setTimeout(() => {
       api.setAppParameter('hardhat-compilation', false)
       api.setAppParameter('foundry-compilation', false)
-      api.setAppParameter('truffle-project', false)
+      api.setAppParameter('truffle-compilation', false)
     }, 0)
 
     setState((prevState) => {
