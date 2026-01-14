@@ -713,3 +713,7 @@ mark,
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
+
+.ai-assistant-bg {
+  background-color: linear-gradient(to top left var(--bs-body-bg), #2ce8f5);
+}

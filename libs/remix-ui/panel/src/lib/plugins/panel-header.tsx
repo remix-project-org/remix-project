@@ -73,7 +73,7 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
     return (
       <section className="px-1 pt-2 pb-0 d-flex flex-row align-items-center">
         <div className="bg-light rounded-4 p-3">
-          <i className="far fa-copy fs-3"></i>
+          <i className="fa-kit fa-remixai fs-3"></i>
         </div>
         <div className="d-flex flex-column ms-4">
           <h6>RemixAI Assistant</h6>
