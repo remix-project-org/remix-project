@@ -88,9 +88,11 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     const isFoundry = (isLocalhost || isDesktop) && (await compileTabLogic.isFoundryProject())
 
     // we reset the UI each time we switch workspace
-    api.setAppParameter('hardhat-compilation', false)
-    api.setAppParameter('foundry-compilation', false)
-    api.setAppParameter('truffle-project', false)
+    setTimeout(() => {
+      api.setAppParameter('hardhat-compilation', false)
+      api.setAppParameter('foundry-compilation', false)
+      api.setAppParameter('truffle-project', false)
+    }, 0)
 
     setState((prevState) => {
       return {
