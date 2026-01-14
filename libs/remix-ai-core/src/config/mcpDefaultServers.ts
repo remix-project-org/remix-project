@@ -58,7 +58,7 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       name: 'Alchemy',
       description: 'Alchemy blockchain data query',
       transport: 'http',
-      url: endpointUrls.mcpCorsProxy8443 + '/alchemy',
+      url: endpointUrls.mcpCorsProxy + '/alchemy',
       autoStart: true,
       enabled: true,
       timeout: 30000
