@@ -24,7 +24,6 @@ export class TemplateExplorerModalFacade {
     this.uniqueWorkspaceName = state.workspaceName
   }
   async createWorkspace(deps: CreateWorkspaceDeps) {
-    console.log('isGitRepo', deps.isGitRepo)
     const workspaceExists = await this.plugin.call('filePanel', 'workspaceExists', deps.workspaceName)
     if (workspaceExists) {
       this.closeWizard()
