@@ -229,7 +229,6 @@ export class ScriptRunnerBridgePlugin extends Plugin {
         url = `${baseUrl}?template=${config.name}&timestamp=${Date.now()}`
       }
     }
-    //console.log('loadScriptRunner', profile)
     const newProfile: IframeProfile = {
       ...profile,
       name: profile.name + config.name,
@@ -261,10 +260,8 @@ export class ScriptRunnerBridgePlugin extends Plugin {
       if (iframe) {
         await this.call('hiddenPanel', 'removeView', newProfile)
       }
-
       delete (this.engine as any).manager.profiles[newProfile.name]
       delete (this.engine as any).plugins[newProfile.name]
-      console.log('Error loading script runner: ', newProfile.name, e)
       this.setErrorStatus(config.name, true, e)
       result = false
     }
@@ -276,8 +273,8 @@ export class ScriptRunnerBridgePlugin extends Plugin {
 
   async execute(script: string, filePath: string) {
     if (!this.scriptRunnerProfileName || !this.engine.isRegistered(`${this.scriptRunnerProfileName}${this.activeConfig.name}`)) {
-      console.log('Script runner not loaded already, loading it ...')
-      this.call('terminal', 'log', { value: `Loading ScriptRunner ...`, type: 'log' })
+      console.log('Script runner not loaded already, loading it...')
+      this.call('terminal', 'log', { value: `Loading ScriptRunner...`, type: 'log' })
       if (!(await this.loadScriptRunner(this.activeConfig))) {
         console.error('Error loading script runner')
         this.call('terminal', 'log', { value: `Error in loading ScriptRunner. Exiting ...`, type: 'error' })
@@ -285,7 +282,7 @@ export class ScriptRunnerBridgePlugin extends Plugin {
       }
     }
     try {
-      this.call('terminal', 'log', { value: `running ${filePath} ... with '${this.activeConfig.name}' configuration`, type: 'log' })
+      this.call('terminal', 'log', { value: `Running ${filePath} with '${this.activeConfig.name}' configuration`, type: 'log' })
       this.setIsLoading(this.activeConfig.name, true)
       // Transforms the script into an executable format using the function defined above.
       const builtInDependencies = this.activeConfig.dependencies ? this.activeConfig.dependencies.map(dep => dep.name) : []
@@ -294,7 +291,7 @@ export class ScriptRunnerBridgePlugin extends Plugin {
       await this.call(`${this.scriptRunnerProfileName}${this.activeConfig.name}`, 'execute', transformedScript, filePath)
 
     } catch (e) {
-      console.error('Error executing script', e)
+      console.error('Error in executing script: ', e)
     }
     this.setIsLoading(this.activeConfig.name, false)
   }
