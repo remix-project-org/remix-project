@@ -275,15 +275,17 @@ export class ScriptRunnerBridgePlugin extends Plugin {
   }
 
   async execute(script: string, filePath: string) {
-    this.call('terminal', 'log', { value: `running ${filePath} ...`, type: 'info' })
     if (!this.scriptRunnerProfileName || !this.engine.isRegistered(`${this.scriptRunnerProfileName}${this.activeConfig.name}`)) {
-      console.error('Script runner not loaded')
+      console.log('Script runner not loaded already, loading it ...')
+      this.call('terminal', 'log', { value: `Loading ScriptRunner ...`, type: 'log' })
       if (!(await this.loadScriptRunner(this.activeConfig))) {
         console.error('Error loading script runner')
+        this.call('terminal', 'log', { value: `Error in loading ScriptRunner. Exiting ...`, type: 'error' })
         return
       }
     }
     try {
+      this.call('terminal', 'log', { value: `running ${filePath} ... with '${this.activeConfig.name}' configuration`, type: 'log' })
       this.setIsLoading(this.activeConfig.name, true)
       // Transforms the script into an executable format using the function defined above.
       const builtInDependencies = this.activeConfig.dependencies ? this.activeConfig.dependencies.map(dep => dep.name) : []

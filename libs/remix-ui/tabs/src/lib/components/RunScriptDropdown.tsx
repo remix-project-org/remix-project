@@ -22,7 +22,6 @@ const RunScriptDropdown: React.FC<RunScriptDropdownProps> = ({ plugin, disabled,
     { label: 'Open script configuration', icon: <ScriptConfig />, borderTop: true, onClick: async () => {
       await plugin.call('manager', 'activatePlugin', 'UIScriptRunner')
       await plugin.call('tabs', 'focus', 'UIScriptRunner')
-      onNotify?.("Opened script configuration")
     }, dataId: 'open-script-configuration-menu-item' }
   ]
 
