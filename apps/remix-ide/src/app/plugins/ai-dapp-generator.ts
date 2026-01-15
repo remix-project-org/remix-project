@@ -97,6 +97,20 @@ export class AIDappGenerator extends Plugin {
 
         const pages = parsePages(htmlContent);
         
+        const pageKeys = Object.keys(pages);
+
+        // [로그 추가 포인트] 파싱 실패 시 원본 데이터 확인
+        if (pageKeys.length === 0) {
+            console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed!');
+            console.log('[DEBUG-AI] Raw Content Preview (First 1000 chars):', htmlContent.substring(0, 1000));
+            console.log('[DEBUG-AI] Raw Content Preview (Last 1000 chars):', htmlContent.substring(htmlContent.length - 1000));
+            
+            // 만약 htmlContent 자체가 비어있다면 백엔드 문제
+            if (!htmlContent) console.error('[DEBUG-AI] htmlContent is EMPTY.');
+            
+            throw new Error("AI failed to return valid file structure from Figma design.");
+        }
+        
         if (Object.keys(pages).length === 0) {
             throw new Error("AI failed to return valid file structure from Figma design.");
         }
