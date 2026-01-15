@@ -11,6 +11,8 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
     .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
     .click('*[data-id="template-card-remixDefault-0"]')
     .waitForElementVisible('*[data-id="workspace-details-section"]')
+    .waitForElementVisible('*[data-id="validateWorkspaceButton"]')
+    .click('*[data-id="validateWorkspaceButton"]')
 }
 
 const tests = {
@@ -54,6 +56,7 @@ const tests = {
       .waitForElementVisible({
         locateStrategy: 'xpath',
         selector: '//*[@data-id="settingsNetworkEnv" and contains(.,"1337")]',
+        timeout: 50000
       })
       .clickLaunchIcon('solidity')
       .click('*[data-id="compilerContainerCompileBtn"]')

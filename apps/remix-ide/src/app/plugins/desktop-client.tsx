@@ -236,16 +236,16 @@ export class DesktopClient extends ViewPlugin {
       } else {
         await this.isInjected()
         try {
-          const provider = this.blockchain.web3().currentProvider
+          const provider = this.blockchain.getProviderObject().provider
 
-          let result = await provider.sendAsync(parsed)
+          let result = await provider.send(parsed)
 
           console.log('Sending result back to server', result)
           this.ws.send(stringifyWithBigInt(result))
 
         } catch (e) {
 
-          console.log('No provider...', parsed)
+          console.log('No provider...', parsed, e)
           this.ws.send(stringifyWithBigInt({
             jsonrpc: '2.0',
             result: 'error',

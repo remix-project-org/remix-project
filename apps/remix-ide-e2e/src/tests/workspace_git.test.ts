@@ -23,6 +23,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="default-workspace-name-edit-icon"]')
       .click('*[data-id="default-workspace-name-edit-icon"]')
       .setValue('*[data-id="workspace-name-input"]', 'workspace_blank')
+      .waitForElementVisible('[data-id="initGitRepositoryLabel"]')
       .click('[data-id="initGitRepositoryLabel"]')
       .click('*[data-id="validateWorkspaceButton"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')

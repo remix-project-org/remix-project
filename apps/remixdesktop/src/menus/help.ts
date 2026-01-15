@@ -1,5 +1,5 @@
 import {BrowserWindow, MenuItemConstructorOptions, app} from 'electron';
-const { dialog } = require('electron')
+const { dialog, shell } = require('electron')
 export default (
   commandKeys: Record<string, string>,
   execCommand: (command: string, focusedWindow?: BrowserWindow) => void
@@ -18,6 +18,12 @@ export default (
             detail: `Remix Desktop version ${app.getVersion()}`,
             buttons: [],
           });
+        }
+      },
+      {
+        label: 'Report an issue',
+        click(item, focusedWindow) {
+          shell.openExternal('https://github.com/remix-project-org/remix-project/issues/new?template=bug_report.md')
         }
       }
     ]

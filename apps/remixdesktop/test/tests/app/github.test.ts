@@ -11,6 +11,8 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
     .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
     .click('*[data-id="template-card-remixDefault-0"]')
     .waitForElementVisible('*[data-id="workspace-details-section"]')
+    .waitForElementVisible('*[data-id="validateWorkspaceButton"]')
+    .click('*[data-id="validateWorkspaceButton"]')
 }
 
 const tests = {
@@ -66,15 +68,15 @@ const tests = {
   },
   'check if the settings are loaded #group1 #group2': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="connected-as-bunsenstraat"]')
-      .waitForElementVisible('*[data-id="connected-img-bunsenstraat"]')
-      .waitForElementVisible('*[data-id="connected-link-bunsenstraat"]')
+      .waitForElementVisible('*[data-id="connected-as-EthereumRemix"]')
+      .waitForElementVisible('*[data-id="connected-img-EthereumRemix"]')
+      .waitForElementVisible('*[data-id="connected-link-EthereumRemix"]')
       .waitForElementVisible('*[data-id="remotes-panel"]')
   },
   'check the FE shows logged in user #group1 #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
         locateStrategy: 'xpath'
       })
   },
@@ -138,7 +140,7 @@ const tests = {
   'check if user is still logged in after cloning #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
         locateStrategy: 'xpath'
       })
   },
@@ -270,12 +272,12 @@ const tests = {
       .pause(1000)
       .click('*[data-id="disconnect-github"]')
 
-      .waitForElementNotPresent('*[data-id="connected-as-bunsenstraat"]')
+      .waitForElementNotPresent('*[data-id="connected-as-EthereumRemix"]')
   },
   'check the FE for the disconnected auth user #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementNotPresent({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
         locateStrategy: 'xpath'
       })
   },
