@@ -105,7 +105,10 @@ export class RemixAIAssistant extends ViewPlugin {
   render() {
     return (
       <div id="remix-ai-assistant"
-        data-id="remix-ai-assistant">
+        data-id="remix-ai-assistant"
+        className="ai-assistant-bg"
+        style={{ backgroundColor: 'blue' }}
+      >
         <PluginViewWrapper plugin={this} />
       </div>
     )

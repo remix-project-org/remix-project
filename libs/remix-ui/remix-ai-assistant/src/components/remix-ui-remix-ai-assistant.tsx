@@ -19,6 +19,7 @@ import { useOnClickOutside } from './onClickOutsideHook'
 import { RemixAIAssistant } from 'apps/remix-ide/src/app/plugins/remix-ai-assistant'
 import { useAudioTranscription } from '../hooks/useAudioTranscription'
 import { QueryParams } from '@remix-project/remix-lib'
+import ChatHistoryHeading from './chatHistoryHeading'
 
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
@@ -866,10 +867,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   return (
     <div
-      className="d-flex flex-column w-100 overflow-x-hidden h-100 ai-assistant-bg"
+      className="d-flex flex-column w-100 overflow-x-hidden ai-assistant-bg h-100 mb-2 pb-5"
       ref={aiChatRef}
+      style={{ scrollbarWidth: 'none' }}
     >
-      <section id="remix-ai-chat-history" className="h-83 d-flex flex-column p-2 overflow-x-hidden" style={{ flex: 1, overflowY: 'scroll' }} ref={chatHistoryRef}>
+      <ChatHistoryHeading />
+      <section id="remix-ai-chat-history" className="d-flex flex-column p-2 overflow-x-hidden" style={{ flex: 1 }} ref={chatHistoryRef}>
         <div data-id="remix-ai-assistant-ready"></div>
         {/* hidden hook for E2E tests: data-streaming="true|false" */}
         <div

@@ -715,5 +715,25 @@ mark,
 }
 
 .ai-assistant-bg {
-  background-color: linear-gradient(to top left var(--bs-body-bg), #2ce8f5);
+  background: var(--bs-body-bg) !important;
+  position: relative;
+}
+
+.ai-assistant-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(44, 232, 245, 0.015) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(44, 232, 245, 0.01) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ai-assistant-bg > * {
+  position: relative;
+  z-index: 1;
 }

@@ -14,6 +14,7 @@ import {
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
 import { getToolExecutionMessage } from '../lib/toolDescriptions'
 import { QueryParams } from '@remix-project/remix-lib'
+import { AiChatButtons } from './aichatButtons'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -44,14 +45,14 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
 
   return (
     <div className="assistant-landing d-flex flex-column mx-1 align-items-center justify-content-center text-center h-100 w-100">
-      <img src={assistantAvatar} alt="RemixAI logo" style={{ width: '120px' }} className="mb-3 container-img" />
-      <h5 className="mb-2">RemixAI</h5>
+      <div className="d-flex align-items-center justify-content-center rounded-circle border mb-3" style={{ width: '120px', height: '120px', borderWidth: '2px', borderColor: 'var(--bs-border-color)' }}>
+        <img src={assistantAvatar} alt="RemixAI logo" style={{ width: '60px', height: '60px' }} className="container-img" />
+      </div>
       <p className="mb-4" style={{ fontSize: '0.9rem' }}>
-        RemixAI provides you personalized guidance as you build. It can break down concepts,
-        answer questions about blockchain technology and assist you with your smart contracts.
+        What do you want to build today?
       </p>
       {/* Dynamic Conversation Starters */}
-      <div className="d-flex flex-column mt-3" style={{ maxWidth: '400px' }}>
+      {/* <div className="d-flex flex-column mt-3" style={{ maxWidth: '400px' }}>
         {conversationStarters.map((starter, index) => (
           <button
             key={`${starter.level}-${index}`}
@@ -62,7 +63,8 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
             {starter.question}
           </button>
         ))}
-      </div>
+      </div> */}
+      <AiChatButtons />
     </div>
   )
 }
