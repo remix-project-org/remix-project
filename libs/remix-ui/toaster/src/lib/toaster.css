@@ -2,7 +2,7 @@
 .remixui_sonner_toast {
   border-radius: 8px;
   padding: 5px 5px 5px 5px;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
   font-size: 19px !important;
   min-width: 350px;
   max-width: 600px;
@@ -22,18 +22,11 @@
 /* Keyframe animations for toast entrance */
 @keyframes slideInRight {
   0% {
-    transform: translateX(120%) scale(0.8);
+    transform: translateX(120%);
     opacity: 0;
   }
-  60% {
-    transform: translateX(-10px) scale(1.05);
-    opacity: 1;
-  }
-  80% {
-    transform: translateX(5px) scale(0.98);
-  }
   100% {
-    transform: translateX(0) scale(1);
+    transform: translateX(0);
     opacity: 1;
   }
 }
@@ -77,6 +70,11 @@
   flex-direction: column;
   --normal-bg: transparent !important;
   --normal-border: transparent !important;
+  /* Disable Sonner's default slide animation */
+  --y: 0px !important;
+  --offset: 0px !important;
+  /* Configure exit animation direction */
+  --swipe-direction: right !important;
 }
 
 [data-sonner-toaster]:hover [data-sonner-toast] {
@@ -95,7 +93,7 @@
 [data-sonner-toast] {
   color: var(--bs-dark, #212529) !important;
   border: 0px solid var(--bs-dark, #6c757d) !important;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
   font-size: 19px !important;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -104,10 +102,12 @@
   pointer-events: auto !important;
   position: relative !important;
   width: 100%;
-  animation: slideInRight 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55),
-             attentionShake 0.5s ease-in-out 0.5s !important;
+  /* Override Sonner's default animation with custom right slide */
+  animation: slideInRight 0.3s ease-out !important;
   transition: all 0.3s ease !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  /* Ensure no vertical offset from Sonner */
+  --y: 0px !important;
 }
 
 [data-sonner-toast]:hover {
@@ -118,36 +118,35 @@
 }
 
 [data-sonner-toast][data-expanded="true"] {
-  transform: translateX(0) !important;
   scale: 1 !important;
-  transition: all 0.3s ease !important;
 }
 
 [data-sonner-toast][data-expanded="false"] {
-  transform: translateX(0) !important;
   scale: 1 !important;
-  transition: all 0.3s ease !important;
 }
 
 [data-sonner-toast][data-front="true"] {
-  transform: translateX(0) !important;
   scale: 1 !important;
-  transition: all 0.3s ease !important;
   z-index: 10 !important;
 }
 
 [data-sonner-toast][data-front="false"] {
-  transform: translateX(0) !important;
   scale: 0.98 !important;
   opacity: 0.95 !important;
-  transition: all 0.3s ease !important;
 }
 
 [data-sonner-toast][data-index]:not([data-index="0"]) {
-  transform: translateY(-4px) !important;
   scale: 0.98 !important;
   opacity: 0.95 !important;
-  transition: all 0.3s ease !important;
+}
+
+/* Exit animation - slide out to right */
+[data-sonner-toast][data-removed="true"] {
+  animation: slideOutRight 0.3s ease-in forwards !important;
+}
+
+[data-sonner-toast][data-swiping="true"] {
+  transition: transform 0.2s ease-out !important;
 }
 
 [data-sonner-toast][data-styled="true"] {
@@ -164,8 +163,9 @@
   border: 0px solid var(--bs-secondary, #6c757d) !important;
   font-weight: 700 !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  animation: slideInRight 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55),
-             attentionShake 0.5s ease-in-out 0.5s !important;
+  animation: slideInRight 0.3s ease-out !important;
+  /* Ensure no vertical offset from Sonner */
+  --y: 0px !important;
 }
 
 [data-sonner-toast][data-theme="dark"]:hover,
@@ -190,7 +190,6 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: all 0.2s ease;
   width: 24px;
   height: 24px;
   z-index: 1;
@@ -232,7 +231,6 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: all 0.2s ease;
   width: 24px;
   height: 24px;
   z-index: 1;
@@ -314,9 +312,9 @@
 }
 
 .toast .btn-close:hover {
-  transform: scale(1.3) rotate(90deg);
+  transform: scale(1.3);
 }
 
 .toast .btn-close:active {
-  transform: scale(0.9) rotate(90deg);
+  transform: scale(0.9);
 }
