@@ -255,7 +255,7 @@ export class ScriptRunnerBridgePlugin extends Plugin {
       this.setErrorStatus(config.name, false, '')
       result = true
     } catch (e) {
-      console.log('Error loading script runner: ', newProfile.name, e)
+      console.log('Error in loading script runner: ', newProfile.name, e)
       const iframe = document.getElementById(`plugin-${newProfile.name}`)
       if (iframe) {
         await this.call('hiddenPanel', 'removeView', newProfile)
@@ -274,9 +274,9 @@ export class ScriptRunnerBridgePlugin extends Plugin {
   async execute(script: string, filePath: string) {
     if (!this.scriptRunnerProfileName || !this.engine.isRegistered(`${this.scriptRunnerProfileName}${this.activeConfig.name}`)) {
       console.log('Script runner not loaded already, loading it...')
-      this.call('terminal', 'log', { value: `Loading ScriptRunner...`, type: 'log' })
+      this.call('terminal', 'log', { value: `Loading runtime...`, type: 'log' })
       if (!(await this.loadScriptRunner(this.activeConfig))) {
-        console.error('Error loading script runner')
+        console.error('Error in loading script runner')
         this.call('terminal', 'log', { value: `Error in loading ScriptRunner. Exiting ...`, type: 'error' })
         return
       }
@@ -327,7 +327,7 @@ export class ScriptRunnerBridgePlugin extends Plugin {
   }
 
   async dependencyError(data: any) {
-    let message = `Error loading dependencies: `
+    let message = `Error in loading dependencies: `
     if (isArray(data.data)) {
       data.data.forEach((data: any) => {
         message += `${data}`

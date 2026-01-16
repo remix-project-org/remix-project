@@ -86,6 +86,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
               }}
               data-id={item.dataId}
               role="menuitem"
+              style={{cursor: "pointer"}}
             >
               {item.icon && <span className="custom-dropdown-item-icon">{item.icon}</span>}
               <span>{item.label}</span>
