@@ -27,6 +27,13 @@ const SAFETY_INSTRUCTIONS = `
    - GOOD: \`import Navbar from './components/Navbar.jsx'\`
 `;
 
+const FORMATTING_RULES = `
+**CRITICAL FILE FORMATTING:**
+1. Use \`<<<<<<< START_TITLE filename >>>>>>> END_TITLE\` strictly as the **HEADER** to mark the start of a file.
+2. **DO NOT** place \`END_TITLE\` or any closing tag at the end of the file content.
+3. To start a new file, just write the next Header immediately.
+`;
+
 export const INITIAL_SYSTEM_PROMPT = `You are an expert Front-End Developer specializing in React, Vite, and ethers.js.
 Your task is to generate a multi-file DApp project structure.
 You MUST generate separate files for HTML, CSS, and JavaScript (JSX).
@@ -47,6 +54,8 @@ The file structure MUST include **AT A MINIMUM**:
 
 ${PROMPT_FOR_IMAGE_GENERATION}
 No need to explain what you did. Just return the code for each file.
+
+${FORMATTING_RULES}
 
 Example Format:
 ${TITLE_PAGE_START}index.html${TITLE_PAGE_END}
@@ -159,6 +168,8 @@ ${SAFETY_INSTRUCTIONS}
 ${PROMPT_FOR_IMAGE_GENERATION}
 No need to explain what you did. Just return the code for each file.
 
+${FORMATTING_RULES}
+
 Example Format:
 ${TITLE_PAGE_START}index.html${TITLE_PAGE_END}
 \`\`\`html
@@ -267,6 +278,8 @@ ${PROMPT_FOR_IMAGE_GENERATION}
 Output Requirements:
 - Minimum files: \`index.html\`, \`src/main.jsx\`, \`src/App.jsx\`, \`src/index.css\`.
 - **Additional files:** Create separate files for components if needed.
+
+${FORMATTING_RULES}
 
 Example Format:
 ${TITLE_PAGE_START}index.html${TITLE_PAGE_END}

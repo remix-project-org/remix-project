@@ -101,13 +101,29 @@ function EditHtmlTemplate(): JSX.Element {
       }
     };
 
-    const onDappError = () => {
+    const onDappError = (errorData: any) => {
+      const errorMessage = errorData?.error || errorData || 'Unknown Error';
+      console.log('[EditHtmlTemplate] Received Error:', errorMessage);
+
       if (activeDapp) {
         dispatch({ 
           type: 'SET_DAPP_PROCESSING', 
           payload: { slug: activeDapp.slug, isProcessing: false } 
         });
       }
+      setNotificationModal({
+        show: true,
+        title: 'Update Failed',
+        message: (
+          <div>
+            <p>An error occurred while generating the code:</p>
+            <div className="alert alert-danger mb-0" style={{maxHeight: '200px', overflowY: 'auto'}}>
+              {errorMessage}
+            </div>
+          </div>
+        ),
+        variant: 'danger'
+      });
     };
 
     remixClient.internalEvents.on('dappUpdated', onDappUpdated);
@@ -367,19 +383,13 @@ function EditHtmlTemplate(): JSX.Element {
         userPrompt = [ { type: 'text', text: message }, { type: 'image_url', image_url: { url: imageBase64 } } ];
       }
 
-      remixClient.call(
-        // @ts-ignore
-        'ai-dapp-generator',
-        'updateDapp',
+      await remixClient.updateDapp(
+        activeDapp.slug,
         activeDapp.contract.address,
         userPrompt,
-        currentFilesObject,
-        !!imageBase64,
-        activeDapp.slug 
-      ).catch((e: any) => {
-        console.error("Update Trigger Failed:", e);
-        dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: activeDapp.slug, isProcessing: false } });
-      });
+        currentFilesObject, 
+        imageBase64 || null
+      );
 
     } catch (error: any) {
       console.error('Update setup failed:', error);

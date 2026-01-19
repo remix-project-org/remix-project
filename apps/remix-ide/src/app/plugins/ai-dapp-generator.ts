@@ -71,73 +71,72 @@ export class AIDappGenerator extends Plugin {
     const context = this.getOrCreateContext(options.address)
 
     const contractInfo = {
-        address: options.address,
-        abi: options.abi,
-        chainId: options.chainId,
-        name: options.contractName
+      address: options.address,
+      abi: options.abi,
+      chainId: options.chainId,
+      name: options.contractName
     };
 
     try {
-        const startTime = Date.now();
-        console.log('[DEBUG-AI] Calling Figma Generator API...');
+      const startTime = Date.now();
+      console.log('[DEBUG-AI] Calling Figma Generator API...');
 
-        const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate"; 
-        // const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
+      const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate"; 
+      // const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
 
-        const htmlContent = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
-            figmaToken: options.figmaToken,
-            figmaUrl: options.figmaUrl,
-            userPrompt: options.description,
-            contractInfo: contractInfo,
-            isBaseMiniApp: options.isBaseMiniApp
-        });
+      const htmlContent = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
+        figmaToken: options.figmaToken,
+        figmaUrl: options.figmaUrl,
+        userPrompt: options.description,
+        contractInfo: contractInfo,
+        isBaseMiniApp: options.isBaseMiniApp
+      });
 
-        const duration = (Date.now() - startTime) / 1000;
-        console.log(`[DEBUG-AI] Figma Backend responded in ${duration}s.`);
+      const duration = (Date.now() - startTime) / 1000;
+      console.log(`[DEBUG-AI] Figma Backend responded in ${duration}s.`);
 
-        const pages = parsePages(htmlContent);
+      const pages = parsePages(htmlContent);
+      
+      const pageKeys = Object.keys(pages);
+
+      if (pageKeys.length === 0) {
+        console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed!');
+        console.log('[DEBUG-AI] Raw Content Preview (First 1000 chars):', htmlContent.substring(0, 1000));
+        console.log('[DEBUG-AI] Raw Content Preview (Last 1000 chars):', htmlContent.substring(htmlContent.length - 1000));
         
-        const pageKeys = Object.keys(pages);
+        if (!htmlContent) console.error('[DEBUG-AI] htmlContent is EMPTY.');
+        
+        throw new Error("AI failed to return valid file structure from Figma design.");
+      }
 
-        if (pageKeys.length === 0) {
-            console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed!');
-            console.log('[DEBUG-AI] Raw Content Preview (First 1000 chars):', htmlContent.substring(0, 1000));
-            console.log('[DEBUG-AI] Raw Content Preview (Last 1000 chars):', htmlContent.substring(htmlContent.length - 1000));
-            
-            if (!htmlContent) console.error('[DEBUG-AI] htmlContent is EMPTY.');
-            
-            throw new Error("AI failed to return valid file structure from Figma design.");
-        }
+      if (Object.keys(pages).length === 0) {
+        throw new Error("AI failed to return valid file structure from Figma design.");
+      }
 
-        if (Object.keys(pages).length === 0) {
-            throw new Error("AI failed to return valid file structure from Figma design.");
-        }
+      context.messages.push({ 
+        role: 'user', 
+        content: `Generated from Figma: ${options.figmaUrl}\nInstructions: ${options.description}` 
+      });
+      context.messages.push({ role: 'assistant', content: htmlContent });
+      this.saveContext(options.address, context);
 
-        context.messages.push({ 
-          role: 'user', 
-          content: `Generated from Figma: ${options.figmaUrl}\nInstructions: ${options.description}` 
-        });
-        context.messages.push({ role: 'assistant', content: htmlContent });
-        this.saveContext(options.address, context);
+      this.emit('dappGenerated', {
+        address: options.address,
+        slug: options.slug,
+        content: pages,
+        isUpdate: false
+      });
 
-        this.emit('dappGenerated', {
-            address: options.address,
-            slug: options.slug,
-            content: pages,
-            isUpdate: false
-        });
-
-        await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
+      await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
 
     } catch (error: any) {
-        console.error('[DEBUG-AI] Figma Generation Failed:', error);
-        this.emit('dappGenerated', {
-          address: options.address,
-          slug: options.slug,
-          content: {},
-          isUpdate: false
-        });
-        throw error;
+      console.error('[DEBUG-AI] Figma Generation Failed:', error);
+      this.call('terminal', 'log', { type: 'error', value: error.message });
+      this.emit('dappGenerationError', {
+        address: options.address,
+        slug: options.slug,
+        error: error.message
+      });
     }
   }
 
@@ -168,55 +167,70 @@ export class AIDappGenerator extends Plugin {
 
   private async processGeneration(options: GenerateDappOptions & { slug: string }) {
     console.log(`[DEBUG-AI] Starting processGeneration for slug: ${options.slug}`);
-    const hasImage = !!options.image;
+    
+    try {
+      const hasImage = !!options.image;
 
-    await this.call('notification', 'toast', 'Generating... (Logs in console)')
-    this.emit('generationProgress', { status: 'started', address: options.address })
+      await this.call('notification', 'toast', 'Generating... (Logs in console)')
+      this.emit('generationProgress', { status: 'started', address: options.address })
 
-    const context = this.getOrCreateContext(options.address)
-    const message = this.createInitialMessage(options)
-    const messagesToSend = [{ role: 'user', content: message }]
+      const context = this.getOrCreateContext(options.address)
+      const message = this.createInitialMessage(options)
+      const messagesToSend = [{ role: 'user', content: message }]
 
-    let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
-    if (options.isBaseMiniApp) {
-      selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
+      let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
+      if (options.isBaseMiniApp) {
+        selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
+      }
+
+      console.log('[DEBUG-AI] Calling LLM API...');
+      const startTime = Date.now();
+
+      const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage);
+
+      const duration = (Date.now() - startTime) / 1000;
+      console.log(`[DEBUG-AI] LLM responded in ${duration}s.`);
+      console.log('[DEBUG-AI] Raw content length:', htmlContent?.length);
+
+      const pages = parsePages(htmlContent);
+      const pageKeys = Object.keys(pages);
+      console.log('[DEBUG-AI] Parsed Pages Keys:', pageKeys);
+
+      if (pageKeys.length === 0) {
+        console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
+        console.log('[DEBUG-AI] Raw Content Start:', htmlContent.substring(0, 500));
+        
+        throw new Error("AI generated empty content. Please try again.");
+      }
+
+      context.messages = [
+        { role: 'user', content: message },
+        { role: 'assistant', content: htmlContent }
+      ]
+      this.saveContext(options.address, context)
+
+      console.log('[DEBUG-AI] Emitting dappGenerated event...');
+
+      this.emit('dappGenerated', {
+        address: options.address,
+        slug: options.slug,
+        content: pages,
+        isUpdate: false
+      });
+
+      console.log('[DEBUG-AI] Event emitted.');
+      await this.call('notification', 'toast', 'Generation Complete!');
+
+    } catch (error: any) {
+      console.error('[DEBUG-AI] Generation Failed:', error);
+      this.call('terminal', 'log', { type: 'error', value: error.message });
+
+      this.emit('dappGenerationError', {
+        address: options.address,
+        slug: options.slug,
+        error: error.message
+      });
     }
-
-    console.log('[DEBUG-AI] Calling LLM API...');
-    const startTime = Date.now();
-
-    const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage);
-
-    const duration = (Date.now() - startTime) / 1000;
-    console.log(`[DEBUG-AI] LLM responded in ${duration}s.`);
-    console.log('[DEBUG-AI] Raw content length:', htmlContent?.length);
-
-    const pages = parsePages(htmlContent);
-    const pageKeys = Object.keys(pages);
-    console.log('[DEBUG-AI] Parsed Pages Keys:', pageKeys);
-
-    if (pageKeys.length === 0) {
-      console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
-      console.log('[DEBUG-AI] Raw Content Start:', htmlContent.substring(0, 500));
-    }
-
-    context.messages = [
-      { role: 'user', content: message },
-      { role: 'assistant', content: htmlContent }
-    ]
-    this.saveContext(options.address, context)
-
-    console.log('[DEBUG-AI] Emitting dappGenerated event...');
-
-    this.emit('dappGenerated', {
-      address: options.address,
-      slug: options.slug,
-      content: pages,
-      isUpdate: false
-    });
-
-    console.log('[DEBUG-AI] Event emitted.');
-    await this.call('notification', 'toast', 'Generation Complete!');
   }
 
   /**
@@ -270,6 +284,12 @@ export class AIDappGenerator extends Plugin {
       context.messages.pop();
       console.error('[DEBUG-AI] Update failed:', error);
       this.call('terminal', 'log', { type: 'error', value: `Update failed: ${error.message}` });
+      
+      this.emit('dappGenerationError', {
+        address,
+        slug,
+        error: error.message || "Unknown error during generation"
+      });
     }
   }
 

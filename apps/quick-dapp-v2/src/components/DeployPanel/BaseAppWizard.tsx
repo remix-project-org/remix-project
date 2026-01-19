@@ -320,13 +320,13 @@ const BaseAppWizard: React.FC = () => {
       } else if (mode === 'finalize') {
         completeStepAndGoNext(5);
         setSuccessModalContent({
-          title: 'Base Mini App is Ready! 🚀',
+          title: 'Base Mini App is Ready!',
           body: `Verification complete and ENS linked.\nYour app is live at: https://${savedWizardState.ensName}.remixdapp.eth.limo`
         });
         setShowSuccessModal(true);
       } else if (mode === 'update') {
         setSuccessModalContent({
-          title: 'Update Published! ✅',
+          title: 'Update Published!',
           body: `New code deployed to IPFS and ENS record updated.\nChanges should appear shortly at: https://${savedWizardState.ensName}.remixdapp.eth.limo`
         });
         setShowSuccessModal(true);

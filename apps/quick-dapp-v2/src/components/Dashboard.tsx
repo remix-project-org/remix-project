@@ -5,6 +5,7 @@ import DappCard from './DappCard';
 
 interface DashboardProps {
   dapps: DappConfig[];
+  processingState?: Record<string, boolean>;
   onOpen: (dapp: DappConfig) => void;
   onCreateNew: () => void;
   onDeleteAll?: () => void;
@@ -13,6 +14,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   dapps, 
+  processingState = {},
   onOpen, 
   onCreateNew, 
   onDeleteAll,
@@ -25,7 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [sortOrder, setSortOrder] = useState<string>('newest');
 
   const validDapps = useMemo(() => {
-    return dapps.filter((dapp: any) => dapp.config?.status !== 'draft' && dapp.config?.status !== 'creating');
+    return dapps.filter((dapp: any) => dapp.config?.status !== 'creating');
   }, [dapps]);
 
   const availableNetworks = useMemo(() => {
@@ -144,6 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <DappCard 
               key={dapp.id} 
               dapp={dapp} 
+              isProcessing={!!processingState[dapp.slug]}
               onClick={() => onOpen(dapp)}
               onDelete={() => setDappToDelete(dapp.slug)}
             />

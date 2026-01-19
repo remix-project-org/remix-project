@@ -4,6 +4,7 @@ import { DappConfig } from '../types/dapp';
 
 interface DappCardProps {
   dapp: DappConfig;
+  isProcessing?: boolean;
   onClick: () => void;
   onDelete: () => void;
 }
@@ -23,24 +24,33 @@ const timeAgo = (date: number) => {
   return Math.floor(seconds) + " seconds ago";
 };
 
-const DappCard: React.FC<DappCardProps> = ({ dapp, onClick, onDelete }) => {
+const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDelete }) => {
   const [isHovered, setIsHovered] = useState(false);
   const statusColor = dapp.status === 'deployed' ? 'text-success' : 'text-warning';
   const statusIcon = dapp.status === 'deployed' ? 'fa-check-circle' : 'fa-pen-square';
+
+  const loadingText = dapp.status === 'draft' ? 'AI Creating...' : 'AI Updating...';
 
   return (
     <div className="col-12 col-md-6 col-xl-4 mb-4">
       <div 
         className="card h-100 border-secondary shadow-sm" 
         style={{ 
-          cursor: 'pointer', 
+          cursor: isProcessing ? 'wait' : 'pointer',
           transition: 'transform 0.2s',
           overflow: 'visible' 
         }}
-        onClick={onClick}
+        onClick={isProcessing ? undefined : onClick}
         onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
         onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
+        {isProcessing && (
+          <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75" 
+            style={{ zIndex: 10, backdropFilter: 'blur(1px)' }}>
+          <div className="spinner-border text-primary mb-2" role="status"></div>
+            <span className="text-primary fw-bold small">{loadingText}</span>
+          </div>
+        )}
         <div 
           className="card-img-top d-flex align-items-center justify-content-center position-relative"
           style={{ 
@@ -59,29 +69,31 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, onClick, onDelete }) => {
             {dapp.contract.networkName || 'Remix VM'}
           </div>
 
-          <div 
-            className="position-absolute top-0 end-0 m-2" 
-            onClick={(e) => {
-              e.stopPropagation(); 
-              onDelete(); 
-            }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            title="Delete Dapp"
-          >
+          {!isProcessing && (
             <div 
-              className={`rounded-circle d-flex align-items-center justify-content-center shadow-sm ${
-                isHovered ? 'bg-danger' : 'bg-dark bg-opacity-75'
-              }`}
-              style={{ 
-                width: '32px', 
-                height: '32px',
-                transition: 'background-color 0.2s ease-in-out'
+              className="position-absolute top-0 end-0 m-2" 
+              onClick={(e) => {
+                e.stopPropagation(); 
+                onDelete(); 
               }}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              title="Delete Dapp"
             >
-              <i className="fas fa-trash text-white" style={{ fontSize: '0.9rem' }}></i>
+              <div 
+                className={`rounded-circle d-flex align-items-center justify-content-center shadow-sm ${
+                  isHovered ? 'bg-danger' : 'bg-dark bg-opacity-75'
+                }`}
+                style={{ 
+                  width: '32px', 
+                  height: '32px',
+                  transition: 'background-color 0.2s ease-in-out'
+                }}
+              >
+                <i className="fas fa-trash text-white" style={{ fontSize: '0.9rem' }}></i>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="card-body d-flex flex-column justify-content-between">

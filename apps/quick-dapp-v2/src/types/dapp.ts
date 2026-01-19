@@ -1,4 +1,4 @@
-export type DappStatus = 'draft' | 'deployed';
+export type DappStatus = 'draft' | 'created' | 'deployed';
 
 export interface DappConfig {
   _warning: string;
