@@ -277,7 +277,7 @@ export class ScriptRunnerBridgePlugin extends Plugin {
       this.call('terminal', 'log', { value: `Loading runtime...`, type: 'log' })
       if (!(await this.loadScriptRunner(this.activeConfig))) {
         console.error('Error in loading script runner')
-        this.call('terminal', 'log', { value: `Error in loading ScriptRunner. Exiting ...`, type: 'error' })
+        this.call('terminal', 'log', { value: `Error in loading runtime, exiting...`, type: 'error' })
         return
       }
     }
@@ -291,7 +291,7 @@ export class ScriptRunnerBridgePlugin extends Plugin {
       await this.call(`${this.scriptRunnerProfileName}${this.activeConfig.name}`, 'execute', transformedScript, filePath)
 
     } catch (e) {
-      console.error('Error in executing script: ', e)
+      console.error('Error while executing script: ', e)
     }
     this.setIsLoading(this.activeConfig.name, false)
   }
