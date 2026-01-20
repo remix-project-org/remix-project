@@ -25,6 +25,10 @@ const SAFETY_INSTRUCTIONS = `
 4. **EXPLICIT EXTENSIONS:** Always include file extensions in local imports to avoid resolution errors.
    - BAD: \`import Navbar from './components/Navbar'\`
    - GOOD: \`import Navbar from './components/Navbar.jsx'\`
+5. **ETHERS.JS PROVIDER RULES (CRITICAL):**
+   - **MUST USE:** Always use \`new ethers.BrowserProvider(window.ethereum)\` for both reading and writing.
+   - **FORBIDDEN:** NEVER use \`new ethers.JsonRpcProvider\`, \`InfuraProvider\`, or \`AlchemyProvider\`.
+   - **FORBIDDEN:** NEVER generate code containing placeholders like 'YOUR_INFURA_KEY' or ask for API keys.
 `;
 
 const FORMATTING_RULES = `

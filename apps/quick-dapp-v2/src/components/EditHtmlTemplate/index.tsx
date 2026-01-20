@@ -61,6 +61,7 @@ function EditHtmlTemplate(): JSX.Element {
   });
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showTips, setShowTips] = useState(false);
 
   useEffect(() => {
     const onDappUpdated = (data: any) => {
@@ -191,6 +192,8 @@ function EditHtmlTemplate(): JSX.Element {
     dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
   };
 
+  const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  
   const captureAndSaveThumbnail = async () => {
     if (!activeDapp || !iframeRef.current) return;
     const iframe = iframeRef.current;
@@ -201,14 +204,18 @@ function EditHtmlTemplate(): JSX.Element {
     try {
       setIsCapturing(true);
       const dataUrl = await toPng(doc.body, {
-        quality: 0.8,
-        width: 640,
-        height: 360,
-        backgroundColor: '#ffffff',
-        cacheBust: true,
-        skipAutoScale: true,
-        pixelRatio: 1,
-      });
+      quality: 0.8,
+      width: 640,
+      height: 360,
+      backgroundColor: '#ffffff',
+      cacheBust: true,
+      skipAutoScale: true,
+      pixelRatio: 1,
+      imagePlaceholder: TRANSPARENT_PIXEL,
+      fetchRequestInit: {
+        cache: 'no-cache',
+      }
+    });
 
       const previewPath = `dapps/${activeDapp.slug}/preview.png`;
       await remixClient.call('fileManager', 'writeFile', previewPath, dataUrl);
@@ -468,6 +475,14 @@ function EditHtmlTemplate(): JSX.Element {
                   <div className="d-flex justify-content-between align-items-center mb-2 flex-shrink-0">
                     <h5 className="mb-0 text-body">
                       <FormattedMessage id="quickDapp.preview" defaultMessage="Preview" />
+                      <button 
+                        className="btn btn-link text-muted p-0 ms-2 text-decoration-none" 
+                        onClick={() => setShowTips(!showTips)}
+                        style={{ fontSize: '0.85rem' }}
+                      >
+                        <i className="far fa-question-circle me-1"></i>
+                        {showTips ? 'Hide Tips' : 'Help & Tips'}
+                      </button>
                     </h5>
                     <div className="d-flex gap-2">
                       <Button 
@@ -488,6 +503,17 @@ function EditHtmlTemplate(): JSX.Element {
                       </Button>
                     </div>
                   </div>
+
+                  {showTips && (
+                    <div className="alert alert-info py-2 px-3 mb-2 small shadow-sm fade-in border-info bg-opacity-10">
+                      <div className="fw-bold mb-1"><i className="fas fa-robot me-1"></i>AI Code Generation Tips</div>
+                      <ul className="mb-0 ps-3">
+                        <li>AI code might not be perfect. If the preview is broken:</li>
+                        <li><strong>Option 1:</strong> Edit code manually in the <strong>File Explorer</strong> (left panel), then click <strong>Refresh Preview</strong>.</li>
+                        <li><strong>Option 2:</strong> Ask the AI to fix it in the <strong>Chat Box</strong> above.</li>
+                      </ul>
+                    </div>
+                  )}
                   
                   <Card className="border flex-grow-1 d-flex position-relative">
                     <Card.Body className="p-0 d-flex flex-column position-relative" style={{ overflow: 'hidden' }}>
