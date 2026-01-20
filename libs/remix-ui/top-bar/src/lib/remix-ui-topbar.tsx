@@ -205,6 +205,7 @@ export function RemixUiTopbar() {
         switchWorkspace(NO_WORKSPACE)
       }
     }
+    updateMenuItems()
   }, [global.fs.browser.workspaces, global.fs.browser.workspaces.length])
 
   useEffect(() => {
@@ -285,6 +286,7 @@ export function RemixUiTopbar() {
   const onFinishDeleteWorkspace = async (workspaceName?: string) => {
     try {
       await deleteWorkspace(workspaceName)
+      await updateMenuItems()
     } catch (e) {
       global.modal(
         intl.formatMessage({ id: 'filePanel.workspace.delete' }),
