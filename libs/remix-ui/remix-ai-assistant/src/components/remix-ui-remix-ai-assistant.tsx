@@ -12,7 +12,7 @@ import { MatomoEvent, AIEvent, RemixAIAssistantEvent } from '@remix-api'
 import { TrackingContext } from '@remix-ide/tracking'
 import { PromptArea } from './prompt'
 import { ChatHistoryComponent } from './chat'
-import { ActivityType, ChatMessage } from '../lib/types'
+import { ActivityType, ChatMessage, ConversationMetadata } from '../lib/types'
 import { groupListType } from '../types/componentTypes'
 import GroupListMenu from './contextOptMenu'
 import { useOnClickOutside } from './onClickOutsideHook'
@@ -20,6 +20,7 @@ import { RemixAIAssistant } from 'apps/remix-ide/src/app/plugins/remix-ai-assist
 import { useAudioTranscription } from '../hooks/useAudioTranscription'
 import { QueryParams } from '@remix-project/remix-lib'
 import ChatHistoryHeading from './chatHistoryHeading'
+import { ChatHistorySidebar } from './chatHistorySidebar'
 
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
@@ -28,6 +29,16 @@ export interface RemixUiRemixAiAssistantProps {
   onMessagesChange?: (msgs: ChatMessage[]) => void
   /** optional callback whenever the user or AI does something */
   onActivity?: (type: ActivityType, payload?: any) => void
+  /** Conversation management props */
+  conversations?: ConversationMetadata[]
+  currentConversationId?: string | null
+  showHistorySidebar?: boolean
+  isMaximized?: boolean
+  onNewConversation?: () => void
+  onLoadConversation?: (id: string) => void
+  onArchiveConversation?: (id: string) => void
+  onDeleteConversation?: (id: string) => void
+  onToggleHistorySidebar?: () => void
 }
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
@@ -50,6 +61,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [assistantChoice, setAssistantChoice] = useState<'openai' | 'mistralai' | 'anthropic' | 'ollama'>(
     'mistralai'
   )
+  const [showArchivedConversations, setShowArchivedConversations] = useState(false)
   const [aiAssistantHeight, setAiAssistantHeight] = useState(window.innerHeight < 750 ? 87 : window.innerHeight < 1000 ? 89.6 : 92)
 
   // Check if MCP is enabled via query parameter
@@ -65,7 +77,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const [isOllamaFailureFallback, setIsOllamaFailureFallback] = useState(false)
   const [themeTracker, setThemeTracker] = useState(null)
-  const [isMaximized, setIsMaximized] = useState(false)
   const historyRef = useRef<HTMLDivElement | null>(null)
   const modelBtnRef = useRef(null)
   const modelSelectorBtnRef = useRef(null)
@@ -195,6 +206,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: props.plugin.externalMessage, timestamp: Date.now(), sentiment: 'none' }])
     }
   }, [props.plugin.externalMessage])
+
+  // Sync messages when initialMessages changes (e.g., when loading a different conversation)
+  useEffect(() => {
+    if (props.initialMessages) {
+      setMessages(props.initialMessages)
+    }
+  }, [props.initialMessages])
 
   // useEffect(() => {
   //   const fetchAssistantChoice = async () => {
@@ -837,7 +855,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   const maximizePanel = async () => {
     await props.plugin.call('layout', 'maximiseRightSidePanel')
-    setIsMaximized(true) // ensured that expansion of the panel is stateful
   }
 
   const [modelOpt, setModelOpt] = useState({ top: 0, left: 0 })
@@ -867,29 +884,93 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   return (
     <div
-      className="d-flex flex-column w-100 overflow-x-hidden ai-assistant-bg h-100 mb-2 pb-5"
+      className="d-flex flex-column w-100 h-100"
       ref={aiChatRef}
-      style={{ scrollbarWidth: 'none' }}
+      style={{ overflow: 'hidden' }}
     >
-      <ChatHistoryHeading />
-      <section id="remix-ai-chat-history" className="d-flex flex-column p-2 overflow-x-hidden" style={{ flex: 1 }} ref={chatHistoryRef}>
-        <div data-id="remix-ai-assistant-ready"></div>
-        {/* hidden hook for E2E tests: data-streaming="true|false" */}
-        <div
-          data-id="remix-ai-streaming"
-          className='d-none'
-          data-streaming={isStreaming ? 'true' : 'false'}
-        ></div>
-        <ChatHistoryComponent
-          messages={messages}
-          isStreaming={isStreaming}
-          sendPrompt={sendPrompt}
-          recordFeedback={recordFeedback}
-          historyRef={historyRef}
-          theme={themeTracker?.name}
-        />
-      </section>
-      <section id="remix-ai-prompt-area" className="mt-1" style={{ minHeight: '140px', maxHeight: '180px' }}
+      {/* Main content area with sidebar and chat */}
+      <div className="d-flex flex-row flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
+        {/* Chat History Sidebar - floating when maximized */}
+        {props.showHistorySidebar && props.conversations && props.isMaximized && (
+          <ChatHistorySidebar
+            conversations={props.conversations}
+            currentConversationId={props.currentConversationId || null}
+            showArchived={showArchivedConversations}
+            onNewConversation={props.onNewConversation || (() => {})}
+            onLoadConversation={props.onLoadConversation || (() => {})}
+            onArchiveConversation={props.onArchiveConversation || (() => {})}
+            onDeleteConversation={props.onDeleteConversation || (() => {})}
+            onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
+            onClose={props.onToggleHistorySidebar || (() => {})}
+            isFloating={true}
+          />
+        )}
+
+        {/* Inline sidebar replacement when not maximized */}
+        {props.showHistorySidebar && props.conversations && !props.isMaximized ? (
+          <div className="d-flex flex-column flex-grow-1 ai-assistant-bg" style={{ overflow: 'hidden', minHeight: 0 }}>
+            {/* Back button header */}
+            <div className="p-2 border-bottom">
+              <button
+                className="chat-history-back-btn"
+                onClick={props.onToggleHistorySidebar || (() => {})}
+                data-id="chat-history-back-btn"
+              >
+                <i className="fas fa-arrow-left"></i>
+                <span>Back to chat</span>
+              </button>
+            </div>
+            {/* Chat history content */}
+            <div className="flex-grow-1" style={{ overflow: 'hidden' }}>
+              <ChatHistorySidebar
+                conversations={props.conversations}
+                currentConversationId={props.currentConversationId || null}
+                showArchived={showArchivedConversations}
+                onNewConversation={props.onNewConversation || (() => {})}
+                onLoadConversation={(id) => {
+                  props.onLoadConversation?.(id)
+                  // Close sidebar after loading conversation in non-maximized mode
+                  props.onToggleHistorySidebar?.()
+                }}
+                onArchiveConversation={props.onArchiveConversation || (() => {})}
+                onDeleteConversation={props.onDeleteConversation || (() => {})}
+                onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
+                onClose={props.onToggleHistorySidebar || (() => {})}
+                isFloating={false}
+              />
+            </div>
+          </div>
+        ) : (
+          /* Main chat area - only show when sidebar is not open in non-maximized mode */
+          <div className="d-flex flex-column flex-grow-1 ai-assistant-bg" style={{ overflow: 'hidden', minHeight: 0 }}>
+            <ChatHistoryHeading
+              onNewChat={props.onNewConversation || (() => {})}
+              onToggleHistory={props.onToggleHistorySidebar || (() => {})}
+              showHistorySidebar={props.showHistorySidebar || false}
+            />
+            <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
+              <div data-id="remix-ai-assistant-ready"></div>
+              {/* hidden hook for E2E tests: data-streaming="true|false" */}
+              <div
+                data-id="remix-ai-streaming"
+                className='d-none'
+                data-streaming={isStreaming ? 'true' : 'false'}
+              ></div>
+              <ChatHistoryComponent
+                messages={messages}
+                isStreaming={isStreaming}
+                sendPrompt={sendPrompt}
+                recordFeedback={recordFeedback}
+                historyRef={historyRef}
+                theme={themeTracker?.name}
+              />
+            </section>
+          </div>
+        )}
+      </div>
+
+      {/* Prompt area - fixed at bottom */}
+      <section id="remix-ai-prompt-area" className="border-top" style={{ flexShrink: 0, minHeight: '140px' }}
       >
         {showAssistantOptions && (
           <div
@@ -973,8 +1054,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           modelBtnRef={modelBtnRef}
           modelSelectorBtnRef={modelSelectorBtnRef}
           textareaRef={textareaRef}
-          isMaximized={isMaximized}
-          setIsMaximized={setIsMaximized}
+          isMaximized={props.isMaximized || false}
           themeTracker={themeTracker}
         />
       </section>
