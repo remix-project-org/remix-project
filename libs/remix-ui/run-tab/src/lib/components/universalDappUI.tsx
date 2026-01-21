@@ -36,17 +36,27 @@ const AIRequestForm = ({
   // Figma Mode State
   const [figmaUrl, setFigmaUrl] = useState("");
   const [figmaToken, setFigmaToken] = useState("");
+  const [isTokenLocked, setIsTokenLocked] = useState(false);
 
   // Load Token from LocalStorage
   useEffect(() => {
     const storedToken = localStorage.getItem('quickdapp-figma-token');
-    if (storedToken) setFigmaToken(storedToken);
+    if (storedToken) {
+      setFigmaToken(storedToken);
+      setIsTokenLocked(true);
+    }
   }, []);
 
   // Save Token to LocalStorage on change
   const handleTokenChange = (val: string) => {
     setFigmaToken(val);
     localStorage.setItem('quickdapp-figma-token', val);
+  };
+
+  const handleDeleteToken = () => {
+    setFigmaToken("");
+    localStorage.removeItem('quickdapp-figma-token');
+    setIsTokenLocked(false);
   };
 
   // Expose values to parent
@@ -193,7 +203,7 @@ const AIRequestForm = ({
         <div className="fade-in">
           <div className="alert alert-info py-2 small">
             <i className="fas fa-info-circle me-1"></i>
-            Paste a link to a specific Figma Frame or Node.
+            Paste a link to a specific Figma layer
           </div>
 
           <div className="mb-3">
@@ -212,13 +222,47 @@ const AIRequestForm = ({
 
           <div className="mb-3">
             <label className="form-label small fw-bold">Personal Access Token</label>
-            <input 
-              type="password" 
-              className="form-control"
-              placeholder="figd_..."
-              value={figmaToken}
-              onChange={(e) => handleTokenChange(e.target.value)}
-            />
+            <div className="input-group">
+              <input 
+                type="password" 
+                className="form-control"
+                placeholder="figd_..."
+                value={figmaToken}
+                onChange={(e) => handleTokenChange(e.target.value)}
+                disabled={isTokenLocked}
+              />
+              {isTokenLocked && figmaToken ? (
+                <>
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    type="button" 
+                    onClick={() => setIsTokenLocked(false)}
+                    title="Edit Token"
+                  >
+                    <i className="fas fa-pen"></i>
+                  </button>
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    type="button" 
+                    onClick={handleDeleteToken}
+                    title="Delete Token"
+                  >
+                    <i className="fas fa-trash"></i>
+                  </button>
+                </>
+              ) : (
+                figmaToken && (
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    type="button" 
+                    onClick={() => setIsTokenLocked(true)}
+                    title="Save & Lock"
+                  >
+                    <i className="fas fa-check"></i>
+                  </button>
+                )
+              )}
+            </div>
             <div className="form-text text-muted" style={{fontSize: '0.75rem'}}>
               Saved locally in your browser.
             </div>

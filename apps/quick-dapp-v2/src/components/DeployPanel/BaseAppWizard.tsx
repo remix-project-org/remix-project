@@ -43,6 +43,7 @@ const BaseAppWizard: React.FC = () => {
   const [baseFlowLoading, setBaseFlowLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalContent, setSuccessModalContent] = useState({ title: '', body: '' });
+  const [showResetWarning, setShowResetWarning] = useState(false);
 
   useEffect(() => {
     if (activeDapp?.config?.isBaseMiniApp) {
@@ -62,6 +63,8 @@ const BaseAppWizard: React.FC = () => {
       }
     }
   }, [activeDapp?.id]);
+
+  const isAppLive = savedWizardState.currentStep >= 5;
 
   const savePersistentState = async (updates: Partial<BaseAppWizardState>) => {
     const newState = { ...savedWizardState, ...updates };
@@ -419,6 +422,18 @@ const BaseAppWizard: React.FC = () => {
     </div>
   );
 
+  const confirmDomainReset = async () => {
+    await savePersistentState({
+      verificationJson: '',
+      currentStep: 2,
+    });
+    
+    setViewStep(2);
+    
+    setShowResetWarning(false);
+    
+  };
+
   const ensUrl = `https://${savedWizardState.ensName}.remixdapp.eth.limo`;
   const latestCid = savedWizardState.history[0]?.cid || activeDapp?.deployment?.ipfsCid;
   const ipfsUrl = latestCid ? `https://ipfs.io/ipfs/${latestCid}` : '';
@@ -435,6 +450,45 @@ const BaseAppWizard: React.FC = () => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="success" onClick={() => setShowSuccessModal(false)}>Close</Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal 
+        show={showResetWarning} 
+        onHide={() => setShowResetWarning(false)} 
+        centered
+        backdrop="static"
+        keyboard={false}
+      >
+        <Modal.Header closeButton className="bg-warning text-dark">
+          <Modal.Title>
+            <i className="fas fa-exclamation-triangle me-2"></i>
+            Change Domain Name?
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="fw-bold text-danger">
+            Changing the domain will break your current Base App verification.
+          </p>
+          <div className="alert alert-secondary small">
+            If you proceed:
+            <ul className="mb-0 ps-3">
+              <li>The existing <strong>JSON signature</strong> will be deleted.</li>
+              <li>You must <strong>re-deploy</strong> the app.</li>
+              <li>You must <strong>re-verify</strong> ownership on the Base Portal.</li>
+            </ul>
+          </div>
+          <p className="mb-0">Do you really want to reset and change the domain?</p>
+        </Modal.Body>
+        <Modal.Footer>
+          {/* 취소 버튼 */}
+          <Button variant="secondary" onClick={() => setShowResetWarning(false)}>
+            Cancel
+          </Button>
+          {/* 확정 버튼 (빨간색으로 위험 강조) */}
+          <Button variant="danger" onClick={confirmDomainReset}>
+            Yes, Reset & Change
+          </Button>
         </Modal.Footer>
       </Modal>
 
@@ -499,12 +553,25 @@ const BaseAppWizard: React.FC = () => {
         <Card className="mb-3 border-primary">
           <Card.Header className="bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
             <span><i className="fas fa-rocket me-2"></i>Setup Wizard</span>
-            {(viewStep > 1 || savedWizardState.currentStep >= 5) && (
-              <Button variant="link" className="text-white p-0 text-decoration-none small" 
-                onClick={() => navigateToStep(1)}>
-                Restart
-              </Button>
-            )}
+            <div className="d-flex gap-2 align-items-center">
+              {isAppLive && (
+                <Button 
+                  variant="link" 
+                  className="text-white p-0 text-decoration-none small border border-white px-2 rounded" 
+                  style={{fontSize: '0.8rem', opacity: 0.9}}
+                  onClick={() => navigateToStep(5)}
+                  title="Cancel editing and return to dashboard"
+                >
+                  <i className="fas fa-times me-1"></i> Close
+                </Button>
+              )}
+              {(!isAppLive && viewStep > 1) && (
+                <Button variant="link" className="text-white p-0 text-decoration-none small" 
+                  onClick={() => navigateToStep(1)}>
+                  Restart
+                </Button>
+              )}
+            </div>
           </Card.Header>
           <Card.Body>
             <div className="d-flex justify-content-between mb-4 position-relative px-3">
@@ -571,9 +638,25 @@ const BaseAppWizard: React.FC = () => {
                       placeholder="myapp" 
                       value={savedWizardState.ensName} 
                       onChange={e => handleInputChange('ensName', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
+                      disabled={savedWizardState.currentStep >= 5}
                     />
                     <InputGroup.Text>.remixdapp.eth</InputGroup.Text>
+                    {savedWizardState.currentStep >= 5 && (
+                      <Button 
+                        variant="warning" 
+                        onClick={() => setShowResetWarning(true)}
+                        title="Change Domain"
+                      >
+                        <i className="fas fa-pen me-1"></i> Change
+                      </Button>
+                    )}
                   </InputGroup>
+                  {savedWizardState.currentStep >= 5 && (
+                    <div className="form-text text-warning">
+                      <i className="fas fa-lock me-1"></i>
+                      Domain is locked. Click <strong>Change</strong> to reset and verify a new domain.
+                    </div>
+                  )}
                 </Form.Group>
 
                 <div className="d-flex gap-2">
