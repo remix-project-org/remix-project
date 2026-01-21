@@ -134,7 +134,15 @@ export class VerticalIcons extends Plugin {
     if (!isActive) {
       await this.call('manager', 'activatePlugin', name)
     }
-    this.select(name)
+
+    // Check if the plugin is pinned on the right side panel
+    if (this.icons[name] && this.icons[name].pinned) {
+      // Show the plugin on the right side panel
+      await this.call('rightSidePanel', 'highlight')
+    } else {
+      // Show the plugin on the left side panel
+      this.select(name)
+    }
   }
 
   /**
