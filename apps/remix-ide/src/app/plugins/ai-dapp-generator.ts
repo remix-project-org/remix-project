@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { INITIAL_SYSTEM_PROMPT, FOLLOW_UP_SYSTEM_PROMPT, BASE_MINI_APP_SYSTEM_PROMPT,  } from './prompt'
+import { INITIAL_SYSTEM_PROMPT, FOLLOW_UP_SYSTEM_PROMPT, BASE_MINI_APP_SYSTEM_PROMPT, } from './prompt'
 
 const profile = {
   name: 'ai-dapp-generator',
@@ -61,7 +61,7 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async processFigmaGeneration(options: GenerateDappOptions & { slug: string }) {
-    
+
     await this.call('notification', 'toast', 'Analyzing Figma Design... (This may take time)')
     this.emit('generationProgress', { status: 'started', address: options.address })
 
@@ -77,7 +77,7 @@ export class AIDappGenerator extends Plugin {
     try {
       const startTime = Date.now();
 
-      // const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate"; 
+      // const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate";
       const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
 
       const htmlContent = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
@@ -91,14 +91,14 @@ export class AIDappGenerator extends Plugin {
       const duration = (Date.now() - startTime) / 1000;
 
       const pages = parsePages(htmlContent);
-      
+
       const pageKeys = Object.keys(pages);
 
       if (pageKeys.length === 0) {
         console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed!');
 
         if (!htmlContent) console.error('[DEBUG-AI] htmlContent is EMPTY.');
-        
+
         throw new Error("AI failed to return valid file structure from Figma design.");
       }
 
@@ -106,9 +106,9 @@ export class AIDappGenerator extends Plugin {
         throw new Error("AI failed to return valid file structure from Figma design.");
       }
 
-      context.messages.push({ 
-        role: 'user', 
-        content: `Generated from Figma: ${options.figmaUrl}\nInstructions: ${options.description}` 
+      context.messages.push({
+        role: 'user',
+        content: `Generated from Figma: ${options.figmaUrl}\nInstructions: ${options.description}`
       });
       context.messages.push({ role: 'assistant', content: htmlContent });
       this.saveContext(options.address, context);
@@ -159,7 +159,7 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async processGeneration(options: GenerateDappOptions & { slug: string }) {
-    
+
     try {
       const hasImage = !!options.image;
 
@@ -186,7 +186,7 @@ export class AIDappGenerator extends Plugin {
 
       if (pageKeys.length === 0) {
         console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
-        
+
         throw new Error("AI generated empty content. Please try again.");
       }
 
@@ -264,7 +264,7 @@ export class AIDappGenerator extends Plugin {
       context.messages.pop();
       console.error('[DEBUG-AI] Update failed:', error);
       this.call('terminal', 'log', { type: 'error', value: `Update failed: ${error.message}` });
-      
+
       this.emit('dappGenerationError', {
         address,
         slug,

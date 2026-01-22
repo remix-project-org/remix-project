@@ -50,10 +50,10 @@ export class RemixClient extends PluginClient {
 
           } else {
             const updatedConfig = await this.dappManager.updateDappConfig(data.slug, { status: 'created' });
-            
+
             if (updatedConfig) {
               this.internalEvents.emit('dappCreated', updatedConfig);
-        
+
               // @ts-ignore
               this.call('notification', 'toast', `DApp '${updatedConfig.name}' created!`);
             }
@@ -70,7 +70,7 @@ export class RemixClient extends PluginClient {
       // @ts-ignore
       this.on('ai-dapp-generator', 'dappGenerationError', (data: any) => {
         console.error('[DEBUG-CLIENT] Error received from plugin:', data);
-        
+
         this.internalEvents.emit('creatingDappError', data);
         // @ts-ignore
         this.call('notification', 'toast', `Generation Failed: ${data.error}`);
@@ -118,8 +118,8 @@ export class RemixClient extends PluginClient {
         payload.isBaseMiniApp
       );
 
-      this.internalEvents.emit('creatingDappStart', { 
-        slug: newDappConfig.slug, 
+      this.internalEvents.emit('creatingDappStart', {
+        slug: newDappConfig.slug,
         dappConfig: newDappConfig
       });
 
@@ -149,17 +149,17 @@ export class RemixClient extends PluginClient {
   }
 
   async updateDapp(
-    slug: string, 
-    address: string, 
-    prompt: string | any[], 
-    files: any, 
+    slug: string,
+    address: string,
+    prompt: string | any[],
+    files: any,
     image: string | null
   ) {
     try {
       this.internalEvents.emit('dappUpdateStart', { slug });
 
       // @ts-ignore
-      await this.call('ai-dapp-generator', 'updateDapp', 
+      await this.call('ai-dapp-generator', 'updateDapp',
         address,
         prompt,
         files,
