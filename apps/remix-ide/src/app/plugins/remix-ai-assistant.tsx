@@ -112,7 +112,25 @@ export class RemixAIAssistant extends ViewPlugin {
     if (!this.storageManager) return
 
     try {
-      this.conversations = await this.storageManager.getConversations(false)
+      // Load ALL conversations (both archived and non-archived)
+      // The sidebar will filter them based on showArchived toggle
+      const allConversations = await this.storageManager.getConversations()
+
+      // Filter out empty "New Conversation" sessions, keeping only one
+      const emptyNewConversations = allConversations.filter(
+        conv => conv.title === 'New Conversation' && conv.messageCount === 0
+      )
+      const otherConversations = allConversations.filter(
+        conv => !(conv.title === 'New Conversation' && conv.messageCount === 0)
+      )
+
+      // Keep only the most recent empty "New Conversation"
+      const filteredConversations = [
+        ...otherConversations,
+        ...(emptyNewConversations.length > 0 ? [emptyNewConversations[0]] : [])
+      ]
+
+      this.conversations = filteredConversations
       this.renderComponent()
     } catch (error) {
       console.error('Failed to load conversations:', error)
@@ -158,6 +176,7 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async archiveConversation(id: string) {
+    console.log('archive from chathistory topbar')
     if (!this.storageManager) return
 
     try {
@@ -286,7 +305,6 @@ export class RemixAIAssistant extends ViewPlugin {
       <div id="remix-ai-assistant"
         data-id="remix-ai-assistant"
         className="ai-assistant-bg"
-        style={{ backgroundColor: 'blue' }}
       >
         <PluginViewWrapper plugin={this} />
       </div>

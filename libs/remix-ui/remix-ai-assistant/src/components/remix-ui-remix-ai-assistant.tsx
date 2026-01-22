@@ -947,6 +947,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               onNewChat={props.onNewConversation || (() => {})}
               onToggleHistory={props.onToggleHistorySidebar || (() => {})}
               showHistorySidebar={props.showHistorySidebar || false}
+              archiveChat={props.onArchiveConversation || (() => {})}
+              currentConversationId={props.currentConversationId}
             />
             <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
               <div data-id="remix-ai-assistant-ready"></div>

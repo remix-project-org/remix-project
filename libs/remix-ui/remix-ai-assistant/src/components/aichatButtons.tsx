@@ -1,6 +1,10 @@
 import React from 'react'
 
-export function AiChatButtons() {
+interface AiChatButtonsProps {
+  theme: string
+}
+
+export function AiChatButtons({ theme }: AiChatButtonsProps) {
   const btnList: {
     label: string,
     icon: string,
@@ -8,38 +12,38 @@ export function AiChatButtons() {
     action: () => void
   }[] = [
     {
-      label: 'Files',
-      icon: 'far fa-copy',
+      label: 'File',
+      icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} far fa-copy`,
       color: 'green',
       action: () => {}
     },
     {
       label: 'Learn',
-      icon: 'fas fa-brain',
+      icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-brain`,
       color: '',
       action: () => {}
     },
     {
       label: 'Plan a project',
-      icon: 'fas fa-list',
+      icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-list`,
       color: '',
       action: () => {}
     },
     {
       label: 'New workspace',
-      icon: 'fas fa-plus',
+      icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-plus`,
       color: '',
       action: () => {}
     },
     {
       label: 'Deploy',
-      icon: 'fakit fa-remixdeploy',
+      icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fakit fa-remixdeploy`,
       color: '',
       action: () => {}
     },
     {
       label: 'Generate dapp',
-      icon: 'fas fa-jet-fighter',
+      icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-jet-fighter`,
       color: '',
       action: () => {}
     }
@@ -52,7 +56,7 @@ export function AiChatButtons() {
           <button
             key={`${starter.label}-${index}`}
             data-id={`remix-ai-assistant-starter-${starter.label}-${index}`}
-            className="btn btn-remix-dark mb-2 rounded-4 text-nowrap gap-2"
+            className={`${theme === 'Dark' ? 'btn btn-remix-dark' : 'btn btn-remix-light'} mb-2 border rounded-4 text-nowrap gap-2`}
             onClick={() => {}}
           >
             <i className={`${starter.icon} me-1`}></i>
@@ -65,7 +69,7 @@ export function AiChatButtons() {
           <button
             key={`${starter.label}-${index}`}
             data-id={`remix-ai-assistant-starter-${starter.label}-${index}`}
-            className="btn btn-remix-dark mb-2 rounded-4 text-nowrap ms-1 w-100 text-start"
+            className={`${theme === 'Dark' ? 'btn btn-remix-dark' : 'btn btn-remix-light'} mb-2 border rounded-4 text-nowrap gap-2`}
             onClick={() => {}}
           >
             <i className={`${starter.icon} me-1`}></i>

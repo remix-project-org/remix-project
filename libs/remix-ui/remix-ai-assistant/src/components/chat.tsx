@@ -28,9 +28,10 @@ export interface ChatHistoryComponentProps {
 
 interface AiChatIntroProps {
   sendPrompt: (prompt: string) => void
+  theme: string
 }
 
-const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
+const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme }) => {
   const [conversationStarters, setConversationStarters] = useState<ConversationStarter[]>([])
 
   useEffect(() => {
@@ -64,7 +65,7 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
           </button>
         ))}
       </div> */}
-      <AiChatButtons />
+      <AiChatButtons theme={theme} />
     </div>
   )
 }
@@ -83,7 +84,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       className="d-flex flex-column overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
     >
       {messages.length === 0 ? (
-        <AiChatIntro sendPrompt={sendPrompt} />
+        <AiChatIntro sendPrompt={sendPrompt} theme={theme} />
       ) : (
         messages.map(msg => {
           const bubbleClass =

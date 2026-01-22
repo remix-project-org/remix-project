@@ -186,7 +186,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
           <i className="fas fa-search search-icon"></i>
           <input
             type="text"
-            className="form-control search-input"
+            className="form-control search-input ps-4 border"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -236,7 +236,13 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
               key={conv.id}
               conversation={conv}
               active={conv.id === currentConversationId}
-              onClick={() => onLoadConversation(conv.id)}
+              onClick={() => {
+                // Automatically unarchive if the conversation is archived
+                if (conv.archived) {
+                  onArchiveConversation(conv.id)
+                }
+                onLoadConversation(conv.id)
+              }}
               onArchive={(e) => {
                 e.stopPropagation()
                 onArchiveConversation(conv.id)

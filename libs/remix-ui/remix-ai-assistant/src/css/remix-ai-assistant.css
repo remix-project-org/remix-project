@@ -946,7 +946,7 @@ body.dark .sidebar-close-btn:hover {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--bs-secondary);
+  color: var(--bs-text);
   z-index: 1;
 }
 
@@ -956,9 +956,9 @@ body.dark .search-icon {
 }
 
 .search-input {
-  padding-left: 2.5rem;
-  background-color: var(--bs-tertiary-bg);
-  border: 1px solid var(--bs-border-color);
+  /* padding-left: 2.5rem; */
+  /* background-color: var(--bs-tertiary-bg); */
+  /* border: 1px solid var(--bs-border-color); */
   border-radius: 6px;
 }
 
@@ -1166,4 +1166,30 @@ body.dark .conversation-menu-item:hover {
 
 .conversation-menu-item-danger:hover {
   background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.text-remix-ai {
+  color: #2de7f3 !important;
+}
+
+.text-remix-ai-light {
+  color: #1ea2aa !important;
+}
+
+.prompt-stop-button {
+  position: absolute;
+  right: 8px;
+  top: 35%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bs-danger);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }

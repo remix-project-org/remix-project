@@ -5,12 +5,16 @@ interface ChatHistoryHeadingProps {
   onNewChat: () => void
   onToggleHistory: () => void
   showHistorySidebar: boolean
+  archiveChat: (id: string) => void
+  currentConversationId?: string | null
 }
 
 export default function ChatHistoryHeading({
   onNewChat,
   onToggleHistory,
-  showHistorySidebar
+  showHistorySidebar,
+  archiveChat,
+  currentConversationId
 }: ChatHistoryHeadingProps) {
 
   return (
@@ -42,6 +46,23 @@ export default function ChatHistoryHeading({
             data-id="toggle-history-btn"
           >
             <i className="fas fa-clock-rotate-left"></i>
+          </button>
+        </CustomTooltip>
+        <CustomTooltip
+          tooltipText={'Archive your current chat'}
+          placement="bottom-start"
+        >
+          <button
+            className={`btn btn-sm ${showHistorySidebar ? 'btn-primary' : 'btn-link'}`}
+            onClick={() => {
+              if (currentConversationId) {
+                archiveChat(currentConversationId)
+              }
+            }}
+            disabled={!currentConversationId}
+            data-id="archive-chat-btn"
+          >
+            <i className="far fa-box-archive"></i>
           </button>
         </CustomTooltip>
       </div>
