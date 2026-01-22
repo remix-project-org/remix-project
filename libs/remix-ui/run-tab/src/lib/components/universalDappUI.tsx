@@ -651,8 +651,6 @@ export function UniversalDappUI(props: UdappProps) {
                           return
                         }
 
-                        console.log('[UniversalDappUI] Generating with Image:', descriptionObj.image ? 'Yes' : 'No');
-
                         isGenerating.current = true
 
                         await props.plugin.call('ai-dapp-generator', 'resetDapp', address)

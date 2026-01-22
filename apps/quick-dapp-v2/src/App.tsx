@@ -37,7 +37,6 @@ function App(): JSX.Element {
   }, [appState]);
 
   useEffect(() => {
-    console.log('[DEBUG-APP] Initializing App...');
     initDispatch(dispatch);
     
     const initApp = async () => {
@@ -45,20 +44,12 @@ function App(): JSX.Element {
       
       try {
         await connectRemix();
-        console.log('[DEBUG-APP] Remix Connected');
-        
         // @ts-ignore
         remixClient.call('locale', 'currentLocale').then((l: any) => setLocale(l));
         // @ts-ignore
         remixClient.on('locale', 'localeChanged', (l: any) => setLocale(l));
-
-        // @ts-ignore
-        remixClient.on('ai-dapp-generator', 'generationProgress', (progress: any) => {
-          console.log('[DEBUG-APP] Generation Progress (Ignored for global loading):', progress);
-        });
         
         const dapps = (await dappManager.getDapps()) || [];
-        console.log('[DEBUG-APP] Loaded Dapps:', dapps.length);
         dispatch({ type: 'SET_DAPPS', payload: dapps });
 
         const validDapps = dapps.filter((d: any) => d.config?.status !== 'draft');
@@ -83,11 +74,7 @@ function App(): JSX.Element {
   }, [dappManager, dispatch]); 
 
   useEffect(() => {
-    console.log('[DEBUG-APP] Registering Event Listeners...');
-
     const onCreatingStart = async (data: any) => {
-      console.log('[DEBUG-APP] Event: creatingDappStart', data);
-  
       dispatch({ type: 'SET_AI_LOADING', payload: false });
 
       if (data.dappConfig) {
@@ -106,7 +93,6 @@ function App(): JSX.Element {
     };
 
     const onDappUpdateStart = (data: any) => {
-      console.log('[DEBUG-APP] Event: dappUpdateStart', data.slug);
       if (data && data.slug) {
         dispatch({ 
           type: 'SET_DAPP_PROCESSING', 
@@ -116,8 +102,6 @@ function App(): JSX.Element {
     };
 
     const onDappCreated = async (newDappConfig: any) => {
-      console.log(`[DEBUG-APP] Event: dappCreated for ${newDappConfig.slug}`);
-      
       const updatedDappsList = dappsRef.current.map((d: any) => 
         d.slug === newDappConfig.slug ? newDappConfig : d
       );
@@ -135,8 +119,6 @@ function App(): JSX.Element {
       });
       
       dispatch({ type: 'SET_AI_LOADING', payload: false });
-      
-      console.log('[DEBUG-APP] Dapp created. List updated in memory.');
     };
     
     const onCreatingError = (errorData?: any) => {
@@ -146,7 +128,6 @@ function App(): JSX.Element {
       const targetSlug = errorData?.slug || activeDappRef.current?.slug;
 
       if (targetSlug) {
-        console.log(`[DEBUG-APP] Turning off processing for specific slug: ${targetSlug}`);
         dispatch({ 
           type: 'SET_DAPP_PROCESSING', 
           payload: { slug: targetSlug, isProcessing: false } 
@@ -157,12 +138,9 @@ function App(): JSX.Element {
     };
 
     const onDappUpdated = (data: any) => {
-      console.log('[DEBUG-APP] Event: dappUpdated', data.slug);
-      
       dispatch({ type: 'SET_AI_LOADING', payload: false });
 
       if (data.slug) {
-        console.log('[DEBUG-APP] Finishing update process for:', data.slug);
         dispatch({ 
           type: 'SET_DAPP_PROCESSING', 
           payload: { slug: data.slug, isProcessing: false } 
@@ -176,7 +154,6 @@ function App(): JSX.Element {
     remixClient.internalEvents.on('dappUpdated', onDappUpdated);
     remixClient.internalEvents.on('dappUpdateStart', onDappUpdateStart);
     return () => {
-      console.log('[DEBUG-APP] Cleaning up Event Listeners');
       remixClient.internalEvents.off('creatingDappStart', onCreatingStart);
       remixClient.internalEvents.off('dappCreated', onDappCreated);
       remixClient.internalEvents.off('creatingDappError', onCreatingError);

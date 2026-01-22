@@ -28,21 +28,17 @@ export class RemixClient extends PluginClient {
     createClient(this);
     // @ts-ignore
     this.dappManager = new DappManager(this);
-    console.log('[DEBUG-CLIENT] Constructor initialized.');
 
     this.onload(() => {
       // @ts-ignore
       this.on('ai-dapp-generator', 'dappGenerated', async (data: any) => {
-        console.log('[DEBUG-CLIENT] Event received:', data);
 
         if (!data.slug || !data.content) return;
 
         try {
-          console.log(`[DEBUG-CLIENT] Saving files for ${data.slug}...`);
           await this.dappManager.saveGeneratedFiles(data.slug, data.content);
 
           if (data.isUpdate) {
-            console.log('[DEBUG-CLIENT] Update finished. Emitting dappUpdated...');
 
             this.internalEvents.emit('dappUpdated', {
               slug: data.slug,
@@ -53,8 +49,6 @@ export class RemixClient extends PluginClient {
             this.call('notification', 'toast', 'DApp code updated successfully.');
 
           } else {
-            console.log(`[DEBUG-CLIENT] Generation complete for ${data.slug}. Updating status to 'created'.`);
-            
             const updatedConfig = await this.dappManager.updateDappConfig(data.slug, { status: 'created' });
             
             if (updatedConfig) {
@@ -109,8 +103,6 @@ export class RemixClient extends PluginClient {
 
   async createDapp(payload: any) {
     try {
-      console.log('[DEBUG-CLIENT] createDapp called with:', payload.contractName);
-
       const networkName = getNetworkName(payload.chainId);
       const contractData = {
         address: payload.address,
@@ -120,15 +112,11 @@ export class RemixClient extends PluginClient {
         networkName
       };
 
-      console.log('[DEBUG-CLIENT] Creating initial Dapp config (draft)...');
-
       const newDappConfig = await this.dappManager.createDapp(
         payload.contractName,
         contractData,
         payload.isBaseMiniApp
       );
-
-      console.log(`[DEBUG-CLIENT] Initial config created. Slug: ${newDappConfig.slug}`);
 
       this.internalEvents.emit('creatingDappStart', { 
         slug: newDappConfig.slug, 
@@ -147,15 +135,11 @@ export class RemixClient extends PluginClient {
         slug: newDappConfig.slug,
         figmaUrl: payload.figmaUrl,
         figmaToken: payload.figmaToken
-      }).then(() => {
-        console.log('[DEBUG-CLIENT] AI Trigger sent successfully (Ack received).');
       }).catch((e: any) => {
         console.error('[DEBUG-CLIENT] ❌ AI Trigger Failed:', e);
         this.internalEvents.emit('creatingDappError', "Failed to trigger AI generation");
         this.emit('statusChanged', { key: 'loading', value: false, title: '' });
       });
-
-      console.log('[DEBUG-CLIENT] createDapp finished (waiting for event).');
 
     } catch (e: any) {
       console.error('[DEBUG-CLIENT] ❌ createDapp Exception:', e);
@@ -172,8 +156,6 @@ export class RemixClient extends PluginClient {
     image: string | null
   ) {
     try {
-      console.log('[DEBUG-CLIENT] updateDapp called:', slug);
-      
       this.internalEvents.emit('dappUpdateStart', { slug });
 
       // @ts-ignore

@@ -180,7 +180,6 @@ const BaseAppWizard: React.FC = () => {
 
       let indexHtmlContent = filesMap.get('/index.html') || '';
       
-      // Inject Runtime Config
       let logoDataUrl = '';
       if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
         logoDataUrl = logo;
@@ -200,13 +199,13 @@ const BaseAppWizard: React.FC = () => {
       formData.append('files', htmlBlob, 'index.html');
 
       try {
-          const manifestPath = `dapps/${activeDapp.slug}/.well-known/farcaster.json`;
-          // @ts-ignore
-          const manifestContent = await remixClient.call('fileManager', 'readFile', manifestPath);
-          if (manifestContent) {
-            const manifestBlob = new Blob([manifestContent], { type: 'application/json' });
-            formData.append('files', manifestBlob, '.well-known:::farcaster.json');
-          }
+        const manifestPath = `dapps/${activeDapp.slug}/.well-known/farcaster.json`;
+        // @ts-ignore
+        const manifestContent = await remixClient.call('fileManager', 'readFile', manifestPath);
+        if (manifestContent) {
+          const manifestBlob = new Blob([manifestContent], { type: 'application/json' });
+          formData.append('files', manifestBlob, '.well-known:::farcaster.json');
+        }
       } catch (e) {}
 
       const response = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: formData });
@@ -272,7 +271,7 @@ const BaseAppWizard: React.FC = () => {
         throw new Error(errData.error || 'ENS Registration failed');
       }
       
-      const resData = await response.json(); // txHash
+      const resData = await response.json();
 
       if (dappManager) {
         const fullDomain = `${savedWizardState.ensName}.remixdapp.eth`;
@@ -320,9 +319,9 @@ const BaseAppWizard: React.FC = () => {
 
   const handleManifestUpdate = async () => {
     if (!savedWizardState.verificationJson) {
-        // @ts-ignore
-        await remixClient.call('notification', 'toast', "Please paste the JSON signature.");
-        return;
+      // @ts-ignore
+      await remixClient.call('notification', 'toast', "Please paste the JSON signature.");
+      return;
     }
     try {
       setBaseFlowLoading(true);
@@ -354,7 +353,6 @@ const BaseAppWizard: React.FC = () => {
       const content = await remixClient.call('fileManager', 'readFile', manifestPath);
       const manifest = content ? JSON.parse(content) : {};
       
-      // Update Manifest fields
       manifest.accountAssociation = associationData;
       const limoUrl = `https://${savedWizardState.ensName}.remixdapp.eth.limo`;
       
@@ -440,7 +438,6 @@ const BaseAppWizard: React.FC = () => {
 
   return (
     <div className="base-wizard-container">
-      {/* Success Modal */}
       <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered>
         <Modal.Header closeButton className="bg-success text-white">
           <Modal.Title>{successModalContent.title}</Modal.Title>
@@ -481,11 +478,9 @@ const BaseAppWizard: React.FC = () => {
           <p className="mb-0">Do you really want to reset and change the domain?</p>
         </Modal.Body>
         <Modal.Footer>
-          {/* 취소 버튼 */}
           <Button variant="secondary" onClick={() => setShowResetWarning(false)}>
             Cancel
           </Button>
-          {/* 확정 버튼 (빨간색으로 위험 강조) */}
           <Button variant="danger" onClick={confirmDomainReset}>
             Yes, Reset & Change
           </Button>
@@ -596,7 +591,6 @@ const BaseAppWizard: React.FC = () => {
             </div>
 
             <div className="wizard-content">
-              {/* STEP 1: CONFIG */}
               {viewStep === 1 && (
               <div className="fade-in">
                 <h6 className="fw-bold mb-2">Step 1: App Registration</h6>
@@ -622,7 +616,6 @@ const BaseAppWizard: React.FC = () => {
               </div>
               )}
                 
-              {/* STEP 2: DEPLOY & ENS */}
               {viewStep === 2 && (
               <div className="fade-in">
                 <h6 className="fw-bold mb-2">Step 2: Deployment & ENS</h6>
@@ -668,7 +661,6 @@ const BaseAppWizard: React.FC = () => {
               </div>
               )}
 
-              {/* STEP 3: VERIFICATION */}
               {viewStep === 3 && (
               <div className="fade-in">
                 <h6 className="fw-bold mb-2">Step 3: Verification & Association</h6>
@@ -732,7 +724,6 @@ const BaseAppWizard: React.FC = () => {
               </div>
               )}
 
-              {/* STEP 4: FINALIZE */}
               {viewStep === 4 && (
               <div className="fade-in">
                 <h6 className="fw-bold mb-2">Step 4: Finalize</h6>

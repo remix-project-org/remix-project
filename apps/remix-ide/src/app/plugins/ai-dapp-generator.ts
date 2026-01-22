@@ -44,7 +44,6 @@ export class AIDappGenerator extends Plugin {
    * Generate a new DApp or update an existing one
    */
   async generateDapp(options: GenerateDappOptions & { slug: string }): Promise<void> {
-    console.log('[DEBUG-AI] generateDapp called via RPC.');
 
     if (options.figmaUrl && options.figmaToken) {
       this.processFigmaGeneration(options).catch(err => {
@@ -58,12 +57,10 @@ export class AIDappGenerator extends Plugin {
       });
     }
 
-    console.log('[DEBUG-AI] Returning immediate success to prevent timeout.');
     return;
   }
 
   private async processFigmaGeneration(options: GenerateDappOptions & { slug: string }) {
-    console.log(`[DEBUG-AI] Starting Figma Generation for slug: ${options.slug}`);
     
     await this.call('notification', 'toast', 'Analyzing Figma Design... (This may take time)')
     this.emit('generationProgress', { status: 'started', address: options.address })
@@ -79,10 +76,9 @@ export class AIDappGenerator extends Plugin {
 
     try {
       const startTime = Date.now();
-      console.log('[DEBUG-AI] Calling Figma Generator API...');
 
-      const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate"; 
-      // const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
+      // const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate"; 
+      const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
 
       const htmlContent = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
         figmaToken: options.figmaToken,
@@ -93,7 +89,6 @@ export class AIDappGenerator extends Plugin {
       });
 
       const duration = (Date.now() - startTime) / 1000;
-      console.log(`[DEBUG-AI] Figma Backend responded in ${duration}s.`);
 
       const pages = parsePages(htmlContent);
       
@@ -101,9 +96,7 @@ export class AIDappGenerator extends Plugin {
 
       if (pageKeys.length === 0) {
         console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed!');
-        console.log('[DEBUG-AI] Raw Content Preview (First 1000 chars):', htmlContent.substring(0, 1000));
-        console.log('[DEBUG-AI] Raw Content Preview (Last 1000 chars):', htmlContent.substring(htmlContent.length - 1000));
-        
+
         if (!htmlContent) console.error('[DEBUG-AI] htmlContent is EMPTY.');
         
         throw new Error("AI failed to return valid file structure from Figma design.");
@@ -166,7 +159,6 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async processGeneration(options: GenerateDappOptions & { slug: string }) {
-    console.log(`[DEBUG-AI] Starting processGeneration for slug: ${options.slug}`);
     
     try {
       const hasImage = !!options.image;
@@ -183,22 +175,17 @@ export class AIDappGenerator extends Plugin {
         selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
       }
 
-      console.log('[DEBUG-AI] Calling LLM API...');
       const startTime = Date.now();
 
       const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage);
 
       const duration = (Date.now() - startTime) / 1000;
-      console.log(`[DEBUG-AI] LLM responded in ${duration}s.`);
-      console.log('[DEBUG-AI] Raw content length:', htmlContent?.length);
 
       const pages = parsePages(htmlContent);
       const pageKeys = Object.keys(pages);
-      console.log('[DEBUG-AI] Parsed Pages Keys:', pageKeys);
 
       if (pageKeys.length === 0) {
         console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
-        console.log('[DEBUG-AI] Raw Content Start:', htmlContent.substring(0, 500));
         
         throw new Error("AI generated empty content. Please try again.");
       }
@@ -209,8 +196,6 @@ export class AIDappGenerator extends Plugin {
       ]
       this.saveContext(options.address, context)
 
-      console.log('[DEBUG-AI] Emitting dappGenerated event...');
-
       this.emit('dappGenerated', {
         address: options.address,
         slug: options.slug,
@@ -218,7 +203,6 @@ export class AIDappGenerator extends Plugin {
         isUpdate: false
       });
 
-      console.log('[DEBUG-AI] Event emitted.');
       await this.call('notification', 'toast', 'Generation Complete!');
 
     } catch (error: any) {
@@ -237,7 +221,6 @@ export class AIDappGenerator extends Plugin {
    * Update an existing DApp with new description
    */
   async updateDapp(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string): Promise<void> {
-    console.log('[DEBUG-AI] updateDapp called for slug:', slug);
 
     this.processUpdate(address, description, currentFiles, hasImage, slug).catch(err => {
       console.error("[DEBUG-AI] ❌ Background update crashed:", err);
@@ -248,7 +231,6 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async processUpdate(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string) {
-    console.log('[DEBUG-AI] processing update...');
     const context = this.getOrCreateContext(address);
 
     if (context.messages.length === 0) {
@@ -277,8 +259,6 @@ export class AIDappGenerator extends Plugin {
         content: pages,
         isUpdate: true
       });
-
-      console.log('[DEBUG-AI] Update event emitted.');
 
     } catch (error: any) {
       context.messages.pop();
@@ -566,7 +546,6 @@ export class AIDappGenerator extends Plugin {
       Remember: Return ALL project files in the 'START_TITLE' format.
     `
     if (options.image) {
-      console.log('[AIDappGenerator] Vision Mode: Creating Initial Message with Image');
 
       const visionPrompt = `
       # VISION-DRIVEN DAPP GENERATION: PIXEL-PERFECT CLONE MODE
@@ -660,7 +639,6 @@ export class AIDappGenerator extends Plugin {
     `
 
     if (Array.isArray(description)) {
-      console.log('[AIDappGenerator] Processing Image Mode: ZERO-SHOT REWRITE');
 
       return description.map(part => {
         if (part.type === 'text') {
@@ -717,14 +695,8 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false): Promise<string> {
-    // const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
-    const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
-
-    console.log('[AIDappGenerator] calling LLM API with body:', JSON.stringify({
-      messages,
-      systemPrompt: systemPrompt.substring(0, 100) + "...",
-      hasImage
-    }, null, 2));
+    const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
+    // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
     try {
       const response = await fetch(BACKEND_URL, {

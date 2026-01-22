@@ -66,8 +66,6 @@ function EditHtmlTemplate(): JSX.Element {
   useEffect(() => {
     const onDappUpdated = (data: any) => {
       if (activeDapp && data.slug === activeDapp.slug) {
-        console.log('[EditHtmlTemplate] Update received, refreshing preview...');
-        
         dispatch({ 
           type: 'SET_DAPP_PROCESSING', 
           payload: { slug: activeDapp.slug, isProcessing: false } 
@@ -104,8 +102,6 @@ function EditHtmlTemplate(): JSX.Element {
 
     const onDappError = (errorData: any) => {
       const errorMessage = errorData?.error || errorData || 'Unknown Error';
-      console.log('[EditHtmlTemplate] Received Error:', errorMessage);
-
       if (activeDapp) {
         dispatch({ 
           type: 'SET_DAPP_PROCESSING', 
@@ -412,8 +408,8 @@ function EditHtmlTemplate(): JSX.Element {
         const builder = new InBrowserVite();
         await builder.initialize();
         if (mounted) {
-            builderRef.current = builder;
-            setIsBuilderReady(true);
+          builderRef.current = builder;
+          setIsBuilderReady(true);
         }
       } catch (err: any) {
         console.error('Failed to initialize InBrowserVite:', err);
@@ -552,7 +548,6 @@ function EditHtmlTemplate(): JSX.Element {
         </div>
       </div>
       
-      {/* Modals */}
       <Modal show={notificationModal.show} onHide={closeNotificationModal} centered>
         <Modal.Header closeButton>
           <Modal.Title className={notificationModal.variant === 'danger' ? 'text-danger' : notificationModal.variant === 'warning' ? 'text-warning' : 'text-success'}>

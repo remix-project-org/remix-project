@@ -57,7 +57,6 @@ export class DappManager {
     try {
       await this.plugin.call('fileManager', 'readdir', BASE_PATH);
     } catch (e) {
-      console.log('[DappManager] Creating base path:', BASE_PATH);
       await this.plugin.call('fileManager', 'mkdir', BASE_PATH);
     }
   }
@@ -122,8 +121,6 @@ export class DappManager {
   async createDapp(name: string, contractData: any, isBaseMiniApp: boolean = false): Promise<DappConfig> {
     const id = uuidv4();
 
-    console.log(`[DappManager] Creating Dapp: ${name}, isBaseMiniApp: ${isBaseMiniApp}`);
-
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${id.slice(0, 6)}`;
     const folderPath = `${BASE_PATH}/${slug}`;
     const timestamp = Date.now();
@@ -155,7 +152,6 @@ export class DappManager {
     await this.plugin.call('fileManager', 'mkdir', `${folderPath}/src`);
 
     if (isBaseMiniApp) {
-      console.log('[DappManager] Generating .well-known/farcaster.json for Base Mini App');
       try {
         await this.plugin.call('fileManager', 'mkdir', `${folderPath}/.well-known`);
 
@@ -205,7 +201,6 @@ export class DappManager {
   }
 
   async saveGeneratedFiles(slug: string, pages: Record<string, string>) {
-    console.log(`[DEBUG-MANAGER] saveGeneratedFiles called for ${slug}`);
     const basePath = `${BASE_PATH}/${slug}`;
 
     if (!pages || Object.keys(pages).length === 0) {
@@ -214,8 +209,6 @@ export class DappManager {
     }
 
     for (const [rawFilename, content] of Object.entries(pages)) {
-      console.log(`[DEBUG-MANAGER] Processing file: ${rawFilename}`);
-
       const safeParts = rawFilename.replace(/\\/g, '/')
         .split('/')
         .filter(part => part !== '..' && part !== '.' && part !== '');
@@ -237,7 +230,6 @@ export class DappManager {
 
       try {
         await this.plugin.call('fileManager', 'writeFile', fullPath, content);
-        console.log(`[DEBUG-MANAGER] ✅ Wrote: ${fullPath}`);
       } catch (e) {
         console.error(`[DEBUG-MANAGER] ❌ Failed to write ${fullPath}:`, e);
       }

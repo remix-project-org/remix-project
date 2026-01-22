@@ -64,7 +64,6 @@ function DeployPanel(): JSX.Element {
     return <BaseAppWizard />;
   }
 
-
   const handleSaveConfig = async () => {
     if (!dappManager || !activeDapp) return;
     setIsSavingConfig(true);
@@ -188,10 +187,6 @@ function DeployPanel(): JSX.Element {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // [Render] Standard UI
-  // ---------------------------------------------------------------------------
-
   const renderEditForm = () => (
     <div className="mb-3">
       <Form.Group className="mb-3">
@@ -229,7 +224,6 @@ function DeployPanel(): JSX.Element {
 
   return (
     <div>
-      {/* 1. Dapp Details Panel */}
       <Card className="mb-2">
         <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
           Dapp details <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
@@ -241,7 +235,6 @@ function DeployPanel(): JSX.Element {
         </Collapse>
       </Card>
       
-      {/* 2. IPFS Deploy Panel */}
       <Card className="mb-2">
         <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
           Publish to IPFS <i className={`fas ${isPublishOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
@@ -263,7 +256,6 @@ function DeployPanel(): JSX.Element {
         </Collapse>
       </Card>
 
-      {/* 3. ENS Panel (Arbitrum) */}
       {displayCid && (
         <Card className="mb-2">
           <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
