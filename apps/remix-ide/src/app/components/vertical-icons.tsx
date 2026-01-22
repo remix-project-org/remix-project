@@ -21,6 +21,7 @@ export class VerticalIcons extends Plugin {
   htmlElement: HTMLDivElement
   icons: Record<string, IconRecord> = {}
   dispatch: React.Dispatch<any> = () => {}
+  pendingPinnedPlugin: any = null
   constructor() {
     super(profile)
     this.events = new EventEmitter()
@@ -79,18 +80,25 @@ export class VerticalIcons extends Plugin {
     })
 
     this.on('rightSidePanel', 'pinnedPlugin', (profile) => {
-      Object.keys(this.icons).map((icon) => {
-        if (this.icons[icon].profile.name === profile.name) {
-          this.icons[icon].pinned = true
-        } else {
-          this.icons[icon].pinned = false
-        }
-      })
-      this.renderComponent()
+      if (this.icons[profile.name]) {
+        Object.keys(this.icons).map((icon) => {
+          if (this.icons[icon].profile.name === profile.name) {
+            this.icons[icon].pinned = true
+          } else {
+            this.icons[icon].pinned = false
+          }
+        })
+        this.renderComponent()
+      } else {
+        // Icon doesn't exist yet, store for when it's created
+        this.pendingPinnedPlugin = profile
+      }
     })
 
     this.on('rightSidePanel', 'unPinnedPlugin', (profile) => {
-      if (this.icons[profile.name]) this.icons[profile.name].pinned = false
+      if (this.icons[profile.name]) {
+        this.icons[profile.name].pinned = false
+      }
       this.renderComponent()
     })
   }
@@ -99,8 +107,7 @@ export class VerticalIcons extends Plugin {
     if (!profile.icon) return
     if (!profile.kind) profile.kind = 'none'
 
-    // Check if this plugin is pinned on the right side panel
-    // Read directly from localStorage to avoid dependency on rightSidePanel being activated
+    // Check if this plugin is pinned on the right side panel from localStorage
     let isPinned = false
     try {
       const panelStatesStr = window.localStorage.getItem('panelStates')
@@ -111,15 +118,25 @@ export class VerticalIcons extends Plugin {
         }
       }
     } catch (e) {
-      // If reading localStorage fails, default to false
       isPinned = false
+    }
+
+    const canbeDeactivated = await this.call('manager', 'canDeactivate', this.profile, profile)
+
+    // Apply pending pinnedPlugin event if it matches this profile
+    if (this.pendingPinnedPlugin && this.pendingPinnedPlugin.name === profile.name) {
+      isPinned = true
+      Object.keys(this.icons).forEach((icon) => {
+        this.icons[icon].pinned = false
+      })
+      this.pendingPinnedPlugin = null
     }
 
     this.icons[profile.name] = {
       profile: profile,
       active: false,
       pinned: isPinned,
-      canbeDeactivated: await this.call('manager', 'canDeactivate', this.profile, profile),
+      canbeDeactivated: canbeDeactivated,
       timestamp: Date.now()
     }
     this.renderComponent()
