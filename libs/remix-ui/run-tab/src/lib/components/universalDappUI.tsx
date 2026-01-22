@@ -25,7 +25,7 @@ const AIRequestForm = ({
   onMount: (getValues: () => Promise<any>) => void
 }) => {
   const [mode, setMode] = useState<'text' | 'figma'>('text');
-  
+
   // Text Mode State
   const [description, setDescription] = useState("");
   const [isBaseMiniApp, setIsBaseMiniApp] = useState(false);
@@ -69,7 +69,7 @@ const AIRequestForm = ({
           figmaUrl,
           figmaToken,
           // Use user instructions as description for context
-          text: description, 
+          text: description,
           isBaseMiniApp: isBaseMiniApp
         };
       } else {
@@ -108,7 +108,7 @@ const AIRequestForm = ({
       {/* Tabs */}
       <ul className="nav nav-tabs mb-3">
         <li className="nav-item">
-          <button 
+          <button
             className={`nav-link ${mode === 'text' ? 'active' : ''}`}
             onClick={() => setMode('text')}
           >
@@ -116,7 +116,7 @@ const AIRequestForm = ({
           </button>
         </li>
         <li className="nav-item">
-          <button 
+          <button
             className={`nav-link ${mode === 'figma' ? 'active' : ''}`}
             onClick={() => setMode('figma')}
           >
@@ -208,14 +208,14 @@ const AIRequestForm = ({
 
           <div className="mb-3">
             <label className="form-label small fw-bold">Figma File URL</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               className="form-control"
               placeholder="https://www.figma.com/design/.../?node-id=1:2"
               value={figmaUrl}
               onChange={(e) => setFigmaUrl(e.target.value)}
             />
-            <div className="form-text text-muted" style={{fontSize: '0.75rem'}}>
+            <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
               Must contain <code>?node-id=...</code>
             </div>
           </div>
@@ -223,8 +223,8 @@ const AIRequestForm = ({
           <div className="mb-3">
             <label className="form-label small fw-bold">Personal Access Token</label>
             <div className="input-group">
-              <input 
-                type="password" 
+              <input
+                type="password"
                 className="form-control"
                 placeholder="figd_..."
                 value={figmaToken}
@@ -233,17 +233,17 @@ const AIRequestForm = ({
               />
               {isTokenLocked && figmaToken ? (
                 <>
-                  <button 
-                    className="btn btn-outline-secondary" 
-                    type="button" 
+                  <button
+                    className="btn btn-outline-secondary"
+                    type="button"
                     onClick={() => setIsTokenLocked(false)}
                     title="Edit Token"
                   >
                     <i className="fas fa-pen"></i>
                   </button>
-                  <button 
-                    className="btn btn-outline-secondary" 
-                    type="button" 
+                  <button
+                    className="btn btn-outline-secondary"
+                    type="button"
                     onClick={handleDeleteToken}
                     title="Delete Token"
                   >
@@ -252,9 +252,9 @@ const AIRequestForm = ({
                 </>
               ) : (
                 figmaToken && (
-                  <button 
-                    className="btn btn-outline-secondary" 
-                    type="button" 
+                  <button
+                    className="btn btn-outline-secondary"
+                    type="button"
                     onClick={() => setIsTokenLocked(true)}
                     title="Save & Lock"
                   >
@@ -263,7 +263,7 @@ const AIRequestForm = ({
                 )
               )}
             </div>
-            <div className="form-text text-muted" style={{fontSize: '0.75rem'}}>
+            <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
               Saved locally in your browser.
             </div>
           </div>
@@ -289,7 +289,7 @@ const AIRequestForm = ({
             <label className="form-check-label" htmlFor="base-miniapp-checkbox-figma">
               Create as Base Mini App (Farcaster Frame)
             </label>
-            <div className="form-text text-muted" style={{fontSize: '0.75rem'}}>
+            <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
               Includes Farcaster SDK and Meta tags automatically.
             </div>
           </div>
