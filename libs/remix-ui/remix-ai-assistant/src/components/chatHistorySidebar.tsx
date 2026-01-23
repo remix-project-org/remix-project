@@ -14,6 +14,7 @@ interface ChatHistorySidebarProps {
   onToggleArchived: () => void
   onClose: () => void
   isFloating?: boolean
+  isMaximized?: boolean
 }
 
 interface ConversationItemProps {
@@ -133,7 +134,8 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   onDeleteConversation,
   onToggleArchived,
   onClose,
-  isFloating = false
+  isFloating = false,
+  isMaximized = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
@@ -160,23 +162,27 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
 
   return (
     <div
-      className={`chat-history-sidebar d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating border-end' : 'w-100'}`}
-      style={isFloating ? { width: '300px', minWidth: '300px' } : {}}
+      className={`chat-history-sidebar d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating border-end' : isMaximized ? 'border-end' : 'w-100'}`}
+      style={isMaximized && !isFloating ? { width: '300px', minWidth: '300px', maxWidth: '300px' } : isFloating ? { width: '300px', minWidth: '300px' } : {}}
       data-id="chat-history-sidebar"
     >
       {/* Header */}
       <div className="sidebar-header p-3">
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="mb-0 fw-normal sidebar-title">Chat history <span className="text-muted">{filteredConversations.length}</span></h6>
-          <CustomTooltip tooltipText="Close sidebar">
-            <button
-              className="btn btn-sm p-0 sidebar-close-btn"
-              onClick={onClose}
-              data-id="close-sidebar-btn"
-            >
-              <i className="fas fa-times"></i>
-            </button>
-          </CustomTooltip>
+          <h6 className="mb-0 fw-normal sidebar-title">
+            {isMaximized ? 'Your chats' : 'Chat history'} <span className="text-muted">{filteredConversations.length}</span>
+          </h6>
+          {isMaximized && (
+            <CustomTooltip tooltipText="Close sidebar">
+              <button
+                className="btn btn-sm p-0 sidebar-close-btn"
+                onClick={onClose}
+                data-id="close-sidebar-btn"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </CustomTooltip>
+          )}
         </div>
 
         {/* New Conversation Button */}

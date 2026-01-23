@@ -746,19 +746,18 @@ mark,
   flex-direction: column;
 }
 
-/* Chat history sidebar - floating when maximized */
+/* Chat history sidebar - no longer using fixed positioning, using flex layout instead */
 .chat-history-sidebar-floating {
-  position: fixed !important;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  z-index: 1000;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  /* Removed fixed positioning - now using flex layout */
 }
 
 /* Chat history sidebar styling updates to match screenshot */
 .chat-history-sidebar {
   background-color: var(--bs-body-bg);
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Dark theme overrides for chat history */
@@ -848,6 +847,14 @@ body.dark .chat-history-sidebar .conversation-item .text-muted {
 [data-theme="dark"] .chat-history-sidebar .sidebar-body,
 body.dark .chat-history-sidebar .sidebar-body {
   background-color: #1e1e2e !important;
+}
+
+/* Ensure sidebar body scrolls properly */
+.chat-history-sidebar .sidebar-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Light theme for chat history sidebar */
