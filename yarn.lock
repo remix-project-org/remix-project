@@ -7014,12 +7014,12 @@
     proper-lockfile "^4.1.1"
     solidity-ast "^0.4.51"
 
-"@openzeppelin/wizard@0.4.0":
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/@openzeppelin/wizard/-/wizard-0.4.0.tgz#fc3b202f614f334d452e5078133f793ba02388ad"
-  integrity sha512-Nr+EZz46YBzjgYWkg6/utHbXX09iNb/FXEsleY+p8vK4Riq8P9rvXGEP+9H3gLmMv5aAKc5n6biVGVSXoVllXw==
+"@openzeppelin/wizard@0.10.4":
+  version "0.10.4"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/wizard/-/wizard-0.10.4.tgz#f93fa84bbfc7828bf09239e9176f10194346498a"
+  integrity sha512-EK7VyUzfyvzToN9L/oQHX2WZsaxmiX217ZkdiRvOLStPD2NMnMlsjDJnClJ7OnCTLrn1IRHFntoOhjp0m6c8zg==
   dependencies:
-    array.prototype.flatmap "^1.2.4"
+    ethereum-cryptography "^3.2.0"
 
 "@parcel/watcher-android-arm64@2.4.0":
   version "2.4.0"
@@ -10371,15 +10371,6 @@ array.prototype.flat@^1.2.5:
     define-properties "^1.1.3"
     es-abstract "^1.19.2"
     es-shim-unscopables "^1.0.0"
-
-array.prototype.flatmap@^1.2.4:
-  version "1.2.5"
-  resolved "https://registry.yarnpkg.com/array.prototype.flatmap/-/array.prototype.flatmap-1.2.5.tgz#908dc82d8a406930fdf38598d51e7411d18d4446"
-  integrity sha512-08u6rVyi1Lj7oqWbS9nUxliETrtIROT4XGTA4D/LWGten6E3ocm7cy9SIrmNHOL5XVbVuckUp3X6Xyg8/zpvHA==
-  dependencies:
-    call-bind "^1.0.0"
-    define-properties "^1.1.3"
-    es-abstract "^1.19.0"
 
 array.prototype.flatmap@^1.3.0:
   version "1.3.1"
