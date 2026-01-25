@@ -10,8 +10,8 @@ import { endpointUrls } from "@remix-endpoints-helper"
 const { encodeFunctionId } = execution.txHelper;
 
 const surgeClient = new SurgeClient({
-  // surge backend doesn't support cross-domain, that's why the proxy goes
-  // here is the codebase of proxy: https://github.com/remix-project-org/remix-wildcard/blob/master/src/hosts/common-corsproxy.ts
+  // Surge backend doesn't support cross-domain requests, so a proxy is required.
+  // Proxy implementation: https://github.com/remix-project-org/remix-wildcard/blob/master/src/hosts/common-corsproxy.ts
   proxy: endpointUrls.commonCorsProxy,
   onError: (err: Error) => {
     console.log(err);
@@ -159,7 +159,7 @@ export const deploy = async (payload: any, callback: any) => {
   }
 
   const { data } = await axios.get(
-    // It's the json file contains all the static files paths of dapp-template.
+    // This JSON file contains all static file paths for the dapp-template.
     // It's generated through the build process automatically.
     `${window.origin}/plugins/remix-dapp/manifest.json`
   );
@@ -189,7 +189,7 @@ export const deploy = async (payload: any, callback: any) => {
   for (let index = 0; index < paths.length; index++) {
     const path = paths[index];
     // download all the static files from the dapp-template domain.
-    // here is the codebase of dapp-template: https://github.com/drafish/remix-dapp
+    // dapp-template repository: https://github.com/drafish/remix-dapp
     const resp = await axios.get(`${window.origin}/plugins/remix-dapp/${path}`);
     files[`dir/${path}`] = resp.data;
   }
@@ -230,7 +230,8 @@ export const deploy = async (payload: any, callback: any) => {
   }
 
   try {
-    // some times deployment might fail even if it says successfully, that's why we need to do the double check.
+    // Sometimes deployment reports success even if it actually failed,
+    // so an additional verification request is required.
     const instanceResp = await axios.get(`https://${payload.subdomain}.surge.sh/assets/instance.json`);
     if (instanceResp.status === 200 && JSON.stringify(instanceResp.data) === instanceJson) {
       callback({ code: 'SUCCESS', error: '' });
