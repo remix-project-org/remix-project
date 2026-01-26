@@ -2,8 +2,8 @@
  * Storage manager that coordinates multiple backends (local + cloud)
  */
 
-import { ChatMessage } from '@remix-ui/remix-ai-assistant'
 import {
+  ChatMessage,
   IChatHistoryBackend,
   ConversationMetadata,
   PersistedChatMessage,

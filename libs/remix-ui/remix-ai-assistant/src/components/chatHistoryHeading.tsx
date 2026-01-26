@@ -26,7 +26,7 @@ export default function ChatHistoryHeading({
           <button
             className="btn btn-sm btn-link text-decoration-none"
             onClick={onNewChat}
-            data-id="new-chat-btn"
+            data-id="new-chat-btn new-conversation-btn"
           >
             <i className="fas fa-plus me-1"></i>
             New chat

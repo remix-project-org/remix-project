@@ -1,13 +1,5 @@
-export type ChatMessage = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: number
-  sentiment?: 'none' | 'like' | 'dislike'
-  isExecutingTools?: boolean
-  executingToolName?: string
-  executingToolArgs?: Record<string, any>
-}
+// Re-export types from core storage layer to maintain backward compatibility
+export type { ChatMessage, ConversationMetadata } from '@remix/remix-ai-core'
 
 export const assistantAvatar = 'assets/img/remixai-logoDefault.webp'//'assets/img/aiLogo.svg'
 
@@ -17,21 +9,6 @@ export type ActivityType =
   | 'promptSend'
   | 'streamStart'
   | 'streamEnd'
-
-/**
- * Conversation metadata for chat history
- */
-export interface ConversationMetadata {
-  id: string
-  title: string
-  createdAt: number
-  updatedAt: number
-  lastAccessedAt: number
-  archived: boolean
-  archivedAt?: number
-  messageCount: number
-  preview: string
-}
 
 /**
  * Sync status for cloud sync

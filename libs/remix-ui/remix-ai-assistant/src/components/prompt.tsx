@@ -89,62 +89,47 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             AI beta
           </span>
         </div>
-        <div className="ai-chat-input d-flex flex-column position-relative">
-          <textarea
-            ref={textareaRef}
-            style={{
-              flexGrow: 1,
-              paddingRight: isStreaming ? '50px' : '10px'
-            }}
-            rows={2}
-            className="form-control bg-light"
-            value={input}
-            disabled={isStreaming}
-            onFocus={() => {
-              if (!isMaximized) {
-                maximizePanel()
-              }
-            }}
-            onChange={e => {
-              setInput(e.target.value)
-            }}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !isStreaming) handleSend()
-            }}
-            placeholder={
-              aiMode === 'ask'
-                ? "Select context and ask me anything!"
-                : "Edit my codebase, generate new contracts ..."
-            }
-          />
-          {isStreaming && (
-            <CustomTooltip
-              placement="top"
-              tooltipText="Stop"
-              tooltipId="stopRequestTooltip"
-            >
-              <button
-                data-id="remix-ai-stop-request"
-                className="position-absolute prompt-stop-button"
-                onClick={handleStop}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#5a5a5a'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--bs-danger)'
-                }}
-              >
-                <div
-                  style={{
-                    width: '12px',
-                    height: '12px',
-                    backgroundColor: '#ffffff',
-                    borderRadius: '2px'
-                  }}
-                />
-              </button>
-            </CustomTooltip>
-          )}
+        <div className="ai-chat-input d-flex flex-column">
+          <div
+            className="d-flex flex-column border rounded-3"
+            style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#e4e8f1' : '' }}
+          >
+            <textarea
+              ref={textareaRef}
+              style={{ flexGrow: 1, outline: 'none', resize: 'none', font: 'inherit', color: 'inherit', backgroundColor: 'transparent', boxShadow: 'none' }}
+              rows={2}
+              className="form-control bg-light border-0"
+              value={input}
+              disabled={isStreaming}
+              data-id="remix-ai-composer-input"
+              onFocus={() => {
+                if (!isMaximized) {
+                  maximizePanel()
+                }
+              }}
+              onChange={e => {
+                setInput(e.target.value)
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !isStreaming) handleSend()
+              }}
+              placeholder="Ask me anything about your code or generate new contracts..."
+            />
+            { !isRecording ? <PromptDefault
+              handleRecording={handleRecord}
+              isRecording={isRecording}
+              isStreaming={isStreaming}
+              handleSend={handleSend}
+              themeTracker={themeTracker}
+            /> : null }
+            { isRecording ? <PromptActiveButtons
+              handleRecordingStoppage={handleRecord}
+              isStreaming={isStreaming}
+              handleSend={handleSend}
+              isRecording={isRecording}
+              themeTracker={themeTracker}
+            /> : null }
+          </div>
 
           <div className="d-flex flex-row justify-content-between align-items-center overflow-x-scroll overflow-y-hidden p-2 mt-2 gap-2"
             style={{

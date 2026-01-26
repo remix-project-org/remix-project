@@ -13,6 +13,7 @@ export function PromptSubmitButton(props: PromptSubmitButtonProps) {
     <button
       className={`btn btn-sm ${props.isStreaming ? 'bg-danger' : ''}`}
       style={{ backgroundColor: props.isStreaming ? undefined : props.backgroundColor }}
+      data-id="remix-ai-composer-send-btn"
       onClick={() => {
         if (props.isStreaming && props.handleCancel) {
           props.handleCancel()

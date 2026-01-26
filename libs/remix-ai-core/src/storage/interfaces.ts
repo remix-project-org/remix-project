@@ -4,7 +4,7 @@
  */
 
 /**
- * Chat message structure (duplicated here to avoid circular dependencies)
+ * Chat message structure
  */
 export interface ChatMessage {
   id: string

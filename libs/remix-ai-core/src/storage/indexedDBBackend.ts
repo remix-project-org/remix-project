@@ -2,8 +2,8 @@
  * IndexedDB backend for local chat history persistence
  */
 
-import { ChatMessage } from '@remix-ui/remix-ai-assistant'
 import {
+  ChatMessage,
   IChatHistoryBackend,
   ConversationMetadata,
   PersistedChatMessage,

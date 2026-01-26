@@ -4,4 +4,5 @@
 
 export * from './interfaces'
 export * from './indexedDBBackend'
+export * from './cloudBackend'
 export * from './storageManager'

@@ -97,6 +97,8 @@
   },
   "dependencies": {
     "@apollo/client": "^3.9.5",
+    "@aws-sdk/client-s3": "^3.620.0",
+    "@aws-sdk/credential-providers": "^3.620.0",
     "@babel/plugin-proposal-class-properties": "^7.16.0",
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.18.6",
     "@bufbuild/protobuf": "^2.10.1",
