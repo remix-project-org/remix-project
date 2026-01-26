@@ -189,7 +189,8 @@ export class DappManager {
         name: contractData.name,
         abi: contractData.abi,
         chainId: contractData.chainId,
-        networkName: contractData.networkName || 'Unknown Network'
+        networkName: contractData.networkName || 'Unknown Network',
+        deployerAddress: contractData.deployerAddress
       },
       status: 'draft',
       createdAt: timestamp,

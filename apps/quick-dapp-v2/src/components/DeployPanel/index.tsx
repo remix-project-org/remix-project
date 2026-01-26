@@ -1,6 +1,5 @@
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Form, Button, Alert, Card, Collapse, Spinner } from 'react-bootstrap';
-import { ethers } from 'ethers';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
@@ -241,11 +240,11 @@ function DeployPanel(): JSX.Element {
         </Card.Header>
         <Collapse in={isPublishOpen}>
           <Card.Body>
-            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying}>
+            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying} data-id="deploy-ipfs-btn">
               {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
             </Button>
             {displayCid && (
-              <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }}>
+              <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="ipfs-deploy-success">
                 <div className="fw-bold">Deployed Successfully!</div>
                 <div><strong>CID:</strong> {displayCid}</div>
                 {displayGateway && <div className="mt-1"><a href={displayGateway} target="_blank" rel="noopener noreferrer">View DApp</a></div>}
@@ -266,7 +265,7 @@ function DeployPanel(): JSX.Element {
               <Alert variant="info">Register <strong>.remixdapp.eth</strong> on Arbitrum.</Alert>
               <Form.Group className="mb-2">
                 <div className="input-group">
-                  <Form.Control type="text" placeholder="myapp" value={ensName} onChange={(e) => { setEnsName(e.target.value.toLowerCase()); setEnsResult({ ...ensResult, success: '' }) }} />
+                  <Form.Control type="text" placeholder="myapp" value={ensName} onChange={(e) => { setEnsName(e.target.value.toLowerCase()); setEnsResult({ ...ensResult, success: '' }) }} data-id="ens-subdomain-input" />
                   <span className="input-group-text">.remixdapp.eth</span>
                 </div>
               </Form.Group>
@@ -285,12 +284,12 @@ function DeployPanel(): JSX.Element {
 
                 (async () => {
                   try {
-                    if (typeof window.ethereum === 'undefined') throw new Error("MetaMask missing");
-                    const provider = new ethers.BrowserProvider(window.ethereum as any);
-                    const accounts = await provider.send('eth_requestAccounts', []);
+                    const owner = activeDapp?.contract?.deployerAddress;
+                    if (!owner) throw new Error("Deployer address not found. Please recreate the DApp.");
+
                     const response = await fetch(`${REMIX_ENDPOINT_ENS}/register`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ label: ensName, owner: accounts[0], contentHash: targetCid })
+                      body: JSON.stringify({ label: ensName, owner, contentHash: targetCid })
                     });
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.error);
@@ -308,9 +307,9 @@ function DeployPanel(): JSX.Element {
                   } catch (e: any) { setEnsResult(prev => ({ ...prev, error: e.message })) }
                   finally { setIsEnsLoading(false) }
                 })();
-              }} disabled={isEnsLoading || !ensName}>{isEnsLoading ? 'Processing...' : ensButtonText}</Button>
+              }} disabled={isEnsLoading || !ensName} data-id="register-ens-btn">{isEnsLoading ? 'Processing...' : ensButtonText}</Button>
               {currentEnsDomain && (
-                <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }}>
+                <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="ens-register-success">
                   <div className="fw-bold mb-1">
                     <i className="fas fa-check-circle me-2"></i>ENS Linked!
                   </div>

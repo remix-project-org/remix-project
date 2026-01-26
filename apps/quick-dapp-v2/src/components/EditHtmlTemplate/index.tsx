@@ -437,6 +437,7 @@ function EditHtmlTemplate(): JSX.Element {
           className="btn btn-sm btn-secondary me-3"
           onClick={handleBack}
           disabled={isCapturing}
+          data-id="back-to-dashboard-btn"
         >
           {isCapturing ? <><i className="fas fa-spinner fa-spin me-1"></i> Saving...</> : <><i className="fas fa-arrow-left me-1"></i> Back</>}
         </button>

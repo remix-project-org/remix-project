@@ -73,18 +73,18 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="container-fluid p-4" style={{ minHeight: '100vh' }}>
+    <div className="container-fluid p-4" data-id="quick-dapp-dashboard" style={{ minHeight: '100vh' }}>
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
         <div>
           <h3 className="fw-bold mb-1 text-body">Quick Dapp</h3>
           <p className="text-secondary mb-0">Edit and deploy your dapps.</p>
         </div>
         <div className="d-flex gap-2 mt-3 mt-md-0">
-          <Button variant="primary" onClick={onCreateNew}>
+          <Button variant="primary" onClick={onCreateNew} data-id="create-new-dapp-btn">
             <i className="fas fa-plus me-2"></i> Create a new dapp
           </Button>
           {validDapps.length > 0 && (
-            <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)}>
+            <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)} data-id="delete-all-dapps-btn">
               <i className="fas fa-trash me-2"></i> Delete all dapps
             </Button>
           )}
@@ -93,7 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <div className="rounded p-3 mb-4 d-flex flex-column flex-sm-row justify-content-between align-items-center border">
         <h5 className="mb-2 mb-sm-0 text-body">
-          Your dapps <span className="badge bg-secondary ms-2">{filteredAndSortedDapps.length}</span>
+          Your dapps <span className="badge bg-secondary ms-2" data-id="dapp-count-badge">{filteredAndSortedDapps.length}</span>
           {filteredAndSortedDapps.length !== validDapps.length && (
             <small className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
               (filtered from {validDapps.length})
@@ -165,7 +165,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <Button variant="secondary" onClick={() => setDappToDelete(null)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={confirmDeleteOne}>
+          <Button variant="danger" onClick={confirmDeleteOne} data-id="confirm-delete-dapp-btn">
             Yes, Delete
           </Button>
         </Modal.Footer>

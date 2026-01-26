@@ -13,6 +13,7 @@ export interface DappConfig {
     abi: any[];
     chainId: number;
     networkName: string;
+    deployerAddress?: string;
   };
 
   status: DappStatus;

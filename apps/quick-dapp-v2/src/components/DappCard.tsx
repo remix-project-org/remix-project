@@ -35,6 +35,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
     <div className="col-12 col-md-6 col-xl-4 mb-4">
       <div
         className="card h-100 border-secondary shadow-sm"
+        data-id={`dapp-card-${dapp.slug}`}
         style={{
           cursor: isProcessing ? 'wait' : 'pointer',
           transition: 'transform 0.2s',
@@ -83,6 +84,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
               <div
                 className={`rounded-circle d-flex align-items-center justify-content-center shadow-sm ${isHovered ? 'bg-danger' : 'bg-dark bg-opacity-75'
                   }`}
+                data-id={`delete-dapp-btn-${dapp.slug}`}
                 style={{
                   width: '32px',
                   height: '32px',
@@ -97,7 +99,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
 
         <div className="card-body d-flex flex-column justify-content-between">
           <div>
-            <h6 className="card-title fw-bold mb-1 text-truncate text-body">{dapp.name}</h6>
+            <h6 className="card-title fw-bold mb-1 text-truncate text-body" data-id={`dapp-name-${dapp.slug}`}>{dapp.name}</h6>
             <small className="text-muted d-block text-truncate" style={{ fontSize: '0.8rem' }}>
               {dapp.id}
             </small>

@@ -665,7 +665,8 @@ export function UniversalDappUI(props: UdappProps) {
                             isBaseMiniApp: descriptionObj.isBaseMiniApp,
                             image: descriptionObj.image,
                             figmaUrl: descriptionObj.figmaUrl,
-                            figmaToken: descriptionObj.figmaToken
+                            figmaToken: descriptionObj.figmaToken,
+                            deployerAddress: props.plugin.REACT_API.accounts.selectedAccount
                           })
 
                           await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
