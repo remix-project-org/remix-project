@@ -727,8 +727,26 @@ mark,
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(circle at 20% 30%, rgba(44, 232, 245, 0.015) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(44, 232, 245, 0.01) 0%, transparent 40%);
+    radial-gradient(
+      700px 520px at 92% -6%,
+      rgba(40, 130, 145, 0.2) 0%,
+      rgba(24, 64, 82, 0.18) 40%,
+      rgba(14, 34, 50, 0.03) 70%,
+      transparent 100%
+    ),
+    radial-gradient(
+      680px 560px at 6% 108%,
+      rgba(38, 100, 118, 0.26) 0%,
+      rgba(30, 62, 90, 0.16) 45%,
+      rgba(22, 38, 60, 0.04) 70%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      #15232e 0%,
+      #1e2b3a 45%,
+      #1f1d33 100%
+    );
   pointer-events: none;
   z-index: 0;
 }
@@ -736,6 +754,17 @@ mark,
 .ai-assistant-bg > * {
   position: relative;
   z-index: 1;
+}
+
+/* Light theme gradient override */
+[data-theme="light"] .ai-assistant-bg::before {
+  background: linear-gradient(
+    180deg,
+    #d8e8f0 0%,
+    #c8dce8 30%,
+    #b8d5e5 60%,
+    #a0c8dc 100%
+  );
 }
 
 /* Fix for remix-ai-assistant container to prevent scrollbar */

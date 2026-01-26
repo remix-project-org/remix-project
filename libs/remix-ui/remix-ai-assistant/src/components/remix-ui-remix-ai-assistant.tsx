@@ -887,6 +887,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       className="d-flex flex-column w-100 h-100"
       ref={aiChatRef}
       style={{ overflow: 'hidden' }}
+      data-theme={themeTracker?.quality || 'dark'}
     >
       {/* Main content area with sidebar and chat */}
       <div className="d-flex flex-row flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>

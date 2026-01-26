@@ -48,31 +48,18 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   showContextOptions,
   setShowContextOptions,
   showAssistantOptions,
-  setShowAssistantOptions,
-  showModelOptions,
-  setShowModelOptions,
   assistantChoice,
-  setAssistantChoice,
-  availableModels,
-  selectedModel,
   handleSetAssistant,
-  handleSetModel,
-  handleModelSelection,
   handleGenerateWorkspace,
   handleRecord,
   isRecording,
-  dispatchActivity,
   modelBtnRef,
-  modelSelectorBtnRef,
   textareaRef,
   maximizePanel,
   isMaximized,
   themeTracker
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
-  const trackMatomoEvent = <T extends MatomoEvent = AIEvent>(event: T) => {
-    baseTrackEvent?.<T>(event)
-  }
 
   return (
     <>
@@ -184,14 +171,14 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               <i className="far fa-copy me-1"></i>
               <span>File</span>
             </button>
-            <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}>
+            {/* <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}>
               <i className="fas fa-brain me-1"></i>
               <span>Learn</span>
             </button>
             <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}>
               <i className="fas fa-list me-1"></i>
               <span className="text-nowrap">Plan a project</span>
-            </button>
+            </button> */}
             <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}>
               <i className="fas fa-plus me-1"></i>
               <span className="text-nowrap">New workspace</span>
