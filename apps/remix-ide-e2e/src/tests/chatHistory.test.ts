@@ -19,10 +19,12 @@ module.exports = {
         locateStrategy: 'xpath',
         timeout: 120000
       })
-      .waitForElementVisible('*[data-id="chat-history-sidebar"]', 10000)
+      .waitForElementVisible('*[data-id="toggle-history-btn"]', 10000)
+      .click('*[data-id="toggle-history-btn"]')
       .assert.containsText('*[data-id="chat-history-sidebar"]', 'Chat history')
       .waitForElementVisible('.text-center.text-muted', 5000)
       .assert.containsText('.text-center.text-muted', 'No conversations yet')
+      .pause()
   },
 
   'Should create a new conversation #group1': function (browser: NightwatchBrowser) {

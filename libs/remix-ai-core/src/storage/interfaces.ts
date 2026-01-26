@@ -72,6 +72,7 @@ export interface SyncOperation {
 export interface CloudIndex {
   conversations: ConversationMetadata[]
   lastUpdated: number
+  messageIndexVersion?: number  // Track if message index exists
 }
 
 /**
@@ -80,6 +81,27 @@ export interface CloudIndex {
 export interface ConversationData {
   metadata: ConversationMetadata
   messages: ChatMessage[]
+}
+
+/**
+ * Message location index for efficient sentiment updates
+ * Maps messageId → conversationId for O(1) lookup
+ */
+export interface MessageIndex {
+  version: number                    // Schema version (start with 1)
+  lastUpdated: number                // Timestamp of last update
+  messageMap: Record<string, string> // messageId → conversationId
+}
+
+/**
+ * Index rebuild status for monitoring
+ */
+export interface IndexRebuildStatus {
+  inProgress: boolean
+  conversationsProcessed: number
+  totalConversations: number
+  messagesIndexed: number
+  errors: string[]
 }
 
 /**
@@ -103,6 +125,7 @@ export interface IChatHistoryBackend {
   saveMessage(message: PersistedChatMessage): Promise<void>
   saveBatch(conversationId: string, messages: ChatMessage[]): Promise<void>
   getMessages(conversationId: string): Promise<ChatMessage[]>
+  getMessage?(messageId: string): Promise<PersistedChatMessage | null>
   updateMessageSentiment?(messageId: string, sentiment: 'like' | 'dislike' | 'none'): Promise<void>
 
   // Optional convenience methods

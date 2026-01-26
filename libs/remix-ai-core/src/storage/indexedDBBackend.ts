@@ -358,6 +358,27 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
   }
 
   /**
+   * Get a single message by ID for conversationId lookup
+   */
+  async getMessage(messageId: string): Promise<PersistedChatMessage | null> {
+    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['messages'], 'readonly')
+      const store = transaction.objectStore('messages')
+      const request = store.get(messageId)
+
+      request.onsuccess = () => {
+        resolve(request.result || null)
+      }
+
+      request.onerror = () => {
+        reject(new StorageError('Failed to get message', 'FETCH_ERROR'))
+      }
+    })
+  }
+
+  /**
    * Search conversations by title or preview
    */
   async searchConversations(query: string): Promise<ConversationMetadata[]> {

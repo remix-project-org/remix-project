@@ -229,11 +229,22 @@ export class ChatHistoryStorageManager {
       await this.localBackend.updateMessageSentiment(messageId, sentiment)
     }
 
+    // Get conversationId for efficient cloud sync
+    let conversationId: string | undefined
+    if (this.localBackend.getMessage) {
+      try {
+        const message = await this.localBackend.getMessage(messageId)
+        conversationId = message?.conversationId
+      } catch (error) {
+        console.warn('Could not get conversationId from local backend:', error)
+      }
+    }
+
     if (this.syncEnabled) {
       this.queueSync({
         type: 'message',
         action: 'update',
-        data: { messageId, sentiment },
+        data: { messageId, sentiment, conversationId },
         timestamp: Date.now()
       })
     }

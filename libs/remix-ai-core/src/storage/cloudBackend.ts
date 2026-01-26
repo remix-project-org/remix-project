@@ -20,7 +20,9 @@ import {
   CloudIndex,
   ConversationData,
   S3Config,
-  SyncError
+  SyncError,
+  MessageIndex,
+  IndexRebuildStatus
 } from './interfaces'
 
 /**
@@ -34,6 +36,9 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
   private userId: string
   private syncQueue: SyncOperation[] = []
   private isInitialized: boolean = false
+  private messageIndex: MessageIndex | null = null  // In-memory cache
+  private indexLoadPromise: Promise<void> | null = null  // Prevent concurrent loads
+  private indexDirty: boolean = false  // Track if needs persisting
 
   constructor(config: S3Config) {
     this.bucketName = config.bucketName
@@ -55,6 +60,13 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
       }))
       this.isInitialized = true
       console.log(`S3 backend initialized for bucket: ${this.bucketName}`)
+
+      // Load message index (graceful failure)
+      try {
+        await this.loadMessageIndex()
+      } catch (error) {
+        console.warn('Failed to load message index, will rebuild on demand:', error)
+      }
     } catch (error) {
       console.error('S3 backend initialization failed:', error)
       this.isInitialized = false
@@ -151,6 +163,9 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
    * Delete conversation from S3
    */
   async deleteConversation(id: string): Promise<void> {
+    // Remove messages from index first
+    await this.removeMessagesFromIndex(id)
+
     const key = this.getConversationKey(id)
 
     await this.s3Client.send(new DeleteObjectCommand({
@@ -183,6 +198,9 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
       conversationData.metadata.messageCount = conversationData.messages.length
       conversationData.metadata.updatedAt = Date.now()
 
+      // Update message index
+      this.addMessageToIndex(message.id, message.conversationId)
+
       await this.putObject(key, JSON.stringify(conversationData, null, 2))
       await this.updateIndex()
     } catch (error) {
@@ -210,6 +228,11 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
       conversationData.metadata.messageCount = conversationData.messages.length
       conversationData.metadata.updatedAt = Date.now()
 
+      // Update message index for all messages
+      messages.forEach(msg => {
+        this.addMessageToIndex(msg.id, conversationId)
+      })
+
       await this.putObject(key, JSON.stringify(conversationData, null, 2))
       await this.updateIndex()
     } catch (error) {
@@ -233,33 +256,63 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
   }
 
   /**
-   * Update message sentiment
+   * Update message sentiment with O(1) index lookup
+   * Falls back to O(n*m) rebuild if index missing/stale
    */
   async updateMessageSentiment(
     messageId: string,
     sentiment: 'like' | 'dislike' | 'none'
   ): Promise<void> {
-    // Need to find which conversation contains this message
-    // This is inefficient - in production, consider maintaining a message index
-    const conversations = await this.getConversations()
+    // Ensure index is loaded
+    if (!this.messageIndex) {
+      await this.loadMessageIndex()
+    }
 
-    for (const conv of conversations) {
-      const messages = await this.getMessages(conv.id)
-      const messageIndex = messages.findIndex(m => m.id === messageId)
+    // Try O(1) index lookup first
+    const conversationId = this.messageIndex?.messageMap[messageId]
 
-      if (messageIndex >= 0) {
-        messages[messageIndex].sentiment = sentiment
-        const key = this.getConversationKey(conv.id)
-        const conversationData: ConversationData = {
-          metadata: conv,
-          messages
+    if (conversationId) {
+      // FAST PATH: Direct conversation access
+      try {
+        const key = this.getConversationKey(conversationId)
+        const data = await this.getObject(key)
+        const conversationData = JSON.parse(data) as ConversationData
+
+        const msgIndex = conversationData.messages.findIndex(m => m.id === messageId)
+        if (msgIndex >= 0) {
+          conversationData.messages[msgIndex].sentiment = sentiment
+          await this.putObject(key, JSON.stringify(conversationData, null, 2))
+          return
         }
-        await this.putObject(key, JSON.stringify(conversationData, null, 2))
-        return
+
+        // Index stale - message not in expected conversation
+        console.warn(`Index stale for message ${messageId}, rebuilding`)
+      } catch (error) {
+        console.warn(`Fast path failed for message ${messageId}:`, error)
       }
     }
 
-    throw new SyncError(`Message ${messageId} not found`)
+    // SLOW PATH: Index missing/stale - rebuild and retry
+    console.warn(`Rebuilding message index for message ${messageId}`)
+    await this.rebuildMessageIndex()
+
+    // Retry with rebuilt index
+    const retryConversationId = this.messageIndex?.messageMap[messageId]
+    if (!retryConversationId) {
+      throw new SyncError(`Message ${messageId} not found even after rebuild`)
+    }
+
+    const key = this.getConversationKey(retryConversationId)
+    const data = await this.getObject(key)
+    const conversationData = JSON.parse(data) as ConversationData
+
+    const msgIndex = conversationData.messages.findIndex(m => m.id === messageId)
+    if (msgIndex >= 0) {
+      conversationData.messages[msgIndex].sentiment = sentiment
+      await this.putObject(key, JSON.stringify(conversationData, null, 2))
+    } else {
+      throw new SyncError(`Message ${messageId} not found`)
+    }
   }
 
   /**
@@ -310,6 +363,15 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
       result.messagesSynced = messageCount
       result.success = (result.errors?.length || 0) === 0
 
+      // Persist message index if dirty
+      if (this.indexDirty) {
+        try {
+          await this.persistMessageIndex()
+        } catch (error) {
+          console.warn('Failed to persist message index:', error)
+        }
+      }
+
       // Clear queue on success
       if (result.success) {
         this.syncQueue = []
@@ -344,6 +406,13 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
     try {
       // Get index from S3
       const index = await this.getIndex()
+
+      // Reload message index from cloud
+      try {
+        await this.loadMessageIndex()
+      } catch (error) {
+        console.warn('Failed to load message index during pull:', error)
+      }
 
       result.conversationsSynced = index.conversations.length
 
@@ -393,7 +462,31 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
         if (operation.action === 'create') {
           await this.saveMessage(operation.data)
         } else if (operation.action === 'update') {
-          await this.updateMessageSentiment(operation.data.messageId, operation.data.sentiment)
+          const { messageId, sentiment, conversationId } = operation.data
+
+          // If conversationId provided, use direct update (extra optimization)
+          if (conversationId) {
+            try {
+              const key = this.getConversationKey(conversationId)
+              const data = await this.getObject(key)
+              const conversationData = JSON.parse(data) as ConversationData
+
+              const msgIndex = conversationData.messages.findIndex(m => m.id === messageId)
+              if (msgIndex >= 0) {
+                conversationData.messages[msgIndex].sentiment = sentiment
+                await this.putObject(key, JSON.stringify(conversationData, null, 2))
+
+                // Update message index cache
+                this.addMessageToIndex(messageId, conversationId)
+                return
+              }
+            } catch (error) {
+              console.warn('Direct update with conversationId failed, falling back to index:', error)
+            }
+          }
+
+          // Fallback to index-based lookup
+          await this.updateMessageSentiment(messageId, sentiment)
         }
         break
     }
@@ -411,6 +504,142 @@ export class S3ChatHistoryBackend implements IChatHistoryBackend {
    */
   private getIndexKey(): string {
     return `user-${this.userId}/index.json`
+  }
+
+  /**
+   * Get S3 key for message index file
+   */
+  private getMessageIndexKey(): string {
+    return `user-${this.userId}/message-index.json`
+  }
+
+  /**
+   * Load message index from S3 or return cached version
+   * Prevents concurrent loads and initializes empty index if missing
+   */
+  private async loadMessageIndex(): Promise<MessageIndex> {
+    // Prevent concurrent loads
+    if (this.indexLoadPromise) {
+      await this.indexLoadPromise
+      return this.messageIndex!
+    }
+
+    if (this.messageIndex) {
+      return this.messageIndex
+    }
+
+    this.indexLoadPromise = (async () => {
+      try {
+        const key = this.getMessageIndexKey()
+        const data = await this.getObject(key)
+        this.messageIndex = JSON.parse(data) as MessageIndex
+      } catch (error) {
+        console.warn('Message index not found, will rebuild on demand:', error)
+        this.messageIndex = {
+          version: 1,
+          lastUpdated: Date.now(),
+          messageMap: {}
+        }
+      } finally {
+        this.indexLoadPromise = null
+      }
+    })()
+
+    await this.indexLoadPromise
+    return this.messageIndex!
+  }
+
+  /**
+   * Persist message index to S3 if dirty
+   */
+  private async persistMessageIndex(): Promise<void> {
+    if (!this.indexDirty || !this.messageIndex) return
+
+    const key = this.getMessageIndexKey()
+    await this.putObject(key, JSON.stringify(this.messageIndex, null, 2))
+    this.indexDirty = false
+  }
+
+  /**
+   * Rebuild message index from all conversations
+   * Returns status with counts and errors for monitoring
+   */
+  private async rebuildMessageIndex(): Promise<IndexRebuildStatus> {
+    const status: IndexRebuildStatus = {
+      inProgress: true,
+      conversationsProcessed: 0,
+      totalConversations: 0,
+      messagesIndexed: 0,
+      errors: []
+    }
+
+    try {
+      const conversations = await this.getConversations()
+      status.totalConversations = conversations.length
+
+      const messageMap: Record<string, string> = {}
+
+      for (const conv of conversations) {
+        try {
+          const messages = await this.getMessages(conv.id)
+          messages.forEach(msg => {
+            messageMap[msg.id] = conv.id
+            status.messagesIndexed++
+          })
+          status.conversationsProcessed++
+        } catch (error) {
+          status.errors.push(`Failed to process conversation ${conv.id}: ${error}`)
+        }
+      }
+
+      this.messageIndex = {
+        version: 1,
+        lastUpdated: Date.now(),
+        messageMap
+      }
+
+      await this.persistMessageIndex()
+    } finally {
+      status.inProgress = false
+    }
+
+    return status
+  }
+
+  /**
+   * Add a message to the index (update in-memory cache)
+   */
+  private addMessageToIndex(messageId: string, conversationId: string): void {
+    if (!this.messageIndex) {
+      this.messageIndex = {
+        version: 1,
+        lastUpdated: Date.now(),
+        messageMap: {}
+      }
+    }
+
+    this.messageIndex.messageMap[messageId] = conversationId
+    this.messageIndex.lastUpdated = Date.now()
+    this.indexDirty = true
+  }
+
+  /**
+   * Remove all messages from a conversation from the index
+   */
+  private async removeMessagesFromIndex(conversationId: string): Promise<void> {
+    if (!this.messageIndex) return
+
+    try {
+      const messages = await this.getMessages(conversationId)
+      messages.forEach(msg => {
+        delete this.messageIndex!.messageMap[msg.id]
+      })
+
+      this.messageIndex.lastUpdated = Date.now()
+      this.indexDirty = true
+    } catch (error) {
+      console.warn(`Failed to remove messages from index for conversation ${conversationId}:`, error)
+    }
   }
 
   /**
