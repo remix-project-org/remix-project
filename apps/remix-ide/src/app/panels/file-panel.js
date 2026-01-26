@@ -36,6 +36,7 @@ const profile = {
     'getCurrentWorkspace',
     'getAvailableWorkspaceName',
     'getWorkspaces',
+    'getWorkspacesForPlugin',
     'createWorkspace',
     'switchToWorkspace',
     'setWorkspace',
@@ -150,6 +151,23 @@ export default class Filepanel extends ViewPlugin {
 
   getWorkspaces() {
     return this.workspaces
+  }
+
+  /**
+   * Returns a clean, serializable copy of workspaces for external plugins.
+   * This is necessary because plugin communication uses postMessage which requires cloneable data.
+   * Use this method instead of getWorkspaces() when calling from external plugins.
+   */
+  getWorkspacesForPlugin() {
+    if (!this.workspaces) return []
+    return this.workspaces
+      .filter(ws => ws && ws.name && ws.name !== 'null' && ws.name !== null && ws.name !== undefined)
+      .map(ws => ({
+        name: ws.name,
+        isGitRepo: ws.isGitRepo || false,
+        hasGitSubmodules: ws.hasGitSubmodules || false,
+        isGist: typeof ws.isGist === 'string' ? ws.isGist : null
+      }))
   }
 
   workspaceExists(name) {

@@ -33,59 +33,58 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
 
   return (
     <div className="col-12 col-md-6 col-xl-4 mb-4">
-      <div 
-        className="card h-100 border-secondary shadow-sm" 
-        style={{ 
+      <div
+        className="card h-100 border-secondary shadow-sm"
+        style={{
           cursor: isProcessing ? 'wait' : 'pointer',
           transition: 'transform 0.2s',
-          overflow: 'visible' 
+          overflow: 'visible'
         }}
         onClick={isProcessing ? undefined : onClick}
         onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
         onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         {isProcessing && (
-          <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75" 
+          <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75"
             style={{ zIndex: 10, backdropFilter: 'blur(1px)' }}>
-          <div className="spinner-border text-primary mb-2" role="status"></div>
+            <div className="spinner-border text-primary mb-2" role="status"></div>
             <span className="text-primary fw-bold small">{loadingText}</span>
           </div>
         )}
-        <div 
+        <div
           className="card-img-top d-flex align-items-center justify-content-center position-relative"
-          style={{ 
-            height: '160px', 
-            background: dapp.thumbnailPath 
-              ? `url(${dapp.thumbnailPath}) center/cover` 
+          style={{
+            height: '160px',
+            background: dapp.thumbnailPath
+              ? `url(${dapp.thumbnailPath}) center/cover`
               : 'linear-gradient(45deg, #2c3e50, #4ca1af)',
             borderBottom: '1px solid #444'
           }}
         >
           {!dapp.thumbnailPath && dapp.config.logo && (
-             <img src={dapp.config.logo} alt="logo" style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
+            <img src={dapp.config.logo} alt="logo" style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
           )}
-          
+
           <div className="position-absolute top-0 start-0 m-2 badge bg-primary opacity-75">
             {dapp.contract.networkName || 'Remix VM'}
           </div>
 
           {!isProcessing && (
-            <div 
-              className="position-absolute top-0 end-0 m-2" 
+            <div
+              className="position-absolute top-0 end-0 m-2"
               onClick={(e) => {
-                e.stopPropagation(); 
-                onDelete(); 
+                e.stopPropagation();
+                onDelete();
               }}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
               title="Delete Dapp"
             >
-              <div 
-                className={`rounded-circle d-flex align-items-center justify-content-center shadow-sm ${
-                  isHovered ? 'bg-danger' : 'bg-dark bg-opacity-75'
-                }`}
-                style={{ 
-                  width: '32px', 
+              <div
+                className={`rounded-circle d-flex align-items-center justify-content-center shadow-sm ${isHovered ? 'bg-danger' : 'bg-dark bg-opacity-75'
+                  }`}
+                style={{
+                  width: '32px',
                   height: '32px',
                   transition: 'background-color 0.2s ease-in-out'
                 }}
@@ -99,9 +98,15 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
         <div className="card-body d-flex flex-column justify-content-between">
           <div>
             <h6 className="card-title fw-bold mb-1 text-truncate text-body">{dapp.name}</h6>
-            <small className="text-muted d-block text-truncate mb-3" style={{ fontSize: '0.8rem' }}>
+            <small className="text-muted d-block text-truncate" style={{ fontSize: '0.8rem' }}>
               {dapp.id}
             </small>
+            {dapp.workspaceName && (
+              <small className="text-info d-block text-truncate mb-2" style={{ fontSize: '0.75rem' }}>
+                <i className="fas fa-folder-open me-1"></i>
+                {dapp.workspaceName}
+              </small>
+            )}
           </div>
 
           <div className="d-flex justify-content-between align-items-end mt-2 border-top border-secondary pt-2">
@@ -115,11 +120,11 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
               </small>
             </div>
           </div>
-          
+
           <div className="text-end mt-1">
-             <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-               {dapp.status === 'deployed' ? 'Deployed' : 'Created'} {timeAgo(dapp.createdAt)}
-             </small>
+            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+              {dapp.status === 'deployed' ? 'Deployed' : 'Created'} {timeAgo(dapp.createdAt)}
+            </small>
           </div>
         </div>
       </div>

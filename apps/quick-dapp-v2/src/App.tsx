@@ -16,7 +16,7 @@ import { DappManager } from './utils/DappManager';
 import './App.css';
 
 function App(): JSX.Element {
-  const [locale, setLocale] = useState<{code: string; messages: any}>({
+  const [locale, setLocale] = useState<{ code: string; messages: any }>({
     code: 'en',
     messages: null,
   });
@@ -38,17 +38,17 @@ function App(): JSX.Element {
 
   useEffect(() => {
     initDispatch(dispatch);
-    
+
     const initApp = async () => {
       setIsAppLoading(true);
-      
+
       try {
         await connectRemix();
         // @ts-ignore
         remixClient.call('locale', 'currentLocale').then((l: any) => setLocale(l));
         // @ts-ignore
         remixClient.on('locale', 'localeChanged', (l: any) => setLocale(l));
-        
+
         const dapps = (await dappManager.getDapps()) || [];
         dispatch({ type: 'SET_DAPPS', payload: dapps });
 
@@ -71,7 +71,7 @@ function App(): JSX.Element {
     };
 
     initApp();
-  }, [dappManager, dispatch]); 
+  }, [dappManager, dispatch]);
 
   useEffect(() => {
     const onCreatingStart = async (data: any) => {
@@ -80,10 +80,10 @@ function App(): JSX.Element {
       if (data.dappConfig) {
         const newDappsList = [data.dappConfig, ...dappsRef.current];
         dispatch({ type: 'SET_DAPPS', payload: newDappsList });
-        
-        dispatch({ 
-          type: 'SET_DAPP_PROCESSING', 
-          payload: { slug: data.slug, isProcessing: true } 
+
+        dispatch({
+          type: 'SET_DAPP_PROCESSING',
+          payload: { slug: data.slug, isProcessing: true }
         });
 
         if (appState.dapps.length === 0) {
@@ -94,15 +94,15 @@ function App(): JSX.Element {
 
     const onDappUpdateStart = (data: any) => {
       if (data && data.slug) {
-        dispatch({ 
-          type: 'SET_DAPP_PROCESSING', 
-          payload: { slug: data.slug, isProcessing: true } 
+        dispatch({
+          type: 'SET_DAPP_PROCESSING',
+          payload: { slug: data.slug, isProcessing: true }
         });
       }
     };
 
     const onDappCreated = async (newDappConfig: any) => {
-      const updatedDappsList = dappsRef.current.map((d: any) => 
+      const updatedDappsList = dappsRef.current.map((d: any) =>
         d.slug === newDappConfig.slug ? newDappConfig : d
       );
 
@@ -113,24 +113,24 @@ function App(): JSX.Element {
 
       dispatch({ type: 'SET_DAPPS', payload: updatedDappsList });
 
-      dispatch({ 
-        type: 'SET_DAPP_PROCESSING', 
-        payload: { slug: newDappConfig.slug, isProcessing: false } 
+      dispatch({
+        type: 'SET_DAPP_PROCESSING',
+        payload: { slug: newDappConfig.slug, isProcessing: false }
       });
-      
+
       dispatch({ type: 'SET_AI_LOADING', payload: false });
     };
-    
+
     const onCreatingError = (errorData?: any) => {
       console.error('[DEBUG-APP] Event: creatingDappError', errorData);
       dispatch({ type: 'SET_AI_LOADING', payload: false });
-      
+
       const targetSlug = errorData?.slug || activeDappRef.current?.slug;
 
       if (targetSlug) {
-        dispatch({ 
-          type: 'SET_DAPP_PROCESSING', 
-          payload: { slug: targetSlug, isProcessing: false } 
+        dispatch({
+          type: 'SET_DAPP_PROCESSING',
+          payload: { slug: targetSlug, isProcessing: false }
         });
       } else {
         console.warn('[DEBUG-APP] Error received without slug. Loading state might be stuck.');
@@ -141,9 +141,9 @@ function App(): JSX.Element {
       dispatch({ type: 'SET_AI_LOADING', payload: false });
 
       if (data.slug) {
-        dispatch({ 
-          type: 'SET_DAPP_PROCESSING', 
-          payload: { slug: data.slug, isProcessing: false } 
+        dispatch({
+          type: 'SET_DAPP_PROCESSING',
+          payload: { slug: data.slug, isProcessing: false }
         });
       }
     };
@@ -166,7 +166,7 @@ function App(): JSX.Element {
     await dappManager.deleteDapp(slug);
     const updatedDapps = (await dappManager.getDapps()) || [];
     dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
-    
+
     if (updatedDapps.length === 0) {
       dispatch({ type: 'SET_VIEW', payload: 'create' });
     }
@@ -191,26 +191,34 @@ function App(): JSX.Element {
     if (appState.isAiLoading) {
       return (
         <div className="container-fluid">
-           <CreateInstance isAiLoading={true} />
+          <CreateInstance isAiLoading={true} />
         </div>
       );
     }
 
     if (!appState.dapps || appState.dapps.length === 0) {
-       return (
-         <div className="container-fluid pt-3">
-            <CreateInstance isAiLoading={appState.isAiLoading} /> 
-         </div>
-       );
+      return (
+        <div className="container-fluid pt-3">
+          <CreateInstance isAiLoading={appState.isAiLoading} />
+        </div>
+      );
     }
 
     switch (appState.view) {
       case 'dashboard':
         return (
-          <Dashboard 
-            dapps={appState.dapps} 
+          <Dashboard
+            dapps={appState.dapps}
             processingState={appState.dappProcessing}
-            onOpen={(dapp) => {
+            onOpen={async (dapp) => {
+              // Switch to the DApp's workspace before opening the editor
+              if (dapp.workspaceName) {
+                try {
+                  await dappManager.openDappWorkspace(dapp.workspaceName);
+                } catch (e) {
+                  console.warn('[App] Failed to switch workspace:', e);
+                }
+              }
               dispatch({ type: 'SET_ACTIVE_DAPP', payload: dapp });
               dispatch({ type: 'SET_VIEW', payload: 'editor' });
             }}
@@ -224,11 +232,11 @@ function App(): JSX.Element {
         if (!appState.activeDapp) return null;
         return (
           <div className="d-flex flex-column h-100">
-             <div className="flex-grow-1 position-relative" style={{ overflow: 'hidden' }}>
-                <div className="container-fluid pt-3 h-100">
-                   <EditHtmlTemplate />
-                </div>
-             </div>
+            <div className="flex-grow-1 position-relative" style={{ overflow: 'hidden' }}>
+              <div className="container-fluid pt-3 h-100">
+                <EditHtmlTemplate />
+              </div>
+            </div>
           </div>
         );
 
@@ -236,17 +244,17 @@ function App(): JSX.Element {
       default:
         return (
           <div className="container-fluid pt-3">
-             {!appState.isAiLoading && (
-               <div className="mb-3 px-2">
-                  <button 
-                    className="btn btn-sm btn-link text-decoration-none px-0"
-                    onClick={() => dispatch({ type: 'SET_VIEW', payload: 'dashboard' })}
-                  >
-                    <i className="fas fa-arrow-left me-1"></i> Back to Dashboard
-                  </button>
-               </div>
-             )}
-             <CreateInstance isAiLoading={appState.isAiLoading} />
+            {!appState.isAiLoading && (
+              <div className="mb-3 px-2">
+                <button
+                  className="btn btn-sm btn-link text-decoration-none px-0"
+                  onClick={() => dispatch({ type: 'SET_VIEW', payload: 'dashboard' })}
+                >
+                  <i className="fas fa-arrow-left me-1"></i> Back to Dashboard
+                </button>
+              </div>
+            )}
+            <CreateInstance isAiLoading={appState.isAiLoading} />
           </div>
         );
     }
@@ -256,7 +264,7 @@ function App(): JSX.Element {
     <AppContext.Provider value={{ dispatch, appState, dappManager }}>
       <IntlProvider locale={locale.code} messages={locale.messages || {}}>
         <div className="App">
-           {renderContent()}
+          {renderContent()}
         </div>
         <LoadingScreen />
       </IntlProvider>

@@ -49,7 +49,7 @@ const BaseAppWizard: React.FC = () => {
     if (activeDapp?.config?.isBaseMiniApp) {
       // @ts-ignore
       const saved = activeDapp.config.baseAppConfig as BaseAppWizardState;
-      
+
       if (saved) {
         setSavedWizardState({
           ...saved,
@@ -130,8 +130,8 @@ const BaseAppWizard: React.FC = () => {
 
     try {
       setBaseFlowLoading(true);
-      
-      const indexHtmlPath = `dapps/${activeDapp.slug}/index.html`;
+
+      const indexHtmlPath = 'index.html';
       // @ts-ignore
       let content = await remixClient.call('fileManager', 'readFile', indexHtmlPath);
       if (!content) throw new Error("index.html not found");
@@ -141,9 +141,9 @@ const BaseAppWizard: React.FC = () => {
 
       // @ts-ignore
       await remixClient.call('fileManager', 'writeFile', indexHtmlPath, content);
-      
+
       await savePersistentState({ appIdMeta: savedWizardState.appIdMeta });
-      completeStepAndGoNext(2); 
+      completeStepAndGoNext(2);
 
     } catch (e: any) {
       console.error(e);
@@ -156,7 +156,7 @@ const BaseAppWizard: React.FC = () => {
 
   const handleIpfsDeploy = async (): Promise<string | null> => {
     if (!activeDapp) return null;
-    
+
     trackMatomoEvent(remixClient, {
       category: 'quick-dapp-v2',
       action: 'deploy_ipfs',
@@ -165,31 +165,31 @@ const BaseAppWizard: React.FC = () => {
     });
 
     let builder: InBrowserVite;
-    
+
     try {
       builder = new InBrowserVite();
       await builder.initialize();
-      const dappRootPath = `dapps/${activeDapp.slug}`;
+      const dappRootPath = '/';
       const filesMap = new Map<string, string>();
-      await readDappFiles(dappRootPath, filesMap, dappRootPath.length);
+      await readDappFiles(dappRootPath, filesMap, 0);
 
       if (filesMap.size === 0) throw new Error("No DApp files found");
-      
+
       const jsResult = await builder.build(filesMap, '/src/main.jsx');
       if (!jsResult.success) throw new Error(`Build failed: ${jsResult.error}`);
 
       let indexHtmlContent = filesMap.get('/index.html') || '';
-      
+
       let logoDataUrl = '';
       if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
         logoDataUrl = logo;
       }
-      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title||'')},details:${JSON.stringify(details||'')}};</script>`;
-      
+      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
+
       let modifiedHtml = indexHtmlContent;
       if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${injectionScript}\n</head>`);
       else modifiedHtml = `<html><head>${injectionScript}</head>${modifiedHtml}</html>`;
-      
+
       const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
       modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
       modifiedHtml = modifiedHtml.replace(/<link rel="stylesheet"[^>]*href="(?:\/|\.\/)?src\/index\.css"[^>]*>/, '');
@@ -199,14 +199,14 @@ const BaseAppWizard: React.FC = () => {
       formData.append('files', htmlBlob, 'index.html');
 
       try {
-        const manifestPath = `dapps/${activeDapp.slug}/.well-known/farcaster.json`;
+        const manifestPath = '.well-known/farcaster.json';
         // @ts-ignore
         const manifestContent = await remixClient.call('fileManager', 'readFile', manifestPath);
         if (manifestContent) {
           const manifestBlob = new Blob([manifestContent], { type: 'application/json' });
           formData.append('files', manifestBlob, '.well-known:::farcaster.json');
         }
-      } catch (e) {}
+      } catch (e) { }
 
       const response = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error(await response.text());
@@ -248,7 +248,7 @@ const BaseAppWizard: React.FC = () => {
     try {
       setBaseFlowLoading(true);
 
-      const newCid = await handleIpfsDeploy(); 
+      const newCid = await handleIpfsDeploy();
       if (!newCid) throw new Error("IPFS Deployment Failed.");
 
       if (typeof window.ethereum === 'undefined') throw new Error("MetaMask is required.");
@@ -270,7 +270,7 @@ const BaseAppWizard: React.FC = () => {
         const errData = await response.json();
         throw new Error(errData.error || 'ENS Registration failed');
       }
-      
+
       const resData = await response.json();
 
       if (dappManager) {
@@ -283,7 +283,7 @@ const BaseAppWizard: React.FC = () => {
         });
         if (updatedConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: updatedConfig });
       }
-      
+
       let actionLabel = 'Update';
       if (mode === 'initial') actionLabel = 'Initial Deploy';
       else if (mode === 'finalize') actionLabel = 'Final Publish';
@@ -329,16 +329,16 @@ const BaseAppWizard: React.FC = () => {
       try { parsed = JSON.parse(savedWizardState.verificationJson); } catch (e) { throw new Error("Invalid JSON format."); }
 
       let associationData = parsed.accountAssociation || parsed;
-      
+
       try {
-        const payloadBase64 = associationData.payload; 
+        const payloadBase64 = associationData.payload;
         if (!payloadBase64) throw new Error("JSON is missing the 'payload' field.");
-        
+
         const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
         const decodedPayload = atob(base64);
-        
+
         const currentDomain = `${savedWizardState.ensName}.remixdapp.eth`;
-        
+
         if (!decodedPayload.includes(currentDomain)) {
           throw new Error(
             `Domain Mismatch!\n\nThe provided JSON is NOT for "${currentDomain}".\nIt seems to be for a different domain.\nPlease re-verify on Base Portal with the correct URL.`
@@ -348,42 +348,42 @@ const BaseAppWizard: React.FC = () => {
         throw validationError;
       }
 
-      const manifestPath = `dapps/${activeDapp.slug}/.well-known/farcaster.json`;
+      const manifestPath = '.well-known/farcaster.json';
       // @ts-ignore
       const content = await remixClient.call('fileManager', 'readFile', manifestPath);
       const manifest = content ? JSON.parse(content) : {};
-      
+
       manifest.accountAssociation = associationData;
       const limoUrl = `https://${savedWizardState.ensName}.remixdapp.eth.limo`;
-      
+
       if (manifest.miniapp) {
-          manifest.miniapp.homeUrl = limoUrl;
-          delete manifest.miniapp.noindex;
+        manifest.miniapp.homeUrl = limoUrl;
+        delete manifest.miniapp.noindex;
       }
 
       // @ts-ignore
       await remixClient.call('fileManager', 'writeFile', manifestPath, JSON.stringify(manifest, null, 2));
-      
-      const indexHtmlPath = `dapps/${activeDapp.slug}/index.html`;
+
+      const indexHtmlPath = 'index.html';
       // @ts-ignore
       let indexContent = await remixClient.call('fileManager', 'readFile', indexHtmlPath);
       if (indexContent) {
-         const fcMetaRegex = /(<meta\s+name=["']fc:miniapp["']\s+content=')([^']*)(')/;
-         const match = indexContent.match(fcMetaRegex);
-         if (match) {
-           try {
-             const jsonObj = JSON.parse(match[2]);
-             if (jsonObj.button && jsonObj.button.action) {
-               jsonObj.button.action.url = limoUrl;
-             } else {
-               jsonObj.url = limoUrl;
-             }
-             const newJsonStr = JSON.stringify(jsonObj);
-             indexContent = indexContent.replace(fcMetaRegex, `$1${newJsonStr}$3`);
-             // @ts-ignore
-             await remixClient.call('fileManager', 'writeFile', indexHtmlPath, indexContent);
-           } catch(err) {}
-         }
+        const fcMetaRegex = /(<meta\s+name=["']fc:miniapp["']\s+content=')([^']*)(')/;
+        const match = indexContent.match(fcMetaRegex);
+        if (match) {
+          try {
+            const jsonObj = JSON.parse(match[2]);
+            if (jsonObj.button && jsonObj.button.action) {
+              jsonObj.button.action.url = limoUrl;
+            } else {
+              jsonObj.url = limoUrl;
+            }
+            const newJsonStr = JSON.stringify(jsonObj);
+            indexContent = indexContent.replace(fcMetaRegex, `$1${newJsonStr}$3`);
+            // @ts-ignore
+            await remixClient.call('fileManager', 'writeFile', indexHtmlPath, indexContent);
+          } catch (err) { }
+        }
       }
 
       await savePersistentState({ verificationJson: savedWizardState.verificationJson });
@@ -425,11 +425,11 @@ const BaseAppWizard: React.FC = () => {
       verificationJson: '',
       currentStep: 2,
     });
-    
+
     setViewStep(2);
-    
+
     setShowResetWarning(false);
-    
+
   };
 
   const ensUrl = `https://${savedWizardState.ensName}.remixdapp.eth.limo`;
@@ -443,16 +443,16 @@ const BaseAppWizard: React.FC = () => {
           <Modal.Title>{successModalContent.title}</Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-center py-4">
-          <div style={{whiteSpace: 'pre-line'}}>{successModalContent.body}</div>
+          <div style={{ whiteSpace: 'pre-line' }}>{successModalContent.body}</div>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="success" onClick={() => setShowSuccessModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
 
-      <Modal 
-        show={showResetWarning} 
-        onHide={() => setShowResetWarning(false)} 
+      <Modal
+        show={showResetWarning}
+        onHide={() => setShowResetWarning(false)}
         centered
         backdrop="static"
         keyboard={false}
@@ -502,7 +502,7 @@ const BaseAppWizard: React.FC = () => {
             </div>
             <div className="d-grid gap-3 mb-4">
               <Button variant="primary" className="py-2" onClick={() => executeBaseAppAction('update')} disabled={baseFlowLoading}>
-                {baseFlowLoading ? <><Spinner as="span" animation="border" size="sm" className="me-2"/>Updating...</> : <><i className="fas fa-sync-alt me-2"></i>Publish Changes</>}
+                {baseFlowLoading ? <><Spinner as="span" animation="border" size="sm" className="me-2" />Updating...</> : <><i className="fas fa-sync-alt me-2"></i>Publish Changes</>}
               </Button>
               <div className="alert border small text-muted mb-0">
                 <div className="fw-bold mb-1"><i className="fas fa-tools me-1"></i>Maintenance Guide</div>
@@ -519,7 +519,7 @@ const BaseAppWizard: React.FC = () => {
                 </ul>
               </div>
             </div>
-            <hr className="my-3"/>
+            <hr className="my-3" />
             <div className="d-grid">
               <Button variant="secondary" size="sm" onClick={() => navigateToStep(1)}>
                 <i className="fas fa-cog me-2"></i>Re-configure Settings
@@ -533,7 +533,7 @@ const BaseAppWizard: React.FC = () => {
                     <ListGroup.Item key={idx} className="d-flex justify-content-between align-items-center bg-light">
                       <div>
                         <Badge bg="secondary" className="me-2">{record.action}</Badge>
-                        <span className="text-muted" style={{fontSize: '0.75rem'}}>
+                        <span className="text-muted" style={{ fontSize: '0.75rem' }}>
                           {new Date(record.timestamp).toLocaleString()}
                         </span>
                       </div>
@@ -544,16 +544,16 @@ const BaseAppWizard: React.FC = () => {
             )}
           </Card.Body>
         </Card>
-      ) : (        
+      ) : (
         <Card className="mb-3 border-primary">
           <Card.Header className="bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
             <span><i className="fas fa-rocket me-2"></i>Setup Wizard</span>
             <div className="d-flex gap-2 align-items-center">
               {isAppLive && (
-                <Button 
-                  variant="link" 
-                  className="text-white p-0 text-decoration-none small border border-white px-2 rounded" 
-                  style={{fontSize: '0.8rem', opacity: 0.9}}
+                <Button
+                  variant="link"
+                  className="text-white p-0 text-decoration-none small border border-white px-2 rounded"
+                  style={{ fontSize: '0.8rem', opacity: 0.9 }}
                   onClick={() => navigateToStep(5)}
                   title="Cancel editing and return to dashboard"
                 >
@@ -561,7 +561,7 @@ const BaseAppWizard: React.FC = () => {
                 </Button>
               )}
               {(!isAppLive && viewStep > 1) && (
-                <Button variant="link" className="text-white p-0 text-decoration-none small" 
+                <Button variant="link" className="text-white p-0 text-decoration-none small"
                   onClick={() => navigateToStep(1)}>
                   Restart
                 </Button>
@@ -570,20 +570,20 @@ const BaseAppWizard: React.FC = () => {
           </Card.Header>
           <Card.Body>
             <div className="d-flex justify-content-between mb-4 position-relative px-3">
-              <div className="position-absolute w-100 bg-light" style={{height: 4, top: 13, left: 0, zIndex: 0}}></div>
-              <div className="position-absolute bg-primary" 
+              <div className="position-absolute w-100 bg-light" style={{ height: 4, top: 13, left: 0, zIndex: 0 }}></div>
+              <div className="position-absolute bg-primary"
                 style={{
-                    height: 4, top: 13, left: 0, zIndex: 0,
-                    width: viewStep === 1 ? '0%' : viewStep === 2 ? '33%' : viewStep === 3 ? '66%' : '100%',
-                    transition: 'width 0.4s ease-in-out'
+                  height: 4, top: 13, left: 0, zIndex: 0,
+                  width: viewStep === 1 ? '0%' : viewStep === 2 ? '33%' : viewStep === 3 ? '66%' : '100%',
+                  transition: 'width 0.4s ease-in-out'
                 }}></div>
               {[1, 2, 3, 4].map(step => (
-                <div key={step} className={`text-center`} style={{zIndex: 1, position: 'relative', cursor: 'pointer'}} onClick={() => navigateToStep(step)} title={`Go to Step ${step}`}>
-                  <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${viewStep >= step ? 'bg-primary text-white shadow-sm' : 'bg-white border'}`} 
-                    style={{width: 30, height: 30, transition: 'background-color 0.3s'}}>
-                    <span style={{fontSize: '0.9rem', fontWeight: 'bold'}}>{step}</span>
+                <div key={step} className={`text-center`} style={{ zIndex: 1, position: 'relative', cursor: 'pointer' }} onClick={() => navigateToStep(step)} title={`Go to Step ${step}`}>
+                  <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${viewStep >= step ? 'bg-primary text-white shadow-sm' : 'bg-white border'}`}
+                    style={{ width: 30, height: 30, transition: 'background-color 0.3s' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{step}</span>
                   </div>
-                  <small className="d-block fw-bold" style={{fontSize: '0.7rem', color: viewStep >= step ? '#0d6efd' : '#6c757d'}}>
+                  <small className="d-block fw-bold" style={{ fontSize: '0.7rem', color: viewStep >= step ? '#0d6efd' : '#6c757d' }}>
                     {step === 1 ? 'Config' : step === 2 ? 'Deploy' : step === 3 ? 'Verify' : 'Finalize'}
                   </small>
                 </div>
@@ -592,151 +592,151 @@ const BaseAppWizard: React.FC = () => {
 
             <div className="wizard-content">
               {viewStep === 1 && (
-              <div className="fade-in">
-                <h6 className="fw-bold mb-2">Step 1: App Registration</h6>
-                <Card className="mb-3 bg-light border-0"><Card.Body>{renderEditForm()}</Card.Body></Card>
-                <Alert variant="info" className="small p-2 mb-3">
-                  Register your app at <a href="https://base.dev/" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base Portal</a>.
-                  <br/>
-                  Copy the <b>App ID Meta Tag</b> from the verification screen.
-                </Alert>
-                <Form.Group className="mb-3">
-                  <Form.Label>Base App ID Meta Tag</Form.Label>
-                  <Form.Control 
-                    as="textarea" rows={2} 
-                    placeholder='<meta name="base:app_id" content="..." />' 
-                    value={savedWizardState.appIdMeta} 
-                    onChange={e => handleInputChange('appIdMeta', e.target.value)} 
-                  />
-                </Form.Group>
-                
-                <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading}>
-                  {baseFlowLoading ? 'Saving...' : 'Save & Next'}
-                </Button>
-              </div>
-              )}
-                
-              {viewStep === 2 && (
-              <div className="fade-in">
-                <h6 className="fw-bold mb-2">Step 2: Deployment & ENS</h6>
-                <Alert variant="info" className="small p-2 mb-3">
-                  Deploy your app to IPFS and register an ENS subdomain (`.remixdapp.eth`).
-                </Alert>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Choose ENS Name (Subdomain)</Form.Label>
-                  <InputGroup>
-                    <Form.Control 
-                      type="text" 
-                      placeholder="myapp" 
-                      value={savedWizardState.ensName} 
-                      onChange={e => handleInputChange('ensName', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
-                      disabled={savedWizardState.currentStep >= 5}
+                <div className="fade-in">
+                  <h6 className="fw-bold mb-2">Step 1: App Registration</h6>
+                  <Card className="mb-3 bg-light border-0"><Card.Body>{renderEditForm()}</Card.Body></Card>
+                  <Alert variant="info" className="small p-2 mb-3">
+                    Register your app at <a href="https://base.dev/" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base Portal</a>.
+                    <br />
+                    Copy the <b>App ID Meta Tag</b> from the verification screen.
+                  </Alert>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Base App ID Meta Tag</Form.Label>
+                    <Form.Control
+                      as="textarea" rows={2}
+                      placeholder='<meta name="base:app_id" content="..." />'
+                      value={savedWizardState.appIdMeta}
+                      onChange={e => handleInputChange('appIdMeta', e.target.value)}
                     />
-                    <InputGroup.Text>.remixdapp.eth</InputGroup.Text>
-                    {savedWizardState.currentStep >= 5 && (
-                      <Button 
-                        variant="warning" 
-                        onClick={() => setShowResetWarning(true)}
-                        title="Change Domain"
-                      >
-                        <i className="fas fa-pen me-1"></i> Change
-                      </Button>
-                    )}
-                  </InputGroup>
-                  {savedWizardState.currentStep >= 5 && (
-                    <div className="form-text text-warning">
-                      <i className="fas fa-lock me-1"></i>
-                      Domain is locked. Click <strong>Change</strong> to reset and verify a new domain.
-                    </div>
-                  )}
-                </Form.Group>
+                  </Form.Group>
 
-                <div className="d-flex gap-2">
-                  <Button variant="secondary" onClick={() => navigateToStep(1)}>Back</Button>
-                  <Button variant="primary" className="flex-grow-1" onClick={() => executeBaseAppAction('initial')} disabled={baseFlowLoading}>
-                    {baseFlowLoading ? 'Deploying & Registering...' : 'Deploy & Next'}
+                  <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading}>
+                    {baseFlowLoading ? 'Saving...' : 'Save & Next'}
                   </Button>
                 </div>
-              </div>
+              )}
+
+              {viewStep === 2 && (
+                <div className="fade-in">
+                  <h6 className="fw-bold mb-2">Step 2: Deployment & ENS</h6>
+                  <Alert variant="info" className="small p-2 mb-3">
+                    Deploy your app to IPFS and register an ENS subdomain (`.remixdapp.eth`).
+                  </Alert>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>Choose ENS Name (Subdomain)</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        type="text"
+                        placeholder="myapp"
+                        value={savedWizardState.ensName}
+                        onChange={e => handleInputChange('ensName', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                        disabled={savedWizardState.currentStep >= 5}
+                      />
+                      <InputGroup.Text>.remixdapp.eth</InputGroup.Text>
+                      {savedWizardState.currentStep >= 5 && (
+                        <Button
+                          variant="warning"
+                          onClick={() => setShowResetWarning(true)}
+                          title="Change Domain"
+                        >
+                          <i className="fas fa-pen me-1"></i> Change
+                        </Button>
+                      )}
+                    </InputGroup>
+                    {savedWizardState.currentStep >= 5 && (
+                      <div className="form-text text-warning">
+                        <i className="fas fa-lock me-1"></i>
+                        Domain is locked. Click <strong>Change</strong> to reset and verify a new domain.
+                      </div>
+                    )}
+                  </Form.Group>
+
+                  <div className="d-flex gap-2">
+                    <Button variant="secondary" onClick={() => navigateToStep(1)}>Back</Button>
+                    <Button variant="primary" className="flex-grow-1" onClick={() => executeBaseAppAction('initial')} disabled={baseFlowLoading}>
+                      {baseFlowLoading ? 'Deploying & Registering...' : 'Deploy & Next'}
+                    </Button>
+                  </div>
+                </div>
               )}
 
               {viewStep === 3 && (
-              <div className="fade-in">
-                <h6 className="fw-bold mb-2">Step 3: Verification & Association</h6>
-                <Alert variant="info" className="border small p-2 mb-3">
-                  <ol className="mb-0 ps-3">
-                    <li>Copy the <b>ENS URL</b> below.</li>
-                    <li>Go back to <a href="https://base.dev/" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base Portal</a>. and verify ownership.</li>
-                    <li>Then go to <b>Mini App Tools</b> and <b>Account Association</b>.</li>
-                    <li>Copy the JSON signature and paste it here.</li>
-                  </ol>
-                </Alert>
-                
-                <div className="mb-3">
-                  <label className="small fw-bold text-muted mb-1">ENS URL</label>
-                  <div className="d-flex align-items-center justify-content-between bg-light border rounded p-2 mb-3">
-                    <div className="text-truncate me-2 small font-monospace text-dark">
-                      {ensUrl}
+                <div className="fade-in">
+                  <h6 className="fw-bold mb-2">Step 3: Verification & Association</h6>
+                  <Alert variant="info" className="border small p-2 mb-3">
+                    <ol className="mb-0 ps-3">
+                      <li>Copy the <b>ENS URL</b> below.</li>
+                      <li>Go back to <a href="https://base.dev/" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base Portal</a>. and verify ownership.</li>
+                      <li>Then go to <b>Mini App Tools</b> and <b>Account Association</b>.</li>
+                      <li>Copy the JSON signature and paste it here.</li>
+                    </ol>
+                  </Alert>
+
+                  <div className="mb-3">
+                    <label className="small fw-bold text-muted mb-1">ENS URL</label>
+                    <div className="d-flex align-items-center justify-content-between bg-light border rounded p-2 mb-3">
+                      <div className="text-truncate me-2 small font-monospace text-dark">
+                        {ensUrl}
+                      </div>
+                      <div className="d-flex gap-2 flex-shrink-0">
+                        <Button variant="light" size="sm" className="border text-muted" onClick={() => copyToClipboard(ensUrl, 'ENS URL')} title="Copy">
+                          <i className="fas fa-copy"></i>
+                        </Button>
+                        <Button variant="light" size="sm" className="border text-muted" href={ensUrl} target="_blank" title="Open Link">
+                          <i className="fas fa-external-link-alt"></i>
+                        </Button>
+                      </div>
                     </div>
-                    <div className="d-flex gap-2 flex-shrink-0">
-                      <Button variant="light" size="sm" className="border text-muted" onClick={() => copyToClipboard(ensUrl, 'ENS URL')} title="Copy">
-                        <i className="fas fa-copy"></i>
-                      </Button>
-                      <Button variant="light" size="sm" className="border text-muted" href={ensUrl} target="_blank" title="Open Link">
-                        <i className="fas fa-external-link-alt"></i>
-                      </Button>
+
+                    <label className="small fw-bold text-muted mb-1">IPFS URL</label>
+                    <div className="d-flex align-items-center justify-content-between bg-light border rounded p-2">
+                      <div className="text-truncate me-2 small font-monospace text-dark">
+                        {ipfsUrl}
+                      </div>
+                      <div className="d-flex gap-2 flex-shrink-0">
+                        <Button variant="light" size="sm" className="border text-muted" onClick={() => copyToClipboard(ipfsUrl, 'IPFS URL')} title="Copy">
+                          <i className="fas fa-copy"></i>
+                        </Button>
+                        <Button variant="light" size="sm" className="border text-muted" href={ipfsUrl} target="_blank" title="Open Link">
+                          <i className="fas fa-external-link-alt"></i>
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
-                  <label className="small fw-bold text-muted mb-1">IPFS URL</label>
-                  <div className="d-flex align-items-center justify-content-between bg-light border rounded p-2">
-                    <div className="text-truncate me-2 small font-monospace text-dark">
-                      {ipfsUrl}
-                    </div>
-                    <div className="d-flex gap-2 flex-shrink-0">
-                      <Button variant="light" size="sm" className="border text-muted" onClick={() => copyToClipboard(ipfsUrl, 'IPFS URL')} title="Copy">
-                        <i className="fas fa-copy"></i>
-                      </Button>
-                      <Button variant="light" size="sm" className="border text-muted" href={ipfsUrl} target="_blank" title="Open Link">
-                        <i className="fas fa-external-link-alt"></i>
-                      </Button>
-                    </div>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="small fw-bold">Paste Verification JSON</Form.Label>
+                    <Form.Control
+                      as="textarea" rows={3}
+                      placeholder='{"accountAssociation": ...}'
+                      value={savedWizardState.verificationJson}
+                      onChange={e => handleInputChange('verificationJson', e.target.value)}
+                    />
+                  </Form.Group>
+
+                  <div className="d-flex gap-2">
+                    <Button variant="secondary" onClick={() => navigateToStep(2)}>Back</Button>
+                    <Button variant="primary" className="flex-grow-1" onClick={handleManifestUpdate} disabled={baseFlowLoading}>
+                      {baseFlowLoading ? 'Processing...' : 'Verify & Next'}
+                    </Button>
                   </div>
                 </div>
-
-                <Form.Group className="mb-3">
-                  <Form.Label className="small fw-bold">Paste Verification JSON</Form.Label>
-                  <Form.Control 
-                    as="textarea" rows={3} 
-                    placeholder='{"accountAssociation": ...}' 
-                    value={savedWizardState.verificationJson} 
-                    onChange={e => handleInputChange('verificationJson', e.target.value)} 
-                  />
-                </Form.Group>
-
-                <div className="d-flex gap-2">
-                  <Button variant="secondary" onClick={() => navigateToStep(2)}>Back</Button>
-                  <Button variant="primary" className="flex-grow-1" onClick={handleManifestUpdate} disabled={baseFlowLoading}>
-                    {baseFlowLoading ? 'Processing...' : 'Verify & Next'}
-                  </Button>
-                </div>
-              </div>
               )}
 
               {viewStep === 4 && (
-              <div className="fade-in">
-                <h6 className="fw-bold mb-2">Step 4: Finalize</h6>
-                <Alert variant="success" className="small p-2 mb-3 bg-success bg-opacity-10 border-success">
-                  Re-deploy your app with the association JSON to complete the verification.
-                </Alert>
-                <div className="d-flex gap-2">
-                  <Button variant="secondary" onClick={() => navigateToStep(3)}>Back</Button>
-                  <Button variant="success" className="flex-grow-1" onClick={() => executeBaseAppAction('finalize')} disabled={baseFlowLoading}>
-                    {baseFlowLoading ? 'Finalizing...' : 'Final Publish'}
-                  </Button>
+                <div className="fade-in">
+                  <h6 className="fw-bold mb-2">Step 4: Finalize</h6>
+                  <Alert variant="success" className="small p-2 mb-3 bg-success bg-opacity-10 border-success">
+                    Re-deploy your app with the association JSON to complete the verification.
+                  </Alert>
+                  <div className="d-flex gap-2">
+                    <Button variant="secondary" onClick={() => navigateToStep(3)}>Back</Button>
+                    <Button variant="success" className="flex-grow-1" onClick={() => executeBaseAppAction('finalize')} disabled={baseFlowLoading}>
+                      {baseFlowLoading ? 'Finalizing...' : 'Final Publish'}
+                    </Button>
+                  </div>
                 </div>
-              </div>
               )}
             </div>
           </Card.Body>

@@ -35,13 +35,16 @@ export class RemixClient extends PluginClient {
 
         if (!data.slug || !data.content) return;
 
+        const workspaceName = data.slug;
+
         try {
-          await this.dappManager.saveGeneratedFiles(data.slug, data.content);
+          await this.dappManager.saveGeneratedFiles(workspaceName, data.content);
 
           if (data.isUpdate) {
 
             this.internalEvents.emit('dappUpdated', {
-              slug: data.slug,
+              slug: workspaceName,
+              workspaceName,
               files: data.content
             });
 
@@ -49,13 +52,13 @@ export class RemixClient extends PluginClient {
             this.call('notification', 'toast', 'DApp code updated successfully.');
 
           } else {
-            const updatedConfig = await this.dappManager.updateDappConfig(data.slug, { status: 'created' });
+            const updatedConfig = await this.dappManager.updateDappConfig(workspaceName, { status: 'created' });
 
             if (updatedConfig) {
               this.internalEvents.emit('dappCreated', updatedConfig);
 
               // @ts-ignore
-              this.call('notification', 'toast', `DApp '${updatedConfig.name}' created!`);
+              this.call('notification', 'toast', `DApp '${updatedConfig.name}' created in workspace '${workspaceName}'!`);
             }
           }
 
@@ -120,6 +123,7 @@ export class RemixClient extends PluginClient {
 
       this.internalEvents.emit('creatingDappStart', {
         slug: newDappConfig.slug,
+        workspaceName: newDappConfig.workspaceName,
         dappConfig: newDappConfig
       });
 

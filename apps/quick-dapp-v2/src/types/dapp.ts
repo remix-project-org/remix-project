@@ -5,6 +5,7 @@ export interface DappConfig {
   id: string;
   slug: string;
   name: string;
+  workspaceName: string;
 
   contract: {
     address: string;
