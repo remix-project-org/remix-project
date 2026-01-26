@@ -57,6 +57,7 @@ function App(): JSX.Element {
           });
         });
 
+
         const dapps = (await dappManager.getDapps()) || [];
         dispatch({ type: 'SET_DAPPS', payload: dapps });
 

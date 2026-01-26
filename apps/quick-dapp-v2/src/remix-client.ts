@@ -79,7 +79,7 @@ export class RemixClient extends PluginClient {
 
               // @ts-ignore
               this.call('notification', 'toast', `DApp '${updatedConfig.name}' created in workspace '${workspaceName}'!`);
-              
+
               const contractAddress = updatedConfig.contract?.address;
               if (contractAddress) {
                 // @ts-ignore
@@ -91,6 +91,7 @@ export class RemixClient extends PluginClient {
                   okLabel: 'Got it!'
                 });
               }
+
             }
           }
 

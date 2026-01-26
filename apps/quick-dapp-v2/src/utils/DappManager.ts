@@ -203,6 +203,7 @@ export class DappManager {
 
       await this.focusPlugin();
 
+
       const uniqueConfigs = configs.filter((config, index, self) =>
         index === self.findIndex((c) => c.id === config.id)
       );
@@ -220,6 +221,7 @@ export class DappManager {
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${id.slice(0, 6)}`;
     const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
     const timestamp = Date.now();
+
 
     const sourceWorkspaceInfo = await this.getCurrentWorkspace();
     const sourceWorkspaceName = sourceWorkspaceInfo.name;
@@ -289,6 +291,7 @@ export class DappManager {
 
     await this.saveConfig(workspaceName, initialConfig);
 
+
     try {
       await this.plugin.call('fileManager', 'mkdir', 'src');
     } catch (e) {
@@ -337,6 +340,7 @@ export class DappManager {
 
     return initialConfig;
   }
+
 
   /**
    * Auto-pins the contract instance in the current workspace before switching.
@@ -395,7 +399,6 @@ export class DappManager {
   }
 
   async saveConfig(workspaceName: string, config: DappConfig): Promise<void> {
-
     const currentWorkspace = await this.getCurrentWorkspace();
 
     if (currentWorkspace.name !== workspaceName) {
@@ -496,6 +499,7 @@ export class DappManager {
 
       const content = await this.plugin.call('fileManager', 'readFile', CONFIG_FILENAME);
 
+
       if (content) {
         const config = JSON.parse(content);
         config.workspaceName = workspaceName;
@@ -512,6 +516,7 @@ export class DappManager {
           await this.switchToWorkspace(currentWorkspace.name);
           await this.focusPlugin();
         }
+
 
         return this.sanitizeConfig(config);
       }
