@@ -581,10 +581,10 @@
     proper-lockfile "^4.1.1"
     solidity-ast "^0.4.51"
 
-"@openzeppelin/wizard@^0.10.4":
-  version "0.10.4"
-  resolved "https://registry.yarnpkg.com/@openzeppelin/wizard/-/wizard-0.10.4.tgz#f93fa84bbfc7828bf09239e9176f10194346498a"
-  integrity sha512-EK7VyUzfyvzToN9L/oQHX2WZsaxmiX217ZkdiRvOLStPD2NMnMlsjDJnClJ7OnCTLrn1IRHFntoOhjp0m6c8zg==
+"@openzeppelin/wizard@^0.10.5":
+  version "0.10.5"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/wizard/-/wizard-0.10.5.tgz#cdab0b8499ed0b8b92e1cb294ce8097f6dc1f92d"
+  integrity sha512-7kQiTCFSsPliJm9p8B6e9jaWpfaGKl/VCHJG/0DhdrTAWaavBawHgvMhbmhwM8mb+wXX2cfCCqgBQz0hKbjcYA==
   dependencies:
     ethereum-cryptography "^3.2.0"
 

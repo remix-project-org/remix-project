@@ -9,7 +9,7 @@
     "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
     "@openzeppelin/upgrades-core": "^1.30.0",
-    "@openzeppelin/wizard": "^0.10.4",
+    "@openzeppelin/wizard": "^0.10.5",
     "@remix-project/remixd": "../../dist/libs/remixd",
     "adm-zip": "^0.5.16",
     "deep-equal": "^1.0.1",
