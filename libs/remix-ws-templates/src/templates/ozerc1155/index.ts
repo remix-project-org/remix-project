@@ -10,8 +10,9 @@ export default async (opts: any, plugin, overrides) => {
     erc1155.defaults.pausable = opts.pausable
   }
 
+  const config = { ...erc1155.defaults, upgradeable: opts && opts.upgradeable ? opts.upgradeable : false }
   const filesObj = {
-    [`contracts/${contractName || 'MyToken'}.sol`]: contractContent ? contractContent : erc1155.print({ ...erc1155.defaults, upgradeable: opts && opts.upgradeable ? opts.upgradeable : false }),
+    [`contracts/${contractName || 'MyToken'}.sol`]: contractContent ? contractContent : erc1155.print(config),
     // @ts-ignore
     'scripts/deploy_with_ethers.ts': (await import('!!raw-loader!./scripts/deploy_with_ethers.ts')).default,
     // @ts-ignore
@@ -19,7 +20,9 @@ export default async (opts: any, plugin, overrides) => {
     // @ts-ignore
     '.prettierrc.json': (await import('raw-loader!./.prettierrc')).default,
     // @ts-ignore
-    'remix.config.json': (await import('raw-loader!./remix.config')).default
+    'remix.config.json': (await import('raw-loader!./remix.config')).default,
+    // @ts-ignore
+    'remappings.txt': erc1155.getVersionedRemappings(config).join('\n')
   }
   // If no options is selected, opts.upgradeable will be undefined
   // We do not show test file for upgradeable contract
