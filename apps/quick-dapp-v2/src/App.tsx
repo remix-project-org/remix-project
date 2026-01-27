@@ -44,6 +44,7 @@ function App(): JSX.Element {
 
       try {
         await connectRemix();
+        
         // @ts-ignore
         remixClient.call('locale', 'currentLocale').then((l: any) => setLocale(l));
         // @ts-ignore
@@ -56,6 +57,18 @@ function App(): JSX.Element {
             payload: dappsRef.current.filter((d: any) => d.workspaceName !== workspaceName) 
           });
         });
+
+        // Wait for filePanel to be ready (important for sidepanel)
+        for (let i = 0; i < 10; i++) {
+          try {
+            // @ts-ignore
+            const currentWs = await remixClient.call('filePanel', 'getCurrentWorkspace');
+            if (currentWs && currentWs.name) {
+              break;
+            }
+          } catch (e) {}
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
 
 
         const dapps = (await dappManager.getDapps()) || [];
@@ -70,7 +83,6 @@ function App(): JSX.Element {
         }
 
       } catch (e) {
-        console.error("[DEBUG-APP] Failed to load app", e);
         dispatch({ type: 'SET_DAPPS', payload: [] });
         dispatch({ type: 'SET_VIEW', payload: 'create' });
       } finally {

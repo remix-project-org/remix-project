@@ -428,7 +428,7 @@ export function UniversalDappUI(props: UdappProps) {
 
                           })
 
-                          await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+                          await props.plugin.call('menuicons', 'select', 'quick-dapp-v2')
 
                         } catch (e) {
                           console.error("Quick Dapp V2 call failed:", e);
