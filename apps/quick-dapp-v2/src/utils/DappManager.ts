@@ -89,9 +89,8 @@ export class DappManager {
 
   private async focusPlugin(): Promise<void> {
     try {
-      await this.plugin.call('manager', 'activatePlugin', 'quick-dapp-v2');
       // @ts-ignore
-      await this.plugin.call('tabs', 'focus', 'quick-dapp-v2');
+      await this.plugin.call('menuicons', 'select', 'quick-dapp-v2');
     } catch (e) {
       console.warn('[DappManager] Failed to focus plugin:', e);
     }

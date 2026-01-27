@@ -6,13 +6,13 @@
   "methods": [
     "edit"
   ],
-  "kind": "none",
-  "icon": "assets/img/quickDappLogo.webp",
-  "location": "mainPanel",
+  "kind": "quick-dapp-v2",
+  "icon": "assets/img/quickdappv2.webp",
+  "location": "sidePanel",
   "url": "plugins/quick-dapp-v2/index.html",
   "repo": "https://github.com/remix-project-org/remix-project/tree/master/apps/quick-dapp-v2",
   "maintainedBy": "Remix",
-  "authorContact": "https://github.com/drafish",
+  "authorContact": "support@remixlabs.live",
   "targets": [
     "remix"
   ]

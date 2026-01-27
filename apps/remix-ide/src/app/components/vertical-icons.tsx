@@ -30,7 +30,7 @@ export class VerticalIcons extends Plugin {
   }
 
   renderComponent() {
-    const fixedOrder = ['remixaiassistant', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting', 'pluginManager']
+    const fixedOrder = ['remixaiassistant', 'quick-dapp-v2', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting', 'pluginManager']
 
     const divived = Object.values(this.icons)
       .map((value) => {
