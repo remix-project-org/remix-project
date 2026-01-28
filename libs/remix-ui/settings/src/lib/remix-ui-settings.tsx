@@ -118,16 +118,6 @@ const settingsSections: SettingsSection[] = [
           type: 'custom' as const,
           customComponent: 'connectedAccounts'
         }]
-      },
-      {
-        title: 'Billing & Subscriptions',
-        description: 'Purchase credit packages or subscribe to get more AI credits.',
-        options: [{
-          name: 'billing-section',
-          label: '',
-          type: 'custom' as const,
-          customComponent: 'billingSection'
-        }]
       }
     ]
   },

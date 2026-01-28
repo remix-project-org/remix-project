@@ -1,5 +1,4 @@
 export { ProfileSection } from './profile-section'
 export { ConnectedAccounts } from './connected-accounts'
 export { CreditsBalance } from './credits-balance'
-export { BillingSection } from './billing-section'
 export * from './account-utils'

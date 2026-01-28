@@ -244,12 +244,6 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     ignored: /node_modules/
   }
 
-  // Allow ngrok and other tunneling services
-  config.devServer = {
-    ...config.devServer,
-    allowedHosts: 'all'
-  }
-
   return config;
 });
 

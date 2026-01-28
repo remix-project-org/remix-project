@@ -35,13 +35,6 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
     }
   }
 
-  case appActionTypes.setShowOverlayPanel: {
-    return {
-      ...state,
-      showOverlayPanel: action.payload
-    }
-  }
-
   case appActionTypes.setConnectedToDesktop: {
     console.log('setConnectedToDesktop', action.payload)
     return {

@@ -132,10 +132,7 @@ export class ApiClient implements IApiClient {
       requestHeaders['Authorization'] = `Bearer ${this.token}`
     }
     
-    // Normalize URL to avoid double slashes
-    const normalizedBase = this.baseUrl.replace(/\/+$/, '')
-    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
-    const url = `${normalizedBase}${normalizedEndpoint}`
+    const url = `${this.baseUrl}${endpoint}`
     
     try {
       const response = await fetch(url, {

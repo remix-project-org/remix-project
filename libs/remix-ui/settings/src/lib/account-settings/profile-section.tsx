@@ -207,7 +207,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                   className="rounded-circle"
                   style={{ width: '100px', height: '100px', objectFit: 'cover' }}
                   onError={(e) => {
-                   
+                    const target = e.target as HTMLImageElement
+                    target.src = 'https://via.placeholder.com/100?text=Not+Available'
                   }}
                 />
               ) : (

@@ -40,7 +40,7 @@ const defaultUrls: EndpointUrls = {
   solidityScanWebSocket: 'wss://solidityscan.api.remix.live',
   gitHubLoginProxy: 'https://github-login-proxy.api.remix.live',
   sso: 'https://auth.api.remix.live:8443/sso',
-  billing: 'https://auth.api.remix.live:8443/billing',
+  billing: 'https://auth.api.remix.live:8443//billing',
   credits: 'https://auth.api.remix.live:8443/credits',
   audio: 'https://audio.api.remix.live',
   permissions: 'https://auth.api.remix.live:8443/permissions',
@@ -102,7 +102,7 @@ const localhostUrls: EndpointUrls = {
   sso: 'https://auth.api.remix.live:8443/sso',
   
   // BILLING service (port 3002)
-  billing: 'https://auth.api.remix.live:8443/billing',
+  billing: 'https://auth.api.remix.live:8443//billing',
   credits: 'https://auth.api.remix.live:8443/credits',
   
   // AUDIO service (port 3004)

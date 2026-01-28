@@ -215,12 +215,6 @@
             "@remix-ui/login": [
               "libs/remix-ui/login/src/index.ts"
             ],
-            "@remix-ui/billing": [
-              "libs/remix-ui/billing/src/index.ts"
-            ],
-            "@remix-ui/account-overlay": [
-              "libs/remix-ui/account-overlay/src/index.ts"
-            ],
             "@remix-ui/template-explorer-modal": [
               "libs/remix-ui/template-explorer-modal/src/index.ts"
             ]
