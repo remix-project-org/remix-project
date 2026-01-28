@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect, useReducer, useContext } from 'reac
 import { FormattedMessage } from 'react-intl'
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs'
 import './remix-ui-tabs.css'
+import { QuickDappBanner } from './components/QuickDappBanner'
 import { values } from 'lodash'
 import { AppContext } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
@@ -86,6 +87,7 @@ export const TabsUI = (props: TabsUIProps) => {
   const tabsRef = useRef({})
   const tabsElement = useRef(null)
   const [ai_switch, setAI_switch] = useState<boolean>(true)
+  const [bannerVisible, setBannerVisible] = useState<boolean>(true)
   const tabs = useRef(props.tabs)
   tabs.current = props.tabs // we do this to pass the tabs list to the onReady callbacks
   const appContext = useContext(AppContext)
@@ -572,6 +574,118 @@ export const TabsUI = (props: TabsUIProps) => {
     props.plugin.call('notification', 'toast', text, duration)
   }
 
+  const handleQuickDappBannerClose = () => {
+    setBannerVisible(false)
+  }
+
+  const handleQuickDappStartNow = async () => {
+    const currentFile = tabsState.name
+    
+    try {
+      const instances = await props.plugin.call('udapp', 'getAllDeployedInstances') || []
+      
+      const currentFileName = currentFile.split('/').pop() 
+      const matchingInstances = instances.filter((inst: any) => {
+        const instFile = inst.contractData?.contract?.file || inst.filePath || ''
+        return instFile.endsWith(currentFileName)
+      })
+      
+      if (matchingInstances.length === 0) {
+        props.plugin.call('notification', 'modal', {
+          id: 'quick-dapp-compile-deploy',
+          title: 'Compile & Deploy Required',
+          message: 'To create a dApp, you need to compile and deploy your contract first.',
+          modalType: 'confirm',
+          okLabel: 'Compile & Deploy',
+          cancelLabel: 'Cancel',
+          okFn: async () => {
+            try {
+              await props.plugin.call('solidity', 'compile', currentFile)
+              await props.plugin.call('menuicons', 'select', 'udapp')
+            } catch (e) {
+              console.error('Compile error:', e)
+            }
+          },
+          cancelFn: () => {}
+        })
+      } else if (matchingInstances.length === 1) {
+        await openSparkleModal(matchingInstances[0])
+      } else {
+        const instanceOptions = matchingInstances.map((inst: any) => 
+          `${inst.name} at ${inst.address.slice(0, 10)}...${inst.address.slice(-8)}`
+        ).join('\n')
+        
+        props.plugin.call('notification', 'modal', {
+          id: 'quick-dapp-select-instance',
+          title: 'Select Contract Instance',
+          message: `Multiple deployed instances found for ${currentFileName}:\n\n${instanceOptions}\n\nPlease select one from the Deploy & Run tab.`,
+          modalType: 'confirm',
+          okLabel: 'Go to Deploy Tab',
+          cancelLabel: 'Cancel',
+          okFn: async () => {
+            await props.plugin.call('menuicons', 'select', 'udapp')
+          },
+          cancelFn: () => {}
+        })
+      }
+    } catch (error) {
+      console.error('Quick DApp error:', error)
+      props.plugin.call('notification', 'toast', 'Error checking deployed contracts')
+    }
+  }
+
+  const openSparkleModal = async (instance: any) => {
+    try {
+      const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', instance.name)
+      
+      const descriptionObj: any = await new Promise((resolve, reject) => {
+        const modalContent = {
+          id: 'generate-website-ai-banner',
+          title: 'Generate a Dapp UI with AI',
+          message: `
+            <div style="margin-bottom: 16px;">
+              <span>Please describe how you would want the design to look like.</span>
+            </div>
+            <textarea id="quick-dapp-description" class="form-control mb-3" rows="4" placeholder='E.g: "The website should have a dark theme..."'></textarea>
+            <div class="mt-2 text-muted small">This might take up to 2 minutes.</div>
+          `,
+          modalType: 'confirm',
+          okLabel: 'Generate',
+          cancelLabel: 'Cancel',
+          okFn: () => {
+            const textarea = document.getElementById('quick-dapp-description') as HTMLTextAreaElement
+            resolve({ text: textarea?.value || '' })
+          },
+          cancelFn: () => reject(new Error('Canceled'))
+        }
+        props.plugin.call('notification', 'modal', modalContent)
+      })
+
+      await props.plugin.call('quick-dapp-v2', 'createDapp', {
+        description: descriptionObj.text,
+        contractName: instance.name,
+        address: instance.address,
+        abi: instance.abi || instance.contractData?.abi,
+        chainId: await props.plugin.call('network', 'getNetworkProvider').then((p: any) => p?.chainId),
+        compilerData: data
+      })
+
+      await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+      
+    } catch (error) {
+      if (error.message !== 'Canceled') {
+        console.error('Error generating DApp:', error)
+        props.plugin.call('notification', 'toast', 'Error generating DApp')
+      }
+    }
+  }
+
+  useEffect(() => {
+    setBannerVisible(true)
+  }, [tabsState.selectedIndex])
+
+  const shouldShowQuickDappBanner = tabsState.currentExt === 'sol' && bannerVisible
+
   let mainLabel = ''
   if (tabsState.currentExt === 'sql') {
     mainLabel = 'Run SQL'
@@ -631,12 +745,13 @@ export const TabsUI = (props: TabsUIProps) => {
     btnDisabled = false
   }
   return (
-    <div
-      className={`remix-ui-tabs justify-content-between  border-0 header nav-tabs ${
-        appContext.appState.connectedToDesktop === desktopConnectionType .disabled ? 'd-flex' : 'd-none'
-      }`}
-      data-id="tabs-component"
-    >
+    <>
+      <div
+        className={`remix-ui-tabs justify-content-between  border-0 header nav-tabs ${
+          appContext.appState.connectedToDesktop === desktopConnectionType .disabled ? 'd-flex' : 'd-none'
+        }`}
+        data-id="tabs-component"
+      >
       <div className="d-flex flex-row" style={{ maxWidth: 'fit-content', width: '99%' }}>
         <div className="d-flex flex-row justify-content-center align-items-center m-1 mt-1">
           <div className="d-flex align-items-center m-1">
@@ -729,7 +844,14 @@ export const TabsUI = (props: TabsUIProps) => {
         </Tabs>
 
       </div>
-    </div>
+      </div>
+      {shouldShowQuickDappBanner && (
+        <QuickDappBanner
+          onClose={handleQuickDappBannerClose}
+          onStartNow={handleQuickDappStartNow}
+        />
+      )}
+    </>
   )
 }
 
