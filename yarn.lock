@@ -7021,6 +7021,11 @@
   dependencies:
     ethereum-cryptography "^3.2.0"
 
+"@paddle/paddle-js@^1.3.1":
+  version "1.6.1"
+  resolved "https://registry.yarnpkg.com/@paddle/paddle-js/-/paddle-js-1.6.1.tgz#19b764d84310d9b49b27f693b4531227a504c6e9"
+  integrity sha512-Yh6i99Wz22EcJ0KyZfTxzzDHduet3fpKmqEKSmZlHxlgIXDyBjkzdGNWw3/yR7Esdvr6HuLu3WfDTod5lC0alw==
+
 "@parcel/watcher-android-arm64@2.4.0":
   version "2.4.0"
   resolved "https://registry.yarnpkg.com/@parcel/watcher-android-arm64/-/watcher-android-arm64-2.4.0.tgz#9c93763794153e4f76920994a423b6ea3257059d"

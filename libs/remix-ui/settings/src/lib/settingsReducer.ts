@@ -218,6 +218,10 @@ export const initialState: SettingsState = {
     value: '',
     isLoading: false
   },
+  'billing-section': {
+    value: '',
+    isLoading: false
+  },
   'ollama-config': {
     value: ollamaConfig,
     isLoading: false

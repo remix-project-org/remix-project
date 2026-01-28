@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, Credits } from '@remix-api'
+import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, Credits } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { getAddress } from 'ethers'
 
@@ -7,7 +7,7 @@ const profile = {
   name: 'auth',
   displayName: 'Authentication',
   description: 'Handles SSO authentication and credits',
-  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit'],
+  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig'],
   events: ['authStateChanged', 'creditsUpdated', 'accountLinked']
 }
 
@@ -16,6 +16,7 @@ export class AuthPlugin extends Plugin {
   private ssoApi: SSOApiService
   private creditsApi: CreditsApiService
   private permissionsApi: PermissionsApiService
+  private billingApi: BillingApiService
   private refreshTimer: number | null = null
 
   constructor() {
@@ -33,10 +34,15 @@ export class AuthPlugin extends Plugin {
     const permissionsClient = new ApiClient(endpointUrls.permissions)
     this.permissionsApi = new PermissionsApiService(permissionsClient)
 
+    // Billing API
+    const billingClient = new ApiClient(endpointUrls.billing)
+    this.billingApi = new BillingApiService(billingClient)
+
     // Set up token refresh callback for auto-renewal
     this.apiClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     creditsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     permissionsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
+    billingClient.setTokenRefreshCallback(() => this.refreshAccessToken())
   }
 
   private clearRefreshTimer() {
@@ -102,6 +108,37 @@ export class AuthPlugin extends Plugin {
    */
   async getPermissionsApi(): Promise<PermissionsApiService> {
     return this.permissionsApi
+  }
+
+  /**
+   * Get the typed Billing API service
+   */
+  async getBillingApi(): Promise<BillingApiService> {
+    return this.billingApi
+  }
+
+  /**
+   * Get Paddle configuration for checkout (fetched from backend)
+   */
+  async getPaddleConfig(): Promise<{ clientToken: string | null; environment: 'sandbox' | 'production' }> {
+    try {
+      // Ensure we have a token set
+      await this.getToken()
+      
+      const response = await this.billingApi.getConfig()
+      if (response.ok && response.data?.paddle) {
+        return {
+          clientToken: response.data.paddle.token,
+          environment: response.data.paddle.environment
+        }
+      }
+      
+      console.warn('[AuthPlugin] Failed to fetch Paddle config:', response.error)
+      return { clientToken: null, environment: 'sandbox' }
+    } catch (error) {
+      console.error('[AuthPlugin] Error fetching Paddle config:', error)
+      return { clientToken: null, environment: 'sandbox' }
+    }
   }
 
   /**

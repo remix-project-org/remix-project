@@ -48,19 +48,22 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   }
 
   const handleManageAccounts = () => {
-    // Open Settings plugin via plugin manager (no window events)
+    // Open Account overlay
     if (plugin && typeof plugin.call === 'function') {
       (async () => {
         try {
-          const isActive = await plugin.call('manager', 'isActive', 'settings')
-          if (!isActive) await plugin.call('manager', 'activatePlugin', 'settings')
-          await plugin.call('tabs', 'focus', 'settings')
-          // Focus the Account section of settings via plugin API
-          await plugin.call('settings', 'showSection', 'account')
-          // TODO: If settings plugin exposes API to select a specific section,
-          // call it here to navigate to 'account-authentication'.
+          await plugin.call('account', 'open')
         } catch (err) {
-          console.error('[LoginButton] Failed to open Settings via plugin:', err)
+          console.error('[LoginButton] Failed to open Account overlay:', err)
+          // Fallback to settings if account plugin is not available
+          try {
+            //const isActive = await plugin.call('manager', 'isActive', 'settings')
+            //if (!isActive) await plugin.call('manager', 'activatePlugin', 'settings')
+            //await plugin.call('tabs', 'focus', 'settings')
+            //await plugin.call('settings', 'showSection', 'account')
+          } catch (settingsErr) {
+            //console.error('[LoginButton] Failed to open Settings:', settingsErr)
+          }
         }
       })()
     }

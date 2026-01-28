@@ -31,7 +31,7 @@
     "serve": "nx serve remix-ide --configuration=development",
     "serve:hot": "nx serve remix-ide --configuration=hot",
     "serve:endpoints": "NX_ENDPOINTS_URL=\"http://localhost\" yarn serve",
-    "serve:ngrok": "NX_ENDPOINTS_URL=\"https://api-remix-dev.ngrok.dev\" yarn serve",
+    "serve:ngrok": "ngrok http 8080 --domain=remix-dev.ngrok.dev",
     "serve:plugin": "nx serve ${npm_config_plugin} --configuration=development",
     "build:plugin": "NODE_ENV=production nx build ${npm_config_plugin} --configuration=production",
     "build": "node --max-old-space-size=4096 ./node_modules/.bin/nx build || node --max-old-space-size=4096 ./node_modules/.bin/nx build --skip-nx-cache",

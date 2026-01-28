@@ -121,6 +121,7 @@ export interface SettingsState {
   'profile-section': ConfigState,
   'credits-balance': ConfigState,
   'connected-accounts': ConfigState,
+  'billing-section': ConfigState,
   'ollama-config': ConfigState,
   'ollama-endpoint': ConfigState,
   toaster: ConfigState

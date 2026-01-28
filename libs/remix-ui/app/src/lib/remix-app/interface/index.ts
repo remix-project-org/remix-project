@@ -99,6 +99,7 @@ export interface AppState {
     needsGitInit: boolean
     canUseGit: boolean
     showPopupPanel: boolean
+    showOverlayPanel: boolean
     connectedToDesktop: desktopConnection
     desktopClientConnected: desktopConnection
     genericModalState?: GenericModal
