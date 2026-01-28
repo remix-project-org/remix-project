@@ -587,7 +587,7 @@ jobs:
 
   remix-test-plugins:
     docker:
-      - image: cimg/node:20.17.0-browsers
+      - image: cimg/node:20.19.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     parameters:
