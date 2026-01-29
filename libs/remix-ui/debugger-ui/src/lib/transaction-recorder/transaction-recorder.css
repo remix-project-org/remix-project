@@ -1,0 +1,70 @@
+.transaction-recorder {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.transaction-recorder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.transaction-recorder-title {
+  font-weight: 600;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.transaction-recorder-filter {
+  min-width: 150px;
+}
+
+.transaction-recorder-tabs {
+  border: 1px solid var(--secondary);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.transaction-recorder-tabs .nav-tabs {
+  border-bottom: 1px solid var(--secondary);
+  background-color: var(--light);
+  margin-bottom: 0;
+}
+
+.transaction-recorder-tabs .nav-link {
+  color: var(--text-primary);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+.transaction-recorder-tabs .nav-link:hover {
+  border-color: transparent;
+  background-color: var(--secondary);
+}
+
+.transaction-recorder-tabs .nav-link.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background-color: var(--body-bg);
+  font-weight: 500;
+}
+
+.transaction-recorder-tabs .tab-content {
+  background-color: var(--body-bg);
+}
+
+.contract-call-content,
+.transaction-list-content {
+  min-height: 150px;
+}
+
+.contract-call-content p,
+.transaction-list-content p {
+  margin: 0;
+  text-align: center;
+  padding: 2rem 0;
+}

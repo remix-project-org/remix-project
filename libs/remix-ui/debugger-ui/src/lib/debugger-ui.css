@@ -25,3 +25,21 @@
 .jumpToFunctionClick span {
   cursor: pointer;
 }
+
+.debugger-info {
+  padding: 0.75rem;
+  background-color: var(--light);
+  border-left: 3px solid var(--info);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.debugger-info a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.debugger-info a:hover {
+  text-decoration: underline;
+}

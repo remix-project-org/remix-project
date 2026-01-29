@@ -1,9 +1,10 @@
 import React, {useState, useEffect, useRef, useContext} from 'react' // eslint-disable-line
 import { FormattedMessage, useIntl } from 'react-intl'
-import TxBrowser from './tx-browser/tx-browser' // eslint-disable-line
 import StepManager from './step-manager/step-manager' // eslint-disable-line
 import VmDebugger from './vm-debugger/vm-debugger' // eslint-disable-line
 import VmDebuggerHead from './vm-debugger/vm-debugger-head' // eslint-disable-line
+import SearchBar from './search-bar/search-bar' // eslint-disable-line
+import TransactionRecorder from './transaction-recorder/transaction-recorder' // eslint-disable-line
 import {TransactionDebugger as Debugger} from '@remix-project/remix-debug' // eslint-disable-line
 import {DebuggerUIProps} from './idebugger-api' // eslint-disable-line
 import {Toaster} from '@remix-ui/toaster' // eslint-disable-line
@@ -384,6 +385,10 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     triggerEvent: state.debugger && state.debugger.vmDebuggerLogic ? state.debugger.vmDebuggerLogic.event.trigger.bind(state.debugger.vmDebuggerLogic.event) : null
   }
 
+  const handleSearch = (txHash: string) => {
+    debug(txHash)
+  }
+
   const customJSX = (
     <span className="p-0 m-0">
       <input
@@ -409,8 +414,36 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     <div>
       <Toaster message={state.toastMessage} />
       <div className="px-2 pb-3" ref={debuggerTopRef}>
+        {/* Search Bar */}
+        <SearchBar
+          onSearch={handleSearch}
+          debugging={state.debugging}
+          currentTxHash={state.txNumber}
+        />
+
+        {/* Informational Text */}
+        {!state.debugging && (
+          <div className="debugger-info mb-3">
+            <i className="fas fa-info-circle" aria-hidden="true"></i>
+            <span className="ms-2">
+              <FormattedMessage id="debugger.introduction" defaultMessage="Use the search bar above to debug a transaction by its hash. For verified contracts, check" />:{' '}
+              <a href="https://docs.sourcify.dev/docs/chains/" target="_blank" rel="noopener noreferrer">
+                <FormattedMessage id="debugger.sourcifyDocs" defaultMessage="Sourcify" />
+              </a>{' '}
+              &{' '}
+              <a href="https://etherscan.io/contractsVerified" target="_blank" rel="noopener noreferrer">
+                Etherscan
+              </a>
+            </span>
+          </div>
+        )}
+
+        {/* Validation Error */}
+        {state.validationError && <span className="w-100 py-1 text-danger validationError d-block mb-3">{state.validationError}</span>}
+
+        {/* Configuration Options */}
         <div>
-          <div className="mt-2 mb-2 debuggerConfig form-check">
+          <div className="mb-2 debuggerConfig form-check">
             <CustomTooltip tooltipId="debuggerGenSourceCheckbox" tooltipText={<FormattedMessage id="debugger.debugWithGeneratedSources" />} placement="bottom-start">
               {customJSX}
             </CustomTooltip>
@@ -437,35 +470,23 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
               </label>
             </div>
           )}
-          {state.validationError && <span className="w-100 py-1 text-danger validationError">{state.validationError}</span>}
         </div>
-        <TxBrowser
+
+        {/* Transaction Recorder Section */}
+        <TransactionRecorder
           requestDebug={requestDebug}
           unloadRequested={unloadRequested}
           updateTxNumberFlag={updateTxNumberFlag}
           transactionNumber={state.txNumber}
           debugging={state.debugging}
         />
+
         {state.debugging && state.sourceLocationStatus && (
-          <div className="text-warning">
+          <div className="text-warning mt-3">
             <i className="fas fa-exclamation-triangle" aria-hidden="true"></i> {state.sourceLocationStatus}
           </div>
         )}
-        {!state.debugging && (
-          <div>
-            <i className="fas fa-info-triangle" aria-hidden="true"></i>
-            <span>
-              <FormattedMessage id="debugger.introduction" />:{' '}
-              <a href="https://docs.sourcify.dev/docs/chains/" target="__blank">
-                <FormattedMessage id="debugger.sourcifyDocs" />
-              </a>{' '}
-              &{' '}
-              <a href="https://etherscan.io/contractsVerified" target="__blank">
-                https://etherscan.io/contractsVerified
-              </a>
-            </span>
-          </div>
-        )}
+
         {state.debugging && <StepManager stepManager={stepManager} />}
       </div>
       <div className="debuggerPanels" ref={panelsRef}>
