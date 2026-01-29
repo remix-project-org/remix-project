@@ -790,7 +790,7 @@ export function Workspace() {
           <FormattedMessage id="filePanel.deleteMsg" /> {path.length > 1 ? <FormattedMessage id="filePanel.theseItems" /> : <FormattedMessage id="filePanel.thisItem" />}?
         </div>
         {path.map((item, i) => (
-          <li key={i}>{item}</li>
+          <li className="ms-3" key={i}>{item}</li>
         ))}
       </div>
     )
