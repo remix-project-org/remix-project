@@ -29,6 +29,10 @@ export class FetchAndCompile extends Plugin {
     this.unresolvedAddresses = []
   }
 
+  log (message: string) {
+    this.call('terminal', 'log', { type: 'log', value: message })
+  } 
+
   /**
    * Fetch compilation metadata from source-Verify from a given @arg contractAddress - https://github.com/ethereum/source-verify
    * Put the artifacts in the file explorer
@@ -148,8 +152,8 @@ export class FetchAndCompile extends Plugin {
     }
 
     if (!data) {
-      this.call('notification', 'toast', `contract ${contractAddress} not found in Sourcify, checking in Etherscan..`)
       try {
+        this.log('Fetching source code from Etherscan...')
         data = await fetchContractFromEtherscan(this, network, contractAddress, targetPath)
       } catch (e) {
         this.call('notification', 'toast', e.message)
@@ -160,6 +164,7 @@ export class FetchAndCompile extends Plugin {
     }
 
     if (!data) {
+      this.log('Not found, using local compilation if available...')
       setTimeout(_ => this.emit('notFound', contractAddress), 0)
       this.unresolvedAddresses.push(contractAddress)
       const compilation = await localCompilation()
@@ -180,7 +185,7 @@ export class FetchAndCompile extends Plugin {
     * If the remappings are defined in the config, we need to update them to point to the targetPath
     * it's beeing disabled for the moment.
     */
-    /*if (config && config.settings && config.settings.remappings) {
+    if (config && config.settings && config.settings.remappings) {
       console.log(config.settings.remappings)
       config.settings.remappings = config.settings.remappings.map((remapping) => {
         let [virtual, path] = remapping.split('=')
@@ -190,10 +195,10 @@ export class FetchAndCompile extends Plugin {
         }
         return `${virtual}=${targetPath}/${path}`
       })
-    }*/
+    }
 
     try {
-      setTimeout(_ => this.emit('compiling', config.settings), 0)
+      this.log(`recompiling source code ${contractAddress} with Solidity v${version}...`)
       const compData = await compile(
         compilationTargets,
         config.settings,
@@ -208,9 +213,26 @@ export class FetchAndCompile extends Plugin {
             cb('dependency not found ' + url)
           }
         })
+      let hasErrored = false
+      if (compData && compData.data && compData.data.errors && compData.data.errors.length) {
+        compData.data.errors.forEach(error => {
+          if (error.severity === 'error') {
+            this.log(`Error: ${error.formattedMessage || error.message}`)
+            hasErrored = true
+          }
+        })
+      }
+
+      if (compData && compData.data && compData.data.error && compData.data.error.severity === 'error') {
+        hasErrored = true
+        this.log(`Error: ${compData.data.error.formattedMessage ||compData.data.error.message}`)
+      }
+      this.log(hasErrored ? `recompilation failed for ${contractAddress}. Continuing without source location debugging` : `recompilation successful for ${contractAddress}`)
+      
       await this.call('compilerArtefacts', 'addResolvedContract', contractAddress, compData)
       return compData
     } catch (e) {
+      this.log(`recompilation failed: ${e.message}`)
       this.unresolvedAddresses.push(contractAddress)
       setTimeout(_ => this.emit('compilationFailed'), 0)
       return localCompilation()
