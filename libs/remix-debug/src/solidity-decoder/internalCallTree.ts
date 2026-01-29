@@ -55,6 +55,10 @@ export interface LocalVariable {
   isParameter?: boolean
 }
 
+export interface NestedScope extends Scope {
+  scopeId: string
+  children: NestedScope[]
+}
 /**
  * Represents a scope in the call tree with execution details.
  */
@@ -80,6 +84,10 @@ export interface Scope {
     step: StepDetail
     line?: number
   }
+  /** Opcode */
+  opcodeInfo?: StepDetail,
+  /** Address */
+  address?: string
 }
 
 /**
@@ -469,6 +477,65 @@ export class InternalCallTree {
   getVariablesOnStackAtStep (step: number) {
     return this.symbolicStackManager.getAllVariablesAtStep(step)
   }
+
+  /**
+   * Converts the flat scopes structure to a nested JSON structure.
+   * Transforms scopeIds like "1", "1.1", "1.2", "1.1.1" into a hierarchical tree.
+   *
+   * @returns {NestedScope[]} Array of nested scopes with children as arrays
+   */
+  getScopesAsNestedJSON (): NestedScope[] {
+    const scopeMap = new Map<string, NestedScope>()
+    
+    // Create NestedScope objects for all scopes
+    for (const [scopeId, scope] of Object.entries(this.scopes)) {
+      scopeMap.set(scopeId, {
+        ...scope,
+        scopeId,
+        children: []
+      })
+    }
+    
+    const rootScopes: NestedScope[] = []
+    
+    // Build the tree structure
+    for (const [scopeId, nestedScope] of scopeMap) {
+      const parentScopeId = this.parentScope(scopeId)
+      
+      if (parentScopeId === '') {
+        // This is a root scope
+        rootScopes.push(nestedScope)
+      } else {
+        // This is a child scope, add it to its parent
+        const parentScope = scopeMap.get(parentScopeId)
+        if (parentScope) {
+          parentScope.children.push(nestedScope)
+        }
+      }
+    }
+    
+    // Sort root scopes and all children recursively
+    const sortScopes = (scopes: NestedScope[]) => {
+      scopes.sort((a, b) => {
+        const aParts = a.scopeId.split('.').map(Number)
+        const bParts = b.scopeId.split('.').map(Number)
+        
+        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+          const aVal = aParts[i] || 0
+          const bVal = bParts[i] || 0
+          if (aVal !== bVal) return aVal - bVal
+        }
+        return 0
+      })
+      
+      // Recursively sort children
+      scopes.forEach(scope => sortScopes(scope.children))
+    }
+    
+    sortScopes(rootScopes)
+    
+    return rootScopes
+  }
 }
 
 /**
@@ -488,8 +555,9 @@ export class InternalCallTree {
  */
 async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, functionDefinition?, contractObj?, sourceLocation?, validSourceLocation?) {
   let subScope = 1
-  if (functionDefinition) {
-    const address = tree.traceManager.getCurrentCalledAddressAt(step)
+  const address = tree.traceManager.getCurrentCalledAddressAt(step)
+  tree.scopes[scopeId].address = address
+  if (functionDefinition) {    
     await registerFunctionParameters(tree, functionDefinition, step, scopeId, contractObj, validSourceLocation, address)
   }
 
@@ -670,13 +738,15 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     }
     const internalfunctionCall = functionDefinition && (previousSourceLocation && previousSourceLocation.jump === 'i') && functionDefinition.kind !== 'constructor'
     const isJumpOutOfFunction = functionDefinition && (validSourceLocation && validSourceLocation.jump === 'o') && functionDefinition.kind !== 'constructor'
+    console.log('step', step, functionDefinition, internalfunctionCall, previousSourceLocation)
     if (constructorExecutionStarts || isInternalTxInstrn || internalfunctionCall) {
       try {
+        console.log('Entering new scope at step ', step, constructorExecutionStarts, isInternalTxInstrn, internalfunctionCall)
         previousSourceLocation = null
         const newScopeId = scopeId === '' ? subScope.toString() : scopeId + '.' + subScope
         tree.scopeStarts[step] = newScopeId
         const startExecutionLine = lineColumnPos && lineColumnPos.start ? lineColumnPos.start.line + 1 : undefined
-        tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition }
+        tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition, opcodeInfo: stepDetail }
         // for the ctor we are at the start of its trace, we have to replay this step in order to catch all the locals:
         const nextStep = constructorExecutionStarts ? step : step + 1
         if (constructorExecutionStarts) {
@@ -705,6 +775,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         return { outStep: step, error: 'InternalCallTree - ' + e.message }
       }
     } else if (callDepthChange(step, tree.traceManager.trace) || isJumpOutOfFunction || isRevert || isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail)) {
+      console.log('Exiting scope ','at step ', step, callDepthChange(step, tree.traceManager.trace), isJumpOutOfFunction, isRevert, isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail))
       // if not, we might be returning from a CALL or internal function. This is what is checked here.
       // For constructors in inheritance chains, we also check if stack depth has returned to entry level
       tree.scopes[scopeId].lastStep = step
