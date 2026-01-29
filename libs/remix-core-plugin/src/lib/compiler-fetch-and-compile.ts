@@ -31,6 +31,10 @@ export class FetchAndCompile extends Plugin {
 
   log (message: string) {
     this.call('terminal', 'log', { type: 'log', value: message })
+  }
+
+  error (message: string) {
+    this.call('terminal', 'log', { type: 'error', value: message })
   } 
 
   /**
@@ -147,16 +151,16 @@ export class FetchAndCompile extends Plugin {
     try {
       data = await fetchContractFromSourcify(this, network, contractAddress, targetPath)
     } catch (e) {
-      this.call('notification', 'toast', e.message)
+      this.error(e.message)
       console.log(e) // and fallback to getting the compilation result from etherscan
     }
 
     if (!data) {
       try {
-        this.log('Fetching source code from Etherscan...')
+        this.log(`Fetching source code ${contractAddress} from Etherscan...`)
         data = await fetchContractFromEtherscan(this, network, contractAddress, targetPath)
       } catch (e) {
-        this.call('notification', 'toast', e.message)
+        this.error(e.message)
         setTimeout(_ => this.emit('notFound', contractAddress), 0) // plugin framework returns a time out error although it actually didn't find the source...
         this.unresolvedAddresses.push(contractAddress)
         return localCompilation()
