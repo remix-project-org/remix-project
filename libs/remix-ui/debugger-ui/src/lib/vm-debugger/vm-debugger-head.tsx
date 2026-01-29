@@ -4,6 +4,7 @@ import FunctionPanel from './function-panel' // eslint-disable-line
 import StepDetail from './step-detail' // eslint-disable-line
 import SolidityState from './solidity-state' // eslint-disable-line
 import SolidityLocals from './solidity-locals' // eslint-disable-line
+import ScopePanel from './scope-panel'
 
 export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, debugging, stepManager, onShowOpcodesChange }) => {
   const [functionPanel, setFunctionPanel] = useState(null)
@@ -15,6 +16,8 @@ export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, de
     'remaining gas': '-',
     'loaded address': '-'
   })
+
+  const [scopeData, setScopeData] = useState([])
 
   const [solidityState, setSolidityState] = useState({
     calldata: null,
@@ -127,12 +130,26 @@ export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, de
           return { calldata: {}, message }
         })
       })
+
+    registerEvent &&
+      registerEvent('newCallTree', (internalCallTree) => {
+        // Get nested scopes from the InternalCallTree
+        if (internalCallTree && typeof internalCallTree.getScopesAsNestedJSON === 'function') {
+          const nestedScopes = internalCallTree.getScopesAsNestedJSON()
+          setScopeData(nestedScopes)
+        }
+      })
+
+    registerEvent &&
+      registerEvent('traceUnloaded', () => {
+        setScopeData([])
+      })
   }, [debugging])
 
   return (
     <div id="vmheadView" className="mt-1 px-2 d-flex">
       <div className="d-flex flex-column pe-2" style={{ flex: 1 }}>
-        <FunctionPanel className="pb-1" data={functionPanel} stepManager={stepManager} />
+        <ScopePanel className="pb-1" data={scopeData} stepManager={stepManager} />
         <SolidityLocals className="pb-1" data={solidityLocals.calldata} message={solidityLocals.message} registerEvent={registerEvent} triggerEvent={triggerEvent} />
         <CodeListView className="pb-2 flex-grow-1" registerEvent={registerEvent} onShowOpcodesChange={onShowOpcodesChange} />
       </div>

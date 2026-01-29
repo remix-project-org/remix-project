@@ -231,9 +231,9 @@ export class VmDebuggerLogic {
       this.event.trigger('newTrace', [])
     })
 
-    this.debugger.callTree.event.register('callTreeReady', () => {
+    this.debugger.callTree.event.register('callTreeReady', (scopes, scopeStarts, internalCallTree) => {
       if (this.debugger.callTree.reducedTrace.length) {
-        return this.event.trigger('newCallTree', [])
+        return this.event.trigger('newCallTree', [internalCallTree])
       }
     })
   }

@@ -40,6 +40,13 @@
   .cursor_pointer {
     cursor: pointer;
   }
+  .jumpToScopeClick {
+    cursor: pointer;
+  }
+  .jumpToScopeClick:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+    border-radius: 3px;
+  }
   @-moz-keyframes spin {
     to { -moz-transform: rotate(359deg); }
   }
