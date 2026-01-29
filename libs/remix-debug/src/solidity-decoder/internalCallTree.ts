@@ -250,7 +250,7 @@ export class InternalCallTree {
             } else {
               createReducedTrace(this, traceManager.trace.length - 1)
               console.log('call tree build lasts ', (Date.now() - time) / 1000)
-              this.event.trigger('callTreeReady', [this.scopes, this.scopeStarts, this.traceManager.trace])
+              this.event.trigger('callTreeReady', [this.scopes, this.scopeStarts, this])
             }
           }, (reason) => {
             console.log('analyzing trace falls ' + reason)
@@ -394,6 +394,9 @@ export class InternalCallTree {
     try {
       if (!address) address = this.traceManager.getCurrentCalledAddressAt(step)
       const compilationResult = await this.solidityProxy.compilationResult(address)
+      if (!compilationResult) {
+        throw new Error('No compilation result available for address ' + address)
+      }
       return await this.sourceLocationTracker.getSourceLocationFromVMTraceIndex(address, step, compilationResult.data.contracts)
     } catch (error) {
       throw new Error('InternalCallTree - Cannot retrieve sourcelocation for step ' + step + ' ' + error)
@@ -660,8 +663,10 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
       } else
         validSourceLocation = currentSourceLocation
     } catch (e) {
-      console.error(e)
-      return { outStep: step, error: 'InternalCallTree - Error resolving source location. ' + step + ' ' + e }
+      console.warn(e)
+      sourceLocation = previousSourceLocation
+      validSourceLocation = previousValidSourceLocation
+      // return { outStep: step, error: 'InternalCallTree - Error resolving source location. ' + step + ' ' + e }
     }
     if (!sourceLocation) {
       return { outStep: step, error: 'InternalCallTree - No source Location. ' + step }
@@ -701,7 +706,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         tree.gasCostPerLine[validSourceLocation.file][scopeId][lineColumnPos.start.line].gasCost += stepDetail.gasCost
         tree.gasCostPerLine[validSourceLocation.file][scopeId][lineColumnPos.start.line].indexes.push(step)
       } catch (e) {
-        console.error(e)
+        console.warn(e)
       }
     }
     if (tree.locationAndOpcodePerVMTraceIndex[step]) {
