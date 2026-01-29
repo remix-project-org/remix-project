@@ -3288,119 +3288,121 @@
   resolved "https://registry.yarnpkg.com/@eslint/js/-/js-8.44.0.tgz#961a5903c74139390478bdc808bcde3fc45ab7af"
   integrity sha512-Ag+9YM4ocKQx9AarydN0KY2j0ErMHNIocPDrVo8zAE44xLTjEtz81OdR68/cydGtk6m6jDb5Za3r2useMzYmSw==
 
-"@ethereumjs/binarytree@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/binarytree/-/binarytree-10.1.0.tgz#d5c7b19975fba762ab84937120ec56f6a657ccb3"
-  integrity sha512-54n24oYJqgDk6DtXVjjGohjQCFCDgcvI2+AeNGRZcsQuz6yE2HYvxWq8VrAAcR8ja/gNc9eVYL51DvU93qK8Eg==
+"@ethereumjs/binarytree@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/binarytree/-/binarytree-10.1.1.tgz#5213c6e862ce8b71a2a58a3487601a4d5901d093"
+  integrity sha512-vcU+cDgWJ0YNrJb5gWcKWfMpYJg4W+8benAds7QQo2ayTYZbuMqju3Fq7m5LNG+xqkdF0a901QDbT5xaB7rJLQ==
   dependencies:
-    "@ethereumjs/rlp" "^10.1.0"
-    "@ethereumjs/util" "^10.1.0"
-    "@noble/hashes" "^1.7.2"
+    "@ethereumjs/rlp" "^10.1.1"
+    "@ethereumjs/util" "^10.1.1"
+    "@noble/hashes" "^2.0.1"
     debug "^4.4.0"
-    ethereum-cryptography "^3.2.0"
     lru-cache "11.0.2"
 
-"@ethereumjs/block@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/block/-/block-10.1.0.tgz#18c19008881a910bd22ce7e519d7a5d5c4a4cee1"
-  integrity sha512-W2GR/ejYn/idfX4fxQ2DRbrbOF5U04Q2wDiMuxtvnOr8zdVCBSlVYCC348N73ufkrqY5ltTlEUZYWLWWobcS/Q==
+"@ethereumjs/block@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/block/-/block-10.1.1.tgz#16f4caf1bac1e4b9d98feb864292973bfcec2ea3"
+  integrity sha512-nzQ07KGdujKQPxnPlZ86ppJ/u1t3N/PQ4RpGoPb/LI9DoqulyMr90j5NzkjQNtnvBQc8WbhPffi44yC3Yso+rQ==
   dependencies:
-    "@ethereumjs/common" "^10.1.0"
-    "@ethereumjs/mpt" "^10.1.0"
-    "@ethereumjs/rlp" "^10.1.0"
-    "@ethereumjs/tx" "^10.1.0"
-    "@ethereumjs/util" "^10.1.0"
-    ethereum-cryptography "^3.2.0"
+    "@ethereumjs/common" "^10.1.1"
+    "@ethereumjs/mpt" "^10.1.1"
+    "@ethereumjs/rlp" "^10.1.1"
+    "@ethereumjs/tx" "^10.1.1"
+    "@ethereumjs/util" "^10.1.1"
+    "@noble/curves" "^2.0.1"
+    "@noble/hashes" "^2.0.1"
 
-"@ethereumjs/blockchain@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/blockchain/-/blockchain-10.1.0.tgz#72af2dccc65102a2033f697a206ae5e75419a212"
-  integrity sha512-KDp1C7XYAXLIl/HQ459K7PIsLtGT58BEprEMrAseAsagVmgVv7+cBacrEppwV7Fx33+JYm8tQ3vACt82bHbTWQ==
+"@ethereumjs/blockchain@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/blockchain/-/blockchain-10.1.1.tgz#c5369c9e08528854d76cb225c527f8ce7fcc2e5a"
+  integrity sha512-+zZtO8NDm9mx8PrZN+bWphc+mGW0doeHjUhhJNHfXyLWZAe4uo8J8NsRDeCOgxLHtlu7hjgIX1Gcnt3t3/VSJA==
   dependencies:
-    "@ethereumjs/block" "^10.1.0"
-    "@ethereumjs/common" "^10.1.0"
-    "@ethereumjs/mpt" "^10.1.0"
-    "@ethereumjs/rlp" "^10.1.0"
-    "@ethereumjs/util" "^10.1.0"
+    "@ethereumjs/block" "^10.1.1"
+    "@ethereumjs/common" "^10.1.1"
+    "@ethereumjs/mpt" "^10.1.1"
+    "@ethereumjs/rlp" "^10.1.1"
+    "@ethereumjs/util" "^10.1.1"
     debug "^4.4.0"
     eventemitter3 "^5.0.1"
     lru-cache "11.0.2"
 
-"@ethereumjs/common@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/common/-/common-10.1.0.tgz#f80e5589feae32ba33a818c50b18a361d8bde527"
-  integrity sha512-zIHCy0i2LFmMDp+QkENyoPGxcoD3QzeNVhx6/vE4nJk4uWGNXzO8xJ2UC4gtGW4UJTAOXja8Z1yZMVeRc2/+Ew==
+"@ethereumjs/common@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/common/-/common-10.1.1.tgz#23d28d635a4ef6b304b8810ea207857c85bfaa51"
+  integrity sha512-NefPzPlrJ9w+NWVe06P+sHZQU98E1AEU9vhiHJEVT2wEcNBC1YX6hON9+smrfbn86C4U1pb2zbvjhkF+n/LKBw==
   dependencies:
-    "@ethereumjs/util" "^10.1.0"
+    "@ethereumjs/util" "^10.1.1"
     eventemitter3 "^5.0.1"
 
-"@ethereumjs/evm@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/evm/-/evm-10.1.0.tgz#97ae3a688efd860d7a3bd2251c51ef00ed750d3e"
-  integrity sha512-RD6tjysXEWPfyBHmMxsg3s3T2JdbPVYvsDDDUR0laFaHWtHMnOeW/EIZ5njUx75nG+i72w34Sh6NhhkpkhMGDg==
+"@ethereumjs/evm@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/evm/-/evm-10.1.1.tgz#fc79786e78dfa3ebb0fb84e994501a4e0e396ddb"
+  integrity sha512-L6mVKbEe1bvvxWilUWfzkkYb+5bCWIlq32Lzuv4MJf4MNzZZ++P72/WIsKoLntbxWEuZDcYXGwHhmM9pfbu1BA==
   dependencies:
-    "@ethereumjs/binarytree" "^10.1.0"
-    "@ethereumjs/common" "^10.1.0"
-    "@ethereumjs/statemanager" "^10.1.0"
-    "@ethereumjs/util" "^10.1.0"
-    "@noble/curves" "^1.9.0"
+    "@ethereumjs/binarytree" "^10.1.1"
+    "@ethereumjs/common" "^10.1.1"
+    "@ethereumjs/statemanager" "^10.1.1"
+    "@ethereumjs/util" "^10.1.1"
+    "@noble/curves" "^2.0.1"
+    "@noble/hashes" "^2.0.1"
     debug "^4.4.0"
-    ethereum-cryptography "^3.2.0"
     eventemitter3 "^5.0.1"
 
-"@ethereumjs/mpt@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/mpt/-/mpt-10.1.0.tgz#fe0472a8f1e3658e06bcd798a934fa876e00ebc4"
-  integrity sha512-gWxx8n1OB2Js3EFWNeSdsUdYvw1P5WvdKxHmeq+giO03mt5fGRbuSh3ruXzreG4JRugpNSW6Dwqk+StVwjrQ4Q==
+"@ethereumjs/mpt@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/mpt/-/mpt-10.1.1.tgz#0d4f786e1ef21ebe26df2ce7206feb261428a7ad"
+  integrity sha512-Kh1vNhUwSIyuehOJk9Hqxzgu8D5B2L3jidKVaH4VB/dSo/6mVA0IKQ312c0ophXY8uU4f8NOTW602FJe6Ezaag==
   dependencies:
-    "@ethereumjs/rlp" "^10.1.0"
-    "@ethereumjs/util" "^10.1.0"
+    "@ethereumjs/rlp" "^10.1.1"
+    "@ethereumjs/util" "^10.1.1"
+    "@noble/hashes" "^2.0.1"
     debug "^4.4.0"
-    ethereum-cryptography "^3.2.0"
     lru-cache "11.0.2"
 
-"@ethereumjs/rlp@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/rlp/-/rlp-10.1.0.tgz#fe681ed0fd2f55ed8623c0d445353d1411703b5d"
-  integrity sha512-r67BJbwilammAqYI4B5okA66cNdTlFzeWxPNJOolKV52ZS/flo0tUBf4x4gxWXBgh48OgsdFV1Qp5pRoSe8IhQ==
+"@ethereumjs/rlp@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/rlp/-/rlp-10.1.1.tgz#c8a752a5ab27a9b6c22c45230e41e4fbb5959a6b"
+  integrity sha512-jbnWTEwcpoY+gE0r+wxfDG9zgiu54DcTcwnc9sX3DsqKR4l5K7x2V8mQL3Et6hURa4DuT9g7z6ukwpBLFchszg==
 
 "@ethereumjs/rlp@^4.0.1":
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/@ethereumjs/rlp/-/rlp-4.0.1.tgz#626fabfd9081baab3d0a3074b0c7ecaf674aaa41"
   integrity sha512-tqsQiBQDQdmPWE1xkkBq4rlSW5QZpLOUJ5RJh2/9fug+q9tnUhuZoVLk7s0scUIKTOzEtR72DFBXI4WiZcMpvw==
 
-"@ethereumjs/statemanager@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/statemanager/-/statemanager-10.1.0.tgz#73b89b31b5ac0a116d5e7e0f9412ab1720e0bd16"
-  integrity sha512-n4AB8olDocXtq/V6SClbZ5zEDfJL7cw3MmkGUb/MVQwJBgYZ143oll4UfGaK7jWQfF5Gth68KEJZQay5Hh3h6g==
+"@ethereumjs/statemanager@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/statemanager/-/statemanager-10.1.1.tgz#742d51b6bba132016bef43b1c33ce45cbb7b703b"
+  integrity sha512-V7BZhRP8lcP9A1cVclTPWvqyVUmGDcISPYXBFyLVvQQnzTydG8MdSRB+uUuGA0gAyB+jfSJIqkbYNR1U8R7t9Q==
   dependencies:
-    "@ethereumjs/binarytree" "^10.1.0"
-    "@ethereumjs/common" "^10.1.0"
-    "@ethereumjs/mpt" "^10.1.0"
-    "@ethereumjs/rlp" "^10.1.0"
-    "@ethereumjs/util" "^10.1.0"
+    "@ethereumjs/binarytree" "^10.1.1"
+    "@ethereumjs/common" "^10.1.1"
+    "@ethereumjs/mpt" "^10.1.1"
+    "@ethereumjs/rlp" "^10.1.1"
+    "@ethereumjs/util" "^10.1.1"
     "@js-sdsl/ordered-map" "^4.4.2"
-    "@noble/hashes" "^1.7.2"
+    "@noble/hashes" "^2.0.1"
     debug "^4.4.0"
-    ethereum-cryptography "^3.2.0"
     lru-cache "11.0.2"
 
-"@ethereumjs/tx@^10.1.0", "@ethereumjs/tx@^4.2.0", "@ethereumjs/tx@github:yann300/ethereumjs-vm#tx_release_10.1.0":
-  version "10.1.0"
-  resolved "https://codeload.github.com/yann300/ethereumjs-vm/tar.gz/f131c522f5869c061a5323db8a21dc695d271e2f"
+"@ethereumjs/tx@^10.1.1", "@ethereumjs/tx@^4.2.0":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/tx/-/tx-10.1.1.tgz#42015a2406185b7f464d167d06470812c0ae2774"
+  integrity sha512-Kz8GWIKQjEQB60ko9hsYDX3rZMHZZOTcmm6OFl855Lu3padVnf5ZactUKM6nmWPsumHED5bWDjO32novZd1zyw==
   dependencies:
-    "@ethereumjs/common" "^10.1.0"
-    "@ethereumjs/rlp" "^10.1.0"
-    "@ethereumjs/util" "^10.1.0"
-    ethereum-cryptography "^3.2.0"
+    "@ethereumjs/common" "^10.1.1"
+    "@ethereumjs/rlp" "^10.1.1"
+    "@ethereumjs/util" "^10.1.1"
+    "@noble/curves" "^2.0.1"
+    "@noble/hashes" "^2.0.1"
 
-"@ethereumjs/util@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/util/-/util-10.1.0.tgz#56ba2abd5ca0030a1bb6d543bf205c27307cd592"
-  integrity sha512-GGTCkRu1kWXbz2JoUnIYtJBOoA9T5akzsYa91Bh+DZQ3Cj4qXj3hkNU0Rx6wZlbcmkmhQfrjZfVt52eJO/y2nA==
+"@ethereumjs/util@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/util/-/util-10.1.1.tgz#1dbb2934f3fbaf7608726c5d19efe2c7128e606b"
+  integrity sha512-r2EhaeEmLZXVs1dT2HJFQysAkr63ZWATu/9tgYSp1IlvjvwyC++DLg5kCDwMM49HBq3sOAhrPnXkoqf9DV2gbw==
   dependencies:
-    "@ethereumjs/rlp" "^10.1.0"
-    ethereum-cryptography "^3.2.0"
+    "@ethereumjs/rlp" "^10.1.1"
+    "@noble/curves" "^2.0.1"
+    "@noble/hashes" "^2.0.1"
 
 "@ethereumjs/util@^8.1.0":
   version "8.1.0"
@@ -3411,21 +3413,21 @@
     ethereum-cryptography "^2.0.0"
     micro-ftch "^0.3.1"
 
-"@ethereumjs/vm@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.yarnpkg.com/@ethereumjs/vm/-/vm-10.1.0.tgz#96a859946e8d85cd2759ea4b24d9c194d0a5d704"
-  integrity sha512-5OxHK4hdccDeSiBeSZj8WITl9uB6NbXA6/yf2wAPoflVxZKzOM5h6ssFrOAhz2faD130UoU62pnT23WClgrXSQ==
+"@ethereumjs/vm@^10.1.1":
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/@ethereumjs/vm/-/vm-10.1.1.tgz#250fc72b3e34465a74a0ff1c24de4a42294c7cfd"
+  integrity sha512-OFr7+3pHgkzTAIXTBXr5UwerKJhrwcQEV/vHrd9jtnPVSdkZQKCttTWXwA/lqEcOGlNVenTLcWNYasdmXOU9lg==
   dependencies:
-    "@ethereumjs/block" "^10.1.0"
-    "@ethereumjs/common" "^10.1.0"
-    "@ethereumjs/evm" "^10.1.0"
-    "@ethereumjs/mpt" "^10.1.0"
-    "@ethereumjs/rlp" "^10.1.0"
-    "@ethereumjs/statemanager" "^10.1.0"
-    "@ethereumjs/tx" "^10.1.0"
-    "@ethereumjs/util" "^10.1.0"
+    "@ethereumjs/block" "^10.1.1"
+    "@ethereumjs/common" "^10.1.1"
+    "@ethereumjs/evm" "^10.1.1"
+    "@ethereumjs/mpt" "^10.1.1"
+    "@ethereumjs/rlp" "^10.1.1"
+    "@ethereumjs/statemanager" "^10.1.1"
+    "@ethereumjs/tx" "^10.1.1"
+    "@ethereumjs/util" "^10.1.1"
+    "@noble/hashes" "^2.0.1"
     debug "^4.4.0"
-    ethereum-cryptography "^3.2.0"
     eventemitter3 "^5.0.1"
 
 "@ethersphere/bee-js@^8.3.0":
@@ -5927,7 +5929,7 @@
   dependencies:
     "@noble/hashes" "1.7.2"
 
-"@noble/curves@1.9.0", "@noble/curves@^1.9.0", "@noble/curves@~1.9.0":
+"@noble/curves@1.9.0", "@noble/curves@~1.9.0":
   version "1.9.0"
   resolved "https://registry.yarnpkg.com/@noble/curves/-/curves-1.9.0.tgz#13e0ca8be4a0ce66c113693a94514e5599f40cfc"
   integrity sha512-7YDlXiNMdO1YZeH6t/kvopHHbIZzlxrCV9WLqCY6QhcXOoXiNCMDqJIglZ9Yjx5+w7Dz30TITFrlTjnRg7sKEg==
@@ -5940,6 +5942,13 @@
   integrity sha512-k11yZxZg+t+gWvBbIswW0yoJlu8cHOC7dhunwOzoWH/mXGBiYyR4YY6hAEK/3EUs4UpB8la1RfdRpeGsFHkWsA==
   dependencies:
     "@noble/hashes" "1.8.0"
+
+"@noble/curves@^2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@noble/curves/-/curves-2.0.1.tgz#64ba8bd5e8564a02942655602515646df1cdb3ad"
+  integrity sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==
+  dependencies:
+    "@noble/hashes" "2.0.1"
 
 "@noble/hashes@1.2.0", "@noble/hashes@~1.2.0":
   version "1.2.0"
@@ -5976,10 +5985,15 @@
   resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.7.2.tgz#d53c65a21658fb02f3303e7ee3ba89d6754c64b4"
   integrity sha512-biZ0NUSxyjLLqo6KxEJ1b+C2NAx0wtDoFvCaXHGgUkeHzf3Xc1xKumFKREuT7f7DARNZ/slvYUwFG6B0f2b6hQ==
 
-"@noble/hashes@1.8.0", "@noble/hashes@^1.7.2", "@noble/hashes@^1.8.0", "@noble/hashes@~1.8.0":
+"@noble/hashes@1.8.0", "@noble/hashes@^1.8.0", "@noble/hashes@~1.8.0":
   version "1.8.0"
   resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.8.0.tgz#cee43d801fcef9644b11b8194857695acd5f815a"
   integrity sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==
+
+"@noble/hashes@2.0.1", "@noble/hashes@^2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-2.0.1.tgz#fc1a928061d1232b0a52bb754393c37a5216c89e"
+  integrity sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==
 
 "@noble/hashes@^1.3.1":
   version "1.3.3"
