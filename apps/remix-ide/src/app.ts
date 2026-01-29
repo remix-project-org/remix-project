@@ -703,7 +703,7 @@ class AppComponent {
     // Set workspace after initial activation
     this.appManager.on('editor', 'editorMounted', () => {
       // Preload prettier and plugins to improve first-format performance
-      this.appManager.call('codeFormatter', 'preload').catch((e) => {
+      this.appManager.call('codeFormatter', 'preloadPrettier').catch((e) => {
         console.log('Failed to preload code formatter:', e)
       })
 

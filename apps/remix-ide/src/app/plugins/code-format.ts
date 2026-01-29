@@ -9,7 +9,7 @@ import { filePathFilter, AnyFilter } from '@jsdevtools/file-path-filter'
 const profile = {
   name: 'codeFormatter',
   description: 'prettier plugin for Remix',
-  methods: ['format'],
+  methods: ['format', 'preloadPrettier'],
   events: [''],
   version: '0.0.1'
 }
@@ -77,7 +77,7 @@ export class CodeFormat extends Plugin {
    * Preload prettier and its plugins to improve first-format performance
    * Can be called when the editor finishes loading
    */
-  async preload() {
+  async preloadPrettier() {
     // Prevent multiple simultaneous preload calls
     if (this.preloadPromise) {
       return this.preloadPromise
