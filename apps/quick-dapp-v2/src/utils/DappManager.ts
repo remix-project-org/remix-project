@@ -97,6 +97,51 @@ export class DappManager {
     }
   }
 
+  private async collectSolidityFiles(
+    entryFilePath: string,
+    collected: Map<string, string> = new Map()
+  ): Promise<Map<string, string>> {
+    if (collected.has(entryFilePath)) {
+      return collected;
+    }
+
+    try {
+      const content = await this.plugin.call('fileManager', 'readFile', entryFilePath);
+      collected.set(entryFilePath, content);
+
+      const importRegex = /import\s+(?:.*\s+from\s+)?["'](\.[^"']+)["']/g;
+      let match;
+      
+      while ((match = importRegex.exec(content)) !== null) {
+        const importPath = match[1];
+        
+        const entryDir = entryFilePath.substring(0, entryFilePath.lastIndexOf('/')) || '.';
+        let resolvedPath = this.resolvePath(entryDir, importPath);
+        
+        await this.collectSolidityFiles(resolvedPath, collected);
+      }
+    } catch (e) {
+      console.warn(`[DappManager] Failed to read ${entryFilePath}:`, e);
+    }
+
+    return collected;
+  }
+
+  private resolvePath(basePath: string, relativePath: string): string {
+    const baseParts = basePath.split('/').filter(p => p && p !== '.');
+    const relativeParts = relativePath.split('/');
+
+    for (const part of relativeParts) {
+      if (part === '..') {
+        baseParts.pop();
+      } else if (part !== '.') {
+        baseParts.push(part);
+      }
+    }
+
+    return baseParts.join('/');
+  }
+
   async getDapps(): Promise<DappConfig[]> {
     try {
       const workspaces = await this.getWorkspaces();
@@ -172,6 +217,50 @@ export class DappManager {
     const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
     const timestamp = Date.now();
 
+    let collectedFiles: Map<string, string> = new Map();
+    let mainFilePath: string = '';
+    console.log(`[DappManager] sourceFilePath from contractData: "${contractData.sourceFilePath}"`);
+    if (contractData.sourceFilePath) {
+      try {
+        let filePath = contractData.sourceFilePath;
+        console.log(`[DappManager] Original filePath: "${filePath}"`);
+        
+        let fileContent: string | null = null;
+        try {
+          fileContent = await this.plugin.call('fileManager', 'readFile', filePath);
+          console.log(`[DappManager] File read successful with original path`);
+        } catch (e) {
+          console.log(`[DappManager] Failed to read with original path, trying workspace approach`);
+        }
+        
+        if (!fileContent && filePath.includes('/')) {
+          const parts = filePath.split('/');
+          const possibleWorkspace = parts[0];
+          const remainingPath = parts.slice(1).join('/');
+          
+          console.log(`[DappManager] Trying workspace: "${possibleWorkspace}", path: "${remainingPath}"`);
+          
+          try {
+            await this.switchToWorkspace(possibleWorkspace);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            fileContent = await this.plugin.call('fileManager', 'readFile', remainingPath);
+            filePath = remainingPath;
+            console.log(`[DappManager] File read successful after workspace switch`);
+          } catch (e2) {
+            console.log(`[DappManager] Workspace approach also failed:`, e2);
+          }
+        }
+        
+        mainFilePath = filePath;
+        collectedFiles = await this.collectSolidityFiles(filePath);
+        console.log(`[DappManager] Collected ${collectedFiles.size} Solidity file(s)`);
+      } catch (e) {
+        console.warn('[DappManager] Failed to collect source files:', e);
+      }
+    } else {
+      console.log('[DappManager] No sourceFilePath provided');
+    }
+
     await this.plugin.call('filePanel', 'createWorkspace', workspaceName, true);
 
     await this.switchToWorkspace(workspaceName);
@@ -240,6 +329,37 @@ export class DappManager {
         await this.plugin.call('fileManager', 'writeFile', '.well-known/farcaster.json', JSON.stringify(manifestContent, null, 2));
       } catch (e) {
         console.error('[DappManager] Failed to create .well-known folder or file', e);
+      }
+    }
+
+    if (collectedFiles.size > 0 && mainFilePath) {
+      try {
+        for (const [filePath, content] of collectedFiles) {
+          const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+          if (dir) {
+            try {
+              await this.plugin.call('fileManager', 'mkdir', dir);
+            } catch (e) {}
+          }
+          
+          await this.plugin.call('fileManager', 'writeFile', filePath, content);
+          console.log(`[DappManager] Copied: ${filePath}`);
+        }
+        
+        // @ts-ignore
+        initialConfig.contract.sourceFilePath = mainFilePath;
+        await this.saveConfig(workspaceName, initialConfig);
+        
+        try {
+          await this.plugin.call('solidity', 'compile', mainFilePath);
+          console.log(`[DappManager] Contract compiled: ${mainFilePath}`);
+        } catch (compileErr) {
+          console.warn('[DappManager] Auto-compile failed (user can compile manually):', compileErr);
+        }
+
+        console.log(`[DappManager] Copied ${collectedFiles.size} file(s) to new workspace`);
+      } catch (e) {
+        console.warn('[DappManager] Failed to copy contract files:', e);
       }
     }
 
@@ -349,16 +469,29 @@ export class DappManager {
 
       const content = await this.plugin.call('fileManager', 'readFile', CONFIG_FILENAME);
 
-      if (currentWorkspace.name !== workspaceName) {
-        await this.switchToWorkspace(currentWorkspace.name);
-        await this.focusPlugin();
-      }
-
       if (content) {
         const config = JSON.parse(content);
         config.workspaceName = workspaceName;
         config.slug = workspaceName;
+        
+        try {
+          const previewContent = await this.plugin.call('fileManager', 'readFile', 'preview.png');
+          if (previewContent) {
+            config.thumbnailPath = previewContent;
+          }
+        } catch (e) {}
+
+        if (currentWorkspace.name !== workspaceName) {
+          await this.switchToWorkspace(currentWorkspace.name);
+          await this.focusPlugin();
+        }
+
         return this.sanitizeConfig(config);
+      }
+
+      if (currentWorkspace.name !== workspaceName) {
+        await this.switchToWorkspace(currentWorkspace.name);
+        await this.focusPlugin();
       }
     } catch (e) {
       console.warn(`[DappManager] Failed to read config for ${workspaceName}`, e);

@@ -49,6 +49,14 @@ function App(): JSX.Element {
         // @ts-ignore
         remixClient.on('locale', 'localeChanged', (l: any) => setLocale(l));
 
+        // @ts-ignore
+        remixClient.on('filePanel', 'workspaceDeleted', (workspaceName: string) => {
+          dispatch({ 
+            type: 'SET_DAPPS', 
+            payload: dappsRef.current.filter((d: any) => d.workspaceName !== workspaceName) 
+          });
+        });
+
         const dapps = (await dappManager.getDapps()) || [];
         dispatch({ type: 'SET_DAPPS', payload: dapps });
 

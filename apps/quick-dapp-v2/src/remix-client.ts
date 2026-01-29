@@ -79,6 +79,18 @@ export class RemixClient extends PluginClient {
 
               // @ts-ignore
               this.call('notification', 'toast', `DApp '${updatedConfig.name}' created in workspace '${workspaceName}'!`);
+              
+              const contractAddress = updatedConfig.contract?.address;
+              if (contractAddress) {
+                // @ts-ignore
+                this.call('notification', 'modal', {
+                  id: 'at-address-tip',
+                  title: 'Tip: Load Your Contract Instance',
+                  message: `Your contract is deployed at:\n\n${contractAddress}\n\nTo interact with it in this workspace:\n1. Open the "Deploy & Run Transactions" tab\n2. Paste the address in "At Address" field\n3. Click "At Address" button\n\nThe contract source has been copied and compiled in this workspace.`,
+                  modalType: 'alert',
+                  okLabel: 'Got it!'
+                });
+              }
             }
           }
 
@@ -132,7 +144,8 @@ export class RemixClient extends PluginClient {
         name: payload.contractName,
         abi: payload.abi,
         chainId: payload.chainId,
-        networkName
+        networkName,
+        sourceFilePath: payload.sourceFilePath
       };
 
       const newDappConfig = await this.dappManager.createDapp(

@@ -6,6 +6,7 @@ import { FormattedMessage } from 'react-intl'
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs'
 import './remix-ui-tabs.css'
 import { QuickDappBanner } from './components/QuickDappBanner'
+import { AIRequestForm } from '@remix-ui/run-tab'
 import { values } from 'lodash'
 import { AppContext } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
@@ -592,38 +593,69 @@ export const TabsUI = (props: TabsUIProps) => {
       
       if (matchingInstances.length === 0) {
         props.plugin.call('notification', 'modal', {
-          id: 'quick-dapp-compile-deploy',
-          title: 'Compile & Deploy Required',
-          message: 'To create a dApp, you need to compile and deploy your contract first.',
+          id: 'quick-dapp-no-instance',
+          title: 'No Deployed Contracts',
+          message: `No deployed contracts found for "${currentFileName}".\n\nWe'll compile your contract and take you to the Deploy & Run tab.\n\nPlease deploy to your desired network, then click "Start now" again.`,
           modalType: 'confirm',
-          okLabel: 'Compile & Deploy',
+          okLabel: 'Compile & Continue',
           cancelLabel: 'Cancel',
           okFn: async () => {
             try {
-              await props.plugin.call('solidity', 'compile', currentFile)
+              const filePath = currentFile.indexOf('/') !== -1 
+                ? currentFile.substr(currentFile.indexOf('/') + 1) 
+                : currentFile
+              await props.plugin.call('solidity', 'compile', filePath)
               await props.plugin.call('menuicons', 'select', 'udapp')
             } catch (e) {
               console.error('Compile error:', e)
+              props.plugin.call('notification', 'toast', 'Compilation failed. Please check your contract.')
             }
           },
           cancelFn: () => {}
         })
       } else if (matchingInstances.length === 1) {
-        await openSparkleModal(matchingInstances[0])
+        const inst = matchingInstances[0]
+        props.plugin.call('notification', 'modal', {
+          id: 'quick-dapp-confirm-instance',
+          title: 'Create DApp',
+          message: `Deployed contract found:\n\n• ${inst.name} at ${inst.address}\n\nCreate a DApp with this contract?`,
+          modalType: 'confirm',
+          okLabel: 'Create DApp',
+          cancelLabel: 'Cancel',
+          okFn: async () => {
+            await openSparkleModal(inst)
+          },
+          cancelFn: () => {}
+        })
       } else {
-        const instanceOptions = matchingInstances.map((inst: any) => 
-          `${inst.name} at ${inst.address.slice(0, 10)}...${inst.address.slice(-8)}`
-        ).join('\n')
+        let selectedIndex = 0
+        
+        const InstanceSelector = () => (
+          <div>
+            <div className="mb-3">Deployed contracts from "{currentFileName}":</div>
+            <select 
+              className="form-select" 
+              defaultValue="0"
+              onChange={(e) => { selectedIndex = parseInt(e.target.value) }}
+            >
+              {matchingInstances.map((inst: any, idx: number) => (
+                <option key={idx} value={idx}>
+                  {inst.name} at {inst.address.slice(0, 10)}...{inst.address.slice(-8)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )
         
         props.plugin.call('notification', 'modal', {
           id: 'quick-dapp-select-instance',
           title: 'Select Contract Instance',
-          message: `Multiple deployed instances found for ${currentFileName}:\n\n${instanceOptions}\n\nPlease select one from the Deploy & Run tab.`,
-          modalType: 'confirm',
-          okLabel: 'Go to Deploy Tab',
+          message: <InstanceSelector />,
+          modalType: 'custom',
+          okLabel: 'Create DApp',
           cancelLabel: 'Cancel',
           okFn: async () => {
-            await props.plugin.call('menuicons', 'select', 'udapp')
+            await openSparkleModal(matchingInstances[selectedIndex])
           },
           cancelFn: () => {}
         })
@@ -639,27 +671,49 @@ export const TabsUI = (props: TabsUIProps) => {
       const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', instance.name)
       
       const descriptionObj: any = await new Promise((resolve, reject) => {
+        let getFormData: () => Promise<any>
+        
         const modalContent = {
           id: 'generate-website-ai-banner',
           title: 'Generate a Dapp UI with AI',
-          message: `
-            <div style="margin-bottom: 16px;">
-              <span>Please describe how you would want the design to look like.</span>
-            </div>
-            <textarea id="quick-dapp-description" class="form-control mb-3" rows="4" placeholder='E.g: "The website should have a dark theme..."'></textarea>
-            <div class="mt-2 text-muted small">This might take up to 2 minutes.</div>
-          `,
-          modalType: 'confirm',
+          message: <AIRequestForm onMount={(fn) => { getFormData = fn }} />,
+          modalType: 'custom',
           okLabel: 'Generate',
           cancelLabel: 'Cancel',
-          okFn: () => {
-            const textarea = document.getElementById('quick-dapp-description') as HTMLTextAreaElement
-            resolve({ text: textarea?.value || '' })
+          okFn: async () => {
+            if (getFormData) {
+              const formData = await getFormData()
+              resolve(formData)
+            } else {
+              reject(new Error('Form data not initialized'))
+            }
           },
-          cancelFn: () => reject(new Error('Canceled'))
+          cancelFn: () => reject(new Error('Canceled')),
+          hideFn: () => reject(new Error('Hide'))
         }
         props.plugin.call('notification', 'modal', modalContent)
       })
+
+      const settings = await props.plugin.call('udapp', 'getSettings')
+      const exEnvironment = settings?.selectedEnvMode
+      if (!exEnvironment?.startsWith('injected')) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+          props.plugin.call('notification', 'modal', {
+            id: 'remix-vm-warning',
+            title: 'Warning: Non-Injected Provider',
+            message: 'You are using Remix VM or a non-browser wallet environment. The generated DApp is designed to work with browser extension wallets like MetaMask. It may not function correctly with the current environment. Do you want to continue anyway?',
+            modalType: 'confirm',
+            okLabel: 'Continue Anyway',
+            cancelLabel: 'Cancel',
+            okFn: () => resolve(true),
+            cancelFn: () => resolve(false),
+          })
+        })
+
+        if (!confirmed) {
+          return
+        }
+      }
 
       await props.plugin.call('quick-dapp-v2', 'createDapp', {
         description: descriptionObj.text,
@@ -667,13 +721,18 @@ export const TabsUI = (props: TabsUIProps) => {
         address: instance.address,
         abi: instance.abi || instance.contractData?.abi,
         chainId: await props.plugin.call('network', 'getNetworkProvider').then((p: any) => p?.chainId),
-        compilerData: data
+        compilerData: data,
+        isBaseMiniApp: descriptionObj.isBaseMiniApp,
+        image: descriptionObj.image,
+        figmaUrl: descriptionObj.figmaUrl,
+        figmaToken: descriptionObj.figmaToken,
+        sourceFilePath: tabsState.name
       })
 
       await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
       
     } catch (error) {
-      if (error.message !== 'Canceled') {
+      if (error.message !== 'Canceled' && error.message !== 'Hide') {
         console.error('Error generating DApp:', error)
         props.plugin.call('notification', 'toast', 'Error generating DApp')
       }

@@ -180,10 +180,21 @@ function EditHtmlTemplate(): JSX.Element {
     if (!isAiUpdating && !isBuilding) {
       await captureAndSaveThumbnail();
     }
-    if (dappManager) {
-      const updatedDapps = await dappManager.getDapps();
-      dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
+    
+    if (dappManager && activeDapp) {
+      try {
+        const updatedConfig = await dappManager.getDappConfig(activeDapp.workspaceName);
+        if (updatedConfig) {
+          const updatedDapps = appState.dapps.map((d: any) => 
+            d.slug === activeDapp.slug ? updatedConfig : d
+          );
+          dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
+        }
+      } catch (e) {
+        console.warn('[EditHtmlTemplate] Failed to update single dapp config', e);
+      }
     }
+    
     dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
     dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
   };
