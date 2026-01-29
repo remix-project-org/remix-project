@@ -261,7 +261,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         setState((prevState) => {
           return {
             ...prevState,
-            sourceLocationStatus: intl.formatMessage({ id: 'debugger.sourceLocationStatus2' })
+            sourceLocationStatus: intl.formatMessage({ id: 'debugger.sourceLocationStatus2' }, { address: address || '' })
           }
         })
         return
