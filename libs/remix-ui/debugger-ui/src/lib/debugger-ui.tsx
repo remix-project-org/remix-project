@@ -413,7 +413,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
   return (
     <div>
       <Toaster message={state.toastMessage} />
-      <div className="px-1 pb-3 pt-3" ref={debuggerTopRef}>
+      <div className="px-2 pb-3 pt-3" ref={debuggerTopRef}>
         {/* Search Bar */}
         <SearchBar
           onSearch={handleSearch}
@@ -423,18 +423,15 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
 
         {/* Informational Text */}
         {!state.debugging && (
-          <div className="debugger-info mb-3">
-            <i className="fas fa-info-circle" aria-hidden="true"></i>
-            <span className="ms-2">
-              <FormattedMessage id="debugger.introduction" defaultMessage="Use the search bar above to debug a transaction by its hash. For verified contracts, check" />:{' '}
-              <a href="https://docs.sourcify.dev/docs/chains/" target="_blank" rel="noopener noreferrer">
-                <FormattedMessage id="debugger.sourcifyDocs" defaultMessage="Sourcify" />
-              </a>{' '}
-              &{' '}
-              <a href="https://etherscan.io/contractsVerified" target="_blank" rel="noopener noreferrer">
-                Etherscan
-              </a>
-            </span>
+          <div className="debugger-info mb-2">
+            <h6 className="search-bar-title mt-3">
+              <FormattedMessage id="debugger.startDebugging" defaultMessage="Start debugging a transaction" />
+            </h6>
+            <div className="mt-2">
+              <span>
+                Select a past transaction in your transaction history below OR directly paste a transaction hash in the search field to start debugging a transaction. This will automatically import the targetted contracts.
+              </span>
+            </div>
           </div>
         )}
 

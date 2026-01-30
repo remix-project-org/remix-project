@@ -34,14 +34,12 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '' }: SearchBar
 
   return (
     <div className="debugger-search-bar">
-      <div className="input-group">
-        <span className="input-group-text">
-          <i className="fas fa-search"></i>
-        </span>
+      <div className="search-input-wrapper">
+        <i className="fas fa-search search-icon"></i>
         <input
           ref={inputRef}
           type="text"
-          className="form-control"
+          className="form-control search-input"
           placeholder={intl.formatMessage({ id: 'debugger.searchPlaceholder', defaultMessage: 'Search transaction hash...' })}
           value={txHash}
           onChange={(e) => handleInputChange(e.target.value)}
@@ -49,21 +47,6 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '' }: SearchBar
           disabled={debugging}
           aria-label="Transaction hash search"
         />
-        <CustomTooltip
-          placement="bottom"
-          tooltipText={<FormattedMessage id={`debugger.${!isValid ? 'provideValidTxHash' : 'searchTransaction'}`} defaultMessage={!isValid ? 'Provide valid transaction hash' : 'Search transaction'} />}
-          tooltipId="searchButtonTooltip"
-          tooltipClasses="text-nowrap"
-        >
-          <button
-            className={`btn btn-primary ${!isValid ? 'disabled' : ''}`}
-            onClick={handleSearch}
-            disabled={!isValid || debugging}
-            aria-label="Search"
-          >
-            <FormattedMessage id="debugger.search" defaultMessage="Search" />
-          </button>
-        </CustomTooltip>
       </div>
     </div>
   )

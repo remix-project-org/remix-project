@@ -26,17 +26,8 @@
   cursor: pointer;
 }
 
-.debugger-info {
-  padding: 0.75rem;
-  background-color: var(--light);
-  border-left: 3px solid var(--info);
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
 .debugger-info a {
-  color: var(--primary);
+  color: var(--bs-primary);
   text-decoration: none;
 }
 

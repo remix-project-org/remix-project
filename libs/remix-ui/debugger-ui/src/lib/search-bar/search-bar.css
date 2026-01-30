@@ -1,37 +1,36 @@
-.debugger-search-bar {
-  margin-bottom: 1rem;
+.debugger-search-bar .search-bar-title {
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
 }
 
-.debugger-search-bar .input-group {
+.debugger-search-bar .search-input-wrapper {
+  position: relative;
   width: 100%;
 }
 
-.debugger-search-bar .input-group-text {
-  background-color: var(--input-bg);
-  border-color: var(--input-border-color);
+.debugger-search-bar .search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-muted);
+  pointer-events: none;
+  font-size: 0.875rem;
 }
 
-.debugger-search-bar input.form-control {
-  border-left: none;
-  background-color: var(--input-bg);
+.debugger-search-bar .search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+  background-color: var(--bs-light);
   color: var(--text-primary);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
 }
 
-.debugger-search-bar input.form-control:focus {
-  border-color: var(--primary);
+.debugger-search-bar .search-input:focus {
+  border: 1px solid var(--bs-body-color);
   box-shadow: none;
+  outline: none;
 }
 
-.debugger-search-bar input.form-control::placeholder {
-  color: var(--text-muted);
-}
-
-.debugger-search-bar button {
-  white-space: nowrap;
-}
-
-.debugger-search-bar button.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
