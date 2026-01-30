@@ -101,7 +101,7 @@ export class Debugger {
           } catch (e) {
             console.log(e)
           }
-          this.event.trigger('newSourceLocation', [lineColumnPos, rawLocation, generatedSources, address, stepDetail, (lineGasCostObj && lineGasCostObj.gasCost) || -1])
+          this.event.trigger('newSourceLocation', [lineColumnPos, rawLocation, generatedSources, address, stepDetail, (lineGasCostObj && lineGasCostObj.gasCost) || -1, compilationResultForAddress])
           this.vmDebuggerLogic.event.trigger('sourceLocationChanged', [rawLocation])
           if (this.currentFile !== rawLocation.file || this.currentLine !== lineColumnPos.start.line) {
             const instructionIndexes = lineGasCostObj.indexes.map((index) => { // translate from vmtrace index to instruction index

@@ -14,6 +14,7 @@ import { TrackingContext } from '@remix-ide/tracking'
 import { ContractDeployment, ContractInteraction } from './transaction-recorder/types'
 /* eslint-disable-next-line */
 import './debugger-ui.css'
+import type { CompilerAbstract } from '@remix-project/remix-solidity'
 
 export const DebuggerUI = (props: DebuggerUIProps) => {
   const intl = useIntl()
@@ -255,7 +256,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
       })
     })
 
-    debuggerInstance.event.register('newSourceLocation', async (lineColumnPos, rawLocation, generatedSources, address, stepDetail, lineGasCost) => {
+    debuggerInstance.event.register('newSourceLocation', async (lineColumnPos, rawLocation, generatedSources, address, stepDetail, lineGasCost, contracts: CompilerAbstract) => {
       if (!lineColumnPos) {
         await debuggerModule.discardHighlight()
         setState((prevState) => {
@@ -266,7 +267,6 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         })
         return
       }
-      const contracts = await debuggerModule.fetchContractAndCompile(address || currentReceipt.contractAddress || currentReceipt.to, currentReceipt)
       if (contracts) {
         let path = contracts.getSourceName(rawLocation.file)
         // Get the main contract (first source) as origin for resolution
