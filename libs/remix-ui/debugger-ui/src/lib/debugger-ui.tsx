@@ -11,6 +11,7 @@ import {Toaster} from '@remix-ui/toaster' // eslint-disable-line
 import { CustomTooltip, isValidHash } from '@remix-ui/helper'
 import { DebuggerEvent, MatomoEvent } from '@remix-api';
 import { TrackingContext } from '@remix-ide/tracking'
+import { ContractDeployment, ContractInteraction } from './transaction-recorder/types'
 /* eslint-disable-next-line */
 import './debugger-ui.css'
 
@@ -44,6 +45,9 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     sourceLocationStatus: '',
     showOpcodes: true
   })
+
+  const [deployments, setDeployments] = useState<ContractDeployment[]>([])
+  const [transactions, setTransactions] = useState<Map<string, ContractInteraction[]>>(new Map())
 
   if (props.onReady) {
     props.onReady({
@@ -79,6 +83,110 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
 
   useEffect(() => {
     return unLoad()
+  }, [])
+
+  // Fetch deployed contracts from UDAPP plugin
+  useEffect(() => {
+    const fetchDeployedContracts = async () => {
+      try {
+        if (!debuggerModule.call) return
+
+        // Use getDeployedContracts instead of getAllDeployedInstances to get enriched data
+        const deployedContracts = await debuggerModule.call('udapp', 'getDeployedContracts')
+        if (!deployedContracts) return
+
+        console.log('[Debugger] Initial fetch of deployed contracts:', deployedContracts)
+
+        const deploymentList: ContractDeployment[] = []
+
+        // Process deployed contracts from all providers
+        for (const provider in deployedContracts) {
+          for (const address in deployedContracts[provider]) {
+            const contract = deployedContracts[provider][address]
+            deploymentList.push({
+              address: contract.address,
+              name: contract.name || 'Unknown',
+              abi: contract.abi || [],
+              timestamp: contract.timestamp ? new Date(contract.timestamp).getTime() : Date.now(),
+              from: contract.from || '',
+              transactionHash: contract.transactionHash || '',
+              blockHash: contract.blockHash || '',
+              blockNumber: contract.blockNumber || 0,
+              gasUsed: contract.gasUsed || 0,
+              status: contract.status || 'success'
+            })
+          }
+        }
+
+        setDeployments(deploymentList)
+      } catch (e) {
+        console.error('Error fetching deployed contracts:', e)
+      }
+    }
+
+    fetchDeployedContracts()
+
+    // Listen for new transactions from blockchain plugin
+    if (debuggerModule.on) {
+      const handleNewTransaction = (error: any, from: any, to: any, data: any, useCall: any, result: any, timestamp: any, payload: any) => {
+        if (error || useCall) return
+
+        console.log('[Debugger] Transaction execution detected:', {
+          contractAddress: result?.receipt?.contractAddress,
+          payload: payload,
+          contractName: payload?.contractName
+        })
+
+        // Check if this is a contract deployment
+        if (result?.receipt?.contractAddress) {
+          const contractAddress = result.receipt.contractAddress
+
+          // Get contract name from payload (this is what blockchain plugin provides)
+          let contractName = payload?.contractName || payload?.contractData?.name || 'Unknown'
+          let contractAbi = payload?.contractABI || payload?.contractData?.abi || []
+
+          console.log('[Debugger] Using contract name:', contractName)
+
+          // Add deployment with data from payload
+          const newDeployment: ContractDeployment = {
+            address: contractAddress,
+            name: contractName,
+            abi: contractAbi,
+            timestamp: timestamp || Date.now(),
+            from: from,
+            transactionHash: result.receipt.transactionHash,
+            blockHash: result.receipt.blockHash || '',
+            blockNumber: result.receipt.blockNumber || 0,
+            gasUsed: result.receipt.gasUsed || 0,
+            status: result.receipt.status ? 'success' : 'failed'
+          }
+
+          setDeployments(prev => [newDeployment, ...prev])
+        } else if (to && result?.receipt) {
+          // This is a contract interaction
+          const interaction: ContractInteraction = {
+            transactionHash: result.receipt.transactionHash,
+            from: from,
+            to: to,
+            timestamp: timestamp || Date.now(),
+            blockNumber: result.receipt.blockNumber || 0,
+            gasUsed: result.receipt.gasUsed || 0,
+            status: result.receipt.status ? 'success' : 'failed',
+            methodName: payload?.funAbi?.name,
+            value: payload?.value
+          }
+
+          setTransactions(prev => {
+            const newMap = new Map(prev)
+            const existing = newMap.get(to) || []
+            newMap.set(to, [interaction, ...existing])
+            return newMap
+          })
+        }
+      }
+
+      debuggerModule.on('blockchain', 'transactionExecuted', handleNewTransaction)
+    }
   }, [])
 
   debuggerModule.onDebugRequested((hash, web3?) => {
@@ -476,6 +584,9 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
           updateTxNumberFlag={updateTxNumberFlag}
           transactionNumber={state.txNumber}
           debugging={state.debugging}
+          deployments={deployments}
+          transactions={transactions}
+          onDebugTransaction={(txHash) => debug(txHash)}
         />
 
         {state.debugging && state.sourceLocationStatus && (

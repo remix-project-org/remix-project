@@ -1,5 +1,7 @@
-import React, { useState } from 'react' // eslint-disable-line
+import React, { useState, useMemo } from 'react' // eslint-disable-line
 import { FormattedMessage } from 'react-intl'
+import { ContractCard } from './contract-card'
+import { ContractDeployment, ContractInteraction, SortOrder, TabType } from './types'
 import './transaction-recorder.css'
 
 interface TransactionRecorderProps {
@@ -8,10 +10,10 @@ interface TransactionRecorderProps {
   updateTxNumberFlag: (empty: boolean) => void
   transactionNumber: string
   debugging: boolean
+  deployments?: ContractDeployment[]
+  transactions?: Map<string, ContractInteraction[]>
+  onDebugTransaction?: (txHash: string) => void
 }
-
-type SortOrder = 'newest' | 'oldest'
-type TabType = 'contract-call' | 'transaction-list'
 
 export const TransactionRecorder = (props: TransactionRecorderProps) => {
   const [activeTab, setActiveTab] = useState<TabType>('contract-call')
@@ -21,9 +23,29 @@ export const TransactionRecorder = (props: TransactionRecorderProps) => {
     setActiveTab(tab)
   }
 
-  const handleSortChange = (e) => {
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSortOrder(e.target.value as SortOrder)
   }
+
+  const handleDebugTransaction = (txHash: string) => {
+    if (props.onDebugTransaction) {
+      props.onDebugTransaction(txHash)
+    }
+  }
+
+  // Sort deployments based on sort order
+  const sortedDeployments = useMemo(() => {
+    if (!props.deployments) return []
+    const sorted = [...props.deployments]
+    sorted.sort((a, b) => {
+      if (sortOrder === 'newest') {
+        return b.timestamp - a.timestamp
+      } else {
+        return a.timestamp - b.timestamp
+      }
+    })
+    return sorted
+  }, [props.deployments, sortOrder])
 
   return (
     <div className="transaction-recorder">
@@ -79,14 +101,24 @@ export const TransactionRecorder = (props: TransactionRecorderProps) => {
         <div className="tab-content">
           {activeTab === 'contract-call' && (
             <div className="tab-pane active" role="tabpanel">
-              <div className="contract-call-content p-3">
-                <p className="text-muted">
-                  <FormattedMessage
-                    id="debugger.contractCallPlaceholder"
-                    defaultMessage="Deployed contracts will appear here"
-                  />
-                </p>
-                {/* Contract call content will be implemented here */}
+              <div className="contract-call-content">
+                {sortedDeployments.length > 0 ? (
+                  sortedDeployments.map((deployment) => (
+                    <ContractCard
+                      key={deployment.address}
+                      deployment={deployment}
+                      transactions={props.transactions?.get(deployment.address) || []}
+                      onDebugTransaction={handleDebugTransaction}
+                    />
+                  ))
+                ) : (
+                  <p className="text-muted">
+                    <FormattedMessage
+                      id="debugger.contractCallPlaceholder"
+                      defaultMessage="Deployed contracts will appear here"
+                    />
+                  </p>
+                )}
               </div>
             </div>
           )}
