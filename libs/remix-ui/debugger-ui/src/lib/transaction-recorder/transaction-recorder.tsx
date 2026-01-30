@@ -31,48 +31,50 @@ export const TransactionRecorder = (props: TransactionRecorderProps) => {
         <h6 className="transaction-recorder-title">
           <FormattedMessage id="debugger.transactionRecorder" defaultMessage="Transaction recorder" />
         </h6>
-        <div className="transaction-recorder-filter">
-          <select
-            className="form-select form-select-sm"
-            value={sortOrder}
-            onChange={handleSortChange}
-            aria-label="Sort order"
-          >
-            <option value="newest">
-              <FormattedMessage id="debugger.newestFirst" defaultMessage="Newest first" />
-            </option>
-            <option value="oldest">
-              <FormattedMessage id="debugger.oldestFirst" defaultMessage="Oldest first" />
-            </option>
-          </select>
-        </div>
       </div>
 
       <div className="transaction-recorder-tabs">
-        <ul className="nav nav-tabs" role="tablist">
-          <li className="nav-item" role="presentation">
-            <button
-              className={`nav-link ${activeTab === 'contract-call' ? 'active' : ''}`}
-              onClick={() => handleTabChange('contract-call')}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'contract-call'}
+        <div className="tabs-filter-container">
+          <ul className="nav nav-tabs" role="tablist">
+            <li className="nav-item" role="presentation">
+              <button
+                className={`nav-link ${activeTab === 'contract-call' ? 'active' : ''}`}
+                onClick={() => handleTabChange('contract-call')}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'contract-call'}
+              >
+                <FormattedMessage id="debugger.contractCall" defaultMessage="Contract call" />
+              </button>
+            </li>
+            <li className="nav-item" role="presentation">
+              <button
+                className={`nav-link ${activeTab === 'transaction-list' ? 'active' : ''}`}
+                onClick={() => handleTabChange('transaction-list')}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'transaction-list'}
+              >
+                <FormattedMessage id="debugger.transactionList" defaultMessage="Transaction list" />
+              </button>
+            </li>
+          </ul>
+          <div className="transaction-recorder-filter">
+            <select
+              className="form-select form-select-sm filter-dropdown"
+              value={sortOrder}
+              onChange={handleSortChange}
+              aria-label="Sort order"
             >
-              <FormattedMessage id="debugger.contractCall" defaultMessage="Contract call" />
-            </button>
-          </li>
-          <li className="nav-item" role="presentation">
-            <button
-              className={`nav-link ${activeTab === 'transaction-list' ? 'active' : ''}`}
-              onClick={() => handleTabChange('transaction-list')}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'transaction-list'}
-            >
-              <FormattedMessage id="debugger.transactionList" defaultMessage="Transaction list" />
-            </button>
-          </li>
-        </ul>
+              <option value="newest">
+                <FormattedMessage id="debugger.newestFirst" defaultMessage="Newest first" />
+              </option>
+              <option value="oldest">
+                <FormattedMessage id="debugger.oldestFirst" defaultMessage="Oldest first" />
+              </option>
+            </select>
+          </div>
+        </div>
 
         <div className="tab-content">
           {activeTab === 'contract-call' && (

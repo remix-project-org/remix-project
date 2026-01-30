@@ -413,7 +413,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
   return (
     <div>
       <Toaster message={state.toastMessage} />
-      <div className="px-2 pb-3" ref={debuggerTopRef}>
+      <div className="px-1 pb-3 pt-3" ref={debuggerTopRef}>
         {/* Search Bar */}
         <SearchBar
           onSearch={handleSearch}
