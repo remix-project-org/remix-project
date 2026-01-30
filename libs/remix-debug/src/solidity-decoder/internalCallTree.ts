@@ -649,7 +649,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     try {
       address = tree.traceManager.getCurrentCalledAddressAt(step)
       sourceLocation = await tree.extractSourceLocation(step, address)
-      if (!compareSource(sourceLocation, currentSourceLocation)) {
+      if (!includedSource(sourceLocation, currentSourceLocation)) {
         tree.reducedTrace.push(step)
       }
       currentSourceLocation = sourceLocation
