@@ -31,7 +31,9 @@ export class Debugger {
       web3: options.web3,
       debugWithGeneratedSources: options.debugWithGeneratedSources,
       compilationResult: this.compilationResult,
-      offsetToLineColumnConverter: this.offsetToLineColumnConverter
+      offsetToLineColumnConverter: this.offsetToLineColumnConverter,
+      getCache: options.getCache,
+      setCache: options.setCache
     })
 
     const { traceManager, callTree, solidityProxy } = this.debugger

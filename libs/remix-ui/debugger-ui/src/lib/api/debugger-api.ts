@@ -118,6 +118,15 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     this.onRemoveHighlightsListener = listener
   }
 
+  setCache (key: string, value: any) {
+    const ttlMs = 1 * 24 * 60 * 60 * 1000 // 1 day
+    return this.call('indexedDbCache', 'setWithTTL', key, value, ttlMs, 'debugger')
+  }
+
+  getCache (key: string) {
+    return this.call('indexedDbCache', 'get', key)
+  }
+
   async fetchContractAndCompile (address, receipt) {
     const target = (address && traceHelper.isContractCreation(address)) ? receipt.contractAddress : address
     const targetAddress = target || receipt.contractAddress || receipt.to

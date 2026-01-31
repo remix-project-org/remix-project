@@ -56,7 +56,7 @@ export class Ethdebugger {
     this.opts = opts
 
     this.event = new EventManager()
-    this.traceManager = new TraceManager({ web3: this.web3 })
+    this.traceManager = new TraceManager({ web3: this.web3, getCache: opts.getCache, setCache: opts.setCache })
     this.codeManager = new CodeManager(this.traceManager)
     this.solidityProxy = new SolidityProxy({
       getCurrentCalledAddressAt: this.traceManager.getCurrentCalledAddressAt.bind(this.traceManager),

@@ -257,6 +257,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     })
 
     debuggerInstance.event.register('newSourceLocation', async (lineColumnPos, rawLocation, generatedSources, address, stepDetail, lineGasCost, contracts: CompilerAbstract) => {
+      console.log('newSourceLocation', { lineColumnPos, rawLocation, generatedSources, address, stepDetail, lineGasCost, contracts })
       if (!lineColumnPos) {
         await debuggerModule.discardHighlight()
         setState((prevState) => {
@@ -413,7 +414,9 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         }
         return null
       },
-      debugWithGeneratedSources: state.opt.debugWithGeneratedSources
+      debugWithGeneratedSources: state.opt.debugWithGeneratedSources,
+      getCache: debuggerModule.getCache.bind(debuggerModule),
+      setCache: debuggerModule.setCache.bind(debuggerModule)
     })
 
     setTimeout(async () => {

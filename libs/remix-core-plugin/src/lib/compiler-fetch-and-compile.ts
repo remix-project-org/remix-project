@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { compile, Language } from '@remix-project/remix-solidity'
+import { compile, CompilerAbstract, Language } from '@remix-project/remix-solidity'
 import { util } from '@remix-project/remix-lib'
 import { toChecksumAddress } from '@ethereumjs/util'
 import { fetchContractFromEtherscan } from './helpers/fetch-etherscan'
@@ -60,8 +60,27 @@ export class FetchAndCompile extends Plugin {
         return await this.call('compilerArtefacts', 'get', '__last')
     }
 
-    const resolved = await this.call('compilerArtefacts', 'get', contractAddress)
-    if (resolved) return resolved
+    let network
+    try {
+      network = await this.call('network', 'detectNetwork')
+    } catch (e) {
+      console.warn('no network detected', e.message)
+    }
+
+    let resolved = await this.call('compilerArtefacts', 'get', contractAddress)
+    if (resolved) {
+      this.log(`Fetched compilation data for ${contractAddress} from cache (CompilerArtefacts)`)
+      return resolved
+    }
+
+    if (network) {
+      resolved = await this.call('indexedDbCache', 'get', contractAddress + '-' + network.id)
+      if (resolved) {
+        this.log(`Fetched compilation data for ${contractAddress} from cache (IndexedDB)`)
+        return CompilerAbstract.fromBulk(resolved)
+      }
+    }
+
     if (this.unresolvedAddresses.includes(contractAddress)) return localCompilation()
 
     if (codeAtAddress === '0x' + UUPSDeployedByteCode) { // proxy
@@ -122,13 +141,6 @@ export class FetchAndCompile extends Plugin {
 
     // sometimes when doing an internal call, the only available artifact is the Solidity interface.
     // resolving addresses of internal call would allow to step over the source code, even if the declaration was made using an Interface.
-
-    let network
-    try {
-      network = await this.call('network', 'detectNetwork')
-    } catch (e) {
-      return localCompilation()
-    }
     if (!network) return localCompilation()
     if (!this.sourceVerifierNetWork.includes(network.name)) {
       // check if the contract if part of the local compilation result
@@ -184,6 +196,8 @@ export class FetchAndCompile extends Plugin {
         }
       }
     }
+    console.log(contractAddress, data)
+
     const { config, compilationTargets, version } = data
     /*
     * If the remappings are defined in the config, we need to update them to point to the targetPath
@@ -234,6 +248,7 @@ export class FetchAndCompile extends Plugin {
       this.log(hasErrored ? `recompilation failed for ${contractAddress}. Continuing without source location debugging` : `recompilation successful for ${contractAddress}`)
       
       await this.call('compilerArtefacts', 'addResolvedContract', contractAddress, compData)
+      this.call('indexedDbCache', 'set', contractAddress + '-' + network.id, compData.getBulk())
       return compData
     } catch (e) {
       this.log(`recompilation failed: ${e.message}`)

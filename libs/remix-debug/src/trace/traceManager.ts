@@ -17,9 +17,13 @@ export class TraceManager {
   traceAnalyser: TraceAnalyser
   traceStepManager: TraceStepManager
   tx: any
+  getCache: (key: string) => Promise<any>
+  setCache: (key: string, value: any) => Promise<void>
 
   constructor (options) {
     this.web3 = options.web3
+    this.getCache = options.getCache || null
+    this.setCache = options.setCache || null
     this.isLoading = false
     this.trace = null
     this.traceCache = new TraceCache()
@@ -62,7 +66,14 @@ export class TraceManager {
     }
   }
 
-  getTrace (txHash): Promise<DebugTraceTransactionResult> {
+  async getTrace (txHash): Promise<DebugTraceTransactionResult> {
+    // Try to get from cache first
+    const cached = await this.fromCache(txHash)
+    if (cached) {
+      return cached
+    }
+
+    // If not in cache, fetch from network
     return new Promise((resolve, reject) => {
       const options = {
         disableStorage: true,
@@ -70,11 +81,40 @@ export class TraceManager {
         disableStack: false,
         fullStorage: false
       }
-      this.web3.debug.traceTransaction(txHash, options, function (error, result) {
+      this.web3.debug.traceTransaction(txHash, options, (error, result) => {
         if (error) return reject(error)
+        // Cache the result asynchronously (don't await to avoid blocking)
+        this.cacheIt(txHash, result).catch(cacheError => {
+          console.warn('Failed to cache trace:', cacheError)
+        })
         resolve(result)
       })
     })
+  }
+
+  async cacheIt(txHash: string, trace: DebugTraceTransactionResult): Promise<void> {
+    try {
+      await this.setCache(txHash, trace)
+      console.log(`Trace cached for transaction: ${txHash}`)
+    } catch (error) {
+      console.error('Error caching trace:', error)
+    }
+  }
+
+  async fromCache(txHash: string): Promise<DebugTraceTransactionResult | null> {
+     
+    try {
+      const cached = await this.getCache(txHash) as DebugTraceTransactionResult
+      if (cached) {
+        console.log(`Trace found in cache for transaction: ${txHash}`)
+      } else {
+        console.log(`No cached trace found for transaction: ${txHash}`)
+      }
+      return cached
+    } catch (error) {
+      console.error('Error retrieving from cache:', error)
+      return null // Don't throw, just return null to fallback to network
+    }
   }
 
   init () {
