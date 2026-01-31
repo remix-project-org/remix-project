@@ -124,7 +124,7 @@ export const DebuggerApiMixin = (Base) => class extends Base {
   }
 
   getCache (key: string) {
-    return this.call('indexedDbCache', 'get', key)
+    return this.call('indexedDbCache', 'get', key, 'debugger')
   }
 
   async fetchContractAndCompile (address, receipt) {
