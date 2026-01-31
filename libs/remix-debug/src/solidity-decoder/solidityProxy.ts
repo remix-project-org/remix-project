@@ -51,8 +51,11 @@ export class SolidityProxy {
     }
     const code = await this.getCode(address)
     const compilationResult = await this.compilationResult(address)
-    const contract = contractObjectFromCode(compilationResult.data.contracts, code.bytecode, address)
-    this.cache.contractObjectByAddress[address] = contract
+    let contract
+    if (compilationResult && compilationResult.data && compilationResult.data.contracts) {
+      contract = contractObjectFromCode(compilationResult.data.contracts, code.bytecode, address)
+      this.cache.contractObjectByAddress[address] = contract
+    }    
     return contract
   }
 
@@ -64,6 +67,7 @@ export class SolidityProxy {
     */
   async extractStatesDefinitions (address: string) {
     const compilationResult = await this.compilationResult(address)
+    if (!compilationResult || !compilationResult.data) return null
     if (!this.cache.contractDeclarations[address]) {
       this.cache.contractDeclarations[address] = extractContractDefinitions(compilationResult.data.sources)
     }
@@ -110,6 +114,7 @@ export class SolidityProxy {
     */
   async ast (sourceLocation, generatedSources, address) {
     const compilationResult = await this.compilationResult(address)
+    if (!compilationResult || !compilationResult.data) return null
     const file = this.fileNameFromIndex(sourceLocation.file, compilationResult.data)
     if (!file && generatedSources && generatedSources.length) {
       for (const source of generatedSources) {

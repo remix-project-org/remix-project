@@ -5,7 +5,7 @@ import { SourceLocationTracker } from '../source/sourceLocationTracker'
 import { nodesAtPosition } from '../source/sourceMappingDecoder'
 import { EventManager } from '../eventManager'
 import { parseType } from './decodeInfo'
-import { isContractCreation, isCallInstruction, isCreateInstruction, isRevertInstruction } from '../trace/traceHelper'
+import { isContractCreation, isCallInstruction, isCreateInstruction, isRevertInstruction, isStopInstruction, isReturnInstruction } from '../trace/traceHelper'
 import { extractLocationFromAstVariable } from './types/util'
 import { findSafeStepForVariable } from './variableInitializationHelper'
 import { SymbolicStackManager } from './symbolicStack'
@@ -556,7 +556,8 @@ export class InternalCallTree {
  * @param {Object} [validSourceLocation] - Last valid source location
  * @returns {Promise<Object>} Object with outStep (next step to process) and optional error message
  */
-async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, functionDefinition?, contractObj?, sourceLocation?, validSourceLocation?) {
+async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, functionDefinition?, contractObj?, sourceLocation?, validSourceLocation?, symbolicStack?) {
+  symbolicStack = symbolicStack || [] // to pass the symbolic stack through recursive calls
   let subScope = 1
   const address = tree.traceManager.getCurrentCalledAddressAt(step)
   tree.scopes[scopeId].address = address
@@ -716,21 +717,29 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     tree.locationAndOpcodePerVMTraceIndex[step] = { sourceLocation, stepDetail, lineColumnPos, contractAddress: address, scopeId }
     tree.scopes[scopeId].gasCost += stepDetail.gasCost
 
+    const isInternalTxInstrn = isCallInstruction(stepDetail)
+    const isCreateInstrn = isCreateInstruction(stepDetail)
+
     // Update symbolic stack based on opcode execution
     const previousSymbolicStack = tree.symbolicStackManager.getStackAtStep(step)
     if (stepDetail.stack.length !== previousSymbolicStack.length) {
       console.warn('STACK SIZE MISMATCH at step ', step, ' opcode ', stepDetail.op, ' symbolic stack size ', previousSymbolicStack.length, ' actual stack size ', stepDetail.stack.length )
     }
-    const newSymbolicStack = updateSymbolicStack(previousSymbolicStack, stepDetail.op, step)
-    // step + 1 because the symbolic stack represents the state AFTER the opcode execution
-    tree.symbolicStackManager.setStackAtStep(step + 1, newSymbolicStack)
-    const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)
-    const generatedSources = getGeneratedSources(tree, scopeId, contractObj)
-    const functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
-    const isInternalTxInstrn = isCallInstruction(stepDetail)
-    const isCreateInstrn = isCreateInstruction(stepDetail)
-    // we are checking if we are jumping in a new CALL or in an internal function
 
+    // if have to  use that stack to update the context after we get out of the call
+    const newSymbolicStack = updateSymbolicStack(previousSymbolicStack, stepDetail.op, step)
+    // if it's call with have to reset the symbolic stack
+    // step + 1 because the symbolic stack represents the state AFTER the opcode execution
+    tree.symbolicStackManager.setStackAtStep(step + 1, isInternalTxInstrn || isCreateInstrn ? [] : newSymbolicStack)
+        
+    let generatedSources
+    let functionDefinition
+    const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)    
+    if (!contractObj) {
+      generatedSources = getGeneratedSources(tree, scopeId, contractObj)
+      functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
+    }     
+    
     const isRevert = isRevertInstruction(stepDetail)
     const constructorExecutionStarts = tree.pendingConstructorExecutionAt > -1 && tree.pendingConstructorExecutionAt < validSourceLocation.start
     if (functionDefinition && functionDefinition.kind === 'constructor' && tree.pendingConstructorExecutionAt === -1 && !tree.constructorsStartExecution[functionDefinition.id]) {
@@ -744,10 +753,9 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     }
     const internalfunctionCall = functionDefinition && (previousSourceLocation && previousSourceLocation.jump === 'i') && functionDefinition.kind !== 'constructor'
     const isJumpOutOfFunction = functionDefinition && (validSourceLocation && validSourceLocation.jump === 'o') && functionDefinition.kind !== 'constructor'
-    console.log('step', step, functionDefinition, internalfunctionCall, previousSourceLocation)
     if (constructorExecutionStarts || isInternalTxInstrn || internalfunctionCall) {
       try {
-        console.log('Entering new scope at step ', step, constructorExecutionStarts, isInternalTxInstrn, internalfunctionCall)
+        console.log('Entering new scope at step ', step, constructorExecutionStarts, isInternalTxInstrn, internalfunctionCall)   
         previousSourceLocation = null
         const newScopeId = scopeId === '' ? subScope.toString() : scopeId + '.' + subScope
         tree.scopeStarts[step] = newScopeId
@@ -764,7 +772,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         }
         let externalCallResult
         try {
-          externalCallResult = await buildTree(tree, nextStep, newScopeId, isCreateInstrn, functionDefinition, contractObj, sourceLocation, validSourceLocation)
+          externalCallResult = await buildTree(tree, nextStep, newScopeId, isCreateInstrn, functionDefinition, contractObj, sourceLocation, validSourceLocation, newSymbolicStack)
         } catch (e) {
           console.error(e)
           return { outStep: step, error: 'InternalCallTree - ' + e.message }
@@ -784,6 +792,9 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
       console.log('Exiting scope ','at step ', step, callDepthChange(step, tree.traceManager.trace), isJumpOutOfFunction, isRevert, isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail))
       // if not, we might be returning from a CALL or internal function. This is what is checked here.
       // For constructors in inheritance chains, we also check if stack depth has returned to entry level
+      if (isStopInstruction(stepDetail) || isReturnInstruction(stepDetail)) {
+        tree.symbolicStackManager.setStackAtStep(step + 1, symbolicStack)
+      }
       tree.scopes[scopeId].lastStep = step
       if (isRevert) {
         const revertLine = lineColumnPos && lineColumnPos.start ? lineColumnPos.start.line + 1 : undefined
@@ -889,6 +900,10 @@ async function registerFunctionParameters (tree, functionDefinition, step, scope
  * @param {string} address - Contract address
  */
 async function includeVariableDeclaration (tree: InternalCallTree, step, sourceLocation, scopeId, contractObj, generatedSources, address) {
+  if (!contractObj) {
+    console.warn('No contract object found while adding variable declarations')
+    return
+  }
   let states = null
   const variableDeclarations = await resolveVariableDeclaration(tree, sourceLocation, generatedSources, address)
   // using the vm trace step, the current source location and the ast,
@@ -984,15 +999,6 @@ async function resolveFunctionDefinition (tree, sourceLocation, generatedSources
   return tree.functionDefinitionByFile[sourceLocation.file][sourceLocation.start + ':' + sourceLocation.length + ':' + sourceLocation.file]
 }
 
-async function resolveAllNodes (tree, sourceLocation, generatedSources, address) {
-  const ast = await tree.solidityProxy.ast(sourceLocation, generatedSources, address)
-  if (ast) {
-    return nodesAtPosition(null, sourceLocation.start, { ast })
-  } else {
-    return null
-  }
-}
-
 /**
  * Walks the AST and extracts all variable declarations, indexing them by source location.
  * Handles both Solidity and Yul variable declarations.
@@ -1047,6 +1053,10 @@ function extractFunctionDefinitions (ast, astWalker) {
  * @returns {Array<string>} Array of parameter names added to the scope
  */
 function addParams (parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation, stackLength, stackPosition, dir) {
+  if (!contractObj) {
+    console.warn('No contract object found while adding params')
+    return []
+  }
   const contractName = contractObj.name
   const params = []
   for (const inputParam in parameterList.parameters) {
