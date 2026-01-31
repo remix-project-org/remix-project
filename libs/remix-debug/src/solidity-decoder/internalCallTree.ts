@@ -735,7 +735,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     let generatedSources
     let functionDefinition
     const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)    
-    if (!contractObj) {
+    if (contractObj) {
       generatedSources = getGeneratedSources(tree, scopeId, contractObj)
       functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
     }     
