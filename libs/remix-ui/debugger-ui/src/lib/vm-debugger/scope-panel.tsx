@@ -18,7 +18,13 @@ export interface NestedScope {
     step: any
     line?: number
   }
-  opcodeInfo?: any
+  opcodeInfo?: {
+    depth: number
+    op: string
+    gas: string
+    gasCost: number
+    pc: number
+  }
   address?: string
   children: NestedScope[]
 }
@@ -63,9 +69,20 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
   const handleScopeClick = (scope: NestedScope) => {
     stepManager.jumpTo(scope.firstStep)
   }
+  
+  const handleJumpOver = (event, scope: NestedScope) => {
+    event.stopPropagation();
+    if (scope.lastStep !== undefined) {
+      stepManager.jumpTo(scope.lastStep + 1)
+    }
+  }
 
   const formatScopeLabel = (scope: NestedScope): JSX.Element => {
-    const functionName = scope.functionDefinition?.name || ' - anonymous - '
+    let title = ' - anonymous - '
+    if (scope.scopeId === '1') {
+      title = scope.isCreation ? 'Contract Creation' : '@' + scope.address?.slice(0, 8) + '...'
+    } else
+      title = scope.functionDefinition?.name || scope.opcodeInfo?.op
     const kind = scope.functionDefinition?.kind || (scope.isCreation ? 'creation' : 'scope')
     const gasInfo = scope.gasCost ? ` (${scope.gasCost} gas)` : ''
     const stepRange = scope.lastStep !== undefined 
@@ -77,9 +94,10 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
       <div className="d-flex flex-column">
         <div className="d-flex align-items-center">
           <span className="fw-bold me-2">{scope.scopeId}</span>
-          <span className="me-2">{functionName}</span>
+          <span className="me-2">{title}</span>
           <span className="badge bg-secondary me-2">{kind}</span>
           {revertedInfo && <span className="badge bg-danger me-2">REVERTED</span>}
+          {scope.lastStep && <span className="badge bg-info me-2" onClick={(event) => handleJumpOver(event, scope)}>Jump Over</span>}
         </div>
         <div className="text-muted small">
           <span className="me-3">{stepRange}</span>
