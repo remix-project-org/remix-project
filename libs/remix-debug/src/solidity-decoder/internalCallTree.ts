@@ -67,6 +67,8 @@ export interface Scope {
   firstStep: number
   /** Last VM trace step index where this scope ends (optional) */
   lastStep?: number
+  /** Last safe VM trace step index where this scope ends (optional) */
+  lastSafeStep?: number
   /** Map of local variables in this scope by name */
   locals: { [name: string]: LocalVariable }
   /** Whether this scope represents contract creation */
@@ -792,12 +794,19 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
       }
     } else if (callDepthChange(step, tree.traceManager.trace) || isJumpOutOfFunction || isRevert || isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail)) {
       console.log('Exiting scope ','at step ', step, callDepthChange(step, tree.traceManager.trace), isJumpOutOfFunction, isRevert, isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail))
+      
+      // Count consecutive POP opcodes before getting out of scope
+      const popCount = countConsecutivePopOpcodes(tree.traceManager.trace, step)
+      console.log('POP count before exiting scope:', popCount)
+      
       // if not, we might be returning from a CALL or internal function. This is what is checked here.
       // For constructors in inheritance chains, we also check if stack depth has returned to entry level
       if (isStopInstruction(stepDetail) || isReturnInstruction(stepDetail)) {
         tree.symbolicStackManager.setStackAtStep(step + 1, symbolicStack)
       }
       tree.scopes[scopeId].lastStep = step
+      tree.scopes[scopeId].lastSafeStep = step - popCount
+
       if (isRevert) {
         const revertLine = lineColumnPos && lineColumnPos.start ? lineColumnPos.start.line + 1 : undefined
         tree.scopes[scopeId].reverted = {
@@ -1096,4 +1105,31 @@ function addParams (parameterList, tree: InternalCallTree, scopeId, states, cont
     stackPosition += dir
   }
   return params
+}
+
+/**
+ * Counts the number of consecutive POP opcodes that occur just before the current step.
+ * If the previous opcode isn't a POP, the count is 0. Otherwise, counts backwards until
+ * a non-POP opcode is found.
+ *
+ * @param {Array} trace - The VM execution trace
+ * @param {number} currentStep - Current step index
+ * @returns {number} Number of consecutive POP opcodes before current step
+ */
+function countConsecutivePopOpcodes(trace: StepDetail[], currentStep: number): number {
+  let popCount = 0
+  let stepIndex = currentStep - 1
+  
+  // Count backwards from the current step
+  while (stepIndex >= 0) {
+    const step = trace[stepIndex]
+    if (step && step.op === 'POP') {
+      popCount++
+      stepIndex--
+    } else {
+      break
+    }
+  }
+  
+  return popCount
 }

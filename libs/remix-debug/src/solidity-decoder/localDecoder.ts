@@ -7,6 +7,7 @@ export async function solidityLocals (vmtraceIndex, internalTreeCall, stack, mem
     throw error
   }
   if (scope.firstStep === vmtraceIndex) return {}
+  if (scope.lastSafeStep < vmtraceIndex) return {}
   const locals = {}
   memory = formatMemory(memory)
   let anonymousIncr = 1
