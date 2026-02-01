@@ -144,11 +144,14 @@ export class DebuggerStepManager {
    */
   stepIntoBack (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    let step = this.currentStepIndex - 1
-    this.currentStepIndex = step
+    
+    let step
     if (solidityMode) {
-      step = this.resolveToReducedTrace(step, -1)
-    }
+      step = this.resolveToReducedTrace(this.currentStepIndex, -1)
+    } else  
+      step = this.currentStepIndex - 1
+
+    this.currentStepIndex = step
     if (!this.traceManager.inRange(step)) {
       return
     }
@@ -163,11 +166,12 @@ export class DebuggerStepManager {
    */
   stepIntoForward (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    let step = this.currentStepIndex + 1
-    this.currentStepIndex = step
+    let step
     if (solidityMode) {
-      step = this.resolveToReducedTrace(step, 1)
-    }
+      step = this.resolveToReducedTrace(this.currentStepIndex, 1)
+    } else
+      step = this.currentStepIndex + 1
+    this.currentStepIndex = step
     if (!this.traceManager.inRange(step)) {
       return
     }
@@ -183,9 +187,6 @@ export class DebuggerStepManager {
   stepOverBack (solidityMode) {
     if (!this.traceManager.isLoaded()) return
     let step = this.traceManager.findStepOverBack(this.currentStepIndex)
-    if (solidityMode) {
-      step = this.resolveToReducedTrace(step, -1)
-    }
     if (this.currentStepIndex === step) return
     this.currentStepIndex = step
     this.triggerStepChanged(step)
@@ -205,9 +206,6 @@ export class DebuggerStepManager {
     if (scope && scope.firstStep === step) {
       step = scope.lastStep + 1
     }
-    if (solidityMode) {
-      step = this.resolveToReducedTrace(step, 1)
-    }
     if (this.currentStepIndex === step) return
     this.currentStepIndex = step
     this.triggerStepChanged(step)
@@ -222,9 +220,6 @@ export class DebuggerStepManager {
   jumpOut (solidityMode) {
     if (!this.traceManager.isLoaded()) return
     let step = this.traceManager.findStepOut(this.currentStepIndex)
-    if (solidityMode) {
-      step = this.resolveToReducedTrace(step, 0)
-    }
     if (this.currentStepIndex === step) return
     this.currentStepIndex = step
     this.triggerStepChanged(step)
@@ -301,13 +296,18 @@ export class DebuggerStepManager {
     if (!this.debugger.callTree.reducedTrace.length) {
       return value
     }
-    let nextSource = util.findClosestIndex(value, this.debugger.callTree.reducedTrace)
-    nextSource = nextSource + incr
-    if (nextSource <= 0) {
-      nextSource = 0
-    } else if (nextSource > this.debugger.callTree.reducedTrace.length) {
-      nextSource = this.debugger.callTree.reducedTrace.length - 1
+    let index = this.debugger.callTree.reducedTrace.indexOf(value)
+    if (index !== -1) {
+      return this.debugger.callTree.reducedTrace[index + incr]
     }
-    return this.debugger.callTree.reducedTrace[nextSource]
+    index = util.findLowerBound(value, this.debugger.callTree.reducedTrace)
+    if (index === 0) {
+      return this.debugger.callTree.reducedTrace[0]
+    } else if (index > this.debugger.callTree.reducedTrace.length) {
+      return this.debugger.callTree.reducedTrace[this.debugger.callTree.reducedTrace.length - 1]
+    }
+
+    if (incr === -1) return this.debugger.callTree.reducedTrace[index]
+    return this.debugger.callTree.reducedTrace[index + 1]
   }
 }
