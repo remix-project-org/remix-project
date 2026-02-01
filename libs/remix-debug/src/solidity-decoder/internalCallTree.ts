@@ -248,7 +248,7 @@ export class InternalCallTree {
               console.error('analyzing trace fails ' + result.error)
               this.event.trigger('callTreeBuildFailed', [result.error])
             } else {
-              createReducedTrace(this, traceManager.trace.length - 1)
+              addReducedTrace(this, traceManager.trace.length - 1)
               console.log('call tree build lasts ', (Date.now() - time) / 1000)
               this.event.trigger('callTreeReady', [this.scopes, this.scopeStarts, this])
             }
@@ -650,10 +650,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     try {
       address = tree.traceManager.getCurrentCalledAddressAt(step)
       sourceLocation = await tree.extractSourceLocation(step, address)
-      console.log('Step ', step, ' source location ', sourceLocation)
-      if (!includedSource(sourceLocation, currentSourceLocation)) {
-        tree.reducedTrace.push(step)
-      }
+      
       currentSourceLocation = sourceLocation
       if (currentAddress !== address) {
         compilationResult = await tree.solidityProxy.compilationResult(address)
@@ -664,6 +661,10 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         validSourceLocation = previousValidSourceLocation
       } else
         validSourceLocation = currentSourceLocation
+
+      if (!includedSource(validSourceLocation, previousValidSourceLocation)) {
+        addReducedTrace(tree, step)
+      }
     } catch (e) {
       console.warn(e)
       sourceLocation = previousSourceLocation
@@ -761,6 +762,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         tree.scopeStarts[step] = newScopeId
         const startExecutionLine = lineColumnPos && lineColumnPos.start ? lineColumnPos.start.line + 1 : undefined
         tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition, opcodeInfo: stepDetail }
+        addReducedTrace(tree, step)
         // for the ctor we are at the start of its trace, we have to replay this step in order to catch all the locals:
         const nextStep = constructorExecutionStarts ? step : step + 1
         if (constructorExecutionStarts) {
@@ -804,6 +806,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         }
       }
 
+      addReducedTrace(tree, step)
       tree.scopes[scopeId].endExecutionLine = lineColumnPos && lineColumnPos.end ? lineColumnPos.end.line + 1 : undefined
       return { outStep: step + 1 }
     } else {
@@ -831,7 +834,8 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
  * @param {InternalCallTree} tree - The call tree instance
  * @param {number} index - VM trace step index to add
  */
-function createReducedTrace (tree, index) {
+function addReducedTrace (tree, index) {
+  if (tree.reducedTrace.includes(index)) return
   tree.reducedTrace.push(index)
 }
 
@@ -943,6 +947,8 @@ async function includeVariableDeclaration (tree: InternalCallTree, step, sourceL
             }
             tree.scopes[scopeId].locals[variableDeclaration.name] = newVar
             tree.variables[variableDeclaration.id] = newVar
+
+            addReducedTrace(tree, safeStep)
 
             // Bind variable to symbolic stack
             tree.symbolicStackManager.bindVariable(step, newVar, stack.length) // step + 1 because the symbolic stack represents the state AFTER the opcode execution
