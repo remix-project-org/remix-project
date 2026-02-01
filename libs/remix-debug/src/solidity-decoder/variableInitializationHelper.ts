@@ -86,7 +86,7 @@ export async function findSafeStepForVariable(
 
   // Simple types are immediately safe to decode
   if (isSimpleType(typeString)) {
-    return declarationStep
+    return declarationStep + 2
   }
 
   // For complex types, look ahead to find when we exit the declaration's source range

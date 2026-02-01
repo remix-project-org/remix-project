@@ -6,6 +6,7 @@ export async function solidityLocals (vmtraceIndex, internalTreeCall, stack, mem
     const error = { message: 'Can\'t display locals. reason: compilation result might not have been provided' }
     throw error
   }
+  if (scope.firstStep === vmtraceIndex) return {}
   const locals = {}
   memory = formatMemory(memory)
   let anonymousIncr = 1
