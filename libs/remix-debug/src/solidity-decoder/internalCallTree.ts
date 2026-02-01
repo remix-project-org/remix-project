@@ -86,7 +86,7 @@ export interface Scope {
     line?: number
   }
   /** Opcode */
-  opcodeInfo?: StepDetail,
+  opcodeInfo: StepDetail,
   /** Opcode */
   lastOpcodeInfo?: StepDetail,
   /** Address */
@@ -240,7 +240,7 @@ export class InternalCallTree {
 
       const scopeId = '1'
       this.scopeStarts[0] = scopeId
-      this.scopes[scopeId] = { firstStep: 0, locals: {}, isCreation, gasCost: 0 }
+      this.scopes[scopeId] = { firstStep: 0, locals: {}, isCreation, gasCost: 0, opcodeInfo: this.traceManager.trace[0] }
 
       const compResult = await this.solidityProxy.compilationResult(calledAddress)
       this.symbolicStackManager.setStackAtStep(0, [])
@@ -509,7 +509,6 @@ export class InternalCallTree {
     // Build the tree structure
     for (const [scopeId, nestedScope] of scopeMap) {
       const parentScopeId = this.parentScope(scopeId)
-      
       if (parentScopeId === '') {
         // This is a root scope
         rootScopes.push(nestedScope)
@@ -741,15 +740,21 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     let functionDefinition
     // check if there is a function at destination
     const isJumdDest = isJumpDestInstruction(stepDetail)
-    if (isJumdDest) {
-      const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)    
+    const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)
+    /*
+    if (isJumdDest) {      
       if (contractObj) {
         generatedSources = getGeneratedSources(tree, scopeId, contractObj)
         functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
         tree.scopes[scopeId].functionDefinition = functionDefinition
       }
     }
+    */
     
+    generatedSources = getGeneratedSources(tree, scopeId, contractObj)
+    functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
+    if (!tree.scopes[scopeId].functionDefinition) tree.scopes[scopeId].functionDefinition = functionDefinition
+
     const isRevert = isRevertInstruction(stepDetail)
     const constructorExecutionStarts = tree.pendingConstructorExecutionAt > -1 && tree.pendingConstructorExecutionAt < validSourceLocation.start
     if (functionDefinition && functionDefinition.kind === 'constructor' && tree.pendingConstructorExecutionAt === -1 && !tree.constructorsStartExecution[functionDefinition.id]) {
