@@ -2,13 +2,12 @@
 import { AstWalker } from '@remix-project/remix-astwalker'
 import { util } from '@remix-project/remix-lib'
 import { SourceLocationTracker } from '../source/sourceLocationTracker'
-import { nodesAtPosition } from '../source/sourceMappingDecoder'
 import { EventManager } from '../eventManager'
 import { parseType } from './decodeInfo'
-import { isContractCreation, isCallInstruction, isCreateInstruction, isRevertInstruction, isStopInstruction, isReturnInstruction } from '../trace/traceHelper'
+import { isContractCreation, isCallInstruction, isCreateInstruction, isJumpDestInstruction, isRevertInstruction, isStopInstruction, isReturnInstruction } from '../trace/traceHelper'
 import { extractLocationFromAstVariable } from './types/util'
 import { findSafeStepForVariable } from './variableInitializationHelper'
-import { SymbolicStackManager } from './symbolicStack'
+import { SymbolicStackManager, SymbolicStackSlot } from './symbolicStack'
 import { updateSymbolicStack } from './opcodeStackHandler'
 
 /**
@@ -88,8 +87,12 @@ export interface Scope {
   }
   /** Opcode */
   opcodeInfo?: StepDetail,
+  /** Opcode */
+  lastOpcodeInfo?: StepDetail,
   /** Address */
-  address?: string
+  address?: string,
+  /** Stack */
+  stackBeforeJumping?: Array<SymbolicStackSlot>
 }
 
 /**
@@ -558,8 +561,7 @@ export class InternalCallTree {
  * @param {Object} [validSourceLocation] - Last valid source location
  * @returns {Promise<Object>} Object with outStep (next step to process) and optional error message
  */
-async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, functionDefinition?, contractObj?, sourceLocation?, validSourceLocation?, symbolicStack?) {
-  symbolicStack = symbolicStack || [] // to pass the symbolic stack through recursive calls
+async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, functionDefinition?, contractObj?, sourceLocation?, validSourceLocation?) {
   let subScope = 1
   const address = tree.traceManager.getCurrentCalledAddressAt(step)
   tree.scopes[scopeId].address = address
@@ -737,11 +739,16 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         
     let generatedSources
     let functionDefinition
-    const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)    
-    if (contractObj) {
-      generatedSources = getGeneratedSources(tree, scopeId, contractObj)
-      functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
-    }     
+    // check if there is a function at destination
+    const isJumdDest = isJumpDestInstruction(stepDetail)
+    if (isJumdDest) {
+      const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)    
+      if (contractObj) {
+        generatedSources = getGeneratedSources(tree, scopeId, contractObj)
+        functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
+        tree.scopes[scopeId].functionDefinition = functionDefinition
+      }
+    }
     
     const isRevert = isRevertInstruction(stepDetail)
     const constructorExecutionStarts = tree.pendingConstructorExecutionAt > -1 && tree.pendingConstructorExecutionAt < validSourceLocation.start
@@ -754,8 +761,9 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
       // constructorsStartExecution allows to keep track on which constructor has already been executed.
       console.log('Pending constructor execution at ', tree.pendingConstructorExecutionAt, ' for constructor id ', tree.pendingConstructorId)
     }
-    const internalfunctionCall = functionDefinition && (previousSourceLocation && previousSourceLocation.jump === 'i') && functionDefinition.kind !== 'constructor'
-    const isJumpOutOfFunction = functionDefinition && (validSourceLocation && validSourceLocation.jump === 'o') && functionDefinition.kind !== 'constructor'
+    const internalfunctionCall = /*functionDefinition &&*/ (sourceLocation && sourceLocation.jump === 'i') /*&& functionDefinition.kind !== 'constructor'*/
+    const isJumpOutOfFunction = /*functionDefinition &&*/ (sourceLocation && sourceLocation.jump === 'o') /*&& functionDefinition.kind !== 'constructor'*/
+
     if (constructorExecutionStarts || isInternalTxInstrn || internalfunctionCall) {
       try {
         console.log('Entering new scope at step ', step, constructorExecutionStarts, isInternalTxInstrn, internalfunctionCall)   
@@ -763,7 +771,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         const newScopeId = scopeId === '' ? subScope.toString() : scopeId + '.' + subScope
         tree.scopeStarts[step] = newScopeId
         const startExecutionLine = lineColumnPos && lineColumnPos.start ? lineColumnPos.start.line + 1 : undefined
-        tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition, opcodeInfo: stepDetail }
+        tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition, opcodeInfo: stepDetail, stackBeforeJumping: newSymbolicStack }
         addReducedTrace(tree, step)
         // for the ctor we are at the start of its trace, we have to replay this step in order to catch all the locals:
         const nextStep = constructorExecutionStarts ? step : step + 1
@@ -776,7 +784,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         }
         let externalCallResult
         try {
-          externalCallResult = await buildTree(tree, nextStep, newScopeId, isCreateInstrn, functionDefinition, contractObj, sourceLocation, validSourceLocation, newSymbolicStack)
+          externalCallResult = await buildTree(tree, nextStep, newScopeId, isCreateInstrn, functionDefinition, contractObj, sourceLocation, validSourceLocation)
         } catch (e) {
           console.error(e)
           return { outStep: step, error: 'InternalCallTree - ' + e.message }
@@ -792,20 +800,25 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         console.error(e)
         return { outStep: step, error: 'InternalCallTree - ' + e.message }
       }
-    } else if (callDepthChange(step, tree.traceManager.trace) || isJumpOutOfFunction || isRevert || isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail)) {
-      console.log('Exiting scope ','at step ', step, callDepthChange(step, tree.traceManager.trace), isJumpOutOfFunction, isRevert, isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail))
+    } else if (callDepthChange(step, tree.traceManager.trace) || isStopInstruction(stepDetail) || isReturnInstruction(stepDetail) || isJumpOutOfFunction || isRevert || isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail)) {
+      console.log('Exiting scope ', scopeId, 'at step ', step, callDepthChange(step, tree.traceManager.trace), isJumpOutOfFunction, isRevert, isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail))
       
       // Count consecutive POP opcodes before getting out of scope
       const popCount = countConsecutivePopOpcodes(tree.traceManager.trace, step)
       console.log('POP count before exiting scope:', popCount)
       
+      const origin = tree.scopes[scopeId].opcodeInfo
       // if not, we might be returning from a CALL or internal function. This is what is checked here.
       // For constructors in inheritance chains, we also check if stack depth has returned to entry level
-      if (isStopInstruction(stepDetail) || isReturnInstruction(stepDetail)) {
-        tree.symbolicStackManager.setStackAtStep(step + 1, symbolicStack)
+      if ((isStopInstruction(stepDetail)) || isReturnInstruction(stepDetail) && (isCallInstruction(origin) || isCreateInstruction(origin))) {
+        // giving back the stack to the parent
+        const stack = tree.scopes[scopeId].stackBeforeJumping
+        tree.symbolicStackManager.setStackAtStep(step + 1, stack)
       }
+      tree.scopes[scopeId].stackBeforeJumping = undefined
       tree.scopes[scopeId].lastStep = step
       tree.scopes[scopeId].lastSafeStep = step - popCount
+      tree.scopes[scopeId].lastOpcodeInfo = stepDetail
 
       if (isRevert) {
         const revertLine = lineColumnPos && lineColumnPos.start ? lineColumnPos.start.line + 1 : undefined
@@ -846,9 +859,9 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
 function addReducedTrace (tree, index) {
   if (tree.reducedTrace.includes(index)) return
   // Find the correct position to insert the index to maintain sorted order
-  let insertPos = tree.reducedTrace.length
-  while (insertPos > 0 && tree.reducedTrace[insertPos - 1] > index) {
-    insertPos--
+  let insertPos = 0
+  while (insertPos < tree.reducedTrace.length && tree.reducedTrace[insertPos] < index) {
+    insertPos++
   }
   tree.reducedTrace.splice(insertPos, 0, index)
 }

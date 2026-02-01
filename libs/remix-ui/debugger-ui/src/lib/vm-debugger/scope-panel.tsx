@@ -66,8 +66,9 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
     }))
   }
 
-  const handleScopeClick = (scope: NestedScope) => {
-    stepManager.jumpTo(scope.firstStep)
+  const handleJumpIn = (event, scope: NestedScope) => {
+    event.stopPropagation();
+    stepManager.jumpTo(scope.firstStep + 1)
   }
   
   const handleJumpOver = (event, scope: NestedScope) => {
@@ -75,6 +76,11 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
     if (scope.lastStep !== undefined) {
       stepManager.jumpTo(scope.lastStep + 1)
     }
+  }
+
+  const handleGoTo = (event, scope: NestedScope) => {
+    event.stopPropagation();
+    stepManager.jumpTo(scope.firstStep)
   }
 
   const formatScopeLabel = (scope: NestedScope): JSX.Element => {
@@ -89,14 +95,16 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
       ? `[${scope.firstStep}-${scope.lastStep}]` 
       : `[${scope.firstStep}+]`
     const revertedInfo = scope.reverted ? ' REVERTED' : ''
-    
+
+    // <span className="fw-bold me-2">{scope.scopeId.slice(-1)}</span>
     return (
       <div className="d-flex flex-column">
         <div className="d-flex align-items-center">
-          <span className="fw-bold me-2">{scope.scopeId}</span>
           <span className="me-2">{title}</span>
           <span className="badge bg-secondary me-2">{kind}</span>
+          <span className="badge bg-info me-2">{scope.opcodeInfo?.op}</span>
           {revertedInfo && <span className="badge bg-danger me-2">REVERTED</span>}
+          {scope.lastStep && <span className="badge bg-info me-2" onClick={(event) => handleJumpIn(event, scope)}>Jump In</span>}
           {scope.lastStep && <span className="badge bg-info me-2" onClick={(event) => handleJumpOver(event, scope)}>Jump Over</span>}
         </div>
         <div className="text-muted small">
@@ -120,7 +128,7 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
           id={`scopeItem-${scope.scopeId}`}
           key={keyPath}
           label={formatScopeLabel(scope)}
-          onClick={() => handleScopeClick(scope)}
+          onClick={() => handleGoTo(event, scope)}
           onIconClick={() => handleExpand(keyPath)}
           expand={state.expandPath.includes(keyPath)}
           labelClass="cursor-pointer jumpToScopeClick"
@@ -139,7 +147,7 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
           id={`scopeItem-${scope.scopeId}`}
           key={keyPath}
           label={formatScopeLabel(scope)}
-          onClick={() => handleScopeClick(scope)}
+          onClick={(event) => handleGoTo(event, scope)}
           labelClass="cursor-pointer jumpToScopeClick"
         />
       )
