@@ -845,7 +845,12 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
  */
 function addReducedTrace (tree, index) {
   if (tree.reducedTrace.includes(index)) return
-  tree.reducedTrace.push(index)
+  // Find the correct position to insert the index to maintain sorted order
+  let insertPos = tree.reducedTrace.length
+  while (insertPos > 0 && tree.reducedTrace[insertPos - 1] > index) {
+    insertPos--
+  }
+  tree.reducedTrace.splice(insertPos, 0, index)
 }
 
 /**
