@@ -405,7 +405,7 @@ export function UniversalDappUI(props: UdappProps) {
                             image: descriptionObj.image,
                             figmaUrl: descriptionObj.figmaUrl,
                             figmaToken: descriptionObj.figmaToken,
-                            sourceFilePath: await props.plugin.call('fileManager', 'getCurrentFile')
+                            sourceFilePath: props.instance.filePath || props.instance.contractData?.contract?.file || ''
                           })
 
                           await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')

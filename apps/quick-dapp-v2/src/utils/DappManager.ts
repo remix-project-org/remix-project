@@ -203,7 +203,11 @@ export class DappManager {
 
       await this.focusPlugin();
 
-      return (configs || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const uniqueConfigs = configs.filter((config, index, self) =>
+        index === self.findIndex((c) => c.id === config.id)
+      );
+
+      return (uniqueConfigs || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch (e) {
       console.error('[DappManager] Critical error loading dapps:', e);
       await this.focusPlugin();
@@ -264,6 +268,7 @@ export class DappManager {
     await this.plugin.call('filePanel', 'createWorkspace', workspaceName, true);
 
     await this.switchToWorkspace(workspaceName);
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     await this.focusPlugin();
 
@@ -292,7 +297,11 @@ export class DappManager {
 
     await this.saveConfig(workspaceName, initialConfig);
 
-    await this.plugin.call('fileManager', 'mkdir', 'src');
+    try {
+      await this.plugin.call('fileManager', 'mkdir', 'src');
+    } catch (e) {
+      // src 폴더가 이미 존재하면 무시
+    }
 
     if (isBaseMiniApp) {
       try {
