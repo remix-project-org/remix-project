@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react' // eslint-disable-line
+import React, { useState, useRef, useEffect } from 'react' // eslint-disable-line
 import { useIntl, FormattedMessage } from 'react-intl'
 import { CustomTooltip, isValidHash } from '@remix-ui/helper'
 import './search-bar.css'
@@ -7,13 +7,22 @@ interface SearchBarProps {
   onSearch: (txHash: string) => void
   debugging: boolean
   currentTxHash?: string
+  onStopDebugging?: () => void
 }
 
-export const SearchBar = ({ onSearch, debugging, currentTxHash = '' }: SearchBarProps) => {
+export const SearchBar = ({ onSearch, debugging, currentTxHash = '', onStopDebugging }: SearchBarProps) => {
   const [txHash, setTxHash] = useState(currentTxHash)
   const [isValid, setIsValid] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const intl = useIntl()
+
+  // Sync local state with currentTxHash prop
+  useEffect(() => {
+    if (currentTxHash) {
+      setTxHash(currentTxHash)
+      setIsValid(isValidHash(currentTxHash))
+    }
+  }, [currentTxHash])
 
   const handleInputChange = (value: string) => {
     setTxHash(value)
@@ -47,6 +56,15 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '' }: SearchBar
           disabled={debugging}
           aria-label="Transaction hash search"
         />
+        {debugging && onStopDebugging && (
+          <button
+            className="btn btn-sm btn-danger stop-debugging-btn"
+            onClick={onStopDebugging}
+            aria-label="Stop debugging"
+          >
+            <i className="fas fa-stop"></i> <FormattedMessage id="debugger.stopDebugging" defaultMessage="Stop Debugging" />
+          </button>
+        )}
       </div>
     </div>
   )

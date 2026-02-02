@@ -1,7 +1,5 @@
 .contract-card {
   background-color: var(--custom-onsurface-layer-2);
-  border: 1px solid var(--input-border-color);
-  border-radius: 0.375rem;
   margin-bottom: 0.75rem;
   overflow: hidden;
   width: 100%;
@@ -15,11 +13,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.50rem;
+  padding: 0.75rem;
   cursor: pointer;
   background-color: var(--custom-onsurface-layer-2);
   transition: background-color 0.2s;
-  border-bottom: 2px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--bs-body-color);
 }
 
 .contract-card-header:hover {
@@ -43,7 +41,13 @@
 .contract-card-name {
   font-weight: 600;
   font-size: 0.875rem;
-  color: var(--text-primary);
+  color: rgb(26, 26, 26);
+}
+
+@media (prefers-color-scheme: dark) {
+  .contract-card-name {
+    color: rgb(255, 255, 255);
+  }
 }
 
 .contract-card-address-row {
@@ -92,7 +96,7 @@
 }
 
 .contract-card-content {
-  padding: 0.75rem 0.75rem 0.75rem 0;
+  padding: 0.5rem 0.5rem 0.5rem 0;
 }
 
 .contract-card-info {
@@ -145,7 +149,6 @@
 .interactions-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
   position: relative;
 }
 
@@ -155,6 +158,12 @@
   border-radius: 0.25rem;
   padding: 0.5rem;
   position: relative;
+}
+
+.interaction-item:not(:last-child) {
+  border-bottom: 1px solid var(--bs-border-color);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 .interaction-item::before {
@@ -177,11 +186,37 @@
   margin-bottom: 0.25rem;
 }
 
+.interaction-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.interaction-status-icon {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.interaction-status-icon.success {
+  color: #28a745;
+}
+
+.interaction-status-icon.failed {
+  color: #dc3545;
+}
+
 .interaction-method {
   font-size: 0.75rem;
   font-weight: 600;
   font-family: monospace;
-  color: var(--text-primary);
+  color: rgb(26, 26, 26);
+}
+
+@media (prefers-color-scheme: dark) {
+  .interaction-method {
+    color: rgb(255, 255, 255);
+  }
 }
 
 .interaction-time {
@@ -196,27 +231,23 @@
   font-size: 0.7rem;
 }
 
+.interaction-hash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .interaction-from {
   color: var(--text-muted);
   font-family: monospace;
 }
 
 .interaction-debug-btn {
-  background-color: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.7rem;
-  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  transition: background-color 0.2s;
-}
-
-.interaction-debug-btn:hover {
-  background-color: var(--bs-link-hover-color);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
 }
 
 .interaction-debug-btn i {

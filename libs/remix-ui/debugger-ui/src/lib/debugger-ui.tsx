@@ -154,7 +154,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
             abi: contractAbi,
             timestamp: timestamp || Date.now(),
             from: from,
-            transactionHash: result.receipt.transactionHash,
+            transactionHash: result.receipt.transactionHash || result.receipt.hash || result.transactionHash || result.hash,
             blockHash: result.receipt.blockHash || '',
             blockNumber: result.receipt.blockNumber || 0,
             gasUsed: result.receipt.gasUsed || 0,
@@ -165,7 +165,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         } else if (to && result?.receipt) {
           // This is a contract interaction
           const interaction: ContractInteraction = {
-            transactionHash: result.receipt.transactionHash,
+            transactionHash: result.receipt.transactionHash || result.receipt.hash || result.transactionHash || result.hash,
             from: from,
             to: to,
             timestamp: timestamp || Date.now(),
@@ -527,6 +527,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
           onSearch={handleSearch}
           debugging={state.debugging}
           currentTxHash={state.txNumber}
+          onStopDebugging={unLoad}
         />
 
         {/* Informational Text */}
@@ -578,16 +579,18 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         </div>
 
         {/* Transaction Recorder Section */}
-        <TransactionRecorder
-          requestDebug={requestDebug}
-          unloadRequested={unloadRequested}
-          updateTxNumberFlag={updateTxNumberFlag}
-          transactionNumber={state.txNumber}
-          debugging={state.debugging}
-          deployments={deployments}
-          transactions={transactions}
-          onDebugTransaction={(txHash) => debug(txHash)}
-        />
+        {!state.debugging && (
+          <TransactionRecorder
+            requestDebug={requestDebug}
+            unloadRequested={unloadRequested}
+            updateTxNumberFlag={updateTxNumberFlag}
+            transactionNumber={state.txNumber}
+            debugging={state.debugging}
+            deployments={deployments}
+            transactions={transactions}
+            onDebugTransaction={(txHash) => debug(txHash)}
+          />
+        )}
 
         {state.debugging && state.sourceLocationStatus && (
           <div className="text-warning mt-3">

@@ -13,6 +13,8 @@ interface ContractCardProps {
 export const ContractCard = ({ deployment, transactions, onDebugTransaction }: ContractCardProps) => {
   const [isExpanded, setIsExpanded] = useState(true)
   const [copyTooltip, setCopyTooltip] = useState('Copy Address')
+  const [copyTxTooltips, setCopyTxTooltips] = useState<{ [key: number]: string }>({})
+  console.log('transactions--->', transactions)
 
   const formatAddress = (address: string | undefined) => {
     if (!address) return ''
@@ -27,6 +29,17 @@ export const ContractCard = ({ deployment, transactions, onDebugTransaction }: C
   const resetTooltip = () => {
     setTimeout(() => {
       setCopyTooltip('Copy Address')
+    }, 500)
+  }
+
+  const copyTxHashToClipboard = (text: string, index: number) => {
+    navigator.clipboard.writeText(text)
+    setCopyTxTooltips(prev => ({ ...prev, [index]: 'Copied' }))
+  }
+
+  const resetTxTooltip = (index: number) => {
+    setTimeout(() => {
+      setCopyTxTooltips(prev => ({ ...prev, [index]: 'Copy Hash' }))
     }, 500)
   }
 
@@ -88,17 +101,44 @@ export const ContractCard = ({ deployment, transactions, onDebugTransaction }: C
                 {transactions.map((transaction, index) => (
                   <div key={index} className="interaction-item">
                     <div className="interaction-header">
-                      <span className="interaction-method">
-                        {transaction.methodName || <FormattedMessage id="debugger.unknownMethod" defaultMessage="Unknown method" />}
-                      </span>
+                      <div className="interaction-header-left">
+                        <span className={`interaction-status-icon ${transaction.status === '0x1' || transaction.status === 'true' || transaction.status === 'success' ? 'success' : 'failed'}`}>
+                          {(transaction.status === '0x1' || transaction.status === 'true' || transaction.status === 'success') ? (
+                            <i className="fas fa-check-circle"></i>
+                          ) : (
+                            <i className="fas fa-times-circle"></i>
+                          )}
+                        </span>
+                        <span className="interaction-method">
+                          {transaction.methodName || <FormattedMessage id="debugger.unknownMethod" defaultMessage="Unknown method" />}
+                        </span>
+                      </div>
                       <span className="interaction-time">{formatTimestamp(transaction.timestamp)}</span>
                     </div>
                     <div className="interaction-details">
-                      <span className="interaction-from">
-                        <FormattedMessage id="debugger.from" defaultMessage="From:" /> {formatAddress(transaction.from)}
-                      </span>
+                      <div className="interaction-hash-row">
+                        <span className="interaction-from">
+                          <FormattedMessage id="debugger.txHash" defaultMessage="Hash:" /> {formatAddress(transaction.transactionHash)}
+                        </span>
+                        <CustomTooltip
+                          tooltipText={copyTxTooltips[index] || 'Copy Hash'}
+                          tooltipId={`tx-hash-copy-tooltip-${index}`}
+                          placement="top"
+                        >
+                          <button
+                            className="contract-card-copy-btn"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              copyTxHashToClipboard(transaction.transactionHash || '', index)
+                            }}
+                            onMouseLeave={() => resetTxTooltip(index)}
+                          >
+                            <i className="far fa-copy"></i>
+                          </button>
+                        </CustomTooltip>
+                      </div>
                       <button
-                        className="interaction-debug-btn"
+                        className="btn btn-primary btn-sm interaction-debug-btn"
                         onClick={() => onDebugTransaction(transaction.transactionHash)}
                         title={transaction.transactionHash}
                       >
