@@ -142,8 +142,8 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
           const contractAddress = result.receipt.contractAddress
 
           // Get contract name from payload (this is what blockchain plugin provides)
-          let contractName = payload?.contractName || payload?.contractData?.name || 'Unknown'
-          let contractAbi = payload?.contractABI || payload?.contractData?.abi || []
+          const contractName = payload?.contractName || payload?.contractData?.name || 'Unknown'
+          const contractAbi = payload?.contractABI || payload?.contractData?.abi || []
 
           console.log('[Debugger] Using contract name:', contractName)
 

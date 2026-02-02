@@ -117,7 +117,7 @@ export class OverlayPanel extends AbstractPanel {
           {/* Header with close button */}
           <div
             className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
-            style={{ 
+            style={{
               backgroundColor: 'var(--bs-secondary-bg)',
               minHeight: '48px'
             }}

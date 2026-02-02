@@ -50,16 +50,16 @@ export const FeatureAccessProductsView: React.FC<FeatureAccessProductsViewProps>
 
   // Check if user has active membership for a feature group
   const hasActiveMembership = (featureGroup: string) => {
-    return memberships.some(m => 
-      m.featureGroup === featureGroup && 
+    return memberships.some(m =>
+      m.featureGroup === featureGroup &&
       m.status === 'active'
     )
   }
 
   // Get the user's active membership for a feature group
   const getActiveMembership = (featureGroup: string) => {
-    return memberships.find(m => 
-      m.featureGroup === featureGroup && 
+    return memberships.find(m =>
+      m.featureGroup === featureGroup &&
       m.status === 'active'
     )
   }
@@ -71,7 +71,7 @@ export const FeatureAccessProductsView: React.FC<FeatureAccessProductsViewProps>
           // Check if user already has access to the primary feature group
           const hasAccess = hasActiveMembership(product.featureGroup)
           const activeMembership = getActiveMembership(product.featureGroup)
-          
+
           // Get price ID from providers array (if available)
           const paddleProvider = product.providers?.find(p => p.slug === 'paddle' && p.isActive)
           const priceId = paddleProvider?.priceId || null
@@ -89,7 +89,7 @@ export const FeatureAccessProductsView: React.FC<FeatureAccessProductsViewProps>
                     <small><i className="fas fa-unlock me-1"></i>Access Granted</small>
                   </div>
                 )}
-                
+
                 <div className="card-body d-flex flex-column">
                   <div className="d-flex justify-content-between align-items-start mb-2">
                     <h5 className="card-title mb-0">{product.name}</h5>
@@ -97,7 +97,7 @@ export const FeatureAccessProductsView: React.FC<FeatureAccessProductsViewProps>
                       <span className="badge bg-info">Subscription</span>
                     )}
                   </div>
-                  
+
                   <p className="card-text text-muted small mb-3">
                     {product.description}
                   </p>

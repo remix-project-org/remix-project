@@ -52,12 +52,12 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
           <FormattedMessage id="account.notLoggedIn" defaultMessage="Not Logged In" />
         </h4>
         <p className="text-muted text-center mb-4">
-          <FormattedMessage 
-            id="account.loginPrompt" 
+          <FormattedMessage
+            id="account.loginPrompt"
             defaultMessage="Please log in to access your account settings, credits, and billing information."
           />
         </p>
-        <button 
+        <button
           className="btn btn-primary"
           onClick={() => plugin.call('overlay', 'hideOverlay')}
         >
@@ -81,14 +81,14 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
         <div className="p-3 border-bottom">
           <div className="d-flex align-items-center">
             {user?.picture ? (
-              <img 
-                src={user.picture} 
-                alt={user.name || user.email} 
+              <img
+                src={user.picture}
+                alt={user.name || user.email}
                 className="rounded-circle mr-2"
                 style={{ width: '40px', height: '40px' }}
               />
             ) : (
-              <div 
+              <div
                 className="rounded-circle bg-secondary d-flex align-items-center justify-content-center mr-2"
                 style={{ width: '40px', height: '40px' }}
               >
@@ -174,7 +174,7 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
               <i className="fas fa-credit-card mr-2"></i>
               Billing & Subscriptions
             </h3>
-            <BillingManager 
+            <BillingManager
               plugin={plugin}
               paddleClientToken={paddleConfig?.clientToken || undefined}
               paddleEnvironment={paddleConfig?.environment || 'sandbox'}
@@ -190,7 +190,7 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
               Connected Accounts
             </h3>
             <p className="text-muted mb-4">
-              Link multiple authentication providers to access your account from anywhere. 
+              Link multiple authentication providers to access your account from anywhere.
               All linked accounts share the same credits and subscriptions.
             </p>
             <ConnectedAccounts plugin={plugin} />

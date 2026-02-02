@@ -207,7 +207,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                   className="rounded-circle"
                   style={{ width: '100px', height: '100px', objectFit: 'cover' }}
                   onError={(e) => {
-                   
+
                   }}
                 />
               ) : (

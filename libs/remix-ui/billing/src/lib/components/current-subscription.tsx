@@ -36,18 +36,18 @@ export const CurrentSubscription: React.FC<CurrentSubscriptionProps> = ({
 
   const getStatusBadge = () => {
     switch (subscription.status) {
-      case 'active':
-        return <span className="badge bg-success">Active</span>
-      case 'paused':
-        return <span className="badge bg-warning">Paused</span>
-      case 'canceled':
-        return <span className="badge bg-secondary">Canceled</span>
-      case 'past_due':
-        return <span className="badge bg-danger">Past Due</span>
-      case 'trialing':
-        return <span className="badge bg-info">Trial</span>
-      default:
-        return <span className="badge bg-secondary">{subscription.status}</span>
+    case 'active':
+      return <span className="badge bg-success">Active</span>
+    case 'paused':
+      return <span className="badge bg-warning">Paused</span>
+    case 'canceled':
+      return <span className="badge bg-secondary">Canceled</span>
+    case 'past_due':
+      return <span className="badge bg-danger">Past Due</span>
+    case 'trialing':
+      return <span className="badge bg-info">Trial</span>
+    default:
+      return <span className="badge bg-secondary">{subscription.status}</span>
     }
   }
 
@@ -63,20 +63,20 @@ export const CurrentSubscription: React.FC<CurrentSubscriptionProps> = ({
   const mainItem = subscription.items?.[0]
   const planName = mainItem?.product?.name || subscription.planId || 'Unknown Plan'
   const planDescription = mainItem?.description || ''
-  
+
   // Parse credits from description (e.g., "Pro - 1000 credits/month")
   const creditsMatch = planDescription.match(/(\d+)\s*credits/)
   const creditsPerMonth = creditsMatch ? parseInt(creditsMatch[1], 10) : subscription.creditsPerMonth
-  
+
   // Get billing period dates
   const periodStart = subscription.currentBillingPeriod?.startsAt || subscription.currentPeriodStart
   const periodEnd = subscription.currentBillingPeriod?.endsAt || subscription.currentPeriodEnd
-  
+
   // Check for scheduled cancellation
   const isCanceling = subscription.scheduledChange?.action === 'cancel' || subscription.cancelAtPeriodEnd
 
   // Format price
-  const price = mainItem?.unitPrice 
+  const price = mainItem?.unitPrice
     ? `$${(parseInt(mainItem.unitPrice.amount, 10) / 100).toFixed(2)}`
     : null
   const billingInterval = mainItem?.billingCycle?.interval || 'month'

@@ -66,7 +66,7 @@ export const SubscriptionPlansView: React.FC<SubscriptionPlansViewProps> = ({
                     <small><i className="fas fa-check me-1"></i>Current Plan</small>
                   </div>
                 )}
-                
+
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">{plan.name}</h5>
                   <p className="card-text text-muted small">

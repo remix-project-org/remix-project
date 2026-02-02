@@ -58,7 +58,7 @@ export const CreditPackagesView: React.FC<CreditPackagesViewProps> = ({
           // Get active Paddle provider
           const paddleProvider = BillingApiService.getActiveProvider(pkg, 'paddle')
           const priceId = paddleProvider?.priceId || null
-          
+
           return (
             <div key={pkg.id} className="col-12 col-md-6 col-lg-3">
               <div className={`card h-100 ${pkg.popular ? 'border-primary' : ''}`}>
@@ -72,7 +72,7 @@ export const CreditPackagesView: React.FC<CreditPackagesViewProps> = ({
                   <p className="card-text text-muted small flex-grow-1">
                     {pkg.description}
                   </p>
-                  
+
                   <div className="mb-3">
                     <div className="h4 mb-0">
                       <i className="fas fa-coins me-2 text-warning"></i>

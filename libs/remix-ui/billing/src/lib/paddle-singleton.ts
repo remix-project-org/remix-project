@@ -1,6 +1,6 @@
 /**
  * Paddle.js Singleton
- * 
+ *
  * Ensures only one Paddle instance is initialized across the application.
  * Provides event subscription mechanism for checkout events.
  */
@@ -19,14 +19,14 @@ interface PaddleCache {
 // Global singleton storage
 const globalRef = globalThis as unknown as { __paddleSingleton?: PaddleCache }
 if (!globalRef.__paddleSingleton) {
-  globalRef.__paddleSingleton = { listeners: [] }
+  globalRef.__paddleSingleton = { listeners: []}
 }
 const cache = globalRef.__paddleSingleton
 
 /**
  * Build unique cache key from environment and token
  */
-const buildKey = (env: Environment, token: string) => 
+const buildKey = (env: Environment, token: string) =>
   `${String(env).toLowerCase().trim()}:${String(token).trim()}`
 
 /**
@@ -79,9 +79,9 @@ function logPaddleScriptTags(): void {
 function debugPaddleStatus(): void {
   const w = globalThis as { Paddle?: Paddle }
   const hasGlobal = !!w.Paddle
-  console.log('[Paddle][debug] key:', cache.key, 
-    'hasInstance:', !!cache.instance, 
-    'hasPromise:', !!cache.promise, 
+  console.log('[Paddle][debug] key:', cache.key,
+    'hasInstance:', !!cache.instance,
+    'hasPromise:', !!cache.promise,
     'globalThis.Paddle:', hasGlobal)
   logPaddleScriptTags()
 }
@@ -110,13 +110,13 @@ function waitForPaddle(timeoutMs = 10000, intervalMs = 50): Promise<Paddle> {
 
 /**
  * Initialize Paddle with the given client token
- * 
+ *
  * @param token - Paddle client-side token
  * @param environment - 'sandbox' for testing, 'production' for live
  * @returns Promise resolving to Paddle instance
  */
 export async function initPaddle(
-  token: string, 
+  token: string,
   environment: Environment = 'sandbox'
 ): Promise<Paddle> {
   if (!token) {
@@ -181,10 +181,10 @@ export async function initPaddle(
 
 /**
  * Open Paddle checkout overlay with a transaction ID
- * 
+ *
  * The transactionId should be obtained from your backend API which creates
  * the transaction with customData (userId, etc.) already set.
- * 
+ *
  * @param paddle - Paddle instance
  * @param transactionId - Transaction ID from backend (e.g., "txn_01abc123...")
  * @param options - Additional checkout options
@@ -225,10 +225,10 @@ export function openCheckoutWithTransaction(
 
 /**
  * Open Paddle checkout overlay with a price ID (direct checkout)
- * 
+ *
  * NOTE: This bypasses the backend and won't include customData like userId.
  * Prefer using openCheckoutWithTransaction() with a backend-created transaction.
- * 
+ *
  * @param paddle - Paddle instance
  * @param priceId - Paddle price ID (e.g., "pri_01abc123...")
  * @param options - Additional checkout options

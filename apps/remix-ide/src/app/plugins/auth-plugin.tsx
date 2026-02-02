@@ -124,7 +124,7 @@ export class AuthPlugin extends Plugin {
     try {
       // Ensure we have a token set
       await this.getToken()
-      
+
       const response = await this.billingApi.getConfig()
       if (response.ok && response.data?.paddle) {
         return {
@@ -132,7 +132,7 @@ export class AuthPlugin extends Plugin {
           environment: response.data.paddle.environment
         }
       }
-      
+
       console.warn('[AuthPlugin] Failed to fetch Paddle config:', response.error)
       return { clientToken: null, environment: 'sandbox' }
     } catch (error) {

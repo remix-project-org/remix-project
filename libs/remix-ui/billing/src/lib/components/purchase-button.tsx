@@ -17,14 +17,14 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
   const getButtonClass = () => {
     const base = 'btn w-100'
     switch (variant) {
-      case 'primary':
-        return `${base} btn-primary`
-      case 'secondary':
-        return `${base} btn-secondary`
-      case 'outline':
-        return `${base} btn-outline-primary`
-      default:
-        return `${base} btn-primary`
+    case 'primary':
+      return `${base} btn-primary`
+    case 'secondary':
+      return `${base} btn-secondary`
+    case 'outline':
+      return `${base} btn-outline-primary`
+    default:
+      return `${base} btn-primary`
     }
   }
 
