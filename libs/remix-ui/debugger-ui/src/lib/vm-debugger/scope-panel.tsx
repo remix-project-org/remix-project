@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react'
 import {TreeView, TreeViewItem} from '@remix-ui/tree-view'
-import {CopyToClipboard} from '@remix-ui/clipboard'
+import { traceHelper } from '@remix-project/remix-debug'
 import {useIntl} from 'react-intl'
 import './styles/dropdown-panel.css'
 
@@ -34,6 +34,7 @@ export interface ScopePanelProps {
   className?: string
   stepManager: {
     jumpTo: (step: number) => void
+    currentStepIndex: number
   }
 }
 
@@ -68,7 +69,7 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
 
   const handleJumpIn = (event, scope: NestedScope) => {
     event.stopPropagation();
-    stepManager.jumpTo(scope.firstStep + 1)
+    stepManager.jumpTo(scope.firstStep + 2) // Afert the JUMPDEST
   }
   
   const handleJumpOver = (event, scope: NestedScope) => {
@@ -80,7 +81,7 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
 
   const handleGoTo = (event, scope: NestedScope) => {
     event.stopPropagation();
-    stepManager.jumpTo(scope.firstStep)
+    stepManager.jumpTo(traceHelper.isCallInstruction(scope.opcodeInfo) ? scope.firstStep : scope.firstStep + 1) // JUMPDEST
   }
 
   const formatScopeLabel = (scope: NestedScope): JSX.Element => {
@@ -96,11 +97,13 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
       : `[${scope.firstStep}+]`
     const revertedInfo = scope.reverted ? ' REVERTED' : ''
 
+    const inRange = scope.firstStep <= stepManager.currentStepIndex && scope.lastStep >= stepManager.currentStepIndex
     // <span className="fw-bold me-2">{scope.scopeId.slice(-1)}</span>
+
     return (
       <div className="d-flex flex-column">
         <div className="d-flex align-items-center">
-          <span className="me-2">{title}</span>
+          <span className={`me-2 ${inRange ? 'text-info' : ''}`}>{title}</span>
           <span className="badge bg-secondary me-2">{kind}</span>
           <span className="badge bg-info me-2">{scope.opcodeInfo?.op}</span>
           {revertedInfo && <span className="badge bg-danger me-2">REVERTED</span>}

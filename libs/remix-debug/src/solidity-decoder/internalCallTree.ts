@@ -93,6 +93,8 @@ export interface Scope {
   address?: string,
   /** Stack */
   stackBeforeJumping?: Array<SymbolicStackSlot>
+  /** Only low level jump  **/
+  lowLevelScope: boolean
 }
 
 /**
@@ -171,6 +173,8 @@ export class InternalCallTree {
   sourceLocationTracker: SourceLocationTracker
   /** Map of scopes defined by range in the VM trace. Keys are scopeIds, values contain firstStep, lastStep, locals, isCreation, gasCost */
   scopes: { [scopeId: string]: Scope }
+  /** Map of low level scope that has been merged to their parent */
+  mergedScope: { [scopeId: string]: string }
   /** Map of VM trace indices to scopeIds, representing the start of each scope */
   scopeStarts: { [stepIndex: number]: string }
   /** Stack of VM trace step indices where function calls occur */
@@ -240,7 +244,7 @@ export class InternalCallTree {
 
       const scopeId = '1'
       this.scopeStarts[0] = scopeId
-      this.scopes[scopeId] = { firstStep: 0, locals: {}, isCreation, gasCost: 0, opcodeInfo: this.traceManager.trace[0] }
+      this.scopes[scopeId] = { firstStep: 0, locals: {}, isCreation, gasCost: 0, opcodeInfo: this.traceManager.trace[0], lowLevelScope: false }
 
       const compResult = await this.solidityProxy.compilationResult(calledAddress)
       this.symbolicStackManager.setStackAtStep(0, [])
@@ -299,6 +303,7 @@ export class InternalCallTree {
     this.pendingConstructor = null
     this.variables = {}
     this.symbolicStackManager.reset()
+    this.mergedScope = {}
   }
 
   /**
@@ -352,7 +357,9 @@ export class InternalCallTree {
     const scopes = Object.keys(this.scopeStarts)
     if (!scopes.length) return null
     const scopeStart = util.findLowerBoundValue(vmtraceIndex, scopes)
-    return this.scopeStarts[scopeStart]
+    const scopeId = this.scopeStarts[scopeStart]
+    if (this.mergedScope[scopeId]) return this.mergedScope[scopeId]
+    return scopeId
   }
 
   /**
@@ -490,9 +497,10 @@ export class InternalCallTree {
    * Converts the flat scopes structure to a nested JSON structure.
    * Transforms scopeIds like "1", "1.1", "1.2", "1.1.1" into a hierarchical tree.
    *
+   * @param {boolean} mergeLowLevelScope - If true, merges low-level scopes with their parent (except for call instructions)
    * @returns {NestedScope[]} Array of nested scopes with children as arrays
    */
-  getScopesAsNestedJSON (): NestedScope[] {
+  getScopesAsNestedJSON (mergeLowLevelScope: boolean = false): NestedScope[] {
     const scopeMap = new Map<string, NestedScope>()
     
     // Create NestedScope objects for all scopes
@@ -513,10 +521,39 @@ export class InternalCallTree {
         // This is a root scope
         rootScopes.push(nestedScope)
       } else {
-        // This is a child scope, add it to its parent
-        const parentScope = scopeMap.get(parentScopeId)
-        if (parentScope) {
-          parentScope.children.push(nestedScope)
+        // Check if this scope should be merged with its parent
+        const shouldMerge = mergeLowLevelScope && 
+                           nestedScope.lowLevelScope && 
+                           !isCallInstruction(nestedScope.opcodeInfo)
+        
+        if (shouldMerge) {
+          // Merge this scope with its parent
+          const parentScope = scopeMap.get(parentScopeId)
+          if (parentScope) {
+            // Merge locals
+            Object.assign(parentScope.locals, nestedScope.locals)
+            // Update last step if this scope's last step is later
+            if (nestedScope.lastStep && (!parentScope.lastStep || nestedScope.lastStep > parentScope.lastStep)) {
+              parentScope.lastStep = nestedScope.lastStep
+              parentScope.lastSafeStep = nestedScope.lastSafeStep
+              parentScope.lastOpcodeInfo = nestedScope.lastOpcodeInfo
+            }
+            // Add gas cost
+            parentScope.gasCost += nestedScope.gasCost
+            // Keep any revert information
+            if (nestedScope.reverted) {
+              parentScope.reverted = nestedScope.reverted
+            }
+            // Merge children into parent
+            parentScope.children.push(...nestedScope.children)
+            this.mergedScope[nestedScope.scopeId] = parentScope.scopeId
+          }
+        } else {
+          // This is a child scope, add it to its parent normally
+          const parentScope = scopeMap.get(parentScopeId)
+          if (parentScope) {
+            parentScope.children.push(nestedScope)
+          }
         }
       }
     }
@@ -753,7 +790,10 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     
     generatedSources = getGeneratedSources(tree, scopeId, contractObj)
     functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
-    if (!tree.scopes[scopeId].functionDefinition) tree.scopes[scopeId].functionDefinition = functionDefinition
+    if (functionDefinition && !tree.scopes[scopeId].functionDefinition) {
+      tree.scopes[scopeId].functionDefinition = functionDefinition
+      tree.scopes[scopeId].lowLevelScope = false
+    }
 
     const isRevert = isRevertInstruction(stepDetail)
     const constructorExecutionStarts = tree.pendingConstructorExecutionAt > -1 && tree.pendingConstructorExecutionAt < validSourceLocation.start
@@ -776,7 +816,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         const newScopeId = scopeId === '' ? subScope.toString() : scopeId + '.' + subScope
         tree.scopeStarts[step] = newScopeId
         const startExecutionLine = lineColumnPos && lineColumnPos.start ? lineColumnPos.start.line + 1 : undefined
-        tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition, opcodeInfo: stepDetail, stackBeforeJumping: newSymbolicStack }
+        tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition, opcodeInfo: stepDetail, stackBeforeJumping: newSymbolicStack, lowLevelScope: true }
         addReducedTrace(tree, step)
         // for the ctor we are at the start of its trace, we have to replay this step in order to catch all the locals:
         const nextStep = constructorExecutionStarts ? step : step + 1
@@ -793,6 +833,14 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         } catch (e) {
           console.error(e)
           return { outStep: step, error: 'InternalCallTree - ' + e.message }
+        }
+
+        try {
+          if (!tree.scopes[newScopeId].lowLevelScope) {
+            tree.scopes[scopeId].lowLevelScope = false
+          }
+        } catch (e) {
+          console.warn('unable to set scope low level property', e.message)
         }
 
         if (externalCallResult.error) {

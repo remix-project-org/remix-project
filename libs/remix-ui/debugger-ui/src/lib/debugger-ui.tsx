@@ -488,7 +488,8 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     jumpToException: state.debugger && state.debugger.step_manager ? state.debugger.step_manager.jumpToException.bind(state.debugger.step_manager) : null,
     traceLength: state.debugger && state.debugger.step_manager ? state.debugger.step_manager.traceLength : null,
     registerEvent: state.debugger && state.debugger.step_manager ? state.debugger.step_manager.event.register.bind(state.debugger.step_manager.event) : null,
-    showOpcodes: state.showOpcodes
+    showOpcodes: state.showOpcodes,
+    currentStepIndex: state.debugger?.step_manager?.currentStepIndex
   }
 
   const vmDebugger = {
