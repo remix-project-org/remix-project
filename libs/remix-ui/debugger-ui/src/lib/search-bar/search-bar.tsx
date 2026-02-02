@@ -49,6 +49,7 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '', onStopDebug
           ref={inputRef}
           type="text"
           className="form-control search-input"
+          data-id="debuggerTransactionInput"
           placeholder={intl.formatMessage({ id: 'debugger.searchPlaceholder', defaultMessage: 'Search transaction hash...' })}
           value={txHash}
           onChange={(e) => handleInputChange(e.target.value)}
@@ -56,8 +57,21 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '', onStopDebug
           disabled={debugging}
           aria-label="Transaction hash search"
         />
+        {!debugging && (
+          <button
+            data-id="debuggerTransactionStartButton"
+            className="btn btn-sm btn-primary search-start-btn"
+            onClick={handleSearch}
+            disabled={!isValid || !txHash}
+            aria-label="Start debugging"
+          >
+            <i className="fas fa-play"></i>
+          </button>
+        )}
         {debugging && onStopDebugging && (
           <button
+            id="debuggerTransactionStartButtonContainer"
+            data-id="debuggerTransactionStartButton"
             className="btn btn-sm btn-danger stop-debugging-btn"
             onClick={onStopDebugging}
             aria-label="Stop debugging"
