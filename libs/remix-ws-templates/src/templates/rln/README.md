@@ -9,13 +9,13 @@ To learn more about RLN and how it works - check out [documentation](https://rat
 
 The workspace comprises two main directories:
 
-### circuits: Contains sample semaphore contracts. These can be compiled to generate a witness using 'Circom ZKP Compiler' plugin.
+### circuits: Contains sample RLN circuits. These can be compiled to generate a witness using 'Circom ZKP Compiler' plugin.
 
 ### scripts: Provides a sample script designed for a trusted setup using snarkjs. This script also aids in generating Solidity code, which is essential for on-chain deployment.
 
 ### first steps:
 
-#### 1) compile the semaphore circuit using the remix circom compiler. This will generate artifacts.
+#### 1) compile the RLN circuit using the remix circom compiler. This will generate artifacts.
 
 #### 2) execute the file `run_setup.ts`:
 
@@ -29,8 +29,8 @@ This generates a verification key (`./zk/build/verification_key.json`) and artif
 
 This script:
 
-- creates a list of identity commitments and add it to a `IncrementalMerkleTree`. The tree is used to generate a merkle proof that a specified identity is actually in the tree (see`tree.createProof(0)`).
+- creates a list of identity commitments and adds it to an `IncrementalMerkleTree`. The tree is used to generate a merkle proof that a specified identity is actually in the tree (see `tree.createProof(0)`).
 
-- generate a witness and a proof of execution with `messageId`equal to 0.
+- generates a witness and a proof of execution with `messageId` equal to 0.
 
-- generating 2 proofs (two different messages) with the same `messageId` reveal the two points of the polynomial necessary to deduce the `identitySecret` (using `shamirRecovery`).
+- generating 2 proofs (two different messages) with the same `messageId` reveals the two points of the polynomial necessary to deduce the `identitySecret` (using `shamirRecovery`).

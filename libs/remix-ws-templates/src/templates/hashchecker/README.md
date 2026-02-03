@@ -7,7 +7,7 @@ The workspace comprises two main directories:
 
 ### circuits: Contains sample Hash Checker contracts. These can be compiled to generate a witness using 'Circom ZKP Compiler' plugin.
 
-### scripts: Provides a sample script designed for a trusted setup using snarkjs. This script also aids in generating Solidity code, which is essential for on-chain deployment. There are 2 scripts options to choose from, Groth16 and Plonk.
+### scripts: Provides a sample script designed for a trusted setup using snarkjs. This script also aids in generating Solidity code, which is essential for on-chain deployment. There are 2 script options to choose from: Groth16 and Plonk.
 
 ### first steps:
 
