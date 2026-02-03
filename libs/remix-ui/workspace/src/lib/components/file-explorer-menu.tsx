@@ -160,7 +160,18 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
           for (const filePath of Object.keys(files)) {
             try {
               const fileName = filePath.split('/').pop()
-              const address = fileName?.replace('.json', '')
+              if (!fileName) continue
+              
+              const mappingContent = await global.plugin.call('fileManager', 'readFile', `${mappingsDir}/${fileName}`)
+              const mapping = JSON.parse(mappingContent)
+              
+              if (!mapping.dappWorkspace) continue
+              
+              const workspaceExists = await global.plugin.call('filePanel', 'workspaceExists', mapping.dappWorkspace)
+              if (!workspaceExists) continue
+              
+              const address = mapping.address
+              if (!address) continue
               
               let pinnedContractExists = false
               let foundChainId = ''
@@ -188,17 +199,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                 continue
               }
 
-              const mappingContent = await global.plugin.call('fileManager', 'readFile', `${mappingsDir}/${fileName}`)
-              const mapping = JSON.parse(mappingContent)
-
-              if (!mapping.dappWorkspace) continue
-              const workspaceExists = await global.plugin.call('filePanel', 'workspaceExists', mapping.dappWorkspace)
-              if (!workspaceExists) {
-                continue
-              }
-
               validMappings.push({
-                address: mapping.address || address || '',
+                address: address,
                 dappWorkspace: mapping.dappWorkspace,
                 sourceWorkspace: mapping.sourceWorkspace || '',
                 chainId: foundChainId,
@@ -635,7 +637,6 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
               </div>
             </div>
           )}
-
         </>}
     </>
   )

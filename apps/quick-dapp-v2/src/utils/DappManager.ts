@@ -375,7 +375,7 @@ export class DappManager {
         JSON.stringify(objToSave, null, 2)
       );
 
-      const dappMappingPath = `.deploys/dapp-mappings/${address}.json`;
+      const dappMappingPath = `.deploys/dapp-mappings/${address}_${dappWorkspace}.json`;
       const dappMapping = {
         address,
         dappWorkspace,
