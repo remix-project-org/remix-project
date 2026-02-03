@@ -9,6 +9,8 @@ import * as SolidityDecoder from './solidity-decoder'
 import { BreakpointManager } from './code/breakpointManager'
 import * as sourceMappingDecoder from './source/sourceMappingDecoder'
 import * as traceHelper from './trace/traceHelper'
+import { LineColumnLocation, RawLocation, Asts, TransactionReceipt, OffsetToLineColumnConverterFn } from './types'
+import { ScopesData } from './solidity-decoder/internalCallTree'
 
 const storage = {
   StorageViewer: StorageViewer,
@@ -37,5 +39,11 @@ export {
   BreakpointManager,
   SolidityDecoder,
   storage,
-  CmdLine
+  CmdLine,
+  LineColumnLocation,
+  RawLocation,
+  Asts,
+  TransactionReceipt,
+  OffsetToLineColumnConverterFn,
+  ScopesData
 }

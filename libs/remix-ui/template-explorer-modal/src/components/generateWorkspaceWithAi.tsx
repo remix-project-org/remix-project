@@ -23,29 +23,10 @@ export function GenerateWorkspaceWithAi() {
         <div className="d-flex justify-content-end align-items-center mt-3">
           <button className="btn btn-primary btn-sm" data-id="validateWorkspaceButton" onClick={async () => {
             facade.closeWizard()
-            const statusCallback = (status: string): Promise<void> => {
-              console.log('status', status)
-              plugin.call('remixaiassistant', 'handleExternalMessage', status)
-              return Promise.resolve()
-            }
 
-            await plugin.call('remixaiassistant', 'handleExternalMessage', 'Please wait while the workspace is being generated!')
             trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiRequestSent', name: state.workspaceName, isClick: true })
-            const result = await plugin.call('remixAI' as any, 'generate', state.workspaceName, {}, Date.now(), false, statusCallback)
-            if (result.includes('No payload')) {
-              await plugin.call('remixaiassistant', 'handleExternalMessage', 'Unfortunately, the workspace generation failed. Please try again with a different prompt.')
-              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiFailed', name: state.workspaceName, isClick: true })
-              return
-            }
-
-            if (result.toLowerCase().includes('failed') && result.toLowerCase().includes('please try again with')) {
-              await plugin.call('remixaiassistant', 'handleExternalMessage', 'Unfortunately, the workspace generation failed. Please try again with a different prompt.')
-              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiFailed', name: state.workspaceName, isClick: true })
-              return
-            }
-
-            await plugin.call('remixaiassistant', 'handleExternalMessage', 'The workspace has been generated successfully!')
-            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiSucceeded', name: state.workspaceName, isClick: true })
+            await plugin.call('remixaiassistant', 'chatPipe', '/generate ' + state.workspaceName)
+            // further matomo events handled by generate function
           }}>
             <i className="fa-solid fa-magic me-2"></i>
           Generate my Workspace

@@ -40,6 +40,7 @@ export class MCPClient {
   private resourceListCache?: { resources: IMCPResource[], timestamp: number }; // Cache for HTTP servers
   private toolListCache?: { tools: IMCPTool[], timestamp: number }; // Cache for HTTP servers
   private readonly CACHE_TTL = 120000; // 120 seconds cache TTL
+  private sessionId: string
 
   constructor(server: IMCPServer, remixMCPServer?: any) {
     this.server = server;
@@ -245,12 +246,18 @@ export class MCPClient {
   }
 
   private async sendHTTPRequest(request: any): Promise<any> {
+    // Prepare headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/event-stream', // Required by some MCP servers
+    };
+
+    // Include session ID if it exists for this endpoint
+    if (this.sessionId) headers['mcp-session-id'] = this.sessionId
+
     const response = await fetch(this.server.url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, text/event-stream', // Required by some MCP servers
-      },
+      headers,
       body: JSON.stringify(request),
       signal: this.httpAbortController!.signal
     });
@@ -258,6 +265,12 @@ export class MCPClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+    }
+
+    // Capture session ID from response header if present
+    const responseSessionId = response.headers.get('mcp-session-id');
+    if (responseSessionId) {
+      this.sessionId = responseSessionId
     }
 
     // Check if response is SSE format (some MCP servers return SSE even for POST)
@@ -349,6 +362,7 @@ export class MCPClient {
       this.tools = [];
       this.resourceListCache = undefined; // Clear cache on disconnect
       this.toolListCache = undefined; // Clear cache on disconnect
+      this.sessionId = null
       this.eventEmitter.emit('disconnected', this.server.name);
     }
   }

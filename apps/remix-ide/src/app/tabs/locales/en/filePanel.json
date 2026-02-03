@@ -19,7 +19,7 @@
   "filePanel.workspace.rename": "Rename Workspace",
   "filePanel.workspace.save_workspace": "Save Workspace",
   "filePanel.workspace.delete": "Delete Workspace",
-  "filePanel.workspace.deleteConfirm": "Are you sure to delete the current Workspace?",
+  "filePanel.workspace.deleteConfirm": "Are you sure you want to delete workspace \"{currentWorkspace}\"?",
   "filePanel.workspace.download": "Download Workspace",
   "filePanel.workspace.downloadConfirm": "This will download current Workspace in a zip file. Do you want to continue?",
   "filePanel.workspace.deleteAll": "Delete All Workspaces",

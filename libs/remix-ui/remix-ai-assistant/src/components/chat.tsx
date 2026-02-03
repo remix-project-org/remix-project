@@ -13,6 +13,7 @@ import {
 } from '../lib/conversationStarters'
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
 import { getToolExecutionMessage } from '../lib/toolDescriptions'
+import { QueryParams } from '@remix-project/remix-lib'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -32,15 +33,14 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
   const [conversationStarters, setConversationStarters] = useState<ConversationStarter[]>([])
 
   useEffect(() => {
+    const qp = new QueryParams()
+    const hasFlag = qp.exists('experimental')
+
     // Sample new conversation starters when component mounts
-    const starters = sampleConversationStarters()
+    // Use MCP starters only if experimental flag is set
+    const starters = sampleConversationStarters(hasFlag)
     setConversationStarters(starters)
   }, [])
-
-  const refreshStarters = () => {
-    const newStarters = sampleConversationStarters()
-    setConversationStarters(newStarters)
-  }
 
   return (
     <div className="assistant-landing d-flex flex-column mx-1 align-items-center justify-content-center text-center h-100 w-100">
@@ -66,8 +66,6 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
     </div>
   )
 }
-
-const content = []
 
 export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   messages,

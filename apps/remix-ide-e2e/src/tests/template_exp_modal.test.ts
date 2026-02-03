@@ -137,7 +137,7 @@ module.exports = {
       .click('*[data-id="treeViewLitreeViewItemcontracts/TestToken.sol"]')
       .pause(2000)
       .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`contract TestToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {`) !== -1,
+        browser.assert.ok(content.indexOf(`contract TestToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {`) !== -1,
           'Incorrect content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')

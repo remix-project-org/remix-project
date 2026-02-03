@@ -696,18 +696,20 @@ mark,
   color: inherit;
 }
 
-.btn-remix-light {
-  background-color: #f0f3fa !important;
-}
-
-.btn-remix-light:hover {
-  background-color: #e4e8f7 !important;
-}
-
-.btn-remix-dark {
-  background-color: #333446 !important;
-}
-
-.btn-remix-dark:hover {
-  background-color: #353646 !important;
+.prompt-stop-button {
+  position: absolute;
+  right: 8px;
+  top: 35%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bs-danger);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }

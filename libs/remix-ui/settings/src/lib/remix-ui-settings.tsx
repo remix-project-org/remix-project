@@ -118,6 +118,16 @@ const settingsSections: SettingsSection[] = [
           type: 'custom' as const,
           customComponent: 'connectedAccounts'
         }]
+      },
+      {
+        title: 'Billing & Subscriptions',
+        description: 'Purchase credit packages or subscribe to get more AI credits.',
+        options: [{
+          name: 'billing-section',
+          label: '',
+          type: 'custom' as const,
+          customComponent: 'billingSection'
+        }]
       }
     ]
   },
@@ -321,7 +331,11 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
     props.plugin.on('settings', 'openSection', onOpenSection)
 
     return () => {
-      props.plugin.off('settings', 'openSection')
+      try {
+        props.plugin.off('settings', 'openSection')
+      } catch (e) {
+        console.log(e)
+      }
     }
 
   }, [])

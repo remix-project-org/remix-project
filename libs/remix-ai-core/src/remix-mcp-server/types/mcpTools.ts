@@ -171,46 +171,8 @@ export interface DebugSessionArgs {
   transactionHash?: string;
 }
 
-export interface BreakpointArgs {
-  sourceFile: string;
-  lineNumber: number;
-  condition?: string;
-  hitCount?: number;
-}
-
-export interface DebugStepArgs {
-  sessionId: string;
-  stepType: 'into' | 'over' | 'out' | 'continue';
-}
-
-export interface DebugWatchArgs {
-  sessionId: string;
-  expression: string;
-  watchType?: 'variable' | 'expression' | 'memory';
-}
-
-export interface DebugEvaluateArgs {
-  sessionId: string;
-  expression: string;
-  context?: 'current' | 'global' | 'local';
-}
-
-export interface DebugCallStackArgs {
-  sessionId: string;
-}
-
-export interface DebugVariablesArgs {
-  sessionId: string;
-  scope?: 'local' | 'global' | 'storage' | 'memory';
-}
-
 export interface StartDebuggerArgs {
   txHash: string;
-}
-
-export interface SetBreakpointArgs {
-  file: string;
-  line: number;
 }
 
 export interface InspectVariableArgs {
@@ -319,46 +281,6 @@ export interface DebugSessionResult {
   transactionHash?: string;
   status: string;
   createdAt: string;
-}
-
-export interface BreakpointResult {
-  success: boolean;
-  breakpointId: string;
-  sourceFile: string;
-  lineNumber: number;
-  condition?: string;
-  hitCount?: number;
-  enabled: boolean;
-  setAt: string;
-}
-
-export interface DebugStepResult {
-  success: boolean;
-  sessionId: string;
-  stepType: string;
-  currentLocation: {
-    sourceFile: string;
-    lineNumber: number;
-    columnNumber?: number;
-  };
-  stackTrace: {
-    function: string;
-    sourceFile: string;
-    lineNumber: number;
-  }[];
-  steppedAt: string;
-}
-
-export interface DebugInfo {
-  currentStep: number;
-  totalSteps: number;
-  currentFile: string;
-  currentLine: number;
-  callStack: any[];
-  variables: Record<string, any>;
-  memory: string;
-  stack: string[];
-  storage: Record<string, string>;
 }
 
 export interface AnalysisResult {

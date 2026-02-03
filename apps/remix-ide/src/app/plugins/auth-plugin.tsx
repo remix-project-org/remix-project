@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, Credits } from '@remix-api'
+import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, Credits } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { getAddress } from 'ethers'
 
@@ -7,7 +7,7 @@ const profile = {
   name: 'auth',
   displayName: 'Authentication',
   description: 'Handles SSO authentication and credits',
-  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi'],
+  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig'],
   events: ['authStateChanged', 'creditsUpdated', 'accountLinked']
 }
 
@@ -15,6 +15,8 @@ export class AuthPlugin extends Plugin {
   private apiClient: ApiClient
   private ssoApi: SSOApiService
   private creditsApi: CreditsApiService
+  private permissionsApi: PermissionsApiService
+  private billingApi: BillingApiService
   private refreshTimer: number | null = null
 
   constructor() {
@@ -28,9 +30,19 @@ export class AuthPlugin extends Plugin {
     const creditsClient = new ApiClient(endpointUrls.credits)
     this.creditsApi = new CreditsApiService(creditsClient)
 
+    // Permissions API
+    const permissionsClient = new ApiClient(endpointUrls.permissions)
+    this.permissionsApi = new PermissionsApiService(permissionsClient)
+
+    // Billing API
+    const billingClient = new ApiClient(endpointUrls.billing)
+    this.billingApi = new BillingApiService(billingClient)
+
     // Set up token refresh callback for auto-renewal
     this.apiClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     creditsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
+    permissionsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
+    billingClient.setTokenRefreshCallback(() => this.refreshAccessToken())
   }
 
   private clearRefreshTimer() {
@@ -66,7 +78,7 @@ export class AuthPlugin extends Plugin {
 
     this.clearRefreshTimer()
     this.refreshTimer = window.setTimeout(() => {
-      this.refreshAccessToken().catch(() => {/* handled in method */})
+      this.refreshAccessToken().catch(() => {/* handled in method */ })
     }, delay)
   }
 
@@ -91,6 +103,150 @@ export class AuthPlugin extends Plugin {
     return this.creditsApi
   }
 
+  /**
+   * Get the typed Permissions API service
+   */
+  async getPermissionsApi(): Promise<PermissionsApiService> {
+    return this.permissionsApi
+  }
+
+  /**
+   * Get the typed Billing API service
+   */
+  async getBillingApi(): Promise<BillingApiService> {
+    return this.billingApi
+  }
+
+  /**
+   * Get Paddle configuration for checkout (fetched from backend)
+   */
+  async getPaddleConfig(): Promise<{ clientToken: string | null; environment: 'sandbox' | 'production' }> {
+    try {
+      // Ensure we have a token set
+      await this.getToken()
+
+      const response = await this.billingApi.getConfig()
+      if (response.ok && response.data?.paddle) {
+        return {
+          clientToken: response.data.paddle.token,
+          environment: response.data.paddle.environment
+        }
+      }
+
+      console.warn('[AuthPlugin] Failed to fetch Paddle config:', response.error)
+      return { clientToken: null, environment: 'sandbox' }
+    } catch (error) {
+      console.error('[AuthPlugin] Error fetching Paddle config:', error)
+      return { clientToken: null, environment: 'sandbox' }
+    }
+  }
+
+  /**
+   * Check if user has a specific permission/feature
+   * @param feature - Feature name (e.g., 'ai:gpt-4', 'wallet:mainnet')
+   * @returns Object with allowed status and optional limits
+   */
+  async checkPermission(feature: string): Promise<{ allowed: boolean; limit?: number; unit?: string }> {
+    try {
+      const response = await this.permissionsApi.checkFeature(feature)
+      if (response.ok && response.data) {
+        return {
+          allowed: response.data.allowed,
+          limit: response.data.limit_value,
+          unit: response.data.limit_unit
+        }
+      }
+      return { allowed: false }
+    } catch (error) {
+      console.error('[AuthPlugin] Permission check failed:', error)
+      return { allowed: false }
+    }
+  }
+
+  /**
+   * Simple boolean check for a feature permission
+   * @param feature - Feature name to check
+   * @returns true if feature is allowed
+   */
+  async hasPermission(feature: string): Promise<boolean> {
+    const { allowed } = await this.checkPermission(feature)
+    return allowed
+  }
+
+  /**
+   * Get all permissions for the current user
+   * @returns Array of all user permissions with their limits
+   */
+  async getAllPermissions(): Promise<{ feature_name: string; allowed: boolean; limit_value?: number; limit_unit?: string; category?: string }[]> {
+    try {
+      const response = await this.permissionsApi.getPermissions()
+      if (response.ok && response.data) {
+        return response.data.features
+      }
+      return []
+    } catch (error) {
+      console.error('[AuthPlugin] Get all permissions failed:', error)
+      return []
+    }
+  }
+
+  /**
+   * Check multiple features at once
+   * @param features - Array of feature names to check
+   * @returns Map of feature names to their permission status
+   */
+  async checkPermissions(features: string[]): Promise<Record<string, { allowed: boolean; limit_value?: number; limit_unit?: string }>> {
+    try {
+      const response = await this.permissionsApi.checkFeatures(features)
+      if (response.ok && response.data) {
+        return response.data.results
+      }
+      return {}
+    } catch (error) {
+      console.error('[AuthPlugin] Check permissions failed:', error)
+      return {}
+    }
+  }
+
+  /**
+   * Get all features in a category
+   * @param category - Category name (e.g., 'ai', 'storage', 'wallet')
+   * @returns Array of features in the category
+   */
+  async getFeaturesByCategory(category: string): Promise<{ feature_name: string; allowed: boolean; limit_value?: number; limit_unit?: string }[]> {
+    try {
+      const response = await this.permissionsApi.getFeaturesInCategory(category)
+      if (response.ok && response.data) {
+        return response.data.features
+      }
+      return []
+    } catch (error) {
+      console.error('[AuthPlugin] Get features by category failed:', error)
+      return []
+    }
+  }
+
+  /**
+   * Get the limit for a specific feature
+   * @param feature - Feature name to check
+   * @returns Object with limit value and unit
+   */
+  async getFeatureLimit(feature: string): Promise<{ limit?: number; unit?: string }> {
+    try {
+      const response = await this.permissionsApi.checkFeature(feature)
+      if (response.ok && response.data) {
+        return {
+          limit: response.data.limit_value,
+          unit: response.data.limit_unit
+        }
+      }
+      return {}
+    } catch (error) {
+      console.error('[AuthPlugin] Get feature limit failed:', error)
+      return {}
+    }
+  }
+
   async login(provider: AuthProviderType): Promise<void> {
     try {
       console.log('[AuthPlugin] Starting popup-based login for:', provider)
@@ -113,7 +269,7 @@ export class AuthPlugin extends Plugin {
       }
 
       // Wait for message from popup
-      const result = await new Promise<{user: AuthUser; accessToken: string; refreshToken: string}>((resolve, reject) => {
+      const result = await new Promise<{ user: AuthUser; accessToken: string; refreshToken: string }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           cleanup()
           reject(new Error('Login timeout'))
@@ -197,11 +353,8 @@ export class AuthPlugin extends Plugin {
         credentials: 'include'
       })
 
-      // Clear localStorage
-      this.clearRefreshTimer()
-      localStorage.removeItem('remix_access_token')
-      localStorage.removeItem('remix_refresh_token')
-      localStorage.removeItem('remix_user')
+      // Clear stored auth data
+      this.clearStoredAuth()
 
       // Emit auth state change
       this.emit('authStateChanged', {
@@ -249,7 +402,7 @@ export class AuthPlugin extends Plugin {
       }
 
       // Wait for message from popup
-      const result = await new Promise<{user: AuthUser; accessToken: string}>((resolve, reject) => {
+      const result = await new Promise<{ user: AuthUser; accessToken: string }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           cleanup()
           reject(new Error('Account linking timeout'))
@@ -343,10 +496,9 @@ export class AuthPlugin extends Plugin {
     // Update API clients with current token
     if (token) {
       this.apiClient.setToken(token)
-      // Update credits client too
-      const creditsClient = await this.getCreditsApi()
-      const creditsApiClient = (creditsClient as any).apiClient as ApiClient
-      creditsApiClient.setToken(token)
+      // Update other API services too
+      this.creditsApi.setToken(token)
+      this.permissionsApi.setToken(token)
     }
 
     return token
@@ -381,12 +533,10 @@ export class AuthPlugin extends Plugin {
 
         // Update all API clients
         this.apiClient.setToken(newAccessToken)
-        const creditsClient = await this.getCreditsApi()
-        const creditsApiClient = (creditsClient as any).apiClient as ApiClient
-        creditsApiClient.setToken(newAccessToken)
+        this.creditsApi.setToken(newAccessToken)
+        this.permissionsApi.setToken(newAccessToken)
 
         console.log('[AuthPlugin] Access token refreshed successfully')
-
         // Reschedule next proactive refresh
         this.scheduleRefresh(newAccessToken)
         return newAccessToken
@@ -485,9 +635,88 @@ export class AuthPlugin extends Plugin {
   onActivation(): void {
     console.log('[AuthPlugin] Activated - using popup + localStorage mode')
 
-    // Check if user is already logged in
+    // Validate existing token with the API on load
+    this.validateAndRestoreSession()
+  }
+
+  /**
+   * Validate stored token with the API and restore session if valid
+   * This ensures tokens can't be forged and catches expired/revoked tokens
+   */
+  private async validateAndRestoreSession(): Promise<void> {
     const token = localStorage.getItem('remix_access_token')
-    if (token) {
+    if (!token) {
+      console.log('[AuthPlugin] No stored token found')
+      return
+    }
+
+    console.log('[AuthPlugin] Validating stored token with API...')
+
+    try {
+      // First check if token is expired locally (quick check)
+      const expMs = this.getTokenExpiryMs(token)
+      if (expMs && expMs < Date.now()) {
+        console.log('[AuthPlugin] Token expired, attempting refresh...')
+        const refreshed = await this.refreshAccessToken()
+        if (!refreshed) {
+          console.log('[AuthPlugin] Refresh failed, clearing session')
+          this.clearStoredAuth()
+          return
+        }
+        // refreshAccessToken already emits authStateChanged if successful
+        return
+      }
+
+      // Verify token with the API
+      const response = await this.ssoApi.verify()
+
+      if (response.ok && response.data?.authenticated) {
+        console.log('[AuthPlugin] Token verified successfully')
+
+        // Update user data from API response if available
+        let user = response.data.user
+        if (!user) {
+          // Fallback to stored user data
+          const userStr = localStorage.getItem('remix_user')
+          if (userStr) {
+            user = JSON.parse(userStr)
+          }
+        } else {
+          // Update stored user with fresh data from API
+          localStorage.setItem('remix_user', JSON.stringify(user))
+        }
+
+        if (user) {
+          this.emit('authStateChanged', {
+            isAuthenticated: true,
+            user,
+            token
+          })
+
+          // Auto-refresh credits
+          this.refreshCredits().catch(console.error)
+
+          // Schedule proactive token refresh
+          this.scheduleRefresh(token)
+        }
+      } else {
+        console.log('[AuthPlugin] Token validation failed, attempting refresh...')
+        // Token is invalid, try to refresh
+        const refreshed = await this.refreshAccessToken()
+        if (!refreshed) {
+          console.log('[AuthPlugin] Refresh failed, clearing session')
+          this.clearStoredAuth()
+          this.emit('authStateChanged', {
+            isAuthenticated: false,
+            user: null,
+            token: null
+          })
+        }
+      }
+    } catch (error) {
+      console.error('[AuthPlugin] Session validation error:', error)
+      // Network error - don't clear session, user might be offline
+      // Try to use cached session but mark as unverified
       const userStr = localStorage.getItem('remix_user')
       if (userStr) {
         try {
@@ -495,17 +724,24 @@ export class AuthPlugin extends Plugin {
           this.emit('authStateChanged', {
             isAuthenticated: true,
             user,
-            token
+            token,
+            verified: false // Indicate session is not verified
           })
-          // Auto-refresh credits
-          this.refreshCredits().catch(console.error)
-          // Schedule proactive refresh if possible
-          this.scheduleRefresh(token)
         } catch (e) {
-          console.error('[AuthPlugin] Failed to restore user session:', e)
+          // Invalid stored data
         }
       }
     }
+  }
+
+  /**
+   * Clear all stored authentication data
+   */
+  private clearStoredAuth(): void {
+    localStorage.removeItem('remix_access_token')
+    localStorage.removeItem('remix_refresh_token')
+    localStorage.removeItem('remix_user')
+    this.clearRefreshTimer()
   }
 
   // Convert address to EIP-55 checksum format using ethers

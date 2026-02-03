@@ -43,10 +43,13 @@ import { CompilationResourceProvider } from './providers/CompilationResourceProv
 import { DeploymentResourceProvider } from './providers/DeploymentResourceProvider';
 import { TutorialsResourceProvider } from './providers/TutorialsResourceProvider';
 import { AmpResourceProvider } from './providers/AmpResourceProvider';
+import { DebuggingResourceProvider } from './providers/DebuggingResourceProvider';
+import { ContextResourceProvider } from './providers/ContextResourceProvider';
 
 // Import middleware
 import { SecurityMiddleware } from './middleware/SecurityMiddleware';
 import { ValidationMiddleware } from './middleware/ValidationMiddleware';
+import { FilePermissionMiddleware } from './middleware/FilePermissionMiddleware';
 import { MCPConfigManager } from './config/MCPConfigManager';
 
 /**
@@ -65,6 +68,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   private _startTime: Date = new Date();
   private _securityMiddleware: SecurityMiddleware;
   private _validationMiddleware: ValidationMiddleware;
+  private _filePermissionMiddleware: FilePermissionMiddleware;
   private _configManager: MCPConfigManager;
   private _isInitialized: boolean = false;
 
@@ -96,6 +100,9 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
     );
     this._validationMiddleware = new ValidationMiddleware(
       this._plugin,
+      this._configManager
+    );
+    this._filePermissionMiddleware = new FilePermissionMiddleware(
       this._configManager
     );
 
@@ -130,6 +137,14 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
   get configManager(): MCPConfigManager {
     return this._configManager
+  }
+
+  /**
+   * Check if file write is allowed for the given file path
+   * This method delegates to FilePermissionMiddleware
+   */
+  async checkFileWritePermission(filePath: string): Promise<{ allowed: boolean; reason?: string }> {
+    return await this._filePermissionMiddleware.checkFileWritePermission(filePath, this._plugin);
   }
 
   /**
@@ -363,6 +378,25 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
         console.log(`[RemixMCPServer] Input validation warnings for tool '${call.name}': ${warnings}`);
       } else {
         console.log(`[RemixMCPServer] Input validation PASSED for tool '${call.name}'`);
+      }
+
+      // STEP 3: File Write Permission Check (for file_write and file_create tools)
+      if (call.name === 'file_write' || call.name === 'file_create') {
+        console.log(`[RemixMCPServer] Step 3: File write permission check for tool '${call.name}'`);
+        const filePath = call.arguments?.path || call.arguments?.filePath;
+
+        if (filePath) {
+          const permissionResult = await this._filePermissionMiddleware.checkFileWritePermission(
+            filePath,
+            this._plugin
+          );
+
+          if (!permissionResult.allowed) {
+            console.log(`[RemixMCPServer] File write permission DENIED for '${filePath}': ${permissionResult.reason}`);
+            throw new Error(`File write permission denied: ${permissionResult.reason || 'User denied the operation'}`);
+          }
+          console.log(`[RemixMCPServer] File write permission GRANTED for '${filePath}'`);
+        }
       }
 
       const timeout = this._config.toolTimeout || 60000 * 10 // 10 minutes;;
@@ -866,6 +900,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   private async initializeDefaultResourceProviders(): Promise<void> {
     if (this._resources.list().length > 0) return
     try {
+      // Register context resource provider (always included, highest priority)
+      const contextProvider = new ContextResourceProvider(this._plugin);
+      this._resources.register(contextProvider);
+
       // Register project resource provider
       const projectProvider = new ProjectResourceProvider(this._plugin);
       this._resources.register(projectProvider);
@@ -885,6 +923,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       // Register Amp resource provider
       const ampProvider = new AmpResourceProvider(this._plugin);
       this._resources.register(ampProvider);
+
+      // Register debugging resource provider
+      const debuggingProvider = new DebuggingResourceProvider(this._plugin);
+      this._resources.register(debuggingProvider);
 
       const totalProviders = this._resources.list().length;
 

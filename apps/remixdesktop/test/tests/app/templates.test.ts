@@ -4,8 +4,12 @@ import { NightwatchBrowser } from 'nightwatch'
 function openTemplatesExplorer(browser: NightwatchBrowser) {
   browser
     .click('*[data-id="workspacesSelect"]')
+    .pause(2000)
     .click('*[data-id="workspacecreate"]')
-    .waitForElementPresent('*[data-id="create-remixDefault"]')
+    .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
+    .waitForElementVisible('*[data-id="template-explorer-template-container"]')
+    .click('*[data-id="template-explorer-template-container"]')
+    .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')    
 }
 
 module.exports = {
@@ -21,7 +25,10 @@ module.exports = {
       openTemplatesExplorer(browser)
 
       browser
-      .click('*[data-id="create-remixDefault"]')
+      .click('*[data-id="template-card-remixDefault-0"]')
+      .waitForElementVisible('*[data-id="workspace-details-section"]')
+      .waitForElementVisible('*[data-id="validateWorkspaceButton"]')
+      .click('*[data-id="validateWorkspaceButton"]')
       .pause(3000)
       .windowHandles(function (result) {
         console.log(result.value)
@@ -40,11 +47,22 @@ module.exports = {
       })
   },
   'open template explorer and add template to current': function (browser: NightwatchBrowser) {
-    openTemplatesExplorer(browser)
-
     browser
-      .waitForElementVisible('*[data-id="add-simpleEip7702"]')
-      .scrollAndClick('*[data-id="add-simpleEip7702"]')
-      .waitForElementVisible('*[data-id="treeViewDivtreeViewItemcontracts/Example7702.sol"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
+      .waitForElementVisible('*[data-id="fileExplorerCreateButton"]')
+      .click('*[data-id="fileExplorerCreateButton"]')
+      .waitForElementVisible('*[data-id="fileExplorerCreateButton-createNewFile"]')
+      .click('*[data-id="fileExplorerCreateButton-createNewFile"]')
+      .scrollInto('*[data-id="template-category-Solidity CREATE2"]')
+      .waitForElementVisible('*[data-id="template-card-contractCreate2Factory-0"]')
+      .click('*[data-id="template-card-contractCreate2Factory-0"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/libs"]')
+      .openFile('contracts/libs')
+      .openFile('contracts/libs/create2-factory.sol')
+      .pause(1500)
+      .getEditorValue((content) => {
+        browser.assert.ok(content.indexOf(`contract Create2Factory {`) !== -1,
+          'Correct content')
+      })
   }
 }

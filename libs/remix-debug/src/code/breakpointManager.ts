@@ -2,6 +2,7 @@
 
 import { EventManager } from '../eventManager'
 import { isJumpDestInstruction } from '../trace/traceHelper'
+import type { InternalCallTree } from '../solidity-decoder/internalCallTree'
 
 /**
   * allow to manage breakpoint
@@ -11,7 +12,7 @@ import { isJumpDestInstruction } from '../trace/traceHelper'
 export class BreakpointManager {
   event
   traceManager
-  callTree
+  callTree: InternalCallTree
   solidityProxy
   breakpoints
 

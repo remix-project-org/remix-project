@@ -33,7 +33,7 @@ export class BasicVMProvider extends Plugin implements IProvider {
       await this.blockchain.providers.vm.provider.sendAsync(data, (error, result) => {
         if (error) return reject(error)
         else {
-          resolve({ jsonrpc: '2.0', result, id: data.id })
+          resolve(result)
         }
       })
     } catch (error) {

@@ -1,33 +1,6 @@
 
-import type { CompilationSource, CompilerAbstract, SourcesCode } from '@remix-project/remix-solidity' // eslint-disable-line
-
-export interface LineColumnLocation {
-    start: {
-        line: number, column: number
-    },
-    end: {
-        line: number, column: number
-    }
-}
-
-export interface RawLocation {
-    start: number, length: number
-}
-
-export interface Asts {
-    [fileName: string] : CompilationSource // ast
-}
-
-export interface TransactionReceipt {
-    blockHash: string
-    blockNumber: number
-    transactionHash: string
-    transactionIndex: number
-    from: string
-    to: string
-    contractAddress: string | null
-  }
-
+import { LineColumnLocation, OffsetToLineColumnConverterFn, TransactionReceipt } from '@remix-project/remix-debug'
+import { CompilerAbstract } from '@remix-project/remix-solidity'
 export type onBreakpointClearedListener = (params: string, row: number) => void
 export type onBreakpointAddedListener = (params: string, row: number) => void
 export type onEditorContentChanged = () => void
@@ -35,8 +8,7 @@ export type onDebugRequested = (hash: string, web3?: any) => void
 export type onEnvChangedListener = (provider: string) => void
 
 export interface IDebuggerApi {
-    offsetToLineColumnConverter: { offsetToLineColumn: (sourceLocation: RawLocation, file: number, contents: SourcesCode, asts: Asts) => Promise<LineColumnLocation> }
-    removeHighlights: boolean
+    offsetToLineColumnConverter: OffsetToLineColumnConverterFn
     onRemoveHighlights: (listener: VoidFunction) => void
     onDebugRequested: (listener: onDebugRequested) => void
     onBreakpointCleared: (listener: onBreakpointClearedListener) => void
@@ -44,15 +16,17 @@ export interface IDebuggerApi {
     onEditorContentChanged: (listener: onEditorContentChanged) => void
     onEnvChanged: (listener: onEnvChangedListener) => void
     discardHighlight: () => Promise<void>
-    highlight: (lineColumnPos: LineColumnLocation, path: string, rawLocation: any, stepDetail: any, highlight: any, source: string) => Promise<void>
+    highlight: (lineColumnPos: LineColumnLocation, path: string, rawLocation: any, stepDetail: any, highlight: any, source: string, executionStep: any) => Promise<void>
     fetchContractAndCompile: (address: string, currentReceipt: TransactionReceipt) => Promise<CompilerAbstract>
     getFile: (path: string) => Promise<string>
     setFile: (path: string, content: string) => Promise<void>
     getDebugProvider: () => any // returns an instance of web3.js, if applicable (mainnet, goerli, ...) it returns a reference to a node from devops (so we are sure debug endpoint is available)
     web3: () => any // returns an instance of web3.js
     showMessage (title: string, message: string): void
-    onStartDebugging (debuggerBackend: any): void // called when debug starts
-    onStopDebugging (): void // called when debug stops
+    onStartDebugging (debuggerBackend: any): Promise<void> // called when debug starts
+    onStopDebugging (): Promise<void> // called when debug stops
+    call?: (plugin: string, method: string, ...args: any[]) => Promise<any> // call method from other plugins
+    on?: (plugin: string, event: string, listener: (...args: any[]) => void) => void // listen to events from other plugins
 }
 
 type globalContextFunction = () => { block, tx, receipt }

@@ -5,7 +5,7 @@ import StepDetail from './step-detail' // eslint-disable-line
 import SolidityState from './solidity-state' // eslint-disable-line
 import SolidityLocals from './solidity-locals' // eslint-disable-line
 
-export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, debugging, stepManager }) => {
+export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, debugging, stepManager, onShowOpcodesChange }) => {
   const [functionPanel, setFunctionPanel] = useState(null)
   const [stepDetail, setStepDetail] = useState({
     'vm trace step': '-',
@@ -103,27 +103,28 @@ export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, de
         })
       })
     registerEvent &&
-      registerEvent('solidityState', (calldata) => {
+      registerEvent('solidityState', (state) => {
         setSolidityState(() => {
-          return { ...solidityState, calldata }
+          return { message: '', calldata: state }
         })
       })
     registerEvent &&
       registerEvent('solidityStateMessage', (message) => {
         setSolidityState(() => {
-          return { ...solidityState, message }
+          return { calldata: {}, message }
         })
       })
     registerEvent &&
-      registerEvent('solidityLocals', (calldata) => {
+      registerEvent('solidityLocals', (locals) => {
+        console.log('solidityLocals', locals)
         setSolidityLocals(() => {
-          return { ...solidityLocals, calldata }
+          return { message: '', calldata: locals }
         })
       })
     registerEvent &&
       registerEvent('solidityLocalsMessage', (message) => {
         setSolidityLocals(() => {
-          return { ...solidityLocals, message }
+          return { calldata: {}, message }
         })
       })
   }, [debugging])
@@ -133,7 +134,7 @@ export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, de
       <div className="d-flex flex-column pe-2" style={{ flex: 1 }}>
         <FunctionPanel className="pb-1" data={functionPanel} stepManager={stepManager} />
         <SolidityLocals className="pb-1" data={solidityLocals.calldata} message={solidityLocals.message} registerEvent={registerEvent} triggerEvent={triggerEvent} />
-        <CodeListView className="pb-2 flex-grow-1" registerEvent={registerEvent} />
+        <CodeListView className="pb-2 flex-grow-1" registerEvent={registerEvent} onShowOpcodesChange={onShowOpcodesChange} />
       </div>
       <div className="d-flex flex-column ps-2" style={{ flex: 1 }}>
         <SolidityState className="pb-1" calldata={solidityState.calldata} message={solidityState.message} />

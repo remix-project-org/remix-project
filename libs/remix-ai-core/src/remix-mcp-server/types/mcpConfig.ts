@@ -20,6 +20,11 @@ export interface MCPSecurityConfig {
     requestsPerMinute: number;
     burstAllowance?: number;
   };
+  fileWritePermissions?: {
+    mode: 'ask' | 'allow-all' | 'deny-all' | 'allow-specific';
+    allowedFiles?: string[];
+    lastPrompted?: string;
+  };
 }
 
 export interface MCPValidationConfig {
@@ -98,6 +103,11 @@ export const defaultMCPConfig: MCPConfig = {
       enabled: true,
       requestsPerMinute: 60,
       burstAllowance: 10
+    },
+    fileWritePermissions: {
+      mode: 'ask',
+      allowedFiles: [],
+      lastPrompted: null
     }
   },
   validation: {

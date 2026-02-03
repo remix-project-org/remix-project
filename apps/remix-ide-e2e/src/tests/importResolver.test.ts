@@ -803,7 +803,7 @@ contract CommentedImports is ERC20 {
             })
     },
 
-    'Test raw.githubusercontent.com imports #pr #group12': function (browser: NightwatchBrowser) {
+    'Test raw.githubusercontent.com imports #group12': function (browser: NightwatchBrowser) {
         browser
             .addFile('RawGitHubTest.sol', cdnImportsSource['RawGitHubTest.sol'])
             .clickLaunchIcon('solidity')

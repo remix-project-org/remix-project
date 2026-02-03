@@ -145,16 +145,17 @@ module.exports = {
       .click('*[data-id="contract-wizard-validate-workspace-button"]')
       .perform(function () {
         browser.isVisible('*[data-id="treeViewUltreeViewMenu"]', function (result) {
-            if (!result.value) browser.clickLaunchIcon('filePanel')
+          if (!result.value) browser.clickLaunchIcon('filePanel')
         })
       })
       .isVisible('*[data-id="treeViewLitreeViewItemremix.config.json"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemremappings.txt"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .isVisible('*[data-id="treeViewLitreeViewItemcontracts/TestToken.sol"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts/TestToken.sol"]')
       .pause(1000)
       .getEditorValue((content) => {
-        browser.assert.ok(content.indexOf(`contract TestToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {`) !== -1,
+        browser.assert.ok(content.indexOf(`contract TestToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {`) !== -1,
           'Correct content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
@@ -162,6 +163,7 @@ module.exports = {
       .waitForElementVisible('#verticalIconsKindsolidity > i.remixui_status.fas.fa-check-circle.text-success.remixui_statusCheck')
       .pause(1000)
       // check js and ts files are not transformed
+      .clickLaunchIcon('filePanel')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .click('*[data-id="treeViewLitreeViewItemscripts/deploy_with_ethers.ts"]')
       .waitForElementPresent({
@@ -214,6 +216,7 @@ module.exports = {
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .isVisible('*[data-id="treeViewDivDraggableItemremix.config.json"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemremappings.txt"]')
       .isVisible('*[data-id="treeViewLitreeViewItemcontracts/Test721Token.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
       .click('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
@@ -274,6 +277,7 @@ module.exports = {
       })
       .pause(1000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemremappings.txt"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .pause(1000)
@@ -331,6 +335,7 @@ module.exports = {
       })
       .pause(1000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemremappings.txt"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .pause(1000)

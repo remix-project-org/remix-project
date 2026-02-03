@@ -16,7 +16,7 @@ export class IntentAnalyzer {
       /definition|meaning|purpose/i
     ],
     debugging: [
-      /error|bug|fix|debug|troubleshoot|problem|issue/i,
+      /error|bug|fix|debug|troubleshoot|problem|revert|out of gas|issue/i,
       /not working|fails|broken|wrong/i,
       /why (doesn't|does not|won't|will not)/i
     ],

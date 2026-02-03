@@ -5,18 +5,20 @@ import DappCard from './DappCard';
 
 interface DashboardProps {
   dapps: DappConfig[];
-  onOpen: (dapp: DappConfig) => void;
+  processingState?: Record<string, boolean>;
+  onOpen: (dapp: DappConfig) => void | Promise<void>;
   onCreateNew: () => void;
   onDeleteAll?: () => void;
   onDeleteOne?: (slug: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ 
-  dapps, 
-  onOpen, 
-  onCreateNew, 
+const Dashboard: React.FC<DashboardProps> = ({
+  dapps,
+  processingState = {},
+  onOpen,
+  onCreateNew,
   onDeleteAll,
-  onDeleteOne 
+  onDeleteOne
 }) => {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [dappToDelete, setDappToDelete] = useState<string | null>(null);
@@ -25,7 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [sortOrder, setSortOrder] = useState<string>('newest');
 
   const validDapps = useMemo(() => {
-    return dapps.filter((dapp: any) => dapp.config?.status !== 'draft' && dapp.config?.status !== 'creating');
+    return dapps.filter((dapp: any) => dapp.config?.status !== 'creating');
   }, [dapps]);
 
   const availableNetworks = useMemo(() => {
@@ -44,7 +46,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     let result = [...validDapps];
 
     if (selectedNetwork !== 'All Chains') {
-      result = result.filter(dapp => 
+      result = result.filter(dapp =>
         (dapp.contract.networkName || 'Unknown Network') === selectedNetwork
       );
     }
@@ -98,11 +100,11 @@ const Dashboard: React.FC<DashboardProps> = ({
             </small>
           )}
         </h5>
-        
+
         <div className="d-flex gap-2">
-          <Form.Select 
-            size="sm" 
-            className="border-secondary" 
+          <Form.Select
+            size="sm"
+            className="border-secondary"
             style={{ width: 'auto' }}
             value={selectedNetwork}
             onChange={(e) => setSelectedNetwork(e.target.value)}
@@ -113,9 +115,9 @@ const Dashboard: React.FC<DashboardProps> = ({
             ))}
           </Form.Select>
 
-          <Form.Select 
-            size="sm" 
-            className="border-secondary" 
+          <Form.Select
+            size="sm"
+            className="border-secondary"
             style={{ width: 'auto' }}
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
@@ -133,17 +135,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               <i className="fas fa-box-open fa-3x mb-3"></i>
               <h5>No dapps found</h5>
               {validDapps.length > 0 ? (
-                 <p>Try changing the filters.</p>
+                <p>Try changing the filters.</p>
               ) : (
-                 <p>Create your first dapp to get started!</p>
+                <p>Create your first dapp to get started!</p>
               )}
             </div>
           </div>
         ) : (
           filteredAndSortedDapps.map((dapp) => (
-            <DappCard 
-              key={dapp.id} 
-              dapp={dapp} 
+            <DappCard
+              key={dapp.id}
+              dapp={dapp}
+              isProcessing={!!processingState[dapp.slug]}
               onClick={() => onOpen(dapp)}
               onDelete={() => setDappToDelete(dapp.slug)}
             />

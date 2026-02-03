@@ -21,6 +21,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
   } = props
 
   const [state, setState] = useState({
+    workspaceReloadFlag: 0,
     isHardhatProject: false,
     isTruffleProject: false,
     isFoundryProject: false,
@@ -85,12 +86,21 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     const isHardhat = (isLocalhost || isDesktop) && (await compileTabLogic.isHardhatProject())
     const isTruffle = (isLocalhost || isDesktop) && (await compileTabLogic.isTruffleProject())
     const isFoundry = (isLocalhost || isDesktop) && (await compileTabLogic.isFoundryProject())
+
+    // we reset the UI each time we switch workspace
+    setTimeout(() => {
+      api.setAppParameter('hardhat-compilation', false)
+      api.setAppParameter('foundry-compilation', false)
+      api.setAppParameter('truffle-compilation', false)
+    }, 0)
+
     setState((prevState) => {
       return {
         ...prevState,
         currentFile,
         isHardhatProject: isHardhat,
         workspaceName: workspaceName,
+        workspaceReloadFlag: Date.now(),
         isTruffleProject: isTruffle,
         isFoundryProject: isFoundry
       }
@@ -279,6 +289,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
           pluginProps={props}
           isHardhatProject={state.isHardhatProject}
           workspaceName={state.workspaceName}
+          workspaceReloadFlag={state.workspaceReloadFlag}
           isTruffleProject={state.isTruffleProject}
           isFoundryProject={state.isFoundryProject}
           compileTabLogic={compileTabLogic}

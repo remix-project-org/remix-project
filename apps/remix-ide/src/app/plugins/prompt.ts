@@ -22,6 +22,20 @@ const SAFETY_INSTRUCTIONS = `
 1. Avoid extremely long lines of code. Break long Tailwind class strings into multiple lines if possible, or simply rely on word wrap.
 2. When generating HTML/JSX, try to break attributes onto new lines if the tag becomes too long.
 3. This prevents code from being cut off in the middle of a line during generation.
+4. **EXPLICIT EXTENSIONS:** Always include file extensions in local imports to avoid resolution errors.
+   - BAD: \`import Navbar from './components/Navbar'\`
+   - GOOD: \`import Navbar from './components/Navbar.jsx'\`
+5. **ETHERS.JS PROVIDER RULES (CRITICAL):**
+   - **MUST USE:** Always use \`new ethers.BrowserProvider(window.ethereum)\` for both reading and writing.
+   - **FORBIDDEN:** NEVER use \`new ethers.JsonRpcProvider\`, \`InfuraProvider\`, or \`AlchemyProvider\`.
+   - **FORBIDDEN:** NEVER generate code containing placeholders like 'YOUR_INFURA_KEY' or ask for API keys.
+`;
+
+const FORMATTING_RULES = `
+**CRITICAL FILE FORMATTING:**
+1. Use \`<<<<<<< START_TITLE filename >>>>>>> END_TITLE\` strictly as the **HEADER** to mark the start of a file.
+2. **DO NOT** place \`END_TITLE\` or any closing tag at the end of the file content.
+3. To start a new file, just write the next Header immediately.
 `;
 
 export const INITIAL_SYSTEM_PROMPT = `You are an expert Front-End Developer specializing in React, Vite, and ethers.js.
@@ -35,14 +49,17 @@ The user's contract address, ABI, and network info will be provided in the main 
 ${SAFETY_INSTRUCTIONS}
 
 Return EACH file using the specified "TITLE_PAGE_START" format.
-The file structure MUST be:
+The file structure MUST include **AT A MINIMUM**:
 1.  \`index.html\`: The HTML root file. It MUST link to \`/src/main.jsx\` as a module.
 2.  \`src/main.jsx\`: The React entry point. It MUST import \`App.jsx\` and use \`ReactDOM.createRoot\`.
 3.  \`src/App.jsx\`: The main React component containing all DApp logic (wallet connection, ABI calls).
 4.  \`src/index.css\`: (Optional) Basic CSS file, imported by \`src/main.jsx\`.
+5.  **PLUS:** Any additional component files you create (e.g. \`src/components/...\`).
 
 ${PROMPT_FOR_IMAGE_GENERATION}
 No need to explain what you did. Just return the code for each file.
+
+${FORMATTING_RULES}
 
 Example Format:
 ${TITLE_PAGE_START}index.html${TITLE_PAGE_END}
@@ -138,17 +155,24 @@ You MUST use ethers.js (v6) for all blockchain interactions.
 The user's contract address, ABI, and network info will be provided in the main prompt.
 **Design Requirement:** You MUST intelligently place the 'logo', 'title', and 'details' from \`window.__QUICK_DAPP_CONFIG__\` into the UI (e.g., placing the logo/title in a Navbar and details in a Hero section), do not just dump them at the top.
 
+**REFACTORING RULES:**
+- You are allowed to create NEW files if the user's request requires new features (e.g., "Add a settings page").
+- If \`App.jsx\` is getting too large, refactor parts of it into \`src/components/\`.
+
 Return EACH file using the specified "TITLE_PAGE_START" format.
-The file structure MUST be:
+You generally need to return:
 1.  \`index.html\`: The HTML root file. It MUST link to \`/src/main.jsx\` as a module.
 2.  \`src/main.jsx\`: The React entry point. It MUST import \`App.jsx\` and use \`ReactDOM.createRoot\`.
 3.  \`src/App.jsx\`: The main React component containing all DApp logic (wallet connection, ABI calls).
 4.  \`src/index.css\`: (Optional) Basic CSS file, imported by \`src/main.jsx\`.
+5.  **PLUS:** Any NEW or UPDATED component files.
 
 ${SAFETY_INSTRUCTIONS}
 
 ${PROMPT_FOR_IMAGE_GENERATION}
 No need to explain what you did. Just return the code for each file.
+
+${FORMATTING_RULES}
 
 Example Format:
 ${TITLE_PAGE_START}index.html${TITLE_PAGE_END}
@@ -254,6 +278,12 @@ Your task is to generate a multi-file DApp project structure that works as a Bas
 ${SAFETY_INSTRUCTIONS}
 
 ${PROMPT_FOR_IMAGE_GENERATION}
+
+Output Requirements:
+- Minimum files: \`index.html\`, \`src/main.jsx\`, \`src/App.jsx\`, \`src/index.css\`.
+- **Additional files:** Create separate files for components if needed.
+
+${FORMATTING_RULES}
 
 Example Format:
 ${TITLE_PAGE_START}index.html${TITLE_PAGE_END}

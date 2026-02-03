@@ -138,10 +138,10 @@ export class TraceAnalyser {
       this.traceCache.pushSteps(index, context.currentCallIndex)
       context.lastCallIndex = context.currentCallIndex
       context.currentCallIndex = 0
-    } else if (traceHelper.isReturnInstruction(step) || traceHelper.isStopInstruction(step) || step.error || step.invalidDepthChange) {
+    } else if (traceHelper.isRevertInstruction(step) || traceHelper.isReturnInstruction(step) || traceHelper.isStopInstruction(step) || step.error || step.invalidDepthChange) {
       if (index < this.trace.length) {
         callStack.pop()
-        this.traceCache.pushCall(step, index + 1, null, callStack.slice(0), step.error || step.invalidDepthChange)
+        this.traceCache.pushCall(step, index + 1, null, callStack.slice(0), step.error || step.invalidDepthChange || traceHelper.isRevertInstruction(step))
         this.buildCalldata(index, step, tx, false)
         this.traceCache.pushSteps(index, context.currentCallIndex)
         context.currentCallIndex = context.lastCallIndex + 1

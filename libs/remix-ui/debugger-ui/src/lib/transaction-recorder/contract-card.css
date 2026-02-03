@@ -1,0 +1,263 @@
+.contract-card {
+  background-color: var(--custom-onsurface-layer-2);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  width: 100%;
+}
+
+.contract-card:first-child {
+  margin-top: 0.75rem;
+}
+
+.contract-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  cursor: pointer;
+  background-color: var(--custom-onsurface-layer-2);
+  transition: background-color 0.2s;
+  border-bottom: 1px solid var(--bs-body-color);
+}
+
+.contract-card-header:hover {
+  background-color: var(--custom-onsurface-layer-1);
+}
+
+.contract-card-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.contract-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.contract-card-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: rgb(26, 26, 26);
+}
+
+@media (prefers-color-scheme: dark) {
+  .contract-card-name {
+    color: rgb(255, 255, 255);
+  }
+}
+
+.contract-card-address-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.contract-card-address {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.contract-card-copy-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.contract-card-copy-btn:hover {
+  color: var(--primary);
+}
+
+.contract-card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.contract-card-count {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.contract-card-deployed {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.contract-card-content {
+  padding: 0.5rem 0.5rem 0.5rem 0;
+}
+
+.contract-card-info {
+  margin-bottom: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+}
+
+.info-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.info-value {
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.info-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 0.75rem;
+  padding: 0;
+}
+
+.info-link:hover {
+  color: var(--bs-link-hover-color);
+}
+
+.contract-interactions::before {
+  content: '';
+  position: absolute;
+  left: 1rem;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  opacity: 0.3;
+}
+
+.interactions-list {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.interaction-item {
+  background-color: var(--custom-onsurface-layer-2);
+  border: 1px solid var(--input-border-color);
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  position: relative;
+}
+
+.interaction-item:not(:last-child) {
+  border-bottom: 1px solid var(--bs-border-color);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.interaction-item::before {
+  content: '';
+  position: absolute;
+  left: -0.75rem;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.interaction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.interaction-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.interaction-status-icon {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.interaction-status-icon.success {
+  color: #28a745;
+}
+
+.interaction-status-icon.failed {
+  color: #dc3545;
+}
+
+.interaction-method {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: monospace;
+  color: rgb(26, 26, 26);
+}
+
+@media (prefers-color-scheme: dark) {
+  .interaction-method {
+    color: rgb(255, 255, 255);
+  }
+}
+
+.interaction-time {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.interaction-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+}
+
+.interaction-hash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.interaction-from {
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.interaction-debug-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.interaction-debug-btn i {
+  font-size: 0.65rem;
+}
+
+.no-interactions {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin: 0.5rem 0 0 0;
+  padding: 1rem 0;
+}

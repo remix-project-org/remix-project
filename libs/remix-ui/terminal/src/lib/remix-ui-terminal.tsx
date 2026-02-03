@@ -83,12 +83,17 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
   const inputEl = useRef(null)
   const messagesEndRef = useRef(null)
   const typeWriterIndexes = useRef([])
+  const terminalStateRef = useRef(terminalState)
 
   // terminal draggable
   const panelRef = useRef(null)
   const terminalMenu = useRef(null)
 
   const intl = useIntl()
+
+  useEffect(() => {
+    terminalStateRef.current = terminalState
+  }, [terminalState])
 
   const scrollToBottom = () => {
     messagesEndRef.current && messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
@@ -120,6 +125,10 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
           type: message.type ? message.type : 'log',
           payload: { message: [message.value]},
         })
+      },
+
+      getJournal: () => {
+        return terminalStateRef.current.journalBlocks || []
       },
     })
   }, [])

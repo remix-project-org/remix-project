@@ -45,6 +45,18 @@
     filter: invert(0.5);
   }
 
+  .remixui_icon_ai {
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    align-items: center;
+  }
+
+  .remixui_icon_ai:hover {
+    box-shadow: 0px 0px 14px -7px;
+  }
+
   .remixui_icon_ai img {
     width: 28px;
     height: 28px;

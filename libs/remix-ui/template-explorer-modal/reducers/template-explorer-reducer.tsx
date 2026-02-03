@@ -26,7 +26,8 @@ export const initialState: TemplateExplorerWizardState = {
   contractOptions: {
     mintable: false,
     burnable: false,
-    pausable: false
+    pausable: false,
+    permit: true,
   },
   contractAccessControl: '',
   contractUpgradability: {
@@ -110,6 +111,9 @@ export const templateExplorerReducer = (state: TemplateExplorerWizardState, acti
   }
   case ContractWizardAction.CONTRACT_OPTIONS_UPDATE: {
     return { ...state, contractOptions: action.payload }
+  }
+  case ContractWizardAction.UPDATE_ERC20_PERMIT: {
+    return { ...state, contractOptions: { ...state.contractOptions, permit: action.payload } }
   }
   case ContractWizardAction.CONTRACT_CODE_UPDATE: {
     return { ...state, contractCode: action.payload }

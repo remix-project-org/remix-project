@@ -219,7 +219,7 @@ function testDebugging (debugManager) {
         '0x0000000000000000000000000000000000000000000000000000000000000000',
         '0x0000000000000000000000000000000000000000000000000000000000000080',
         '0x00000000000000000000000000000000000000000000000000000000000000e0',
-        '0x0000000000000000000000000000000000000000000000000000000000000031']))
+        '0x0000000000000000000000000000000000000000000000000000000000000031'].reverse()))
     } catch (error) {
       return t.end(error)
     }
@@ -271,7 +271,7 @@ function testDebugging (debugManager) {
       debugManager.decodeLocalsAt(487, location, (error, decodedlocals) => {
         if (error) return t.end(error)
         const res = deepequal(decodedlocals, tested)
-        t.ok(res, `test if locals does match. expected: ${JSON.stringify(tested)} - current: ${JSON.stringify(decodedlocals)}`)
+        t.ok(res, `test if locals does match. expected: ${JSON.stringify(tested, null, '\t')} - current: ${JSON.stringify(decodedlocals, null, '\t')}`)
       })
     } catch (error) {
       return t.end(error)

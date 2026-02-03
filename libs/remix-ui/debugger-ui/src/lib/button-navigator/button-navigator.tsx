@@ -14,7 +14,8 @@ export const ButtonNavigation = ({
   jumpToException,
   revertedReason,
   stepState,
-  jumpOutDisabled
+  jumpOutDisabled,
+  showOpcodes
 }) => {
   const intl = useIntl()
   const [state, setState] = useState({
@@ -72,14 +73,14 @@ export const ButtonNavigation = ({
         <div
           className={`${state.overBackDisabled ? 'disabled ' : ''} ${stepBtnStyle}`}
           onClick={() => {
-            stepOverBack && stepOverBack()
+            stepOverBack && stepOverBack(!showOpcodes)
           }}
         >
           <button
             id="overback"
             className="btn btn-primary btn-sm stepButton m-0 p-0"
             onClick={() => {
-              stepOverBack && stepOverBack()
+              stepOverBack && stepOverBack(!showOpcodes)
             }}
             disabled={state.overBackDisabled}
             style={{ pointerEvents: 'none' }}
@@ -97,7 +98,7 @@ export const ButtonNavigation = ({
         <div
           className={`${state.intoBackDisabled ? 'disabled ' : ''} ${stepBtnStyle}`}
           onClick={() => {
-            stepIntoBack && stepIntoBack()
+            stepIntoBack && stepIntoBack(!showOpcodes)
           }}
           data-id="buttonNavigatorIntoBack"
           id="buttonNavigatorIntoBackContainer"
@@ -107,7 +108,7 @@ export const ButtonNavigation = ({
             data-id="buttonNavigatorIntoBack"
             className="btn btn-primary btn-sm stepButton m-0 p-0"
             onClick={() => {
-              stepIntoBack && stepIntoBack()
+              stepIntoBack && stepIntoBack(!showOpcodes)
             }}
             disabled={state.intoBackDisabled}
             style={{ pointerEvents: 'none' }}
@@ -126,7 +127,7 @@ export const ButtonNavigation = ({
         <div
           className={`${state.intoForwardDisabled ? 'disabled ' : ''} ${stepBtnStyle}`}
           onClick={() => {
-            stepIntoForward && stepIntoForward()
+            stepIntoForward && stepIntoForward(!showOpcodes)
           }}
           data-id="buttonNavigatorIntoForward"
           id="buttonNavigatorIntoFowardContainer"
@@ -136,7 +137,7 @@ export const ButtonNavigation = ({
             data-id="buttonNavigatorIntoForward"
             className="btn btn-primary btn-sm stepButton m-0 p-0"
             onClick={() => {
-              stepIntoForward && stepIntoForward()
+              stepIntoForward && stepIntoForward(!showOpcodes)
             }}
             disabled={state.intoForwardDisabled}
             style={{ pointerEvents: 'none' }}

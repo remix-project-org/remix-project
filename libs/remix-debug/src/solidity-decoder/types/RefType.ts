@@ -29,17 +29,17 @@ export class RefType {
   /**
     * decode the type from the stack
     *
-    * @param {Int} stackDepth - position of the type in the stack
+    * @param {Int} stackIndex - position of the type in the stack
     * @param {Array} stack - stack
     * @param {String} - memory
     * @param {Object} - storageResolver
     * @return {Object} decoded value
     */
-  async decodeFromStack (stackDepth, stack, memory, storageResolver, calldata, cursor, variableDetails?): Promise<any> {
-    if (stack.length - 1 < stackDepth) {
-      return { error: '<decoding failed - stack underflow ' + stackDepth + '>', type: this.typeName }
+  async decodeFromStack (stackIndex, stack, memory, storageResolver, calldata, cursor, variableDetails?): Promise<any> {
+    if (stack.length - 1 < stackIndex) {
+      return { error: '<decoding failed - stack underflow ' + stackIndex + '>', type: this.typeName }
     }
-    let offset = stack[stack.length - 1 - stackDepth]
+    let offset = stack[stackIndex]
     if (this.isInStorage()) {
       offset = toBN(offset)
       try {

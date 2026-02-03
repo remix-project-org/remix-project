@@ -75,18 +75,23 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
   const [compilerContainer, dispatch] = useReducer(compilerReducer, compilerInitialState)
 
   useEffect(() => {
-    api.getAppParameter('hardhat-compilation').then((result) => {
-      if (result) {
-        sethhCompilation(true)
-      }
-    })
-
-    api.getAppParameter('foundry-compilation').then((result) => {
-      if (result) {
-        setFoundryCompilation(true)
-      }
-    })
+    sethhCompilation(false)
+    setFoundryCompilation(false)
+    setTruffleCompilation(false)
+    api.setAppParameter('hardhat-compilation', false)
+    api.setAppParameter('foundry-compilation', false)
+    api.setAppParameter('truffle-compilation', false)
   }, [])
+
+  useEffect(() => {
+    sethhCompilation(false)
+    setFoundryCompilation(false)
+    setTruffleCompilation(false)
+    api.setAppParameter('hardhat-compilation', false)
+    api.setAppParameter('foundry-compilation', false)
+    api.setAppParameter('truffle-compilation', false)
+  }, [props.workspaceReloadFlag])
+
   const intl = useIntl()
 
   useEffect(() => {

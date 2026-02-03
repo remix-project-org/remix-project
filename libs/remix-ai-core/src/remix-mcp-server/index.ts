@@ -34,6 +34,7 @@ export { CompilationResourceProvider } from './providers/CompilationResourceProv
 export { DeploymentResourceProvider } from './providers/DeploymentResourceProvider';
 export { TutorialsResourceProvider } from './providers/TutorialsResourceProvider';
 export { AmpResourceProvider } from './providers/AmpResourceProvider';
+export { DebuggingResourceProvider } from './providers/DebuggingResourceProvider';
 
 // Middleware
 export type {
@@ -48,6 +49,11 @@ export type {
   ValidationError,
   ValidationWarning
 } from './middleware/ValidationMiddleware';
+
+export type {
+  FilePermissionMiddleware,
+  FilePermissionResult
+} from './middleware/FilePermissionMiddleware';
 
 // Registries
 export {

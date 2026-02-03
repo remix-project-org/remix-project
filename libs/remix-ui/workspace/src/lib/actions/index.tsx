@@ -32,6 +32,7 @@ export type UrlParametersType = {
   blockscout: string,
   ghfolder: string
   endpoint: string
+  remaps: string
 }
 
 const basicWorkspaceInit = async (workspaces: { name: string; isGitRepo: boolean; }[], workspaceProvider) => {

@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { PluginClient } from '@remixproject/plugin';
 import { DappConfig } from '../types/dapp';
 
-const BASE_PATH = 'dapps';
+const DAPP_WORKSPACE_PREFIX = 'dapp-';
+const CONFIG_FILENAME = 'dapp.config.json';
 
 export class DappManager {
   private plugin: PluginClient;
@@ -53,86 +54,136 @@ export class DappManager {
     return config;
   }
 
-  async ensureBasePath() {
+  private async getCurrentWorkspace(): Promise<{ name: string; isLocalhost: boolean }> {
+    return await this.plugin.call('filePanel', 'getCurrentWorkspace');
+  }
+
+  private cachedWorkspaces: { name: string }[] | null = null;
+
+  private async getWorkspaces(): Promise<{ name: string }[]> {
     try {
-      await this.plugin.call('fileManager', 'readdir', BASE_PATH);
+      const workspaces = await (this.plugin as any).call('filePanel', 'getWorkspacesForPlugin');
+
+      if (workspaces && Array.isArray(workspaces) && workspaces.length > 0) {
+        const result = workspaces.map((ws: any) => ({
+          name: typeof ws === 'string' ? ws : (ws.name || ws)
+        })).filter(ws => ws.name && ws.name !== 'null' && ws.name !== null);
+
+        this.cachedWorkspaces = result;
+        return result;
+      }
     } catch (e) {
-      console.log('[DappManager] Creating base path:', BASE_PATH);
-      await this.plugin.call('fileManager', 'mkdir', BASE_PATH);
+      // API call failed, will try cache
+    }
+
+    if (this.cachedWorkspaces && this.cachedWorkspaces.length > 0) {
+      return this.cachedWorkspaces;
+    }
+
+    return [];
+  }
+
+  private async switchToWorkspace(workspaceName: string): Promise<void> {
+    await (this.plugin as any).call('filePanel', 'switchToWorkspace', { name: workspaceName, isLocalhost: false });
+  }
+
+  private async focusPlugin(): Promise<void> {
+    try {
+      await this.plugin.call('manager', 'activatePlugin', 'quick-dapp-v2');
+      // @ts-ignore
+      await this.plugin.call('tabs', 'focus', 'quick-dapp-v2');
+    } catch (e) {
+      console.warn('[DappManager] Failed to focus plugin:', e);
     }
   }
 
   async getDapps(): Promise<DappConfig[]> {
     try {
-      try {
-        await this.ensureBasePath();
-      } catch (e) {
+      const workspaces = await this.getWorkspaces();
+      if (!workspaces || !Array.isArray(workspaces)) {
         return [];
       }
 
-      const files = await this.plugin.call('fileManager', 'readdir', BASE_PATH);
-      if (!files || typeof files !== 'object') {
-        return [];
-      }
+      const currentWorkspace = await this.getCurrentWorkspace();
 
       const configs: DappConfig[] = [];
 
-      for (const [rawPath, info] of Object.entries(files)) {
-        // @ts-ignore
-        if (info.isDirectory) {
+      const targetWorkspaces = [...workspaces];
+
+      if (currentWorkspace && currentWorkspace.name && !targetWorkspaces.find(w => w.name === currentWorkspace.name)) {
+        targetWorkspaces.push({ name: currentWorkspace.name });
+      }
+
+      for (const ws of targetWorkspaces) {
+        const workspaceName = ws.name;
+        if (!workspaceName) continue;
+
+        try {
+          await this.switchToWorkspace(workspaceName);
+
+          let content;
           try {
-            const pathParts = rawPath.split('/');
-            const slug = pathParts[pathParts.length - 1];
-            if (!slug || slug === BASE_PATH) continue;
-
-            const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
-
-            let content;
-            try {
-              content = await this.plugin.call('fileManager', 'readFile', configPath);
-            } catch (err) {
-              continue;
-            }
-
-            if (content) {
-              const config = JSON.parse(content);
-              config.slug = slug;
-
-              try {
-                const previewPath = `${BASE_PATH}/${slug}/preview.png`;
-                const previewContent = await this.plugin.call('fileManager', 'readFile', previewPath);
-                if (previewContent) {
-                  config.thumbnailPath = previewContent;
-                }
-              } catch (e) {}
-              configs.push(this.sanitizeConfig(config));
-            }
-          } catch (e) {
-            console.warn(`[DappManager] Failed to read config for ${rawPath}`, e);
+            content = await this.plugin.call('fileManager', 'readFile', CONFIG_FILENAME);
+          } catch (err) {
+            continue;
           }
+
+          if (content) {
+            const config = JSON.parse(content);
+            config.workspaceName = workspaceName;
+            config.slug = workspaceName;
+
+            try {
+              const previewContent = await this.plugin.call('fileManager', 'readFile', 'preview.png');
+              if (previewContent) {
+                config.thumbnailPath = previewContent;
+              }
+            } catch (e) {}
+
+            configs.push(this.sanitizeConfig(config));
+
+          }
+        } catch (e) {
+          console.warn(`[DappManager] Failed to read config for workspace ${workspaceName}`, e);
         }
       }
+
+      if (currentWorkspace && currentWorkspace.name) {
+        try {
+          await this.switchToWorkspace(currentWorkspace.name);
+        } catch (e) {
+          console.warn('[DappManager] Failed to switch back to original workspace', e);
+        }
+      }
+
+      await this.focusPlugin();
+
       return (configs || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch (e) {
       console.error('[DappManager] Critical error loading dapps:', e);
+      await this.focusPlugin();
       return [];
     }
   }
 
   async createDapp(name: string, contractData: any, isBaseMiniApp: boolean = false): Promise<DappConfig> {
     const id = uuidv4();
-
-    console.log(`[DappManager] Creating Dapp: ${name}, isBaseMiniApp: ${isBaseMiniApp}`);
-
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${id.slice(0, 6)}`;
-    const folderPath = `${BASE_PATH}/${slug}`;
+    const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
     const timestamp = Date.now();
+
+    await this.plugin.call('filePanel', 'createWorkspace', workspaceName, true);
+
+    await this.switchToWorkspace(workspaceName);
+
+    await this.focusPlugin();
 
     const initialConfig: DappConfig = {
       _warning: "DO NOT EDIT THIS FILE MANUALLY. MANAGED BY QUICK DAPP.",
       id,
-      slug,
+      slug: workspaceName,
       name,
+      workspaceName,
       contract: {
         address: contractData.address,
         name: contractData.name,
@@ -150,14 +201,13 @@ export class DappManager {
       }
     };
 
-    await this.plugin.call('fileManager', 'mkdir', folderPath);
-    await this.saveConfig(slug, initialConfig);
-    await this.plugin.call('fileManager', 'mkdir', `${folderPath}/src`);
+    await this.saveConfig(workspaceName, initialConfig);
+
+    await this.plugin.call('fileManager', 'mkdir', 'src');
 
     if (isBaseMiniApp) {
-      console.log('[DappManager] Generating .well-known/farcaster.json for Base Mini App');
       try {
-        await this.plugin.call('fileManager', 'mkdir', `${folderPath}/.well-known`);
+        await this.plugin.call('fileManager', 'mkdir', '.well-known');
 
         const manifestContent = {
           "accountAssociation": {
@@ -174,7 +224,9 @@ export class DappManager {
             "splashBackgroundColor": "#000000",
             "subtitle": "Base Mini App",
             "description": "Generated by Remix Quick Dapp",
-            "screenshotUrls": [],
+            "screenshotUrls": [
+              "https://github.com/remix-project-org.png"
+            ],
             "primaryCategory": "social",
             "tags": ["remix", "base-mini-app"],
             "heroImageUrl": "https://github.com/remix-project-org.png",
@@ -182,30 +234,48 @@ export class DappManager {
             "ogTitle": name,
             "ogDescription": "Check out this mini app",
             "ogImageUrl": "https://github.com/remix-project-org.png",
-            "noindex": true
           }
         };
 
-        await this.plugin.call('fileManager', 'writeFile', `${folderPath}/.well-known/farcaster.json`, JSON.stringify(manifestContent, null, 2));
+        await this.plugin.call('fileManager', 'writeFile', '.well-known/farcaster.json', JSON.stringify(manifestContent, null, 2));
       } catch (e) {
         console.error('[DappManager] Failed to create .well-known folder or file', e);
       }
     }
 
+    await this.focusPlugin();
+
     return initialConfig;
   }
 
-  async saveConfig(slug: string, config: DappConfig): Promise<void> {
+  async saveConfig(workspaceName: string, config: DappConfig): Promise<void> {
+    const currentWorkspace = await this.getCurrentWorkspace();
+
+    if (currentWorkspace.name !== workspaceName) {
+      await this.switchToWorkspace(workspaceName);
+    }
+
     config.updatedAt = Date.now();
     const sanitized = this.sanitizeConfig(config);
     const content = JSON.stringify(sanitized, null, 2);
-    const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
-    await this.plugin.call('fileManager', 'writeFile', configPath, content);
+    await this.plugin.call('fileManager', 'writeFile', CONFIG_FILENAME, content);
+
+    if (currentWorkspace.name !== workspaceName) {
+      await this.switchToWorkspace(currentWorkspace.name);
+    }
+
+    if (currentWorkspace.name !== workspaceName) {
+      await this.focusPlugin();
+    }
   }
 
   async saveGeneratedFiles(slug: string, pages: Record<string, string>) {
-    console.log(`[DEBUG-MANAGER] saveGeneratedFiles called for ${slug}`);
-    const basePath = `${BASE_PATH}/${slug}`;
+    const workspaceName = slug;
+    const currentWorkspace = await this.getCurrentWorkspace();
+
+    if (currentWorkspace.name !== workspaceName) {
+      await this.switchToWorkspace(workspaceName);
+    }
 
     if (!pages || Object.keys(pages).length === 0) {
       console.warn('[DEBUG-MANAGER] ⚠️ No pages to save.');
@@ -213,21 +283,19 @@ export class DappManager {
     }
 
     for (const [rawFilename, content] of Object.entries(pages)) {
-      console.log(`[DEBUG-MANAGER] Processing file: ${rawFilename}`);
-
       const safeParts = rawFilename.replace(/\\/g, '/')
         .split('/')
         .filter(part => part !== '..' && part !== '.' && part !== '');
 
       if (safeParts.length === 0) continue;
 
-      const fullPath = `${basePath}/${safeParts.join('/')}`;
+      const fullPath = safeParts.join('/');
 
       if (safeParts.length > 1) {
         const subFolders = safeParts.slice(0, -1);
-        let currentPath = basePath;
+        let currentPath = '';
         for (const folder of subFolders) {
-          currentPath = `${currentPath}/${folder}`;
+          currentPath = currentPath ? `${currentPath}/${folder}` : folder;
           try {
             await this.plugin.call('fileManager', 'mkdir', currentPath);
           } catch (e) {}
@@ -236,43 +304,84 @@ export class DappManager {
 
       try {
         await this.plugin.call('fileManager', 'writeFile', fullPath, content);
-        console.log(`[DEBUG-MANAGER] ✅ Wrote: ${fullPath}`);
       } catch (e) {
         console.error(`[DEBUG-MANAGER] ❌ Failed to write ${fullPath}:`, e);
       }
     }
+
+    if (currentWorkspace.name !== workspaceName) {
+      await this.switchToWorkspace(currentWorkspace.name);
+      await this.focusPlugin();
+    }
   }
 
-  async deleteDapp(slug: string): Promise<void> {
-    await this.plugin.call('fileManager', 'remove', `${BASE_PATH}/${slug}`);
+  async deleteDapp(workspaceName: string): Promise<void> {
+    const currentWorkspace = await this.getCurrentWorkspace();
+
+    if (currentWorkspace.name === workspaceName) {
+      const workspaces = await this.getWorkspaces();
+      const otherWorkspace = workspaces.find((ws) => ws.name !== workspaceName);
+      if (otherWorkspace) {
+        await this.switchToWorkspace(otherWorkspace.name);
+      }
+    }
+
+    await this.plugin.call('filePanel', 'deleteWorkspace', workspaceName);
+
+    await this.focusPlugin();
   }
 
   async deleteAllDapps(): Promise<void> {
     const dapps = await this.getDapps();
     for (const dapp of dapps) {
-      await this.deleteDapp(dapp.slug);
+      await this.deleteDapp(dapp.workspaceName);
     }
+    await this.focusPlugin();
   }
 
-  async getDappConfig(slug: string): Promise<DappConfig | null> {
+  async getDappConfig(workspaceName: string): Promise<DappConfig | null> {
+    const currentWorkspace = await this.getCurrentWorkspace();
+
     try {
-      const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
-      const content = await this.plugin.call('fileManager', 'readFile', configPath);
+      if (currentWorkspace.name !== workspaceName) {
+        await this.switchToWorkspace(workspaceName);
+      }
+
+      const content = await this.plugin.call('fileManager', 'readFile', CONFIG_FILENAME);
+
+      if (currentWorkspace.name !== workspaceName) {
+        await this.switchToWorkspace(currentWorkspace.name);
+        await this.focusPlugin();
+      }
+
       if (content) {
         const config = JSON.parse(content);
-        config.slug = slug;
+        config.workspaceName = workspaceName;
+        config.slug = workspaceName;
         return this.sanitizeConfig(config);
       }
     } catch (e) {
-      console.warn(`[DappManager] Failed to read config for ${slug}`, e);
+      console.warn(`[DappManager] Failed to read config for ${workspaceName}`, e);
+
+      if (currentWorkspace.name !== workspaceName) {
+        try {
+          await this.switchToWorkspace(currentWorkspace.name);
+          await this.focusPlugin();
+        } catch (switchErr) {}
+      }
     }
     return null;
   }
 
-  async updateDappConfig(slug: string, updates: Partial<DappConfig>): Promise<DappConfig | null> {
+  async updateDappConfig(workspaceName: string, updates: Partial<DappConfig>): Promise<DappConfig | null> {
+    const currentWorkspace = await this.getCurrentWorkspace();
+
     try {
-      const configPath = `${BASE_PATH}/${slug}/dapp.config.json`;
-      const content = await this.plugin.call('fileManager', 'readFile', configPath);
+      if (currentWorkspace.name !== workspaceName) {
+        await this.switchToWorkspace(workspaceName);
+      }
+
+      const content = await this.plugin.call('fileManager', 'readFile', CONFIG_FILENAME);
 
       if (!content) throw new Error('Config file not found');
 
@@ -281,6 +390,7 @@ export class DappManager {
       const newConfig: DappConfig = {
         ...currentConfig,
         ...updates,
+        workspaceName,
         config: {
           ...currentConfig.config,
           ...(updates.config || {})
@@ -294,13 +404,34 @@ export class DappManager {
 
       const sanitizedConfig = this.sanitizeConfig(newConfig);
 
-      await this.plugin.call('fileManager', 'writeFile', configPath, JSON.stringify(sanitizedConfig, null, 2));
+      await this.plugin.call('fileManager', 'writeFile', CONFIG_FILENAME, JSON.stringify(sanitizedConfig, null, 2));
+
+      if (currentWorkspace.name !== workspaceName) {
+        await this.switchToWorkspace(currentWorkspace.name);
+        await this.focusPlugin();
+      }
+
+      if (currentWorkspace.name === workspaceName) {
+        await this.focusPlugin();
+      }
+
       return sanitizedConfig;
 
     } catch (e) {
       console.error('[DappManager] Failed to update config:', e);
+
+      if (currentWorkspace.name !== workspaceName) {
+        try {
+          await this.switchToWorkspace(currentWorkspace.name);
+          await this.focusPlugin();
+        } catch (switchErr) {}
+      }
       return null;
     }
   }
 
+  async openDappWorkspace(workspaceName: string): Promise<void> {
+    await this.switchToWorkspace(workspaceName);
+    await this.focusPlugin();
+  }
 }

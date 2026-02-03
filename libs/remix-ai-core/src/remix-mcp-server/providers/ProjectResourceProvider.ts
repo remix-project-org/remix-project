@@ -114,7 +114,11 @@ export class ProjectResourceProvider extends BaseResourceProvider {
       path = path.substring(1);
     }
 
-    if (visited.has(path) || path.includes('node_modules') || path.includes('.git') || path.includes('.deps')) {
+    if (visited.has(path) ||
+        path.includes('node_modules') ||
+        path.includes('.git') ||
+        path.includes('.deps') ||
+        path.includes('artifacts/build-info')) {
       return;
     }
     visited.add(path);
@@ -307,19 +311,14 @@ export class ProjectResourceProvider extends BaseResourceProvider {
           // Handle case where files is an object with file/folder names as keys
           const fileList = Array.isArray(files) ? files : Object.keys(files);
 
-          // Limit to prevent memory issues and filter early
-          const filteredFiles = fileList
-            .filter(file => !file.startsWith('.') && !file.includes('node_modules'))
-            .slice(0, 100);
-
-          const BATCH_SIZE = 10;
-          for (let i = 0; i < filteredFiles.length; i += BATCH_SIZE) {
-            const batch = filteredFiles.slice(i, i + BATCH_SIZE);
-            const batchResults = await Promise.all(
-              batch.map(file => this.buildDirectoryTree(plugin, file, maxDepth - 1))
-            );
-            // Add non-null results to children
-            children.push(...batchResults.filter(child => child !== null));
+          for (const file of fileList.slice(0, 100)) { // Limit to prevent memory issues
+            const fullPath = file;
+            if (!file.startsWith('.') &&
+                !file.includes('node_modules') &&
+                !file.includes('artifacts/build-info')) {
+              const child = await this.buildDirectoryTree(plugin, fullPath, maxDepth - 1);
+              if (child) children.push(child);
+            }
           }
         } catch (error) {
           children.push({ name: 'error', type: 'error', message: error.message });
@@ -365,7 +364,9 @@ export class ProjectResourceProvider extends BaseResourceProvider {
 
         for (const file of fileList) {
           const fullPath = file;
-          if (!file.startsWith('.') && !file.includes('node_modules')) {
+          if (!file.startsWith('.') &&
+              !file.includes('node_modules') &&
+              !file.includes('artifacts/build-info')) {
             await this.scanForImports(plugin, fullPath, dependencies);
           }
         }

@@ -298,6 +298,7 @@ export type UrlParametersType = {
   url: string
   language: string
   ghfolder: string
+  remaps: string
 }
 
 /**
@@ -329,6 +330,11 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
 
         path = 'contract-' + hashed.replace('0x', '').substring(0, 10) + (params.language && params.language.toLowerCase() === 'yul' ? '.yul' : '.sol')
         content = decodeBase64(params.code)
+        if (params.remaps) {
+          await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-remaps-param', isClick: false })
+          const remapsContent = decodeBase64(params.remaps)
+          await workspaceProvider.set('remappings.txt', remapsContent)
+        }
         await workspaceProvider.set(path, content)
       }
       if (params.shareCode) {

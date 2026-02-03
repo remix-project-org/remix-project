@@ -28,6 +28,7 @@ export interface TemplateExplorerWizardState {
     mintable?: boolean
     burnable?: boolean
     pausable?: boolean
+    permit?: boolean
   }
   contractAccessControl: AccessControlType
   contractUpgradability: {
@@ -101,6 +102,7 @@ export enum TemplateExplorerWizardAction {
   IMPORT_FILES = 'IMPORT_FILES',
   IMPORT_HTTPS = 'IMPORT_HTTPS',
   SET_GIT_URL = 'SET_GIT_URL',
+  UPDATE_ERC20_PERMIT = 'UPDATE_ERC20_PERMIT'
 }
 
 export interface TemplateItem {
@@ -114,6 +116,7 @@ export interface TemplateItem {
     mintable?: boolean
     burnable?: boolean
     pausable?: boolean
+    permit?: boolean
   }
   templateType?: TemplateType
 }
@@ -183,7 +186,8 @@ export enum ContractWizardAction {
   INITIALIZE_AS_GIT_REPO_UPDATE = 'INITIALIZE_AS_GIT_REPO_UPDATE',
   TOKEN_NAME_UPDATE = 'TOKEN_NAME_UPDATE',
   CONTRACT_NAME_UPDATE = 'CONTRACT_NAME_UPDATE',
-  CONTRACT_TAG_UPDATE = 'CONTRACT_TAG_UPDATE'
+  CONTRACT_TAG_UPDATE = 'CONTRACT_TAG_UPDATE',
+  UPDATE_ERC20_PERMIT = 'UPDATE_ERC20_PERMIT'
 }
 
 export interface ContractTypeStrategy {
@@ -192,6 +196,7 @@ export interface ContractTypeStrategy {
     mintable?: boolean
     burnable?: boolean
     pausable?: boolean
+    permit?: boolean
   }
   contractAccessControl: AccessControlType
   contractUpgradability: {

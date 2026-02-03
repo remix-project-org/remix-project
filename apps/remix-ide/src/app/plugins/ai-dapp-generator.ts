@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { INITIAL_SYSTEM_PROMPT, FOLLOW_UP_SYSTEM_PROMPT, BASE_MINI_APP_SYSTEM_PROMPT, UPDATE_PAGE_START, UPDATE_PAGE_END, SEARCH_START, DIVIDER, REPLACE_END, NEW_PAGE_END, NEW_PAGE_START } from './prompt'
+import { INITIAL_SYSTEM_PROMPT, FOLLOW_UP_SYSTEM_PROMPT, BASE_MINI_APP_SYSTEM_PROMPT, } from './prompt'
 
 const profile = {
   name: 'ai-dapp-generator',
@@ -20,6 +20,8 @@ interface GenerateDappOptions {
   isBaseMiniApp?: boolean
   image?: string
   slug?: string
+  figmaUrl?: string
+  figmaToken?: string
 }
 
 interface DappGenerationContext {
@@ -42,75 +44,183 @@ export class AIDappGenerator extends Plugin {
    * Generate a new DApp or update an existing one
    */
   async generateDapp(options: GenerateDappOptions & { slug: string }): Promise<void> {
-    console.log('[DEBUG-AI] generateDapp called via RPC.');
 
-    this.processGeneration(options).catch(err => {
-      console.error("[DEBUG-AI] ❌ Background process crashed:", err);
-      this.call('terminal', 'log', { type: 'error', value: err.message });
-    });
+    if (options.figmaUrl && options.figmaToken) {
+      this.processFigmaGeneration(options).catch(err => {
+        console.error("[DEBUG-AI] Figma process crashed:", err);
+        this.call('terminal', 'log', { type: 'error', value: err.message });
+      });
+    } else {
+      this.processGeneration(options).catch(err => {
+        console.error("[DEBUG-AI] Background process crashed:", err);
+        this.call('terminal', 'log', { type: 'error', value: err.message });
+      });
+    }
 
-    console.log('[DEBUG-AI] Returning immediate success to prevent timeout.');
     return;
   }
 
-  private async processGeneration(options: GenerateDappOptions & { slug: string }) {
-    console.log(`[DEBUG-AI] Starting processGeneration for slug: ${options.slug}`);
-    const hasImage = !!options.image;
+  private async processFigmaGeneration(options: GenerateDappOptions & { slug: string }) {
 
-    await this.call('notification', 'toast', 'Generating... (Logs in console)')
+    await this.call('notification', 'toast', 'Analyzing Figma Design... (This may take time)')
     this.emit('generationProgress', { status: 'started', address: options.address })
 
     const context = this.getOrCreateContext(options.address)
-    const message = this.createInitialMessage(options)
-    const messagesToSend = [{ role: 'user', content: message }]
 
-    let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
-    if (options.isBaseMiniApp) {
-      selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
-    }
-
-    console.log('[DEBUG-AI] Calling LLM API...');
-    const startTime = Date.now();
-
-    const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage);
-
-    const duration = (Date.now() - startTime) / 1000;
-    console.log(`[DEBUG-AI] LLM responded in ${duration}s.`);
-    console.log('[DEBUG-AI] Raw content length:', htmlContent?.length);
-
-    const pages = parsePages(htmlContent);
-    const pageKeys = Object.keys(pages);
-    console.log('[DEBUG-AI] Parsed Pages Keys:', pageKeys);
-
-    if (pageKeys.length === 0) {
-      console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
-      console.log('[DEBUG-AI] Raw Content Start:', htmlContent.substring(0, 500));
-    }
-
-    context.messages = [
-      { role: 'user', content: message },
-      { role: 'assistant', content: htmlContent }
-    ]
-    this.saveContext(options.address, context)
-
-    console.log('[DEBUG-AI] Emitting dappGenerated event...');
-
-    this.emit('dappGenerated', {
+    const contractInfo = {
       address: options.address,
-      slug: options.slug,
-      content: pages,
-      isUpdate: false
-    });
+      abi: options.abi,
+      chainId: options.chainId,
+      name: options.contractName
+    };
 
-    console.log('[DEBUG-AI] Event emitted.');
-    await this.call('notification', 'toast', 'Generation Complete!');
+    try {
+      const startTime = Date.now();
+
+      // const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate";
+      const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
+
+      const htmlContent = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
+        figmaToken: options.figmaToken,
+        figmaUrl: options.figmaUrl,
+        userPrompt: options.description,
+        contractInfo: contractInfo,
+        isBaseMiniApp: options.isBaseMiniApp
+      });
+
+      const duration = (Date.now() - startTime) / 1000;
+
+      const pages = parsePages(htmlContent);
+
+      const pageKeys = Object.keys(pages);
+
+      if (pageKeys.length === 0) {
+        console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed!');
+
+        if (!htmlContent) console.error('[DEBUG-AI] htmlContent is EMPTY.');
+
+        throw new Error("AI failed to return valid file structure from Figma design.");
+      }
+
+      if (Object.keys(pages).length === 0) {
+        throw new Error("AI failed to return valid file structure from Figma design.");
+      }
+
+      context.messages.push({
+        role: 'user',
+        content: `Generated from Figma: ${options.figmaUrl}\nInstructions: ${options.description}`
+      });
+      context.messages.push({ role: 'assistant', content: htmlContent });
+      this.saveContext(options.address, context);
+
+      this.emit('dappGenerated', {
+        address: options.address,
+        slug: options.slug,
+        content: pages,
+        isUpdate: false
+      });
+
+      await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
+
+    } catch (error: any) {
+      console.error('[DEBUG-AI] Figma Generation Failed:', error);
+      this.call('terminal', 'log', { type: 'error', value: error.message });
+      this.emit('dappGenerationError', {
+        address: options.address,
+        slug: options.slug,
+        error: error.message
+      });
+    }
+  }
+
+  private async callFigmaAPI(url: string, payload: any): Promise<string> {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text()
+        throw new Error(`Figma Backend Error: ${errText}`)
+      }
+
+      const json = await response.json();
+      return json.content;
+
+    } catch (error) {
+      console.error('[AI-DAPP] Figma API Call Failed:', error);
+      throw error;
+    }
+  }
+
+  private async processGeneration(options: GenerateDappOptions & { slug: string }) {
+
+    try {
+      const hasImage = !!options.image;
+
+      await this.call('notification', 'toast', 'Generating... (Logs in console)')
+      this.emit('generationProgress', { status: 'started', address: options.address })
+
+      const context = this.getOrCreateContext(options.address)
+      const message = this.createInitialMessage(options)
+      const messagesToSend = [{ role: 'user', content: message }]
+
+      let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
+      if (options.isBaseMiniApp) {
+        selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
+      }
+
+      const startTime = Date.now();
+
+      const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage);
+
+      const duration = (Date.now() - startTime) / 1000;
+
+      const pages = parsePages(htmlContent);
+      const pageKeys = Object.keys(pages);
+
+      if (pageKeys.length === 0) {
+        console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
+
+        throw new Error("AI generated empty content. Please try again.");
+      }
+
+      context.messages = [
+        { role: 'user', content: message },
+        { role: 'assistant', content: htmlContent }
+      ]
+      this.saveContext(options.address, context)
+
+      this.emit('dappGenerated', {
+        address: options.address,
+        slug: options.slug,
+        content: pages,
+        isUpdate: false
+      });
+
+      await this.call('notification', 'toast', 'Generation Complete!');
+
+    } catch (error: any) {
+      console.error('[DEBUG-AI] Generation Failed:', error);
+      this.call('terminal', 'log', { type: 'error', value: error.message });
+
+      this.emit('dappGenerationError', {
+        address: options.address,
+        slug: options.slug,
+        error: error.message
+      });
+    }
   }
 
   /**
    * Update an existing DApp with new description
    */
   async updateDapp(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string): Promise<void> {
-    console.log('[DEBUG-AI] updateDapp called for slug:', slug);
 
     this.processUpdate(address, description, currentFiles, hasImage, slug).catch(err => {
       console.error("[DEBUG-AI] ❌ Background update crashed:", err);
@@ -121,7 +231,6 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async processUpdate(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string) {
-    console.log('[DEBUG-AI] processing update...');
     const context = this.getOrCreateContext(address);
 
     if (context.messages.length === 0) {
@@ -151,12 +260,16 @@ export class AIDappGenerator extends Plugin {
         isUpdate: true
       });
 
-      console.log('[DEBUG-AI] Update event emitted.');
-
     } catch (error: any) {
       context.messages.pop();
       console.error('[DEBUG-AI] Update failed:', error);
       this.call('terminal', 'log', { type: 'error', value: `Update failed: ${error.message}` });
+
+      this.emit('dappGenerationError', {
+        address,
+        slug,
+        error: error.message || "Unknown error during generation"
+      });
     }
   }
 
@@ -432,48 +545,51 @@ export class AIDappGenerator extends Plugin {
 
       Remember: Return ALL project files in the 'START_TITLE' format.
     `
-
     if (options.image) {
-      console.log('[AIDappGenerator] Vision Mode: Creating Initial Message with Image');
 
       const visionPrompt = `
-      # VISION-DRIVEN DAPP GENERATION
+      # VISION-DRIVEN DAPP GENERATION: PIXEL-PERFECT CLONE MODE
       
-      The user has provided an **IMAGE** as the **TARGET DESIGN** (Single Source of Truth).
-      
-      **YOUR MISSION:**
-      1. **VISUAL:** Ignore standard templates. Build the UI (HTML/Tailwind) to match the attached image **PIXEL-PERFECTLY**.
-      2. **LOGIC:** Implement the features requested in the text below using the Technical Constraints.
-      3. **LOGIC (From Contract):**
-      - The image is just a mock-up. You MUST inject the real Smart Contract logic into it.
-      - **Contract Address:** \`${options.address}\`
+      The user provided an **IMAGE**. Your goal is to **CLONE** this interface into React code.
+
+      **VISUAL INSTRUCTIONS (PRIORITY #1 - THE "LOOK"):**
+
+      1. **IGNORE DEFAULT TEMPLATES:** Do not use generic styles. If the image looks unique, your code must look unique.
+      2. **EXACT COLORS:** Do not strictly rely on default Tailwind colors (like \`bg-blue-500\`). **Extract the HEX CODES** from the image and use Tailwind arbitrary values (e.g., \`bg-[#1a2b3c]\`, \`text-[#f0f0f0]\`).
+      3. **LAYOUT & SPACING:** Observe the exact padding, border-radius, and shadows. Replicate the "density" of the UI.
+      4. **FONTS & VIBE:** Match the font weight (Bold/Light) and style (Modern/Retro) exactly.
+
+      **TASK: MERGE VISUALS WITH LOGIC (STRICT COMPLIANCE)**
+
+      You are provided with an **IMAGE**. This image is the SINGLE SOURCE OF TRUTH for the target **Visual Style, Mood, and Layout**.
+      You are also provided with **MANDATORY LOGIC REQUIREMENTS**.
+
+      **PRIORITY RULES:**
+      1. **LOGIC & STRUCTURE (HIGHEST PRIORITY - DO NOT BREAK):**
+         - Implement React + Ethers.js structure defined in "TECHNICAL CONSTRAINTS".
+         - Use \`window.__QUICK_DAPP_CONFIG__\` for Title/Logo/Details.
+         - Integrate the Smart Contract (ABI, Address).
+         - Use \`.jsx\` extensions.
+
+      2. **VISUALS & MOOD (CRITICAL DESIGN GOAL):**
+         - **ANALYZE THE VIBE:** Look at the image's atmosphere. Is it dark & futuristic? Playful & colorful? Minimalist & clean?
+         - **COLOR PALETTE:** Extract the primary colors, background colors, and accent colors from the image and apply them using Tailwind CSS (e.g., arbitrary values like \`bg-[#1a1b1e]\` if needed to match precisely).
+         - **TYPOGRAPHY & COMPOSITION:** Observe font weights, spacing, and rounded corners in the image and replicate them.
+         - **REPLICATE, DON'T JUST MAP:** Do not just place buttons in the same spots. Make them *look* exactly like the buttons in the image.
+
+      **CONTRACT TO INTEGRATE:**
+      - **Address:** \`${options.address}\`
       - **Chain ID:** ${options.chainId}
-      - **ABI Functions to Wire Up:**
+      - **ABI Functions:**
       ${functionNames}
-      4. **DYNAMIC CONFIG (Critical):**
-      - Replace the image's logo with \`{config.logo}\`.
-      - Replace the image's main heading with \`{config.title}\`.
-      - Replace the image's subtitle with \`{config.details}\`.
-      - **DO NOT hardcode text found in the image for the Title/Logo.**
 
-      **STRATEGY:**
-      - **Look at the image first.** Identify the layout, colors, buttons, and typography.
-      - Write the \`index.html\` and \`src/App.jsx\` to replicate that visual structure.
-      - Then, wire up the blockchain logic (ethers.js) into that structure.
-
-      ---
-      **USER TEXT REQUEST:**
+      **USER INSTRUCTIONS:**
       "${userDescription}"
 
       ${architectureInstructions}
       ${technicalConstraints}
       
-      **TECHNICAL CONSTRAINTS (MANDATORY):**
-      - Address: ${options.address}
-      - Chain ID: ${options.chainId}
-      - ABI: ${JSON.stringify(options.abi)}
-      - **MUST** include the provider injection script in <head>.
-      - **MUST** output index.html, src/main.jsx, src/App.jsx.
+      **REMINDER:** The Image is for *CSS/Layout*. The System Prompt is for *Code Structure/Logic*. DO NOT FAIL THE LOGIC.
       
       **PROVIDER SCRIPT TO INJECT:**
       ${providerCode}
@@ -523,31 +639,35 @@ export class AIDappGenerator extends Plugin {
     `
 
     if (Array.isArray(description)) {
-      console.log('[AIDappGenerator] Processing Image Mode: ZERO-SHOT REWRITE');
 
       return description.map(part => {
         if (part.type === 'text') {
           const visionInstruction = `
-          # 🚨 UI RECONSTRUCTION TASK 🚨
+          # UI RECONSTRUCTION TASK 🚨
           
-          The user has provided an **IMAGE**. This is the **TARGET UI**.
+          The user has provided an **IMAGE** as a visual reference.
           
-          **YOUR TASK:**
-          1. **IGNORE** the styles in the reference code below.
-          2. **RECREATE** the \`App.jsx\` and \`index.html\` to match the visual style of the attached image **PIXEL-PERFECTLY**.
-          3. Use **Tailwind CSS** to match the colors, spacing, and layout of the image.
-          4. **RETAIN** the blockchain logic (ethers.js integration, ABI, Address) from the reference code.
+          **YOUR GOAL:**
+          Refactor the **visuals (CSS/Layout)** of the current code to match the attached image, BUT **preserve the existing blockchain logic**.
 
-          **CRITICAL:**
-          - Do NOT assume the reference code has the correct design. It does NOT.
-          - The Image is the ONLY source of truth for design.
+          **STRICT RULES:**
+          1. **PRESERVE LOGIC:** Do NOT remove the existing \`ethers.js\` integration, \`useEffect\`, \`useState\`, or ABI calls found in the Reference Code.
+          2. **APPLY DESIGN:** Change the HTML structure and Tailwind classes to match the image.
+          3. **CONFIG:** Keep using \`window.__QUICK_DAPP_CONFIG__\` variable.
+          4. **FILES:** Return ALL necessary files (index.html, src/App.jsx, etc).
 
           ---
+          **YOUR MISSION:**
+          1. **DISCARD** the current CSS/Layout styles of the reference code.
+          2. **REBUILD** the visual layer (\`return (...)\` in JSX) to match the **IMAGE** exactly.
+          3. **USE ARBITRARY VALUES:** Use exact hex codes from the image (e.g. \`bg-[#123]\`) instead of generic Tailwind classes.
+          4. **KEEP LOGIC:** You MUST preserve the existing variables, states, \`useEffect\`, and \`ethers.js\` logic from the reference code. Just wrap them in the new design.
+          
           **USER REQUEST:**
           "${part.text}"
           
           ---
-          **REFERENCE LOGIC (Use ONLY for ABI/Address/ChainID):**
+          **REFERENCE LOGIC (PRESERVE THIS LOGIC):**
           ${filesString}
           `;
 
@@ -577,12 +697,6 @@ export class AIDappGenerator extends Plugin {
   private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false): Promise<string> {
     const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
     // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
-
-    console.log('[AIDappGenerator] calling LLM API with body:', JSON.stringify({
-      messages,
-      systemPrompt: systemPrompt.substring(0, 100) + "...",
-      hasImage
-    }, null, 2));
 
     try {
       const response = await fetch(BACKEND_URL, {

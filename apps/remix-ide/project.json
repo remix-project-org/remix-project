@@ -3,7 +3,20 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/remix-ide/src",
   "projectType": "application",
-  "implicitDependencies": ["doc-gen", "doc-viewer", "contract-verification", "vyper", "solhint", "circuit-compiler", "learneth", "quick-dapp", "quick-dapp-v2", "remix-dapp", "noir-compiler"],
+  "implicitDependencies": [
+    "doc-gen", 
+    "doc-viewer", 
+    "contract-verification", 
+    "vyper", 
+    "solhint", 
+    "circuit-compiler", 
+    "learneth", 
+    "quick-dapp", 
+    "quick-dapp-v2", 
+    "remix-dapp", 
+    "noir-compiler",
+    "remix-debug"
+  ],
   "targets": {
     "build": {
       "executor": "@nrwl/webpack:webpack",

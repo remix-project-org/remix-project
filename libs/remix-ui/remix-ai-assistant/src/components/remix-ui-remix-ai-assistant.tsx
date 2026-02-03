@@ -72,6 +72,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const aiChatRef = useRef<HTMLDivElement>(null)
   const userHasScrolledRef = useRef(false)
   const lastMessageCountRef = useRef(0)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Audio transcription hook
   const {
@@ -277,6 +278,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.queuedMessage])
 
+  // Stop ongoing request
+  const stopRequest = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+      setIsStreaming(false)
+
+      trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'StopRequest', isClick: true })
+    }
+  }, [])
+
   // reusable sender (used by both UI button and imperative ref)
   const sendPrompt = useCallback(
     async (prompt: string) => {
@@ -318,6 +330,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
 
       try {
+        // Create new AbortController for this request
+        abortControllerRef.current = new AbortController()
         setIsStreaming(true)
 
         // Add temporary assistant message for parsing status
@@ -374,7 +388,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         let toolExecutionStartTime: number | null = null
 
         const uiToolCallback = (isExecuting: boolean, toolName?: string, toolArgs?: Record<string, any>) => {
-          const MIN_DISPLAY_TIME = 2000 // 2 seconds
+          const MIN_DISPLAY_TIME = 30000 // 30 seconds
 
           // Clear any pending timeout
           if (clearToolTimeout) {
@@ -383,16 +397,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           }
 
           if (isExecuting) {
-            // Tool execution starting or updating - show immediately
             if (!toolExecutionStartTime) {
               toolExecutionStartTime = Date.now()
             }
+
             setMessages(prev =>
               prev.map(m => (m.id === assistantId ? {
                 ...m,
-                isExecutingTools: isExecuting,
-                executingToolName: toolName,
-                executingToolArgs: toolArgs
+                // Only show tool execution indicator if no content has arrived yet
+                isExecutingTools: m.content.length === 0 ? isExecuting : m.isExecutingTools,
+                executingToolName: m.content.length === 0 ? toolName : m.executingToolName,
+                executingToolArgs: m.content.length === 0 ? toolArgs : m.executingToolArgs
               } : m))
             )
           } else {
@@ -440,17 +455,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           }
         }
 
-        // Attach the callback to the response if it's an object
+        // Attach the callback and abort signal to the response if it's an object
         if (response && typeof response === 'object') {
           response.uiToolCallback = uiToolCallback
+          response.abortSignal = abortControllerRef.current?.signal
         }
 
         switch (assistantChoice) {
         case 'openai':
-          HandleOpenAIResponse(
+          await HandleOpenAIResponse(
             response,
-            (chunk: string) => appendAssistantChunk(assistantId, chunk),
+            (chunk: string) => {
+              if (abortControllerRef.current?.signal.aborted) return
+              appendAssistantChunk(assistantId, chunk)
+            },
             (finalText: string, threadId) => {
+              if (abortControllerRef.current?.signal.aborted) return
               ChatHistory.pushHistory(trimmed, finalText)
               setIsStreaming(false)
               props.plugin.call('remixAI', 'setAssistantThrId', threadId)
@@ -458,10 +478,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           )
           break;
         case 'mistralai':
-          HandleMistralAIResponse(
+          await HandleMistralAIResponse(
             response,
-            (chunk: string) => appendAssistantChunk(assistantId, chunk),
+            (chunk: string) => {
+              if (abortControllerRef.current?.signal.aborted) return
+              appendAssistantChunk(assistantId, chunk)
+            },
             (finalText: string, threadId) => {
+              if (abortControllerRef.current?.signal.aborted) return
               ChatHistory.pushHistory(trimmed, finalText)
               setIsStreaming(false)
               props.plugin.call('remixAI', 'setAssistantThrId', threadId)
@@ -469,10 +493,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           )
           break;
         case 'anthropic':
-          HandleAnthropicResponse(
+          await HandleAnthropicResponse(
             response,
-            (chunk: string) => appendAssistantChunk(assistantId, chunk),
+            (chunk: string) => {
+              if (abortControllerRef.current?.signal.aborted) return
+              appendAssistantChunk(assistantId, chunk)
+            },
             (finalText: string, threadId) => {
+              if (abortControllerRef.current?.signal.aborted) return
               ChatHistory.pushHistory(trimmed, finalText)
               setIsStreaming(false)
               props.plugin.call('remixAI', 'setAssistantThrId', threadId)
@@ -483,15 +511,20 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         {
           // Create a reasoning callback that updates the assistant message
           const reasoningCallback = (status: string) => {
+            if (abortControllerRef.current?.signal.aborted) return
             setMessages(prev =>
               prev.map(m => (m.id === assistantId ? { ...m, content: `${status}` } : m))
             )
           }
 
-          HandleOllamaResponse(
+          await HandleOllamaResponse(
             response,
-            (chunk: string) => appendAssistantChunk(assistantId, chunk),
+            (chunk: string) => {
+              if (abortControllerRef.current?.signal.aborted) return
+              appendAssistantChunk(assistantId, chunk)
+            },
             (finalText: string) => {
+              if (abortControllerRef.current?.signal.aborted) return
               ChatHistory.pushHistory(trimmed, finalText)
               setIsStreaming(false)
             },
@@ -500,20 +533,32 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           break;
         }
         default:
-          HandleStreamResponse(
+          await HandleStreamResponse(
             response,
-            (chunk: string) => appendAssistantChunk(assistantId, chunk),
+            (chunk: string) => {
+              if (abortControllerRef.current?.signal.aborted) return
+              appendAssistantChunk(assistantId, chunk)
+            },
             (finalText: string) => {
+              if (abortControllerRef.current?.signal.aborted) return
               ChatHistory.pushHistory(trimmed, finalText)
               setIsStreaming(false)
             }
           )
         }
-        setIsStreaming(false)
+        // Note: setIsStreaming(false) is called in each handler's completion callback
+        // DO NOT call it here as it would stop the spinner before the response completes
       }
       catch (error) {
         console.error('Error sending prompt:', error)
         setIsStreaming(false)
+        abortControllerRef.current = null
+
+        // Don't show error message if request was aborted by user
+        if (error.name === 'AbortError') {
+          return
+        }
+
         // Add error message to chat history
         setMessages(prev => [
           ...prev,
@@ -904,6 +949,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           setInput={setInput}
           isStreaming={isStreaming}
           handleSend={handleSend}
+          handleStop={stopRequest}
+          showContextOptions={showContextOptions}
+          setShowContextOptions={setShowContextOptions}
           showAssistantOptions={showAssistantOptions}
           setShowAssistantOptions={setShowAssistantOptions}
           showModelOptions={showModelOptions}

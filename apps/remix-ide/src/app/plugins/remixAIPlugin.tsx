@@ -60,16 +60,18 @@ export class RemixAIPlugin extends Plugin {
     super(profile)
   }
 
-  onActivation(): void {
-    this.initialize()
+  async onActivation(): Promise<void> {
+    // IMPORTANT: Must await initialize() before loading MCP servers
+    // to ensure remixMCPServer is created first (race condition fix)
+    await this.initialize()
     this.completionAgent = new CodeCompletionAgent(this)
     this.securityAgent = new SecurityAgent(this)
     this.codeExpAgent = new CodeExplainAgent(this)
     this.contractor = ContractAgent.getInstance(this)
     this.workspaceAgent = workspaceAgent.getInstance(this)
 
-    // Load MCP servers from settings
-    this.loadMCPServersFromSettings();
+    // Load MCP servers from settings (after initialize() completes)
+    await this.loadMCPServersFromSettings();
   }
 
   async initialize(remoteModel?:IRemoteModel){
@@ -637,9 +639,12 @@ export class RemixAIPlugin extends Plugin {
       }
 
       // Initialize MCP inferencer if we have servers and it's not already initialized
-      if (this.mcpServers.length > 0 && !this.mcpInferencer && this.remixMCPServer && this.mcpEnabled) {
+      // NOTE: Always initialize if remixMCPServer exists (internal server should always connect)
+      // The mcpEnabled flag only controls whether MCP is used to enhance AI requests
+      if (this.mcpServers.length > 0 && !this.mcpInferencer && this.remixMCPServer) {
         this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer, this.remoteInferencer);
         this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
+          console.log(`[RemixAI Plugin] MCP server connected: ${serverName}`);
         });
         this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
           console.error(`[RemixAI Plugin] MCP server error (${serverName}):`, error);

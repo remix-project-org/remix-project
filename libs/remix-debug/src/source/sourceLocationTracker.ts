@@ -98,7 +98,7 @@ export class SourceLocationTracker {
     return sourceLocation.file === -1 || sourceLocation.file > amountOfSources - 1
   }
 
-  async getValidSourceLocationFromVMTraceIndexFromCache (address: string, vmtraceStepIndex: number, contracts: any, cache: Map<number, any>) {
+  async getValidSourceLocationFromVMTraceIndexFromCache (address: string, vmtraceStepIndex: number, contracts: any, cache: { [Key: number]: any }) {
     const amountOfSources = this.getTotalAmountOfSources(address, contracts)
     let map: any = { file: -1 }
     /*

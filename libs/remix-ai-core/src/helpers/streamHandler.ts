@@ -19,6 +19,7 @@ export const HandleStreamResponse = async (streamResponse, cb: (streamText: stri
     const parser = new JsonStreamParser();
     const reader = streamResponse.body?.getReader();
     const decoder = new TextDecoder();
+    const abortSignal = streamResponse?.abortSignal;
 
     // Check for missing body in the streamResponse
     if (!reader) {
@@ -36,12 +37,23 @@ export const HandleStreamResponse = async (streamResponse, cb: (streamText: stri
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
+      // Check if aborted
+      if (abortSignal?.aborted) {
+        reader.cancel();
+        return;
+      }
+
       const { done, value } = await reader.read();
       if (done) break;
 
       try {
         const chunk = parser.safeJsonParse<{ generatedText: string; isGenerating: boolean }>(decoder.decode(value, { stream: true }));
         for (const parsedData of chunk) {
+          // Check if aborted before processing each chunk
+          if (abortSignal?.aborted) {
+            reader.cancel();
+            return;
+          }
           resultText += parsedData.generatedText;
           if (cb) {
             cb(parsedData.generatedText);
@@ -56,7 +68,7 @@ export const HandleStreamResponse = async (streamResponse, cb: (streamText: stri
       }
     }
 
-    if (done_cb) {
+    if (done_cb && !abortSignal?.aborted) {
       done_cb(resultText);
     }
   } catch (error) {
@@ -69,6 +81,7 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const uiToolCallback = aiResponse?.uiToolCallback
   const tool_callback = aiResponse?.callback
+  const abortSignal = aiResponse?.abortSignal
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
@@ -90,6 +103,12 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // Check if aborted
+    if (abortSignal?.aborted) {
+      reader.cancel();
+      return;
+    }
+
     const { done, value } = await reader.read();
     if (done) break;
 
@@ -99,10 +118,18 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
     buffer = lines.pop() ?? ""; // Keep the unfinished line for next chunk
 
     for (const line of lines) {
+      // Check if aborted before processing each line
+      if (abortSignal?.aborted) {
+        reader.cancel();
+        return;
+      }
+
       if (line.startsWith("data: ")) {
         const jsonStr = line.replace(/^data: /, "").trim();
         if (jsonStr === "[DONE]") {
-          done_cb?.(resultText, threadId);
+          if (!abortSignal?.aborted) {
+            done_cb?.(resultText, threadId);
+          }
           return;
         }
 
@@ -147,8 +174,11 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
             const toolCallsArray = Array.from(toolCalls.values());
             const response = await tool_callback(toolCallsArray, uiToolCallback)
 
+            // Preserve the uiToolCallback from the response if it exists (from subsequent calls)
             if (response && typeof response === 'object') {
-              response.uiToolCallback = uiToolCallback;
+              if (!response.uiToolCallback && uiToolCallback) {
+                response.uiToolCallback = uiToolCallback;
+              }
             }
             cb("\n\n");
             HandleOpenAIResponse(response, cb, done_cb)
@@ -198,6 +228,7 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const tool_callback = aiResponse?.callback
   const uiToolCallback = aiResponse?.uiToolCallback
+  const abortSignal = aiResponse?.abortSignal
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
@@ -218,6 +249,12 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // Check if aborted
+    if (abortSignal?.aborted) {
+      reader.cancel();
+      return;
+    }
+
     const { done, value } = await reader.read();
     if (done) break;
 
@@ -244,8 +281,11 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
             const toolCalls = json.choices[0].delta.tool_calls;
             const response = await tool_callback(toolCalls, uiToolCallback)
 
+            // Preserve the uiToolCallback from the response if it exists (from subsequent calls)
             if (response && typeof response === 'object') {
-              response.uiToolCallback = uiToolCallback;
+              if (!response.uiToolCallback && uiToolCallback) {
+                response.uiToolCallback = uiToolCallback;
+              }
             }
             HandleMistralAIResponse(response, cb, done_cb)
           } else if (json.choices[0].delta.content){
@@ -271,6 +311,7 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const uiToolCallback = aiResponse?.uiToolCallback
   const tool_callback = aiResponse?.callback
+  const abortSignal = aiResponse?.abortSignal
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
@@ -292,6 +333,12 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // Check if aborted
+    if (abortSignal?.aborted) {
+      reader.cancel();
+      return;
+    }
+
     const { done, value } = await reader.read();
     if (done) break;
 
@@ -346,12 +393,11 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
             }));
 
             if (toolCalls.length > 0) {
-              uiToolCallback?.(true);
-              const response = await tool_callback(toolCalls)
-              uiToolCallback?.(false);
-              // Keep the callback attached for recursive calls
+              const response = await tool_callback(toolCalls, uiToolCallback)
               if (response && typeof response === 'object') {
-                response.uiToolCallback = uiToolCallback;
+                if (!response.uiToolCallback && uiToolCallback) {
+                  response.uiToolCallback = uiToolCallback;
+                }
               }
               cb("\n\n");
               HandleAnthropicResponse(response, cb, done_cb)
@@ -380,6 +426,7 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const tool_callback = aiResponse?.callback
   const uiToolCallback = aiResponse?.uiToolCallback
+  const abortSignal = aiResponse?.abortSignal
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
   let resultText = "";
@@ -401,6 +448,12 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
   try {
     // eslint-disable-next-line no-constant-condition
     while (true) {
+      // Check if aborted
+      if (abortSignal?.aborted) {
+        reader.cancel();
+        return;
+      }
+
       const { done, value } = await reader.read();
       if (done) break;
 
@@ -417,8 +470,11 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
             const toolCalls = parsed.message.tool_calls;
             const response = await tool_callback(toolCalls, uiToolCallback)
             // Keep the callback attached for recursive calls
+            // Preserve the uiToolCallback from the response if it exists (from subsequent calls)
             if (response && typeof response === 'object') {
-              response.uiToolCallback = uiToolCallback;
+              if (!response.uiToolCallback && uiToolCallback) {
+                response.uiToolCallback = uiToolCallback;
+              }
             }
             cb("\n\n");
             HandleOllamaResponse(response, cb, done_cb, reasoning_cb)

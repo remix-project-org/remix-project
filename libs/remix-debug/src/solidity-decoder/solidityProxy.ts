@@ -80,7 +80,7 @@ export class SolidityProxy {
     * @param {String} address  - contract address
     * @return {Object} - returns state variables of @args contractName
     */
-  async extractStateVariables (contractName, address) {
+  async extractStateVariables (contractName: string, address: string) {
     if (!this.cache.stateVariablesByContractName[contractName]) {
       const compilationResult = await this.compilationResult(address)
       this.cache.stateVariablesByContractName[contractName] = extractStateVariables(contractName, compilationResult.data.sources)
@@ -95,7 +95,7 @@ export class SolidityProxy {
     * @param {String} address  - contract address
     * @return {Object} - returns state variables of @args vmTraceIndex
     */
-  async extractStateVariablesAt (vmtraceIndex, address) {
+  async extractStateVariablesAt (vmtraceIndex: number, address?: string) {
     const contract = await this.contractObjectAt(vmtraceIndex)
     return await this.extractStateVariables(contract.name, address)
   }

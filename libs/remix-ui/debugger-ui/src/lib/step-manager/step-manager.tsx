@@ -14,7 +14,8 @@ export const StepManager = ({
     jumpNextBreakpoint,
     jumpPreviousBreakpoint,
     jumpToException,
-    registerEvent
+    registerEvent,
+    showOpcodes
   }
 }) => {
   const [state, setState] = useState({
@@ -57,6 +58,7 @@ export const StepManager = ({
         jumpNextBreakpoint={jumpNextBreakpoint}
         jumpPreviousBreakpoint={jumpPreviousBreakpoint}
         jumpToException={jumpToException}
+        showOpcodes={showOpcodes}
       />
     </div>
   )

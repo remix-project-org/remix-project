@@ -11,6 +11,8 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
     .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
     .click('*[data-id="template-card-remixDefault-0"]')
     .waitForElementVisible('*[data-id="workspace-details-section"]')
+    .waitForElementVisible('*[data-id="validateWorkspaceButton"]')
+    .click('*[data-id="validateWorkspaceButton"]')
 }
 
 module.exports = {
@@ -72,11 +74,11 @@ module.exports = {
       .clearValue('*[id="search_include"]').pause(2000)
       .setValue('*[id="search_include"]', '**').sendKeys('*[id="search_include"]', browser.Keys.ENTER).pause(4000)
       .elements('css selector', '.search_plugin_search_line', (res) => {
-        Array.isArray(res.value) && browser.assert.equal(res.value.length, 61)
+        Array.isArray(res.value) && browser.assert.equal(res.value.length, 39)
       })
       .setValue('*[id="search_exclude"]', ',contracts/**').sendKeys('*[id="search_exclude"]', browser.Keys.ENTER).pause(4000)
       .elements('css selector', '.search_plugin_search_line', (res) => {
-        Array.isArray(res.value) && browser.assert.equal(res.value.length, 54)
+        Array.isArray(res.value) && browser.assert.equal(res.value.length, 36)
       })
       .clearValue('*[id="search_include"]').setValue('*[id="search_include"]', '*.sol, *.js, *.txt')
       .clearValue('*[id="search_exclude"]').setValue('*[id="search_exclude"]', '.*/**/*')

@@ -63,7 +63,7 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     }
 
     try {
-      const token = typeof window !== 'undefined' ? window.localStorage?.getItem('remix_pro_token') : undefined
+      const token = typeof window !== 'undefined' ? window.localStorage?.getItem('remix_access_token') : undefined
       const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {}
       const options = AIRequestType.COMPLETION
         ? { headers: { 'Content-Type': 'application/json', ...authHeader }, timeout: 3000 }
@@ -108,7 +108,7 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     try {
       this.event.emit('onInference')
       const requestURL = rType === AIRequestType.COMPLETION ? this.completion_url : this.api_url
-      const token = typeof window !== 'undefined' ? window.localStorage?.getItem('remix_pro_token') : undefined
+      const token = typeof window !== 'undefined' ? window.localStorage?.getItem('remix_access_token') : undefined
       const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(requestURL, {
         method: 'POST',
@@ -188,7 +188,9 @@ export class RemoteInferencer implements ICompletions, IGeneration {
   }
 
   async answer(prompt, options:IParams=GenerationParams): Promise<any> {
-    options.chatHistory = buildChatPrompt()
+    if (!options.toolsMessages) {
+      options.chatHistory = buildChatPrompt()
+    }
     const payload = { 'prompt': prompt, "endpoint":"answer", ...options }
     if (options.stream_result) return this._streamInferenceRequest(payload, AIRequestType.GENERAL)
     else return this._makeRequest(payload, AIRequestType.GENERAL)

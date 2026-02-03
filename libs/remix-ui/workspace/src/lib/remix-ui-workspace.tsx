@@ -412,7 +412,7 @@ export function Workspace() {
   const deleteCurrentWorkspace = () => {
     global.modal(
       intl.formatMessage({ id: 'filePanel.workspace.delete' }),
-      intl.formatMessage({ id: 'filePanel.workspace.deleteConfirm' }),
+      intl.formatMessage({ id: 'filePanel.workspace.deleteConfirm' }, { currentWorkspace }),
       intl.formatMessage({ id: 'filePanel.ok' }),
       onFinishDeleteWorkspace,
       intl.formatMessage({ id: 'filePanel.cancel' })
@@ -790,7 +790,7 @@ export function Workspace() {
           <FormattedMessage id="filePanel.deleteMsg" /> {path.length > 1 ? <FormattedMessage id="filePanel.theseItems" /> : <FormattedMessage id="filePanel.thisItem" />}?
         </div>
         {path.map((item, i) => (
-          <li key={i}>{item}</li>
+          <li className="ms-3" key={i}>{item}</li>
         ))}
       </div>
     )

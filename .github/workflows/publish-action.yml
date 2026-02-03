@@ -11,7 +11,7 @@ jobs:
         uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20.0.0
+          node-version: 20.19.0
       - run: yarn install
       - run: ls
       - run: pwd

@@ -19,7 +19,7 @@ function register(api) { KONSOLES.push(api) }
 const profile = {
   displayName: 'Terminal',
   name: 'terminal',
-  methods: ['log', 'logHtml', 'togglePanel', 'isPanelHidden', 'maximizePanel'],
+  methods: ['log', 'logHtml', 'togglePanel', 'isPanelHidden', 'maximizePanel', 'getLogs'],
   events: [],
   description: 'Remix IDE terminal',
   version: packageJson.version
@@ -239,6 +239,15 @@ export default class Terminal extends Plugin {
 
   isPanelHidden() {
     return this.isHidden
+  }
+
+  getLogs() {
+    // Return logs from terminalApi if available, otherwise return from _JOURNAL
+    if (this.terminalApi && this.terminalApi.getJournal) {
+      return this.terminalApi.getJournal()
+    }
+    // Fallback to _JOURNAL if terminalApi is not ready
+    return this._JOURNAL || []
   }
 
   async maximizePanel() {

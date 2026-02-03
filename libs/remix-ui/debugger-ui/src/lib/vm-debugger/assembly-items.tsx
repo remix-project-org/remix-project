@@ -3,7 +3,7 @@ import { FormattedMessage } from 'react-intl'
 import { initialState, reducer } from '../../reducers/assembly-items'
 import './styles/assembly-items.css'
 
-export const AssemblyItems = ({ registerEvent }) => {
+export const AssemblyItems = ({ registerEvent, onShowOpcodesChange }) => {
   const [assemblyItems, dispatch] = useReducer(reducer, initialState)
   const [absoluteSelectedIndex, setAbsoluteSelectedIndex] = useState(0)
   const [selectedItem, setSelectedItem] = useState(0)
@@ -11,6 +11,7 @@ export const AssemblyItems = ({ registerEvent }) => {
   const [returnInstructionIndexes, setReturnInstructionIndexes] = useState([])
   const [outOfGasInstructionIndexes, setOutOfGasInstructionIndexes] = useState([])
   const [opcodeTooltipText, setOpcodeTooltipText] = useState('')
+  const [showOpcodes, setShowOpcodes] = useState(true)
   const refs = useRef({})
   const asmItemsRef = useRef(null)
 
@@ -80,6 +81,7 @@ export const AssemblyItems = ({ registerEvent }) => {
 
   const indexChanged = (index: number) => {
     if (index < 0) return
+    if (!asmItemsRef.current) return
 
     const codeView = asmItemsRef.current
 
@@ -96,6 +98,7 @@ export const AssemblyItems = ({ registerEvent }) => {
   }
 
   const nextIndexesChanged = (indexes: Array<number>) => {
+    if (!asmItemsRef.current) return
     indexes.map((index) => {
       if (index < 0) return
 
@@ -112,6 +115,7 @@ export const AssemblyItems = ({ registerEvent }) => {
   }
 
   const returnIndexes = (indexes) => {
+    if (!asmItemsRef.current) return
     indexes.map((index) => {
       if (index < 0) return
 
@@ -127,6 +131,7 @@ export const AssemblyItems = ({ registerEvent }) => {
   }
 
   const outOfGasIndexes = (indexes) => {
+    if (!asmItemsRef.current) return
     indexes.map((index) => {
       if (index < 0) return
 
@@ -142,39 +147,60 @@ export const AssemblyItems = ({ registerEvent }) => {
     setOutOfGasInstructionIndexes(indexes)
   }
 
+  const handleShowOpcodesChange = (checked: boolean) => {
+    setShowOpcodes(checked)
+    if (onShowOpcodesChange) {
+      onShowOpcodesChange(checked)
+    }
+  }
+
   return (
     <div className="h-100 border rounded px-1 mt-1 bg-light">
       <div className="dropdownpanel">
         <div className="dropdowncontent pb-2">
+          <div className="form-check mb-2">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="showOpcodesCheckbox"
+              checked={showOpcodes}
+              onChange={(e) => handleShowOpcodesChange(e.target.checked)}
+            />
+            <label className="form-check-label small" htmlFor="showOpcodesCheckbox">
+              <FormattedMessage id="debugger.showOpcodes" defaultMessage="Show Opcodes" />
+            </label>
+          </div>
           {assemblyItems.display.length == 0 && (
             <div>
               <FormattedMessage id="debugger.noDataAvailable" />
             </div>
           )}
-          <div className="ps-2 my-1 small instructions" data-id="asmitems" id="asmitems" ref={asmItemsRef}>
-            {assemblyItems.display.map((item, i) => {
-              return (
-                <div
-                  className="px-1"
-                  key={i}
-                  ref={(ref) => {
-                    refs.current[i] = ref
-                  }}
-                >
-                  <span>{item}</span>
-                  {assemblyItems.currentLineIndexes.includes(i) ? (
-                    <span>
-                      <i>
-                        <b> - LINE {assemblyItems.line + 1}</b>
-                      </i>
-                    </span>
-                  ) : (
-                    ' - '
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          {showOpcodes && (
+            <div className="ps-2 my-1 small instructions" data-id="asmitems" id="asmitems" ref={asmItemsRef}>
+              {assemblyItems.display.map((item, i) => {
+                return (
+                  <div
+                    className="px-1"
+                    key={i}
+                    ref={(ref) => {
+                      refs.current[i] = ref
+                    }}
+                  >
+                    <span>{item}</span>
+                    {assemblyItems.currentLineIndexes.includes(i) ? (
+                      <span>
+                        <i>
+                          <b> - LINE {assemblyItems.line + 1}</b>
+                        </i>
+                      </span>
+                    ) : (
+                      ' - '
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

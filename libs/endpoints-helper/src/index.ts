@@ -19,6 +19,7 @@ type EndpointUrls = {
     billing: string;
     credits: string;
     audio;
+    permissions: string;
 };
 
 const defaultUrls: EndpointUrls = {
@@ -39,9 +40,10 @@ const defaultUrls: EndpointUrls = {
   solidityScanWebSocket: 'wss://solidityscan.api.remix.live',
   gitHubLoginProxy: 'https://github-login-proxy.api.remix.live',
   sso: 'https://auth.api.remix.live:8443/sso',
-  billing: 'https://auth.api.remix.live:8443//billing',
+  billing: 'https://auth.api.remix.live:8443/billing',
   credits: 'https://auth.api.remix.live:8443/credits',
   audio: 'https://audio.api.remix.live',
+  permissions: 'https://auth.api.remix.live:8443/permissions',
 };
 
 const endpointPathMap: Record<keyof EndpointUrls, string> = {
@@ -65,6 +67,7 @@ const endpointPathMap: Record<keyof EndpointUrls, string> = {
   billing: 'billing',
   credits: 'credits',
   audio: 'audio',
+  permissions: 'permissions',
 };
 
 const prefix = process.env.NX_ENDPOINTS_URL;
@@ -90,18 +93,23 @@ const localhostUrls: EndpointUrls = {
   vyper2: 'http://localhost:3006/vyper2',
   
   // AI service (port 3003)
-  solcoder: 'http://localhost:3003/solcoder',
+  solcoder: 'http://localhost:4000/solcoder',
   completion: 'http://localhost:3003/completion',
   gptChat: 'http://localhost:3003/gpt-chat',
   rag: 'http://localhost:3003/rag',
   
   // AUTH service (port 3001)
-  sso: 'http://localhost:3001/sso',
+  sso: 'https://auth.api.remix.live:8443/sso',
   
   // BILLING service (port 3002)
-  billing: 'http://localhost:3002/billing',
-  credits: 'http://localhost:3002/credits',
+  billing: 'https://auth.api.remix.live:8443/billing',
+  credits: 'https://auth.api.remix.live:8443/credits',
+  
+  // AUDIO service (port 3004)
   audio: 'http://localhost:3004/audio',
+  
+  // PERMISSIONS service
+  permissions: 'https://auth.api.remix.live:8443/permissions',
 };
 
 const resolvedUrls: EndpointUrls = prefix
