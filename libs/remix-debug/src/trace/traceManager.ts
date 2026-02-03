@@ -94,7 +94,7 @@ export class TraceManager {
 
   async cacheIt(txHash: string, trace: DebugTraceTransactionResult): Promise<void> {
     try {
-      await this.setCache(txHash, trace)
+      this.setCache && await this.setCache(txHash, trace)
       console.log(`Trace cached for transaction: ${txHash}`)
     } catch (error) {
       console.error('Error caching trace:', error)
@@ -104,7 +104,7 @@ export class TraceManager {
   async fromCache(txHash: string): Promise<DebugTraceTransactionResult | null> {
      
     try {
-      const cached = await this.getCache(txHash) as DebugTraceTransactionResult
+      const cached = this.getCache && await this.getCache(txHash) as DebugTraceTransactionResult
       if (cached) {
         console.log(`Trace found in cache for transaction: ${txHash}`)
       } else {
