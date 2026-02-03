@@ -1,4 +1,5 @@
-import React, {useState, useContext, useRef} from 'react' //eslint-disable-line
+import React, {useState, useContext, useRef, useEffect} from 'react' //eslint-disable-line
+
 import { FileExplorerMenuProps } from '../types'
 import { FileSystemContext } from '../contexts'
 import { appActionTypes, AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
@@ -18,6 +19,22 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const folderInputRef = useRef<HTMLInputElement>(null)
+
+  const [isDappWorkspace, setIsDappWorkspace] = useState(false)
+  interface DappMappingInfo {
+    address: string
+    dappWorkspace: string
+    sourceWorkspace: string
+    chainId?: string
+    contractName?: string
+    createdAt?: number
+  }
+  const [dappMappings, setDappMappings] = useState<DappMappingInfo[]>([])
+  const [sourceWorkspaceTarget, setSourceWorkspaceTarget] = useState<string | null>(null)
+  const [navigationRefreshCounter, setNavigationRefreshCounter] = useState(0)
+  const [showDappSelectModal, setShowDappSelectModal] = useState(false)
+  const [selectedDappIndex, setSelectedDappIndex] = useState(0)
+
   let menuItems = [
     {
       action: 'newBlankFile',
@@ -93,7 +110,192 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
 
   menuItems = menuItems.filter((item) => item.platforms.includes(platform))
 
+  useEffect(() => {
+    const detectWorkspaceType = async () => {
+      const currentWorkspace = global.fs.browser.currentWorkspace
+
+      if (!currentWorkspace) {
+        return
+      }
+
+      if (currentWorkspace.startsWith('dapp-')) {
+        setIsDappWorkspace(true)
+        setDappMappings([])
+
+        try {
+          const configContent = await global.plugin.call('fileManager', 'readFile', 'dapp.config.json')
+          const config = JSON.parse(configContent)
+          if (config.sourceWorkspace?.name) {
+            setSourceWorkspaceTarget(config.sourceWorkspace.name)
+          } else {
+            setSourceWorkspaceTarget(null)
+          }
+        } catch (e) {
+          setSourceWorkspaceTarget(null)
+        }
+      } else {
+        setIsDappWorkspace(false)
+        setSourceWorkspaceTarget(null)
+
+        try {
+          const mappingsDir = '.deploys/dapp-mappings'
+          const exists = await global.plugin.call('fileManager', 'exists', mappingsDir)
+          
+          if (!exists) {
+            setDappMappings([])
+            return
+          }
+
+          const files = await global.plugin.call('fileManager', 'readdir', mappingsDir)
+          
+          if (!files || Object.keys(files).length === 0) {
+            setDappMappings([])
+            return
+          }
+
+          const validMappings: DappMappingInfo[] = []
+          const pinnedDir = '.deploys/pinned-contracts'
+          const pinnedDirExists = await global.plugin.call('fileManager', 'exists', pinnedDir)
+
+          for (const filePath of Object.keys(files)) {
+            try {
+              const fileName = filePath.split('/').pop()
+              const address = fileName?.replace('.json', '')
+              
+              let pinnedContractExists = false
+              let foundChainId = ''
+              
+              if (pinnedDirExists) {
+                const chainFolders = await global.plugin.call('fileManager', 'readdir', pinnedDir)
+                for (const chainPath of Object.keys(chainFolders)) {
+                  const chainFolder = chainPath.split('/').pop()
+                  const pinnedFilePath = `${pinnedDir}/${chainFolder}/${address}.json`
+                  try {
+                    const pinnedExists = await global.plugin.call('fileManager', 'exists', pinnedFilePath)
+                    if (pinnedExists) {
+                      pinnedContractExists = true
+                      foundChainId = chainFolder || ''
+                      break
+                    }
+                  } catch (e) {}
+                }
+              }
+
+              if (!pinnedContractExists) {
+                try {
+                  await global.plugin.call('fileManager', 'remove', `${mappingsDir}/${fileName}`)
+                } catch (e) {}
+                continue
+              }
+
+              const mappingContent = await global.plugin.call('fileManager', 'readFile', `${mappingsDir}/${fileName}`)
+              const mapping = JSON.parse(mappingContent)
+
+              if (!mapping.dappWorkspace) continue
+              const workspaceExists = await global.plugin.call('filePanel', 'workspaceExists', mapping.dappWorkspace)
+              if (!workspaceExists) {
+                continue
+              }
+
+              validMappings.push({
+                address: mapping.address || address || '',
+                dappWorkspace: mapping.dappWorkspace,
+                sourceWorkspace: mapping.sourceWorkspace || '',
+                chainId: foundChainId,
+                createdAt: mapping.createdAt
+              })
+            } catch (e) {}
+          }
+
+          setDappMappings(validMappings)
+
+        } catch (e) {
+          setDappMappings([])
+        }
+
+      }
+
+    }
+
+    detectWorkspaceType()
+  }, [global.fs.browser.currentWorkspace, navigationRefreshCounter])
+
+  useEffect(() => {
+    const handleWorkspaceChange = () => {
+      setTimeout(() => {
+        setNavigationRefreshCounter(prev => prev + 1)
+      }, 500)
+    }
+
+    global.plugin.on('filePanel', 'setWorkspace', handleWorkspaceChange)
+
+    return () => {
+      global.plugin.off('filePanel', 'setWorkspace', handleWorkspaceChange)
+    }
+  }, [])
+
+  const handleGoToDapp = async () => {
+    
+    if (dappMappings.length === 0) {
+      return
+    }
+
+    let selectedWorkspace: string | null = null
+
+    if (dappMappings.length === 1) {
+      await navigateToDapp(dappMappings[0].dappWorkspace)
+    } else {
+      setSelectedDappIndex(0)
+      setShowDappSelectModal(true)
+    }
+  }
+
+  const navigateToDapp = async (workspaceName: string) => {
+    try {
+      if (global.dispatchSwitchToWorkspace) {
+        await global.dispatchSwitchToWorkspace(workspaceName)
+      } else {
+        await global.plugin.call('filePanel', 'switchToWorkspace', workspaceName)
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await global.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+    } catch (e) {
+      console.error('[FileExplorerMenu] Failed to switch to DApp workspace:', e)
+    }
+  }
+
+  const handleDappSelectConfirm = async () => {
+    setShowDappSelectModal(false)
+    if (dappMappings[selectedDappIndex]) {
+      await navigateToDapp(dappMappings[selectedDappIndex].dappWorkspace)
+    }
+  }
+
+
+
+
+
+
+  const handleGoToContract = async () => {
+    if (!sourceWorkspaceTarget) {
+      return
+    }
+    try {
+      if (global.dispatchSwitchToWorkspace) {
+        await global.dispatchSwitchToWorkspace(sourceWorkspaceTarget)
+      } else {
+        await global.plugin.call('filePanel', 'switchToWorkspace', sourceWorkspaceTarget)
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await global.plugin.call('menuicons', 'select', 'filePanel')
+    } catch (e) {
+      console.error('[FileExplorerMenu] Failed to switch to source workspace:', e)
+    }
+  }
+
+
   const itemAction = async (action: string) => {
+
     if (action === 'localFileSystem') {
       inputRef.current?.click()
     }
@@ -330,6 +532,110 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
               </Dropdown.Menu>
             </Dropdown>
           </span>
+
+          {!isDappWorkspace && dappMappings.length > 0 && (
+            <span className="ps-0 pb-1 w-50">
+              <Button
+                variant="primary"
+                className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
+                data-id="fileExplorerGoToDappButton"
+                onClick={handleGoToDapp}
+              >
+                <i className="far fa-rocket me-2"></i>
+                <span>Go to DApp{dappMappings.length > 1 ? ` (${dappMappings.length})` : ''}</span>
+              </Button>
+            </span>
+          )}
+
+          {isDappWorkspace && sourceWorkspaceTarget && (
+            <span className="ps-0 pb-1 w-50">
+              <Button
+                variant="success"
+                className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
+                data-id="fileExplorerGoToContractButton"
+                onClick={handleGoToContract}
+              >
+                <i className="far fa-file-code me-2"></i>
+                <span>Go to Contract</span>
+              </Button>
+            </span>
+          )}
+
+          {showDappSelectModal && (
+            <div 
+              className="modal d-block" 
+              style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              onClick={() => setShowDappSelectModal(false)}
+            >
+              <div 
+                className="modal-dialog modal-dialog-centered" 
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Select DApp</h5>
+                    <button 
+                      type="button" 
+                      className="btn-close" 
+                      onClick={() => setShowDappSelectModal(false)}
+                    />
+                  </div>
+                  <div className="modal-body">
+                    {dappMappings.map((mapping, index) => (
+                      <div 
+                        key={index}
+                        className={`d-flex align-items-start mb-2 p-3 border rounded ${selectedDappIndex === index ? 'border-primary' : ''}`}
+                        style={{ 
+                          cursor: 'pointer', 
+                          backgroundColor: selectedDappIndex === index ? 'var(--primary)' : 'transparent',
+                          opacity: selectedDappIndex === index ? 0.9 : 1
+                        }}
+                        onClick={() => setSelectedDappIndex(index)}
+                      >
+                        <input 
+                          className="form-check-input mt-1 me-3" 
+                          type="radio" 
+                          name="dappSelection"
+                          id={`dapp-${index}`}
+                          checked={selectedDappIndex === index}
+                          onChange={() => setSelectedDappIndex(index)}
+                          style={{ flexShrink: 0 }}
+                        />
+                        <div className="flex-grow-1">
+                          <strong style={{ color: selectedDappIndex === index ? 'white' : 'inherit' }}>
+                            {mapping.dappWorkspace}
+                          </strong>
+                          <br/>
+                          <small style={{ color: selectedDappIndex === index ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>
+                            Network: {mapping.chainId || 'Unknown'}<br/>
+                            Address: {mapping.address.substring(0, 15)}...
+                          </small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="modal-footer">
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      onClick={() => setShowDappSelectModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      onClick={handleDappSelectConfirm}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         </>}
     </>
   )

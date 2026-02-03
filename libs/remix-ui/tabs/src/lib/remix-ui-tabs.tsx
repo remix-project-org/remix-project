@@ -729,12 +729,24 @@ export const TabsUI = (props: TabsUIProps) => {
         }
       }
 
+      const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+      const providerName = providerObject?.name || 'vm-unknown'
+      const isVM = providerName.startsWith('vm')
+      
+      let chainId: string
+      if (isVM) {
+        chainId = providerName
+      } else {
+        const network = await props.plugin.call('network', 'detectNetwork')
+        chainId = network?.id?.toString() || providerName
+      }
+
       await props.plugin.call('quick-dapp-v2', 'createDapp', {
         description: descriptionObj.text,
         contractName: instance.name,
         address: instance.address,
         abi: instance.abi || instance.contractData?.abi,
-        chainId: await props.plugin.call('network', 'getNetworkProvider').then((p: any) => p?.chainId),
+        chainId: chainId,
         compilerData: data,
         isBaseMiniApp: descriptionObj.isBaseMiniApp,
         image: descriptionObj.image,

@@ -11,8 +11,13 @@ export interface DappConfig {
     address: string;
     name: string;
     abi: any[];
-    chainId: number;
+    chainId: number | string;
     networkName: string;
+  };
+
+  sourceWorkspace?: {
+    name: string;
+    filePath: string;
   };
 
   status: DappStatus;

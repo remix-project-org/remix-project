@@ -161,6 +161,7 @@ export function UniversalDappUI(props: UdappProps) {
 
   const pinContract = async() => {
     const provider = await props.plugin.call('blockchain', 'getProviderObject')
+
     if (!provider.config.statePath && provider.config.isRpcForkedState) {
       // we can't pin a contract in the following case:
       // - state is not persisted
@@ -176,7 +177,11 @@ export function UniversalDappUI(props: UdappProps) {
       filePath: props.instance.filePath || `${workspace.name}/${props.instance.contractData.contract.file}`,
       pinnedAt: Date.now()
     }
-    await props.plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${props.plugin.REACT_API.chainId}/${props.instance.address}.json`, JSON.stringify(objToSave, null, 2))
+
+    const savePath = `.deploys/pinned-contracts/${props.plugin.REACT_API.chainId}/${props.instance.address}.json`
+
+    await props.plugin.call('fileManager', 'writeFile', savePath, JSON.stringify(objToSave, null, 2))
+
     trackMatomoEvent({ category: 'udapp', action: 'pinContracts', name: `pinned at ${props.plugin.REACT_API.chainId}`, isClick: false })
     props.pinInstance(props.index, objToSave.pinnedAt, objToSave.filePath)
   }
@@ -393,19 +398,34 @@ export function UniversalDappUI(props: UdappProps) {
                         isGenerating.current = true
 
                         await props.plugin.call('ai-dapp-generator', 'resetDapp', address)
+
+                        const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+                        const providerName = providerObject?.name || 'vm-unknown'
+                        const isVM = providerName.startsWith('vm')
+                        
+                        let chainId: string
+                        if (isVM) {
+                          chainId = providerName
+                        } else {
+                          const network = await props.plugin.call('network', 'detectNetwork')
+                          chainId = network?.id?.toString() || providerName
+                        }
+
                         try {
                           await props.plugin.call('quick-dapp-v2', 'createDapp', {
                             description: descriptionObj.text,
                             contractName: props.instance.name,
                             address: address,
                             abi: props.instance.abi || props.instance.contractData.abi,
-                            chainId: props.plugin.REACT_API.chainId,
+                            chainId: chainId,
+
                             compilerData: data,
                             isBaseMiniApp: descriptionObj.isBaseMiniApp,
                             image: descriptionObj.image,
                             figmaUrl: descriptionObj.figmaUrl,
                             figmaToken: descriptionObj.figmaToken,
                             sourceFilePath: props.instance.filePath || props.instance.contractData?.contract?.file || ''
+
                           })
 
                           await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')

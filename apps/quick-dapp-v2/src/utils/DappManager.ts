@@ -111,13 +111,13 @@ export class DappManager {
 
       const importRegex = /import\s+(?:.*\s+from\s+)?["'](\.[^"']+)["']/g;
       let match;
-      
+
       while ((match = importRegex.exec(content)) !== null) {
         const importPath = match[1];
-        
+
         const entryDir = entryFilePath.substring(0, entryFilePath.lastIndexOf('/')) || '.';
-        let resolvedPath = this.resolvePath(entryDir, importPath);
-        
+        const resolvedPath = this.resolvePath(entryDir, importPath);
+
         await this.collectSolidityFiles(resolvedPath, collected);
       }
     } catch (e) {
@@ -221,49 +221,37 @@ export class DappManager {
     const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
     const timestamp = Date.now();
 
-    let collectedFiles: Map<string, string> = new Map();
-    let mainFilePath: string = '';
-    console.log(`[DappManager] sourceFilePath from contractData: "${contractData.sourceFilePath}"`);
-    if (contractData.sourceFilePath) {
-      try {
-        let filePath = contractData.sourceFilePath;
-        console.log(`[DappManager] Original filePath: "${filePath}"`);
-        
-        let fileContent: string | null = null;
+    const sourceWorkspaceInfo = await this.getCurrentWorkspace();
+    const sourceWorkspaceName = sourceWorkspaceInfo.name;
+
+    if (contractData.sourceFilePath && contractData.sourceFilePath.includes('/')) {
+      const parts = contractData.sourceFilePath.split('/');
+      const possibleWorkspace = parts[0];
+
+      if (possibleWorkspace !== sourceWorkspaceName) {
         try {
-          fileContent = await this.plugin.call('fileManager', 'readFile', filePath);
-          console.log(`[DappManager] File read successful with original path`);
+          await this.switchToWorkspace(possibleWorkspace);
+          await new Promise(resolve => setTimeout(resolve, 300));
         } catch (e) {
-          console.log(`[DappManager] Failed to read with original path, trying workspace approach`);
+          console.log(`[DappManager] Could not switch to workspace "${possibleWorkspace}":`, e);
         }
-        
-        if (!fileContent && filePath.includes('/')) {
-          const parts = filePath.split('/');
-          const possibleWorkspace = parts[0];
-          const remainingPath = parts.slice(1).join('/');
-          
-          console.log(`[DappManager] Trying workspace: "${possibleWorkspace}", path: "${remainingPath}"`);
-          
-          try {
-            await this.switchToWorkspace(possibleWorkspace);
-            await new Promise(resolve => setTimeout(resolve, 300));
-            fileContent = await this.plugin.call('fileManager', 'readFile', remainingPath);
-            filePath = remainingPath;
-            console.log(`[DappManager] File read successful after workspace switch`);
-          } catch (e2) {
-            console.log(`[DappManager] Workspace approach also failed:`, e2);
-          }
-        }
-        
-        mainFilePath = filePath;
-        collectedFiles = await this.collectSolidityFiles(filePath);
-        console.log(`[DappManager] Collected ${collectedFiles.size} Solidity file(s)`);
-      } catch (e) {
-        console.warn('[DappManager] Failed to collect source files:', e);
       }
-    } else {
-      console.log('[DappManager] No sourceFilePath provided');
     }
+
+    const currentWs = await this.getCurrentWorkspace();
+    if (currentWs.name !== sourceWorkspaceName) {
+      await this.switchToWorkspace(sourceWorkspaceName);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    await this.autoPinInstance(
+      contractData.address,
+      contractData.name,
+      contractData.abi,
+      contractData.sourceFilePath || '',
+      contractData.chainId,
+      workspaceName
+    );
 
     await this.plugin.call('filePanel', 'createWorkspace', workspaceName, true);
 
@@ -284,6 +272,10 @@ export class DappManager {
         abi: contractData.abi,
         chainId: contractData.chainId,
         networkName: contractData.networkName || 'Unknown Network'
+      },
+      sourceWorkspace: {
+        name: sourceWorkspaceName,
+        filePath: contractData.sourceFilePath || ''
       },
       status: 'draft',
       createdAt: timestamp,
@@ -341,43 +333,69 @@ export class DappManager {
       }
     }
 
-    if (collectedFiles.size > 0 && mainFilePath) {
-      try {
-        for (const [filePath, content] of collectedFiles) {
-          const dir = filePath.substring(0, filePath.lastIndexOf('/'));
-          if (dir) {
-            try {
-              await this.plugin.call('fileManager', 'mkdir', dir);
-            } catch (e) {}
-          }
-          
-          await this.plugin.call('fileManager', 'writeFile', filePath, content);
-          console.log(`[DappManager] Copied: ${filePath}`);
-        }
-        
-        // @ts-ignore
-        initialConfig.contract.sourceFilePath = mainFilePath;
-        await this.saveConfig(workspaceName, initialConfig);
-        
-        try {
-          await this.plugin.call('solidity', 'compile', mainFilePath);
-          console.log(`[DappManager] Contract compiled: ${mainFilePath}`);
-        } catch (compileErr) {
-          console.warn('[DappManager] Auto-compile failed (user can compile manually):', compileErr);
-        }
-
-        console.log(`[DappManager] Copied ${collectedFiles.size} file(s) to new workspace`);
-      } catch (e) {
-        console.warn('[DappManager] Failed to copy contract files:', e);
-      }
-    }
-
     await this.focusPlugin();
 
     return initialConfig;
   }
 
+  /**
+   * Auto-pins the contract instance in the current workspace before switching.
+   * This saves the contract to .deploys/pinned-contracts/{chainId}/{address}.json
+   * Also saves a dapp-mapping file for Go to DApp navigation.
+   */
+  private async autoPinInstance(
+    address: string,
+    name: string,
+    abi: any[],
+    filePath: string,
+    chainId: number | string,
+    dappWorkspace: string
+  ): Promise<void> {
+    try {
+      if (!chainId) {
+        return;
+      }
+
+      const workspace = await this.getCurrentWorkspace();
+
+      const objToSave = {
+        name,
+        address,
+        abi,
+        filePath: filePath ? `${workspace.name}/${filePath}` : '',
+        pinnedAt: Date.now()
+      };
+
+      const savePath = `.deploys/pinned-contracts/${chainId}/${address}.json`;
+
+      await this.plugin.call(
+        'fileManager',
+        'writeFile',
+        savePath,
+        JSON.stringify(objToSave, null, 2)
+      );
+
+      const dappMappingPath = `.deploys/dapp-mappings/${address}.json`;
+      const dappMapping = {
+        address,
+        dappWorkspace,
+        sourceWorkspace: workspace.name,
+        createdAt: Date.now()
+      };
+      await this.plugin.call(
+        'fileManager',
+        'writeFile',
+        dappMappingPath,
+        JSON.stringify(dappMapping, null, 2)
+      );
+    } catch (e) {
+      console.warn('[DappManager] Failed to auto-pin instance:', e);
+    }
+
+  }
+
   async saveConfig(workspaceName: string, config: DappConfig): Promise<void> {
+
     const currentWorkspace = await this.getCurrentWorkspace();
 
     if (currentWorkspace.name !== workspaceName) {
@@ -482,7 +500,7 @@ export class DappManager {
         const config = JSON.parse(content);
         config.workspaceName = workspaceName;
         config.slug = workspaceName;
-        
+
         try {
           const previewContent = await this.plugin.call('fileManager', 'readFile', 'preview.png');
           if (previewContent) {
