@@ -2,8 +2,8 @@
 [![npm version](https://badge.fury.io/js/%40remix-project%2Fremix-analyzer.svg)](https://www.npmjs.com/package/@remix-project/remix-analyzer)
 [![npm](https://img.shields.io/npm/dt/@remix-project/remix-analyzer.svg?label=Total%20Downloads)](https://www.npmjs.com/package/@remix-project/remix-analyzer)
 [![npm](https://img.shields.io/npm/dw/@remix-project/remix-analyzer.svg)](https://www.npmjs.com/package/@remix-project/remix-analyzer)
-[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ethereum/remix-project/tree/master/libs/remix-analyzer)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ethereum/remix-project/issues)
+[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/remix-project-org/remix-project/tree/master/libs/remix-analyzer)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
 `@remix-project/remix-analyzer` is a tool to perform static analysis on Solidity smart contracts to check security vulnerabilities and bad development practices. It works underneath Remix IDE "SOLIDITY STATIC ANALYSIS" plugin which is used to run analysis for a compiled contract according to selected modules.
 
@@ -45,7 +45,7 @@ export default class staticAnalysisRunner {
     modules(): any[];
 }
 ```
-One can import the module and use the available methods to run analysis. Related type descriptions can be seen [here](https://github.com/ethereum/remix-project/blob/master/libs/remix-analyzer/src/types.ts).
+One can import the module and use the available methods to run analysis. Related type descriptions can be seen [here](https://github.com/remix-project-org/remix-project/blob/master/libs/remix-analyzer/src/types.ts).
 
 Details of modules are explained in [official remix-ide documentation](https://remix-ide.readthedocs.io/en/latest/static_analysis.html).
 
@@ -53,7 +53,7 @@ Details of modules are explained in [official remix-ide documentation](https://r
 
 Please feel free to open an issue or a pull request. 
 
-In case you want to add some code, do have a look at our contribution guidelines [here](https://github.com/ethereum/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Gitter](https://gitter.im/ethereum/remix) in case of any queries.
+In case you want to add some code, do have a look at our contribution guidelines [here](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Discord](https://discord.gg/qhpCQGWkmf) in case of any queries.
 
 ### License
 MIT © 2018-21 Remix Team

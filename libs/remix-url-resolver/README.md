@@ -2,8 +2,8 @@
 [![npm version](https://badge.fury.io/js/%40remix-project%2Fremix-url-resolver.svg)](https://www.npmjs.com/package/@remix-project/remix-url-resolver)
 [![npm](https://img.shields.io/npm/dt/@remix-project/remix-url-resolver.svg?label=Total%20Downloads)](https://www.npmjs.com/package/@remix-project/remix-url-resolver)
 [![npm](https://img.shields.io/npm/dw/@remix-project/remix-url-resolver.svg)](https://www.npmjs.com/package/@remix-project/remix-url-resolver)
-[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ethereum/remix-project/tree/master/libs/remix-url-resolver)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ethereum/remix-project/issues)
+[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/remix-project-org/remix-project/tree/master/libs/remix-url-resolver)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
 
 `@remix-project/remix-url-resolver` is a tool to handle import from different sources and resolve the content. It is used in Remix IDE to handle imports from `GitHub`, `Swarm`, `IPFS` and other URLs. 
@@ -81,7 +81,7 @@ urlResolver.resolve(fileName, urlHandler)
 
 Please feel free to open an issue or a pull request. 
 
-In case you want to add some code, do have a look at our contribution guidelines [here](https://github.com/ethereum/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Gitter](https://gitter.im/ethereum/remix) in case of any queries.   
+In case you want to add some code, do have a look at our contribution guidelines [here](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Discord](https://discord.gg/qhpCQGWkmf) in case of any queries.   
 
 ### License
 MIT © 2018-21 Remix Team

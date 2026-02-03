@@ -2,8 +2,8 @@
 [![npm version](https://badge.fury.io/js/%40remix-project%2Fremix-debug.svg)](https://www.npmjs.com/package/@remix-project/remix-debug)
 [![npm](https://img.shields.io/npm/dt/@remix-project/remix-debug.svg?label=Total%20Downloads)](https://www.npmjs.com/package/@remix-project/remix-debug)
 [![npm](https://img.shields.io/npm/dw/@remix-project/remix-debug.svg)](https://www.npmjs.com/package/@remix-project/remix-debug)
-[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ethereum/remix-project/tree/master/libs/remix-debug)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/ethereum/remix-project/issues)
+[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/remix-project-org/remix-project/tree/master/libs/remix-debug)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
 `@remix-project/remix-debug` is a tool to debug Ethereum transactions on different Remix environments (VM, testnet etc.). It works underneath Remix IDE "DEBUGGER" plugin which is used to analyse step-to-step execution of a transaction to debug it.
 
@@ -144,7 +144,7 @@ Some of the class details are as:
 
 Please feel free to open an issue or a pull request. 
 
-In case you want to add some code, do have a look at our contribution guidelines [here](https://github.com/ethereum/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Gitter](https://gitter.im/ethereum/remix) in case of any queries.
+In case you want to add some code, do have a look at our contribution guidelines [here](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Discord](https://discord.gg/qhpCQGWkmf) in case of any queries.
 
 ### License
 MIT © 2018-21 Remix Team
