@@ -103,6 +103,7 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
     return (
       <div className="d-flex flex-column">
         <div className="d-flex align-items-center">
+          <span className="fw-bold me-2">{scope.scopeId}</span>
           <span className={`me-2 ${inRange ? 'text-info' : ''}`}>{title}</span>
           <span className="badge bg-secondary me-2">{kind}</span>
           <span className="badge bg-info me-2">{scope.opcodeInfo?.op}</span>

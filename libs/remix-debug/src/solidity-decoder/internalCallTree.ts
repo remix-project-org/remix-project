@@ -1068,7 +1068,7 @@ async function includeVariableDeclaration (tree: InternalCallTree, step, sourceL
             addReducedTrace(tree, safeStep)
 
             // Bind variable to symbolic stack
-            tree.symbolicStackManager.bindVariable(step, newVar, stack.length) // step + 1 because the symbolic stack represents the state AFTER the opcode execution
+            tree.symbolicStackManager.bindVariable(step + 1, newVar, stack.length) // step + 1 because the symbolic stack represents the state AFTER the opcode execution
           }
         } catch (error) {
           console.log(error)

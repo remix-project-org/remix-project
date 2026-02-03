@@ -134,7 +134,7 @@ export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, de
       registerEvent('newCallTree', (internalCallTree) => {
         // Get nested scopes from the InternalCallTree
         if (internalCallTree && typeof internalCallTree.getScopesAsNestedJSON === 'function') {
-          const nestedScopes = internalCallTree.getScopesAsNestedJSON(true)
+          const nestedScopes = internalCallTree.getScopesAsNestedJSON(false)
           setScopeData(nestedScopes)
         }
       })

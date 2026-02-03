@@ -147,6 +147,9 @@ function handleDup(
 /**
  * Handles SWAP operations (SWAP1-SWAP16)
  * SWAPn swaps the top stack item with the (n+1)th stack item
+ * 
+ * Special handling for variable declarations: when swapping, we need to preserve
+ * the variable binding semantics, not just swap the positions blindly.
  *
  * @param stack - Current symbolic stack
  * @param opcode - SWAP opcode name (e.g., 'SWAP1')
@@ -165,10 +168,78 @@ function handleSwap(
     const top = newStack.length - 1
     const swapIdx = top - swapDepth
 
-    // Swap the two positions
-    const temp = newStack[top]
-    newStack[top] = newStack[swapIdx]
-    newStack[swapIdx] = temp
+    const topSlot = newStack[top]
+    const swapSlot = newStack[swapIdx]
+
+    // Check if either slot is a variable declaration that needs special handling
+    const isVariableDeclarationPattern = 
+      (topSlot.kind === 'variable' || topSlot.kind === 'parameter') ||
+      (swapSlot.kind === 'variable' || swapSlot.kind === 'parameter')
+
+    if (isVariableDeclarationPattern) {
+      // For variable declarations, we need to be more careful about swapping
+      // In the PUSH0, PUSH1, SWAP, POP pattern:
+      // - PUSH0 creates the variable slot reference
+      // - PUSH1 pushes the value
+      // - SWAP1 should logically move the value to where the variable slot is
+      // - POP removes the temporary value position
+      
+      // Instead of blind swapping, preserve the variable declaration in its logical position
+      if (topSlot.kind === 'intermediate' && (swapSlot.kind === 'variable' || swapSlot.kind === 'parameter')) {
+        // Top is a value, swap position is a variable - this is likely the PUSH0, PUSH1, SWAP pattern
+        // The value should be associated with the variable, not just swapped
+        newStack[swapIdx] = {
+          ...swapSlot, // Keep variable metadata
+          // Mark that this variable now has a value associated with it
+          derivedFrom: [top], // The value came from the top of the stack
+          originStep: step,
+          originOp: opcode
+        }
+        
+        // The top position gets a reference to the original variable slot
+        newStack[top] = {
+          kind: 'intermediate',
+          originStep: step,
+          originOp: opcode,
+          referencesVariable: swapSlot.kind === 'variable' || swapSlot.kind === 'parameter' ? {
+            variableId: swapSlot.variableId,
+            variableName: swapSlot.variableName,
+            variableType: swapSlot.variableType,
+            sourceStackIndex: swapIdx
+          } : undefined
+        }
+      } else if ((topSlot.kind === 'variable' || topSlot.kind === 'parameter') && swapSlot.kind === 'intermediate') {
+        // Variable is on top, value is below - reverse case
+        newStack[top] = {
+          ...topSlot, // Keep variable metadata
+          derivedFrom: [swapIdx],
+          originStep: step,
+          originOp: opcode
+        }
+        
+        newStack[swapIdx] = {
+          kind: 'intermediate',
+          originStep: step,
+          originOp: opcode,
+          referencesVariable: {
+            variableId: topSlot.variableId,
+            variableName: topSlot.variableName,
+            variableType: topSlot.variableType,
+            sourceStackIndex: top
+          }
+        }
+      } else {
+        // Both are variables or parameters - simple swap
+        const temp = newStack[top]
+        newStack[top] = newStack[swapIdx]
+        newStack[swapIdx] = temp
+      }
+    } else {
+      // No variables involved - simple swap
+      const temp = newStack[top]
+      newStack[top] = newStack[swapIdx]
+      newStack[swapIdx] = temp
+    }
   } else {
     console.warn(`${opcode} at step ${step} but stack only has ${newStack.length} items`)
   }
@@ -227,6 +298,49 @@ function handleMLoad(
 }
 
 /**
+ * Handles POP operation with special awareness of variable declarations
+ * POP should not remove actual variable declarations, only temporary values
+ *
+ * @param stack - Current symbolic stack
+ * @param step - Current VM trace step
+ * @returns Updated symbolic stack
+ */
+function handlePop(
+  stack: SymbolicStackSlot[],
+  step: number
+): SymbolicStackSlot[] {
+  const newStack = [...stack]
+
+  if (newStack.length > 0) {
+    const topSlot = newStack[newStack.length - 1]
+
+    // Check if we're about to pop a variable declaration
+    if (topSlot.kind === 'variable' || topSlot.kind === 'parameter') {
+      // This should not happen in normal code generation, but if it does,
+      // we should preserve the variable information somehow
+      console.warn(`POP at step ${step} is removing a variable declaration: ${topSlot.variableName}`)
+      
+      // If this is a reference to a variable (created by SWAP), it's safe to remove
+      if (topSlot.referencesVariable && topSlot.originOp?.startsWith('SWAP')) {
+        newStack.pop()
+      } else {
+        // This is an actual variable declaration being removed - very unusual
+        // Remove it but log for debugging
+        console.warn(`Removing actual variable declaration ${topSlot.variableName} at step ${step}`)
+        newStack.pop()
+      }
+    } else {
+      // Normal case - removing intermediate value or reference
+      newStack.pop()
+    }
+  } else {
+    console.warn(`POP at step ${step} but stack is empty`)
+  }
+
+  return newStack
+}
+
+/**
  * Applies generic stack effects for most opcodes
  * Pops the specified number of items and pushes new ones
  *
@@ -245,6 +359,11 @@ function applyStackEffect(
   step: number
 ): SymbolicStackSlot[] {
   const newStack = [...stack]
+
+  // Special handling for POP opcode
+  if (opcode === 'POP' && pops === 1 && pushes === 0) {
+    return handlePop(newStack, step)
+  }
 
   // Collect indices of popped values for derivation tracking
   const poppedIndices: number[] = []
