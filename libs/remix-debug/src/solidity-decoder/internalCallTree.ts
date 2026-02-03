@@ -614,7 +614,7 @@ export class InternalCallTree {
  * @param {Object} [validSourceLocation] - Last valid source location
  * @returns {Promise<Object>} Object with outStep (next step to process) and optional error message
  */
-async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, functionDefinition?, contractObj?, sourceLocation?, validSourceLocation?, parentScopeId?) {
+async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, functionDefinition?, contractObj?, sourceLocation?, validSourceLocation?, parentScopeId?, isConstructor?) {
   let subScope = 1
   const address = tree.traceManager.getCurrentCalledAddressAt(step)
   tree.scopes[scopeId].address = address
@@ -647,7 +647,8 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
    * @param {StepDetail} stepDetail - Current step details with stack info
    * @returns {boolean} True if exiting a constructor scope
    */
-  function isConstructorExit (tree, scopeId, initialEntrystackIndex, stepDetail) {
+  function isConstructorExit (tree, scopeId, initialEntrystackIndex, stepDetail, isConstructor) {
+    if (!isConstructor) return false // we are not in a constructor anyway
     const scope = tree.scopes[scopeId]
     if (scope.firstStep === step) {
       // we are just entering the constructor
@@ -857,7 +858,9 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         addReducedTrace(tree, step)
         // for the ctor we are at the start of its trace, we have to replay this step in order to catch all the locals:
         const nextStep = constructorExecutionStarts ? step : step + 1
+        let isConstructor = false
         if (constructorExecutionStarts) {
+          isConstructor = true
           tree.constructorsStartExecution[tree.pendingConstructorId] = tree.pendingConstructorExecutionAt
           tree.pendingConstructorExecutionAt = -1
           tree.pendingConstructorId = -1
@@ -866,7 +869,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         }
         let externalCallResult
         try {
-          externalCallResult = await buildTree(tree, nextStep, newScopeId, isCreateInstrn, functionDefinition, contractObj, sourceLocation, validSourceLocation, scopeId)
+          externalCallResult = await buildTree(tree, nextStep, newScopeId, isCreateInstrn, functionDefinition, contractObj, sourceLocation, validSourceLocation, scopeId, isConstructor)
         } catch (e) {
           console.error(e)
           return { outStep: step, error: 'InternalCallTree - ' + e.message }
@@ -890,8 +893,8 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         console.error(e)
         return { outStep: step, error: 'InternalCallTree - ' + e.message }
       }
-    } else if (callDepthChange(step, tree.traceManager.trace) || isStopInstruction(stepDetail) || isReturnInstruction(stepDetail) || isJumpOutOfFunction || isRevert || isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail)) {
-      console.log('Exiting scope ', scopeId, 'at step ', step, callDepthChange(step, tree.traceManager.trace), isJumpOutOfFunction, isRevert, isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail))
+    } else if (callDepthChange(step, tree.traceManager.trace) || isStopInstruction(stepDetail) || isReturnInstruction(stepDetail) || isJumpOutOfFunction || isRevert || isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail, isConstructor)) {
+      console.log('Exiting scope ', scopeId, 'at step ', step, callDepthChange(step, tree.traceManager.trace), isJumpOutOfFunction, isRevert, isConstructorExit(tree, scopeId, tree.pendingConstructorEntryStackIndex, stepDetail, isConstructor))
       
       // Count consecutive POP opcodes before getting out of scope
       const popCount = countConsecutivePopOpcodes(tree.traceManager.trace, step)
