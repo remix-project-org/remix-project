@@ -131,7 +131,7 @@ module.exports = {
       .waitForElementVisible('#stepdetail')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"133")]',
+        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"43")]',
       })
       .goToVMTraceStep(261)
       .waitForElementPresent('.highlightLine8')
@@ -167,11 +167,11 @@ module.exports = {
       .waitForElementVisible('*[data-id="slider"]')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"29")]',
+        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"28")]',
       })
       .goToVMTraceStep(5453)
       .waitForElementPresent('*[data-id="treeViewDivtreeViewItemarray"]')
-      .click('*[data-id="treeViewDivtreeViewItemarray"]')
+      .click('*[data-id="treeViewDivIcontreeViewItemarray"]')
       .waitForElementPresent('*[data-id="treeViewDivtreeViewLoadMore"]')
       .waitForElementVisible('*[data-id="solidityLocals"]')
       .waitForElementContainsText('*[data-id="solidityLocals"]', '9: 9 uint256', 60000)

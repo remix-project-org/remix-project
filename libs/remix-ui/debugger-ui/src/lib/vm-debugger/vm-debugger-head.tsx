@@ -35,7 +35,7 @@ export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, de
         const functions = []
 
         for (const func of stack) {
-          const label = (func.functionDefinition.name || func.functionDefinition.kind) + '(' + func.inputs.join(', ') + ')' + ' - ' + func.gasCost + ' gas'
+          const label = (func.functionDefinition?.name || func.functionDefinition?.kind || func.address) + '(' + func.inputs.join(', ') + ')' + ' - ' + func.gasCost + ' gas'
           functions.push({
             label,
             function: func
@@ -125,8 +125,8 @@ export const VmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, de
       })
     registerEvent &&
       registerEvent('solidityLocalsMessage', (message) => {
-        setSolidityLocals(() => {
-          return { calldata: {}, message }
+        setSolidityLocals((state) => {
+          return { calldata: state.calldata, message }
         })
       })
 

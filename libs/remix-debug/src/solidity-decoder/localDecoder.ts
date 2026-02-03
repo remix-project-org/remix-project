@@ -1,6 +1,7 @@
 'use strict'
 
 import type { InternalCallTree } from "./internalCallTree"
+import { nodesAtPosition } from '../source/sourceMappingDecoder'
 
 export async function solidityLocals (vmtraceIndex, internalTreeCall, stack, memory, storageResolver, calldata, currentSourceLocation, cursor) {
   const scope = internalTreeCall.findScope(vmtraceIndex)
@@ -13,17 +14,23 @@ export async function solidityLocals (vmtraceIndex, internalTreeCall, stack, mem
   const locals = {}
   memory = formatMemory(memory)
   let anonymousIncr = 1
-
+  const block = internalTreeCall.locationAndOpcodePerVMTraceIndex[vmtraceIndex].blockDefinition
   const variables = await findVariablesStackPosition(internalTreeCall, vmtraceIndex)
   for (const local in variables) {
     const variable = variables[local]
+    console.log(variable.slot)
     let name = variable.slot.variableName
+    if (block) {
+      if (variable.slot.variableScope !== block.id) continue
+    } else {
+      console.warn('unable to find nodeAtLocation, decoding all the variables')
+    }
     if (name.indexOf('$') !== -1) {
       name = '<' + anonymousIncr + '>'
       anonymousIncr++
     }
     try {
-      locals[name] = await variable.slot.variableType.decodeFromStack(variable.position, stack, memory, storageResolver, calldata, cursor, variable)
+      locals[name] = await variable.slot.variableType.decodeFromStack(variable.position, stack, memory, storageResolver, calldata, cursor, variable.slot.variableType)
     } catch (e) {
       console.log(e)
       locals[name] = { error: '<decoding failed - ' + e.message + '>', type: variable && variable.slot.variableName && variable.slot.variableType.typeName || 'unknown' }

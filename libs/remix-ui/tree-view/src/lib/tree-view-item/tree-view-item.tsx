@@ -21,6 +21,7 @@ export const TreeViewItem = (props: TreeViewItemProps) => {
   }
 
   const handleLabelClick = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent event from bubbling up to parent div
     if (onClick) {
       onClick(e)
     } else if (!controlBehaviour && !onIconClick) {
@@ -45,6 +46,7 @@ export const TreeViewItem = (props: TreeViewItemProps) => {
       >
         {children && showIcon ? (
           <div 
+            data-id={`treeViewDivIcon${id}`}
             className={isExpanded ? `ps-2 ${iconY}` : `ps-2 ${iconX} caret caret_tv`}
             style={{ visibility: children ? 'visible' : 'hidden' }}
             onClick={handleIconClick}

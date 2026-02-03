@@ -473,6 +473,7 @@ export class InternalCallTree {
    * @throws {Error} If gas cost data is not available for the specified file and line
    */
   async getGasCostPerLine(file: number, line: number, scopeId: string) {
+    console.log(this.gasCostPerLine)
     if (this.gasCostPerLine[file] && this.gasCostPerLine[file][scopeId] && this.gasCostPerLine[file][scopeId][line]) {
       return this.gasCostPerLine[file][scopeId][line]
     }
@@ -805,10 +806,13 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     }
     */
     const generatedSources = getGeneratedSources(tree, scopeId, contractObj)
+    const { nodes, blockDefinition } = await resolveNodesAtSourceLocation(tree, sourceLocation, generatedSources, address)
+    tree.locationAndOpcodePerVMTraceIndex[step].blockDefinition = blockDefinition
     functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
     if (functionDefinition && !tree.scopes[scopeId].functionDefinition) {
       tree.scopes[scopeId].functionDefinition = functionDefinition
       tree.scopes[scopeId].lowLevelScope = false
+      await registerFunctionParameters(tree, functionDefinition, step, scopeId, contractObj, validSourceLocation, address)
     }
 
     /*
@@ -929,7 +933,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
       // We check in `includeVariableDeclaration` if there is a new local variable in scope for this specific `step`
       if (tree.includeLocalVariables) {
         try {
-          await includeVariableDeclaration(tree, step, sourceLocation, scopeId, contractObj, generatedSources, address)
+          await includeVariableDeclaration(tree, step, sourceLocation, scopeId, contractObj, generatedSources, address, blockDefinition)
         } catch (e) {
           console.error('includeVariableDeclaration error at step ', step, e)
         }
@@ -999,10 +1003,10 @@ async function registerFunctionParameters (tree, functionDefinition, step, scope
       const outputs = functionDefinition.returnParameters
       // input params
       if (inputs && inputs.parameters) {
-        functionDefinitionAndInputs.inputs = addParams(inputs, tree, scopeId, states, contractObj, sourceLocation, stack.length, inputs.parameters.length, -1)
+        functionDefinitionAndInputs.inputs = addParams(functionDefinition, inputs, tree, scopeId, states, contractObj, sourceLocation, stack.length, inputs.parameters.length, -1)
       }
       // output params
-      if (outputs) addParams(outputs, tree, scopeId, states, contractObj, sourceLocation, stack.length, 0, 1)
+      if (outputs) addParams(functionDefinition, outputs, tree, scopeId, states, contractObj, sourceLocation, stack.length, 0, 1)
     }
   } catch (error) {
     console.log(error)
@@ -1023,7 +1027,7 @@ async function registerFunctionParameters (tree, functionDefinition, step, scope
  * @param {Array} generatedSources - Compiler-generated sources
  * @param {string} address - Contract address
  */
-async function includeVariableDeclaration (tree: InternalCallTree, step, sourceLocation, scopeId, contractObj, generatedSources, address) {
+async function includeVariableDeclaration (tree: InternalCallTree, step, sourceLocation, scopeId, contractObj, generatedSources, address, blockDefinition) {
   if (!contractObj) {
     console.warn('No contract object found while adding variable declarations')
     return
@@ -1063,7 +1067,8 @@ async function includeVariableDeclaration (tree: InternalCallTree, step, sourceL
               sourceLocation: sourceLocation,
               declarationStep: step,
               safeToDecodeAtStep: safeStep,
-              id: variableDeclaration.id
+              id: variableDeclaration.id,
+              scope: blockDefinition.id
             }
             tree.scopes[scopeId].locals[variableDeclaration.name] = newVar
             tree.variables[variableDeclaration.id] = newVar
@@ -1167,6 +1172,7 @@ function extractFunctionDefinitions (ast, astWalker) {
  * Adds function parameters or return parameters to the scope's locals.
  * Maps each parameter to its stack position and type information.
  *
+ * @param {Object} functionDefinition - FunctionDefinition
  * @param {Object} parameterList - Parameter list from function AST node
  * @param {InternalCallTree} tree - The call tree instance
  * @param {string} scopeId - Current scope identifier
@@ -1178,7 +1184,7 @@ function extractFunctionDefinitions (ast, astWalker) {
  * @param {number} dir - Direction to traverse stack (1 for outputs, -1 for inputs)
  * @returns {Array<string>} Array of parameter names added to the scope
  */
-function addParams (parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation, stackLength, stackPosition, dir) {
+function addParams (functionDefinition, parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation, stackLength, stackPosition, dir) {
   if (!contractObj) {
     console.warn('No contract object found while adding params')
     return []
@@ -1201,6 +1207,7 @@ function addParams (parameterList, tree: InternalCallTree, scopeId, states, cont
         isParameter: true,
         declarationStep: undefined, // Parameters are set at function entry
         safeToDecodeAtStep: undefined, // Parameters are immediately available
+        scope: functionDefinition.body.id,
         id: param.id
       }
       tree.scopes[scopeId].locals[attributesName] = newParam
@@ -1210,7 +1217,7 @@ function addParams (parameterList, tree: InternalCallTree, scopeId, states, cont
       // Bind parameter to symbolic stack at function entry step
       const entryStep = tree.functionCallStack[tree.functionCallStack.length - 1]
       if (entryStep !== undefined) {
-        tree.symbolicStackManager.bindVariable(entryStep, newParam, stackIndex)
+        tree.symbolicStackManager.bindVariable(entryStep + 1, newParam, stackIndex)
       }
     }
     stackPosition += dir
@@ -1248,6 +1255,7 @@ function countConsecutivePopOpcodes(trace: StepDetail[], currentStep: number): n
 async function resolveNodesAtSourceLocation (tree, sourceLocation, generatedSources, address) {
   const ast = await tree.solidityProxy.ast(sourceLocation, generatedSources, address)
   let funcDef
+  let blockDef
   if (ast) {
     const nodes = nodesAtPosition(null, sourceLocation.start, { ast })
     
@@ -1255,15 +1263,19 @@ async function resolveNodesAtSourceLocation (tree, sourceLocation, generatedSour
     if (nodes && nodes.length > 0) {
       for (let i = nodes.length - 1; i >= 0; i--) {
         const node = nodes[i]
-        if (node && (node.nodeType === 'FunctionDefinition' || node.nodeType === 'YulFunctionDefinition')) {
+        if (node &&
+            (node.nodeType === 'FunctionDefinition' ||
+            node.nodeType === 'YulFunctionDefinition') ||
+            node.nodeType === 'Block') {
           funcDef = node
-          break
+          blockDef = node
+          if (funcDef && blockDef) break
         }
       }
     }
     
-    return { nodes, functionDefinition: funcDef }
+    return { nodes, functionDefinition: funcDef, blockDefinition: blockDef }
   } else {
-    return { nodes: [], functionDefinition: null}
+    return { nodes: [], functionDefinition: null, blockDefinition: null}
   }
 }

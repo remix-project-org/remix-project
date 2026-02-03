@@ -36,6 +36,9 @@ export type SymbolicStackSlot = {
     variableType?: any
     sourceStackIndex: number
   }
+
+  /** Variable Scope */
+  variableScope?: number
 }
 
 /**
@@ -116,8 +119,11 @@ export class SymbolicStackManager {
         variableName: variable.name,
         variableType: variable.type,
         originStep: variable.declarationStep,
-        isParameter: variable.isParameter || false
+        isParameter: variable.isParameter || false,
+        variableScope: variable.scope
       }
+      stack[stackIndex].variableType.abi = variable.abi
+      stack[stackIndex].variableType.name = variable.name
       // console.log(`Bound variable ${variable.name} at step ${step} to stack index ${stackIndex}`, stack)
     } else {
       // This should not happen if stackIndex is correctly set (> 0)

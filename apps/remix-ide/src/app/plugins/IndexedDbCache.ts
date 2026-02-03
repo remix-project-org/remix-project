@@ -63,7 +63,7 @@ export class IndexedDbCachePlugin extends Plugin {
       request.onupgradeneeded = (event) => {
         console.log('IndexedDB Cache: Upgrading database')
         this.db = (event.target as IDBOpenDBRequest).result
-        
+
         if (!this.db.objectStoreNames.contains(this.storeName)) {
           const store = this.db.createObjectStore(this.storeName, { keyPath: 'key' })
           store.createIndex('namespace', 'namespace', { unique: false })
@@ -103,7 +103,7 @@ export class IndexedDbCachePlugin extends Plugin {
   async set<T>(key: string, data: T, options: CacheOptions = {}): Promise<void> {
     const namespace = options.namespace || 'default'
     const cacheKey = `${namespace}:${key}`
-    
+
     const entry: CacheEntry<T> = {
       key: cacheKey,
       data,
@@ -327,7 +327,7 @@ export class IndexedDbCachePlugin extends Plugin {
       try {
         const store = this.getObjectStore('readonly')
         const request = store.openCursor()
-        
+
         const stats: CacheStats = {
           count: 0,
           totalSize: 0,

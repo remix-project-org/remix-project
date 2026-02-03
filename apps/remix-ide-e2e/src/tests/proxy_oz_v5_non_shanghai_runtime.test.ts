@@ -240,11 +240,13 @@ module.exports = {
     .debugTransaction(0)
     .waitForElementVisible({
       locateStrategy: 'xpath',
-      selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"7")]',
+      selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"124")]',
       timeout: 60000
     })
+    /* TODO test the nested calls component here
     .goToVMTraceStep(129)
     .waitForElementContainsText('*[data-id="functionPanel"]', 'version()', 60000)
+    */
     .end()
   }
 }

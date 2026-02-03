@@ -35,7 +35,7 @@ export class FetchAndCompile extends Plugin {
 
   error (message: string) {
     this.call('terminal', 'log', { type: 'error', value: message })
-  } 
+  }
 
   /**
    * Fetch compilation metadata from source-Verify from a given @arg contractAddress - https://github.com/ethereum/source-verify
@@ -204,11 +204,10 @@ export class FetchAndCompile extends Plugin {
     * it's beeing disabled for the moment.
     */
     if (config && config.settings && config.settings.remappings) {
-      console.log(config.settings.remappings)
       config.settings.remappings = config.settings.remappings.map((remapping) => {
         let [virtual, path] = remapping.split('=')
         if (virtual.includes(':')) {
-          let [scope, path] = virtual.split(':')
+          const [scope, path] = virtual.split(':')
           virtual = `${targetPath}/${scope}:${path}`
         }
         return `${virtual}=${targetPath}/${path}`
@@ -246,7 +245,7 @@ export class FetchAndCompile extends Plugin {
         this.log(`Error: ${compData.data.error.formattedMessage ||compData.data.error.message}`)
       }
       this.log(hasErrored ? `recompilation failed for ${contractAddress}. Continuing without source location debugging` : `recompilation successful for ${contractAddress}`)
-      
+
       await this.call('compilerArtefacts', 'addResolvedContract', contractAddress, compData)
       this.call('indexedDbCache', 'set', contractAddress + '-' + network.id, compData.getBulk())
       return compData
