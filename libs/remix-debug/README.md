@@ -1,4 +1,4 @@
-## Remix Debug`
+## Remix Debug
 [![npm version](https://badge.fury.io/js/%40remix-project%2Fremix-debug.svg)](https://www.npmjs.com/package/@remix-project/remix-debug)
 [![npm](https://img.shields.io/npm/dt/@remix-project/remix-debug.svg?label=Total%20Downloads)](https://www.npmjs.com/package/@remix-project/remix-debug)
 [![npm](https://img.shields.io/npm/dw/@remix-project/remix-debug.svg)](https://www.npmjs.com/package/@remix-project/remix-debug)
