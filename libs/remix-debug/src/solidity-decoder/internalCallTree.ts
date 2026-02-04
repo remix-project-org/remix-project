@@ -53,6 +53,8 @@ export interface LocalVariable {
   abi?: any
   /** Whether this is a function parameter */
   isParameter?: boolean
+  /** Whether this is a return parameter */
+  isReturnParameter?: boolean
 }
 
 export interface NestedScope extends Scope {
@@ -219,6 +221,8 @@ export class InternalCallTree {
   }
   /** Symbolic stack manager for tracking variable bindings and stack state throughout execution */
   symbolicStackManager: SymbolicStackManager
+  /** Debug mode */
+  debug: boolean
   
   /**
     * constructor
@@ -230,6 +234,7 @@ export class InternalCallTree {
     * @param {Object} opts  - { includeLocalVariables, debugWithGeneratedSources }
     */
   constructor (debuggerEvent, traceManager, solidityProxy, codeManager, opts, offsetToLineColumnConverter?) {
+    this.debug = true
     this.includeLocalVariables = opts.includeLocalVariables
     this.debugWithGeneratedSources = opts.debugWithGeneratedSources
     this.event = new EventManager()
@@ -795,19 +800,8 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     
     // check if there is a function at destination
     const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)
-    
-    /*
-    if (isJumdDest) {      
-      if (contractObj) {
-        generatedSources = getGeneratedSources(tree, scopeId, contractObj)
-        functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
-        tree.scopes[scopeId].functionDefinition = functionDefinition
-      }
-    }
-    */
     const generatedSources = getGeneratedSources(tree, scopeId, contractObj)
     const { nodes, blocksDefinition } = await resolveNodesAtSourceLocation(tree, sourceLocation, generatedSources, address)
-    console.log(step, nodes)
     tree.locationAndOpcodePerVMTraceIndex[step].blocksDefinition = blocksDefinition
     functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
     if (functionDefinition && !tree.scopes[scopeId].functionDefinition) {
@@ -816,28 +810,6 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
       await registerFunctionParameters(tree, functionDefinition, step, scopeId, contractObj, validSourceLocation, address)
     }
 
-    /*
-    const { nodes, functionDefinition } = await resolveNodesAtSourceLocation(tree, sourceLocation, generatedSources, address)
-    tree.scopes[scopeId].astNodes = nodes
-    console.log(step, sourceLocation, nodes)
-        
-    // functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
-    let newAstScope = false
-    if (functionDefinition) {
-      if (!tree.scopes[scopeId].functionDefinition) {
-        tree.scopes[scopeId].functionDefinition = functionDefinition
-        tree.scopes[scopeId].lowLevelScope = false
-      } else if (tree.scopes[scopeId].functionDefinition.id !== functionDefinition.id) {
-        newAstScope = true
-      }
-    }
-
-    let astBackToParent = false
-    if (functionDefinition && parentScopeId && tree.scopes[parentScopeId] && tree.scopes[parentScopeId].functionDefinition === functionDefinition.id) {
-      // probably getting back to the parent scope.
-      astBackToParent = true
-    }
-      */
     const isRevert = isRevertInstruction(stepDetail)
     const constructorExecutionStarts = tree.pendingConstructorExecutionAt > -1 && tree.pendingConstructorExecutionAt < validSourceLocation.start
     if (functionDefinition && functionDefinition.kind === 'constructor' && tree.pendingConstructorExecutionAt === -1 && !tree.constructorsStartExecution[functionDefinition.id]) {
@@ -999,18 +971,30 @@ async function registerFunctionParameters (tree, functionDefinition, step, scope
   try {
     const stack = tree.traceManager.getStackAt(step)
     const states = await tree.solidityProxy.extractStatesDefinitions(address)
+    
+    console.log(`[registerFunctionParameters] Function ${functionDefinition.name} at step ${step}, stack length: ${stack.length}`)
+    
+    // Debug function entry
+    if (tree.debug) {
+      debugVariableTracking(tree, step, scopeId, `Function ${functionDefinition.name} entry`)
+    }
+    
     if (functionDefinition.parameters) {
       const inputs = functionDefinition.parameters
       const outputs = functionDefinition.returnParameters
-      // input params
-      if (inputs && inputs.parameters) {
-        functionDefinitionAndInputs.inputs = addParams(functionDefinition, inputs, tree, scopeId, states, contractObj, sourceLocation, stack.length, inputs.parameters.length, -1)
+      
+      // input params - they are at the bottom of the stack at function entry
+      if (inputs && inputs.parameters && inputs.parameters.length > 0) {
+        functionDefinitionAndInputs.inputs = addInputParams(step, functionDefinition, inputs, tree, scopeId, states, contractObj, sourceLocation, stack.length)
       }
-      // output params
-      if (outputs) addParams(functionDefinition, outputs, tree, scopeId, states, contractObj, sourceLocation, stack.length, 0, 1)
+      
+      // return params - register them but they're not yet on the stack
+      if (outputs && outputs.parameters && outputs.parameters.length > 0) {
+        addReturnParams(step, functionDefinition, outputs, tree, scopeId, states, contractObj, sourceLocation)
+      }
     }
   } catch (error) {
-    console.log(error)
+    console.error('Error in registerFunctionParameters:', error)
   }
 
   tree.functionDefinitionsByScope[scopeId] = functionDefinitionAndInputs
@@ -1034,18 +1018,28 @@ async function includeVariableDeclaration (tree: InternalCallTree, step, sourceL
     return
   }
   let states = null
-  const variableDeclarations = await resolveVariableDeclaration(tree, sourceLocation, generatedSources, address)
+  // Use enhanced variable discovery with scope filtering
+  const variableDeclarations = await resolveVariableDeclarationEnhanced(tree, sourceLocation, generatedSources, address, scopeId)
+  
+  if (variableDeclarations && variableDeclarations.length > 0) {
+    console.log(`[includeVariableDeclaration] Found ${variableDeclarations.length} variable declarations at step ${step}`)
+    debugVariableTracking(tree, step, scopeId, 'Before variable declaration')
+  }
   // using the vm trace step, the current source location and the ast,
   // we check if the current vm trace step target a new ast node of type VariableDeclaration
   // that way we know that there is a new local variable from here.
   if (variableDeclarations && variableDeclarations.length) {
     for (const variableDeclaration of variableDeclarations) {
-      if (variableDeclaration && !tree.scopes[scopeId].locals[variableDeclaration.name]) {
+      if (variableDeclaration) {
         try {
           const stack = tree.traceManager.getStackAt(step)
           // the stack length at this point is where the value of the new local variable will be stored.
           // so, either this is the direct value, or the offset in memory. That depends on the type.
           if (variableDeclaration.name !== '') {
+            // Check if this is actually a return parameter being declared
+            const existingReturnParam = tree.variables[variableDeclaration.id]
+            const isReturnParamDeclaration = existingReturnParam && existingReturnParam.isReturnParameter
+            
             states = await tree.solidityProxy.extractStatesDefinitions(address)
             let location = extractLocationFromAstVariable(variableDeclaration)
             location = location === 'default' ? 'storage' : location
@@ -1069,18 +1063,44 @@ async function includeVariableDeclaration (tree: InternalCallTree, step, sourceL
               declarationStep: step,
               safeToDecodeAtStep: safeStep,
               id: variableDeclaration.id,
-              scope: blocksDefinition && blocksDefinition.length > 0 && blocksDefinition[blocksDefinition.length - 1].id
+              isParameter: false,
+              isReturnParameter: isReturnParamDeclaration,
+              scope: getCurrentScopeId(blocksDefinition)
             }
-            tree.scopes[scopeId].locals[variableDeclaration.name] = newVar
-            tree.variables[variableDeclaration.id] = newVar
+            
+            // Update existing return parameter with stack information
+            if (isReturnParamDeclaration) {
+              existingReturnParam.stackIndex = stack.length
+              existingReturnParam.safeToDecodeAtStep = safeStep
+              existingReturnParam.declarationStep = step
+              tree.scopes[scopeId].locals[variableDeclaration.name] = existingReturnParam
+              console.log(`[includeVariableDeclaration] Return parameter ${variableDeclaration.name} now on stack at index ${stack.length}`)
+            } else {
+              tree.scopes[scopeId].locals[variableDeclaration.name] = newVar
+              tree.variables[variableDeclaration.id] = newVar
+              console.log(`[includeVariableDeclaration] Local variable ${variableDeclaration.name} declared at stack index ${stack.length}`)
+            }
 
             addReducedTrace(tree, safeStep)
 
-            // Bind variable to symbolic stack
-            tree.symbolicStackManager.bindVariable(step + 1, newVar, stack.length) // step + 1 because the symbolic stack represents the state AFTER the opcode execution
+            // Bind variable to symbolic stack with appropriate lifecycle
+            const variable = isReturnParamDeclaration ? existingReturnParam : newVar
+            tree.symbolicStackManager.bindVariableWithLifecycle(
+              step + 1, 
+              variable, 
+              stack.length, 
+              isReturnParamDeclaration ? 'assigned' : 'declared',
+              scopeId
+            )
+            
+            // Debug the variable tracking after binding
+            if (tree.debug) {
+              debugVariableTracking(tree, step + 1, scopeId, `After binding ${variable.name}`)
+              validateStackConsistency(tree, step + 1, scopeId)
+            }
           }
         } catch (error) {
-          console.log(error)
+          console.error('Error in includeVariableDeclaration:', error)
         }
       }
     }
@@ -1088,14 +1108,43 @@ async function includeVariableDeclaration (tree: InternalCallTree, step, sourceL
 }
 
 /**
- * Extracts all variable declarations for a given AST and file, caching the results.
- * Returns the variable declaration(s) matching the given source location.
+ * Enhanced variable declaration resolution with better AST analysis and scope filtering.
+ * Returns the variable declaration(s) matching the given source location and current scope.
  *
  * @param {InternalCallTree} tree - The call tree instance
  * @param {Object} sourceLocation - Source location to resolve
  * @param {Array} generatedSources - Compiler-generated sources
  * @param {string} address - Contract address
+ * @param {string} scopeId - Current scope identifier
  * @returns {Promise<Array|null>} Array of variable declaration nodes, or null if AST is unavailable
+ */
+async function resolveVariableDeclarationEnhanced (tree, sourceLocation, generatedSources, address, scopeId) {
+  if (!tree.variableDeclarationByFile[sourceLocation.file]) {
+    const ast = await tree.solidityProxy.ast(sourceLocation, generatedSources, address)
+    if (ast) {
+      tree.variableDeclarationByFile[sourceLocation.file] = extractVariableDeclarations(ast, tree.astWalker)
+    } else {
+      return null
+    }
+  }
+  
+  const declarations = tree.variableDeclarationByFile[sourceLocation.file][sourceLocation.start + ':' + sourceLocation.length + ':' + sourceLocation.file]
+  
+  if (!declarations) {
+    return null
+  }
+  
+  // Filter declarations that are actually in the current scope
+  const currentScope = tree.scopes[scopeId]
+  if (currentScope && currentScope.functionDefinition) {
+    return declarations.filter(decl => isWithinScope(decl, currentScope.functionDefinition))
+  }
+  
+  return declarations
+}
+
+/**
+ * Legacy function for backward compatibility
  */
 async function resolveVariableDeclaration (tree, sourceLocation, generatedSources, address) {
   if (!tree.variableDeclarationByFile[sourceLocation.file]) {
@@ -1170,60 +1219,118 @@ function extractFunctionDefinitions (ast, astWalker) {
 }
 
 /**
- * Adds function parameters or return parameters to the scope's locals.
- * Maps each parameter to its stack position and type information.
+ * Adds function input parameters to the scope's locals.
+ * Input parameters are at the bottom of the stack when entering a function.
  *
+ * @param {number} step - current step
  * @param {Object} functionDefinition - FunctionDefinition
- * @param {Object} parameterList - Parameter list from function AST node
+ * @param {Object} parameterList - Input parameter list from function AST node
  * @param {InternalCallTree} tree - The call tree instance
  * @param {string} scopeId - Current scope identifier
  * @param {Object} states - State variable definitions
  * @param {Object} contractObj - Contract object with name and ABI
  * @param {Object} sourceLocation - Source location of the parameter
- * @param {number} stackLength - Current stack depth
- * @param {number} stackPosition - Starting stack position for parameters
- * @param {number} dir - Direction to traverse stack (1 for outputs, -1 for inputs)
+ * @param {number} stackLength - Current stack depth at function entry
  * @returns {Array<string>} Array of parameter names added to the scope
  */
-function addParams (functionDefinition, parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation, stackLength, stackPosition, dir) {
+function addInputParams (step, functionDefinition, parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation, stackLength) {
   if (!contractObj) {
-    console.warn('No contract object found while adding params')
+    console.warn('No contract object found while adding input params')
     return []
   }
+  
   const contractName = contractObj.name
   const params = []
-  for (const inputParam in parameterList.parameters) {
-    const param = parameterList.parameters[inputParam]
-    const stackIndex = stackLength + (dir * stackPosition)
-    if (stackIndex >= 0) {
-      let location = extractLocationFromAstVariable(param)
-      location = location === 'default' ? 'memory' : location
-      const attributesName = param.name === '' ? `$${inputParam}` : param.name
-      const newParam = {
-        name: attributesName,
-        type: parseType(param.typeDescriptions.typeString, states, contractName, location),
-        stackIndex: stackIndex,
-        sourceLocation: sourceLocation,
-        abi: contractObj.contract.abi,
-        isParameter: true,
-        declarationStep: undefined, // Parameters are set at function entry
-        safeToDecodeAtStep: undefined, // Parameters are immediately available
-        scope: functionDefinition.body.id,
-        id: param.id
-      }
-      tree.scopes[scopeId].locals[attributesName] = newParam
-      params.push(attributesName)
-      if (!tree.variables[param.id]) tree.variables[param.id] = newParam
-
-      // Bind parameter to symbolic stack at function entry step
-      const entryStep = tree.functionCallStack[tree.functionCallStack.length - 1]
-      if (entryStep !== undefined) {
-        tree.symbolicStackManager.bindVariable(entryStep + 1, newParam, stackIndex)
-      }
+  const paramCount = parameterList.parameters.length
+  
+  console.log(`[addInputParams] Adding ${paramCount} input parameters for function ${functionDefinition.name}`)
+  
+  for (let i = 0; i < paramCount; i++) {
+    const param = parameterList.parameters[i]
+    // Input parameters are at the bottom of the stack: stackLength - paramCount + i
+    const stackIndex = stackLength - paramCount + i
+    
+    let location = extractLocationFromAstVariable(param)
+    location = location === 'default' ? 'memory' : location
+    const attributesName = param.name === '' ? `$input_${i}` : param.name
+    
+    const newParam = {
+      name: attributesName,
+      type: parseType(param.typeDescriptions.typeString, states, contractName, location),
+      stackIndex: stackIndex,
+      sourceLocation: sourceLocation,
+      abi: contractObj.contract.abi,
+      isParameter: true,
+      isReturnParameter: false,
+      declarationStep: step,
+      safeToDecodeAtStep: step,
+      scope: functionDefinition.body?.id,
+      id: param.id
     }
-    stackPosition += dir
+    
+    tree.scopes[scopeId].locals[attributesName] = newParam
+    params.push(attributesName)
+    if (!tree.variables[param.id]) tree.variables[param.id] = newParam
+
+    // Bind parameter to symbolic stack with lifecycle tracking
+    tree.symbolicStackManager.bindVariableWithLifecycle(step, newParam, stackIndex, 'assigned', scopeId)
+    
+    console.log(`[addInputParams] Added input parameter: ${attributesName} at stack index ${stackIndex}`)
   }
+  
   return params
+}
+
+/**
+ * Adds function return parameters to the scope's locals.
+ * Return parameters are declared but not initially on the stack.
+ *
+ * @param {number} step - current step
+ * @param {Object} functionDefinition - FunctionDefinition
+ * @param {Object} parameterList - Return parameter list from function AST node
+ * @param {InternalCallTree} tree - The call tree instance
+ * @param {string} scopeId - Current scope identifier
+ * @param {Object} states - State variable definitions
+ * @param {Object} contractObj - Contract object with name and ABI
+ * @param {Object} sourceLocation - Source location of the parameter
+ */
+function addReturnParams (step, functionDefinition, parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation) {
+  if (!contractObj) {
+    console.warn('No contract object found while adding return params')
+    return
+  }
+  
+  const contractName = contractObj.name
+  const paramCount = parameterList.parameters.length
+  
+  console.log(`[addReturnParams] Adding ${paramCount} return parameters for function ${functionDefinition.name}`)
+  
+  for (let i = 0; i < paramCount; i++) {
+    const param = parameterList.parameters[i]
+    
+    let location = extractLocationFromAstVariable(param)
+    location = location === 'default' ? 'memory' : location
+    const attributesName = param.name === '' ? `$return_${i}` : param.name
+    
+    const newReturnParam = {
+      name: attributesName,
+      type: parseType(param.typeDescriptions.typeString, states, contractName, location),
+      stackIndex: -1, // Not yet on stack
+      sourceLocation: sourceLocation,
+      abi: contractObj.contract.abi,
+      isParameter: false,
+      isReturnParameter: true,
+      declarationStep: step,
+      safeToDecodeAtStep: -1, // Will be set when actually assigned
+      scope: functionDefinition.body?.id,
+      id: param.id
+    }
+    
+    // Don't add to locals yet - will be added when actually declared in the function body
+    if (!tree.variables[param.id]) tree.variables[param.id] = newReturnParam
+    
+    console.log(`[addReturnParams] Registered return parameter: ${attributesName} (not yet on stack)`)
+  }
 }
 
 /**
@@ -1251,6 +1358,140 @@ function countConsecutivePopOpcodes(trace: StepDetail[], currentStep: number): n
   }
   
   return popCount
+}
+
+/**
+ * Gets the current scope ID from blocks definition hierarchy.
+ * Finds the innermost scope that can contain variables.
+ *
+ * @param {Array} blocksDefinition - Array of block/function definition nodes
+ * @returns {number|undefined} Scope ID of the innermost block or function
+ */
+function getCurrentScopeId(blocksDefinition) {
+  if (!blocksDefinition || blocksDefinition.length === 0) {
+    return undefined
+  }
+  
+  // Find the innermost scope that can contain variables
+  // Prefer Block nodes over FunctionDefinition nodes for local scope
+  const blockNode = blocksDefinition.find(block => 
+    block.nodeType === 'Block'
+  )
+  
+  if (blockNode) {
+    return blockNode.id
+  }
+  
+  // Fallback to function definition
+  const functionNode = blocksDefinition.find(block => 
+    block.nodeType === 'FunctionDefinition' || 
+    block.nodeType === 'YulFunctionDefinition'
+  )
+  
+  return functionNode ? functionNode.id : blocksDefinition[blocksDefinition.length - 1].id
+}
+
+/**
+ * Checks if a variable declaration is within the current function/block scope.
+ *
+ * @param {Object} declaration - Variable declaration AST node
+ * @param {Object} functionDefinition - Current function definition
+ * @returns {boolean} True if declaration is within the scope
+ */
+function isWithinScope(declaration, functionDefinition) {
+  if (!declaration || !functionDefinition) {
+    return true // Default to including if we can't determine scope
+  }
+  
+  // Simple check: if the declaration's source location is within the function's source location
+  const declStart = parseInt(declaration.src.split(':')[0])
+  const declLength = parseInt(declaration.src.split(':')[1])
+  const funcStart = parseInt(functionDefinition.src.split(':')[0])
+  const funcLength = parseInt(functionDefinition.src.split(':')[1])
+  
+  return declStart >= funcStart && (declStart + declLength) <= (funcStart + funcLength)
+}
+
+/**
+ * Validates stack consistency for debugging purposes.
+ * Checks if the symbolic stack matches the actual EVM stack.
+ *
+ * @param {InternalCallTree} tree - The call tree instance
+ * @param {number} step - Current VM trace step
+ * @param {string} scopeId - Current scope identifier
+ */
+function validateStackConsistency(tree: InternalCallTree, step: number, scopeId: string) {
+  try {
+    const actualStack = tree.traceManager.getStackAt(step)
+    const symbolicStack = tree.symbolicStackManager.getStackAtStep(step)
+    
+    if (actualStack.length !== symbolicStack.length) {
+      console.warn(`[validateStackConsistency] Stack size mismatch at step ${step}: actual=${actualStack.length}, symbolic=${symbolicStack.length}`)
+    }
+    
+    const variables = tree.symbolicStackManager.getAllVariablesAtStep(step)
+    console.log(`[validateStackConsistency] Step ${step}, Scope ${scopeId}: Stack size ${actualStack.length}, Variables on stack: ${variables.length}`)
+    
+    variables.forEach(({ slot, position }) => {
+      if (position >= actualStack.length) {
+        console.error(`[validateStackConsistency] Variable ${slot.variableName} at position ${position} exceeds actual stack size ${actualStack.length}`)
+      }
+    })
+  } catch (error) {
+    console.error(`[validateStackConsistency] Error at step ${step}:`, error)
+  }
+}
+
+/**
+ * Comprehensive debugging function for variable and parameter tracking.
+ *
+ * @param {InternalCallTree} tree - The call tree instance
+ * @param {number} step - Current VM trace step
+ * @param {string} scopeId - Current scope identifier
+ * @param {string} context - Context description for logging
+ */
+function debugVariableTracking(tree: InternalCallTree, step: number, scopeId: string, context: string = '') {
+  try {
+    const scope = tree.scopes[scopeId]
+    const actualStack = tree.traceManager.getStackAt(step)
+    const symbolicStack = tree.symbolicStackManager.getStackAtStep(step)
+    const stepDetail = tree.traceManager.trace[step]
+    
+    console.log(`\n=== DEBUG VARIABLE TRACKING [${context}] ===`)
+    console.log(`Step: ${step}, Opcode: ${stepDetail?.op}, ScopeId: ${scopeId}`)
+    console.log(`Actual stack size: ${actualStack.length}`)
+    console.log(`Symbolic stack size: ${symbolicStack.length}`)
+    
+    if (scope) {
+      const localVarNames = Object.keys(scope.locals)
+      console.log(`Local variables in scope: [${localVarNames.join(', ')}]`)
+      
+      localVarNames.forEach(varName => {
+        const variable = scope.locals[varName]
+        console.log(`  - ${varName}: stackIndex=${variable.stackIndex}, isParam=${variable.isParameter}, isReturn=${variable.isReturnParameter}`)
+      })
+      
+      if (scope.functionDefinition) {
+        console.log(`Function: ${scope.functionDefinition.name}`)
+        if (scope.functionDefinition.parameters?.parameters) {
+          console.log(`  Input params: ${scope.functionDefinition.parameters.parameters.length}`)
+        }
+        if (scope.functionDefinition.returnParameters?.parameters) {
+          console.log(`  Return params: ${scope.functionDefinition.returnParameters.parameters.length}`)
+        }
+      }
+    }
+    
+    const variables = tree.symbolicStackManager.getAllVariablesAtStep(step)
+    console.log(`Variables on symbolic stack: ${variables.length}`)
+    variables.forEach(({ slot, position }) => {
+      console.log(`  [${position}] ${slot.variableName} (${slot.kind}, lifecycle: ${slot.lifecycle})`)
+    })
+    
+    console.log('=== END DEBUG ===\n')
+  } catch (error) {
+    console.error(`[debugVariableTracking] Error at step ${step}:`, error)
+  }
 }
 
 async function resolveNodesAtSourceLocation (tree, sourceLocation, generatedSources, address) {

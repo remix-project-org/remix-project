@@ -29,6 +29,12 @@ export type SymbolicStackSlot = {
   /** Whether this is a function parameter */
   isParameter?: boolean
 
+  /** Whether this is a return parameter */
+  isReturnParameter?: boolean
+
+  /** Variable lifecycle state */
+  lifecycle?: 'declared' | 'assigned' | 'destroyed'
+
   /** If this slot is a reference/copy of a variable (from DUP), contains original variable info */
   referencesVariable?: {
     variableId?: number
@@ -39,6 +45,9 @@ export type SymbolicStackSlot = {
 
   /** Variable Scope */
   variableScope?: number
+
+  /** Function scope ID where this variable belongs */
+  functionScopeId?: string
 }
 
 /**
@@ -48,6 +57,8 @@ export type SymbolicStackSlot = {
 export class SymbolicStackManager {
   /** Map of VM trace step to symbolic stack state at that step */
   private stackPerStep: { [step: number]: SymbolicStackSlot[] } = {}
+  /** Map of variable ID to its current stack position and lifecycle */
+  private variableLifecycle: { [variableId: number]: { step: number, stackIndex: number, lifecycle: string } } = {}
 
   /**
    * Initializes the symbolic stack manager
@@ -61,6 +72,7 @@ export class SymbolicStackManager {
    */
   reset() {
     this.stackPerStep = {}
+    this.variableLifecycle = {}
   }
 
   /**
@@ -103,36 +115,60 @@ export class SymbolicStackManager {
   }
 
   /**
-   * Binds a variable to a specific position in the symbolic stack
+   * Binds a variable to a specific position in the symbolic stack with lifecycle tracking
    *
    * @param step - VM trace step where variable is declared/assigned
    * @param variable - Variable metadata (name, type, stackIndex, etc.)
    * @param stackIndex - Index in the symbolic stack where the variable should be bound
+   * @param lifecycle - Variable lifecycle state
+   * @param functionScopeId - Function scope ID where this variable belongs
    */
-  bindVariable(step: number, variable: any, stackIndex: number) {
+  bindVariableWithLifecycle(step: number, variable: any, stackIndex: number, lifecycle: 'declared' | 'assigned' | 'destroyed' = 'declared', functionScopeId?: string) {
     const stack = this.getStackAtStep(step)
 
-    if (stackIndex >= 0 && stackIndex < stack.length) {
-      stack[stackIndex] = {
-        kind: variable.isParameter ? 'parameter' : 'variable',
+    const newVar: SymbolicStackSlot = {
+        kind: variable.isReturnParameter ? 'return_value' : (variable.isParameter ? 'parameter' : 'variable'),
         variableId: variable.id,
         variableName: variable.name,
         variableType: variable.type,
-        originStep: variable.declarationStep,
+        originStep: variable.declarationStep || step,
         isParameter: variable.isParameter || false,
-        variableScope: variable.scope
+        isReturnParameter: variable.isReturnParameter || false,
+        lifecycle: lifecycle,
+        variableScope: variable.scope,
+        functionScopeId: functionScopeId
       }
-      stack[stackIndex].variableType.abi = variable.abi
-      stack[stackIndex].variableType.name = variable.name
-      // console.log(`Bound variable ${variable.name} at step ${step} to stack index ${stackIndex}`, stack)
+      if (newVar.variableType) {
+        newVar.variableType.abi = variable.abi
+        newVar.variableType.name = variable.name
+      }
+
+    // Track variable lifecycle
+    this.variableLifecycle[variable.id] = {
+      step: step,
+      stackIndex: stackIndex,
+      lifecycle: lifecycle
+    }
+
+    if (stackIndex >= 0 && stackIndex < stack.length) {
+      stack[stackIndex] = newVar
+      
+      console.log(`[${lifecycle}] Bound variable ${variable.name} at step ${step} to stack index ${stackIndex} in scope ${functionScopeId || 'unknown'}`)
     } else {
-      // This should not happen if stackIndex is correctly set (> 0)
-      if (variable.stackIndex <= 0) {
-        console.error(`Invalid stackIndex for variable ${variable.name} at step ${step}: stackIndex=${variable.stackIndex} (must be > 0)`)
+      // Handle out of bounds - this can happen with return parameters
+      if (variable.isReturnParameter || stackIndex < 0) {
+        console.log(`Return parameter or negative stack index for ${variable.name}: stackIndex=${stackIndex}`)
       } else {
-        console.warn(`Cannot bind variable ${variable.name} at step ${step}: stackIndex ${stackIndex} out of bounds (stack length: ${stack.length}, stackIndex: ${variable.stackIndex})`)
+        console.warn(`Cannot bind variable ${variable.name} at step ${step}: stackIndex ${stackIndex} out of bounds (stack length: ${stack.length})`)
       }
     }
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   */
+  bindVariable(step: number, variable: any, stackIndex: number) {
+    this.bindVariableWithLifecycle(step, variable, stackIndex, 'declared')
   }
 
   /**
@@ -166,12 +202,55 @@ export class SymbolicStackManager {
     const variables: Array<{ slot: SymbolicStackSlot, position: number }> = []
 
     stack.forEach((slot, position) => {
-      if (slot.kind === 'variable' || slot.kind === 'parameter') {
+      if (slot.kind === 'variable' || slot.kind === 'parameter' || slot.kind === 'return_value') {
         variables.push({ slot, position })
       }
     })
 
     return variables
+  }
+
+  /**
+   * Gets all variables in a specific function scope
+   *
+   * @param step - VM trace step index
+   * @param functionScopeId - Function scope ID
+   * @returns Array of variables in the specified function scope
+   */
+  getVariablesInFunctionScope(step: number, functionScopeId: string): Array<{ slot: SymbolicStackSlot, position: number }> {
+    const allVariables = this.getAllVariablesAtStep(step)
+    return allVariables.filter(({ slot }) => slot.functionScopeId === functionScopeId)
+  }
+
+  /**
+   * Gets variable lifecycle information
+   *
+   * @param variableId - Variable AST node ID
+   * @returns Lifecycle information or null if not found
+   */
+  getVariableLifecycle(variableId: number) {
+    return this.variableLifecycle[variableId] || null
+  }
+
+  /**
+   * Updates variable lifecycle state
+   *
+   * @param step - Current VM trace step
+   * @param variableId - Variable AST node ID
+   * @param newLifecycle - New lifecycle state
+   */
+  updateVariableLifecycle(step: number, variableId: number, newLifecycle: 'declared' | 'assigned' | 'destroyed') {
+    if (this.variableLifecycle[variableId]) {
+      this.variableLifecycle[variableId].lifecycle = newLifecycle
+      this.variableLifecycle[variableId].step = step
+      
+      // Update the slot in the symbolic stack
+      const stackIndex = this.variableLifecycle[variableId].stackIndex
+      const stack = this.getStackAtStep(step)
+      if (stack[stackIndex] && stack[stackIndex].variableId === variableId) {
+        stack[stackIndex].lifecycle = newLifecycle
+      }
+    }
   }
 
   /**
