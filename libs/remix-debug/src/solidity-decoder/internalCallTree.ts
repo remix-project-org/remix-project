@@ -806,8 +806,9 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     }
     */
     const generatedSources = getGeneratedSources(tree, scopeId, contractObj)
-    const { nodes, blockDefinition } = await resolveNodesAtSourceLocation(tree, sourceLocation, generatedSources, address)
-    tree.locationAndOpcodePerVMTraceIndex[step].blockDefinition = blockDefinition
+    const { nodes, blocksDefinition } = await resolveNodesAtSourceLocation(tree, sourceLocation, generatedSources, address)
+    console.log(step, nodes)
+    tree.locationAndOpcodePerVMTraceIndex[step].blocksDefinition = blocksDefinition
     functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
     if (functionDefinition && !tree.scopes[scopeId].functionDefinition) {
       tree.scopes[scopeId].functionDefinition = functionDefinition
@@ -933,7 +934,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
       // We check in `includeVariableDeclaration` if there is a new local variable in scope for this specific `step`
       if (tree.includeLocalVariables) {
         try {
-          await includeVariableDeclaration(tree, step, sourceLocation, scopeId, contractObj, generatedSources, address, blockDefinition)
+          await includeVariableDeclaration(tree, step, sourceLocation, scopeId, contractObj, generatedSources, address, blocksDefinition)
         } catch (e) {
           console.error('includeVariableDeclaration error at step ', step, e)
         }
@@ -1027,7 +1028,7 @@ async function registerFunctionParameters (tree, functionDefinition, step, scope
  * @param {Array} generatedSources - Compiler-generated sources
  * @param {string} address - Contract address
  */
-async function includeVariableDeclaration (tree: InternalCallTree, step, sourceLocation, scopeId, contractObj, generatedSources, address, blockDefinition) {
+async function includeVariableDeclaration (tree: InternalCallTree, step, sourceLocation, scopeId, contractObj, generatedSources, address, blocksDefinition) {
   if (!contractObj) {
     console.warn('No contract object found while adding variable declarations')
     return
@@ -1068,7 +1069,7 @@ async function includeVariableDeclaration (tree: InternalCallTree, step, sourceL
               declarationStep: step,
               safeToDecodeAtStep: safeStep,
               id: variableDeclaration.id,
-              scope: blockDefinition.id
+              scope: blocksDefinition && blocksDefinition.length > 0 && blocksDefinition[blocksDefinition.length - 1].id
             }
             tree.scopes[scopeId].locals[variableDeclaration.name] = newVar
             tree.variables[variableDeclaration.id] = newVar
@@ -1255,7 +1256,7 @@ function countConsecutivePopOpcodes(trace: StepDetail[], currentStep: number): n
 async function resolveNodesAtSourceLocation (tree, sourceLocation, generatedSources, address) {
   const ast = await tree.solidityProxy.ast(sourceLocation, generatedSources, address)
   let funcDef
-  let blockDef
+  let blocksDef = []
   if (ast) {
     const nodes = nodesAtPosition(null, sourceLocation.start, { ast })
     
@@ -1268,14 +1269,13 @@ async function resolveNodesAtSourceLocation (tree, sourceLocation, generatedSour
             node.nodeType === 'YulFunctionDefinition') ||
             node.nodeType === 'Block') {
           funcDef = node
-          blockDef = node
-          if (funcDef && blockDef) break
+          blocksDef.push(node)
         }
       }
     }
     
-    return { nodes, functionDefinition: funcDef, blockDefinition: blockDef }
+    return { nodes, functionDefinition: funcDef, blocksDefinition: blocksDef }
   } else {
-    return { nodes: [], functionDefinition: null, blockDefinition: null}
+    return { nodes: [], functionDefinition: null, blocksDefinition: []}
   }
 }

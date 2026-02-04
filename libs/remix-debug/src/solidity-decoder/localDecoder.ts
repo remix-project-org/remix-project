@@ -4,24 +4,16 @@ import type { InternalCallTree } from "./internalCallTree"
 import { nodesAtPosition } from '../source/sourceMappingDecoder'
 
 export async function solidityLocals (vmtraceIndex, internalTreeCall, stack, memory, storageResolver, calldata, currentSourceLocation, cursor) {
-  const scope = internalTreeCall.findScope(vmtraceIndex)
-  if (!scope) {
-    const error = { message: 'Can\'t display locals. reason: compilation result might not have been provided' }
-    throw error
-  }
-  if (scope.firstStep === vmtraceIndex) return {}
-  if (scope.lastSafeStep < vmtraceIndex) return {}
   const locals = {}
   memory = formatMemory(memory)
   let anonymousIncr = 1
-  const block = internalTreeCall.locationAndOpcodePerVMTraceIndex[vmtraceIndex].blockDefinition
+  const blocks = internalTreeCall.locationAndOpcodePerVMTraceIndex[vmtraceIndex].blocksDefinition
   const variables = await findVariablesStackPosition(internalTreeCall, vmtraceIndex)
   for (const local in variables) {
     const variable = variables[local]
-    console.log(variable.slot)
     let name = variable.slot.variableName
-    if (block) {
-      if (variable.slot.variableScope !== block.id) continue
+    if (blocks && blocks.length > 0) {
+      if (!blocks.map(b => b.id).includes(variable.slot.variableScope)) continue
     } else {
       console.warn('unable to find nodeAtLocation, decoding all the variables')
     }

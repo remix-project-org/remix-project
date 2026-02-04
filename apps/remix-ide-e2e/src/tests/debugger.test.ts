@@ -167,7 +167,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="slider"]')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"28")]',
+        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"24")]',
       })
       .goToVMTraceStep(5453)
       .waitForElementPresent('*[data-id="treeViewDivtreeViewItemarray"]')
