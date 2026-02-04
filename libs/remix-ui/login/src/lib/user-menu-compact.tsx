@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { AuthUser, AuthProvider, LinkedAccount, AccountsResponse } from '@remix-api'
+import { AuthUser, AuthProvider, LinkedAccount, AccountsResponse, ProfileUsername } from '@remix-api'
 import type { Credits } from '../../../app/src/lib/remix-app/context/auth-context'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import './user-menu-compact.css'
@@ -20,6 +20,7 @@ interface UserMenuCompactProps {
   getProviderDisplayName: (provider: string) => string
   getUserDisplayName: () => string
   getLinkedAccounts?: () => Promise<AccountsResponse | null>
+  getUsername?: () => Promise<ProfileUsername | null>
   themes?: Theme[]
   currentTheme?: string
   onThemeChange?: (themeName: string) => void
@@ -47,11 +48,33 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
   getProviderDisplayName,
   getUserDisplayName,
   getLinkedAccounts,
+  getUsername,
   themes,
   currentTheme,
   onThemeChange
 }) => {
   const [showDropdown, setShowDropdown] = useState(false)
+  const [profileUsername, setProfileUsername] = useState<ProfileUsername | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  // Load username when dropdown opens
+  useEffect(() => {
+    if (showDropdown && getUsername && !profileUsername) {
+      getUsername().then(setProfileUsername).catch(() => {})
+    }
+  }, [showDropdown, getUsername, profileUsername])
+
+  const copyProfileUrl = async () => {
+    if (!profileUsername?.username) return
+    const url = `remix.ethereum.org/${profileUsername.username}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
 
   return (
     <div className={`position-relative ${className}`}>
@@ -93,6 +116,23 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
               <div className="dropdown-item-text small text-muted user-menu-provider">
                 <i className={`${getProviderIcon(user.provider)} me-2`}></i>
                 {getProviderDisplayName(user.provider)}
+              </div>
+            )}
+
+            {/* Username with copy */}
+            {profileUsername?.username && (
+              <div className="dropdown-item-text small user-menu-username d-flex align-items-center justify-content-between">
+                <span className="text-muted">
+                  <i className="fas fa-at me-1"></i>
+                  {profileUsername.username}
+                </span>
+                <button
+                  className="btn btn-sm btn-link p-0 ms-2"
+                  onClick={copyProfileUrl}
+                  title={copied ? 'Copied!' : 'Copy profile URL'}
+                >
+                  <i className={`fas ${copied ? 'fa-check text-success' : 'fa-copy'}`}></i>
+                </button>
               </div>
             )}
 

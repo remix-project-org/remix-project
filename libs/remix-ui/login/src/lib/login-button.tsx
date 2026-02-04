@@ -146,6 +146,17 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
         onManageAccounts={handleManageAccounts}
         getProviderDisplayName={getProviderDisplayName}
         getUserDisplayName={getUserDisplayName}
+        getUsername={async () => {
+          if (!plugin || typeof plugin.call !== 'function') return null
+          try {
+            const ssoApi = await plugin.call('auth', 'getSSOApi')
+            const response = await ssoApi.getUsername()
+            return response.data || null
+          } catch (err) {
+            console.log('[LoginButton] Failed to get username:', err)
+            return null
+          }
+        }}
         themes={themes}
         currentTheme={currentTheme}
         onThemeChange={handleThemeChange}

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { ProfileManager } from '@remix-ui/billing'
+import { SSOApiService } from '@remix-api'
 
 interface UserProfile {
   username: string
@@ -20,7 +22,21 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [loginProvider, setLoginProvider] = useState<string | null>(null)
+  const [ssoApi, setSsoApi] = useState<SSOApiService | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  // Load SSO API on mount
+  useEffect(() => {
+    const loadApi = async () => {
+      try {
+        const api = await plugin.call('auth', 'getSSOApi')
+        setSsoApi(api)
+      } catch (err) {
+        console.log('[ProfileSection] Could not load SSO API:', err)
+      }
+    }
+    loadApi()
+  }, [plugin])
 
   const loadProfile = async () => {
     try {
@@ -300,6 +316,42 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
           </div>
         </div>
       </div>
+
+      {/* Username & Display Name Section */}
+      {ssoApi && (
+        <div className="bg-light rounded p-3 mt-3">
+          <h6 className="mb-3">
+            <i className="fas fa-at me-2"></i>
+            Username & Public Profile
+          </h6>
+          <p className="text-muted small mb-3">
+            Set your username to get a public profile URL that you can share with others.
+          </p>
+          <ProfileManager
+            getUsername={async () => {
+              const response = await ssoApi.getUsername()
+              if (response.error) throw new Error(response.error)
+              return response.data!
+            }}
+            checkUsernameAvailability={async (username) => {
+              const response = await ssoApi.checkUsernameAvailability(username)
+              if (response.error) throw new Error(response.error)
+              return response.data!
+            }}
+            setUsername={async (username) => {
+              const response = await ssoApi.setUsername(username)
+              if (response.error) throw new Error(response.error)
+              return response.data!
+            }}
+            setDisplayName={async (displayName) => {
+              const response = await ssoApi.setDisplayName(displayName)
+              if (response.error) throw new Error(response.error)
+              return response.data!
+            }}
+            profileUrlBase="remix.ethereum.org"
+          />
+        </div>
+      )}
     </div>
   )
 }

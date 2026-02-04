@@ -13,6 +13,7 @@ const profile = {
 
 export class AuthPlugin extends Plugin {
   private apiClient: ApiClient
+  private profileClient: ApiClient
   private ssoApi: SSOApiService
   private creditsApi: CreditsApiService
   private permissionsApi: PermissionsApiService
@@ -25,6 +26,10 @@ export class AuthPlugin extends Plugin {
     // Initialize API clients
     this.apiClient = new ApiClient(endpointUrls.sso)
     this.ssoApi = new SSOApiService(this.apiClient)
+
+    // Profile API uses different base URL
+    this.profileClient = new ApiClient(endpointUrls.profile)
+    this.ssoApi.setProfileClient(this.profileClient)
 
     // Credits API uses different base URL
     const creditsClient = new ApiClient(endpointUrls.credits)
@@ -40,6 +45,7 @@ export class AuthPlugin extends Plugin {
 
     // Set up token refresh callback for auto-renewal
     this.apiClient.setTokenRefreshCallback(() => this.refreshAccessToken())
+    this.profileClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     creditsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     permissionsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     billingClient.setTokenRefreshCallback(() => this.refreshAccessToken())
@@ -496,6 +502,7 @@ export class AuthPlugin extends Plugin {
     // Update API clients with current token
     if (token) {
       this.apiClient.setToken(token)
+      this.profileClient.setToken(token)
       // Update other API services too
       this.creditsApi.setToken(token)
       this.permissionsApi.setToken(token)
@@ -533,6 +540,7 @@ export class AuthPlugin extends Plugin {
 
         // Update all API clients
         this.apiClient.setToken(newAccessToken)
+        this.profileClient.setToken(newAccessToken)
         this.creditsApi.setToken(newAccessToken)
         this.permissionsApi.setToken(newAccessToken)
 

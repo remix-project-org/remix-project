@@ -16,6 +16,7 @@ type EndpointUrls = {
     solidityScanWebSocket: string;
     gitHubLoginProxy: string;
     sso: string;
+    profile: string;
     billing: string;
     credits: string;
     products: string;
@@ -41,6 +42,7 @@ const defaultUrls: EndpointUrls = {
   solidityScanWebSocket: 'wss://solidityscan.api.remix.live',
   gitHubLoginProxy: 'https://github-login-proxy.api.remix.live',
   sso: 'https://auth.api.remix.live:8443/sso',
+  profile: 'https://auth.api.remix.live:8443/profile',
   billing: 'https://auth.api.remix.live:8443/billing',
   credits: 'https://auth.api.remix.live:8443/credits',
   products: 'https://auth.api.remix.live:8443/products',
@@ -66,6 +68,7 @@ const endpointPathMap: Record<keyof EndpointUrls, string> = {
   solidityScanWebSocket: '',
   gitHubLoginProxy: 'github-login-proxy',
   sso: 'sso',
+  profile: 'profile',
   billing: 'billing',
   credits: 'credits',
   products: 'products',
@@ -103,6 +106,7 @@ const localhostUrls: EndpointUrls = {
   
   // AUTH service (port 3001)
   sso: 'https://auth.api.remix.live:8443/sso',
+  profile: 'https://auth.api.remix.live:8443/profile',
   
   // BILLING service (port 3002)
   billing: 'https://auth.api.remix.live:8443/billing',

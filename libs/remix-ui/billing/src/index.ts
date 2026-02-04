@@ -8,6 +8,7 @@ export { ActiveEntitlements } from './lib/components/active-entitlements'
 export { FreePaddleCheckoutOverlay } from './lib/components/freepaddle-checkout-overlay'
 export { CurrentSubscription } from './lib/components/current-subscription'
 export { PurchaseButton } from './lib/components/purchase-button'
+export { ProfileManager } from './lib/components/profile-manager'
 
 // Paddle Integration
 export * from './lib/paddle-singleton'

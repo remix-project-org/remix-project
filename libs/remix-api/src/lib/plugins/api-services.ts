@@ -49,20 +49,46 @@ import {
   PurchaseProductResponse,
   // Active Entitlements
   ActiveEntitlement,
-  ActiveEntitlementsResponse
+  ActiveEntitlementsResponse,
+  // Profile & Username
+  ProfileUsername,
+  UsernameValidation,
+  SetUsernameRequest,
+  SetUsernameResponse,
+  SetDisplayNameRequest,
+  SetDisplayNameResponse,
+  PublicProfile,
+  UsernameSearchResponse
 } from './api-types'
 
 /**
  * SSO API Service - All SSO/Auth endpoints with full TypeScript typing
  */
 export class SSOApiService {
+  private profileClient: IApiClient | null = null
+
   constructor(private apiClient: IApiClient) {}
+
+  /**
+   * Set a separate API client for profile endpoints (uses different base URL)
+   */
+  setProfileClient(client: IApiClient): void {
+    this.profileClient = client
+  }
+
+  /**
+   * Get the profile client (falls back to main apiClient if not set)
+   */
+  private getProfileClient(): IApiClient {
+    return this.profileClient || this.apiClient
+  }
 
   /**
    * Set the authentication token for API requests
    */
   setToken(token: string): void {
     this.apiClient.setToken(token)
+    this.profileClient?.setToken(token)
   }
   
   // ==================== Authentication ====================
@@ -146,6 +172,60 @@ export class SSOApiService {
    */
   async linkSiwe(request: SiweVerifyRequest): Promise<ApiResponse<SiweVerifyResponse>> {
     return this.apiClient.post<SiweVerifyResponse>('/siwe/link', request)
+  }
+
+  // ==================== Profile & Username ====================
+
+  /**
+   * Get the current user's username and display name
+   */
+  async getUsername(): Promise<ApiResponse<ProfileUsername>> {
+    return this.getProfileClient().get<ProfileUsername>('/username')
+  }
+
+  /**
+   * Check if a username is available
+   * @param username - The username to check (3-30 characters)
+   */
+  async checkUsernameAvailability(username: string): Promise<ApiResponse<UsernameValidation>> {
+    return this.getProfileClient().get<UsernameValidation>(`/check-username/${encodeURIComponent(username)}`)
+  }
+
+  /**
+   * Set the user's username
+   * @param username - The username to set
+   */
+  async setUsername(username: string): Promise<ApiResponse<SetUsernameResponse>> {
+    return this.getProfileClient().put<SetUsernameResponse>('/username', { username })
+  }
+
+  /**
+   * Set the user's display name
+   * @param displayName - The display name to set (up to 100 characters)
+   */
+  async setDisplayName(displayName: string): Promise<ApiResponse<SetDisplayNameResponse>> {
+    return this.getProfileClient().put<SetDisplayNameResponse>('/display-name', { displayName })
+  }
+
+  /**
+   * Get a user's public profile by username (no auth required)
+   * @param username - The username to look up
+   */
+  async getPublicProfile(username: string): Promise<ApiResponse<PublicProfile>> {
+    return this.getProfileClient().get<PublicProfile>(`/u/${encodeURIComponent(username)}`)
+  }
+
+  /**
+   * Search for users by username prefix (useful for @mentions)
+   * @param query - Search query (min 2 characters)
+   * @param limit - Max results (default 10, max 50)
+   */
+  async searchUsernames(query: string, limit: number = 10): Promise<ApiResponse<UsernameSearchResponse>> {
+    const params = new URLSearchParams({
+      q: query,
+      limit: Math.min(limit, 50).toString()
+    })
+    return this.getProfileClient().get<UsernameSearchResponse>(`/search?${params.toString()}`)
   }
 }
 

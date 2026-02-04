@@ -586,3 +586,86 @@ export interface ActiveEntitlementsResponse {
     expiringSoon: number
   }
 }
+
+// ==================== Profile & Username ====================
+
+/**
+ * Current user's username and display name
+ * GET /profile/username
+ */
+export interface ProfileUsername {
+  username: string | null
+  displayName: string | null
+}
+
+/**
+ * Response from username availability check
+ * GET /profile/check-username/:username
+ */
+export interface UsernameValidation {
+  valid: boolean
+  available: boolean
+  error?: string
+  suggestion?: string
+}
+
+/**
+ * Request to set username
+ * PUT /profile/username
+ */
+export interface SetUsernameRequest {
+  username: string
+}
+
+/**
+ * Response from setting username
+ */
+export interface SetUsernameResponse {
+  success: boolean
+  username?: string
+  error?: string
+  suggestion?: string
+}
+
+/**
+ * Request to set display name
+ * PUT /profile/display-name
+ */
+export interface SetDisplayNameRequest {
+  displayName: string
+}
+
+/**
+ * Response from setting display name
+ */
+export interface SetDisplayNameResponse {
+  success: boolean
+  displayName?: string
+  error?: string
+}
+
+/**
+ * Public profile data (no auth required)
+ * GET /profile/u/:username
+ */
+export interface PublicProfile {
+  username: string
+  displayName: string | null
+  createdAt: string
+}
+
+/**
+ * Username search result entry
+ */
+export interface UsernameSearchEntry {
+  username: string
+  displayName: string | null
+}
+
+/**
+ * Response from username search
+ * GET /profile/search
+ */
+export interface UsernameSearchResponse {
+  results: UsernameSearchEntry[]
+}
