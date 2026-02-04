@@ -1,15 +1,15 @@
 # Remix Libraries
 
-[![Join the chat at https://gitter.im/ethereum/remix](https://badges.gitter.im/ethereum/remix.svg)](https://gitter.im/ethereum/remix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![CircleCI](https://circleci.com/gh/ethereum/remix-project/tree/master.svg?style=svg)](https://circleci.com/gh/ethereum/remix-project/tree/master)
+[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/qhpCQGWkmf)
+[![CircleCI](https://circleci.com/gh/remix-project-org/remix-project/tree/master.svg?style=svg)](https://circleci.com/gh/remix-project-org/remix-project/tree/master)
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://remix-ide.readthedocs.io/en/latest/index.html)
 
 
 **Remix libraries** are part of the Remix Project and provide tools that help smart contract development, compilation, testing & deployment. These tools also work as a core of native plugins of **Remix IDE**.
 
-**Remix IDE** is an open source web and desktop application. It fosters a fast development cycle and has a rich set of plugins with intuitive GUIs. Remix is used for the entire journey of contract development as well as being a playground for learning and teaching Ethereum. 
+**Remix IDE** is an open source web and desktop application. It fosters a fast development cycle and has a rich set of plugins with intuitive GUIs. Remix is used for the entire journey of contract development as well as being a playground for learning and teaching Ethereum.
 
-The Remix IDE repository is specifically available **[here](https://github.com/ethereum/remix-project/tree/master/apps/remix-ide)**, and an online version is available at https://remix.ethereum.org.
+The Remix IDE repository is specifically available **[here](https://github.com/remix-project-org/remix-project/tree/master/apps/remix-ide)**, and an online version is available at https://remix.ethereum.org.
 
 To start with Remix IDE, check out [official documentation](https://remix-ide.readthedocs.io/en/latest/index.html).
 
@@ -30,8 +30,8 @@ Each library is an NPM package and has basic documentation about its usage in it
 
 ## Contributing
 
-Everyone is very welcome to contribute on Remix Project. Suggestions, issues, queries and feedback are our pleasure. Please reach us on [Gitter](https://gitter.im/ethereum/remix) in case of any query.
+Everyone is very welcome to contribute on Remix Project. Suggestions, issues, queries and feedback are our pleasure. Please reach us on [Discord](https://discord.gg/qhpCQGWkmf) in case of any query.
 
-For more information on the contributing to the code, see our [contribution guidelines](https://github.com/ethereum/remix-project/blob/master/CONTRIBUTING.md).
+For more information on the contributing to the code, see our [contribution guidelines](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md).
 
 

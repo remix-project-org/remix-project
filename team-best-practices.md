@@ -184,4 +184,4 @@ Before starting coding, we should ensure all devs / contributors are aware of:
 
 # Coding best practices
 
- - https://github.com/ethereum/remix-project/blob/master/CONTRIBUTING.md
+ - https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md
