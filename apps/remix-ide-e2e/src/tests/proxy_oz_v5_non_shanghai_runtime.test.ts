@@ -240,7 +240,7 @@ module.exports = {
     .debugTransaction(0)
     .waitForElementVisible({
       locateStrategy: 'xpath',
-      selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"124")]',
+      selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"6")]',
       timeout: 60000
     })
     /* TODO test the nested calls component here

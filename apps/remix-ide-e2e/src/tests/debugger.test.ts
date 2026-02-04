@@ -450,23 +450,6 @@ const sources = [
 ]
 
 const localVariable_step266_ABIEncoder = { // eslint-disable-line
-  '<1>': {
-    length: '0x0',
-    type: 'bytes',
-    value: '0x'
-  },
-  '<2>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000000'
-  },
-  '<3>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000000'
-  },
-  '<4>': {
-    type: 'uint256',
-    value: '0'
-  },
   idAsk: {
     type: 'bytes32',
     value: '0x0000000000000000000000000000000000000000000000000000000000000002'
@@ -478,23 +461,6 @@ const localVariable_step266_ABIEncoder = { // eslint-disable-line
 }
 
 const localVariable_step717_ABIEncoder = { // eslint-disable-line
-  '<1>': {
-    length: '0xd0',
-    type: 'bytes',
-    value: '0x5b38da6a701c568545dcfcb03fcb875f56beddc45b38da6a701c568545dcfcb03fcb875f56beddc400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001'
-  },
-  '<2>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000002'
-  },
-  '<3>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000001'
-  },
-  '<4>': {
-    type: 'uint256',
-    value: '84'
-  },
   idAsk: {
     type: 'bytes32',
     value: '0x0000000000000000000000000000000000000000000000000000000000000002'
