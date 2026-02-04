@@ -131,7 +131,7 @@ module.exports = {
       .waitForElementVisible('#stepdetail')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"43")]',
+        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"29")]',
       })
       .goToVMTraceStep(261)
       .waitForElementPresent('.highlightLine8')
