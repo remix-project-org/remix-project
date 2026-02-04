@@ -68,7 +68,7 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
                   Click the Sparkle button on your deployed contract instance.
                 </p>
                 <img 
-                  src='./assets/sparkle.png'
+                  src='./assets/sparkling.png'
                   alt="Sparkle button guide" 
                   className="img-fluid rounded shadow-sm w-100"
                   style={{ 

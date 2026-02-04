@@ -20,7 +20,6 @@ import { trackMatomoEvent } from '@remix-api'
 const txHelper = remixLib.execution.txHelper
 import { AIRequestForm } from './shared/AIRequestForm'
 
-
 export function UniversalDappUI(props: UdappProps) {
   const intl = useIntl()
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
@@ -402,7 +401,7 @@ export function UniversalDappUI(props: UdappProps) {
                         const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
                         const providerName = providerObject?.name || 'vm-unknown'
                         const isVM = providerName.startsWith('vm')
-                        
+
                         let chainId: string
                         if (isVM) {
                           chainId = providerName

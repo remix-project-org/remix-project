@@ -140,14 +140,14 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
         try {
           const mappingsDir = '.deploys/dapp-mappings'
           const exists = await global.plugin.call('fileManager', 'exists', mappingsDir)
-          
+
           if (!exists) {
             setDappMappings([])
             return
           }
 
           const files = await global.plugin.call('fileManager', 'readdir', mappingsDir)
-          
+
           if (!files || Object.keys(files).length === 0) {
             setDappMappings([])
             return
@@ -161,21 +161,21 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
             try {
               const fileName = filePath.split('/').pop()
               if (!fileName) continue
-              
+
               const mappingContent = await global.plugin.call('fileManager', 'readFile', `${mappingsDir}/${fileName}`)
               const mapping = JSON.parse(mappingContent)
-              
+
               if (!mapping.dappWorkspace) continue
-              
+
               const workspaceExists = await global.plugin.call('filePanel', 'workspaceExists', mapping.dappWorkspace)
               if (!workspaceExists) continue
-              
+
               const address = mapping.address
               if (!address) continue
-              
+
               let pinnedContractExists = false
               let foundChainId = ''
-              
+
               if (pinnedDirExists) {
                 const chainFolders = await global.plugin.call('fileManager', 'readdir', pinnedDir)
                 for (const chainPath of Object.keys(chainFolders)) {
@@ -237,12 +237,12 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   }, [])
 
   const handleGoToDapp = async () => {
-    
+
     if (dappMappings.length === 0) {
       return
     }
 
-    let selectedWorkspace: string | null = null
+    const selectedWorkspace: string | null = null
 
     if (dappMappings.length === 1) {
       await navigateToDapp(dappMappings[0].dappWorkspace)
@@ -260,9 +260,9 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
         await global.plugin.call('filePanel', 'switchToWorkspace', workspaceName)
       }
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       await global.plugin.call('menuicons', 'select', 'quick-dapp-v2')
-      
+
       try {
         await global.plugin.call('quick-dapp-v2', 'openDapp', workspaceName)
       } catch (e) {
@@ -280,11 +280,6 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
     }
   }
 
-
-
-
-
-
   const handleGoToContract = async () => {
     if (!sourceWorkspaceTarget) {
       return
@@ -301,7 +296,6 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       console.error('[FileExplorerMenu] Failed to switch to source workspace:', e)
     }
   }
-
 
   const itemAction = async (action: string) => {
 
@@ -571,39 +565,39 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
           )}
 
           {showDappSelectModal && (
-            <div 
-              className="modal d-block" 
+            <div
+              className="modal d-block"
               style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
               onClick={() => setShowDappSelectModal(false)}
             >
-              <div 
-                className="modal-dialog modal-dialog-centered" 
+              <div
+                className="modal-dialog modal-dialog-centered"
                 onClick={e => e.stopPropagation()}
               >
                 <div className="modal-content">
                   <div className="modal-header">
                     <h5 className="modal-title">Select DApp</h5>
-                    <button 
-                      type="button" 
-                      className="btn-close" 
+                    <button
+                      type="button"
+                      className="btn-close"
                       onClick={() => setShowDappSelectModal(false)}
                     />
                   </div>
                   <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                     {dappMappings.map((mapping, index) => (
-                      <div 
+                      <div
                         key={index}
                         className={`d-flex align-items-start mb-2 p-3 border rounded ${selectedDappIndex === index ? 'border-primary' : ''}`}
-                        style={{ 
-                          cursor: 'pointer', 
+                        style={{
+                          cursor: 'pointer',
                           backgroundColor: selectedDappIndex === index ? 'var(--primary)' : 'transparent',
                           opacity: selectedDappIndex === index ? 0.9 : 1
                         }}
                         onClick={() => setSelectedDappIndex(index)}
                       >
-                        <input 
-                          className="form-check-input mt-1 me-3" 
-                          type="radio" 
+                        <input
+                          className="form-check-input mt-1 me-3"
+                          type="radio"
                           name="dappSelection"
                           id={`dapp-${index}`}
                           checked={selectedDappIndex === index}
@@ -625,16 +619,16 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                   </div>
 
                   <div className="modal-footer">
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary" 
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
                       onClick={() => setShowDappSelectModal(false)}
                     >
                       Cancel
                     </button>
-                    <button 
-                      type="button" 
-                      className="btn btn-primary" 
+                    <button
+                      type="button"
+                      className="btn btn-primary"
                       onClick={handleDappSelectConfirm}
                     >
                       OK

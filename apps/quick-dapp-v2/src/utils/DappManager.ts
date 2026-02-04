@@ -210,7 +210,6 @@ export class DappManager {
 
       await this.focusPlugin();
 
-
       const uniqueConfigs = configs.filter((config, index, self) =>
         index === self.findIndex((c) => c.id === config.id)
       );
@@ -227,12 +226,11 @@ export class DappManager {
     if (!name || name.trim() === '') {
       name = contractData?.name || 'UnnamedContract';
     }
-    
+
     const id = uuidv4();
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${id.slice(0, 6)}`;
     const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
     const timestamp = Date.now();
-
 
     const sourceWorkspaceInfo = await this.getCurrentWorkspace();
     const sourceWorkspaceName = sourceWorkspaceInfo.name;
@@ -303,7 +301,6 @@ export class DappManager {
 
     await this.saveConfig(workspaceName, initialConfig);
 
-
     try {
       await this.plugin.call('fileManager', 'mkdir', 'src');
     } catch (e) {
@@ -352,7 +349,6 @@ export class DappManager {
 
     return initialConfig;
   }
-
 
   /**
    * Auto-pins the contract instance in the current workspace before switching.
@@ -482,11 +478,11 @@ export class DappManager {
 
     if (currentWorkspace.name === workspaceName) {
       const workspaces = await this.getWorkspaces();
-      const nonDappWorkspace = workspaces.find((ws) => 
+      const nonDappWorkspace = workspaces.find((ws) =>
         ws.name !== workspaceName && !ws.name.startsWith(DAPP_WORKSPACE_PREFIX)
       );
       const otherDappWorkspace = workspaces.find((ws) => ws.name !== workspaceName);
-      
+
       if (nonDappWorkspace) {
         await this.switchToWorkspace(nonDappWorkspace.name);
       } else if (otherDappWorkspace) {
@@ -513,10 +509,10 @@ export class DappManager {
   async deleteAllDapps(): Promise<void> {
     const dapps = await this.getDapps();
     const workspacesToDelete = dapps.map(dapp => dapp.workspaceName);
-    
+
     const allWorkspaces = await this.getWorkspaces();
     const nonDappWorkspace = allWorkspaces.find(ws => !ws.name.startsWith(DAPP_WORKSPACE_PREFIX));
-    
+
     if (nonDappWorkspace) {
       await this.switchToWorkspace(nonDappWorkspace.name);
     } else {
@@ -527,7 +523,7 @@ export class DappManager {
         console.warn('[DappManager] Could not create default workspace:', e);
       }
     }
-    
+
     for (const workspaceName of workspacesToDelete) {
       try {
         await this.plugin.call('filePanel', 'deleteWorkspace', workspaceName);
@@ -535,7 +531,7 @@ export class DappManager {
         console.error('[DappManager] Failed to delete workspace:', workspaceName, e);
       }
     }
-    
+
     await this.focusPlugin();
   }
 
@@ -548,7 +544,6 @@ export class DappManager {
       }
 
       const content = await this.plugin.call('fileManager', 'readFile', CONFIG_FILENAME);
-
 
       if (content) {
         const config = JSON.parse(content);
@@ -566,7 +561,6 @@ export class DappManager {
           await this.switchToWorkspace(currentWorkspace.name);
           await this.focusPlugin();
         }
-
 
         return this.sanitizeConfig(config);
       }

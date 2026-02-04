@@ -42,16 +42,16 @@ export class RemixClient extends PluginClient {
   public internalEvents: EventEmitter;
   private listenersRegistered: boolean = false;
   private processedDappSlugs: Set<string>;
-  
+
   private static readonly PROCESSED_SLUGS_KEY = 'quickdapp_processed_slugs';
 
   constructor() {
     super();
     this.methods = ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'openDapp'];
     this.internalEvents = new EventEmitter();
-    
+
     this.processedDappSlugs = this.loadProcessedSlugs();
-    
+
     createClient(this);
     // @ts-ignore
     this.dappManager = new DappManager(this);
@@ -122,7 +122,7 @@ export class RemixClient extends PluginClient {
       // @ts-ignore
       this.on('ai-dapp-generator', 'dappGenerationError', (data: any) => {
         const errorKey = data?.slug || data?.error || 'unknown';
-        
+
         if (processedErrors.has(errorKey)) {
           return;
         }
