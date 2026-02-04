@@ -29,7 +29,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
   const statusColor = dapp.status === 'deployed' ? 'text-success' : 'text-warning';
   const statusIcon = dapp.status === 'deployed' ? 'fa-check-circle' : 'fa-pen-square';
 
-  const loadingText = dapp.status === 'draft' ? 'AI Creating...' : 'AI Updating...';
+  const loadingText = dapp.status === 'creating' ? 'AI Creating...' : 'AI Updating...';
 
   return (
     <div className="col-12 col-md-6 col-xl-4 mb-4">
