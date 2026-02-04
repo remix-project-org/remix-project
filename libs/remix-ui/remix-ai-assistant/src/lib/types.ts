@@ -2,6 +2,7 @@
 export type { ChatMessage, ConversationMetadata } from '@remix/remix-ai-core'
 
 export const assistantAvatar = 'assets/img/remixai-logoDefault.webp'//'assets/img/aiLogo.svg'
+export const assitantAvatarLight = 'assets/img/remixai-logoDefaultlightTheme.webp'
 
 export type ActivityType =
   | 'typing'

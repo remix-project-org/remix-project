@@ -2,9 +2,18 @@ import React from 'react'
 
 interface AiChatButtonsProps {
   theme: string
+  plugin?: any
+  sendPrompt: (s: string) => void
 }
 
-export function AiChatButtons({ theme }: AiChatButtonsProps) {
+export function AiChatButtons({ theme, plugin, sendPrompt }: AiChatButtonsProps) {
+
+  const statusCallback = (status: string): Promise<void> => {
+    console.log('status', status)
+    plugin.call('remixaiassistant', 'handleExternalMessage', status)
+    return Promise.resolve()
+  }
+  const result = plugin?.call('remixAI' as any, 'basic_prompt', '')
   const btnList: {
     label: string,
     icon: string,
@@ -15,37 +24,56 @@ export function AiChatButtons({ theme }: AiChatButtonsProps) {
       label: 'File',
       icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} far fa-copy`,
       color: 'green',
-      action: () => {}
+      action: async () => {
+        // plugin && await plugin.call('remixAI' as any, 'basic_prompt', 'Create a file for me')
+        sendPrompt('Create a file for me')
+        // plugin && await plugin.call('remixaiassistant', 'handleExternalMessage', 'Create a file for me')
+      }
     },
     {
       label: 'Learn',
       icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-brain`,
       color: '',
-      action: () => {}
+      action: () => {
+        sendPrompt('I would like to learn about something...')
+        console.log('Learn')
+      }
     },
     {
       label: 'Plan a project',
       icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-list`,
       color: '',
-      action: () => {}
+      action: () => {
+        sendPrompt('Plan a new project')
+        console.log('Plan a project')
+      }
     },
     {
       label: 'New workspace',
       icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-plus`,
       color: '',
-      action: () => {}
+      action: () => {
+        sendPrompt('Create a new workspace')
+        console.log('New workspace')
+      }
     },
     {
       label: 'Deploy',
       icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fakit fa-remixdeploy`,
       color: '',
-      action: () => {}
+      action: () => {
+        sendPrompt('Deploy a contract')
+        console.log('Deploy')
+      }
     },
     {
       label: 'Generate dapp',
       icon: `${theme === 'Dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-jet-fighter`,
       color: '',
-      action: () => {}
+      action: () => {
+        sendPrompt('Create a Dapp')
+        console.log('Generate Dapp')
+      }
     }
   ]
 
@@ -57,7 +85,7 @@ export function AiChatButtons({ theme }: AiChatButtonsProps) {
             key={`${starter.label}-${index}`}
             data-id={`remix-ai-assistant-starter-${starter.label}-${index}`}
             className={`${theme === 'Dark' ? 'btn btn-remix-dark' : 'btn btn-remix-light'} mb-2 border rounded-4 text-nowrap gap-2`}
-            onClick={() => {}}
+            onClick={starter.action}
           >
             <i className={`${starter.icon} me-1`}></i>
             {starter.label}

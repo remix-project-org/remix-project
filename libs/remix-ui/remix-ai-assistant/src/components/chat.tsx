@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
 import copy from 'copy-to-clipboard'
-import { ChatMessage, assistantAvatar } from '../lib/types'
+import { ChatMessage, assistantAvatar, assitantAvatarLight } from '../lib/types'
 import React, { useState, useEffect } from 'react'
 import { CustomTooltip } from '@remix-ui/helper'
 import {
@@ -24,14 +24,16 @@ export interface ChatHistoryComponentProps {
   recordFeedback: (msgId: string, next: 'like' | 'dislike' | 'none') => void
   historyRef: React.RefObject<HTMLDivElement>
   theme: string
+  plugin?: any
 }
 
 interface AiChatIntroProps {
   sendPrompt: (prompt: string) => void
   theme: string
+  plugin?: any
 }
 
-const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme }) => {
+const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin }) => {
   const [conversationStarters, setConversationStarters] = useState<ConversationStarter[]>([])
 
   useEffect(() => {
@@ -47,7 +49,7 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme }) => {
   return (
     <div className="assistant-landing d-flex flex-column mx-1 align-items-center justify-content-center text-center h-100 w-100">
       <div className="d-flex align-items-center justify-content-center rounded-circle border mb-3" style={{ width: '120px', height: '120px', borderWidth: '2px', borderColor: 'var(--bs-border-color)' }}>
-        <img src={assistantAvatar} alt="RemixAI logo" style={{ width: '60px', height: '60px' }} className="container-img" />
+        <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '60px', height: '60px' }} className="container-img" />
       </div>
       <p className="mb-4" style={{ fontSize: '0.9rem' }}>
         What do you want to build today?
@@ -65,7 +67,7 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme }) => {
           </button>
         ))}
       </div> */}
-      <AiChatButtons theme={theme} />
+      <AiChatButtons theme={theme} plugin={plugin} sendPrompt={sendPrompt} />
     </div>
   )
 }
@@ -76,7 +78,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   sendPrompt,
   recordFeedback,
   historyRef,
-  theme
+  theme,
+  plugin
 }) => {
   return (
     <div
@@ -84,7 +87,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       className="d-flex flex-column overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
     >
       {messages.length === 0 ? (
-        <AiChatIntro sendPrompt={sendPrompt} theme={theme} />
+        <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} />
       ) : (
         messages.map(msg => {
           const bubbleClass =
@@ -95,7 +98,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
               {/* Avatar for assistant */}
               {msg.role === 'assistant' && (
                 <img
-                  src={assistantAvatar}
+                  src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight}
                   alt="AI"
                   className="assistant-avatar me-2 flex-shrink-0 me-1"
                 />

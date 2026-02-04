@@ -933,6 +933,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 recordFeedback={recordFeedback}
                 historyRef={historyRef}
                 theme={themeTracker?.name}
+                plugin={props.plugin}
               />
             </section>
           </div>
@@ -997,6 +998,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   recordFeedback={recordFeedback}
                   historyRef={historyRef}
                   theme={themeTracker?.name}
+                  plugin={props.plugin}
                 />
               </section>
             </div>
