@@ -35,6 +35,7 @@ module.exports = {
       .click('*[data-id="createProject - transact (not payable)"]')
       .debugTransaction(0)
       .pause(2000)
+      .goToVMTraceStep(327)
       .scrollAndClick('*[data-id="solidityLocals"]')
       .waitForElementContainsText('*[data-id="solidityLocals"]', 'toast', 60000)
       .waitForElementContainsText('*[data-id="solidityLocals"]', '999', 60000)

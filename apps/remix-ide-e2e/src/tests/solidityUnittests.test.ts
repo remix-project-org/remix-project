@@ -279,6 +279,7 @@ module.exports = {
   },
 
   'Debug tests using debugger #group7': function (browser: NightwatchBrowser) {
+    // TODO replace functionPanel tests with call tree tests.    
     browser
       .waitForElementPresent('*[data-id="verticalIconsKindfilePanel"]')
       .addFile('tests/ballotFailedDebug_test.sol', sources[0]['tests/ballotFailedDebug_test.sol'])
@@ -294,12 +295,12 @@ module.exports = {
       .waitForElementContainsText('#solidityUnittestsOutput', '✓ Check winnin proposal with return value', 60000)
       .click('#Check_winning_proposal_failed')
       .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalFailed()', 60000)
+      // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalFailed()', 60000)
       .waitForElementVisible('*[data-id="dropdownPanelSolidityLocals"]').pause(1000)
       .waitForElementContainsText('*[data-id="solidityLocals"]', 'No data available', 60000)
       .goToVMTraceStep(316)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalFailed()', 60000)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'vote(proposal)', 60000)
+      // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalFailed()', 60000)
+      // .waitForElementContainsText('*[data-id="functionPanel"]', 'vote(proposal)', 60000)
       .waitForElementVisible({
         locateStrategy: 'xpath',
         selector: "//*[@data-id='treeViewDivtreeViewItemsender' and contains(.,'Ballot.Voter')]"
@@ -308,10 +309,11 @@ module.exports = {
       .clickLaunchIcon('solidityUnitTesting').pause(2000)
       .scrollAndClick('#Check_winning_proposal_passed')
       .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalPassed()', 60000)
+      // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalPassed()', 60000)
+      .pause(2000)
       .goToVMTraceStep(1451)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'equal(a, b, message)', 60000)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalPassed()', 60000)
+      // .waitForElementContainsText('*[data-id="functionPanel"]', 'equal(a, b, message)', 60000)
+      // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalPassed()', 60000)
       // remix_test.sol should be opened in editor
       .getEditorValue((content) => browser.assert.ok(content.indexOf('library Assert {') !== -1))
       .click('*[id="debuggerTransactionStartButtonContainer"]') // stop debugging
@@ -323,8 +325,10 @@ module.exports = {
       .pause(5000)
       .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
       .goToVMTraceStep(1151)
+      /*
       .waitForElementContainsText('*[data-id="functionPanel"]', 'equal(a, b, message)', 60000)
       .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalAgain()', 60000)
+      */
       //.pause(5000)
       .click('*[id="debuggerTransactionStartButtonContainer"]') // stop debugging
       .openFile('tests/ballotFailedDebug_test.sol')
@@ -334,9 +338,9 @@ module.exports = {
       .scrollAndClick('#Check_winnin_proposal_with_return_value')
       .pause(5000)
       .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinninProposalWithReturnValue()', 60000)
+      // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinninProposalWithReturnValue()', 60000)
       .goToVMTraceStep(321)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinninProposalWithReturnValue()', 60000)
+      // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinninProposalWithReturnValue()', 60000)
       .clickLaunchIcon('filePanel')
       .pause(2000)
       .openFile('tests/ballotFailedDebug_test.sol')

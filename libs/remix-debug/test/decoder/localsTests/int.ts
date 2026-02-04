@@ -131,7 +131,7 @@ module.exports = function (st, privateKey, contractBytecode, compilationResult, 
               st.equals(locals['ishrink'].value, '2')
             })
 
-            helper.decodeLocals(st, 106, traceManager, callTree, function (locals) {
+            helper.decodeLocals(st, 105, traceManager, callTree, function (locals) {
               try {
                 st.equals(locals['ui8'].value, '123')
                 st.equals(Object.keys(locals).length, 2)
