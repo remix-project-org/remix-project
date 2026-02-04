@@ -269,3 +269,22 @@ export const setAiLoading = async (isLoading: boolean) => {
     payload: isLoading,
   });
 };
+
+export const openDapp = async (slug: string) => {
+  if (!dispatch || !state) {
+    console.error('[QuickDapp] dispatch or state not initialized');
+    return false;
+  }
+
+  const dapps = state.dapps || [];
+  const targetDapp = dapps.find((d: any) => d.slug === slug || d.workspaceName === slug);
+
+  if (targetDapp) {
+    await dispatch({ type: 'SET_ACTIVE_DAPP', payload: targetDapp });
+    await dispatch({ type: 'SET_VIEW', payload: 'editor' });
+    return true;
+  } else {
+    await dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
+    return false;
+  }
+};

@@ -78,7 +78,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
               }}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              title="Delete Dapp"
+              title="Delete DApp and workspace"
             >
               <div
                 className={`rounded-circle d-flex align-items-center justify-content-center shadow-sm ${isHovered ? 'bg-danger' : 'bg-dark bg-opacity-75'

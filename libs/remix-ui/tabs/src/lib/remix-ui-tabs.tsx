@@ -755,7 +755,7 @@ export const TabsUI = (props: TabsUIProps) => {
         sourceFilePath: tabsState.name
       })
 
-      await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+      await props.plugin.call('menuicons', 'select', 'quick-dapp-v2')
       
     } catch (error) {
       if (error.message !== 'Canceled' && error.message !== 'Hide') {

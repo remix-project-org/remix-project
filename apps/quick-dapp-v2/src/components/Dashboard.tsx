@@ -83,7 +83,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <Button variant="primary" onClick={onCreateNew}>
             <i className="fas fa-plus me-2"></i> Create a new dapp
           </Button>
-          {validDapps.length > 0 && (
+          {dapps.length > 0 && (
             <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)}>
               <i className="fas fa-trash me-2"></i> Delete all dapps
             </Button>
@@ -91,8 +91,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      <div className="rounded p-3 mb-4 d-flex flex-column flex-sm-row justify-content-between align-items-center border">
-        <h5 className="mb-2 mb-sm-0 text-body">
+      <div className="rounded p-3 mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2 border">
+        <h5 className="mb-0 text-body" style={{ whiteSpace: 'nowrap' }}>
           Your dapps <span className="badge bg-secondary ms-2">{filteredAndSortedDapps.length}</span>
           {filteredAndSortedDapps.length !== validDapps.length && (
             <small className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
@@ -101,11 +101,11 @@ const Dashboard: React.FC<DashboardProps> = ({
           )}
         </h5>
 
-        <div className="d-flex gap-2">
+        <div className="d-flex flex-wrap gap-2">
           <Form.Select
             size="sm"
             className="border-secondary"
-            style={{ width: 'auto' }}
+            style={{ width: 'auto', minWidth: '120px' }}
             value={selectedNetwork}
             onChange={(e) => setSelectedNetwork(e.target.value)}
           >
@@ -118,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <Form.Select
             size="sm"
             className="border-secondary"
-            style={{ width: 'auto' }}
+            style={{ width: 'auto', minWidth: '120px' }}
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
           >
@@ -133,11 +133,11 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="col-12 text-center py-5">
             <div className="text-muted">
               <i className="fas fa-box-open fa-3x mb-3"></i>
-              <h5>No dapps found</h5>
+              <h5>No DApps found</h5>
               {validDapps.length > 0 ? (
                 <p>Try changing the filters.</p>
               ) : (
-                <p>Create your first dapp to get started!</p>
+                <p>Create your first DApp to get started!</p>
               )}
             </div>
           </div>
@@ -156,10 +156,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <Modal show={!!dappToDelete} onHide={() => setDappToDelete(null)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Delete Dapp?</Modal.Title>
+          <Modal.Title>Delete DApp?</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to delete this dapp? This action cannot be undone.
+          <p>Are you sure you want to delete this DApp?</p>
+          <p className="text-warning small mb-0">
+            <i className="fas fa-exclamation-triangle me-1"></i>
+            This will also delete the associated workspace and all its files. This action cannot be undone.
+          </p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setDappToDelete(null)}>
@@ -173,10 +177,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <Modal show={showDeleteAllModal} onHide={() => setShowDeleteAllModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Delete All Dapps?</Modal.Title>
+          <Modal.Title>Delete All DApps?</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to delete all your dapps? This action cannot be undone.
+          <p>Are you sure you want to delete all your DApps?</p>
+          <p className="text-warning small mb-0">
+            <i className="fas fa-exclamation-triangle me-1"></i>
+            This will also delete all associated workspaces and their files. This action cannot be undone.
+          </p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteAllModal(false)}>

@@ -1,4 +1,4 @@
-export type DappStatus = 'draft' | 'created' | 'deployed';
+export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
 
 export interface DappConfig {
   _warning: string;
@@ -21,6 +21,7 @@ export interface DappConfig {
   };
 
   status: DappStatus;
+  processingStartedAt?: number | null;
   createdAt: number;
   updatedAt: number;
   lastDeployedAt?: number;

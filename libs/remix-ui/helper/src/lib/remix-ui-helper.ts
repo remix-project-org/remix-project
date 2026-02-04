@@ -18,6 +18,7 @@ export const extractParentFromKey = (key: string):string => {
 }
 
 export const checkSpecialChars = (name: string) => {
+  if (!name) return false
   return name.match(/[:*?"<>\\'|]/) != null
 }
 

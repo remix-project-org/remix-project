@@ -74,9 +74,34 @@ function App(): JSX.Element {
         const dapps = (await dappManager.getDapps()) || [];
         dispatch({ type: 'SET_DAPPS', payload: dapps });
 
-        const validDapps = dapps.filter((d: any) => d.config?.status !== 'draft');
+        const FIVE_MINUTES = 5 * 60 * 1000;
+        const now = Date.now();
+        
+        for (const dapp of dapps) {
+          const status = dapp.status;
+          const processingStartedAt = dapp.processingStartedAt || 0;
+          const elapsed = now - processingStartedAt;
+          
+          if (status === 'creating' || status === 'updating') {
+            if (elapsed < FIVE_MINUTES) {
+              dispatch({
+                type: 'SET_DAPP_PROCESSING',
+                payload: { slug: dapp.slug, isProcessing: true }
+              });
+            } else {
+              console.warn(`[QuickDapp] Timeout: ${dapp.slug} stuck in '${status}' for ${Math.round(elapsed / 1000)}s. Resetting status.`);
+              await dappManager.updateDappConfig(dapp.slug, { 
+                status: 'created', 
+                processingStartedAt: null 
+              });
+            }
+          }
+        }
 
-        if (validDapps.length > 0) {
+        const refreshedDapps = (await dappManager.getDapps()) || [];
+        dispatch({ type: 'SET_DAPPS', payload: refreshedDapps });
+
+        if (refreshedDapps.length > 0) {
           dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
         } else {
           dispatch({ type: 'SET_VIEW', payload: 'create' });
@@ -113,8 +138,13 @@ function App(): JSX.Element {
       }
     };
 
-    const onDappUpdateStart = (data: any) => {
+    const onDappUpdateStart = async (data: any) => {
       if (data && data.slug) {
+        await dappManager.updateDappConfig(data.slug, { 
+          status: 'updating', 
+          processingStartedAt: Date.now() 
+        });
+        
         dispatch({
           type: 'SET_DAPP_PROCESSING',
           payload: { slug: data.slug, isProcessing: true }
@@ -142,13 +172,18 @@ function App(): JSX.Element {
       dispatch({ type: 'SET_AI_LOADING', payload: false });
     };
 
-    const onCreatingError = (errorData?: any) => {
+    const onCreatingError = async (errorData?: any) => {
       console.error('[DEBUG-APP] Event: creatingDappError', errorData);
       dispatch({ type: 'SET_AI_LOADING', payload: false });
 
       const targetSlug = errorData?.slug || activeDappRef.current?.slug;
 
       if (targetSlug) {
+        await dappManager.updateDappConfig(targetSlug, { 
+          status: 'created', 
+          processingStartedAt: null 
+        });
+        
         dispatch({
           type: 'SET_DAPP_PROCESSING',
           payload: { slug: targetSlug, isProcessing: false }
@@ -158,10 +193,15 @@ function App(): JSX.Element {
       }
     };
 
-    const onDappUpdated = (data: any) => {
+    const onDappUpdated = async (data: any) => {
       dispatch({ type: 'SET_AI_LOADING', payload: false });
 
       if (data.slug) {
+        await dappManager.updateDappConfig(data.slug, { 
+          status: 'created', 
+          processingStartedAt: null 
+        });
+        
         dispatch({
           type: 'SET_DAPP_PROCESSING',
           payload: { slug: data.slug, isProcessing: false }
@@ -184,7 +224,14 @@ function App(): JSX.Element {
   }, [dappManager, dispatch]);
 
   const handleDeleteOne = async (slug: string) => {
-    await dappManager.deleteDapp(slug);
+    const dappToDelete = dappsRef.current.find((d: any) => d.slug === slug);
+    
+    if (!dappToDelete) {
+      console.error('[App] Could not find dapp with slug:', slug);
+      return;
+    }
+    
+    await dappManager.deleteDapp(dappToDelete.workspaceName);
     const updatedDapps = (await dappManager.getDapps()) || [];
     dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
 

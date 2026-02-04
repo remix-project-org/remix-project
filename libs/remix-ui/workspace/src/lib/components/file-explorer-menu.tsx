@@ -260,7 +260,14 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
         await global.plugin.call('filePanel', 'switchToWorkspace', workspaceName)
       }
       await new Promise(resolve => setTimeout(resolve, 500))
-      await global.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+      
+      await global.plugin.call('menuicons', 'select', 'quick-dapp-v2')
+      
+      try {
+        await global.plugin.call('quick-dapp-v2', 'openDapp', workspaceName)
+      } catch (e) {
+        console.warn('[FileExplorerMenu] Could not open DApp detail:', e)
+      }
     } catch (e) {
       console.error('[FileExplorerMenu] Failed to switch to DApp workspace:', e)
     }
@@ -582,7 +589,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                       onClick={() => setShowDappSelectModal(false)}
                     />
                   </div>
-                  <div className="modal-body">
+                  <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                     {dappMappings.map((mapping, index) => (
                       <div 
                         key={index}

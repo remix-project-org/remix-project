@@ -55,7 +55,11 @@ export class DappManager {
   }
 
   private async getCurrentWorkspace(): Promise<{ name: string; isLocalhost: boolean }> {
-    return await this.plugin.call('filePanel', 'getCurrentWorkspace');
+    const workspace = await this.plugin.call('filePanel', 'getCurrentWorkspace');
+    if (!workspace || !workspace.name) {
+      return { name: 'default_workspace', isLocalhost: false };
+    }
+    return workspace;
   }
 
   private cachedWorkspaces: { name: string }[] | null = null;
@@ -84,6 +88,10 @@ export class DappManager {
   }
 
   private async switchToWorkspace(workspaceName: string): Promise<void> {
+    if (!workspaceName || workspaceName === 'null') {
+      console.warn('[DappManager] Attempted to switch to null/invalid workspace, ignoring');
+      return;
+    }
     await (this.plugin as any).call('filePanel', 'switchToWorkspace', { name: workspaceName, isLocalhost: false });
   }
 
@@ -216,6 +224,10 @@ export class DappManager {
   }
 
   async createDapp(name: string, contractData: any, isBaseMiniApp: boolean = false): Promise<DappConfig> {
+    if (!name || name.trim() === '') {
+      name = contractData?.name || 'UnnamedContract';
+    }
+    
     const id = uuidv4();
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${id.slice(0, 6)}`;
     const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
@@ -278,7 +290,8 @@ export class DappManager {
         name: sourceWorkspaceName,
         filePath: contractData.sourceFilePath || ''
       },
-      status: 'draft',
+      status: 'creating',
+      processingStartedAt: timestamp,
       createdAt: timestamp,
       updatedAt: timestamp,
       config: {
@@ -469,22 +482,60 @@ export class DappManager {
 
     if (currentWorkspace.name === workspaceName) {
       const workspaces = await this.getWorkspaces();
-      const otherWorkspace = workspaces.find((ws) => ws.name !== workspaceName);
-      if (otherWorkspace) {
-        await this.switchToWorkspace(otherWorkspace.name);
+      const nonDappWorkspace = workspaces.find((ws) => 
+        ws.name !== workspaceName && !ws.name.startsWith(DAPP_WORKSPACE_PREFIX)
+      );
+      const otherDappWorkspace = workspaces.find((ws) => ws.name !== workspaceName);
+      
+      if (nonDappWorkspace) {
+        await this.switchToWorkspace(nonDappWorkspace.name);
+      } else if (otherDappWorkspace) {
+        await this.switchToWorkspace(otherDappWorkspace.name);
+      } else {
+        try {
+          await this.plugin.call('filePanel', 'createWorkspace', 'default_workspace', true);
+          await this.switchToWorkspace('default_workspace');
+        } catch (e) {
+          console.warn('[DappManager] Could not create default workspace:', e);
+        }
       }
     }
 
-    await this.plugin.call('filePanel', 'deleteWorkspace', workspaceName);
+    try {
+      await this.plugin.call('filePanel', 'deleteWorkspace', workspaceName);
+    } catch (e) {
+      console.error('[DappManager] Failed to delete workspace:', workspaceName, e);
+    }
 
     await this.focusPlugin();
   }
 
   async deleteAllDapps(): Promise<void> {
     const dapps = await this.getDapps();
-    for (const dapp of dapps) {
-      await this.deleteDapp(dapp.workspaceName);
+    const workspacesToDelete = dapps.map(dapp => dapp.workspaceName);
+    
+    const allWorkspaces = await this.getWorkspaces();
+    const nonDappWorkspace = allWorkspaces.find(ws => !ws.name.startsWith(DAPP_WORKSPACE_PREFIX));
+    
+    if (nonDappWorkspace) {
+      await this.switchToWorkspace(nonDappWorkspace.name);
+    } else {
+      try {
+        await this.plugin.call('filePanel', 'createWorkspace', 'default_workspace', true);
+        await this.switchToWorkspace('default_workspace');
+      } catch (e) {
+        console.warn('[DappManager] Could not create default workspace:', e);
+      }
     }
+    
+    for (const workspaceName of workspacesToDelete) {
+      try {
+        await this.plugin.call('filePanel', 'deleteWorkspace', workspaceName);
+      } catch (e) {
+        console.error('[DappManager] Failed to delete workspace:', workspaceName, e);
+      }
+    }
+    
     await this.focusPlugin();
   }
 
