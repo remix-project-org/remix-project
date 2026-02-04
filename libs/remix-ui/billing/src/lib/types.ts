@@ -2,7 +2,18 @@
  * Types for the Billing UI components
  */
 
-import { CreditPackage, SubscriptionPlan, UserSubscription, Credits, FeatureAccessProduct, UserFeatureMembership } from '@remix-api'
+import { 
+  CreditPackage, 
+  SubscriptionPlan, 
+  UserSubscription, 
+  Credits, 
+  FeatureAccessProduct, 
+  UserFeatureMembership,
+  EligibleProduct,
+  ProductType,
+  ActiveEntitlement,
+  ActiveEntitlementsResponse
+} from '@remix-api'
 
 export interface BillingManagerProps {
   /** Auth plugin instance for making API calls */
@@ -94,4 +105,37 @@ export interface FeatureAccessProductsViewProps {
   filterRecurring?: boolean
 }
 
-export type { CreditPackage, SubscriptionPlan, UserSubscription, Credits, FeatureAccessProduct, UserFeatureMembership }
+/**
+ * Props for the API-driven AvailableProductsView component
+ * This component displays products returned by /products/available endpoints
+ * The API decides what the user sees based on eligibility rules
+ */
+export interface AvailableProductsViewProps {
+  /** Products returned from the API (already filtered by eligibility) */
+  products: EligibleProduct[]
+  /** Whether products are loading */
+  loading?: boolean
+  /** Error message if loading failed */
+  error?: string | null
+  /** User's active entitlements (for showing access status) */
+  activeEntitlements?: ActiveEntitlement[]
+  /** Callback when user clicks to purchase a product */
+  onPurchase: (product: EligibleProduct) => void
+  /** Whether a purchase is in progress */
+  purchasing?: boolean
+  /** Filter by product type */
+  filterType?: ProductType
+}
+
+export type { 
+  CreditPackage, 
+  SubscriptionPlan, 
+  UserSubscription, 
+  Credits, 
+  FeatureAccessProduct, 
+  UserFeatureMembership,
+  EligibleProduct,
+  ProductType,
+  ActiveEntitlement,
+  ActiveEntitlementsResponse
+}

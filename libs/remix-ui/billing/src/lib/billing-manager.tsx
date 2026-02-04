@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { BillingManagerProps, CreditPackage, SubscriptionPlan, UserSubscription, Credits, FeatureAccessProduct, UserFeatureMembership } from './types'
-import { BillingApiService, ApiClient } from '@remix-api'
+import { BillingManagerProps, Credits, EligibleProduct } from './types'
+import { BillingApiService, ApiClient, ActiveEntitlement } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
-import { CreditPackagesView } from './components/credit-packages-view'
-import { SubscriptionPlansView } from './components/subscription-plans-view'
-import { FeatureAccessProductsView } from './components/feature-access-products-view'
-import { CurrentSubscription } from './components/current-subscription'
+import { AvailableProductsView } from './components/available-products-view'
+import { ActiveEntitlements } from './components/active-entitlements'
+import { FreePaddleCheckoutOverlay } from './components/freepaddle-checkout-overlay'
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent } from './paddle-singleton'
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js'
 
@@ -30,38 +29,46 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
       const token = localStorage.getItem('remix_access_token')
       return token
     })
-    return new BillingApiService(client)
+    
+    // Create a separate client for /products endpoints (different base URL)
+    const productsClient = new ApiClient(endpointUrls.products)
+    productsClient.setTokenRefreshCallback(async () => {
+      const token = localStorage.getItem('remix_access_token')
+      return token
+    })
+    
+    const api = new BillingApiService(client, productsClient)
+    return api
   })
 
   // UI State
   const [activeTab, setActiveTab] = useState<TabType>('features')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  // Feature Access Products state
-  const [featureProducts, setFeatureProducts] = useState<FeatureAccessProduct[]>([])
-  const [featureProductsLoading, setFeatureProductsLoading] = useState(true)
-  const [featureProductsError, setFeatureProductsError] = useState<string | null>(null)
-  const [featureMemberships, setFeatureMemberships] = useState<UserFeatureMembership[]>([])
+  // Available Products state - all products from /products/available
+  const [availableProducts, setAvailableProducts] = useState<EligibleProduct[]>([])
+  const [availableProductsLoading, setAvailableProductsLoading] = useState(true)
+  const [availableProductsError, setAvailableProductsError] = useState<string | null>(null)
 
-  // Credit packages state
-  const [packages, setPackages] = useState<CreditPackage[]>([])
-  const [packagesLoading, setPackagesLoading] = useState(true)
-  const [packagesError, setPackagesError] = useState<string | null>(null)
-
-  // Subscription plans state
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
-  const [plansLoading, setPlansLoading] = useState(true)
-  const [plansError, setPlansError] = useState<string | null>(null)
+  // Active Entitlements state - all active subscriptions and feature access from /products/active
+  const [activeEntitlements, setActiveEntitlements] = useState<ActiveEntitlement[]>([])
+  const [entitlementsLoading, setEntitlementsLoading] = useState(true)
+  const [entitlementsError, setEntitlementsError] = useState<string | null>(null)
 
   // User data state
   const [credits, setCredits] = useState<Credits | null>(null)
-  const [subscription, setSubscription] = useState<UserSubscription | null>(null)
   const [userLoading, setUserLoading] = useState(true)
 
   // Purchase state
   const [purchasing, setPurchasing] = useState(false)
-  const [subscribing, setSubscribing] = useState(false)
-  const [purchasingFeature, setPurchasingFeature] = useState(false)
+
+  // FreePaddle checkout overlay state
+  const [freepaddleCheckout, setFreepaddleCheckout] = useState<{
+    isOpen: boolean
+    checkoutUrl: string
+    transactionId: string
+    product: EligibleProduct
+  } | null>(null)
 
   // Paddle state
   const [paddle, setPaddle] = useState<Paddle | null>(null)
@@ -104,19 +111,16 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
       if (event.name === 'checkout.completed') {
         console.log('[BillingManager] Checkout completed')
         setPurchasing(false)
-        setSubscribing(false)
-        setPurchasingFeature(false)
         // Refresh user data
         setTimeout(() => {
           loadUserData()
+          loadPublicData()
           onPurchaseComplete?.()
           onSubscriptionChange?.()
         }, 1500) // Give webhook time to process
       } else if (event.name === 'checkout.closed') {
         console.log('[BillingManager] Checkout closed')
         setPurchasing(false)
-        setSubscribing(false)
-        setPurchasingFeature(false)
       }
     }
 
@@ -152,7 +156,7 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
         loadUserData()
       } else {
         setCredits(null)
-        setSubscription(null)
+        setActiveEntitlements([])
       }
     }
 
@@ -184,56 +188,21 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
   }, [isAuthenticated])
 
   const loadPublicData = async () => {
-    // Load feature access products
-    setFeatureProductsLoading(true)
+    // Load all available products from unified API
+    // The API decides what products the user can see based on eligibility rules
+    setAvailableProductsLoading(true)
     try {
-      const response = await billingApi.getFeatureAccessProducts()
+      const response = await billingApi.getAvailableProducts()
       if (response.ok && response.data) {
-        setFeatureProducts(response.data.products || [])
-        setFeatureProductsError(null)
+        setAvailableProducts(response.data.data || [])
+        setAvailableProductsError(null)
       } else {
-        setFeatureProductsError(response.error || 'Failed to load feature products')
+        setAvailableProductsError(response.error || 'Failed to load products')
       }
     } catch (err) {
-      setFeatureProductsError('Failed to load feature products')
+      setAvailableProductsError('Failed to load products')
     } finally {
-      setFeatureProductsLoading(false)
-    }
-
-    // Load credit packages
-    setPackagesLoading(true)
-    try {
-      const response = await billingApi.getCreditPackages()
-      if (response.ok && response.data) {
-        // Filter to only show packages with active Paddle provider
-        const availablePackages = BillingApiService.filterByActiveProvider(response.data.packages, 'paddle')
-        setPackages(availablePackages)
-        setPackagesError(null)
-      } else {
-        setPackagesError(response.error || 'Failed to load credit packages')
-      }
-    } catch (err) {
-      setPackagesError('Failed to load credit packages')
-    } finally {
-      setPackagesLoading(false)
-    }
-
-    // Load subscription plans
-    setPlansLoading(true)
-    try {
-      const response = await billingApi.getSubscriptionPlans()
-      if (response.ok && response.data) {
-        // Filter to only show plans with active Paddle provider
-        const availablePlans = BillingApiService.filterByActiveProvider(response.data.plans, 'paddle')
-        setPlans(availablePlans)
-        setPlansError(null)
-      } else {
-        setPlansError(response.error || 'Failed to load subscription plans')
-      }
-    } catch (err) {
-      setPlansError('Failed to load subscription plans')
-    } finally {
-      setPlansLoading(false)
+      setAvailableProductsLoading(false)
     }
   }
 
@@ -241,6 +210,8 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
     if (!isAuthenticated) return
 
     setUserLoading(true)
+    setEntitlementsLoading(true)
+    
     try {
       // Load credits
       const creditsResponse = await billingApi.getCredits()
@@ -248,27 +219,29 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
         setCredits(creditsResponse.data)
       }
 
-      // Load subscription
-      const subResponse = await billingApi.getSubscription()
-      if (subResponse.ok && subResponse.data) {
-        setSubscription(subResponse.data.subscription)
-      }
-
-      // Load feature memberships
-      const membershipsResponse = await billingApi.getFeatureMemberships()
-      if (membershipsResponse.ok && membershipsResponse.data) {
-        setFeatureMemberships(membershipsResponse.data.memberships || [])
+      // Load active entitlements (subscriptions + feature access)
+      const entitlementsResponse = await billingApi.getActiveEntitlements()
+      if (entitlementsResponse.ok && entitlementsResponse.data) {
+        setActiveEntitlements(entitlementsResponse.data.data || [])
+        setEntitlementsError(null)
+      } else {
+        setEntitlementsError(entitlementsResponse.error || 'Failed to load subscriptions')
       }
     } catch (err) {
       console.error('[BillingManager] Failed to load user data:', err)
+      setEntitlementsError('Failed to load subscriptions')
     } finally {
       setUserLoading(false)
+      setEntitlementsLoading(false)
     }
   }, [isAuthenticated, billingApi])
 
-  const handlePurchaseCredits = async (packageId: string, priceId: string | null) => {
+  /**
+   * Handle purchase from the unified available products view
+   * Uses the product's product_code and provider_slug for the purchase endpoint
+   */
+  const handlePurchaseProduct = async (product: EligibleProduct) => {
     if (!isAuthenticated) {
-      // Prompt login
       try {
         await plugin?.call('auth', 'login', 'github')
         return
@@ -278,148 +251,83 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
       }
     }
 
-    if (!priceId) {
-      console.error('[BillingManager] No price ID for package:', packageId)
+    // Validate product has required fields
+    if (!product.product_code) {
+      console.error('[BillingManager] Product does not have a product_code:', product.slug)
+      return
+    }
+    if (!product.provider_slug) {
+      console.error('[BillingManager] Product does not have a provider configured:', product.slug)
       return
     }
 
     setPurchasing(true)
     try {
-      // Always call backend API first to create transaction with customData (userId)
-      const response = await billingApi.purchaseCredits(packageId, 'paddle')
+      // Use the unified /products/purchase endpoint
+      const response = await billingApi.purchaseProduct(product)
+      
       if (!response.ok || !response.data) {
         console.error('[BillingManager] Failed to create checkout:', response.error)
+        setPurchasing(false)
         return
       }
 
       const { transactionId, checkoutUrl } = response.data
+      const provider = product.provider_slug
 
-      // Use Paddle.js overlay if available and we have a transactionId
-      const paddleInstance = paddle || getPaddle()
-      if (paddleInstance && transactionId) {
-        openCheckoutWithTransaction(paddleInstance, transactionId, {
-          settings: {
-            displayMode: 'overlay',
-            theme: 'light'
-          }
-        })
-      } else if (checkoutUrl) {
-        // Fallback to redirect checkout URL
-        window.open(checkoutUrl, '_blank')
+      // For freepaddle, use the overlay checkout experience
+      if (provider === 'freepaddle') {
+        if (checkoutUrl && transactionId) {
+          console.log('[BillingManager] Opening FreePaddle checkout overlay:', checkoutUrl)
+          setFreepaddleCheckout({
+            isOpen: true,
+            checkoutUrl,
+            transactionId,
+            product
+          })
+        } else {
+          console.error('[BillingManager] Missing checkoutUrl or transactionId for FreePaddle')
+        }
         setPurchasing(false)
-      } else {
-        console.error('[BillingManager] No transactionId or checkoutUrl returned')
+        return
       }
+
+      // For Paddle, use Paddle.js overlay
+      if (provider === 'paddle') {
+        const paddleInstance = paddle || getPaddle()
+        if (paddleInstance && transactionId) {
+          openCheckoutWithTransaction(paddleInstance, transactionId, {
+            settings: {
+              displayMode: 'overlay',
+              theme: 'light'
+            }
+          })
+        } else if (checkoutUrl) {
+          window.open(checkoutUrl, '_blank')
+          setPurchasing(false)
+        } else {
+          console.error('[BillingManager] No transactionId or checkoutUrl returned')
+          setPurchasing(false)
+        }
+        return
+      }
+
+      // For other providers, redirect to checkout URL
+      if (checkoutUrl) {
+        console.log('[BillingManager] Redirecting to checkout URL for provider:', provider)
+        window.location.href = checkoutUrl
+      }
+      setPurchasing(false)
     } catch (err) {
       console.error('[BillingManager] Purchase error:', err)
       setPurchasing(false)
     }
   }
 
-  const handleSubscribe = async (planId: string, priceId: string | null) => {
-    if (!isAuthenticated) {
-      try {
-        await plugin?.call('auth', 'login', 'github')
-        return
-      } catch {
-        console.error('[BillingManager] Login failed')
-        return
-      }
-    }
-
-    if (!priceId) {
-      console.error('[BillingManager] No price ID for plan:', planId)
-      return
-    }
-
-    setSubscribing(true)
-    try {
-      // Always call backend API first to create transaction with customData (userId)
-      const response = await billingApi.subscribe(planId, 'paddle')
-      if (!response.ok || !response.data) {
-        console.error('[BillingManager] Failed to create checkout:', response.error)
-        return
-      }
-
-      const { transactionId, checkoutUrl } = response.data
-
-      // Use Paddle.js overlay if available and we have a transactionId
-      const paddleInstance = paddle || getPaddle()
-      if (paddleInstance && transactionId) {
-        openCheckoutWithTransaction(paddleInstance, transactionId, {
-          settings: {
-            displayMode: 'overlay',
-            theme: 'light'
-          }
-        })
-      } else if (checkoutUrl) {
-        // Fallback to redirect checkout URL
-        window.open(checkoutUrl, '_blank')
-        setSubscribing(false)
-      } else {
-        console.error('[BillingManager] No transactionId or checkoutUrl returned')
-      }
-    } catch (err) {
-      console.error('[BillingManager] Subscribe error:', err)
-      setSubscribing(false)
-    }
-  }
-
-  const handlePurchaseFeatureAccess = async (productSlug: string, priceId: string | null) => {
-    if (!isAuthenticated) {
-      try {
-        await plugin?.call('auth', 'login', 'github')
-        return
-      } catch {
-        console.error('[BillingManager] Login failed')
-        return
-      }
-    }
-
-    if (!priceId) {
-      console.error('[BillingManager] No price ID for product:', productSlug)
-      return
-    }
-
-    setPurchasingFeature(true)
-    try {
-      // Call backend API to create transaction
-      const response = await billingApi.purchaseFeatureAccess(productSlug, 'paddle')
-      if (!response.ok || !response.data) {
-        console.error('[BillingManager] Failed to create checkout:', response.error)
-        setPurchasingFeature(false)
-        return
-      }
-
-      const { transactionId, checkoutUrl } = response.data
-
-      // Use Paddle.js overlay if available
-      const paddleInstance = paddle || getPaddle()
-      if (paddleInstance && transactionId) {
-        openCheckoutWithTransaction(paddleInstance, transactionId, {
-          settings: {
-            displayMode: 'overlay',
-            theme: 'light'
-          }
-        })
-      } else if (checkoutUrl) {
-        // Fallback to redirect checkout URL
-        window.open(checkoutUrl, '_blank')
-        setPurchasingFeature(false)
-      } else {
-        console.error('[BillingManager] No transactionId or checkoutUrl returned')
-        setPurchasingFeature(false)
-      }
-    } catch (err) {
-      console.error('[BillingManager] Feature access purchase error:', err)
-      setPurchasingFeature(false)
-    }
-  }
-
-  const handleManageSubscription = () => {
+  const handleManageSubscription = (entitlement: ActiveEntitlement) => {
     // Open Paddle customer portal or custom management page
-    console.log('[BillingManager] Manage subscription')
-    // TODO: Implement subscription management
+    console.log('[BillingManager] Manage subscription:', entitlement.productSlug)
+    // TODO: Implement subscription management - could open Paddle portal or custom UI
   }
 
   return (
@@ -461,10 +369,12 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
       {/* Current subscription */}
       {isAuthenticated && (
         <div className="p-3 border-bottom">
-          <CurrentSubscription
-            subscription={subscription}
-            loading={userLoading}
+          <ActiveEntitlements
+            entitlements={activeEntitlements}
+            loading={entitlementsLoading}
+            error={entitlementsError}
             onManage={handleManageSubscription}
+            compact={true}
           />
         </div>
       )}
@@ -503,38 +413,62 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
       {/* Tab content */}
       <div className="p-3">
         {activeTab === 'features' && (
-          <FeatureAccessProductsView
-            products={featureProducts}
-            loading={featureProductsLoading}
-            error={featureProductsError}
-            memberships={featureMemberships}
-            onPurchase={handlePurchaseFeatureAccess}
-            purchasing={purchasingFeature}
+          <AvailableProductsView
+            products={availableProducts}
+            loading={availableProductsLoading}
+            error={availableProductsError}
+            activeEntitlements={activeEntitlements}
+            onPurchase={handlePurchaseProduct}
+            purchasing={purchasing}
+            filterType="feature_access"
           />
         )}
 
         {activeTab === 'credits' && (
-          <CreditPackagesView
-            packages={packages}
-            loading={packagesLoading}
-            error={packagesError}
-            currentBalance={credits?.balance}
-            onPurchase={handlePurchaseCredits}
+          <AvailableProductsView
+            products={availableProducts}
+            loading={availableProductsLoading}
+            error={availableProductsError}
+            activeEntitlements={activeEntitlements}
+            onPurchase={handlePurchaseProduct}
             purchasing={purchasing}
+            filterType="credit_package"
           />
         )}
 
         {activeTab === 'subscription' && (
-          <SubscriptionPlansView
-            plans={plans}
-            loading={plansLoading}
-            error={plansError}
-            currentSubscription={subscription}
-            onSubscribe={handleSubscribe}
-            subscribing={subscribing}
+          <AvailableProductsView
+            products={availableProducts}
+            loading={availableProductsLoading}
+            error={availableProductsError}
+            activeEntitlements={activeEntitlements}
+            onPurchase={handlePurchaseProduct}
+            purchasing={purchasing}
+            filterType="subscription_plan"
           />
         )}
       </div>
+
+      {/* FreePaddle Checkout Overlay */}
+      {freepaddleCheckout && (
+        <FreePaddleCheckoutOverlay
+          isOpen={freepaddleCheckout.isOpen}
+          checkoutUrl={freepaddleCheckout.checkoutUrl}
+          transactionId={freepaddleCheckout.transactionId}
+          product={freepaddleCheckout.product}
+          onComplete={() => {
+            console.log('[BillingManager] FreePaddle checkout completed')
+            setFreepaddleCheckout(null)
+            // Refresh user data and available products after successful purchase
+            loadUserData()
+            loadPublicData()
+          }}
+          onClose={() => {
+            console.log('[BillingManager] FreePaddle checkout closed')
+            setFreepaddleCheckout(null)
+          }}
+        />
+      )}
     </div>
   )
 }

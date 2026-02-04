@@ -436,3 +436,153 @@ export interface FeatureAccessCheckResponse {
   featureGroup: string
   hasAccess: boolean
 }
+
+// ==================== Eligible Products (Unified API) ====================
+
+/**
+ * Product type identifiers
+ */
+export type ProductType = 'credit_package' | 'subscription_plan' | 'feature_access'
+
+/**
+ * Unified eligible product - returned by /products/available endpoints
+ * The API decides what the user sees based on eligibility rules, tags, etc.
+ */
+export interface EligibleProduct {
+  id: number                     // Unified product ID
+  product_code: string           // Unique product code for purchases
+  name: string
+  slug: string
+  description: string | null
+  product_type: ProductType
+  price_cents: number
+  currency: string
+  // Type-specific fields
+  credits?: number               // credit_package only
+  credits_per_month?: number     // subscription_plan only
+  billing_interval?: string      // subscription_plan only
+  features?: string[]            // subscription_plan only
+  feature_group?: string         // feature_access only
+  feature_groups?: FeatureGroupInfo[]  // feature_access only
+  duration_type?: 'days' | 'months' | 'years' | 'unlimited'  // feature_access only
+  duration_value?: number        // feature_access only
+  is_recurring?: boolean         // feature_access only
+  is_popular?: boolean
+  // Provider info for checkout
+  provider_slug: string          // Payment provider to use (paddle, freepaddle, etc.)
+  external_product_id: string | null
+  external_price_id: string | null
+}
+
+/**
+ * Response from /products/available endpoint
+ */
+export interface AvailableProductsResponse {
+  data: EligibleProduct[]
+  meta: {
+    user_id: number | null
+    provider_filter: string | null
+    type_filter: string | null
+    total: number
+  }
+}
+
+/**
+ * Response from /products/available/grouped endpoint
+ */
+export interface GroupedProductsResponse {
+  data: {
+    credit_packages: EligibleProduct[]
+    subscription_plans: EligibleProduct[]
+    feature_access: EligibleProduct[]
+  }
+  meta: {
+    user_id: number | null
+    provider_filter: string | null
+    totals: {
+      credit_packages: number
+      subscription_plans: number
+      feature_access: number
+    }
+  }
+}
+
+/**
+ * Request to purchase an eligible product (unified checkout)
+ */
+export interface PurchaseProductRequest {
+  product_code: string           // Product code from available products
+  provider?: string              // Provider slug (paddle, freepaddle, etc.)
+  returnUrl?: string             // Redirect URL after checkout
+}
+
+/**
+ * Response from unified purchase endpoint
+ */
+export interface PurchaseProductResponse {
+  checkoutUrl: string
+  transactionId: string
+  provider: string               // Provider used for checkout
+  product: {
+    id: number
+    slug: string
+    name: string
+    product_type: ProductType
+    price_cents: number
+  }
+}
+
+// ==================== Active Entitlements ====================
+
+/**
+ * Type of entitlement
+ */
+export type EntitlementType = 'credit_subscription' | 'feature_access'
+
+/**
+ * Source of entitlement
+ */
+export type EntitlementSourceType = 'purchase' | 'subscription' | 'admin_grant' | 'promo' | 'trial'
+
+/**
+ * Active entitlement - unified view of subscriptions and feature access
+ */
+export interface ActiveEntitlement {
+  id: number
+  type: EntitlementType
+  name: string
+  description: string | null
+  status: string                    // 'active', 'trialing', 'past_due', etc.
+  isRecurring: boolean
+  billingInterval: 'day' | 'week' | 'month' | 'year' | null
+  startsAt: string                  // ISO date
+  expiresAt: string | null          // ISO date, null = never expires
+  daysRemaining: number | null      // null = never expires
+  isExpiringSoon: boolean           // True if expiring within 7 days
+  // Credit subscription specific
+  creditsPerPeriod: number | null
+  // Feature access specific
+  featureGroup: string | null
+  featureGroupDisplayName: string | null
+  // Source information
+  sourceType: EntitlementSourceType
+  productId: number
+  productSlug: string
+  providerSlug: string
+  providerSubscriptionId: string | null
+  cancelAtPeriodEnd: boolean
+}
+
+/**
+ * Response from /products/active endpoint
+ */
+export interface ActiveEntitlementsResponse {
+  data: ActiveEntitlement[]
+  meta: {
+    userId: number
+    total: number
+    creditSubscriptions: number
+    featureAccess: number
+    expiringSoon: number
+  }
+}

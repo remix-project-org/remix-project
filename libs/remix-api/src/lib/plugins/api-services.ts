@@ -39,7 +39,17 @@ import {
   FeatureAccessPurchaseRequest,
   FeatureAccessPurchaseResponse,
   UserMembershipsResponse,
-  FeatureAccessCheckResponse
+  FeatureAccessCheckResponse,
+  // Eligible Products (unified API)
+  EligibleProduct,
+  ProductType,
+  AvailableProductsResponse,
+  GroupedProductsResponse,
+  PurchaseProductRequest,
+  PurchaseProductResponse,
+  // Active Entitlements
+  ActiveEntitlement,
+  ActiveEntitlementsResponse
 } from './api-types'
 
 /**
@@ -260,13 +270,28 @@ export class PermissionsApiService {
  * Billing API Service - Credit packages, subscription plans, and purchases
  */
 export class BillingApiService {
-  constructor(private apiClient: IApiClient) {}
+  private productsClient: IApiClient | null = null
+
+  constructor(private apiClient: IApiClient, productsClient?: IApiClient) {
+    this.productsClient = productsClient || null
+  }
+
+  /**
+   * Set a separate API client for the /products endpoints
+   * This is needed because products are served from a different base URL
+   */
+  setProductsClient(client: IApiClient): void {
+    this.productsClient = client
+  }
 
   /**
    * Set the authentication token for API requests
    */
   setToken(token: string): void {
     this.apiClient.setToken(token)
+    if (this.productsClient) {
+      this.productsClient.setToken(token)
+    }
   }
 
   // ==================== Public Endpoints (No Auth Required) ====================
@@ -481,5 +506,156 @@ export class BillingApiService {
    */
   static filterFeatureProducts(products: FeatureAccessProduct[], recurring: boolean): FeatureAccessProduct[] {
     return products.filter(p => p.isRecurring === recurring)
+  }
+
+  // ==================== Available Products (Unified/Eligibility-Based API) ====================
+  // These endpoints return products based on user eligibility rules, tags, and visibility settings
+  // The API decides what products the user can see - the frontend just displays them
+  // NOTE: These methods require productsClient to be set (different base URL from billing)
+
+  /**
+   * Get the client for products endpoints (separate from billing)
+   */
+  private getProductsClient(): IApiClient {
+    if (!this.productsClient) {
+      throw new Error('Products client not configured. Call setProductsClient() first.')
+    }
+    return this.productsClient
+  }
+
+  /**
+   * Get all products available to the current user
+   * Products are filtered by user eligibility rules, tags, visibility, etc.
+   * @param provider - Optional: filter by payment provider (paddle, freepaddle, etc.)
+   * @param type - Optional: filter by product type (credit_package, subscription_plan, feature_access)
+   */
+  async getAvailableProducts(provider?: string, type?: ProductType): Promise<ApiResponse<AvailableProductsResponse>> {
+    const params = new URLSearchParams()
+    if (provider) params.set('provider', provider)
+    if (type) params.set('type', type)
+    const query = params.toString()
+    return this.getProductsClient().get<AvailableProductsResponse>(`/available${query ? '?' + query : ''}`)
+  }
+
+  /**
+   * Get available products grouped by type
+   * @param provider - Optional: filter by payment provider
+   */
+  async getAvailableProductsGrouped(provider?: string): Promise<ApiResponse<GroupedProductsResponse>> {
+    const params = provider ? `?provider=${provider}` : ''
+    return this.getProductsClient().get<GroupedProductsResponse>(`/available/grouped${params}`)
+  }
+
+  /**
+   * Get available credit packages only
+   * @param provider - Optional: filter by payment provider
+   */
+  async getAvailableCreditPackages(provider?: string): Promise<ApiResponse<AvailableProductsResponse>> {
+    return this.getAvailableProducts(provider, 'credit_package')
+  }
+
+  /**
+   * Get available subscription plans only
+   * @param provider - Optional: filter by payment provider
+   */
+  async getAvailableSubscriptions(provider?: string): Promise<ApiResponse<AvailableProductsResponse>> {
+    return this.getAvailableProducts(provider, 'subscription_plan')
+  }
+
+  /**
+   * Get available feature access products only
+   * @param provider - Optional: filter by payment provider
+   */
+  async getAvailableFeatureAccess(provider?: string): Promise<ApiResponse<AvailableProductsResponse>> {
+    return this.getAvailableProducts(provider, 'feature_access')
+  }
+
+  /**
+   * Get active entitlements for the current user
+   * Returns a unified view of both credit subscriptions and feature access
+   * Requires authentication
+   */
+  async getActiveEntitlements(): Promise<ApiResponse<ActiveEntitlementsResponse>> {
+    return this.getProductsClient().get<ActiveEntitlementsResponse>('/active')
+  }
+
+  /**
+   * Purchase a product using the unified /products/purchase endpoint
+   * @param product - The eligible product to purchase (must have product_code and provider_slug)
+   * @param options - Optional purchase options
+   */
+  async purchaseProduct(product: EligibleProduct, options?: { returnUrl?: string }): Promise<ApiResponse<PurchaseProductResponse>> {
+    if (!product.product_code) {
+      throw new Error('Product does not have a product_code')
+    }
+    if (!product.provider_slug) {
+      throw new Error('Product does not have a provider configured')
+    }
+
+    return this.productsClient 
+      ? this.productsClient.post<PurchaseProductResponse>('/purchase', {
+          product_code: product.product_code,
+          provider: product.provider_slug,
+          returnUrl: options?.returnUrl
+        })
+      : this.apiClient.post<PurchaseProductResponse>('/products/purchase', {
+          product_code: product.product_code,
+          provider: product.provider_slug,
+          returnUrl: options?.returnUrl
+        })
+  }
+
+  /**
+   * Complete a transaction (typically called after checkout confirmation)
+   * This finalizes the purchase and grants the product to the user.
+   * @param transactionId - The transaction ID returned from purchase initiation
+   */
+  async completeTransaction(transactionId: string): Promise<ApiResponse<{ success: boolean; message?: string }>> {
+    return this.apiClient.post<{ success: boolean; message?: string }>(`/transactions/${transactionId}/complete`, {})
+  }
+
+  // ==================== Helper Methods for Available Products ====================
+
+  /**
+   * Check if an eligible product is free (price = 0 or provider is freepaddle)
+   */
+  static isProductFree(product: EligibleProduct): boolean {
+    return product.price_cents === 0 || product.provider_slug === 'freepaddle'
+  }
+
+  /**
+   * Get checkout info from an eligible product
+   */
+  static getCheckoutInfo(product: EligibleProduct): { provider: string; priceId: string | null; productId: string | null } {
+    return {
+      provider: product.provider_slug,
+      priceId: product.external_price_id,
+      productId: product.external_product_id
+    }
+  }
+
+  /**
+   * Filter eligible products by type
+   */
+  static filterByType(products: EligibleProduct[], type: ProductType): EligibleProduct[] {
+    return products.filter(p => p.product_type === type)
+  }
+
+  /**
+   * Group eligible products by type
+   */
+  static groupByType(products: EligibleProduct[]): Record<ProductType, EligibleProduct[]> {
+    return {
+      credit_package: products.filter(p => p.product_type === 'credit_package'),
+      subscription_plan: products.filter(p => p.product_type === 'subscription_plan'),
+      feature_access: products.filter(p => p.product_type === 'feature_access')
+    }
+  }
+
+  /**
+   * Check if product uses a free provider
+   */
+  static usesFreeProvider(product: EligibleProduct): boolean {
+    return product.provider_slug === 'freepaddle'
   }
 }
