@@ -64,7 +64,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   return (
     <>
       <div
-        className="prompt-area d-flex flex-column mx-1 p-2 border border-text bg-light"
+        className="prompt-area d-flex flex-column mx-2 p-2 rounded-3 border border-text bg-light"
       >
         <div className="d-flex justify-content-between align-items-center mb-3 border border-end-0 border-start-0 border-top-0 border-bottom pb-1">
           <button
@@ -91,17 +91,30 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         </div>
         <div className="ai-chat-input d-flex flex-column">
           <div
-            className="d-flex flex-column border rounded-3"
-            style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#e4e8f1' : '' }}
+            className="d-flex flex-column rounded-3 p-1"
+            style={{
+              backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
+              outline: 'none',
+              boxShadow: 'none',
+              border: 'none'
+            }}
           >
             <textarea
               ref={textareaRef}
-              style={{ flexGrow: 1, outline: 'none', resize: 'none', font: 'inherit', color: 'inherit', backgroundColor: 'transparent', boxShadow: 'none' }}
+              style={{
+                flexGrow: 1,
+                outline: 'none',
+                resize: 'none',
+                font: 'inherit',
+                color: 'inherit',
+                backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
+                boxShadow: 'none',
+                paddingRight: isStreaming ? '50px' : '10px'
+              }}
               rows={2}
-              className="form-control bg-light border-0"
+              className="form-control mb-1 border-0"
               value={input}
               disabled={isStreaming}
-              data-id="remix-ai-composer-input"
               onFocus={() => {
                 if (!isMaximized) {
                   maximizePanel()

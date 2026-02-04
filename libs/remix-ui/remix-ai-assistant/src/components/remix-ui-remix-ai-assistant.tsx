@@ -887,7 +887,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       className="d-flex flex-column w-100 h-100"
       ref={aiChatRef}
       style={{ overflow: 'hidden' }}
-      data-theme={themeTracker?.quality || 'dark'}
+      data-theme={themeTracker && themeTracker?.name.toLowerCase()}
     >
       {/* Main content area with sidebar and chat */}
       <div className="d-flex flex-row flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
@@ -1007,7 +1007,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       </div>
 
       {/* Prompt area - fixed at bottom */}
-      <section id="remix-ai-prompt-area" className="border-top" style={{ flexShrink: 0, minHeight: '140px' }}
+      <section
+        id="remix-ai-prompt-area"
+        className="ai-assistant-prompt-bg"
+        style={{ flexShrink: 0, minHeight: '140px', background: 'transparent' }}
+        data-theme={themeTracker && themeTracker?.name.toLowerCase()}
       >
         {showAssistantOptions && (
           <div
@@ -1071,8 +1075,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           isStreaming={isStreaming}
           handleSend={handleSend}
           handleStop={stopRequest}
-          showContextOptions={showContextOptions}
-          setShowContextOptions={setShowContextOptions}
+          showContextOptions={false}
+          setShowContextOptions={() => {}}
           showAssistantOptions={showAssistantOptions}
           setShowAssistantOptions={setShowAssistantOptions}
           showModelOptions={showModelOptions}

@@ -207,7 +207,7 @@
 
 .prompt-area {
   /* matches the dark tone we used inline */
-  background: rgba(255, 255, 255, 0.04);
+  /* background: #2a2c3f; */
   border-radius: 4px;
   gap: 0.5rem;                /* same as BS5 .gap-2 but column layout */
   padding: 0.5rem;
@@ -216,7 +216,7 @@
 /* selector panels (context + assistant) */
 .prompt-area .rounded.selector-box,
 .prompt-area .rounded.p-3 {
-  background: rgba(255, 255, 255, 0.03);
+  /* background: rgba(255, 255, 255, 0.03); */
   border-radius: 4px;
   padding: 1rem !important;   /* keep existing spacing */
   margin-bottom: 0.5rem;
@@ -291,7 +291,7 @@
 }
 
 .remix-aichat-background {
-  background-color: #2A2C3F;
+  /* background-color: #2A2C3F; */
 }
 
 .preserve-wrap {
@@ -742,9 +742,9 @@ mark,
       transparent 100%
     ),
     linear-gradient(
-      180deg,
-      #15232e 0%,
-      #1e2b3a 45%,
+      360deg,
+      #3b585a 0%,
+      #2b4042 45%,
       #1f1d33 100%
     );
   pointer-events: none;
@@ -759,12 +759,65 @@ mark,
 /* Light theme gradient override */
 [data-theme="light"] .ai-assistant-bg::before {
   background: linear-gradient(
+    360deg,
+    #d8e8f0 0%,
+    #c8dce8 30%,
+    #b8d5e5 60%,
+    #a0c8dc 100%
+  ) !important;
+}
+
+.ai-assistant-prompt-bg {
+  position: relative;
+  background: var(--bs-body-bg) !important;
+}
+
+.ai-assistant-prompt-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(
+      700px 520px at 92% -6%,
+      rgba(40, 130, 145, 0.2) 0%,
+      rgba(24, 64, 82, 0.18) 40%,
+      rgba(14, 34, 50, 0.03) 70%,
+      transparent 100%
+    ),
+    radial-gradient(
+      680px 560px at 6% 108%,
+      rgba(38, 100, 118, 0.26) 0%,
+      rgba(30, 62, 90, 0.16) 45%,
+      rgba(22, 38, 60, 0.04) 70%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      #3b585a 0%,
+      #2b4042 45%,
+      #1f1d33 100%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ai-assistant-prompt-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Light theme gradient override for prompt area */
+[data-theme="light"] .ai-assistant-prompt-bg::before {
+  background: linear-gradient(
     180deg,
     #d8e8f0 0%,
     #c8dce8 30%,
     #b8d5e5 60%,
     #a0c8dc 100%
-  );
+  ) !important;
 }
 
 /* Fix for remix-ai-assistant container to prevent scrollbar */

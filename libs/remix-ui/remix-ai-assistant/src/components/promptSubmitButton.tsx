@@ -16,7 +16,7 @@ export function PromptSubmitButton(props: PromptSubmitButtonProps) {
       data-id="remix-ai-composer-send-btn"
       onClick={() => {
         if (props.isStreaming && props.handleCancel) {
-          props.handleCancel()
+          // props.handleCancel()
         } else if (!props.isStreaming) {
           props.handleSend()
         }
