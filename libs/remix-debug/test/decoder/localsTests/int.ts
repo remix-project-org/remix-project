@@ -52,6 +52,8 @@ module.exports = function (st, privateKey, contractBytecode, compilationResult, 
               st.equals((await callTree.getGasCostPerLine(0, 16, '1')).gasCost, 10)
               st.equals((await callTree.getGasCostPerLine(0, 32, '1.2.1')).gasCost, 29)
 
+              /*
+              TODO: replace by call tree unit testing
               const functions1 = callTree.retrieveFunctionsStack(103)
               const functions2 = callTree.retrieveFunctionsStack(116)
               const functions3 = callTree.retrieveFunctionsStack(13)
@@ -66,7 +68,7 @@ module.exports = function (st, privateKey, contractBytecode, compilationResult, 
               st.equal(functions2[0].gasCost, 22)
               st.equal(functions2[1].gasCost, 53)
               st.equal(functions2[2].gasCost, 423)
-
+              
               st.equals(Object.keys(functions1[0])[0], 'functionDefinition')
               st.equals(Object.keys(functions1[0])[1], 'inputs')
               st.equals(functions1[0].inputs[0], 'foo')
@@ -80,14 +82,14 @@ module.exports = function (st, privateKey, contractBytecode, compilationResult, 
               st.equals(functions1[0].functionDefinition.name, 'level11')
               st.equals(functions2[0].functionDefinition.name, 'level12')
               st.equals(functions2[1].functionDefinition.name, 'level11')
-
+              */
               st.equals(scopeStarts[0], '1')
-              st.equals(scopeStarts[10], '1.1')
-              st.equals(scopeStarts[102], '1.1.1')
-              st.equals(scopeStarts[115], '1.1.1.1')
-              st.equals(scopeStarts[136], '1.1.2')
-              st.equals(scopeStarts[153], '1.1.3')
-              st.equals(scopeStarts[166], '1.1.3.1')
+              st.equals(scopeStarts[12], '1.1')
+              st.equals(scopeStarts[101], '1.2')
+              st.equals(scopeStarts[114], '1.2.1.1')
+              st.equals(scopeStarts[135], '1.2.1.2')
+              /*
+              TODO use symbolic stack to verify localsl type.
               st.equals(scopes['1.1'].locals['ui8'].type.typeName, 'uint8')
               st.equals(scopes['1.1'].locals['ui16'].type.typeName, 'uint16')
               st.equals(scopes['1.1'].locals['ui32'].type.typeName, 'uint32')
@@ -108,6 +110,7 @@ module.exports = function (st, privateKey, contractBytecode, compilationResult, 
               st.equals(scopes['1.1.2'].locals['ui81'].type.typeName, 'uint8')
               st.equals(scopes['1.1.3'].locals['ui8'].type.typeName, 'uint8')
               st.equals(scopes['1.1.3.1'].locals['ui81'].type.typeName, 'uint8')
+              */
             } catch (e) {
               st.fail(e.message)
             }

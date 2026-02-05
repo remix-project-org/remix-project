@@ -478,7 +478,6 @@ export class InternalCallTree {
    * @throws {Error} If gas cost data is not available for the specified file and line
    */
   async getGasCostPerLine(file: number, line: number, scopeId: string) {
-    console.log(JSON.stringify(this.gasCostPerLine))
     if (this.gasCostPerLine[file] && this.gasCostPerLine[file][scopeId] && this.gasCostPerLine[file][scopeId][line]) {
       return this.gasCostPerLine[file][scopeId][line]
     }
