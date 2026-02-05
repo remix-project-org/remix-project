@@ -45,7 +45,7 @@ export const TreeViewItem = (props: TreeViewItemProps) => {
         onClick={handleLabelClick}
       >
         {children && showIcon ? (
-          <div 
+          <div
             data-id={`treeViewDivIcon${id}`}
             className={isExpanded ? `ps-2 ${iconY}` : `ps-2 ${iconX} caret caret_tv`}
             style={{ visibility: children ? 'visible' : 'hidden' }}

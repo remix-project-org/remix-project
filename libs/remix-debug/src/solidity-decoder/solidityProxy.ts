@@ -55,7 +55,7 @@ export class SolidityProxy {
     if (compilationResult && compilationResult.data && compilationResult.data.contracts) {
       contract = contractObjectFromCode(compilationResult.data.contracts, code.bytecode, address)
       this.cache.contractObjectByAddress[address] = contract
-    }    
+    }
     return contract
   }
 

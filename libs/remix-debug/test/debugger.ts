@@ -266,9 +266,9 @@ function testDebugging (debugManager) {
     t.plan(1)
     const tested = JSON.parse(locals)
     try {
-      const address = debugManager.traceManager.getCurrentCalledAddressAt(488)
-      const location = await debugManager.sourceLocationFromVMTraceIndex(address, 488)
-      debugManager.decodeLocalsAt(488, location, (error, decodedlocals) => {
+      const address = debugManager.traceManager.getCurrentCalledAddressAt(489)
+      const location = await debugManager.sourceLocationFromVMTraceIndex(address, 489)
+      debugManager.decodeLocalsAt(489, location, (error, decodedlocals) => {
         if (error) return t.end(error)
         const res = deepequal(decodedlocals, tested)
         t.ok(res, `test if locals does match. expected: ${JSON.stringify(tested, null, '\t')} - current: ${JSON.stringify(decodedlocals, null, '\t')}`)
@@ -296,7 +296,6 @@ function testDebugging (debugManager) {
     breakPointManager.jumpNextBreakpoint(0, true)
   })
 }
-
 
 const locals = `{
     "addressLocal": {

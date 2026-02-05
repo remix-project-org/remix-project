@@ -127,21 +127,21 @@ export class SymbolicStackManager {
     const stack = this.getStackAtStep(step)
 
     const newVar: SymbolicStackSlot = {
-        kind: variable.isReturnParameter ? 'return_value' : (variable.isParameter ? 'parameter' : 'variable'),
-        variableId: variable.id,
-        variableName: variable.name,
-        variableType: variable.type,
-        originStep: variable.declarationStep || step,
-        isParameter: variable.isParameter || false,
-        isReturnParameter: variable.isReturnParameter || false,
-        lifecycle: lifecycle,
-        variableScope: variable.scope,
-        functionScopeId: functionScopeId
-      }
-      if (newVar.variableType) {
-        newVar.variableType.abi = variable.abi
-        newVar.variableType.name = variable.name
-      }
+      kind: variable.isReturnParameter ? 'return_value' : (variable.isParameter ? 'parameter' : 'variable'),
+      variableId: variable.id,
+      variableName: variable.name,
+      variableType: variable.type,
+      originStep: variable.declarationStep || step,
+      isParameter: variable.isParameter || false,
+      isReturnParameter: variable.isReturnParameter || false,
+      lifecycle: lifecycle,
+      variableScope: variable.scope,
+      functionScopeId: functionScopeId
+    }
+    if (newVar.variableType) {
+      newVar.variableType.abi = variable.abi
+      newVar.variableType.name = variable.name
+    }
 
     // Track variable lifecycle
     this.variableLifecycle[variable.id] = {
@@ -152,7 +152,7 @@ export class SymbolicStackManager {
 
     if (stackIndex >= 0 && stackIndex < stack.length) {
       stack[stackIndex] = newVar
-      
+
       console.log(`[${lifecycle}] Bound variable ${variable.name} at step ${step} to stack index ${stackIndex} in scope ${functionScopeId || 'unknown'}`)
     } else {
       // Handle out of bounds - this can happen with return parameters
@@ -243,7 +243,7 @@ export class SymbolicStackManager {
     if (this.variableLifecycle[variableId]) {
       this.variableLifecycle[variableId].lifecycle = newLifecycle
       this.variableLifecycle[variableId].step = step
-      
+
       // Update the slot in the symbolic stack
       const stackIndex = this.variableLifecycle[variableId].stackIndex
       const stack = this.getStackAtStep(step)

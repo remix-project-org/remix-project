@@ -147,7 +147,7 @@ function handleDup(
 /**
  * Handles SWAP operations (SWAP1-SWAP16)
  * SWAPn swaps the top stack item with the (n+1)th stack item
- * 
+ *
  * Special handling for variable declarations: when swapping, we need to preserve
  * the variable binding semantics, not just swap the positions blindly.
  *
@@ -172,7 +172,7 @@ function handleSwap(
     const swapSlot = newStack[swapIdx]
 
     // Check if either slot is a variable declaration that needs special handling
-    const isVariableDeclarationPattern = 
+    const isVariableDeclarationPattern =
       (topSlot.kind === 'variable' || topSlot.kind === 'parameter') ||
       (swapSlot.kind === 'variable' || swapSlot.kind === 'parameter')
 
@@ -183,7 +183,7 @@ function handleSwap(
       // - PUSH1 pushes the value
       // - SWAP1 should logically move the value to where the variable slot is
       // - POP removes the temporary value position
-      
+
       // Instead of blind swapping, preserve the variable declaration in its logical position
       if (topSlot.kind === 'intermediate' && (swapSlot.kind === 'variable' || swapSlot.kind === 'parameter')) {
         // Top is a value, swap position is a variable - this is likely the PUSH0, PUSH1, SWAP pattern
@@ -195,7 +195,7 @@ function handleSwap(
           originStep: step,
           originOp: opcode
         }
-        
+
         // The top position gets a reference to the original variable slot
         newStack[top] = {
           kind: 'intermediate',
@@ -216,7 +216,7 @@ function handleSwap(
           originStep: step,
           originOp: opcode
         }
-        
+
         newStack[swapIdx] = {
           kind: 'intermediate',
           originStep: step,
@@ -319,7 +319,7 @@ function handlePop(
       // This should not happen in normal code generation, but if it does,
       // we should preserve the variable information somehow
       console.warn(`POP at step ${step} is removing a variable declaration: ${topSlot.variableName}`)
-      
+
       // If this is a reference to a variable (created by SWAP), it's safe to remove
       if (topSlot.referencesVariable && topSlot.originOp?.startsWith('SWAP')) {
         newStack.pop()

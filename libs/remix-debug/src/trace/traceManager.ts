@@ -102,7 +102,7 @@ export class TraceManager {
   }
 
   async fromCache(txHash: string): Promise<DebugTraceTransactionResult | null> {
-     
+
     try {
       const cached = this.getCache && await this.getCache(txHash) as DebugTraceTransactionResult
       if (cached) {

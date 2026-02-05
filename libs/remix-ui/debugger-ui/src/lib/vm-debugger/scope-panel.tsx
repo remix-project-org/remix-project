@@ -1,7 +1,7 @@
-import React, {useState, useEffect} from 'react'
-import {TreeView, TreeViewItem} from '@remix-ui/tree-view'
+import React, { useState, useEffect } from 'react'
+import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import { traceHelper } from '@remix-project/remix-debug'
-import {useIntl} from 'react-intl'
+import { useIntl } from 'react-intl'
 import './styles/dropdown-panel.css'
 
 export interface NestedScope {
@@ -71,7 +71,7 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
     event.stopPropagation();
     stepManager.jumpTo(scope.firstStep + 2) // Afert the JUMPDEST
   }
-  
+
   const handleJumpOver = (event, scope: NestedScope) => {
     event.stopPropagation();
     if (scope.lastStep !== undefined) {
@@ -92,8 +92,8 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
       title = scope.functionDefinition?.name || scope.opcodeInfo?.op
     const kind = scope.functionDefinition?.kind || (scope.isCreation ? 'creation' : 'scope')
     const gasInfo = scope.gasCost ? ` (${scope.gasCost} gas)` : ''
-    const stepRange = scope.lastStep !== undefined 
-      ? `[${scope.firstStep}-${scope.lastStep}]` 
+    const stepRange = scope.lastStep !== undefined
+      ? `[${scope.firstStep}-${scope.lastStep}]`
       : `[${scope.firstStep}+]`
     const revertedInfo = scope.reverted ? ' REVERTED' : ''
 
@@ -125,7 +125,7 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
 
   const renderScope = (scope: NestedScope, keyPath: string): JSX.Element => {
     const hasChildren = scope.children && scope.children.length > 0
-    
+
     if (hasChildren) {
       return (
         <TreeViewItem
@@ -139,7 +139,7 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
           icon="fas fa-chevron-down"
         >
           <TreeView id={`scopeTree-${scope.scopeId}`}>
-            {scope.children.map((childScope, index) => 
+            {scope.children.map((childScope, index) =>
               renderScope(childScope, `${keyPath}/${index}`)
             )}
           </TreeView>
@@ -163,8 +163,8 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
   return (
     <div className={`${className} border rounded px-1 mt-1 bg-light`}>
       <div className="py-0 px-1 title">
-        <div 
-          className={state.toggleDropdown ? 'icon fas fa-caret-down' : 'icon fas fa-caret-right'} 
+        <div
+          className={state.toggleDropdown ? 'icon fas fa-caret-down' : 'icon fas fa-caret-right'}
           onClick={handleToggle}
         ></div>
         <div className="name" data-id="dropdownPanelScopePanel" onClick={handleToggle}>
@@ -175,9 +175,9 @@ export const ScopePanel = ({ data, className, stepManager }: ScopePanelProps) =>
         </span>
       </div>
       <div className="dropdownpanel" style={{ display: state.toggleDropdown ? 'block' : 'none' }}>
-        <i 
-          className="refresh fas fa-sync" 
-          style={{ display: state.updating ? 'inline-block' : 'none' }} 
+        <i
+          className="refresh fas fa-sync"
+          style={{ display: state.updating ? 'inline-block' : 'none' }}
           aria-hidden="true"
         ></i>
         <div className="dropdowncontent pb-2" style={{ display: isEmpty ? 'none' : 'block' }}>

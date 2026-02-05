@@ -144,11 +144,11 @@ export class DebuggerStepManager {
    */
   stepIntoBack (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    
+
     let step
     if (solidityMode) {
       step = this.resolveToReducedTrace(this.currentStepIndex, -1)
-    } else  
+    } else
       step = this.currentStepIndex - 1
 
     this.currentStepIndex = step
@@ -186,7 +186,7 @@ export class DebuggerStepManager {
    */
   stepOverBack (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    let step = this.traceManager.findStepOverBack(this.currentStepIndex)
+    const step = this.traceManager.findStepOverBack(this.currentStepIndex)
     if (this.currentStepIndex === step) return
     this.currentStepIndex = step
     this.triggerStepChanged(step)
@@ -220,7 +220,7 @@ export class DebuggerStepManager {
    */
   jumpOut (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    let step = this.traceManager.findStepOut(this.currentStepIndex)
+    const step = this.traceManager.findStepOut(this.currentStepIndex)
     if (this.currentStepIndex === step) return
     this.currentStepIndex = step
     this.triggerStepChanged(step)

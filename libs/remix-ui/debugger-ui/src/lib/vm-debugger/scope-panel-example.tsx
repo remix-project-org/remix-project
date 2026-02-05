@@ -15,11 +15,11 @@ export const ScopePanelExample = ({ vmDebugger: { registerEvent }, stepManager }
         // Assuming you have access to the InternalCallTree instance
         // You would call getScopesAsNestedJSON() on it
         // For this example, we'll simulate the call
-        
+
         // In real usage, you would do something like:
         // const nestedScopes = internalCallTree.getScopesAsNestedJSON()
         // setScopeData(nestedScopes)
-        
+
         // Mock data for demonstration
         const mockNestedScopes = [
           {
@@ -79,7 +79,7 @@ export const ScopePanelExample = ({ vmDebugger: { registerEvent }, stepManager }
             ]
           }
         ]
-        
+
         setScopeData(mockNestedScopes)
       })
 
@@ -91,10 +91,10 @@ export const ScopePanelExample = ({ vmDebugger: { registerEvent }, stepManager }
 
   return (
     <div className="d-flex flex-column">
-      <ScopePanel 
-        className="pb-1" 
-        data={scopeData} 
-        stepManager={stepManager} 
+      <ScopePanel
+        className="pb-1"
+        data={scopeData}
+        stepManager={stepManager}
       />
     </div>
   )
@@ -105,7 +105,7 @@ export const ScopePanelExample = ({ vmDebugger: { registerEvent }, stepManager }
  */
 export const IntegratedVmDebuggerHead = ({ vmDebugger: { registerEvent, triggerEvent }, debugging, stepManager, onShowOpcodesChange }) => {
   const [scopeData, setScopeData] = useState([])
-  
+
   useEffect(() => {
     registerEvent &&
       registerEvent('callTreeReady', (scopes, scopeStarts, trace, internalCallTree) => {
