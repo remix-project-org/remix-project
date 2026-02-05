@@ -44,6 +44,7 @@ export class IndexedDbCachePlugin extends Plugin {
   private readonly dbName = 'RemixPluginCache'
   private readonly dbVersion = 1
   private readonly storeName = 'cache'
+  private readonly disabled = true
 
   constructor() {
     super(profile)
@@ -101,6 +102,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Store data in the cache
    */
   async set<T>(key: string, data: T, options: CacheOptions = {}): Promise<void> {
+    if (this.disabled) return
     const namespace = options.namespace || 'default'
     const cacheKey = `${namespace}:${key}`
 
@@ -136,6 +138,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Retrieve data from the cache
    */
   async get<T>(key: string, namespace = 'default'): Promise<T | null> {
+    if (this.disabled) return null
     const cacheKey = `${namespace}:${key}`
 
     return new Promise((resolve, reject) => {
@@ -172,6 +175,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Check if a key exists in the cache
    */
   async exists(key: string, namespace = 'default'): Promise<boolean> {
+    if (this.disabled) return false
     const cacheKey = `${namespace}:${key}`
 
     return new Promise((resolve, reject) => {
@@ -194,6 +198,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Remove a specific entry from the cache
    */
   async remove(key: string, namespace = 'default'): Promise<void> {
+    if (this.disabled) return
     const cacheKey = `${namespace}:${key}`
 
     return new Promise((resolve, reject) => {
@@ -213,6 +218,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Clear all entries in a specific namespace
    */
   async clearNamespace(namespace: string): Promise<number> {
+    if (this.disabled) return 0
     return new Promise((resolve, reject) => {
       try {
         const store = this.getObjectStore('readwrite')
@@ -242,6 +248,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Clear all cache entries
    */
   async clear(): Promise<void> {
+    if (this.disabled) return
     return new Promise((resolve, reject) => {
       try {
         const store = this.getObjectStore('readwrite')
@@ -259,8 +266,8 @@ export class IndexedDbCachePlugin extends Plugin {
    * Remove expired entries
    */
   async clearExpired(): Promise<number> {
+    if (this.disabled) return 0
     const now = Date.now()
-
     return new Promise((resolve, reject) => {
       try {
         const store = this.getObjectStore('readwrite')
@@ -293,6 +300,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Get all keys in a namespace
    */
   async getAllKeys(namespace = 'default'): Promise<string[]> {
+    if (this.disabled) return []
     return new Promise((resolve, reject) => {
       try {
         const store = this.getObjectStore('readonly')
@@ -323,6 +331,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Get cache statistics
    */
   async getStats(): Promise<CacheStats> {
+    if (this.disabled) return null
     return new Promise((resolve, reject) => {
       try {
         const store = this.getObjectStore('readonly')
@@ -360,6 +369,7 @@ export class IndexedDbCachePlugin extends Plugin {
    * Check if the cache is ready
    */
   isReady(): boolean {
+    if (this.disabled) return false
     return this.dbIsReady && this.db !== null
   }
 }
