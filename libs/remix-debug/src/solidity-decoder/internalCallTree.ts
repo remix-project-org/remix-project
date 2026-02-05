@@ -478,6 +478,7 @@ export class InternalCallTree {
    * @throws {Error} If gas cost data is not available for the specified file and line
    */
   async getGasCostPerLine(file: number, line: number, scopeId: string) {
+    console.log(JSON.stringify(this.gasCostPerLine))
     if (this.gasCostPerLine[file] && this.gasCostPerLine[file][scopeId] && this.gasCostPerLine[file][scopeId][line]) {
       return this.gasCostPerLine[file][scopeId][line]
     }
@@ -844,7 +845,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         const nextStep = step + 1
         let isConstructor = false
         if (!lowLevelScope && functionDefinition) {
-          isConstructor = functionDefinition && functionDefinition.kind === 'constructor'          
+          isConstructor = functionDefinition && functionDefinition.kind === 'constructor'
           // Register function parameters when entering new function scope (internal calls or external calls)
           await registerFunctionParameters(tree, functionDefinition, step, newScopeId, contractObj, fnTargetSourceLocation, address)
         }
