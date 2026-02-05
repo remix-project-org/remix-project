@@ -234,7 +234,7 @@ export class InternalCallTree {
     * @param {Object} opts  - { includeLocalVariables, debugWithGeneratedSources }
     */
   constructor (debuggerEvent, traceManager, solidityProxy, codeManager, opts, offsetToLineColumnConverter?) {
-    this.debug = false
+    this.debug = opts.debug || false
     this.includeLocalVariables = opts.includeLocalVariables
     this.debugWithGeneratedSources = opts.debugWithGeneratedSources
     this.event = new EventManager()
@@ -796,12 +796,12 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     // if it's call with have to reset the symbolic stack
     // step + 1 because the symbolic stack represents the state AFTER the opcode execution
     tree.symbolicStackManager.setStackAtStep(step + 1, isInternalTxInstrn || isCreateInstrn ? [] : newSymbolicStack)
-        
-    
-    // check if there is a function at destination
+      
+    // check if there is a function at destination - but only for AST node resolution
     const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)
     const generatedSources = getGeneratedSources(tree, scopeId, contractObj)
     const { nodes, blocksDefinition } = await resolveNodesAtSourceLocation(tree, sourceLocation, generatedSources, address)
+
     tree.locationAndOpcodePerVMTraceIndex[step].blocksDefinition = blocksDefinition
     functionDefinition = await resolveFunctionDefinition(tree, sourceLocation, generatedSources, address)
     if (functionDefinition && !tree.scopes[scopeId].functionDefinition) {
@@ -821,10 +821,18 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
       // constructorsStartExecution allows to keep track on which constructor has already been executed.
       console.log('Pending constructor execution at ', tree.pendingConstructorExecutionAt, ' for constructor id ', tree.pendingConstructorId)
     }
-    const internalfunctionCall = /*functionDefinition &&*/ (sourceLocation && sourceLocation.jump === 'i') /*&& functionDefinition.kind !== 'constructor'*/
+    let fnTargetSourceLocation
+    if (previousSourceLocation && previousSourceLocation.jump === 'i') {
+      fnTargetSourceLocation = previousSourceLocation
+    } else if (sourceLocation && sourceLocation.jump === 'i') {
+      fnTargetSourceLocation = sourceLocation
+    }
+    const internalfunctionCall = /*functionDefinition &&*/ (fnTargetSourceLocation && fnTargetSourceLocation.jump === 'i') /*&& functionDefinition.kind !== 'constructor'*/
     const isJumpOutOfFunction = /*functionDefinition &&*/ (sourceLocation && sourceLocation.jump === 'o') /*&& functionDefinition.kind !== 'constructor'*/
-
-    if (constructorExecutionStarts || isInternalTxInstrn || internalfunctionCall) {
+    const lowLevelScope = sourceLocation && sourceLocation.jump === 'i'
+    
+    console.log(step, internalfunctionCall, functionDefinition, sourceLocation)
+    if (constructorExecutionStarts || isInternalTxInstrn || (internalfunctionCall && functionDefinition) || lowLevelScope) {
       try {
         previousSourceLocation = null
         const newScopeId = scopeId === '' ? subScope.toString() : scopeId + '.' + subScope
@@ -841,8 +849,12 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
           tree.constructorsStartExecution[tree.pendingConstructorId] = tree.pendingConstructorExecutionAt
           tree.pendingConstructorExecutionAt = -1
           tree.pendingConstructorId = -1
+          // Register constructor parameters when entering constructor scope
           await registerFunctionParameters(tree, tree.pendingConstructor, step, newScopeId, contractObj, previousValidSourceLocation, address)
           tree.pendingConstructor = null
+        } else if (functionDefinition) {
+          // Register function parameters when entering new function scope (internal calls or external calls)
+          await registerFunctionParameters(tree, functionDefinition, step, newScopeId, contractObj, fnTargetSourceLocation, address)
         }
         let externalCallResult
         try {
@@ -964,6 +976,8 @@ function getGeneratedSources (tree, scopeId, contractObj) {
  * @param {string} address - Contract address
  */
 async function registerFunctionParameters (tree, functionDefinition, step, scopeId, contractObj, sourceLocation, address) {
+  if (!sourceLocation) return
+  if (sourceLocation.jump !== 'i') return
   tree.functionCallStack.push(step)
   const functionDefinitionAndInputs = { functionDefinition, inputs: []}
   // means: the previous location was a function definition && JUMPDEST
@@ -974,9 +988,9 @@ async function registerFunctionParameters (tree, functionDefinition, step, scope
     
     console.log(`[registerFunctionParameters] Function ${functionDefinition.name} at step ${step}, stack length: ${stack.length}`)
     
-    // Debug function entry
+    // Debug function entry before parameter binding
     if (tree.debug) {
-      debugVariableTracking(tree, step, scopeId, `Function ${functionDefinition.name} entry`)
+      debugVariableTracking(tree, step, scopeId, `Function ${functionDefinition.name} entry - before parameter binding`)
     }
     
     if (functionDefinition.parameters) {
@@ -990,8 +1004,13 @@ async function registerFunctionParameters (tree, functionDefinition, step, scope
       
       // return params - register them but they're not yet on the stack
       if (outputs && outputs.parameters && outputs.parameters.length > 0) {
-        addReturnParams(step, functionDefinition, outputs, tree, scopeId, states, contractObj, sourceLocation)
+        addReturnParams(step + 1, functionDefinition, outputs, tree, scopeId, states, contractObj, sourceLocation)
       }
+    }
+    
+    // Debug function entry after parameter binding
+    if (tree.debug) {
+      debugVariableTracking(tree, step + 1, scopeId, `Function ${functionDefinition.name} entry - after parameter binding`)
     }
   } catch (error) {
     console.error('Error in registerFunctionParameters:', error)
@@ -1244,11 +1263,20 @@ function addInputParams (step, functionDefinition, parameterList, tree: Internal
   const paramCount = parameterList.parameters.length
   
   console.log(`[addInputParams] Adding ${paramCount} input parameters for function ${functionDefinition.name}`)
+  console.log(`  - scopeId: ${scopeId}`)
+  console.log(`  - stackLength: ${stackLength}, paramCount: ${paramCount}`)
   
   for (let i = 0; i < paramCount; i++) {
     const param = parameterList.parameters[i]
-    // Input parameters are at the bottom of the stack: stackLength - paramCount + i
-    const stackIndex = stackLength - paramCount + i
+    
+    // Calculate stack index based on call type
+    let stackIndex = stackLength - paramCount + i
+       
+    // Ensure stack index is valid
+    if (stackIndex < 0 || stackIndex >= stackLength) {
+      console.warn(`[addInputParams] Invalid stack index ${stackIndex} for parameter ${param.name} (stackLength: ${stackLength}), using fallback positioning`)
+      stackIndex = Math.max(0, Math.min(i, stackLength - 1))
+    }
     
     let location = extractLocationFromAstVariable(param)
     location = location === 'default' ? 'memory' : location
@@ -1273,9 +1301,10 @@ function addInputParams (step, functionDefinition, parameterList, tree: Internal
     if (!tree.variables[param.id]) tree.variables[param.id] = newParam
 
     // Bind parameter to symbolic stack with lifecycle tracking
-    tree.symbolicStackManager.bindVariableWithLifecycle(step, newParam, stackIndex, 'assigned', scopeId)
+    // Use step + 1 because the symbolic stack represents the state AFTER the opcode execution
+    tree.symbolicStackManager.bindVariableWithLifecycle(step + 1, newParam, stackIndex, 'assigned', scopeId)
     
-    console.log(`[addInputParams] Added input parameter: ${attributesName} at stack index ${stackIndex}`)
+    console.log(`[addInputParams] Bound parameter: ${attributesName} at stack index ${stackIndex}`)
   }
   
   return params
