@@ -205,7 +205,9 @@ export class FetchAndCompile extends Plugin {
     */
     if (config && config.settings && config.settings.remappings) {
       config.settings.remappings = config.settings.remappings.map((remapping) => {
-        let [virtual, path] = remapping.split('=')
+        const split = remapping.split('=')
+        let virtual = split[0]
+        const path = split[1]
         if (virtual.includes(':')) {
           const [scope, path] = virtual.split(':')
           virtual = `${targetPath}/${scope}:${path}`

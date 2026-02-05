@@ -310,7 +310,7 @@ module.exports = {
       .scrollAndClick('#Check_winning_proposal_passed')
       .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
       // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalPassed()', 60000)
-      .pause(2000)
+      .pause(5000)
       .goToVMTraceStep(1451)
       // .waitForElementContainsText('*[data-id="functionPanel"]', 'equal(a, b, message)', 60000)
       // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalPassed()', 60000)

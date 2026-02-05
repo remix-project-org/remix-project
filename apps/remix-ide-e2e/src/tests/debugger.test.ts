@@ -196,7 +196,8 @@ module.exports = {
       .click('*[id="debuggerTransactionStartButtonContainer"]') // stop debugging
       .click('*[data-id="debugGeneratedSourcesLabel"]') // select debug with generated sources
       .debugTransaction(0) // start debugging again with generated sources
-      .pause(2000)
+      .pause(4000)
+      .goToVMTraceStep(39)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf('if slt(sub(dataEnd, headStart), 32)') !== -1, 'current displayed content is not a generated source')
       })

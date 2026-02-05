@@ -234,7 +234,7 @@ export class InternalCallTree {
     * @param {Object} opts  - { includeLocalVariables, debugWithGeneratedSources }
     */
   constructor (debuggerEvent, traceManager, solidityProxy, codeManager, opts, offsetToLineColumnConverter?) {
-    this.debug = true
+    this.debug = false
     this.includeLocalVariables = opts.includeLocalVariables
     this.debugWithGeneratedSources = opts.debugWithGeneratedSources
     this.event = new EventManager()
