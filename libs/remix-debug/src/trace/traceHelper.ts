@@ -19,6 +19,10 @@ export function isCallInstruction (step) {
   return ['CALL', 'STATICCALL', 'CALLCODE', 'CREATE', 'DELEGATECALL', 'CREATE2'].includes(step.op)
 }
 
+export function isStaticCallInstruction (step) {
+  return ['STATICCALL'].includes(step.op)
+}
+
 export function isCreateInstruction (step) {
   return step.op === 'CREATE' || step.op === 'CREATE2'
 }

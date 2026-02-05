@@ -4,7 +4,7 @@ import { util } from '@remix-project/remix-lib'
 import { SourceLocationTracker } from '../source/sourceLocationTracker'
 import { EventManager } from '../eventManager'
 import { parseType } from './decodeInfo'
-import { isContractCreation, isCallInstruction, isCreateInstruction, isJumpDestInstruction, isRevertInstruction, isStopInstruction, isReturnInstruction } from '../trace/traceHelper'
+import { isContractCreation, isCallInstruction, isStaticCallInstruction, isCreateInstruction, isRevertInstruction, isStopInstruction, isReturnInstruction } from '../trace/traceHelper'
 import { extractLocationFromAstVariable } from './types/util'
 import { findSafeStepForVariable } from './variableInitializationHelper'
 import { SymbolicStackManager, SymbolicStackSlot } from './symbolicStack'
@@ -478,7 +478,6 @@ export class InternalCallTree {
    * @throws {Error} If gas cost data is not available for the specified file and line
    */
   async getGasCostPerLine(file: number, line: number, scopeId: string) {
-    console.log(JSON.stringify(this.gasCostPerLine))
     if (this.gasCostPerLine[file] && this.gasCostPerLine[file][scopeId] && this.gasCostPerLine[file][scopeId][line]) {
       return this.gasCostPerLine[file][scopeId][line]
     }
@@ -624,10 +623,6 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
   let subScope = 1
   const address = tree.traceManager.getCurrentCalledAddressAt(step)
   tree.scopes[scopeId].address = address
-  if (functionDefinition) {
-    await registerFunctionParameters(tree, functionDefinition, step, scopeId, contractObj, validSourceLocation, address)
-  }
-
   /**
    * Checks if the call depth changes between consecutive steps.
    *
@@ -795,7 +790,8 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     const newSymbolicStack = updateSymbolicStack(previousSymbolicStack, stepDetail.op, step)
     // if it's call with have to reset the symbolic stack
     // step + 1 because the symbolic stack represents the state AFTER the opcode execution
-    tree.symbolicStackManager.setStackAtStep(step + 1, isInternalTxInstrn || isCreateInstrn ? [] : newSymbolicStack)
+    const zeroTheStack = (isInternalTxInstrn || isCreateInstrn) && !isStaticCallInstruction(stepDetail)
+    tree.symbolicStackManager.setStackAtStep(step + 1, zeroTheStack ? [] : newSymbolicStack)
 
     // check if there is a function at destination - but only for AST node resolution
     const contractObj = await tree.solidityProxy.contractObjectAtAddress(address)
@@ -829,9 +825,13 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
     }
     const internalfunctionCall = /*functionDefinition &&*/ (fnTargetSourceLocation && fnTargetSourceLocation.jump === 'i') /*&& functionDefinition.kind !== 'constructor'*/
     const isJumpOutOfFunction = /*functionDefinition &&*/ (sourceLocation && sourceLocation.jump === 'o') /*&& functionDefinition.kind !== 'constructor'*/
-    const lowLevelScope = sourceLocation && sourceLocation.jump === 'i'
 
-    if (constructorExecutionStarts || isInternalTxInstrn || (internalfunctionCall && functionDefinition) || lowLevelScope) {
+    let lowLevelScope = sourceLocation && sourceLocation.jump === 'i'
+    if ((isInternalTxInstrn || (internalfunctionCall && functionDefinition))) {
+      lowLevelScope = false
+    }
+
+    if (isInternalTxInstrn || (internalfunctionCall && functionDefinition) || lowLevelScope) {
       try {
         previousSourceLocation = null
         const newScopeId = scopeId === '' ? subScope.toString() : scopeId + '.' + subScope
@@ -841,17 +841,10 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, fun
         tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition, opcodeInfo: stepDetail, stackBeforeJumping: newSymbolicStack, lowLevelScope: true }
         addReducedTrace(tree, step)
         // for the ctor we are at the start of its trace, we have to replay this step in order to catch all the locals:
-        const nextStep = constructorExecutionStarts ? step : step + 1
+        const nextStep = step + 1
         let isConstructor = false
-        if (constructorExecutionStarts) {
-          isConstructor = true
-          tree.constructorsStartExecution[tree.pendingConstructorId] = tree.pendingConstructorExecutionAt
-          tree.pendingConstructorExecutionAt = -1
-          tree.pendingConstructorId = -1
-          // Register constructor parameters when entering constructor scope
-          await registerFunctionParameters(tree, tree.pendingConstructor, step, newScopeId, contractObj, previousValidSourceLocation, address)
-          tree.pendingConstructor = null
-        } else if (functionDefinition) {
+        if (!lowLevelScope && functionDefinition) {
+          isConstructor = functionDefinition && functionDefinition.kind === 'constructor'          
           // Register function parameters when entering new function scope (internal calls or external calls)
           await registerFunctionParameters(tree, functionDefinition, step, newScopeId, contractObj, fnTargetSourceLocation, address)
         }
@@ -982,7 +975,7 @@ async function registerFunctionParameters (tree, functionDefinition, step, scope
   // means: the previous location was a function definition && JUMPDEST
   // => we are at the beginning of the function and input/output are setup
   try {
-    const stack = tree.traceManager.getStackAt(step)
+    const stack = tree.traceManager.getStackAt(step + 1)
     const states = await tree.solidityProxy.extractStatesDefinitions(address)
 
     console.log(`[registerFunctionParameters] Function ${functionDefinition.name} at step ${step}, stack length: ${stack.length}`)
@@ -1265,11 +1258,12 @@ function addInputParams (step, functionDefinition, parameterList, tree: Internal
   console.log(`  - scopeId: ${scopeId}`)
   console.log(`  - stackLength: ${stackLength}, paramCount: ${paramCount}`)
 
+  const stackLengthAtStart = functionDefinition.kind === 'constructor' ? 0 : stackLength
   for (let i = 0; i < paramCount; i++) {
     const param = parameterList.parameters[i]
 
     // Calculate stack index based on call type
-    let stackIndex = stackLength - paramCount + i
+    let stackIndex = stackLengthAtStart - paramCount + i
 
     // Ensure stack index is valid
     if (stackIndex < 0 || stackIndex >= stackLength) {
