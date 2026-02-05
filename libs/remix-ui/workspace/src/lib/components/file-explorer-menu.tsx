@@ -34,6 +34,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   const [navigationRefreshCounter, setNavigationRefreshCounter] = useState(0)
   const [showDappSelectModal, setShowDappSelectModal] = useState(false)
   const [selectedDappIndex, setSelectedDappIndex] = useState(0)
+  const [isCheckingDappMappings, setIsCheckingDappMappings] = useState(false)
 
   let menuItems = [
     {
@@ -136,7 +137,18 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       } else {
         setIsDappWorkspace(false)
         setSourceWorkspaceTarget(null)
+        setDappMappings([])
+        setIsCheckingDappMappings(true)
+      }
+    }
 
+    const checkDappMappingsDeferred = () => {
+      const currentWorkspace = global.fs.browser.currentWorkspace
+      if (!currentWorkspace || currentWorkspace.startsWith('dapp-')) {
+        return
+      }
+
+      const checkMappings = async () => {
         try {
           const mappingsDir = '.deploys/dapp-mappings'
           const exists = await global.plugin.call('fileManager', 'exists', mappingsDir)
@@ -210,16 +222,24 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
           }
 
           setDappMappings(validMappings)
+          setIsCheckingDappMappings(false)
 
         } catch (e) {
           setDappMappings([])
+          setIsCheckingDappMappings(false)
         }
-
       }
 
+      checkMappings()
     }
 
-    detectWorkspaceType()
+    // Defer all async operations to avoid blocking file tree rendering
+    const timeoutId = setTimeout(() => {
+      detectWorkspaceType()
+      checkDappMappingsDeferred()
+    }, 1500)
+
+    return () => clearTimeout(timeoutId)
   }, [global.fs.browser.currentWorkspace, navigationRefreshCounter])
 
   useEffect(() => {
@@ -536,16 +556,26 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
             </Dropdown>
           </span>
 
-          {!isDappWorkspace && dappMappings.length > 0 && (
+          {!isDappWorkspace && (isCheckingDappMappings || dappMappings.length > 0) && (
             <span className="ps-0 pb-1 w-50">
               <Button
                 variant="primary"
                 className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
                 data-id="fileExplorerGoToDappButton"
                 onClick={handleGoToDapp}
+                disabled={isCheckingDappMappings || dappMappings.length === 0}
               >
-                <i className="far fa-rocket me-2"></i>
-                <span>Go to DApp{dappMappings.length > 1 ? ` (${dappMappings.length})` : ''}</span>
+                {isCheckingDappMappings ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin me-2"></i>
+                    <span>Checking DApps...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="far fa-rocket me-2"></i>
+                    <span>Go to DApp{dappMappings.length > 1 ? ` (${dappMappings.length})` : ''}</span>
+                  </>
+                )}
               </Button>
             </span>
           )}

@@ -105,7 +105,6 @@ let requiredModules = [
   'vega',
   'chartjs',
   'storageMonitor',
-  'quick-dapp-v2'
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
