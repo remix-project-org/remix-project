@@ -104,7 +104,8 @@ let requiredModules = [
   'amp',
   'vega',
   'chartjs',
-  'storageMonitor'
+  'storageMonitor',
+  'indexedDbCache',
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
