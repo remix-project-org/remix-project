@@ -208,8 +208,6 @@ export class DappManager {
         }
       }
 
-      await this.focusPlugin();
-
       const uniqueConfigs = configs.filter((config, index, self) =>
         index === self.findIndex((c) => c.id === config.id)
       );
@@ -217,7 +215,6 @@ export class DappManager {
       return (uniqueConfigs || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch (e) {
       console.error('[DappManager] Critical error loading dapps:', e);
-      await this.focusPlugin();
       return [];
     }
   }

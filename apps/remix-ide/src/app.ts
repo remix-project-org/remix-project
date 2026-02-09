@@ -687,8 +687,7 @@ class AppComponent {
       'gistHandler',
       'compilerloader',
       'remixAI',
-      'remixaiassistant',
-      'quick-dapp-v2'
+      'remixaiassistant'
     ])
 
     await this.appManager.activatePlugin(['auth'])
@@ -711,6 +710,7 @@ class AppComponent {
         loadedElement.setAttribute('data-id', 'workspaceloaded')
         document.body.appendChild(loadedElement)
         await this.appManager.registerContextMenuItems()
+        this.appManager.activatePlugin(['quick-dapp-v2']).catch(console.error)
       }
     )
     await this.appManager.activatePlugin(['solidity-script'])

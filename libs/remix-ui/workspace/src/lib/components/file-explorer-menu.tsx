@@ -155,6 +155,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
 
           if (!exists) {
             setDappMappings([])
+            setIsCheckingDappMappings(false)
             return
           }
 
@@ -162,6 +163,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
 
           if (!files || Object.keys(files).length === 0) {
             setDappMappings([])
+            setIsCheckingDappMappings(false)
             return
           }
 
