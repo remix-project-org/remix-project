@@ -10,6 +10,7 @@ export interface TreeViewItemProps {
     label: string | number | React.ReactNode,
     expand?: boolean,
     onClick?: (...args: any) => void,
+    onIconClick?: (...args: any) => void,
     onInput?: (...args: any) => void,
     onMouseOver?: (...args) => void,
     onMouseOut?: (...args) => void,

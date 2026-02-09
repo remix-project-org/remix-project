@@ -264,11 +264,11 @@ function testDebugging (debugManager) {
 
   tape('traceManager.decodeLocalsAt', async (t) => {
     t.plan(1)
-    const tested = JSON.parse('{"proposalNames":{"value":[{"value":"0x48656C6C6F20576F726C64210000000000000000000000000000000000000000","type":"bytes32"}],"length":"0x1","type":"bytes32[]","cursor":1,"hasNext":false},"p":{"value":"45","type":"uint256"},"addressLocal":{"value":"0x5B38DA6A701C568545DCFCB03FCB875F56BEDDC4","type":"address"},"i":{"value":"2","type":"uint256"},"proposalsLocals":{"value":[{"value":{"name":{"value":"0x48656C6C6F20576F726C64210000000000000000000000000000000000000000","type":"bytes32"},"voteCount":{"value":"0","type":"uint256"}},"type":"struct Ballot.Proposal"}],"length":"0x1","type":"struct Ballot.Proposal[]"}}')
+    const tested = JSON.parse(locals)
     try {
-      const address = debugManager.traceManager.getCurrentCalledAddressAt(487)
-      const location = await debugManager.sourceLocationFromVMTraceIndex(address, 487)
-      debugManager.decodeLocalsAt(487, location, (error, decodedlocals) => {
+      const address = debugManager.traceManager.getCurrentCalledAddressAt(488)
+      const location = await debugManager.sourceLocationFromVMTraceIndex(address, 488)
+      debugManager.decodeLocalsAt(488, location, (error, decodedlocals) => {
         if (error) return t.end(error)
         const res = deepequal(decodedlocals, tested)
         t.ok(res, `test if locals does match. expected: ${JSON.stringify(tested, null, '\t')} - current: ${JSON.stringify(decodedlocals, null, '\t')}`)
@@ -296,3 +296,45 @@ function testDebugging (debugManager) {
     breakPointManager.jumpNextBreakpoint(0, true)
   })
 }
+
+const locals = `{
+    "addressLocal": {
+        "type": "address",
+        "value": "0x5B38DA6A701C568545DCFCB03FCB875F56BEDDC4"
+    },
+    "p": {
+        "type": "uint256",
+        "value": "45"
+    },
+    "proposalNames": {
+        "cursor": 1,
+        "hasNext": false,
+        "length": "0x1",
+        "type": "bytes32[]",
+        "value": [
+            {
+                "type": "bytes32",
+                "value": "0x48656C6C6F20576F726C64210000000000000000000000000000000000000000"
+            }
+        ]
+    },
+    "proposalsLocals": {
+        "length": "0x1",
+        "type": "struct Ballot.Proposal[]",
+        "value": [
+            {
+                "type": "struct Ballot.Proposal",
+                "value": {
+                    "name": {
+                        "type": "bytes32",
+                        "value": "0x48656C6C6F20576F726C64210000000000000000000000000000000000000000"
+                    },
+                    "voteCount": {
+                        "type": "uint256",
+                        "value": "0"
+                    }
+                }
+            }
+        ]
+    }
+}`

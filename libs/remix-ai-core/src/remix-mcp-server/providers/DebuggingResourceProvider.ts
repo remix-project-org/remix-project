@@ -129,15 +129,12 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
    *    - Values: Scope objects with:
    *      * firstStep: VM trace index where scope begins
    *      * lastStep: VM trace index where scope ends
-   *      * locals: Map of local variables (variable name -> {name, type, stackIndex, sourceLocation})
+   *      * lastSafeStep: VM trace index where scope ends
+   *      * locals: Map of local variables (variable name -> {name, id})
    *      * isCreation: Boolean indicating if this is a contract creation context
    *      * gasCost: Total gas consumed within this scope
    *
-   * 2. scopeStarts: Map linking VM trace indices to scope identifiers
-   *    - Keys: VM trace step indices
-   *    - Values: scopeId strings indicating which scope starts at each step
-   *
-   * 3. functionDefinitionsByScope: Map of function definitions for each scope
+   * 2. functionDefinitionsByScope: Map of function definitions for each scope
    *    - Keys: scopeId strings
    *    - Values: Objects containing:
    *      * functionDefinition: AST node with function metadata (name, parameters, returnParameters, etc.)
@@ -158,8 +155,6 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
 
       // Process scopes to replace functionDefinition with id and name only, and remove abi properties
       let processedScopes = {};
-      // Process functionDefinitionsByScope to replace functionDefinition with id and name only
-      let processedFunctionDefinitionsByScope = {};
       try {
         if (result.scopes) {
           for (const [scopeId, scope] of Object.entries(result.scopes)) {
@@ -190,31 +185,14 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
             processedScopes[scopeId] = processedScope;
           }
         }
-
-        if (result.functionDefinitionsByScope) {
-          for (const [scopeId, funcDefWithInputs] of Object.entries(result.functionDefinitionsByScope)) {
-            const funcDefData = funcDefWithInputs as any;
-            processedFunctionDefinitionsByScope[scopeId] = {
-              functionDefinition: {
-                id: funcDefData.functionDefinition.id,
-                name: funcDefData.functionDefinition.name
-              },
-              inputs: funcDefData.inputs
-            };
-          }
-        }
       } catch (e) {
-        console.warn('Error processing call tree scopes for output (using the full output): ', e);
-        processedScopes = result.scopes;
-        processedFunctionDefinitionsByScope = result.functionDefinitionsByScope;
+        console.warn('Error processing call tree scopes for output (using the full output): ', e)
+        processedScopes = result.scopes
       }
 
       return this.createJsonContent('debug://call-tree-scopes', {
         success: true,
         scopes: processedScopes,
-        scopeStarts: result.scopeStarts,
-        functionDefinitionsByScope: processedFunctionDefinitionsByScope,
-        functionCallStack: result.functionCallStack,
         metadata: {
           description: this.callTreeScopesDesc,
           totalScopes: result.scopes ? Object.keys(result.scopes).length : 0,
@@ -267,7 +245,6 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
   private async getTraceCache(plugin: Plugin): Promise<IMCPResourceContent> {
     try {
       const result = await plugin.call('debugger', 'getAllDebugCache');
-      console.log('getTraceCache', result)
       if (!result) {
         return this.createTextContent(
           'debug://trace-cache',

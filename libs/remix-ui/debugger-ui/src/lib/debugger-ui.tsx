@@ -14,6 +14,7 @@ import { TrackingContext } from '@remix-ide/tracking'
 import { ContractDeployment, ContractInteraction } from './transaction-recorder/types'
 /* eslint-disable-next-line */
 import './debugger-ui.css'
+import type { CompilerAbstract } from '@remix-project/remix-solidity'
 
 export const DebuggerUI = (props: DebuggerUIProps) => {
   const intl = useIntl()
@@ -255,18 +256,18 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
       })
     })
 
-    debuggerInstance.event.register('newSourceLocation', async (lineColumnPos, rawLocation, generatedSources, address, stepDetail, lineGasCost) => {
+    debuggerInstance.event.register('newSourceLocation', async (lineColumnPos, rawLocation, generatedSources, address, stepDetail, lineGasCost, contracts: CompilerAbstract) => {
+      console.log('newSourceLocation', { lineColumnPos, rawLocation, generatedSources, address, stepDetail, lineGasCost, contracts })
       if (!lineColumnPos) {
         await debuggerModule.discardHighlight()
         setState((prevState) => {
           return {
             ...prevState,
-            sourceLocationStatus: intl.formatMessage({ id: 'debugger.sourceLocationStatus2' })
+            sourceLocationStatus: intl.formatMessage({ id: 'debugger.sourceLocationStatus2' }, { address: address || '' })
           }
         })
         return
       }
-      const contracts = await debuggerModule.fetchContractAndCompile(address || currentReceipt.contractAddress || currentReceipt.to, currentReceipt)
       if (contracts) {
         let path = contracts.getSourceName(rawLocation.file)
         // Get the main contract (first source) as origin for resolution
@@ -413,7 +414,9 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         }
         return null
       },
-      debugWithGeneratedSources: state.opt.debugWithGeneratedSources
+      debugWithGeneratedSources: state.opt.debugWithGeneratedSources,
+      getCache: debuggerModule.getCache.bind(debuggerModule),
+      setCache: debuggerModule.setCache.bind(debuggerModule)
     })
 
     setTimeout(async () => {
@@ -485,7 +488,8 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     jumpToException: state.debugger && state.debugger.step_manager ? state.debugger.step_manager.jumpToException.bind(state.debugger.step_manager) : null,
     traceLength: state.debugger && state.debugger.step_manager ? state.debugger.step_manager.traceLength : null,
     registerEvent: state.debugger && state.debugger.step_manager ? state.debugger.step_manager.event.register.bind(state.debugger.step_manager.event) : null,
-    showOpcodes: state.showOpcodes
+    showOpcodes: state.showOpcodes,
+    currentStepIndex: state.debugger?.step_manager?.currentStepIndex
   }
 
   const vmDebugger = {

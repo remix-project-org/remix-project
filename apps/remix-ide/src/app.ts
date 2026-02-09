@@ -80,6 +80,7 @@ import { DesktopClient } from './app/plugins/desktop-client'
 import { DesktopHost } from './app/plugins/electron/desktopHostPlugin'
 import { WalletConnect } from './app/plugins/walletconnect'
 import { AIDappGenerator } from './app/plugins/ai-dapp-generator'
+import { IndexedDbCachePlugin } from './app/plugins/IndexedDbCache'
 
 import { TemplatesSelectionPlugin } from './app/plugins/templates-selection/templates-selection-plugin'
 
@@ -293,6 +294,9 @@ class AppComponent {
       if (currentFile.endsWith('.circom')) this.appManager.activatePlugin(['circuit-compiler'])
     })
 
+    // ----------------- cache plugin ----------------------------
+    const indexedDbCache = new IndexedDbCachePlugin()
+
     // ----------------- fileManager service ----------------------------
     const fileManager = new FileManager(editor, appManager)
     Registry.getInstance().put({ api: fileManager, name: 'filemanager' })
@@ -501,7 +505,8 @@ class AppComponent {
       walletConnect,
       amp,
       // vega,
-      chartjs
+      chartjs,
+      indexedDbCache
     ])
 
     //---- fs plugin
@@ -653,7 +658,8 @@ class AppComponent {
       'offsetToLineColumnConverter',
       'pluginStateLogger',
       'matomo',
-      'ai-dapp-generator'
+      'ai-dapp-generator',
+      'indexedDbCache'
     ])
 
     await this.appManager.activatePlugin(['mainPanel', 'menuicons', 'tabs'])

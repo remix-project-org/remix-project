@@ -1,37 +1,31 @@
 'use strict'
 
+import type { InternalCallTree } from "./internalCallTree"
+import { nodesAtPosition } from '../source/sourceMappingDecoder'
+
 export async function solidityLocals (vmtraceIndex, internalTreeCall, stack, memory, storageResolver, calldata, currentSourceLocation, cursor) {
-  const scope = internalTreeCall.findScope(vmtraceIndex)
-  if (!scope) {
-    const error = { message: 'Can\'t display locals. reason: compilation result might not have been provided' }
-    throw error
-  }
   const locals = {}
   memory = formatMemory(memory)
   let anonymousIncr = 1
-  for (const local in scope.locals) {
-    const variable = scope.locals[local]
-
-    // Check if the variable is safe to decode at this VM trace index
-    // For complex types (structs, arrays, etc.), we need to wait until initialization is complete
-    const isSafeToDecode = !variable.safeToDecodeAtStep || vmtraceIndex >= variable.safeToDecodeAtStep
-
-    // Get the current stack position from symbolic stack
-    // This tracks where the variable actually is after DUP, SWAP, etc.
-    const currentStackIndex = findVariableStackPosition(internalTreeCall, vmtraceIndex, variable)
-
-    if (isSafeToDecode) {
-      let name = variable.name
-      if (name.indexOf('$') !== -1) {
-        name = '<' + anonymousIncr + '>'
-        anonymousIncr++
-      }
-      try {
-        locals[name] = await variable.type.decodeFromStack(currentStackIndex, stack, memory, storageResolver, calldata, cursor, variable)
-      } catch (e) {
-        console.log(e)
-        locals[name] = { error: '<decoding failed - ' + e.message + '>', type: variable && variable.type && variable.type.typeName || 'unknown' }
-      }
+  const blocks = internalTreeCall.locationAndOpcodePerVMTraceIndex[vmtraceIndex].blocksDefinition
+  const variables = await findVariablesStackPosition(internalTreeCall, vmtraceIndex)
+  for (const local in variables) {
+    const variable = variables[local]
+    let name = variable.slot.variableName
+    if (blocks && blocks.length > 0) {
+      if (!blocks.map(b => b.id).includes(variable.slot.variableScope)) continue
+    } else {
+      console.warn('unable to find nodeAtLocation, decoding all the variables')
+    }
+    if (name.indexOf('$') !== -1) {
+      name = '<' + anonymousIncr + '>'
+      anonymousIncr++
+    }
+    try {
+      locals[name] = await variable.slot.variableType.decodeFromStack(variable.position, stack, memory, storageResolver, calldata, cursor, variable.slot.variableType)
+    } catch (e) {
+      console.log(e)
+      locals[name] = { error: '<decoding failed - ' + e.message + '>', type: variable && variable.slot.variableName && variable.slot.variableType.typeName || 'unknown' }
     }
   }
   return locals
@@ -64,6 +58,12 @@ export function findVariableStackPosition(internalTreeCall: any, vmtraceIndex: n
   // Fallback to original stackIndex if not found in symbolic stack
   // This handles cases where symbolic stack might not be fully populated
   return variable.stackIndex
+}
+
+export function findVariablesStackPosition(internalTreeCall: InternalCallTree, vmtraceIndex: number) {
+  // Try to find the variable in the symbolic stack
+  const variablesOnStack = internalTreeCall.getVariablesOnStackAtStep(vmtraceIndex)
+  return variablesOnStack
 }
 
 function formatMemory (memory: any) {

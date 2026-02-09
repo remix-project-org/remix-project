@@ -35,6 +35,7 @@ module.exports = {
       .click('*[data-id="createProject - transact (not payable)"]')
       .debugTransaction(0)
       .pause(2000)
+      .goToVMTraceStep(327)
       .scrollAndClick('*[data-id="solidityLocals"]')
       .waitForElementContainsText('*[data-id="solidityLocals"]', 'toast', 60000)
       .waitForElementContainsText('*[data-id="solidityLocals"]', '999', 60000)
@@ -95,7 +96,7 @@ module.exports = {
       .waitForElementVisible('#stepdetail')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"475")]',
+        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"3")]',
       }).pause(1000)      
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`constructor (string memory name_, string memory symbol_) {
@@ -131,7 +132,7 @@ module.exports = {
       .waitForElementVisible('#stepdetail')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"133")]',
+        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"42")]',
       })
       .goToVMTraceStep(261)
       .waitForElementPresent('.highlightLine8')
@@ -167,11 +168,11 @@ module.exports = {
       .waitForElementVisible('*[data-id="slider"]')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"29")]',
+        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"27")]',
       })
       .goToVMTraceStep(5453)
       .waitForElementPresent('*[data-id="treeViewDivtreeViewItemarray"]')
-      .click('*[data-id="treeViewDivtreeViewItemarray"]')
+      .click('*[data-id="treeViewDivIcontreeViewItemarray"]')
       .waitForElementPresent('*[data-id="treeViewDivtreeViewLoadMore"]')
       .waitForElementVisible('*[data-id="solidityLocals"]')
       .waitForElementContainsText('*[data-id="solidityLocals"]', '9: 9 uint256', 60000)
@@ -195,7 +196,8 @@ module.exports = {
       .click('*[id="debuggerTransactionStartButtonContainer"]') // stop debugging
       .click('*[data-id="debugGeneratedSourcesLabel"]') // select debug with generated sources
       .debugTransaction(0) // start debugging again with generated sources
-      .pause(2000)
+      .pause(4000)
+      .goToVMTraceStep(39)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf('if slt(sub(dataEnd, headStart), 32)') !== -1, 'current displayed content is not a generated source')
       })
@@ -450,23 +452,6 @@ const sources = [
 ]
 
 const localVariable_step266_ABIEncoder = { // eslint-disable-line
-  '<1>': {
-    length: '0x0',
-    type: 'bytes',
-    value: '0x'
-  },
-  '<2>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000000'
-  },
-  '<3>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000000'
-  },
-  '<4>': {
-    type: 'uint256',
-    value: '0'
-  },
   idAsk: {
     type: 'bytes32',
     value: '0x0000000000000000000000000000000000000000000000000000000000000002'
@@ -478,23 +463,6 @@ const localVariable_step266_ABIEncoder = { // eslint-disable-line
 }
 
 const localVariable_step717_ABIEncoder = { // eslint-disable-line
-  '<1>': {
-    length: '0xd0',
-    type: 'bytes',
-    value: '0x5b38da6a701c568545dcfcb03fcb875f56beddc45b38da6a701c568545dcfcb03fcb875f56beddc400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001'
-  },
-  '<2>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000002'
-  },
-  '<3>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000001'
-  },
-  '<4>': {
-    type: 'uint256',
-    value: '84'
-  },
   idAsk: {
     type: 'bytes32',
     value: '0x0000000000000000000000000000000000000000000000000000000000000002'

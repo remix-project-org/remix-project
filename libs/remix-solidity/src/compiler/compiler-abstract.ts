@@ -14,6 +14,19 @@ export class CompilerAbstract {
     this.input = input
   }
 
+  static fromBulk (bulk: any[]): CompilerAbstract {
+    return new CompilerAbstract(bulk[0], bulk[1], bulk[2], bulk[3])
+  }
+
+  getBulk () {
+    return [
+      this.languageversion,
+      this.data,
+      this.source,
+      this.input
+    ]
+  }
+
   getContracts () {
     return this.data.contracts || {}
   }
