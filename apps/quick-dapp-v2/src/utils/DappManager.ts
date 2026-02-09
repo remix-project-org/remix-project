@@ -171,11 +171,12 @@ export class DappManager {
         if (!workspaceName) continue;
 
         try {
-          await this.switchToWorkspace(workspaceName);
+          const hasConfig = await (this.plugin as any).call('filePanel', 'existsInWorkspace', workspaceName, CONFIG_FILENAME);
+          if (!hasConfig) continue;
 
           let content;
           try {
-            content = await this.plugin.call('fileManager', 'readFile', CONFIG_FILENAME);
+            content = await (this.plugin as any).call('filePanel', 'readFileFromWorkspace', workspaceName, CONFIG_FILENAME);
           } catch (err) {
             continue;
           }
@@ -186,9 +187,12 @@ export class DappManager {
             config.slug = workspaceName;
 
             try {
-              const previewContent = await this.plugin.call('fileManager', 'readFile', 'preview.png');
-              if (previewContent) {
-                config.thumbnailPath = previewContent;
+              const hasPreview = await (this.plugin as any).call('filePanel', 'existsInWorkspace', workspaceName, 'preview.png');
+              if (hasPreview) {
+                const previewContent = await (this.plugin as any).call('filePanel', 'readFileFromWorkspace', workspaceName, 'preview.png');
+                if (previewContent) {
+                  config.thumbnailPath = previewContent;
+                }
               }
             } catch (e) {}
 
@@ -197,14 +201,6 @@ export class DappManager {
           }
         } catch (e) {
           console.warn(`[DappManager] Failed to read config for workspace ${workspaceName}`, e);
-        }
-      }
-
-      if (currentWorkspace && currentWorkspace.name) {
-        try {
-          await this.switchToWorkspace(currentWorkspace.name);
-        } catch (e) {
-          console.warn('[DappManager] Failed to switch back to original workspace', e);
         }
       }
 
