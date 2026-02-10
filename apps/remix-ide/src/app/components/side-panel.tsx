@@ -166,6 +166,10 @@ export class SidePanel extends AbstractPanel {
   }
 
   async pinView (profile) {
+    if (!this.plugins[profile.name]) {
+      console.warn(`[SidePanel] pinView called for unregistered plugin: ${profile.name}`)
+      return
+    }
     const active = this.currentFocus()
     await this.call('rightSidePanel', 'pinView', profile, this.plugins[profile.name]?.view)
     if (this.plugins[profile.name].active) {

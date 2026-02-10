@@ -93,6 +93,7 @@ let requiredModules = [
   'remixAI',
   'remixAID',
   'remixaiassistant',
+  'quick-dapp-v2',
   'topbar',
   'templateexplorermodal',
   'githubAuthHandler',
@@ -111,7 +112,7 @@ let requiredModules = [
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
 const dependentModules = ['foundry', 'hardhat', 'truffle', 'slither']
 
-const loadLocalPlugins = ['doc-gen', 'doc-viewer', 'contract-verification', 'vyper', 'solhint', 'circuit-compiler', 'learneth', 'quick-dapp', 'quick-dapp-v2', 'noir-compiler']
+const loadLocalPlugins = ['doc-gen', 'doc-viewer', 'contract-verification', 'vyper', 'solhint', 'circuit-compiler', 'learneth', 'quick-dapp', 'noir-compiler']
 
 const partnerPlugins = ['cookbookdev']
 
@@ -465,7 +466,8 @@ class PluginLoader {
       'solidityumlgen',
       'remixGuide',
       'doc-viewer',
-      'UIScriptRunner'
+      'UIScriptRunner',
+      'quick-dapp-v2'
     ]
     this.loaders = {}
     this.loaders.localStorage = {

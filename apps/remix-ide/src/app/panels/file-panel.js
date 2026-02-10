@@ -178,18 +178,40 @@ export default class Filepanel extends ViewPlugin {
   }
 
   async readFileFromWorkspace(workspaceName, filePath) {
-    const workspaceProvider = this.fileProviders.workspace
-    const fullPath = `${workspaceProvider.workspacesPath}/${workspaceName}/${filePath}`.replace(/\/\//g, '/')
-    const exists = await window.remixFileSystem.exists(fullPath)
-    if (!exists) throw new Error(`File not found: ${filePath} in workspace ${workspaceName}`)
-    const content = await window.remixFileSystem.readFile(fullPath, 'utf8')
-    return content
+    try {
+      if (!window.remixFileSystem) {
+        throw new Error('File system not ready')
+      }
+      const workspaceProvider = this.fileProviders.workspace
+      if (!workspaceProvider || !workspaceProvider.workspacesPath) {
+        throw new Error('Workspace provider not ready')
+      }
+      const fullPath = `${workspaceProvider.workspacesPath}/${workspaceName}/${filePath}`.replace(/\/\//g, '/')
+      const exists = await window.remixFileSystem.exists(fullPath)
+      if (!exists) throw new Error(`File not found: ${filePath} in workspace ${workspaceName}`)
+      const content = await window.remixFileSystem.readFile(fullPath, 'utf8')
+      return content
+    } catch (e) {
+      console.warn('[FilePanel] readFileFromWorkspace error:', e.message)
+      throw e
+    }
   }
 
   async existsInWorkspace(workspaceName, filePath) {
-    const workspaceProvider = this.fileProviders.workspace
-    const fullPath = `${workspaceProvider.workspacesPath}/${workspaceName}/${filePath}`.replace(/\/\//g, '/')
-    return await window.remixFileSystem.exists(fullPath)
+    try {
+      if (!window.remixFileSystem) {
+        return false
+      }
+      const workspaceProvider = this.fileProviders.workspace
+      if (!workspaceProvider || !workspaceProvider.workspacesPath) {
+        return false
+      }
+      const fullPath = `${workspaceProvider.workspacesPath}/${workspaceName}/${filePath}`.replace(/\/\//g, '/')
+      return await window.remixFileSystem.exists(fullPath)
+    } catch (e) {
+      console.warn('[FilePanel] existsInWorkspace error:', e.message)
+      return false
+    }
   }
 
   getAvailableWorkspaceName(name) {

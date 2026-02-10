@@ -35,6 +35,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   const [showDappSelectModal, setShowDappSelectModal] = useState(false)
   const [selectedDappIndex, setSelectedDappIndex] = useState(0)
   const [isCheckingDappMappings, setIsCheckingDappMappings] = useState(false)
+  const [isSwitchingToContract, setIsSwitchingToContract] = useState(false)
+  const [isSwitchingToDapp, setIsSwitchingToDapp] = useState(false)
 
   let menuItems = [
     {
@@ -110,6 +112,19 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   ]
 
   menuItems = menuItems.filter((item) => item.platforms.includes(platform))
+
+  // Reset loading states when workspace type changes
+  // This ensures smooth button transitions: switching button visibility syncs with loading state reset
+  useEffect(() => {
+    if (isSwitchingToContract && !isDappWorkspace) {
+      // We were switching from DApp to Contract, and now we're on Contract
+      setIsSwitchingToContract(false)
+    }
+    if (isSwitchingToDapp && isDappWorkspace) {
+      // We were switching from Contract to DApp, and now we're on DApp
+      setIsSwitchingToDapp(false)
+    }
+  }, [isDappWorkspace])
 
   useEffect(() => {
     const detectWorkspaceType = async () => {
@@ -275,6 +290,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   }
 
   const navigateToDapp = async (workspaceName: string) => {
+    setIsSwitchingToDapp(true)
     try {
       if (global.dispatchSwitchToWorkspace) {
         await global.dispatchSwitchToWorkspace(workspaceName)
@@ -290,8 +306,10 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       } catch (e) {
         console.warn('[FileExplorerMenu] Could not open DApp detail:', e)
       }
+      // Note: Don't reset isSwitchingToDapp here - useEffect will handle it when isDappWorkspace changes
     } catch (e) {
       console.error('[FileExplorerMenu] Failed to switch to DApp workspace:', e)
+      setIsSwitchingToDapp(false) // Only reset on error
     }
   }
 
@@ -303,9 +321,10 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   }
 
   const handleGoToContract = async () => {
-    if (!sourceWorkspaceTarget) {
+    if (!sourceWorkspaceTarget || isSwitchingToContract) {
       return
     }
+    setIsSwitchingToContract(true)
     try {
       if (global.dispatchSwitchToWorkspace) {
         await global.dispatchSwitchToWorkspace(sourceWorkspaceTarget)
@@ -314,8 +333,10 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       }
       await new Promise(resolve => setTimeout(resolve, 500))
       await global.plugin.call('menuicons', 'select', 'filePanel')
+      // Note: Don't reset isSwitchingToContract here - useEffect will handle it when isDappWorkspace changes
     } catch (e) {
       console.error('[FileExplorerMenu] Failed to switch to source workspace:', e)
+      setIsSwitchingToContract(false) // Only reset on error
     }
   }
 
@@ -558,16 +579,21 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
             </Dropdown>
           </span>
 
-          {!isDappWorkspace && (isCheckingDappMappings || dappMappings.length > 0) && (
+          {!isDappWorkspace && (isCheckingDappMappings || isSwitchingToDapp || dappMappings.length > 0) && (
             <span className="ps-0 pb-1 w-50">
               <Button
                 variant="primary"
                 className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
                 data-id="fileExplorerGoToDappButton"
                 onClick={handleGoToDapp}
-                disabled={isCheckingDappMappings || dappMappings.length === 0}
+                disabled={isCheckingDappMappings || isSwitchingToDapp || dappMappings.length === 0}
               >
-                {isCheckingDappMappings ? (
+                {isSwitchingToDapp ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin me-2"></i>
+                    <span>Switching...</span>
+                  </>
+                ) : isCheckingDappMappings ? (
                   <>
                     <i className="fas fa-spinner fa-spin me-2"></i>
                     <span>Checking DApps...</span>
@@ -589,9 +615,19 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                 className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
                 data-id="fileExplorerGoToContractButton"
                 onClick={handleGoToContract}
+                disabled={isSwitchingToContract}
               >
-                <i className="far fa-file-code me-2"></i>
-                <span>Go to Contract</span>
+                {isSwitchingToContract ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin me-2"></i>
+                    <span>Switching...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="far fa-file-code me-2"></i>
+                    <span>Go to Contract</span>
+                  </>
+                )}
               </Button>
             </span>
           )}
