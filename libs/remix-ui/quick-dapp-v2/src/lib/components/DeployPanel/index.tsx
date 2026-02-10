@@ -190,11 +190,17 @@ function DeployPanel(): JSX.Element {
     <div className="mb-3">
       <Form.Group className="mb-3">
         <Form.Label className="text-uppercase mb-0 form-label">Dapp logo</Form.Label>
-        <Form.Control ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} className="mt-1" />
-        {logo && typeof logo === 'string' && (
+        <input ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+        {logo && typeof logo === 'string' ? (
           <div className="mt-2 mb-2 position-relative d-inline-block border bg-white rounded p-1">
             <img src={logo} alt="Preview" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} onError={(e) => e.currentTarget.style.display = 'none'} />
             <span onClick={handleRemoveLogo} style={{ cursor: 'pointer', position: 'absolute', top: -10, right: -10 }} className="badge bg-danger rounded-circle"><i className="fas fa-times"></i></span>
+          </div>
+        ) : (
+          <div className="mt-1">
+            <Button variant="outline-secondary" size="sm" onClick={() => logoInputRef.current?.click()}>
+              <i className="fas fa-upload me-1"></i> Choose Image
+            </Button>
           </div>
         )}
       </Form.Group>
