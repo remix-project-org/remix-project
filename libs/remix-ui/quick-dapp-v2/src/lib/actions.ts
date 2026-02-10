@@ -41,9 +41,6 @@ export const connectRemix = async () => {
 
   await remixClient.onload();
 
-  // @ts-ignore - layout.minimize not in type definitions
-  await remixClient.call('layout', 'minimize', 'terminal', true);
-
   await dispatch({
     type: 'SET_LOADING',
     payload: {

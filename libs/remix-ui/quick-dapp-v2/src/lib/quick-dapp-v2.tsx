@@ -215,9 +215,6 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       setIsAppLoading(true);
 
       try {
-        // Minimize terminal
-        await plugin.call('layout', 'minimize', 'terminal', true);
-
         // Get locale
         plugin.call('locale', 'currentLocale').then((l: any) => setLocale(l));
         plugin.on('locale', 'localeChanged', (l: any) => setLocale(l));
