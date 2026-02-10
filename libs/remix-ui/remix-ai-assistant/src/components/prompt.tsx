@@ -2,10 +2,11 @@ import { ActivityType } from "../lib/types"
 import React, { MutableRefObject, Ref, useContext, useEffect, useRef, useState } from 'react'
 import GroupListMenu from "./contextOptMenu"
 import { AiContextType, groupListType } from '../types/componentTypes'
-import { AiAssistantType } from '../types/componentTypes'
 import { AIEvent, MatomoEvent } from '@remix-api';
 import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip } from '@remix-ui/helper'
+import { AIModel } from '@remix/remix-ai-core'
+import { ModelAccess } from '../hooks/useModelAccess'
 
 // PromptArea component
 export interface PromptAreaProps {
@@ -16,22 +17,21 @@ export interface PromptAreaProps {
   handleStop: () => void
   showContextOptions: boolean
   setShowContextOptions: React.Dispatch<React.SetStateAction<boolean>>
-  showAssistantOptions: boolean
-  setShowAssistantOptions: React.Dispatch<React.SetStateAction<boolean>>
-  showModelOptions: boolean
-  setShowModelOptions: React.Dispatch<React.SetStateAction<boolean>>
+  showModelSelector: boolean
+  setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
+  showOllamaModelSelector: boolean
+  setShowOllamaModelSelector: React.Dispatch<React.SetStateAction<boolean>>
   contextChoice: AiContextType
   setContextChoice: React.Dispatch<React.SetStateAction<AiContextType>>
-  assistantChoice: AiAssistantType
-  setAssistantChoice: React.Dispatch<React.SetStateAction<AiAssistantType>>
-  availableModels: string[]
-  selectedModel: string | null
+  selectedModel: AIModel
+  ollamaModels: string[]
+  selectedOllamaModel: string | null
   contextFiles: string[]
   clearContext: () => void
   handleAddContext: () => void
-  handleSetAssistant: () => void
   handleSetModel: () => void
-  handleModelSelection: (modelName: string) => void
+  handleModelSelection: (modelId: string) => void
+  handleOllamaModelSelection: (modelName: string) => void
   handleGenerateWorkspace: () => void
   handleRecord: () => void
   isRecording: boolean
@@ -40,13 +40,13 @@ export interface PromptAreaProps {
   modelBtnRef: React.RefObject<HTMLButtonElement>
   modelSelectorBtnRef: React.RefObject<HTMLButtonElement>
   aiContextGroupList: groupListType[]
-  aiAssistantGroupList: groupListType[]
   textareaRef?: React.RefObject<HTMLTextAreaElement>
   maximizePanel: () => Promise<void>
   aiMode: 'ask' | 'edit'
   setAiMode: React.Dispatch<React.SetStateAction<'ask' | 'edit'>>
   isMaximized: boolean
   setIsMaximized: React.Dispatch<React.SetStateAction<boolean>>
+  modelAccess: ModelAccess
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -57,22 +57,21 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   handleStop,
   showContextOptions,
   setShowContextOptions,
-  showAssistantOptions,
-  setShowAssistantOptions,
-  showModelOptions,
-  setShowModelOptions,
+  showModelSelector,
+  setShowModelSelector,
+  showOllamaModelSelector,
+  setShowOllamaModelSelector,
   contextChoice,
   setContextChoice,
-  assistantChoice,
-  setAssistantChoice,
-  availableModels,
   selectedModel,
+  ollamaModels,
+  selectedOllamaModel,
   contextFiles,
   clearContext,
   handleAddContext,
-  handleSetAssistant,
   handleSetModel,
   handleModelSelection,
+  handleOllamaModelSelection,
   handleGenerateWorkspace,
   handleRecord,
   isRecording,
@@ -81,13 +80,13 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   modelBtnRef,
   modelSelectorBtnRef,
   aiContextGroupList,
-  aiAssistantGroupList,
   textareaRef,
   maximizePanel,
   aiMode,
   setAiMode,
   isMaximized,
-  setIsMaximized
+  setIsMaximized,
+  modelAccess
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = AIEvent>(event: T) => {
@@ -231,28 +230,24 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
             <div className="d-flex">
               <button
-                onClick={handleSetAssistant}
+                onClick={handleSetModel}
                 className="btn btn-text btn-sm small font-weight-light text-secondary mt-2 align-self-end border border-text rounded"
                 ref={modelBtnRef}
               >
-                {assistantChoice === null && 'Default'}
-                {assistantChoice === 'openai' && ' OpenAI'}
-                {assistantChoice === 'mistralai' && ' MistralAI'}
-                {assistantChoice === 'anthropic' && ' Anthropic'}
-                {assistantChoice === 'ollama' && ' Ollama'}
+                {selectedModel.name}
                 {'  '}
-                <span className={showAssistantOptions ? "fa fa-caret-up" : "fa fa-caret-down"}></span>
+                <span className={showModelSelector ? "fa fa-caret-up" : "fa fa-caret-down"}></span>
               </button>
-              {assistantChoice === 'ollama' && availableModels.length > 0 && (
+              {selectedModel.provider === 'ollama' && ollamaModels.length > 0 && (
                 <button
-                  onClick={handleSetModel}
+                  onClick={() => setShowOllamaModelSelector(prev => !prev)}
                   className="btn btn-text btn-sm small font-weight-light text-secondary mt-2 align-self-end border border-text rounded ms-2"
                   ref={modelSelectorBtnRef}
                   data-id="ollama-model-selector"
                 >
-                  {selectedModel || 'Select Model'}
+                  {selectedOllamaModel || 'Select Model'}
                   {'  '}
-                  <span className={showModelOptions ? "fa fa-caret-up" : "fa fa-caret-down"}></span>
+                  <span className={showOllamaModelSelector ? "fa fa-caret-up" : "fa fa-caret-down"}></span>
                 </button>
               )}
             </div>

@@ -1,11 +1,12 @@
 import * as packageJson from '../../../../../package.json'
 import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent } from '@remix-api'
-import { RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer, isOllamaAvailable, getBestAvailableModel } from '@remix/remix-ai-core';
+import { RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer, isOllamaAvailable, getBestAvailableModel, listModels } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig } from '@remix/remix-ai-core';
 import { MCPInferencer } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
+import { AIModel, getDefaultModel, getModelById } from '@remix/remix-ai-core';
 import axios from 'axios';
 import { endpointUrls } from "@remix-endpoints-helper"
 import { QueryParams } from '@remix-project/remix-lib'
@@ -22,7 +23,8 @@ const profile = {
     "code_insertion", "error_explaining", "vulnerability_check", 'generate',
     "initialize", 'chatPipe', 'ProcessChatRequestBuffer', 'isChatRequestPending',
     'resetChatRequestBuffer', 'setAssistantThrId',
-    'getAssistantThrId', 'getAssistantProvider', 'setAssistantProvider', 'setModel',
+    'getAssistantThrId', 'getAssistantProvider', 'setAssistantProvider', 'setModel', 'setOllamaModel',
+    'getSelectedModel', 'getModelAccess', 'getOllamaModels',
     'addMCPServer', 'removeMCPServer', 'getMCPConnectionStatus', 'getMCPResources', 'getMCPTools', 'executeMCPTool',
     'enableMCPEnhancement', 'disableMCPEnhancement', 'isMCPEnabled', 'getIMCPServers',
     'loadMCPServersFromSettings', 'clearCaches'
@@ -40,14 +42,15 @@ const profile = {
 // add Plugin<any, CustomRemixApi>
 export class RemixAIPlugin extends Plugin {
   aiIsActivated:boolean = false
-  remoteInferencer:RemoteInferencer = null
+  remoteInferencer:RemoteInferencer | OllamaInferencer | MCPInferencer = null
   isInferencing: boolean = false
   chatRequestBuffer: chatRequestBufferT<any> = null
   codeExpAgent: CodeExplainAgent
   securityAgent: SecurityAgent
   contractor: ContractAgent
   workspaceAgent: workspaceAgent
-  assistantProvider: string = 'mistralai' // default provider
+  selectedModel: AIModel = getDefaultModel() // default model
+  selectedModelId: string = getDefaultModel().id
   assistantThreadId: string = ''
   useRemoteInferencer:boolean = true
   completionAgent: CodeCompletionAgent
@@ -83,7 +86,29 @@ export class RemixAIPlugin extends Plugin {
       this.isInferencing = false
     })
 
-    this.setAssistantProvider(this.assistantProvider) // propagate the provider to the remote inferencer
+    // Load saved model preference
+    const savedModelId = await this.call('settings', 'get', 'ai/selectedModel')
+    if (savedModelId) {
+      await this.setModel(savedModelId)
+    } else {
+      // Migration: Convert old provider preference to model
+      const oldProvider = await this.call('settings', 'get', 'ai/assistantProvider')
+      if (oldProvider) {
+        const migrationMap = {
+          'openai': 'gpt-4-turbo',
+          'mistralai': 'mistral-medium-latest',
+          'anthropic': 'claude-sonnet-4-5',
+          'ollama': 'ollama'
+        }
+        const modelId = migrationMap[oldProvider] || getDefaultModel().id
+        await this.call('settings', 'set', 'ai/selectedModel', modelId)
+        await this.setModel(modelId)
+      } else {
+        // Set default model
+        await this.setModel(this.selectedModelId)
+      }
+    }
+
     this.aiIsActivated = true
 
     this.on('blockchain', 'transactionExecuted', async () => {
@@ -233,7 +258,7 @@ export class RemixAIPlugin extends Plugin {
   async generateWorkspace (userPrompt: string, params: IParams=AssistantParams, newThreadID:string="", useRag:boolean=false, statusCallback?: (status: string) => Promise<void>): Promise<any> {
     params.stream_result = false // enforce no stream result
     params.threadId = newThreadID
-    params.provider = this.assistantProvider
+    params.provider = this.selectedModel.provider
     useRag = false
     trackMatomoEvent(this, { category: 'ai', action: 'GenerateNewAIWorkspace', name: 'WorkspaceAgentEdit', isClick: false })
 
@@ -333,72 +358,109 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async getAssistantProvider(){
-    return this.assistantProvider
+    // Legacy method for backwards compatibility
+    return this.selectedModel.provider
+  }
+
+  async getSelectedModel(){
+    return this.selectedModelId
   }
 
   async setAssistantProvider(provider: string) {
-    if (provider === 'openai' || provider === 'mistralai' || provider === 'anthropic') {
-      GenerationParams.provider = provider
-      CompletionParams.provider = provider
-      AssistantParams.provider = provider
+    // Legacy method - map provider to a default model for backwards compatibility
+    const providerToModelMap = {
+      'openai': 'gpt-4-turbo',
+      'mistralai': 'mistral-medium-latest',
+      'anthropic': 'claude-sonnet-4-5',
+      'ollama': 'ollama'
+    }
+    const modelId = providerToModelMap[provider] || getDefaultModel().id
+    await this.setModel(modelId)
+  }
 
-      if (this.assistantProvider !== provider){
-        // clear the threadDds
-        this.assistantThreadId = ''
-        GenerationParams.threadId = ''
-        CompletionParams.threadId = ''
-        AssistantParams.threadId = ''
-      }
-      this.assistantProvider = provider
-
-      // Switch back to remote inferencer for cloud providers -- important
-      if (this.remoteInferencer && this.remoteInferencer instanceof OllamaInferencer) {
-        this.remoteInferencer = new RemoteInferencer()
-        this.remoteInferencer.event.on('onInference', () => {
-          this.isInferencing = true
-        })
-        this.remoteInferencer.event.on('onInferenceDone', () => {
-          this.isInferencing = false
-        })
-      }
-    } else if (provider === 'ollama') {
-      const isAvailable = await isOllamaAvailable();
-      if (!isAvailable) {
-        return
-      }
-
-      const bestModel = await getBestAvailableModel();
-      if (!bestModel) {
-        return
-      }
-
-      // Switch to Ollama inferencer
-      this.remoteInferencer = new OllamaInferencer(bestModel);
-      this.remoteInferencer.event.on('onInference', () => {
-        this.isInferencing = true
-      })
-      this.remoteInferencer.event.on('onInferenceDone', () => {
-        this.isInferencing = false
-      })
-
-      if (this.assistantProvider !== provider){
-        // clear the threadIds
-        this.assistantThreadId = ''
-        GenerationParams.threadId = ''
-        CompletionParams.threadId = ''
-        AssistantParams.threadId = ''
-      }
-      this.assistantProvider = provider
-    } else {
-      console.error(`Unknown assistant provider: ${provider}`)
+  async setModel(modelId: string) {
+    let model = getModelById(modelId)
+    if (!model) {
+      model = getDefaultModel()
+      modelId = model.id
     }
 
-    // If MCP is enabled, update it to use the new Ollama inferencer
+    // Store previous model for comparison
+    const previousModelId = this.selectedModelId
+
+    this.selectedModelId = modelId
+    this.selectedModel = model
+
+    // Update inference parameters
+    GenerationParams.provider = model.provider
+    GenerationParams.model = modelId
+    CompletionParams.provider = model.provider
+    CompletionParams.model = modelId
+    AssistantParams.provider = model.provider
+    AssistantParams.model = modelId
+
+    // Clear thread IDs when switching models
+    if (previousModelId !== modelId) {
+      this.assistantThreadId = ''
+      GenerationParams.threadId = ''
+      CompletionParams.threadId = ''
+      AssistantParams.threadId = ''
+    }
+
+    // Switch inferencer based on provider
+    if (model.provider === 'ollama') {
+      // Ollama requires sub-model selection, use best available for now
+      const isAvailable = await isOllamaAvailable();
+      if (!isAvailable) {
+        console.error('Ollama is not available. Please ensure Ollama is running. Falling back to default model.')
+        const defaultModel = getDefaultModel()
+        model = defaultModel
+        modelId = defaultModel.id
+        this.selectedModelId = modelId
+        this.selectedModel = model
+        GenerationParams.provider = model.provider
+        GenerationParams.model = modelId
+        CompletionParams.provider = model.provider
+        CompletionParams.model = modelId
+        AssistantParams.provider = model.provider
+        AssistantParams.model = modelId
+      } else {
+        const bestModel = await getBestAvailableModel();
+        if (!bestModel) {
+          console.error('No Ollama models available. Falling back to default model.')
+          // Fall back to default model
+          const defaultModel = getDefaultModel()
+          model = defaultModel
+          modelId = defaultModel.id
+          this.selectedModelId = modelId
+          this.selectedModel = model
+          GenerationParams.provider = model.provider
+          GenerationParams.model = modelId
+          CompletionParams.provider = model.provider
+          CompletionParams.model = modelId
+          AssistantParams.provider = model.provider
+          AssistantParams.model = modelId
+        } else {
+          // Switch to Ollama inferencer
+          this.remoteInferencer = new OllamaInferencer(bestModel);
+          this.remoteInferencer.event.on('onInference', () => {
+            this.isInferencing = true
+          })
+          this.remoteInferencer.event.on('onInferenceDone', () => {
+            this.isInferencing = false
+          })
+        }
+      }
+    }
+
+    // Update MCP inferencer if enabled
     if (this.mcpEnabled) {
       this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer, this.remoteInferencer);
       this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
+        // Handle server connected
       })
       this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
+        // Handle server error
       })
       this.mcpInferencer.event.on('onInference', () => {
         this.isInferencing = true
@@ -408,31 +470,76 @@ export class RemixAIPlugin extends Plugin {
       })
       await this.mcpInferencer.connectAllServers();
     }
+
+    // Save preference
+    await this.call('settings', 'set', 'ai/selectedModel', modelId)
+
+    // Emit event for UI updates
+    this.emit('modelChanged', modelId)
   }
 
-  async setModel(modelName: string) {
-    if (this.assistantProvider === 'ollama' && this.remoteInferencer instanceof OllamaInferencer) {
-      try {
-        const isAvailable = await isOllamaAvailable();
-        if (!isAvailable) {
-          console.error('Ollama is not available. Please ensure Ollama is running.')
-          return
-        }
-
-        this.remoteInferencer = new OllamaInferencer(modelName);
-        this.remoteInferencer.event.on('onInference', () => {
-          this.isInferencing = true
-        })
-        this.remoteInferencer.event.on('onInferenceDone', () => {
-          this.isInferencing = false
-        })
-
-      } catch (error) {
-        console.error('Failed to set Ollama model:', error)
-      }
-    } else {
-      console.warn(`setModel is only supported for Ollama provider. Current provider: ${this.assistantProvider}`)
+  async setOllamaModel(ollamaModelName: string) {
+    // Special method for selecting specific Ollama model after "Ollama" is selected
+    if (this.selectedModel.provider !== 'ollama') {
+      console.warn('setOllamaModel should only be called when Ollama provider is selected')
+      return
     }
+
+    const isAvailable = await isOllamaAvailable();
+    if (!isAvailable) {
+      console.error('Ollama is not available. Please ensure Ollama is running.')
+      return
+    }
+
+    this.remoteInferencer = new OllamaInferencer(ollamaModelName);
+    this.remoteInferencer.event.on('onInference', () => {
+      this.isInferencing = true
+    })
+    this.remoteInferencer.event.on('onInferenceDone', () => {
+      this.isInferencing = false
+    })
+
+    // Update MCP if enabled
+    if (this.mcpEnabled && this.mcpInferencer) {
+      this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer, this.remoteInferencer);
+      await this.mcpInferencer.connectAllServers();
+    }
+  }
+
+  async getModelAccess(): Promise<string[]> {
+    try {
+      const token = localStorage.getItem('remix_access_token')
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+
+      const response = await fetch(`${endpointUrls.sso}/accounts`, {
+        credentials: 'include',
+        headers
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return data.allowed_models || []
+      }
+    } catch (err) {
+      console.error('Failed to fetch model access:', err)
+    }
+
+    // Fallback: default model + ollama
+    return [getDefaultModel().id, 'ollama']
+  }
+
+  async getOllamaModels(): Promise<string[]> {
+    if (this.selectedModel.provider !== 'ollama') {
+      throw new Error('Ollama is not the selected provider')
+    }
+
+    const available = await isOllamaAvailable()
+    if (!available) {
+      throw new Error('Ollama is not running')
+    }
+
+    const models = await listModels()
+    return models
   }
 
   isChatRequestPending(){

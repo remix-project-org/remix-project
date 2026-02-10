@@ -36,6 +36,7 @@ export interface AIEvent extends MatomoEventBase {
     | 'generateDocumentation'
     | 'explainFunction'
     | 'error_explaining_SolidityError'
+    | 'SetAIModel'
     // AI Context
     | 'AddingAIContext'
     | 'GenerateNewAIWorkspace'

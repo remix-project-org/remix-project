@@ -3,7 +3,7 @@
 import { ICompletions,
   IParams, ChatEntry, AIRequestType, IRemoteModel } from './types/types'
 import { ModelType } from './types/constants'
-import { InsertionParams, CompletionParams, GenerationParams, AssistantParams } from './types/models'
+import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, AVAILABLE_MODELS, getDefaultModel, getModelById } from './types/models'
 import { buildChatPrompt } from './prompts/promptBuilder'
 import { RemoteInferencer } from './inferencers/remote/remoteInference'
 import { OllamaInferencer } from './inferencers/local/ollamaInferencer'
@@ -21,7 +21,8 @@ export {
   FIMModelManager, FIMModelConfig, FIM_MODEL_CONFIGS, createRemixMCPServer,
   InsertionParams, CompletionParams, GenerationParams, AssistantParams,
   ChatEntry, AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,
-  mcpDefaultServersConfig
+  mcpDefaultServersConfig,
+  AIModel, AVAILABLE_MODELS, getDefaultModel, getModelById
 }
 
 export * from './types/types'
