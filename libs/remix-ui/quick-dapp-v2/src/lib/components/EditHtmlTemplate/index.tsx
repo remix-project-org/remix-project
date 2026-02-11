@@ -251,6 +251,20 @@ function EditHtmlTemplate(): JSX.Element {
     setIframeError('');
     setShowIframe(true);
 
+    try {
+      const currentWs = await plugin.call('filePanel', 'getCurrentWorkspace');
+      if (currentWs?.name && currentWs.name !== activeDapp.workspaceName) {
+        console.log(`[QuickDapp] Switching from "${currentWs.name}" to DApp workspace "${activeDapp.workspaceName}"`);
+        await plugin.call('filePanel', 'switchToWorkspace', {
+          name: activeDapp.workspaceName,
+          isLocalhost: false,
+        });
+        await new Promise(r => setTimeout(r, 300));
+      }
+    } catch (e) {
+      console.warn('[QuickDapp] Failed to auto-switch workspace:', e);
+    }
+
     const { title, details, logo } = appState.instance;
 
     const builder = builderRef.current;
@@ -263,7 +277,7 @@ function EditHtmlTemplate(): JSX.Element {
       await readDappFiles(plugin, dappRootPath, mapFiles, 0);
 
       if (mapFiles.size === 0) {
-        setIframeError(`No files found in workspace root`);
+        setIframeError(`No files found in workspace root. Make sure you are in the DApp workspace "${activeDapp.workspaceName}".`);
         setIsBuilding(false);
         return;
       }
@@ -303,7 +317,50 @@ function EditHtmlTemplate(): JSX.Element {
         };
       </script>
     `;
-    const ext = `<script>window.ethereum = parent.window.ethereum</script>`;
+    const ext = `<script>
+(function() {
+  if (parent.__remixVMBridge) {
+    console.log('[DApp] Using Remix VM Bridge');
+    var _listeners = {};
+    window.ethereum = {
+      isMetaMask: false,
+      isRemixVM: true,
+      _events: {},
+      request: function(args) {
+        return parent.__remixVMBridge.request(args);
+      },
+      send: function(method, params) {
+        if (typeof method === 'object') {
+          return parent.__remixVMBridge.request(method);
+        }
+        return parent.__remixVMBridge.request({ method: method, params: params || [] });
+      },
+      on: function(event, cb) {
+        if (!_listeners[event]) _listeners[event] = [];
+        _listeners[event].push(cb);
+        return this;
+      },
+      removeListener: function(event, cb) {
+        if (_listeners[event]) {
+          _listeners[event] = _listeners[event].filter(function(l) { return l !== cb; });
+        }
+        return this;
+      },
+      removeAllListeners: function() { _listeners = {}; return this; }
+    };
+    // Set static defaults — ethers.js will call eth_chainId / eth_requestAccounts
+    // itself during connection, so async pre-fetching is unnecessary and
+    // causes timeout errors during workspace switches.
+    window.ethereum.chainId = '0x539'; // 1337 (standard local dev chain ID)
+    window.ethereum.selectedAddress = null;
+  } else if (parent.window && parent.window.ethereum) {
+    console.log('[DApp] Using parent window.ethereum (MetaMask)');
+    window.ethereum = parent.window.ethereum;
+  } else {
+    console.warn('[DApp] No provider available');
+  }
+})();
+</script>`;
 
     try {
       if (hasBuildableFiles) {
@@ -445,6 +502,60 @@ function EditHtmlTemplate(): JSX.Element {
     }
   }, [isBuilderReady, isAiUpdating, activeDapp?.slug]);
 
+  const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
+
+  const [isCurrentProviderVM, setIsCurrentProviderVM] = useState(false);
+
+  useEffect(() => {
+    if (!plugin) return;
+    const checkVM = async () => {
+      try {
+        const provider = await plugin.call('blockchain', 'getProvider');
+        setIsCurrentProviderVM(!!provider && provider.startsWith('vm-'));
+      } catch (e) {
+        setIsCurrentProviderVM(false);
+      }
+    };
+    checkVM();
+  }, [plugin, activeDapp]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!isVM || !isCurrentProviderVM || !plugin) {
+      delete (window as any).__remixVMBridge;
+      return;
+    }
+
+    const bridge = {
+      request: async ({ method, params }: { method: string; params?: any[] }) => {
+        try {
+          if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
+            return null;
+          }
+
+          const result = await plugin.call('blockchain', 'sendRpc', method, params || []);
+
+          if (!isMounted) return;
+          return result;
+        } catch (error: any) {
+          if (!isMounted) return;
+          console.error(`[VM-Bridge] ${method} failed:`, error);
+          throw error;
+        }
+      }
+    };
+
+    (window as any).__remixVMBridge = bridge;
+    console.log('[VM-Bridge] Remix VM bridge activated');
+
+    return () => {
+      isMounted = false;
+      delete (window as any).__remixVMBridge;
+      console.log('[VM-Bridge] Remix VM bridge deactivated');
+    };
+  }, [isVM, isCurrentProviderVM, plugin]);
+
   if (!activeDapp) return <div className="p-3">No active dapp selected.</div>;
 
   return (
@@ -525,6 +636,39 @@ function EditHtmlTemplate(): JSX.Element {
                         <li><strong>Option 1:</strong> Edit code manually in the <strong>File Explorer</strong> (left panel), then click <strong>Refresh Preview</strong>.</li>
                         <li><strong>Option 2:</strong> Ask the AI to fix it in the <strong>Chat Box</strong> above.</li>
                       </ul>
+                    </div>
+                  )}
+
+                  {isVM && (
+                    <div className="alert alert-warning py-2 px-3 mb-2 small shadow-sm border-warning d-flex align-items-start">
+                      <i className="fas fa-exclamation-triangle me-2 mt-1 text-warning"></i>
+                      <div>
+                        <div className="fw-bold mb-1">Remix VM — Local Only</div>
+                        {activeDapp.sourceWorkspace?.name && (
+                          <div>
+                            To run this DApp, switch to the contract workspace:{' '}
+                            <button
+                              className="btn btn-link btn-sm p-0 text-decoration-underline"
+                              onClick={async () => {
+                                try {
+                                  await plugin.call('filePanel', 'switchToWorkspace', {
+                                    name: activeDapp.sourceWorkspace!.name,
+                                    isLocalhost: false,
+                                  });
+                                } catch (e) {
+                                  console.warn('[QuickDapp] Failed to switch workspace:', e);
+                                }
+                              }}
+                            >
+                              <strong>{activeDapp.sourceWorkspace.name}</strong>
+                            </button>
+                          </div>
+                        )}
+                        <div className="mt-1 text-danger">
+                          <i className="fas fa-ban me-1"></i>
+                          IPFS deployment will not work — Remix VM is local to this browser only.
+                        </div>
+                      </div>
                     </div>
                   )}
 

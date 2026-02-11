@@ -24,7 +24,7 @@ const profile = {
   name: 'blockchain',
   displayName: 'Blockchain',
   description: 'Blockchain - Logic',
-  methods: ['dumpState', 'getCode', 'getTransactionReceipt', 'addProvider', 'removeProvider', 'getCurrentFork', 'isSmartAccount', 'getAccounts', 'web3VM', 'web3', 'getProvider', 'getCurrentProvider', 'getCurrentNetworkStatus', 'getCurrentNetworkCurrency', 'getAllProviders', 'getPinnedProviders', 'changeExecutionContext', 'getProviderObject', 'runTx', 'getBalanceInEther', 'getCurrentProvider', 'deployContractAndLibraries', 'runOrCallContractMethod'],
+  methods: ['dumpState', 'getCode', 'getTransactionReceipt', 'addProvider', 'removeProvider', 'getCurrentFork', 'isSmartAccount', 'getAccounts', 'web3VM', 'web3', 'sendRpc', 'getProvider', 'getCurrentProvider', 'getCurrentNetworkStatus', 'getCurrentNetworkCurrency', 'getAllProviders', 'getPinnedProviders', 'changeExecutionContext', 'getProviderObject', 'runTx', 'getBalanceInEther', 'getCurrentProvider', 'deployContractAndLibraries', 'runOrCallContractMethod'],
   version: packageJson.version
 }
 
@@ -658,6 +658,15 @@ export class Blockchain extends Plugin {
       return (this.providers.vm as VMProvider).web3
     }
     return this.executionContext.web3()
+  }
+
+  /**
+   * Generic JSON-RPC forwarder – runs web3.send() in-process so the
+   * result travels back as plain, serialisable JSON through the plugin API.
+   */
+  async sendRpc(method: string, params?: any[]) {
+    const web3 = this.web3()
+    return await web3.send(method, params || [])
   }
 
   getTxListener(opts) {

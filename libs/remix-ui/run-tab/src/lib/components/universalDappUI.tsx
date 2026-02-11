@@ -375,25 +375,6 @@ export function UniversalDappUI(props: UdappProps) {
                           return
                         }
 
-                        if (!props.exEnvironment?.startsWith('injected')) {
-                          const confirmed = await new Promise<boolean>((resolve) => {
-                            props.plugin.call('notification', 'modal', {
-                              id: 'remix-vm-warning',
-                              title: 'Warning: Non-Injected Provider',
-                              message: 'You are using Remix VM or a non-browser wallet environment. The generated DApp is designed to work with browser extension wallets like MetaMask. It may not function correctly with the current environment. Do you want to continue anyway?',
-                              modalType: 'confirm',
-                              okLabel: 'Continue Anyway',
-                              cancelLabel: 'Cancel',
-                              okFn: () => resolve(true),
-                              cancelFn: () => resolve(false),
-                            })
-                          })
-
-                          if (!confirmed) {
-                            return
-                          }
-                        }
-
                         isGenerating.current = true
 
                         await props.plugin.call('ai-dapp-generator', 'resetDapp', address)

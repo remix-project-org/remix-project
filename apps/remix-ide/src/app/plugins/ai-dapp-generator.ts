@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { INITIAL_SYSTEM_PROMPT, FOLLOW_UP_SYSTEM_PROMPT, BASE_MINI_APP_SYSTEM_PROMPT, } from './prompt'
+import { buildSystemPrompt, buildUserMessage, blockchain, PromptContext, BuildUserMessageOptions } from './prompt-blocks'
 
 const profile = {
   name: 'ai-dapp-generator',
@@ -74,6 +74,14 @@ export class AIDappGenerator extends Plugin {
       name: options.contractName
     };
 
+    const ctx: PromptContext = {
+      contract: contractInfo,
+      isBaseMiniApp: options.isBaseMiniApp,
+      hasFigma: true,
+      isLocalVM: this.detectLocalVM(options.chainId),
+    }
+    const systemPrompt = buildSystemPrompt(ctx)
+
     try {
       const startTime = Date.now();
 
@@ -85,24 +93,16 @@ export class AIDappGenerator extends Plugin {
         figmaUrl: options.figmaUrl,
         userPrompt: options.description,
         contractInfo: contractInfo,
-        isBaseMiniApp: options.isBaseMiniApp
+        isBaseMiniApp: options.isBaseMiniApp,
+        systemPrompt,
       });
 
       const duration = (Date.now() - startTime) / 1000;
 
       const pages = parsePages(htmlContent);
 
-      const pageKeys = Object.keys(pages);
-
-      if (pageKeys.length === 0) {
-        console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed!');
-
-        if (!htmlContent) console.error('[DEBUG-AI] htmlContent is EMPTY.');
-
-        throw new Error("AI failed to return valid file structure from Figma design.");
-      }
-
       if (Object.keys(pages).length === 0) {
+        console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed from Figma generation');
         throw new Error("AI failed to return valid file structure from Figma design.");
       }
 
@@ -167,31 +167,42 @@ export class AIDappGenerator extends Plugin {
       this.emit('generationProgress', { status: 'started', address: options.address })
 
       const context = this.getOrCreateContext(options.address)
-      const message = this.createInitialMessage(options)
-      const messagesToSend = [{ role: 'user', content: message }]
 
-      let selectedSystemPrompt = INITIAL_SYSTEM_PROMPT
-      if (options.isBaseMiniApp) {
-        selectedSystemPrompt = BASE_MINI_APP_SYSTEM_PROMPT
+      const ctx: PromptContext = {
+        contract: { address: options.address, abi: options.abi, chainId: options.chainId },
+        isBaseMiniApp: options.isBaseMiniApp,
+        hasImage,
+        isLocalVM: this.detectLocalVM(options.chainId),
       }
+
+      const systemPrompt = buildSystemPrompt(ctx)
+
+      const msgOptions: BuildUserMessageOptions = {
+        description: options.description,
+        image: options.image,
+      }
+      const userMessage = buildUserMessage(ctx, msgOptions)
+      const messagesToSend = [{ role: 'user', content: userMessage }]
 
       const startTime = Date.now();
 
-      const htmlContent = await this.callLLMAPI(messagesToSend, selectedSystemPrompt, hasImage);
+      const htmlContent = await this.callLLMAPI(messagesToSend, systemPrompt, hasImage);
 
       const duration = (Date.now() - startTime) / 1000;
 
-      const pages = parsePages(htmlContent);
-      const pageKeys = Object.keys(pages);
+      let pages = parsePages(htmlContent);
 
-      if (pageKeys.length === 0) {
+      if (Object.keys(pages).length === 0) {
         console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
-
         throw new Error("AI generated empty content. Please try again.");
       }
 
+      pages = await this.validateAndRetryMissingFiles(
+        pages, htmlContent, messagesToSend, systemPrompt, hasImage
+      );
+
       context.messages = [
-        { role: 'user', content: message },
+        { role: 'user', content: userMessage },
         { role: 'assistant', content: htmlContent }
       ]
       this.saveContext(options.address, context)
@@ -238,11 +249,22 @@ export class AIDappGenerator extends Plugin {
       return;
     }
 
-    const message = this.createUpdateMessage(description, currentFiles);
-    context.messages.push({ role: 'user', content: message });
+    const ctx: PromptContext = {
+      contract: { address, abi: [], chainId: 1 },
+      isUpdate: true,
+      hasImage,
+    }
+    const systemPrompt = buildSystemPrompt(ctx)
+
+    const msgOptions: BuildUserMessageOptions = {
+      description,
+      currentFiles,
+    }
+    const userMessage = buildUserMessage(ctx, msgOptions)
+    context.messages.push({ role: 'user', content: userMessage });
 
     try {
-      const htmlContent = await this.callLLMAPI(context.messages, FOLLOW_UP_SYSTEM_PROMPT, hasImage);
+      const htmlContent = await this.callLLMAPI(context.messages, systemPrompt, hasImage);
 
       const pages = parsePages(htmlContent);
 
@@ -357,341 +379,43 @@ export class AIDappGenerator extends Plugin {
     }
   }
 
-  private createInitialMessage(options: GenerateDappOptions): string | any[] {
-    const providerCode = this.getProviderCode()
+  private detectLocalVM(chainId: number | string): boolean {
+    const id = Number(chainId)
+    return Number.isNaN(id) || id === 0 || id === 1337 || id === 31337 || id === 5777
+  }
 
-    const userDescription = Array.isArray(options.description)
-      ? options.description.map(p => p.type === 'text' ? p.text : '').join('\n')
-      : options.description;
+  private async validateAndRetryMissingFiles(
+    pages: Record<string, string>,
+    htmlContent: string,
+    originalMessages: any[],
+    systemPrompt: string,
+    hasImage: boolean
+  ): Promise<Record<string, string>> {
+    const REQUIRED_FILES = ['index.html', 'src/main.jsx', 'src/App.jsx']
+    const missing = REQUIRED_FILES.filter(f => !pages[f])
 
-    const functionNames = options.abi
-      .filter((item: any) => item.type === 'function')
-      .map((item: any) => `- ${item.name} (${item.stateMutability})`)
-      .join('\n');
+    if (missing.length === 0) return pages
 
-    const contractMandate = `
-      **🚨 MANDATORY SMART CONTRACT INTEGRATION 🚨**
-      
-      You MUST integrate the provided Smart Contract into the UI.
-      A DApp with only UI and no logic is a FAILURE.
+    console.warn(`[AI-DAPP] Missing required files: ${missing.join(', ')}. Requesting retry...`)
 
-      **Contract Details:**
-      - **Address:** \`${options.address}\`
-      - **Chain ID:** ${options.chainId}
-      - **ABI Functions to Implement:**
-      ${functionNames}
-
-      **Integration Rules:**
-      1. **Connect Wallet:** Must include a button to connect MetaMask/Wallet.
-      2. **Read Functions:** Display data from 'view'/'pure' functions on the screen.
-      3. **Write Functions:** Create Forms/Buttons to trigger 'payable'/'nonpayable' functions.
-      4. **Feedback:** Show loading states and success/error toasts for transactions.
-    `;
-
-    const dynamicContentRules = `
-      **🚨 DYNAMIC CONTENT RULES (CRITICAL) 🚨**
-      The DApp creates a shell that passes configuration via \`window.__QUICK_DAPP_CONFIG__\`.
-      
-      1. **NO HARDCODED TEXT/LOGOS:**
-         - Even if the user asks for "Binance Style", **DO NOT** write "Binance" as the main title.
-         - **DO NOT** hardcode an <img> tag with a random URL unless it's a background or icon.
-      
-      2. **USE CONFIG VARIABLES:**
-         - In \`App.jsx\`, read config: \`const config = window.__QUICK_DAPP_CONFIG__ || {};\`
-         - **Title:** Use \`{config.title}\` for the main header (Navbar/Hero).
-         - **Logo:** Use \`{config.logo}\`. Render it ONLY if it exists: \`{config.logo && <img src={config.logo} ... />}\`.
-         - **Description:** Use \`{config.details}\` for the sub-header or about section.
-         
-      3. **FALLBACK:**
-         - Only if \`config.title\` is missing, fall back to "My DApp".
-         - BUT ALWAYS prioritize the \`config\` object variables.
-    `;
-
-    const architectureInstructions = `
-      **ARCHITECTURE INSTRUCTIONS :**
-
-      1. **Analyze the Request:** - Split complex UIs into \`src/pages/Home.jsx\`, \`src/pages/Dashboard.jsx\`, etc.
-      
-      2. **Routing (ZERO DEPENDENCY MODE):**
-         - **STOP! Do NOT use \`react-router-dom\`.** It causes version conflicts.
-         - **Implement a simple Hash Router manually** in \`src/App.jsx\`.
-         - Use \`useState\` and \`window.location.hash\` to switch pages.
-         - Example Pattern for App.jsx:
-           \`\`\`javascript
-           const [route, setRoute] = useState(window.location.hash || '#/');
-           useEffect(() => {
-             const onHashChange = () => setRoute(window.location.hash || '#/');
-             window.addEventListener('hashchange', onHashChange);
-             return () => window.removeEventListener('hashchange', onHashChange);
-           }, []);
-           
-           // Navigation Function
-           const navigate = (path) => window.location.hash = path;
-           
-           // Render
-           return (
-             <div>
-               <Navbar navigate={navigate} />
-               {route === '#/' && <Home />}
-               {route === '#/dashboard' && <Dashboard />}
-             </div>
-           );
-           \`\`\`
-
-      3. **File Structure Target:**
-         - \`index.html\` (Simple Import Map)
-         - \`src/main.jsx\`
-         - \`src/App.jsx\` (Manual Router Logic)
-         - \`src/index.css\` (Tailwind)
-         - \`src/pages/*.jsx\`
-    `;
-
-    const technicalConstraints = `
-      **TECHNICAL CONSTRAINTS (STRICTLY FOLLOW THESE):**
-      
-      1. **DEPENDENCY MANAGEMENT (SIMPLE IMPORT MAP):**
-         - Use this SIMPLIFIED Import Map in \`index.html\` <head>.
-         - **Do NOT** include react-router-dom.
-           \`\`\`html
-           <script type="importmap">
-           {
-             "imports": {
-               "react": "https://esm.sh/react@18.2.0",
-               "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-               "ethers": "https://esm.sh/ethers@6.11.1"
-             }
-           }
-           </script>
-           \`\`\`
-         - In JSX files, use: \`import React, { useState, useEffect } from "react";\`
-
-      2. **STYLING (Tailwind CSS ONLY):**
-          - Do NOT use custom CSS classes like "card", "btn", "navbar". 
-          - USE ONLY Tailwind utility classes directly in JSX (e.g., \`className="bg-white p-4 rounded shadow"\`).
-          - Ensure the UI looks exactly like the image provided.
-
-      3. **Ethers.js v6 RULES (CRITICAL):**
-          - **Read-Only:** For 'view'/'pure' functions, use \`new ethers.Contract(addr, abi, provider)\`.
-          - **Write (Transaction):** For 'nonpayable'/'payable' functions, YOU MUST USE A SIGNER.
-            \`\`\`javascript
-            // Inside the button click handler:
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner(); // <--- CRITICAL
-            const contractWithSigner = new ethers.Contract(address, abi, signer); 
-            const tx = await contractWithSigner.functionName(args);
-            await tx.wait();
-            \`\`\`
-          - **NEVER** try to send a transaction with a Provider-only contract instance. It will throw "UNSUPPORTED_OPERATION".
-
-      4. **Files & Structure:**
-          - At a minimum, the following files must be returned. \`index.html\`, \`src/main.jsx\`, \`src/App.jsx\`, \`src/index.css\`.
-          - Inject provider script in \`index.html\` <head>.
-          - Use \`window.__QUICK_DAPP_CONFIG__\` for titles/logos.
-
-      5. **Functionality:**
-          - Connect Wallet button must be visible.
-          - Handle "User rejected request" errors gracefully.
-
-      6. **Output Format:**
-         - Return ALL files using \`<<<<<<< START_TITLE filename >>>>>>> END_TITLE\` format.
-         - **Do NOT** omit any file. output full content.
-         - **Minimal Comments:** To save token space, avoid verbose comments.
-    `;
-
-    const basePrompt = `
-      You are generating a new DApp.
-      
-      **CRITICAL INSTRUCTION - USER PRIORITY:**
-      The user has provided specific design or functional requirements below.
-      You MUST prioritize the user's request (theme, language, features) over
-      any default templates or examples provided in the system prompt.
-      
-      >>> USER REQUEST START >>>
-      "${userDescription}"
-      <<< USER REQUEST END <<<
-
-      ${contractMandate}
-      ${dynamicContentRules}
-      ${architectureInstructions}
-      ${technicalConstraints}
-
-      If the user asked for a specific language (e.g. Korean), use it for all UI text.
-      If the user asked for a specific theme (e.g. Dark), implement it using Tailwind classes.
-
-      ---------------------------------------------------------
-      **TECHNICAL CONSTRAINTS (DO NOT BREAK THESE):**
-      
-      **1. File Structure:** Follow the \`window.__QUICK_DAPP_CONFIG__\` pattern.
-      
-      **2. Contract Details:**
-      - Address: ${options.address}
-      - Chain ID: ${options.chainId} (Decimal), 0x${Number(options.chainId).toString(16)} (Hex)
-      - ABI: ${JSON.stringify(options.abi)}
-
-      **3. Code Patterns (React + Ethers v6):**
-      - Use \`useState\` and \`useEffect\`.
-      - Implement \`connectWallet\` and \`switchNetwork\` (Error 4902 handling).
-      - Check \`window.ethereum\` existence.
-      - Use \`ethers.BrowserProvider\`.
-
-      **4. UI/UX Requirements:**
-      - Show "Connect Wallet" button when disconnected.
-      - Show "Wrong Network" warning if chain ID mismatches.
-      - Use loading spinners for async actions.
-
-      **5. Provider Injection:**
-      Ensure this script is in \`<head>\` of \`index.html\`:
-      ${providerCode}
-
-      Remember: Return ALL project files in the 'START_TITLE' format.
-    `
-    if (options.image) {
-
-      const visionPrompt = `
-      # VISION-DRIVEN DAPP GENERATION: PIXEL-PERFECT CLONE MODE
-      
-      The user provided an **IMAGE**. Your goal is to **CLONE** this interface into React code.
-
-      **VISUAL INSTRUCTIONS (PRIORITY #1 - THE "LOOK"):**
-
-      1. **IGNORE DEFAULT TEMPLATES:** Do not use generic styles. If the image looks unique, your code must look unique.
-      2. **EXACT COLORS:** Do not strictly rely on default Tailwind colors (like \`bg-blue-500\`). **Extract the HEX CODES** from the image and use Tailwind arbitrary values (e.g., \`bg-[#1a2b3c]\`, \`text-[#f0f0f0]\`).
-      3. **LAYOUT & SPACING:** Observe the exact padding, border-radius, and shadows. Replicate the "density" of the UI.
-      4. **FONTS & VIBE:** Match the font weight (Bold/Light) and style (Modern/Retro) exactly.
-
-      **TASK: MERGE VISUALS WITH LOGIC (STRICT COMPLIANCE)**
-
-      You are provided with an **IMAGE**. This image is the SINGLE SOURCE OF TRUTH for the target **Visual Style, Mood, and Layout**.
-      You are also provided with **MANDATORY LOGIC REQUIREMENTS**.
-
-      **PRIORITY RULES:**
-      1. **LOGIC & STRUCTURE (HIGHEST PRIORITY - DO NOT BREAK):**
-         - Implement React + Ethers.js structure defined in "TECHNICAL CONSTRAINTS".
-         - Use \`window.__QUICK_DAPP_CONFIG__\` for Title/Logo/Details.
-         - Integrate the Smart Contract (ABI, Address).
-         - Use \`.jsx\` extensions.
-
-      2. **VISUALS & MOOD (CRITICAL DESIGN GOAL):**
-         - **ANALYZE THE VIBE:** Look at the image's atmosphere. Is it dark & futuristic? Playful & colorful? Minimalist & clean?
-         - **COLOR PALETTE:** Extract the primary colors, background colors, and accent colors from the image and apply them using Tailwind CSS (e.g., arbitrary values like \`bg-[#1a1b1e]\` if needed to match precisely).
-         - **TYPOGRAPHY & COMPOSITION:** Observe font weights, spacing, and rounded corners in the image and replicate them.
-         - **REPLICATE, DON'T JUST MAP:** Do not just place buttons in the same spots. Make them *look* exactly like the buttons in the image.
-
-      **CONTRACT TO INTEGRATE:**
-      - **Address:** \`${options.address}\`
-      - **Chain ID:** ${options.chainId}
-      - **ABI Functions:**
-      ${functionNames}
-
-      **USER INSTRUCTIONS:**
-      "${userDescription}"
-
-      ${architectureInstructions}
-      ${technicalConstraints}
-      
-      **REMINDER:** The Image is for *CSS/Layout*. The System Prompt is for *Code Structure/Logic*. DO NOT FAIL THE LOGIC.
-      
-      **PROVIDER SCRIPT TO INJECT:**
-      ${providerCode}
-      `;
-
-      return [
+    try {
+      const retryMessages = [
+        ...originalMessages,
+        { role: 'assistant', content: htmlContent },
         {
-          type: 'image_url',
-          image_url: { url: options.image }
-        },
-        {
-          type: 'text',
-          text: visionPrompt
+          role: 'user',
+          content: `The following required files were missing from your response: ${missing.join(', ')}. Please generate ONLY these missing files using the START_TITLE format. Do not regenerate files that were already provided.`
         }
-      ];
+      ]
+
+      const additionalContent = await this.callLLMAPI(retryMessages, systemPrompt, false)
+      const additionalPages = parsePages(additionalContent)
+      Object.assign(pages, additionalPages)
+    } catch (retryErr) {
+      console.warn('[AI-DAPP] Retry for missing files failed:', retryErr)
     }
 
-    return basePrompt;
-  }
-
-  private createUpdateMessage(description: string | any[], currentFiles: Pages): string | any[] {
-
-    const filteredFiles: Pages = {};
-    for (const [fileName, content] of Object.entries(currentFiles)) {
-      if (fileName === 'index.html' || fileName.startsWith('src/')) {
-        filteredFiles[fileName] = content;
-      }
-    }
-
-    const filesString = JSON.stringify(filteredFiles, null, 2);
-
-    const textOnlyInstruction = `
-      IMPORTANT: The user has provided context in this message.
-      Prioritize the user's request over the file contents below.
-      
-      User's request:
-      ${Array.isArray(description) ? description.map(p => p.text).join('\n') : description}
-
-      ---
-      Current Project Code (Partial View):
-      ${filesString}
-
-      Please apply the update. 
-      **CRITICAL REQUIREMENT:** 1. Return ALL project files (index.html, src/App.jsx, etc).
-      2. You MUST use the format: <<<<<<< START_TITLE filename >>>>>>> END_TITLE
-      3. Do NOT provide explanations, only the code blocks.
-    `
-
-    if (Array.isArray(description)) {
-
-      return description.map(part => {
-        if (part.type === 'text') {
-          const visionInstruction = `
-          # UI RECONSTRUCTION TASK 🚨
-          
-          The user has provided an **IMAGE** as a visual reference.
-          
-          **YOUR GOAL:**
-          Refactor the **visuals (CSS/Layout)** of the current code to match the attached image, BUT **preserve the existing blockchain logic**.
-
-          **STRICT RULES:**
-          1. **PRESERVE LOGIC:** Do NOT remove the existing \`ethers.js\` integration, \`useEffect\`, \`useState\`, or ABI calls found in the Reference Code.
-          2. **APPLY DESIGN:** Change the HTML structure and Tailwind classes to match the image.
-          3. **CONFIG:** Keep using \`window.__QUICK_DAPP_CONFIG__\` variable.
-          4. **FILES:** Return ALL necessary files (index.html, src/App.jsx, etc).
-
-          ---
-          **YOUR MISSION:**
-          1. **DISCARD** the current CSS/Layout styles of the reference code.
-          2. **REBUILD** the visual layer (\`return (...)\` in JSX) to match the **IMAGE** exactly.
-          3. **USE ARBITRARY VALUES:** Use exact hex codes from the image (e.g. \`bg-[#123]\`) instead of generic Tailwind classes.
-          4. **KEEP LOGIC:** You MUST preserve the existing variables, states, \`useEffect\`, and \`ethers.js\` logic from the reference code. Just wrap them in the new design.
-          
-          **USER REQUEST:**
-          "${part.text}"
-          
-          ---
-          **REFERENCE LOGIC (PRESERVE THIS LOGIC):**
-          ${filesString}
-          `;
-
-          return {
-            type: 'text',
-            text: visionInstruction
-          };
-        }
-        return part;
-      })
-    }
-
-    return textOnlyInstruction;
-  }
-
-  private getProviderCode(): string {
-    // This is the provider code that was missing from the original implementation
-    return `
-<script>
-  // Remix IDE provider injection
-  if (typeof window !== 'undefined' && window.ethereum && window.ethereum.isRemix) {
-    window.ethereum = window.ethereum;
-  }
-</script>`
+    return pages
   }
 
   private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false): Promise<string> {
