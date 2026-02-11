@@ -1282,3 +1282,11 @@ body.dark .conversation-menu-item:hover {
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
+
+btn-remix-dark {
+  background-color: #33384b;
+}
+
+btn-remix-light {
+  background-color: #d6dde6;
+}

@@ -12,14 +12,14 @@ const profile = {
   displayName: 'RemixAI Assistant',
   icon: 'assets/img/remixai-logoAI.webp',
   description: 'AI code assistant for Remix IDE',
-  kind: 'remixaiassistant',
+  kind: '',
   location: 'sidePanel',
   documentation: 'https://remix-ide.readthedocs.io/en/latest/ai.html',
   version: packageJson.version,
   maintainedBy: 'Remix',
   permission: true,
   events: [],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile']
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation']
 }
 
 export class RemixAIAssistant extends ViewPlugin {

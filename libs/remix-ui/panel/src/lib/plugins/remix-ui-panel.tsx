@@ -7,12 +7,14 @@ import { PluginRecord } from '../types'
 /* eslint-disable-next-line */
 export interface RemixPanelProps {
   plugins: Record<string, PluginRecord>,
+  sourcePlugin?: any
   header: JSX.Element,
   pluginState?: any,
   highlightStamp?: number
 }
 
 export function RemixPluginPanel(props: RemixPanelProps) {
+
   return (
     <>
       {props.header}
@@ -24,6 +26,7 @@ export function RemixPluginPanel(props: RemixPanelProps) {
               pluginRecord={pluginRecord}
               initialState={props.pluginState}
               highlightStamp={props.highlightStamp}
+              sourcePlugin={props.sourcePlugin}
             />
           }) }
         </div>

@@ -67,6 +67,6 @@ export class MainPanel extends AbstractPanel {
   }
 
   updateComponent(state: any) {
-    return <RemixPluginPanel header={<></>} plugins={state.plugins} />
+    return <RemixPluginPanel sourcePlugin={this} header={<></>} plugins={state.plugins} />
   }
 }

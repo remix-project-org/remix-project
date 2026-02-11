@@ -4,6 +4,7 @@ import { PluginRecord } from '../types'
 import './panel.css'
 interface panelPLuginProps {
   pluginRecord: PluginRecord,
+  sourcePlugin?: any
   initialState?: any,
   highlightStamp?: number,
   children?: any

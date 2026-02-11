@@ -57,7 +57,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   return (
     <div
       className={`chat-history-sidebar d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating border-end' : isMaximized ? 'border-end' : 'w-100'}`}
-      style={isMaximized && !isFloating ? { width: '300px', minWidth: '300px', maxWidth: '300px' } : isFloating ? { width: '300px', minWidth: '300px' } : {}}
+      style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: 'transparent' }}
       data-id="chat-history-sidebar"
     >
       {/* Header */}
@@ -82,7 +82,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
         {/* New Conversation Button */}
 
         {/* Search Bar */}
-        <div className="search-bar mb-3">
+        <div className="search-bar mb-2 p-1">
           <i className="fas fa-search search-icon"></i>
           <input
             type="text"
@@ -109,7 +109,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
       </div>
 
       {/* Conversation List */}
-      <div className="sidebar-body flex-grow-1 overflow-y-auto p-2">
+      <div className="sidebar-body flex-grow-1 overflow-y-auto p-2 form-control">
         {filteredConversations.length === 0 ? (
           <div className="text-center text-muted mt-4">
             {searchQuery ? (

@@ -102,6 +102,7 @@ export interface AppState {
     showOverlayPanel: boolean
     connectedToDesktop: desktopConnection
     desktopClientConnected: desktopConnection
-    genericModalState?: GenericModal
+    genericModalState?: GenericModal,
+    aiChatHistoryState?: { showAiChatHistory: boolean, closeAiChatHistory: boolean, toggleIsAiChatMaximized: boolean }
 }
 

@@ -16,9 +16,7 @@ import { appReducer } from './reducer/app'
 import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
 import { desktopConnectionType } from '@remix-api'
-import { RemixUiTemplateExplorerModal } from 'libs/remix-ui/template-explorer-modal/src/lib/remix-ui-template-explorer-modal'
-import { TemplateExplorerProvider } from 'libs/remix-ui/template-explorer-modal/context/template-explorer-context'
-import { AiWorkspaceGeneration } from './components/modals/aiworkspace-generation'
+import { ChatHistorySidebar } from 'libs/remix-ui/remix-ai-assistant/src/components/chatHistorySidebar'
 
 interface IRemixAppUi {
   app: any
@@ -41,7 +39,7 @@ const RemixApp = (props: IRemixAppUi) => {
   })
   const sidePanelRef = useRef(null)
   const pinnedPanelRef = useRef(null)
-
+  console.log(props.app)
   const [appState, appStateDispatch] = useReducer(appReducer, {
     ...appInitialState,
     showPopupPanel: !window.localStorage.getItem('did_show_popup_panel') && !isElectron(),
@@ -58,9 +56,18 @@ const RemixApp = (props: IRemixAppUi) => {
       width: '720px',
       height: '720px',
       showModal: false
+    },
+    aiChatHistoryState: {
+      showAiChatHistory: props.app.remixAiAssistant.showHistorySidebar,
+      toggleIsAiChatMaximized: props.app.remixAiAssistant.isMaximized,
+      closeAiChatHistory: !props.app.remixAiAssistant.showHistorySidebar
     }
   })
   const [isAiWorkspaceBeingGenerated, setIsAiWorkspaceBeingGenerated] = useState<boolean>(false)
+
+  useEffect(() => {
+    console.log('whats up doc? ', appState)
+  }, [appState])
 
   useEffect(() => {
     if (props.app.params && props.app.params.activate && props.app.params.activate.split(',').includes('desktopClient')) {
@@ -189,6 +196,17 @@ const RemixApp = (props: IRemixAppUi) => {
     setIsAiWorkspaceBeingGenerated: setIsAiWorkspaceBeingGenerated
   }
 
+  useEffect(() => {
+    // (props.app?.remixAiAssistant as any)?.on('rightSidePanel', 'rightSidePanelMaximized', () => {
+    //   console.log('has the pinnedpanel been maximized? ', props.app.remixAiAssistant.isMaximized);
+    // })
+    // const t = async () => {
+    //   const ans = await props.app.topBar.call('manager', 'isActive', 'remixaiassistant')
+    //   console.log('is this active yet? ', ans)
+    // }
+    // t()
+  }, [props])
+
   return (
     //@ts-ignore
     <IntlProvider locale={locale.code} messages={locale.messages}>
@@ -206,6 +224,23 @@ const RemixApp = (props: IRemixAppUi) => {
                   </div>
                 )}
                 <div className={`remixIDE ${appReady ? '' : 'd-none'}`} data-id="remixIDE">
+                  {!appState.aiChatHistoryState.showAiChatHistory ? <div className="position-absolute z-3 bg-dark rounded-3 p-3 border" style={{ overflow: 'hidden', top: 70, left: 60 }}>
+                    <ChatHistorySidebar
+                      conversations={props.app.remixAiAssistant.conversations}
+                      currentConversationId={props.app.remixAiAssistant.currentConversationId}
+                      showArchived={false}
+                      onNewConversation={(() => {})}
+                      onLoadConversation={(id) => {
+                        props.app.remixAiAssistant.onLoadConversation?.(props.app.remixAiAssistant.currentConversationId)
+                      }}
+                      onArchiveConversation={(() => props.app.remixAiAssistant.archiveConversation())}
+                      onDeleteConversation={(() => props.app.remixAiAssistant.deleteConversation())}
+                      onToggleArchived={() => props.app.remixAiAssistant.toggleHistorySidebar()}
+                      onClose={(() => {})}
+                      isFloating={false}
+                      isMaximized={false}
+                    />
+                  </div> : null}
                   <div id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">
                     {props.app.menuicons.render()}
                   </div>

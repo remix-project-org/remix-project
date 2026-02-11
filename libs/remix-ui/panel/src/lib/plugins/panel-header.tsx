@@ -5,9 +5,11 @@ import './panel.css'
 import { CustomTooltip, RenderIf, RenderIfNot } from '@remix-ui/helper'
 import { TrackingContext } from '@remix-ide/tracking'
 import { PluginPanelEvent } from '@remix-api'
+import { appActionTypes, AppContext } from '@remix-ui/app'
 
 export interface RemixPanelProps {
   plugins: Record<string, PluginRecord>,
+  sourcePlugin?: any
   pinView?: (profile: PluginRecord['profile'], view: PluginRecord['view']) => void,
   unPinView?: (profile: PluginRecord['profile']) => void,
   togglePanel?: () => void,
@@ -18,6 +20,7 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
   const [plugin, setPlugin] = useState<PluginRecord>()
   const [toggleExpander, setToggleExpander] = useState<boolean>(false)
   const { trackMatomoEvent } = useContext(TrackingContext)
+  const appContext = useContext(AppContext)
 
   useEffect(() => {
     setToggleExpander(false)
@@ -48,6 +51,12 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
   }
 
   const maximizePanelHandler = () => {
+    if (plugin.profile.name.toLowerCase() === 'remixaiassistant') {
+      appContext.appStateDispatch({
+        type: appActionTypes.showAiChatHistorySidebar,
+        payload: props.isMaximized
+      })
+    }
     props.maximizePanel && props.maximizePanel()
   }
 
@@ -82,6 +91,14 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
       </section>
     )
   }
+
+  useEffect(() => {
+    (props.sourcePlugin as any)?.on('rightSidePanel', 'rightSidePanelMaximized', () => {
+      console.log('has the pinnedpanel been maximized? ', props.isMaximized);
+
+    })
+
+  }, [props])
 
   return (
     <header className="d-flex flex-column">
