@@ -22,14 +22,14 @@ export interface ChatMessage {
  */
 export interface ConversationMetadata {
   id: string
-  title: string                 // Auto-generated from first prompt (max 50 chars)
+  title: string // Auto-generated from first prompt (max 50 chars)
   createdAt: number
   updatedAt: number
-  lastAccessedAt: number        // For auto-archive logic
+  lastAccessedAt: number // For auto-archive logic
   archived: boolean
-  archivedAt?: number           // When it was archived
+  archivedAt?: number // When it was archived
   messageCount: number
-  preview: string               // First 100 chars of first message
+  preview: string // First 100 chars of first message
 }
 
 /**
@@ -72,7 +72,7 @@ export interface SyncOperation {
 export interface CloudIndex {
   conversations: ConversationMetadata[]
   lastUpdated: number
-  messageIndexVersion?: number  // Track if message index exists
+  messageIndexVersion?: number // Track if message index exists
 }
 
 /**
@@ -88,8 +88,8 @@ export interface ConversationData {
  * Maps messageId → conversationId for O(1) lookup
  */
 export interface MessageIndex {
-  version: number                    // Schema version (start with 1)
-  lastUpdated: number                // Timestamp of last update
+  version: number // Schema version (start with 1)
+  lastUpdated: number // Timestamp of last update
   messageMap: Record<string, string> // messageId → conversationId
 }
 

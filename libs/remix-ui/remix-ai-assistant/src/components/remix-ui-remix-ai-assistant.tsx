@@ -939,7 +939,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           </div>
         ) : (
           /* Non-Maximized Mode: Toggle between history view and chat view */
-          props.showHistorySidebar && props.conversations && props.isMaximized === false ? (
+          props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
             <div className="d-flex flex-column flex-grow-1 ai-assistant-bg" style={{ overflow: 'hidden', minHeight: 0 }}>
               {/* Back button header */}
               <div className="p-2 border-bottom">

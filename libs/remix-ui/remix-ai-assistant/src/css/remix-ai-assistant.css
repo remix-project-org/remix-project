@@ -833,7 +833,7 @@ mark,
   /* Removed fixed positioning - now using flex layout */
 }
 
-/* Chat history sidebar styling updates to match screenshot */
+/* Chat history sidebar styling */
 .chat-history-sidebar {
   background-color: var(--bs-body-bg);
   height: 100%;

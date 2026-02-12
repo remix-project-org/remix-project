@@ -1,6 +1,7 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import React, { useEffect, useReducer, useRef, useState } from 'react'
 import './style/remix-app.css'
+import 'libs/remix-ui/remix-ai-assistant/src/css/remix-ai-assistant.css'
 import { RemixUIMainPanel } from '@remix-ui/panel'
 import MatomoDialog from './components/modals/matomo'
 import ManagePreferencesDialog from './components/modals/managePreferences'
@@ -16,7 +17,7 @@ import { appReducer } from './reducer/app'
 import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
 import { desktopConnectionType } from '@remix-api'
-import { ChatHistorySidebar } from 'libs/remix-ui/remix-ai-assistant/src/components/chatHistorySidebar'
+import { FloatingChatHistory } from './components/chatHistory/floatingChatHistory'
 
 interface IRemixAppUi {
   app: any
@@ -33,13 +34,17 @@ const RemixApp = (props: IRemixAppUi) => {
   const [enhanceRightTrigger, setEnhanceRightTrigger] = useState<number>(0)
   const [resetRightTrigger, setResetRightTrigger] = useState<number>(0)
   const [online, setOnline] = useState<boolean>(true)
+  const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({
+    width: window.innerWidth,
+    height: window.innerHeight
+  })
   const [locale, setLocale] = useState<{ code: string; messages: any }>({
     code: 'en',
     messages: {}
   })
   const sidePanelRef = useRef(null)
+  const iconPanelRef = useRef<HTMLDivElement>(null)
   const pinnedPanelRef = useRef(null)
-  console.log(props.app)
   const [appState, appStateDispatch] = useReducer(appReducer, {
     ...appInitialState,
     showPopupPanel: !window.localStorage.getItem('did_show_popup_panel') && !isElectron(),
@@ -58,16 +63,12 @@ const RemixApp = (props: IRemixAppUi) => {
       showModal: false
     },
     aiChatHistoryState: {
-      showAiChatHistory: props.app.remixAiAssistant.showHistorySidebar,
+      showAiChatHistory: props.app.rightSidePanel.isMaximized,
       toggleIsAiChatMaximized: props.app.remixAiAssistant.isMaximized,
-      closeAiChatHistory: !props.app.remixAiAssistant.showHistorySidebar
+      closeAiChatHistory: props.app.remixAiAssistant.showHistorySidebar
     }
   })
   const [isAiWorkspaceBeingGenerated, setIsAiWorkspaceBeingGenerated] = useState<boolean>(false)
-
-  useEffect(() => {
-    console.log('whats up doc? ', appState)
-  }, [appState])
 
   useEffect(() => {
     if (props.app.params && props.app.params.activate && props.app.params.activate.split(',').includes('desktopClient')) {
@@ -91,6 +92,19 @@ const RemixApp = (props: IRemixAppUi) => {
       window.localStorage.setItem('did_show_popup_panel', 'true')
     }
   }, [appState.showPopupPanel])
+
+  useEffect(() => {
+    const onResize = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      })
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+    }
+  }, [])
 
   function setListeners() {
     if (!props.app.desktopClientMode) {
@@ -196,16 +210,33 @@ const RemixApp = (props: IRemixAppUi) => {
     setIsAiWorkspaceBeingGenerated: setIsAiWorkspaceBeingGenerated
   }
 
-  useEffect(() => {
-    // (props.app?.remixAiAssistant as any)?.on('rightSidePanel', 'rightSidePanelMaximized', () => {
-    //   console.log('has the pinnedpanel been maximized? ', props.app.remixAiAssistant.isMaximized);
-    // })
-    // const t = async () => {
-    //   const ans = await props.app.topBar.call('manager', 'isActive', 'remixaiassistant')
-    //   console.log('is this active yet? ', ans)
-    // }
-    // t()
-  }, [props])
+  const iconPanelWidth = iconPanelRef.current?.offsetWidth ?? 50
+  const sidePanelWidth = hideSidePanel ? 0 : ((sidePanelRef.current as HTMLDivElement | null)?.offsetWidth ?? 320)
+  const verticalSpacing = Math.max(8, Math.round(viewportSize.height * 0.015))
+  const horizontalSpacing = Math.max(8, Math.round(viewportSize.width * 0.01))
+  const preferredChatWidth = Math.round(
+    viewportSize.width * (viewportSize.width < 768 ? 0.86 : viewportSize.width < 1280 ? 0.3 : 0.24)
+  )
+  const minChatWidth = 260
+  const maxChatWidth = 360
+  const rightViewportPadding = 10
+  const preferredLeft = iconPanelWidth + sidePanelWidth + horizontalSpacing
+  const availableChatWidth = Math.max(minChatWidth, viewportSize.width - preferredLeft - rightViewportPadding)
+  const floatingChatWidth = Math.min(
+    Math.max(preferredChatWidth, minChatWidth),
+    Math.min(maxChatWidth, availableChatWidth)
+  )
+  const maxLeft = Math.max(12, viewportSize.width - floatingChatWidth - rightViewportPadding)
+  const floatingChatLeft = Math.min(preferredLeft, maxLeft)
+  const preferredTop = verticalSpacing
+  const maxTop = Math.max(12, viewportSize.height - 220)
+  const floatingChatTop = Math.min(preferredTop, maxTop)
+  const floatingChatStyle: React.CSSProperties = {
+    overflow: 'hidden',
+    top: floatingChatTop,
+    left: floatingChatLeft,
+    width: `${floatingChatWidth}px`
+  }
 
   return (
     //@ts-ignore
@@ -224,8 +255,8 @@ const RemixApp = (props: IRemixAppUi) => {
                   </div>
                 )}
                 <div className={`remixIDE ${appReady ? '' : 'd-none'}`} data-id="remixIDE">
-                  {!appState.aiChatHistoryState.showAiChatHistory ? <div className="position-absolute z-3 bg-dark rounded-3 p-3 border" style={{ overflow: 'hidden', top: 70, left: 60 }}>
-                    <ChatHistorySidebar
+                  {appState.aiChatHistoryState.showAiChatHistory ? <div className="position-absolute z-3 bg-dark rounded-3 p-1 border text-light" style={floatingChatStyle}>
+                    <FloatingChatHistory
                       conversations={props.app.remixAiAssistant.conversations}
                       currentConversationId={props.app.remixAiAssistant.currentConversationId}
                       showArchived={false}
@@ -239,9 +270,10 @@ const RemixApp = (props: IRemixAppUi) => {
                       onClose={(() => {})}
                       isFloating={false}
                       isMaximized={false}
+                      panelWidth={floatingChatWidth}
                     />
                   </div> : null}
-                  <div id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">
+                  <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">
                     {props.app.menuicons.render()}
                   </div>
                   <div

@@ -19,6 +19,7 @@ export interface RemixPanelProps {
 const RemixUIPanelHeader = (props: RemixPanelProps) => {
   const [plugin, setPlugin] = useState<PluginRecord>()
   const [toggleExpander, setToggleExpander] = useState<boolean>(false)
+  const [trackMaximize, setTrackMaximize] = useState<boolean>(false);
   const { trackMatomoEvent } = useContext(TrackingContext)
   const appContext = useContext(AppContext)
 
@@ -51,12 +52,6 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
   }
 
   const maximizePanelHandler = () => {
-    if (plugin.profile.name.toLowerCase() === 'remixaiassistant') {
-      appContext.appStateDispatch({
-        type: appActionTypes.showAiChatHistorySidebar,
-        payload: props.isMaximized
-      })
-    }
     props.maximizePanel && props.maximizePanel()
   }
 
@@ -94,8 +89,13 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
 
   useEffect(() => {
     (props.sourcePlugin as any)?.on('rightSidePanel', 'rightSidePanelMaximized', () => {
-      console.log('has the pinnedpanel been maximized? ', props.isMaximized);
-
+      if (plugin?.profile.name.toLowerCase() === 'remixaiassistant') {
+        setTrackMaximize(props.isMaximized)
+        appContext.appStateDispatch({
+          type: appActionTypes.showAiChatHistorySidebar,
+          payload: props.isMaximized
+        })
+      }
     })
 
   }, [props])

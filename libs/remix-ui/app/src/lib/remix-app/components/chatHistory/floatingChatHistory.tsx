@@ -1,10 +1,10 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import React, { useState, useEffect } from 'react'
-import { ConversationMetadata } from '../lib/types'
+import { ConversationMetadata } from '@remix/remix-ai-core'
 import { CustomTooltip } from '@remix-ui/helper'
-import { ConversationItem } from './conversationItem'
+import { ChatHistoryItem } from './chatHistoryItem'
 
-interface ChatHistorySidebarProps {
+interface FloatingChatHistoryProps {
   conversations: ConversationMetadata[]
   currentConversationId: string | null
   showArchived: boolean
@@ -16,9 +16,10 @@ interface ChatHistorySidebarProps {
   onClose: () => void
   isFloating?: boolean
   isMaximized?: boolean
+  panelWidth?: number | string
 }
 
-export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
+export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
   conversations,
   currentConversationId,
   showArchived,
@@ -29,10 +30,22 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   onToggleArchived,
   onClose,
   isFloating = false,
-  isMaximized = false
+  isMaximized = false,
+  panelWidth
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
+  const defaultPanelWidth = '350px'
+  const resolvedPanelWidth = panelWidth !== undefined
+    ? typeof panelWidth === 'number' ? `${panelWidth}px` : panelWidth
+    : defaultPanelWidth
+  const sidebarStyle = isMaximized && !isFloating
+    ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth, maxWidth: resolvedPanelWidth }
+    : isFloating
+      ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth }
+      : panelWidth !== undefined
+        ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth, maxWidth: resolvedPanelWidth, backgroundColor: 'transparent' }
+        : { minWidth: defaultPanelWidth, backgroundColor: 'transparent' }
 
   useEffect(() => {
     let filtered = conversations
@@ -56,41 +69,30 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
 
   return (
     <div
-      className={`chat-history-sidebar d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating border-end' : isMaximized ? 'border-end' : 'w-100'}`}
-      style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: 'transparent' }}
-      data-id="chat-history-sidebar"
+      className={`d-flex flex-column h-100 ${isFloating ? 'border-end' : isMaximized ? 'border-end' : 'w-100'}`}
+      style={sidebarStyle}
+      data-id="chat-history-sidebar-maximized"
     >
       {/* Header */}
-      <div className="sidebar-header p-3">
+      <div className="p-3">
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="mb-0 fw-normal sidebar-title">
+          <h6 className="mb-0 fw-normal">
             {isMaximized ? 'Your chats' : 'Chat history'} <span className="text-muted">{filteredConversations.length}</span>
           </h6>
-          {isMaximized && (
-            <CustomTooltip tooltipText="Close sidebar">
-              <button
-                className="btn btn-sm p-0 sidebar-close-btn"
-                onClick={onClose}
-                data-id="close-sidebar-btn"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </CustomTooltip>
-          )}
         </div>
 
         {/* New Conversation Button */}
 
         {/* Search Bar */}
-        <div className="search-bar mb-2 p-1">
+        <div className="mb-2 p-1">
           <i className="fas fa-search search-icon"></i>
           <input
             type="text"
-            className="form-control search-input ps-4 border"
+            className="form-control ps-4 border"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            data-id="search-conversations-input"
+            data-id="search-conversations-input-maximized"
           />
         </div>
 
@@ -109,7 +111,16 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
       </div>
 
       {/* Conversation List */}
-      <div className="sidebar-body flex-grow-1 overflow-y-auto p-2">
+      <div
+        className="sidebar-body flex-grow-1 overflow-y-auto p-2"
+        style={{
+          backgroundColor: '#1e1e2e !important',
+          overflowX: 'hidden',
+          overflowY: 'auto',
+          flex: 1,
+          minHeight: 0
+        }}
+      >
         {filteredConversations.length === 0 ? (
           <div className="text-center text-muted mt-4">
             {searchQuery ? (
@@ -132,7 +143,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
           </div>
         ) : (
           filteredConversations.map(conv => (
-            <ConversationItem
+            <ChatHistoryItem
               key={conv.id}
               conversation={conv}
               active={conv.id === currentConversationId}
