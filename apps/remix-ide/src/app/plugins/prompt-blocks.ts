@@ -196,7 +196,9 @@ ${functionNames}
   },
 
   /** Wallet connection and network switching patterns */
-  wallet: (): string => `
+  wallet: (isLocalVM: boolean = false): string => {
+    if (isLocalVM) {
+      return `
 **WALLET CONNECTION RULES:**
 1. **Connect Wallet** button must be visible when disconnected.
 2. Check \`window.ethereum\` existence before any wallet operations.
@@ -222,7 +224,70 @@ const switchNetwork = async (targetChainHex) => {
   }
 };
 \`\`\`
-`,
+`
+    }
+
+    // Real network: full wallet selection rules with disconnect/switch/localStorage
+    return `
+**WALLET CONNECTION RULES:**
+1. **Connect Wallet** button must be visible in the header/navbar when disconnected.
+2. **Disconnect Wallet** button must be visible in the header/navbar when connected (next to the account address).
+3. **Switch Network** button must appear **only when** the connected wallet's chain ID differs from the DApp's target chain ID. Hide it when on the correct network.
+4. Check \`window.ethereum\` existence before any wallet operations.
+5. Show "Wrong Network" warning with a **Switch Network** button if chain ID mismatches.
+6. Use loading spinners for async actions.
+7. Handle "User rejected request" errors gracefully.
+8. Show truncated wallet address (e.g. \`0x1234...5678\`) when connected.
+
+**🚨 CHAIN ID COMPARISON (CRITICAL — prevents wrong-network false positive):**
+- ethers.js v6 returns \`network.chainId\` as a **BigInt** (e.g. \`11155111n\`).
+- **NEVER compare hex strings directly** (e.g. \`"0xaa36a7" !== "aa36a7"\` — prefix mismatch!).
+- **ALWAYS compare as decimal numbers:**
+\`\`\`javascript
+const TARGET_CHAIN_ID = 11155111; // Sepolia — use DECIMAL number
+// After connecting:
+const network = await provider.getNetwork();
+const currentChainId = Number(network.chainId);
+setChainId(currentChainId);
+// Wrong network check:
+const isWrongNetwork = account && chainId !== null && chainId !== TARGET_CHAIN_ID;
+\`\`\`
+- For \`wallet_switchEthereumChain\`, convert to hex: \`'0x' + TARGET_CHAIN_ID.toString(16)\`
+
+**Disconnect Pattern (mandatory — MUST implement this):**
+\`\`\`javascript
+const disconnectWallet = () => {
+  setAccount(null);
+  setProvider(null);
+  setSigner(null);
+  // Clear saved wallet preference for wallet selection
+  try { localStorage.removeItem('__qdapp_wallet_rdns'); } catch(e) {}
+};
+\`\`\`
+The Disconnect button should be placed in the navbar/header, visible when connected.
+When disconnected, the DApp should return to the initial "Connect Wallet" state.
+
+**Network Switch Pattern (mandatory — MUST be a visible button):**
+\`\`\`javascript
+const switchNetwork = async (targetChainHex) => {
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: targetChainHex }],
+    });
+  } catch (switchError) {
+    if (switchError.code === 4902) {
+      // Chain not added — prompt to add it
+      await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [...] });
+    } else {
+      throw switchError;
+    }
+  }
+};
+\`\`\`
+Show a **"Switch to [Network Name]"** button when the user is on the wrong chain.
+`
+  },
 
   /** Ethers.js v6 specific rules */
   ethersRules: (): string => `
@@ -533,7 +598,7 @@ export const buildSystemPrompt = (ctx: PromptContext): string => {
     invariants.truncationPrevention(),
     // Layer 1
     blockchain.ethersRules(),
-    blockchain.wallet(),
+    blockchain.wallet(!!ctx.isLocalVM),
     blockchain.networkContext(ctx.contract.chainId, !!ctx.isLocalVM),
     // Layer 2
     ctx.isBaseMiniApp ? platform.baseMiniApp() : '',

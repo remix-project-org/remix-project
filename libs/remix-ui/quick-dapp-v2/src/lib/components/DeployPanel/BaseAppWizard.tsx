@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
+import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 
@@ -185,9 +186,10 @@ const BaseAppWizard: React.FC = () => {
         logoDataUrl = logo;
       }
       const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
+      const walletScript = generateWalletSelectionScript();
 
       let modifiedHtml = indexHtmlContent;
-      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${injectionScript}\n</head>`);
+      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n</head>`);
       else modifiedHtml = `<html><head>${injectionScript}</head>${modifiedHtml}</html>`;
 
       const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;

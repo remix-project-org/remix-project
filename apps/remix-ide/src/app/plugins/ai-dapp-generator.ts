@@ -194,6 +194,12 @@ export class AIDappGenerator extends Plugin {
 
       if (Object.keys(pages).length === 0) {
         console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
+        console.error('[DEBUG-AI] Raw response length:', htmlContent?.length);
+        console.error('[DEBUG-AI] First 500 chars:', htmlContent?.substring(0, 500));
+        console.error('[DEBUG-AI] Contains START_TITLE?', htmlContent?.includes('START_TITLE'));
+        console.error('[DEBUG-AI] Contains <<<:', htmlContent?.includes('<<<'));
+        const debugMatches = htmlContent?.match(/<{3,}\s*START_TITLE\s+(.*?)\s+>{3,}/g);
+        console.error('[DEBUG-AI] Marker matches found:', debugMatches?.length || 0, debugMatches);
         throw new Error("AI generated empty content. Please try again.");
       }
 
@@ -504,7 +510,7 @@ const ensureCompleteHtml = (html: string): string => {
 
 const parsePages = (content: string) => {
   const pages: Record<string, string> = {}
-  const markerRegex = /<{3,}\s*START_TITLE\s+(.*?)\s+>{3,}\s*END_TITLE/g
+  const markerRegex = /<{3,}\s*START_TITLE\s+(.*?)\s+>{3,}(?:\s*END_TITLE)?/g
 
   const parts = content.split(markerRegex)
 
