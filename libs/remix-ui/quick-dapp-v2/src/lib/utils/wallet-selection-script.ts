@@ -264,24 +264,31 @@ export function generateWalletSelectionScript(): string {
   // their provider but keep our Proxy in control until the user selects a wallet.
   var _proxyProvider = getProviderOrProxy();
 
-  Object.defineProperty(window, 'ethereum', {
-    get: function() {
-      if (_resolved && _selectedProvider) return _selectedProvider;
-      return _proxyProvider;
-    },
-    set: function(val) {
-      if (val && !val._isQuickDappProxy) {
-        // Capture the provider from wallet extensions as legacy fallback
-        window.__qdapp_legacy_ethereum = val;
-      }
-      if (_resolved) {
-        // After wallet selection, allow reassignment
-        _selectedProvider = val;
-      }
-    },
-    configurable: true,
-    enumerable: true
-  });
+  try {
+    Object.defineProperty(window, 'ethereum', {
+      get: function() {
+        if (_resolved && _selectedProvider) return _selectedProvider;
+        return _proxyProvider;
+      },
+      set: function(val) {
+        if (val && !val._isQuickDappProxy) {
+          window.__qdapp_legacy_ethereum = val;
+        }
+        if (_resolved) {
+          _selectedProvider = val;
+        }
+      },
+      configurable: true,
+      enumerable: true
+    });
+  } catch (e) {
+    // MetaMask (Chrome) may define window.ethereum as non-configurable before us.
+    // Fall back to using the existing provider directly.
+    console.warn('[QuickDapp] Cannot override window.ethereum:', e.message);
+    if (window.ethereum) {
+      window.__qdapp_legacy_ethereum = window.ethereum;
+    }
+  }
 
   console.log('[QuickDapp] Wallet selection script loaded. Detected', _providers.length, 'EIP-6963 providers.');
 })();
