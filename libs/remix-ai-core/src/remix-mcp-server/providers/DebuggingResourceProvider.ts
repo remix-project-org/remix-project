@@ -125,7 +125,6 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
           'current source location is not available. There is no debug session going on.'
         );
       }
-      console.log('current-debugging-step', result)
       return this.createJsonContent('debug://current-debugging-step', {
         success: true,
         description: 'Current source code highlighted in the editor in the debug session and the corresponding stack.',

@@ -153,10 +153,25 @@ export class CompilationResourceProvider extends BaseResourceProvider {
 
   private async addContractResources(plugin: Plugin, resources: IMCPResource[]): Promise<void> {
     try {
-      // TODO: Get actual compilation result from Remix API
-      const mockContracts = ['MyToken', 'TokenSale', 'Ownable']; // Mock data
+      const compilationResult: any = await plugin.call('solidity' as any, 'getCompilationResult');
 
-      for (const contractName of mockContracts) {
+      if (!compilationResult || !compilationResult.data?.contracts) {
+        return;
+      }
+
+      const contracts = compilationResult.data.contracts;
+      const contractNames = new Set<string>();
+
+      for (const [fileName, fileContracts] of Object.entries(contracts)) {
+        if (fileContracts && typeof fileContracts === 'object') {
+          for (const contractName of Object.keys(fileContracts as any)) {
+            contractNames.add(contractName);
+          }
+        }
+      }
+
+      // Create resources for each real contract
+      for (const contractName of contractNames) {
         resources.push(
           this.createResource(
             `contract://${contractName}`,
@@ -173,7 +188,7 @@ export class CompilationResourceProvider extends BaseResourceProvider {
         );
       }
     } catch (error) {
-      console.warn('Failed to add contract resources:', error);
+      console.warn('[CompilationResourceProvider] Failed to add contract resources:', error);
     }
   }
 
@@ -196,7 +211,7 @@ export class CompilationResourceProvider extends BaseResourceProvider {
 
       // Process contracts
       if (compilationResult.data?.contracts) {
-        for (const [fileName, fileContracts] of Object.entries(compilationResult.contracts)) {
+        for (const [fileName, fileContracts] of Object.entries(compilationResult.data.contracts)) {
           for (const [contractName, contractData] of Object.entries(fileContracts as any)) {
             const contract = contractData as any;
             result.contracts[`${fileName}:${contractName}`] = {

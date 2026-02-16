@@ -98,8 +98,6 @@ export class RemixToolRegistry extends EventEmitter implements ToolRegistry {
     if (tool.handler.validate) {
       const validation = tool.handler.validate(call.arguments || {});
       if (validation !== true) {
-        console.log('invalid arguments')
-        throw new Error(`Invalid arguments: ${validation}`);
       }
     }
 

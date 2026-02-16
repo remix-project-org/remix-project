@@ -184,7 +184,6 @@ export class MCPClient {
         let initialized = false;
 
         this.wsConnection.onopen = () => {
-          console.log(`[MCP] WebSocket connection opened to ${this.server.name}`);
 
           // Send initialize message
           const initMessage = {
@@ -396,7 +395,6 @@ export class MCPClient {
       // Check cache for HTTP servers
       const now = Date.now();
       if (this.resourceListCache && (now - this.resourceListCache.timestamp) < this.CACHE_TTL) {
-        console.log(`[MCP] Using cached resource list for ${this.server.name}`);
         return this.resourceListCache.resources;
       }
 

@@ -252,8 +252,6 @@ export class AmpDatasetListHandler extends BaseToolHandler {
           return { indexing_chains: d.indexing_chains, description: d.description, ...short }
         })
       };
-
-      console.log(result)
       return this.createSuccessResult(result);
 
     } catch (error) {

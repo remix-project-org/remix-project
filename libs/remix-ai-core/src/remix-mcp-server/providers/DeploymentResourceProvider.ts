@@ -10,6 +10,12 @@ import { ResourceCategory, DeployedContractInstance, DeployedContractsByNetwork 
 export class DeploymentResourceProvider extends BaseResourceProvider {
   name = 'deployment';
   description = 'Provides access to deployment history, contract instances, and transaction records';
+  private _plugin: Plugin;
+
+  constructor(plugin: Plugin) {
+    super();
+    this._plugin = plugin;
+  }
 
   async getResources(plugin: Plugin): Promise<IMCPResource[]> {
     const resources: IMCPResource[] = [];

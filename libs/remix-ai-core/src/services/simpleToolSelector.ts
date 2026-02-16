@@ -71,7 +71,6 @@ export class SimpleToolSelector {
     userPrompt: string,
     maxTools: number = 15
   ): IMCPTool[] {
-    console.log('[SimpleToolSelector] Using keyword-based selection', allTools)
     return this.selectToolsWithKeywords(allTools, userPrompt, maxTools)
   }
 
@@ -85,7 +84,6 @@ export class SimpleToolSelector {
 
     // Extract search tokens from user prompt
     const promptTokens = this.extractTokens(userPrompt)
-    console.log('[SimpleToolSelector] Prompt tokens:', promptTokens.join(', '))
 
     // Score all tools against the prompt
     const scoredTools: IScoredTool[] = allTools.map(tool => ({
@@ -125,10 +123,6 @@ export class SimpleToolSelector {
 
     // Log top matches
     const topTools = relevantTools.slice(0, 5)
-    console.log('[SimpleToolSelector] Top matches:')
-    topTools.forEach(st => {
-      console.log(`  - ${st.tool.name}: ${st.score.toFixed(2)} (name:${st.matchDetails.nameMatch.toFixed(1)} desc:${st.matchDetails.descriptionMatch.toFixed(1)} params:${st.matchDetails.parameterMatch.toFixed(1)} cat:${st.matchDetails.categoryMatch.toFixed(1)})`)
-    })
 
     // Calculate confidence
     const avgScore = relevantTools.length > 0
@@ -136,19 +130,14 @@ export class SimpleToolSelector {
       : 0
     const confidence = Math.min(Math.round(avgScore * 10), 100)
 
-    console.log(`[SimpleToolSelector] Matching confidence: ${confidence}% (${relevantTools.length}/${allTools.length} tools above threshold)`)
-    console.log(`[SimpleToolSelector] Threshold: minimum ${minToolsThreshold} tools required, score > ${minScoreThreshold}`)
-
     // If too few tools matched, return only core tools
     if (relevantTools.length < minToolsThreshold) {
       const coreToolsOnly = allTools.filter(tool => this.coreTools.includes(tool.name))
-      console.log(`[SimpleToolSelector] Too few tools matched (${relevantTools.length} < ${minToolsThreshold}), returning core tools only (${coreToolsOnly.length})`)
       return coreToolsOnly
     }
 
     // Return top scored tools up to maxTools
     const result = relevantTools.slice(0, maxTools).map(st => st.tool)
-    console.log(`[SimpleToolSelector] Selected ${result.length} tools (limited to max ${maxTools})`)
     return result
   }
 

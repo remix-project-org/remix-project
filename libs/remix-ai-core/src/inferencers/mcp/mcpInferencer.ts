@@ -417,7 +417,6 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
               const mcpToolCall = this.convertLLMToolCallToMCP(llmToolCall);
               const result = await this.executeToolForLLM(mcpToolCall, uiCallback);
               console.log(`[MCP] Tool ${mcpToolCall.name} executed successfully`);
-              console.log("[MCP] Tool result", result);
 
               // Extract full text content from MCP result
               const extractContent = (mcpResult: any): string => {
@@ -739,8 +738,6 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
   async getToolsForLLMRequest(provider?: string, prompt?: string, chatHistory?: IChatMessage[]): Promise<any[]> {
     const mcpTools = await this.getAvailableToolsForLLM();
-    console.log('[MCPInferencer] Total available tools:', mcpTools.length)
-
     if (mcpTools.length === 0) return [];
 
     // Use weighted tool selection if prompt provided and more than threshold tools
@@ -760,7 +757,6 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
         });
 
         console.log(`[MCPInferencer] Tool selection: ${mcpTools.length} → ${selectedTools.length} tools (${Math.round((1 - selectedTools.length / mcpTools.length) * 100)}% reduction)`)
-        console.log('[MCPInferencer] Selected tools:', selectedTools.map(t => t.name).join(', '))
       } catch (error) {
         console.warn('[MCPInferencer] Tool selection failed, using all tools:', error)
         selectedTools = mcpTools
@@ -1054,7 +1050,6 @@ Use this tool when you need:
     if (!targetServer) {
       throw new Error(`Tool '${toolCall.name}' not found in any connected MCP server`);
     }
-    console.log(`[MCP Legacy Mode] Executing tool ${toolCall.name} from server ${targetServer}`)
     return this.executeTool(targetServer, toolCall);
   }
 

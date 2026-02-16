@@ -139,7 +139,6 @@ export class DeployContractHandler extends BaseToolHandler {
       return this.createSuccessResult(result);
 
     } catch (error) {
-      console.log(error)
       return this.createErrorResult(`Deployment failed: ${error.message}`);
     }
   }
@@ -317,15 +316,14 @@ export class CallContractHandler extends BaseToolHandler {
  * Run Script
  */
 export class RunScriptHandler extends BaseToolHandler {
-  name = 'send_transaction';
+  name = 'run_script';
   description = 'Run a script in the current environment';
   inputSchema = {
     type: 'object',
     properties: {
       file: {
         type: 'string',
-        description: 'path to the file',
-        pattern: '^0x[a-fA-F0-9]{40}$'
+        description: 'path to the file'
       }
     },
     required: ['file']
@@ -461,7 +459,6 @@ export class SendTransactionHandler extends BaseToolHandler {
       return this.createSuccessResult(result);
 
     } catch (error) {
-      console.log(error)
       return this.createErrorResult(`Transaction failed: ${error.message}`);
     }
   }

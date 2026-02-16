@@ -22,6 +22,7 @@ export interface ValidationError {
   value?: any;
   expectedType?: string;
   actualType?: string;
+  suggestion?: string;
 }
 
 export interface ValidationWarning {
@@ -593,7 +594,39 @@ export class ValidationMiddleware extends BaseMiddleware {
 
     // Validate workspace state
     if (this.requiresWorkspace(call.name)) {
-      // TODO: Check if workspace is properly initialized
+      try {
+        const workspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+
+        if (!workspace) {
+          result.errors.push({
+            field: 'workspace',
+            code: 'NO_WORKSPACE',
+            message: 'No workspace is currently active. Please create or select a workspace before performing this operation.',
+            suggestion: 'Create a new workspace or open an existing one from the File Explorer panel'
+          });
+          return;
+        }
+
+        // Check if workspace is read-only for write operations
+        const writeOperations = ['file_write', 'file_create', 'file_delete', 'file_move', 'file_copy'];
+        if (writeOperations.includes(call.name) && workspace.isReadOnly) {
+          result.errors.push({
+            field: 'workspace',
+            code: 'READONLY_WORKSPACE',
+            message: `Cannot perform write operation in read-only workspace: ${workspace.name}`,
+            suggestion: 'Switch to a writable workspace or create a new one'
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('[ValidationMiddleware] Error checking workspace:', error);
+        result.warnings.push({
+          field: 'workspace',
+          code: 'WORKSPACE_CHECK_FAILED',
+          message: 'Unable to verify workspace status',
+          suggestion: 'Ensure a workspace is active before continuing'
+        });
+      }
     }
 
     // Validate compilation state for deployment
@@ -760,11 +793,6 @@ export class ValidationMiddleware extends BaseMiddleware {
           message: `Method '${args.methodName}' not found in ABI`
         });
       }
-    }
-
-    // Validate method arguments
-    if (args.args && args.methodName) {
-      // TODO: Validate arguments against ABI method signature
     }
   }
 

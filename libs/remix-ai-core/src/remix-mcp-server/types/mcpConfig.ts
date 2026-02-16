@@ -101,8 +101,8 @@ export const defaultMCPConfig: MCPConfig = {
     },
     rateLimit: {
       enabled: true,
-      requestsPerMinute: 60,
-      burstAllowance: 10
+      requestsPerMinute: 10,
+      burstAllowance: 4
     },
     fileWritePermissions: {
       mode: 'ask',

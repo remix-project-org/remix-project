@@ -36,7 +36,6 @@ export class ContractAgent {
   async writeContracts(payload, userPrompt, statusCallback?: (status: string) => Promise<void>) {
     const prev_statusCallback = statusCallback
     statusCallback = async (status: string) => {
-      console.log('Generation status:', status)
       if (prev_statusCallback) {
         await prev_statusCallback(status)
       }

@@ -25,7 +25,7 @@ export interface AuditLogEntry {
 }
 
 export class SecurityMiddleware extends BaseMiddleware {
-  private rateLimitTracker = new Map<string, { count: number; resetTime: number }>();
+  private rateLimitTracker = new Map<string, number[]>();
   private auditLog: AuditLogEntry[] = [];
   private toolRegistry?: RemixToolRegistry;
   private config: MCPSecurityConfig;
@@ -35,9 +35,8 @@ export class SecurityMiddleware extends BaseMiddleware {
     super(configManager);
     this.toolRegistry = toolRegistry;
 
-    this.config = configManager.getSecurityConfig() as MCPSecurityConfig;
+    this.config = (configManager?.getSecurityConfig() || {}) as MCPSecurityConfig;
 
-    // Setup periodic cleanup of rate limit tracker (every 5 minutes)
     this.rateLimitCleanupInterval = setInterval(() => {
       this.cleanupRateLimitTracker();
     }, 300000);
@@ -152,30 +151,33 @@ export class SecurityMiddleware extends BaseMiddleware {
     const config = this.getConfig();
     const identifier = context.userId || context.sessionId || 'anonymous';
     const now = Date.now();
-    const resetTime = Math.floor(now / 60000) * 60000 + 60000; // Next minute
+    const windowMs = 60000;
 
-    // Check if rate limiting is disabled
     if (config.rateLimit && !config.rateLimit.enabled) {
       return { allowed: true, risk: 'low' };
     }
 
-    const maxRequests = config.rateLimit?.requestsPerMinute || config.maxRequestsPerMinute;
+    const maxRequests = config.rateLimit?.requestsPerMinute || config.maxRequestsPerMinute || 100;
+    let timestamps = this.rateLimitTracker.get(identifier) || [];
 
-    const userLimit = this.rateLimitTracker.get(identifier);
-    if (!userLimit || userLimit.resetTime <= now) {
-      this.rateLimitTracker.set(identifier, { count: 1, resetTime });
-      return { allowed: true, risk: 'low' };
-    }
+    const windowStart = now - windowMs;
+    timestamps = timestamps.filter(timestamp => timestamp > windowStart);
 
-    if (userLimit.count >= maxRequests) {
+    if (timestamps.length >= maxRequests) {
+      const oldestTimestamp = Math.min(...timestamps);
+      const timeUntilOldestExpires = (oldestTimestamp + windowMs) - now;
+      const secondsToWait = Math.ceil(timeUntilOldestExpires / 1000);
+
       return {
         allowed: false,
-        reason: `Rate limit exceeded: ${userLimit.count}/${maxRequests} requests per minute`,
+        reason: `Rate limit exceeded: ${timestamps.length}/${maxRequests} requests in the last minute. Please wait ${secondsToWait} seconds.`,
         risk: 'medium'
       };
     }
 
-    userLimit.count++;
+    timestamps.push(now);
+    this.rateLimitTracker.set(identifier, timestamps);
+
     return { allowed: true, risk: 'low' };
   }
 
@@ -217,7 +219,6 @@ export class SecurityMiddleware extends BaseMiddleware {
    */
   private async validateArguments(call: IMCPToolCall, plugin: Plugin): Promise<SecurityValidationResult> {
     const args = call.arguments || {};
-    console.log('validateArguments', args)
 
     // File operation tools where 'content' is expected to be code
     const fileOperationTools = ['file_write', 'file_create', 'file_update'];
@@ -231,7 +232,7 @@ export class SecurityMiddleware extends BaseMiddleware {
         if (dangerousPattern) {
           return {
             allowed: false,
-            reason: `Potentially dangerous content detected in argument ${key}: ${dangerousPattern}`,
+            reason: `Potentially dangerous content detected in argument ${key}: ${dangerousPattern.source}`,
             risk: 'high'
           };
         }
@@ -294,33 +295,118 @@ export class SecurityMiddleware extends BaseMiddleware {
     return { allowed: true, risk: 'low' };
   }
 
+  private normalizePath(path: string): string {
+    let normalized = path;
+
+    try {
+      let previous = '';
+      while (previous !== normalized) {
+        previous = normalized;
+        normalized = decodeURIComponent(normalized);
+      }
+    } catch (e) {
+      // If decoding fails, continue with original
+    }
+
+    // Unicode normalization (NFC - Canonical Decomposition followed by Canonical Composition)
+    normalized = normalized.normalize('NFC');
+
+    // Convert backslashes to forward slashes for consistency
+    normalized = normalized.replace(/\\/g, '/');
+
+    // Remove null bytes
+    normalized = normalized.replace(/\0/g, '');
+
+    return normalized;
+  }
+
+  private resolvePath(path: string): string {
+    const parts = path.split('/').filter(part => part && part !== '.');
+    const resolved: string[] = [];
+
+    for (const part of parts) {
+      if (part === '..') {
+        resolved.pop();
+      } else {
+        resolved.push(part);
+      }
+    }
+
+    return '/' + resolved.join('/');
+  }
+
+  private isPathWithinWorkspace(path: string, workspaceRoot: string = '/'): boolean {
+    const normalizedPath = this.normalizePath(path);
+    const resolvedPath = this.resolvePath(normalizedPath);
+    const normalizedWorkspace = workspaceRoot.endsWith('/') ? workspaceRoot : workspaceRoot + '/';
+
+    // Ensure the resolved path starts with the workspace root
+    return resolvedPath.startsWith(normalizedWorkspace) || resolvedPath === workspaceRoot;
+  }
+
   /**
-   * Validate file path for security issues
+   * Validate file path for security issues with comprehensive protection
    */
   private validateFilePath(path: string): SecurityValidationResult {
     const config = this.getConfig();
 
-    // Check for path traversal attacks
-    if (path.includes('..') || path.includes('~')) {
+    // Normalize the path first
+    const normalizedPath = this.normalizePath(path);
+
+    // Check for obvious path traversal patterns (before and after normalization)
+    const traversalPatterns = [
+      '..',
+      '%2e%2e',
+      '%252e%252e',
+      '..%2f',
+      '..%5c',
+      '%2e%2e%2f',
+      '%2e%2e%5c',
+      '..%c0%af',
+      '..%c1%9c',
+      '\u2024', // Unicode variation
+      '\uFF0E\uFF0E', // Fullwidth dots
+    ];
+
+    for (const pattern of traversalPatterns) {
+      if (normalizedPath.toLowerCase().includes(pattern.toLowerCase())) {
+        return {
+          allowed: false,
+          reason: `Path traversal pattern detected: ${pattern}`,
+          risk: 'high'
+        };
+      }
+    }
+
+    if (normalizedPath.includes('~')) {
       return {
         allowed: false,
-        reason: 'Path traversal detected',
+        reason: 'Tilde expansion not allowed',
         risk: 'high'
       };
     }
 
-    // Check for absolute paths outside workspace
-    if (path.startsWith('/') && !path.startsWith('/workspace')) {
+    // Resolve path and check workspace boundaries
+    try {
+      const workspaceRoot = '/';
+      if (!this.isPathWithinWorkspace(normalizedPath, workspaceRoot)) {
+        return {
+          allowed: false,
+          reason: 'Path escapes workspace boundaries',
+          risk: 'high'
+        };
+      }
+    } catch (e) {
       return {
         allowed: false,
-        reason: 'Absolute path outside workspace',
+        reason: 'Invalid path format',
         risk: 'high'
       };
     }
 
     // Use ConfigManager if available
     if (this.configManager) {
-      const allowed = this.configManager.isPathAllowed(path);
+      const allowed = this.configManager.isPathAllowed(normalizedPath);
       if (!allowed) {
         return {
           allowed: false,
@@ -333,7 +419,7 @@ export class SecurityMiddleware extends BaseMiddleware {
 
     // Check blocked paths
     for (const blockedPath of config.blockedPaths) {
-      if (path.includes(blockedPath)) {
+      if (normalizedPath.includes(blockedPath)) {
         return {
           allowed: false,
           reason: `Path contains blocked segment: ${blockedPath}`,
@@ -346,7 +432,7 @@ export class SecurityMiddleware extends BaseMiddleware {
     if (config.allowedPaths && config.allowedPaths.length > 0) {
       let pathAllowed = false;
       for (const allowedPattern of config.allowedPaths) {
-        if (path.includes(allowedPattern) || this.matchPattern(path, allowedPattern)) {
+        if (normalizedPath.includes(allowedPattern) || this.matchPattern(normalizedPath, allowedPattern)) {
           pathAllowed = true;
           break;
         }
@@ -361,9 +447,9 @@ export class SecurityMiddleware extends BaseMiddleware {
     }
 
     // Check for system files
-    const systemFiles = ['.env', '.git', 'node_modules', '.ssh', 'id_rsa'];
+    const systemFiles = ['.env', '.git', 'node_modules', '.ssh', 'id_rsa', 'private', 'secret', 'credentials'];
     for (const systemFile of systemFiles) {
-      if (path.includes(systemFile)) {
+      if (normalizedPath.toLowerCase().includes(systemFile)) {
         return {
           allowed: false,
           reason: `Access to system file/directory not allowed: ${systemFile}`,
@@ -535,6 +621,73 @@ export class SecurityMiddleware extends BaseMiddleware {
     return ['*'];
   }
 
+  // for audit logs
+  private sanitizeArguments(args: any): any {
+    if (!args || typeof args !== 'object') {
+      return args;
+    }
+
+    const sensitiveFields = [
+      'privateKey',
+      'private_key',
+      'privatekey',
+      'password',
+      'secret',
+      'apiKey',
+      'api_key',
+      'apikey',
+      'token',
+      'accessToken',
+      'access_token',
+      'refreshToken',
+      'refresh_token',
+      'sessionToken',
+      'session_token',
+      'authToken',
+      'auth_token',
+      'bearer',
+      'credentials',
+      'mnemonic',
+      'seedPhrase',
+      'seed_phrase',
+      'key'
+    ];
+
+    const sanitized: any = Array.isArray(args) ? [] : {};
+
+    for (const [key, value] of Object.entries(args)) {
+      const lowerKey = key.toLowerCase();
+
+      if (sensitiveFields.some(field => lowerKey.includes(field.toLowerCase()))) {
+        sanitized[key] = '[REDACTED]';
+        continue;
+      }
+
+      // Check if value looks like a private key (64 hex characters)
+      if (typeof value === 'string' && /^(0x)?[a-fA-F0-9]{64}$/.test(value)) {
+        sanitized[key] = '[REDACTED-PRIVATE-KEY]';
+        continue;
+      }
+
+      // Check if value looks like an Ethereum address with private info context
+      if (typeof value === 'string' && /^0x[a-fA-F0-9]{40}$/.test(value) &&
+          (lowerKey.includes('from') || lowerKey.includes('account'))) {
+        // Keep addresses visible but mark in context-sensitive fields
+        sanitized[key] = value;
+        continue;
+      }
+
+      // Recursively sanitize nested objects
+      if (typeof value === 'object' && value !== null) {
+        sanitized[key] = this.sanitizeArguments(value);
+      } else {
+        sanitized[key] = value;
+      }
+    }
+
+    return sanitized;
+  }
+
   private logAudit(
     call: IMCPToolCall,
     context: ToolExecutionContext,
@@ -549,7 +702,7 @@ export class SecurityMiddleware extends BaseMiddleware {
       timestamp: new Date(),
       toolName: call.name,
       userId: context.userId,
-      arguments: call.arguments || {},
+      arguments: this.sanitizeArguments(call.arguments || {}),
       result,
       reason,
       executionTime: Date.now() - startTime,
@@ -573,11 +726,20 @@ export class SecurityMiddleware extends BaseMiddleware {
 
   private cleanupRateLimitTracker(): void {
     const now = Date.now();
+    const windowMs = 60000;
+    const windowStart = now - windowMs;
     const entriesToDelete: string[] = [];
+    let timestampsCleanedCount = 0;
 
-    for (const [identifier, limit] of this.rateLimitTracker.entries()) {
-      if (limit.resetTime <= now) {
+    for (const [identifier, timestamps] of this.rateLimitTracker.entries()) {
+      // Filter out old timestamps
+      const filteredTimestamps = timestamps.filter(timestamp => timestamp > windowStart);
+
+      if (filteredTimestamps.length === 0) {
         entriesToDelete.push(identifier);
+      } else if (filteredTimestamps.length < timestamps.length) {
+        timestampsCleanedCount += timestamps.length - filteredTimestamps.length;
+        this.rateLimitTracker.set(identifier, filteredTimestamps);
       }
     }
 
@@ -585,8 +747,8 @@ export class SecurityMiddleware extends BaseMiddleware {
       this.rateLimitTracker.delete(identifier);
     }
 
-    if (entriesToDelete.length > 0) {
-      console.log(`[SecurityMiddleware] Cleaned up ${entriesToDelete.length} expired rate limit entries`);
+    if (entriesToDelete.length > 0 || timestampsCleanedCount > 0) {
+      console.log(`[SecurityMiddleware] Cleaned up ${entriesToDelete.length} idle users and ${timestampsCleanedCount} expired timestamps`);
     }
   }
 

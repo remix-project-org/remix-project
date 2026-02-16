@@ -123,7 +123,6 @@ export class SecurityAgent {
 
     try {
       this.processFile(file);
-      console.log('Checking for vulnerabilities after compilation', this.reports);
     } catch (error) {
       console.error('Error checking for vulnerabilities after compilation: ', error);
     }

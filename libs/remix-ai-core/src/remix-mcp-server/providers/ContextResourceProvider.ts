@@ -158,7 +158,6 @@ export class ContextResourceProvider extends BaseResourceProvider {
         }
       };
 
-      console.log('Workspace context returned:', context)
       return this.createJsonContent('context://workspace', context);
     } catch (error) {
       return this.createTextContent('context://workspace', `Error gathering context: ${error.message}`);

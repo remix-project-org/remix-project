@@ -57,9 +57,7 @@ export class CodeExecutor {
 
       // CRITICAL: race condition - Wait for all pending tool calls to complete before returning
       if (this.pendingToolCalls.length > 0) {
-        console.log(`[MCP Code mode] - Waiting for ${this.pendingToolCalls.length} pending tool call(s) to complete...`);
         await Promise.allSettled(this.pendingToolCalls);
-        console.log(`[MCP Code mode] - All tool calls completed`);
       }
 
       const executionTime = Date.now() - startTime;
