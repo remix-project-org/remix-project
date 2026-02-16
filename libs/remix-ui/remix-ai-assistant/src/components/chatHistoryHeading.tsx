@@ -1,5 +1,5 @@
 import { CustomTooltip } from '@remix-ui/helper'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 interface ChatHistoryHeadingProps {
   onNewChat: () => void
@@ -7,6 +7,8 @@ interface ChatHistoryHeadingProps {
   showHistorySidebar: boolean
   archiveChat: (id: string) => void
   currentConversationId?: string | null
+  showButton: boolean
+  setShowButton: (show: boolean) => void
 }
 
 export default function ChatHistoryHeading({
@@ -14,7 +16,8 @@ export default function ChatHistoryHeading({
   onToggleHistory,
   showHistorySidebar,
   archiveChat,
-  currentConversationId
+  currentConversationId,
+  showButton
 }: ChatHistoryHeadingProps) {
 
   return (
@@ -37,7 +40,7 @@ export default function ChatHistoryHeading({
       <div></div>
       <div></div>
       <div className="d-flex flex-row gap-2 justify-content-end align-items-center">
-        <CustomTooltip
+        {showButton && <><CustomTooltip
           tooltipText={showHistorySidebar ? 'Hide chat history' : 'Show chat history'}
         >
           <button
@@ -64,7 +67,7 @@ export default function ChatHistoryHeading({
           >
             <i className="far fa-box-archive"></i>
           </button>
-        </CustomTooltip>
+        </CustomTooltip></>}
       </div>
     </section>
   )

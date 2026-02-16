@@ -33,6 +33,8 @@ const RemixApp = (props: IRemixAppUi) => {
   const [maximiseRightTrigger, setMaximiseRightTrigger] = useState<number>(0)
   const [enhanceRightTrigger, setEnhanceRightTrigger] = useState<number>(0)
   const [resetRightTrigger, setResetRightTrigger] = useState<number>(0)
+  const [themeTracker, setThemeTracker] = useState<{name: string, quality: string, backgroundColor: string, fillColor: string, shapeColor: string, textColor: string, url: string}>(null);
+
   const [online, setOnline] = useState<boolean>(true)
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({
     width: window.innerWidth,
@@ -105,6 +107,25 @@ const RemixApp = (props: IRemixAppUi) => {
       window.removeEventListener('resize', onResize)
     }
   }, [])
+
+  useEffect(() => {
+    const theme = props.app.themeModule.currentTheme()
+    setThemeTracker((prev) => ({ ...prev, ...theme }))
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('ideThemeChanged', (event: any) => {
+      setThemeTracker((prev) => {
+        const newTheme = { ...prev, ...event.detail }
+        return newTheme
+      })
+    })
+
+    return () => {
+      window.removeEventListener('ideThemeChanged', () => { })
+    }
+  }, [])
+  console.log('tracker is now', themeTracker)
 
   function setListeners() {
     if (!props.app.desktopClientMode) {
@@ -237,6 +258,7 @@ const RemixApp = (props: IRemixAppUi) => {
     left: floatingChatLeft,
     width: `${floatingChatWidth}px`
   }
+  const [showArchived, setShowArchived] = useState(false);
 
   return (
     //@ts-ignore
@@ -255,22 +277,23 @@ const RemixApp = (props: IRemixAppUi) => {
                   </div>
                 )}
                 <div className={`remixIDE ${appReady ? '' : 'd-none'}`} data-id="remixIDE">
-                  {appState.aiChatHistoryState.showAiChatHistory ? <div className="position-absolute z-3 bg-dark rounded-3 p-1 border text-light" style={floatingChatStyle}>
+                  {appState.aiChatHistoryState.showAiChatHistory ? <div className={`position-absolute z-3 ${themeTracker.name.toLowerCase() === 'dark' ? 'bg-dark' : 'bg-light'} rounded-3 p-1 text-light`} style={floatingChatStyle}>
                     <FloatingChatHistory
                       conversations={props.app.remixAiAssistant.conversations}
                       currentConversationId={props.app.remixAiAssistant.currentConversationId}
-                      showArchived={false}
-                      onNewConversation={(() => {})}
+                      showArchived={showArchived}
+                      onNewConversation={(() => props.app.remixAiAssistant.newConversation())}
                       onLoadConversation={(id) => {
-                        props.app.remixAiAssistant.onLoadConversation?.(props.app.remixAiAssistant.currentConversationId)
+                        props.app.remixAiAssistant.loadConversation(id)
                       }}
                       onArchiveConversation={(() => props.app.remixAiAssistant.archiveConversation())}
                       onDeleteConversation={(() => props.app.remixAiAssistant.deleteConversation())}
-                      onToggleArchived={() => props.app.remixAiAssistant.toggleHistorySidebar()}
+                      onToggleArchived={() => setShowArchived(!showArchived)}
                       onClose={(() => {})}
                       isFloating={false}
                       isMaximized={false}
                       panelWidth={floatingChatWidth}
+                      theme={themeTracker.name}
                     />
                   </div> : null}
                   <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">

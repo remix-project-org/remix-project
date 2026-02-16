@@ -8,6 +8,7 @@ interface ChatHistoryItemProps {
   onClick: () => void
   onArchive: (e: React.MouseEvent) => void
   onDelete: (e: React.MouseEvent) => void
+  theme?: string
 }
 
 export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
@@ -15,7 +16,8 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
   active,
   onClick,
   onArchive,
-  onDelete
+  onDelete,
+  theme = 'dark'
 }) => {
   const [showMenu, setShowMenu] = useState(false)
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
@@ -74,19 +76,20 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
 
   return (
     <div
-      className={`conversation-item chat-history-item p-3 mb-2 rounded-3 cursor-pointer position-relative ${active ? 'conversation-item-active' : ''}`}
+      className={`conversation-item chat-history-item p-3 mb-2 rounded-3 cursor-pointer position-relative
+        ${active ? 'conversation-item-active' : ''}`}
       onClick={onClick}
       data-id={`conversation-item-${conversation.id}`}
       style={{
-        backgroundColor: '#262637',
+        backgroundColor: theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--bs-body-bg)',
         transition: 'background-color 0.2s ease',
         cursor: 'pointer'
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = '#2e2e3e'
+        e.currentTarget.style.backgroundColor = theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--bs-body-bg)'
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = '#262637'
+        e.currentTarget.style.backgroundColor = theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--bs-body-bg)'
       }}
     >
       <div className="d-flex align-items-center gap-2 flex-nowrap">
@@ -102,14 +105,14 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
             onClick={toggleMenu}
             data-id={`conversation-menu-${conversation.id}`}
             style={{
-              color: '#888',
+              color: theme.toLowerCase() === 'dark' ? '#888' : 'var(--text-color)',
               transition: 'color 0.2s ease'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#ffffff'
+              e.currentTarget.style.color = theme.toLowerCase() === 'dark' ? '#ffffff' : 'var(--text-color)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#888'
+              e.currentTarget.style.color = theme.toLowerCase() === 'dark' ? '#888' : 'var(--text-color)'
             }}
           >
             <i className="fas fa-ellipsis-v"></i>

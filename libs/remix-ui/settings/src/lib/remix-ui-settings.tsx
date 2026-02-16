@@ -308,6 +308,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
           themeQuality: theme.quality === 'dark' ? themes.dark : themes.light
         }
       })
+
     })
 
     props.plugin.on('settings', 'copilotChoiceUpdated', (isChecked: any) => {

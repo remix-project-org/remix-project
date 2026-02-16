@@ -176,7 +176,6 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async archiveConversation(id: string) {
-    console.log('archive from chathistory topbar')
     if (!this.storageManager) return
 
     try {

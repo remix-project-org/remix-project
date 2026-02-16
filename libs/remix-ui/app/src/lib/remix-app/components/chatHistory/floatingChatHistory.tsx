@@ -17,6 +17,7 @@ interface FloatingChatHistoryProps {
   isFloating?: boolean
   isMaximized?: boolean
   panelWidth?: number | string
+  theme?: string
 }
 
 export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
@@ -31,7 +32,8 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
   onClose,
   isFloating = false,
   isMaximized = false,
-  panelWidth
+  panelWidth,
+  theme = 'dark'
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
@@ -44,7 +46,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
     : isFloating
       ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth }
       : panelWidth !== undefined
-        ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth, maxWidth: resolvedPanelWidth, backgroundColor: 'transparent' }
+        ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth, maxWidth: resolvedPanelWidth, backgroundColor: theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--light-background-color)' }
         : { minWidth: defaultPanelWidth, backgroundColor: 'transparent' }
 
   useEffect(() => {
@@ -88,7 +90,8 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
           <i className="fas fa-search search-icon"></i>
           <input
             type="text"
-            className="form-control ps-4 border"
+            className="form-control ps-4"
+            style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : 'var(--light-background-color)', color: theme.toLowerCase() === 'dark' ? 'var(--text-color)' : '#333446' }}
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -114,7 +117,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
       <div
         className="sidebar-body flex-grow-1 overflow-y-auto p-2"
         style={{
-          backgroundColor: '#1e1e2e !important',
+          backgroundColor: theme.toLowerCase() === 'dark' ? '#1e1e2e' : 'var(--light-background-color)',
           overflowX: 'hidden',
           overflowY: 'auto',
           flex: 1,

@@ -62,6 +62,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     'mistralai'
   )
   const [showArchivedConversations, setShowArchivedConversations] = useState(false)
+  const [showButton, setShowButton] = useState(true);
+
   const [aiAssistantHeight, setAiAssistantHeight] = useState(window.innerHeight < 750 ? 87 : window.innerHeight < 1000 ? 89.6 : 92)
 
   // Check if MCP is enabled via query parameter
@@ -882,6 +884,20 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [showAssistantOptions])
 
+  useEffect(() => {
+    props.plugin.on('rightSidePanel', 'rightSidePanelMaximized', () => {
+      setShowButton(false);
+    })
+    props.plugin.on('rightSidePanel', 'rightSidePanelRestored', () => {
+      setShowButton(true);
+    })
+
+    return () => {
+      props.plugin.off('rightSidePanel', 'rightSidePanelMaximized');
+      props.plugin.off('rightSidePanel', 'rightSidePanelRestored');
+    }
+  }, [])
+
   return (
     <div
       className="d-flex flex-column w-100 h-100"
@@ -917,6 +933,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               showHistorySidebar={props.showHistorySidebar || false}
               archiveChat={props.onArchiveConversation || (() => {})}
               currentConversationId={props.currentConversationId}
+              showButton={showButton}
+              setShowButton={setShowButton}
             />
             <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
               <div data-id="remix-ai-assistant-ready"></div>
@@ -982,6 +1000,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 showHistorySidebar={props.showHistorySidebar || false}
                 archiveChat={props.onArchiveConversation || (() => {})}
                 currentConversationId={props.currentConversationId}
+                showButton={showButton}
+                setShowButton={setShowButton}
               />
               <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
                 <div data-id="remix-ai-assistant-ready"></div>
