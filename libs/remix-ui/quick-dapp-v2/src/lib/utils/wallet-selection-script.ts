@@ -3,10 +3,11 @@
  *
  * This script is injected into the <head> of the deployed HTML file and provides:
  *  1. EIP-6963 provider discovery
- *  2. A Proxy on window.ethereum that intercepts eth_requestAccounts
- *  3. A minimal wallet selection modal (inline HTML/CSS)
+ *  2. A wallet selection modal (inline HTML/CSS)
+ *  3. A global `window.__qdapp_getProvider()` function for DApp code to call
  *  4. localStorage-based auto-reconnect on page refresh
  *
+ * It does NOT override `window.ethereum` — avoids conflicts with MetaMask/Coinbase.
  * It is NOT injected in the IDE preview (VM Bridge or parent.ethereum are used there).
  */
 export function generateWalletSelectionScript(): string {
@@ -83,11 +84,11 @@ export function generateWalletSelectionScript(): string {
           return resolve(_providers[0].provider);
         }
 
-        // No providers? Fall back to legacy window.ethereum if captured
+        // No providers? Fall back to legacy window.ethereum
         if (_providers.length === 0) {
-          if (window.__qdapp_legacy_ethereum) {
+          if (window.ethereum) {
             _modalPromise = null;
-            return resolve(window.__qdapp_legacy_ethereum);
+            return resolve(window.ethereum);
           }
           _modalPromise = null;
           return reject(new Error('No Ethereum wallet detected. Please install a wallet extension.'));
@@ -178,119 +179,14 @@ export function generateWalletSelectionScript(): string {
     return div.innerHTML;
   }
 
-  // ── 4. Proxy window.ethereum ────────────────────────────────
-  // Capture any existing window.ethereum (e.g. from legacy injection)
-  if (window.ethereum) {
-    window.__qdapp_legacy_ethereum = window.ethereum;
-  }
+  // ── 4. Expose global provider getter ────────────────────────
+  // DApp code calls: window.__qdapp_getProvider()
+  // Returns a Promise<EIP1193Provider> — either auto-selected or user-picked.
+  window.__qdapp_getProvider = function() {
+    return showWalletModal();
+  };
 
-  var _resolved = false;
-  var _selectedProvider = null;
-  var _eventListeners = {};
-
-  function getProviderOrProxy() {
-    if (_resolved && _selectedProvider) return _selectedProvider;
-
-    return new Proxy({
-      isMetaMask: true,  // Some DApps check this
-      _isQuickDappProxy: true,
-
-      request: function(args) {
-        if (_resolved && _selectedProvider) {
-          return _selectedProvider.request(args);
-        }
-        return showWalletModal().then(function(provider) {
-          _selectedProvider = provider;
-          _resolved = true;
-          // Object.defineProperty getter will now return _selectedProvider
-          // Replay any buffered event listeners
-          Object.keys(_eventListeners).forEach(function(evt) {
-            _eventListeners[evt].forEach(function(cb) {
-              try { provider.on(evt, cb); } catch(e) {}
-            });
-          });
-          return provider.request(args);
-        });
-      },
-
-      on: function(event, cb) {
-        if (_resolved && _selectedProvider) {
-          return _selectedProvider.on(event, cb);
-        }
-        // Buffer listeners for later replay
-        if (!_eventListeners[event]) _eventListeners[event] = [];
-        _eventListeners[event].push(cb);
-        return this;
-      },
-
-      removeListener: function(event, cb) {
-        if (_resolved && _selectedProvider) {
-          return _selectedProvider.removeListener(event, cb);
-        }
-        if (_eventListeners[event]) {
-          _eventListeners[event] = _eventListeners[event].filter(function(l) { return l !== cb; });
-        }
-        return this;
-      },
-
-      removeAllListeners: function() {
-        if (_resolved && _selectedProvider) {
-          return _selectedProvider.removeAllListeners();
-        }
-        _eventListeners = {};
-        return this;
-      }
-    }, {
-      get: function(target, prop) {
-        // If we already resolved, delegate everything
-        if (_resolved && _selectedProvider) {
-          var val = _selectedProvider[prop];
-          if (typeof val === 'function') return val.bind(_selectedProvider);
-          return val;
-        }
-        // Return target's own methods
-        if (prop in target) {
-          var v = target[prop];
-          if (typeof v === 'function') return v.bind(target);
-          return v;
-        }
-        return undefined;
-      }
-    });
-  }
-
-  // Use Object.defineProperty to prevent wallet extensions from overwriting our Proxy.
-  // When MetaMask/Coinbase content scripts try to set window.ethereum, we capture
-  // their provider but keep our Proxy in control until the user selects a wallet.
-  var _proxyProvider = getProviderOrProxy();
-
-  try {
-    Object.defineProperty(window, 'ethereum', {
-      get: function() {
-        if (_resolved && _selectedProvider) return _selectedProvider;
-        return _proxyProvider;
-      },
-      set: function(val) {
-        if (val && !val._isQuickDappProxy) {
-          window.__qdapp_legacy_ethereum = val;
-        }
-        if (_resolved) {
-          _selectedProvider = val;
-        }
-      },
-      configurable: true,
-      enumerable: true
-    });
-  } catch (e) {
-    // MetaMask (Chrome) may define window.ethereum as non-configurable before us.
-    // Fall back to using the existing provider directly.
-    console.warn('[QuickDapp] Cannot override window.ethereum:', e.message);
-    if (window.ethereum) {
-      window.__qdapp_legacy_ethereum = window.ethereum;
-    }
-  }
-
-  console.log('[QuickDapp] Wallet selection script loaded. Detected', _providers.length, 'EIP-6963 providers.');
+  console.log('[QuickDapp] Wallet selection script loaded.');
 })();
 </script>`;
 }
