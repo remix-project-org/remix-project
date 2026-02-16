@@ -265,10 +265,46 @@ export class DappManager {
       workspaceName
     );
 
+    // Preserve VM state: the VM reads .states/{provider}/state.json per workspace.
+    // Without copying, switching to a new workspace resets the VM and loses deployed contracts.
+    let vmStateSnapshot: string | null = null;
+    let vmProviderName: string | null = null;
+    try {
+      vmProviderName = await (this.plugin as any).call('blockchain', 'getProvider') as string;
+      if (vmProviderName && vmProviderName.startsWith('vm-')) {
+        // Flush the latest in-memory state to disk first
+        try { await (this.plugin as any).call('blockchain', 'dumpState'); } catch (_) { /* non-critical */ }
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const statePath = `.states/${vmProviderName}/state.json`;
+        const stateExists = await (this.plugin as any).call('fileManager', 'exists', statePath);
+        if (stateExists) {
+          vmStateSnapshot = await this.plugin.call('fileManager', 'readFile', statePath) as string;
+        }
+      }
+    } catch (e) {
+      console.warn('[DappManager] Could not capture VM state (non-critical):', e);
+    }
+
     await this.plugin.call('filePanel', 'createWorkspace', workspaceName, true);
 
     await this.switchToWorkspace(workspaceName);
     await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Restore VM state in the new DApp workspace
+    if (vmStateSnapshot && vmProviderName) {
+      try {
+        try { await this.plugin.call('fileManager', 'mkdir', '.states'); } catch (_) {}
+        try { await this.plugin.call('fileManager', 'mkdir', `.states/${vmProviderName}`); } catch (_) {}
+        await this.plugin.call(
+          'fileManager', 'writeFile',
+          `.states/${vmProviderName}/state.json`,
+          vmStateSnapshot
+        );
+      } catch (e) {
+        console.warn('[DappManager] Failed to restore VM state (non-critical):', e);
+      }
+    }
 
     await this.focusPlugin();
 

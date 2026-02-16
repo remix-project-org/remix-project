@@ -505,6 +505,7 @@ function EditHtmlTemplate(): JSX.Element {
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
 
   const [isCurrentProviderVM, setIsCurrentProviderVM] = useState(false);
+  const [vmContractStatus, setVmContractStatus] = useState<'checking' | 'deployed' | 'not-found'>('checking');
 
   useEffect(() => {
     if (!plugin) return;
@@ -518,6 +519,82 @@ function EditHtmlTemplate(): JSX.Element {
     };
     checkVM();
   }, [plugin, activeDapp]);
+
+  useEffect(() => {
+    if (!isVM || !isCurrentProviderVM || !plugin || !activeDapp?.contract?.address) {
+      setVmContractStatus('checking');
+      return;
+    }
+
+    let cancelled = false;
+
+    const tryCallContract = async (): Promise<boolean> => {
+      const abi = activeDapp.contract.abi;
+      if (!abi || !Array.isArray(abi)) return false;
+
+      const viewFn = abi.find((item: any) =>
+        item.type === 'function' &&
+        (item.stateMutability === 'view' || item.stateMutability === 'pure') &&
+        (!item.inputs || item.inputs.length === 0)
+      );
+      if (!viewFn) return false;
+
+      const inputTypes = (viewFn.inputs || []).map((i: any) => i.type).join(',');
+      const sig = `${viewFn.name}(${inputTypes})`;
+      const hexSig = '0x' + Array.from(new TextEncoder().encode(sig))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      const selectorHex = await plugin.call('blockchain', 'sendRpc', 'web3_sha3', [hexSig]);
+      const selector = typeof selectorHex === 'string' ? selectorHex.substring(0, 10) : '0x';
+
+      const callResult = await plugin.call('blockchain', 'sendRpc', 'eth_call', [{
+        to: activeDapp.contract.address,
+        data: selector
+      }, 'latest']);
+
+      return typeof callResult === 'string' && callResult.length > 2;
+    };
+
+    const checkWithRetry = async () => {
+      // Log getCode for reference — Remix VM returns 0x even when contract is functional
+      try {
+        const code = await plugin.call('blockchain', 'getCode', activeDapp.contract.address);
+        console.log(`[QuickDapp] getCode(${activeDapp.contract.address}):`, code);
+      } catch (_) {}
+
+      // getCode is unreliable in Remix VM, so we use eth_call with a view function instead.
+      // The VM also needs time to load state after workspace switch, so we retry.
+      const MAX_RETRIES = 3;
+      const RETRY_DELAY_MS = 2000;
+
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        if (cancelled) return;
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          if (cancelled) return;
+        }
+
+        try {
+          if (await tryCallContract()) {
+            setVmContractStatus('deployed');
+            return;
+          }
+        } catch (e) {
+          const errStr = String(e);
+          if (errStr.includes('revert') || errStr.includes('execution reverted')) {
+            setVmContractStatus('deployed');
+            return;
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setVmContractStatus('not-found');
+      }
+    };
+
+    checkWithRetry();
+    return () => { cancelled = true; };
+  }, [isVM, isCurrentProviderVM, plugin, activeDapp?.contract?.address]);
 
   useEffect(() => {
     let isMounted = true;
@@ -640,28 +717,20 @@ function EditHtmlTemplate(): JSX.Element {
                   )}
 
                   {isVM && (
-                    <div className="alert alert-warning py-2 px-3 mb-2 small shadow-sm border-warning d-flex align-items-start">
-                      <i className="fas fa-exclamation-triangle me-2 mt-1 text-warning"></i>
+                    <div className={`alert py-2 px-3 mb-2 small shadow-sm d-flex align-items-start ${vmContractStatus === 'not-found' ? 'alert-danger border-danger' : 'alert-warning border-warning'}`}>
+                      <i className={`fas ${vmContractStatus === 'not-found' ? 'fa-times-circle text-danger' : 'fa-exclamation-triangle text-warning'} me-2 mt-1`}></i>
                       <div>
                         <div className="fw-bold mb-1">Remix VM — Local Only</div>
-                        {activeDapp.sourceWorkspace?.name && (
-                          <div>
-                            To run this DApp, switch to the contract workspace:{' '}
-                            <button
-                              className="btn btn-link btn-sm p-0 text-decoration-underline"
-                              onClick={async () => {
-                                try {
-                                  await plugin.call('filePanel', 'switchToWorkspace', {
-                                    name: activeDapp.sourceWorkspace!.name,
-                                    isLocalhost: false,
-                                  });
-                                } catch (e) {
-                                  console.warn('[QuickDapp] Failed to switch workspace:', e);
-                                }
-                              }}
-                            >
-                              <strong>{activeDapp.sourceWorkspace.name}</strong>
-                            </button>
+                        {vmContractStatus === 'not-found' && (
+                          <div className="text-danger mb-1">
+                            <i className="fas fa-exclamation-circle me-1"></i>
+                            No contract found at <code>{activeDapp.contract.address}</code>. The VM state may have been reset. Please redeploy the contract.
+                          </div>
+                        )}
+                        {vmContractStatus === 'checking' && isCurrentProviderVM && (
+                          <div className="mb-1">
+                            <i className="fas fa-spinner fa-spin me-1"></i>
+                            Checking contract status...
                           </div>
                         )}
                         <div className="mt-1 text-danger">
