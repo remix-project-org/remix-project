@@ -88,17 +88,19 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
   }
 
   useEffect(() => {
-    (props.sourcePlugin as any)?.on('rightSidePanel', 'rightSidePanelMaximized', () => {
+    function handleMaximize() {
       if (plugin?.profile.name.toLowerCase() === 'remixaiassistant') {
-        setTrackMaximize(props.isMaximized)
-        appContext.appStateDispatch({
-          type: appActionTypes.showAiChatHistorySidebar,
-          payload: props.isMaximized
-        })
+        setTrackMaximize(props.isMaximized);
+        dispatchEvent(new CustomEvent('rightSidePanelMaximized', { detail: { isMaximized: props.isMaximized } }));
       }
-    })
+    }
 
-  }, [props])
+    (props.sourcePlugin as any)?.on('rightSidePanel', 'rightSidePanelMaximized', handleMaximize);
+
+    return () => {
+      (props.sourcePlugin as any)?.off('rightSidePanel', 'rightSidePanelMaximized', handleMaximize);
+    }
+  }, [props.sourcePlugin, props.isMaximized, plugin?.profile.name, appContext])
 
   return (
     <header className="d-flex flex-column">

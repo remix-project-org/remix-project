@@ -1,5 +1,5 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
-import React, { useEffect, useReducer, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import './style/remix-app.css'
 import 'libs/remix-ui/remix-ai-assistant/src/css/remix-ai-assistant.css'
 import { RemixUIMainPanel } from '@remix-ui/panel'
@@ -18,6 +18,7 @@ import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
 import { desktopConnectionType } from '@remix-api'
 import { FloatingChatHistory } from './components/chatHistory/floatingChatHistory'
+import { appActionTypes } from './actions/app'
 
 interface IRemixAppUi {
   app: any
@@ -34,6 +35,7 @@ const RemixApp = (props: IRemixAppUi) => {
   const [enhanceRightTrigger, setEnhanceRightTrigger] = useState<number>(0)
   const [resetRightTrigger, setResetRightTrigger] = useState<number>(0)
   const [themeTracker, setThemeTracker] = useState<{name: string, quality: string, backgroundColor: string, fillColor: string, shapeColor: string, textColor: string, url: string}>(null);
+  const [showAiChatHistory, setShowAiChatHistory] = useState<boolean>(false)
 
   const [online, setOnline] = useState<boolean>(true)
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({
@@ -114,18 +116,37 @@ const RemixApp = (props: IRemixAppUi) => {
   }, [])
 
   useEffect(() => {
-    window.addEventListener('ideThemeChanged', (event: any) => {
+    // Define handler with stable reference
+    const handleThemeChange = (event: any) => {
       setThemeTracker((prev) => {
         const newTheme = { ...prev, ...event.detail }
         return newTheme
       })
-    })
+    }
 
+    // Add listener with named function
+    window.addEventListener('ideThemeChanged', handleThemeChange)
+
+    // Remove the SAME function reference
     return () => {
-      window.removeEventListener('ideThemeChanged', () => { })
+      window.removeEventListener('ideThemeChanged', handleThemeChange)
     }
   }, [])
-  console.log('tracker is now', themeTracker)
+
+  useEffect(() => {
+    const handler = (event: any) => {
+      // appStateDispatch({
+      //   type: appActionTypes.showAiChatHistorySidebar,
+      //   payload: event.detail.isMaximized
+      // })
+      console.log('Received rightSidePanelMaximized event with detail:', event.detail)
+      setShowAiChatHistory(event.detail.isMaximized)
+    }
+    window.addEventListener('rightSidePanelMaximized', handler)
+    return () => {
+      window.removeEventListener('rightSidePanelMaximized', handler)
+    }
+  }, [])
 
   function setListeners() {
     if (!props.app.desktopClientMode) {
@@ -252,13 +273,24 @@ const RemixApp = (props: IRemixAppUi) => {
   const preferredTop = verticalSpacing
   const maxTop = Math.max(12, viewportSize.height - 220)
   const floatingChatTop = Math.min(preferredTop, maxTop)
-  const floatingChatStyle: React.CSSProperties = {
+  const floatingChatStyle = useMemo<React.CSSProperties>(() => ({
     overflow: 'hidden',
     top: floatingChatTop,
     left: floatingChatLeft,
     width: `${floatingChatWidth}px`
-  }
+  }), [floatingChatTop, floatingChatLeft, floatingChatWidth])
   const [showArchived, setShowArchived] = useState(false);
+
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handleLoadConversation = useCallback((id: string) => {
+    props.app.remixAiAssistant.loadConversation(id)
+  }, [props.app.remixAiAssistant])
+
+  const handleToggleArchived = useCallback(() => {
+    setShowArchived(!showArchived)
+  }, [showArchived])
+
+  const handleClose = useCallback(() => {}, [])
 
   return (
     //@ts-ignore
@@ -277,19 +309,17 @@ const RemixApp = (props: IRemixAppUi) => {
                   </div>
                 )}
                 <div className={`remixIDE ${appReady ? '' : 'd-none'}`} data-id="remixIDE">
-                  {appState.aiChatHistoryState.showAiChatHistory ? <div className={`position-absolute z-3 ${themeTracker.name.toLowerCase() === 'dark' ? 'bg-dark' : 'bg-light'} rounded-3 p-1 text-light`} style={floatingChatStyle}>
+                  {showAiChatHistory ? <div className={`position-absolute z-3 ${themeTracker.name.toLowerCase() === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'} rounded-3 p-1`} style={floatingChatStyle}>
                     <FloatingChatHistory
                       conversations={props.app.remixAiAssistant.conversations}
                       currentConversationId={props.app.remixAiAssistant.currentConversationId}
                       showArchived={showArchived}
-                      onNewConversation={(() => props.app.remixAiAssistant.newConversation())}
-                      onLoadConversation={(id) => {
-                        props.app.remixAiAssistant.loadConversation(id)
-                      }}
-                      onArchiveConversation={(() => props.app.remixAiAssistant.archiveConversation())}
-                      onDeleteConversation={(() => props.app.remixAiAssistant.deleteConversation())}
-                      onToggleArchived={() => setShowArchived(!showArchived)}
-                      onClose={(() => {})}
+                      onNewConversation={props.app.remixAiAssistant.newConversation}
+                      onLoadConversation={handleLoadConversation}
+                      onArchiveConversation={props.app.remixAiAssistant.archiveConversation}
+                      onDeleteConversation={props.app.remixAiAssistant.deleteConversation}
+                      onToggleArchived={handleToggleArchived}
+                      onClose={handleClose}
                       isFloating={false}
                       isMaximized={false}
                       panelWidth={floatingChatWidth}

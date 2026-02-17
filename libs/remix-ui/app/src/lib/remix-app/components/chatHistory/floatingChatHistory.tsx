@@ -1,5 +1,5 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { ConversationMetadata } from '@remix/remix-ai-core'
 import { CustomTooltip } from '@remix-ui/helper'
 import { ChatHistoryItem } from './chatHistoryItem'
@@ -37,6 +37,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(currentConversationId)
   const defaultPanelWidth = '350px'
   const resolvedPanelWidth = panelWidth !== undefined
     ? typeof panelWidth === 'number' ? `${panelWidth}px` : panelWidth
@@ -67,6 +68,10 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
     setFilteredConversations(filtered)
   }, [conversations, showArchived, searchQuery])
 
+  useEffect(() => {
+    setSelectedConversationId(currentConversationId)
+  }, [currentConversationId])
+
   const archivedCount = conversations.filter(c => c.archived).length
 
   return (
@@ -78,7 +83,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
       {/* Header */}
       <div className="p-3">
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="mb-0 fw-normal">
+          <h6 className={`mb-0 fw-normal ${theme.toLowerCase() === 'dark' ? 'text-light' : ''} sidebar-title`}>
             {isMaximized ? 'Your chats' : 'Chat history'} <span className="text-muted">{filteredConversations.length}</span>
           </h6>
         </div>
@@ -109,7 +114,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
             <i className="fas fa-archive me-2"></i>
             {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
           </button>
-          <span className="text-muted small">Workspace</span>
+          {/* <span className="text-muted small">Workspace</span> */}
         </div>
       </div>
 
@@ -149,8 +154,10 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
             <ChatHistoryItem
               key={conv.id}
               conversation={conv}
-              active={conv.id === currentConversationId}
+              active={conv.id === selectedConversationId}
+              theme={theme}
               onClick={() => {
+                setSelectedConversationId(conv.id)
                 // Automatically unarchive if the conversation is archived
                 if (conv.archived) {
                   onArchiveConversation(conv.id)

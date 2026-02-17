@@ -391,12 +391,11 @@ body.dark .conversation-item:hover {
 }
 
 .conversation-item-active {
-  background-color: transparent !important;
+  border: 1px solid var(--bs-border-color);
 }
 
 .conversation-item-active:hover {
-  background-color: transparent !important;
-  border: 1px solid !important;
+  border: 1px solid;
   border-color: var(--bs-border-color);
 }
 
@@ -411,8 +410,14 @@ body.dark .conversation-title {
   color: #e0e0e0 !important;
 }
 
-.conversation-item-active .conversation-title {
+[data-theme="dark"] .conversation-item-active .conversation-title,
+body.dark .conversation-item-active .conversation-title {
   color: #ffffff !important;
+}
+
+[data-theme="light"] .conversation-item-active .conversation-title,
+body.light .conversation-item-active .conversation-title {
+  color: #2a2c3f !important;
 }
 
 .conversation-meta {
@@ -425,10 +430,15 @@ body.dark .conversation-meta {
   color: #a0a0b0 !important;
 }
 
-.conversation-item-active .conversation-meta {
+[data-theme="dark"] .conversation-item-active .conversation-meta,
+body.dark .conversation-item-active .conversation-meta {
   color: rgba(255, 255, 255, 0.8) !important;
 }
 
+[data-theme="light"] .conversation-item-active .conversation-meta,
+body.light .conversation-item-active .conversation-meta {
+  color: #707792 !important;
+}
 /* Conversation menu button */
 .conversation-menu-btn {
   background: none;
@@ -516,10 +526,4 @@ body.dark .conversation-menu-item:hover {
 
 .conversation-menu-item-danger:hover {
   background-color: rgba(220, 53, 69, 0.1) !important;
-}
-
-.chat-history-item
-.chat-history-item:hover {
-  background-color: pink !important;
-  cursor: pointer;
 }
