@@ -135,11 +135,6 @@ const RemixApp = (props: IRemixAppUi) => {
 
   useEffect(() => {
     const handler = (event: any) => {
-      // appStateDispatch({
-      //   type: appActionTypes.showAiChatHistorySidebar,
-      //   payload: event.detail.isMaximized
-      // })
-      console.log('Received rightSidePanelMaximized event with detail:', event.detail)
       setShowAiChatHistory(event.detail.isMaximized)
     }
     window.addEventListener('rightSidePanelMaximized', handler)

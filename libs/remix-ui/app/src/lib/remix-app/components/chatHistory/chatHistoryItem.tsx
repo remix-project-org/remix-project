@@ -76,8 +76,7 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
 
   return (
     <div
-      className={`conversation-item chat-history-item p-3 mb-2 rounded-3 cursor-pointer position-relative
-        ${active ? 'conversation-item-active' : ''}`}
+      className={`conversation-item chat-history-item p-3 mb-2 rounded-3 cursor-pointer position-relative ${active ? (theme.toLowerCase() === 'light' ? 'conversation-item-active-light' : 'conversation-item-active') : ''}`}
       onClick={onClick}
       data-id={`conversation-item-${conversation.id}`}
       style={{
@@ -93,10 +92,10 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
       }}
     >
       <div className="d-flex align-items-center gap-2 flex-nowrap">
-        <div className="conversation-title text-truncate flex-grow-1 mb-0">
+        <div className={`conversation-title text-truncate flex-grow-1 mb-0 ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-dark'}`}>
           {conversation.title || 'New Conversation'}
         </div>
-        <div className="conversation-meta text-nowrap">
+        <div className={`conversation-meta text-nowrap ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-muted'} small`}>
           {formatDate(conversation.lastAccessedAt)} · {conversation.messageCount} message{conversation.messageCount !== 1 ? 's' : ''}
         </div>
         <div className="conversation-menu-trigger ms-1 flex-shrink-0" ref={menuRef}>

@@ -83,7 +83,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
       {/* Header */}
       <div className="p-3">
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className={`mb-0 fw-normal ${theme.toLowerCase() === 'dark' ? 'text-light' : ''} sidebar-title`}>
+          <h6 className={`mb-0 fw-normal ${theme.toLowerCase() === 'dark' ? 'text-secondary' : ''} sidebar-title`}>
             {isMaximized ? 'Your chats' : 'Chat history'} <span className="text-muted">{filteredConversations.length}</span>
           </h6>
         </div>
@@ -91,12 +91,20 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
         {/* New Conversation Button */}
 
         {/* Search Bar */}
-        <div className="mb-2 p-1">
-          <i className="fas fa-search search-icon"></i>
+        <div className="mb-2 p-1 position-relative">
+          <style>{`
+            .search-input-dark::placeholder {
+              color: rgba(255, 255, 255, 0.5) !important;
+            }
+            .search-input-light::placeholder {
+              color: rgba(51, 52, 70, 0.5) !important;
+            }
+          `}</style>
+          <i className={`fas fa-search position-absolute`} style={{ left: '20px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, pointerEvents: 'none', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}></i>
           <input
             type="text"
-            className="form-control ps-4"
-            style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : 'var(--light-background-color)', color: theme.toLowerCase() === 'dark' ? 'var(--text-color)' : '#333446' }}
+            className={`form-control ps-5 ${theme.toLowerCase() === 'dark' ? 'search-input-dark' : 'search-input-light'}`}
+            style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : 'var(--light-background-color)', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

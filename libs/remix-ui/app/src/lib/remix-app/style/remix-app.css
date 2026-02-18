@@ -182,6 +182,23 @@ body.dark .chat-history-sidebar .conversation-item.active {
   color: #ffffff !important;
 }
 
+/* Light theme active conversation item */
+[data-theme="light"] .chat-history-sidebar .conversation-item.active,
+body.light .chat-history-sidebar .conversation-item.active {
+  background-color: var(--bs-body-bg) !important;
+  color: #000000 !important;
+}
+
+[data-theme="light"] .chat-history-sidebar .conversation-item.active .conversation-title,
+body.light .chat-history-sidebar .conversation-item.active .conversation-title {
+  color: #000000 !important;
+}
+
+[data-theme="light"] .chat-history-sidebar .conversation-item.active .conversation-meta,
+body.light .chat-history-sidebar .conversation-item.active .conversation-meta {
+  color: #1a1a1a !important;
+}
+
 [data-theme="dark"] .chat-history-sidebar .conversation-item .text-muted,
 body.dark .chat-history-sidebar .conversation-item .text-muted {
   color: #a0a0b0 !important;
@@ -415,9 +432,9 @@ body.dark .conversation-item-active .conversation-title {
   color: #ffffff !important;
 }
 
-[data-theme="light"] .conversation-item-active .conversation-title,
-body.light .conversation-item-active .conversation-title {
-  color: #2a2c3f !important;
+[data-theme="light"] .chat-history-sidebar .conversation-item-active .conversation-title,
+body.light .chat-history-sidebar .conversation-item-active .conversation-title {
+  color: #000000 !important;
 }
 
 .conversation-meta {
@@ -435,9 +452,9 @@ body.dark .conversation-item-active .conversation-meta {
   color: rgba(255, 255, 255, 0.8) !important;
 }
 
-[data-theme="light"] .conversation-item-active .conversation-meta,
-body.light .conversation-item-active .conversation-meta {
-  color: #707792 !important;
+[data-theme="light"] .chat-history-sidebar .conversation-item-active .conversation-meta,
+body.light .chat-history-sidebar .conversation-item-active .conversation-meta {
+  color: #1a1a1a !important;
 }
 /* Conversation menu button */
 .conversation-menu-btn {
@@ -468,13 +485,39 @@ body.dark .conversation-menu-btn:hover {
   color: #e0e0e0 !important;
 }
 
+[data-theme="dark"]
 .conversation-item-active .conversation-menu-btn {
   color: rgba(255, 255, 255, 0.8) !important;
   opacity: 1;
 }
 
+[data-theme="dark"]
 .conversation-item-active .conversation-menu-btn:hover {
   color: #ffffff !important;
+}
+
+[data-theme="light"]
+.conversation-item-active-light .conversation-menu-btn {
+  background-color: #f9fafe !important;
+  color: rgba(35, 34, 34, 0.8) !important;
+  opacity: 1;
+}
+
+[data-theme="light"]
+.conversation-item-active-light .conversation-menu-btn:hover {
+  background-color: #f9fafe !important;
+  color: rgba(35, 34, 34, 0.8) !important;
+}
+
+/* Light theme menu button in active item */
+[data-theme="light"] .chat-history-sidebar .conversation-item-active .conversation-menu-btn,
+body.light .chat-history-sidebar .conversation-item-active .conversation-menu-btn {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="light"] .chat-history-sidebar .conversation-item-active .conversation-menu-btn:hover,
+body.light .chat-history-sidebar .conversation-item-active .conversation-menu-btn:hover {
+  color: #000000 !important;
 }
 
 /* Conversation dropdown menu */
