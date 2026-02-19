@@ -1301,10 +1301,22 @@ body.dark .conversation-menu-item:hover {
   transition: background-color 0.2s ease;
 }
 
-btn-remix-dark {
-  background-color: #33384b;
+.btn-remix-dark {
+  background-color: #383950 !important;
+  color: #a2a3bd !important;
 }
 
-btn-remix-light {
-  background-color: #d6dde6;
+.btn-remix-dark:hover {
+  background-color: #3a3a4a !important;
+  color: #e0e0e0 !important;
+}
+
+.btn-remix-light {
+  background-color: #d6dde6 !important;
+  color: #8e94a6 !important;
+}
+
+.btn-remix-light:hover {
+  background-color: #d9dee4 !important;
+  color: #8e94a6 !important;
 }

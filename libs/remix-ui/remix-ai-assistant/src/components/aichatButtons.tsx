@@ -30,22 +30,22 @@ export function AiChatButtons({ theme, plugin, sendPrompt }: AiChatButtonsProps)
         // plugin && await plugin.call('remixaiassistant', 'handleExternalMessage', 'Create a file for me')
       }
     },
-    {
-      label: 'Learn',
-      icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-brain`,
-      color: '',
-      action: () => {
-        sendPrompt('I would like to learn about something...')
-      }
-    },
-    {
-      label: 'Plan a project',
-      icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-list`,
-      color: '',
-      action: () => {
-        sendPrompt('Plan a new project')
-      }
-    },
+    // {
+    //   label: 'Learn',
+    //   icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-brain`,
+    //   color: '',
+    //   action: () => {
+    //     sendPrompt('I would like to learn about something...')
+    //   }
+    // },
+    // {
+    //   label: 'Plan a project',
+    //   icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-list`,
+    //   color: '',
+    //   action: () => {
+    //     sendPrompt('Plan a new project')
+    //   }
+    // },
     {
       label: 'New workspace',
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-plus`,
@@ -54,23 +54,23 @@ export function AiChatButtons({ theme, plugin, sendPrompt }: AiChatButtonsProps)
         sendPrompt('Create a new workspace')
       }
     },
-    {
-      label: 'Deploy',
-      icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fakit fa-remixdeploy`,
-      color: '',
-      action: () => {
-        sendPrompt('Deploy a contract')
-      }
-    },
-    {
-      label: 'Generate dapp',
-      icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-jet-fighter`,
-      color: '',
-      action: () => {
-        sendPrompt('Create a Dapp')
-        console.log('Generate Dapp')
-      }
-    }
+    // {
+    //   label: 'Deploy',
+    //   icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fakit fa-remixdeploy`,
+    //   color: '',
+    //   action: () => {
+    //     sendPrompt('Deploy a contract')
+    //   }
+    // },
+    // {
+    //   label: 'Generate dapp',
+    //   icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-jet-fighter`,
+    //   color: '',
+    //   action: () => {
+    //     sendPrompt('Create a Dapp')
+    //     console.log('Generate Dapp')
+    //   }
+    // }
   ]
 
   return (
@@ -80,7 +80,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt }: AiChatButtonsProps)
           <button
             key={`${starter.label}-${index}`}
             data-id={`remix-ai-assistant-starter-${starter.label}-${index}`}
-            className={`mb-2 border-0 rounded-4 text-nowrap gap-2 btn btn-lg btn-light`}
+            className={`mb-2 border-0 rounded-4 text-nowrap gap-2 btn ${theme?.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'} `}
             // style={{ backgroundColor: theme?.toLowerCase() === 'dark' ? 'btn btn-lg p-2 btn-light' : 'btn btn-lg p-2 btn-dark' }}
             onClick={starter.action}
           >
@@ -89,12 +89,12 @@ export function AiChatButtons({ theme, plugin, sendPrompt }: AiChatButtonsProps)
           </button>
         ))}
       </div>
-      <div className="d-flex justify-content-between w-100">
+      <div className="d-flex justify-content-between w-100 overflow-x-auto">
         {btnList.slice(3).map((starter, index) => (
           <button
             key={`${starter.label}-${index}`}
             data-id={`remix-ai-assistant-starter-${starter.label}-${index}`}
-            className={`mb-2 border-0 rounded-4 text-nowrap gap-2 btn btn-lg btn-light`}
+            className={`mb-2 border-0 rounded-4 text-nowrap gap-2 btn btn-light`}
             // style={{ backgroundColor: theme?.toLowerCase() === 'dark' ? 'btn btn-lg p-2 btn-light' : 'btn btn-lg btn-dark p-2' }}
             onClick={() => {}}
           >

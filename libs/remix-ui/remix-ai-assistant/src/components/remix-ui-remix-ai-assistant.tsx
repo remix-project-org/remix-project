@@ -967,7 +967,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 style={{ backgroundColor: themeTracker?.name.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}
               >
                 <button
-                  className="btn btn-sm btn-light text-light-emphasis"
+                  className={`btn btn-sm ${themeTracker?.name.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'}`}
                   onClick={props.onToggleHistorySidebar || (() => {})}
                   data-id="chat-history-back-btn"
                 >

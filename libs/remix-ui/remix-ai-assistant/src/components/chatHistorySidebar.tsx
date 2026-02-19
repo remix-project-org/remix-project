@@ -89,6 +89,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             data-id="search-conversations-input"
+            style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : '#e4e8f1', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}
           />
         </div>
 

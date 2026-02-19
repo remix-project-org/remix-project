@@ -65,6 +65,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     <>
       <div
         className="prompt-area d-flex flex-column mx-2 p-2 rounded-3 border border-text bg-light"
+        style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#2a2c3f' }}
       >
         <div className="d-flex justify-content-between align-items-center mb-3 border border-end-0 border-start-0 border-top-0 border-bottom pb-1">
           <button
@@ -179,13 +180,13 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               <i className="fas fa-list me-1"></i>
               <span className="text-nowrap">Plan a project</span>
             </button> */}
-            <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}>
+            <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-light text-light-emphasis' : 'btn-remix-dark'}`}>
               <i className="fas fa-plus me-1"></i>
               <span className="text-nowrap">New workspace</span>
             </button>
             <button
               data-id="remix-ai-workspace-generate"
-              className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-remix-light' : 'btn-remix-dark'}`}
+              className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-light text-light-emphasis' : '#ccdd33'}`}
               onClick={handleGenerateWorkspace}
             >
               {'Create new workspace with AI'}
