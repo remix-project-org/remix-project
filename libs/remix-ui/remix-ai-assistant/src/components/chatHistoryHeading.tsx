@@ -9,6 +9,7 @@ interface ChatHistoryHeadingProps {
   currentConversationId?: string | null
   showButton: boolean
   setShowButton: (show: boolean) => void
+  theme?: string
 }
 
 export default function ChatHistoryHeading({
@@ -17,11 +18,13 @@ export default function ChatHistoryHeading({
   showHistorySidebar,
   archiveChat,
   currentConversationId,
-  showButton
+  showButton,
+  theme
 }: ChatHistoryHeadingProps) {
 
   return (
-    <section className="d-flex flex-row justify-content-between align-items-center p-2 border-0 border-bottom">
+    <section className={`d-flex flex-row justify-content-between align-items-center p-2 border-0`} data-theme={theme?.toLowerCase()}
+      style={{ backgroundColor: theme && theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
       <div>
         <CustomTooltip
           tooltipText={'Start a new chat'}

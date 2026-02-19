@@ -16,6 +16,7 @@ interface ChatHistorySidebarProps {
   onClose: () => void
   isFloating?: boolean
   isMaximized?: boolean
+  theme?: string
 }
 
 export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
@@ -29,7 +30,8 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   onToggleArchived,
   onClose,
   isFloating = false,
-  isMaximized = false
+  isMaximized = false,
+  theme = 'dark'
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
@@ -56,16 +58,14 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
 
   return (
     <div
-      className={`chat-history-sidebar d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating border-end' : isMaximized ? 'border-end' : 'w-100'}`}
-      style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: 'transparent' }}
+      className={`chat-history-sidebar border-0 d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating ' : isMaximized ? '' : 'w-100'}`}
+      style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: theme === 'dark' ? 'var(--bs-dark)' : 'var(--bs-light)' }}
       data-id="chat-history-sidebar"
+      data-theme={theme?.toLowerCase()}
     >
       {/* Header */}
-      <div className="sidebar-header p-3">
+      <div className="border-0 p-3" style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="mb-0 fw-normal sidebar-title">
-            {isMaximized ? 'Your chats' : 'Chat history'} <span className="text-muted">{filteredConversations.length}</span>
-          </h6>
           {isMaximized && (
             <CustomTooltip tooltipText="Close sidebar">
               <button
@@ -79,14 +79,12 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
           )}
         </div>
 
-        {/* New Conversation Button */}
-
         {/* Search Bar */}
         <div className="search-bar mb-2 p-1">
           <i className="fas fa-search search-icon"></i>
           <input
             type="text"
-            className="form-control search-input ps-4 border"
+            className="form-control search-input ps-4 "
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -96,6 +94,9 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
 
         {/* Archive Toggle */}
         <div className="d-flex justify-content-between align-items-center">
+          <h6 className="mb-0 fw-normal sidebar-title" data-id="chat-history-sidebar-title">
+            {'Chat history'} <span className="ms-2 text-muted">{filteredConversations.length}</span>
+          </h6>
           <button
             className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`}
             onClick={onToggleArchived}
@@ -104,7 +105,6 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             <i className="fas fa-archive me-2"></i>
             {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
           </button>
-          <span className="text-muted small">Workspace</span>
         </div>
       </div>
 
@@ -135,6 +135,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             <ConversationItem
               key={conv.id}
               conversation={conv}
+              theme={theme}
               active={conv.id === currentConversationId}
               onClick={() => {
                 // Automatically unarchive if the conversation is archived

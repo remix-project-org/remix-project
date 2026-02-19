@@ -21,7 +21,7 @@ module.exports = {
       })
       .waitForElementVisible('*[data-id="toggle-history-btn"]', 10000)
       .click('*[data-id="toggle-history-btn"]')
-      .assert.containsText('*[data-id="chat-history-sidebar"]', 'Chat history')
+      .assert.containsText('*[data-id="chat-history-sidebar-title"]', 'Chat history')
       .waitForElementVisible('.text-center.text-muted', 5000)
       .assert.containsText('.text-center.text-muted', 'No conversations yet')
       .pause()
@@ -32,8 +32,8 @@ module.exports = {
       .waitForElementVisible('*[data-id="new-conversation-btn"]', 5000)
       .click('*[data-id="new-conversation-btn"]')
       .pause(1000)
-      .waitForElementVisible('*[data-id="remix-ai-composer-input"]', 10000)
-      .setValue('*[data-id="remix-ai-composer-input"]', 'Hello, this is my first message')
+      .waitForElementVisible('*[data-id="remix-ai-prompt-input"]', 10000)
+      .setValue('*[data-id="remix-ai-prompt-input"]', 'Hello, this is my first message')
       .click('*[data-id="remix-ai-composer-send-btn"]')
       .waitForElementPresent({
         selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",

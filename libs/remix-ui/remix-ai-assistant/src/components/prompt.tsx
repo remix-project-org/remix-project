@@ -113,6 +113,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               }}
               rows={2}
               className="form-control mb-1 border-0"
+              id="remix-ai-prompt-input"
+              data-id="remix-ai-prompt-input"
               value={input}
               disabled={isStreaming}
               onFocus={() => {

@@ -8,6 +8,7 @@ interface ConversationItemProps {
   onClick: () => void
   onArchive: (e: React.MouseEvent) => void
   onDelete: (e: React.MouseEvent) => void
+  theme?: string
 }
 
 export const ConversationItem: React.FC<ConversationItemProps> = ({
@@ -15,7 +16,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   active,
   onClick,
   onArchive,
-  onDelete
+  onDelete,
+  theme
 }) => {
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -54,13 +56,14 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
       className={`conversation-item p-3 mb-1 rounded-3 cursor-pointer position-relative ${active ? 'conversation-item-active' : ''}`}
       onClick={onClick}
       data-id={`conversation-item-${conversation.id}`}
+      data-theme={theme?.toLowerCase()}
     >
       <div className="d-flex justify-content-between align-items-start">
         <div className="flex-grow-1 overflow-hidden pe-2">
-          <div className="conversation-title text-truncate mb-1">
+          <div className="conversation-title text-truncate mb-1 text-light-emphasis">
             {conversation.title || 'New Conversation'}
           </div>
-          <div className="conversation-meta">
+          <div className="conversation-meta text-light-emphasis small">
             {formatDate(conversation.lastAccessedAt)} · {conversation.messageCount} message{conversation.messageCount !== 1 ? 's' : ''}
           </div>
         </div>
