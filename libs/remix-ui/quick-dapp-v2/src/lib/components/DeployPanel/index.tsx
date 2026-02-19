@@ -230,7 +230,7 @@ function DeployPanel(): JSX.Element {
   const currentEnsDomain = ensResult.domain || activeDapp?.deployment?.ensDomain;
 
   return (
-    <div>
+    <div data-id="deploy-panel">
       <Card className="mb-2">
         <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
           Dapp details <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
@@ -248,11 +248,11 @@ function DeployPanel(): JSX.Element {
         </Card.Header>
         <Collapse in={isPublishOpen}>
           <Card.Body>
-            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying}>
+            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying} data-id="deploy-ipfs-btn">
               {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
             </Button>
             {displayCid && (
-              <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }}>
+              <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
                 <div className="fw-bold">Deployed Successfully!</div>
                 <div><strong>CID:</strong> {displayCid}</div>
                 {displayGateway && <div className="mt-1"><a href={displayGateway} target="_blank" rel="noopener noreferrer">View DApp</a></div>}
@@ -265,7 +265,7 @@ function DeployPanel(): JSX.Element {
 
       {displayCid && (
         <Card className="mb-2">
-          <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+          <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0" data-id="ens-section-header">
             Register ENS (Arbitrum) <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
           <Collapse in={isEnsOpen}>

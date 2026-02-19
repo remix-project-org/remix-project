@@ -642,11 +642,12 @@ function EditHtmlTemplate(): JSX.Element {
           className="btn btn-sm btn-secondary me-3"
           onClick={handleBack}
           disabled={isCapturing}
+          data-id="back-to-dashboard-btn"
         >
           {isCapturing ? <><i className="fas fa-spinner fa-spin me-1"></i> Saving...</> : <><i className="fas fa-arrow-left me-1"></i> Back</>}
         </button>
         <div className="d-flex align-items-center flex-wrap gap-2">
-          <span className="fw-bold text-body" style={{ fontSize: '1.1rem' }}>
+          <span className="fw-bold text-body" style={{ fontSize: '1.1rem' }} data-id="editor-dapp-title">
             {activeDapp.config.title || activeDapp.name}
           </span>
           <span className="badge bg-secondary opacity-75">
@@ -655,7 +656,7 @@ function EditHtmlTemplate(): JSX.Element {
           <div className="vr mx-1 text-secondary opacity-50" style={{ height: '1.2rem' }}></div>
           <div className="d-flex align-items-center text-muted" title="Location in File Explorer">
             <i className="far fa-folder-open me-2 opacity-75"></i>
-            <span className="font-monospace small opacity-75">
+            <span className="font-monospace small opacity-75" data-id="editor-workspace-name">
               {activeDapp.workspaceName}
             </span>
           </div>
@@ -691,6 +692,7 @@ function EditHtmlTemplate(): JSX.Element {
                         size="sm"
                         onClick={() => runBuild(true)}
                         disabled={isBuilding || isAiUpdating}
+                        data-id="refresh-preview-btn"
                       >
                         {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
                       </Button>
@@ -699,6 +701,7 @@ function EditHtmlTemplate(): JSX.Element {
                         size="sm"
                         onClick={() => setShowDeleteModal(true)}
                         disabled={isBuilding || isCapturing}
+                        data-id="delete-dapp-editor-btn"
                       >
                         <i className="fas fa-trash me-1"></i> Delete Dapp
                       </Button>
@@ -717,7 +720,7 @@ function EditHtmlTemplate(): JSX.Element {
                   )}
 
                   {isVM && (
-                    <div className={`alert py-2 px-3 mb-2 small shadow-sm d-flex align-items-start ${vmContractStatus === 'not-found' ? 'alert-danger border-danger' : 'alert-warning border-warning'}`}>
+                    <div className={`alert py-2 px-3 mb-2 small shadow-sm d-flex align-items-start ${vmContractStatus === 'not-found' ? 'alert-danger border-danger' : 'alert-warning border-warning'}`} data-id="vm-warning-banner">
                       <i className={`fas ${vmContractStatus === 'not-found' ? 'fa-times-circle text-danger' : 'fa-exclamation-triangle text-warning'} me-2 mt-1`}></i>
                       <div>
                         <div className="fw-bold mb-1">Remix VM — Local Only</div>
@@ -744,7 +747,7 @@ function EditHtmlTemplate(): JSX.Element {
                   <Card className="border flex-grow-1 d-flex position-relative">
                     <Card.Body className="p-0 d-flex flex-column position-relative" style={{ overflow: 'hidden' }}>
                       {isAiUpdating && (
-                        <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white" style={{ zIndex: 10, opacity: 0.9 }}>
+                        <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white" style={{ zIndex: 10, opacity: 0.9 }} data-id="ai-updating-overlay">
                           <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
                           <h6 className="text-muted">Your dapp is being updated by RemixAI Assistant.</h6>
                         </div>
@@ -754,6 +757,7 @@ function EditHtmlTemplate(): JSX.Element {
                         style={{ width: '100%', height: '100%', minHeight: '800px', border: 'none', backgroundColor: 'white', display: iframeError ? 'none' : 'block' }}
                         title="dApp Preview"
                         sandbox="allow-popups allow-scripts allow-same-origin allow-forms allow-top-navigation"
+                        data-id="dapp-preview-iframe"
                       />
                       {iframeError && (
                         <div className="d-flex align-items-center justify-content-center h-100 text-center p-4">
@@ -778,7 +782,7 @@ function EditHtmlTemplate(): JSX.Element {
         </div>
       </div>
 
-      <Modal show={notificationModal.show} onHide={closeNotificationModal} centered>
+      <Modal show={notificationModal.show} onHide={closeNotificationModal} centered data-id="notification-modal">
         <Modal.Header closeButton>
           <Modal.Title className={notificationModal.variant === 'danger' ? 'text-danger' : notificationModal.variant === 'warning' ? 'text-warning' : 'text-success'}>
             {notificationModal.title}
@@ -786,7 +790,7 @@ function EditHtmlTemplate(): JSX.Element {
         </Modal.Header>
         <Modal.Body>{notificationModal.message}</Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={closeNotificationModal}>Close</Button>
+          <Button variant="secondary" onClick={closeNotificationModal} data-id="notification-modal-close-btn">Close</Button>
         </Modal.Footer>
       </Modal>
 
@@ -795,7 +799,7 @@ function EditHtmlTemplate(): JSX.Element {
         <Modal.Body>Are you sure you want to delete this dapp? This action cannot be undone.</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDeleteDapp}>Yes, Delete</Button>
+          <Button variant="danger" onClick={handleDeleteDapp} data-id="confirm-delete-dapp-btn">Yes, Delete</Button>
         </Modal.Footer>
       </Modal>
     </div>

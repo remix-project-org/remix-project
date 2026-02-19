@@ -35,6 +35,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
     <div className="col-12 col-md-6 col-xl-4 mb-4 qd-card-col">
       <div
         className="card h-100 border-secondary shadow-sm"
+        data-id={`dapp-card-${dapp.slug}`}
         style={{
           cursor: isProcessing ? 'wait' : 'pointer',
           transition: 'transform 0.2s',
@@ -65,13 +66,14 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
             <img src={dapp.config.logo} alt="logo" style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
           )}
 
-          <div className="position-absolute top-0 start-0 m-2 badge bg-primary opacity-75">
+          <div className="position-absolute top-0 start-0 m-2 badge bg-primary opacity-75" data-id={`dapp-network-${dapp.slug}`}>
             {dapp.contract.networkName || 'Remix VM'}
           </div>
 
           {!isProcessing && (
             <div
               className="position-absolute top-0 end-0 m-2"
+              data-id={`delete-dapp-btn-${dapp.slug}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
@@ -97,7 +99,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
 
         <div className="card-body d-flex flex-column justify-content-between">
           <div>
-            <h6 className="card-title fw-bold mb-1 text-truncate text-body">{dapp.name}</h6>
+            <h6 className="card-title fw-bold mb-1 text-truncate text-body" data-id={`dapp-card-name-${dapp.slug}`}>{dapp.name}</h6>
             <small className="text-muted d-block text-truncate" style={{ fontSize: '0.8rem' }}>
               {dapp.id}
             </small>
@@ -113,7 +115,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, onClick, onDele
             <small className="text-muted" style={{ fontSize: '0.75rem' }}>
               {dapp.deployment?.ensDomain || 'Not linked to ENS'}
             </small>
-            <div className={`d-flex align-items-center ${statusColor}`}>
+            <div className={`d-flex align-items-center ${statusColor}`} data-id={`dapp-status-${dapp.slug}`}>
               <i className={`fas ${statusIcon} me-1 small`}></i>
               <small className="fw-bold text-uppercase" style={{ fontSize: '0.75rem' }}>
                 {dapp.status}

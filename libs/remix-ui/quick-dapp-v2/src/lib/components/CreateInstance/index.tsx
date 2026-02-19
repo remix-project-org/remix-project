@@ -9,7 +9,7 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
 
   if (isAiLoading) {
     return (
-      <div className="d-flex flex-column align-items-center justify-content-center py-5">
+      <div className="d-flex flex-column align-items-center justify-content-center py-5" data-id="ai-loading-spinner">
         <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}></div>
         <h5 className="text-primary">Creating Your DApp...</h5>
         <p className="text-muted">RemixAI Assistant is generating your DApp code.</p>
@@ -26,7 +26,7 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
         </p>
       </div>
 
-      <Card className="border-info">
+      <Card className="border-info" data-id="quickdapp-getting-started">
         <Card.Header className="bg-info bg-opacity-10 border-info">
           <h5 className="mb-0 text-info">
             <i className="fas fa-rocket me-2"></i>

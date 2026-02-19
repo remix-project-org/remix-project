@@ -435,7 +435,7 @@ const BaseAppWizard: React.FC = () => {
   const ipfsUrl = latestCid ? `https://ipfs.io/ipfs/${latestCid}` : '';
 
   return (
-    <div className="base-wizard-container">
+    <div className="base-wizard-container" data-id="base-app-wizard">
       <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered>
         <Modal.Header closeButton className="bg-success text-white">
           <Modal.Title>{successModalContent.title}</Modal.Title>
@@ -486,7 +486,7 @@ const BaseAppWizard: React.FC = () => {
       </Modal>
 
       {viewStep >= 5 ? (
-        <Card className="border-success mb-3 shadow-sm">
+        <Card className="border-success mb-3 shadow-sm" data-id="live-app-dashboard">
           <Card.Header className="bg-success text-white fw-bold d-flex justify-content-between align-items-center">
             <span><i className="fas fa-check-circle me-2"></i>Live App Dashboard</span>
             <span className="badge bg-white text-success">Active</span>
@@ -543,7 +543,7 @@ const BaseAppWizard: React.FC = () => {
           </Card.Body>
         </Card>
       ) : (
-        <Card className="mb-3 border-primary">
+        <Card className="mb-3 border-primary" data-id="base-wizard-card">
           <Card.Header className="bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
             <span><i className="fas fa-rocket me-2"></i>Setup Wizard</span>
             <div className="d-flex gap-2 align-items-center">
@@ -590,7 +590,7 @@ const BaseAppWizard: React.FC = () => {
 
             <div className="wizard-content">
               {viewStep === 1 && (
-                <div className="fade-in">
+                <div className="fade-in" data-id="wizard-step-1-config">
                   <h6 className="fw-bold mb-2">Step 1: App Registration</h6>
                   <Card className="mb-3 bg-light border-0"><Card.Body>{renderEditForm()}</Card.Body></Card>
                   <Alert variant="info" className="small p-2 mb-3">
@@ -608,14 +608,14 @@ const BaseAppWizard: React.FC = () => {
                     />
                   </Form.Group>
 
-                  <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading}>
+                  <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading} data-id="wizard-step1-next-btn">
                     {baseFlowLoading ? 'Saving...' : 'Save & Next'}
                   </Button>
                 </div>
               )}
 
               {viewStep === 2 && (
-                <div className="fade-in">
+                <div className="fade-in" data-id="wizard-step-2-deploy">
                   <h6 className="fw-bold mb-2">Step 2: Deployment & ENS</h6>
                   <Alert variant="info" className="small p-2 mb-3">
                     Deploy your app to IPFS and register an ENS subdomain (`.remixdapp.eth`).
@@ -660,7 +660,7 @@ const BaseAppWizard: React.FC = () => {
               )}
 
               {viewStep === 3 && (
-                <div className="fade-in">
+                <div className="fade-in" data-id="wizard-step-3-verify">
                   <h6 className="fw-bold mb-2">Step 3: Verification & Association</h6>
                   <Alert variant="info" className="border small p-2 mb-3">
                     <ol className="mb-0 ps-3">
@@ -723,7 +723,7 @@ const BaseAppWizard: React.FC = () => {
               )}
 
               {viewStep === 4 && (
-                <div className="fade-in">
+                <div className="fade-in" data-id="wizard-step-4-finalize">
                   <h6 className="fw-bold mb-2">Step 4: Finalize</h6>
                   <Alert variant="success" className="small p-2 mb-3 bg-success bg-opacity-10 border-success">
                     Re-deploy your app with the association JSON to complete the verification.

@@ -126,6 +126,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
             onClick={() => fileInputRef.current?.click()}
             title="Attach image (Screenshot, Mockup)"
             disabled={isLoading}
+            data-id="chat-attach-btn"
           >
             <i className="fas fa-paperclip"></i>
           </Button>
@@ -143,6 +144,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
             disabled={isLoading}
             className="chat-input flex-grow-1 mx-2"
             style={{ resize: 'none' }}
+            data-id="chat-input"
           />
 
           <Button
@@ -150,6 +152,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
             onClick={handleSendMessage}
             disabled={(!inputMessage.trim() && !selectedImage) || isLoading}
             className="send-button"
+            data-id="chat-send-btn"
           >
             <FormattedMessage id="quickDapp.send" defaultMessage="Send" />
           </Button>
