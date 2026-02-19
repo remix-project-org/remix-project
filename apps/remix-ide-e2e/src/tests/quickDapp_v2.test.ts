@@ -43,15 +43,11 @@ module.exports = {
       .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
       .click('*[data-id="instanceEditIcon"]')
       .pause(2000)
-      // Verify the AI generation modal opens with the correct title
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 10000)
       .assert.textContains('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 'Generate a Dapp UI with AI')
-      // Verify the modal has a textarea (text mode is default)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
-      // Verify OK button (Generate) is visible
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 5000)
       .pause(500)
-      // Use execute to set textarea value directly in JS to avoid stale element references from React re-renders
       .execute(function () {
         const textarea = document.querySelector('[data-id="generate-website-aiModalDialogModalBody-react"] textarea') as HTMLTextAreaElement
         if (textarea) {
@@ -61,7 +57,6 @@ module.exports = {
         }
       })
       .pause(500)
-      // Click the Generate button
       .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
       .pause(1000)
   },
@@ -71,16 +66,11 @@ module.exports = {
   // ──────────────────────────────────
   'Should wait for DApp generation and display dashboard #group1': function (browser: NightwatchBrowser) {
     browser
-      // Give the async createDapp flow time to create workspace, switch, and focus plugin.
-      // Do NOT call clickLaunchIcon here — createDapp already calls menuicons.select('quick-dapp-v2') internally.
       .pause(10000)
-      // Wait for AI generation to complete and dashboard to appear (up to 3 minutes)
       .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
       .pause(2000)
-      // Verify the dapp count badge shows at least 1
       .waitForElementVisible('*[data-id="dapp-count-badge"]', 10000)
       .assert.not.textEquals('*[data-id="dapp-count-badge"]', '0')
-      // Verify at least one DApp card is present
       .waitForElementVisible('[data-id^="dapp-card-"]', 30000)
   },
 
@@ -89,21 +79,13 @@ module.exports = {
   // ──────────────────────────────────
   'Should display dashboard with all expected UI elements #group1': function (browser: NightwatchBrowser) {
     browser
-      // Create New button
       .waitForElementVisible('*[data-id="create-new-dapp-btn"]', 5000)
-      // Delete All button (appears when dapps exist)
       .waitForElementVisible('*[data-id="delete-all-dapps-btn"]', 5000)
-      // Network filter select
       .waitForElementVisible('*[data-id="network-filter-select"]', 5000)
-      // Sort order select
       .waitForElementVisible('*[data-id="sort-order-select"]', 5000)
-      // Verify DApp card has name
       .waitForElementVisible('[data-id^="dapp-card-name-"]', 5000)
-      // Verify DApp card has status
       .waitForElementVisible('[data-id^="dapp-status-"]', 5000)
-      // Verify DApp card has network badge
       .waitForElementVisible('[data-id^="dapp-network-"]', 5000)
-      // Note: delete button is hidden while DApp is still processing (isProcessing=true)
   },
 
   // ──────────────────────────────────
@@ -111,13 +93,10 @@ module.exports = {
   // ──────────────────────────────────
   'Should open DApp editor by clicking on DApp card #group1': function (browser: NightwatchBrowser) {
     browser
-      // Wait for processing state to finish (spinner disappears)
       .waitForElementNotPresent('.spinner-border', 90000)
       .pause(1000)
-      // Click the DApp card
       .click('[data-id^="dapp-card-"]')
       .pause(5000)
-      // Verify editor view opens
       .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 30000)
       .waitForElementVisible('*[data-id="editor-dapp-title"]', 10000)
       .waitForElementVisible('*[data-id="editor-workspace-name"]', 10000)
@@ -128,18 +107,13 @@ module.exports = {
   // ──────────────────────────────────
   'Should display all editor UI elements #group1': function (browser: NightwatchBrowser) {
     browser
-      // ChatBox elements
       .waitForElementVisible('*[data-id="chat-input"]', 10000)
       .waitForElementVisible('*[data-id="chat-send-btn"]', 10000)
       .waitForElementVisible('*[data-id="chat-attach-btn"]', 10000)
-      // Preview section
       .waitForElementVisible('*[data-id="refresh-preview-btn"]', 10000)
       .waitForElementVisible('*[data-id="dapp-preview-iframe"]', 10000)
-      // Delete button in editor header
       .waitForElementVisible('*[data-id="delete-dapp-editor-btn"]', 10000)
-      // DeployPanel
       .waitForElementVisible('*[data-id="deploy-panel"]', 10000)
-      // Deploy to IPFS button
       .waitForElementVisible('*[data-id="deploy-ipfs-btn"]', 10000)
   },
 
@@ -158,7 +132,6 @@ module.exports = {
   // ──────────────────────────────────
   'Should refresh preview successfully #group1': function (browser: NightwatchBrowser) {
     browser
-      // Dismiss any notification modal that may have appeared from initial build/AI generation
       .pause(3000)
       .execute(function () {
         const closeBtn = document.querySelector('[data-id="notification-modal-close-btn"]') as HTMLElement
@@ -167,11 +140,8 @@ module.exports = {
       .pause(1000)
       .waitForElementVisible('*[data-id="refresh-preview-btn"]', 10000)
       .click('*[data-id="refresh-preview-btn"]')
-      // Wait for building to complete
       .pause(10000)
-      // After build completes, the iframe should be visible
       .waitForElementVisible('*[data-id="dapp-preview-iframe"]', 30000)
-      // Dismiss the "Preview Updated" notification modal if it appears
       .pause(3000)
       .execute(function () {
         const closeBtn = document.querySelector('[data-id="notification-modal-close-btn"]') as HTMLElement
@@ -185,13 +155,11 @@ module.exports = {
   // ──────────────────────────────────
   'Should send a chat message for AI update #group1': function (browser: NightwatchBrowser) {
     browser
-      // Dismiss any lingering notification modal
       .execute(function () {
         const closeBtn = document.querySelector('[data-id="notification-modal-close-btn"]') as HTMLElement
         if (closeBtn) closeBtn.click()
       })
       .pause(1000)
-      // Use execute() to set chat input value — it's a React-Bootstrap Form.Control as="textarea"
       .waitForElementVisible('*[data-id="chat-input"]', 10000)
       .execute(function () {
         const textarea = document.querySelector('[data-id="chat-input"]') as HTMLTextAreaElement
@@ -205,12 +173,9 @@ module.exports = {
       .pause(500)
       .click('*[data-id="chat-send-btn"]')
       .pause(2000)
-      // Verify the AI updating overlay appears (the DApp is being updated)
       .waitForElementVisible('*[data-id="ai-updating-overlay"]', 30000)
-      // Wait for the update to complete (overlay disappears)
       .waitForElementNotPresent('*[data-id="ai-updating-overlay"]', 180000)
       .pause(5000)
-      // Dismiss the "Update Successful" notification modal
       .waitForElementVisible('*[data-id="notification-modal-close-btn"]', 60000)
       .click('*[data-id="notification-modal-close-btn"]')
       .pause(500)
@@ -223,7 +188,6 @@ module.exports = {
     browser
       .waitForElementVisible('*[data-id="deploy-ipfs-btn"]', 10000)
       .click('*[data-id="deploy-ipfs-btn"]')
-      // Wait for IPFS deployment to complete
       .waitForElementVisible('*[data-id="deploy-ipfs-success"]', 120000)
       .assert.textContains('*[data-id="deploy-ipfs-success"]', 'Deployed Successfully')
   },
@@ -245,7 +209,6 @@ module.exports = {
       .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 10000)
       .click('*[data-id="back-to-dashboard-btn"]')
       .pause(3000)
-      // Verify the dashboard is shown
       .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 10000)
       .waitForElementVisible('[data-id^="dapp-card-"]', 10000)
   },
@@ -255,21 +218,17 @@ module.exports = {
   // ──────────────────────────────────
   'Should delete DApp from editor and return to empty state #group1': function (browser: NightwatchBrowser) {
     browser
-      // Open the DApp card
       .waitForElementNotPresent('.spinner-border', 90000)
       .pause(1000)
       .click('[data-id^="dapp-card-"]')
       .pause(5000)
       .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 30000)
-      // Click delete button in editor header
       .waitForElementVisible('*[data-id="delete-dapp-editor-btn"]', 10000)
       .click('*[data-id="delete-dapp-editor-btn"]')
       .pause(1000)
-      // Confirm deletion in the modal
       .waitForElementVisible('*[data-id="confirm-delete-dapp-btn"]', 5000)
       .click('*[data-id="confirm-delete-dapp-btn"]')
       .pause(3000)
-      // After deleting the only DApp, should show Getting Started screen
       .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 30000)
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
   },
@@ -279,21 +238,16 @@ module.exports = {
   // ──────────────────────────────────
   'Should create a second DApp and delete from dashboard #group1': function (browser: NightwatchBrowser) {
     browser
-      // Switch back to default_workspace — createDapp moved us to a new workspace
       .clickLaunchIcon('filePanel')
       .switchWorkspace('default_workspace')
       .pause(3000)
-      // Open Storage.sol so compiler has an active file
       .openFile('Storage.sol')
       .pause(3000)
-      // Wait for the file to actually load in the editor tab (use XPath for complex selector)
       .useXpath()
       .waitForElementPresent('//*[@data-id="tab-active" and contains(@data-path, "Storage.sol")]', 10000)
       .useCss()
-      // Re-compile and re-deploy
       .clickLaunchIcon('solidity')
       .pause(5000)
-      // Force-click compile button via execute() to bypass any overlay/disabled state
       .execute(function () {
         const btn = document.querySelector('[data-id="compilerContainerCompileBtn"]') as HTMLButtonElement
         if (btn) {
@@ -309,11 +263,9 @@ module.exports = {
       .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
       .clickInstance(0)
       .pause(1000)
-      // Click sparkle icon for second DApp
       .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
       .click('*[data-id="instanceEditIcon"]')
       .pause(2000)
-      // AI modal
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
       .pause(500)
@@ -328,18 +280,13 @@ module.exports = {
       .pause(500)
       .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
       .pause(1000)
-      // Wait for createDapp async flow to complete (workspace creation + switch + focus)
-      // Do NOT call clickLaunchIcon — createDapp auto-focuses quick-dapp-v2
       .pause(10000)
-      // Wait for dashboard
       .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
       .waitForElementVisible('[data-id^="dapp-card-"]', 30000)
       .waitForElementNotPresent('.spinner-border', 90000)
       .pause(1000)
-      // Delete from dashboard using the card's delete button
       .click('[data-id^="delete-dapp-btn-"]')
       .pause(1000)
-      // Confirm deletion
       .waitForElementVisible('*[data-id="confirm-delete-one-btn"]', 5000)
       .click('*[data-id="confirm-delete-one-btn"]')
       .pause(3000)
@@ -374,11 +321,9 @@ module.exports = {
       .pause(3000)
       .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
       .clickInstance(0)
-      // Click sparkle to open AI modal
       .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
       .click('*[data-id="instanceEditIcon"]')
       .pause(2000)
-      // Fill AI modal and submit
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
       .pause(500)
@@ -393,7 +338,6 @@ module.exports = {
       .pause(500)
       .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
       .pause(10000)
-      // Wait for dashboard
       .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
       .waitForElementVisible('[data-id^="dapp-card-"]', 30000)
       .waitForElementNotPresent('.spinner-border', 180000)
@@ -405,7 +349,6 @@ module.exports = {
   'Should toggle sort order without errors #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="sort-order-select"]', 5000)
-      // Change to "Oldest first"
       .click('*[data-id="sort-order-select"]')
       .execute(function () {
         const select = document.querySelector('[data-id="sort-order-select"]') as HTMLSelectElement
@@ -416,9 +359,7 @@ module.exports = {
         }
       })
       .pause(1000)
-      // Verify cards are still visible after sort change
       .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
-      // Change back to "Newest first"
       .execute(function () {
         const select = document.querySelector('[data-id="sort-order-select"]') as HTMLSelectElement
         if (select) {
@@ -428,7 +369,6 @@ module.exports = {
         }
       })
       .pause(1000)
-      // Verify cards are still visible
       .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
   },
 
@@ -438,14 +378,11 @@ module.exports = {
   'Should filter DApps by network #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="network-filter-select"]', 5000)
-      // The DApp is on Remix VM, verify "All Chains" shows cards
       .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
       .waitForElementVisible('*[data-id="dapp-count-badge"]', 5000)
-      // Set filter to a non-existent network to verify filtered-out state
       .execute(function () {
         const select = document.querySelector('[data-id="network-filter-select"]') as HTMLSelectElement
         if (select) {
-          // Add a fake option and select it to simulate filtering to empty
           const option = document.createElement('option')
           option.value = 'Fake Network'
           option.text = 'Fake Network'
@@ -456,9 +393,7 @@ module.exports = {
         }
       })
       .pause(1000)
-      // Verify count badge shows 0 (filtered)
       .assert.textEquals('*[data-id="dapp-count-badge"]', '0')
-      // Reset to "All Chains"
       .execute(function () {
         const select = document.querySelector('[data-id="network-filter-select"]') as HTMLSelectElement
         if (select) {
@@ -468,7 +403,6 @@ module.exports = {
         }
       })
       .pause(1000)
-      // Verify cards are visible again
       .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
       .assert.not.textEquals('*[data-id="dapp-count-badge"]', '0')
   },
@@ -478,7 +412,6 @@ module.exports = {
   // ──────────────────────────────────
   'Should create a second DApp and show multiple cards #group2': function (browser: NightwatchBrowser) {
     browser
-      // Switch back to default_workspace to re-deploy
       .clickLaunchIcon('filePanel')
       .switchWorkspace('default_workspace')
       .pause(3000)
@@ -504,7 +437,6 @@ module.exports = {
       .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
       .clickInstance(0)
       .pause(1000)
-      // Click sparkle for second DApp
       .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
       .click('*[data-id="instanceEditIcon"]')
       .pause(2000)
@@ -522,11 +454,9 @@ module.exports = {
       .pause(500)
       .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
       .pause(10000)
-      // Wait for dashboard with 2 DApps
       .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
       .waitForElementNotPresent('.spinner-border', 180000)
       .pause(2000)
-      // Verify dapp-count-badge shows at least 2
       .waitForElementVisible('*[data-id="dapp-count-badge"]', 10000)
       .assert.not.textEquals('*[data-id="dapp-count-badge"]', '0')
       .assert.not.textEquals('*[data-id="dapp-count-badge"]', '1')
@@ -540,11 +470,9 @@ module.exports = {
       .waitForElementVisible('*[data-id="delete-all-dapps-btn"]', 5000)
       .click('*[data-id="delete-all-dapps-btn"]')
       .pause(1000)
-      // Confirm "Delete All" in the modal
       .waitForElementVisible('*[data-id="confirm-delete-all-btn"]', 5000)
       .click('*[data-id="confirm-delete-all-btn"]')
       .pause(5000)
-      // After deleting all DApps, should show Getting Started screen
       .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 30000)
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
   },
@@ -554,10 +482,8 @@ module.exports = {
   // ──────────────────────────────────
   'Should display Getting Started guidance with two options #group2': function (browser: NightwatchBrowser) {
     browser
-      // Verify Getting Started card is visible with correct content
       .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 10000)
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
-      // Verify both guide options are mentioned
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Option 1: Start Now Banner')
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Option 2: Sparkle Button')
       .end()
@@ -588,14 +514,12 @@ module.exports = {
       .pause(3000)
       .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
       .clickInstance(0)
-      // Click sparkle => AI modal
       .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
       .click('*[data-id="instanceEditIcon"]')
       .pause(2000)
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
       .pause(500)
-      // Check the Base Mini App checkbox
       .execute(function () {
         const checkbox = document.getElementById('base-miniapp-checkbox') as HTMLInputElement
         if (checkbox && !checkbox.checked) {
@@ -603,7 +527,6 @@ module.exports = {
         }
       })
       .pause(500)
-      // Fill prompt
       .execute(function () {
         const textarea = document.querySelector('[data-id="generate-website-aiModalDialogModalBody-react"] textarea') as HTMLTextAreaElement
         if (textarea) {
@@ -615,7 +538,6 @@ module.exports = {
       .pause(500)
       .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
       .pause(10000)
-      // Wait for dashboard
       .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
       .waitForElementVisible('[data-id^="dapp-card-"]', 30000)
       .waitForElementNotPresent('.spinner-border', 180000)
@@ -626,21 +548,14 @@ module.exports = {
   // ──────────────────────────────────
   'Should show BaseAppWizard with Setup Wizard when editing Base Mini App DApp #group3': function (browser: NightwatchBrowser) {
     browser
-      // Click the first dapp card to enter editor
       .click('[data-id^="dapp-card-"]')
       .pause(3000)
-      // Verify BaseAppWizard is rendered (not normal DeployPanel)
       .waitForElementVisible('*[data-id="base-app-wizard"]', 10000)
-      // Verify the Setup Wizard card is shown (not the Live Dashboard since step 1)
       .waitForElementVisible('*[data-id="base-wizard-card"]', 5000)
-      // Verify "Setup Wizard" text in the card header
       .assert.textContains('*[data-id="base-wizard-card"]', 'Setup Wizard')
-      // Verify Step 1 content is visible
       .waitForElementVisible('*[data-id="wizard-step-1-config"]', 5000)
       .assert.textContains('*[data-id="wizard-step-1-config"]', 'Step 1: App Registration')
-      // Verify the "Save & Next" button is visible
       .waitForElementVisible('*[data-id="wizard-step1-next-btn"]', 5000)
-      // Verify normal deploy panel elements are NOT present (IPFS button, ENS section)
       .assert.not.elementPresent('*[data-id="deploy-ipfs-btn"]')
       .assert.not.elementPresent('*[data-id="ens-section-header"]')
   },
@@ -664,14 +579,12 @@ module.exports = {
   // ──────────────────────────────────
   'Should delete Base Mini App DApp and return to empty state #group3': function (browser: NightwatchBrowser) {
     browser
-      // Click delete on the dapp card
       .waitForElementVisible('[data-id^="delete-dapp-btn-"]', 5000)
       .click('[data-id^="delete-dapp-btn-"]')
       .pause(1000)
       .waitForElementVisible('*[data-id="confirm-delete-one-btn"]', 5000)
       .click('*[data-id="confirm-delete-one-btn"]')
       .pause(3000)
-      // Verify Getting Started screen
       .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 30000)
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
       .end()
