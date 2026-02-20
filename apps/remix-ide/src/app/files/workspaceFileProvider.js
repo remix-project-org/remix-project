@@ -3,12 +3,39 @@
 const EventManager = require('events')
 import FileProvider from "./fileProvider"
 
+/**
+ * Cloud workspace mode constants.
+ * When cloud mode is active, workspaces are stored in .cloud-workspaces/{uuid}/
+ * instead of .workspaces/{display-name}/. The display name is tracked separately.
+ */
+const LEGACY_WORKSPACES_PATH = '.workspaces'
+const CLOUD_WORKSPACES_PATH = '.cloud-workspaces'
+
 export default class WorkspaceFileProvider extends FileProvider {
   constructor () {
     super('')
-    this.workspacesPath = '.workspaces'
+    this.workspacesPath = LEGACY_WORKSPACES_PATH
     this.workspace = null
     this.event = new EventManager()
+
+    /**
+     * Cloud mode state.
+     * When true, workspaces are stored under .cloud-workspaces/{uuid}/ and the
+     * `workspace` field contains a UUID instead of a display name.
+     */
+    this.cloudMode = false
+
+    /**
+     * In cloud mode, the display name of the current workspace.
+     * In legacy mode, this mirrors `this.workspace`.
+     */
+    this.workspaceDisplayName = null
+
+    /**
+     * In cloud mode, the UUID of the current workspace.
+     * In legacy mode, this is null.
+     */
+    this.workspaceId = null
 
     try {
       // make sure "code-sample" has been removed
@@ -24,16 +51,85 @@ export default class WorkspaceFileProvider extends FileProvider {
     }
   }
 
+  // ==================== Cloud Mode ====================
+
+  /**
+   * Enable cloud workspace mode.
+   * Switches the workspaces path to .cloud-workspaces/ and uses UUIDs as directory names.
+   */
+  enableCloudMode () {
+    this.cloudMode = true
+    this.workspacesPath = CLOUD_WORKSPACES_PATH
+    console.log('[WorkspaceFileProvider] Cloud mode enabled, workspacesPath:', this.workspacesPath)
+  }
+
+  /**
+   * Disable cloud workspace mode.
+   * Switches back to the legacy .workspaces/ with display names as directory names.
+   */
+  disableCloudMode () {
+    this.cloudMode = false
+    this.workspacesPath = LEGACY_WORKSPACES_PATH
+    this.workspaceId = null
+    this.workspaceDisplayName = null
+    console.log('[WorkspaceFileProvider] Cloud mode disabled, workspacesPath:', this.workspacesPath)
+  }
+
+  /**
+   * Check if cloud mode is active
+   */
+  isCloudMode () {
+    return this.cloudMode
+  }
+
+  // ==================== Workspace Management ====================
+
   setWorkspace (workspace) {
     const workspaceName = (workspace || {}).name ? workspace.name : workspace
   
     if (!workspaceName) return
-    workspace = workspaceName.replace(/^\/|\/$/g, '') // remove first and last slash
-    this.workspace = workspace
+    const cleanName = workspaceName.replace(/^\/|\/$/g, '') // remove first and last slash
+    this.workspace = cleanName
+
+    if (!this.cloudMode) {
+      // Legacy mode: display name = directory name
+      this.workspaceDisplayName = cleanName
+      this.workspaceId = null
+    }
+  }
+
+  /**
+   * Set the workspace in cloud mode using UUID + display name.
+   * @param {string} uuid - The UUID directory name under .cloud-workspaces/
+   * @param {string} displayName - The human-readable workspace name
+   */
+  setCloudWorkspace (uuid, displayName) {
+    if (!uuid) return
+    this.workspace = uuid.replace(/^\/|\/$/g, '')
+    this.workspaceId = this.workspace
+    this.workspaceDisplayName = displayName || this.workspace
+    console.log('[WorkspaceFileProvider] setCloudWorkspace:', this.workspace, '→', this.workspaceDisplayName)
   }
 
   getWorkspace () {
     return this.workspace
+  }
+
+  /**
+   * Get the display name of the current workspace.
+   * In cloud mode this is the human-readable name.
+   * In legacy mode this equals the workspace directory name.
+   */
+  getWorkspaceDisplayName () {
+    return this.workspaceDisplayName || this.workspace
+  }
+
+  /**
+   * Get the UUID of the current workspace (cloud mode only).
+   * Returns null in legacy mode.
+   */
+  getWorkspaceId () {
+    return this.workspaceId
   }
 
   isReady () {
@@ -42,6 +138,8 @@ export default class WorkspaceFileProvider extends FileProvider {
 
   clearWorkspace () {
     this.workspace = null
+    this.workspaceDisplayName = null
+    this.workspaceId = null
   }
 
   removePrefix (path) {
@@ -71,7 +169,10 @@ export default class WorkspaceFileProvider extends FileProvider {
   async copyFolderToJson (directory, visitFile, visitFolder) {
     visitFile = visitFile || function () { /* do nothing. */ }
     visitFolder = visitFolder || function () { /* do nothing. */ }
-    const regex = new RegExp(`.workspaces/${this.workspace}/`, 'g')
+    // Use the active workspacesPath (.workspaces or .cloud-workspaces) for stripping
+    const escapedPath = this.workspacesPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const escapedWorkspace = this.workspace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(`${escapedPath}/${escapedWorkspace}/`, 'g')
     let json = await super._copyFolderToJsonInternal(directory, ({ path, content }) => {
       visitFile({ path: path.replace(regex, ''), content })
     }, ({ path }) => {
@@ -93,6 +194,24 @@ export default class WorkspaceFileProvider extends FileProvider {
       await super.forceCreateDir(path)
       this.setWorkspace(name)
       this.event.emit('createWorkspace', name)
+    } catch (e) {
+      throw new Error(e)
+    }
+  }
+
+  /**
+   * Create a workspace in cloud mode with a UUID directory
+   * @param {string} uuid - The UUID to use as directory name
+   * @param {string} displayName - The human-readable workspace name
+   */
+  async createCloudWorkspace (uuid, displayName) {
+    try {
+      if (!uuid) throw new Error('UUID is required for cloud workspace')
+      const path = CLOUD_WORKSPACES_PATH + '/' + uuid
+
+      await super.forceCreateDir(path)
+      this.setCloudWorkspace(uuid, displayName)
+      this.event.emit('createWorkspace', displayName)
     } catch (e) {
       throw new Error(e)
     }

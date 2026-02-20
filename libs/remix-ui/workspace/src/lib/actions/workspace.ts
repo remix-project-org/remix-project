@@ -287,8 +287,40 @@ export const createWorkspaceTemplate = async (workspaceName: string, template: W
     dispatch(cloneRepositorySuccess())
   } else {
     const workspaceProvider = plugin.fileProviders.workspace
-    await workspaceProvider.createWorkspace(workspaceName)
+    const isCloudMode = workspaceProvider.isCloudMode && workspaceProvider.isCloudMode()
+
+    if (isCloudMode) {
+      // In cloud mode, create with UUID via the s3Storage plugin
+      try {
+        const isStorageActive = await plugin.call('manager', 'isActive', 's3Storage')
+        if (isStorageActive) {
+          await plugin.call('s3Storage', 'createCloudWorkspace', workspaceName, template)
+        } else {
+          // Fallback: create directly with UUID
+          await workspaceProvider.createCloudWorkspace(generateUUIDFallback(), workspaceName)
+        }
+      } catch (e) {
+        console.warn('[createWorkspaceTemplate] Cloud mode creation failed, falling back:', e)
+        await workspaceProvider.createWorkspace(workspaceName)
+      }
+    } else {
+      await workspaceProvider.createWorkspace(workspaceName)
+    }
   }
+}
+
+/**
+ * Generate a UUID fallback (used when s3Storage plugin is not available in cloud mode creation)
+ */
+function generateUUIDFallback(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
 export type UrlParametersType = {
@@ -516,8 +548,28 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
 export const workspaceExists = async (name: string) => {
   const workspaceProvider = plugin.fileProviders.workspace
   const browserProvider = plugin.fileProviders.browser
-  const workspacePath = 'browser/' + workspaceProvider.workspacesPath + '/' + name
+  const isCloudMode = workspaceProvider.isCloudMode && workspaceProvider.isCloudMode()
 
+  if (isCloudMode) {
+    // In cloud mode, check registry for display name existence
+    try {
+      const registryPath = '/.cloud-workspaces/.registry.json'
+      const registryExists = await browserProvider.exists(registryPath)
+      if (registryExists) {
+        const raw = await browserProvider.get(registryPath)
+        const registry = JSON.parse(raw)
+        const workspaceEntries = registry.workspaces || {}
+        for (const entry of Object.values(workspaceEntries) as any) {
+          if (entry.displayName === name) return true
+        }
+      }
+      return false
+    } catch (e) {
+      // Fallback to directory check
+    }
+  }
+
+  const workspacePath = 'browser/' + workspaceProvider.workspacesPath + '/' + name
   return await browserProvider.exists(workspacePath)
 }
 
@@ -561,8 +613,45 @@ export const renameWorkspaceFromProvider = async (oldName: string, workspaceName
   const browserProvider = plugin.fileProviders.browser
   const workspaceProvider = plugin.fileProviders.workspace
   const workspacesPath = workspaceProvider.workspacesPath
-  await browserProvider.rename('browser/' + workspacesPath + '/' + oldName, 'browser/' + workspacesPath + '/' + workspaceName, true)
-  await workspaceProvider.setWorkspace(workspaceName)
+  const isCloudMode = workspaceProvider.isCloudMode && workspaceProvider.isCloudMode()
+
+  if (isCloudMode) {
+    // In cloud mode, only rename the display name in the registry.
+    // The directory stays at .cloud-workspaces/{uuid}/
+    try {
+      const registryPath = '/.cloud-workspaces/.registry.json'
+      const raw = await browserProvider.get(registryPath)
+      const registry = JSON.parse(raw)
+      const workspaceEntries = registry.workspaces || {}
+
+      let uuid: string | null = null
+      for (const [id, entry] of Object.entries(workspaceEntries) as any) {
+        if (entry.displayName === oldName) {
+          uuid = id
+          break
+        }
+      }
+
+      if (uuid) {
+        registry.workspaces[uuid].displayName = workspaceName
+        registry.workspaces[uuid].updatedAt = new Date().toISOString()
+        registry.updatedAt = new Date().toISOString()
+        await window.remixFileSystem.writeFile(registryPath, JSON.stringify(registry, null, 2), 'utf8')
+
+        // Update provider display name if this is the current workspace
+        if (workspaceProvider.getWorkspaceId && workspaceProvider.getWorkspaceId() === uuid) {
+          workspaceProvider.workspaceDisplayName = workspaceName
+        }
+      }
+    } catch (e) {
+      console.warn('[renameWorkspaceFromProvider] Cloud mode rename failed:', e)
+    }
+  } else {
+    // Legacy mode: rename directory
+    await browserProvider.rename('browser/' + workspacesPath + '/' + oldName, 'browser/' + workspacesPath + '/' + workspaceName, true)
+    await workspaceProvider.setWorkspace(workspaceName)
+  }
+
   await plugin.setWorkspaces(await getWorkspaces())
 }
 
@@ -584,10 +673,48 @@ export const deleteAllWorkspaces = async () => {
 }
 
 const deleteWorkspaceFromProvider = async (workspaceName: string) => {
-  const workspacesPath = plugin.fileProviders.workspace.workspacesPath
+  const workspaceProvider = plugin.fileProviders.workspace
+  const workspacesPath = workspaceProvider.workspacesPath
+  const isCloudMode = workspaceProvider.isCloudMode && workspaceProvider.isCloudMode()
 
   await plugin.fileManager.closeAllFiles()
-  await plugin.fileProviders.browser.remove(workspacesPath + '/' + workspaceName)
+
+  if (isCloudMode) {
+    // In cloud mode, resolve display name to UUID, delete directory, and remove registry entry
+    try {
+      const registryPath = '/.cloud-workspaces/.registry.json'
+      const raw = await plugin.fileProviders.browser.get(registryPath)
+      const registry = JSON.parse(raw)
+      const workspaceEntries = registry.workspaces || {}
+
+      let uuid: string | null = null
+      for (const [id, entry] of Object.entries(workspaceEntries) as any) {
+        if (entry.displayName === workspaceName) {
+          uuid = id
+          break
+        }
+      }
+
+      if (uuid) {
+        // Delete the UUID-named directory
+        await plugin.fileProviders.browser.remove(workspacesPath + '/' + uuid)
+        // Remove from registry
+        delete registry.workspaces[uuid]
+        registry.updatedAt = new Date().toISOString()
+        await window.remixFileSystem.writeFile(registryPath, JSON.stringify(registry, null, 2), 'utf8')
+      } else {
+        // Fallback: try deleting by name (might be a UUID already)
+        await plugin.fileProviders.browser.remove(workspacesPath + '/' + workspaceName)
+      }
+    } catch (e) {
+      console.warn('[deleteWorkspaceFromProvider] Cloud mode delete failed:', e)
+      // Fallback to direct delete
+      await plugin.fileProviders.browser.remove(workspacesPath + '/' + workspaceName)
+    }
+  } else {
+    await plugin.fileProviders.browser.remove(workspacesPath + '/' + workspaceName)
+  }
+
   await plugin.setWorkspaces(await getWorkspaces())
 }
 
@@ -613,7 +740,48 @@ export const switchToWorkspace = async (name: string) => {
     const isActive = await plugin.call('manager', 'isActive', 'remixd')
 
     if (isActive) await plugin.call('manager', 'deactivatePlugin', 'remixd')
-    await plugin.fileProviders.workspace.setWorkspace(name)
+
+    const workspaceProvider = plugin.fileProviders.workspace
+    const isCloudMode = workspaceProvider.isCloudMode && workspaceProvider.isCloudMode()
+
+    if (isCloudMode) {
+      // In cloud mode, `name` is the display name.
+      // We need to resolve it to a UUID via the registry.
+      try {
+        const registryPath = '/.cloud-workspaces/.registry.json'
+        const registryExists = await plugin.fileProviders.browser.exists(registryPath)
+        if (registryExists) {
+          const raw = await plugin.fileProviders.browser.get(registryPath)
+          const registry = JSON.parse(raw)
+          const workspaceEntries = registry.workspaces || {}
+
+          // Find UUID by display name
+          let uuid: string | null = null
+          for (const [id, entry] of Object.entries(workspaceEntries) as any) {
+            if (entry.displayName === name) {
+              uuid = id
+              break
+            }
+          }
+
+          if (uuid) {
+            workspaceProvider.setCloudWorkspace(uuid, name)
+          } else {
+            // Fallback: name might already be a UUID
+            workspaceProvider.setCloudWorkspace(name, name)
+          }
+        } else {
+          // No registry, fallback to legacy behavior
+          workspaceProvider.setWorkspace(name)
+        }
+      } catch (e) {
+        console.warn('[switchToWorkspace] Failed cloud mode resolution, falling back:', e)
+        workspaceProvider.setWorkspace(name)
+      }
+    } else {
+      await workspaceProvider.setWorkspace(name)
+    }
+
     await plugin.setWorkspace({ name, isLocalhost: false })
     const isGitRepo = await plugin.fileManager.isGitRepo()
     dispatch(setMode('browser'))
@@ -726,11 +894,30 @@ export const uploadFolder = async (target, targetFolder: string, cb?: (err: Erro
   }
 }
 
-export type WorkspaceType = { name: string; isGitRepo: boolean; hasGitSubmodules: boolean; branches?: { remote: any; name: string }[]; currentBranch?: string; remoteId?: string }
+export type WorkspaceType = { name: string; isGitRepo: boolean; hasGitSubmodules: boolean; branches?: { remote: any; name: string }[]; currentBranch?: string; remoteId?: string; uuid?: string }
 export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
   try {
+    const workspaceProvider = plugin.fileProviders.workspace
+    const isCloudMode = workspaceProvider.isCloudMode && workspaceProvider.isCloudMode()
+
+    // In cloud mode, load the registry to map UUIDs → display names
+    let registryMap: Record<string, any> = {}
+    if (isCloudMode) {
+      try {
+        const registryPath = '/.cloud-workspaces/.registry.json'
+        const registryExists = await plugin.fileProviders.browser.exists(registryPath)
+        if (registryExists) {
+          const raw = await plugin.fileProviders.browser.get(registryPath)
+          const registry = JSON.parse(raw)
+          registryMap = registry.workspaces || {}
+        }
+      } catch (e) {
+        console.warn('[getWorkspaces] Failed to load cloud workspace registry:', e)
+      }
+    }
+
     const workspaces: WorkspaceType[] = await new Promise((resolve, reject) => {
-      const workspacesPath = plugin.fileProviders.workspace.workspacesPath
+      const workspacesPath = workspaceProvider.workspacesPath
       plugin.fileProviders.browser.resolveDirectory('/' + workspacesPath, (error, items) => {
 
         if (error) {
@@ -740,7 +927,16 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
           Object.keys(items)
             .filter((item) => items[item].isDirectory)
             .map(async (folder) => {
-              const name = folder.replace(workspacesPath + '/', '')
+              const dirName = folder.replace(workspacesPath + '/', '')
+
+              // In cloud mode, translate UUID → display name from registry
+              let name = dirName
+              let uuid: string | undefined
+              if (isCloudMode && registryMap[dirName]) {
+                uuid = dirName
+                name = registryMap[dirName].displayName || dirName
+              }
+
               const isGitRepo: boolean = await plugin.fileProviders.browser.exists('/' + folder + '/.git')
               const hasGitSubmodules: boolean = await plugin.fileProviders.browser.exists('/' + folder + '/.gitmodules')
 
@@ -758,6 +954,11 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
                 // ignore config read errors
               }
 
+              // In cloud mode, use registry remoteId if available
+              if (isCloudMode && registryMap[dirName]?.remoteId) {
+                remoteId = registryMap[dirName].remoteId
+              }
+
               if (isGitRepo) {
                 let branches = []
                 let currentBranch = null
@@ -771,7 +972,8 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
                   currentBranch,
                   hasGitSubmodules,
                   isGist: null,
-                  remoteId
+                  remoteId,
+                  uuid
                 }
               } else {
                 return {
@@ -779,7 +981,8 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
                   isGitRepo,
                   hasGitSubmodules,
                   isGist: plugin.isGist(name), // plugin is filePanel
-                  remoteId
+                  remoteId,
+                  uuid
                 }
               }
             })

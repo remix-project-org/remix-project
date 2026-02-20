@@ -97,6 +97,13 @@ export interface CloudWorkspacesState {
   isAuthenticated: boolean
   currentStatus: CloudStatus
   currentWorkspaceStatus: CurrentWorkspaceCloudStatus
+  // Cloud workspace migration state
+  migrationStatus: {
+    hasUnmigratedWorkspaces: boolean
+    unmigratedWorkspaces: string[]
+    migratedWorkspaces: string[]
+  } | null
+  cloudModeActive: boolean
 }
 
 export class CloudWorkspacesPlugin extends ViewPlugin {
@@ -110,11 +117,15 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
     error: null,
     isAuthenticated: false,
     currentStatus: { key: 'none', title: '', type: '' },
-    currentWorkspaceStatus: { ...defaultWorkspaceStatus }
+    currentWorkspaceStatus: { ...defaultWorkspaceStatus },
+    migrationStatus: null,
+    cloudModeActive: false
   }
 
   constructor() {
     super(profile)
+    // Restore cloud mode state from localStorage
+    this.state.cloudModeActive = localStorage.getItem('remix-cloud-mode') === 'true'
   }
 
   // ==================== Status Badge Management ====================
@@ -239,6 +250,19 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
 
     // Check auth status and load workspaces
     await this.checkAuthAndLoad()
+
+    // Load migration status (independent of auth)
+    await this.loadMigrationStatus()
+
+    // Listen for migration events from s3Storage
+    this.on('s3Storage', 'migrationComplete', async () => {
+      await this.loadMigrationStatus()
+    })
+
+    this.on('s3Storage', 'cloudModeChanged', async (data: { active: boolean }) => {
+      this.state.cloudModeActive = data.active
+      this.renderComponent()
+    })
 
     // Listen for auth state changes (login / logout — NOT token refreshes)
     this.on('auth', 'authStateChanged', async (state: { isAuthenticated: boolean }) => {
@@ -381,6 +405,66 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
     }
 
     await this.call('notification', 'modal', modal)
+  }
+
+  // ==================== Workspace Migration ====================
+
+  /**
+   * Load the current migration status
+   */
+  async loadMigrationStatus(): Promise<void> {
+    try {
+      const status = await this.call('s3Storage', 'getMigrationStatus')
+      this.state.migrationStatus = {
+        hasUnmigratedWorkspaces: status.hasUnmigratedWorkspaces,
+        unmigratedWorkspaces: status.unmigratedWorkspaces,
+        migratedWorkspaces: status.migratedWorkspaces
+      }
+      this.state.cloudModeActive = await this.call('s3Storage', 'isCloudModeActive')
+      this.renderComponent()
+    } catch (e) {
+      console.warn('[CloudWorkspaces] Failed to load migration status:', e)
+      this.state.migrationStatus = null
+    }
+  }
+
+  /**
+   * Trigger workspace migration: copies .workspaces/{name} to .cloud-workspaces/{uuid}
+   */
+  async migrateWorkspaces(): Promise<void> {
+    console.log('[CloudWorkspaces] Starting workspace migration...')
+
+    try {
+      const result = await this.call('s3Storage', 'migrateWorkspaces')
+
+      // Refresh migration status after migration
+      await this.loadMigrationStatus()
+
+      if (!result.success) {
+        console.warn('[CloudWorkspaces] Migration had errors:', result.errors)
+      }
+    } catch (e) {
+      console.error('[CloudWorkspaces] Migration failed:', e)
+      throw e
+    }
+  }
+
+  /**
+   * Toggle cloud mode on/off
+   */
+  async toggleCloudMode(enabled: boolean): Promise<void> {
+    try {
+      if (enabled) {
+        await this.call('s3Storage', 'enableCloudMode')
+      } else {
+        await this.call('s3Storage', 'disableCloudMode')
+      }
+      this.state.cloudModeActive = enabled
+      this.renderComponent()
+    } catch (e) {
+      console.error('[CloudWorkspaces] Failed to toggle cloud mode:', e)
+      throw e
+    }
   }
 
   private async checkAuthAndLoad(): Promise<void> {
@@ -1304,6 +1388,10 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
         onEnableCloud={() => this.enableCloud()}
         onToggleAutosave={(enabled) => this.toggleAutosave(enabled)}
         onUpdateRemoteId={(workspaceName, remoteId) => this.updateWorkspaceRemoteId(workspaceName, remoteId)}
+        onMigrateWorkspaces={() => this.migrateWorkspaces()}
+        onToggleCloudMode={(enabled) => this.toggleCloudMode(enabled)}
+        migrationStatus={state.migrationStatus || undefined}
+        cloudModeActive={state.cloudModeActive}
         onToggleEncryption={(enabled) => this.toggleEncryption(enabled)}
         onSetEncryptionPassphrase={(passphrase) => this.setEncryptionPassphrase(passphrase)}
         onGeneratePassphrase={() => this.generateNewPassphrase()}

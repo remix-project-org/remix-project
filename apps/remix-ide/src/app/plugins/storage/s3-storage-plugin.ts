@@ -10,6 +10,7 @@
  */
 
 import { Plugin } from '@remixproject/engine'
+import { Registry } from '@remix-project/remix-lib'
 import {
   ApiClient,
   StorageConfig,
@@ -35,6 +36,19 @@ import {
   RemixConfig,
   RemoteWorkspaceConfig
 } from './workspace-id'
+import {
+  WorkspaceRegistryManager,
+  WorkspaceRegistryEntry,
+  createWorkspaceRegistryManager,
+  CLOUD_WORKSPACES_PATH,
+  REGISTRY_FILE
+} from './workspace-registry'
+import {
+  WorkspaceMigrationService,
+  MigrationProgress,
+  MigrationResult,
+  MigrationStatus
+} from './workspace-migration'
 import JSZip from 'jszip'
 import {
   encryptToBytes,
@@ -205,7 +219,19 @@ const profile = {
     'setEncryptionPassphrase',
     'hasEncryptionPassphrase',
     'generateEncryptionPassphrase',
-    'clearEncryptionPassphrase'
+    'clearEncryptionPassphrase',
+    // Cloud workspace migration
+    'getMigrationStatus',
+    'migrateWorkspaces',
+    'enableCloudMode',
+    'disableCloudMode',
+    'isCloudModeActive',
+    'getCloudWorkspaces',
+    'switchToCloudWorkspace',
+    'createCloudWorkspace',
+    'renameCloudWorkspace',
+    'deleteCloudWorkspace',
+    'getWorkspaceRegistry'
   ],
   events: [
     'fileUploaded',
@@ -222,7 +248,10 @@ const profile = {
     'conflictDetected',
     'autosaveStarted',
     'encryptionChanged',
-    'passphraseRequired'
+    'passphraseRequired',
+    'migrationProgress',
+    'migrationComplete',
+    'cloudModeChanged'
   ]
 }
 
@@ -242,6 +271,11 @@ export class S3StoragePlugin extends Plugin {
 
   // Track auth state so we only do full init on real state changes (not token refreshes)
   private wasAuthenticated: boolean = false
+
+  // Cloud workspace migration
+  private migrationService: WorkspaceMigrationService | null = null
+  private registryManager: WorkspaceRegistryManager | null = null
+  private _cloudModeActive: boolean = false
 
   constructor() {
     super(profile)
@@ -2495,6 +2529,274 @@ export class S3StoragePlugin extends Plugin {
 
     const idNote = keepRemoteId ? '' : ' (separate copy)'
     await this.call('notification', 'toast', `☁️ Restored to new workspace: ${newWorkspaceName} (${restoredCount} files)${idNote}`)
+  }
+
+  // ==================== Cloud Workspace Migration ====================
+
+  /**
+   * Get the migration service (lazy init)
+   */
+  private getMigrationService(): WorkspaceMigrationService {
+    if (!this.migrationService) {
+      this.migrationService = new WorkspaceMigrationService()
+    }
+    return this.migrationService
+  }
+
+  /**
+   * Get the workspace registry manager (lazy init)
+   */
+  private getRegistryManager(): WorkspaceRegistryManager {
+    if (!this.registryManager) {
+      this.registryManager = createWorkspaceRegistryManager()
+    }
+    return this.registryManager
+  }
+
+  /**
+   * Check migration status - are there un-migrated workspaces?
+   */
+  async getMigrationStatus(): Promise<MigrationStatus> {
+    return this.getMigrationService().getMigrationStatus()
+  }
+
+  /**
+   * Migrate all legacy workspaces to UUID-based cloud workspace structure.
+   * Copies files from .workspaces/{name} to .cloud-workspaces/{uuid}.
+   * Non-destructive: original .workspaces/ is preserved.
+   */
+  async migrateWorkspaces(): Promise<MigrationResult> {
+    console.log('[S3StoragePlugin] 🔄 Starting workspace migration...')
+
+    const migrationService = this.getMigrationService()
+
+    const result = await migrationService.migrateAll((progress: MigrationProgress) => {
+      console.log('[S3StoragePlugin] Migration progress:', progress)
+      this.emit('migrationProgress', progress)
+    })
+
+    console.log('[S3StoragePlugin] 🔄 Migration complete:', result)
+    this.emit('migrationComplete', result)
+
+    if (result.success) {
+      await this.call('notification', 'toast', `☁️ Migrated ${result.migratedCount} workspace(s) to cloud storage format`)
+    } else {
+      await this.call('notification', 'toast', `⚠️ Migration completed with ${result.errors.length} error(s)`)
+    }
+
+    return result
+  }
+
+  /**
+   * Enable cloud mode - switch the workspace file provider to read/write
+   * from .cloud-workspaces/{uuid} instead of .workspaces/{name}.
+   *
+   * The workspace dropdown will show display names from the registry,
+   * but internally resolve to UUID-based directories.
+   */
+  async enableCloudMode(): Promise<void> {
+    if (this._cloudModeActive) {
+      console.log('[S3StoragePlugin] Cloud mode already active')
+      return
+    }
+
+    console.log('[S3StoragePlugin] ☁️ Enabling cloud mode...')
+
+    // Verify that cloud workspaces exist
+    const fs = (window as any).remixFileSystem
+    const hasCloudDir = await fs.exists('/' + CLOUD_WORKSPACES_PATH)
+    if (!hasCloudDir) {
+      throw new Error('No cloud workspaces found. Run migration first.')
+    }
+
+    // Verify registry exists  
+    const hasRegistry = await fs.exists('/' + REGISTRY_FILE)
+    if (!hasRegistry) {
+      throw new Error('Workspace registry not found. Run migration first.')
+    }
+
+    // Switch the workspace file provider to cloud mode
+    const workspaceProvider = this.getWorkspaceProvider()
+    workspaceProvider.enableCloudMode()
+
+    this._cloudModeActive = true
+    localStorage.setItem('remix-cloud-mode', 'true')
+
+    this.emit('cloudModeChanged', { active: true })
+    console.log('[S3StoragePlugin] ☁️ Cloud mode enabled')
+  }
+
+  /**
+   * Disable cloud mode - switch back to legacy .workspaces/{name} structure.
+   */
+  async disableCloudMode(): Promise<void> {
+    if (!this._cloudModeActive) {
+      console.log('[S3StoragePlugin] Cloud mode already inactive')
+      return
+    }
+
+    console.log('[S3StoragePlugin] ☁️ Disabling cloud mode...')
+
+    const workspaceProvider = this.getWorkspaceProvider()
+    workspaceProvider.disableCloudMode()
+
+    this._cloudModeActive = false
+    localStorage.removeItem('remix-cloud-mode')
+
+    this.emit('cloudModeChanged', { active: false })
+    console.log('[S3StoragePlugin] ☁️ Cloud mode disabled')
+  }
+
+  /**
+   * Check if cloud mode is currently active
+   */
+  isCloudModeActive(): boolean {
+    return this._cloudModeActive
+  }
+
+  /**
+   * Get all cloud workspaces from the registry.
+   * Returns entries with displayName, uuid, remoteId, etc.
+   */
+  async getCloudWorkspaces(): Promise<WorkspaceRegistryEntry[]> {
+    const registry = this.getRegistryManager()
+    return registry.getAll()
+  }
+
+  /**
+   * Switch to a cloud workspace by UUID.
+   * Updates the workspace file provider to point to .cloud-workspaces/{uuid}
+   * and notifies the UI with the display name.
+   *
+   * @param uuid - The workspace UUID in the registry
+   */
+  async switchToCloudWorkspace(uuid: string): Promise<void> {
+    const registry = this.getRegistryManager()
+    const entry = await registry.getById(uuid)
+
+    if (!entry) {
+      throw new Error(`Cloud workspace not found: ${uuid}`)
+    }
+
+    console.log(`[S3StoragePlugin] Switching to cloud workspace: ${entry.displayName} (${uuid})`)
+
+    const workspaceProvider = this.getWorkspaceProvider()
+    workspaceProvider.setCloudWorkspace(uuid, entry.displayName)
+
+    // Emit the workspace change with the display name for the UI
+    await this.call('filePanel', 'setWorkspace', {
+      name: entry.displayName,
+      isLocalhost: false
+    })
+  }
+
+  /**
+   * Create a new cloud workspace with a UUID
+   * @param displayName - The human-readable name for the workspace
+   * @param template - Optional workspace template
+   * @returns The created workspace entry
+   */
+  async createCloudWorkspace(displayName: string, template?: string): Promise<WorkspaceRegistryEntry> {
+    const registry = this.getRegistryManager()
+    const workspaceProvider = this.getWorkspaceProvider()
+
+    // Generate UUID and register
+    const uuid = await registry.register(displayName)
+    const entry = await registry.getById(uuid)
+
+    // Create the directory in the filesystem
+    await workspaceProvider.createCloudWorkspace(uuid, displayName)
+
+    console.log(`[S3StoragePlugin] Created cloud workspace: ${displayName} (${uuid})`)
+
+    return entry!
+  }
+
+  /**
+   * Rename a cloud workspace (display name only, UUID stays the same)
+   */
+  async renameCloudWorkspace(uuid: string, newDisplayName: string): Promise<void> {
+    const registry = this.getRegistryManager()
+    await registry.rename(uuid, newDisplayName)
+
+    // If this is the current workspace, update the provider display name
+    const workspaceProvider = this.getWorkspaceProvider()
+    if (workspaceProvider.getWorkspaceId() === uuid) {
+      workspaceProvider.workspaceDisplayName = newDisplayName
+    }
+
+    console.log(`[S3StoragePlugin] Renamed cloud workspace ${uuid} to: ${newDisplayName}`)
+  }
+
+  /**
+   * Delete a cloud workspace
+   */
+  async deleteCloudWorkspace(uuid: string): Promise<void> {
+    const registry = this.getRegistryManager()
+    const entry = await registry.getById(uuid)
+
+    if (!entry) {
+      throw new Error(`Cloud workspace not found: ${uuid}`)
+    }
+
+    // Remove the directory from filesystem
+    const fs = (window as any).remixFileSystem
+    const dirPath = `/${CLOUD_WORKSPACES_PATH}/${uuid}`
+    try {
+      // Recursive delete
+      await this.recursiveDelete(fs, dirPath)
+    } catch (e) {
+      console.warn(`[S3StoragePlugin] Failed to delete cloud workspace directory: ${dirPath}`, e)
+    }
+
+    // Remove from registry
+    await registry.remove(uuid)
+
+    console.log(`[S3StoragePlugin] Deleted cloud workspace: ${entry.displayName} (${uuid})`)
+  }
+
+  /**
+   * Get the full workspace registry (for debugging / UI)
+   */
+  async getWorkspaceRegistry(): Promise<WorkspaceRegistryEntry[]> {
+    return this.getCloudWorkspaces()
+  }
+
+  /**
+   * Get the workspace file provider from the app Registry singleton
+   */
+  private getWorkspaceProvider(): any {
+    try {
+      const provider = Registry.getInstance().get('fileproviders/workspace')
+      if (provider?.api) {
+        return provider.api
+      }
+    } catch (e) {
+      console.warn('[S3StoragePlugin] Failed to get workspace provider from Registry:', e)
+    }
+    return null
+  }
+
+  /**
+   * Recursively delete a directory in the virtual filesystem
+   */
+  private async recursiveDelete(fs: any, path: string): Promise<void> {
+    try {
+      const entries = await fs.readdir(path)
+      for (const entry of entries) {
+        if (!entry || entry === '.' || entry === '..') continue
+        const fullPath = `${path}/${entry}`
+        const stat = await fs.stat(fullPath)
+        if (stat.isDirectory()) {
+          await this.recursiveDelete(fs, fullPath)
+        } else {
+          await fs.unlink(fullPath)
+        }
+      }
+      await fs.rmdir(path)
+    } catch (e) {
+      console.warn(`[S3StoragePlugin] recursiveDelete error at ${path}:`, e)
+    }
   }
 
   /**

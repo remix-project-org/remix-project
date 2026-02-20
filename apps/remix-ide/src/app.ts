@@ -275,7 +275,7 @@ class AppComponent {
       this.track({ category: 'MatomoManager', action: 'showConsentDialog', isClick: false });
     }
 
-    this.walkthroughService = new WalkthroughService(appManager)
+    this.walkthroughService = new WalkthroughService()
 
     this.platform = isElectron() ? 'desktop' : 'web'
 
@@ -722,15 +722,15 @@ class AppComponent {
 
     await this.appManager.activatePlugin(['auth'])
     // Activate/deactivate cloud plugins based on auth state
-    this.appManager.on('auth', 'authStateChanged', async (state: any) => {
-      if (state.isAuthenticated) {
+   // this.appManager.on('auth', 'authStateChanged', async (state: any) => {
+   //   if (state.isAuthenticated) {
         await this.appManager.activatePlugin(['s3Storage'])
         await this.appManager.activatePlugin(['cloudWorkspaces'])
-      } else {
-        await this.appManager.deactivatePlugin('cloudWorkspaces')
-        await this.appManager.deactivatePlugin('s3Storage')
-      }
-    })
+   //   } else {
+     //   await this.appManager.deactivatePlugin('cloudWorkspaces')
+     //   await this.appManager.deactivatePlugin('s3Storage')
+     // }
+   // })
     await this.appManager.activatePlugin(['invitationManager'])
     await this.appManager.activatePlugin(['account'])
     await this.appManager.activatePlugin(['notificationCenter'])
