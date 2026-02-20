@@ -31,8 +31,6 @@ import {
 } from './types'
 import { S3StorageProvider } from './s3-provider'
 import {
-  generateWorkspaceId,
-  isValidWorkspaceId,
   RemixConfig,
   RemoteWorkspaceConfig
 } from './workspace-id'
@@ -940,9 +938,24 @@ export class S3StoragePlugin extends Plugin {
       }
     }
 
-    // Generate a new remote ID
-    const newRemoteId = generateWorkspaceId()
-    console.log('[S3StoragePlugin] Generated new workspace remote ID:', newRemoteId)
+    // Look up the current workspace name, then resolve to a UUID via the registry
+    let workspaceName = 'workspace'
+    try {
+      const currentWorkspace = await this.call('filePanel', 'getCurrentWorkspace')
+      workspaceName = currentWorkspace?.name || 'workspace'
+    } catch (e) {
+      console.warn('[S3StoragePlugin] Could not get workspace name:', e)
+    }
+
+    const registry = this.getRegistryManager()
+    let entry = await registry.getByDisplayName(workspaceName)
+    if (!entry) {
+      // Workspace not yet in registry — register it to get a UUID
+      const uuid = await registry.register(workspaceName)
+      entry = await registry.getById(uuid)
+    }
+    const newRemoteId = entry!.id // UUID
+    console.log('[S3StoragePlugin] Generated new workspace remote ID (UUID):', newRemoteId)
 
     // Get current user ID to associate with this workspace
     let userId: string | undefined
@@ -967,7 +980,7 @@ export class S3StoragePlugin extends Plugin {
     // Save the config
     await this.saveRemixConfig(config)
 
-    await this.call('notification', 'toast', `🔗 Workspace linked to cloud: ${newRemoteId}`)
+    await this.call('notification', 'toast', `🔗 Workspace linked to cloud: ${workspaceName}`)
 
     return newRemoteId
   }
@@ -982,7 +995,7 @@ export class S3StoragePlugin extends Plugin {
       throw new Error('Invalid remote ID')
     }
 
-    const sanitizedId = remoteId.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-')
+    const sanitizedId = remoteId.trim()
 
     // Get current user ID
     let userId: string | undefined
@@ -1076,9 +1089,23 @@ export class S3StoragePlugin extends Plugin {
       throw new Error('You must be logged in to link a workspace')
     }
 
-    // Generate a new remote ID
-    const newRemoteId = generateWorkspaceId()
-    console.log('[S3StoragePlugin] Linking workspace to current user with new ID:', newRemoteId)
+    // Look up the current workspace name and resolve to a UUID via the registry
+    let workspaceName = 'workspace'
+    try {
+      const currentWorkspace = await this.call('filePanel', 'getCurrentWorkspace')
+      workspaceName = currentWorkspace?.name || 'workspace'
+    } catch (e) {
+      console.warn('[S3StoragePlugin] Could not get workspace name:', e)
+    }
+
+    const registry = this.getRegistryManager()
+    let entry = await registry.getByDisplayName(workspaceName)
+    if (!entry) {
+      const uuid = await registry.register(workspaceName)
+      entry = await registry.getById(uuid)
+    }
+    const newRemoteId = entry!.id // UUID
+    console.log('[S3StoragePlugin] Linking workspace to current user with UUID:', newRemoteId)
 
     let config = await this.getRemixConfig()
     if (!config) {
@@ -1094,7 +1121,7 @@ export class S3StoragePlugin extends Plugin {
 
     await this.saveRemixConfig(config)
 
-    await this.call('notification', 'toast', `🔗 Workspace linked to your cloud: ${newRemoteId}`)
+    await this.call('notification', 'toast', `🔗 Workspace linked to your cloud: ${workspaceName}`)
 
     return newRemoteId
   }
@@ -2474,7 +2501,15 @@ export class S3StoragePlugin extends Plugin {
 
     // Decide whether to keep the original remoteId or assign a fresh one
     const keepRemoteId = options?.keepRemoteId !== false // Default to true for backward compatibility
-    const assignedRemoteId = keepRemoteId ? remoteWorkspaceId : generateWorkspaceId()
+    let assignedRemoteId: string
+    if (keepRemoteId) {
+      assignedRemoteId = remoteWorkspaceId
+    } else {
+      // Register the new workspace in the registry to get a fresh UUID
+      const registry = this.getRegistryManager()
+      const newUuid = await registry.register(newWorkspaceName)
+      assignedRemoteId = newUuid
+    }
 
     const remixConfig: RemixConfig = {
       'remote-workspace': {

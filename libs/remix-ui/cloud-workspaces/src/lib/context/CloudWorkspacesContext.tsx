@@ -41,7 +41,6 @@ export interface CloudWorkspacesContextActions {
   linkToCurrentUser: () => Promise<void>
   enableCloud: () => Promise<void>
   toggleAutosave: (enabled: boolean) => Promise<void>
-  setWorkspaceRemoteId: (workspaceName: string, remoteId: string) => Promise<void>
   refresh: () => Promise<void>
   // Encryption actions
   toggleEncryption: (enabled: boolean) => Promise<void>
@@ -80,7 +79,6 @@ const defaultContext: CloudWorkspacesContextValue = {
   linkToCurrentUser: async () => {},
   enableCloud: async () => {},
   toggleAutosave: async () => {},
-  setWorkspaceRemoteId: async () => {},
   refresh: async () => {},
   toggleEncryption: async () => {},
   setEncryptionPassphrase: async () => false,

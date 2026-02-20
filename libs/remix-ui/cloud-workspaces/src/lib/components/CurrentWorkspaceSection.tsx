@@ -20,15 +20,12 @@ export const CurrentWorkspaceSection: React.FC<CurrentWorkspaceSectionProps> = (
     linkToCurrentUser,
     enableCloud,
     toggleAutosave,
-    setWorkspaceRemoteId,
     toggleEncryption,
     setEncryptionPassphrase,
     generateNewPassphrase,
     clearEncryptionPassphrase
   } = useCloudWorkspaces()
 
-  const [isEditingName, setIsEditingName] = useState(false)
-  const [editedName, setEditedName] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
   const [, setTick] = useState(0) // Force re-render for time updates
 
@@ -127,28 +124,6 @@ export const CurrentWorkspaceSection: React.FC<CurrentWorkspaceSectionProps> = (
       await enableCloud()
     } catch (e) {
       setLocalError(e.message || 'Failed to enable cloud')
-    }
-  }
-
-  const handleStartEditName = () => {
-    setEditedName(status.remoteId || '')
-    setIsEditingName(true)
-  }
-
-  const handleCancelEditName = () => {
-    setIsEditingName(false)
-    setEditedName(status.remoteId || '')
-  }
-
-  const handleSaveName = async () => {
-    if (!editedName.trim()) return
-
-    setLocalError(null)
-    try {
-      await setWorkspaceRemoteId(status.workspaceName, editedName.trim())
-      setIsEditingName(false)
-    } catch (e) {
-      setLocalError(e.message || 'Failed to rename')
     }
   }
 
@@ -295,63 +270,22 @@ export const CurrentWorkspaceSection: React.FC<CurrentWorkspaceSectionProps> = (
           </span>
         </div>
 
-        {/* Remote ID with edit */}
+        {/* Remote ID (read-only UUID) */}
         <div className="small mb-2">
           <span className="text-muted">Cloud: </span>
-          {isEditingName ? (
-            <div className="d-inline-flex align-items-center">
-              <input
-                type="text"
-                className="form-control form-control-sm py-0"
-                style={{ fontSize: '0.8rem', width: '120px' }}
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveName()
-                  if (e.key === 'Escape') handleCancelEditName()
-                }}
-                onBlur={handleCancelEditName}
-                autoFocus
-              />
-              <button
-                className="btn btn-sm p-0 ms-1 text-success"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={handleSaveName}
-                style={{ border: 'none', background: 'none' }}
-              >
-                <i className="fas fa-check" style={{ fontSize: '0.75rem' }}></i>
-              </button>
-              <button
-                className="btn btn-sm p-0 ms-1 text-muted"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={handleCancelEditName}
-                style={{ border: 'none', background: 'none' }}
-              >
-                <i className="fas fa-times" style={{ fontSize: '0.75rem' }}></i>
-              </button>
-            </div>
-          ) : (
-            <>
-              <span className="text-truncate" title={status.remoteId || ''}>
-                {status.remoteId || <span className="text-muted fst-italic">
-                  <FormattedMessage id="cloudWorkspaces.notLinked" defaultMessage="Not linked" />
-                </span>}
+          {status.remoteId ? (
+            <CustomTooltip
+              placement="top"
+              tooltipText={status.remoteId}
+            >
+              <span className="badge bg-secondary font-monospace" style={{ fontSize: '0.7rem' }}>
+                {status.remoteId.substring(0, 8)}…
               </span>
-              {status.remoteId && (
-                <CustomTooltip
-                  placement="top"
-                  tooltipText={intl.formatMessage({ id: 'cloudWorkspaces.editCloudName', defaultMessage: 'Edit cloud name' })}
-                >
-                  <button
-                    className="btn btn-sm p-0 ms-1 text-muted"
-                    onClick={handleStartEditName}
-                    style={{ border: 'none', background: 'none' }}
-                  >
-                    <i className="fas fa-pencil-alt" style={{ fontSize: '0.65rem' }}></i>
-                  </button>
-                </CustomTooltip>
-              )}
-            </>
+            </CustomTooltip>
+          ) : (
+            <span className="text-muted fst-italic">
+              <FormattedMessage id="cloudWorkspaces.notLinked" defaultMessage="Not linked" />
+            </span>
           )}
         </div>
 

@@ -30,7 +30,6 @@ export interface CloudWorkspacesProps {
   onLinkToCurrentUser: () => Promise<void>
   onEnableCloud: () => Promise<void>
   onToggleAutosave: (enabled: boolean) => Promise<void>
-  onUpdateRemoteId: (workspaceName: string, remoteId: string) => Promise<void>
   // Migration handlers
   onMigrateWorkspaces?: () => Promise<void>
   onToggleCloudMode?: (enabled: boolean) => Promise<void>
@@ -65,7 +64,6 @@ export const RemixUICloudWorkspaces: React.FC<CloudWorkspacesProps> = ({
   onLinkToCurrentUser,
   onEnableCloud,
   onToggleAutosave,
-  onUpdateRemoteId,
   onMigrateWorkspaces,
   onToggleCloudMode,
   migrationStatus,
@@ -123,7 +121,6 @@ export const RemixUICloudWorkspaces: React.FC<CloudWorkspacesProps> = ({
     linkToCurrentUser: onLinkToCurrentUser,
     enableCloud: onEnableCloud,
     toggleAutosave: onToggleAutosave,
-    setWorkspaceRemoteId: onUpdateRemoteId,
     refresh: async () => { onRefresh() },
     toggleEncryption: onToggleEncryption,
     setEncryptionPassphrase: onSetEncryptionPassphrase,

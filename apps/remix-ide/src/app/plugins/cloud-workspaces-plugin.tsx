@@ -1387,7 +1387,6 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
         onLinkToCurrentUser={() => this.linkToCurrentUser()}
         onEnableCloud={() => this.enableCloud()}
         onToggleAutosave={(enabled) => this.toggleAutosave(enabled)}
-        onUpdateRemoteId={(workspaceName, remoteId) => this.updateWorkspaceRemoteId(workspaceName, remoteId)}
         onMigrateWorkspaces={() => this.migrateWorkspaces()}
         onToggleCloudMode={(enabled) => this.toggleCloudMode(enabled)}
         migrationStatus={state.migrationStatus || undefined}
