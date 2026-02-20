@@ -268,7 +268,7 @@ export const syncContractsInternal = async (plugin: RunTab) => {
   }
 }
 
-export const runTransactions = (
+export const runTransactions = async (
   plugin: RunTab,
   dispatch: React.Dispatch<any>,
   instanceIndex: number,
@@ -278,10 +278,6 @@ export const runTransactions = (
   contractName: string,
   contractABI, contract,
   address,
-  logMsg: string,
-  mainnetPrompt: MainnetPrompt,
-  gasEstimationPrompt: (msg: string) => JSX.Element,
-  passphrasePrompt: (msg: string) => JSX.Element,
   funcIndex?: number) => {
   let callinfo = ''
   let eventAction
@@ -298,36 +294,13 @@ export const runTransactions = (
   trackMatomoEvent(plugin, { category: 'udapp', action: eventAction, name: plugin.REACT_API.networkName, isClick: true })
 
   const params = funcABI.type !== 'fallback' ? inputsValues : ''
-  plugin.blockchain.runOrCallContractMethod(
-    contractName,
-    contractABI,
-    funcABI,
-    contract,
-    inputsValues,
-    address,
-    params,
-    lookupOnly,
-    logMsg,
-    (msg) => {
-      const log = logBuilder(msg)
+  const result = await plugin.call('blockchain', 'runOrCallContractMethod', contractName, contractABI, funcABI, contract, inputsValues, address, params, lookupOnly)
 
-      return terminalLogger(plugin, log)
-    },
-    (returnValue) => {
-      const response = txFormat.decodeResponse(returnValue, funcABI)
+  if (lookupOnly) {
+    const response = txFormat.decodeResponse(result.returnValue, funcABI)
 
-      dispatch(setDecodedResponse(instanceIndex, response, funcIndex))
-    },
-    (network, tx, gasEstimation, continueTxExecution, cancelCb) => {
-      confirmationHandler(plugin, dispatch, mainnetPrompt, network, tx, gasEstimation, continueTxExecution, cancelCb)
-    },
-    (error, continueTxExecution, cancelCb) => {
-      continueHandler(dispatch, gasEstimationPrompt, error, continueTxExecution, cancelCb)
-    },
-    (okCb, cancelCb) => {
-      promptHandler(dispatch, passphrasePrompt, okCb, cancelCb)
-    }
-  )
+    dispatch(setDecodedResponse(instanceIndex, response, funcIndex))
+  }
 }
 
 export const getFuncABIInputs = (plugin: RunTab, funcABI: FuncABI) => {
@@ -342,72 +315,5 @@ export const updateInstanceBalance = async (plugin: RunTab, dispatch: React.Disp
       instance.balance = balInEth
     }
     dispatch(updateInstanceBalance(instances, dispatch))
-  }
-}
-
-export const isValidContractAddress = async (plugin: RunTab, address: string) => {
-  if (!address) {
-    return false
-  } else {
-    if (isAddress(address)) {
-      return await plugin.blockchain.web3().getCode(address) !== '0x'
-    } else {
-      return false
-    }
-  }
-}
-
-export const getNetworkProxyAddresses = async (plugin: RunTab, dispatch: React.Dispatch<any>) => {
-  const network = plugin.blockchain.networkStatus.network
-  const identifier = network.name === 'custom' ? network.name + '-' + network.id : network.name
-  const networkDeploymentsExists = await plugin.call('fileManager', 'exists', `.deploys/upgradeable-contracts/${identifier}/UUPS.json`)
-
-  if (networkDeploymentsExists) {
-    const networkFile: string = await plugin.call('fileManager', 'readFile', `.deploys/upgradeable-contracts/${identifier}/UUPS.json`)
-    const parsedNetworkFile: NetworkDeploymentFile = JSON.parse(networkFile)
-    const deployments = []
-
-    for (const proxyAddress in Object.keys(parsedNetworkFile.deployments)) {
-      if (parsedNetworkFile.deployments[proxyAddress] && parsedNetworkFile.deployments[proxyAddress].implementationAddress) {
-        const solcBuildExists = await plugin.call('fileManager', 'exists', `.deploys/upgradeable-contracts/${identifier}/solc-${parsedNetworkFile.deployments[proxyAddress].implementationAddress}.json`)
-
-        if (solcBuildExists) deployments.push({ address: proxyAddress, date: parsedNetworkFile.deployments[proxyAddress].date, contractName: parsedNetworkFile.deployments[proxyAddress].contractName })
-      }
-    }
-    dispatch(fetchProxyDeploymentsSuccess(deployments))
-  } else {
-    dispatch(fetchProxyDeploymentsSuccess([]))
-  }
-}
-
-export const isValidContractUpgrade = async (plugin: RunTab, proxyAddress: string, newContractName: string, solcInput: SolcInput, solcOutput: SolcOutput, solcVersion: string) => {
-  // build current contract first to get artefacts.
-  const network = plugin.blockchain.networkStatus.network
-  const identifier = network.name === 'custom' ? network.name + '-' + network.id : network.name === 'VM' ? plugin.blockchain.getProvider() : network.name
-  const networkDeploymentsExists = await plugin.call('fileManager', 'exists', `.deploys/upgradeable-contracts/${identifier}/UUPS.json`)
-
-  if (networkDeploymentsExists) {
-    const networkFile: string = await plugin.call('fileManager', 'readFile', `.deploys/upgradeable-contracts/${identifier}/UUPS.json`)
-    const parsedNetworkFile: NetworkDeploymentFile = JSON.parse(networkFile)
-
-    if (parsedNetworkFile.deployments[proxyAddress] && parsedNetworkFile.deployments[proxyAddress].implementationAddress) {
-      const solcBuildExists = await plugin.call('fileManager', 'exists', `.deploys/upgradeable-contracts/${identifier}/solc-${parsedNetworkFile.deployments[proxyAddress].implementationAddress}.json`)
-
-      if (solcBuildExists) {
-        const solcFile: string = await plugin.call('fileManager', 'readFile', `.deploys/upgradeable-contracts/${identifier}/solc-${parsedNetworkFile.deployments[proxyAddress].implementationAddress}.json`)
-        const parsedSolcFile: SolcBuildFile = JSON.parse(solcFile)
-        const oldImpl = new UpgradeableContract(parsedNetworkFile.deployments[proxyAddress].contractName, parsedSolcFile.solcInput, parsedSolcFile.solcOutput, { kind: 'uups' }, solcVersion)
-        const newImpl = new UpgradeableContract(newContractName, solcInput, solcOutput, { kind: 'uups' }, solcVersion)
-        const report = oldImpl.getStorageUpgradeReport(newImpl, { kind: 'uups' })
-
-        return report
-      } else {
-        return { ok: false, pass: false, warning: true }
-      }
-    } else {
-      return { ok: false, pass: false, warning: true }
-    }
-  } else {
-    return { ok: false, pass: false, warning: true }
   }
 }

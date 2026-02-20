@@ -1,6 +1,7 @@
 'use strict'
 
 import { CompilationResult, visitContractsCallbackParam, visitContractsCallbackInterface } from './types'
+
 export default {
 
   /**
@@ -9,7 +10,7 @@ export default {
    * @param contracts 'contracts' object from last compilation result
    */
 
-  getContract: (contractName: string, contracts: CompilationResult['contracts']) : Record<string, any> | null => {
+  getContract: (contractName: string, contracts: CompilationResult['contracts']) : any | null => {
     for (const file in contracts) {
       if (contracts[file][contractName]) {
         return { object: contracts[file][contractName], file: file }

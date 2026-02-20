@@ -65,6 +65,7 @@ const ModalWrapper = (props: ModalWrapperProps) => {
       <>
         {props.message}
         <input
+          key={defaultValue}
           onChange={onInputChanged}
           type={props.modalType === ModalTypes.password ? 'password' : 'text'}
           defaultValue={defaultValue}

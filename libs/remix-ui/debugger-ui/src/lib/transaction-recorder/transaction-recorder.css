@@ -53,7 +53,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--bs-secondary);
   background-color: var(--bs-light);
   flex-wrap: nowrap;
   gap: 0.25rem;

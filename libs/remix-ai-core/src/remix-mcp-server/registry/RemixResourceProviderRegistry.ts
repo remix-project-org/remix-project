@@ -133,7 +133,7 @@ export class RemixResourceProviderRegistry implements ResourceProviderRegistry {
 
     // Apply pagination
     const offset = query?.offset || 0;
-    const limit = query?.limit || 50;
+    const limit = query?.limit || 150;
     const paginatedResources = filteredResources.slice(offset, offset + limit);
 
     return {

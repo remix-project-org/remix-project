@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, Credits } from '@remix-api'
+import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, InviteApiService, Credits, InviteValidateResponse, InviteRedeemResponse } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { getAddress } from 'ethers'
 
@@ -7,8 +7,8 @@ const profile = {
   name: 'auth',
   displayName: 'Authentication',
   description: 'Handles SSO authentication and credits',
-  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig'],
-  events: ['authStateChanged', 'creditsUpdated', 'accountLinked']
+  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken'],
+  events: ['authStateChanged', 'creditsUpdated', 'accountLinked', 'gitHubTokenReady', 'inviteTokenDetected', 'inviteTokenRedeemed']
 }
 
 export class AuthPlugin extends Plugin {
@@ -18,7 +18,9 @@ export class AuthPlugin extends Plugin {
   private creditsApi: CreditsApiService
   private permissionsApi: PermissionsApiService
   private billingApi: BillingApiService
+  private inviteApi: InviteApiService
   private refreshTimer: number | null = null
+  private pendingInviteToken: string | null = null
 
   constructor() {
     super(profile)
@@ -43,12 +45,17 @@ export class AuthPlugin extends Plugin {
     const billingClient = new ApiClient(endpointUrls.billing)
     this.billingApi = new BillingApiService(billingClient)
 
+    // Invite API (no auth required for validation, but needed for redemption)
+    const inviteClient = new ApiClient(endpointUrls.invite)
+    this.inviteApi = new InviteApiService(inviteClient)
+
     // Set up token refresh callback for auto-renewal
     this.apiClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     this.profileClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     creditsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     permissionsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     billingClient.setTokenRefreshCallback(() => this.refreshAccessToken())
+    inviteClient.setTokenRefreshCallback(() => this.refreshAccessToken())
   }
 
   private clearRefreshTimer() {
@@ -275,7 +282,7 @@ export class AuthPlugin extends Plugin {
       }
 
       // Wait for message from popup
-      const result = await new Promise<{ user: AuthUser; accessToken: string; refreshToken: string }>((resolve, reject) => {
+      const result = await new Promise<{ user: AuthUser; accessToken: string; refreshToken: string; providerToken?: string }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           cleanup()
           reject(new Error('Login timeout'))
@@ -290,6 +297,7 @@ export class AuthPlugin extends Plugin {
         }, 500) // Check every 500ms
 
         const handleMessage = (event: MessageEvent) => {
+          console.log('[AuthPlugin] Received message event:', event)
           // Verify origin
           if (event.origin !== new URL(endpointUrls.sso).origin) {
             return
@@ -297,13 +305,14 @@ export class AuthPlugin extends Plugin {
 
           if (event.data.type === 'sso-auth-success') {
             console.log('[AuthPlugin] Received auth success from popup')
-            console.log('[AuthPlugin] User data from popup:', event.data.user)
+            console.log('[AuthPlugin] User data from popup:', event.data)
             console.log('[AuthPlugin] User provider field:', event.data.user?.provider)
             cleanup()
             resolve({
               user: event.data.user,
               accessToken: event.data.accessToken,
-              refreshToken: event.data.refreshToken
+              refreshToken: event.data.refreshToken,
+              providerToken: event.data.providerToken
             })
           } else if (event.data.type === 'sso-auth-error') {
             cleanup()
@@ -324,6 +333,7 @@ export class AuthPlugin extends Plugin {
       })
 
       // Store tokens in localStorage
+      console.log(result)
       console.log('[AuthPlugin] Storing user in localStorage:', result.user)
       console.log('[AuthPlugin] User has provider field:', result.user.provider)
       localStorage.setItem('remix_access_token', result.accessToken)
@@ -340,6 +350,12 @@ export class AuthPlugin extends Plugin {
         user: result.user,
         token: result.accessToken
       })
+
+      // If logged in via GitHub, bridge the provider token to dgit config
+      if (result.user.provider === 'github' && result.providerToken) {
+        console.log('[AuthPlugin] GitHub provider detected, bridging token to dgit')
+        await this.bridgeGitHubToken(result.providerToken)
+      }
 
       // Fetch credits after successful login
       this.refreshCredits().catch(console.error)
@@ -408,7 +424,7 @@ export class AuthPlugin extends Plugin {
       }
 
       // Wait for message from popup
-      const result = await new Promise<{ user: AuthUser; accessToken: string }>((resolve, reject) => {
+      const result = await new Promise<{ user: AuthUser; accessToken: string; providerToken?: string }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           cleanup()
           reject(new Error('Account linking timeout'))
@@ -476,9 +492,78 @@ export class AuthPlugin extends Plugin {
       localStorage.setItem('remix_access_token', currentToken)
       localStorage.setItem('remix_user', JSON.stringify(currentUser))
 
+      // If linking GitHub, bridge the provider token to dgit config
+      if (provider === 'github' && result.providerToken) {
+        console.log('[AuthPlugin] GitHub linked, bridging token to dgit')
+        await this.bridgeGitHubToken(result.providerToken)
+      }
+
     } catch (error: any) {
       console.error('[AuthPlugin] Account linking failed:', error)
       throw error
+    }
+  }
+
+  /**
+   * Bridge a GitHub OAuth token to the dgit plugin config.
+   * Saves the token and emits an event so git listeners can update state.
+   */
+  private async bridgeGitHubToken(token: string): Promise<void> {
+    try {
+      await this.call('config' as any, 'setAppParameter', 'settings/gist-access-token', token)
+      this.emit('gitHubTokenReady' as any, { token })
+      console.log('[AuthPlugin] GitHub token bridged to dgit config')
+    } catch (error) {
+      console.error('[AuthPlugin] Failed to bridge GitHub token:', error)
+    }
+  }
+
+  /**
+   * Fetch the stored GitHub OAuth token from the SSO backend.
+   * Use this when a non-GitHub SSO user links GitHub later,
+   * or to re-fetch after session restore.
+   */
+  async fetchGitHubToken(): Promise<string | null> {
+    try {
+      const token = await this.getToken()
+      if (!token) return null
+
+      const response = await fetch(`${endpointUrls.sso}/accounts/github/token`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        console.log('[AuthPlugin] No GitHub token available from backend:', response.status)
+        return null
+      }
+
+      const data = await response.json()
+      if (data.access_token) {
+        await this.bridgeGitHubToken(data.access_token)
+        return data.access_token
+      }
+      return null
+    } catch (error) {
+      console.error('[AuthPlugin] Failed to fetch GitHub token:', error)
+      return null
+    }
+  }
+
+  /**
+   * Disconnect GitHub from dgit. Clears the stored GitHub token
+   * but does NOT affect SSO login state.
+   */
+  async disconnectGitHub(): Promise<void> {
+    try {
+      await this.call('config' as any, 'setAppParameter', 'settings/gist-access-token', '')
+      this.emit('gitHubTokenReady' as any, { token: null })
+      console.log('[AuthPlugin] GitHub disconnected from dgit')
+    } catch (error) {
+      console.error('[AuthPlugin] Failed to disconnect GitHub:', error)
     }
   }
 
@@ -506,6 +591,8 @@ export class AuthPlugin extends Plugin {
       // Update other API services too
       this.creditsApi.setToken(token)
       this.permissionsApi.setToken(token)
+      this.billingApi.setToken(token)
+      this.inviteApi.setToken(token)
     }
 
     return token
@@ -543,10 +630,20 @@ export class AuthPlugin extends Plugin {
         this.profileClient.setToken(newAccessToken)
         this.creditsApi.setToken(newAccessToken)
         this.permissionsApi.setToken(newAccessToken)
+        this.billingApi.setToken(newAccessToken)
+        this.inviteApi.setToken(newAccessToken)
 
         console.log('[AuthPlugin] Access token refreshed successfully')
         // Reschedule next proactive refresh
         this.scheduleRefresh(newAccessToken)
+
+        // Notify all listeners about the new token
+        // Only emit tokenRefreshed — NOT authStateChanged.
+        // The user hasn't changed, only the token was refreshed.
+        // Emitting authStateChanged here would cause all consumers to re-initialize
+        // (reload configs, re-read S3 data, etc.) for no reason.
+        this.emit('tokenRefreshed', { token: newAccessToken })
+
         return newAccessToken
       }
 
@@ -645,6 +742,8 @@ export class AuthPlugin extends Plugin {
 
     // Validate existing token with the API on load
     this.validateAndRestoreSession()
+
+    // Note: Invite token URL checking is handled by invitationManager plugin
   }
 
   /**
@@ -978,5 +1077,108 @@ Issued At: ${new Date().toISOString()}`
       console.error('[SIWE] Login failed:', error)
       throw error
     }
+  }
+
+  // ==================== Invite Token Methods ====================
+
+  /**
+   * Get the Invite API service
+   */
+  getInviteApi(): InviteApiService {
+    return this.inviteApi
+  }
+
+  /**
+   * Validate an invite token (no auth required)
+   * @param token - The invite token string
+   */
+  async validateInviteToken(token: string): Promise<InviteValidateResponse> {
+    const response = await this.inviteApi.validateToken(token)
+    if (!response.ok) {
+      return {
+        valid: false,
+        error: response.error || 'Failed to validate token',
+        error_code: 'NOT_FOUND'
+      }
+    }
+    return response.data!
+  }
+
+  /**
+   * Redeem an invite token (auth required)
+   * @param token - The invite token string
+   */
+  async redeemInviteToken(token: string): Promise<InviteRedeemResponse> {
+    const response = await this.inviteApi.redeemToken(token)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: response.error || 'Failed to redeem token',
+        error_code: 'NOT_FOUND'
+      }
+    }
+
+    const result = response.data!
+
+    // If redemption was successful, emit event and refresh relevant data
+    if (result.success) {
+      this.emit('inviteTokenRedeemed', {
+        token,
+        actions: result.actions_applied
+      })
+
+      // Refresh credits and permissions as they may have changed
+      this.refreshCredits().catch(console.error)
+    }
+
+    return result
+  }
+
+  /**
+   * Get the pending invite token (if any)
+   */
+  getPendingInviteToken(): string | null {
+    // Check session storage first, then instance variable
+    const sessionToken = sessionStorage.getItem('remix_pending_invite')
+    return sessionToken || this.pendingInviteToken
+  }
+
+  /**
+   * Get the pending invite validation result (if any)
+   */
+  getPendingInviteValidation(): { token: string; validation: InviteValidateResponse } | null {
+    const stored = sessionStorage.getItem('remix_pending_invite_validation')
+    if (stored) {
+      try {
+        return JSON.parse(stored)
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
+
+  /**
+   * Set a pending invite token
+   */
+  setPendingInviteToken(token: string): void {
+    this.pendingInviteToken = token
+    sessionStorage.setItem('remix_pending_invite', token)
+  }
+
+  /**
+   * Store the pending invite validation for retrieval by UI
+   */
+  setPendingInviteValidation(token: string, validation: InviteValidateResponse): void {
+    sessionStorage.setItem('remix_pending_invite_validation', JSON.stringify({ token, validation }))
+  }
+
+  /**
+   * Clear the pending invite token
+   */
+  clearPendingInviteToken(): void {
+    this.pendingInviteToken = null
+    sessionStorage.removeItem('remix_pending_invite')
+    sessionStorage.removeItem('remix_pending_invite_validation')
   }
 }

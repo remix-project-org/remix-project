@@ -21,7 +21,7 @@ import { MCPClient } from "./mcpClient";
 import { SimpleToolSelector } from "../../services/simpleToolSelector";
 
 // Helper function to track events using MatomoManager instance
-function trackMatomoEvent(category: string, action: string, name?: string) {
+function trackMatomoEvent(category: string, action: string, name: string) {
   try {
     if (typeof window !== 'undefined' && (window as any)._matomoManagerInstance) {
       const matomoInstance = (window as any)._matomoManagerInstance;
@@ -42,7 +42,8 @@ function trackMatomoEvent(category: string, action: string, name?: string) {
 export class MCPInferencer extends RemoteInferencer implements ICompletions, IGeneration {
   private mcpClients: Map<string, MCPClient> = new Map();
   private connectionStatuses: Map<string, IMCPConnectionStatus> = new Map();
-  private extResourceCache: Map<string, { content: IMCPResourceContent, timestamp: number }> = new Map();
+  private resourceCache: Map<string, IMCPResourceContent> = new Map();
+  private toolsCache: Map<string, IMCPTool[]> = new Map();
   private intentAnalyzer: IntentAnalyzer = new IntentAnalyzer();
   private resourceScoring: ResourceScoring = new ResourceScoring();
   private remixMCPServer?: any; // Internal RemixMCPServer instance
@@ -72,12 +73,19 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
         });
 
         // Set up event listeners
-        client.on('connected', (serverName: string, result: IMCPInitializeResult) => {
+        client.on('connected', async (serverName: string, result: IMCPInitializeResult) => {
           this.connectionStatuses.set(serverName, {
             status: 'connected',
             serverName,
             capabilities: result.capabilities
           });
+          // Populate tools cache on connect
+          try {
+            const tools = await client.listTools();
+            this.toolsCache.set(serverName, tools);
+          } catch (error) {
+            this.toolsCache.set(serverName, []);
+          }
           this.event.emit('mcpServerConnected', serverName, result);
         });
 
@@ -88,6 +96,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
             error: error.message,
             lastAttempt: Date.now()
           });
+          this.toolsCache.delete(serverName);
           this.event.emit('mcpServerError', serverName, error);
         });
 
@@ -96,6 +105,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
             status: 'disconnected',
             serverName
           });
+          this.toolsCache.delete(serverName);
           this.event.emit('mcpServerDisconnected', serverName);
         });
       }
@@ -103,7 +113,6 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
   }
 
   async connectAllServers(): Promise<void> {
-    trackMatomoEvent('ai', 'mcp_connect_all_servers', `count:${this.mcpClients.size}`);
     const promises = Array.from(this.mcpClients.values()).map(async (client) => {
       try {
         await client.connect();
@@ -113,8 +122,6 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
     });
 
     await Promise.allSettled(promises);
-    const connectedCount = this.getConnectedServers().length;
-    trackMatomoEvent('ai', 'mcp_connect_all_complete', `connected:${connectedCount}|total:${this.mcpClients.size}`);
   }
 
   async disconnectAllServers(): Promise<void> {
@@ -147,7 +154,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
       throw new Error(`MCP server ${server.name} already exists`);
     }
 
-    trackMatomoEvent('ai', 'mcp_server_add', `${server.name}|${server.transport}`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_server_add_${server.name}`);
 
     const client = new MCPClient(
       server,
@@ -199,7 +206,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
   async removeMCPServer(serverName: string): Promise<void> {
     const client = this.mcpClients.get(serverName);
     if (client) {
-      trackMatomoEvent('ai', 'mcp_server_remove', serverName);
+      trackMatomoEvent('ai', 'remixAI', `mcp_server_remove_${serverName}`);
       await client.disconnect();
       this.mcpClients.delete(serverName);
       this.connectionStatuses.delete(serverName);
@@ -428,7 +435,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
     };
 
     if (llmFormattedTools.length > 0) {
-      trackMatomoEvent('ai', 'mcp_answer_with_tools', `provider:${options.provider}|tools:${llmFormattedTools.length}`);
+      trackMatomoEvent('ai', 'remixAI', `mcp_answer_with_tools`);
     }
 
     try {
@@ -445,7 +452,6 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
         toolExecutionCount++;
         if (tool_calls && tool_calls.length > 0) {
-          trackMatomoEvent('ai', 'mcp_llm_tool_execution', `provider:${options.provider}|count:${tool_calls.length}|iteration:${toolExecutionCount}`);
           const toolMessages = [];
 
           // Execute all tools and collect results
@@ -698,15 +704,34 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
     for (const [serverName, client] of this.mcpClients) {
       if (client.isConnected()) {
-        try {
-          result[serverName] = await client.listTools();
-        } catch (error) {
-          result[serverName] = [];
-        }
+        result[serverName] = this.toolsCache.get(serverName) || [];
       }
     }
 
     return result;
+  }
+
+  async refreshToolsCache(serverName?: string): Promise<void> {
+    if (serverName) {
+      const client = this.mcpClients.get(serverName);
+      if (client?.isConnected()) {
+        try {
+          this.toolsCache.set(serverName, await client.listTools());
+        } catch (error) {
+          this.toolsCache.set(serverName, []);
+        }
+      }
+    } else {
+      for (const [name, client] of this.mcpClients) {
+        if (client.isConnected()) {
+          try {
+            this.toolsCache.set(name, await client.listTools());
+          } catch (error) {
+            this.toolsCache.set(name, []);
+          }
+        }
+      }
+    }
   }
 
   async executeTool(serverName: string, toolCall: IMCPToolCall): Promise<IMCPToolResult> {

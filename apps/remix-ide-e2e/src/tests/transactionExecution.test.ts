@@ -16,7 +16,7 @@ module.exports = {
     return sources
   },
 
-  'Execute Simple Contract and Test Terminal #group1': function (browser: NightwatchBrowser) {
+  'Execute Simple Contract and Test Terminal #group1': '' + function (browser: NightwatchBrowser) {
     browser.testContracts('Untitled.sol', sources[0]['Untitled.sol'], ['TestContract'])
       .clickLaunchIcon('udapp')
       .selectAccount('0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c') // this account will be used for this test suite
@@ -42,7 +42,7 @@ module.exports = {
       .click('*[data-id="deployAndRunClearInstances"]')
   },
 
-  'Test Complex Return Values #group1': function (browser: NightwatchBrowser) {
+  'Test Complex Return Values #group1': '' + function (browser: NightwatchBrowser) {
     browser.testContracts('returnValues.sol', sources[1]['returnValues.sol'], ['testReturnValues'])
       .clickLaunchIcon('udapp')
       .click('.udapp_contractActionsContainerSingle > div')
@@ -86,7 +86,7 @@ module.exports = {
         }).click('*[data-id="deployAndRunClearInstances"]')
   },
 
-  'Test Complex Input Values #group2': function (browser: NightwatchBrowser) {
+  'Test Complex Input Values #group2': '' + function (browser: NightwatchBrowser) {
     browser.testContracts('inputValues.sol', sources[2]['inputValues.sol'], ['test'])
       .clickLaunchIcon('udapp')
       .click('.udapp_contractActionsContainerSingle > div')
@@ -130,7 +130,7 @@ module.exports = {
       .click('*[data-id="deployAndRunClearInstances"]')
   },
 
-  'Should Compile and Deploy a contract which has an event declaring a function as parameter #group2': function (browser: NightwatchBrowser) {
+  'Should Compile and Deploy a contract which has an event declaring a function as parameter #group2': '' + function (browser: NightwatchBrowser) {
     browser.testContracts('eventFunctionInput.sol', sources[3]['eventFunctionInput.sol'], ['C'])
       .clickLaunchIcon('udapp')
       .selectAccount('0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c') // this account will be used for this test suite
@@ -139,7 +139,7 @@ module.exports = {
       .click('*[data-id="deployAndRunClearInstances"]')
   },
 
-  'Should use scientific notation as parameters #group2': function (browser: NightwatchBrowser) {
+  'Should use scientific notation as parameters #group2': '' + function (browser: NightwatchBrowser) {
     browser.testContracts('scientific_notation.sol', sources[8]['scientific_notation.sol'], ['test'])
       .clickLaunchIcon('udapp')
       .click('.udapp_contractActionsContainerSingle > div')
@@ -155,7 +155,7 @@ module.exports = {
       .click('*[data-id="deployAndRunClearInstances"]')
   },
 
-  'Should filter displayed transactions #group2': function (browser: NightwatchBrowser) {
+  'Should filter displayed transactions #group2': '' + function (browser: NightwatchBrowser) {
     browser
       // it should contain: 0xd9145CCE52D386f254917e481eB44e9943F39138
       .checkTerminalFilter('0xd9145CCE52D386f254917e481eB44e9943F39138', '0xd9145CCE52D386f254917e481eB44e9943F39138', false)
@@ -163,7 +163,7 @@ module.exports = {
       .checkTerminalFilter('0xd9145CCE52D386f254917e481eB44e9943F39140', '0xd9145CCE52D386f254917e481eB44e9943F39138', true)
   },
 
-  'Should Compile and Deploy a contract which define a custom error, the error should be logged in the terminal #group3': function (browser: NightwatchBrowser) {
+  'Should Compile and Deploy a contract which define a custom error, the error should be logged in the terminal #group3': '' + function (browser: NightwatchBrowser) {
     browser.testContracts('customError.sol', sources[4]['customError.sol'], ['C'])
       .clickLaunchIcon('udapp')
       .selectAccount('0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c') // this account will be used for this test suite
@@ -182,13 +182,13 @@ module.exports = {
       .click('*[data-id="deployAndRunClearInstances"]')
   },
 
-  'Should Compile and Deploy a contract which define a custom error, the error should be logged in the terminal , using London VM Fork #group3': function (browser: NightwatchBrowser) {
+  'Should Compile and Deploy a contract which define a custom error, the error should be logged in the terminal , using London VM Fork #group3': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
       .click('.remixui_compilerConfigSection')
       .setValue('#evmVersionSelector', 'london') // Set EVM version as fork version
       .clearTransactions()
-      .switchEnvironment('vm-london', true) // switch to London fork
+      .switchEnvironment('vm-london', null, true) // switch to London fork
       .selectAccount('0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c') // this account will be used for this test suite
       .createContract('')
       .clickInstance(0)
@@ -204,7 +204,7 @@ module.exports = {
       .journalLastChildIncludes('"documentation": "param3"')
   },
 
-  'Should Compile and Deploy a contract which define a custom error in a library, the error should be logged in the terminal #group3': function (browser: NightwatchBrowser) {
+  'Should Compile and Deploy a contract which define a custom error in a library, the error should be logged in the terminal #group3': '' + function (browser: NightwatchBrowser) {
     browser.testContracts('customErrorLib.sol', sources[5]['customErrorLib.sol'], ['D'])
       .clickLaunchIcon('udapp')
       .click('.udapp_contractActionsContainerSingle > div')
@@ -221,7 +221,7 @@ module.exports = {
       .journalLastChildIncludes('"documentation": "param3 from library"')
   },
 
-  'Should compile and deploy 2 simple contracts, the contract creation component state should be correctly reset for the deployment of the second contract #group4': function (browser: NightwatchBrowser) {
+  'Should compile and deploy 2 simple contracts, the contract creation component state should be correctly reset for the deployment of the second contract #group4': '' + function (browser: NightwatchBrowser) {
     browser
       .addFile('Storage.sol', sources[6]['Storage.sol'])
       .pause(1000)
@@ -244,7 +244,7 @@ module.exports = {
         })
   },
 
-  'Should switch to the mainnet VM fork and execute a tx to query ENS #group5': function (browser: NightwatchBrowser) {
+  'Should switch to the mainnet VM fork and execute a tx to query ENS #group5': '' + function (browser: NightwatchBrowser) {
     if (!runMasterTests) {
       return
     }
@@ -276,7 +276,7 @@ module.exports = {
       })
   },
 
-  'Should stay connected in the mainnet VM fork and execute state changing operations and non state changing operations #group5': function (browser: NightwatchBrowser) {
+  'Should stay connected in the mainnet VM fork and execute state changing operations and non state changing operations #group5': '' + function (browser: NightwatchBrowser) {
     if (!runMasterTests) {
       return
     }
@@ -324,7 +324,7 @@ module.exports = {
       })
   },
 
-  'Should stay connected to mainnet VM fork and: check the block number is advancing and is not low #group5': function (browser: NightwatchBrowser) {
+  'Should stay connected to mainnet VM fork and: check the block number is advancing and is not low #group5': '' + function (browser: NightwatchBrowser) {
     if (!runMasterTests) {
       return
     }

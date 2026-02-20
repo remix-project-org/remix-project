@@ -953,16 +953,22 @@ export function Workspace() {
     trackMatomoEvent({ category: 'workspace', action: 'GIT', name: 'login', isClick: true })
   }
 
-  const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean, mName: string}) => {
+  const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean, mName: string, remoteId?: string }) => {
     return (
       <>
         {props.isGitRepo ? (
           <div className="d-flex justify-content-between">
-            <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}</span>
+            <span>
+              {currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}
+              {props.remoteId && <i className="fas fa-cloud ms-2" style={{ color: 'var(--info)', fontSize: '0.8em' }} title="Connected to cloud"></i>}
+            </span>
             <i className="fas fa-code-branch pt-1"></i>
           </div>
         ) : (
-          <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}</span>
+          <span>
+            {currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}
+            {props.remoteId && <i className="fas fa-cloud ms-2" style={{ color: 'var(--info)', fontSize: '0.8em' }} title="Connected to cloud"></i>}
+          </span>
         )}
       </>
     )
@@ -973,7 +979,7 @@ export function Workspace() {
     return (
       <>
         {
-          currentWorkspace === LOCALHOST && cachedFilter.length > 0 ? cachedFilter.map(({ name, isGitRepo }, index) => (
+          currentWorkspace === LOCALHOST && cachedFilter.length > 0 ? cachedFilter.map(({ name, isGitRepo, remoteId }, index) => (
             <Dropdown.Item
               key={index}
               onClick={() => {
@@ -981,7 +987,7 @@ export function Workspace() {
               }}
               data-id={`dropdown-item-${name}`}
             >
-              <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} />
+              <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} remoteId={remoteId} />
             </Dropdown.Item>
           )) : <ShowAllMenuItems />
         }
@@ -992,13 +998,13 @@ export function Workspace() {
   const ShowAllMenuItems = () => {
     return (
       <>
-        { global.fs.browser.workspaces.map(({ name, isGitRepo }, index) => (
+        { global.fs.browser.workspaces.map(({ name, isGitRepo, remoteId }, index) => (
           <Dropdown.Item
             key={index}
             onClick={() => { switchWorkspace(name) }}
             data-id={`dropdown-item-${name}`}
           >
-            <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} />
+            <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} remoteId={remoteId} />
           </Dropdown.Item>
         ))}
       </>

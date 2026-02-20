@@ -18,11 +18,11 @@ function verifyCallReturnValue (browser: NightwatchBrowser, address: string, che
   browser
     .waitForElementVisible({
       locateStrategy: 'css selector',
-      selector: '#instance' + address + ' [data-id="udapp_value"]',
+      selector: '#instance' + address + ' [data-id="udapp_tree_value"]',
       timeout: 240000
     })
     .execute(function (address: string) {
-    const nodes = document.querySelectorAll('#instance' + address + ' [data-id="udapp_value"]') as NodeListOf<HTMLElement>
+    const nodes = document.querySelectorAll('#instance' + address + ' [data-id="udapp_tree_value"]') as NodeListOf<HTMLElement>
     const ret = []
     for (let k = 0; k < nodes.length; k++) {
       const text = nodes[k].innerText ? nodes[k].innerText : nodes[k].textContent

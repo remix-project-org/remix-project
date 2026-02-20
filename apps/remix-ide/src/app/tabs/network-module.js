@@ -36,12 +36,8 @@ export class NetworkModule extends Plugin {
   }
 
   /** Return the current network */
-  detectNetwork () {
-    return new Promise((resolve, reject) => {
-      this.blockchain.detectNetwork((error, network) => {
-        error ? reject(error) : resolve(network)
-      })
-    })
+  async detectNetwork () {
+    return this.blockchain.detectNetwork()
   }
 
   /** Return the url only if network provider is 'web3' */

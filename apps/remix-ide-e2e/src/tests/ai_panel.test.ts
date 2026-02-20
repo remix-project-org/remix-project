@@ -126,7 +126,7 @@ const tests = {
         timeout: 120000
       })
       .waitForElementPresent('*[data-id="remix-ai-assistant-ready"]')
-      .assistantGenerate('a simple ERC20 contract', 'anthropic')
+      .assistantGenerate('a simple ERC20 contract', 'mistralai')
       .waitForElementVisible({
         locateStrategy: 'xpath',
         selector: '//div[contains(@class,"chat-bubble") and contains(.,"New workspace created:")]',
@@ -184,55 +184,7 @@ const tests = {
         locateStrategy: 'xpath',
         selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
       })
-  },
-  'Workspace generation with all AI assistant provider #group1': function (browser: NightwatchBrowser) {
-    browser
-      .assistantClearChat()
-      .waitForCompilerLoaded()
-      .clickLaunchIcon('remixaiassistant')
-      .waitForElementPresent({
-        selector: "//*[@data-id='remix-ai-assistant-ready']",
-        locateStrategy: 'xpath',
-        timeout: 120000
-      })
-      .waitForElementPresent('*[data-id="remix-ai-assistant-ready"]')
-      .assistantWorkspace('remove all comments', 'openai')
-      .waitForElementVisible({
-        locateStrategy: 'xpath',
-        selector: '//div[contains(@class,"chat-bubble") and (contains(.,"Modified Files") or contains(.,"No Changes applied") or contains(.,"No files modified"))]',
-        timeout: 60000
-      })
-      .waitForElementPresent({
-        locateStrategy: 'xpath',
-        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
-      })
-
-      .assistantClearChat()
-      .waitForCompilerLoaded()
-      .clickLaunchIcon('remixaiassistant')
-      .waitForElementPresent({
-        selector: "//*[@data-id='remix-ai-assistant-ready']",
-        locateStrategy: 'xpath',
-        timeout: 120000
-      })
-      .waitForElementPresent('*[data-id="remix-ai-assistant-ready"]')
-      .assistantWorkspace('remove all comments', 'anthropic')
-      .waitForElementVisible({
-        locateStrategy: 'xpath',
-        selector: '//div[contains(@class,"chat-bubble") and (contains(.,"Modified Files") or contains(.,"No Changes applied") or contains(.,"No files modified"))]',
-        timeout: 60000
-      })
-      .waitForElementPresent({
-        locateStrategy: 'xpath',
-        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
-      })
-  },
-  "Should close the AI assistant #group1": function (browser: NightwatchBrowser) {
-    browser
-      .click('*[data-id="movePluginToLeft"]')
-      .clickLaunchIcon('filePanel')
-      .waitForElementNotVisible('*[data-id="remix-ai-assistant"]', 5000)
-  },
+  }
 }
 
 const branch = process.env.CIRCLE_BRANCH

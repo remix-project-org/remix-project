@@ -12,6 +12,7 @@ import {
   DebugSessionResult,
 } from '../types/mcpTools';
 import { Plugin } from '@remixproject/engine';
+import { processScopes } from '../../helpers/scopeProcessor';
 
 /**
  * Start Debug Session Tool Handler
@@ -122,7 +123,6 @@ export class DecodeLocalVariableHandler extends BaseToolHandler {
   async execute(args: { variableId: number; stepIndex?: number }, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       const result = await plugin.call('debugger', 'decodeLocalVariable', args.variableId, args.stepIndex);
-
       if (result === null) {
         return this.createErrorResult('The local variable might not be available at the current debug step. Please check the current execution step!');
       }
@@ -199,45 +199,6 @@ export class DecodeStateVariableHandler extends BaseToolHandler {
 
     } catch (error) {
       return this.createErrorResult(`Failed to decode state variable: ${error.message}`);
-    }
-  }
-}
-
-/**
- * Global Context Tool Handler
- */
-export class GlobalContextHandler extends BaseToolHandler {
-  name = 'get_global_context';
-  description = 'Retrieve the global execution context (block, msg, tx) for the transaction being debugged';
-  inputSchema = {
-    type: 'object',
-    properties: {},
-    required: []
-  };
-
-  getPermissions(): string[] {
-    return ['debug:read'];
-  }
-
-  validate(args: any): boolean | string {
-    return true;
-  }
-
-  async execute(args: any, plugin: Plugin): Promise<IMCPToolResult> {
-    try {
-      const result = await plugin.call('debugger', 'globalContext');
-
-      if (!result || (!result.block && !result.msg && !result.tx)) {
-        return this.createErrorResult('Global context is not available. Please start a debug session first.');
-      }
-
-      return this.createSuccessResult({
-        success: true,
-        context: result
-      });
-
-    } catch (error) {
-      return this.createErrorResult(`Failed to get global context: ${error.message}`);
     }
   }
 }
@@ -635,6 +596,129 @@ export class JumpToHandler extends BaseToolHandler {
 }
 
 /**
+ * Get Stack At Handler
+ */
+export class GetStackAtHandler extends BaseToolHandler {
+  name = 'get_stack_at';
+  description = 'Get the execution stack at a specific step in the transaction trace';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      step: {
+        type: 'number',
+        description: 'Optional step index in the trace; defaults to current step if not provided'
+      }
+    },
+    required: []
+  };
+
+  getPermissions(): string[] {
+    return ['debug:read'];
+  }
+
+  validate(args: { step?: number }): boolean | string {
+    if (args.step !== undefined) {
+      const types = this.validateTypes(args, { step: 'number' });
+      if (types !== true) return types;
+
+      if (args.step < 0) {
+        return 'Step index must be a non-negative number';
+      }
+    }
+    return true;
+  }
+
+  async execute(args: { step?: number }, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      const result = await plugin.call('debugger', 'getStackAt', args.step);
+
+      if (!result) {
+        return this.createErrorResult('Stack information not available. Ensure a debug session is active.');
+      }
+
+      return this.createSuccessResult({
+        success: true,
+        step: args.step,
+        stack: result,
+        metadata: {
+          description: 'Execution stack at the specified step',
+          stackDepth: Array.isArray(result) ? result.length : 0,
+          retrievedAt: new Date().toISOString()
+        }
+      });
+
+    } catch (error) {
+      return this.createErrorResult(`Failed to get stack: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Get Scopes No Jump With Root Handler
+ */
+export class GetScopesNoJumpWithRootHandler extends BaseToolHandler {
+  name = 'get_scopes_with_root';
+  description = 'Get focused scope information for a specific root scope and its children';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      rootScopeId: {
+        type: 'string',
+        description: 'Root scope ID to focus on (e.g., "1", "1.2", "1.2.3")',
+        default: '1'
+      }
+    },
+    required: []
+  };
+
+  getPermissions(): string[] {
+    return ['debug:read'];
+  }
+
+  validate(args: { rootScopeId?: string }): boolean | string {
+    if (args.rootScopeId !== undefined) {
+      const types = this.validateTypes(args, { rootScopeId: 'string' });
+      if (types !== true) return types;
+    }
+    return true;
+  }
+
+  async execute(args: { rootScopeId?: string }, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      const rootScopeId = args.rootScopeId || '1';
+      const result = await plugin.call('debugger', 'getScopesAsNestedJSON', 'nojump', rootScopeId);
+
+      if (!result || !Array.isArray(result)) {
+        return this.createErrorResult('Focused scope information not available for root scope: ' + rootScopeId + '. Ensure a debug session is active.');
+      }
+
+      // Process scopes with depth limit using shared helper
+      const processedScopes = processScopes(result, 3);
+
+      const responseData = {
+        success: true,
+        rootScopeId,
+        scopes: processedScopes,
+        metadata: {
+          description: 'Focused scope information for specific root scope and children (depth limited to 3), filtered to exclude jump instructions',
+          totalScopes: processedScopes.length,
+          depthLimit: {
+            maxDepth: 3,
+            note: "For deeper exploration beyond depth 3, use this same tool with specific child scope IDs"
+          },
+          retrievedAt: new Date().toISOString()
+        }
+      };
+
+      return this.createSuccessResult(responseData);
+
+    } catch (error) {
+      return this.createErrorResult(`Failed to get scopes ${args.rootScopeId}: ${error.message}`);
+    }
+  }
+}
+
+/**
  * Create debugging tool definitions
  */
 export function createDebuggingTools(): RemixToolDefinition[] {
@@ -662,14 +746,6 @@ export function createDebuggingTools(): RemixToolDefinition[] {
       category: ToolCategory.DEBUGGING,
       permissions: ['debug:read'],
       handler: new DecodeStateVariableHandler()
-    },
-    {
-      name: 'get_global_context',
-      description: 'Retrieve the global execution context (block, msg, tx) for the transaction being debugged',
-      inputSchema: new GlobalContextHandler().inputSchema,
-      category: ToolCategory.DEBUGGING,
-      permissions: ['debug:read'],
-      handler: new GlobalContextHandler()
     },
     {
       name: 'get_valid_source_location_from_vm_trace_index',
@@ -726,6 +802,22 @@ export function createDebuggingTools(): RemixToolDefinition[] {
       category: ToolCategory.DEBUGGING,
       permissions: ['debug:control'],
       handler: new JumpToHandler()
+    },
+    {
+      name: 'get_stack_at',
+      description: 'Get the execution stack at a specific step in the transaction trace',
+      inputSchema: new GetStackAtHandler().inputSchema,
+      category: ToolCategory.DEBUGGING,
+      permissions: ['debug:read'],
+      handler: new GetStackAtHandler()
+    },
+    {
+      name: 'get_scopes_with_root',
+      description: 'Get focused scope information for a specific root scope and its children, filtered to exclude jump instructions',
+      inputSchema: new GetScopesNoJumpWithRootHandler().inputSchema,
+      category: ToolCategory.DEBUGGING,
+      permissions: ['debug:read'],
+      handler: new GetScopesNoJumpWithRootHandler()
     }
   ];
 }

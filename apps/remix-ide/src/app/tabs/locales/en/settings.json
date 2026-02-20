@@ -76,5 +76,9 @@
   "settings.aiPrivacyPolicyDescription": "Understand how RemixAI processes your data.",
   "settings.ollamaConfig": "Ollama URL Configuration",
   "settings.ollamaConfigDescription": "Configure Ollama endpoint for local AI model integration",
-  "settings.ollama-endpoint": "ENDPOINT URL"
+  "settings.ollama-endpoint": "ENDPOINT URL",
+  "settings.cloudStorage": "Cloud Storage",
+  "settings.cloudStorageDescription": "Configure automatic backup of your workspaces to cloud storage.",
+  "settings.cloudAutosave": "Enable Auto-backup",
+  "settings.cloudAutosaveDescription": "Automatically backup your workspace to the cloud every 5 minutes. Requires being logged in."
 }

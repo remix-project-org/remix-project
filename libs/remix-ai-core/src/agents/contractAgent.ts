@@ -19,7 +19,6 @@ export class ContractAgent {
 
   private constructor(props) {
     this.plugin = props;
-    AssistantParams.provider = this.plugin.assistantProvider
   }
 
   public static getInstance(props) {

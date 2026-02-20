@@ -42,7 +42,11 @@ export class TutorialsHandler extends BaseToolHandler {
     try {
       await plugin.call('LearnEth', 'startTutorial', "remix-project-org/remix-workshops", "master", args.tutorialId)
       await plugin.call('sidePanel', 'showContent', 'LearnEth' )
-      return this.createSuccessResult(`Tutorial ${args.tutorialId} started successfully.`);
+      return this.createSuccessResult({
+        success: true,
+        tutorialId: args.tutorialId,
+        message: `Tutorial ${args.tutorialId} started successfully.`
+      });
     } catch (error) {
       return this.createErrorResult(`Starting tutorial failed: ${error.message}`);
     }

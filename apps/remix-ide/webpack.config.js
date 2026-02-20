@@ -24,6 +24,11 @@ class EmitSoljsonPlugin {
       compilation.hooks.processAssets.tapPromise(
         { name: 'EmitSoljsonPlugin', stage: Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL },
         async () => {
+          const assetName = 'assets/js/soljson.js'
+          // Check if asset already exists to avoid conflicts
+          if (compilation.getAsset(assetName)) {
+            return
+          }
           try {
             const defaultVersion = require('../../package.json').defaultVersion
             const url = `https://binaries.soliditylang.org/bin/${defaultVersion}`
@@ -43,7 +48,7 @@ class EmitSoljsonPlugin {
             })
             if (RawSource) {
               // Match previous public path: assets/js/soljson.js
-              compilation.emitAsset('assets/js/soljson.js', new RawSource(data))
+              compilation.emitAsset(assetName, new RawSource(data))
             }
           } catch (e) {
             console.warn('EmitSoljsonPlugin: skipping emit due to error:', e.message)
@@ -241,7 +246,16 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     config.optimization.minimize = true
 
   config.watchOptions = {
-    ignored: /node_modules/
+    ignored: /node_modules/,
+    aggregateTimeout: 300,
+    poll: false
+  }
+
+  // Reduce memory usage in development by using cheaper source maps
+  if (config.mode === 'development') {
+    config.devtool = 'eval-cheap-module-source-map'
+    // Disable caching if memory is an issue (trade-off: slower rebuilds)
+    // config.cache = false
   }
 
   // Allow ngrok and other tunneling services

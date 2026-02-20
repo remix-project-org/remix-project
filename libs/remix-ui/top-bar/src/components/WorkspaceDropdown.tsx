@@ -30,6 +30,7 @@ interface MenuItem {
   branches?: Branch[]
   currentBranch?: Branch
   isGist: string
+  remoteId?: string
   submenu: SubItem[]
 }
 
@@ -252,9 +253,12 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
       >
         <div
           data-id="workspacesSelect-togglerText"
-          className="text-truncate position-absolute start-50 translate-middle"
+          className="text-truncate position-absolute start-50 translate-middle d-flex align-items-center"
         >
           {togglerText}
+          {selectedWorkspace && selectedWorkspace.remoteId && (
+            <i className="fas fa-cloud ms-2" style={{ color: 'var(--info)', fontSize: '0.8em' }} title="Connected to cloud"></i>
+          )}
         </div>
       </Dropdown.Toggle>
       <Dropdown.Menu
@@ -281,6 +285,9 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                 >
                   {item.isGitRepo && item.currentBranch && (
                     <i className="fas fa-code-branch pt-1 me-2"></i>
+                  )}
+                  {item.remoteId && (
+                    <i className="fas fa-cloud pt-1 me-2" style={{ color: 'var(--info)', fontSize: '0.8em' }} title="Connected to cloud"></i>
                   )}
                   <span className="pl-1">{item.name}</span>
                 </Dropdown.Item>
@@ -453,6 +460,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                 Restore
             </span>
           </Dropdown.Item>
+          <Dropdown.Divider />
           <Dropdown.Item onClick={() => {
             connectToLocalhost()
             setShowMain(false)

@@ -21,6 +21,7 @@ import { IDesktopClient } from "./plugins/desktop-client"
 import { IGitHubAuthHandlerApi } from "./plugins/githubAuthHandler-api"
 import { ITopbarApi } from "./plugins/topbar-api"
 import { ISSOApi } from "./plugins/sso-api"
+import { INotificationCenterApi } from "./plugins/notification-center-api"
 
 export interface ICustomRemixApi extends IRemixApi {
   popupPanel: IPopupPanelAPI
@@ -45,6 +46,8 @@ export interface ICustomRemixApi extends IRemixApi {
   desktopClient: IDesktopClient
   githubAuthHandler: IGitHubAuthHandlerApi
   sso: ISSOApi
+  auth: ISSOApi
+  notificationCenter: INotificationCenterApi
 }
 
 export declare type CustomRemixApi = Readonly<ICustomRemixApi>

@@ -12,7 +12,7 @@ module.exports = {
     return sources
   },
 
-  'Run Scenario #group1': function (browser: NightwatchBrowser) {
+  'Run Scenario #group1': '' + function (browser: NightwatchBrowser) {
     let addressRef
     browser.addFile('scenario.json', { content: records })
       .waitForElementVisible({
@@ -40,7 +40,7 @@ module.exports = {
       .click('*[data-id="deployAndRunClearInstances"]')
 
     },
-    'Save scenario #group1': function (browser: NightwatchBrowser) {
+    'Save scenario #group1': '' + function (browser: NightwatchBrowser) {
       browser.testContracts('testRecorder.sol', sources[0]['testRecorder.sol'], ['testRecorder'])
       .clickLaunchIcon('udapp')
       .createContract('12')
@@ -68,7 +68,7 @@ module.exports = {
       })
   },
 
-  'Record more than one contract #group2': function (browser: NightwatchBrowser) {
+  'Record more than one contract #group2': '' + function (browser: NightwatchBrowser) {
     // deploy 2 contracts (2 different ABIs), save the record, reexecute and test one of the function.
     browser
       .testContracts('multipleContracts.sol', sources[1]['multipleContracts.sol'], ['t1est', 't2est'])
@@ -101,7 +101,7 @@ module.exports = {
       })
   },
 
-  'Run with live "mode" #group2': function (browser: NightwatchBrowser) {
+  'Run with live "mode" #group2': '' + function (browser: NightwatchBrowser) {
     let addressRef: string
     browser.addFile('scenario_live_mode.json', { content: JSON.stringify(liveModeScenario, null, '\t') })
       .addFile('scenario_live_mode_storage.sol', { content: testStorageForLiveMode })

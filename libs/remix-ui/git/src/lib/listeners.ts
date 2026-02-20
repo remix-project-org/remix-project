@@ -268,6 +268,17 @@ export const setCallBacks = (viewPlugin: Plugin, gitDispatcher: React.Dispatch<g
     })
   })
 
+  // Listen for GitHub token bridged from SSO login/link
+  plugin.on('auth', 'gitHubTokenReady', async (data: { token: string | null }) => {
+    if (data.token) {
+      console.log('[Git] GitHub token received from SSO, loading user...')
+      await loadGitHubUserFromToken()
+    } else {
+      console.log('[Git] GitHub token cleared via SSO disconnect')
+      await loadGitHubUserFromToken() // Will clear the state since token is gone
+    }
+  })
+
   callBackEnabled = true;
 }
 

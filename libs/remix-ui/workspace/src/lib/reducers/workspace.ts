@@ -18,6 +18,7 @@ export interface BrowserState {
       branches?: branch[]
       currentBranch?: branch
       isGist: string
+      remoteId?: string
     }[]
     files: {[x: string]: Record<string, FileType>}
     flatTree: FileType[]

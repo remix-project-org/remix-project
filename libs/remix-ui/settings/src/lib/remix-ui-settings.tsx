@@ -1,10 +1,10 @@
 import { ViewPlugin } from '@remixproject/engine-web'
-import React, {useState, useReducer, useEffect} from 'react' // eslint-disable-line
+import React, { useState, useReducer, useEffect } from 'react' // eslint-disable-line
 import Fuse from 'fuse.js'
 import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription } from '@remix-ui/helper'
 
 import { initialState, settingReducer } from './settingsReducer'
-import {Toaster} from '@remix-ui/toaster' // eslint-disable-line
+import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
 import { ThemeModule } from '@remix-ui/theme-module'
 import { ThemeContext, themes } from '@remix-ui/home-tab'
 import { FormattedMessage } from 'react-intl'
@@ -67,7 +67,7 @@ const settingsSections: SettingsSection[] = [
           name: 'display-errors',
           label: 'settings.displayErrorsText',
           type: 'toggle'
-        },{
+        }, {
           name: 'text-wrap',
           label: 'settings.wordWrapText',
           type: 'toggle'
@@ -131,151 +131,169 @@ const settingsSections: SettingsSection[] = [
       }
     ]
   },
-  { key: 'analytics', label: 'settings.analytics', description: 'settings.analyticsDescription', subSections: [
-    { options: [{
-      name: 'matomo-analytics',
-      label: 'settings.matomoAnalyticsNoCookies',
-      headerClass: 'text-secondary',
-      type: 'toggle',
-      description: 'settings.matomoAnalyticsNoCookiesDescription',
-    }, {
-      name: 'matomo-perf-analytics',
-      label: 'settings.matomoAnalyticsWithCookies',
-      type: 'toggle',
-      description: 'settings.matomoAnalyticsWithCookiesDescription',
-      footnote: {
-        text: 'Manage Cookie Preferences',
-        link: 'https://matomo.org/',
-        styleClass: 'text-primary'
+  {
+    key: 'analytics', label: 'settings.analytics', description: 'settings.analyticsDescription', subSections: [
+      {
+        options: [{
+          name: 'matomo-analytics',
+          label: 'settings.matomoAnalyticsNoCookies',
+          headerClass: 'text-secondary',
+          type: 'toggle',
+          description: 'settings.matomoAnalyticsNoCookiesDescription',
+        }, {
+          name: 'matomo-perf-analytics',
+          label: 'settings.matomoAnalyticsWithCookies',
+          type: 'toggle',
+          description: 'settings.matomoAnalyticsWithCookiesDescription',
+          footnote: {
+            text: 'Manage Cookie Preferences',
+            link: 'https://matomo.org/',
+            styleClass: 'text-primary'
+          }
+        }]
       }
-    }]
-    }
-  ]},
-  { key: 'ai', label: 'settings.ai', description: 'settings.aiDescription', subSections: [
-    {
-      options: [{
-        name: 'copilot/suggest/activate',
-        label: 'settings.aiCopilot',
-        description: 'settings.aiCopilotDescription',
-        type: 'toggle',
-        footnote: {
-          text: 'Learn more about AI Copilot',
-          link: 'https://remix-ide.readthedocs.io/en/latest/ai.html',
-          styleClass: 'text-primary'
-        }
-      },
+    ]
+  },
+  {
+    key: 'ai', label: 'settings.ai', description: 'settings.aiDescription', subSections: [
       {
-        name: 'ai-privacy-policy',
-        label: 'settings.aiPrivacyPolicy',
-        description: 'settings.aiPrivacyPolicyDescription',
-        type: 'button',
-        buttonOptions: {
-          label: 'settings.viewPrivacyPolicy',
-          action: 'link',
-          link: 'https://remix-ide.readthedocs.io/en/latest/ai.html'
-        }
+        options: [{
+          name: 'copilot/suggest/activate',
+          label: 'settings.aiCopilot',
+          description: 'settings.aiCopilotDescription',
+          type: 'toggle',
+          footnote: {
+            text: 'Learn more about AI Copilot',
+            link: 'https://remix-ide.readthedocs.io/en/latest/ai.html',
+            styleClass: 'text-primary'
+          }
+        },
+        {
+          name: 'ai-privacy-policy',
+          label: 'settings.aiPrivacyPolicy',
+          description: 'settings.aiPrivacyPolicyDescription',
+          type: 'button',
+          buttonOptions: {
+            label: 'settings.viewPrivacyPolicy',
+            action: 'link',
+            link: 'https://remix-ide.readthedocs.io/en/latest/ai.html'
+          }
+        },
+        {
+          name: 'ollama-config',
+          label: 'settings.ollamaConfig',
+          description: 'settings.ollamaConfigDescription',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'ollama-endpoint',
+            type: 'text'
+          }]
+        }]
       },
+      ...(mcpEnabled ? [{
+        title: 'MCP Servers',
+        options: [{
+          name: 'mcp/servers/enable' as keyof typeof initialState,
+          label: 'settings.enableMCPEnhancement',
+          description: 'settings.enableMCPEnhancementDescription',
+          type: 'toggle' as const,
+          footnote: {
+            text: 'Learn more about MCP',
+            link: 'https://modelcontextprotocol.io/',
+            styleClass: 'text-primary'
+          }
+        },
+        {
+          name: 'mcp-server-management' as keyof typeof initialState,
+          label: 'settings.mcpServerConfiguration',
+          description: 'settings.mcpServerConfigurationDescription',
+          type: 'custom' as const,
+          customComponent: 'mcpServerManager'
+        }]
+      }] : [])
+    ]
+  },
+  {
+    key: 'services', label: 'settings.services', description: 'settings.servicesDescription', subSections: [
       {
-        name: 'ollama-config',
-        label: 'settings.ollamaConfig',
-        description: 'settings.ollamaConfigDescription',
-        type: 'toggle',
-        toggleUIOptions: [{
-          name: 'ollama-endpoint',
-          type: 'text'
+        options: [{
+          name: 'github-config',
+          label: 'settings.gitAccessTokenTitle',
+          type: 'toggle',
+          toggleUIDescription: <GitHubCredentialsDescription />,
+          toggleUIOptions: [{
+            name: 'gist-access-token',
+            type: 'password'
+          }, {
+            name: 'github-user-name',
+            type: 'text'
+          }, {
+            name: 'github-email',
+            type: 'text'
+          }]
+        }, {
+          name: 'ipfs-config',
+          label: 'settings.ipfs',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'ipfs-url',
+            type: 'text'
+          }, {
+            name: 'ipfs-protocol',
+            type: 'text'
+          }, {
+            name: 'ipfs-port',
+            type: 'text'
+          }, {
+            name: 'ipfs-project-id',
+            type: 'text'
+          }, {
+            name: 'ipfs-project-secret',
+            type: 'text'
+          }]
+        }, {
+          name: 'swarm-config',
+          label: 'settings.swarm',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'swarm-private-bee-address',
+            type: 'text'
+          }, {
+            name: 'swarm-postage-stamp-id',
+            type: 'text'
+          }]
+        }, {
+          name: 'sindri-config',
+          label: 'settings.sindriAccessTokenTitle',
+          type: 'toggle',
+          toggleUIDescription: <SindriCredentialsDescription />,
+          toggleUIOptions: [{
+            name: 'sindri-access-token',
+            type: 'password'
+          }]
+        }, {
+          name: 'etherscan-config',
+          label: 'settings.etherscanTokenTitle',
+          type: 'toggle',
+          toggleUIDescription: <EtherscanConfigDescription />,
+          toggleUIOptions: [{
+            name: 'etherscan-access-token',
+            type: 'password'
+          }]
         }]
       }]
-    },
-    ...(mcpEnabled ? [{
-      title: 'MCP Servers',
-      options: [{
-        name: 'mcp/servers/enable' as keyof typeof initialState,
-        label: 'settings.enableMCPEnhancement',
-        description: 'settings.enableMCPEnhancementDescription',
-        type: 'toggle' as const,
-        footnote: {
-          text: 'Learn more about MCP',
-          link: 'https://modelcontextprotocol.io/',
-          styleClass: 'text-primary'
-        }
-      },
+  },
+  {
+    key: 'cloud-storage', label: 'settings.cloudStorage', description: 'settings.cloudStorageDescription', subSections: [
       {
-        name: 'mcp-server-management' as keyof typeof initialState,
-        label: 'settings.mcpServerConfiguration',
-        description: 'settings.mcpServerConfigurationDescription',
-        type: 'custom' as const,
-        customComponent: 'mcpServerManager'
-      }]
-    }] : [])
-  ]},
-  { key: 'services', label: 'settings.services', description: 'settings.servicesDescription', subSections: [
-    {
-      options: [{
-        name: 'github-config',
-        label: 'settings.gitAccessTokenTitle',
-        type: 'toggle',
-        toggleUIDescription: <GitHubCredentialsDescription />,
-        toggleUIOptions: [{
-          name: 'gist-access-token',
-          type: 'password'
-        }, {
-          name: 'github-user-name',
-          type: 'text'
-        }, {
-          name: 'github-email',
-          type: 'text'
-        }]
-      }, {
-        name: 'ipfs-config',
-        label: 'settings.ipfs',
-        type: 'toggle',
-        toggleUIOptions: [{
-          name: 'ipfs-url',
-          type: 'text'
-        }, {
-          name: 'ipfs-protocol',
-          type: 'text'
-        }, {
-          name: 'ipfs-port',
-          type: 'text'
-        }, {
-          name: 'ipfs-project-id',
-          type: 'text'
-        }, {
-          name: 'ipfs-project-secret',
-          type: 'text'
-        }]
-      }, {
-        name: 'swarm-config',
-        label: 'settings.swarm',
-        type: 'toggle',
-        toggleUIOptions: [{
-          name: 'swarm-private-bee-address',
-          type: 'text'
-        }, {
-          name: 'swarm-postage-stamp-id',
-          type: 'text'
-        }]
-      }, {
-        name: 'sindri-config',
-        label: 'settings.sindriAccessTokenTitle',
-        type: 'toggle',
-        toggleUIDescription: <SindriCredentialsDescription />,
-        toggleUIOptions: [{
-          name: 'sindri-access-token',
-          type: 'password'
-        }]
-      },{
-        name: 'etherscan-config',
-        label: 'settings.etherscanTokenTitle',
-        type: 'toggle',
-        toggleUIDescription: <EtherscanConfigDescription />,
-        toggleUIOptions: [{
-          name: 'etherscan-access-token',
-          type: 'password'
+        options: [{
+          name: 'cloud-storage/autosave',
+          label: 'settings.cloudAutosave',
+          description: 'settings.cloudAutosaveDescription',
+          type: 'toggle'
         }]
       }]
-    }]}
+  }
 ]
 
 export const RemixUiSettings = (props: RemixUiSettingsProps) => {
@@ -429,7 +447,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
                 <SettingsSectionUI plugin={props.plugin} section={filteredSection} state={settingsState} dispatch={dispatch} />
               </div>
             </div>
-          </div> }
+          </div>}
       </div>
     </ThemeContext.Provider>
   )

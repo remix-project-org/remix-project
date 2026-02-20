@@ -11,7 +11,7 @@ const sources = [
 const tests = {
   '@disabled': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    init(browser, done)
+    init(browser, done, 'http://127.0.0.1:8080/#experimental=true', true, undefined, true, true)
   },
   '@sources': function () {
     return sources
@@ -291,47 +291,6 @@ const tests = {
       })
   },
 
-  'Should work with different AI providers #group1': function (browser: NightwatchBrowser) {
-    browser
-      .assistantClearChat()
-      .waitForCompilerLoaded()
-      .clickLaunchIcon('remixaiassistant')
-      .waitForElementPresent({
-        selector: "//*[@data-id='remix-ai-assistant-ready']",
-        locateStrategy: 'xpath',
-        timeout: 120000
-      })
-      // Test with OpenAI
-      .assistantSetProvider('openai')
-      .execute(function () {
-        (window as any).remixAIChat.current.sendChat('compile my contract');
-      })
-      .waitForElementPresent({
-        locateStrategy: 'xpath',
-        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
-        timeout: 60000
-      })
-      // Test with Anthropic
-      .assistantClearChat()
-      .assistantSetProvider('anthropic')
-      .execute(function () {
-        (window as any).remixAIChat.current.sendChat('compile my contract');
-      })
-      .waitForElementPresent({
-        locateStrategy: 'xpath',
-        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
-        timeout: 60000
-      })
-      // Reset to default
-      .assistantSetProvider('mistralai')
-  },
-
-  'Close AI assistant #group1': function (browser: NightwatchBrowser) {
-    browser
-      .click('*[data-id="movePluginToLeft"]')
-      .clickLaunchIcon('filePanel')
-      .waitForElementNotVisible('*[data-id="remix-ai-assistant"]', 5000)
-  }
 }
 
 const branch = process.env.CIRCLE_BRANCH

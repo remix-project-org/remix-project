@@ -56,7 +56,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
         </span> }
         <i data-id="default-workspace-name-edit-icon" className={`${showEditWorkspaceName ? 'fas fa-lock ms-2' : "ms-2 fas fa-edit"}`} onClick={() => setShowEditWorkspaceName(!showEditWorkspaceName)}></i>
       </div>
-      <div className="d-flex flex-row h-100 pt-1 ps-3 pe-3 pb-3 workspace-details-content-wrapper">
+      <div className="d-flex flex-column flex-md-row h-100 pt-1 ps-3 pe-3 pb-3 workspace-details-content-wrapper">
         <div className="workspace-details-file-explorer">
           <MiniFileExplorer />
         </div>

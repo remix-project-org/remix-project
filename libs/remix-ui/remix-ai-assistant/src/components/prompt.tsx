@@ -6,6 +6,13 @@ import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip } from '@remix-ui/helper'
 import { PromptDefault } from './promptDefault'
 import { PromptActiveButtons } from './promptActiveButtons'
+import GroupListMenu from "./contextOptMenu"
+import { AiContextType, groupListType } from '../types/componentTypes'
+import { AIEvent, MatomoEvent } from '@remix-api';
+import { TrackingContext } from '@remix-ide/tracking'
+import { CustomTooltip } from '@remix-ui/helper'
+import { AIModel } from '@remix/remix-ai-core'
+import { ModelAccess } from '../hooks/useModelAccess'
 
 // PromptArea component
 export interface PromptAreaProps {
@@ -25,18 +32,34 @@ export interface PromptAreaProps {
   availableModels: string[]
   selectedModel: string | null
   handleSetAssistant: () => void
+  showModelSelector: boolean
+  setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
+  showOllamaModelSelector: boolean
+  setShowOllamaModelSelector: React.Dispatch<React.SetStateAction<boolean>>
+  contextChoice: AiContextType
+  setContextChoice: React.Dispatch<React.SetStateAction<AiContextType>>
+  selectedModel: AIModel
+  ollamaModels: string[]
+  selectedOllamaModel: string | null
+  contextFiles: string[]
+  clearContext: () => void
+  handleAddContext: () => void
   handleSetModel: () => void
-  handleModelSelection: (modelName: string) => void
+  handleModelSelection: (modelId: string) => void
+  handleOllamaModelSelection: (modelName: string) => void
   handleGenerateWorkspace: () => void
   handleRecord: () => void
   isRecording: boolean
   dispatchActivity: (type: ActivityType, payload?: any) => void
   modelBtnRef: React.RefObject<HTMLButtonElement>
   modelSelectorBtnRef: React.RefObject<HTMLButtonElement>
+  aiContextGroupList: groupListType[]
   textareaRef?: React.RefObject<HTMLTextAreaElement>
   maximizePanel: () => Promise<void>
   isMaximized: boolean
   themeTracker: any
+  setIsMaximized: React.Dispatch<React.SetStateAction<boolean>>
+  modelAccess: ModelAccess
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -50,14 +73,32 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   showAssistantOptions,
   assistantChoice,
   handleSetAssistant,
+  showModelSelector,
+  setShowModelSelector,
+  showOllamaModelSelector,
+  setShowOllamaModelSelector,
+  contextChoice,
+  setContextChoice,
+  selectedModel,
+  ollamaModels,
+  selectedOllamaModel,
+  contextFiles,
+  clearContext,
+  handleAddContext,
+  handleSetModel,
+  handleModelSelection,
+  handleOllamaModelSelection,
   handleGenerateWorkspace,
   handleRecord,
   isRecording,
   modelBtnRef,
+  modelSelectorBtnRef,
+  aiContextGroupList,
   textareaRef,
   maximizePanel,
   isMaximized,
-  themeTracker
+  setIsMaximized,
+  modelAccess
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
 
@@ -161,9 +202,9 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                   ref={modelSelectorBtnRef}
                   data-id="ollama-model-selector"
                 >
-                  {selectedModel || 'Select Model'}
+                  {selectedOllamaModel || 'Select Model'}
                   {'  '}
-                  <span className={showModelOptions ? "fa fa-caret-up" : "fa fa-caret-down"}></span>
+                  <span className={showOllamaModelSelector ? "fa fa-caret-up" : "fa fa-caret-down"}></span>
                 </button>
               )}
               test

@@ -25,7 +25,7 @@ export class MCPConfigManager {
             // Handle empty or whitespace-only files
             if (!configContent || configContent.trim() === '') {
               console.log('[MCPConfigManager] Config file saved as empty, writing default config');
-              await this.saveConfig(minimalMCPConfig);
+              await this.saveConfigWithWorkspaceCheck(minimalMCPConfig);
               return;
             }
 
@@ -36,13 +36,13 @@ export class MCPConfigManager {
               console.log('[MCPConfigManager] Config reloaded from file save');
             } else {
               console.log('[MCPConfigManager] No mcp config in saved file, writing default');
-              await this.saveConfig(minimalMCPConfig);
+              await this.saveConfigWithWorkspaceCheck(minimalMCPConfig);
             }
           } catch (error) {
             console.error('[MCPConfigManager] Error reloading config on file save:', error);
             // If there's an error, write the default config
             try {
-              await this.saveConfig(minimalMCPConfig);
+              await this.saveConfigWithWorkspaceCheck(minimalMCPConfig);
             } catch (saveError) {
               console.error('[MCPConfigManager] Error writing default config:', saveError);
             }
@@ -54,6 +54,7 @@ export class MCPConfigManager {
 
   async loadConfig(): Promise<MCPConfig> {
     try {
+      await this.waitForWorkspace();
       const exists = await this.plugin.call('fileManager', 'exists', this.configPath);
 
       if (exists) {
@@ -107,6 +108,44 @@ export class MCPConfigManager {
     }
   }
 
+  private async isWorkspaceReady(): Promise<boolean> {
+    try {
+      const workspace = await this.plugin.call('filePanel', 'getCurrentWorkspace');
+      return workspace && workspace.name.trim() !== '';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private async waitForWorkspace(): Promise<boolean> {
+    if (await this.isWorkspaceReady()) {
+      console.log('[MCPConfigManager] Workspace is already ready');
+      return true;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const checkAndResolve = async () => {
+        if (await this.isWorkspaceReady()) {
+          console.log('[MCPConfigManager] Workspace is ready');
+          resolve(true);
+        }
+      };
+
+      this.plugin.once('filePanel', 'setWorkspace', checkAndResolve);
+    });
+  }
+
+  async saveConfigWithWorkspaceCheck(config: MCPConfig): Promise<void> {
+    const workspaceReady = await this.waitForWorkspace();
+
+    if (!workspaceReady) {
+      this.config = config;
+      return;
+    }
+
+    await this.saveConfig(config);
+  }
+
   async saveConfig(config: MCPConfig): Promise<void> {
     try {
       const exists = await this.plugin.call('fileManager', 'exists', this.configPath);
@@ -151,7 +190,7 @@ export class MCPConfigManager {
         return;
       }
 
-      await this.saveConfig(defaultMCPConfig);
+      await this.saveConfigWithWorkspaceCheck(defaultMCPConfig);
       console.log('[MCPConfigManager] Default config file created');
     } catch (error) {
       console.error(`[MCPConfigManager] Error creating default config: ${error.message}`);
@@ -179,7 +218,7 @@ export class MCPConfigManager {
     const permissions = this.config.security.fileWritePermissions || {
       mode: 'ask' as const,
       allowedFiles: [],
-      lastPrompted: null
+      lastPrompted: undefined
     };
     return permissions;
   }
@@ -199,7 +238,7 @@ export class MCPConfigManager {
       config.security.fileWritePermissions = {
         mode: 'ask',
         allowedFiles: [],
-        lastPrompted: null
+        lastPrompted: undefined
       };
     }
 
@@ -207,7 +246,7 @@ export class MCPConfigManager {
     perms.mode = mode;
     perms.lastPrompted = new Date().toISOString();
 
-    if (mode === 'allow-specific' && filePath) {
+    if (mode === 'allow-specific' && filePath && perms.allowedFiles) {
       if (!perms.allowedFiles.includes(filePath)) {
         perms.allowedFiles.push(filePath);
       }

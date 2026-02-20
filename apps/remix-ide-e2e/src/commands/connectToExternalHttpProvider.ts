@@ -7,7 +7,8 @@ class ConnectToExternalHttpProvider extends EventEmitter {
       (result) => {
         if (result.status as any === -1) {
           console.log("No connection to external provider found. Adding one.", url)
-          browser
+          this.api
+            // Close any existing modal
             .click({
               locateStrategy: 'css selector',
               selector: '[data-id="basic-http-provider-modal-footer-ok-react"]',
@@ -15,19 +16,33 @@ class ConnectToExternalHttpProvider extends EventEmitter {
               suppressNotFoundErrors: true,
               timeout: 5000
             })
+            // Close any open sub-category dropdown first
+            .click({
+              locateStrategy: 'css selector',
+              selector: 'body',
+              abortOnFailure: false,
+              suppressNotFoundErrors: true
+            })
+            .pause(500)
+            // Now switch to the provider
             .switchEnvironment('basic-http-provider')
-            .waitForElementPresent('[data-id="basic-http-provider-modal-footer-ok-react"]')
+            .waitForElementPresent('[data-id="basic-http-provider-modal-footer-ok-react"]', 10000)
+            .pause(500)
             .execute(() => {
-              (document.querySelector('*[data-id="basic-http-providerModalDialogContainer-react"] input[data-id="modalDialogCustomPromp"]') as any).focus()
+              const input = document.querySelector('*[data-id="basic-http-providerModalDialogContainer-react"] input[data-id="modalDialogCustomPromp"]') as any
+              if (input) input.focus()
             }, [], () => { })
+            .clearValue('[data-id="modalDialogCustomPromp"]')
             .setValue('[data-id="modalDialogCustomPromp"]', url)
+            .pause(500)
             .modalFooterOKClick('basic-http-provider')
-            .perform((done) => {
+            .pause(1000)
+            .perform((done: VoidFunction) => {
               done()
               this.emit('complete')
             })
         } else {
-          this.api.perform((done) => {
+          this.api.perform((done: VoidFunction) => {
             done()
             this.emit('complete')
           })

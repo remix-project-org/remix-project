@@ -11,7 +11,7 @@ module.exports = {
     return sources
   },
 
-  'Test Signature': function (browser: NightwatchBrowser) {
+  'Test Signature': '' + function (browser: NightwatchBrowser) {
     let hash, signature
     browser
       .clickLaunchIcon('udapp')
@@ -53,7 +53,7 @@ module.exports = {
       })
   },
 
-  'Test EIP 712 Signature': function (browser: NightwatchBrowser) {
+  'Test EIP 712 Signature': '' + function (browser: NightwatchBrowser) {
     browser.waitForElementPresent('i[id="remixRunSignMsg"]')
       .click('i[id="remixRunSignMsg"]')
       .waitForElementVisible('*[data-id="signMessageTextarea"]', 120000)

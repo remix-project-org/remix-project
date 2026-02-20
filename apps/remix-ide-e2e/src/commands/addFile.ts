@@ -17,6 +17,8 @@ class AddFile extends EventEmitter {
 
 function addFile(browser: NightwatchBrowser, name: string, content: NightwatchContractContent, readMeFile:string, done: VoidFunction) {
   const readmeSelector = `li[data-id="treeViewLitreeViewItem${readMeFile}"]`
+  const anyTreeItemSelector = 'li[data-id^="treeViewLitreeViewItem"]' // Any item in tree
+
   browser
     .isVisible({
       selector: "//*[@data-id='sidePanelSwapitTitle' and contains(.,'File explorer')]",
@@ -28,12 +30,39 @@ function addFile(browser: NightwatchBrowser, name: string, content: NightwatchCo
         browser.clickLaunchIcon('filePanel')
       }
     })
+    .waitForElementPresent('[data-test-id="virtuoso-scroller"]', 10000)
+    .pause(500)
+    // Ensure file tree is loaded by waiting for at least one tree item
+    .waitForElementPresent(anyTreeItemSelector, 10000)
+    .pause(500)
+    // Force virtuoso to render all items by scrolling to bottom and back
     .execute(function () {
       const container = document.querySelector('[data-test-id="virtuoso-scroller"]');
-      container.scrollTop = container.scrollHeight;
+      if (container) {
+        // Scroll to bottom to force rendering
+        container.scrollTop = container.scrollHeight;
+      }
     })
-    .scrollInto(readmeSelector)
-    .waitForElementVisible(readmeSelector)
+    .pause(1000) // Give time for virtuoso to render items
+    .execute(function () {
+      const container = document.querySelector('[data-test-id="virtuoso-scroller"]');
+      if (container) {
+        // Scroll back to top
+        container.scrollTop = 0;
+      }
+    })
+    .pause(1000)
+    // Now wait for README to be present in DOM
+    .waitForElementPresent(readmeSelector, 10000)
+    // Use scrollIntoView to make it visible
+    .execute(function (selector) {
+      const element = document.querySelector(selector);
+      if (element) {
+        element.scrollIntoView({ behavior: 'auto', block: 'center' });
+      }
+    }, [readmeSelector])
+    .pause(500)
+    .waitForElementVisible(readmeSelector, 10000)
     .click(readmeSelector).pause(1000) // focus on root directory
     .isVisible({
       selector: `//*[@data-id="treeViewLitreeViewItem${name}"]`,

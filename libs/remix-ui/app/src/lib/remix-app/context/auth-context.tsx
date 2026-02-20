@@ -22,6 +22,7 @@ type AuthAction =
   | { type: 'AUTH_SUCCESS'; payload: { user: AuthUser; token: string } }
   | { type: 'AUTH_FAILURE'; payload: string }
   | { type: 'UPDATE_CREDITS'; payload: Credits }
+  | { type: 'TOKEN_REFRESHED'; payload: string }
   | { type: 'LOGOUT' }
   | { type: 'CLEAR_ERROR' }
 
@@ -57,6 +58,11 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     return {
       ...state,
       credits: action.payload
+    }
+  case 'TOKEN_REFRESHED':
+    return {
+      ...state,
+      token: action.payload
     }
   case 'LOGOUT':
     return {
@@ -157,17 +163,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, plugin }) 
       dispatch({ type: 'UPDATE_CREDITS', payload: credits })
     }
 
+    const handleTokenRefreshed = (data: { token: string }) => {
+      console.log('[AuthContext] Token refreshed')
+      dispatch({ type: 'TOKEN_REFRESHED', payload: data.token })
+    }
+
     console.log('[AuthContext] Setting up event listeners, plugin.on exists:', typeof plugin.on)
     plugin.call('manager', 'isActive', 'auth').then((result) => {
       if (result) {
         plugin.on('auth', 'authStateChanged', handleAuthStateChanged)
         plugin.on('auth', 'creditsUpdated', handleCreditsUpdated)
+        plugin.on('auth', 'tokenRefreshed', handleTokenRefreshed)
       } else {
         plugin.on('manager', 'activate', (profile: Profile) => {
           switch (profile.name) {
           case 'auth':
             plugin.on('auth', 'authStateChanged', handleAuthStateChanged)
             plugin.on('auth', 'creditsUpdated', handleCreditsUpdated)
+            plugin.on('auth', 'tokenRefreshed', handleTokenRefreshed)
             break
           }
         })
@@ -178,6 +191,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, plugin }) 
     return () => {
       plugin.off('auth', 'authStateChanged', handleAuthStateChanged)
       plugin.off('auth', 'creditsUpdated', handleCreditsUpdated)
+      plugin.off('auth', 'tokenRefreshed', handleTokenRefreshed)
     }
   }, [plugin, isReady])
 

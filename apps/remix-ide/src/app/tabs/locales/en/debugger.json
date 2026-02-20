@@ -11,7 +11,7 @@
   "debugger.introduction": "When Debugging with a transaction hash, if the contract is verified, Remix will try to fetch the source code from Sourcify or Etherscan. Put in your Etherscan API key in the Remix settings. For supported networks, please see",
   "debugger.forceToUseCurrentLocalNode": "Force the debugger to use the current local node",
   "debugger.sourceLocationStatus1": "Locating breakpoint, this might take a while...",
-  "debugger.sourceLocationStatus2": "Source location not available, neither in Sourcify nor in Etherscan. Please make sure the Etherscan api key is provided in the settings.",
+  "debugger.sourceLocationStatus2": "Source location {address} not available.",
   "debugger.sourcifyDocs": "Sourcify docs",
   "debugger.noDataAvailable": "No data available",
   "debugger.loadMore": "Load more",

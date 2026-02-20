@@ -232,7 +232,7 @@ export class SetCompilerConfigHandler extends BaseToolHandler {
       },
       evmVersion: {
         type: 'string',
-        description: 'EVM version target'
+        description: 'EVM version target. Default Osaka'
       },
       language: {
         type: 'string',
@@ -265,20 +265,51 @@ export class SetCompilerConfigHandler extends BaseToolHandler {
 
   async execute(args: CompilerConfigArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
+      // Resolve version to full compiler path (e.g., "0.8.20" -> "0.8.20+commit.a1b79de6.js")
+      let resolvedVersion = args.version;
+
+      try {
+        const solJsonBinData = await plugin.call('compilerloader' as any, 'getJsonBinData');
+        if (solJsonBinData) {
+          // Check selectorList, wasmList, and binList for the version
+          const lists = [
+            ...(solJsonBinData.selectorList || []),
+            ...(solJsonBinData.wasmList || []),
+            ...(solJsonBinData.binList || [])
+          ];
+
+          // Try to find exact version match
+          const versionEntry = lists.find((entry: any) => {
+            if (!entry) return false;
+            if (entry.version === args.version) return true;
+            if (entry.longVersion === args.version) return true;
+            if (entry.path === args.version) return true;
+            return false;
+          });
+
+          if (versionEntry) {
+            resolvedVersion = versionEntry.longVersion || args.version;
+          }
+        }
+      } catch (resolveError) {
+        console.warn('Could not resolve compiler version:', resolveError.message);
+      }
+
       const config = {
-        version: args.version,
+        version: resolvedVersion,
         optimize: args.optimize !== undefined ? args.optimize : true,
         runs: args.runs || 200,
-        evmVersion: args.evmVersion || 'london',
+        evmVersion: args.evmVersion || 'osaka',
         language: args.language || 'Solidity'
       };
 
-      await plugin.call('solidity' as any, 'setCompilerConfig', JSON.stringify(config));
+      await plugin.call('solidity' as any, 'setCompilerConfig', config);
 
       return this.createSuccessResult({
         success: true,
         message: 'Compiler configuration updated',
-        config: config
+        config: config,
+        resolvedVersion: resolvedVersion
       });
     } catch (error) {
       return this.createErrorResult(`Failed to set compiler config: ${error.message}`);

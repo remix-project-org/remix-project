@@ -1,7 +1,7 @@
 'use strict'
 import { AbiCoder, FunctionFragment } from 'ethers'
 import { getFunctionFragment } from './txHelper'
-import { Transaction } from './txRunner'
+import type { Transaction } from '../index'
 
 /**
   * deploy the given contract

@@ -118,7 +118,8 @@ export class ProjectResourceProvider extends BaseResourceProvider {
         path.includes('node_modules') ||
         path.includes('.git') ||
         path.includes('.deps') ||
-        path.includes('artifacts/build-info')) {
+        path.includes('artifacts/build-info') ||
+        path.includes('.debug')) {
       return;
     }
     visited.add(path);

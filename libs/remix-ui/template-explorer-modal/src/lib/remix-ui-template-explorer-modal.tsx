@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useState, useEffect, useRef } from 'react'
 import './remix-ui-template-explorer-modal.css'
 import { AppState } from '@remix-ui/app'
 import { TemplateExplorerContext } from '../../context/template-explorer-context'
@@ -11,7 +11,7 @@ import { FinalScreen } from '../components/finalScreen'
 import { MatomoEvent, TemplateExplorerModalEvent,WorkspaceEvent } from '@remix-api'
 import TrackingContext from '@remix-ide/tracking'
 import { ImportFromIpfs } from '../components/importFromIpfs'
-import { TemplateExplorerWizardAction, TemplateExplorerWizardState } from '../../types/template-explorer-types'
+import { TemplateExplorerWizardAction } from '../../types/template-explorer-types'
 import { GitCloneScreen } from '../components/gitCloneScreen'
 
 export interface RemixUiTemplateExplorerModalProps {
@@ -26,10 +26,29 @@ export function RemixUiTemplateExplorerModal (props: RemixUiTemplateExplorerModa
   const trackMatomoEvent = <T extends MatomoEvent = TemplateExplorerModalEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
   }
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [modalHeight, setModalHeight] = useState<string>('')
+
+  useEffect(() => {
+    // Calculate dynamic height based on content
+    if (containerRef.current) {
+      const scrollHeight = containerRef.current.scrollHeight
+      const viewportHeight = window.innerHeight
+      const maxHeight = Math.min(scrollHeight + 20, viewportHeight * 0.9) // 90vh max with 20px buffer
+
+      // Only set fixed height for non-template steps
+      if (state.wizardStep === 'reset' || state.wizardStep === 'template') {
+        setModalHeight(`${maxHeight}px`)
+      } else {
+        setModalHeight('720px')
+      }
+    }
+  }, [state.wizardStep, state.manageCategory])
+
   return (
     <section data-id="template-explorer-modal-react" data-path={`templateExplorerModal-${state.manageCategory}`}>
       <section className="template-explorer-modal-background" style={{ zIndex: 8888 }}>
-        <div className="template-explorer-modal-container border bg-dark p-2" style={{ width: '768px', height: parseHeight(state) }}>
+        <div ref={containerRef} className="template-explorer-modal-container border bg-dark p-2" style={{ height: modalHeight }}>
           <div className="template-explorer-modal-close-container bg-dark mb-3 w-100 d-flex flex-row justify-content-between align-items-center">
             {state.wizardStep === 'template' || state.wizardStep === 'reset' ? <div className="d-flex flex-row gap-2 w-100 mx-3 my-2">
               <input
@@ -81,8 +100,3 @@ export function RemixUiTemplateExplorerModal (props: RemixUiTemplateExplorerModa
     </section>
   )
 }
-
-function parseHeight(state: TemplateExplorerWizardState) {
-  return state.wizardStep === 'reset' || state.wizardStep === 'template' ? '' : state.wizardStep === 'gitClone' || state.wizardStep === 'genAI' || state.wizardStep === 'importFiles' || state.wizardStep === 'importHttps' || state.wizardStep === 'generic' || state.wizardStep === 'remixdefault' ? '720px' : ''
-}
-

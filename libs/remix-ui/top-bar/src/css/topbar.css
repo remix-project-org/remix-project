@@ -61,3 +61,64 @@
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
 }
+
+/* Feedback slide-in panel */
+.feedback-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 9998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.feedback-panel-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.feedback-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  max-width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--secondary);
+}
+
+.feedback-panel.open {
+  transform: translateX(0);
+}
+
+.feedback-panel-header {
+  flex-shrink: 0;
+}
+
+.feedback-panel-header .feedback-panel-close:hover {
+  color: var(--bs-primary);
+}
+
+.feedback-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.feedback-panel-body iframe {
+  width: 100%;
+  height: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  min-height: calc(100vh - 50px);
+}

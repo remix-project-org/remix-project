@@ -12,7 +12,7 @@ const tests = {
     init(browser, done, null)
   },
 
-  'Should show fork and delete VM state icons #group1': function (browser: NightwatchBrowser) {
+  'Should show fork and delete VM state icons #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('udapp')
       .waitForElementVisible('*[data-id="selected-provider-vm-osaka"]', 30000)
@@ -39,7 +39,7 @@ const tests = {
         }
       )
   },
-  'Should fork state successfully #group1': function (browser: NightwatchBrowser) {
+  'Should fork state successfully #group1': '' + function (browser: NightwatchBrowser) {
     let contractAddress = ''
     browser
       .openFile('contracts')
@@ -140,7 +140,7 @@ const tests = {
         })
       .clickLaunchIcon('filePanel')
   },
-  'Should show fork states provider in environment dropdown & make txs using forked state #group1': function (browser: NightwatchBrowser) {
+  'Should show fork states provider in environment dropdown & make txs using forked state #group1': '' + function (browser: NightwatchBrowser) {
     const remixVMSpanXPath = "//span[contains(@class,'dropdown-item') and normalize-space()='Remix VM']"
     browser
       .clickLaunchIcon('udapp')
@@ -199,7 +199,7 @@ const tests = {
           'decoded input': { 'uint256 num': '555' }
         })
   },
-  'Should delete state successfully #group1': function (browser: NightwatchBrowser) {
+  'Should delete state successfully #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .switchEnvironment('vm-prague')
       .openFile('contracts/1_Storage.sol')

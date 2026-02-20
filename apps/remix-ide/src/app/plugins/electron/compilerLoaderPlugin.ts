@@ -45,6 +45,7 @@ export class compilerLoaderPlugin extends Plugin {
     response.baseURLWasm = baseURLWasm
 
     this.emit('jsonBinDataLoaded', response)
+    return response
   }
 }
 

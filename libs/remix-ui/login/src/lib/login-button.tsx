@@ -11,13 +11,17 @@ interface LoginButtonProps {
   showCredits?: boolean
   variant?: 'button' | 'badge' | 'compact'
   plugin?: any
+  cloneGitRepository?: () => void
+  publishToGist?: () => void
 }
 
 export const LoginButton: React.FC<LoginButtonProps> = ({
   className = '',
   showCredits = true,
   variant = 'button',
-  plugin
+  plugin,
+  cloneGitRepository,
+  publishToGist
 }) => {
   const { isAuthenticated, user, credits, logout, login } = useAuth()
   const [showModal, setShowModal] = useState(false)
@@ -160,6 +164,9 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
         themes={themes}
         currentTheme={currentTheme}
         onThemeChange={handleThemeChange}
+        plugin={plugin}
+        cloneGitRepository={cloneGitRepository}
+        publishToGist={publishToGist}
       />
     )
   }

@@ -107,7 +107,7 @@ export const defaultMCPConfig: MCPConfig = {
     fileWritePermissions: {
       mode: 'ask',
       allowedFiles: [],
-      lastPrompted: null
+      lastPrompted: undefined
     }
   },
   validation: {

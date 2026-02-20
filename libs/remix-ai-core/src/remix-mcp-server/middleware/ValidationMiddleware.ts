@@ -254,19 +254,35 @@ export class ValidationMiddleware extends BaseMiddleware {
   private validateFieldSchema(field: string, value: any, schema: any, result: ValidationResult): void {
     // Type validation
     if (schema.type) {
-      const expectedType = schema.type;
       const actualType = Array.isArray(value) ? 'array' : typeof value;
 
-      if (expectedType !== actualType) {
-        result.errors.push({
-          field,
-          code: 'TYPE_MISMATCH',
-          message: `Field '${field}' expected type ${expectedType}, got ${actualType}`,
-          expectedType,
-          actualType,
-          value
-        });
-        return;
+      // Handle union types (array of allowed types)
+      if (Array.isArray(schema.type)) {
+        if (!schema.type.includes(actualType)) {
+          result.errors.push({
+            field,
+            code: 'TYPE_MISMATCH',
+            message: `Field '${field}' expected type ${schema.type.join('|')}, got ${actualType}`,
+            expectedType: schema.type.join('|'),
+            actualType,
+            value
+          });
+          return;
+        }
+      } else {
+        // Handle single type
+        const expectedType = schema.type;
+        if (expectedType !== actualType) {
+          result.errors.push({
+            field,
+            code: 'TYPE_MISMATCH',
+            message: `Field '${field}' expected type ${expectedType}, got ${actualType}`,
+            expectedType,
+            actualType,
+            value
+          });
+          return;
+        }
       }
     }
 

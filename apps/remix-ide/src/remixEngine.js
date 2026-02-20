@@ -20,6 +20,11 @@ export class RemixEngine extends Engine {
     if (name === 'fetchAndCompile') return { queueTimeout: 60000 * 4 }
     if (name === 'walletconnect') return { queueTimeout: 60000 * 4 }
     if (name === 'udapp') return { queueTimeout: 60000 * 4 }
+    if (name === 'blockchain') return { queueTimeout: 60000 * 5 }
+    if (name === 'openzeppelin-proxy') return { queueTimeout: 60000 * 5 }
+    if (name === 'txRunner') return { queueTimeout: 60000 * 5 }
+    if (name === 'udappDeploy') return { queueTimeout: 60000 * 5 }
+    if (name === 'udappEnv') return { queueTimeout: 60000 * 5 }
     if (name === 'fs') return { queueTimeout: 60000 * 4 }
     if (name === 'isogit') return { queueTimeout: 60000 * 4 }
     if (name === 'circuit-compiler') return { queueTimeout: 60000 * 4 }
@@ -33,6 +38,7 @@ export class RemixEngine extends Engine {
     if (name === 'resolutionIndex') return { queueTimeout: 60000 * 2 }
     if (name === 'circom') return { queueTimeout: 60000 * 4 }
     if (name === 'noir-compiler') return { queueTimeout: 60000 * 4 }
+    if (name === 'cloudWorkspaces') return { queueTimeout: 60000 * 4 }
     //if (name === 'sso') return { queueTimeout: 60000 * 4 }
     return { queueTimeout: 10000 }
   }

@@ -8,7 +8,7 @@ import { bytesToHex, hexToBytes, createAddressFromString } from '@ethereumjs/uti
 import type { AddressLike, BigIntLike, PrefixedHexString } from '@ethereumjs/util'
 import { EventManager } from '../eventManager'
 import { LogsManager } from './logsManager'
-import type { Transaction as InternalTransaction } from './txRunner'
+import type { Transaction as InternalTransaction } from '../index'
 
 export type VMexecutionResult = {
   result: RunTxResult,

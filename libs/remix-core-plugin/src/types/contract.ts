@@ -22,7 +22,7 @@ export interface ContractData {
     bytecodeLinkReferences: any,
     object: any,
     deployedBytecode: any,
-    getConstructorInterface: () => any,
+    getConstructorInterface: () => FuncABI,
     getConstructorInputs: () => any,
     isOverSizeLimit: (args: string) => Promise<OverSizeLimit>,
     metadata: any,

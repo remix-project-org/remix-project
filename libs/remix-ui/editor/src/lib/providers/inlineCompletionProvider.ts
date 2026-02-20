@@ -9,37 +9,73 @@ import {
   CompletionCache,
 } from '../inlineCompetionsLibs';
 
+interface CompletionMetadata {
+  text: string;
+  item: monacoTypes.languages.InlineCompletion | null;
+  task: string;
+  displayed: boolean;
+  accepted: boolean;
+  acceptanceType: 'full' | 'partial' | null;
+  sessionId: number;
+  onAccepted: () => void;
+}
+
 export class RemixInLineCompletionProvider implements monacoTypes.languages.InlineCompletionsProvider {
   props: EditorUIProps
   monaco: any
   completionEnabled: boolean
   task: string = 'code_completion'
-  currentCompletion: any
   trackMatomoEvent?: (event: AIEvent) => void
 
   private rateLimiter: AdaptiveRateLimiter;
   private contextDetector: SmartContextDetector;
   private cache: CompletionCache;
+  private completionSessionId: number = 0;
+
+  // Use WeakMap to track metadata for each completion independently
+  // This prevents race conditions when multiple completions are in-flight
+  private completionMetadata: WeakMap<monacoTypes.languages.InlineCompletions, CompletionMetadata>;
+
+  // Also track by sessionId for text change listener (can't use WeakMap there)
+  // Public so editor.tsx can iterate over active sessions
+  public sessionMetadata: Map<number, CompletionMetadata>;
 
   constructor(props: any, monaco: any, trackMatomoEvent?: (event: AIEvent) => void) {
     this.props = props
     this.monaco = monaco
     this.trackMatomoEvent = trackMatomoEvent
     this.completionEnabled = true
-    this.currentCompletion = {
-      text: '',
-      item: [],
-      task: this.task,
-      displayed: false,
-      accepted: false,
-      onAccepted: () => {
-        this.rateLimiter.trackCompletionAccepted()
-      }
-    }
 
     this.rateLimiter = new AdaptiveRateLimiter();
     this.contextDetector = new SmartContextDetector();
     this.cache = new CompletionCache();
+    this.completionMetadata = new WeakMap();
+    this.sessionMetadata = new Map();
+  }
+
+  // Called from external code (editor.tsx) when full completion is detected via text change
+  // Monaco doesn't have a handleAccept callback, so we detect full Tab completions this way
+  private handleExternalAcceptance(sessionId: number): void {
+    const metadata = this.sessionMetadata.get(sessionId);
+    if (!metadata) {
+      return;
+    }
+
+    // Prevent duplicate tracking (in case handlePartialAccept was already called)
+    if (metadata.accepted) {
+      return;
+    }
+
+    metadata.accepted = true;
+    metadata.acceptanceType = 'full'; // Full Tab completion
+
+    console.log('[handleExternalAcceptance] Full completion accepted (Tab key)', {
+      sessionId,
+      task: metadata.task,
+      rateLimiterStats: this.rateLimiter.getStats()
+    });
+
+    this.rateLimiter.trackCompletionAccepted();
   }
 
   async provideInlineCompletions(
@@ -48,9 +84,12 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
     context: monacoTypes.languages.InlineCompletionContext,
     token: monacoTypes.CancellationToken
   ): Promise<monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>> {
+
     // Check if completion is enabled
     const isActivate = await this.props.plugin.call('settings', 'get', 'settings/copilot/suggest/activate')
-    if (!isActivate) return { items: []}
+    if (!isActivate) {
+      return { items: []};
+    }
 
     const currentTime = Date.now();
 
@@ -65,16 +104,20 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
       return { items: []};
     }
 
-    // Record request
+    // Record request - only for completions that pass all checks
     this.rateLimiter.recordRequest(currentTime);
 
+    // Create new session
+    this.completionSessionId++;
+    const sessionId = this.completionSessionId;
+
     try {
-      const result = await this.executeCompletion(model, position, context, token);
+      const result = await this.executeCompletion(model, position, context, token, sessionId);
       this.rateLimiter.recordCompletion();
       return result;
     } catch (error) {
       this.rateLimiter.recordCompletion();
-      console.warn("rate limit error")
+      return { items: []};
     }
   }
 
@@ -82,7 +125,8 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
     model: monacoTypes.editor.ITextModel,
     position: monacoTypes.Position,
     context: monacoTypes.languages.InlineCompletionContext,
-    token: monacoTypes.CancellationToken
+    token: monacoTypes.CancellationToken,
+    sessionId: number
   ): Promise<monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>> {
     const getTextAtLine = (lineNumber: number) => {
       const lineRange = model.getFullModelRange().setStartPosition(lineNumber, 1).setEndPosition(lineNumber + 1, 1);
@@ -153,11 +197,36 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
 
     // Create cache key and check cache
     const cacheKey = this.cache.createCacheKey(word, word_after, position, this.task);
-    this.currentCompletion.accepted = false
 
-    return await this.cache.handleRequest(cacheKey, async () => {
+    const result = await this.cache.handleRequest(cacheKey, async () => {
       return await this.performCompletion(word, word_after, position);
     });
+
+    // Create metadata for this completion
+    if (result && result.items && result.items.length > 0) {
+      const firstItem = result.items[0];
+      const insertText = typeof firstItem.insertText === 'string'
+        ? firstItem.insertText
+        : firstItem.insertText?.snippet || '';
+
+      const metadata: CompletionMetadata = {
+        text: insertText,
+        item: firstItem,
+        task: this.task,
+        displayed: false,
+        accepted: false,
+        acceptanceType: null,
+        sessionId,
+        onAccepted: () => {
+          this.handleExternalAcceptance(sessionId);
+        }
+      };
+
+      this.completionMetadata.set(result, metadata);
+      this.sessionMetadata.set(sessionId, metadata);
+    }
+
+    return result;
   }
 
   private async performCompletion(
@@ -196,13 +265,15 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
     position: monacoTypes.Position,
     ask: string
   ): Promise<monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>> {
+    console.log('[handleCodeGeneration] Started', { ask: ask.replace('///', '') });
+
     this.props.plugin.call('terminal', 'log', {
       type: 'aitypewriterwarning',
       value: 'RemixAI - generating code for following comment: ' + ask.replace('///', '')
     })
 
     const data = await this.props.plugin.call('remixAI', 'code_insertion', word, word_after)
-    this.trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'code_generation', isClick: false })
+    this.trackMatomoEvent?.({ category: 'ai', action: 'completion', name: 'code_generation', isClick: false })
     this.task = 'code_generation'
 
     const parsedData = data.trimStart()
@@ -210,9 +281,6 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
       insertText: parsedData,
       range: new this.monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
     }
-
-    this.currentCompletion.text = parsedData
-    this.currentCompletion.item = item
 
     return {
       items: [item],
@@ -228,7 +296,7 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
     try {
       CompletionParams.stop = ['\n\n', '```']
       const output = await this.props.plugin.call('remixAI', 'code_insertion', word, word_after, CompletionParams)
-      this.trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'code_insertion', isClick: false })
+      this.trackMatomoEvent?.({ category: 'ai', action: 'completion', name: 'code_insertion', isClick: false })
       const generatedText = output
 
       this.task = 'code_insertion'
@@ -237,15 +305,11 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
         range: new this.monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
       };
 
-      this.currentCompletion.text = generatedText
-      this.currentCompletion.item = item
-
       return {
         items: [item],
         enableForwardStability: true,
       }
     } catch (err) {
-      console.log("err: " + err)
       return { items: []}
     }
   }
@@ -258,8 +322,8 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
     try {
       CompletionParams.stop = ['\n', '```']
       this.task = 'code_completion'
-      const output = await this.props.plugin.call('remixAI', 'code_completion', word, word_after, CompletionParams)
-      this.trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'code_completion', isClick: false })
+      const output = await this.props.plugin.call('remixAI', 'code_insertion', word, word_after, CompletionParams)
+      this.trackMatomoEvent?.({ category: 'ai', action: 'completion', name: 'code_completion', isClick: false })
       const generatedText = output
       let clean = generatedText
 
@@ -272,8 +336,6 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
         insertText: clean,
         range: new this.monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
       };
-      this.currentCompletion.text = clean
-      this.currentCompletion.item = item
       return {
         items: [item],
         enableForwardStability: true,
@@ -301,35 +363,78 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
     item: monacoTypes.languages.InlineCompletion,
     updatedInsertText: string
   ): void {
-    this.currentCompletion.displayed = true
-    this.currentCompletion.task = this.task
+    const metadata = this.completionMetadata.get(completions);
+    if (!metadata) {
+      return;
+    }
+
+    metadata.displayed = true;
+
+    console.log('[handleItemDidShow] Completion shown to user', {
+      sessionId: metadata.sessionId,
+      task: metadata.task,
+      textLength: updatedInsertText.length
+    });
 
     this.rateLimiter.trackCompletionShown()
-    this.trackMatomoEvent?.({ category: 'ai', action: 'completion', name: this.task + '_did_show', isClick: true })
+    this.trackMatomoEvent?.({ category: 'ai', action: 'completion', name: 'code_completion_did_show', isClick: true })
   }
 
+  // This is called when user accepts part of the completion (Ctrl+RightArrow)
   handlePartialAccept?(
     completions: monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>,
     item: monacoTypes.languages.InlineCompletion,
     acceptedCharacters: number
   ): void {
-    this.currentCompletion.accepted = true
-    this.currentCompletion.task = this.task
+    const metadata = this.completionMetadata.get(completions);
+    if (!metadata) {
+      console.log('[handlePartialAccept] No metadata found for completion');
+      return;
+    }
+
+    // Prevent duplicate tracking
+    if (metadata.accepted) {
+      console.log('[handlePartialAccept] DUPLICATE acceptance detected - ignoring', {
+        sessionId: metadata.sessionId,
+        previousAcceptanceType: metadata.acceptanceType
+      });
+      return;
+    }
+
+    metadata.accepted = true;
+    metadata.acceptanceType = 'partial';
+
+    console.log('[handlePartialAccept] Partial completion accepted', {
+      sessionId: metadata.sessionId,
+      task: metadata.task,
+      acceptedCharacters,
+      rateLimiterStats: this.rateLimiter.getStats()
+    });
 
     this.rateLimiter.trackCompletionAccepted()
-    this.trackMatomoEvent?.({ category: 'ai', action: 'completion', name: this.task + '_partial_accept', isClick: true })
+    this.trackMatomoEvent?.({ category: 'ai', action: 'completion', name: metadata.task + '_partial_accept', isClick: true })
   }
 
   freeInlineCompletions(
     completions: monacoTypes.languages.InlineCompletions<monacoTypes.languages.InlineCompletion>
   ): void {
-    // If completion was shown but not accepted, consider it rejected
-    if (this.currentCompletion.displayed && !this.currentCompletion.accepted) {
-      this.rateLimiter.trackCompletionRejected()
+    const metadata = this.completionMetadata.get(completions);
+    if (!metadata) {
+      return;
     }
+
+    setTimeout(() => {
+      if (metadata.displayed && !metadata.accepted) {
+        this.rateLimiter.trackCompletionRejected()
+      } else if (metadata.accepted) {
+        // this is already handled by the editor callback onAccepted
+      } else {
+      }
+
+      this.sessionMetadata.delete(metadata.sessionId);
+    }, 10); // Small delay to let text change events process
   }
 
-  // collect stats for debugging
   getStats() {
     return {
       rateLimiter: this.rateLimiter.getStats(),

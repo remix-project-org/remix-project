@@ -91,6 +91,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       if (name === 'copilot/suggest/activate') plugin.emit('copilotChoiceUpdated', newValue)
       if (name === 'matomo-perf-analytics') plugin.call('settings', 'updateMatomoPerfAnalyticsChoice', newValue)
       if (name === 'text-wrap') plugin.emit('textWrapChoiceUpdated', newValue)
+      if (name === 'cloud-storage/autosave') plugin.call('s3Storage', 'setAutosaveEnabled', newValue)
     } else {
       console.error('Setting does not exist: ', name)
     }

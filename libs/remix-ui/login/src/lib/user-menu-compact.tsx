@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import { AuthUser, AuthProvider, LinkedAccount, AccountsResponse, ProfileUsername } from '@remix-api'
+import React, { useState, useEffect, useContext } from 'react'
+import { AuthUser, AuthProvider, LinkedAccount, AccountsResponse } from '@remix-api'
 import type { Credits } from '../../../app/src/lib/remix-app/context/auth-context'
 import { ToggleSwitch } from '@remix-ui/toggle'
+import { AppContext } from '@remix-ui/app'
 import './user-menu-compact.css'
 
 interface Theme {
@@ -24,6 +25,9 @@ interface UserMenuCompactProps {
   themes?: Theme[]
   currentTheme?: string
   onThemeChange?: (themeName: string) => void
+  plugin?: any
+  cloneGitRepository?: () => void
+  publishToGist?: () => void
 }
 
 const getProviderIcon = (provider: AuthProvider | string) => {
@@ -51,30 +55,15 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
   getUsername,
   themes,
   currentTheme,
-  onThemeChange
+  onThemeChange,
+  plugin,
+  cloneGitRepository,
+  publishToGist
 }) => {
   const [showDropdown, setShowDropdown] = useState(false)
-  const [profileUsername, setProfileUsername] = useState<ProfileUsername | null>(null)
-  const [copied, setCopied] = useState(false)
-
-  // Load username when dropdown opens
-  useEffect(() => {
-    if (showDropdown && getUsername && !profileUsername) {
-      getUsername().then(setProfileUsername).catch(() => {})
-    }
-  }, [showDropdown, getUsername, profileUsername])
-
-  const copyProfileUrl = async () => {
-    if (!profileUsername?.username) return
-    const url = `remix.ethereum.org/${profileUsername.username}`
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
-    }
-  }
+  const appContext = useContext(AppContext)
+  const gitHubUser = appContext?.appState?.gitHubUser
+  const isGitHubConnected = gitHubUser?.isConnected
 
   return (
     <div className={`position-relative ${className}`}>
@@ -164,6 +153,95 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                   </strong>
                 </div>
               )}
+
+              <div className="dropdown-divider user-menu-divider"></div>
+
+              {/* GitHub / Git Section */}
+              <div className="user-menu-git-section">
+                {isGitHubConnected ? (
+                  <>
+                    <div className="dropdown-item-text small text-muted d-flex align-items-center">
+                      <i className="fab fa-github me-2"></i>
+                      <span>{gitHubUser.login}</span>
+                      {gitHubUser.avatar_url && (
+                        <img
+                          src={gitHubUser.avatar_url}
+                          alt=""
+                          className="ms-auto"
+                          style={{ width: '20px', height: '20px', borderRadius: '50%' }}
+                        />
+                      )}
+                    </div>
+                    {cloneGitRepository && (
+                      <button
+                        className="dropdown-item user-menu-item"
+                        onClick={() => {
+                          cloneGitRepository()
+                          setShowDropdown(false)
+                        }}
+                      >
+                        <i className="fas fa-clone user-menu-item-icon"></i>
+                        Clone
+                      </button>
+                    )}
+                    {publishToGist && (
+                      <button
+                        className="dropdown-item user-menu-item"
+                        onClick={() => {
+                          publishToGist()
+                          setShowDropdown(false)
+                        }}
+                      >
+                        <i className="fab fa-github user-menu-item-icon"></i>
+                        Publish to Gist
+                      </button>
+                    )}
+                    <button
+                      className="dropdown-item user-menu-item text-danger"
+                      onClick={async () => {
+                        if (plugin) {
+                          await plugin.call('auth', 'disconnectGitHub')
+                        }
+                        setShowDropdown(false)
+                      }}
+                    >
+                      <i className="fas fa-unlink user-menu-item-icon"></i>
+                      Disconnect GitHub
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {cloneGitRepository && (
+                      <button
+                        className="dropdown-item user-menu-item"
+                        onClick={() => {
+                          cloneGitRepository()
+                          setShowDropdown(false)
+                        }}
+                      >
+                        <i className="fas fa-clone user-menu-item-icon"></i>
+                        Clone
+                      </button>
+                    )}
+                    <button
+                      className="dropdown-item user-menu-item"
+                      onClick={async () => {
+                        if (plugin) {
+                          try {
+                            await plugin.call('auth', 'linkAccount', 'github')
+                          } catch (error) {
+                            console.error('Failed to connect GitHub:', error)
+                          }
+                        }
+                        setShowDropdown(false)
+                      }}
+                    >
+                      <i className="fab fa-github user-menu-item-icon"></i>
+                      Connect GitHub
+                    </button>
+                  </>
+                )}
+              </div>
 
               <div className="dropdown-divider user-menu-divider"></div>
 

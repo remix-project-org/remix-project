@@ -243,7 +243,8 @@ export function ContractGUI(props: ContractGUIProps) {
 
   const handleActionClick = async () => {
     props.getVersion()
-    if (props.runTabState.selectExEnv.toLowerCase().startsWith('vm-') || props.runTabState.selectExEnv.toLowerCase().includes('basic-http-provider') || props.runTabState.contracts.loadType !== 'sol') {
+    const selectedProvider = await props.plugin.call('udappEnv', 'getSelectedProvider')
+    if (selectedProvider.toLowerCase().startsWith('vm-') || selectedProvider.toLowerCase().includes('basic-http-provider') || props.runTabState.contracts.loadType !== 'sol') {
       await handleDeploy()
     } else {
       const status = await props.getCompilerDetails()
@@ -253,7 +254,8 @@ export function ContractGUI(props: ContractGUIProps) {
       }
       const tabState = props.runTabState
       const compilerState = await props.plugin.call('solidity', 'getCompilerState')
-      const IsCompatible = isChainCompatible(compilerState.evmVersion ?? 'osaka', parseInt(tabState.chainId))
+      const network = await props.plugin.call('udappEnv', 'getNetwork')
+      const IsCompatible = isChainCompatible(compilerState.evmVersion ?? 'osaka', network?.chainId)
       if (status === 'Passed' && IsCompatible) {
         await handleDeploy()
       } else {

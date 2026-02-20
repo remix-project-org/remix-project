@@ -25,4 +25,6 @@ export class DebuggerClientApi extends DebuggerApiMixin(PluginClient) {
   web3: () => any // returns an instance of web3.js
   onStartDebugging: (debuggerBackend: any) => Promise<void> // called when debug starts
   onStopDebugging: () => Promise<void> // called when debug stops
+  getCache: (key: string) => Promise<any>
+  setCache: (key: string, value: any) => Promise<void>
 }

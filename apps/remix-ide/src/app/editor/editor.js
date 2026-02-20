@@ -849,6 +849,7 @@ export default class Editor extends Plugin {
 
     if (opt.focus) {
       await this.call('fileManager', 'open', filePath)
+      await new Promise((resolve) => setTimeout(resolve, 50)) // wait for the editor to load the file
       this.scrollToLine(position.start.line)
     }
     await this.addDecoration({ position }, filePath, 'markerPerFile')

@@ -52,6 +52,10 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     return this.currentSourceLocation
   }
 
+  getStackAt (vmtraceIndex: number) {
+    return this.debuggerBackend.debugger.traceManager.getStackAt(vmtraceIndex)
+  }
+
   async highlight (lineColumnPos, path, rawLocation, stepDetail, lineGasCost, origin?, step?) {
     // Pass the main contract being debugged as the origin for proper resolution
     await this.call('editor', 'highlight', lineColumnPos, path, '', { focus: true, origin })
@@ -116,6 +120,15 @@ export const DebuggerApiMixin = (Base) => class extends Base {
 
   onRemoveHighlights (listener) {
     this.onRemoveHighlightsListener = listener
+  }
+
+  setCache (key: string, value: any) {
+    const ttlMs = 1 * 24 * 60 * 60 * 1000 // 1 day
+    return this.call('indexedDbCache', 'setWithTTL', key, value, ttlMs, 'debugger')
+  }
+
+  getCache (key: string) {
+    return this.call('indexedDbCache', 'get', key, 'debugger')
   }
 
   async fetchContractAndCompile (address, receipt) {

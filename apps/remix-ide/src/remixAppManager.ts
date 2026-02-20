@@ -93,6 +93,7 @@ let requiredModules = [
   'remixAI',
   'remixAID',
   'remixaiassistant',
+  'quick-dapp-v2',
   'topbar',
   'templateexplorermodal',
   'githubAuthHandler',
@@ -100,17 +101,28 @@ let requiredModules = [
   'auth',
   'account',
   'transactionSimulator',
-  'resolutionIndex',
   'amp',
+  's3Storage',
+  'resolutionIndex',
   'vega',
   'chartjs',
-  'storageMonitor'
+  'storageMonitor',
+  'indexedDbCache',
+  'notificationCenter',
+  'invitationManager',
+  'feedback',
+  'cloudWorkspaces',
+  'udappEnv',
+  'udappDeploy',
+  'udappDeployedContracts',
+  'udappTransactions',
+  'txRunner'
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
 const dependentModules = ['foundry', 'hardhat', 'truffle', 'slither']
 
-const loadLocalPlugins = ['doc-gen', 'doc-viewer', 'contract-verification', 'vyper', 'solhint', 'circuit-compiler', 'learneth', 'quick-dapp', 'quick-dapp-v2', 'noir-compiler']
+const loadLocalPlugins = ['doc-gen', 'doc-viewer', 'contract-verification', 'vyper', 'solhint', 'circuit-compiler', 'learneth', 'quick-dapp', 'noir-compiler']
 
 const partnerPlugins = ['cookbookdev']
 
@@ -175,7 +187,12 @@ export function isNative(name) {
     'amp',
     'vega',
     'chartjs',
-    'quick-dapp-v2'
+    'quick-dapp-v2',
+    'udappEnv',
+    'udappDeploy',
+    'udappDeployedContracts',
+    'udappTransactions',
+    'txRunner'
   ]
   return nativePlugins.includes(name) || requiredModules.includes(name) || isInjectedProvider(name) || isVM(name) || isScriptRunner(name)
 }
@@ -464,7 +481,10 @@ class PluginLoader {
       'solidityumlgen',
       'remixGuide',
       'doc-viewer',
-      'UIScriptRunner'
+      'UIScriptRunner',
+      'quick-dapp-v2',
+      'cloudWorkspaces',
+      's3Storage'
     ]
     this.loaders = {}
     this.loaders.localStorage = {

@@ -1,4 +1,5 @@
 import { bytesToHex, toChecksumAddress } from '@ethereumjs/util'
+import { BN } from 'bn.js'
 import { ProcessLoadingParams } from '../types/remix-helper'
 
 export const extractNameFromKey = (key: string): string => {
@@ -18,6 +19,7 @@ export const extractParentFromKey = (key: string):string => {
 }
 
 export const checkSpecialChars = (name: string) => {
+  if (!name) return false
   return name.match(/[:*?"<>\\'|]/) != null
 }
 
@@ -92,6 +94,7 @@ export const isNumeric = (value) => {
 }
 
 export const shortenAddress = (address, etherBalance?, currency = 'ETH') => {
+  if (!address) return
   const len = address.length
 
   return address.slice(0, 5) + '...' + address.slice(len - 5, len) + (etherBalance ? ' (' + etherBalance.toString() + ' ' + currency + ')' : '')
@@ -145,7 +148,8 @@ export const shortenDate = (dateString: string) => {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + ', ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 
-export const getTimeAgo = (timestamp: number): string => {
+export const getTimeAgo = (timestamp: number, options?: { truncateTimeAgo?: boolean }): string => {
+  const { truncateTimeAgo = false } = options || {}
   if (!timestamp) return 'recently'
 
   const now = Date.now()
@@ -158,21 +162,21 @@ export const getTimeAgo = (timestamp: number): string => {
   const diffInMonths = Math.floor(diffInDays / 30)
   const diffInYears = Math.floor(diffInDays / 365)
 
-  if (diffInYears > 0) return diffInYears === 1 ? '1 year ago' : `${diffInYears} years ago`
+  if (diffInYears > 0) return diffInYears === 1 ? (truncateTimeAgo ? '1y' : '1 year ago') : truncateTimeAgo ? `${diffInYears}y` : `${diffInYears} years ago`
 
-  if (diffInMonths > 0) return diffInMonths === 1 ? '1 month ago' : `${diffInMonths} months ago`
+  if (diffInMonths > 0) return diffInMonths === 1 ? (truncateTimeAgo ? '1m' : '1 month ago') : truncateTimeAgo ? `${diffInMonths}m` : `${diffInMonths} months ago`
 
-  if (diffInWeeks > 0) return diffInWeeks === 1 ? '1 week ago' : `${diffInWeeks} weeks ago`
+  if (diffInWeeks > 0) return diffInWeeks === 1 ? (truncateTimeAgo ? '1wk' : '1 week ago') : truncateTimeAgo ? `${diffInWeeks}w` : `${diffInWeeks} weeks ago`
 
-  if (diffInDays > 0) return diffInDays === 1 ? '1 day ago' : `${diffInDays} days ago`
+  if (diffInDays > 0) return diffInDays === 1 ? (truncateTimeAgo ? '1d' : '1 day ago') : truncateTimeAgo ? `${diffInDays}d` : `${diffInDays} days ago`
 
-  if (diffInHours > 0) return diffInHours === 1 ? '1 hour ago' : `${diffInHours} hours ago`
+  if (diffInHours > 0) return diffInHours === 1 ? (truncateTimeAgo ? '1h' : '1 hour ago') : truncateTimeAgo ? `${diffInHours}h` : `${diffInHours} hours ago`
 
-  if (diffInMinutes > 0) return diffInMinutes === 1 ? '1 minute ago' : `${diffInMinutes} minutes ago`
+  if (diffInMinutes > 0) return diffInMinutes === 1 ? (truncateTimeAgo ? '1min' : '1 minute ago') : truncateTimeAgo ? `${diffInMinutes}min` : `${diffInMinutes} minutes ago`
 
-  if (diffInSeconds > 0) return diffInSeconds === 1 ? '1 second ago' : `${diffInSeconds} seconds ago`
+  if (diffInSeconds > 0) return diffInSeconds === 1 ? (truncateTimeAgo ? '1s' : '1 second ago') : truncateTimeAgo ? `${diffInSeconds}s` : `${diffInSeconds} seconds ago`
 
-  return 'just now'
+  return truncateTimeAgo ? '0s' : 'just now'
 }
 
 /**
@@ -303,3 +307,71 @@ export const processLoading = ({ type, importUrl, contentImport, workspaceProvid
   })
 }
 
+export const getMultiValsString = (values: string[]) => {
+  const valArray = values
+  let ret = ''
+  const valArrayTest = []
+
+  for (let j = 0; j < valArray.length; j++) {
+    if (ret !== '') ret += ','
+    let elVal = valArray[j] || ''
+
+    valArrayTest.push(elVal)
+    elVal = elVal.replace(/(^|,\s+|,)(\d+)(\s+,|,|$)/g, '$1"$2"$3') // replace non quoted number by quoted number
+    elVal = elVal.replace(/(^|,\s+|,)(0[xX][0-9a-fA-F]+)(\s+,|,|$)/g, '$1"$2"$3') // replace non quoted hex string by quoted hex string
+    if (elVal) {
+      try {
+        JSON.parse(elVal)
+      } catch (e) {
+        elVal = '"' + elVal + '"'
+      }
+    }
+    ret += elVal
+  }
+  const valStringTest = valArrayTest.join('')
+
+  if (valStringTest) {
+    return ret
+  } else {
+    return ''
+  }
+}
+
+export const extractDataDefault = (item, parent?) => {
+  const ret: any = {}
+
+  if (BN.isBN(item)) {
+    ret.self = item.toString(10)
+    ret.children = []
+  } else {
+    if (item instanceof Array) {
+      ret.children = item.map((item, index) => {
+        return { key: index, value: item }
+      })
+      ret.self = 'Array'
+      ret.isNode = true
+      ret.isLeaf = false
+    } else if (item instanceof Object) {
+      ret.children = Object.keys(item).map((key) => {
+        return { key: key, value: item[key] }
+      })
+      ret.self = 'Object'
+      ret.isNode = true
+      ret.isLeaf = false
+    } else {
+      ret.self = item
+      ret.children = null
+      ret.isNode = false
+      ret.isLeaf = true
+    }
+  }
+  return ret
+}
+
+export const extractRecorderTimestamp = (value: any): string | null => {
+  const stamp = /created{(.*)}/g.exec(value)
+  if (stamp) {
+    return stamp[1]
+  }
+  return null
+}

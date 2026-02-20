@@ -726,7 +726,7 @@ export const uploadFolder = async (target, targetFolder: string, cb?: (err: Erro
   }
 }
 
-export type WorkspaceType = { name: string; isGitRepo: boolean; hasGitSubmodules: boolean; branches?: { remote: any; name: string }[]; currentBranch?: string }
+export type WorkspaceType = { name: string; isGitRepo: boolean; hasGitSubmodules: boolean; branches?: { remote: any; name: string }[]; currentBranch?: string; remoteId?: string }
 export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
   try {
     const workspaces: WorkspaceType[] = await new Promise((resolve, reject) => {
@@ -743,6 +743,21 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
               const name = folder.replace(workspacesPath + '/', '')
               const isGitRepo: boolean = await plugin.fileProviders.browser.exists('/' + folder + '/.git')
               const hasGitSubmodules: boolean = await plugin.fileProviders.browser.exists('/' + folder + '/.gitmodules')
+
+              // Read remoteId from remix.config.json if it exists
+              let remoteId: string | undefined
+              try {
+                const configPath = '/' + folder + '/remix.config.json'
+                const configExists = await plugin.fileProviders.browser.exists(configPath)
+                if (configExists) {
+                  const configContent = await plugin.fileProviders.browser.get(configPath)
+                  const config = JSON.parse(configContent)
+                  remoteId = config?.['remote-workspace']?.remoteId
+                }
+              } catch (e) {
+                // ignore config read errors
+              }
+
               if (isGitRepo) {
                 let branches = []
                 let currentBranch = null
@@ -755,14 +770,16 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
                   branches,
                   currentBranch,
                   hasGitSubmodules,
-                  isGist: null
+                  isGist: null,
+                  remoteId
                 }
               } else {
                 return {
                   name,
                   isGitRepo,
                   hasGitSubmodules,
-                  isGist: plugin.isGist(name) // plugin is filePanel
+                  isGist: plugin.isGist(name), // plugin is filePanel
+                  remoteId
                 }
               }
             })

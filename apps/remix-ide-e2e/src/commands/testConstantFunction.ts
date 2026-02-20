@@ -7,76 +7,41 @@ import EventEmitter from 'events'
 class TestConstantFunction extends EventEmitter {
   command(
     this: NightwatchBrowser,
-    address: string,
-    fnFullName: string,
+    instanceIndex: number,
+    functionIndex: number,
     expectedInput: NightwatchTestConstantFunctionExpectedInput | null,
     expectedOutput: string
   ): NightwatchBrowser {
-    console.log('TestConstantFunction ' + address + ' fnFullName')
-    this.api.perform((done) => {
-      testConstantFunction(
-        this.api,
-        address,
-        fnFullName,
-        expectedInput,
-        expectedOutput,
-        () => {
-          done()
-          this.emit('complete')
+    this.api
+      .execute(function (instanceIndex, functionIndex) {
+        // Use JavaScript to click the button, avoiding sticky header issues
+        const executeButton = document.querySelector(`[data-id="deployedContractItem-${instanceIndex}-button-${functionIndex}"]`) as HTMLElement
+        if (executeButton) {
+          executeButton.scrollIntoView({ behavior: 'auto', block: 'center' })
         }
+      }, [instanceIndex, functionIndex])
+      .perform(function (client, done) {
+        if (expectedInput) {
+          client.setValue(
+            `[data-id="deployedContractItem-${instanceIndex}-input-${functionIndex}"]`,
+            expectedInput.values,
+            (_) => _
+          )
+        }
+        done()
+      })
+      .click(`[data-id="deployedContractItem-${instanceIndex}-button-${functionIndex}"]`)
+      .pause(2000)
+      .waitForElementPresent(`[data-id="contractItem-${functionIndex}"] > [data-id="udapp_tree_value"]`)
+      .assert.containsText(
+        `[data-id="contractItem-${functionIndex}"] > [data-id="udapp_tree_value"]`,
+        expectedOutput
       )
-    })
+      .perform(() => {
+        this.emit('complete')
+      })
     return this
   }
-}
-
-function testConstantFunction(
-  browser: NightwatchBrowser,
-  address: string,
-  fnFullName: string,
-  expectedInput: NightwatchTestConstantFunctionExpectedInput,
-  expectedOutput: string,
-  cb: VoidFunction
-) {
-  browser
-    .waitForElementPresent('.instance *[data-bs-title="' + fnFullName + '"]')
-    .perform(function (client, done) {
-      client.execute(
-        function () {
-          document.querySelector('#runTabView').scrollTop =
-            document.querySelector('#runTabView').scrollHeight
-        },
-        [],
-        function () {
-          if (expectedInput) {
-            client
-              .waitForElementPresent(
-                '#runTabView input[data-bs-title="' + expectedInput.types + '"]'
-              )
-              .setValue(
-                '#runTabView input[data-bs-title="' + expectedInput.types + '"]',
-                expectedInput.values
-              )
-          }
-          done()
-        }
-      )
-    })
-    .click(`#instance${address} *[data-bs-title="${fnFullName}"]`)
-    .pause(1000)
-    .waitForElementPresent(
-      '#instance' + address + ' .udapp_contractActionsContainer .udapp_value'
-    )
-    .scrollInto(
-      '#instance' + address + ' .udapp_contractActionsContainer .udapp_value'
-    )
-    .assert.containsText(
-      '#instance' + address + ' .udapp_contractActionsContainer',
-      expectedOutput
-    )
-    .perform(() => {
-      cb()
-    })
 }
 
 module.exports = TestConstantFunction

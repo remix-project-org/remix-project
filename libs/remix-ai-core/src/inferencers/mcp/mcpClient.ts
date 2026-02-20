@@ -51,7 +51,7 @@ export class MCPClient {
   async connect(): Promise<IMCPInitializeResult> {
     try {
       this.eventEmitter.emit('connecting', this.server.name);
-      trackMatomoEvent('ai', 'mcp_connect_attempt', `${this.server.name}|${this.server.transport}`);
+      trackMatomoEvent('ai', 'remixAI', `mcp_connect_attempt_${this.server.name}|${this.server.transport}`);
 
       if (this.server.transport === 'internal') {
         return await this.connectInternal();
@@ -69,7 +69,7 @@ export class MCPClient {
 
     } catch (error) {
       this.eventEmitter.emit('error', this.server.name, error);
-      trackMatomoEvent('ai', 'mcp_connect_failed', `${this.server.name}|${error.message}`);
+      trackMatomoEvent('ai', 'remixAI', `mcp_connect_failed_${this.server.name}|${error.message}`);
       throw error;
     }
   }
@@ -83,7 +83,7 @@ export class MCPClient {
     this.connected = true;
     this.capabilities = result.capabilities;
     this.eventEmitter.emit('connected', this.server.name, result);
-    trackMatomoEvent('ai', 'mcp_connect_success', `${this.server.name}|internal`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_connect_success_${this.server.name}|internal`);
     return result;
   }
 
@@ -121,7 +121,7 @@ export class MCPClient {
     this.capabilities = result.capabilities;
 
     this.eventEmitter.emit('connected', this.server.name, result);
-    trackMatomoEvent('ai', 'mcp_connect_success', `${this.server.name}|http`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_connect_success_${this.server.name}|http`);
     return result;
   }
 
@@ -458,7 +458,7 @@ export class MCPClient {
       throw new Error(`MCP server ${this.server.name} is not connected`);
     }
 
-    trackMatomoEvent('ai', 'mcp_resource_read', `${this.server.name}|${uri}`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_resource_read_${this.server.name}|${uri}`);
 
     if (this.server.transport === 'internal' && this.remixMCPServer) {
       const response = await this.remixMCPServer.handleMessage({
@@ -605,7 +605,7 @@ export class MCPClient {
       throw new Error(`MCP server ${this.server.name} is not connected`);
     }
 
-    trackMatomoEvent('ai', 'mcp_tool_call', `${this.server.name}|${toolCall.name}`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_tool_call_${this.server.name}|${toolCall.name}`);
 
     if (this.server.transport === 'internal' && this.remixMCPServer) {
       const response = await this.remixMCPServer.handleMessage({
@@ -615,10 +615,10 @@ export class MCPClient {
       });
 
       if (response.error) {
-        trackMatomoEvent('ai', 'mcp_tool_call_failed', `${this.server.name}|${toolCall.name}|${response.error.message}`);
+        trackMatomoEvent('ai', 'remixAI', `mcp_tool_call_failed_${this.server.name}|${toolCall.name}|${response.error.message}`);
         throw new Error(`Failed to call tool: ${response.error.message}`);
       }
-      trackMatomoEvent('ai', 'mcp_tool_call_success', `${this.server.name}|${toolCall.name}`);
+      trackMatomoEvent('ai', 'remixAI', `mcp_tool_call_success_${this.server.name}|${toolCall.name}`);
       return response.result;
     } else if (this.server.transport === 'http') {
       const response = await this.sendHTTPRequest({

@@ -794,14 +794,25 @@ export const EditorUI = (props: EditorUIProps) => {
     })
 
     editor.onDidChangeModelContent((e) => {
-      if (inlineCompletionProviderRef.current && inlineCompletionProviderRef.current.currentCompletion) {
+      if (inlineCompletionProviderRef.current) {
         const changes = e.changes;
-        // Check if the change matches the current completion
-        if (changes.some(change => change.text === inlineCompletionProviderRef.current.currentCompletion.item.insertText)) {
-          inlineCompletionProviderRef.current.currentCompletion.onAccepted()
-          inlineCompletionProviderRef.current.currentCompletion.accepted = true
-          trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'Copilot_Completion_Accepted', isClick: true })
-        }
+
+        // Check all active sessions for matches
+        inlineCompletionProviderRef.current.sessionMetadata.forEach((metadata, sessionId) => {
+          if (!metadata.item || !metadata.item.insertText) {
+            return;
+          }
+
+          if (!metadata.accepted) {
+            const isMatch = changes.some(change => change.text === metadata.item.insertText);
+
+            if (isMatch) {
+              console.log('[Editor.tsx] Full completion acceptance detected via text change');
+              metadata.onAccepted();
+              trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'Copilot_Completion_Accepted', isClick: true })
+            }
+          }
+        });
       }
     });
 

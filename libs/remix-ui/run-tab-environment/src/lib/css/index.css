@@ -1,0 +1,65 @@
+.environment-item-hover:hover {
+    background-color: var(--custom-onsurface-layer-3) !important;
+    border: 1px solid var(--bs-border-color) !important;
+    color: var(--theme-text-color, white) !important;
+  }
+  .account-item-hover:hover {
+    background-color: var(--custom-onsurface-layer-3) !important;
+    border: 1px solid var(--bs-border-color) !important;
+    border-radius: 0.375rem !important;
+    color: var(--theme-text-color, white) !important;
+  }
+  .category-item-hover:hover {
+    background-color: var(--custom-onsurface-layer-4) !important;
+    border: 1px solid var(--bs-border-color) !important;
+    color: var(--theme-text-color, white) !important;
+  }
+  .account-balance-container {
+    position: relative;
+  }
+  .account-balance-text {
+    display: block;
+  }
+  .account-kebab-icon {
+    display: none;
+  }
+  .account-item-hover:hover .account-balance-text {
+    display: none;
+  }
+  .account-item-hover:hover .account-kebab-icon {
+    display: block;
+    padding-right: 0.5rem;
+  }
+  .account-kebab-icon:hover {
+    color: var(--theme-text-color, white) !important;
+  }
+  .selected-account-balance-container {
+    position: relative;
+  }
+  .selected-account-balance-text {
+    display: block;
+  }
+  .selected-account-kebab-icon {
+    display: none;
+  }
+  .selected-account-hover:hover .selected-account-balance-text,
+  .selected-account-hover.dropdown-open .selected-account-balance-text,
+  .selected-account-balance-container.kebab-menu-open .selected-account-balance-text {
+    display: none;
+  }
+  .selected-account-hover:hover .selected-account-kebab-icon,
+  .selected-account-hover.dropdown-open .selected-account-kebab-icon,
+  .selected-account-balance-container.kebab-menu-open .selected-account-kebab-icon {
+    display: block;
+    padding-right: 0.5rem;
+  }
+  .selected-account-kebab-icon:hover {
+    color: var(--theme-text-color, white) !important;
+  }
+  .account-balance-container.kebab-menu-open .account-balance-text {
+    display: none;
+  }
+  .account-balance-container.kebab-menu-open .account-kebab-icon {
+    display: block;
+    padding-right: 0.5rem;
+  }

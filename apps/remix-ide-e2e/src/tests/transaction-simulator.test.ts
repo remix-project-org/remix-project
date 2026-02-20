@@ -8,7 +8,7 @@ module.exports = {
     init(browser, done, 'http://127.0.0.1:8080', false)
   },
 
-  'Should switch to Sepolia external provider #group1': function (browser: NightwatchBrowser) {
+  'Should switch to Sepolia external provider #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('div[data-id="remixIdeIconPanel"]', 10000)
       .clickLaunchIcon('udapp')
@@ -24,7 +24,7 @@ module.exports = {
       .waitForElementVisible({ selector: `[data-id="selected-provider-basic-http-provider"]`, timeout: 10000 })
   },
 
-  'Should add and execute transaction simulator script #group1': function (browser: NightwatchBrowser) {
+  'Should add and execute transaction simulator script #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .addFile('simulateTransaction.ts', { content: simulateTransactionScript })
@@ -35,7 +35,7 @@ module.exports = {
       .pause(5000)
   },
 
-  'Should verify simulation results in terminal #group1': function (browser: NightwatchBrowser) {
+  'Should verify simulation results in terminal #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'EtherTransfer', 60000)
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'OwnershipTransferred(address,address)', 60000)

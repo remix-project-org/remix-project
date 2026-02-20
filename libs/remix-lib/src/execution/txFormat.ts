@@ -1,7 +1,6 @@
 'use strict'
 import { AbiCoder } from 'ethers'
 import { encodeParams as encodeParamsHelper, encodeFunctionId, makeFullTypeDefinition } from './txHelper'
-import { eachOfSeries } from 'async'
 import { linkBytecode as linkBytecodeSolc } from 'solc/linker'
 import { isValidAddress, addHexPrefix } from '@ethereumjs/util'
 import fromExponential from 'from-exponential';
@@ -36,59 +35,53 @@ export function encodeData (funABI, values, contractbyteCode) {
 * @param {Object} funAbi    - abi definition of the function to call. null if building data for the ctor.
 * @param {Function} callback    - callback
 */
-export function encodeParams (params, funAbi, callback?) {
-  return new Promise((resolve, reject) => {
-    let data: Buffer | string = ''
-    let dataHex = ''
-    let funArgs = []
-    if (Array.isArray(params)) {
-      funArgs = params
-      if (funArgs.length > 0) {
-        try {
-          data = encodeParamsHelper(funAbi, funArgs)
-          dataHex = data.toString()
-        } catch (e) {
-          reject('Error encoding arguments: ' + e)
-          return callback && callback('Error encoding arguments: ' + e)
-        }
-      }
-      if (data.slice(0, 9) === 'undefined') {
-        dataHex = data.slice(9)
-      }
-      if (data.slice(0, 2) === '0x') {
-        dataHex = data.slice(2)
-      }
-    } else if (params.indexOf('raw:0x') === 0) {
-      // in that case we consider that the input is already encoded and *does not* contain the method signature
-      dataHex = params.replace('raw:0x', '')
-      data = Buffer.from(dataHex, 'hex')
-    } else {
+export function encodeParams (params, funAbi) {
+  let data: Buffer | string = ''
+  let dataHex = ''
+  let funArgs = []
+  if (Array.isArray(params)) {
+    funArgs = params
+    if (funArgs.length > 0) {
       try {
-        funArgs = parseFunctionParams(params)
+        data = encodeParamsHelper(funAbi, funArgs)
+        dataHex = data.toString()
       } catch (e) {
-        reject('Error encoding arguments: ' + e)
-        return callback && callback('Error encoding arguments: ' + e)
-      }
-      try {
-        if (funArgs.length > 0) {
-          data = encodeParamsHelper(funAbi, funArgs)
-          dataHex = data.toString()
-        }
-      } catch (e) {
-        reject('Error encoding arguments: ' + e)
-        return callback && callback('Error encoding arguments: ' + e)
-      }
-      if (data.slice(0, 9) === 'undefined') {
-        dataHex = data.slice(9)
-      }
-      if (data.slice(0, 2) === '0x') {
-        dataHex = data.slice(2)
+        throw new Error('Error encoding arguments: ' + e)
       }
     }
-    const result = { data: data, dataHex: dataHex, funArgs: funArgs }
-    callback && callback(null, result)
-    resolve(result)
-  })
+    if (data.slice(0, 9) === 'undefined') {
+      dataHex = data.slice(9)
+    }
+    if (data.slice(0, 2) === '0x') {
+      dataHex = data.slice(2)
+    }
+  } else if (params.indexOf('raw:0x') === 0) {
+    // in that case we consider that the input is already encoded and *does not* contain the method signature
+    dataHex = params.replace('raw:0x', '')
+    data = Buffer.from(dataHex, 'hex')
+  } else {
+    try {
+      funArgs = parseFunctionParams(params)
+    } catch (e) {
+      throw new Error('Error encoding arguments: ' + e)
+    }
+    try {
+      if (funArgs.length > 0) {
+        data = encodeParamsHelper(funAbi, funArgs)
+        dataHex = data.toString()
+      }
+    } catch (e) {
+      throw new Error('Error encoding arguments: ' + e)
+    }
+    if (data.slice(0, 9) === 'undefined') {
+      dataHex = data.slice(9)
+    }
+    if (data.slice(0, 2) === '0x') {
+      dataHex = data.slice(2)
+    }
+  }
+  const result = { data: data, dataHex: dataHex, funArgs: funArgs }
+  return result
 }
 
 /**
@@ -98,11 +91,10 @@ export function encodeParams (params, funAbi, callback?) {
 * @param {Object} funAbi    - abi definition of the function to call. null if building data for the ctor.
 * @param {Function} callback    - callback
 */
-export function encodeFunctionCall (params, funAbi, callback) {
-  encodeParams(params, funAbi, (error, encodedParam) => {
-    if (error) return callback(error)
-    callback(null, { dataHex: encodeFunctionId(funAbi) + encodedParam.dataHex, funAbi, funArgs: encodedParam.funArgs })
-  })
+export function encodeFunctionCall (params, funAbi) {
+  const encodedParam = encodeParams(params, funAbi)
+
+  return { dataHex: encodeFunctionId(funAbi) + encodedParam.dataHex, funAbi, funArgs: encodedParam.funArgs }
 }
 
 /**
@@ -115,13 +107,11 @@ export function encodeFunctionCall (params, funAbi, callback) {
 * @param {Object} linkReferences    - given by the compiler, contains the proper linkReferences
 * @param {Function} callback    - callback
 */
-export function encodeConstructorCallAndLinkLibraries (contract, params, funAbi, linkLibrariesAddresses, linkReferences, callback) {
-  encodeParams(params, funAbi, (error, encodedParam) => {
-    if (error) return callback(error)
-    linkLibraries(contract, linkLibrariesAddresses, linkReferences, (error, bytecodeToDeploy) => {
-      callback(error, { dataHex: bytecodeToDeploy + encodedParam.dataHex, funAbi, funArgs: encodedParam.funArgs, contractBytecode: contract.evm.bytecode.object })
-    })
-  })
+export function encodeConstructorCallAndLinkLibraries (contract, params, funAbi, linkLibrariesAddresses, linkReferences) {
+  const encodedParam = encodeParams(params, funAbi)
+  const bytecodeToDeploy = linkLibraries(contract, linkLibrariesAddresses, linkReferences)
+
+  return { dataHex: bytecodeToDeploy + encodedParam.dataHex, funAbi, funArgs: encodedParam.funArgs, contractBytecode: contract.evm.bytecode.object }
 }
 
 /**
@@ -132,23 +122,23 @@ export function encodeConstructorCallAndLinkLibraries (contract, params, funAbi,
 * @param {Object} linkReferences    - given by the compiler, contains the proper linkReferences
 * @param {Function} callback    - callback
 */
-export function linkLibraries (contract, linkLibraries, linkReferences, callback) {
+export function linkLibraries (contract, linkLibraries, linkReferences) {
   let bytecodeToDeploy = contract.evm.bytecode.object
   if (bytecodeToDeploy.indexOf('_') >= 0) {
     if (linkLibraries && linkReferences) {
       for (const libFile in linkLibraries) {
         for (const lib in linkLibraries[libFile]) {
           const address = linkLibraries[libFile][lib]
-          if (!isValidAddress(address)) return callback(address + ' is not a valid address. Please check the provided address is valid.')
+          if (!isValidAddress(address)) throw new Error(address + ' is not a valid address. Please check the provided address is valid.')
           bytecodeToDeploy = linkLibraryStandardFromlinkReferences(lib, address.replace('0x', ''), bytecodeToDeploy, linkReferences)
         }
       }
     }
   }
   if (bytecodeToDeploy.indexOf('_') >= 0) {
-    return callback('Failed to link some libraries')
+    throw new Error('Failed to link some libraries')
   }
-  return callback(null, bytecodeToDeploy)
+  return bytecodeToDeploy
 }
 
 /**
@@ -164,27 +154,23 @@ export function linkLibraries (contract, linkLibraries, linkReferences, callback
 * @param {Function} callbackDeployLibrary  - callbackDeployLibrary
 * @param {Function} callback    - callback
 */
-export function encodeConstructorCallAndDeployLibraries (contractName, contract, contracts, params, funAbi, callback, callbackStep, callbackDeployLibrary) {
-  encodeParams(params, funAbi, (error, encodedParam) => {
-    if (error) return callback(error)
-    let dataHex = ''
-    const contractBytecode = contract.evm.bytecode.object
-    let bytecodeToDeploy = contract.evm.bytecode.object
-    if (bytecodeToDeploy.indexOf('_') >= 0) {
-      linkBytecode(contract, contracts, (err, bytecode) => {
-        if (err) {
-          callback('Error deploying required libraries: ' + err)
-        } else {
-          bytecodeToDeploy = bytecode + dataHex
-          return callback(null, { dataHex: bytecodeToDeploy, funAbi, funArgs: encodedParam.funArgs, contractBytecode, contractName: contractName })
-        }
-      }, callbackStep, callbackDeployLibrary)
-      return
-    } else {
-      dataHex = bytecodeToDeploy + encodedParam.dataHex
+export async function encodeConstructorCallAndDeployLibraries (contractName, contract, contracts, params, funAbi, callbackDeployLibrary?) {
+  const encodedParam = encodeParams(params, funAbi)
+  let dataHex = ''
+  const contractBytecode = contract.evm.bytecode.object
+  let bytecodeToDeploy = contract.evm.bytecode.object
+  if (bytecodeToDeploy.indexOf('_') >= 0) {
+    try {
+      const bytecode = await linkBytecode(contract, contracts, callbackDeployLibrary)
+      bytecodeToDeploy = bytecode + dataHex
+      return { dataHex: bytecodeToDeploy, funAbi, funArgs: encodedParam.funArgs, contractBytecode, contractName: contractName }
+    } catch (err) {
+      throw new Error('Error deploying required libraries: ' + err)
     }
-    callback(null, { dataHex: bytecodeToDeploy, funAbi, funArgs: encodedParam.funArgs, contractBytecode, contractName: contractName })
-  })
+  } else {
+    dataHex = bytecodeToDeploy + encodedParam.dataHex
+  }
+  return { dataHex: bytecodeToDeploy, funAbi, funArgs: encodedParam.funArgs, contractBytecode, contractName: contractName }
 }
 
 /**
@@ -200,7 +186,7 @@ export function encodeConstructorCallAndDeployLibraries (contractName, contract,
 * @param {Function} callbackStep  - callbackStep
 * @param {Function} callbackDeployLibrary  - callbackDeployLibrary
 */
-export function buildData (contractName, contract, contracts, isConstructor, funAbi, params, callback, callbackStep, callbackDeployLibrary) {
+export async function buildData (contractName, contract, contracts, isConstructor, funAbi, params, callbackDeployLibrary?) {
   let funArgs = []
   let data: Buffer | string = ''
   let dataHex = ''
@@ -217,13 +203,13 @@ export function buildData (contractName, contract, contracts, isConstructor, fun
         funArgs = parseFunctionParams(params)
       }
     } catch (e) {
-      return callback('Error encoding arguments: ' + e)
+      throw new Error('Error encoding arguments: ' + e)
     }
     try {
       data = encodeParamsHelper(funAbi, funArgs)
       dataHex = data.toString()
     } catch (e) {
-      return callback('Error encoding arguments: ' + e)
+      throw new Error('Error encoding arguments: ' + e)
     }
     if (data.slice(0, 9) === 'undefined') {
       dataHex = data.slice(9)
@@ -239,125 +225,117 @@ export function buildData (contractName, contract, contracts, isConstructor, fun
     if (contract.evm.deployedBytecode && contract.evm.deployedBytecode.object) contractDeployedBytecode = contract.evm.deployedBytecode.object
     let bytecodeToDeploy = contract.evm.bytecode.object
     if (bytecodeToDeploy.indexOf('_') >= 0) {
-      linkBytecode(contract, contracts, (err, bytecode) => {
-        if (err) {
-          callback('Error deploying required libraries: ' + err)
-        } else {
-          bytecodeToDeploy = bytecode + dataHex
-          return callback(null, { dataHex: bytecodeToDeploy, funAbi, funArgs, contractBytecode, contractName: contractName })
-        }
-      }, callbackStep, callbackDeployLibrary)
-      return
+      try {
+        const bytecode = await linkBytecode(contract, contracts, callbackDeployLibrary)
+        bytecodeToDeploy = bytecode + dataHex
+        return { dataHex: bytecodeToDeploy, funAbi, funArgs, contractBytecode, contractName: contractName }
+      } catch (err) {
+        throw new Error('Error deploying required libraries: ' + err)
+      }
     } else {
       dataHex = bytecodeToDeploy + dataHex
     }
   } else {
     dataHex = encodeFunctionId(funAbi) + dataHex
   }
-  callback(null, { dataHex, funAbi, funArgs, contractBytecode, contractDeployedBytecode, contractName: contractName })
+  return { dataHex, funAbi, funArgs, contractBytecode, contractDeployedBytecode, contractName: contractName }
 }
 
 export function atAddress () {}
 
-export function linkBytecodeStandard (contract, contracts, callback, callbackStep, callbackDeployLibrary) {
+export async function linkBytecodeStandard (contract, contracts, callbackDeployLibrary?) {
   let contractBytecode = contract.evm.bytecode.object
-  eachOfSeries(contract.evm.bytecode.linkReferences, (libs, file, cbFile) => {
-    eachOfSeries(contract.evm.bytecode.linkReferences[file], (libRef, libName, cbLibDeployed) => {
-      const library = contracts[file][libName]
-      if (library) {
-        deployLibrary(file + ':' + libName, libName, library, contracts, (error, address) => {
-          if (error) {
-            return cbLibDeployed(error)
-          }
-          let hexAddress = address.toString('hex')
-          if (hexAddress.slice(0, 2) === '0x') {
-            hexAddress = hexAddress.slice(2)
-          }
-          contractBytecode = linkLibraryStandard(libName, hexAddress, contractBytecode, contract)
-          cbLibDeployed()
-        }, callbackStep, callbackDeployLibrary)
-      } else {
-        //@ts-ignore
-        cbLibDeployed('Cannot find compilation data of library ' + libName)
+  const linkReferences = contract.evm.bytecode.linkReferences || {}
+
+  // Process each file sequentially
+  for (const file of Object.keys(linkReferences)) {
+    const libs = linkReferences[file]
+
+    // Process each library in the file sequentially
+    for (const libName of Object.keys(libs)) {
+      const library = contracts?.[file]?.[libName]
+      if (!library) {
+        throw new Error('Cannot find compilation data of library ' + libName)
       }
-    }, (error) => {
-      cbFile(error)
-    })
-  }, (error) => {
-    if (error) {
-      callbackStep(error)
+
+      const address = await deployLibrary(file + ':' + libName, libName, library, contracts, callbackDeployLibrary)
+      let hexAddress = address.toString('hex')
+      if (hexAddress.slice(0, 2) === '0x') {
+        hexAddress = hexAddress.slice(2)
+      }
+      contractBytecode = linkLibraryStandard(libName, hexAddress, contractBytecode, contract)
     }
-    callback(error, contractBytecode)
-  })
+  }
+
+  return contractBytecode
 }
 
-export function linkBytecodeLegacy (contract, contracts, callback, callbackStep, callbackDeployLibrary) {
+export async function linkBytecodeLegacy (contract, contracts, callbackDeployLibrary?) {
   const libraryRefMatch = contract.evm.bytecode.object.match(/__([^_]{1,36})__/)
   if (!libraryRefMatch) {
-    return callback('Invalid bytecode format.')
+    throw new Error('Invalid bytecode format.')
   }
   const libraryName = libraryRefMatch[1]
   // file_name:library_name
   const libRef = libraryName.match(/(.*):(.*)/)
   if (!libRef) {
-    return callback('Cannot extract library reference ' + libraryName)
+    throw new Error('Cannot extract library reference ' + libraryName)
   }
   if (!contracts[libRef[1]] || !contracts[libRef[1]][libRef[2]]) {
-    return callback('Cannot find library reference ' + libraryName)
+    throw new Error('Cannot find library reference ' + libraryName)
   }
   const libraryShortName = libRef[2]
   const library = contracts[libRef[1]][libraryShortName]
   if (!library) {
-    return callback('Library ' + libraryName + ' not found.')
+    throw new Error('Library ' + libraryName + ' not found.')
   }
-  deployLibrary(libraryName, libraryShortName, library, contracts, (err, address) => {
-    if (err) {
-      return callback(err)
-    }
-    let hexAddress = address.toString('hex')
-    if (hexAddress.slice(0, 2) === '0x') {
-      hexAddress = hexAddress.slice(2)
-    }
-    contract.evm.bytecode.object = linkLibrary(libraryName, hexAddress, contract.evm.bytecode.object)
-    linkBytecode(contract, contracts, callback, callbackStep, callbackDeployLibrary)
-  }, callbackStep, callbackDeployLibrary)
+  const address = await deployLibrary(libraryName, libraryShortName, library, contracts, callbackDeployLibrary)
+  let hexAddress = address.toString('hex')
+  if (hexAddress.slice(0, 2) === '0x') {
+    hexAddress = hexAddress.slice(2)
+  }
+  contract.evm.bytecode.object = linkLibrary(libraryName, hexAddress, contract.evm.bytecode.object)
+  return await linkBytecode(contract, contracts, callbackDeployLibrary)
 }
 
-export function linkBytecode (contract, contracts, callback?, callbackStep?, callbackDeployLibrary?) {
+export async function linkBytecode (contract, contracts, callbackDeployLibrary?) {
   if (contract.evm.bytecode.object.indexOf('_') < 0) {
-    return callback(null, contract.evm.bytecode.object)
+    return contract.evm.bytecode.object
   }
   if (contract.evm.bytecode.linkReferences && Object.keys(contract.evm.bytecode.linkReferences).length) {
-    linkBytecodeStandard(contract, contracts, callback, callbackStep, callbackDeployLibrary)
+    return await linkBytecodeStandard(contract, contracts, callbackDeployLibrary)
   } else {
-    linkBytecodeLegacy(contract, contracts, callback, callbackStep, callbackDeployLibrary)
+    return await linkBytecodeLegacy(contract, contracts, callbackDeployLibrary)
   }
 }
 
-export function deployLibrary (libraryName, libraryShortName, library, contracts, callback, callbackStep, callbackDeployLibrary) {
+export async function deployLibrary (libraryName, libraryShortName, library, contracts, callbackDeployLibrary?) {
   const address = library.address
   if (address) {
-    return callback(null, address)
+    return address
   }
   const bytecode = library.evm.bytecode.object
   if (bytecode.indexOf('_') >= 0) {
-    linkBytecode(library, contracts, (err, bytecode) => {
-      if (err) callback(err)
-      else {
-        library.evm.bytecode.object = bytecode
-        deployLibrary(libraryName, libraryShortName, library, contracts, callback, callbackStep, callbackDeployLibrary)
-      }
-    }, callbackStep, callbackDeployLibrary)
+    const linkedBytecode = await linkBytecode(library, contracts, callbackDeployLibrary)
+
+    library.evm.bytecode.object = linkedBytecode
+    return await deployLibrary(libraryName, libraryShortName, library, contracts, callbackDeployLibrary)
   } else {
-    callbackStep(`creation of library ${libraryName} pending...`)
+    if (!callbackDeployLibrary) {
+      throw new Error('callbackDeployLibrary is required to deploy library ' + libraryName)
+    }
+    // callbackStep(`creation of library ${libraryName} pending...`)
     const data = { dataHex: bytecode, funAbi: { type: 'constructor' }, funArgs: [], contractBytecode: bytecode, contractName: libraryShortName, contractABI: library.abi }
-    callbackDeployLibrary({ data: data, useCall: false }, (err, txResult) => {
-      if (err) {
-        return callback(err)
-      }
-      const address = txResult.receipt.contractAddress
-      library.address = address
-      callback(err, address)
+
+    return new Promise((resolve, reject) => {
+      callbackDeployLibrary({ data: data, useCall: false }, (err, txResult) => {
+        if (err) {
+          return reject(err)
+        }
+        const address = txResult.receipt.contractAddress
+        library.address = address
+        return resolve(address)
+      })
     })
   }
 }

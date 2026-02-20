@@ -51,14 +51,9 @@ export function InstanceContainerUI(props: InstanceContainerProps) {
                 unpinInstance={props.unpinInstance}
                 removeInstance={props.removeInstance}
                 index={index}
-                gasEstimationPrompt={props.gasEstimationPrompt}
-                passphrasePrompt={props.passphrasePrompt}
-                mainnetPrompt={props.mainnetPrompt}
                 runTransactions={props.runTransactions}
-                sendValue={props.sendValue}
                 getFuncABIInputs={props.getFuncABIInputs}
                 plugin={props.plugin}
-                exEnvironment={props.exEnvironment}
                 editInstance={props.editInstance}
                 solcVersion={props.solcVersion}
                 getVersion={props.getVersion}

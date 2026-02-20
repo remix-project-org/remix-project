@@ -58,11 +58,11 @@ export const CopyToClipboard = (props: ICopyToClipboard) => {
   const childJSX = children || <i className={`far ${icon} ${classList}`} aria-hidden="true" {...otherProps}></i>
 
   return (
-    <a href="#" onClick={handleClick} onMouseLeave={reset}>
+    <span onClick={handleClick} onMouseLeave={reset} style={{ cursor: 'pointer' }}>
       <CustomTooltip tooltipText={message} tooltipId="overlay-tooltip" placement={direction}>
         {childJSX}
       </CustomTooltip>
-    </a>
+    </span>
   )
 }
 

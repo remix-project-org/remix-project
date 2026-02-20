@@ -47,7 +47,9 @@ const profile = {
     'clone',
     'isExpanded',
     'isGist',
-    'workspaceExists'
+    'workspaceExists',
+    'readFileFromWorkspace',
+    'existsInWorkspace'
   ],
   events: ['setWorkspace', 'workspaceRenamed', 'workspaceDeleted', 'workspaceCreated'],
   icon: 'assets/img/fileManager.webp',
@@ -166,13 +168,51 @@ export default class Filepanel extends ViewPlugin {
         name: ws.name,
         isGitRepo: ws.isGitRepo || false,
         hasGitSubmodules: ws.hasGitSubmodules || false,
-        isGist: typeof ws.isGist === 'string' ? ws.isGist : null
+        isGist: typeof ws.isGist === 'string' ? ws.isGist : null,
+        remoteId: ws.remoteId || null
       }))
   }
 
   workspaceExists(name) {
     if (!this.workspaces) return false
     return this.workspaces.find((workspace) => workspace.name === name)
+  }
+
+  async readFileFromWorkspace(workspaceName, filePath) {
+    try {
+      if (!window.remixFileSystem) {
+        throw new Error('File system not ready')
+      }
+      const workspaceProvider = this.fileProviders.workspace
+      if (!workspaceProvider || !workspaceProvider.workspacesPath) {
+        throw new Error('Workspace provider not ready')
+      }
+      const fullPath = `${workspaceProvider.workspacesPath}/${workspaceName}/${filePath}`.replace(/\/\//g, '/')
+      const exists = await window.remixFileSystem.exists(fullPath)
+      if (!exists) throw new Error(`File not found: ${filePath} in workspace ${workspaceName}`)
+      const content = await window.remixFileSystem.readFile(fullPath, 'utf8')
+      return content
+    } catch (e) {
+      console.warn('[FilePanel] readFileFromWorkspace error:', e.message)
+      throw e
+    }
+  }
+
+  async existsInWorkspace(workspaceName, filePath) {
+    try {
+      if (!window.remixFileSystem) {
+        return false
+      }
+      const workspaceProvider = this.fileProviders.workspace
+      if (!workspaceProvider || !workspaceProvider.workspacesPath) {
+        return false
+      }
+      const fullPath = `${workspaceProvider.workspacesPath}/${workspaceName}/${filePath}`.replace(/\/\//g, '/')
+      return await window.remixFileSystem.exists(fullPath)
+    } catch (e) {
+      console.warn('[FilePanel] existsInWorkspace error:', e.message)
+      return false
+    }
   }
 
   getAvailableWorkspaceName(name) {
@@ -274,6 +314,7 @@ export default class Filepanel extends ViewPlugin {
     if (workspace.name !== ' - connect to localhost - ') {
       localStorage.setItem('currentWorkspace', workspace.name)
     }
+    console.log('setting workspace', workspace)
     this.emit('setWorkspace', workspace)
   }
 

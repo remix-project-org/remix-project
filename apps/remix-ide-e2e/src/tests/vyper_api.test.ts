@@ -13,14 +13,14 @@ module.exports = {
     init(browser, done)
   },
 
-  'Should connect to vyper plugin #group1': function (browser: NightwatchBrowser) {
+  'Should connect to vyper plugin #group1': '' + function (browser: NightwatchBrowser) {
     browser.clickLaunchIcon('pluginManager')
       .scrollAndClick('[data-id="pluginManagerComponentActivateButtonvyper"]')
       .clickLaunchIcon('vyper')
       .frame(0)
   },
 
-  'Should clone the Vyper repo #group1': function (browser: NightwatchBrowser) {
+  'Should clone the Vyper repo #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('button[data-id="add-repository"]')
       .click('button[data-id="add-repository"]')
@@ -65,7 +65,7 @@ module.exports = {
   //     })
   // },
 
-  'Compile blind_auction should success #group1': function (browser: NightwatchBrowser) {
+  'Compile blind_auction should success #group1': '' + function (browser: NightwatchBrowser) {
     browser
       // @ts-ignore
       .clickLaunchIcon('vyper')
@@ -84,7 +84,7 @@ module.exports = {
       })
   },
 
-  'Should copy abi after blind_auction compile #group1': function (browser: NightwatchBrowser) {
+  'Should copy abi after blind_auction compile #group1': '' + function (browser: NightwatchBrowser) {
     if (browser.browserName.indexOf('chrome') > -1) {
       const chromeBrowser = (browser as any).chrome
       chromeBrowser.setPermission('clipboard-read', 'granted')
@@ -115,7 +115,7 @@ module.exports = {
     }
   },
 
-  'Should lead to a compilation error #group1': function (browser: NightwatchBrowser) {
+  'Should lead to a compilation error #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .switchWorkspace('default_workspace')
@@ -134,7 +134,7 @@ module.exports = {
       .frameParent()
   },
 
-  'Compile test contract and deploy to remix VM #group1': function (browser: NightwatchBrowser) {
+  'Compile test contract and deploy to remix VM #group1': '' + function (browser: NightwatchBrowser) {
     let contractAddress
     browser
       .clickLaunchIcon('filePanel')

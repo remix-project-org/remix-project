@@ -2,7 +2,8 @@
 import { util } from '@remix-project/remix-lib'
 import { isContractCreation } from '../trace/traceHelper'
 import { extractStateVariables } from './stateDecoder'
-import { extractContractDefinitions, extractStatesDefinitions } from './astHelper'
+import { extractContractDefinitions, extractStatesDefinitions, getLinearizedBaseContracts } from './helpers/astHelper'
+import type { CompilerAbstract } from '@remix-project/remix-solidity'
 
 export class SolidityProxy {
   cache
@@ -10,7 +11,7 @@ export class SolidityProxy {
   getCode
   sources
   contracts
-  compilationResult
+  compilationResult: (address: string) => Promise<CompilerAbstract>
   sourcesCode
 
   constructor ({ getCurrentCalledAddressAt, getCode, compilationResult }) {
@@ -51,8 +52,11 @@ export class SolidityProxy {
     }
     const code = await this.getCode(address)
     const compilationResult = await this.compilationResult(address)
-    const contract = contractObjectFromCode(compilationResult.data.contracts, code.bytecode, address)
-    this.cache.contractObjectByAddress[address] = contract
+    let contract
+    if (compilationResult && compilationResult.data && compilationResult.data.contracts) {
+      contract = contractObjectFromCode(compilationResult.data.contracts, code.bytecode, address)
+      this.cache.contractObjectByAddress[address] = contract
+    }
     return contract
   }
 
@@ -64,6 +68,7 @@ export class SolidityProxy {
     */
   async extractStatesDefinitions (address: string) {
     const compilationResult = await this.compilationResult(address)
+    if (!compilationResult || !compilationResult.data) return null
     if (!this.cache.contractDeclarations[address]) {
       this.cache.contractDeclarations[address] = extractContractDefinitions(compilationResult.data.sources)
     }
@@ -71,6 +76,13 @@ export class SolidityProxy {
       this.cache.statesDefinitions[address] = extractStatesDefinitions(compilationResult.data.sources, this.cache.contractDeclarations[address])
     }
     return this.cache.statesDefinitions[address]
+  }
+
+  async getLinearizedBaseContracts(address: string, id: number) {
+    const compilationResult = await this.compilationResult(address)
+    if (!compilationResult || !compilationResult.data) return null
+    this.extractStatesDefinitions(address)
+    return getLinearizedBaseContracts(id, this.cache.contractDeclarations[address].contractsById)
   }
 
   /**
@@ -110,6 +122,7 @@ export class SolidityProxy {
     */
   async ast (sourceLocation, generatedSources, address) {
     const compilationResult = await this.compilationResult(address)
+    if (!compilationResult || !compilationResult.data) return null
     const file = this.fileNameFromIndex(sourceLocation.file, compilationResult.data)
     if (!file && generatedSources && generatedSources.length) {
       for (const source of generatedSources) {

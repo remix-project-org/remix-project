@@ -12,14 +12,14 @@ module.exports = {
     init(browser, done, 'http://127.0.0.1:8080?plugins=solidity,udapp', false, undefined, true, false)
   },
 
-  'Terminal dragbar should not be visible on load #group1': function (browser: NightwatchBrowser) {
+  'Terminal dragbar should not be visible on load #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="toggleBottomPanelIcon"]', 10000)
       .assert.hasClass('.terminal-wrap', 'd-none')
       .assert.not.elementPresent('.dragbar_terminal')
   },
 
-  'Terminal dragbar should be visible when terminal is visible #group1': function (browser: NightwatchBrowser) {
+  'Terminal dragbar should be visible when terminal is visible #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap', 5000)
@@ -28,7 +28,7 @@ module.exports = {
       .assert.elementPresent('.dragbar_terminal')
   },
 
-  'Terminal dragbar should stay visible after reload when terminal is visible #group1': function (browser: NightwatchBrowser) {
+  'Terminal dragbar should stay visible after reload when terminal is visible #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .refresh()
       .waitForElementVisible('.terminal-wrap', 10000)
@@ -37,7 +37,7 @@ module.exports = {
       .assert.elementPresent('.dragbar_terminal')
   },
 
-  'Should execution a simple console command #group1': function (browser: NightwatchBrowser) {
+  'Should execution a simple console command #group1': '' + function (browser: NightwatchBrowser) {
     browser
       // Terminal should already be visible from previous test, but ensure it's showing
       .waitForElementVisible('.terminal-wrap', 5000)
@@ -47,7 +47,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', '2', 60000)
   },
 
-  'Should clear console #group1': function (browser: NightwatchBrowser) {
+  'Should clear console #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="terminalCli"]')
       .journalChildIncludes('Welcome to Remix')
@@ -55,7 +55,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', '', 60000)
   },
 
-  'Async/Await Script #group1': function (browser: NightwatchBrowser) {
+  'Async/Await Script #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .addFile('asyncAwait.js', { content: asyncAwait })
       .executeScriptInTerminal('remix.execute("asyncAwait.js")')
@@ -64,7 +64,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'Promise Resolved', 60000)
   },
 
-  'Call Remix File Manager from a script #group2': function (browser: NightwatchBrowser) {
+  'Call Remix File Manager from a script #group2': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap', 5000)
@@ -73,14 +73,14 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'contract Ballot {', 60000)
   },
 
-  'Call web3.eth.getAccounts() using Remix VM #group2': function (browser: NightwatchBrowser) {
+  'Call web3.eth.getAccounts() using Remix VM #group2': '' + function (browser: NightwatchBrowser) {
     browser
       // Terminal should already be visible from "Call Remix File Manager from a script" test
       .executeScriptInTerminal('web3.eth.getAccounts()')
       .waitForElementContainsText('*[data-id="terminalJournal"]', '["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2","0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db","0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB","0x617F2E2fD72FD9D5503197092aC168c91465E7f2","0x17F6AD8Ef982297579C203069C1DbfFE4348c372","0x5c6B0f7Bf3E7ce046039Bd8FABdfD3f9F5021678","0x03C6FcED478cBbC9a4FAB34eF9f40767739D1Ff7","0x1aE0EA34a72D944a8C7603FfB3eC30a6669E454C","0x0A098Eda01Ce92ff4A4CCb7A4fFFb5A43EBC70DC","0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c","0x14723A09ACff6D2A60DcdF7aA4AFf308FDDC160C","0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB","0x583031D1113aD414F02576BD6afaBfb302140225","0xdD870fA1b7C4700F2BD7f44238821C26f7392148"]')
   },
 
-  'Call web3.eth.getAccounts() using External Http Provider #group5': function (browser: NightwatchBrowser) {
+  'Call web3.eth.getAccounts() using External Http Provider #group5': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap', 5000)
@@ -96,7 +96,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', '","', 60000)
   },
 
-  'Call Remix File Resolver (external URL) from a script #group3': function (browser: NightwatchBrowser) {
+  'Call Remix File Resolver (external URL) from a script #group3': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap', 5000)
@@ -109,7 +109,7 @@ module.exports = {
       .openFile('.deps/github/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol')
   },
 
-  'Call Remix File Resolver (internal URL) from a script #group3': function (browser: NightwatchBrowser) {
+  'Call Remix File Resolver (internal URL) from a script #group3': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="terminalClearConsole"]') // clear the terminal
       .addFile('resolveUrl.js', { content: resolveUrl })
@@ -119,7 +119,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'contract Ballot {', 60000)
   },
 
-  'Call Remix File Resolver (internal URL) from a script and specify a path #group3': function (browser: NightwatchBrowser) {
+  'Call Remix File Resolver (internal URL) from a script and specify a path #group3': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="terminalClearConsole"]') // clear the terminal
       .addFile('resolveExternalUrlAndSaveToaPath.js', { content: resolveExternalUrlAndSaveToaPath })
@@ -131,7 +131,7 @@ module.exports = {
 
   },
 
-  'Deploy "Owner" using an ether.js script, listen to event and check event are logged in the terminal #group4': function (browser: NightwatchBrowser) {
+  'Deploy "Owner" using an ether.js script, listen to event and check event are logged in the terminal #group4': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
       .click('.remixui_compilerConfigSection')
@@ -166,7 +166,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'newOwner', 60000)
       .waitForElementContainsText('*[data-id="terminalJournal"]', '0xd9145CCE52D386f254917e481eB44e9943F39138', 60000)
   },
-  'Run tests using Mocha script and check result logging in the terminal #group4': function (browser: NightwatchBrowser) {
+  'Run tests using Mocha script and check result logging in the terminal #group4': '' + function (browser: NightwatchBrowser) {
     browser
       .addFile('scripts/storage.test.js', { content: storageMochaTests })
       .pause(1000)
@@ -187,7 +187,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'Passed: 2')
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'Failed: 1')
   },
-  'Run tests using Mocha for a contract with library deployment and check result logging in the terminal #group4': function (browser: NightwatchBrowser) {
+  'Run tests using Mocha for a contract with library deployment and check result logging in the terminal #group4': '' + function (browser: NightwatchBrowser) {
     browser
       .addFile('scripts/storageWithLib.test.js', { content: storageWithLibMochaTests })
       .pause(1000)
@@ -209,7 +209,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'Passed: 0')
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'Failed: 1')
   },
-  'Should print hardhat logs #group4': function (browser: NightwatchBrowser) {
+  'Should print hardhat logs #group4': '' + function (browser: NightwatchBrowser) {
     browser
       .addFile('printHardhatlog.sol', { content: hardhatLog })
       .clickLaunchIcon('solidity')
@@ -235,7 +235,7 @@ module.exports = {
       .journalChildIncludes('inside getOwner', { shouldHaveOnlyOneOccurrence: true })
   },
 
-  'Emit 2 similar events and check the filtering is done properly #group11': function (browser: NightwatchBrowser) {
+  'Emit 2 similar events and check the filtering is done properly #group11': '' + function (browser: NightwatchBrowser) {
     let addressRef: string
     browser
       .addFile('contracts/contract_with_event.sol', { content: contract_with_event })
@@ -260,7 +260,7 @@ module.exports = {
 
   },
 
-  'Should display auto-complete menu #group4': function (browser: NightwatchBrowser) {
+  'Should display auto-complete menu #group4': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="terminalCli"]')
       .click('*[data-id="terminalCli"]')
@@ -268,7 +268,7 @@ module.exports = {
       .assert.visible('*[data-id="autoCompletePopUpAutoCompleteItem"]')
   },
 
-  'Should run a script right after compilation #group6': function (browser: NightwatchBrowser) {
+  'Should run a script right after compilation #group6': '' + function (browser: NightwatchBrowser) {
     browser
       .addFile('contracts/storage.sol', { content: scriptAutoExec.contract })
       .addFile('scripts/deploy_storage.js', { content: scriptAutoExec.script })
@@ -277,7 +277,7 @@ module.exports = {
       .journalLastChildIncludes('147')
   },
 
-  'Should run a script which log transaction and block using web3.js and ethers #group7': function (browser: NightwatchBrowser) {
+  'Should run a script which log transaction and block using web3.js and ethers #group7': '' + function (browser: NightwatchBrowser) {
     if (runMasterTests)
       browser
         .clickLaunchIcon('udapp')
@@ -292,6 +292,8 @@ module.exports = {
         .openFile('README.txt')
         .addFile('scripts/log_tx_block.js', { content: scriptBlockAndTransaction })
         .pause(1000)
+        .click('*[data-id="toggleBottomPanelIcon"]')
+        .waitForElementVisible('.terminal-wrap', 5000)
         .executeScriptInTerminal('remix.execute(\'scripts/log_tx_block.js\')')
         // check if the input of the transaction is being logged (web3 call)
         .waitForElementContainsText('*[data-id="terminalJournal"]', '0x2b0006fa00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004e9e0000000000000000000000000000000000000000000000000000000000004ea373ded44d6900b8b479935bee9c82176261653e334586e0fd282f569357c0777bd9d084474837ac94bf96f2e26590222a2b8e46545657c7cf06ce2833d267bd6f131b5b3fd36cb1ca3e07cf422224df0766d1a677bbdb7ee4cc0d634efa5367a302a94dac422a16b9b8d5c10fe0555924f8189f6b498bef507b1d32e7915bd4df184f51e6d79ae6a1b11d5745ce7d625cecc3bd0dc50af4f999ffb927225f5e5c019b499f5e1fdcbc70c45df61df76013d1b0d45cdf6a267dac1b4620c0db2efd251f6548509c9c69f5bd9d1ee38ac0df0c73be2774f7d2e1fb7ef5129010f29d091e3c48aed0f035fc29804c99927d33ff2a19ff526979355ac50b2542bc5d8f2d41e4f850d5981e0420807469e828b03173b96b757fbaeacda335e11b3ab8b02a48456fab35d41ca26abde751d5fca8ef5e7ba5295278b6e46ce2aab6c10b3d185a6137d3e5c28bb8dd3a797feaf35520fcb949ea074e1869e0011ef01f8162135e44bb797d3d6215ff74ffbee972c97264fc15d11c840e6a7e796dc1a418572f6dbcc842594a558e1a9e3cb7a159284e16fec758bbc303d13edc28fb6d8bb110c3a398e4ded1748da9854eb84679ad0c99bc59bea7956b521db3ed0a9057510cc11365858704989690f0d891af81b213b1f2e91e41e4998a467656eac87e7025ac2840c17f2b106df7d32a0139036bdf5d87344ca37e9ce770e0dbeb5e021d03a7d496a6695eb06d3de9258b43f3883ce155767962b52083504b19d6d609090a2f96e9724902bf1adbf57359ac1dda48a8ffe596b8d95cac1429378769a6ec2ff1c8a9c0bc343b0a6468f36696bfb202cde9f6cd5241b814096d777751b44f0cc2ac9e7ba142227e8d5f2dd8da62573953540da1abce82c59287b2f7a87a111851758c2505d8c1ded6c42a49fc5577451ee56126d2275da490baa645c3bcac0c31dabee7aa35e6cdffb56ac0d952c2583c6f50f906dfb96f5a98c49a5919031cff880bffbe371a50162a7bd0fa0398a5898eaf6ad6db868a7d807846a3592325bb4207d67ad96bac76435368962ba8944d0201c2f620fb29373a6f35c815d101af98111e9b4cc61e8ae77fc63ce375068328ec8d05b49486666fb0f756f99d2fe747c95b2a553965f304a324879393897315d310841f0a200cd156f6ca4ed2', 120000)
@@ -301,7 +303,7 @@ module.exports = {
         .waitForElementContainsText('*[data-id="terminalJournal"]', '0x9db899cb75888a630ba50a1644c243b83d2eb38525eb828a06a5e8bb5663c0b0', 120000) // hash of 4757767
   },
 
-  'Should listen on all transactions #group8': function (browser: NightwatchBrowser) {
+  'Should listen on all transactions #group8': '' + function (browser: NightwatchBrowser) {
     const url = 'http://127.0.0.1:8545'
     const identifier = 'Custom'
     browser
@@ -360,7 +362,7 @@ module.exports = {
         })
   },
 
-  'Should connect to mainnet fork and run web3.eth.getCode in the terminal #group9': function (browser: NightwatchBrowser) {
+  'Should connect to mainnet fork and run web3.eth.getCode in the terminal #group9': '' + function (browser: NightwatchBrowser) {
     if (runMasterTests)
       browser
         .clickLaunchIcon('udapp')
@@ -371,12 +373,14 @@ module.exports = {
           selector: '*[data-id="0xdD870fA1b7C4700F2BD7f44238821C26f7392148"]',
           timeout: 240000
         })
+        .click('*[data-id="toggleBottomPanelIcon"]')
+        .waitForElementVisible('.terminal-wrap', 5000)
         .executeScriptInTerminal(`web3.eth.getCode('0x180587b00c8642e2c7ac3a758712d97e6f7bdcc7')`) // mainnet contract
         .waitForElementContainsText('*[data-id="terminalJournal"]', '0x608060405260043610601f5760003560e01c80635c60da1b14603157602b565b36602b576029605f565b005b6029605f565b348015603c57600080fd5b5060436097565b6040516001600160a01b03909116815260200160405180910390f35b609560917f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546001600160a01b031690565b60d1565b565b600060c97f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546001600160a01b031690565b905090565b90565b3660008037600080366000845af43d6000803e80801560ef573d6000f35b3d6000fdfea2646970667358221220969dbb4b1d8aec2bb348e26488dc1a33b6bcf0190f567d161312ab7ca9193d8d64736f6c63430008110033', 120000)
         .click('*[data-id="terminalClearConsole"]')
   },
 
-  'Should connect to the sepolia fork and run web3.eth.getCode in the terminal #group9': function (browser: NightwatchBrowser) {
+  'Should connect to the sepolia fork and run web3.eth.getCode in the terminal #group9': '' + function (browser: NightwatchBrowser) {
     if (runMasterTests)
       browser
         .switchEnvironment('vm-custom-fork')
@@ -407,7 +411,7 @@ module.exports = {
         .click('*[data-id="terminalClearConsole"]')
   },
 
-  'Should run a free function while being connected to mainnet #group9': function (browser: NightwatchBrowser) {
+  'Should run a free function while being connected to mainnet #group9': '' + function (browser: NightwatchBrowser) {
     const script = `
     import "https://github.com/ensdomains/ens-contracts/blob/master/contracts/utils/NameEncoder.sol";
     import "hardhat/console.sol";
@@ -453,7 +457,7 @@ module.exports = {
     }
   },
 
-  'Should run free function which logs in the terminal #group10': function (browser: NightwatchBrowser) {
+  'Should run free function which logs in the terminal #group10': '' + function (browser: NightwatchBrowser) {
     const script = `import "hardhat/console.sol";
 
     function runSomething () view {

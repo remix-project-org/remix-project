@@ -1,4 +1,4 @@
-import { extractStatesDefinitions } from './astHelper'
+import { extractStatesDefinitions } from './helpers/astHelper'
 import { computeOffsets } from './decodeInfo'
 
 /**

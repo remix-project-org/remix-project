@@ -11,6 +11,8 @@ contract proxy {
 contract intLocal {
     constructor () public {
       proxy.testStruct memory p;
+      p.one = 12;
+      p.two = 14;
       uint8 ui8 = 130;
       uint16 ui16 = 456;
       uint32 ui32 = 4356;

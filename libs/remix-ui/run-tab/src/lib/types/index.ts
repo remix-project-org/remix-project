@@ -49,40 +49,7 @@ export type EnvDropdownLabelStateType = {
 }
 
 export interface RunTabState {
-  accounts: {
-    loadedAccounts: Record<string, string>,
-    isRequesting: boolean,
-    isSuccessful: boolean,
-    error: string,
-    selectedAccount: string
-  },
-  smartAccounts: Record<string, SmartAccount>
-  sendValue: string,
-  sendUnit: 'ether' | 'finney' | 'gwei' | 'wei',
-  gasLimit: number,
-  selectExEnv: string,
-  personalMode: boolean,
-  networkName: string,
-  chainId: string,
-  displayName: string,
-  providers: {
-    providerList: Provider[],
-    isRequesting: boolean,
-    isSuccessful: boolean,
-    error: string
-  },
-  notification: {
-    title: string,
-    message: string,
-    actionOk: () => void,
-    actionCancel: (() => void) | null,
-    labelOk: string,
-    labelCancel: string
-  },
   externalEndpoint: string,
-  popup: string,
-  passphrase: string,
-  matchPassphrase: string,
   contracts: {
     contractList: {
       [file: string]: {
@@ -103,13 +70,6 @@ export interface RunTabState {
     isSuccessful: boolean,
     error: string
   },
-  ipfsChecked: boolean,
-  gasPriceStatus: boolean,
-  confirmSettings: boolean,
-  maxFee: string,
-  maxPriorityFee: string,
-  baseFeePerGas: string,
-  gasPrice: string,
   instances: {
     instanceList: UdappInstance[],
     error: string
@@ -119,9 +79,6 @@ export interface RunTabState {
     transactionCount: number
   }
   remixdActivated: boolean,
-  proxy: {
-    deployments: { address: string, date: string, contractName: string }[]
-  },
   compilerVersion?: string
 }
 
@@ -308,10 +265,7 @@ export interface ContractDropdownProps {
 
 export interface RecorderProps {
   storeScenario: (prompt: (msg: string, defaultValue: string) => JSX.Element) => void,
-  runCurrentScenario: (liveMode: boolean, gasEstimationPrompt: (msg: string) => JSX.Element, passphrasePrompt: (msg: string) => JSX.Element, confirmDialogContent: MainnetPrompt) => void,
-  mainnetPrompt: MainnetPrompt,
-  gasEstimationPrompt: (msg: string) => JSX.Element,
-  passphrasePrompt: (msg: string) => JSX.Element,
+  runCurrentScenario: (liveMode: boolean) => Promise<{ abi: any, address: string, contractName: string }>,
   scenarioPrompt: (msg: string, defaultValue: string) => JSX.Element,
   count: number
   currentFile: string
@@ -337,19 +291,11 @@ export interface InstanceContainerProps {
     funcABI: FuncABI,
     inputsValues: string,
     contractName: string,
-    contractABI, contract,
-    address,
-    logMsg:string,
-    mainnetPrompt: MainnetPrompt,
-    gasEstimationPrompt: (msg: string) => JSX.Element,
-    passphrasePrompt: (msg: string) => JSX.Element,
-    funcIndex?: number) => void,
-  gasEstimationPrompt: (msg: string) => JSX.Element,
-  passphrasePrompt: (message: string) => JSX.Element,
-  mainnetPrompt: (tx: Tx, network: Network, amount: string, gasEstimation: string, gasFees: (maxFee: string, cb: (txFeeText: string, priceStatus: boolean) => void) => void, determineGasPrice: (cb: (txFeeText: string, gasPriceValue: string, gasPriceStatus: boolean) => void) => void) => JSX.Element,
-  sendValue: string,
+    contractABI: any,
+    contract: any,
+    address: any,
+    funcIndex?: number) => Promise<void>,
   getFuncABIInputs: (funcABI: FuncABI) => string
-  exEnvironment: string
   editInstance: (
     addressOrInstance: string | UdappInstance,
     abi?: any,
@@ -453,25 +399,17 @@ export interface UdappProps {
   pinInstance: (index: number, pinnedAt: number, filePath: string) => void,
   unpinInstance: (index: number) => void,
   index: number,
-  gasEstimationPrompt: (msg: string) => JSX.Element,
-  passphrasePrompt: (message: string) => JSX.Element,
-  mainnetPrompt: (tx: Tx, network: Network, amount: string, gasEstimation: string, gasFees: (maxFee: string, cb: (txFeeText: string, priceStatus: boolean) => void) => void, determineGasPrice: (cb: (txFeeText: string, gasPriceValue: string, gasPriceStatus: boolean) => void) => void) => JSX.Element,
   runTransactions: (
     instanceIndex: number,
     lookupOnly: boolean,
     funcABI: FuncABI,
     inputsValues: string,
     contractName: string,
-    contractABI, contract,
-    address,
-    logMsg:string,
-    mainnetPrompt: MainnetPrompt,
-    gasEstimationPrompt: (msg: string) => JSX.Element,
-    passphrasePrompt: (msg: string) => JSX.Element,
-    funcIndex?: number) => void,
-  sendValue: string,
+    contractABI: any,
+    contract: any,
+    address: any,
+    funcIndex?: number) => Promise<void>,
   getFuncABIInputs: (funcABI: FuncABI) => string
-  exEnvironment: string
   editInstance: (
     addressOrInstance: string | UdappInstance,
     abi?: any,

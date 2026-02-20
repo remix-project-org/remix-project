@@ -21,9 +21,9 @@ module.exports = {
     browser.testContracts('test.sol',{ content: code } , ['A'])
       .clickLaunchIcon('udapp')
       .selectAccount('0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c') // this account will be used for this test suite
-      .click('.udapp_contractActionsContainerSingle > div')
+      .createContract('')
       .clickInstance(0)
-      .clickFunction('foo - call', { types: 'uint256 p', values: '0' })      
+      .clickFunction(0, 0, { types: 'uint256 p', values: '0' })      
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
           browser
@@ -39,7 +39,7 @@ module.exports = {
             .perform(() => done())
         })
       })
-      .clickFunction('foo - call', { types: 'uint256 p', values: '1' })      
+      .clickFunction(0, 0, { types: 'uint256 p', values: '1' })      
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
           browser

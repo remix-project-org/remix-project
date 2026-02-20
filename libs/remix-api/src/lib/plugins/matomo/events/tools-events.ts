@@ -145,8 +145,6 @@ export interface ScriptExecutorEvent extends MatomoEventBase {
     | 'CompileAndRun';
 }
 
-
-
 /**
  * Editor Events - Type-safe builders
  */
@@ -201,9 +199,6 @@ export interface SolidityUMLGenEvent extends MatomoEventBase {
     | 'activated';
 }
 
-
-
-
 /**
  *
  * Circuit Compiler Events - Type-safe builders
@@ -220,7 +215,6 @@ export interface CircuitCompilerEvent extends MatomoEventBase {
     | 'runSetupAndExport';
 }
 
-
 /**
  * Noir Compiler Events - Type-safe builders
  */
@@ -233,7 +227,6 @@ export interface NoirCompilerEvent extends MatomoEventBase {
     | 'view_file';
 }
 
-
 /**
  * Contract Verification Events - Type-safe builders
  */
@@ -243,7 +236,6 @@ export interface ContractVerificationEvent extends MatomoEventBase {
     | 'verify'
     | 'lookup';
 }
-
 
 /**
  * Learneth Events - Type-safe builders
@@ -276,7 +268,6 @@ export interface LearnethEvent extends MatomoEventBase {
     | 'reset_all';
 }
 
-
 /**
  * Script Runner Plugin Events - Type-safe builders
  */
@@ -288,7 +279,6 @@ export interface ScriptRunnerPluginEvent extends MatomoEventBase {
     | 'executeScript'
     | 'configChanged';
 }
-
 
 /**
  * Quick DApp V2 Events - Type-safe builders

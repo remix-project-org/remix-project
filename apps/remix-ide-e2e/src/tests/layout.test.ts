@@ -49,18 +49,17 @@ module.exports = {
       .click('*[data-id="treeViewLitreeViewItemcontracts"]')
       .openFile('contracts/1_Storage.sol')
       .pause(5000)
-      .waitForElementPresent('*[data-id="Deploy - transact (not payable)"]')
-      .click('*[data-id="Deploy - transact (not payable)"]')
+      .createContract('')
       .waitForElementPresent('#instance0xd9145CCE52D386f254917e481eB44e9943F39138')
       .clickInstance(0)
-      .clickFunction('store - transact (not payable)', { types: 'uint256 num', values: '10' })
-      .clickFunction('retrieve - call')
+      .clickFunction(0, 0, { types: 'uint256 num', values: '10' })
+      .clickFunction(0, 1)
       .click('[data-id="movePluginToLeft"]')
       .waitForElementVisible('[data-id="movePluginToRight"]')
       .clickInstance(0)
       .waitForElementContainsText('[data-id="treeViewLi0"]', 'uint256: 10')
   },
-  'Should maintain logged state of search plugin after pinning and unpinning': function (browser: NightwatchBrowser) {
+  'Should maintain logged state of search plugin after pinning and unpinning': '' + function (browser: NightwatchBrowser) {
     browser.clickLaunchIcon('search')
       .waitForElementVisible('*[id="search_input"]')
       .waitForElementVisible('*[id="search_include"]')

@@ -16,7 +16,7 @@ export function RecorderUI(props: RecorderProps) {
 
   const handleClickRunButton = () => {
     const liveMode = inputLive.current ? inputLive.current.checked : false
-    props.runCurrentScenario(liveMode, props.gasEstimationPrompt, props.passphrasePrompt, props.mainnetPrompt)
+    props.runCurrentScenario(liveMode)
   }
 
   useEffect(() => {

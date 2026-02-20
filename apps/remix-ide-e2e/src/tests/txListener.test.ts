@@ -16,7 +16,7 @@ module.exports = {
   '@sources': function () {
     return sources
   },
-  'The sequence: Compiling / Deploying / Compiling another contract / calling the first contract - should display in the log the transaction with all the decoded information #group1': function (browser: NightwatchBrowser) {
+  'The sequence: Compiling / Deploying / Compiling another contract / calling the first contract - should display in the log the transaction with all the decoded information #group1': '' + function (browser: NightwatchBrowser) {
     // https://github.com/ethereum/remix-ide/issues/2864
     browser
       .waitForElementVisible('*[data-id="remixIdeIconPanel"]', 10000)

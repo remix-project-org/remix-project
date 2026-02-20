@@ -1,0 +1,160 @@
+.invite-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.invite-modal {
+  background: var(--custom-bg-color-1, #1e1e1e);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width: 480px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.invite-modal-success {
+  border: 2px solid var(--bs-success, #28a745);
+}
+
+.invite-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--custom-border-color, rgba(255,255,255,0.1));
+}
+
+.invite-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.invite-modal-close {
+  background: none;
+  border: none;
+  color: var(--custom-text-color-muted, #888);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.invite-modal-close:hover {
+  color: var(--custom-text-color, #fff);
+}
+
+.invite-modal-body {
+  padding: 1.5rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.invite-token-info h4 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--custom-text-color, #fff);
+}
+
+.invite-token-info p {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.invite-meta .badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.4em 0.8em;
+}
+
+.invite-benefits h5 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--custom-text-color-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.invite-benefits ul li {
+  padding: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.invite-applied-actions h5 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--custom-text-color-muted, #888);
+  margin-bottom: 0.75rem;
+}
+
+.invite-applied-actions ul li {
+  padding: 0.35rem 0;
+}
+
+.invite-error-message {
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.invite-error-message p {
+  font-size: 1rem;
+  color: var(--custom-text-color, #fff);
+  margin: 0;
+}
+
+.invite-modal-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--custom-border-color, rgba(255,255,255,0.1));
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.invite-modal-footer .btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .invite-modal {
+  background: var(--custom-bg-color-1, #ffffff);
+}
+
+[data-theme="light"] .invite-modal-header h3,
+[data-theme="light"] .invite-token-info h4,
+[data-theme="light"] .invite-error-message p {
+  color: var(--custom-text-color, #212529);
+}

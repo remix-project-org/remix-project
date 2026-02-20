@@ -72,6 +72,13 @@ export interface GitHubLinkResponse {
   }
 }
 
+export interface GitHubTokenResponse {
+  access_token: string
+  login?: string
+  avatar_url?: string
+  scopes?: string[]
+}
+
 // ==================== SIWE ====================
 
 export interface SiweVerifyRequest {
@@ -119,6 +126,122 @@ export interface RefreshTokenResponse {
   refresh_token?: string
 }
 
+// ==================== Storage ====================
+
+/**
+ * Storage health check response
+ */
+export interface StorageHealthResponse {
+  ok: boolean
+  provider: string
+  message?: string
+}
+
+/**
+ * Storage configuration (limits and allowed types)
+ */
+export interface StorageConfig {
+  maxFileSize: number
+  maxTotalStorage: number
+  allowedMimeTypes: string[]
+  allowedExtensions: string[]
+}
+
+/**
+ * Request for presigned upload URL
+ */
+export interface PresignUploadRequest {
+  filename: string
+  folder?: string
+  contentType: string
+  fileSize?: number
+  /** Optional metadata to store with the file (e.g., workspaceName, userId) */
+  metadata?: Record<string, string>
+}
+
+/**
+ * Response with presigned upload URL
+ */
+export interface PresignUploadResponse {
+  url: string
+  headers: Record<string, string>
+  expiresAt: string
+  key: string
+}
+
+/**
+ * Request for presigned download URL
+ */
+export interface PresignDownloadRequest {
+  filename: string
+  folder?: string
+}
+
+/**
+ * Response with presigned download URL
+ */
+export interface PresignDownloadResponse {
+  url: string
+  expiresAt: string
+}
+
+/**
+ * File metadata stored in the system
+ */
+export interface StorageFile {
+  filename: string
+  folder: string
+  key: string
+  contentType: string
+  size: number
+  uploadedAt: string
+  lastModified: string
+  etag?: string
+  /** S3 object metadata (workspaceName, userId, etc.) */
+  metadata?: Record<string, string>
+}
+
+/**
+ * List of user's files
+ */
+export interface StorageFilesResponse {
+  files: StorageFile[]
+  totalSize: number
+  totalCount: number
+  nextCursor?: string
+}
+
+/**
+ * File list request options
+ */
+export interface StorageListOptions {
+  folder?: string
+  limit?: number
+  cursor?: string
+}
+
+/**
+ * Summary of a remote workspace
+ */
+export interface WorkspaceSummary {
+  id: string
+  backupCount: number
+  lastBackup: string | null
+  totalSize: number
+  /** Original workspace name from the most recent backup metadata */
+  workspaceName?: string
+  /** User ID who owns this remote workspace */
+  userId?: string
+  /** Names of local workspaces on this device that are linked to this remote ID */
+  localWorkspaceNames?: string[]
+}
+
+/**
+ * List of user's remote workspaces
+ */
+export interface WorkspacesResponse {
+  workspaces: WorkspaceSummary[]
+}
 // ==================== Permissions ====================
 
 export interface Permission {
@@ -437,235 +560,107 @@ export interface FeatureAccessCheckResponse {
   hasAccess: boolean
 }
 
-// ==================== Eligible Products (Unified API) ====================
+// ==================== Invite Tokens ====================
 
 /**
- * Product type identifiers
+ * Action that will be performed when a token is redeemed
  */
-export type ProductType = 'credit_package' | 'subscription_plan' | 'feature_access'
+export interface InviteTokenAction {
+  type: 'add_to_feature_group' | 'grant_credits' | 'grant_product' | 'add_tag'
+  description: string
+  config?: Record<string, unknown>
+}
 
 /**
- * Unified eligible product - returned by /products/available endpoints
- * The API decides what the user sees based on eligibility rules, tags, etc.
+ * Token info returned from validation
  */
-export interface EligibleProduct {
-  id: number                     // Unified product ID
-  product_code: string           // Unique product code for purchases
+export interface InviteTokenInfo {
   name: string
-  slug: string
-  description: string | null
-  product_type: ProductType
-  price_cents: number
-  currency: string
-  // Type-specific fields
-  credits?: number               // credit_package only
-  credits_per_month?: number     // subscription_plan only
-  billing_interval?: string      // subscription_plan only
-  features?: string[]            // subscription_plan only
-  feature_group?: string         // feature_access only
-  feature_groups?: FeatureGroupInfo[]  // feature_access only
-  duration_type?: 'days' | 'months' | 'years' | 'unlimited'  // feature_access only
-  duration_value?: number        // feature_access only
-  is_recurring?: boolean         // feature_access only
-  is_popular?: boolean
-  // Provider info for checkout
-  provider_slug: string          // Payment provider to use (paddle, freepaddle, etc.)
-  external_product_id: string | null
-  external_price_id: string | null
+  description: string
+  expires_at: string | null
+  remaining_uses: number | null
 }
 
 /**
- * Response from /products/available endpoint
+ * Response from validate token endpoint
  */
-export interface AvailableProductsResponse {
-  data: EligibleProduct[]
-  meta: {
-    user_id: number | null
-    provider_filter: string | null
-    type_filter: string | null
-    total: number
-  }
-}
-
-/**
- * Response from /products/available/grouped endpoint
- */
-export interface GroupedProductsResponse {
-  data: {
-    credit_packages: EligibleProduct[]
-    subscription_plans: EligibleProduct[]
-    feature_access: EligibleProduct[]
-  }
-  meta: {
-    user_id: number | null
-    provider_filter: string | null
-    totals: {
-      credit_packages: number
-      subscription_plans: number
-      feature_access: number
-    }
-  }
-}
-
-/**
- * Request to purchase an eligible product (unified checkout)
- */
-export interface PurchaseProductRequest {
-  product_code: string           // Product code from available products
-  provider?: string              // Provider slug (paddle, freepaddle, etc.)
-  returnUrl?: string             // Redirect URL after checkout
-}
-
-/**
- * Response from unified purchase endpoint
- */
-export interface PurchaseProductResponse {
-  checkoutUrl: string
-  transactionId: string
-  provider: string               // Provider used for checkout
-  product: {
-    id: number
-    slug: string
-    name: string
-    product_type: ProductType
-    price_cents: number
-  }
-}
-
-// ==================== Active Entitlements ====================
-
-/**
- * Type of entitlement
- */
-export type EntitlementType = 'credit_subscription' | 'feature_access'
-
-/**
- * Source of entitlement
- */
-export type EntitlementSourceType = 'purchase' | 'subscription' | 'admin_grant' | 'promo' | 'trial'
-
-/**
- * Active entitlement - unified view of subscriptions and feature access
- */
-export interface ActiveEntitlement {
-  id: number
-  type: EntitlementType
-  name: string
-  description: string | null
-  status: string                    // 'active', 'trialing', 'past_due', etc.
-  isRecurring: boolean
-  billingInterval: 'day' | 'week' | 'month' | 'year' | null
-  startsAt: string                  // ISO date
-  expiresAt: string | null          // ISO date, null = never expires
-  daysRemaining: number | null      // null = never expires
-  isExpiringSoon: boolean           // True if expiring within 7 days
-  // Credit subscription specific
-  creditsPerPeriod: number | null
-  // Feature access specific
-  featureGroup: string | null
-  featureGroupDisplayName: string | null
-  // Source information
-  sourceType: EntitlementSourceType
-  productId: number
-  productSlug: string
-  providerSlug: string
-  providerSubscriptionId: string | null
-  cancelAtPeriodEnd: boolean
-}
-
-/**
- * Response from /products/active endpoint
- */
-export interface ActiveEntitlementsResponse {
-  data: ActiveEntitlement[]
-  meta: {
-    userId: number
-    total: number
-    creditSubscriptions: number
-    featureAccess: number
-    expiringSoon: number
-  }
-}
-
-// ==================== Profile & Username ====================
-
-/**
- * Current user's username and display name
- * GET /profile/username
- */
-export interface ProfileUsername {
-  username: string | null
-  displayName: string | null
-}
-
-/**
- * Response from username availability check
- * GET /profile/check-username/:username
- */
-export interface UsernameValidation {
+export interface InviteValidateResponse {
   valid: boolean
-  available: boolean
+  name?: string
+  description?: string
+  expires_at?: string | null
+  uses_remaining?: number | null
+  already_redeemed?: boolean
+  redeemed_at?: string | null
+  actions?: InviteTokenAction[]
   error?: string
-  suggestion?: string
+  error_code?: 'NOT_FOUND' | 'INACTIVE' | 'EXPIRED' | 'NOT_STARTED' | 'EXHAUSTED' | 'MAX_USES_REACHED'
 }
 
 /**
- * Request to set username
- * PUT /profile/username
+ * Request to redeem a token
  */
-export interface SetUsernameRequest {
-  username: string
+export interface InviteRedeemRequest {
+  token: string
 }
 
 /**
- * Response from setting username
+ * Action result after redemption
  */
-export interface SetUsernameResponse {
+export interface InviteActionResult {
+  type: string
   success: boolean
-  username?: string
+  details?: Record<string, unknown>
   error?: string
-  suggestion?: string
 }
 
 /**
- * Request to set display name
- * PUT /profile/display-name
+ * Response from redeem token endpoint
  */
-export interface SetDisplayNameRequest {
-  displayName: string
-}
-
-/**
- * Response from setting display name
- */
-export interface SetDisplayNameResponse {
+export interface InviteRedeemResponse {
   success: boolean
-  displayName?: string
+  message?: string
   error?: string
+  error_code?: 'NOT_FOUND' | 'INACTIVE' | 'EXPIRED' | 'NOT_STARTED' | 'EXHAUSTED' | 'ALREADY_REDEEMED'
+  redeemed_at?: string
+  actions_applied?: InviteActionResult[]
+  redemption?: {
+    id: number
+    redeemed_at: string
+  }
 }
 
 /**
- * Public profile data (no auth required)
- * GET /profile/u/:username
+ * A redemption record
  */
-export interface PublicProfile {
-  username: string
-  displayName: string | null
-  createdAt: string
+export interface InviteRedemption {
+  id: number
+  token_name: string
+  token_description: string
+  redeemed_at: string
+  actions: InviteTokenAction[]
 }
 
 /**
- * Username search result entry
+ * Response from my-redemptions endpoint
  */
-export interface UsernameSearchEntry {
-  username: string
-  displayName: string | null
+export interface InviteRedemptionsResponse {
+  redemptions: InviteRedemption[]
 }
 
 /**
- * Response from username search
- * GET /profile/search
+ * A user tag
  */
-export interface UsernameSearchResponse {
-  results: UsernameSearchEntry[]
+export interface UserTag {
+  tag: string
+  source: 'invite_token' | 'admin' | 'system'
+  created_at: string
 }
+
+/**
+ * Response from my-tags endpoint
+ */
+export interface UserTagsResponse {
+  tags: UserTag[]
+}
+

@@ -26,6 +26,7 @@ export interface ISSOApi {
     logout: () => void
     tokenRefreshed: (data: { token: string }) => void
     openWindow: (data: { url: string; id: string }) => void
+    gitHubTokenReady: (data: { token: string | null }) => void
   } & StatusEvents
   methods: {
     login(provider: AuthProvider): Promise<void>
@@ -34,6 +35,8 @@ export interface ISSOApi {
     getUser(): Promise<AuthUser | null>
     isAuthenticated(): Promise<boolean>
     refreshToken(): Promise<void>
+    fetchGitHubToken(): Promise<string | null>
+    disconnectGitHub(): Promise<void>
     handlePopupResult(result: {
       id: string
       success: boolean

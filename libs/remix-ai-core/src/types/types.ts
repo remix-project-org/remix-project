@@ -153,3 +153,7 @@ export interface CompilationResult {
   errfiles?: { [key: string]: any }
   compilerPayload?: any
 }
+
+// Re-export AI Model types from models.ts
+export type { AIModel } from './models'
+export type AIModelId = string

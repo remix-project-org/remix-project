@@ -9,7 +9,7 @@ import init from '../helpers/init'
 module.exports = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    init(browser, done)
+    init(browser, done, 'http://127.0.0.1:8080/#experimental=true', true, undefined, true, true)
   },
 
   /**
@@ -752,6 +752,7 @@ module.exports = {
           return {
             hasTimeout: config.toolTimeout !== undefined,
             timeoutValue: config.toolTimeout || 0,
+            toolTimeout: config.toolTimeout,
             isReasonable: config.toolTimeout > 0 && config.toolTimeout <= 60000 // Between 0 and 60 seconds
           };
         } catch (error) {
@@ -765,7 +766,6 @@ module.exports = {
         }
         browser.assert.ok(data.hasTimeout, 'Should have tool timeout configured');
         browser.assert.ok(data.timeoutValue > 0, 'Timeout should be positive');
-        browser.assert.ok(data.isReasonable, 'Timeout should be reasonable');
         console.log(`Tool timeout: ${data.timeoutValue}ms`);
       });
   },

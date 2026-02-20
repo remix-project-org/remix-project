@@ -10,7 +10,7 @@ export function TemplateExplorer() {
 
   return (
 
-    <div data-id="template-explorer-template-container" className={theme?.name === 'Dark' ? 'template-explorer-container overflow-y-auto text-white-force' : 'template-explorer-container overflow-y-auto text-dark'}>
+    <div data-id="template-explorer-template-container" className={theme?.name === 'Dark' ? 'text-white-force' : 'text-dark'} style={{ overflowY: 'scroll', height: '85%' }}>
 
       {dedupedTemplates?.map((template: TemplateCategory, templateIndex) => (
         <div key={template.name} className="template-category mb-4" data-id={`template-category-${template.name}`}>

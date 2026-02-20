@@ -19,7 +19,7 @@ module.exports = {
       .click('*[data-id="treeViewLitreeViewItemcontracts"]')
       .openFile('contracts/1_Storage.sol')
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="Deploy - transact (not payable)"]')
+      .waitForElementVisible('[data-id="deployButton"]')
       .waitForElementNotPresent({
         selector: '#deployAndRunVerifyContract',
         timeout: 5000

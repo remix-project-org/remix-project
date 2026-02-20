@@ -16,11 +16,14 @@ declare module 'nightwatch' {
     verifyContracts(compiledContractNames: string[], opts?: {wait: number; version?: string; runs?: string}): NightwatchBrowser
     selectAccount(account?: string): NightwatchBrowser
     clickFunction(fnFullName: string, expectedInput?: NightwatchClickFunctionExpectedInput): NightwatchBrowser
+    clickFunction(instanceIndex: number, functionIndex: number, expectedInput?: NightwatchClickFunctionExpectedInput): NightwatchBrowser
     checkClipboard(): NightwatchBrowser
     testFunction(txHash: string, expectedInput: NightwatchTestFunctionExpectedInput): NightwatchBrowser
     goToVMTraceStep(step: number, incr?: number): NightwatchBrowser
     checkVariableDebug(id: string, debugValue: NightwatchCheckVariableDebugValue): NightwatchBrowser
     addAtAddressInstance(address: string, isValidFormat: boolean, isValidChecksum: boolean, isAbi?: boolean): NightwatchBrowser
+    clearDeployedContracts(): NightwatchBrowser
+    clearDeployedContract(index: number): NightwatchBrowser
     modalFooterOKClick(id?: string): NightwatchBrowser
     clickInstance(index: number): NightwatchBrowser
     journalLastChildIncludes(val: string): NightwatchBrowser
@@ -42,6 +45,7 @@ declare module 'nightwatch' {
     createContract(inputParams: string): NightwatchBrowser
     getAddressAtPosition(index: number, cb: (pos: string) => void): NightwatchBrowser
     testConstantFunction(address: string, fnFullName: string, expectedInput: NightwatchTestConstantFunctionExpectedInput | null, expectedOutput: string): NightwatchBrowser
+    testConstantFunction(instanceIndex: number, functionIndex: number, expectedInput: NightwatchTestConstantFunctionExpectedInput | null, expectedOutput: string): NightwatchBrowser
     getEditorValue(callback: (content: string) => void): NightwatchBrowser
     getInstalledPlugins(cb: (plugins: string[]) => void): NightwatchBrowser
     verifyCallReturnValue(address: string, checks: string[] | callbackCheckVerifyCallReturnValue): NightwatchBrowser
@@ -54,7 +58,7 @@ declare module 'nightwatch' {
     setSolidityCompilerVersion(version: string): NightwatchBrowser
     clickElementAtPosition(cssSelector: string, index: number, opt?: {forceSelectIfUnselected: boolean}): NightwatchBrowser
     notContainsText(cssSelector: string, text: string): NightwatchBrowser
-    sendLowLevelTx(address: string, value: string, callData: string): NightwatchBrowser
+    sendLowLevelTx(index: number, value: string, callData: string): NightwatchBrowser
     journalLastChild(val: string): NightwatchBrowser
     checkTerminalFilter(filter: string, test: string, notContain: boolean): NightwatchBrowser
     noWorkerErrorFor(version: string): NightwatchBrowser
@@ -70,7 +74,7 @@ declare module 'nightwatch' {
     getBrowserLogs(this: NightwatchBrowser): NightwatchBrowser
     currentSelectedFileIs(name: string): NightwatchBrowser
     switchWorkspace: (workspaceName: string) => NightwatchBrowser
-    switchEnvironment: (provider: string, returnWhenInitialized?: boolean) => NightwatchBrowser
+    switchEnvironment: (provider: string, category?: string, returnWhenInitialized?: boolean) => NightwatchBrowser
     connectToExternalHttpProvider: (url: string, identifier: string) => NightwatchBrowser
     waitForElementNotContainsText: (id: string, value: string, timeout: number = 10000) => NightwatchBrowser
     hideToolTips: (this: NightwatchBrowser) => NightwatchBrowser

@@ -7,6 +7,21 @@ import {
   IMCPToolResult,
   IMCPResourceContent
 } from '../types/mcp';
+
+// Helper function to track events using MatomoManager instance
+function trackMatomoEvent(category: string, action: string, name: string) {
+  try {
+    if (typeof window !== 'undefined' && (window as any)._matomoManagerInstance) {
+      const matomoInstance = (window as any)._matomoManagerInstance;
+      if (typeof matomoInstance.trackEvent === 'function') {
+        matomoInstance.trackEvent(category, action, name);
+      }
+    }
+  } catch (error) {
+    // Silent fail for tracking
+    console.debug('Matomo tracking failed:', error);
+  }
+}
 import {
   IRemixMCPServer,
   RemixMCPServerConfig,
@@ -51,6 +66,8 @@ import { SecurityMiddleware } from './middleware/SecurityMiddleware';
 import { ValidationMiddleware } from './middleware/ValidationMiddleware';
 import { FilePermissionMiddleware } from './middleware/FilePermissionMiddleware';
 import { MCPConfigManager } from './config/MCPConfigManager';
+
+import isElectron from 'is-electron'
 
 /**
  * Main Remix MCP Server implementation
@@ -413,6 +430,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       execution.endTime = new Date();
       this._stats.totalToolCalls++;
 
+      trackMatomoEvent('ai', 'remixAI', `mcp_tool_executed_${call.name}`);
       console.log(`[RemixMCPServer] Tool '${call.name}' executed successfully`);
       this.emit('tool-executed', execution);
       return result;
@@ -449,6 +467,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
     // Get from provider
     const content = await this._resources.getResourceContent(uri);
+
+    // Track resource read
+    const resourceName = uri.replace('://', '_');
+    trackMatomoEvent('ai', 'remixAI', `mcp_resource_read_${resourceName}`);
 
     // Cache result
     if (this._config.enableResourceCache !== false) {
@@ -871,21 +893,26 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       this._tools.registerBatch(tutorialTools);
 
       // Register Amp tools
+      /*
       const ampTools = createAmpTools();
       this._tools.registerBatch(ampTools);
+      */
 
       // Register Math Utils tools
       const mathUtilsTools = createMathUtilsTools();
       this._tools.registerBatch(mathUtilsTools);
 
       // Register Foundry and Hardhat tools
-      const foundryHardhatTools = createFoundryHardhatTools();
-      this._tools.registerBatch(foundryHardhatTools);
+      if (isElectron()) {
+        const foundryHardhatTools = createFoundryHardhatTools();
+        this._tools.registerBatch(foundryHardhatTools);
+      }
 
       // Register Chartjs tool
+      /*
       const chartJsTools = createChartJsTools();
       this._tools.registerBatch(chartJsTools);
-
+      */
       const totalTools = this._tools.list().length;
 
     } catch (error) {
@@ -921,8 +948,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       this._resources.register(tutorialsProvider);
 
       // Register Amp resource provider
-      const ampProvider = new AmpResourceProvider(this._plugin);
-      this._resources.register(ampProvider);
+      /*
+        const ampProvider = new AmpResourceProvider(this._plugin);
+        this._resources.register(ampProvider);
+      */
 
       // Register debugging resource provider
       const debuggingProvider = new DebuggingResourceProvider(this._plugin);

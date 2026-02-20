@@ -25,6 +25,7 @@ import { Topbar } from './app/components/top-bar'
 import { ThemeModule } from './app/tabs/theme-module'
 import { VerticalIcons } from './app/components/vertical-icons'
 import { RemixAIAssistant } from './app/plugins/remix-ai-assistant'
+import { QuickDappV2 } from './app/plugins/quick-dapp-v2'
 import { SolidityUmlGen } from './app/plugins/solidity-umlgen'
 import { VyperCompilationDetailsPlugin } from './app/plugins/vyper-compilation-details'
 import { ContractFlattener } from './app/plugins/contractFlattener'
@@ -54,6 +55,9 @@ import { TransactionSimulator } from './app/plugins/transaction-simulator'
 import { CodeFormat } from './app/plugins/code-format'
 import { CompilationDetailsPlugin } from './app/plugins/compile-details'
 import { AuthPlugin } from './app/plugins/auth-plugin'
+import { S3StoragePlugin } from './app/plugins/storage/s3-storage-plugin'
+import { CloudWorkspacesPlugin } from './app/plugins/cloud-workspaces-plugin'
+import { InvitationManagerPlugin } from './app/plugins/invitation-manager-plugin'
 import { AccountPlugin } from './app/plugins/account-plugin'
 import { RemixGuidePlugin } from './app/plugins/remixGuide'
 import { TemplatesPlugin } from './app/plugins/remix-templates'
@@ -80,6 +84,13 @@ import { DesktopClient } from './app/plugins/desktop-client'
 import { DesktopHost } from './app/plugins/electron/desktopHostPlugin'
 import { WalletConnect } from './app/plugins/walletconnect'
 import { AIDappGenerator } from './app/plugins/ai-dapp-generator'
+import { IndexedDbCachePlugin } from './app/plugins/IndexedDbCache'
+import { NotificationCenterPlugin } from './app/plugins/notification-center'
+import { FeedbackPlugin } from './app/plugins/feedback'
+import { EnvironmentPlugin } from './app/udapp/udappEnv'
+import { DeployPlugin } from './app/udapp/udappDeploy'
+import { DeployedContractsPlugin } from './app/udapp/udappDeployedContracts'
+import { TransactionsPlugin } from './app/udapp/udappTransactions'
 
 import { TemplatesSelectionPlugin } from './app/plugins/templates-selection/templates-selection-plugin'
 
@@ -117,9 +128,9 @@ import Filepanel from './app/panels/file-panel'
 import Editor from './app/editor/editor'
 import Terminal from './app/panels/terminal'
 import TabProxy from './app/panels/tab-proxy.js'
-import { Plugin } from '@remixproject/engine'
 import BottomBarPanel from './app/components/bottom-bar-panel'
 import { TemplateExplorerModalPlugin } from './app/plugins/template-explorer-modal'
+import { TxRunnerPlugin } from './app/plugins/txRunnerPlugin'
 
 // Tracking now handled by this.track() method using MatomoManager
 
@@ -171,6 +182,9 @@ class AppComponent {
   remixAiAssistant: RemixAIAssistant
   settings: SettingsTab
   authPlugin: AuthPlugin
+  s3StoragePlugin: S3StoragePlugin
+  cloudWorkspacesPlugin: CloudWorkspacesPlugin
+  invitationManager: InvitationManagerPlugin
   accountPlugin: AccountPlugin
   params: any
   desktopClientMode: boolean
@@ -294,6 +308,9 @@ class AppComponent {
       if (currentFile.endsWith('.circom')) this.appManager.activatePlugin(['circuit-compiler'])
     })
 
+    // ----------------- cache plugin ----------------------------
+    const indexedDbCache = new IndexedDbCachePlugin()
+
     // ----------------- fileManager service ----------------------------
     const fileManager = new FileManager(editor, appManager)
     Registry.getInstance().put({ api: fileManager, name: 'filemanager' })
@@ -349,6 +366,7 @@ class AppComponent {
     // ----------------- AI --------------------------------------
     const remixAI = new RemixAIPlugin()
     this.remixAiAssistant = new RemixAIAssistant()
+    const quickDappV2 = new QuickDappV2()
 
     // ----------------- import content service ------------------------
     const contentImport = new CompilerImports()
@@ -406,7 +424,7 @@ class AppComponent {
     // ----------------- run script after each compilation results -----------
     const compileAndRun = new CompileAndRun()
     // -------------------Terminal----------------------------------------
-    makeUdapp(blockchain, compilersArtefacts, (domEl) => terminal.logHtml(domEl))
+    makeUdapp(blockchain, (domEl) => terminal.logHtml(domEl))
     const terminal = new Terminal(
       { appManager, blockchain },
       {
@@ -425,6 +443,7 @@ class AppComponent {
     const solidityScript = new SolidityScript()
 
     this.notification = new NotificationPlugin()
+    const notificationCenter = new NotificationCenterPlugin()
 
     const configPlugin = new ConfigPlugin()
     this.layout = new Layout()
@@ -439,10 +458,18 @@ class AppComponent {
 
     const walletConnect = new WalletConnect()
 
+    const udappEnvPlugin = new EnvironmentPlugin()
+    const udappDeployPlugin = new DeployPlugin()
+    const udappDeployedContractsPlugin = new DeployedContractsPlugin()
+    const udappTransactionsPlugin = new TransactionsPlugin()
+    const txRunnerPlugin = new TxRunnerPlugin()
+
     this.engine.register([
+      txRunnerPlugin,
       permissionHandler,
       this.layout,
       this.notification,
+      notificationCenter,
       this.gistHandler,
       configPlugin,
       blockchain,
@@ -499,10 +526,16 @@ class AppComponent {
       templateSelection,
       scriptRunnerUI,
       remixAI,
+      quickDappV2,
       walletConnect,
       amp,
       // vega,
-      chartjs
+      chartjs,
+      indexedDbCache,
+      udappEnvPlugin,
+      udappDeployPlugin,
+      udappDeployedContractsPlugin,
+      udappTransactionsPlugin
     ])
 
     //---- fs plugin
@@ -581,13 +614,6 @@ class AppComponent {
     const compileTab = new CompileTab(Registry.getInstance().get('config').api, Registry.getInstance().get('filemanager').api)
     const run = new RunTab(
       blockchain,
-      Registry.getInstance().get('config').api,
-      Registry.getInstance().get('filemanager').api,
-      Registry.getInstance().get('editor').api,
-      filePanel,
-      Registry.getInstance().get('compilersartefacts').api,
-      networkModule,
-      Registry.getInstance().get('fileproviders/browser').api,
       this.engine
     )
     const analysis = new AnalysisTab()
@@ -602,11 +628,15 @@ class AppComponent {
     )
 
     this.authPlugin = new AuthPlugin()
+    this.s3StoragePlugin = new S3StoragePlugin()
+    this.cloudWorkspacesPlugin = new CloudWorkspacesPlugin()
+    this.invitationManager = new InvitationManagerPlugin()
+    const feedbackPlugin = new FeedbackPlugin()
 
     this.engine.register([
-      compileTab,
+      compileTab as any,
       run,
-      debug,
+      debug as any,
       analysis,
       test,
       filePanel.remixdHandle,
@@ -614,9 +644,12 @@ class AppComponent {
       linkLibraries,
       deployLibraries,
       openZeppelinProxy,
-      run.recorder,
       this.authPlugin,
-      this.accountPlugin
+      this.s3StoragePlugin,
+      this.cloudWorkspacesPlugin,
+      this.invitationManager,
+      this.accountPlugin,
+      feedbackPlugin
     ])
     this.engine.register([templateExplorerModal, this.topBar])
 
@@ -639,6 +672,7 @@ class AppComponent {
     if (isElectron()) {
       await this.appManager.activatePlugin(['fs'])
     }
+    await this.appManager.activatePlugin(['txRunner'])
     await this.appManager.activatePlugin(['layout'])
     await this.appManager.activatePlugin(['notification'])
     await this.appManager.activatePlugin(['editor'])
@@ -654,7 +688,8 @@ class AppComponent {
       'offsetToLineColumnConverter',
       'pluginStateLogger',
       'matomo',
-      'ai-dapp-generator'
+      'ai-dapp-generator',
+      'indexedDbCache'
     ])
 
     await this.appManager.activatePlugin(['mainPanel', 'menuicons', 'tabs'])
@@ -682,14 +717,28 @@ class AppComponent {
       'gistHandler',
       'compilerloader',
       'remixAI',
-      'remixaiassistant'
+      'remixaiassistant',
+      'quick-dapp-v2'
     ])
 
     await this.appManager.activatePlugin(['auth'])
+    // Activate/deactivate cloud plugins based on auth state
+    this.appManager.on('auth', 'authStateChanged', async (state: any) => {
+      if (state.isAuthenticated) {
+        await this.appManager.activatePlugin(['s3Storage'])
+        await this.appManager.activatePlugin(['cloudWorkspaces'])
+      } else {
+        await this.appManager.deactivatePlugin('cloudWorkspaces')
+        await this.appManager.deactivatePlugin('s3Storage')
+      }
+    })
+    await this.appManager.activatePlugin(['invitationManager'])
     await this.appManager.activatePlugin(['account'])
+    await this.appManager.activatePlugin(['notificationCenter'])
+    await this.appManager.activatePlugin(['feedback'])
     await this.appManager.activatePlugin(['settings'])
 
-    await this.appManager.activatePlugin(['walkthrough', 'storage', 'storageMonitor', 'search', 'compileAndRun', 'recorder', 'dgitApi', 'dgit'])
+    await this.appManager.activatePlugin(['walkthrough', 'storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
     if (isElectron()) {
@@ -801,6 +850,11 @@ class AppComponent {
     if (isElectron()){
       this.appManager.activatePlugin(['desktopHost'])
     }
+    // await this.appManager.activatePlugin(['compilerArtefacts'])
+    await this.appManager.activatePlugin(['udappEnv'])
+    await this.appManager.activatePlugin(['udappDeploy'])
+    await this.appManager.activatePlugin(['udappDeployedContracts'])
+    await this.appManager.activatePlugin(['udappTransactions'])
   }
 }
 

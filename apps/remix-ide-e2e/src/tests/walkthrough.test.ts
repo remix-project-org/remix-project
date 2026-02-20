@@ -8,7 +8,7 @@ module.exports = {
     init(browser, done)
   },
 
-  'Should run walkthrough for recorder': function (browser: NightwatchBrowser) {
+  'Should run walkthrough for recorder': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementPresent('*[data-id="remixIdeSidePanel"]')
       .clickLaunchIcon('udapp')

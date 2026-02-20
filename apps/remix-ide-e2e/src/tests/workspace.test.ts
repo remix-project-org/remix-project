@@ -9,14 +9,14 @@ module.exports = {
     init(browser, done, 'http://127.0.0.1:8080?activate=solidity,udapp&call=fileManager//open//contracts/3_Ballot.sol&deactivate=home', false)
   },
 
-  CheckSolidityActivatedAndUDapp: function (browser: NightwatchBrowser) {
+  CheckSolidityActivatedAndUDapp: '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('#icon-panel', 10000)
       .clickLaunchIcon('solidity')
       .clickLaunchIcon('udapp')
   },
 
-  'Editor should be focused on the 3_Ballot.sol #group1': function (browser: NightwatchBrowser) {
+  'Editor should be focused on the 3_Ballot.sol #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .pause(5000)
       .refreshPage()
@@ -26,14 +26,14 @@ module.exports = {
       })
   },
 
-  'Home page should be deactivated #group1': function (browser: NightwatchBrowser) {
+  'Home page should be deactivated #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementNotPresent('[data-id="landingPageHomeContainer"]')
   },
 
   // WORKSPACE TEMPLATES E2E START
 
-  'Should create Remix default workspace with files #group1': function (browser: NightwatchBrowser) {
+  'Should create Remix default workspace with files #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
@@ -94,7 +94,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemREADME.txt"]')
   },
 
-  'Should create blank workspace with no files #group1': function (browser: NightwatchBrowser) {
+  'Should create blank workspace with no files #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
       .pause(2000)
@@ -123,7 +123,7 @@ module.exports = {
       });
   },
 
-  'Should create ERC20 workspace with files #group1': function (browser: NightwatchBrowser) {
+  'Should create ERC20 workspace with files #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
@@ -188,7 +188,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests/TestToken_test.sol"]')
   },
 
-  'Should create ERC721 workspace with files #group1': function (browser: NightwatchBrowser) {
+  'Should create ERC721 workspace with files #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
@@ -248,7 +248,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests/Test721Token_test.sol"]')
   },
 
-  'Should create ERC1155 workspace with files #group1': function (browser: NightwatchBrowser) {
+  'Should create ERC1155 workspace with files #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
@@ -306,7 +306,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests/MyToken_test.sol"]')
   },
 
-  'Should create ERC1155 workspace with template customizations #group1': function (browser: NightwatchBrowser) {
+  'Should create ERC1155 workspace with template customizations #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .click('*[data-id="workspacesSelect"]')
@@ -366,7 +366,7 @@ module.exports = {
       })
     // No test file is added in upgradeable contract template
   },
-  'Should create circom zkp hashchecker workspace #group1': function (browser: NightwatchBrowser) {
+  'Should create circom zkp hashchecker workspace #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
       .pause(2000)
@@ -410,7 +410,7 @@ module.exports = {
 
   // WORKSPACE TEMPLATES E2E END
 
-  'Should create two workspace and switch to the first one #group1': function (browser: NightwatchBrowser) {
+  'Should create two workspace and switch to the first one #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
       .pause(2000)
@@ -455,7 +455,7 @@ module.exports = {
       .currentWorkspaceIs('workspace_name')
   },
 
-  'Should rename a workspace #group1': function (browser: NightwatchBrowser) {
+  'Should rename a workspace #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementPresent('*[data-id="workspacesSelect"]')
       .click('*[data-id="workspacesSelect"]')
@@ -480,7 +480,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewDivtreeViewItemtests"]')
   },
 
-  'Should delete a workspace #group1': function (browser: NightwatchBrowser) {
+  'Should delete a workspace #group1': '' + function (browser: NightwatchBrowser) {
     const selector = 'a[data-id="dropdown-item-workspace_name_1"] + div [data-id="workspacesubMenuIcon"]'
     browser
       .click('*[data-id="workspacesSelect"]')
@@ -504,7 +504,7 @@ module.exports = {
       .end()
   },
 
-  'Should create workspace for test #group2': function (browser: NightwatchBrowser) {
+  'Should create workspace for test #group2': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
       .pause(2000)
@@ -523,7 +523,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')
   },
 
-  'Should change the current workspace in localstorage to a non existent value, reload the page and see the workspace created #group2': function (browser: NightwatchBrowser) {
+  'Should change the current workspace in localstorage to a non existent value, reload the page and see the workspace created #group2': '' + function (browser: NightwatchBrowser) {
     browser
       .execute(function () {
         localStorage.setItem('currentWorkspace', 'non_existing_workspace')
@@ -533,7 +533,7 @@ module.exports = {
       .currentWorkspaceIs('default_workspace')
   },
 
-  'Should create workspace for next test #group2': function (browser: NightwatchBrowser) {
+  'Should create workspace for next test #group2': '' + function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="workspacesSelect"]')
       .pause(2000)
@@ -567,7 +567,7 @@ module.exports = {
       .pause(2000)
   },
 
-  'Should clear indexedDB and reload the page and see the default workspace #group2': function (browser: NightwatchBrowser) {
+  'Should clear indexedDB and reload the page and see the default workspace #group2': '' + function (browser: NightwatchBrowser) {
     browser
       .execute(function () {
         indexedDB.deleteDatabase('RemixFileSystem')

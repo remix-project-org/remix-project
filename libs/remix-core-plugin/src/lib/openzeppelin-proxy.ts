@@ -84,11 +84,10 @@ export class OpenZeppelinProxy extends Plugin {
     if (!newImplAddress) throw new Error('Cannot upgrade: Missing implementation address')
     if (!proxyAddress) throw new Error('Cannot upgrade: Missing proxy address')
 
-    if (this.kind === 'UUPS') this.upgradeUUPSProxy(proxyAddress, newImplAddress, newImplementationContractObject)
+    if (this.kind === 'UUPS') await this.upgradeUUPSProxy(proxyAddress, newImplAddress, newImplementationContractObject)
   }
 
   async deployUUPSProxy(implAddress: string, _data: string, implementationContractObject): Promise<void> {
-
     const args = [implAddress, _data]
     const constructorData = await this.blockchain.getEncodedParams(args, UUPSfunAbi)
     const proxyName = 'ERC1967Proxy'
@@ -138,49 +137,38 @@ export class OpenZeppelinProxy extends Plugin {
     newImplementationContractObject.implementationAddress = newImplAddress
     newImplementationContractObject.name = proxyName
 
-    await this.blockchain.runTx(
-      args,
-      () => {},
-      () => {},
-      () => {},
-      async (error, txResult, _address, returnValue) => {
-        let version = '4.8.3'
-        if (error) {
-          console.log(`error: ${error.message ? error.message : error}`)
-        } else {
-          const response = txFormat.decodeResponse(returnValue, GETUUPSProxyVersionAbi)
-          version = response[0].split('string: ')[1]
-          // check if version is >= 5.0.0
-        }
+    const txResult = await this.blockchain.runTx(args, true)
+    let version = '4.8.3'
+    const response = txFormat.decodeResponse(txResult.returnValue, GETUUPSProxyVersionAbi)
+    version = response[0].split('string: ')[1] || version
+    // check if version is >= 5.0.0
 
-        if (semver.gte(version, '5.0.0')) {
-          const fnData = await this.blockchain.getEncodedFunctionHex([newImplAddress, '0x'], UUPSupgradeToAndCallAbi)
+    if (semver.gte(version, '5.0.0')) {
+      const fnData = await this.blockchain.getEncodedFunctionHex([newImplAddress, '0x'], UUPSupgradeToAndCallAbi)
 
-          const data = {
-            contractABI: UUPSABI,
-            contractName: proxyName,
-            funAbi: UUPSupgradeToAndCallAbi,
-            funArgs: [newImplAddress, '0x'],
-            linkReferences: {},
-            dataHex: fnData.replace('0x', ''),
-          }
-          this.call('terminal', 'logHtml', `Using ERC1967 >= 5.0.0 for the proxy upgrade...`)
-          this.blockchain.upgradeProxy(proxyAddress, newImplAddress, data, newImplementationContractObject)
-        } else {
-          const fnData = await this.blockchain.getEncodedFunctionHex([newImplAddress], UUPSupgradeAbi)
-          const proxyName = 'ERC1967Proxy'
-          const data = {
-            contractABI: UUPSABI,
-            contractName: proxyName,
-            funAbi: UUPSupgradeAbi,
-            funArgs: [newImplAddress],
-            linkReferences: {},
-            dataHex: fnData.replace('0x', ''),
-          }
-          this.call('terminal', 'logHtml', `Using ERC1967 < 5.0.0 for the proxy upgrade...`)
-          this.blockchain.upgradeProxy(proxyAddress, newImplAddress, data, newImplementationContractObject)
-        }
+      const data = {
+        contractABI: UUPSABI,
+        contractName: proxyName,
+        funAbi: UUPSupgradeToAndCallAbi,
+        funArgs: [newImplAddress, '0x'],
+        linkReferences: {},
+        dataHex: fnData.replace('0x', ''),
       }
-    )
+      this.call('terminal', 'logHtml', `Using ERC1967 >= 5.0.0 for the proxy upgrade...`)
+      this.blockchain.upgradeProxy(proxyAddress, newImplAddress, data, newImplementationContractObject)
+    } else {
+      const fnData = await this.blockchain.getEncodedFunctionHex([newImplAddress], UUPSupgradeAbi)
+      const proxyName = 'ERC1967Proxy'
+      const data = {
+        contractABI: UUPSABI,
+        contractName: proxyName,
+        funAbi: UUPSupgradeAbi,
+        funArgs: [newImplAddress],
+        linkReferences: {},
+        dataHex: fnData.replace('0x', ''),
+      }
+      this.call('terminal', 'logHtml', `Using ERC1967 < 5.0.0 for the proxy upgrade...`)
+      this.blockchain.upgradeProxy(proxyAddress, newImplAddress, data, newImplementationContractObject)
+    }
   }
 }

@@ -1,0 +1,227 @@
+/* You can add global styles to this file, and also import other style files */
+
+.item-wrapper {
+  transform: translate3d(var(--translate-x, 0), var(--translate-y, 0), 0)
+    scaleX(var(--scale-x, 1)) scaleY(var(--scale-y, 1));
+  transform-origin: 0 0;
+  touch-action: manipulation;
+
+  &:hover {
+    .item-remove {
+      visibility: visible;
+    }
+  }
+}
+
+.item-remove {
+  visibility: hidden;
+  top: 5px;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  background-color: var(--gray-dark);
+
+  .fas {
+    color: var(--text-bg-mark);
+  }
+}
+
+.item-action {
+  touch-action: none;
+  outline: none !important;
+  appearance: none;
+  background-color: transparent;
+  -webkit-tap-highlight-color: transparent;
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--bs-light);
+    }
+  }
+
+  .fas {
+    color: var(--text-bg-mark);
+  }
+}
+
+.bg-light {
+  .item-action {
+    @media (hover: hover) {
+      &:hover {
+        background-color: var(--dark);
+      }
+    }
+  }
+}
+
+.container {
+  flex-direction: column;
+
+  &.placeholder {
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+  }
+}
+
+
+.container-header {
+  &:hover {
+    .container-actions > * {
+      opacity: 1 !important;
+    }
+  }
+}
+
+.container-actions {
+  > *:first-child:not(:last-child) {
+    opacity: 0;
+
+    &:focus-visible {
+      opacity: 1;
+    }
+  }
+}
+
+.instance-input {
+  background-color: var(--custom-select) !important;
+  font-size: 10px;
+}
+.has-args {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.udapp_intro {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  white-space: pre-wrap;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.udapp_intro:hover {
+  -webkit-line-clamp: inherit;
+}
+.cursor_pointer {
+  cursor: pointer;
+}
+.cursor_pointer:hover {
+  color: var(--bs-secondary);
+}
+.custom-dropdown-items {
+  padding: 0.25rem 0.25rem;
+  border-radius: .25rem;
+  background: var(--custom-select);
+}
+
+.custom-dropdown-items a {
+  border-radius: .25rem;
+  text-transform: none;
+  text-decoration: none;
+  font-weight: normal;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.25rem;
+  width: auto;
+  color: var(--text);
+}
+
+/* Container Query support for ViewPlugin */
+/* This makes layouts respond to container width instead of viewport width */
+
+.qd-container {
+  container-type: inline-size;
+  container-name: qd-main;
+}
+
+/* Default: stacked layout for narrow container */
+.qd-grid-col,
+.qd-card-col {
+  width: 100% !important;
+  flex: 0 0 100% !important;
+  max-width: 100% !important;
+}
+
+.qd-header {
+  flex-direction: column;
+  align-items: flex-start !important;
+}
+
+.qd-header-buttons {
+  flex-direction: column;
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.qd-filter-bar {
+  flex-direction: column;
+}
+
+/* Wide container (>= 600px): side-by-side layout */
+@container qd-main (min-width: 600px) {
+  .qd-grid-col {
+    width: 50% !important;
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+  
+  .qd-card-col {
+    width: 50% !important;
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+  
+  .qd-header {
+    flex-direction: row;
+    align-items: center !important;
+  }
+  
+  .qd-header-buttons {
+    flex-direction: row;
+    width: auto;
+    margin-top: 0;
+  }
+  
+  .qd-filter-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+/* Extra wide container (>= 900px): 3-column layout for cards */
+@container qd-main (min-width: 900px) {
+  .qd-card-col {
+    width: 33.333% !important;
+    flex: 0 0 33.333% !important;
+    max-width: 33.333% !important;
+  }
+}
+
+/* EditHtmlTemplate layout - default: stacked (narrow panel) */
+.qd-main-col,
+.qd-side-col {
+  width: 100% !important;
+  flex: 0 0 100% !important;
+  max-width: 100% !important;
+  padding-right: 0 !important;
+  margin-bottom: 1rem;
+}
+
+/* EditHtmlTemplate layout - wide container: side-by-side */
+@container qd-main (min-width: 700px) {
+  .qd-main-col {
+    width: 66.667% !important;
+    flex: 0 0 66.667% !important;
+    max-width: 66.667% !important;
+    padding-right: 1rem !important;
+    margin-bottom: 0;
+  }
+  
+  .qd-side-col {
+    width: 33.333% !important;
+    flex: 0 0 33.333% !important;
+    max-width: 33.333% !important;
+    margin-bottom: 0;
+  }
+}

@@ -5,6 +5,7 @@ import * as packageJson from '../../../../../package.json'
 import React from 'react' // eslint-disable-line
 import { bleach } from '@remix-ui/helper'
 import { compilationFinishedToastMsg, compilingToastMsg, notFoundToastMsg, sourceVerificationNotAvailableToastMsg } from '@remix-ui/helper'
+import { ScopeFilterMode } from '@remix-project/remix-debug'
 
 const css = require('./styles/debugger-tab-styles') // eslint-disable-line
 
@@ -27,7 +28,9 @@ const profile = {
     'jumpTo',
     'getCallTreeScopes',
     'getAllDebugCache',
-    'getCurrentSourceLocation'
+    'getCurrentSourceLocation',
+    'getScopesAsNestedJSON',
+    'getStackAt'
   ],
   events: [],
   icon: 'assets/img/debuggerLogo.webp',
@@ -270,6 +273,11 @@ export default class DebuggerTab extends DebuggerApiMixin(ViewPlugin) {
   getCallTreeScopes () {
     if (!this.debuggerBackend) return null
     return this.debuggerBackend.debugger.callTree.getScopes()
+  }
+
+  getScopesAsNestedJSON (filterMode: ScopeFilterMode, rootScopeId?: string) {
+    if (!this.debuggerBackend) return null
+    return this.debuggerBackend.debugger.callTree.getScopesAsNestedJSON(filterMode, rootScopeId)
   }
 
   /**

@@ -4,7 +4,7 @@ import init from '../helpers/init'
 module.exports = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    init(browser, done)
+    init(browser, done, 'http://127.0.0.1:8080/#experimental=true', true, undefined, true, true)
   },
 
   'Should test RemixMCPServer startup and initialization': function (browser: NightwatchBrowser) {

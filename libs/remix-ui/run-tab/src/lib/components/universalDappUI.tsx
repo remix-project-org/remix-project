@@ -18,288 +18,7 @@ import { UdappEvent } from '@remix-api'
 import { trackMatomoEvent } from '@remix-api'
 
 const txHelper = remixLib.execution.txHelper
-
-const AIRequestForm = ({
-  onMount
-}: {
-  onMount: (getValues: () => Promise<any>) => void
-}) => {
-  const [mode, setMode] = useState<'text' | 'figma'>('text');
-
-  // Text Mode State
-  const [description, setDescription] = useState("");
-  const [isBaseMiniApp, setIsBaseMiniApp] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [fileError, setFileError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Figma Mode State
-  const [figmaUrl, setFigmaUrl] = useState("");
-  const [figmaToken, setFigmaToken] = useState("");
-  const [isTokenLocked, setIsTokenLocked] = useState(false);
-
-  // Load Token from LocalStorage
-  useEffect(() => {
-    const storedToken = localStorage.getItem('quickdapp-figma-token');
-    if (storedToken) {
-      setFigmaToken(storedToken);
-      setIsTokenLocked(true);
-    }
-  }, []);
-
-  // Save Token to LocalStorage on change
-  const handleTokenChange = (val: string) => {
-    setFigmaToken(val);
-    localStorage.setItem('quickdapp-figma-token', val);
-  };
-
-  const handleDeleteToken = () => {
-    setFigmaToken("");
-    localStorage.removeItem('quickdapp-figma-token');
-    setIsTokenLocked(false);
-  };
-
-  // Expose values to parent
-  useEffect(() => {
-    onMount(async () => {
-      // Common return structure
-      if (mode === 'figma') {
-        return {
-          mode: 'figma',
-          figmaUrl,
-          figmaToken,
-          // Use user instructions as description for context
-          text: description,
-          isBaseMiniApp: isBaseMiniApp
-        };
-      } else {
-        return {
-          mode: 'text',
-          text: description,
-          isBaseMiniApp,
-          image: previewUrl || undefined
-        };
-      }
-    });
-  }, [onMount, mode, description, isBaseMiniApp, previewUrl, figmaUrl, figmaToken]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    setFileError("");
-
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setFileError("File is too large (>10MB).");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => setPreviewUrl(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setPreviewUrl(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  return (
-    <div className="p-3">
-      {/* Tabs */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={`nav-link ${mode === 'text' ? 'active' : ''}`}
-            onClick={() => setMode('text')}
-          >
-            <i className="fas fa-magic me-2"></i>Text / Image
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link ${mode === 'figma' ? 'active' : ''}`}
-            onClick={() => setMode('figma')}
-          >
-            <i className="fab fa-figma me-2"></i>Figma Import
-          </button>
-        </li>
-      </ul>
-
-      {/* TEXT MODE UI */}
-      {mode === 'text' && (
-        <div className="fade-in">
-          <div className="mb-3">
-            <span>Please describe how you would want the design to look like.</span>
-          </div>
-
-          <textarea
-            className="form-control mb-3"
-            rows={4}
-            placeholder='E.g: "The website should have a dark theme..."'
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          ></textarea>
-
-          <div className="mb-3">
-            <div className="d-flex align-items-center gap-2">
-              <input
-                type="file"
-                id="ai-image-input"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-              />
-
-              <button
-                className="btn btn-secondary btn-sm d-flex align-items-center gap-2"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <i className="fas fa-image"></i>
-                {previewUrl ? "Change Image" : "Upload Reference Image"}
-              </button>
-
-              <span className="text-muted small ms-2">Optional</span>
-            </div>
-
-            {fileError && <div className="text-danger small mt-1">{fileError}</div>}
-
-            {previewUrl && (
-              <div className="mt-2 position-relative d-inline-block border rounded overflow-hidden">
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  style={{ height: '80px', width: 'auto', display: 'block' }}
-                />
-                <button
-                  onClick={handleRemoveImage}
-                  className="position-absolute top-0 end-0 btn btn-danger btn-sm p-0 d-flex align-items-center justify-content-center"
-                  style={{ width: '20px', height: '20px', borderRadius: '0 0 0 4px' }}
-                  title="Remove image"
-                >
-                  &times;
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="form-check">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="base-miniapp-checkbox"
-              checked={isBaseMiniApp}
-              onChange={(e) => setIsBaseMiniApp(e.target.checked)}
-            />
-            <label className="form-check-label" htmlFor="base-miniapp-checkbox">
-              Create as Base Mini App (Farcaster Frame)
-            </label>
-          </div>
-        </div>
-      )}
-
-      {/* FIGMA MODE UI */}
-      {mode === 'figma' && (
-        <div className="fade-in">
-          <div className="alert alert-info py-2 small">
-            <i className="fas fa-info-circle me-1"></i>
-            Paste a link to a specific Figma layer
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label small fw-bold">Figma File URL</label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="https://www.figma.com/design/.../?node-id=1:2"
-              value={figmaUrl}
-              onChange={(e) => setFigmaUrl(e.target.value)}
-            />
-            <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
-              Must contain <code>?node-id=...</code>
-            </div>
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label small fw-bold">Personal Access Token</label>
-            <div className="input-group">
-              <input
-                type="password"
-                className="form-control"
-                placeholder="figd_..."
-                value={figmaToken}
-                onChange={(e) => handleTokenChange(e.target.value)}
-                disabled={isTokenLocked}
-              />
-              {isTokenLocked && figmaToken ? (
-                <>
-                  <button
-                    className="btn btn-outline-secondary"
-                    type="button"
-                    onClick={() => setIsTokenLocked(false)}
-                    title="Edit Token"
-                  >
-                    <i className="fas fa-pen"></i>
-                  </button>
-                  <button
-                    className="btn btn-outline-secondary"
-                    type="button"
-                    onClick={handleDeleteToken}
-                    title="Delete Token"
-                  >
-                    <i className="fas fa-trash"></i>
-                  </button>
-                </>
-              ) : (
-                figmaToken && (
-                  <button
-                    className="btn btn-outline-secondary"
-                    type="button"
-                    onClick={() => setIsTokenLocked(true)}
-                    title="Save & Lock"
-                  >
-                    <i className="fas fa-check"></i>
-                  </button>
-                )
-              )}
-            </div>
-            <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
-              Saved locally in your browser.
-            </div>
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label small fw-bold">Additional Instructions (Optional)</label>
-            <textarea
-              className="form-control"
-              rows={2}
-              placeholder='E.g: "Make sure buttons are responsive..."'
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            ></textarea>
-          </div>
-          <div className="form-check mt-3 border-top pt-3">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="base-miniapp-checkbox-figma"
-              checked={isBaseMiniApp}
-              onChange={(e) => setIsBaseMiniApp(e.target.checked)}
-            />
-            <label className="form-check-label" htmlFor="base-miniapp-checkbox-figma">
-              Create as Base Mini App (Farcaster Frame)
-            </label>
-            <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
-              Includes Farcaster SDK and Meta tags automatically.
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-2 text-muted small">This might take up to 2 minutes.</div>
-    </div>
-  );
-};
+import { AIRequestForm } from './shared/AIRequestForm'
 
 export function UniversalDappUI(props: UdappProps) {
   const intl = useIntl()
@@ -316,6 +35,7 @@ export function UniversalDappUI(props: UdappProps) {
 
   const isGenerating = useRef(false)
   const [useNewAiBuilder, setUseNewAiBuilder] = useState(false)
+  const [selectedProvider, setSelectedProvider] = useState<string>('')
 
   const checkUrlParams = useCallback(() => {
     const qp = new QueryParams()
@@ -330,12 +50,11 @@ export function UniversalDappUI(props: UdappProps) {
   }, [])
 
   useEffect(() => {
-    checkUrlParams()
-    window.addEventListener('hashchange', checkUrlParams)
-    return () => {
-      window.removeEventListener('hashchange', checkUrlParams)
-    }
-  }, [checkUrlParams])
+    (async () => {
+      const selectedProvider = await props.plugin.call('udappEnv', 'getSelectedProvider')
+      setSelectedProvider(selectedProvider)
+    })()
+  }, [])
 
   useEffect(() => {
     if (!props.instance.abi) {
@@ -367,7 +86,7 @@ export function UniversalDappUI(props: UdappProps) {
     }
   }, [props.instance.balance])
 
-  const sendData = () => {
+  const sendData = async () => {
     setLlIError('')
     const fallback = txHelper.getFallbackInterface(contractABI)
     const receive = txHelper.getReceiveInterface(contractABI)
@@ -377,7 +96,7 @@ export function UniversalDappUI(props: UdappProps) {
       contractName: props.instance.name,
       contractABI: contractABI
     }
-    const amount = props.sendValue
+    const amount = await props.plugin.call('udappDeploy', 'getValue')
 
     if (amount !== '0') {
       // check for numeric and receive/fallback
@@ -441,6 +160,7 @@ export function UniversalDappUI(props: UdappProps) {
 
   const pinContract = async() => {
     const provider = await props.plugin.call('blockchain', 'getProviderObject')
+
     if (!provider.config.statePath && provider.config.isRpcForkedState) {
       // we can't pin a contract in the following case:
       // - state is not persisted
@@ -456,31 +176,20 @@ export function UniversalDappUI(props: UdappProps) {
       filePath: props.instance.filePath || `${workspace.name}/${props.instance.contractData.contract.file}`,
       pinnedAt: Date.now()
     }
-    await props.plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${props.plugin.REACT_API.chainId}/${props.instance.address}.json`, JSON.stringify(objToSave, null, 2))
+
+    const savePath = `.deploys/pinned-contracts/${props.plugin.REACT_API.chainId}/${props.instance.address}.json`
+
+    await props.plugin.call('fileManager', 'writeFile', savePath, JSON.stringify(objToSave, null, 2))
+
     trackMatomoEvent({ category: 'udapp', action: 'pinContracts', name: `pinned at ${props.plugin.REACT_API.chainId}`, isClick: false })
     props.pinInstance(props.index, objToSave.pinnedAt, objToSave.filePath)
   }
 
-  const runTransaction = (lookupOnly, funcABI: FuncABI, valArr, inputsValues, funcIndex?: number) => {
+  const runTransaction = async (lookupOnly, funcABI: FuncABI, valArr, inputsValues, funcIndex?: number) => {
     if (props.instance.isPinned) trackMatomoEvent({ category: 'udapp', action: 'pinContracts', name: 'interactWithPinned', isClick: false })
-    const functionName = funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
-    const logMsg = `${lookupOnly ? 'call' : 'transact'} to ${props.instance.name}.${functionName}`
-
-    props.runTransactions(
-      props.index,
-      lookupOnly,
-      funcABI,
-      inputsValues,
-      props.instance.name,
-      contractABI,
-      props.instance.contractData,
-      address,
-      logMsg,
-      props.mainnetPrompt,
-      props.gasEstimationPrompt,
-      props.passphrasePrompt,
-      funcIndex
-    )
+    // const functionName = funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
+    // const logMsg = `${lookupOnly ? 'call' : 'transact'} to ${props.instance.name}.${functionName}`
+    await props.runTransactions(props.index, lookupOnly, funcABI, inputsValues, props.instance.name, contractABI, props.instance.contractData, address, funcIndex)
   }
 
   const extractDataDefault = (item, parent?) => {
@@ -609,7 +318,7 @@ export function UniversalDappUI(props: UdappProps) {
             <div className="btn d-flex p-0 align-self-center">
 
               {/* [V2 Logic] New AI Builder Mode (Sparkles) */}
-              {useNewAiBuilder && props.exEnvironment && (
+              {useNewAiBuilder && selectedProvider && (
                 <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
                   <i
                     data-id="instanceEditIcon"
@@ -650,8 +359,8 @@ export function UniversalDappUI(props: UdappProps) {
                           await props.plugin.call('notification', 'toast', 'AI generation is already in progress.')
                           return
                         }
-
-                        if (!props.exEnvironment?.startsWith('injected')) {
+                        // @ts-ignore
+                        if (!selectedProvider.toLowerCase().startsWith('injected')) {
                           const confirmed = await new Promise<boolean>((resolve) => {
                             props.plugin.call('notification', 'modal', {
                               id: 'remix-vm-warning',
@@ -673,21 +382,37 @@ export function UniversalDappUI(props: UdappProps) {
                         isGenerating.current = true
 
                         await props.plugin.call('ai-dapp-generator', 'resetDapp', address)
+
+                        const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+                        const providerName = providerObject?.name || 'vm-unknown'
+                        const isVM = providerName.startsWith('vm')
+
+                        let chainId: string
+                        if (isVM) {
+                          chainId = providerName
+                        } else {
+                          const network = await props.plugin.call('network', 'detectNetwork')
+                          chainId = network?.id?.toString() || providerName
+                        }
+
                         try {
                           await props.plugin.call('quick-dapp-v2', 'createDapp', {
                             description: descriptionObj.text,
                             contractName: props.instance.name,
                             address: address,
                             abi: props.instance.abi || props.instance.contractData.abi,
-                            chainId: props.plugin.REACT_API.chainId,
+                            chainId: chainId,
+
                             compilerData: data,
                             isBaseMiniApp: descriptionObj.isBaseMiniApp,
                             image: descriptionObj.image,
                             figmaUrl: descriptionObj.figmaUrl,
-                            figmaToken: descriptionObj.figmaToken
+                            figmaToken: descriptionObj.figmaToken,
+                            sourceFilePath: props.instance.filePath || props.instance.contractData?.contract?.file || ''
+
                           })
 
-                          await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+                          await props.plugin.call('menuicons', 'select', 'quick-dapp-v2')
 
                         } catch (e) {
                           console.error("Quick Dapp V2 call failed:", e);
@@ -707,7 +432,7 @@ export function UniversalDappUI(props: UdappProps) {
               )}
 
               {/* [V1 Logic] Legacy Edit Mode (Pencil) */}
-              {!useNewAiBuilder && props.exEnvironment && props.exEnvironment.startsWith('injected') && (
+              {!useNewAiBuilder && selectedProvider.toLowerCase().startsWith('vm-') || selectedProvider.toLowerCase().includes('basic-http-provider') && (
                 <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
                   <i
                     data-id="instanceEditIcon"

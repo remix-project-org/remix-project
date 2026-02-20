@@ -230,6 +230,10 @@ export const initialState: SettingsState = {
     value: ollamaEndpoint,
     isLoading: false
   },
+  'cloud-storage/autosave': {
+    value: config.get('settings/cloud-storage/autosave') || false,
+    isLoading: false
+  },
   toaster: {
     value: '',
     isLoading: false
