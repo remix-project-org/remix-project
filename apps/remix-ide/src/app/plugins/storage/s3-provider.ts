@@ -1,15 +1,26 @@
 /**
  * S3 Storage Provider
- * Implements IStorageProvider using presigned URLs for S3-compatible storage
+ * Uses STS temporary credentials + AWS SDK for direct S3 access.
+ * Upload, download, delete, list, and metadata go straight to S3.
+ * Health and config still go through the storage API.
  */
 
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+  HeadObjectCommand
+} from '@aws-sdk/client-s3'
 import {
   ApiClient,
   StorageApiService,
   StorageConfig,
   StorageFile,
   StorageFilesResponse,
-  StorageListOptions
+  StorageListOptions,
+  STSToken
 } from '@remix-api'
 import {
   IStorageProvider,
@@ -18,11 +29,21 @@ import {
   joinPath
 } from './types'
 
+/**
+ * Minimum time (ms) before expiration to trigger a token refresh.
+ */
+const STS_REFRESH_MARGIN_MS = 60_000
+
 export class S3StorageProvider implements IStorageProvider {
   readonly name = 's3'
 
   private storageApi: StorageApiService
   private config: StorageConfig | null = null
+
+  /** Cached STS token — refreshed automatically */
+  private stsToken: STSToken | null = null
+  /** Cached S3Client — recreated when STS token refreshes */
+  private s3: S3Client | null = null
 
   constructor(
     private apiClient: ApiClient,
@@ -31,8 +52,10 @@ export class S3StorageProvider implements IStorageProvider {
     this.storageApi = new StorageApiService(apiClient)
   }
 
+  // ===================== Token management =====================
+
   /**
-   * Ensure the API client has a valid token
+   * Ensure the API client has a valid JWT (for /sts/token, /health, /config)
    */
   private async ensureToken(): Promise<void> {
     const token = await this.getToken()
@@ -42,7 +65,66 @@ export class S3StorageProvider implements IStorageProvider {
   }
 
   /**
-   * Get the underlying storage API service
+   * Return a valid STS token, refreshing if necessary.
+   * Also (re)creates the S3Client when the token changes.
+   */
+  private async ensureStsToken(): Promise<STSToken> {
+    if (this.stsToken && !this.isStsTokenExpiring()) {
+      return this.stsToken
+    }
+
+    await this.ensureToken()
+    console.log('[S3StorageProvider] Requesting new STS token…')
+    const response = await this.storageApi.getStsToken()
+
+    if (!response.ok || !response.data) {
+      throw new Error(response.error || 'Failed to obtain STS token')
+    }
+
+    this.stsToken = response.data
+
+    // (Re)create the S3 client with fresh credentials
+    this.s3 = new S3Client({
+      region: this.stsToken.region,
+      credentials: {
+        accessKeyId: this.stsToken.accessKeyId,
+        secretAccessKey: this.stsToken.secretAccessKey,
+        sessionToken: this.stsToken.sessionToken,
+      },
+    })
+
+    console.log(
+      `[S3StorageProvider] STS token acquired — bucket=${this.stsToken.bucket}, ` +
+      `prefix=${this.stsToken.prefix}, expires=${this.stsToken.expiration}`
+    )
+
+    return this.stsToken
+  }
+
+  /**
+   * Returns true when the current STS token is about to expire
+   * (or has already expired).
+   */
+  private isStsTokenExpiring(): boolean {
+    if (!this.stsToken) return true
+    return new Date(this.stsToken.expiration).getTime() < Date.now() + STS_REFRESH_MARGIN_MS
+  }
+
+  /**
+   * Build the full S3 object key from a caller-supplied relative path.
+   * E.g. "backups/ws.zip" → "users/42/backups/ws.zip"
+   */
+  private s3Key(token: STSToken, relativePath: string): string {
+    // Strip leading slash if present
+    const clean = relativePath.replace(/^\/+/, '')
+    return `${token.prefix}${clean}`
+  }
+
+  // ===================== Public helpers =====================
+
+  /**
+   * Get the underlying storage API service (still used by the plugin for
+   * endpoints that don't have an S3 equivalent, e.g. /workspaces)
    */
   getStorageApi(): StorageApiService {
     return this.storageApi
@@ -63,10 +145,7 @@ export class S3StorageProvider implements IStorageProvider {
     try {
       await this.ensureToken()
 
-      // Cache config
-      if (this.config) {
-        return this.config
-      }
+      if (this.config) return this.config
 
       const response = await this.storageApi.getConfig()
       if (response.ok && response.data) {
@@ -82,242 +161,202 @@ export class S3StorageProvider implements IStorageProvider {
     }
   }
 
-  async upload(path: string, content: string | Uint8Array, contentType?: string, metadata?: Record<string, string>): Promise<string> {
-    await this.ensureToken()
+  // ===================== Upload =====================
 
-    const { folder, filename } = parsePath(path)
+  async upload(
+    path: string,
+    content: string | Uint8Array,
+    contentType?: string,
+    metadata?: Record<string, string>
+  ): Promise<string> {
+    const token = await this.ensureStsToken()
+    const { filename } = parsePath(path)
     const mimeType = contentType || getMimeType(filename)
+    const key = this.s3Key(token, path)
 
-    // Convert content to appropriate format
-    let body: Blob | string
-    let size: number
+    const body = typeof content === 'string'
+      ? new TextEncoder().encode(content)
+      : content
 
-    if (typeof content === 'string') {
-      body = content
-      size = new Blob([content]).size
-    } else {
-      // Create a new ArrayBuffer copy for Blob compatibility
-      const buffer = new ArrayBuffer(content.length)
-      new Uint8Array(buffer).set(content)
-      body = new Blob([buffer])
-      size = content.length
-    }
+    console.log(`[S3StorageProvider] Uploading via STS: ${key}`)
 
-    // 1. Get presigned upload URL
-    console.log(`[S3StorageProvider] Getting presigned URL for: ${path}`)
-    const presignResponse = await this.storageApi.getUploadUrl({
-      filename,
-      folder: folder || undefined,
-      contentType: mimeType,
-      fileSize: size,
-      metadata
-    })
+    const result = await this.s3!.send(new PutObjectCommand({
+      Bucket: token.bucket,
+      Key: key,
+      Body: body,
+      ContentType: mimeType,
+      Metadata: metadata,
+    }))
 
-    if (!presignResponse.ok || !presignResponse.data) {
-      throw new Error(presignResponse.error || 'Failed to get presigned upload URL')
-    }
-
-    const { url, headers, key } = presignResponse.data
-
-    // 2. Upload directly to S3
-    console.log(`[S3StorageProvider] Uploading to S3: ${key}`)
-    console.log(`[S3StorageProvider] Presigned URL:`, url)
-    console.log(`[S3StorageProvider] Headers from server:`, headers)
-
-    // Build the request headers - only include Content-Type, let S3 handle the rest via query params
-    const requestHeaders: Record<string, string> = {
-      'Content-Type': mimeType
-    }
-
-    // Add any headers from the presigned response (but filter out problematic ones)
-    if (headers) {
-      for (const [key, value] of Object.entries(headers)) {
-        // Skip headers that might cause CORS issues
-        const lowerKey = key.toLowerCase()
-        if (!['host', 'content-length'].includes(lowerKey)) {
-          requestHeaders[key] = value
-        }
-      }
-    }
-
-    console.log(`[S3StorageProvider] Final request headers:`, requestHeaders)
-
-    const uploadResponse = await fetch(url, {
-      method: 'PUT',
-      headers: requestHeaders,
-      body
-    })
-
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text().catch(() => 'Unknown error')
-      throw new Error(`S3 upload failed: ${uploadResponse.status} - ${errorText}`)
-    }
-
-    // Get ETag from response headers (S3 returns it after successful upload)
-    const etag = uploadResponse.headers.get('ETag')?.replace(/"/g, '') || null
-
+    const etag = result.ETag?.replace(/"/g, '') ?? null
     console.log(`[S3StorageProvider] Upload successful: ${key}, ETag: ${etag}`)
-    return key
+    // Return the relative path (without user prefix) for consistency
+    // with download/list/delete which all accept relative paths
+    return path
   }
 
-  /**
-   * Upload with ETag return - same as upload but returns { key, etag }
-   */
-  async uploadWithEtag(path: string, content: string | Uint8Array, contentType?: string, metadata?: Record<string, string>): Promise<{ key: string; etag: string | null }> {
-    await this.ensureToken()
-
-    const { folder, filename } = parsePath(path)
+  async uploadWithEtag(
+    path: string,
+    content: string | Uint8Array,
+    contentType?: string,
+    metadata?: Record<string, string>
+  ): Promise<{ key: string; etag: string | null }> {
+    const token = await this.ensureStsToken()
+    const { filename } = parsePath(path)
     const mimeType = contentType || getMimeType(filename)
+    const key = this.s3Key(token, path)
 
-    // Convert content to appropriate format
-    let body: Blob | string
-    let size: number
+    const body = typeof content === 'string'
+      ? new TextEncoder().encode(content)
+      : content
 
-    if (typeof content === 'string') {
-      body = content
-      size = new Blob([content]).size
-    } else {
-      // Create a new ArrayBuffer copy for Blob compatibility
-      const buffer = new ArrayBuffer(content.length)
-      new Uint8Array(buffer).set(content)
-      body = new Blob([buffer])
-      size = content.length
-    }
+    const result = await this.s3!.send(new PutObjectCommand({
+      Bucket: token.bucket,
+      Key: key,
+      Body: body,
+      ContentType: mimeType,
+      Metadata: metadata,
+    }))
 
-    // 1. Get presigned upload URL
-    const presignResponse = await this.storageApi.getUploadUrl({
-      filename,
-      folder: folder || undefined,
-      contentType: mimeType,
-      fileSize: size,
-      metadata
-    })
-
-    if (!presignResponse.ok || !presignResponse.data) {
-      throw new Error(presignResponse.error || 'Failed to get presigned upload URL')
-    }
-
-    const { url, headers, key } = presignResponse.data
-
-    // Build the request headers
-    const requestHeaders: Record<string, string> = {
-      'Content-Type': mimeType
-    }
-
-    if (headers) {
-      for (const [hkey, value] of Object.entries(headers)) {
-        const lowerKey = hkey.toLowerCase()
-        if (!['host', 'content-length'].includes(lowerKey)) {
-          requestHeaders[hkey] = value
-        }
-      }
-    }
-
-    const uploadResponse = await fetch(url, {
-      method: 'PUT',
-      headers: requestHeaders,
-      body
-    })
-
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text().catch(() => 'Unknown error')
-      throw new Error(`S3 upload failed: ${uploadResponse.status} - ${errorText}`)
-    }
-
-    // Get ETag from response headers
-    const etag = uploadResponse.headers.get('ETag')?.replace(/"/g, '') || null
-
+    const etag = result.ETag?.replace(/"/g, '') ?? null
     console.log(`[S3StorageProvider] Upload successful: ${key}, ETag: ${etag}`)
-    return { key, etag }
+    // Return relative path (without user prefix) for consistency
+    return { key: path, etag }
   }
+
+  // ===================== Download =====================
 
   async download(path: string): Promise<string> {
-    await this.ensureToken()
+    const token = await this.ensureStsToken()
+    const key = this.s3Key(token, path)
 
-    const { folder, filename } = parsePath(path)
+    console.log(`[S3StorageProvider] Downloading via STS: ${key}`)
 
-    // 1. Get presigned download URL
-    console.log(`[S3StorageProvider] Getting download URL for: ${path}`)
-    const presignResponse = await this.storageApi.getDownloadUrl({
-      filename,
-      folder: folder || undefined
-    })
+    const result = await this.s3!.send(new GetObjectCommand({
+      Bucket: token.bucket,
+      Key: key,
+    }))
 
-    if (!presignResponse.ok || !presignResponse.data) {
-      throw new Error(presignResponse.error || 'Failed to get presigned download URL')
+    if (!result.Body) {
+      throw new Error(`S3 download returned empty body for key: ${key}`)
     }
 
-    // 2. Download from S3
-    const downloadResponse = await fetch(presignResponse.data.url)
-
-    if (!downloadResponse.ok) {
-      throw new Error(`S3 download failed: ${downloadResponse.status}`)
-    }
-
-    return await downloadResponse.text()
+    return await result.Body.transformToString('utf-8')
   }
 
   async downloadBinary(path: string): Promise<Uint8Array> {
-    await this.ensureToken()
+    const token = await this.ensureStsToken()
+    const key = this.s3Key(token, path)
 
-    const { folder, filename } = parsePath(path)
+    console.log(`[S3StorageProvider] Downloading binary via STS: ${key}`)
 
-    // 1. Get presigned download URL
-    const presignResponse = await this.storageApi.getDownloadUrl({
-      filename,
-      folder: folder || undefined
-    })
+    const result = await this.s3!.send(new GetObjectCommand({
+      Bucket: token.bucket,
+      Key: key,
+    }))
 
-    if (!presignResponse.ok || !presignResponse.data) {
-      throw new Error(presignResponse.error || 'Failed to get presigned download URL')
+    if (!result.Body) {
+      throw new Error(`S3 download returned empty body for key: ${key}`)
     }
 
-    // 2. Download from S3
-    const downloadResponse = await fetch(presignResponse.data.url)
-
-    if (!downloadResponse.ok) {
-      throw new Error(`S3 download failed: ${downloadResponse.status}`)
-    }
-
-    const buffer = await downloadResponse.arrayBuffer()
-    return new Uint8Array(buffer)
+    return new Uint8Array(await result.Body.transformToByteArray())
   }
+
+  // ===================== Delete =====================
 
   async delete(path: string): Promise<void> {
-    await this.ensureToken()
+    const token = await this.ensureStsToken()
+    const key = this.s3Key(token, path)
 
-    const response = await this.storageApi.deleteFile(path)
+    console.log(`[S3StorageProvider] Deleting via STS: ${key}`)
 
-    if (!response.ok) {
-      throw new Error(response.error || 'Failed to delete file')
-    }
+    await this.s3!.send(new DeleteObjectCommand({
+      Bucket: token.bucket,
+      Key: key,
+    }))
   }
+
+  // ===================== List =====================
 
   async list(options?: StorageListOptions): Promise<StorageFilesResponse> {
-    await this.ensureToken()
+    const token = await this.ensureStsToken()
 
-    const response = await this.storageApi.listFiles(options)
-
-    if (!response.ok || !response.data) {
-      throw new Error(response.error || 'Failed to list files')
+    // Build prefix: user prefix + optional folder filter
+    let prefix = token.prefix
+    if (options?.folder) {
+      const folder = options.folder.replace(/^\/+/, '')
+      prefix = `${token.prefix}${folder}`
+      // ensure it ends with /
+      if (!prefix.endsWith('/')) prefix += '/'
     }
 
-    return response.data
+    const result = await this.s3!.send(new ListObjectsV2Command({
+      Bucket: token.bucket,
+      Prefix: prefix,
+      MaxKeys: options?.limit,
+      ContinuationToken: options?.cursor || undefined,
+    }))
+
+    const files: StorageFile[] = (result.Contents || []).map((obj) => {
+      // Remove the user prefix to get the relative key
+      const relativeKey = obj.Key?.replace(token.prefix, '') || ''
+      const { folder, filename } = parsePath(relativeKey)
+
+      return {
+        filename,
+        folder: folder || '',
+        key: relativeKey,
+        contentType: getMimeType(filename),
+        size: obj.Size ?? 0,
+        uploadedAt: obj.LastModified?.toISOString() || '',
+        lastModified: obj.LastModified?.toISOString() || '',
+        etag: obj.ETag?.replace(/"/g, ''),
+      }
+    })
+
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0)
+
+    return {
+      files,
+      totalSize,
+      totalCount: result.KeyCount ?? files.length,
+      nextCursor: result.NextContinuationToken,
+    }
   }
 
+  // ===================== Metadata / Exists =====================
+
   async getMetadata(path: string): Promise<StorageFile | null> {
-    await this.ensureToken()
+    const token = await this.ensureStsToken()
+    const key = this.s3Key(token, path)
 
-    const response = await this.storageApi.getFileMetadata(path)
+    try {
+      const result = await this.s3!.send(new HeadObjectCommand({
+        Bucket: token.bucket,
+        Key: key,
+      }))
 
-    if (!response.ok) {
-      if (response.status === 404) {
+      const relativeKey = path.replace(/^\/+/, '')
+      const { folder, filename } = parsePath(relativeKey)
+
+      return {
+        filename,
+        folder: folder || '',
+        key: relativeKey,
+        contentType: result.ContentType || getMimeType(filename),
+        size: result.ContentLength ?? 0,
+        uploadedAt: result.LastModified?.toISOString() || '',
+        lastModified: result.LastModified?.toISOString() || '',
+        etag: result.ETag?.replace(/"/g, ''),
+        metadata: result.Metadata,
+      }
+    } catch (err: any) {
+      // HeadObject throws an error with name 'NotFound' (or status 404) when the object doesn't exist
+      if (err?.name === 'NotFound' || err?.$metadata?.httpStatusCode === 404) {
         return null
       }
-      throw new Error(response.error || 'Failed to get file metadata')
+      throw err
     }
-
-    return response.data || null
   }
 
   async exists(path: string): Promise<boolean> {

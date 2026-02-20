@@ -30,6 +30,7 @@ import {
   StorageFilesResponse,
   StorageListOptions,
   WorkspacesResponse,
+  STSToken,
   PermissionsResponse,
   FeatureCheckResponse,
   MultiFeatureCheckResponse,
@@ -282,6 +283,19 @@ export class StorageApiService {
    */
   async getWorkspaces(): Promise<ApiResponse<WorkspacesResponse>> {
     return this.apiClient.get<WorkspacesResponse>('/workspaces')
+  }
+
+  // ==================== STS Storage Tokens ====================
+
+  /**
+   * Get a short-lived STS token for direct S3 access.
+   * The token is scoped to the user's own prefix (users/{userId}/).
+   * Allows: PutObject, GetObject, DeleteObject, ListBucket.
+   *
+   * @returns STS credentials (accessKeyId, secretAccessKey, sessionToken, bucket, prefix, region)
+   */
+  async getStsToken(): Promise<ApiResponse<STSToken>> {
+    return this.apiClient.post<STSToken>('/sts/token')
   }
 }
 

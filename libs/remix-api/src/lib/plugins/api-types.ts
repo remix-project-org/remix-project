@@ -242,6 +242,35 @@ export interface WorkspaceSummary {
 export interface WorkspacesResponse {
   workspaces: WorkspaceSummary[]
 }
+
+// ==================== STS Storage Tokens ====================
+
+/**
+ * Short-lived AWS credentials scoped to the user's S3 prefix.
+ * Issued by POST /storage/sts/token.
+ *
+ * Allows: s3:PutObject, s3:GetObject, s3:DeleteObject, s3:ListBucket
+ * Scope:  users/{userId}/* only
+ */
+export interface STSToken {
+  /** Temporary AWS access key */
+  accessKeyId: string
+  /** Temporary AWS secret key */
+  secretAccessKey: string
+  /** Session token — must be included in every AWS request */
+  sessionToken: string
+  /** ISO 8601 expiration timestamp */
+  expiration: string
+  /** Token lifetime in seconds (default 900 = 15 min) */
+  durationSeconds: number
+  /** S3 bucket name */
+  bucket: string
+  /** Key prefix the token allows access to (e.g. "users/42/") */
+  prefix: string
+  /** AWS region of the bucket */
+  region: string
+}
+
 // ==================== Permissions ====================
 
 export interface Permission {
