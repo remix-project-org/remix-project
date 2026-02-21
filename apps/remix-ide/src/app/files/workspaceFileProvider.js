@@ -2,6 +2,7 @@
 
 const EventManager = require('events')
 import FileProvider from "./fileProvider"
+import { Registry } from '@remix-project/remix-lib'
 
 /**
  * Cloud workspace mode constants.
@@ -14,16 +15,8 @@ const CLOUD_WORKSPACES_PATH = '.cloud-workspaces'
 export default class WorkspaceFileProvider extends FileProvider {
   constructor () {
     super('')
-    this.workspacesPath = LEGACY_WORKSPACES_PATH
     this.workspace = null
     this.event = new EventManager()
-
-    /**
-     * Cloud mode state.
-     * When true, workspaces are stored under .cloud-workspaces/{uuid}/ and the
-     * `workspace` field contains a UUID instead of a display name.
-     */
-    this.cloudMode = false
 
     /**
      * In cloud mode, the display name of the current workspace.
@@ -51,35 +44,32 @@ export default class WorkspaceFileProvider extends FileProvider {
     }
   }
 
-  // ==================== Cloud Mode ====================
+  // ==================== Cloud Mode (reactive — reads from Registry) ====================
 
   /**
-   * Enable cloud workspace mode.
-   * Switches the workspaces path to .cloud-workspaces/ and uses UUIDs as directory names.
+   * workspacesPath is derived reactively from the cloud state.
+   * No setter needed — it always reflects the current cloud mode.
    */
-  enableCloudMode () {
-    this.cloudMode = true
-    this.workspacesPath = CLOUD_WORKSPACES_PATH
-    console.log('[WorkspaceFileProvider] Cloud mode enabled, workspacesPath:', this.workspacesPath)
+  get workspacesPath () {
+    return this.isCloudMode() ? CLOUD_WORKSPACES_PATH : LEGACY_WORKSPACES_PATH
+  }
+
+  // Allow writes to be silently ignored (some code paths may still do `this.workspacesPath = ...`)
+  set workspacesPath (_value) {
+    // no-op: workspacesPath is derived from cloud state
   }
 
   /**
-   * Disable cloud workspace mode.
-   * Switches back to the legacy .workspaces/ with display names as directory names.
-   */
-  disableCloudMode () {
-    this.cloudMode = false
-    this.workspacesPath = LEGACY_WORKSPACES_PATH
-    this.workspaceId = null
-    this.workspaceDisplayName = null
-    console.log('[WorkspaceFileProvider] Cloud mode disabled, workspacesPath:', this.workspacesPath)
-  }
-
-  /**
-   * Check if cloud mode is active
+   * Check if cloud mode is active.
+   * Reads from the global Registry singleton — always up to date.
    */
   isCloudMode () {
-    return this.cloudMode
+    try {
+      const cloudState = Registry.getInstance().get('cloudState')
+      return cloudState?.api?.active === true
+    } catch (e) {
+      return false
+    }
   }
 
   // ==================== Workspace Management ====================
@@ -91,7 +81,7 @@ export default class WorkspaceFileProvider extends FileProvider {
     const cleanName = workspaceName.replace(/^\/|\/$/g, '') // remove first and last slash
     this.workspace = cleanName
 
-    if (!this.cloudMode) {
+    if (!this.isCloudMode()) {
       // Legacy mode: display name = directory name
       this.workspaceDisplayName = cleanName
       this.workspaceId = null

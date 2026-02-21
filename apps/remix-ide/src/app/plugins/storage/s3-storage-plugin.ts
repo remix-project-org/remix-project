@@ -221,9 +221,6 @@ const profile = {
     // Cloud workspace migration
     'getMigrationStatus',
     'migrateWorkspaces',
-    'enableCloudMode',
-    'disableCloudMode',
-    'isCloudModeActive',
     'getCloudWorkspaces',
     'switchToCloudWorkspace',
     'createCloudWorkspace',
@@ -248,8 +245,7 @@ const profile = {
     'encryptionChanged',
     'passphraseRequired',
     'migrationProgress',
-    'migrationComplete',
-    'cloudModeChanged'
+    'migrationComplete'
   ]
 }
 
@@ -273,7 +269,6 @@ export class S3StoragePlugin extends Plugin {
   // Cloud workspace migration
   private migrationService: WorkspaceMigrationService | null = null
   private registryManager: WorkspaceRegistryManager | null = null
-  private _cloudModeActive: boolean = false
 
   constructor() {
     super(profile)
@@ -2620,73 +2615,6 @@ export class S3StoragePlugin extends Plugin {
     }
 
     return result
-  }
-
-  /**
-   * Enable cloud mode - switch the workspace file provider to read/write
-   * from .cloud-workspaces/{uuid} instead of .workspaces/{name}.
-   *
-   * The workspace dropdown will show display names from the registry,
-   * but internally resolve to UUID-based directories.
-   */
-  async enableCloudMode(): Promise<void> {
-    if (this._cloudModeActive) {
-      console.log('[S3StoragePlugin] Cloud mode already active')
-      return
-    }
-
-    console.log('[S3StoragePlugin] ☁️ Enabling cloud mode...')
-
-    // Verify that cloud workspaces exist
-    const fs = (window as any).remixFileSystem
-    const hasCloudDir = await fs.exists('/' + CLOUD_WORKSPACES_PATH)
-    if (!hasCloudDir) {
-      throw new Error('No cloud workspaces found. Run migration first.')
-    }
-
-    // Verify registry exists  
-    const hasRegistry = await fs.exists('/' + REGISTRY_FILE)
-    if (!hasRegistry) {
-      throw new Error('Workspace registry not found. Run migration first.')
-    }
-
-    // Switch the workspace file provider to cloud mode
-    const workspaceProvider = this.getWorkspaceProvider()
-    workspaceProvider.enableCloudMode()
-
-    this._cloudModeActive = true
-    localStorage.setItem('remix-cloud-mode', 'true')
-
-    this.emit('cloudModeChanged', { active: true })
-    console.log('[S3StoragePlugin] ☁️ Cloud mode enabled')
-  }
-
-  /**
-   * Disable cloud mode - switch back to legacy .workspaces/{name} structure.
-   */
-  async disableCloudMode(): Promise<void> {
-    if (!this._cloudModeActive) {
-      console.log('[S3StoragePlugin] Cloud mode already inactive')
-      return
-    }
-
-    console.log('[S3StoragePlugin] ☁️ Disabling cloud mode...')
-
-    const workspaceProvider = this.getWorkspaceProvider()
-    workspaceProvider.disableCloudMode()
-
-    this._cloudModeActive = false
-    localStorage.removeItem('remix-cloud-mode')
-
-    this.emit('cloudModeChanged', { active: false })
-    console.log('[S3StoragePlugin] ☁️ Cloud mode disabled')
-  }
-
-  /**
-   * Check if cloud mode is currently active
-   */
-  isCloudModeActive(): boolean {
-    return this._cloudModeActive
   }
 
   /**

@@ -22,6 +22,7 @@ export const enum appActionTypes {
   setConnectedToDesktop = 'SET_CONNECTED_TO_DESKTOP',
   showGenericModal = 'SHOW_GENERIC_MODAL',
   closeGenericModal = 'CLOSE_GENERIC_MODAL',
+  setCloudModeActive = 'SET_CLOUD_MODE_ACTIVE',
 }
 
 type AppPayload = {
@@ -33,7 +34,8 @@ type AppPayload = {
   [appActionTypes.setShowOverlayPanel]: boolean,
   [appActionTypes.setConnectedToDesktop]: desktopConnection,
   [appActionTypes.showGenericModal]: boolean,
-  [appActionTypes.closeGenericModal]: boolean
+  [appActionTypes.closeGenericModal]: boolean,
+  [appActionTypes.setCloudModeActive]: boolean,
 }
 
 export type AppAction = ActionMap<AppPayload>[keyof ActionMap<

@@ -7,7 +7,7 @@ import { FiMoreVertical } from 'react-icons/fi'
 import { TopbarContext } from '../context/topbarContext'
 import { getWorkspaces } from 'libs/remix-ui/workspace/src/lib/actions'
 import { WorkspaceMetadata } from 'libs/remix-ui/workspace/src/lib/types'
-import { appPlatformTypes, platformContext } from '@remix-ui/app'
+import { AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
 import path from 'path'
 import { DesktopDownload } from 'libs/remix-ui/desktop-download'
 import { ElectronWorkspaceMenu } from './ElectronWorkspaceMenu'
@@ -84,6 +84,8 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
   const [openSub, setOpenSub] = useState<number | null>(null)
   const global = useContext(TopbarContext)
   const platform = useContext(platformContext)
+  const appContext = useContext(AppContext)
+  const cloudModeActive = appContext?.appState?.cloudModeActive
   const [openSubmenuId, setOpenSubmenuId] = useState(null);
   const iconRefs = useRef({});
   const [currentWorkingDir, setCurrentWorkingDir] = useState<string>('')
@@ -255,6 +257,9 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
           data-id="workspacesSelect-togglerText"
           className="text-truncate position-absolute start-50 translate-middle d-flex align-items-center"
         >
+          {cloudModeActive && (
+            <i className="fas fa-cloud me-2" style={{ color: 'var(--success)', fontSize: '0.8em' }} title="Cloud mode active" data-id="cloudModeIndicator"></i>
+          )}
           {togglerText}
           {selectedWorkspace && selectedWorkspace.remoteId && (
             <i className="fas fa-cloud ms-2" style={{ color: 'var(--info)', fontSize: '0.8em' }} title="Connected to cloud"></i>

@@ -57,6 +57,7 @@ import { CompilationDetailsPlugin } from './app/plugins/compile-details'
 import { AuthPlugin } from './app/plugins/auth-plugin'
 import { S3StoragePlugin } from './app/plugins/storage/s3-storage-plugin'
 import { CloudWorkspacesPlugin } from './app/plugins/cloud-workspaces-plugin'
+import { CloudStatePlugin } from './app/plugins/cloud-state-plugin'
 import { InvitationManagerPlugin } from './app/plugins/invitation-manager-plugin'
 import { AccountPlugin } from './app/plugins/account-plugin'
 import { RemixGuidePlugin } from './app/plugins/remixGuide'
@@ -182,6 +183,7 @@ class AppComponent {
   settings: SettingsTab
   authPlugin: AuthPlugin
   s3StoragePlugin: S3StoragePlugin
+  cloudStatePlugin: CloudStatePlugin
   cloudWorkspacesPlugin: CloudWorkspacesPlugin
   invitationManager: InvitationManagerPlugin
   accountPlugin: AccountPlugin
@@ -628,6 +630,7 @@ class AppComponent {
 
     this.authPlugin = new AuthPlugin()
     this.s3StoragePlugin = new S3StoragePlugin()
+    this.cloudStatePlugin = new CloudStatePlugin()
     this.cloudWorkspacesPlugin = new CloudWorkspacesPlugin()
     this.invitationManager = new InvitationManagerPlugin()
     const feedbackPlugin = new FeedbackPlugin()
@@ -645,6 +648,7 @@ class AppComponent {
       openZeppelinProxy,
       this.authPlugin,
       this.s3StoragePlugin,
+      this.cloudStatePlugin,
       this.cloudWorkspacesPlugin,
       this.invitationManager,
       this.accountPlugin,
@@ -725,6 +729,7 @@ class AppComponent {
    // this.appManager.on('auth', 'authStateChanged', async (state: any) => {
    //   if (state.isAuthenticated) {
         await this.appManager.activatePlugin(['s3Storage'])
+        await this.appManager.activatePlugin(['cloudState'])
         await this.appManager.activatePlugin(['cloudWorkspaces'])
    //   } else {
      //   await this.appManager.deactivatePlugin('cloudWorkspaces')

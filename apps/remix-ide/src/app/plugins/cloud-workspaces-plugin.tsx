@@ -103,7 +103,7 @@ export interface CloudWorkspacesState {
     unmigratedWorkspaces: string[]
     migratedWorkspaces: string[]
   } | null
-  cloudModeActive: boolean
+  cloudModeActive: boolean  // read-only mirror from cloudState plugin
 }
 
 export class CloudWorkspacesPlugin extends ViewPlugin {
@@ -124,8 +124,6 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
 
   constructor() {
     super(profile)
-    // Restore cloud mode state from localStorage
-    this.state.cloudModeActive = localStorage.getItem('remix-cloud-mode') === 'true'
   }
 
   // ==================== Status Badge Management ====================
@@ -259,12 +257,19 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
       await this.loadMigrationStatus()
     })
 
-    this.on('s3Storage', 'cloudModeChanged', async (data: { active: boolean }) => {
+    // Mirror cloud mode state from the central cloudState plugin
+    this.on('cloudState', 'cloudStateChanged', async (data: { active: boolean }) => {
       this.state.cloudModeActive = data.active
       this.renderComponent()
-      // Refresh the workspace dropdown so it shows the correct workspace list
-      await this.refreshWorkspaceDropdown()
     })
+
+    // Initialise cloud mode mirror from current cloudState
+    try {
+      this.state.cloudModeActive = await this.call('cloudState', 'isActive')
+      this.renderComponent()
+    } catch (e) {
+      console.warn('[CloudWorkspaces] Failed to read initial cloudState:', e)
+    }
 
     // Listen for auth state changes (login / logout — NOT token refreshes)
     this.on('auth', 'authStateChanged', async (state: { isAuthenticated: boolean }) => {
@@ -279,16 +284,12 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
         }
         console.log('[CloudWorkspaces] authStateChanged: user logged in, loading workspaces')
         await this.loadWorkspaces()
-        // Auto-enable cloud mode if cloud workspaces exist
-        await this.autoEnableCloudMode()
       } else {
         console.log('[CloudWorkspaces] authStateChanged: user logged out')
         this.state.workspaces = []
         this.state.workspaceBackups = {}
         this.state.selectedWorkspace = null
         this.state.currentWorkspaceStatus = { ...defaultWorkspaceStatus }
-        // Disable cloud mode on logout
-        await this.autoDisableCloudMode()
         this.renderComponent()
       }
       await this.loadCurrentWorkspaceStatus()
@@ -301,8 +302,6 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
       if (!this.state.isAuthenticated) {
         this.state.isAuthenticated = true
       }
-      // Ensure cloud mode is enabled if cloud workspaces exist
-      await this.autoEnableCloudMode()
     })
 
     // Listen for workspace changes
@@ -372,7 +371,7 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
     this.off('s3Storage', 'autosaveChanged')
     this.off('s3Storage', 'conflictDetected')
     this.off('s3Storage', 'migrationComplete')
-    this.off('s3Storage', 'cloudModeChanged')
+    this.off('cloudState', 'cloudStateChanged')
   }
 
   /**
@@ -439,7 +438,6 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
         unmigratedWorkspaces: status.unmigratedWorkspaces,
         migratedWorkspaces: status.migratedWorkspaces
       }
-      this.state.cloudModeActive = await this.call('s3Storage', 'isCloudModeActive')
       this.renderComponent()
     } catch (e) {
       console.warn('[CloudWorkspaces] Failed to load migration status:', e)
@@ -463,12 +461,6 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
       if (!result.success) {
         console.warn('[CloudWorkspaces] Migration had errors:', result.errors)
       }
-
-      // Auto-enable cloud mode after successful migration
-      if (result.migratedCount > 0 || result.success) {
-        console.log('[CloudWorkspaces] Migration successful, enabling cloud mode...')
-        await this.autoEnableCloudMode()
-      }
     } catch (e) {
       console.error('[CloudWorkspaces] Migration failed:', e)
       throw e
@@ -476,76 +468,14 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
   }
 
   /**
-   * Toggle cloud mode on/off
+   * Toggle cloud mode on/off — delegates to the central cloudState plugin.
    */
   async toggleCloudMode(enabled: boolean): Promise<void> {
     try {
-      if (enabled) {
-        await this.call('s3Storage', 'enableCloudMode')
-      } else {
-        await this.call('s3Storage', 'disableCloudMode')
-      }
-      this.state.cloudModeActive = enabled
-      this.renderComponent()
-      // Refresh workspace dropdown to show cloud or legacy workspaces
-      await this.refreshWorkspaceDropdown()
+      await this.call('cloudState', 'toggle', enabled)
     } catch (e) {
       console.error('[CloudWorkspaces] Failed to toggle cloud mode:', e)
       throw e
-    }
-  }
-
-  /**
-   * Auto-enable cloud mode if cloud workspaces directory and registry exist.
-   * Called after migration, login, and page load.
-   */
-  private async autoEnableCloudMode(): Promise<void> {
-    try {
-      if (this.state.cloudModeActive) {
-        console.log('[CloudWorkspaces] Cloud mode already active')
-        return
-      }
-      // Check if cloud workspaces infrastructure exists
-      const hasCloudWorkspaces = await this.call('s3Storage', 'getMigrationStatus')
-      if (hasCloudWorkspaces.migratedWorkspaces?.length > 0) {
-        console.log('[CloudWorkspaces] Cloud workspaces found, enabling cloud mode...')
-        await this.call('s3Storage', 'enableCloudMode')
-        this.state.cloudModeActive = true
-        this.renderComponent()
-        await this.refreshWorkspaceDropdown()
-      }
-    } catch (e) {
-      console.warn('[CloudWorkspaces] Failed to auto-enable cloud mode:', e)
-    }
-  }
-
-  /**
-   * Disable cloud mode (e.g. on logout).
-   * Switches back to legacy .workspaces/ and refreshes the dropdown.
-   */
-  private async autoDisableCloudMode(): Promise<void> {
-    try {
-      if (!this.state.cloudModeActive) return
-      console.log('[CloudWorkspaces] Disabling cloud mode (logout)...')
-      await this.call('s3Storage', 'disableCloudMode')
-      this.state.cloudModeActive = false
-      this.renderComponent()
-      await this.refreshWorkspaceDropdown()
-    } catch (e) {
-      console.warn('[CloudWorkspaces] Failed to auto-disable cloud mode:', e)
-    }
-  }
-
-  /**
-   * Refresh the workspace dropdown by emitting the refreshWorkspaceList event
-   * on the filePanel plugin. This causes the workspace UI to re-read workspaces
-   * from the current workspacesPath (either .workspaces or .cloud-workspaces).
-   */
-  private async refreshWorkspaceDropdown(): Promise<void> {
-    try {
-      await this.call('filePanel', 'refreshWorkspaceList')
-    } catch (e) {
-      console.warn('[CloudWorkspaces] Failed to refresh workspace dropdown:', e)
     }
   }
 
@@ -555,8 +485,6 @@ export class CloudWorkspacesPlugin extends ViewPlugin {
       this.state.isAuthenticated = isAuth
       if (isAuth) {
         await this.loadWorkspaces()
-        // On page load, if user is authenticated, auto-enable cloud mode
-        await this.autoEnableCloudMode()
       } else {
         this.renderComponent()
       }

@@ -103,5 +103,6 @@ export interface AppState {
     connectedToDesktop: desktopConnection
     desktopClientConnected: desktopConnection
     genericModalState?: GenericModal
+    cloudModeActive: boolean
 }
 

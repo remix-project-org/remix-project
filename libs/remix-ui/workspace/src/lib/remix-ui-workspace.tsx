@@ -1020,6 +1020,7 @@ export function Workspace() {
 
   const WorkspaceDropdownToggle = () => {
     const [togglerText, setTogglerText] = useState<'Connecting' | 'Connected to Local FileSystem'>('Connecting')
+    const cloudModeActive = appContext?.appState?.cloudModeActive
 
     useEffect(() => {
       setTimeout(() => {
@@ -1034,7 +1035,12 @@ export function Workspace() {
         className="btn btn-light btn-block w-100 d-inline-block border form-select mt-1"
         icon={selectedWorkspace && selectedWorkspace.isGitRepo && !(currentWorkspace === LOCALHOST) ? 'far fa-code-branch' : null}
       >
-        {selectedWorkspace ? selectedWorkspace.name === LOCALHOST ? togglerText : selectedWorkspace.name : currentWorkspace === LOCALHOST ? formatNameForReadonly('localhost') : NO_WORKSPACE}
+        <span className="d-flex align-items-center">
+          {cloudModeActive && (
+            <i className="fas fa-cloud me-2" style={{ color: 'var(--success)', fontSize: '0.8em' }} title="Cloud mode active" data-id="cloudModeIndicator"></i>
+          )}
+          {selectedWorkspace ? selectedWorkspace.name === LOCALHOST ? togglerText : selectedWorkspace.name : currentWorkspace === LOCALHOST ? formatNameForReadonly('localhost') : NO_WORKSPACE}
+        </span>
       </Dropdown.Toggle>
     )
   }

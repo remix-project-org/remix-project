@@ -13,6 +13,7 @@ import DialogViewPlugin from './components/modals/dialogViewPlugin'
 import { appProviderContextType, onLineContext, platformContext } from './context/context'
 import { IntlProvider } from 'react-intl'
 import { appReducer } from './reducer/app'
+import { appActionTypes } from './actions/app'
 import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
 import { desktopConnectionType } from '@remix-api'
@@ -180,6 +181,11 @@ const RemixApp = (props: IRemixAppUi) => {
     setInterval(() => {
       setOnline(window.navigator.onLine)
     }, 1000)
+
+    // Cloud mode state — sync from CloudStatePlugin into React app state
+    props.app.cloudStatePlugin.on('cloudStateChanged', (data: { active: boolean }) => {
+      appStateDispatch({ type: appActionTypes.setCloudModeActive, payload: data.active })
+    })
   }
 
   const value: appProviderContextType = {

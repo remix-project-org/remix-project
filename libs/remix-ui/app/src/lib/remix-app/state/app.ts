@@ -9,5 +9,6 @@ export const appInitialState: AppState = {
   showPopupPanel: false,
   showOverlayPanel: false,
   connectedToDesktop: desktopConnectionType.disabled,
-  desktopClientConnected: desktopConnectionType.disabled
+  desktopClientConnected: desktopConnectionType.disabled,
+  cloudModeActive: false
 }

@@ -56,5 +56,12 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
       genericModalState: { ...state.genericModalState, showModal: action.payload }
     }
   }
+
+  case appActionTypes.setCloudModeActive: {
+    return {
+      ...state,
+      cloudModeActive: action.payload
+    }
+  }
   }
 }
