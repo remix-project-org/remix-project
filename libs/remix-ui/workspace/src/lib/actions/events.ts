@@ -5,7 +5,8 @@ import React from 'react'
 import { action, FileTree, WorkspaceTemplate } from '../types'
 import { ROOT_PATH } from '../utils/constants'
 import { displayNotification, displayPopUp, focusElement, fileAddedSuccess, fileRemovedSuccess, fileRenamedSuccess, folderAddedSuccess, loadLocalhostError, loadLocalhostRequest, loadLocalhostSuccess, removeContextMenuItem, removeFocus, rootFolderChangedSuccess, setContextMenuItem, setMode, setReadOnlyMode, setFileDecorationSuccess } from './payload'
-import { addInputField, createWorkspace, populateWorkspace, deleteWorkspace, fetchWorkspaceDirectory, renameWorkspace, switchToWorkspace, uploadFile, generateWorkspace, uploadFolder } from './workspace'
+import { addInputField, createWorkspace, populateWorkspace, deleteWorkspace, fetchWorkspaceDirectory, renameWorkspace, switchToWorkspace, uploadFile, generateWorkspace, uploadFolder, getWorkspaces } from './workspace'
+import { setWorkspaces } from './payload'
 
 const LOCALHOST = ' - connect to localhost - '
 let plugin, dispatch: React.Dispatch<any>
@@ -63,6 +64,11 @@ export const listenOnPluginEvents = (filePanelPlugin) => {
 
   plugin.on('filePanel', 'switchToWorkspace', async (workspace) => {
     await switchToWorkspace(workspace.name)
+  })
+
+  plugin.on('filePanel', 'refreshWorkspaceList', async () => {
+    const workspaces = await getWorkspaces()
+    if (workspaces) dispatch(setWorkspaces(workspaces))
   })
 
   plugin.on('fileDecorator', 'fileDecoratorsChanged', async (items: fileDecoration[]) => {

@@ -49,9 +49,10 @@ const profile = {
     'isGist',
     'workspaceExists',
     'readFileFromWorkspace',
-    'existsInWorkspace'
+    'existsInWorkspace',
+    'refreshWorkspaceList'
   ],
-  events: ['setWorkspace', 'workspaceRenamed', 'workspaceDeleted', 'workspaceCreated'],
+  events: ['setWorkspace', 'workspaceRenamed', 'workspaceDeleted', 'workspaceCreated', 'refreshWorkspaceList'],
   icon: 'assets/img/fileManager.webp',
   description: 'Remix IDE file explorer',
   kind: 'fileexplorer',
@@ -332,6 +333,10 @@ export default class Filepanel extends ViewPlugin {
 
   workspaceCreated(workspace) {
     this.emit('workspaceCreated', workspace)
+  }
+
+  refreshWorkspaceList() {
+    this.emit('refreshWorkspaceList')
   }
 
   isExpanded(path) {
