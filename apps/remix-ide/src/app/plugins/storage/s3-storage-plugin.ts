@@ -579,7 +579,9 @@ export class S3StoragePlugin extends Plugin {
   }
 
   /**
-   * Run a single autosave backup
+   * Run a single autosave cycle.
+   * Uses the file change tracker to upload only modified files incrementally
+   * instead of re-zipping the entire workspace.
    */
   private async runAutosave(): Promise<void> {
     try {
@@ -604,13 +606,11 @@ export class S3StoragePlugin extends Plugin {
         return
       }
 
-      // Collect files first to check if content has changed
-      const files = await this.collectWorkspaceFiles()
+      // Use the file change tracker to get only changed files
+      const changedEntries = await this.call('fileChangeTracker', 'getUnsynced', workspaceRemoteId)
 
-      // Check if content has actually changed since last save
-      const { changed, currentHash } = await this.hasContentChanged(workspaceRemoteId, files)
-      if (!changed) {
-        console.log('[S3StoragePlugin] ⏭️ Skipping autosave - no content changes')
+      if (!changedEntries || changedEntries.length === 0) {
+        console.log('[S3StoragePlugin] ⏭️ Skipping autosave - no tracked changes')
         return
       }
 
@@ -626,42 +626,107 @@ export class S3StoragePlugin extends Plugin {
         return
       }
 
-      // Get workspace name for filename
-      let workspaceName = 'workspace'
-      try {
-        const currentWorkspace = await this.call('filePanel', 'getCurrentWorkspace')
-        workspaceName = currentWorkspace?.name || 'workspace'
-      } catch (e) {
-        console.warn('[S3StoragePlugin] Could not get workspace name:', e)
-      }
-
-      console.log('[S3StoragePlugin] 💾 Running autosave backup...')
+      console.log(`[S3StoragePlugin] 💾 Running incremental autosave (${changedEntries.length} changed files)...`)
       this.emit('autosaveStarted', { workspaceRemoteId })
 
       // Acquire/refresh the lock
       await this.acquireLock(workspaceRemoteId)
 
-      // Create backup with workspace name in filename (overwrites previous autosave)
-      const sanitizedName = workspaceName.replace(/[^a-zA-Z0-9-_]/g, '-')
-      const backupKey = await this.createBackupFromFiles(
-        files,
-        `${sanitizedName}-autosave.zip`,
-        `${workspaceRemoteId}/autosave`
-      )
+      // Upload changed files incrementally
+      const syncedPaths = await this.syncIncrementalChanges(workspaceRemoteId, changedEntries)
 
-      // Save the content hash to S3 (for cross-tab deduplication)
-      await this.saveRemoteContentHash(workspaceRemoteId, currentHash, files.length)
+      // Mark synced files in the tracker
+      if (syncedPaths.length > 0) {
+        await this.call('fileChangeTracker', 'markSynced', workspaceRemoteId, syncedPaths)
+      }
 
       // Update last save time
       await this.updateLastSaveTime()
       this.emit('saveCompleted', { workspaceRemoteId })
 
-      console.log(`[S3StoragePlugin] ✅ Autosave completed: ${backupKey}`)
+      console.log(`[S3StoragePlugin] ✅ Incremental autosave completed: ${syncedPaths.length} files synced`)
 
     } catch (error) {
       console.error('[S3StoragePlugin] Autosave failed:', error)
       // Don't show error to user - autosave is background task
     }
+  }
+
+  // ==================== Incremental Sync ====================
+
+  /**
+   * Upload only changed files to S3, one at a time.
+   * Files are stored under `{workspaceRemoteId}/files/{relativePath}` so they
+   * can be individually fetched/compared during pull.
+   *
+   * For removed files, we delete the corresponding S3 object.
+   *
+   * @param workspaceRemoteId - The workspace's remote ID (UUID)
+   * @param changedEntries - Array of file change entries from the tracker
+   * @returns Array of relative paths that were successfully synced
+   */
+  private async syncIncrementalChanges(
+    workspaceRemoteId: string,
+    changedEntries: Array<{ path: string; action: string; timestamp: number }>
+  ): Promise<string[]> {
+    const provider = this.ensureProvider()
+    const syncedPaths: string[] = []
+    const folder = `${workspaceRemoteId}/files`
+
+    for (const entry of changedEntries) {
+      try {
+        const s3Path = joinPath(folder, entry.path)
+
+        if (entry.action === 'removed') {
+          // Delete the file from S3
+          try {
+            await provider.delete(s3Path)
+            console.log(`[S3StoragePlugin] 🗑️ Deleted from S3: ${entry.path}`)
+          } catch (e: any) {
+            // File might not exist on S3 yet — that's fine
+            if (e?.name !== 'NotFound' && e?.$metadata?.httpStatusCode !== 404) {
+              throw e
+            }
+          }
+          syncedPaths.push(entry.path)
+        } else {
+          // Added or modified — read the file content and upload
+          try {
+            const content = await this.call('fileManager', 'readFile', entry.path)
+            const contentType = getMimeType(entry.path)
+            const metadata: Record<string, string> = {
+              'last-modified': String(entry.timestamp),
+              'action': entry.action
+            }
+            await provider.upload(s3Path, content, contentType, metadata)
+            console.log(`[S3StoragePlugin] ⬆️ Uploaded to S3: ${entry.path}`)
+            syncedPaths.push(entry.path)
+          } catch (readErr: any) {
+            // File might have been deleted between change tracking and sync
+            if (readErr?.message?.includes('ENOENT') || readErr?.message?.includes('not available')) {
+              console.log(`[S3StoragePlugin] ⏭️ File no longer exists locally, treating as delete: ${entry.path}`)
+              try {
+                await provider.delete(s3Path)
+              } catch (delErr: any) {
+                // Ignore delete errors for non-existent files
+                if (delErr?.name !== 'NotFound' && delErr?.$metadata?.httpStatusCode !== 404) {
+                  console.warn(`[S3StoragePlugin] Could not delete ${entry.path} from S3:`, delErr)
+                }
+              }
+              syncedPaths.push(entry.path)
+            } else {
+              console.warn(`[S3StoragePlugin] Failed to read/upload ${entry.path}:`, readErr)
+              // Don't add to synced - will be retried next cycle
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`[S3StoragePlugin] Failed to sync ${entry.path}:`, e)
+        // Continue with other files — don't let one failure block everything
+      }
+    }
+
+    return syncedPaths
   }
 
   /**
@@ -1265,9 +1330,9 @@ export class S3StoragePlugin extends Plugin {
   }
 
   /**
-   * Save the current workspace to cloud (immediate save to autosave slot)
-   * This is a manual trigger for the autosave functionality
-   * Includes conflict detection - will emit conflictDetected event if remote was modified
+   * Save the current workspace to cloud (immediate incremental save).
+   * Uploads only changed files individually instead of zipping the workspace.
+   * Includes conflict detection - will emit conflictDetected event if remote was modified.
    */
   async saveToCloud(): Promise<void> {
     console.log('[S3StoragePlugin] Manual save to cloud triggered')
@@ -1294,51 +1359,41 @@ export class S3StoragePlugin extends Plugin {
       return // Don't save - let user resolve via modal
     }
 
-    // Get workspace name for filename
-    let workspaceName = 'workspace'
-    try {
-      const currentWorkspace = await this.call('filePanel', 'getCurrentWorkspace')
-      workspaceName = currentWorkspace?.name || 'workspace'
-    } catch (e) {
-      console.warn('[S3StoragePlugin] Could not get workspace name:', e)
-    }
+    // Get unsynced changes from the tracker
+    const changedEntries = await this.call('fileChangeTracker', 'getUnsynced', workspaceRemoteId)
 
-    // Collect files for backup and hash
-    const files = await this.collectWorkspaceFiles()
-
-    // Prompt user if .git was excluded due to size
-    const proceed = await this.promptIfGitExcluded(files)
-    if (!proceed) {
-      console.log('[S3StoragePlugin] Save cancelled by user (git exclusion dialog)')
+    if (!changedEntries || changedEntries.length === 0) {
+      await this.call('notification', 'toast', '✅ Already up to date — no changes to save')
       return
     }
 
-    await this.call('notification', 'toast', '☁️ Saving to cloud...')
-
-    const currentHash = await computeWorkspaceHash(files)
+    const fileList = changedEntries.map(e => e.path)
+    const preview = this._fileListPreview(fileList)
+    await this.call('notification', 'toast', `☁️ Saving ${changedEntries.length} file(s) to cloud...\n${preview}`)
 
     // Acquire lock and save
     await this.acquireLock(workspaceRemoteId)
 
-    const folder = `${workspaceRemoteId}/autosave`
-    const sanitizedName = workspaceName.replace(/[^a-zA-Z0-9-_]/g, '-')
-    const filename = `${sanitizedName}-autosave.zip`
+    // Upload changed files incrementally
+    const syncedPaths = await this.syncIncrementalChanges(workspaceRemoteId, changedEntries)
 
-    await this.createBackupFromFiles(files, filename, folder)
-
-    // Save content hash for future deduplication
-    await this.saveRemoteContentHash(workspaceRemoteId, currentHash, files.length)
+    // Mark synced files in the tracker
+    if (syncedPaths.length > 0) {
+      await this.call('fileChangeTracker', 'markSynced', workspaceRemoteId, syncedPaths)
+    }
 
     await this.updateLastSaveTime()
 
     console.log('[S3Storage] Emitting saveCompleted event', { workspaceRemoteId })
     this.emit('saveCompleted', { workspaceRemoteId })
-    await this.call('notification', 'toast', '✅ Saved to cloud')
+    const savedPreview = this._fileListPreview(syncedPaths)
+    await this.call('notification', 'toast', `✅ Saved ${syncedPaths.length} file(s) to cloud\n${savedPreview}`)
   }
 
   /**
-   * Force save to cloud, bypassing conflict detection
-   * Used when user explicitly chooses to overwrite remote (takes over the lock)
+   * Force save to cloud, bypassing conflict detection.
+   * Uses incremental sync — uploads only changed files.
+   * Used when user explicitly chooses to overwrite remote (takes over the lock).
    */
   async forceSaveToCloud(): Promise<void> {
     console.log('[S3StoragePlugin] Force save to cloud (taking over lock)')
@@ -1348,44 +1403,34 @@ export class S3StoragePlugin extends Plugin {
       throw new Error('No workspace remote ID configured')
     }
 
-    let workspaceName = 'workspace'
-    try {
-      const currentWorkspace = await this.call('filePanel', 'getCurrentWorkspace')
-      workspaceName = currentWorkspace?.name || 'workspace'
-    } catch (e) {
-      console.warn('[S3StoragePlugin] Could not get workspace name:', e)
-    }
+    // Get unsynced changes from the tracker
+    const changedEntries = await this.call('fileChangeTracker', 'getUnsynced', workspaceRemoteId)
 
-    // Collect files for backup and hash
-    const files = await this.collectWorkspaceFiles()
-
-    // Prompt user if .git was excluded due to size
-    const proceed = await this.promptIfGitExcluded(files)
-    if (!proceed) {
-      console.log('[S3StoragePlugin] Force save cancelled by user (git exclusion dialog)')
+    if (!changedEntries || changedEntries.length === 0) {
+      await this.call('notification', 'toast', '✅ Already up to date — no changes to save')
       return
     }
 
-    await this.call('notification', 'toast', '☁️ Saving to cloud...')
-
-    const currentHash = await computeWorkspaceHash(files)
+    const fileList = changedEntries.map(e => e.path)
+    const preview = this._fileListPreview(fileList)
+    await this.call('notification', 'toast', `☁️ Force saving ${changedEntries.length} file(s) to cloud...\n${preview}`)
 
     // Force acquire lock (takes over from other session)
     await this.acquireLock(workspaceRemoteId)
 
-    const folder = `${workspaceRemoteId}/autosave`
-    const sanitizedName = workspaceName.replace(/[^a-zA-Z0-9-_]/g, '-')
-    const filename = `${sanitizedName}-autosave.zip`
+    // Upload changed files incrementally
+    const syncedPaths = await this.syncIncrementalChanges(workspaceRemoteId, changedEntries)
 
-    await this.createBackupFromFiles(files, filename, folder)
-
-    // Save content hash for future deduplication
-    await this.saveRemoteContentHash(workspaceRemoteId, currentHash, files.length)
+    // Mark synced files in the tracker
+    if (syncedPaths.length > 0) {
+      await this.call('fileChangeTracker', 'markSynced', workspaceRemoteId, syncedPaths)
+    }
 
     await this.updateLastSaveTime()
 
     this.emit('saveCompleted', { workspaceRemoteId })
-    await this.call('notification', 'toast', '✅ Saved to cloud')
+    const savedPreview = this._fileListPreview(syncedPaths)
+    await this.call('notification', 'toast', `✅ Force saved ${syncedPaths.length} file(s) to cloud\n${savedPreview}`)
   }
 
   /**
@@ -1830,6 +1875,25 @@ export class S3StoragePlugin extends Plugin {
     }
 
     return false
+  }
+
+  /**
+   * Build a short human-readable file list for toast notifications.
+   * Shows up to 5 file names (basename only) with a "+N more" suffix.
+   */
+  private _fileListPreview(paths: string[], max = 5): string {
+    if (!paths || paths.length === 0) return ''
+    const names = paths.map(p => {
+      const parts = p.split('/')
+      return parts[parts.length - 1] || p
+    })
+    const shown = names.slice(0, max)
+    const remaining = names.length - shown.length
+    let preview = shown.join(', ')
+    if (remaining > 0) {
+      preview += ` +${remaining} more`
+    }
+    return preview
   }
 
   /**

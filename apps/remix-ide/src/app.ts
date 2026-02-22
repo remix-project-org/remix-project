@@ -56,6 +56,7 @@ import { CodeFormat } from './app/plugins/code-format'
 import { CompilationDetailsPlugin } from './app/plugins/compile-details'
 import { AuthPlugin } from './app/plugins/auth-plugin'
 import { S3StoragePlugin } from './app/plugins/storage/s3-storage-plugin'
+import { FileChangeTrackerPlugin } from './app/plugins/storage/file-change-tracker'
 import { CloudWorkspacesPlugin } from './app/plugins/cloud-workspaces-plugin'
 import { CloudStatePlugin } from './app/plugins/cloud-state-plugin'
 import { InvitationManagerPlugin } from './app/plugins/invitation-manager-plugin'
@@ -185,6 +186,7 @@ class AppComponent {
   s3StoragePlugin: S3StoragePlugin
   cloudStatePlugin: CloudStatePlugin
   cloudWorkspacesPlugin: CloudWorkspacesPlugin
+  fileChangeTracker: FileChangeTrackerPlugin
   invitationManager: InvitationManagerPlugin
   accountPlugin: AccountPlugin
   params: any
@@ -632,6 +634,7 @@ class AppComponent {
     this.s3StoragePlugin = new S3StoragePlugin()
     this.cloudStatePlugin = new CloudStatePlugin()
     this.cloudWorkspacesPlugin = new CloudWorkspacesPlugin()
+    this.fileChangeTracker = new FileChangeTrackerPlugin()
     this.invitationManager = new InvitationManagerPlugin()
     const feedbackPlugin = new FeedbackPlugin()
 
@@ -650,6 +653,7 @@ class AppComponent {
       this.s3StoragePlugin,
       this.cloudStatePlugin,
       this.cloudWorkspacesPlugin,
+      this.fileChangeTracker,
       this.invitationManager,
       this.accountPlugin,
       feedbackPlugin
@@ -731,6 +735,7 @@ class AppComponent {
         await this.appManager.activatePlugin(['s3Storage'])
         await this.appManager.activatePlugin(['cloudState'])
         await this.appManager.activatePlugin(['cloudWorkspaces'])
+        await this.appManager.activatePlugin(['fileChangeTracker'])
    //   } else {
      //   await this.appManager.deactivatePlugin('cloudWorkspaces')
      //   await this.appManager.deactivatePlugin('s3Storage')

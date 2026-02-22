@@ -112,6 +112,7 @@ let requiredModules = [
   'invitationManager',
   'feedback',
   'cloudWorkspaces',
+  'fileChangeTracker',
   'udappEnv',
   'udappDeploy',
   'udappDeployedContracts',
