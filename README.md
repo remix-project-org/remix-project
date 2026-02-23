@@ -274,7 +274,7 @@ parameters:
 - Official website: https://remix.live
 - Official documentation: https://remix-ide.readthedocs.io/en/latest/
 - Curated list of Remix resources: https://github.com/remix-project-org/awesome-remix
-- Medium: https://medium.com/remix-ide
+- Medium: https://ethereumremix.substack.com
 - Linkedin: https://www.linkedin.com/company/ethereum-remix
 - X: https://x.com/ethereumremix
 - Join Discord: https://discord.gg/qhpCQGWkmf

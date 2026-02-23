@@ -42,7 +42,7 @@ const iconButtons: HometabIconSection[] = [
   {
     textToolip: <FormattedMessage id="home.remixMediumPosts" />,
     matomoTrackingEntry: ['trackEvent', 'hometab', 'titleCard', 'medium'],
-    urlLink: 'https://medium.com/remix-ide',
+    urlLink: 'https://ethereumremix.substack.com/',
     iconClass: 'fa-medium',
     placement: 'top'
   },
