@@ -12,7 +12,8 @@ import { DesktopDownload } from 'libs/remix-ui/desktop-download' // eslint-disab
 type HometabIconSection = {
   textToolip: JSX.Element
   urlLink: string
-  iconClass: 'fa-youtube'|'fa-x-twitter'|'fa-linkedin'|'fa-medium'|'fa-discord'
+  iconClass?: 'fa-youtube'|'fa-x-twitter'|'fa-linkedin'|'fa-medium'|'fa-discord'
+  customIcon?: JSX.Element // Optional custom icon (e.g., SVG) to use instead of FontAwesome class
   placement: Placement
   matomoTrackingEntry: string[]
 }
@@ -43,7 +44,11 @@ const iconButtons: HometabIconSection[] = [
     textToolip: <FormattedMessage id="home.remixMediumPosts" />,
     matomoTrackingEntry: ['trackEvent', 'hometab', 'titleCard', 'medium'],
     urlLink: 'https://ethereumremix.substack.com/',
-    iconClass: 'fa-medium',
+    customIcon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+        <path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812V24L12 18.11 22.54 24V10.812H1.46zM22.54 0H1.46v2.836h21.08V0z"/>
+      </svg>
+    ),
     placement: 'top'
   },
   {
@@ -123,8 +128,10 @@ function HomeTabTitle() {
                       isClick: true
                     })
                   }}
-                  className={`border-0 h-100 px-1 btn fab ${button.iconClass} text-dark`}
-                ></button>
+                  className={button.customIcon ? `border-0 h-100 px-1 btn text-dark d-flex align-items-center` : `border-0 h-100 px-1 btn fab ${button.iconClass} text-dark`}
+                >
+                  {button.customIcon}
+                </button>
               </CustomTooltip>
             ))}
           </span>
