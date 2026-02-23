@@ -8,7 +8,7 @@ import { CopyToClipboard } from '@remix-ui/clipboard'
 import * as remixLib from '@remix-project/remix-lib'
 import * as ethJSUtil from '@ethereumjs/util'
 import { ModalTypes } from '@remix-ui/app'
-import { QueryParams } from '@remix-project/remix-lib'
+
 import { ContractGUI } from './contractGUI'
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import { BN } from 'bn.js'
@@ -34,20 +34,7 @@ export function UniversalDappUI(props: UdappProps) {
   const [instanceBalance, setInstanceBalance] = useState(0)
 
   const isGenerating = useRef(false)
-  const [useNewAiBuilder, setUseNewAiBuilder] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<string>('')
-
-  const checkUrlParams = useCallback(() => {
-    const qp = new QueryParams()
-    const hasFlag = qp.exists('experimental')
-
-    setUseNewAiBuilder(prev => {
-      if (prev !== hasFlag) {
-        return hasFlag
-      }
-      return prev
-    })
-  }, [])
 
   useEffect(() => {
     (async () => {
@@ -317,8 +304,8 @@ export function UniversalDappUI(props: UdappProps) {
             <div></div>
             <div className="btn d-flex p-0 align-self-center">
 
-              {/* [V2 Logic] New AI Builder Mode (Sparkles) */}
-              {useNewAiBuilder && selectedProvider && (
+              {/* [V2 Logic] AI Builder Mode (Sparkles) */}
+              {selectedProvider && (
                 <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
                   <i
                     data-id="instanceEditIcon"
@@ -426,19 +413,6 @@ export function UniversalDappUI(props: UdappProps) {
                       } finally {
                         isGenerating.current = false
                       }
-                    }}
-                  ></i>
-                </CustomTooltip>
-              )}
-
-              {/* [V1 Logic] Legacy Edit Mode (Pencil) */}
-              {!useNewAiBuilder && selectedProvider.toLowerCase().startsWith('vm-') || selectedProvider.toLowerCase().includes('basic-http-provider') && (
-                <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
-                  <i
-                    data-id="instanceEditIcon"
-                    className="fas fa-edit"
-                    onClick={() => {
-                      props.editInstance(props.instance)
                     }}
                   ></i>
                 </CustomTooltip>

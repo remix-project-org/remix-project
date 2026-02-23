@@ -11,6 +11,7 @@ import { DeployedContract } from '../types'
 import { runTransactions } from '../actions'
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import { ContractKebabMenu } from './ContractKebabMenu'
+import { AIRequestForm } from '@remix-ui/run-tab'
 import BN from 'bn.js'
 
 const txHelper = remixLib.execution.txHelper
@@ -35,6 +36,7 @@ export function DeployedContractItem({ contract, index }: DeployedContractItemPr
   const [llIError, setLlIError] = useState<string>('')
   const [showKebabMenu, setShowKebabMenu] = useState<boolean>(false)
   const kebabIconRef = useRef<HTMLElement>(null)
+  const isGenerating = useRef<boolean>(false)
 
   useEffect(() => {
     plugin.call('udappEnv', 'getNetwork').then((net) => {
@@ -228,46 +230,90 @@ export function DeployedContractItem({ contract, index }: DeployedContractItemPr
   const handleCreateDapp = async (contract: DeployedContract) => {
     setShowKebabMenu(false)
 
-    const network = await plugin.call('udappEnv', 'getNetwork')
-    const payload = {
-      address: '',
-      abi: null,
-      name: '',
-      network: network?.name,
-      devdoc: null,
-      methodIdentifiers: null,
-      solcVersion: '',
-      htmlTemplate: null
-    }
-
-    const targetPlugin = 'quick-dapp'
-
     try {
-      // We always have a contract instance with contractData
-      const { metadata: metaFromInst, abi: abiFromInst, object } = contract.contractData || {}
-
-      payload.address = contract.address
-      payload.abi = contract.abi || abiFromInst
-      payload.name = contract.name
-
-      if (object) {
-        payload.devdoc = object.devdoc
-        payload.methodIdentifiers = object.evm?.methodIdentifiers
+      // Get compiler artefacts for the contract
+      let compilerData = null
+      try {
+        compilerData = await plugin.call('compilerArtefacts', 'getArtefactsByContractName', contract.name)
+      } catch (e) {
+        console.warn('[DeployedContractItem] Could not get compiler artefacts:', e)
       }
 
-      if (metaFromInst) {
-        try {
-          payload.solcVersion = JSON.parse(metaFromInst).compiler.version
-        } catch (e) {
-          console.warn('[DeployedContractItem] Failed to parse solcVersion from metadata', e)
+      // Show AI modal to collect description
+      const descriptionObj: any = await new Promise((resolve, reject) => {
+        let getFormData: () => Promise<any>
+
+        const modalContent = {
+          id: 'generate-website-ai',
+          title: 'Generate a Dapp UI with AI',
+          message: <AIRequestForm onMount={(fn) => { getFormData = fn }} />,
+          modalType: 'custom',
+          okLabel: 'Generate',
+          cancelLabel: 'Cancel',
+          okFn: async () => {
+            if (getFormData) {
+              const formData = await getFormData()
+              resolve(formData)
+            } else {
+              reject(new Error('Form data not initialized'))
+            }
+          },
+          cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
+          hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
         }
+
+        // @ts-ignore
+        plugin.call('notification', 'modal', modalContent)
+      })
+
+      if (isGenerating.current) {
+        await plugin.call('notification', 'toast', 'AI generation is already in progress.')
+        return
       }
 
-      await plugin.call(targetPlugin, 'edit', payload)
+      isGenerating.current = true
 
+      await plugin.call('ai-dapp-generator', 'resetDapp', contract.address)
+
+      const providerObject = await plugin.call('blockchain', 'getProviderObject')
+      const providerName = providerObject?.name || 'vm-unknown'
+      const isVM = providerName.startsWith('vm')
+
+      let chainId: string
+      if (isVM) {
+        chainId = providerName
+      } else {
+        const network = await plugin.call('network', 'detectNetwork')
+        chainId = network?.id?.toString() || providerName
+      }
+
+      try {
+        await plugin.call('quick-dapp-v2', 'createDapp', {
+          description: descriptionObj.text,
+          contractName: contract.name,
+          address: contract.address,
+          abi: contract.abi || contract.contractData?.abi,
+          chainId: chainId,
+          compilerData: compilerData,
+          isBaseMiniApp: descriptionObj.isBaseMiniApp,
+          image: descriptionObj.image,
+          figmaUrl: descriptionObj.figmaUrl,
+          figmaToken: descriptionObj.figmaToken,
+          sourceFilePath: contract.filePath || contract.contractData?.contract?.file || ''
+        })
+
+        await plugin.call('menuicons', 'select', 'quick-dapp-v2')
+      } catch (e) {
+        console.error('[DeployedContractItem] Quick Dapp V2 call failed:', e)
+        await plugin.call('notification', 'toast', 'Failed to call Quick Dapp V2 plugin.')
+      }
     } catch (error) {
-      console.error('[DeployedContractItem] Error creating dapp:', error)
-      await plugin.call('notification', 'toast', `Error creating dapp: ${error.message}`)
+      if (error.message !== 'Canceled' && error.message !== 'Hide') {
+        console.error('[DeployedContractItem] Error creating dapp:', error)
+        await plugin.call('terminal', 'log', { type: 'error', value: error.message })
+      }
+    } finally {
+      isGenerating.current = false
     }
   }
 

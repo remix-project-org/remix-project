@@ -13,13 +13,10 @@ module.exports = {
   },
 
   // ──────────────────────────────────
-  // Test 1: Enable experimental mode, compile+deploy contract, and trigger QuickDapp V2 via sparkle button
+  // Test 1: Compile+deploy contract and trigger QuickDapp V2 via sparkle button
   // ──────────────────────────────────
-  'Should enable experimental mode and compile and deploy Storage contract #group1': '' + function (browser: NightwatchBrowser) {
+  'Should compile and deploy Storage contract #group1': function (browser: NightwatchBrowser) {
     browser
-      .url('http://127.0.0.1:8080/#experimental')
-      .refreshPage()
-      .pause(3000)
       .waitForElementPresent('*[data-id="remixIdeSidePanel"]')
       .clickLaunchIcon('filePanel')
       .addFile('Storage.sol', sources[0]['Storage.sol'])
@@ -28,20 +25,21 @@ module.exports = {
       .click('*[data-id="compilerContainerCompileBtn"]')
       .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="Deploy - transact (not payable)"]', 45000)
-      .click('*[data-id="Deploy - transact (not payable)"]')
+      .waitForElementVisible('*[data-id="deployButton"]', 45000)
+      .click('*[data-id="deployButton"]')
       .pause(3000)
-      .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
-      .clickInstance(0)
+      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
   },
 
   // ──────────────────────────────────
-  // Test 2: Click sparkle button, verify AI modal, enter description, and generate
+  // Test 2: Click kebab menu → Create a dapp, verify AI modal, enter description, and generate
   // ──────────────────────────────────
-  'Should open AI modal and submit DApp generation request #group1': '' + function (browser: NightwatchBrowser) {
+  'Should open AI modal and submit DApp generation request #group1': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
-      .click('*[data-id="instanceEditIcon"]')
+      .click('*[data-id="contractKebabIcon-0"]')
+      .pause(500)
+      .waitForElementVisible('*[data-id="createDapp"]', 5000)
+      .click('*[data-id="createDapp"]')
       .pause(2000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 10000)
       .assert.textContains('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 'Generate a Dapp UI with AI')
@@ -64,7 +62,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 3: Wait for DApp generation and verify QuickDapp V2 side panel opens with dashboard
   // ──────────────────────────────────
-  'Should wait for DApp generation and display dashboard #group1': '' + function (browser: NightwatchBrowser) {
+  'Should wait for DApp generation and display dashboard #group1': function (browser: NightwatchBrowser) {
     browser
       .pause(10000)
       .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
@@ -77,7 +75,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 5: Verify dashboard has correct UI elements
   // ──────────────────────────────────
-  'Should display dashboard with all expected UI elements #group1': '' + function (browser: NightwatchBrowser) {
+  'Should display dashboard with all expected UI elements #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="create-new-dapp-btn"]', 5000)
       .waitForElementVisible('*[data-id="delete-all-dapps-btn"]', 5000)
@@ -91,7 +89,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 6: Wait for any processing spinner to finish, then open DApp editor
   // ──────────────────────────────────
-  'Should open DApp editor by clicking on DApp card #group1': '' + function (browser: NightwatchBrowser) {
+  'Should open DApp editor by clicking on DApp card #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementNotPresent('.spinner-border', 90000)
       .pause(1000)
@@ -105,7 +103,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 7: Verify editor has all expected UI elements (ChatBox, Preview, DeployPanel)
   // ──────────────────────────────────
-  'Should display all editor UI elements #group1': '' + function (browser: NightwatchBrowser) {
+  'Should display all editor UI elements #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="chat-input"]', 10000)
       .waitForElementVisible('*[data-id="chat-send-btn"]', 10000)
@@ -120,7 +118,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 8: Verify VM warning banner is displayed
   // ──────────────────────────────────
-  'Should display VM warning banner in editor #group1': '' + function (browser: NightwatchBrowser) {
+  'Should display VM warning banner in editor #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="vm-warning-banner"]', 30000)
       .assert.textContains('*[data-id="vm-warning-banner"]', 'Remix VM')
@@ -130,7 +128,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 9: Click Refresh Preview and verify build completes
   // ──────────────────────────────────
-  'Should refresh preview successfully #group1': '' + function (browser: NightwatchBrowser) {
+  'Should refresh preview successfully #group1': function (browser: NightwatchBrowser) {
     browser
       .pause(3000)
       .execute(function () {
@@ -153,7 +151,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 10: Send a chat message (AI update) and verify processing state
   // ──────────────────────────────────
-  'Should send a chat message for AI update #group1': '' + function (browser: NightwatchBrowser) {
+  'Should send a chat message for AI update #group1': function (browser: NightwatchBrowser) {
     browser
       .execute(function () {
         const closeBtn = document.querySelector('[data-id="notification-modal-close-btn"]') as HTMLElement
@@ -184,7 +182,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 11: Deploy to IPFS and verify success
   // ──────────────────────────────────
-  'Should deploy DApp to IPFS successfully #group1': '' + function (browser: NightwatchBrowser) {
+  'Should deploy DApp to IPFS successfully #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="deploy-ipfs-btn"]', 10000)
       .click('*[data-id="deploy-ipfs-btn"]')
@@ -195,7 +193,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 12: Verify ENS section appears after IPFS deployment
   // ──────────────────────────────────
-  'Should show ENS section after IPFS deploy #group1': '' + function (browser: NightwatchBrowser) {
+  'Should show ENS section after IPFS deploy #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="ens-section-header"]', 10000)
       .assert.textContains('*[data-id="ens-section-header"]', 'Register ENS')
@@ -204,7 +202,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 13: Navigate back to dashboard from editor
   // ──────────────────────────────────
-  'Should navigate back to dashboard using back button #group1': '' + function (browser: NightwatchBrowser) {
+  'Should navigate back to dashboard using back button #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 10000)
       .click('*[data-id="back-to-dashboard-btn"]')
@@ -216,7 +214,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 14: Open editor again and delete DApp from editor
   // ──────────────────────────────────
-  'Should delete DApp from editor and return to empty state #group1': '' + function (browser: NightwatchBrowser) {
+  'Should delete DApp from editor and return to empty state #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementNotPresent('.spinner-border', 90000)
       .pause(1000)
@@ -236,7 +234,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test 15: Create another DApp, verify dashboard, then delete from dashboard
   // ──────────────────────────────────
-  'Should create a second DApp and delete from dashboard #group1': '' + function (browser: NightwatchBrowser) {
+  'Should create a second DApp and delete from dashboard #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .switchWorkspace('default_workspace')
@@ -257,14 +255,14 @@ module.exports = {
       })
       .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="Deploy - transact (not payable)"]', 45000)
-      .click('*[data-id="Deploy - transact (not payable)"]')
+      .waitForElementVisible('*[data-id="deployButton"]', 45000)
+      .click('*[data-id="deployButton"]')
       .pause(3000)
-      .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
-      .clickInstance(0)
-      .pause(1000)
-      .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
-      .click('*[data-id="instanceEditIcon"]')
+      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
+      .click('*[data-id="contractKebabIcon-0"]')
+      .pause(500)
+      .waitForElementVisible('*[data-id="createDapp"]', 5000)
+      .click('*[data-id="createDapp"]')
       .pause(2000)
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
@@ -290,7 +288,6 @@ module.exports = {
       .waitForElementVisible('*[data-id="confirm-delete-one-btn"]', 5000)
       .click('*[data-id="confirm-delete-one-btn"]')
       .pause(3000)
-      // Should show Getting Started screen
       .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 30000)
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
       .end()
@@ -303,11 +300,8 @@ module.exports = {
   // ──────────────────────────────────
   // Test G2-1: Setup — compile + deploy contract + create DApp (same as group1)
   // ──────────────────────────────────
-  'Should setup contract and create DApp for group2 tests #group2': '' + function (browser: NightwatchBrowser) {
+  'Should setup contract and create DApp for group2 tests #group2': function (browser: NightwatchBrowser) {
     browser
-      .url('http://127.0.0.1:8080/#experimental')
-      .refreshPage()
-      .pause(3000)
       .waitForElementPresent('*[data-id="remixIdeSidePanel"]')
       .clickLaunchIcon('filePanel')
       .addFile('Storage.sol', sources[0]['Storage.sol'])
@@ -316,13 +310,14 @@ module.exports = {
       .click('*[data-id="compilerContainerCompileBtn"]')
       .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="Deploy - transact (not payable)"]', 45000)
-      .click('*[data-id="Deploy - transact (not payable)"]')
+      .waitForElementVisible('*[data-id="deployButton"]', 45000)
+      .click('*[data-id="deployButton"]')
       .pause(3000)
-      .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
-      .clickInstance(0)
-      .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
-      .click('*[data-id="instanceEditIcon"]')
+      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
+      .click('*[data-id="contractKebabIcon-0"]')
+      .pause(500)
+      .waitForElementVisible('*[data-id="createDapp"]', 5000)
+      .click('*[data-id="createDapp"]')
       .pause(2000)
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
@@ -346,7 +341,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test G2-2: Sort Order — toggle between Newest/Oldest and verify no crash
   // ──────────────────────────────────
-  'Should toggle sort order without errors #group2': '' + function (browser: NightwatchBrowser) {
+  'Should toggle sort order without errors #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="sort-order-select"]', 5000)
       .click('*[data-id="sort-order-select"]')
@@ -375,7 +370,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test G2-3: Network Filter — select a network and verify filtering works
   // ──────────────────────────────────
-  'Should filter DApps by network #group2': '' + function (browser: NightwatchBrowser) {
+  'Should filter DApps by network #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="network-filter-select"]', 5000)
       .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
@@ -410,7 +405,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test G2-4: Create a second DApp and verify multiple DApps coexist
   // ──────────────────────────────────
-  'Should create a second DApp and show multiple cards #group2': '' + function (browser: NightwatchBrowser) {
+  'Should create a second DApp and show multiple cards #group2': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
       .switchWorkspace('default_workspace')
@@ -431,14 +426,14 @@ module.exports = {
       })
       .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="Deploy - transact (not payable)"]', 45000)
-      .click('*[data-id="Deploy - transact (not payable)"]')
+      .waitForElementVisible('*[data-id="deployButton"]', 45000)
+      .click('*[data-id="deployButton"]')
       .pause(3000)
-      .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
-      .clickInstance(0)
-      .pause(1000)
-      .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
-      .click('*[data-id="instanceEditIcon"]')
+      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
+      .click('*[data-id="contractKebabIcon-0"]')
+      .pause(500)
+      .waitForElementVisible('*[data-id="createDapp"]', 5000)
+      .click('*[data-id="createDapp"]')
       .pause(2000)
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
@@ -465,7 +460,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test G2-5: Delete All DApps — click "Delete All" and confirm
   // ──────────────────────────────────
-  'Should delete all DApps and show empty state #group2': '' + function (browser: NightwatchBrowser) {
+  'Should delete all DApps and show empty state #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="delete-all-dapps-btn"]', 5000)
       .click('*[data-id="delete-all-dapps-btn"]')
@@ -480,7 +475,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test G2-6: Verify Getting Started screen shows correct guidance after delete all
   // ──────────────────────────────────
-  'Should display Getting Started guidance with two options #group2': '' + function (browser: NightwatchBrowser) {
+  'Should display Getting Started guidance with two options #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 10000)
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
@@ -496,11 +491,8 @@ module.exports = {
   // ──────────────────────────────────
   // Test G3-1: Setup — compile + deploy + create DApp with Base Mini App checkbox
   // ──────────────────────────────────
-  'Should create a Base Mini App DApp #group3': '' + function (browser: NightwatchBrowser) {
+  'Should create a Base Mini App DApp #group3': function (browser: NightwatchBrowser) {
     browser
-      .url('http://127.0.0.1:8080/#experimental')
-      .refreshPage()
-      .pause(3000)
       .waitForElementPresent('*[data-id="remixIdeSidePanel"]')
       .clickLaunchIcon('filePanel')
       .addFile('Storage.sol', sources[0]['Storage.sol'])
@@ -509,13 +501,14 @@ module.exports = {
       .click('*[data-id="compilerContainerCompileBtn"]')
       .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="Deploy - transact (not payable)"]', 45000)
-      .click('*[data-id="Deploy - transact (not payable)"]')
+      .waitForElementVisible('*[data-id="deployButton"]', 45000)
+      .click('*[data-id="deployButton"]')
       .pause(3000)
-      .waitForElementPresent('[data-id="universalDappUiContractActionWrapper"]', 30000)
-      .clickInstance(0)
-      .waitForElementVisible('*[data-id="instanceEditIcon"]', 10000)
-      .click('*[data-id="instanceEditIcon"]')
+      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
+      .click('*[data-id="contractKebabIcon-0"]')
+      .pause(500)
+      .waitForElementVisible('*[data-id="createDapp"]', 5000)
+      .click('*[data-id="createDapp"]')
       .pause(2000)
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
@@ -546,7 +539,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test G3-2: Verify BaseAppWizard UI appears when entering the DApp editor
   // ──────────────────────────────────
-  'Should show BaseAppWizard with Setup Wizard when editing Base Mini App DApp #group3': '' + function (browser: NightwatchBrowser) {
+  'Should show BaseAppWizard with Setup Wizard when editing Base Mini App DApp #group3': function (browser: NightwatchBrowser) {
     browser
       .click('[data-id^="dapp-card-"]')
       .pause(3000)
@@ -563,7 +556,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test G3-3: Go back to dashboard and verify dapp card exists
   // ──────────────────────────────────
-  'Should navigate back and verify Base Mini App card on dashboard #group3': '' + function (browser: NightwatchBrowser) {
+  'Should navigate back and verify Base Mini App card on dashboard #group3': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 5000)
       .click('*[data-id="back-to-dashboard-btn"]')
@@ -577,7 +570,7 @@ module.exports = {
   // ──────────────────────────────────
   // Test G3-4: Delete the Base Mini App DApp and verify empty state
   // ──────────────────────────────────
-  'Should delete Base Mini App DApp and return to empty state #group3': '' + function (browser: NightwatchBrowser) {
+  'Should delete Base Mini App DApp and return to empty state #group3': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('[data-id^="delete-dapp-btn-"]', 5000)
       .click('[data-id^="delete-dapp-btn-"]')

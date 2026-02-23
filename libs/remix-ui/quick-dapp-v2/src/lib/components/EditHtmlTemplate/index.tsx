@@ -52,7 +52,6 @@ function EditHtmlTemplate(): JSX.Element {
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const builderRef = useRef<InBrowserVite | null>(null);
-  const [isExperimental, setIsExperimental] = useState(false);
 
   const [notificationModal, setNotificationModal] = useState({
     show: false,
@@ -163,23 +162,6 @@ function EditHtmlTemplate(): JSX.Element {
   const closeNotificationModal = () => {
     setNotificationModal(prev => ({ ...prev, show: false }));
   };
-
-  const checkUrlParams = useCallback(() => {
-    const targetFlag = 'experimental';
-    let hasFlag = false;
-    if (window.location.href.includes(targetFlag)) hasFlag = true;
-    if (!hasFlag && document.referrer && document.referrer.includes(targetFlag)) hasFlag = true;
-    try {
-      if (window.parent && window.parent.location.href.includes(targetFlag)) hasFlag = true;
-    } catch (e) {}
-    setIsExperimental(prev => (prev !== hasFlag ? hasFlag : prev));
-  }, []);
-
-  useEffect(() => {
-    checkUrlParams();
-    window.addEventListener('hashchange', checkUrlParams);
-    return () => window.removeEventListener('hashchange', checkUrlParams);
-  }, [checkUrlParams]);
 
   const handleBack = async () => {
     if (!isAiUpdating && !isBuilding) {
@@ -422,20 +404,6 @@ function EditHtmlTemplate(): JSX.Element {
 
   const handleChatMessage = async (message: string, imageBase64?: string) => {
     if (!activeDapp || !plugin) return;
-    if (!isExperimental) {
-      setNotificationModal({
-        show: true,
-        title: 'Feature Locked',
-        message: (
-          <div>
-            <p>AI updates are only available in <strong>experimental mode</strong>.</p>
-            <p>Please add <code>?experimental</code> to the URL and <strong>refresh</strong> the page.</p>
-          </div>
-        ),
-        variant: 'danger'
-      });
-      return;
-    }
 
     dispatch({
       type: 'SET_DAPP_PROCESSING',

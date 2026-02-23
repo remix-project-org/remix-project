@@ -1,7 +1,7 @@
 import { fileDecoration, FileDecorationIcons } from '@remix-ui/file-decorators'
 import { CustomTooltip } from '@remix-ui/helper'
 import { Plugin } from '@remixproject/engine'
-import { QueryParams } from '@remix-project/remix-lib'
+
 import React, { useState, useRef, useEffect, useReducer, useContext, useCallback } from 'react' // eslint-disable-line
 import { FormattedMessage } from 'react-intl'
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs'
@@ -90,23 +90,10 @@ export const TabsUI = (props: TabsUIProps) => {
   const tabsElement = useRef(null)
   const [ai_switch, setAI_switch] = useState<boolean>(true)
   const [bannerVisible, setBannerVisible] = useState<boolean>(true)
-  const [useExperimental, setUseExperimental] = useState<boolean>(false)
   const tabs = useRef(props.tabs)
   tabs.current = props.tabs // we do this to pass the tabs list to the onReady callbacks
   const appContext = useContext(AppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
-
-  const checkExperimentalFlag = useCallback(() => {
-    const qp = new QueryParams()
-    const hasFlag = qp.exists('experimental')
-    setUseExperimental(prev => prev !== hasFlag ? hasFlag : prev)
-  }, [])
-
-  useEffect(() => {
-    checkExperimentalFlag()
-    window.addEventListener('hashchange', checkExperimentalFlag)
-    return () => window.removeEventListener('hashchange', checkExperimentalFlag)
-  }, [checkExperimentalFlag])
 
   const compileSeq = useRef(0)
   const compileWatchdog = useRef<number | null>(null)
@@ -748,7 +735,7 @@ export const TabsUI = (props: TabsUIProps) => {
     setBannerVisible(true)
   }, [tabsState.selectedIndex])
 
-  const shouldShowQuickDappBanner = tabsState.currentExt === 'sol' && bannerVisible && useExperimental
+  const shouldShowQuickDappBanner = tabsState.currentExt === 'sol' && bannerVisible
 
   let mainLabel = ''
   if (tabsState.currentExt === 'sql') {
