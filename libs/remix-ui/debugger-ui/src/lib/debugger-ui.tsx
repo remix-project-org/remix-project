@@ -498,6 +498,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
               stepOverForward: debuggerInstance.step_manager?.stepOverForward.bind(debuggerInstance.step_manager),
               jumpPreviousBreakpoint: debuggerInstance.step_manager?.jumpPreviousBreakpoint.bind(debuggerInstance.step_manager),
               jumpNextBreakpoint: debuggerInstance.step_manager?.jumpNextBreakpoint.bind(debuggerInstance.step_manager),
+              jumpToException: debuggerInstance.step_manager?.jumpToException.bind(debuggerInstance.step_manager),
               traceLength: debuggerInstance.step_manager?.traceLength,
               currentStepIndex: debuggerInstance.step_manager?.currentStepIndex,
               registerEvent: debuggerInstance.step_manager?.event.register.bind(debuggerInstance.step_manager?.event),

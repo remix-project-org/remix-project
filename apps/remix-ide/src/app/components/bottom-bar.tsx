@@ -17,6 +17,7 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
   const [isDebuggerActive, setIsDebuggerActive] = useState(false)
   const [stepManager, setStepManager] = useState<any>(null)
   const [stepState, setStepState] = useState<'initial' | 'middle' | 'end'>('initial')
+  const [hasRevert, setHasRevert] = useState(false)
 
   useEffect(() => {
     const getAI = async () => {
@@ -106,6 +107,15 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
             setStepState('middle')
           }
         })
+
+        // Register for revert warnings
+        data.stepManager.registerEvent('revertWarning', (message: string) => {
+          if (message && message !== '') {
+            setHasRevert(true)
+          } else {
+            setHasRevert(false)
+          }
+        })
       }
     }
 
@@ -113,6 +123,7 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
       setIsDebugging(false)
       setStepManager(null)
       setStepState('initial')
+      setHasRevert(false)
     }
 
     const onShowOpcodesChanged = (showOpcodes: boolean) => {
@@ -237,6 +248,16 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
             <i className="fas fa-step-forward"></i>
             <span className="btn-label">Next Breakpoint</span>
           </button>
+          {hasRevert && (
+            <button
+              className="btn btn-sm btn-warning debug-btn"
+              onClick={() => stepManager?.jumpToException && stepManager.jumpToException()}
+              data-id="btnJumpToRevert"
+            >
+              <i className="fas fa-undo"></i>
+              <span className="btn-label">Jump to Revert</span>
+            </button>
+          )}
         </div>
       </div>
     )

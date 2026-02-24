@@ -443,9 +443,7 @@ module.exports = {
       .checkVariableDebug('soliditystate', { number: { value: '0', type: 'uint256', constant: false, immutable: false } })
   },
 
-  // Commented out: "Go to Revert" button feature is not currently implemented
-  // TODO: Re-enable when the feature is available
-  /* 'Should debug reverted transactions #group5': function (browser: NightwatchBrowser) {
+  'Should debug reverted transactions and jump to revert #group5': function (browser: NightwatchBrowser) {
     browser
       .testContracts('reverted.sol', sources[6]['reverted.sol'], ['A', 'B', 'C'])
       .clickLaunchIcon('udapp')
@@ -454,17 +452,21 @@ module.exports = {
       .pause(500)
       .clickInstance(0)
       .clickFunction(0, 0)
+      .pause(2000)
       .debugTransaction(1)
       .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
-      .pause(2000) // Wait for trace to fully load
+      // Jump to Revert button should be visible when transaction has reverted
+      .waitForElementVisible('*[data-id="btnJumpToRevert"]', 10000)
+      // Go to some other step first
       .goToVMTraceStep(80)
       .pause(1000)
       .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 80', 60000)
-      .waitForElementVisible('*[data-id="debugGoToRevert"]', 60000)
-      .click('*[data-id="debugGoToRevert"]')
-      .pause(1000)
-      .waitForElementContainsText('*[data-id="asmitems"] div[selected="selected"]', '114 REVERT')
-  } */
+      // Now click Jump to Revert button
+      .click('*[data-id="btnJumpToRevert"]')
+      .pause(500)
+      // Verify we jumped to the revert step
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 205', 60000)
+  },
 }
 
 const sources = [
@@ -598,12 +600,7 @@ const sources = [
         }
         function callA() public {
             p = 123;
-            try b.callB() {
-
-            }
-            catch (bytes memory reason) {
-
-            }
+            b.callB();
         }
     }
 
