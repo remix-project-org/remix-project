@@ -42,7 +42,7 @@ const iconButtons: HometabIconSection[] = [
   },
   {
     textToolip: <FormattedMessage id="home.remixMediumPosts" />,
-    matomoTrackingEntry: ['trackEvent', 'hometab', 'titleCard', 'medium'],
+    matomoTrackingEntry: ['trackEvent', 'hometab', 'titleCard', 'substack'],
     urlLink: 'https://ethereumremix.substack.com/',
     customIcon: (
       <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
