@@ -279,7 +279,6 @@ module.exports = {
   },
 
   'Debug tests using debugger #group7': function (browser: NightwatchBrowser) {
-    // TODO replace functionPanel tests with call tree tests.
     browser
       .waitForElementPresent('*[data-id="verticalIconsKindfilePanel"]')
       .addFile('tests/ballotFailedDebug_test.sol', sources[0]['tests/ballotFailedDebug_test.sol'])
@@ -316,7 +315,7 @@ module.exports = {
       .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
       .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
       .goToVMTraceStep(1451)
-      .pause(2000)
+      .pause(1000)
       .getEditorValue((content) => browser.assert.ok(content.indexOf('library Assert {') !== -1))
       .click('*[id="debuggerTransactionStartButtonContainer"]') // stop debugging
       .openFile('tests/ballotFailedDebug_test.sol')
@@ -327,22 +326,20 @@ module.exports = {
       .pause(5000)
       .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
       .goToVMTraceStep(1151)
-      /*
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'equal(a, b, message)', 60000)
-      .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinningProposalAgain()', 60000)
-      */
-      //.pause(5000)
+      .waitForElementContainsText('*[data-id="txFunction"]', 'equal', 60000)
+      .goToVMTraceStep(1351)
+      .waitForElementContainsText('*[data-id="txFunction"]', 'checkWinningProposalAgain', 60000)
       .click('*[id="debuggerTransactionStartButtonContainer"]') // stop debugging
       .openFile('tests/ballotFailedDebug_test.sol')
       .pause(2000)
-      .clickLaunchIcon('solidityUnitTesting').pause(2000)
-      .pause(5000)
+      .clickLaunchIcon('solidityUnitTesting')
+      .pause(2000)
       .scrollAndClick('#Check_winnin_proposal_with_return_value')
-      .pause(5000)
+      .pause(2000)
       .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
-      // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinninProposalWithReturnValue()', 60000)
+      .waitForElementContainsText('*[data-id="txFunction"]', 'checkWinninProposalWithReturnValue', 60000)
       .goToVMTraceStep(321)
-      // .waitForElementContainsText('*[data-id="functionPanel"]', 'checkWinninProposalWithReturnValue()', 60000)
+      .waitForElementContainsText('*[data-id="txFunction"]', 'checkWinninProposalWithReturnValue', 60000)
       .clickLaunchIcon('filePanel')
       .pause(2000)
       .openFile('tests/ballotFailedDebug_test.sol')

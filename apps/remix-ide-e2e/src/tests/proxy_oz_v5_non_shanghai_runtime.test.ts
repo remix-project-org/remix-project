@@ -237,10 +237,9 @@ module.exports = {
     browser
       .debugTransaction(0)
       .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 5', 60000)
-    /* TODO test the nested calls component here
-    .goToVMTraceStep(129)
-    .waitForElementContainsText('*[data-id="functionPanel"]', 'version()', 60000)
-    */
+      .goToVMTraceStep(129)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 129', 60000)
+      .waitForElementContainsText('*[data-id="txFunction"]', 'version', 60000)
       .end()
   }
 }
