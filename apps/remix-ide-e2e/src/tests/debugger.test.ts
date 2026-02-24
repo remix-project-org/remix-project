@@ -88,6 +88,47 @@ module.exports = {
       .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 352', 60000)
   },
 
+  'Should display transaction details #group1': function (browser: NightwatchBrowser) {
+    // The debugger is already running from previous test
+    // Transaction details should be visible in the debugger view
+    browser
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 10000)
+      .pause(2000) // Wait for transaction details to load
+      // Check if transaction details section exists
+      .waitForElementVisible('*[data-id="txDetails"]', 10000)
+      // Verify Status field
+      .waitForElementVisible('*[data-id="txStatus"]', 10000)
+      .waitForElementContainsText('*[data-id="txStatus"]', 'Failed')
+      // Verify Tx Fee is visible and not N/A
+      .waitForElementContainsText('*[data-id="txFee"]', '500940000000000 Wei')
+      // Verify Block number is visible
+      .waitForElementContainsText('*[data-id="txBlock"]', '2')
+      // Verify Tx Type is visible
+      .waitForElementContainsText('*[data-id="txType"]', 'Type 0')
+      // Verify Timestamp is visible
+      .waitForElementVisible('*[data-id="txTimestamp"]')
+      .getText('*[data-id="txTimestamp"]', (result) => {
+        const value = typeof result.value === 'string' ? result.value : ''
+        browser.assert.ok(value !== 'N/A' && value.length > 0, 'Timestamp should be displayed')
+      })
+      // Verify Gas Price is visible
+      .waitForElementContainsText('*[data-id="txGasPrice"]', '20000000000 Wei')
+      // Verify From address is visible
+      .waitForElementContainsText('*[data-id="txFrom"]', '0x5B38...ddC4')
+      // Verify Gas Used is visible
+      .waitForElementContainsText('*[data-id="txGasUsed"]', '25047')
+      // Verify To address is visible
+      .waitForElementContainsText('*[data-id="txTo"]', '0xd914...9138')
+      // Verify Tx Index is visible
+      .waitForElementContainsText('*[data-id="txIndex"]', '0')
+      // Verify Function name is visible
+      .waitForElementContainsText('*[data-id="txFunction"]', 'createProject')
+      // Verify Tx Nonce is visible
+      .waitForElementContainsText('*[data-id="txNonce"]', '1')
+      // Verify Value is visible
+      .waitForElementContainsText('*[data-id="txValue"]', '0 Wei')
+  },
+
   'Should click Ask RemixAI while debugging and open assistant on right side #group1': function (browser: NightwatchBrowser) {
     browser
       // Step 1: Stop any existing debugger session
