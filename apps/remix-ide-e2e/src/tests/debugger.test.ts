@@ -86,6 +86,92 @@ module.exports = {
       .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 352', 60000)
   },
 
+  'Should click Ask RemixAI while debugging and open assistant on right side #group1': function (browser: NightwatchBrowser) {
+    browser
+      // Step 1: Stop any existing debugger session
+      .perform((done) => {
+        browser.elements('css selector', '*[id="debuggerTransactionStartButtonContainer"]', (result) => {
+          if (Array.isArray(result.value) && result.value.length > 0) {
+            // Check if the stop button is visible (debugger is running)
+            browser.isVisible('*[id="debuggerTransactionStartButtonContainer"]', (visResult) => {
+              if (visResult.value === true) {
+                browser
+                  .click('*[id="debuggerTransactionStartButtonContainer"]')
+                  .pause(1000)
+                  .perform(() => done())
+              } else {
+                done()
+              }
+            })
+          } else {
+            done()
+          }
+        })
+      })
+      // Step 2: Open AI assistant and ensure it's on the left side
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementVisible('*[data-id="remix-ai-assistant"]', 10000)
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .pause(500)
+      // Move assistant to left side if it's on the right
+      .perform((done) => {
+        browser.elements('css selector', '*[data-id="movePluginToLeft"]', (result) => {
+          if (Array.isArray(result.value) && result.value.length > 0) {
+            // Assistant is on right side, move it to left
+            browser
+              .click('*[data-id="movePluginToLeft"]')
+              .pause(1000)
+              .perform(() => done())
+          } else {
+            // Already on left side
+            done()
+          }
+        })
+      })
+      // Verify assistant is on the left side
+      .waitForElementVisible('*[data-id="movePluginToRight"]', 5000)
+      .waitForElementVisible('#side-panel', 5000) // Left panel should be visible
+      // Clear any existing chat
+      .assistantClearChat()
+      .pause(500)
+      // Step 3: Start a new debugging session
+      .clickLaunchIcon('udapp')
+      .clearConsole()
+      .clickFunction(0, 0, { types: 'string name, uint256 goal', values: '"test", 100' })
+      .pause(2000)
+      .debugTransaction(0)
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      .pause(1000)
+      // Step 4: Click Ask RemixAI button while debugging
+      .waitForElementVisible('*[data-id="ask-remixai-action"]', 10000)
+      .click('*[data-id="ask-remixai-action"]')
+      .pause(2000) // Wait for the assistant to process and move to right side
+      // Step 5: Verify AI assistant is now on the right side panel
+      .waitForElementVisible('#right-side-panel', 10000) // Right side panel should be visible
+      .waitForElementVisible('*[data-id="movePluginToLeft"]', 10000) // Move to left button indicates it's on right side
+      .waitForElementVisible('*[data-id="remix-ai-assistant"]', 10000) // Assistant should be visible
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .pause(1000) // Wait for the prompt to be sent
+      // Verify the correct prompt was sent to the AI assistant
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble") and contains(.,"Give me more info about current debugging session")]'
+      }, 10000)
+      // Wait for AI to finish responding
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
+      }, 60000) // Wait for streaming to complete
+  },
+
   'Should display solidity imported code while debugging github import #group2': function (browser: NightwatchBrowser) {
     browser
       .clearConsole()
