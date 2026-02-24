@@ -1067,7 +1067,12 @@ export const DebugLayout = ({
           style={{ cursor: 'pointer' }}
         >
           <h6 className="debug-section-title" data-id="callTraceHeader">
-            Call Trace (Step: {stepManager?.currentStepIndex ?? 0} / {(traceData && (traceData.traceLength - 1)) || 0})
+            Call Trace (Step: {(() => {
+              const maxStep = (traceData && (traceData.traceLength - 1)) || 0
+              const currentStep = stepManager?.currentStepIndex ?? 0
+              // Clamp currentStepIndex to valid range [0, maxStep]
+              return Math.max(0, Math.min(currentStep, maxStep))
+            })()} / {(traceData && (traceData.traceLength - 1)) || 0})
           </h6>
           <i className={`fas ${expandedSections.callTrace ? 'fa-chevron-down' : 'fa-chevron-right'}`} style={{ fontSize: '0.75rem', marginRight: '1rem', color: 'var(--bs-body-color)' }}></i>
         </div>
