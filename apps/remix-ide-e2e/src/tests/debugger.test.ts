@@ -40,6 +40,8 @@ module.exports = {
       .debugTransaction(0)
       .pause(2000)
       .goToVMTraceStep(327)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 327', 10000)
       .waitForElementVisible('*[data-id="stateLocalsContent"]')
       .pause(1000) // Wait for data to load
       // First expand "locals" to see variable names
@@ -192,8 +194,8 @@ module.exports = {
           'current displayed content is not from the ERC20 source code')
       })
       .goToVMTraceStep(10)
-      .pause(500)
-      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 10')
+      .pause(300)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 10', 10000)
   },
 
   'Should display correct source highlighting while debugging a contract which has ABIEncoderV2 #group2': function (browser: NightwatchBrowser) {
@@ -216,6 +218,8 @@ module.exports = {
       .waitForElementVisible('*[data-id="callTraceHeader"]')
       .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 131')
       .goToVMTraceStep(261)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 261', 10000)
       .waitForElementPresent('.highlightLine8')
       /*
         for the test below:
@@ -227,7 +231,9 @@ module.exports = {
       */
 
       .goToVMTraceStep(265)
-      .pause(1000)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 265', 10000)
+      .pause(500)
       .execute(function () {
         const solidityLocals = document.querySelector('[data-id="solidityLocals"]')
         if (solidityLocals) {
@@ -238,47 +244,57 @@ module.exports = {
       .pause(500)
       .checkVariableDebug('soliditylocals', localVariable_step266_ABIEncoder) // locals should not be initiated at this point, only idAsk should
       .goToVMTraceStep(717)
-      .pause(1000)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 717', 10000)
+      .pause(500)
 
       .checkVariableDebug('soliditylocals', localVariable_step717_ABIEncoder) // all locals should be initiated
       .clearTransactions()
   },
 
-  // TODO: will be improved
-  // 'Should load more solidity locals array #group3': function (browser: NightwatchBrowser) {
-  //   browser
-  //     .clickLaunchIcon('solidity')
-  //     .testContracts('locals.sol', sources[3]['locals.sol'], ['testLocals'])
-  //     .clickLaunchIcon('udapp')
-  //     .createContract('')
-  //     .pause(2000)
-  //     .clearConsole()
-  //     .clickInstance(0)
-  //     .clickFunction(0, 0)
-  //     .pause(2000)
-  //     .debugTransaction(0)
-  //     .waitForElementPresent('*[data-id="callTraceHeader"]')
-  //     .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 27')
-  //     .goToVMTraceStep(5453)
-  //     .waitForElementVisible('*[data-id="stateLocalsContent"]')
-  //     .pause(2000) // Wait longer for large array to process
-  //     // Expand "locals" first
-  //     .execute(function () {
-  //       const solidityLocals = document.querySelector('[data-id="solidityLocals"]')
-  //       if (solidityLocals) {
-  //         const firstIcon = solidityLocals.querySelector('.json-expand-icon')
-  //         if (firstIcon) (firstIcon as any).click()
-  //       }
-  //     })
-  //     .pause(2000) // Wait longer for variables to render
-  //     // Expand the array variable to see its values
-  //     .waitForElementVisible('*[data-id="array-expand-icon"]', 20000)
-  //     .click('*[data-id="array-expand-icon"]')
-  //     .pause(500)
-  //     .waitForElementContainsText('[data-id="array-json-nested"]', '9', 60000)
-  //     .clearDeployedContracts()
-  //     .clearConsole().pause(2000)
-  // },
+  'Should load more solidity locals array #group3': function (browser: NightwatchBrowser) {
+    browser
+      .clickLaunchIcon('solidity')
+      .testContracts('locals.sol', sources[3]['locals.sol'], ['testLocals'])
+      .clickLaunchIcon('udapp')
+      .createContract('')
+      .pause(2000)
+      .clearConsole()
+      .clickInstance(0)
+      .clickFunction(0, 0)
+      .pause(2000)
+      .debugTransaction(0)
+      .waitForElementPresent('*[data-id="callTraceHeader"]', 60000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step:', 60000)
+      .pause(1000)
+      // Use goToVMTraceStep which intelligently uses jumpTo method when available
+      // This avoids clicking 5453 times and instead uses stepManager.jumpTo(5453) directly
+      .goToVMTraceStep(5453)
+      .pause(2000)
+      // Verify we reached the correct step
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 5453', 10000)
+      .waitForElementVisible('*[data-id="stateLocalsContent"]', 10000)
+      .pause(2000) // Wait for large array to be processed and rendered
+      // Expand "locals" first to see variable names
+      .execute(function () {
+        const solidityLocals = document.querySelector('[data-id="solidityLocals"]')
+        if (solidityLocals) {
+          const firstIcon = solidityLocals.querySelector('.json-expand-icon')
+          if (firstIcon) (firstIcon as any).click()
+        }
+      })
+      .pause(2000) // Wait for variables to render
+      // Expand the array variable to see its values
+      .waitForElementVisible('*[data-id="array-expand-icon"]', 20000)
+      .click('*[data-id="array-expand-icon"]')
+      .pause(1000)
+      // Verify array content is displayed
+      .waitForElementContainsText('[data-id="array-json-nested"]', '9', 60000)
+      // Cleanup
+      .clearDeployedContracts()
+      .clearConsole()
+      .pause(1000)
+  },
 
   'Should debug using generated sources #group4': function (browser: NightwatchBrowser) {
     browser
@@ -297,6 +313,9 @@ module.exports = {
       .debugTransaction(0) // start debugging again with generated sources
       .pause(4000)
       .goToVMTraceStep(39)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 39', 10000)
+      .pause(500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf('if slt(sub(dataEnd, headStart), 32)') !== -1, 'current displayed content is not a generated source')
       })
@@ -342,8 +361,8 @@ module.exports = {
       .pause(5000) // Wait for the API call to start debugging and open the panel      
       .waitForElementVisible('*[data-id="callTraceHeader"]')
       .goToVMTraceStep(154)
-      .pause(1000)
-      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 154', 60000)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 154', 10000)
   },
 
   'Should start debugging using remix debug nodes (rinkeby) #group4': '' + function (browser: NightwatchBrowser) {

@@ -70,6 +70,13 @@ export default class DebuggerTab extends DebuggerApiMixin(ViewPlugin) {
       this.call('notification', 'toast', sourceVerificationNotAvailableToastMsg())
     })
     const onReady = (api) => { this.api = api }
+
+    // Expose jumpTo to window for E2E testing
+    // This makes the debugger's jumpTo method available from browser.execute() in Nightwatch tests
+    ;(window as any).jumpToDebuggerStep = (step: number) => {
+      this.jumpTo(step)
+    }
+
     return <div className="overflow-hidden" id='debugView'><DebuggerUI debuggerAPI={this} onReady={onReady} /></div>
   }
 
