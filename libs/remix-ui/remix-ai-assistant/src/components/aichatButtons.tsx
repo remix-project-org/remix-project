@@ -106,13 +106,19 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       label: 'Explore RemixAI capabilities',
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-magic`,
       color: '',
-      action: () => sendPrompt('Sum up a list of all the MCP endpoints and their functionalities in a concise manner. Propose a few prompts I can use to enhance my workflow.')
+      action: () => {
+        sendPrompt('Sum up a list of all the MCP endpoints and their functionalities in a concise manner. Propose a few prompts I can use to enhance my workflow.')
+        plugin.call('rightSidePanel', 'maximizePanel')
+      }
     },
     {
       label: 'Start Learning',
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-graduation-cap`,
       color: '',
-      action: () => sendPrompt('I would like to learn Web3 development. Can you create a learning path for me with resources and projects to work on?')
+      action: () => {
+        sendPrompt('I would like to learn Web3 development. Can you create a learning path for me with resources and projects to work on?')
+        plugin.call('rightSidePanel', 'maximizePanel')
+      }
     },
     {
       label: 'Create a Dapp',
