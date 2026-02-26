@@ -137,7 +137,7 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     const codeAtAddress = await this._web3.getCode(targetAddress)
     const output = await this.call('fetchAndCompile', 'resolve', targetAddress, codeAtAddress, '.debug')
     if (output) {
-      return new CompilerAbstract(output.languageversion, output.data, output.source)
+      return new CompilerAbstract(output.languageversion, output.data, output.source, null, this as any)
     }
     return null
   }

@@ -35,7 +35,7 @@ export class CompilerArtefacts extends Plugin {
   }
 
   onActivation() {
-    const saveCompilationResult = (file, source, languageVersion, data, input?) => {
+    const saveCompilationResult = async (file, source, languageVersion, data, input?) => {
       this.compilersArtefactsPerFile[file] = new CompilerAbstract(languageVersion, data, source, input)
       this.compilersArtefacts.__last = this.compilersArtefactsPerFile[file]
       this.emit('compilationSaved', { [file]: this.compilersArtefactsPerFile[file] })

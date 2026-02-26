@@ -145,7 +145,8 @@ export class BreakpointManager {
     */
   async hasBreakpointAtLine (fileIndex, line, contractAddress) {
     const compResult = await this.solidityProxy.compilationResult(contractAddress)
-    const filename = Object.keys(compResult.data.contracts)[fileIndex]
+    let filename = compResult.getActualFilePath (compResult.getSourceName(fileIndex))
+    if (!filename) filename = Object.keys(compResult.data.contracts)[fileIndex]
     if (!(filename && this.breakpoints[filename])) {
       return false
     }
