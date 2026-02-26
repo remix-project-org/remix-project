@@ -9,7 +9,7 @@ interface AiChatButtonsProps {
 
 export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspace }: AiChatButtonsProps) {
   const [currentFile, setCurrentFile] = useState<string | null>(null)
-  const [latestCompiledContract, setLatestCompiledContract] = useState<string | null>(null)
+  const [latestCompiledContracts, setLatestCompiledContracts] = useState<string[] | null>(null)
 
   useEffect(() => {
     if (!plugin) return
@@ -23,18 +23,22 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       }
 
       try {
+        const currentFile = await plugin.call('fileManager', 'getCurrentFile')
+        if (!currentFile) {
+          setLatestCompiledContracts(null)
+          return
+        }
         const compilationResult = await plugin.call('solidity', 'getCompilationResult')
         if (compilationResult && compilationResult.data && compilationResult.data.contracts) {
-          const files = Object.keys(compilationResult.data.contracts)
-          if (files.length > 0) {
-            const firstFile = files[0]
-            const contracts = Object.keys(compilationResult.data.contracts[firstFile] || {})
-            if (contracts.length > 0) {
-              setLatestCompiledContract(contracts[0])
-            }
+          const contracts = Object.keys(compilationResult.data.contracts[currentFile] || {})
+          if (contracts && contracts.length > 0) {
+            setLatestCompiledContracts(contracts)
+          } else {
+            setLatestCompiledContracts(null)
           }
         }
       } catch (error) {
+        setLatestCompiledContracts(null)
       }
     }
 
@@ -50,16 +54,6 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       const fileName = currentFile.split('/').pop() || currentFile
       sendPrompt(`Review the file ${fileName}`)
     }
-  }
-
-  const handleDeployContract = () => {
-    if (latestCompiledContract) {
-      sendPrompt(`Deploy the ${latestCompiledContract} contract`)
-    }
-  }
-
-  const handleCreateERC20 = () => {
-    sendPrompt('Create an ERC20 token contract')
   }
 
   const dynamicButtons: {
@@ -79,13 +73,15 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
     })
   }
 
-  if (latestCompiledContract) {
-    dynamicButtons.push({
-      label: `Deploy ${latestCompiledContract}`,
-      icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-rocket`,
-      color: '',
-      action: handleDeployContract
-    })
+  if (latestCompiledContracts && latestCompiledContracts.length > 0) {
+    for (const contract of latestCompiledContracts) {
+       dynamicButtons.push({
+        label: `Deploy ${contract}`,
+        icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-rocket`,
+        color: '',
+        action: () => sendPrompt(`Deploy the ${contract} contract`)
+      })
+    }
   }
 
   const btnList: {
@@ -106,13 +102,34 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       color: '',
       action: handleGenerateWorkspace
     },
+    {
+      label: 'Explore RemixAI capabilities',
+      icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-magic`,
+      color: '',
+      action: () => sendPrompt('Sum up a list of all the MCP endpoints and their functionalities in a concise manner. Propose a few prompts I can use to enhance my workflow.')
+    },
+    {
+      label: 'Start Learning',
+      icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-graduation-cap`,
+      color: '',
+      action: () => sendPrompt('I would like to learn Web3 development. Can you create a learning path for me with resources and projects to work on?')
+    },
+    {
+      label: 'Create a Dapp',
+      icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
+      color: '',
+      action: async () => {
+        await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
+        plugin.call('tabs', 'focus', 'quick-dapp-v2')
+      }
+    },
     ...dynamicButtons
   ]
 
   return (
     <div className="d-flex flex-column mt-3" style={{ maxWidth: '400px' }}>
-      <div className="d-flex flex-row gap-1 justify-content-center">
-        {btnList.slice(0,3).map((starter, index) => (
+      <div className="d-flex flex-row flex-wrap gap-1 justify-content-center">
+        {btnList.map((starter, index) => (
           <button
             key={`${starter.label}-${index}`}
             data-id={`remix-ai-assistant-starter-${starter.label}-${index}`}
