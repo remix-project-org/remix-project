@@ -193,6 +193,9 @@ module.exports = {
       .waitForElementVisible('*[data-id="ask-remixai-action"]', 10000)
       .click('*[data-id="ask-remixai-action"]')
       .pause(2000) // Wait for the assistant to process and move to right side
+      // Verify the Ask RemixAI button is still visible and hasn't changed to compile button
+      .waitForElementVisible('*[data-id="ask-remixai-action"]', 5000)
+      .assert.textContains('*[data-id="ask-remixai-action"]', 'Ask RemixAI')
       // Step 5: Verify AI assistant is now on the right side panel
       .waitForElementVisible('#right-side-panel', 10000) // Right side panel should be visible
       .waitForElementVisible('*[data-id="movePluginToLeft"]', 10000) // Move to left button indicates it's on right side
