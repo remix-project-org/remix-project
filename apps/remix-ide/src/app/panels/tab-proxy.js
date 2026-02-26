@@ -56,8 +56,8 @@ export default class TabProxy extends Plugin {
         // Returning to debugger while debugging is in progress - show Ask RemixAI button
         this.isDebugging = true
         this.renderComponent()
-      } else if (pluginName !== 'debugger' && this.isDebugging) {
-        // Switching away from debugger - hide Ask RemixAI button
+      } else if (pluginName !== 'debugger' && pluginName !== 'remixaiassistant' && this.isDebugging) {
+        // Switching away from debugger - hide Ask RemixAI button (but not when showing AI assistant)
         this.isDebugging = false
         this.renderComponent()
       }
@@ -65,7 +65,8 @@ export default class TabProxy extends Plugin {
 
     // Also listen for menuicons changes (for main panel plugins)
     this.on('menuicons', 'showContent', (pluginName) => {
-      if (pluginName !== 'debugger' && this.isDebugging) {
+      // Don't hide Ask RemixAI button when switching to AI assistant during debugging
+      if (pluginName !== 'debugger' && pluginName !== 'remixaiassistant' && this.isDebugging) {
         this.isDebugging = false
         this.renderComponent()
       }
