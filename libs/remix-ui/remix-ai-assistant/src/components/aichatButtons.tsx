@@ -75,7 +75,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
 
   if (latestCompiledContracts && latestCompiledContracts.length > 0) {
     for (const contract of latestCompiledContracts) {
-       dynamicButtons.push({
+      dynamicButtons.push({
         label: `Deploy ${contract}`,
         icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-rocket`,
         color: '',
