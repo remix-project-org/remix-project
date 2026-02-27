@@ -19,16 +19,12 @@ module.exports = {
       // Add the ERC20 test contract
       .addFile('MyToken.sol', sources[0]['MyToken.sol'])
       .pause(4000)
+      .clickLaunchIcon('solidity')
       // Compile the contract
       .click('*[data-id="compilerContainerCompileBtn"]')
       .pause(4000)
       .clickLaunchIcon('udapp')
       .pause(2000)
-      // Select MyToken contract from dropdown
-      .click('*[data-id="contractDropdownButton"]')
-      .pause(1000)
-      .click('*[data-id="dropdown-item-MyToken"]')
-      .pause(1000)
       // Deploy the contract
       .createContract('')
       .pause(3000)
@@ -42,11 +38,13 @@ module.exports = {
       .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
       .pause(2000)
       // Set breakpoint at OpenZeppelin ERC20.sol line 46
+      .openFile('.deps/npm/@openzeppelin/contracts@5.4.0/token/ERC20/ERC20.sol')
       .execute(() => {
         // Use the global function to add a breakpoint in ERC20.sol
-        (window as any).addRemixBreakpoint(46, '.deps/npm/@openzeppelin/contracts@5.5.0/token/ERC20/ERC20.sol')
+        (window as any).addRemixBreakpoint(46)
       }, [], () => { })
-      .pause(1000)
+      .openFile('MyToken.sol')
+      .clickLaunchIcon('debugger')
       // Jump to the breakpoint to verify it's reached
       .waitForElementVisible('*[data-id="btnJumpNextBreakpoint"]')
       .click('*[data-id="btnJumpNextBreakpoint"]')
@@ -55,15 +53,9 @@ module.exports = {
       .waitForElementVisible('*[data-id="callTraceHeader"]')
       .pause(1000)
       // Additional verification - check that we're in the right source file
-      .execute(function () {
-        // Check if the current editor shows OpenZeppelin ERC20 content
-        const editorElement = document.querySelector('#editorView .view-lines') as HTMLElement
-        return editorElement ? editorElement.textContent : ''
-      }, [], (result) => {
-        // Verify we're debugging OpenZeppelin ERC20 code
-        const content = typeof result.value === 'string' ? result.value : ''
+      .getEditorValue(function (content) {
         browser.assert.ok(
-          content.includes('ERC20') || content.includes('_balances') || content.includes('_totalSupply'),
+          content.includes('abstract contract ERC20') || content.includes('ERC20') || content.includes('_balances') || content.includes('_totalSupply'),
           'Should be debugging OpenZeppelin ERC20 contract code at breakpoint'
         )
       })
