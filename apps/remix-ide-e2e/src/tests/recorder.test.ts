@@ -12,7 +12,7 @@ module.exports = {
     return sources
   },
 
-  'Run Scenario using editor play button #group1': function (browser: NightwatchBrowser) {
+  'Run Scenario using editor play button #group1': ' ' + function (browser: NightwatchBrowser) {
     let addressRef
     browser
       .openFile('remix.config.json')
@@ -45,7 +45,7 @@ module.exports = {
       .clearDeployedContracts()
       .clearTransactionsRecorder()
   },
-  'Save scenario #group1': function (browser: NightwatchBrowser) {
+  'Save scenario #group1': ' ' + function (browser: NightwatchBrowser) {
     browser.testContracts('testRecorder.sol', sources[0]['testRecorder.sol'], ['testRecorder'])
       .clickLaunchIcon('udapp')
       .createContract('12')
@@ -76,7 +76,7 @@ module.exports = {
       })
   },
 
-  'Record more than one contract #group2': function (browser: NightwatchBrowser) {
+  'Record more than one contract #group2': ' ' + function (browser: NightwatchBrowser) {
     // deploy 2 contracts (2 different ABIs), save the record, reexecute and test one of the function.
     browser
       .testContracts('multipleContracts.sol', sources[1]['multipleContracts.sol'], ['t1est', 't2est'])
