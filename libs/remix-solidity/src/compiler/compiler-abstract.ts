@@ -82,7 +82,7 @@ export class CompilerAbstract {
   private async resolvePaths (plugin: Plugin) {
     const mapFilePaths = {}
     try {
-      let originPath = Object.keys(this.source.sources)[0]
+      const originPath = Object.keys(this.source.sources)[0]
       for (const filePath in this.source.sources) {
         const resolved = await plugin.call('resolutionIndex', 'resolveActualPath', originPath, filePath)
         if (resolved) {
@@ -92,7 +92,7 @@ export class CompilerAbstract {
           const fallback = await plugin.call('resolutionIndex', 'resolvePath', originPath, filePath)
           mapFilePaths[filePath] = fallback || filePath
         }
-      }      
+      }
     } catch (e) {
       console.log('Resolution failed, using provided path:', e)
     }
