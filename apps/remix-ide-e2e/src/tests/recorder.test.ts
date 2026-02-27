@@ -26,6 +26,7 @@ module.exports = {
       .selectAccount('0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c') // this account will be used for this test suite
       .waitForElementVisible('[data-id="compile_group"]')
       .click('[data-id="compile_group"]')
+      .pause(2000)
       .clickInstance(0)
       .clickInstance(1)
       .clickFunction(1, 0)
