@@ -86,5 +86,6 @@ apps/remix-ide-e2e/tmp/
 
 # IDE - Cursor
 .cursor/
+CLAUDE.md
 PR_MESSAGE.md
 apps/remix-ide-e2e/tmp/
