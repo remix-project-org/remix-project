@@ -94,7 +94,7 @@ export class BreakpointManager {
     let previousSourceLocation
     let currentStep = fromStep + direction
     let lineHadBreakpoint = false
-    let initialLine = initialStepInfo.lineColumnPos
+    const initialLine = initialStepInfo.lineColumnPos
     while (currentStep > 0 && currentStep < trace.length) {
       try {
         previousSourceLocation = sourceLocation
