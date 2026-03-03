@@ -632,15 +632,14 @@ export class GetUserAccountsHandler extends BaseToolHandler {
   async execute(args: { includeBalances?: boolean }, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       // Get accounts from the run-tab plugin (udapp)
-      const runTabApi = await plugin.call('udapp' as any, 'getRunTabAPI');
+      const loadedAccounts = await plugin.call('udappEnv' as any, 'getLoadedAccounts');
+      const selectedAccount = await plugin.call('udappEnv' as any, 'getSelectedAccount');
 
-      if (!runTabApi || !runTabApi.accounts) {
+      if (!loadedAccounts) {
         return this.createErrorResult('Could not retrieve accounts from execution environment');
       }
 
       const accounts: AccountInfo[] = [];
-      const loadedAccounts = runTabApi.accounts.loadedAccounts || {};
-      const selectedAccount = runTabApi.accounts.selectedAccount;
       for (const [address, displayName] of Object.entries(loadedAccounts)) {
         const account: AccountInfo = {
           address: address,
@@ -730,11 +729,10 @@ export class SetSelectedAccountHandler extends BaseToolHandler {
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait a moment for the change to propagate
 
       // Verify the account was set
-      const runTabApi = await plugin.call('udapp' as any, 'getRunTabAPI');
-      const currentSelected = runTabApi?.accounts?.selectedAccount;
+      const selectedAccount = await plugin.call('udappEnv' as any, 'getSelectedAccount');
 
-      if (currentSelected !== args.address) {
-        return this.createErrorResult(`Failed to set account. Current selected: ${currentSelected}`);
+      if (selectedAccount !== args.address) {
+        return this.createErrorResult(`Failed to set account. Current selected: ${selectedAccount}`);
       }
 
       return this.createSuccessResult({
@@ -770,15 +768,14 @@ export class GetCurrentEnvironmentHandler extends BaseToolHandler {
       const network = await plugin.call('network', 'detectNetwork')
 
       // Verify the account was set
-      const runTabApi = await plugin.call('udapp' as any, 'getRunTabAPI');
-      const accounts = runTabApi?.accounts;
+      const loadedAccounts = await plugin.call('udappEnv' as any, 'getLoadedAccounts');
 
       const result = {
         success: true,
         environment: {
           provider,
           network,
-          accounts
+          loadedAccounts
         }
       };
 

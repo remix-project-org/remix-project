@@ -8,7 +8,7 @@ const profile = {
   name: 'udappEnv',
   displayName: 'Udapp Environment',
   description: 'Maintains the schema for deployment and execution environment',
-  methods: ['getUI', 'getSelectedAccount', 'isSmartAccount', 'getDefaultProvider', 'getPassphrasePrompt', 'getSelectedProvider', 'getNetwork'],
+  methods: ['getUI', 'getSelectedAccount', 'getLoadedAccounts', 'isSmartAccount', 'getDefaultProvider', 'getPassphrasePrompt', 'getSelectedProvider', 'getNetwork'],
   events: []
 }
 
@@ -42,6 +42,11 @@ export class EnvironmentPlugin extends Plugin {
   getSelectedAccount () {
     const state = this.getWidgetState?.()
     return state?.accounts?.selectedAccount || state?.accounts?.defaultAccounts[0]?.account
+  }
+
+  getLoadedAccounts () {
+    const state = this.getWidgetState?.()
+    return state?.accounts?.defaultAccounts || []
   }
 
   isSmartAccount (address: string) {

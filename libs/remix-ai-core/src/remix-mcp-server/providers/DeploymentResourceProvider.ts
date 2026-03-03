@@ -331,18 +331,19 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
       const chainId = await plugin.call('blockchain' as any, 'getChainId').catch(() => 'unknown');
 
       // Get account information
-      const runTabApi = await plugin.call('udapp' as any, 'getRunTabAPI').catch(() => ({ accounts: {} }));
+      const loadedAccounts = await plugin.call('udappEnv' as any, 'getLoadedAccounts').catch(() => ({ accounts: {} }));
+      const selectedAccount = await plugin.call('udappEnv' as any, 'getSelectedAccount').catch(() => null);
       const accounts = [];
 
-      if (runTabApi.accounts?.loadedAccounts) {
-        for (const [address, displayName] of Object.entries(runTabApi.accounts.loadedAccounts)) {
+      if (loadedAccounts) {
+        for (const [address, displayName] of Object.entries(loadedAccounts)) {
           try {
             const balance = await plugin.call('blockchain' as any, 'getBalanceInEther', address);
             accounts.push({
               address: address,
               balance: `${balance} ETH`,
               displayName: displayName as string,
-              isSelected: address === runTabApi.accounts.selectedAccount,
+              isSelected: address === selectedAccount,
               isSmartAccount: (displayName as string)?.includes('[SMART]') || false
             });
           } catch (e) {
@@ -350,7 +351,7 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
               address: address,
               balance: 'unknown',
               displayName: displayName as string,
-              isSelected: address === runTabApi.accounts.selectedAccount,
+              isSelected: address === selectedAccount,
               isSmartAccount: (displayName as string)?.includes('[SMART]') || false
             });
           }
@@ -376,7 +377,7 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
         status: 'connected',
         deployments: totalDeployments,
         accounts: accounts.length,
-        selectedAccount: runTabApi.accounts?.selectedAccount || null
+        selectedAccount: selectedAccount || null
       };
 
       // Get available providers list
@@ -536,18 +537,19 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
       const availableProviders = await plugin.call('blockchain' as any, 'getProviders').catch(() => []);
 
       // Get account information
-      const runTabApi = await plugin.call('udapp' as any, 'getRunTabAPI').catch(() => ({ accounts: {} }));
+      const loadedAccounts = await plugin.call('udappEnv' as any, 'getLoadedAccounts').catch(() => ({ accounts: {} }));
+      const selectedAccount = await plugin.call('udappEnv' as any, 'getSelectedAccount').catch(() => null);
       const accounts = [];
 
-      if (runTabApi.accounts?.loadedAccounts) {
-        for (const [address, displayName] of Object.entries(runTabApi.accounts.loadedAccounts)) {
+      if (loadedAccounts) {
+        for (const [address, displayName] of Object.entries(loadedAccounts)) {
           try {
             const balance = await plugin.call('blockchain' as any, 'getBalanceInEther', address);
             accounts.push({
               address: address,
               balance: `${balance} ETH`,
               displayName: displayName as string,
-              isSelected: address === runTabApi.accounts.selectedAccount,
+              isSelected: address === selectedAccount,
               isSmartAccount: (displayName as string)?.includes('[SMART]') || false
             });
           } catch (e) {
@@ -555,7 +557,7 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
               address: address,
               balance: 'unknown',
               displayName: displayName as string,
-              isSelected: address === runTabApi.accounts.selectedAccount,
+              isSelected: address === selectedAccount,
               isSmartAccount: (displayName as string)?.includes('[SMART]') || false
             });
           }
@@ -596,7 +598,7 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
           available: availableProviders.map((p: any) => p.displayName || p.name)
         },
         accounts: accounts,
-        selectedAccount: runTabApi.accounts?.selectedAccount || null,
+        selectedAccount: selectedAccount || null,
         totalAccounts: accounts.length,
         gas: {
           averagePrice: avgGasPrice,
