@@ -532,17 +532,17 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
       const accounts = [];
 
       if (loadedAccounts) {
-          for (const loadedAccount of loadedAccounts) {
-            loadedAccount.isSmartAccount = await plugin.call('udappEnv' as any, 'isSmartAccount', loadedAccount.account) || false
-            try {
-              loadedAccount.balance = await plugin.call('blockchain' as any, 'getBalanceInEther', loadedAccount.address) + ' ETH'
-            } catch (e) {
-              loadedAccount.balance = 'unknown';
-            }
-            loadedAccount.isSelected = loadedAccount.account === selectedAccount
-            accounts.push(loadedAccount);
+        for (const loadedAccount of loadedAccounts) {
+          loadedAccount.isSmartAccount = await plugin.call('udappEnv' as any, 'isSmartAccount', loadedAccount.account) || false
+          try {
+            loadedAccount.balance = await plugin.call('blockchain' as any, 'getBalanceInEther', loadedAccount.address) + ' ETH'
+          } catch (e) {
+            loadedAccount.balance = 'unknown';
           }
+          loadedAccount.isSelected = loadedAccount.account === selectedAccount
+          accounts.push(loadedAccount);
         }
+      }
 
       // Get compiler configuration
       const compilerConfig = await plugin.call('solidity' as any, 'getCurrentCompilerConfig').catch(() => ({}));
