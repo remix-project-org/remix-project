@@ -37,7 +37,7 @@ const defaultUrls: EndpointUrls = {
   ipfsGateway: 'https://jqgt.api.remix.live',
   commonCorsProxy: 'https://common-corsproxy.api.remix.live',
   github: 'https://github.api.remix.live',
-  solcoder: 'https://solcoder.api.remix.live',
+  solcoder: 'http://localhost:4000/solcoder',
   ghfolderpull: 'https://ghfolderpull.api.remix.live',
   embedly: 'https://embedly.api.remix.live',
   gptChat: 'https://gpt-chat.api.remix.live',

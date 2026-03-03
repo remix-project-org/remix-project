@@ -275,6 +275,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
           description: tool.description,
           inputSchema: tool.inputSchema
         }));
+        console.log(`[RemixMCPServer] Returning tool list: ${tools.map(t => t.name).join(', ')}`);
         return { id: message.id, result: { tools } };
 
       case 'tools/call':
