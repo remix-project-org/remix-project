@@ -439,6 +439,9 @@ export class AIDappGenerator extends Plugin {
     const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
     // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+
     try {
       const response = await fetch(BACKEND_URL, {
         method: "POST",
@@ -447,8 +450,11 @@ export class AIDappGenerator extends Plugin {
           messages,
           systemPrompt,
           hasImage
-        })
+        }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errText = await response.text()
@@ -460,6 +466,11 @@ export class AIDappGenerator extends Plugin {
       return json.content;
 
     } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        console.error('[AI-DAPP] Request timed out after 90s');
+        throw new Error('DApp generation timed out (90s). Please try again.');
+      }
       console.error('[AI-DAPP] API Call Failed:', error);
       throw error;
     }

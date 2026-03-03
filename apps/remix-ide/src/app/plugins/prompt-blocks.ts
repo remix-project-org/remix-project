@@ -77,6 +77,11 @@ export const invariants = {
 4. **EXPLICIT EXTENSIONS:** Always include file extensions in local imports.
    - BAD: \`import Navbar from './components/Navbar'\`
    - GOOD: \`import Navbar from './components/Navbar.jsx'\`
+5. **RELATIVE PATHS ONLY:** Files inside \`src/\` must use relative paths WITHOUT repeating \`src/\`.
+   - BAD: \`import App from './src/App.jsx'\` (inside src/main.jsx — causes /src/src/App.jsx)
+   - GOOD: \`import App from './App.jsx'\` (correct relative path within same directory)
+   - BAD: \`import utils from './src/utils/helpers.jsx'\`
+   - GOOD: \`import utils from './utils/helpers.jsx'\`
 `,
 
   /** index.html template with import map */
