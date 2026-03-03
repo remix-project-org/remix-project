@@ -29,9 +29,10 @@ export enum ToolCategory {
 }
 
 export interface AccountInfo {
-  address: string;
-  balance?: string;
-  displayName?: string;
+  alias: string,
+  account: string,
+  balance?: string,
+  symbol?: string
   isSmartAccount?: boolean;
 }
 

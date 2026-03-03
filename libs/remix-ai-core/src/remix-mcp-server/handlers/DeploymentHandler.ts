@@ -640,24 +640,20 @@ export class GetUserAccountsHandler extends BaseToolHandler {
       }
 
       const accounts: AccountInfo[] = [];
-      for (const [address, displayName] of Object.entries(loadedAccounts)) {
-        const account: AccountInfo = {
-          address: address,
-          displayName: displayName as string,
-          isSmartAccount: (displayName as string)?.includes('[SMART]') || false
-        };
+      for (const loadedAccount of loadedAccounts) {
+        loadedAccount.isSmartAccount = await plugin.call('udappEnv' as any, 'isSmartAccount', loadedAccount.account) || false
 
         // Get balance if requested
         if (args.includeBalances !== false) {
           try {
-            const balance = await plugin.call('blockchain' as any, 'getBalanceInEther', address);
-            account.balance = balance || '0';
+            const balance = await plugin.call('blockchain' as any, 'getBalanceInEther', loadedAccount.account);
+            loadedAccount.balance = balance || '0';
           } catch (error) {
-            account.balance = 'unknown';
+            loadedAccount.balance = 'unknown';
           }
         }
 
-        accounts.push(account);
+        accounts.push(loadedAccount);
       }
 
       const result = {
@@ -769,13 +765,15 @@ export class GetCurrentEnvironmentHandler extends BaseToolHandler {
 
       // Verify the account was set
       const loadedAccounts = await plugin.call('udappEnv' as any, 'getLoadedAccounts');
+      const selectedAccount = await plugin.call('udappEnv' as any, 'getSelectedAccount');
 
       const result = {
         success: true,
         environment: {
           provider,
           network,
-          loadedAccounts
+          loadedAccounts,
+          selectedAccount
         }
       };
 

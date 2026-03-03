@@ -336,25 +336,15 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
       const accounts = [];
 
       if (loadedAccounts) {
-        for (const [address, displayName] of Object.entries(loadedAccounts)) {
+        for (const loadedAccount of loadedAccounts) {
+          loadedAccount.isSmartAccount = await plugin.call('udappEnv' as any, 'isSmartAccount', loadedAccount.account) || false
           try {
-            const balance = await plugin.call('blockchain' as any, 'getBalanceInEther', address);
-            accounts.push({
-              address: address,
-              balance: `${balance} ETH`,
-              displayName: displayName as string,
-              isSelected: address === selectedAccount,
-              isSmartAccount: (displayName as string)?.includes('[SMART]') || false
-            });
+            loadedAccount.balance = await plugin.call('blockchain' as any, 'getBalanceInEther', loadedAccount.address) + ' ETH'
           } catch (e) {
-            accounts.push({
-              address: address,
-              balance: 'unknown',
-              displayName: displayName as string,
-              isSelected: address === selectedAccount,
-              isSmartAccount: (displayName as string)?.includes('[SMART]') || false
-            });
+            loadedAccount.balance = 'unknown';
           }
+          loadedAccount.isSelected = loadedAccount.account === selectedAccount
+          accounts.push(loadedAccount);
         }
       }
 
@@ -542,27 +532,17 @@ export class DeploymentResourceProvider extends BaseResourceProvider {
       const accounts = [];
 
       if (loadedAccounts) {
-        for (const [address, displayName] of Object.entries(loadedAccounts)) {
-          try {
-            const balance = await plugin.call('blockchain' as any, 'getBalanceInEther', address);
-            accounts.push({
-              address: address,
-              balance: `${balance} ETH`,
-              displayName: displayName as string,
-              isSelected: address === selectedAccount,
-              isSmartAccount: (displayName as string)?.includes('[SMART]') || false
-            });
-          } catch (e) {
-            accounts.push({
-              address: address,
-              balance: 'unknown',
-              displayName: displayName as string,
-              isSelected: address === selectedAccount,
-              isSmartAccount: (displayName as string)?.includes('[SMART]') || false
-            });
+          for (const loadedAccount of loadedAccounts) {
+            loadedAccount.isSmartAccount = await plugin.call('udappEnv' as any, 'isSmartAccount', loadedAccount.account) || false
+            try {
+              loadedAccount.balance = await plugin.call('blockchain' as any, 'getBalanceInEther', loadedAccount.address) + ' ETH'
+            } catch (e) {
+              loadedAccount.balance = 'unknown';
+            }
+            loadedAccount.isSelected = loadedAccount.account === selectedAccount
+            accounts.push(loadedAccount);
           }
         }
-      }
 
       // Get compiler configuration
       const compilerConfig = await plugin.call('solidity' as any, 'getCurrentCompilerConfig').catch(() => ({}));
