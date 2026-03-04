@@ -120,6 +120,7 @@ export class FileReplacerHandler extends BaseToolHandler {
 
   async execute(args: FileReplacerArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
+      console.log(`[FileReplacerHandler] - Replacing content in file: ${args.path} using regex: ${args.regEx}`);
       const exists = await plugin.call('fileManager', 'exists', args.path)
       if (!exists) {
         return this.createErrorResult(`File not found: ${args.path}`);

@@ -2,6 +2,7 @@
  * Compilation Tool Handlers for Remix MCP Server
  */
 
+import { CompilerAbstract } from '@remix-project/remix-solidity';
 import { IMCPToolResult } from '../../types/mcp';
 import { BaseToolHandler } from '../registry/RemixToolRegistry';
 import {
@@ -92,13 +93,6 @@ export class SolidityCompileHandler extends BaseToolHandler {
         };
       }
 
-      // if (args.version) compilerConfig.version = args.version;
-      // if (args.optimize !== undefined) compilerConfig.optimize = args.optimize;
-      // if (args.runs) compilerConfig.runs = args.runs;
-      // if (args.evmVersion) compilerConfig.evmVersion = args.evmVersion;
-
-      // await plugin.call('solidity' as any, 'setCompilerConfig', JSON.stringify(compilerConfig));
-
       let compilationResult: any;
       if (args.file) {
         // Compile specific file - need to use plugin API or direct compilation
@@ -106,8 +100,13 @@ export class SolidityCompileHandler extends BaseToolHandler {
         const contract = {}
         contract[args.file] = { content: content }
 
-        const compilerPayload = await plugin.call('solidity' as any, 'compileWithParameters', contract, compilerConfig)
+        const compilerPayload: CompilerAbstract = await plugin.call('solidity' as any, 'compileWithParameters', contract, compilerConfig)
         await plugin.call('solidity' as any, 'compile', args.file) // this will enable the UI
+        const errors = compilerPayload.getErrors(false)
+        console.log('Compilation errors:', errors)
+        if (errors && errors.length > 0) {
+          return this.createErrorResult(`Compilation failed with errors: ${errors.map((e) => e.formattedMessage).join('; ')}`);
+        }        
         compilationResult = compilerPayload
       } else {
         return this.createErrorResult(`Compilation failed: Workspace compilation not yet implemented. The argument file is not provided`);

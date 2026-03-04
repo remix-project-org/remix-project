@@ -79,6 +79,23 @@ export class CompilerAbstract {
     return this.source
   }
 
+  getErrors (includeWarnings: boolean = false) {
+    const errors = []
+    if (this.data.error) {
+      if (includeWarnings || this.data.error.severity !== 'warning') {
+        errors.push(this.data.error)
+      }
+    }
+    if (this.data.errors) {
+      if (includeWarnings) {
+        errors.push(...this.data.errors)
+      } else {
+        errors.push(...this.data.errors.filter(error => error.severity !== 'warning'))
+      }
+    }
+    return errors
+  }
+
   private async resolvePaths (plugin: Plugin) {
     const mapFilePaths = {}
     try {
