@@ -26,7 +26,7 @@ interface IRemixAppUi {
 const RemixApp = (props: IRemixAppUi) => {
   const [appReady, setAppReady] = useState<boolean>(false)
   const [showManagePreferencesDialog, setShowManagePreferencesDialog] = useState<boolean>(false)
-  const [hideSidePanel, setHideSidePanel] = useState<boolean>(false)
+  const [hideSidePanel, setHideSidePanel] = useState<boolean>(true)
   const [hidePinnedPanel, setHidePinnedPanel] = useState<boolean>(props.app.desktopClientMode || true)
   const [maximiseLeftTrigger, setMaximiseLeftTrigger] = useState<number>(0)
   const [enhanceLeftTrigger, setEnhanceLeftTrigger] = useState<number>(0)

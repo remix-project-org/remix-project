@@ -3,7 +3,7 @@ import { bytesToHex } from '@ethereumjs/util'
 import { trackMatomoEventAsync } from '@remix-api'
 import { hash } from '@remix-project/remix-lib'
 import { createNonClashingNameAsync } from '@remix-ui/helper'
-import { TEMPLATE_METADATA, TEMPLATE_NAMES } from '../utils/constants'
+import { TEMPLATE_METADATA } from '../utils/constants'
 import { TemplateType } from '../types'
 import IpfsHttpClient from 'ipfs-http-client'
 import axios, { AxiosResponse } from 'axios'
@@ -181,7 +181,10 @@ export const createWorkspace = async (
         plugin.call('notification', 'toast', 'Creating initial git commit ...')
 
         await dgitPlugin.call('dgit', 'init')
-        if (!isEmpty) await loadWorkspacePreset(workspaceTemplateName, opts, contractContent, contractName)
+        if (!isEmpty) {
+          const openPath = await loadWorkspacePreset(workspaceTemplateName, opts, contractContent, contractName)
+          if (openPath) await plugin.fileManager.openFile(openPath)
+        }
         const status = await dgitPlugin.call('dgitApi', 'status', { ref: 'HEAD' })
 
         Promise.all(
@@ -257,7 +260,8 @@ export const populateWorkspace = async (
       })
     }, 5000)
   } else if (!isEmpty && !(isGitRepo && createCommit)) {
-    await loadWorkspacePreset(workspaceTemplateName, opts, contractContent, contractName)
+    const openPath = await loadWorkspacePreset(workspaceTemplateName, opts, contractContent, contractName)
+    if (openPath) await plugin.fileManager.openFile(openPath)
   }
   cb && cb(null)
   if (isGitRepo) {
@@ -310,6 +314,10 @@ export const decodeBase64 = (b64Payload: string) => {
   const raw = atob(decodeURIComponent(b64Payload));
   const bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
+}
+
+const isReadme = (path: string) => {
+  return ['readme', 'readme.md', 'readme.txt'].includes(path.toLowerCase())
 }
 
 export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDefault', opts?, contractContent?: string, contractName?: string) => {
@@ -426,7 +434,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
         )
       }
       const obj = {}
-
+      let openPath = ''
       for (const [element] of Object.entries(data.files)) {
         const path = element.replace(/\.\.\./g, '/')
         let value
@@ -441,12 +449,15 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
           obj['/' + path] = { content: JSON.stringify(value.content, null, '\t') }
         } else
           obj['/' + path] = value
+
+        if (!openPath || isReadme(path)) openPath = path
       }
       plugin.fileManager.setBatchFiles(obj, 'workspace', true, (errorLoadingFile) => {
         if (errorLoadingFile) {
           dispatch(displayNotification('', errorLoadingFile.message || errorLoadingFile, 'OK', null, () => {}, null))
         }
       })
+      return openPath
     } catch (e) {
       dispatch(
         displayNotification(
@@ -466,6 +477,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
 
   default:
     try {
+      let openPath = ''
       const templateList = Object.keys(templateWithContent)
       if (!templateList.includes(template)) break
 
@@ -490,10 +502,16 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
           } else {
             await workspaceProvider.set(uniqueFileName, files[file])
           }
+          if ((uniqueFileName.indexOf('contracts/') >= 0 || uniqueFileName.indexOf('ssrc/') >= 0) && !openPath) {
+            openPath = uniqueFileName
+          } else if (isReadme(uniqueFileName)) {
+            openPath = uniqueFileName
+          }
         } catch (error) {
           console.error(error)
         }
       }
+      return openPath || Object.keys(files)[0]
     } catch (e) {
       dispatch(
         displayNotification(

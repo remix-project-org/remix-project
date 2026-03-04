@@ -316,6 +316,7 @@ export default class Filepanel extends ViewPlugin {
     }
     console.log('setting workspace', workspace)
     this.emit('setWorkspace', workspace)
+    this.call('sidePanel', 'showContent', 'filePanel')
   }
 
   switchToWorkspace(workspaceName) {

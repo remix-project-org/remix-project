@@ -1097,6 +1097,7 @@ export function Workspace() {
             }}
           >
             <div className="h-100">
+              {currentWorkspace === NO_WORKSPACE && <span className="text-muted text-center d-block">No workspace selected</span>}
               {(global.fs.browser.isRequestingWorkspace || global.fs.browser.isRequestingCloning) && (
                 <div className="text-center py-5">
                   <i className="fas fa-spinner fa-pulse fa-2x"></i>

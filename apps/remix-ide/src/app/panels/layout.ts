@@ -88,7 +88,7 @@ export class Layout extends Plugin {
     this.on('manager', 'activate', (profile: Profile) => {
       switch (profile.name) {
       case 'filePanel':
-        this.call('menuicons', 'select', 'filePanel')
+        // this.call('menuicons', 'select', 'filePanel')
         break
       }
     })
