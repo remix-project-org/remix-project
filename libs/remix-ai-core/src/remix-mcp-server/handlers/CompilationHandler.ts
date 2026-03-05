@@ -106,7 +106,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
         console.log('Compilation errors:', errors)
         if (errors && errors.length > 0) {
           return this.createErrorResult(`Compilation failed with errors: ${errors.map((e) => e.formattedMessage).join('; ')}`);
-        }        
+        }
         compilationResult = compilerPayload
       } else {
         return this.createErrorResult(`Compilation failed: Workspace compilation not yet implemented. The argument file is not provided`);
