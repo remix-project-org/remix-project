@@ -334,7 +334,7 @@ export const DebugLayout = ({
 
   const renderJsonValue = (value: any, key: string, path: string, depth: number = 0): JSX.Element => {
     const isExpanded = expandedObjectPaths.has(path)
-    const indent = depth * 12
+    const indent = depth * 8
 
     if (Array.isArray(value)) {
       const hasItems = value.length > 0
@@ -364,7 +364,7 @@ export const DebugLayout = ({
                   return renderJsonValue(item, String(index), itemPath, depth + 1)
                 }
                 return (
-                  <div key={itemPath} className="json-line" style={{ marginLeft: `${(depth + 1) * 12}px` }}>
+                  <div key={itemPath} className="json-line" style={{ marginLeft: `${(depth + 1) * 8}px` }}>
                     <span className="json-expand-icon-placeholder"></span>
                     <span data-id={`${key}-json-value`} className="json-value">{JSON.stringify(item)}</span>
                     {index < value.length - 1 && <span className="json-comma">,</span>}
@@ -410,7 +410,7 @@ export const DebugLayout = ({
                   return renderJsonValue(value[objKey], objKey, objPath, depth + 1)
                 }
                 return (
-                  <div key={objPath} className="json-line" style={{ marginLeft: `${(depth + 1) * 12}px` }}>
+                  <div key={objPath} className="json-line" style={{ marginLeft: `${(depth + 1) * 8}px` }}>
                     <span className="json-expand-icon-placeholder"></span>
                     <span className="json-key">{objKey}</span>
                     <span className="json-separator">: </span>
@@ -890,7 +890,7 @@ export const DebugLayout = ({
               return <div key={path} data-id={dataId}>{renderJsonValue(value, key, path, 1)}</div>
             }
             return (
-              <div key={path} className="json-line" style={{ marginLeft: '12px' }} data-id={dataId}>
+              <div key={path} className="json-line" style={{ marginLeft: '8px' }} data-id={dataId}>
                 <span className="json-expand-icon-placeholder"></span>
                 <span className="json-key">{key}</span>
                 <span className="json-separator">: </span>
@@ -913,7 +913,7 @@ export const DebugLayout = ({
           </div>
 
           {/* Opcode - Custom Renderer */}
-          <div style={{ marginLeft: '12px' }}>
+          <div style={{ marginLeft: '8px' }}>
             <div className="json-line" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <i
                 className={`fas ${expandedObjectPaths.has('root.opcode') ? 'fa-minus-square' : 'fa-plus-square'} json-expand-icon`}
@@ -952,7 +952,7 @@ export const DebugLayout = ({
               return renderJsonValue(value, 'callStack', path, 1)
             }
             return (
-              <div key={path} className="json-line" style={{ marginLeft: '12px' }}>
+              <div key={path} className="json-line" style={{ marginLeft: '8px' }}>
                 <span className="json-expand-icon-placeholder"></span>
                 <span className="json-key">callStack</span>
                 <span className="json-separator">: </span>
@@ -970,7 +970,7 @@ export const DebugLayout = ({
               return renderJsonValue(value, 'stack', path, 1)
             }
             return (
-              <div key={path} className="json-line" style={{ marginLeft: '12px' }}>
+              <div key={path} className="json-line" style={{ marginLeft: '8px' }}>
                 <span className="json-expand-icon-placeholder"></span>
                 <span className="json-key">stack</span>
                 <span className="json-separator">: </span>
@@ -988,7 +988,7 @@ export const DebugLayout = ({
               return renderJsonValue(value, 'memory', path, 1)
             }
             return (
-              <div key={path} className="json-line" style={{ marginLeft: '12px' }}>
+              <div key={path} className="json-line" style={{ marginLeft: '8px' }}>
                 <span className="json-expand-icon-placeholder"></span>
                 <span className="json-key">memory</span>
                 <span className="json-separator">: </span>
@@ -1053,7 +1053,7 @@ export const DebugLayout = ({
           <i className={`fas ${expandedSections.transactionDetails ? 'fa-chevron-down' : 'fa-chevron-right'}`} style={{ fontSize: '0.75rem', marginRight: '1rem', color: 'var(--bs-body-color)' }}></i>
         </div>
         {expandedSections.transactionDetails && (
-          <div className="debug-section-content ms-3">
+          <div className="debug-section-content debug-section-scrollable ms-3">
             {renderGlobalVariables()}
           </div>
         )}

@@ -655,7 +655,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
       )}
 
       {state.debugging && state.sourceLocationStatus && (
-        <div className="text-warning mt-3">
+        <div className="text-warning mt-1 ms-3">
           <i className="fas fa-exclamation-triangle" aria-hidden="true"></i> {state.sourceLocationStatus}
         </div>
       )}

@@ -77,13 +77,7 @@
 }
 
 .debug-section-content {
-  padding: 1rem;
-}
-
-.debug-section-trace .debug-section-content {
-  padding-left: 0;
-  padding-right: 0.5rem;
-  padding-bottom: 0;
+  padding: 0.5rem;
 }
 
 .debug-section-scrollable {
@@ -237,7 +231,7 @@
 .call-trace-step {
   color: var(--text-muted);
   font-weight: 600;
-  min-width: 3rem;
+  min-width: 2rem;
   max-width: 3rem;
   font-family: monospace;
   font-size: 0.7rem;
@@ -389,7 +383,6 @@
 .json-renderer {
   font-size: 0.75rem;
   line-height: 1.6;
-  padding: 0.75rem;
   padding-bottom: 0;
   word-wrap: break-word;
   word-break: break-word;
@@ -400,7 +393,6 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.1rem 0;
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
