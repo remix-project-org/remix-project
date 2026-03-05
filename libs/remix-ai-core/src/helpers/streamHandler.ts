@@ -61,7 +61,7 @@ export const HandleStreamResponse = async (streamResponse, cb: (streamText: stri
         }
       } catch (error) {
         console.error('Error parsing JSON:', error);
-        const errorMessage = "Error: Unable to decode the AI response. Please try again.";
+        const errorMessage = "Network Error: Unable to process the AI response. Please try again";
         cb(errorMessage);
         done_cb?.(errorMessage);
         return;
@@ -215,8 +215,10 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
         } catch (e) {
           console.error("⚠️ OpenAI Stream parse error:", e);
           console.error("Problematic JSON string:", jsonStr);
-          // Skip this chunk and continue processing the stream
-          continue;
+          const errorMessage = "Network Error: Unable to process the AI response. Please try again";
+          cb(errorMessage);
+          done_cb?.(errorMessage, threadId);
+          return;
         }
       }
     }
@@ -298,8 +300,10 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
         } catch (e) {
           console.error("MistralAI Stream parse error:", e);
           console.error("Problematic JSON string:", jsonStr);
-          // Skip this chunk and continue processing the stream
-          continue;
+          const errorMessage = "Network Error: Unable to process the AI response. Please try again";
+          cb(errorMessage);
+          done_cb?.(errorMessage, threadId);
+          return;
         }
       }
     }
@@ -413,8 +417,10 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
         } catch (e) {
           console.error("Anthropic Stream parse error:", e);
           console.error("Problematic JSON string:", jsonStr);
-          // Skip this chunk and continue processing the stream
-          continue;
+          const errorMessage = "Network Error: Unable to process the AI response. Please try again";
+          cb(errorMessage);
+          done_cb?.(errorMessage, "");
+          return;
         }
       }
     }
@@ -509,8 +515,12 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
             return;
           }
         } catch (parseError) {
-          console.warn("Ollama: Skipping invalid JSON line:", line);
-          continue;
+          console.error("Ollama Stream parse error:", parseError);
+          console.error("Problematic JSON line:", line);
+          const errorMessage = "Network Error: Unable to process the AI response. Please try again";
+          cb(errorMessage);
+          done_cb?.(errorMessage);
+          return;
         }
       }
     }
