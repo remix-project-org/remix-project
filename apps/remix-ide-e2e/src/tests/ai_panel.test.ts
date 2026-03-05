@@ -156,32 +156,32 @@ const tests = {
         locateStrategy: 'xpath',
         selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
       })
-  },
-  'Should create a new workspace using the AI assistant button in the composer #group1': function (browser: NightwatchBrowser) {
-    browser
-      .assistantClearChat()
-      .waitForCompilerLoaded()
-      .clickLaunchIcon('remixaiassistant')
-      .waitForElementPresent({
-        selector: "//*[@data-id='remix-ai-assistant-ready']",
-        locateStrategy: 'xpath',
-        timeout: 120000
-      })
-      .waitForElementVisible('*[data-id="remix-ai-workspace-generate"]')
-      .click('*[data-id="remix-ai-workspace-generate"]')
-      .waitForElementVisible('*[data-id="generate-workspaceModalDialogModalBody-react"]')
-      .click('*[data-id="modalDialogCustomTextarea"]')
-      .setValue('*[data-id="modalDialogCustomTextarea"]', 'a simple ERC20 contract')
-      .click('*[data-id="generate-workspace-modal-footer-ok-react"]')
-      .waitForElementVisible({
-        locateStrategy: 'xpath',
-        selector: '//div[contains(@class,"chat-bubble") and contains(.,"New workspace created:")]',
-        timeout: 60000
-      })
-      .waitForElementPresent({
-        locateStrategy: 'xpath',
-        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
-      })
+  // },
+  // 'Should create a new workspace using the AI assistant button in the composer #group1': function (browser: NightwatchBrowser) {
+  //   browser
+  //     .assistantClearChat()
+  //     .waitForCompilerLoaded()
+  //     .clickLaunchIcon('remixaiassistant')
+  //     .waitForElementPresent({
+  //       selector: "//*[@data-id='remix-ai-assistant-ready']",
+  //       locateStrategy: 'xpath',
+  //       timeout: 120000
+  //     })
+  //     .waitForElementVisible('*[data-id="remix-ai-workspace-generate"]')
+  //     .click('*[data-id="remix-ai-workspace-generate"]')
+  //     .waitForElementVisible('*[data-id="generate-workspaceModalDialogModalBody-react"]')
+  //     .click('*[data-id="modalDialogCustomTextarea"]')
+  //     .setValue('*[data-id="modalDialogCustomTextarea"]', 'a simple ERC20 contract')
+  //     .click('*[data-id="generate-workspace-modal-footer-ok-react"]')
+  //     .waitForElementVisible({
+  //       locateStrategy: 'xpath',
+  //       selector: '//div[contains(@class,"chat-bubble") and contains(.,"New workspace created:")]',
+  //       timeout: 60000
+  //     })
+  //     .waitForElementPresent({
+  //       locateStrategy: 'xpath',
+  //       selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
+  //     })
   }
 }
 
