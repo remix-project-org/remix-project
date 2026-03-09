@@ -296,7 +296,7 @@ function EditHtmlTemplate(): JSX.Element {
     const injectionScript = `
       <script>
         window.__QUICK_DAPP_CONFIG__ = {
-          logo: "${logoDataUrl}",
+          logo: ${JSON.stringify(logoDataUrl || '')},
           title: ${JSON.stringify(title || '')},
           details: ${JSON.stringify(details || '')}
         };

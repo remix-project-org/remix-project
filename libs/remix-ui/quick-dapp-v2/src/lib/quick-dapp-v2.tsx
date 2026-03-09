@@ -13,22 +13,7 @@ import './App.css';
 
 const QUICK_DAPP_FEATURE = 'dapp:quickdapp';
 
-// Helper to get network name from chainId
-function getNetworkName(chainId: string | number): string {
-  const chainIdStr = String(chainId);
-  const networks: Record<string, string> = {
-    '1': 'Ethereum Mainnet',
-    '5': 'Goerli',
-    '11155111': 'Sepolia',
-    '137': 'Polygon',
-    '80001': 'Mumbai',
-    '8453': 'Base',
-    '84532': 'Base Sepolia',
-    '10': 'Optimism',
-    '42161': 'Arbitrum One',
-  };
-  return networks[chainIdStr] || (chainIdStr.startsWith('vm') ? 'Remix VM' : `Chain ${chainIdStr}`);
-}
+import { getNetworkName } from './utils/networks';
 
 export interface RemixUiQuickDappV2Props {
   plugin: QuickDappV2PluginApi;

@@ -144,7 +144,7 @@ function DeployPanel(): JSX.Element {
         logoDataUrl = logo;
       }
 
-      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
+      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${JSON.stringify(logoDataUrl || '')},title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
       const walletScript = generateWalletSelectionScript();
 
       let modifiedHtml = indexHtmlContent;
@@ -316,8 +316,13 @@ function DeployPanel(): JSX.Element {
                     if (typeof window.ethereum === 'undefined') throw new Error("MetaMask missing");
                     const provider = new ethers.BrowserProvider(window.ethereum as any);
                     const accounts = await provider.send('eth_requestAccounts', []);
+                    const ensAuthToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
                     const response = await fetch(`${REMIX_ENDPOINT_ENS}/register`, {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        ...(ensAuthToken ? { 'Authorization': `Bearer ${ensAuthToken}` } : {})
+                      },
                       body: JSON.stringify({ label: ensName, owner: accounts[0], contentHash: targetCid })
                     });
                     const data = await response.json();
