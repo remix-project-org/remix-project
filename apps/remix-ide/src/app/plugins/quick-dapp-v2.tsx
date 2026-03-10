@@ -56,7 +56,7 @@ export class QuickDappV2 extends ViewPlugin {
   }
 
   onDeactivation() {
-    // Plugin deactivated
+    this.listenersRegistered = false
   }
 
   setDispatch(dispatch: React.Dispatch<any>) {

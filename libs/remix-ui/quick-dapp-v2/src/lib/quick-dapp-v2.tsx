@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer, useState, useMemo, useRef } from 'react';
+import { LoginModal } from '@remix-ui/login';
 import { IntlProvider } from 'react-intl';
 import CreateInstance from './components/CreateInstance';
 import EditHtmlTemplate from './components/EditHtmlTemplate';
@@ -33,6 +34,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   // Permission gating state
   const [hasAccess, setHasAccess] = useState<boolean | null>(null); // null = checking
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // DappManager now receives the plugin from props instead of a singleton
   const dappManager = useMemo(() => new DappManager(plugin as any), [plugin]);
@@ -113,7 +115,6 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           : null;
 
         if (!token) {
-          plugin.call('notification', 'toast', 'Please sign in to use QuickDapp V2. This feature is available to beta testers.');
           return;
         }
 
@@ -202,6 +203,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       const workspaceName = data.slug;
 
       try {
+        plugin.call('ai-dapp-generator', 'consumePendingResult', workspaceName).catch(() => {})
         await dappManager.saveGeneratedFiles(workspaceName, data.content);
 
         if (data.isUpdate) {
@@ -324,6 +326,19 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           const elapsed = now - processingStartedAt;
 
           if (status === 'creating' || status === 'updating') {
+            // Try to recover buffered results from ai-dapp-generator
+            try {
+              const pendingResult = await plugin.call('ai-dapp-generator', 'consumePendingResult', dapp.slug)
+              if (pendingResult) {
+                await dappManager.saveGeneratedFiles(dapp.slug, pendingResult.content)
+                await dappManager.updateDappConfig(dapp.slug, { status: 'created', processingStartedAt: null })
+                plugin.call('notification', 'toast', `DApp recovered: files saved for '${dapp.name}'`)
+                continue
+              }
+            } catch (e) {
+              console.warn('[QuickDapp] Could not check pending results:', e)
+            }
+
             if (elapsed < FIVE_MINUTES) {
               dispatch({
                 type: 'SET_DAPP_PROCESSING',
@@ -432,9 +447,17 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
               QuickDapp V2 is currently available to beta testers only. Please contact the Remix team to request access.
             </p>
           ) : (
-            <p className="text-muted" style={{ maxWidth: '400px' }}>
-              Please sign in to access QuickDapp V2. This feature is available to beta testers.
-            </p>
+            <>
+              <p className="text-muted" style={{ maxWidth: '400px' }}>
+                Please sign in to access QuickDapp V2. This feature is available to beta testers.
+              </p>
+              <button
+                className="btn btn-sm btn-primary mt-2"
+                onClick={() => setShowLoginModal(true)}
+              >
+                Sign In
+              </button>
+            </>
           )}
         </div>
       );
@@ -530,6 +553,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           {renderContent()}
         </div>
         <LoadingScreen />
+        {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} plugin={plugin} />}
       </IntlProvider>
     </AppContext.Provider>
   );
