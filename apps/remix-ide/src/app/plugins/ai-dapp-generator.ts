@@ -289,13 +289,6 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async processUpdate(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string) {
-    const context = this.getOrCreateContext(address);
-
-    if (context.messages.length === 0) {
-      await this.call('terminal', 'log', { type: 'error', value: 'No context found for this dapp.' });
-      return;
-    }
-
     const ctx: PromptContext = {
       contract: { address, abi: [], chainId: 1 },
       isUpdate: true,
@@ -308,32 +301,37 @@ export class AIDappGenerator extends Plugin {
       currentFiles,
     }
     const userMessage = buildUserMessage(ctx, msgOptions)
-    context.messages.push({ role: 'user', content: userMessage });
+
+    // Send only the current request — no history needed since currentFiles
+    // already contains the full project state for every update.
+    const messages = [{ role: 'user', content: userMessage }];
 
     try {
-      const htmlContent = await this.callLLMAPI(context.messages, systemPrompt, hasImage);
+      const htmlContent = await this.callLLMAPI(messages, systemPrompt, hasImage, true);
 
-      const pages = parsePages(htmlContent);
+      const patchedPages = parsePages(htmlContent);
 
-      if (Object.keys(pages).length === 0) {
+      if (Object.keys(patchedPages).length === 0) {
         throw new Error("AI failed to return valid file structure.");
       }
 
-      context.messages.push({ role: 'assistant', content: htmlContent });
-      this.saveContext(address, context);
+      // Merge: start with current files, overwrite only the ones LLM returned
+      const mergedPages: Record<string, string> = { ...currentFiles };
+      for (const [file, content] of Object.entries(patchedPages)) {
+        mergedPages[file] = content;
+      }
 
-      this.pendingResults.set(slug, { address, content: pages, isUpdate: true })
+      this.pendingResults.set(slug, { address, content: mergedPages, isUpdate: true })
       try {
         this.emit('dappGenerated', {
           address,
           slug,
-          content: pages,
+          content: mergedPages,
           isUpdate: true
         });
       } catch (_) {}
 
     } catch (error: any) {
-      context.messages.pop();
       console.error('[AI-DAPP] Update failed:', error);
       try { this.call('terminal', 'log', { type: 'error', value: `Update failed: ${error.message}` }); } catch (_) {}
       try {
@@ -483,7 +481,7 @@ export class AIDappGenerator extends Plugin {
     return pages
   }
 
-  private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false): Promise<string> {
+  private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false, isUpdate: boolean = false): Promise<string> {
     const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
     // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
@@ -494,7 +492,8 @@ export class AIDappGenerator extends Plugin {
         body: JSON.stringify({
           messages,
           systemPrompt,
-          hasImage
+          hasImage,
+          isUpdate
         }),
       });
 

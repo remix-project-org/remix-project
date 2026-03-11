@@ -576,10 +576,11 @@ ${descText}
 ${currentFiles}
 
 **RULES:**
-1. Return ALL project files (index.html, src/App.jsx, etc.) using START_TITLE format.
+1. Return ONLY the files that need changes using START_TITLE format. Do NOT return files that are unmodified.
 2. Do NOT provide explanations — only code blocks.
 3. You are allowed to create NEW files if the request requires new features.
 4. If \`App.jsx\` is getting too large, refactor parts into \`src/components/\`.
+5. When returning a modified file, return the COMPLETE file content — not just the changed portion.
 `
   },
 
