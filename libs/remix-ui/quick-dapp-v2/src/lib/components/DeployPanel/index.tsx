@@ -42,6 +42,8 @@ function DeployPanel(): JSX.Element {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(true);
   const [isEnsOpen, setIsEnsOpen] = useState(true);
+  const [isShareOpen, setIsShareOpen] = useState(true);
+  const [copiedField, setCopiedField] = useState('');
 
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -147,9 +149,22 @@ function DeployPanel(): JSX.Element {
       const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${JSON.stringify(logoDataUrl || '')},title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
       const walletScript = generateWalletSelectionScript();
 
+      const ogUrl = activeDapp?.deployment?.ensDomain
+        ? `https://${activeDapp.deployment.ensDomain}.limo`
+        : '';
+      const ogTags = [
+        `<meta property="og:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:type" content="website" />`,
+        ogUrl ? `<meta property="og:url" content="${ogUrl}" />` : '',
+        `<meta name="twitter:card" content="summary" />`,
+        `<meta name="twitter:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
+        `<meta name="twitter:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+      ].filter(Boolean).join('\n    ');
+
       let modifiedHtml = indexHtmlContent;
-      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n</head>`);
-      else modifiedHtml = `<html><head>${injectionScript}</head>${modifiedHtml}</html>`;
+      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n    ${ogTags}\n</head>`);
+      else modifiedHtml = `<html><head>${injectionScript}\n${ogTags}</head>${modifiedHtml}</html>`;
 
       console.log("[IPFS Deploy] indexHtml length:", indexHtmlContent.length, "scriptRegexTest:", /<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/.test(indexHtmlContent));
       if (!/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/.test(indexHtmlContent)) { console.log("[IPFS Deploy] Script tags:", indexHtmlContent.match(/<script[^>]*>/g)); console.log("[IPFS Deploy] HTML head:", indexHtmlContent.substring(0, 500)); }
@@ -377,6 +392,45 @@ function DeployPanel(): JSX.Element {
                 </Alert>
               )}
               {ensResult.error && <Alert variant="danger" className="mt-3">{ensResult.error}</Alert>}
+            </Card.Body>
+          </Collapse>
+        </Card>
+      )}
+
+      {currentEnsDomain && (
+        <Card className="mb-2">
+          <Card.Header onClick={() => setIsShareOpen(!isShareOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+            <span><i className="fas fa-share-alt me-2"></i>Share</span>
+            <i className={`fas ${isShareOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+          </Card.Header>
+          <Collapse in={isShareOpen}>
+            <Card.Body>
+              <div className="d-flex align-items-center bg-light border rounded p-2 mb-3">
+                <code className="text-truncate flex-grow-1 small" style={{ color: '#0d6efd' }}>
+                  https://{currentEnsDomain}.limo
+                </code>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="flex-shrink-0 p-0 ms-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://${currentEnsDomain}.limo`);
+                    setCopiedField('url');
+                    setTimeout(() => setCopiedField(''), 2000);
+                  }}
+                >
+                  {copiedField === 'url' ? <i className="fas fa-check text-success"></i> : <i className="fas fa-copy text-muted"></i>}
+                </Button>
+              </div>
+              <div className="d-grid">
+                <Button
+                  variant="dark"
+                  size="sm"
+                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDapp ⚡\n\nhttps://${currentEnsDomain}.limo`)}`, '_blank')}
+                >
+                  <i className="fab fa-x-twitter me-1"></i> Post on X
+                </Button>
+              </div>
             </Card.Body>
           </Collapse>
         </Card>

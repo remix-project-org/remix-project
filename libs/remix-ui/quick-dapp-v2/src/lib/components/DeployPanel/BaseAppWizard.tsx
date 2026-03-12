@@ -45,6 +45,7 @@ const BaseAppWizard: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalContent, setSuccessModalContent] = useState({ title: '', body: '' });
   const [showResetWarning, setShowResetWarning] = useState(false);
+  const [copiedField, setCopiedField] = useState('');
 
   useEffect(() => {
     if (activeDapp?.config?.isBaseMiniApp) {
@@ -188,9 +189,22 @@ const BaseAppWizard: React.FC = () => {
       const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
       const walletScript = generateWalletSelectionScript();
 
+      const ensUrlForOG = savedWizardState.ensName
+        ? `https://${savedWizardState.ensName}.remixdapp.eth.limo`
+        : '';
+      const ogTags = [
+        `<meta property="og:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:type" content="website" />`,
+        ensUrlForOG ? `<meta property="og:url" content="${ensUrlForOG}" />` : '',
+        `<meta name="twitter:card" content="summary" />`,
+        `<meta name="twitter:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
+        `<meta name="twitter:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+      ].filter(Boolean).join('\n    ');
+
       let modifiedHtml = indexHtmlContent;
-      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n</head>`);
-      else modifiedHtml = `<html><head>${injectionScript}</head>${modifiedHtml}</html>`;
+      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n    ${ogTags}\n</head>`);
+      else modifiedHtml = `<html><head>${injectionScript}\n${ogTags}</head>${modifiedHtml}</html>`;
 
       const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
       modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
@@ -550,6 +564,36 @@ const BaseAppWizard: React.FC = () => {
                     <strong>Docs:</strong> For advanced configuration, see <a href="https://www.base.org/build/mini-apps" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base Mini Apps Documentation <i className="fas fa-external-link-alt small"></i></a>.
                   </li>
                 </ul>
+              </div>
+            </div>
+            <hr className="my-3" />
+            <div className="mb-3">
+              <h6 className="fw-bold text-muted small mb-2"><i className="fas fa-share-alt me-1"></i>Share</h6>
+              <div className="d-flex align-items-center bg-light border rounded p-2 mb-2">
+                <code className="text-truncate flex-grow-1 small" style={{ color: '#0d6efd' }}>
+                  {ensUrl}
+                </code>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="flex-shrink-0 p-0 ms-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(ensUrl);
+                    setCopiedField('url');
+                    setTimeout(() => setCopiedField(''), 2000);
+                  }}
+                >
+                  {copiedField === 'url' ? <i className="fas fa-check text-success"></i> : <i className="fas fa-copy text-muted"></i>}
+                </Button>
+              </div>
+              <div className="d-grid">
+                <Button
+                  variant="dark"
+                  size="sm"
+                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDapp ⚡\n\n${ensUrl}`)}`, '_blank')}
+                >
+                  <i className="fab fa-x-twitter me-1"></i> Post on X
+                </Button>
               </div>
             </div>
             <hr className="my-3" />
