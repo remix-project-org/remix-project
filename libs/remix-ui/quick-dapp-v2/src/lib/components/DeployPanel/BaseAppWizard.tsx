@@ -1,6 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Form, Button, Alert, Card, Spinner, Modal, ListGroup, Badge, InputGroup } from 'react-bootstrap';
 import { ethers } from 'ethers';
+import { toPng } from 'html-to-image';
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
@@ -192,16 +193,51 @@ const BaseAppWizard: React.FC = () => {
       const ensUrlForOG = savedWizardState.ensName
         ? `https://${savedWizardState.ensName}.remixdapp.eth.limo`
         : '';
+
+      // Step 1: Capture screenshot & upload to IPFS to get a stable URL
+      let screenshotBlob: Blob | null = null;
+      let screenshotIpfsUrl = '';
+      try {
+        const iframe = document.querySelector('[data-id="dapp-preview-iframe"]') as HTMLIFrameElement;
+        if (iframe?.contentDocument?.body) {
+          const dataUrl = await toPng(iframe.contentDocument.body, {
+            quality: 0.8, width: 1200, height: 630, backgroundColor: '#ffffff',
+            cacheBust: true, skipAutoScale: true, pixelRatio: 1,
+            style: { width: '1200px', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' },
+          });
+          const res = await fetch(dataUrl);
+          screenshotBlob = await res.blob();
+
+          // Upload screenshot to IPFS first
+          const ssFormData = new FormData();
+          ssFormData.append('files', screenshotBlob, 'screenshot.png');
+          const ssHeaders: Record<string, string> = {};
+          const ssToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
+          if (ssToken) ssHeaders['Authorization'] = `Bearer ${ssToken}`;
+          const ssResponse = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: ssFormData, headers: ssHeaders });
+          if (ssResponse.ok) {
+            const ssData = await ssResponse.json();
+            screenshotIpfsUrl = `https://ipfs.io/ipfs/${ssData.ipfsHash}/screenshot.png`;
+          }
+        }
+      } catch (e) {
+        console.warn('[IPFS Deploy] Screenshot upload failed, using fallback', e);
+      }
+
+      // Step 2: Build OG tags with screenshot IPFS URL
+      const ogImageUrl = screenshotIpfsUrl || 'https://remix.ethereum.org/assets/img/remix-logo-blue.png';
+      const twitterCardType = screenshotIpfsUrl ? 'summary_large_image' : 'summary';
+
       const ogTags = [
         `<meta property="og:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
         `<meta property="og:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
         `<meta property="og:type" content="website" />`,
         ensUrlForOG ? `<meta property="og:url" content="${ensUrlForOG}" />` : '',
-        `<meta name="twitter:card" content="summary" />`,
+        `<meta name="twitter:card" content="${twitterCardType}" />`,
         `<meta name="twitter:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
         `<meta name="twitter:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
-        `<meta property="og:image" content="https://remix.ethereum.org/assets/img/remix-logo-blue.png" />`,
-        `<meta name="twitter:image" content="https://remix.ethereum.org/assets/img/remix-logo-blue.png" />`,
+        `<meta property="og:image" content="${ogImageUrl}" />`,
+        `<meta name="twitter:image" content="${ogImageUrl}" />`,
       ].filter(Boolean).join('\n    ');
 
       let modifiedHtml = indexHtmlContent;
@@ -212,9 +248,13 @@ const BaseAppWizard: React.FC = () => {
       modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
       modifiedHtml = modifiedHtml.replace(/<link rel="stylesheet"[^>]*href="(?:\/|\.\/)?src\/index\.css"[^>]*>/, '');
 
+      // Step 3: Final IPFS deploy with HTML + screenshot
       const formData = new FormData();
       const htmlBlob = new Blob([modifiedHtml], { type: 'text/html' });
       formData.append('files', htmlBlob, 'index.html');
+      if (screenshotBlob) {
+        formData.append('files', screenshotBlob, 'screenshot.png');
+      }
 
       try {
         const manifestPath = '.well-known/farcaster.json';
