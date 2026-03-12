@@ -160,6 +160,8 @@ function DeployPanel(): JSX.Element {
         `<meta name="twitter:card" content="summary" />`,
         `<meta name="twitter:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
         `<meta name="twitter:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:image" content="https://remix.ethereum.org/assets/img/remix-logo-blue.png" />`,
+        `<meta name="twitter:image" content="https://remix.ethereum.org/assets/img/remix-logo-blue.png" />`,
       ].filter(Boolean).join('\n    ');
 
       let modifiedHtml = indexHtmlContent;
