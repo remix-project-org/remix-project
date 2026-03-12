@@ -287,8 +287,10 @@ export interface QuickDappV2Event extends MatomoEventBase {
   category: 'quick-dapp-v2';
   action:
     | 'generate'
+    | 'generate_figma'
     | 'update'
     | 'deploy_ipfs'
     | 'register_ens'
+    | 'base_app_setup_complete'
     | 'error';
 }

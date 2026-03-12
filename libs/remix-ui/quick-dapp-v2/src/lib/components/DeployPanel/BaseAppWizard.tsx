@@ -226,6 +226,14 @@ const BaseAppWizard: React.FC = () => {
           config: { ...activeDapp.config, title: title || '', details: details || '', logo: logoDataUrl || undefined }
         });
       }
+
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'success',
+        isClick: false
+      });
+
       return data.ipfsHash;
 
     } catch (e: any) {
@@ -265,6 +273,13 @@ const BaseAppWizard: React.FC = () => {
       const ensAuthToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
       if (ensAuthToken) ensHeaders['Authorization'] = `Bearer ${ensAuthToken}`;
 
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'register_ens',
+        name: 'start',
+        isClick: true
+      });
+
       const response = await fetch(`${REMIX_ENDPOINT_ENS}/register`, {
         method: 'POST',
         headers: ensHeaders,
@@ -281,6 +296,13 @@ const BaseAppWizard: React.FC = () => {
       }
 
       const resData = await response.json();
+
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'register_ens',
+        name: 'success',
+        isClick: false
+      });
 
       if (dappManager) {
         const fullDomain = `${savedWizardState.ensName}.remixdapp.eth`;
@@ -304,6 +326,12 @@ const BaseAppWizard: React.FC = () => {
       if (mode === 'initial') {
         completeStepAndGoNext(3);
       } else if (mode === 'finalize') {
+        trackMatomoEvent(plugin as any, {
+          category: 'quick-dapp-v2',
+          action: 'base_app_setup_complete',
+          name: 'success',
+          isClick: false
+        });
         completeStepAndGoNext(5);
         setSuccessModalContent({
           title: 'Base Mini App is Ready!',

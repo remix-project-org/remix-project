@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Form, Button, Card } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
 import './ChatBox.css';
 import { trackMatomoEvent } from '@remix-api'
+import { AppContext } from '../../contexts';
 
 interface Message {
   id: string;
@@ -19,6 +20,7 @@ interface ChatBoxProps {
 
 const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
   const intl = useIntl();
+  const { plugin } = useContext(AppContext);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -60,7 +62,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() && !selectedImage || isLoading) return;
 
-    trackMatomoEvent(this, {
+    trackMatomoEvent(plugin as any, {
       category: 'quick-dapp-v2',
       action: 'update',
       name: 'chat_request',

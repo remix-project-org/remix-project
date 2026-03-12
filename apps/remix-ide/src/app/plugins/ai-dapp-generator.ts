@@ -1,5 +1,6 @@
 import { Plugin } from '@remixproject/engine'
 import { buildSystemPrompt, buildUserMessage, blockchain, PromptContext, BuildUserMessageOptions } from './prompt-blocks'
+import { trackMatomoEvent } from '@remix-api'
 
 const profile = {
   name: 'ai-dapp-generator',
@@ -83,6 +84,7 @@ export class AIDappGenerator extends Plugin {
         } catch (_) {}
       });
     } else {
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate', name: 'start', isClick: true });
       this.processGeneration(options).catch(err => {
         console.error('[AI-DAPP] processGeneration crashed:', err);
         try {
@@ -97,6 +99,7 @@ export class AIDappGenerator extends Plugin {
 
   private async processFigmaGeneration(options: GenerateDappOptions & { slug: string }) {
 
+    trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate_figma', name: 'start', isClick: true });
     await this.call('notification', 'toast', 'Analyzing Figma Design... (This may take time)')
     this.emit('generationProgress', { status: 'started', address: options.address })
 
@@ -158,11 +161,13 @@ export class AIDappGenerator extends Plugin {
         });
       } catch (_) {}
 
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate_figma', name: 'success', isClick: false });
       try {
         await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
       } catch (_) {}
 
     } catch (error: any) {
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'error', name: 'figma_failed', isClick: false });
       console.error('[AI-DAPP] Figma Generation Failed:', error);
       try { this.call('terminal', 'log', { type: 'error', value: error.message }); } catch (_) {}
       try {
@@ -258,11 +263,13 @@ export class AIDappGenerator extends Plugin {
         });
       } catch (_) {}
 
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate', name: 'success', isClick: false });
       try {
         await this.call('notification', 'toast', 'Generation Complete!');
       } catch (_) {}
 
     } catch (error: any) {
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'error', name: 'generate_failed', isClick: false });
       console.error('[AI-DAPP] Generation Failed:', error);
       try { this.call('terminal', 'log', { type: 'error', value: error.message }); } catch (_) {}
       try {
