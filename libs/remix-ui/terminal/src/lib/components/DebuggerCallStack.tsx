@@ -24,9 +24,12 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
     }
 
     plugin.on('debugger', 'scopeSelected', handleScopeSelected)
-
+    plugin.on('debugger', 'startDebugging', () => {
+      setSelectedScope(null)
+    })
     return () => {
-      plugin.off('debugger', 'scopeSelected', handleScopeSelected)
+      plugin.off('debugger', 'scopeSelected')
+      plugin.off('debugger', 'startDebugging')
     }
   }, [plugin])
 
@@ -314,19 +317,12 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
     )
   }
 
-  if (!selectedScope) {
-    return (
-      <div className="debugger-call-stack p-3">
-        <div className="text-muted">Select a call from Call Trace to view execution details</div>
-      </div>
-    )
-  }
-
   return (
     <div className="debugger-call-stack p-3 pt-0">
-      <div className="call-stack-list">
-        {renderExecutionItem(selectedScope, 0)}
-      </div>
+      {!selectedScope ? (<div className="text-muted">Select a call from Call Trace to view execution details</div>) :
+        (<div className="call-stack-list">
+          {renderExecutionItem(selectedScope, 0)}
+        </div>)}
     </div>
   )
 }
