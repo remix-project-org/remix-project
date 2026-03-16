@@ -109,7 +109,7 @@ export function DeployedContractItem({ contract, index, registerRef }: DeployedC
       const chainId = network?.chainId
       const providerName = network?.name === 'VM' ? await plugin.call('udappEnv', 'getSelectedProvider') : chainId
 
-      await plugin.call('fileManager', 'remove', `.deploys/pinned-contracts/${providerName}/${contract.address}.json`)
+      await plugin.call('fileManager', 'remove', `.deploys/pinned-contracts/${providerName}/${contract.address.toLowerCase()}.json`)
     }
 
     dispatch({ type: 'REMOVE_CONTRACT', payload: contract.address })
@@ -122,7 +122,7 @@ export function DeployedContractItem({ contract, index, registerRef }: DeployedC
     const providerName = network?.name === 'VM' ? await plugin.call('udappEnv', 'getSelectedProvider') : chainId
 
     if (contract.isPinned) {
-      await plugin.call('fileManager', 'remove', `.deploys/pinned-contracts/${providerName}/${contract.address}.json`)
+      await plugin.call('fileManager', 'remove', `.deploys/pinned-contracts/${providerName}/${contract.address.toLowerCase()}.json`)
       dispatch({ type: 'UNPIN_CONTRACT', payload: index })
       return
     }
@@ -147,7 +147,7 @@ export function DeployedContractItem({ contract, index, registerRef }: DeployedC
       pinnedAt: Date.now()
     }
 
-    await plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${providerName}/${contract.address}.json`, JSON.stringify(objToSave, null, 2))
+    await plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${providerName}/${contract.address.toLowerCase()}.json`, JSON.stringify(objToSave, null, 2))
 
     dispatch({ type: 'PIN_CONTRACT', payload: { index, pinnedAt: objToSave.pinnedAt, filePath: objToSave.filePath } })
   }
