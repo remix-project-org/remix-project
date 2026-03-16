@@ -147,10 +147,8 @@ export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: Reac
       objToStore[currentChainId] = {}
       localStorage.setItem(aaLocalStorageKey, JSON.stringify(objToStore))
     }
-    if (Object.keys(smartAccounts).length) {
-      safeAddresses = smartAccounts.map(account => account.account)
-      accounts.push(...safeAddresses)
-    }
+    safeAddresses = Object.keys(smartAccounts)
+    if (safeAddresses.length) accounts.push(...safeAddresses)
   }
   if (!accounts) accounts = []
 
