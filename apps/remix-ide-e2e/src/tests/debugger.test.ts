@@ -413,7 +413,7 @@ module.exports = {
     browser
       .clickLaunchIcon('solidity')
       .setSolidityCompilerVersion('soljson-v0.8.7+commit.e28d00a7.js')
-      .addFile('useDebugNodes.sol', sources[5]['useDebugNodes.sol']) // compile contract
+      .addFile('storage.sol', sources[5]['storage.sol']) // compile contract
       .clickLaunchIcon('udapp')
       .connectToExternalHttpProvider('https://remix-rinkeby.ethdevops.io', 'Custom')
       .createContract('') // wait for the compilation to succeed
@@ -522,6 +522,45 @@ module.exports = {
       .waitForElementContainsText('[data-id="owner-json-nested"] [data-id="value-json-value"]', '0xAB8483F64D9C6D1ECF9B849AE677DD3315835CB2', 10000)
       .waitForElementContainsText('[data-id="owner-json-nested"] [data-id="type-json-value"]', 'address', 10000)
   },
+  'Should check execution trace reset #group6': function (this: NightwatchBrowser, browser: NightwatchBrowser) {
+    browser
+      .addFile('storage.sol', sources[5]['storage.sol'])
+      .pause(2000)
+      .clickLaunchIcon('solidity')
+      .click('*[data-id="compilerContainerCompileBtn"]')
+      .pause(3000)
+      .clickLaunchIcon('udapp')
+      .clearConsole()
+      // Deploy the contract
+      .createContract('')
+      .pause(2000)
+      // Start debugging the transaction
+      .debugTransaction(0)
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      .pause(1000)
+      // Verify initial state: execution trace should show the initial message
+      .waitForElementVisible('.debugger-call-stack', 10000)
+      .waitForElementContainsText('.debugger-call-stack .text-muted', 'Select a call from Call Trace to view execution details', 5000)
+      // Select a call from the call trace
+      .waitForElementVisible('*[data-id="call-trace-type-create"]', 10000)
+      .pause(500)
+      .click('*[data-id="call-trace-type-create"]')
+      .pause(1000)
+      // Verify execution trace now shows the execution details (not the initial message)
+      .waitForElementVisible('*[data-id="call-stack-list"]', 10000)
+      .assert.not.elementPresent('*[data-id="select-call-text"]')
+      // Stop debugger
+      .click('*[data-id="debuggerTransactionStartButton"]')
+      .pause(1000)
+      // start debugger again
+      .click('*[data-id="debuggerTransactionStartButton"]')
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      .pause(1000)
+      // Verify initial state: execution trace should show the initial message again (reset successfully)
+      .waitForElementVisible('.debugger-call-stack', 10000)
+      .waitForElementContainsText('*[data-id="select-call-text"]', 'Select a call from Call Trace to view execution details', 5000)
+      .assert.not.elementPresent('*[data-id="call-stack-list"]')
+  }
 }
 
 const sources = [
@@ -612,7 +651,7 @@ const sources = [
     }
   },
   {
-    'useDebugNodes.sol': {
+    'storage.sol': {
       content: `
       // SPDX-License-Identifier: GPL-3.0
 

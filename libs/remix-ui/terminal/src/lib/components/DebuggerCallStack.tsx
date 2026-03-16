@@ -319,8 +319,8 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
 
   return (
     <div className="debugger-call-stack p-3 pt-0">
-      {!selectedScope ? (<div className="text-muted">Select a call from Call Trace to view execution details</div>) :
-        (<div className="call-stack-list">
+      {!selectedScope ? (<div data-id="select-call-text" className="text-muted">Select a call from Call Trace to view execution details</div>) :
+        (<div data-id="call-stack-list" className="call-stack-list">
           {renderExecutionItem(selectedScope, 0)}
         </div>)}
     </div>

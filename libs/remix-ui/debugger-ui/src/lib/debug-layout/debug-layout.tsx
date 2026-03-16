@@ -605,7 +605,7 @@ export const DebugLayout = ({
                 />
               )}
               {!hasChildren && <span style={{ width: '14px' }}></span>}
-              <span className={`call-trace-type ${callTypeLabel.toLowerCase()}`}>
+              <span data-id={`call-trace-type-${callTypeLabel.toLowerCase()}`} className={`call-trace-type ${callTypeLabel.toLowerCase()}`}>
                 {callTypeLabel}
               </span>
               <span className="call-trace-function">
@@ -801,7 +801,7 @@ export const DebugLayout = ({
                   borderLeft: index > 0 ? '2px solid var(--bs-border-color)' : 'none',
                   marginLeft: index > 0 ? '0.25rem' : '0'
                 }}>
-                  <span className={`call-trace-type ${callTypeLabel.toLowerCase()}`}>
+                  <span data-id={`call-trace-type-${callTypeLabel.toLowerCase()}-${index}`} className={`call-trace-type ${callTypeLabel.toLowerCase()}`}>
                     {callTypeLabel}
                   </span>
                   <span className="call-trace-function">
