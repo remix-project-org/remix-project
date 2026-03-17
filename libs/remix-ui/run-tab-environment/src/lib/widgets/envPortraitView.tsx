@@ -458,35 +458,35 @@ function EnvironmentPortraitView() {
                           </CustomTooltip>
                         )}
                         <div className='d-flex flex-column align-items-start ms-1'>
-                        <div className="text-truncate text-dark d-flex align-items-center">
-                          {editingAccountId === 'selected' ? (
-                            <input
-                              ref={editingInputRef}
-                              type="text"
-                              className="form-control form-control-sm edit-account-input"
-                              value={editingAlias}
-                              onChange={(e) => setEditingAlias(e.target.value)}
-                              onKeyDown={(e) => handleAliasKeyDown(e, selectedAccount?.account)}
-                              onBlur={() => handleSaveAlias(selectedAccount?.account)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            <>
-                              <span>{selectedAccount?.alias}</span>
-                              <i
-                                className="fa-solid fa-pen small ms-1"
-                                style={{ cursor: 'pointer' }}
-                                onClick={(e) => handleStartEditAlias('selected', selectedAccount?.alias, e)}
-                              ></i>
-                            </>
-                          )}
-                        </div>
-                        <div className="account-address-label">
-                          <span className="small">{shortenAddress(selectedAccount?.account)}</span>
-                          <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => selectedAccount?.account}>
-                            <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
-                          </CopyToClipboard>
-                        </div>
+                          <div className="text-truncate text-dark d-flex align-items-center">
+                            {editingAccountId === 'selected' ? (
+                              <input
+                                ref={editingInputRef}
+                                type="text"
+                                className="form-control form-control-sm edit-account-input"
+                                value={editingAlias}
+                                onChange={(e) => setEditingAlias(e.target.value)}
+                                onKeyDown={(e) => handleAliasKeyDown(e, selectedAccount?.account)}
+                                onBlur={() => handleSaveAlias(selectedAccount?.account)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <>
+                                <span>{selectedAccount?.alias}</span>
+                                <i
+                                  className="fa-solid fa-pen small ms-1"
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={(e) => handleStartEditAlias('selected', selectedAccount?.alias, e)}
+                                ></i>
+                              </>
+                            )}
+                          </div>
+                          <div className="account-address-label">
+                            <span className="small">{shortenAddress(selectedAccount?.account)}</span>
+                            <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => selectedAccount?.account}>
+                              <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
+                            </CopyToClipboard>
+                          </div>
                         </div>
                       </div>
                       <div className={`selected-account-balance-container account-balance-color ${openKebabMenuId === 'selected' ? 'kebab-menu-open' : ''}`}>
@@ -555,28 +555,28 @@ function EnvironmentPortraitView() {
                               </CustomTooltip>
                             )}
                             <div className='d-flex flex-column align-items-start'>
-                            <div className="text-truncate text-dark d-flex align-items-center">
-                              {editingAccountId === accountId ? (
-                                <input
-                                  ref={editingInputRef}
-                                  type="text"
-                                  className="form-control form-control-sm edit-account-input"
-                                  value={editingAlias}
-                                  onChange={(e) => setEditingAlias(e.target.value)}
-                                  onKeyDown={(e) => handleAliasKeyDown(e, accountData?.account)}
-                                  onBlur={() => handleSaveAlias(accountData?.account)}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              ) : (
-                                <span>{accountData?.alias}</span>
-                              )}
-                            </div>
-                            <div className="account-address-label">
-                              <span className="small">{shortenAddress(accountData?.account)}</span>
-                              <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => accountData?.account}>
-                                <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
-                              </CopyToClipboard>
-                            </div>
+                              <div className="text-truncate text-dark d-flex align-items-center">
+                                {editingAccountId === accountId ? (
+                                  <input
+                                    ref={editingInputRef}
+                                    type="text"
+                                    className="form-control form-control-sm edit-account-input"
+                                    value={editingAlias}
+                                    onChange={(e) => setEditingAlias(e.target.value)}
+                                    onKeyDown={(e) => handleAliasKeyDown(e, accountData?.account)}
+                                    onBlur={() => handleSaveAlias(accountData?.account)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                ) : (
+                                  <span>{accountData?.alias}</span>
+                                )}
+                              </div>
+                              <div className="account-address-label">
+                                <span className="small">{shortenAddress(accountData?.account)}</span>
+                                <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => accountData?.account}>
+                                  <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
+                                </CopyToClipboard>
+                              </div>
                             </div>
                           </div>
                           <div className={`account-balance-container account-balance-color ${openKebabMenuId === accountId ? 'kebab-menu-open' : ''}`}>
