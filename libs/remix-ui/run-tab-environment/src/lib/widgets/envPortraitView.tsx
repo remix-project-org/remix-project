@@ -379,7 +379,7 @@ function EnvironmentPortraitView() {
 
   return (
     <>
-      <div className='card mx-2 mb-2 env-card' style={{ '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
+      <div className='card mx-2 mb-2 pb-3 env-card' style={{ '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
         <div className="d-flex align-items-center justify-content-between p-3">
           <div className="d-flex align-items-center">
             <h6 className="my-auto env-card-heading">{intl.formatMessage({ id: 'udapp.environment' })}</h6>
@@ -636,10 +636,6 @@ function EnvironmentPortraitView() {
             </div>
           </div>
         )}
-        <div className="mx-auto py-3 deployed-contracts-section">
-          <span className="small me-1">Deployed Contracts</span><span className="small me-2 text-primary">{ widgetState.deployedContractsCount }</span>
-          <span className="small me-1">Transactions recorded</span><span className="small text-primary">{ widgetState.transactionRecorderCount }</span>
-        </div>
       </div>
     </>
   )
