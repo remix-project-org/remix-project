@@ -442,7 +442,7 @@ function EnvironmentPortraitView() {
         {!widgetState.fork.isVisible.resetUI && (
           <div className="d-flex px-3">
             <Dropdown className="w-100" show={isAccountDropdownOpen} onToggle={(isOpen) => setIsAccountDropdownOpen(isOpen)}>
-              <Dropdown.Toggle as={AddressToggle} data-id="runTabSelectAccount" className={`w-100 d-inline-block border form-control ${!selectedAccountIsSmartAccount ? 'selected-account-hover' : ''} account-toggle ${isAccountDropdownOpen ? 'dropdown-open' : ''}`}>
+              <Dropdown.Toggle as={AddressToggle} data-id="runTabSelectAccount" className={`w-100 d-inline-block border form-control ${!selectedAccountIsSmartAccount ? 'selected-account-hover' : ''} account-toggle ${isAccountDropdownOpen ? 'dropdown-open' : ''}`} style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
                 <div className="d-flex align-items-center">
                   <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
                     <div className="d-flex align-items-center justify-content-between w-100">

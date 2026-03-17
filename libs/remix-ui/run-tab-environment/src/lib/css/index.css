@@ -79,7 +79,7 @@
     font-weight: 600;
     border: none;
     color: var(--bs-info);
-    background: var(--custom-onsurface-layer-4);
+    background: var(--bs-light);
     display: inline-flex;
     align-items: center;
     justify-content: center;
