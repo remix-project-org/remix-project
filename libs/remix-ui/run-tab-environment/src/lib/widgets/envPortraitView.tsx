@@ -444,7 +444,7 @@ function EnvironmentPortraitView() {
         {!widgetState.fork.isVisible.resetUI && (
           <div className="d-flex px-3">
             <Dropdown className="w-100" show={isAccountDropdownOpen} onToggle={(isOpen) => setIsAccountDropdownOpen(isOpen)}>
-              <Dropdown.Toggle as={AddressToggle} data-id="runTabSelectAccount" className={`w-100 d-inline-block border form-control selected-account-hover account-toggle ${isAccountDropdownOpen ? 'dropdown-open' : ''}`}>
+              <Dropdown.Toggle as={AddressToggle} data-id="runTabSelectAccount" className={`w-100 d-inline-block border form-control ${!selectedAccountIsSmartAccount ? 'selected-account-hover' : ''} account-toggle ${isAccountDropdownOpen ? 'dropdown-open' : ''}`}>
                 <div className="d-flex align-items-center">
                   <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
                     <div className="d-flex align-items-center justify-content-between w-100">
@@ -459,7 +459,7 @@ function EnvironmentPortraitView() {
                             <span className="smart-account-badge smart-account-badge-selected">S</span>
                           </CustomTooltip>
                         )}
-                        <div className='d-flex flex-column align-items-start'>
+                        <div className='d-flex flex-column align-items-start ms-1'>
                         <div className="text-truncate text-dark d-flex align-items-center">
                           {editingAccountId === 'selected' ? (
                             <input
@@ -489,14 +489,6 @@ function EnvironmentPortraitView() {
                             <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
                           </CopyToClipboard>
                         </div>
-                        {selectedSmartAccountOwner && (
-                          <div className="owner-label">
-                            <span className="small">Owner: {shortenAddress(selectedSmartAccountOwner)}</span>
-                            <CopyToClipboard tip="Copy owner address" icon="fa-copy" direction="top" getContent={() => selectedSmartAccountOwner}>
-                              <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
-                            </CopyToClipboard>
-                          </div>
-                        )}
                         </div>
                       </div>
                       <div className={`selected-account-balance-container account-balance-color ${openKebabMenuId === 'selected' ? 'kebab-menu-open' : ''}`}>
@@ -616,6 +608,18 @@ function EnvironmentPortraitView() {
               </Dropdown.Menu>
             </Dropdown>
           </div>)}
+        {!widgetState.fork.isVisible.resetUI && selectedSmartAccountOwner && (
+          <div className="px-3">
+            <div className="d-flex align-items-center mt-2">
+              <span className="owner-label-badge d-flex align-items-center">
+                Owner: {shortenAddress(selectedSmartAccountOwner)}
+                <CopyToClipboard tip="Copy owner address" icon="fa-copy" direction="top" getContent={() => selectedSmartAccountOwner}>
+                  <i className="fa-solid fa-copy ms-2 copy-icon"></i>
+                </CopyToClipboard>
+              </span>
+            </div>
+          </div>
+        )}
         {enableDelegationAuthorization && delegationAddress && (
           <div className="px-3">
             <div className="alert alert-info d-flex align-items-center justify-content-between p-2 mt-2 mb-0 rounded delegation-alert">

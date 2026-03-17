@@ -78,8 +78,8 @@
     font-size: 1.1rem;
     font-weight: 600;
     border: none;
-    color: var(--bs-primary);
-    background: var(--bs-light);
+    color: var(--bs-info);
+    background: var(--custom-onsurface-layer-4);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -128,9 +128,14 @@
     gap: 0.25rem;
   }
 
-  .owner-label {
-    color: var(--bs-tertiary-color);
-    font-size: 0.75rem;
+  .owner-label-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--bs-info);
+    background: var(--custom-onsurface-layer-2);
+    white-space: nowrap;
   }
 
   .account-address-label {
