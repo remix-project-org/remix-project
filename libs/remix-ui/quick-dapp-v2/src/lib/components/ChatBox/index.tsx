@@ -41,7 +41,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
       const file = e.target.files[0];
 
       if (file.size > 4 * 1024 * 1024) {
-        alert("Image size should be less than 4MB");
+        try { plugin.call('notification', 'toast', 'Image size should be less than 4MB'); } catch (_) {}
         return;
       }
 

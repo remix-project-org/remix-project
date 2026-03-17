@@ -446,7 +446,9 @@ window.addEventListener('unhandledrejection', function(e) {
         activeDapp.contract.address,
         userPrompt,
         currentFilesObject,
-        imageBase64 || null
+        imageBase64 || null,
+        activeDapp.contract.abi,
+        activeDapp.contract.chainId
       );
 
     } catch (error: any) {

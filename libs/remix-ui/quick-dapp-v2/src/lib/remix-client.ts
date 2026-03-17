@@ -223,7 +223,9 @@ export class RemixClient extends PluginClient {
     address: string,
     prompt: string | any[],
     files: any,
-    image: string | null
+    image: string | null,
+    abi?: any[],
+    chainId?: string | number
   ) {
     try {
       this.internalEvents.emit('dappUpdateStart', { slug });
@@ -234,7 +236,9 @@ export class RemixClient extends PluginClient {
         prompt,
         files,
         image,
-        slug
+        slug,
+        abi || [],
+        chainId || 1
       );
     } catch (e: any) {
       console.error('[DEBUG-CLIENT] updateDapp failed:', e);

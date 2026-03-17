@@ -576,6 +576,16 @@ const BaseAppWizard: React.FC = () => {
         </Modal.Footer>
       </Modal>
 
+      <Alert variant="warning" className="mb-3 d-flex align-items-start" data-id="base-migration-alert">
+        <i className="fas fa-exclamation-triangle me-2 mt-1"></i>
+        <div>
+          <strong>Important:</strong> Starting April 9, 2026, the Base App will transition from the Farcaster mini-app spec to standard web apps.{' '}
+          <a href="https://docs.base.org/mini-apps/quickstart/migrate-to-standard-web-app" target="_blank" rel="noreferrer" className="fw-bold">
+            Learn more about the migration <i className="fas fa-external-link-alt small"></i>
+          </a>
+        </div>
+      </Alert>
+
       {viewStep >= 5 ? (
         <Card className="border-success mb-3 shadow-sm" data-id="live-app-dashboard">
           <Card.Header className="bg-success text-white fw-bold d-flex justify-content-between align-items-center">

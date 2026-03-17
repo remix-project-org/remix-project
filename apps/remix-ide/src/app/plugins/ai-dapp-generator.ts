@@ -285,9 +285,9 @@ export class AIDappGenerator extends Plugin {
   /**
    * Update an existing DApp with new description
    */
-  async updateDapp(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string): Promise<void> {
+  async updateDapp(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string, abi?: any[], chainId?: string | number): Promise<void> {
 
-    this.processUpdate(address, description, currentFiles, hasImage, slug).catch(err => {
+    this.processUpdate(address, description, currentFiles, hasImage, slug, abi || [], chainId || 1).catch(err => {
       console.error("[DEBUG-AI] ❌ Background update crashed:", err);
       this.call('terminal', 'log', { type: 'error', value: err.message });
     });
@@ -295,9 +295,9 @@ export class AIDappGenerator extends Plugin {
     return;
   }
 
-  private async processUpdate(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string) {
+  private async processUpdate(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string, abi: any[] = [], chainId: string | number = 1) {
     const ctx: PromptContext = {
-      contract: { address, abi: [], chainId: 1 },
+      contract: { address, abi, chainId },
       isUpdate: true,
       hasImage,
     }

@@ -65,7 +65,9 @@ export interface QuickDappV2PluginApi {
     address: string,
     prompt: string | any[],
     files: any,
-    image: string | null
+    image: string | null,
+    abi?: any[],
+    chainId?: string | number
   ) => Promise<void>;
   consumePendingCreateDapp?: () => any;
 }
