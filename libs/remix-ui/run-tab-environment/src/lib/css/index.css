@@ -62,3 +62,148 @@
     display: block;
     padding-right: 0.5rem;
   }
+
+  /* Smart account hierarchical display */
+  .smart-account-item {
+    position: relative;
+  }
+
+  .indented-account {
+    position: relative;
+  }
+
+  .smart-account-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: none;
+    color: var(--bs-primary);
+    background: var(--bs-light);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .smart-account-badge-selected {
+    margin-top: 0.25rem;
+  }
+
+  .smart-account-badge-dropdown {
+    margin-top: 0.25rem;
+  }
+
+  .tree-connector-vertical {
+    position: absolute;
+    left: -1rem;
+    top: 0;
+    bottom: 50%;
+    width: 1px;
+    background-color: var(--bs-border-color, #888);
+  }
+
+  .tree-connector-horizontal {
+    position: absolute;
+    left: -1rem;
+    top: 50%;
+    width: 10px;
+    height: 1px;
+    background-color: var(--bs-border-color, #888);
+  }
+
+  .account-info-container {
+    gap: 0.25rem;
+  }
+
+  .account-details-wrapper {
+    position: relative;
+    width: 100%;
+    gap: 0.25rem;
+  }
+
+  .indented-account-wrapper {
+    position: relative;
+    width: 100%;
+    gap: 0.25rem;
+  }
+
+  .owner-label {
+    color: var(--bs-tertiary-color);
+    font-size: 0.75rem;
+  }
+
+  .account-address-label {
+    color: var(--bs-tertiary-color);
+    position: relative;
+  }
+
+  .edit-account-input {
+    width: 150px;
+  }
+
+  .copy-icon {
+    cursor: pointer;
+  }
+
+  .cursor-pointer {
+    cursor: pointer;
+  }
+
+  .env-card {
+    background-color: var(--custom-onsurface-layer-1);
+  }
+
+  .env-card-heading {
+    color: var(--theme-text-color);
+  }
+
+  .btn-small-text {
+    font-size: 0.7rem;
+  }
+
+  .env-toggle {
+    background-color: var(--custom-onsurface-layer-2);
+    cursor: pointer;
+  }
+
+  .env-toggle-content {
+    flex-grow: 1;
+    overflow: hidden;
+    display: flex;
+    justify-content: left;
+  }
+
+  .dropdown-menu-env {
+    background-color: var(--custom-onsurface-layer-2);
+    z-index: 1;
+    padding: 0;
+  }
+
+  .account-toggle {
+    background-color: var(--custom-onsurface-layer-2);
+  }
+
+  .account-balance-color {
+    color: var(--bs-tertiary-color);
+  }
+
+  .delegation-alert {
+    font-size: 0.85rem;
+  }
+
+  .delegation-address {
+    max-width: 150px;
+  }
+
+  .deployed-contracts-section {
+    color: var(--bs-tertiary-color);
+  }
+
+  .indented-dropdown-item {
+    padding-left: 1.75rem !important;
+  }
+
+  .normal-dropdown-item {
+    padding-left: 0.5rem !important;
+  }

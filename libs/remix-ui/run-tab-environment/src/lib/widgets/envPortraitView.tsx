@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react'
-import { AddressToggle, CustomMenu, EnvironmentToggle, shortenAddress, SmartAccountPromptTitle } from "@remix-ui/helper"
+import React, { useMemo, useState, useRef } from 'react'
+import { AddressToggle, CustomMenu, CustomTooltip, EnvironmentToggle, shortenAddress, SmartAccountPromptTitle } from "@remix-ui/helper"
 import { Dropdown } from "react-bootstrap"
 import { useIntl } from 'react-intl'
 import { EnvAppContext } from '../contexts'
@@ -8,7 +8,7 @@ import { TrackingContext } from '@remix-ide/tracking'
 import { MatomoEvent, UdappEvent } from '@remix-api'
 import { createNewAccount, createSmartAccount, setExecutionContext, authorizeDelegation, signMessageWithAddress, deleteAccountAction, updateAccountAlias } from '../actions'
 import { EnvCategoryUI } from '../components/envCategoryUI'
-import { Provider, Account } from '../types'
+import { Provider, Account, SmartAccount } from '../types'
 import { ForkUI } from '../components/forkUI'
 import { ResetUI } from '../components/resetUI'
 import { AccountKebabMenu } from '../components/accountKebabMenu'
@@ -74,7 +74,7 @@ function EnvironmentPortraitView() {
     setOpenKebabMenuId(null)
   }
 
-  const handleCreateSmartAccount = (account: Account) => {
+  const handleCreateSmartAccount = (_account: Account) => {
     plugin.call('notification', 'modal', {
       id: 'createSmartAccount',
       title: <SmartAccountPromptTitle title={intl.formatMessage({ id: 'udapp.createSmartAccount' })} />,
@@ -89,7 +89,7 @@ function EnvironmentPortraitView() {
     setOpenKebabMenuId(null)
   }
 
-  const handleAuthorizeDelegation = (account: Account) => {
+  const handleAuthorizeDelegation = (_account: Account) => {
     plugin.call('notification', 'modal', {
       id: 'createDelegationAuthorization',
       title: intl.formatMessage({ id: 'udapp.createDelegationTitle' }),
@@ -269,8 +269,35 @@ function EnvironmentPortraitView() {
   }, [widgetState.providers.selectedProvider])
 
   const selectedAccount = useMemo(() => {
-    return widgetState.accounts.defaultAccounts.find(account => account.account === widgetState.accounts.selectedAccount) || widgetState.accounts.defaultAccounts[0]
-  }, [widgetState.accounts.selectedAccount, widgetState.accounts.defaultAccounts])
+    // First check in default accounts
+    const defaultAccount = widgetState.accounts.defaultAccounts.find(
+      account => account.account === widgetState.accounts.selectedAccount
+    )
+
+    // If not found in default accounts, check in smart accounts
+    if (!defaultAccount) {
+      const smartAccount = widgetState.accounts.smartAccounts.find(
+        account => account.account === widgetState.accounts.selectedAccount
+      )
+      if (smartAccount) {
+        return smartAccount as Account
+      }
+    }
+
+    return defaultAccount || widgetState.accounts.defaultAccounts[0]
+  }, [widgetState.accounts.selectedAccount, widgetState.accounts.defaultAccounts, widgetState.accounts.smartAccounts])
+
+  const selectedAccountIsSmartAccount = useMemo(() => {
+    return widgetState.accounts.smartAccounts.some(smartAccount => smartAccount.account === selectedAccount?.account)
+  }, [widgetState.accounts.smartAccounts, selectedAccount])
+
+  const selectedSmartAccountOwner = useMemo(() => {
+    if (!selectedAccountIsSmartAccount) return null
+    const smartAccount = widgetState.accounts.smartAccounts.find(
+      sa => sa.account === selectedAccount?.account
+    )
+    return smartAccount?.ownerEOA || null
+  }, [selectedAccountIsSmartAccount, widgetState.accounts.smartAccounts, selectedAccount])
 
   const isSmartAccountSupported = useMemo(() => {
     return aaSupportedChainIds.includes(widgetState.network.chainId)
@@ -283,6 +310,50 @@ function EnvironmentPortraitView() {
   const delegationAddress = useMemo(() => {
     return widgetState.accounts.delegations?.[selectedAccount?.account]
   }, [widgetState.accounts.delegations, selectedAccount])
+
+  // Build hierarchical account structure: regular accounts with their smart accounts
+  const hierarchicalAccounts = useMemo(() => {
+    // Create a set of smart account addresses for quick lookup
+    const smartAccountAddresses = new Set(
+      widgetState.accounts.smartAccounts.map(sa => sa.account.toLowerCase())
+    )
+
+    // Group smart accounts by their owner
+    const ownerToSmartAccountsMap = new Map<string, SmartAccount[]>()
+
+    widgetState.accounts.smartAccounts.forEach((smartAccount) => {
+      const owner = smartAccount.ownerEOA?.toLowerCase()
+      if (owner) {
+        if (!ownerToSmartAccountsMap.has(owner)) {
+          ownerToSmartAccountsMap.set(owner, [])
+        }
+        ownerToSmartAccountsMap.get(owner).push(smartAccount)
+      }
+    })
+
+    // Build display list with regular accounts followed by their smart accounts
+    const displayList: Array<{ account: Account | SmartAccount; isSmartAccount: boolean; level: number }> = []
+
+    widgetState.accounts.defaultAccounts.forEach((account) => {
+      // Skip if this account is a smart account (it will be shown under its owner)
+      if (smartAccountAddresses.has(account.account.toLowerCase())) {
+        return
+      }
+
+      // Add regular account at level 0
+      displayList.push({ account, isSmartAccount: false, level: 0 })
+
+      // Add smart accounts owned by this account at level 1
+      const ownedSmartAccounts = ownerToSmartAccountsMap.get(account.account.toLowerCase())
+      if (ownedSmartAccounts) {
+        ownedSmartAccounts.forEach((smartAccount) => {
+          displayList.push({ account: smartAccount, isSmartAccount: true, level: 1 })
+        })
+      }
+    })
+
+    return displayList
+  }, [widgetState.accounts.defaultAccounts, widgetState.accounts.smartAccounts])
 
   const handleDeleteDelegation = async () => {
     plugin.call('notification', 'modal', {
@@ -310,19 +381,19 @@ function EnvironmentPortraitView() {
 
   return (
     <>
-      <div className='card mx-2 mb-2' style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
+      <div className='card mx-2 mb-2 env-card' style={{ '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
         <div className="d-flex align-items-center justify-content-between p-3">
           <div className="d-flex align-items-center">
-            <h6 className="my-auto" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>{intl.formatMessage({ id: 'udapp.environment' })}</h6>
+            <h6 className="my-auto env-card-heading">{intl.formatMessage({ id: 'udapp.environment' })}</h6>
           </div>
           <div className="toggle-container">
             {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
-              <button data-id="fork-state-icon" className='btn btn-primary btn-sm small me-2' style={{ fontSize: '0.7rem' }} onClick={handleForkClick}>
+              <button data-id="fork-state-icon" className='btn btn-primary btn-sm small me-2 btn-small-text' onClick={handleForkClick}>
                 <i className='fas fa-code-branch'></i> {intl.formatMessage({ id: 'udapp.fork' })}
               </button>
             )}
             {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
-              <button data-id="delete-state-icon" className='btn btn-outline-danger btn-sm small' style={{ fontSize: '0.7rem' }} onClick={handleResetClick}>
+              <button data-id="delete-state-icon" className='btn btn-outline-danger btn-sm small btn-small-text' onClick={handleResetClick}>
                 <i className='fas fa-redo'></i> {intl.formatMessage({ id: 'udapp.reset' })}
               </button>
             )}
@@ -341,7 +412,7 @@ function EnvironmentPortraitView() {
               <Dropdown.Toggle
                 as={EnvironmentToggle}
                 data-id="settingsSelectEnvOptions"
-                className="w-100 d-inline-block border form-control"
+                className="w-100 d-inline-block border form-control env-toggle"
                 environmentUI={<EnvCategoryUI
                   isOpen={isSubCategoryDropdownOpen}
                   onToggle={(isOpen: boolean) => {
@@ -350,16 +421,15 @@ function EnvironmentPortraitView() {
                     if (isOpen && isAccountDropdownOpen) setIsAccountDropdownOpen(false)
                   }}
                 />}
-                style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', cursor: 'pointer' }}
               >
-                <div style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }}>
+                <div className="env-toggle-content">
                   <div className="text-truncate text-secondary">
                     <span data-id={`selected-provider-${widgetState.providers.selectedProvider}`}> { selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' }</span>
                   </div>
                 </div>
               </Dropdown.Toggle>
 
-              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', zIndex: 1, padding: 0 }}>
+              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env">
                 {
                   uniqueDropdownItems.map((provider, index) => {
                     return (
@@ -374,18 +444,28 @@ function EnvironmentPortraitView() {
         {!widgetState.fork.isVisible.resetUI && (
           <div className="d-flex px-3">
             <Dropdown className="w-100" show={isAccountDropdownOpen} onToggle={(isOpen) => setIsAccountDropdownOpen(isOpen)}>
-              <Dropdown.Toggle as={AddressToggle} data-id="runTabSelectAccount" className={`w-100 d-inline-block border form-control selected-account-hover ${isAccountDropdownOpen ? 'dropdown-open' : ''}`} style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+              <Dropdown.Toggle as={AddressToggle} data-id="runTabSelectAccount" className={`w-100 d-inline-block border form-control selected-account-hover account-toggle ${isAccountDropdownOpen ? 'dropdown-open' : ''}`}>
                 <div className="d-flex align-items-center">
                   <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
                     <div className="d-flex align-items-center justify-content-between w-100">
-                      <div className='d-flex flex-column align-items-start'>
+                      <div className='d-flex align-items-start account-info-container'>
+                        {selectedAccountIsSmartAccount && (
+                          <CustomTooltip
+                            placement="top"
+                            tooltipClasses="text-nowrap"
+                            tooltipId="selected-smart-account-badge-tooltip"
+                            tooltipText="Smart Account"
+                          >
+                            <span className="smart-account-badge smart-account-badge-selected">S</span>
+                          </CustomTooltip>
+                        )}
+                        <div className='d-flex flex-column align-items-start'>
                         <div className="text-truncate text-dark d-flex align-items-center">
                           {editingAccountId === 'selected' ? (
                             <input
                               ref={editingInputRef}
                               type="text"
-                              className="form-control form-control-sm"
-                              style={{ width: '150px' }}
+                              className="form-control form-control-sm edit-account-input"
                               value={editingAlias}
                               onChange={(e) => setEditingAlias(e.target.value)}
                               onKeyDown={(e) => handleAliasKeyDown(e, selectedAccount?.account)}
@@ -403,26 +483,34 @@ function EnvironmentPortraitView() {
                             </>
                           )}
                         </div>
-                        <div style={{ color: 'var(--bs-tertiary-color)', position: 'relative' }}>
+                        <div className="account-address-label">
                           <span className="small">{shortenAddress(selectedAccount?.account)}</span>
                           <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => selectedAccount?.account}>
-                            <i className="fa-solid fa-copy small ms-1" style={{ cursor: 'pointer' }}></i>
+                            <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
                           </CopyToClipboard>
                         </div>
+                        {selectedSmartAccountOwner && (
+                          <div className="owner-label">
+                            <span className="small">Owner: {shortenAddress(selectedSmartAccountOwner)}</span>
+                            <CopyToClipboard tip="Copy owner address" icon="fa-copy" direction="top" getContent={() => selectedSmartAccountOwner}>
+                              <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
+                            </CopyToClipboard>
+                          </div>
+                        )}
+                        </div>
                       </div>
-                      <div className={`selected-account-balance-container ${openKebabMenuId === 'selected' ? 'kebab-menu-open' : ''}`} style={{ color: 'var(--bs-tertiary-color)' }}>
+                      <div className={`selected-account-balance-container account-balance-color ${openKebabMenuId === 'selected' ? 'kebab-menu-open' : ''}`}>
                         <span className="selected-account-balance-text">{`${selectedAccount?.balance} ${selectedAccount?.symbol}`}</span>
                         <i
                           ref={(el) => {
                             if (el && selectedAccount) kebabIconRefs.current['selected'] = el
                           }}
-                          className="selected-account-kebab-icon fas fa-ellipsis-v"
+                          className="selected-account-kebab-icon fas fa-ellipsis-v cursor-pointer"
                           data-id="selected-account-kebab-menu"
                           onClick={(e) => {
                             setIsAccountDropdownOpen(false)
                             handleKebabClick(e, 'selected')
                           }}
-                          style={{ cursor: 'pointer' }}
                         ></i>
                       </div>
                     </div>
@@ -444,47 +532,71 @@ function EnvironmentPortraitView() {
                 onDeleteAccount={handleDeleteAccount}
               />
 
-              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', padding: 0 }}>
+              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env">
                 {
-                  widgetState.accounts.defaultAccounts.map((account, index) => {
-                    const accountId = `account-${index}`
+                  hierarchicalAccounts.map((item, index) => {
+                    const { account, isSmartAccount, level } = item
+                    const accountId = isSmartAccount ? `smart-account-${index}` : `account-${index}`
+                    const accountData = account as Account
+                    const isIndented = isSmartAccount && level > 0
+
                     return (
-                      <div key={index}>
-                        <Dropdown.Item data-id={account.account} className="d-flex align-items-center justify-content-between py-1 px-2 account-item-hover" onClick={() => handleAccountSelection(account)} style={{ cursor: 'pointer' }}>
-                          <div className='d-flex flex-column align-items-start'>
+                      <div key={index} className={isSmartAccount ? 'smart-account-item' : ''}>
+                        <Dropdown.Item
+                          data-id={accountData.account}
+                          className={`d-flex align-items-center justify-content-between py-1 account-item-hover cursor-pointer ${isIndented ? 'indented-account indented-dropdown-item' : 'normal-dropdown-item'}`}
+                          onClick={() => handleAccountSelection(accountData)}
+                        >
+                          <div className='d-flex align-items-start indented-account-wrapper'>
+                            {isIndented && (
+                              <>
+                                <div className="tree-connector-vertical"></div>
+                                <div className="tree-connector-horizontal"></div>
+                              </>
+                            )}
+                            {isSmartAccount && (
+                              <CustomTooltip
+                                placement="top"
+                                tooltipClasses="text-nowrap"
+                                tooltipId={`smart-account-badge-tooltip-${index}`}
+                                tooltipText="Smart Account"
+                              >
+                                <span className="smart-account-badge smart-account-badge-dropdown">S</span>
+                              </CustomTooltip>
+                            )}
+                            <div className='d-flex flex-column align-items-start'>
                             <div className="text-truncate text-dark d-flex align-items-center">
                               {editingAccountId === accountId ? (
                                 <input
                                   ref={editingInputRef}
                                   type="text"
-                                  className="form-control form-control-sm"
-                                  style={{ width: '150px' }}
+                                  className="form-control form-control-sm edit-account-input"
                                   value={editingAlias}
                                   onChange={(e) => setEditingAlias(e.target.value)}
-                                  onKeyDown={(e) => handleAliasKeyDown(e, account?.account)}
-                                  onBlur={() => handleSaveAlias(account?.account)}
+                                  onKeyDown={(e) => handleAliasKeyDown(e, accountData?.account)}
+                                  onBlur={() => handleSaveAlias(accountData?.account)}
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               ) : (
-                                <span>{account?.alias}</span>
+                                <span>{accountData?.alias}</span>
                               )}
                             </div>
-                            <div style={{ color: 'var(--bs-tertiary-color)', position: 'relative' }}>
-                              <span className="small">{shortenAddress(account?.account)}</span>
-                              <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => account?.account}>
-                                <i className="fa-solid fa-copy small ms-1" style={{ cursor: 'pointer' }}></i>
+                            <div className="account-address-label">
+                              <span className="small">{shortenAddress(accountData?.account)}</span>
+                              <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => accountData?.account}>
+                                <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
                               </CopyToClipboard>
                             </div>
+                            </div>
                           </div>
-                          <div className={`account-balance-container ${openKebabMenuId === accountId ? 'kebab-menu-open' : ''}`} style={{ color: 'var(--bs-tertiary-color)' }}>
-                            <span className="account-balance-text">{`${account?.balance} ${account?.symbol}`}</span>
+                          <div className={`account-balance-container account-balance-color ${openKebabMenuId === accountId ? 'kebab-menu-open' : ''}`}>
+                            <span className="account-balance-text">{`${accountData?.balance} ${accountData?.symbol}`}</span>
                             <i
                               ref={(el) => {
                                 if (el) kebabIconRefs.current[accountId] = el
                               }}
-                              className="account-kebab-icon fas fa-ellipsis-v"
+                              className="account-kebab-icon fas fa-ellipsis-v cursor-pointer"
                               onClick={(e) => handleKebabClick(e, accountId)}
-                              style={{ cursor: 'pointer' }}
                             ></i>
                           </div>
                         </Dropdown.Item>
@@ -492,10 +604,10 @@ function EnvironmentPortraitView() {
                           show={openKebabMenuId === accountId}
                           target={kebabIconRefs.current[accountId]}
                           onHide={() => setOpenKebabMenuId(null)}
-                          account={account}
+                          account={accountData}
                           menuIndex={index}
                           onRenameAccount={handleRenameAccount}
-                          onDeleteAccount={handleDeleteAccount}
+                          onDeleteAccount={isSmartAccount ? undefined : handleDeleteAccount}
                         />
                       </div>
                     )
@@ -506,24 +618,23 @@ function EnvironmentPortraitView() {
           </div>)}
         {enableDelegationAuthorization && delegationAddress && (
           <div className="px-3">
-            <div className="alert alert-info d-flex align-items-center justify-content-between p-2 mt-2 mb-0 rounded" style={{ fontSize: '0.85rem' }}>
+            <div className="alert alert-info d-flex align-items-center justify-content-between p-2 mt-2 mb-0 rounded delegation-alert">
               <div className="d-flex align-items-center small">
                 <span className="me-2">Delegation:</span>
-                <span className="text-truncate" style={{ maxWidth: '150px' }}>{shortenAddress(delegationAddress)}</span>
+                <span className="text-truncate delegation-address">{shortenAddress(delegationAddress)}</span>
                 <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => delegationAddress}>
-                  <i className="fa-solid fa-copy small ms-1" style={{ cursor: 'pointer' }}></i>
+                  <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
                 </CopyToClipboard>
               </div>
               <i
-                className="fas fa-times"
+                className="fas fa-times cursor-pointer"
                 data-id="delete-delegation"
                 onClick={handleDeleteDelegation}
-                style={{ cursor: 'pointer' }}
               ></i>
             </div>
           </div>
         )}
-        <div className="mx-auto py-3" style={{ color: 'var(--bs-tertiary-color)' }}>
+        <div className="mx-auto py-3 deployed-contracts-section">
           <span className="small me-1">Deployed Contracts</span><span className="small me-2 text-primary">{ widgetState.deployedContractsCount }</span>
           <span className="small me-1">Transactions recorded</span><span className="small text-primary">{ widgetState.transactionRecorderCount }</span>
         </div>
