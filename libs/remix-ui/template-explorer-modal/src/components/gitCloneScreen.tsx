@@ -24,7 +24,7 @@ export function GitCloneScreen() {
           <input data-id="git-clone-screen-url-input" type="text" className="form-control form-control-lg" value={url} onChange={(e) => setUrl(e.target.value)} />
         </div>
         <div className="pt-3 mx-3">
-          <button className="btn btn-primary btn-lg w-100" onClick={handleClone} disabled={!type}>
+          <button data-id="git-clone-screen-clone-btn" className="btn btn-primary btn-lg w-100" onClick={handleClone} disabled={!type}>
             Clone
           </button>
         </div>

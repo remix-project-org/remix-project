@@ -36,7 +36,7 @@ contract VulnerabilityTest {
 module.exports = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    init(browser, done, 'http://127.0.0.1:8080/#experimental=true', true, undefined, true, true)
+    init(browser, done)
   },
 
   'Setup: Clear any existing file permissions': function (browser: NightwatchBrowser) {
@@ -485,5 +485,90 @@ module.exports = {
         browser.assert.ok(data.zeroDecimalSuccess, 'Should handle zero decimal correctly');
         browser.assert.ok(data.largeEtherSuccess, 'Should handle large ether values');
       });
+  },
+
+  'Setup: Enable MCP for UI utility tests': function (browser: NightwatchBrowser) {
+    browser
+      .refresh()
+      .waitForElementVisible('*[data-id="remixIdeSidePanel"]', 10000)
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent('*[data-id="remix-ai-assistant-ready"]', 60000)
+      .pause(1000)
+      .click('*[data-assist-btn="assistant-selector-btn"]')
+      .pause(500)
+      .execute(function () {
+        const checkbox = document.getElementById('mcpEnhancementToggle') as HTMLInputElement;
+        if (checkbox && !checkbox.checked) {
+          checkbox.click();
+        }
+      })
+      .pause(500)
+      .execute(function () {
+        const checkbox = document.getElementById('mcpEnhancementToggle') as HTMLInputElement;
+        return { mcpEnabled: checkbox?.checked || false };
+      }, [], function (result) {
+        const data = result.value as any;
+        browser.assert.ok(data.mcpEnabled, 'MCP Enhancement should be enabled');
+      });
+  },
+
+  'Should convert wei to ether': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .clearValue('*[data-id=remix-ai-prompt-input]')
+      .setValue('*[data-id=remix-ai-prompt-input]', 'Convert 1000000000000000000 wei to ether')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(2000)
+      .useXpath()
+      .waitForElementVisible('//div[contains(@class,"chat-bubble") and (contains(.,"1") and (contains(.,"ether") or contains(.,"ETH")))]', 10000)
+      .useCss();
+  },
+
+  'Should convert ether to wei': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .clearValue('*[data-id=remix-ai-prompt-input]')
+      .setValue('*[data-id=remix-ai-prompt-input]', 'Convert 1 ether to wei')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(2000)
+      .useXpath()
+      .waitForElementVisible('//div[contains(@class,"chat-bubble") and contains(.,"1000000000000000000")]', 10000)
+      .useCss();
+  },
+
+  'Should convert decimal to hex': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .clearValue('*[data-id=remix-ai-prompt-input]')
+      .setValue('*[data-id=remix-ai-prompt-input]', 'Convert 255 to hexadecimal')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(2000)
+      .useXpath()
+      .waitForElementVisible('//div[contains(@class,"chat-bubble") and (contains(.,"0xff") or contains(.,"0xFF"))]', 10000)
+      .useCss();
+  },
+
+  'Should convert hex to decimal': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .clearValue('*[data-id=remix-ai-prompt-input]')
+      .setValue('*[data-id=remix-ai-prompt-input]', 'Convert 0xff to decimal')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(2000)
+      .useXpath()
+      .waitForElementVisible('//div[contains(@class,"chat-bubble") and contains(.,"255")]', 10000)
+      .useCss();
+  },
+
+  'Should start tutorial': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .clearValue('*[data-id=remix-ai-prompt-input]')
+      .setValue('*[data-id=remix-ai-prompt-input]', 'Start the basic solidity tutorial')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(2000)
+      .useXpath()
+      .waitForElementVisible('//div[contains(@class,"chat-bubble") and (contains(.,"tutorial") or contains(.,"started") or contains(.,"basics"))]', 10000)
+      .useCss();
   }
 };

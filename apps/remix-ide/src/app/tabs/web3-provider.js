@@ -41,7 +41,7 @@ export class Web3ProviderModule extends Plugin {
           object: contractData.contract
         }
       }
-      this.call('udapp', 'addInstance', contractAddressStr, contractData.contract.abi, contractData.name, contractObject)
+      this.call('udappDeployedContracts', 'addInstance', contractAddressStr, contractData.contract.abi, contractData.name, contractObject)
       await this.call('compilerArtefacts', 'addResolvedContract', contractAddressStr, data)
     }
   }

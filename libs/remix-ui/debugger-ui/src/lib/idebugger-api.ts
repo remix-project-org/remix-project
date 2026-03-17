@@ -29,6 +29,7 @@ export interface IDebuggerApi {
     on?: (plugin: string, event: string, listener: (...args: any[]) => void) => void // listen to events from other plugins
     getCache: (key: string) => Promise<any>
     setCache(key: string, value: any): Promise<void>
+    emit?: (event: string, ...args: any[]) => void // emit events from the plugin
 }
 
 type globalContextFunction = () => { block, tx, receipt }

@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useReducer, useEffect, useState, ReactNode } from 'react'
-import { AuthUser, AuthProvider as AuthProviderType } from '@remix-api'
+import { AuthUser, AuthProvider as AuthProviderType, FeatureGroup } from '@remix-api'
 import { Profile } from '@remixproject/plugin-utils'
+
+/** Set to true to enable verbose console.log output for debugging */
+const DEBUG = false
+const log = (...args: any[]) => { if (DEBUG) console.log(...args) }
 
 export interface Credits {
   balance: number
@@ -13,6 +17,7 @@ export interface AuthState {
   user: AuthUser | null
   token: string | null
   credits: Credits | null
+  featureGroups: FeatureGroup[]
   loading: boolean
   error: string | null
 }
@@ -22,6 +27,8 @@ type AuthAction =
   | { type: 'AUTH_SUCCESS'; payload: { user: AuthUser; token: string } }
   | { type: 'AUTH_FAILURE'; payload: string }
   | { type: 'UPDATE_CREDITS'; payload: Credits }
+  | { type: 'UPDATE_FEATURE_GROUPS'; payload: FeatureGroup[] }
+  | { type: 'TOKEN_REFRESHED'; payload: string }
   | { type: 'LOGOUT' }
   | { type: 'CLEAR_ERROR' }
 
@@ -58,12 +65,23 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       ...state,
       credits: action.payload
     }
+  case 'UPDATE_FEATURE_GROUPS':
+    return {
+      ...state,
+      featureGroups: action.payload
+    }
+  case 'TOKEN_REFRESHED':
+    return {
+      ...state,
+      token: action.payload
+    }
   case 'LOGOUT':
     return {
       isAuthenticated: false,
       user: null,
       token: null,
       credits: null,
+      featureGroups: [],
       loading: false,
       error: null
     }
@@ -79,6 +97,7 @@ const initialState: AuthState = {
   user: null,
   token: null,
   credits: null,
+  featureGroups: [],
   loading: false,
   error: null
 }
@@ -116,20 +135,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, plugin }) 
   useEffect(() => {
     if (!isReady || !plugin) return
 
+    // Session restoration is handled by the AuthPlugin's validateAndRestoreSession()
+    // which runs during plugin activation (before isReady becomes true).
+    // By this point, localStorage has already been validated/cleaned by the server.
+    // We just read the validated state — no separate API call needed here.
     const initAuth = async () => {
       try {
-        const isAuth = await plugin.isAuthenticated()
-        if (isAuth) {
-          const user = await plugin.getUser()
-          const token = await plugin.getToken()
-          if (user && token) {
-            dispatch({ type: 'AUTH_SUCCESS', payload: { user, token } })
-          }
+        const token = await plugin.getToken()
+        if (!token) {
+          // No token after validation means user is not authenticated
+          return
+        }
+        const user = await plugin.getUser()
+        if (user) {
+          dispatch({ type: 'AUTH_SUCCESS', payload: { user, token } })
 
           // Fetch credits
           const credits = await plugin.getCredits()
           if (credits) {
             dispatch({ type: 'UPDATE_CREDITS', payload: credits })
+          }
+
+          // Fetch feature groups from permissions
+          try {
+            const permissions = await plugin.call('auth', 'getAllPermissions')
+            if (permissions && permissions.feature_groups) {
+              dispatch({ type: 'UPDATE_FEATURE_GROUPS', payload: permissions.feature_groups })
+              // Update Matomo custom dimension with feature group names
+              try {
+                const groupNames = permissions.feature_groups.map((fg: any) => fg.name)
+                await plugin.call('matomo', 'updateFeatureGroups', groupNames)
+              } catch (matomoErr) {
+                console.warn('[AuthContext] Failed to update Matomo feature groups:', matomoErr)
+              }
+            }
+          } catch (permErr) {
+            console.warn('[AuthContext] Failed to fetch feature groups:', permErr)
           }
         }
       } catch (error) {
@@ -140,44 +181,74 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, plugin }) 
     initAuth()
 
     // Listen to auth plugin events
-    const handleAuthStateChanged = (authState: any) => {
-      console.log('[AuthContext] Auth state changed:', authState)
+    const handleAuthStateChanged = async (authState: any) => {
+      log('[AuthContext] Auth state changed:', authState)
       if (authState.isAuthenticated && authState.user) {
         dispatch({
           type: 'AUTH_SUCCESS',
           payload: { user: authState.user, token: authState.token || null }
         })
+        // Fetch feature groups on auth change
+        try {
+          const permissions = await plugin.call('auth', 'getAllPermissions')
+          if (permissions && permissions.feature_groups) {
+            dispatch({ type: 'UPDATE_FEATURE_GROUPS', payload: permissions.feature_groups })
+            // Update Matomo custom dimension with feature group names
+            try {
+              const groupNames = permissions.feature_groups.map((fg: any) => fg.name)
+              await plugin.call('matomo', 'updateFeatureGroups', groupNames)
+            } catch (matomoErr) {
+              console.warn('[AuthContext] Failed to update Matomo feature groups:', matomoErr)
+            }
+          }
+        } catch (permErr) {
+          console.warn('[AuthContext] Failed to fetch feature groups on auth change:', permErr)
+        }
       } else {
         dispatch({ type: 'LOGOUT' })
+        // Clear Matomo feature groups dimension on logout
+        try {
+          await plugin.call('matomo', 'clearFeatureGroups')
+        } catch (matomoErr) {
+          console.warn('[AuthContext] Failed to clear Matomo feature groups:', matomoErr)
+        }
       }
     }
 
     const handleCreditsUpdated = (credits: Credits) => {
-      console.log('[AuthContext] Credits updated:', credits)
+      log('[AuthContext] Credits updated:', credits)
       dispatch({ type: 'UPDATE_CREDITS', payload: credits })
     }
 
-    console.log('[AuthContext] Setting up event listeners, plugin.on exists:', typeof plugin.on)
+    const handleTokenRefreshed = (data: { token: string }) => {
+      log('[AuthContext] Token refreshed')
+      dispatch({ type: 'TOKEN_REFRESHED', payload: data.token })
+    }
+
+    log('[AuthContext] Setting up event listeners, plugin.on exists:', typeof plugin.on)
     plugin.call('manager', 'isActive', 'auth').then((result) => {
       if (result) {
         plugin.on('auth', 'authStateChanged', handleAuthStateChanged)
         plugin.on('auth', 'creditsUpdated', handleCreditsUpdated)
+        plugin.on('auth', 'tokenRefreshed', handleTokenRefreshed)
       } else {
         plugin.on('manager', 'activate', (profile: Profile) => {
           switch (profile.name) {
           case 'auth':
             plugin.on('auth', 'authStateChanged', handleAuthStateChanged)
             plugin.on('auth', 'creditsUpdated', handleCreditsUpdated)
+            plugin.on('auth', 'tokenRefreshed', handleTokenRefreshed)
             break
           }
         })
       }
     })
-    console.log('[AuthContext] Event listeners registered')
+    log('[AuthContext] Event listeners registered')
 
     return () => {
       plugin.off('auth', 'authStateChanged', handleAuthStateChanged)
       plugin.off('auth', 'creditsUpdated', handleCreditsUpdated)
+      plugin.off('auth', 'tokenRefreshed', handleTokenRefreshed)
     }
   }, [plugin, isReady])
 

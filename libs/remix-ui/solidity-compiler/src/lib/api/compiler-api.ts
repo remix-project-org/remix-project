@@ -1,5 +1,5 @@
 import React from 'react';
-import { compile, helper, Source, CompilerInputOptions, compilerInputFactory, CompilerInput } from '@remix-project/remix-solidity'
+import { compile, helper, Source, CompilerInputOptions, compilerInputFactory, CompilerInput, CompilationResult, SourceWithTarget } from '@remix-project/remix-solidity'
 import { CompileTabLogic, parseContracts } from '@remix-ui/solidity-compiler' // eslint-disable-line
 import { ConfigurationSettings, iSolJsonBinData, execution } from '@remix-project/remix-lib'
 
@@ -11,7 +11,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
     } | Record<string, any>,
     contractsDetails: Record<string, any>,
     target?: string,
-    input?: Record<string, any>,
+    input?: string
   }
   compileErrors: any
   compileTabLogic: CompileTabLogic
@@ -312,7 +312,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
     })
     this.call('compilerloader', 'getJsonBinData')
 
-    this.data.eventHandlers.onCompilationFinished = async (success, data, source, input, version) => {
+    this.data.eventHandlers.onCompilationFinished = async (success: boolean, data: CompilationResult, source: SourceWithTarget, input: string, version: string) => {
       this.compileErrors = data
       if (success) {
         // forwarding the event to the appManager infra
@@ -321,16 +321,16 @@ export const CompilerApiMixin = (Base) => class extends Base {
         if (data.errors && data.errors.length > 0 && !hideWarnings) {
           const warningsCount = data.errors.length
           this.statusChanged({
-            key: warningsCount,
+            key: warningsCount.toString(),
             title: `Compilation successful with ${warningsCount} warning${warningsCount > 1 ? 's' : ''}`,
             type: 'warning'
           })
         } else this.statusChanged({ key: 'succeed', title: 'Compilation successful', type: 'success' })
       } else {
         this.emit('compilationFailed', source.target, source, 'soljson', data, input, version)
-        this.compileTabLogic.compiler.state.lastCompilationResult = data
+        this.compileTabLogic.compiler.state.lastCompilationResult = { data, source }
         const count = (data.errors ? data.errors.filter(error => error.severity === 'error').length : 0 + (data.error ? 1 : 0))
-        this.statusChanged({ key: count, title: `Compilation failed with ${count} error${count > 1 ? 's' : ''}`, type: 'error' })
+        this.statusChanged({ key: count.toString(), title: `Compilation failed with ${count} error${count > 1 ? 's' : ''}`, type: 'error' })
       }
       // Store the contracts and Update contract Selection
       if (success) {

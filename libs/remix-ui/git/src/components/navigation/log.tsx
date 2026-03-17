@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { useContext, useEffect, useState } from "react";
 import { gitActionsContext, pluginActionsContext } from "../../state/context";
 import { gitPluginContext } from "../gitui";
+import { FormattedMessage } from "react-intl";
 
 export const LogNavigation = ({ eventKey, activePanel, callback }) => {
   const context = useContext(gitPluginContext)
@@ -50,7 +51,7 @@ export const LogNavigation = ({ eventKey, activePanel, callback }) => {
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          <label className="ps-2 nav form-check-label me-2">LOG</label>
+          <label className="ps-2 nav form-check-label me-2"><FormattedMessage id="gitui.log" /></label>
           {logState.errorCount > 0 && (
             <div className="text-danger me-1">
               {logState.errorCount}

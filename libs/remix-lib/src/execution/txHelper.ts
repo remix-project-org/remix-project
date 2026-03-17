@@ -66,7 +66,7 @@ export function sortAbiFunction (contractabi) {
 }
 
 export function getConstructorInterface (abi) {
-  const funABI = { name: '', inputs: [], type: 'constructor', payable: false, outputs: []}
+  const funABI = { name: '', inputs: [], type: 'constructor', payable: false, outputs: [], stateMutability: null }
   if (typeof abi === 'string') {
     try {
       abi = JSON.parse(abi)
@@ -80,7 +80,7 @@ export function getConstructorInterface (abi) {
     if (abi[i].type === 'constructor') {
       funABI.inputs = abi[i].inputs || []
       funABI.payable = abi[i].payable
-      funABI['stateMutability'] = abi[i].stateMutability
+      funABI.stateMutability = abi[i].stateMutability
       break
     }
   }

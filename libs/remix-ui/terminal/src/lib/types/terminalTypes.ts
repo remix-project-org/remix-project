@@ -37,4 +37,6 @@ export interface RemixUiTerminalProps {
   visible: boolean,
   isMaximized?: boolean,
   maximizePanel?: () => void,
+  isDebugging?: boolean,
+  debuggerCallStack?: any[],
 }

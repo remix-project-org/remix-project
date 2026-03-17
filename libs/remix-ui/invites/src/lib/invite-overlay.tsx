@@ -1,5 +1,5 @@
 import React from 'react'
-import { InviteValidateResponse, InviteRedeemResponse } from '@remix-api'
+import { InviteValidateResponse, InviteRedeemResponse, InviteTokenAction } from '@remix-api'
 import { LoginButton } from '@remix-ui/login'
 import './invite-overlay.css'
 
@@ -17,310 +17,584 @@ interface InviteOverlayProps {
   state: InviteState
   onRedeem: (token: string) => Promise<InviteRedeemResponse>
   onClose: () => void
+  onStartWalkthrough?: (slug: string) => void
+  plugin?: any
 }
 
 /**
  * InviteOverlay - UI component for the InvitationManagerPlugin
- * Renders the invite modal when there's a valid token to show
+ * Renders type-specific invite modals (default, beta_program, etc.)
  */
 export const InviteOverlay: React.FC<InviteOverlayProps> = ({
   state,
   onRedeem,
-  onClose
+  onClose,
+  onStartWalkthrough,
+  plugin
 }) => {
-  // Don't render anything if not showing or no token
   if (!state.show || !state.token || !state.validation) {
     return null
   }
 
   const { token, validation, isAuthenticated, redeeming, redeemResult, error } = state
+  const inviteType = validation.invite_type || 'default'
 
-  // Format expiration time
-  const formatExpiry = (expiresAt: string | null | undefined) => {
-    if (!expiresAt) return null
-    const date = new Date(expiresAt)
-    const now = new Date()
-    const diff = date.getTime() - now.getTime()
-
-    if (diff < 0) return 'Expired'
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-
-    if (days > 0) {
-      return `Expires in ${days} day${days > 1 ? 's' : ''}`
-    } else if (hours > 0) {
-      return `Expires in ${hours} hour${hours > 1 ? 's' : ''}`
-    } else {
-      return 'Expires soon'
-    }
-  }
-
-  // Get user-friendly error message
-  const getErrorMessage = (errorCode: string): string => {
-    switch (errorCode) {
-    case 'NOT_FOUND':
-      return 'This invite code does not exist or is no longer valid.'
-    case 'INACTIVE':
-      return 'This invite code has been deactivated.'
-    case 'EXPIRED':
-      return 'This invite code has expired.'
-    case 'NOT_STARTED':
-      return 'This invite code is not yet active.'
-    case 'EXHAUSTED':
-    case 'MAX_USES_REACHED':
-      return 'This invite code has reached its maximum number of uses.'
-    case 'ALREADY_REDEEMED':
-      return 'You have already used this invite code.'
-    default:
-      return 'This invitation is no longer valid.'
-    }
-  }
-
-  // Invalid token
+  // --- Error / Invalid states ---
   if (!validation.valid) {
     return (
-      <div className="invite-overlay" onClick={onClose}>
-        <div className="invite-modal" onClick={e => e.stopPropagation()}>
-          <div className="invite-modal-header">
-            <h3>
-              <i className="fas fa-exclamation-circle text-danger me-2"></i>
-              Invalid Invite
-            </h3>
-            <button className="invite-modal-close" onClick={onClose}>
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
-          <div className="invite-modal-body">
-            <div className="invite-error-message">
-              <p>{getErrorMessage(validation.error_code || 'NOT_FOUND')}</p>
-            </div>
-          </div>
-          <div className="invite-modal-footer">
-            <button className="btn btn-secondary" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
+      <ErrorModal
+        errorCode={validation.error_code}
+        onClose={onClose}
+        inviteType={inviteType}
+      />
     )
   }
 
-  // Already redeemed
   if (validation.already_redeemed) {
     return (
-      <div className="invite-overlay" onClick={onClose}>
-        <div className="invite-modal" onClick={e => e.stopPropagation()}>
-          <div className="invite-modal-header">
-            <h3>
-              <i className="fas fa-info-circle text-info me-2"></i>
-              Already Activated
-            </h3>
-            <button className="invite-modal-close" onClick={onClose}>
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
-          <div className="invite-modal-body">
-            <p className="text-center">You have already redeemed this invite code.</p>
-            {validation.redeemed_at && (
-              <p className="text-center text-muted small">
-                Redeemed on {new Date(validation.redeemed_at).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-          <div className="invite-modal-footer">
-            <button className="btn btn-secondary" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Redemption successful
-  if (redeemResult?.success) {
-    return (
-      <div className="invite-overlay" onClick={onClose}>
-        <div className="invite-modal invite-modal-success" onClick={e => e.stopPropagation()}>
-          <div className="invite-modal-header">
-            <h3>
-              <i className="fas fa-check-circle text-success me-2"></i>
-              Invite Redeemed!
-            </h3>
-            <button className="invite-modal-close" onClick={onClose}>
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
-          <div className="invite-modal-body">
-            <p className="text-center mb-3">
-              You have successfully activated <strong>{validation.name}</strong>
-            </p>
-            {redeemResult.actions_applied && redeemResult.actions_applied.length > 0 && (
-              <div className="invite-applied-actions">
-                <h5>Benefits Applied:</h5>
-                <ul className="list-unstyled">
-                  {redeemResult.actions_applied.map((action, idx) => (
-                    <li key={idx} className="d-flex align-items-center mb-2">
-                      <i className={`fas ${action.success ? 'fa-check text-success' : 'fa-times text-danger'} me-2`}></i>
-                      <span>{action.type}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-          <div className="invite-modal-footer">
-            <button className="btn btn-primary" onClick={onClose}>
-              Get Started
-            </button>
-          </div>
-        </div>
-      </div>
+      <AlreadyRedeemedModal
+        redeemedAt={validation.redeemed_at}
+        onClose={onClose}
+        inviteType={inviteType}
+      />
     )
   }
 
   // Already redeemed error from redeem attempt
   if (redeemResult && !redeemResult.success && redeemResult.error_code === 'ALREADY_REDEEMED') {
     return (
-      <div className="invite-overlay" onClick={onClose}>
-        <div className="invite-modal" onClick={e => e.stopPropagation()}>
-          <div className="invite-modal-header">
-            <h3>
-              <i className="fas fa-info-circle text-info me-2"></i>
-              Already Activated
-            </h3>
-            <button className="invite-modal-close" onClick={onClose}>
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
-          <div className="invite-modal-body">
-            <p className="text-center">You have already redeemed this invite code.</p>
-            {redeemResult.redeemed_at && (
-              <p className="text-center text-muted small">
-                Redeemed on {new Date(redeemResult.redeemed_at).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-          <div className="invite-modal-footer">
-            <button className="btn btn-secondary" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
+      <AlreadyRedeemedModal
+        redeemedAt={redeemResult.redeemed_at}
+        onClose={onClose}
+        inviteType={inviteType}
+      />
     )
   }
 
-  // Main invite modal
+  // --- Success state ---
+  if (redeemResult?.success) {
+    const walkthroughAction = validation.actions?.find(a => a.type === 'walkthrough')
+    return (
+      <SuccessModal
+        validation={validation}
+        walkthroughAction={walkthroughAction}
+        onClose={onClose}
+        onStartWalkthrough={onStartWalkthrough}
+        inviteType={inviteType}
+      />
+    )
+  }
+
+  // --- Main invite modal (type-based) ---
+  if (inviteType === 'beta_program') {
+    return (
+      <BetaProgramInviteModal
+        token={token}
+        validation={validation}
+        isAuthenticated={isAuthenticated}
+        redeeming={redeeming}
+        error={error}
+        onRedeem={onRedeem}
+        onClose={onClose}
+        plugin={plugin}
+      />
+    )
+  }
+
+  return (
+    <DefaultInviteModal
+      token={token}
+      validation={validation}
+      isAuthenticated={isAuthenticated}
+      redeeming={redeeming}
+      error={error}
+      onRedeem={onRedeem}
+      onClose={onClose}
+      plugin={plugin}
+    />
+  )
+}
+
+/* ==================== Shared Helpers ==================== */
+
+const SWIRL_BG = 'https://raw.githubusercontent.com/remix-project-org/remix-dynamics/refs/heads/live/images/illusion.svg'
+
+function formatExpiry(expiresAt: string | null | undefined): string | null {
+  if (!expiresAt) return null
+  const date = new Date(expiresAt)
+  const diff = date.getTime() - Date.now()
+  if (diff < 0) return 'Expired'
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  if (days > 0) return `${days}d remaining`
+  if (hours > 0) return `${hours}h remaining`
+  return 'Expires soon'
+}
+
+function getErrorMessage(errorCode?: string): string {
+  switch (errorCode) {
+  case 'NOT_FOUND': return 'This invite code does not exist or is no longer valid.'
+  case 'INACTIVE': return 'This invite code has been deactivated.'
+  case 'EXPIRED': return 'This invite code has expired.'
+  case 'NOT_STARTED': return 'This invite code is not yet active.'
+  case 'EXHAUSTED':
+  case 'MAX_USES_REACHED': return 'This invite code has reached its maximum number of uses.'
+  case 'ALREADY_REDEEMED': return 'You have already used this invite code.'
+  default: return 'This invitation is no longer valid.'
+  }
+}
+
+/* ==================== Error Modal ==================== */
+
+const ErrorModal: React.FC<{
+  errorCode?: string
+  onClose: () => void
+  inviteType: string
+}> = ({ errorCode, onClose, inviteType }) => (
+  <div className="invite-overlay" onClick={onClose}>
+    <div className="invite-modal-dialog" onClick={e => e.stopPropagation()}>
+      <div className="invite-modal-card">
+        <div className="invite-modal-left invite-modal-left--error">
+          <div className="invite-modal-left-gradient invite-modal-left-gradient--error" />
+          <div className="invite-modal-left-content">
+            <div className="invite-modal-hero-icon">
+              <i className="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 className="invite-modal-hero-title">Invalid Invite</h3>
+          </div>
+        </div>
+        <div className="invite-modal-right">
+          <div className="invite-modal-right-header">
+            <h5>Unable to Process</h5>
+            <button className="invite-modal-close-btn" onClick={onClose}>
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+          <div className="invite-modal-right-body">
+            <p className="invite-modal-error-text">{getErrorMessage(errorCode)}</p>
+          </div>
+          <div className="invite-modal-right-footer">
+            <button className="btn invite-modal-btn-secondary" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+/* ==================== Already Redeemed Modal ==================== */
+
+const AlreadyRedeemedModal: React.FC<{
+  redeemedAt?: string | null
+  onClose: () => void
+  inviteType: string
+}> = ({ redeemedAt, onClose }) => (
+  <div className="invite-overlay" onClick={onClose}>
+    <div className="invite-modal-dialog" onClick={e => e.stopPropagation()}>
+      <div className="invite-modal-card">
+        <div className="invite-modal-left invite-modal-left--info">
+          <div className="invite-modal-left-gradient invite-modal-left-gradient--info" />
+          <div className="invite-modal-left-content">
+            <div className="invite-modal-hero-icon">
+              <i className="fas fa-check-circle"></i>
+            </div>
+            <h3 className="invite-modal-hero-title">Already Active</h3>
+          </div>
+        </div>
+        <div className="invite-modal-right">
+          <div className="invite-modal-right-header">
+            <h5>Already Activated</h5>
+            <button className="invite-modal-close-btn" onClick={onClose}>
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+          <div className="invite-modal-right-body">
+            <p>You have already redeemed this invite code.</p>
+            {redeemedAt && (
+              <p className="invite-modal-muted small">
+                Activated on {new Date(redeemedAt).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+          <div className="invite-modal-right-footer">
+            <button className="btn invite-modal-btn-secondary" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+/* ==================== Success Modal ==================== */
+
+const SuccessModal: React.FC<{
+  validation: InviteValidateResponse
+  walkthroughAction?: InviteTokenAction
+  onClose: () => void
+  onStartWalkthrough?: (slug: string) => void
+  inviteType: string
+}> = ({ validation, walkthroughAction, onClose, onStartWalkthrough, inviteType }) => {
+  const isBeta = inviteType === 'beta_program'
+
+  const handleStartWalkthrough = () => {
+    if (walkthroughAction?.walkthrough_slug && onStartWalkthrough) {
+      onStartWalkthrough(walkthroughAction.walkthrough_slug)
+    }
+    onClose()
+  }
+
   return (
     <div className="invite-overlay" onClick={onClose}>
-      <div className="invite-modal" onClick={e => e.stopPropagation()}>
-        <div className="invite-modal-header">
-          <h3>
-            <i className="fas fa-gift text-primary me-2"></i>
-            You've Been Invited!
-          </h3>
-          <button className="invite-modal-close" onClick={onClose}>
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div className="invite-modal-body">
-          {/* Token Name & Description */}
-          <div className="invite-token-info mb-4">
-            <h4 className="mb-2">{validation.name}</h4>
-            {validation.description && (
-              <p className="text-muted">{validation.description}</p>
-            )}
-
-            {/* Expiry & Remaining Uses */}
-            <div className="invite-meta d-flex gap-3 mt-2">
-              {validation.expires_at && (
-                <span className="badge bg-secondary">
-                  <i className="fas fa-clock me-1"></i>
-                  {formatExpiry(validation.expires_at)}
-                </span>
+      <div className="invite-modal-dialog invite-modal-dialog--wide" onClick={e => e.stopPropagation()}>
+        <div className="invite-modal-card">
+          <div className={`invite-modal-left ${isBeta ? 'invite-modal-left--beta' : 'invite-modal-left--success'}`}>
+            <div className={`invite-modal-left-gradient ${isBeta ? 'invite-modal-left-gradient--beta' : 'invite-modal-left-gradient--success'}`} />
+            <div className="invite-modal-left-content">
+              <div className="invite-modal-hero-icon invite-modal-hero-icon--success">
+                <i className={`fas ${isBeta ? 'fa-trophy' : 'fa-check-circle'}`}></i>
+              </div>
+              <h3 className="invite-modal-hero-title">
+                {isBeta ? 'You\'re Accepted!' : 'You\'re In!'}
+              </h3>
+              <p className="invite-modal-hero-subtitle">
+                {isBeta
+                  ? 'Welcome to the Remix v2 Private Beta'
+                  : `Successfully activated ${validation.name || 'your invite'}`}
+              </p>
+            </div>
+          </div>
+          <div className="invite-modal-right">
+            <div className="invite-modal-right-header">
+              <h5>{isBeta ? '🎉 Congratulations, Beta Tester!' : 'Invite Activated!'}</h5>
+              <button className="invite-modal-close-btn" onClick={onClose}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="invite-modal-right-body">
+              {isBeta ? (
+                <>
+                  <p className="invite-modal-success-message" style={{ fontSize: '0.92rem', lineHeight: 1.6 }}>
+                    You've been selected to join the <strong>Remix v2 Private Beta Testing Program</strong>!
+                    You are now part of an exclusive group of developers who will shape the future of Remix.
+                  </p>
+                  <div className="invite-modal-section">
+                    <h6 className="invite-modal-section-label">WHAT'S NOW UNLOCKED FOR YOU</h6>
+                    <div className="invite-modal-perks-grid">
+                      <div className="invite-modal-perk">
+                        <i className="fas fa-robot invite-modal-perk-icon"></i>
+                        <span>Full Agentic RemixAI</span>
+                      </div>
+                      <div className="invite-modal-perk">
+                        <i className="fas fa-cloud invite-modal-perk-icon"></i>
+                        <span>Cloud Storage &amp; Chat History</span>
+                      </div>
+                      <div className="invite-modal-perk">
+                        <i className="fas fa-palette invite-modal-perk-icon"></i>
+                        <span>QuickDapp Builder</span>
+                      </div>
+                      <div className="invite-modal-perk">
+                        <i className="fas fa-rocket invite-modal-perk-icon"></i>
+                        <span>New Deploy &amp; Run + AI Debugger</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="invite-modal-walkthrough-cta" style={{ background: 'rgba(13, 148, 136, 0.08)', border: '1px solid rgba(13, 148, 136, 0.2)', borderRadius: '10px', padding: '0.75rem 0.85rem' }}>
+                    <div className="invite-modal-walkthrough-icon">
+                      <i className="fas fa-star" style={{ color: '#f59e0b' }}></i>
+                    </div>
+                    <div className="invite-modal-walkthrough-text">
+                      <strong>You're special!</strong>
+                      <span>As a beta tester your feedback will directly influence the product. Thank you for helping us build the future of Remix!</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="invite-modal-success-message">
+                  <strong>{validation.name}</strong> has been activated on your account.
+                </p>
               )}
-              {validation.uses_remaining !== null && validation.uses_remaining !== undefined && (
-                <span className="badge bg-secondary">
-                  <i className="fas fa-ticket-alt me-1"></i>
-                  {validation.uses_remaining} remaining
-                </span>
+
+              {walkthroughAction && (
+                <div className="invite-modal-walkthrough-cta">
+                  <div className="invite-modal-walkthrough-icon">
+                    <i className="fas fa-route"></i>
+                  </div>
+                  <div className="invite-modal-walkthrough-text">
+                    <strong>Guided Tour Available</strong>
+                    <span>Take a quick walkthrough to discover what's new</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="invite-modal-right-footer">
+              {walkthroughAction ? (
+                <div className="invite-modal-footer-actions">
+                  <button className="btn invite-modal-btn-secondary" onClick={onClose}>
+                    Skip for now
+                  </button>
+                  <button className="btn invite-modal-btn-primary invite-modal-btn--glow" data-id="invite-lets-start-btn" onClick={handleStartWalkthrough}>
+                    <i className="fas fa-play me-2"></i>
+                    Let's Start!
+                  </button>
+                </div>
+              ) : (
+                <button className="btn invite-modal-btn-primary w-100" data-id="invite-get-started-btn" onClick={onClose}>
+                  Get Started
+                </button>
               )}
             </div>
           </div>
-
-          {/* Actions/Benefits preview */}
-          {validation.actions && validation.actions.length > 0 && (
-            <div className="invite-benefits mb-4">
-              <h5 className="text-uppercase small">What you'll get:</h5>
-              <ul className="list-unstyled">
-                {validation.actions.map((action, idx) => (
-                  <li key={idx} className="d-flex align-items-center mb-2">
-                    <i className={`fas fa-${getActionIcon(action.type)} text-primary me-2`}></i>
-                    <span>{action.description}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Error display */}
-          {error && (
-            <div className="alert alert-danger">
-              <i className="fas fa-exclamation-triangle me-2"></i>
-              {error}
-            </div>
-          )}
-        </div>
-
-        <div className="invite-modal-footer">
-          {isAuthenticated ? (
-            <button
-              className="btn btn-primary btn-lg w-100"
-              onClick={() => onRedeem(token)}
-              disabled={redeeming}
-            >
-              {redeeming ? (
-                <>
-                  <i className="fas fa-spinner fa-spin me-2"></i>
-                  Activating...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-check me-2"></i>
-                  Activate Invite
-                </>
-              )}
-            </button>
-          ) : (
-            <div className="w-100">
-              <p className="text-center text-muted mb-3">
-                <i className="fas fa-info-circle me-1"></i>
-                Sign in to activate this invite
-              </p>
-              <LoginButton className="btn-lg w-100" />
-            </div>
-          )}
         </div>
       </div>
     </div>
   )
 }
 
-// Helper function to get icon for action type
-function getActionIcon(type: string): string {
-  switch (type) {
-  case 'add_to_feature_group':
-    return 'star'
-  case 'grant_credits':
-    return 'coins'
-  case 'grant_product':
-    return 'gift'
-  case 'add_tag':
-    return 'tag'
-  default:
-    return 'check'
-  }
-}
+/* ==================== Beta Program Invite Modal ==================== */
+
+const BetaProgramInviteModal: React.FC<{
+  token: string
+  validation: InviteValidateResponse
+  isAuthenticated: boolean
+  redeeming: boolean
+  error: string | null
+  onRedeem: (token: string) => Promise<InviteRedeemResponse>
+  onClose: () => void
+  plugin?: any
+}> = ({ token, validation, isAuthenticated, redeeming, error, onRedeem, onClose, plugin }) => (
+  <div className="invite-overlay" onClick={onClose}>
+    <div className="invite-modal-dialog invite-modal-dialog--wide" onClick={e => e.stopPropagation()}>
+      <div className="invite-modal-card">
+        {/* Left swirl panel */}
+        <div className="invite-modal-left invite-modal-left--beta">
+          <div className="invite-modal-left-gradient invite-modal-left-gradient--beta" />
+          <div className="invite-modal-left-content">
+            <div className="invite-modal-hero-icon">
+              <i className="fas fa-flask"></i>
+            </div>
+            <h3 className="invite-modal-hero-title">Remix Beta</h3>
+            <p className="invite-modal-hero-subtitle">
+              You've been accepted to
+              <strong> Remix v2 Private Beta Testing Program</strong>! Get ready to explore powerful new features and help shape the future of Remix.
+            </p>
+          </div>
+        </div>
+
+        {/* Right content panel */}
+        <div className="invite-modal-right">
+          <div className="invite-modal-right-header">
+            <div>
+              <h5>{validation.name || 'Beta Program'}</h5>
+              <p className="invite-modal-muted mb-0">
+                {validation.description || 'Join our exclusive beta testing program'}
+              </p>
+            </div>
+            <button className="invite-modal-close-btn" onClick={onClose}>
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+
+          <div className="invite-modal-right-body">
+            {/* What's New */}
+            <div className="invite-modal-section">
+              <h6 className="invite-modal-section-label">WHAT'S NEW IN THE BETA?</h6>
+              <p className="invite-modal-muted" style={{ fontSize: '0.82rem', marginBottom: '0.6rem' }}>
+                As a beta tester, you'll be the first to experiment with:
+              </p>
+              <ul className="invite-modal-benefits">
+                <li>
+                  <div className="invite-modal-benefit-dot invite-modal-benefit-dot--teal"></div>
+                  <div>
+                    <strong>Full Agentic RemixAI</strong>
+                    <span>New connected APIs and advanced AI capabilities</span>
+                  </div>
+                </li>
+                <li>
+                  <div className="invite-modal-benefit-dot invite-modal-benefit-dot--cyan"></div>
+                  <div>
+                    <strong>User Accounts, Cloud Storage &amp; Chat History</strong>
+                    <span>Persistent workspace and conversation data across devices</span>
+                  </div>
+                </li>
+                <li>
+                  <div className="invite-modal-benefit-dot invite-modal-benefit-dot--blue"></div>
+                  <div>
+                    <strong>QuickDapp</strong>
+                    <span>AI-assisted front-end builder with decentralized hosting for dApps and Base mini-apps</span>
+                  </div>
+                </li>
+                <li>
+                  <div className="invite-modal-benefit-dot invite-modal-benefit-dot--teal"></div>
+                  <div>
+                    <strong>Huge UI Updates</strong>
+                    <span>Deploy &amp; Run overhaul and the new AI-assisted Debugger</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* Why Join */}
+            <div className="invite-modal-section">
+              <h6 className="invite-modal-section-label">WHY JOIN?</h6>
+              <p className="invite-modal-muted" style={{ fontSize: '0.82rem', lineHeight: 1.55 }}>
+                You'll get early access to these powerful new tools and play a direct role in shaping the future of Remix.
+                Testing involves both using the tool as usual and trying out the new features.
+              </p>
+              <p className="invite-modal-muted" style={{ fontSize: '0.82rem', lineHeight: 1.55 }}>
+                You can share your comments and suggestions directly in the app, through a dedicated Discord channel,
+                and by completing a form provided at the end of the testing period.
+              </p>
+              <p className="invite-modal-muted" style={{ fontSize: '0.82rem', lineHeight: 1.55, marginBottom: 0 }}>
+                The program is expected to last about a month, and we will provide comprehensive documentation to support you.
+                You are free to leave the program at any time.
+              </p>
+            </div>
+
+            {/* Meta badges */}
+            <div className="invite-modal-meta">
+              {validation.expires_at && (
+                <span className="invite-modal-meta-badge">
+                  <i className="fas fa-clock me-1"></i>
+                  {formatExpiry(validation.expires_at)}
+                </span>
+              )}
+              {validation.uses_remaining != null && (
+                <span className="invite-modal-meta-badge">
+                  <i className="fas fa-ticket-alt me-1"></i>
+                  {validation.uses_remaining} left
+                </span>
+              )}
+            </div>
+
+            {error && (
+              <div className="invite-modal-error">
+                <i className="fas fa-exclamation-triangle me-2"></i>
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="invite-modal-right-footer">
+            {isAuthenticated ? (
+              <button
+                className="btn invite-modal-btn-primary invite-modal-btn--glow w-100"
+                data-id="invite-join-beta-btn"
+                onClick={() => onRedeem(token)}
+                disabled={redeeming}
+              >
+                {redeeming ? (
+                  <><i className="fas fa-spinner fa-spin me-2"></i>Activating...</>
+                ) : (
+                  <><i className="fas fa-rocket me-2"></i>Join the Beta</>
+                )}
+              </button>
+            ) : (
+              <div className="w-100">
+                <p className="invite-modal-muted text-center mb-3">
+                  <i className="fas fa-lock me-1"></i>
+                  Sign in to activate this invite
+                </p>
+                <LoginButton className="btn-lg w-100" plugin={plugin} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+/* ==================== Default Invite Modal ==================== */
+
+const DefaultInviteModal: React.FC<{
+  token: string
+  validation: InviteValidateResponse
+  isAuthenticated: boolean
+  redeeming: boolean
+  error: string | null
+  onRedeem: (token: string) => Promise<InviteRedeemResponse>
+  onClose: () => void
+  plugin?: any
+}> = ({ token, validation, isAuthenticated, redeeming, error, onRedeem, onClose, plugin }) => (
+  <div className="invite-overlay" onClick={onClose}>
+    <div className="invite-modal-dialog" onClick={e => e.stopPropagation()}>
+      <div className="invite-modal-card">
+        {/* Left swirl panel */}
+        <div className="invite-modal-left invite-modal-left--default">
+          <div className="invite-modal-left-gradient invite-modal-left-gradient--default" />
+          <div className="invite-modal-left-content">
+            <div className="invite-modal-hero-icon">
+              <i className="fas fa-gift"></i>
+            </div>
+            <h3 className="invite-modal-hero-title">You're Invited!</h3>
+          </div>
+        </div>
+
+        {/* Right content panel */}
+        <div className="invite-modal-right">
+          <div className="invite-modal-right-header">
+            <div>
+              <h5>{validation.name || 'Invitation'}</h5>
+              {validation.description && (
+                <p className="invite-modal-muted mb-0">{validation.description}</p>
+              )}
+            </div>
+            <button className="invite-modal-close-btn" onClick={onClose}>
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+
+          <div className="invite-modal-right-body">
+            {/* Meta badges */}
+            <div className="invite-modal-meta">
+              {validation.expires_at && (
+                <span className="invite-modal-meta-badge">
+                  <i className="fas fa-clock me-1"></i>
+                  {formatExpiry(validation.expires_at)}
+                </span>
+              )}
+              {validation.uses_remaining != null && (
+                <span className="invite-modal-meta-badge">
+                  <i className="fas fa-ticket-alt me-1"></i>
+                  {validation.uses_remaining} left
+                </span>
+              )}
+            </div>
+
+            {error && (
+              <div className="invite-modal-error">
+                <i className="fas fa-exclamation-triangle me-2"></i>
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="invite-modal-right-footer">
+            {isAuthenticated ? (
+              <button
+                className="btn invite-modal-btn-primary w-100"
+                data-id="invite-activate-btn"
+                onClick={() => onRedeem(token)}
+                disabled={redeeming}
+              >
+                {redeeming ? (
+                  <><i className="fas fa-spinner fa-spin me-2"></i>Activating...</>
+                ) : (
+                  <><i className="fas fa-check me-2"></i>Activate Invite</>
+                )}
+              </button>
+            ) : (
+              <div className="w-100">
+                <p className="invite-modal-muted text-center mb-3">
+                  <i className="fas fa-lock me-1"></i>
+                  Sign in to activate this invite
+                </p>
+                <LoginButton className="btn-lg w-100" plugin={plugin} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)

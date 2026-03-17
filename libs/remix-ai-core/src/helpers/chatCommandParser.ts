@@ -47,7 +47,6 @@ export class ChatCommandParser {
     if (handler) {
       return handler(rawArgs, this, statusCallback);
     } else {
-      console.log(`Unknown command: ${commandName}`);
       return "";
     }
   }

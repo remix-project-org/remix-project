@@ -5,6 +5,7 @@ import '../../css/statusbar.css'
 import { CustomTooltip } from '@remix-ui/helper'
 import { AppContext } from '@remix-ui/app'
 import { trackMatomoEvent } from '@remix-api'
+import { FormattedMessage, useIntl } from 'react-intl'
 
 export interface GitStatusProps {
   plugin: StatusBar
@@ -14,6 +15,7 @@ export interface GitStatusProps {
 
 export default function GitStatus({ plugin, gitBranchName, setGitBranchName }: GitStatusProps) {
   const appContext = useContext(AppContext)
+  const intl = useIntl()
 
   const openDgit = async () => {
     plugin.verticalIcons.select('dgit')
@@ -28,14 +30,16 @@ export default function GitStatus({ plugin, gitBranchName, setGitBranchName }: G
 
   return (
     <CustomTooltip
-      tooltipText={`${appContext.appState.needsGitInit ? 'Initialize as git repo' : 'Current branch: ' + appContext.appState.currentBranch.name}`}
+      tooltipText={`${appContext.appState.needsGitInit
+        ? intl.formatMessage({ id: 'statusbar.initializeAsGitRepo' })
+        : intl.formatMessage({ id: 'git.checkout' }) + ': ' + appContext.appState.currentBranch.name}`}
     >
       <div
         className="d-flex flex-row ps-3 text-white justify-content-center align-items-center remixui_statusbar_gitstatus"
         onClick={async () => await openDgit()}
       >
         {!appContext.appState.needsGitInit ? <span className="fa-regular fa-code-branch ms-1"></span>
-          : <span className=" ms-1" onClick={initializeNewGitRepo}>Initialize as git repo</span>}
+          : <span className=" ms-1" onClick={initializeNewGitRepo}><FormattedMessage id="statusbar.initializeAsGitRepo" /></span>}
         {!appContext.appState.needsGitInit && appContext.appState.currentBranch &&
           <span onClick={async () => await openDgit()} className="ms-1">{appContext.appState.currentBranch.name}</span>
         }

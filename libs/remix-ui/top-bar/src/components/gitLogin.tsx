@@ -34,7 +34,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
     try {
       window.localStorage.setItem('gh_login', gitHubUser.login)
       window.localStorage.setItem('gh_id', String(gitHubUser.id))
-    } catch {}
+    } catch { }
   }
 
   // Simple login handler that delegates to the prop function
@@ -53,7 +53,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
     >
       <Button
         className="btn btn-topbar btn-sm border d-flex flex-nowrap align-items-center justify-content-between github-login"
-        variant={ null }
+        variant={null}
         data-id="github-dropdown-toggle-login"
         onClick={isConnected ? undefined : handleLogin}
         disabled={isConnected}
@@ -67,12 +67,12 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
               height: '25px',
               borderRadius: '50%',
               objectFit: 'cover',
-            }}/>
+            }} />
           </div>
         ) : (
           <div className="d-flex flex-nowrap align-items-center flex-row justify-content-center">
             <i className="fab fa-github me-1"></i>
-            <span>Connect with GitHub</span>
+            <span>Connect to GitHub</span>
           </div>
         )}
       </Button>
@@ -115,7 +115,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
                 try {
                   window.localStorage.removeItem('gh_login')
                   window.localStorage.removeItem('gh_id')
-                } catch {}
+                } catch { }
                 trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'logout', isClick: true })
               }}
               className="text-danger"

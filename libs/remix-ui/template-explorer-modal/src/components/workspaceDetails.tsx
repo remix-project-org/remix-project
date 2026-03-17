@@ -90,7 +90,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
           </>
         </div>
 
-        <button className="btn btn-primary btn-sm" data-id="validateWorkspaceButton" onClick={async () => {
+        <button className="btn btn-primary btn-sm" data-id="validateWorkspaceButton" disabled={state.creating} onClick={async () => {
           await facade.createWorkspace({
             workspaceName: uniqueWorkspaceName,
             workspaceTemplateName: state.workspaceTemplateChosen.value,
@@ -103,7 +103,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
           facade.closeWizard()
           dispatch({ type: TemplateExplorerWizardAction.RESET_STATE })
         }}>
-          <i className="far fa-plus me-2"></i> Create a new workspace
+          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-plus me-2"></i> Create a new workspace</>}
         </button>
       </div>
     </section>

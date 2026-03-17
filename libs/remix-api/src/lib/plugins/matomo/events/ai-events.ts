@@ -96,7 +96,8 @@ export interface AIEvent extends MatomoEventBase {
     | 'GenerateNewAIWorkspaceFromEditMode'
     | 'SetAIProvider'
     | 'SetOllamaModel'
-    | 'GenerateNewAIWorkspaceFromModal';
+    | 'GenerateNewAIWorkspaceFromModal'
+    | 'conv_starter'
 }
 
 /**

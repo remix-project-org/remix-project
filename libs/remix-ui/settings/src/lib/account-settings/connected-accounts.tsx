@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
+import { LoginMode } from '@remix-api'
 import { LinkedAccount, loadAccountsFromAPI, linkAccountProvider, getProviderIcon, getProviderColor } from './account-utils'
+import { AppContext } from '@remix-ui/app'
 
 interface ConnectedAccountsProps {
   plugin: any
 }
 
 export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) => {
+  const appContext = useContext(AppContext)
   const [accounts, setAccounts] = useState<LinkedAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [enableLogin, setEnableLogin] = useState<boolean>(false)
+  const [loginEnabled, setLoginEnabled] = useState<boolean>(false)
+  const configEnabled = appContext?.appConfig?.['auth.link_accounts_enabled'] !== false
 
   const loadAccounts = async () => {
     try {
@@ -27,21 +31,32 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
   }
 
   useEffect(() => {
-    const checkLoginEnabled = () => {
-      const enabled = localStorage.getItem('enableLogin') === 'true'
-      setEnableLogin(enabled)
+    const fetchLoginMode = async () => {
+      try {
+        const response = await plugin.call('auth', 'getLoginMode')
+        const mode: LoginMode = response?.mode || 'open'
+        setLoginEnabled(mode !== 'closed')
+      } catch {
+        setLoginEnabled(localStorage.getItem('enableLogin') === 'true')
+      }
     }
-    checkLoginEnabled()
+    fetchLoginMode()
 
     loadAccounts()
 
     const onAuthStateChanged = async (_payload: any) => {
       await loadAccounts()
-      checkLoginEnabled()
+    }
+
+    const handleLoginModeChanged = (response: { mode: LoginMode; message: string }) => {
+      if (response?.mode) {
+        setLoginEnabled(response.mode !== 'closed')
+      }
     }
 
     try {
       plugin.on('auth', 'authStateChanged', onAuthStateChanged)
+      plugin.on('auth', 'loginModeChanged', handleLoginModeChanged)
     } catch (e) {
       // noop
     }
@@ -49,6 +64,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
     return () => {
       try {
         plugin.off('auth', 'authStateChanged')
+        plugin.off('auth', 'loginModeChanged')
       } catch (e) {
         // ignore
       }
@@ -70,7 +86,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
   const handleLinkDiscord = () => handleLinkProvider('discord')
   const handleLinkSIWE = () => handleLinkProvider('siwe')
 
-  if (!enableLogin) {
+  if (!loginEnabled || !configEnabled) {
     return null
   }
 

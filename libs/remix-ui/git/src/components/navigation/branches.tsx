@@ -6,6 +6,7 @@ import LoaderIndicator from "./loaderindicator";
 import { gitUIPanels } from "../../types";
 import { SourceControlBase } from "../buttons/sourceControlBase";
 import { SourceControlButtons } from "../buttons/sourcecontrolbuttons";
+import { FormattedMessage } from "react-intl";
 
 export const BranchesNavigation = ({ eventKey, activePanel, callback }) => {
   const pluginactions = React.useContext(pluginActionsContext)
@@ -26,7 +27,7 @@ export const BranchesNavigation = ({ eventKey, activePanel, callback }) => {
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          <label className="ps-2 nav form-check-label">BRANCHES</label>
+          <label className="ps-2 nav form-check-label"><FormattedMessage id="gitui.branches" /></label>
           <LoaderIndicator></LoaderIndicator>
         </span>
         <SourceControlBase><SourceControlButtons panel={gitUIPanels.BRANCHES}/></SourceControlBase>

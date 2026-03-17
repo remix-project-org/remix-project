@@ -1,10 +1,10 @@
 import { ICompilerApi } from '@remix-project/remix-lib'
-import { getValidLanguage, Compiler } from '@remix-project/remix-solidity'
+import { getValidLanguage, Compiler, EVMVersion, Language } from '@remix-project/remix-solidity'
 import { EventEmitter } from 'events'
 import { configFileContent } from '../compilerConfiguration'
 
 export class CompileTabLogic {
-  public compiler
+  public compiler: Compiler
   public api: ICompilerApi
   public contentImport
   public optimize
@@ -52,11 +52,11 @@ export class CompileTabLogic {
       this.evmVersion = null
     }
     this.api.setCompilerQueryParameters({ evmVersion: this.evmVersion })
-    this.compiler.set('evmVersion', this.evmVersion)
+    this.compiler.set('evmVersion', this.evmVersion as EVMVersion)
 
     this.language = getValidLanguage(this.api.getCompilerQueryParameters().language)
     if (this.language != null) {
-      this.compiler.set('language', this.language)
+      this.compiler.set('language', this.language as Language)
     }
 
   }
@@ -82,7 +82,7 @@ export class CompileTabLogic {
   setEvmVersion (newEvmVersion) {
     this.evmVersion = newEvmVersion
     this.api.setCompilerQueryParameters({ evmVersion: this.evmVersion })
-    this.compiler.set('evmVersion', this.evmVersion)
+    this.compiler.set('evmVersion', this.evmVersion as EVMVersion)
   }
 
   async getCompilerState () {

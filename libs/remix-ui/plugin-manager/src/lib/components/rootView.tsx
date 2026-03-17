@@ -54,7 +54,7 @@ function RootView({ pluginComponent, children, filterByRemix, setFilterByRemix, 
 
           <div className="d-flex w-100 mb-2">
             <div className="search-bar-container w-100">
-              <img className="search-bar-icon" style={{ filter: "invert(0.6)" }} src="assets/img/search_icon.webp" alt="Search" />
+              <img className="search-bar-icon" style={{ filter: "invert(0.6)" }} src="assets/img/search_icon.webp" alt={intl.formatMessage({ id: 'pluginManager.search' })} />
               <input
                 type="text"
                 onChange={(event) => setFilterPlugin(event.target.value.toLowerCase())}
@@ -80,7 +80,7 @@ function RootView({ pluginComponent, children, filterByRemix, setFilterByRemix, 
                   </clipPath>
                 </defs>
               </svg>
-              <span>Filters</span>
+              <span><FormattedMessage id="pluginManager.filters" /></span>
             </button>
           </div>
 
@@ -98,7 +98,7 @@ function RootView({ pluginComponent, children, filterByRemix, setFilterByRemix, 
               className="m-0 remixui-filter-label text-dark me-2"
               style={{ cursor: 'pointer' }}
             >
-              Only maintained by Remix
+              <FormattedMessage id="pluginManager.onlyMaintainedByRemix" />
             </label>
             <div data-id="filter-by-remix-switch">
               <ToggleSwitch

@@ -77,6 +77,11 @@ export const invariants = {
 4. **EXPLICIT EXTENSIONS:** Always include file extensions in local imports.
    - BAD: \`import Navbar from './components/Navbar'\`
    - GOOD: \`import Navbar from './components/Navbar.jsx'\`
+5. **RELATIVE PATHS ONLY:** Files inside \`src/\` must use relative paths WITHOUT repeating \`src/\`.
+   - BAD: \`import App from './src/App.jsx'\` (inside src/main.jsx — causes /src/src/App.jsx)
+   - GOOD: \`import App from './App.jsx'\` (correct relative path within same directory)
+   - BAD: \`import utils from './src/utils/helpers.jsx'\`
+   - GOOD: \`import utils from './utils/helpers.jsx'\`
 `,
 
   /** index.html template with import map */
@@ -139,12 +144,16 @@ export const invariants = {
 2. When generating HTML/JSX, break attributes onto new lines if the tag becomes too long.
 3. **ALWAYS import React from 'react'** in any file using JSX (especially \`src/main.jsx\` and \`src/App.jsx\`).
    - Example: \`import React from 'react';\` must be at the top, even if you use \`createRoot\`.
-4. **ETHERS.JS PROVIDER RULES (CRITICAL):**
-   - **MUST USE:** Always use \`new ethers.BrowserProvider(window.ethereum)\` for both reading and writing.
+4. **EVERY FILE that uses ethers.js MUST have its own import statement.** Do NOT assume ethers is available globally.
+   - BAD: A Navbar component uses \`new ethers.BrowserProvider(...)\` but has no \`import { ethers } from 'ethers'\` → crashes with "ethers is not defined".
+   - GOOD: Every .jsx/.tsx file that references \`ethers\` includes \`import { ethers } from 'ethers';\` at the top.
+5. **ETHERS.JS PROVIDER RULES (CRITICAL):**
+   - **MUST USE:** Always use \`ethers.BrowserProvider\` with a wallet provider for both reading and writing.
+   - **PROVIDER ACQUISITION:** Use \`window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum\` to get the provider. Store this raw provider in a ref/variable for reuse (e.g. network switching).
    - **FORBIDDEN:** NEVER use \`new ethers.JsonRpcProvider\`, \`InfuraProvider\`, or \`AlchemyProvider\`.
    - **FORBIDDEN:** NEVER generate code containing placeholders like 'YOUR_INFURA_KEY' or ask for API keys.
-4. Use React with JSX syntax (not "text/babel" scripts).
-5. Use ethers.js (v6) for all blockchain interactions.
+6. Use React with JSX syntax (not "text/babel" scripts).
+7. Use ethers.js (v6) for all blockchain interactions.
 `,
 
   /** Image placeholder URL rules */
@@ -196,7 +205,9 @@ ${functionNames}
   },
 
   /** Wallet connection and network switching patterns */
-  wallet: (): string => `
+  wallet: (isLocalVM: boolean = false): string => {
+    if (isLocalVM) {
+      return `
 **WALLET CONNECTION RULES:**
 1. **Connect Wallet** button must be visible when disconnected.
 2. Check \`window.ethereum\` existence before any wallet operations.
@@ -222,7 +233,108 @@ const switchNetwork = async (targetChainHex) => {
   }
 };
 \`\`\`
-`,
+`
+    }
+
+    // Real network: full wallet selection rules with disconnect/switch/localStorage
+    return `
+**WALLET CONNECTION RULES:**
+1. **Connect Wallet** button must be visible in the header/navbar when disconnected.
+2. **Disconnect Wallet** button must be visible in the header/navbar when connected (next to the account address).
+3. **Switch Network** button must appear **only when** the connected wallet's chain ID differs from the DApp's target chain ID. Hide it when on the correct network.
+4. Use loading spinners for async actions.
+5. Handle "User rejected request" errors gracefully.
+6. Show truncated wallet address (e.g. \`0x1234...5678\`) when connected.
+
+**WALLET PROVIDER ACQUISITION (CRITICAL):**
+The deployed DApp uses \`window.__qdapp_getProvider()\` to discover and select wallets via EIP-6963.
+Always get the raw provider like this:
+\`\`\`javascript
+const rawProvider = window.__qdapp_getProvider
+  ? await window.__qdapp_getProvider()
+  : window.ethereum;
+if (!rawProvider) {
+  alert('Please install a Web3 wallet (e.g. MetaMask).');
+  return;
+}
+const provider = new ethers.BrowserProvider(rawProvider);
+\`\`\`
+**Store \`rawProvider\` in a React ref** (e.g. \`rawProviderRef.current = rawProvider\`) so you can reuse it for network switching without calling \`__qdapp_getProvider\` again.
+
+**🚨 CHAIN ID COMPARISON (CRITICAL — prevents wrong-network false positive):**
+- ethers.js v6 returns \`network.chainId\` as a **BigInt** (e.g. \`11155111n\`).
+- **NEVER compare hex strings directly** (e.g. \`"0xaa36a7" !== "aa36a7"\` — prefix mismatch!).
+- **ALWAYS compare as decimal numbers:**
+\`\`\`javascript
+const TARGET_CHAIN_ID = 11155111; // Sepolia — use DECIMAL number
+// After connecting:
+const network = await provider.getNetwork();
+const currentChainId = Number(network.chainId);
+setChainId(currentChainId);
+// Wrong network check:
+const isWrongNetwork = account && chainId !== null && chainId !== TARGET_CHAIN_ID;
+\`\`\`
+- For \`wallet_switchEthereumChain\`, convert to hex: \`'0x' + TARGET_CHAIN_ID.toString(16)\`
+
+**Disconnect Pattern (mandatory — MUST implement this):**
+\`\`\`javascript
+const disconnectWallet = () => {
+  setAccount(null);
+  setProvider(null);
+  setSigner(null);
+  rawProviderRef.current = null;
+  // Clear saved wallet preference for wallet selection
+  try { localStorage.removeItem('__qdapp_wallet_rdns'); } catch(e) {}
+};
+\`\`\`
+The Disconnect button should be placed in the navbar/header, visible when connected.
+When disconnected, the DApp should return to the initial "Connect Wallet" state.
+
+**Network Switch Pattern (mandatory — MUST be a visible button):**
+Use the stored \`rawProviderRef.current\` for network operations:
+\`\`\`javascript
+const switchNetwork = async (targetChainHex) => {
+  const rp = rawProviderRef.current;
+  if (!rp) return;
+  try {
+    await rp.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: targetChainHex }],
+    });
+  } catch (switchError) {
+    if (switchError.code === 4902) {
+      await rp.request({ method: 'wallet_addEthereumChain', params: [...] });
+    } else {
+      throw switchError;
+    }
+  }
+};
+\`\`\`
+Show a **"Switch to [Network Name]"** button when the user is on the wrong chain.
+
+**Event Listener Pattern (mandatory — handle account/chain changes):**
+Use the stored \`rawProviderRef.current\` (already resolved) — **NEVER call \`__qdapp_getProvider()\` inside useEffect** (it returns a Promise and useEffect cannot be async):
+\`\`\`javascript
+useEffect(() => {
+  const rp = rawProviderRef.current;
+  if (!rp?.on) return;
+  const handleAccountsChanged = (accounts) => {
+    if (accounts.length === 0) disconnectWallet();
+    else setAccount(accounts[0]);
+  };
+  const handleChainChanged = (chainIdHex) => {
+    setChainId(parseInt(chainIdHex, 16));
+  };
+  rp.on('accountsChanged', handleAccountsChanged);
+  rp.on('chainChanged', handleChainChanged);
+  return () => {
+    rp.removeListener('accountsChanged', handleAccountsChanged);
+    rp.removeListener('chainChanged', handleChainChanged);
+  };
+}, [account]);
+\`\`\`
+`
+  },
 
   /** Ethers.js v6 specific rules */
   ethersRules: (): string => `
@@ -230,7 +342,10 @@ const switchNetwork = async (targetChainHex) => {
 - **Read-Only:** For 'view'/'pure' functions, use \`new ethers.Contract(addr, abi, provider)\`.
 - **Write (Transaction):** For 'nonpayable'/'payable' functions, YOU MUST USE A SIGNER:
   \`\`\`javascript
-  const provider = new ethers.BrowserProvider(window.ethereum);
+  const rawProvider = window.__qdapp_getProvider
+    ? await window.__qdapp_getProvider()
+    : window.ethereum;
+  const provider = new ethers.BrowserProvider(rawProvider);
   const signer = await provider.getSigner();
   const contractWithSigner = new ethers.Contract(address, abi, signer);
   const tx = await contractWithSigner.functionName(args);
@@ -238,6 +353,8 @@ const switchNetwork = async (targetChainHex) => {
   \`\`\`
 - **NEVER** try to send a transaction with a Provider-only contract instance.
 - Use \`import { ethers } from "ethers";\` — always ES import, never \`window.ethers\`.
+- **CRITICAL:** EVERY component file that uses \`ethers\` MUST include its own \`import { ethers } from 'ethers';\` at the top.
+  Do NOT rely on another file's import. Common mistake: Navbar.jsx uses \`ethers.BrowserProvider\` but forgets to import ethers → "ethers is not defined" error.
 `,
 
   /** Network context — handles Remix VM local environment */
@@ -459,10 +576,11 @@ ${descText}
 ${currentFiles}
 
 **RULES:**
-1. Return ALL project files (index.html, src/App.jsx, etc.) using START_TITLE format.
+1. Return ONLY the files that need changes using START_TITLE format. Do NOT return files that are unmodified.
 2. Do NOT provide explanations — only code blocks.
 3. You are allowed to create NEW files if the request requires new features.
 4. If \`App.jsx\` is getting too large, refactor parts into \`src/components/\`.
+5. When returning a modified file, return the COMPLETE file content — not just the changed portion.
 `
   },
 
@@ -533,7 +651,7 @@ export const buildSystemPrompt = (ctx: PromptContext): string => {
     invariants.truncationPrevention(),
     // Layer 1
     blockchain.ethersRules(),
-    blockchain.wallet(),
+    blockchain.wallet(!!ctx.isLocalVM),
     blockchain.networkContext(ctx.contract.chainId, !!ctx.isLocalVM),
     // Layer 2
     ctx.isBaseMiniApp ? platform.baseMiniApp() : '',

@@ -19,7 +19,7 @@ export const Init = () => {
 
       <div>
         <div className='mt-1 mb-2'>
-          <h6>INITIALIZE</h6>
+          <h6><FormattedMessage id="gitui.initialize" /></h6>
           <GitUIButton
             onClick={init}
             className="btn w-md-25 w-100 btn-primary"

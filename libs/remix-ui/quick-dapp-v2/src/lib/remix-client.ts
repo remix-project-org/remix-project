@@ -4,38 +4,7 @@ import { EventEmitter } from 'events';
 import { DappManager } from './utils/DappManager';
 import { initInstance, emptyInstance, setAiLoading, openDapp as openDappAction } from './actions';
 
-const getNetworkName = (chainId: number | string): string => {
-  const id = Number(chainId);
-  if (isNaN(id)) return 'Unknown Chain';
-  switch (id) {
-  case 1: return 'Mainnet';
-  case 11155111: return 'Sepolia';
-  case 5: return 'Goerli';
-  case 137: return 'Polygon';
-  case 42161: return 'Arbitrum';
-  case 10: return 'Optimism';
-  case 8453: return 'Base';
-  case 84532: return 'Base Sepolia';
-  case 84531: return 'Base Goerli';
-  case 43114: return 'Avalanche';
-  case 56: return 'BSC';
-  case 324: return 'zkSync';
-  case 100: return 'Gnosis';
-  case 42220: return 'Celo';
-  case 7777777: return 'Zora';
-  case 80001: return 'Polygon Mumbai';
-  case 80002: return 'Polygon Amoy';
-  case 421614: return 'Arbitrum Sepolia';
-  case 11155420: return 'Optimism Sepolia';
-  case 59144: return 'Linea';
-  case 59141: return 'Linea Sepolia';
-  case 534352: return 'Scroll';
-  case 534351: return 'Scroll Sepolia';
-  case 81457: return 'Blast';
-  case 168587773: return 'Blast Sepolia';
-  default: return `Chain ${id}`;
-  }
-};
+import { getNetworkName } from './utils/networks';
 
 export class RemixClient extends PluginClient {
   public dappManager: DappManager;
@@ -254,7 +223,9 @@ export class RemixClient extends PluginClient {
     address: string,
     prompt: string | any[],
     files: any,
-    image: string | null
+    image: string | null,
+    abi?: any[],
+    chainId?: string | number
   ) {
     try {
       this.internalEvents.emit('dappUpdateStart', { slug });
@@ -265,7 +236,9 @@ export class RemixClient extends PluginClient {
         prompt,
         files,
         image,
-        slug
+        slug,
+        abi || [],
+        chainId || 1
       );
     } catch (e: any) {
       console.error('[DEBUG-CLIENT] updateDapp failed:', e);

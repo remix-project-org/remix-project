@@ -8,7 +8,7 @@ import { CopyToClipboard } from '@remix-ui/clipboard'
 import * as remixLib from '@remix-project/remix-lib'
 import * as ethJSUtil from '@ethereumjs/util'
 import { ModalTypes } from '@remix-ui/app'
-import { QueryParams } from '@remix-project/remix-lib'
+
 import { ContractGUI } from './contractGUI'
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import { BN } from 'bn.js'
@@ -34,27 +34,14 @@ export function UniversalDappUI(props: UdappProps) {
   const [instanceBalance, setInstanceBalance] = useState(0)
 
   const isGenerating = useRef(false)
-  const [useNewAiBuilder, setUseNewAiBuilder] = useState(false)
-
-  const checkUrlParams = useCallback(() => {
-    const qp = new QueryParams()
-    const hasFlag = qp.exists('experimental')
-
-    setUseNewAiBuilder(prev => {
-      if (prev !== hasFlag) {
-        return hasFlag
-      }
-      return prev
-    })
-  }, [])
+  const [selectedProvider, setSelectedProvider] = useState<string>('')
 
   useEffect(() => {
-    checkUrlParams()
-    window.addEventListener('hashchange', checkUrlParams)
-    return () => {
-      window.removeEventListener('hashchange', checkUrlParams)
-    }
-  }, [checkUrlParams])
+    (async () => {
+      const selectedProvider = await props.plugin.call('udappEnv', 'getSelectedProvider')
+      setSelectedProvider(selectedProvider)
+    })()
+  }, [])
 
   useEffect(() => {
     if (!props.instance.abi) {
@@ -86,7 +73,7 @@ export function UniversalDappUI(props: UdappProps) {
     }
   }, [props.instance.balance])
 
-  const sendData = () => {
+  const sendData = async () => {
     setLlIError('')
     const fallback = txHelper.getFallbackInterface(contractABI)
     const receive = txHelper.getReceiveInterface(contractABI)
@@ -96,7 +83,7 @@ export function UniversalDappUI(props: UdappProps) {
       contractName: props.instance.name,
       contractABI: contractABI
     }
-    const amount = props.sendValue
+    const amount = await props.plugin.call('udappDeploy', 'getValue')
 
     if (amount !== '0') {
       // check for numeric and receive/fallback
@@ -185,26 +172,11 @@ export function UniversalDappUI(props: UdappProps) {
     props.pinInstance(props.index, objToSave.pinnedAt, objToSave.filePath)
   }
 
-  const runTransaction = (lookupOnly, funcABI: FuncABI, valArr, inputsValues, funcIndex?: number) => {
+  const runTransaction = async (lookupOnly, funcABI: FuncABI, valArr, inputsValues, funcIndex?: number) => {
     if (props.instance.isPinned) trackMatomoEvent({ category: 'udapp', action: 'pinContracts', name: 'interactWithPinned', isClick: false })
-    const functionName = funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
-    const logMsg = `${lookupOnly ? 'call' : 'transact'} to ${props.instance.name}.${functionName}`
-
-    props.runTransactions(
-      props.index,
-      lookupOnly,
-      funcABI,
-      inputsValues,
-      props.instance.name,
-      contractABI,
-      props.instance.contractData,
-      address,
-      logMsg,
-      props.mainnetPrompt,
-      props.gasEstimationPrompt,
-      props.passphrasePrompt,
-      funcIndex
-    )
+    // const functionName = funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
+    // const logMsg = `${lookupOnly ? 'call' : 'transact'} to ${props.instance.name}.${functionName}`
+    await props.runTransactions(props.index, lookupOnly, funcABI, inputsValues, props.instance.name, contractABI, props.instance.contractData, address, funcIndex)
   }
 
   const extractDataDefault = (item, parent?) => {
@@ -332,8 +304,8 @@ export function UniversalDappUI(props: UdappProps) {
             <div></div>
             <div className="btn d-flex p-0 align-self-center">
 
-              {/* [V2 Logic] New AI Builder Mode (Sparkles) */}
-              {useNewAiBuilder && props.exEnvironment && (
+              {/* [V2 Logic] AI Builder Mode (Sparkles) */}
+              {selectedProvider && (
                 <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
                   <i
                     data-id="instanceEditIcon"
@@ -348,11 +320,11 @@ export function UniversalDappUI(props: UdappProps) {
 
                           const modalContent = {
                             id: 'generate-website-ai',
-                            title: 'Generate a Dapp UI with AI',
+                            title: intl.formatMessage({ id: 'udapp.generateDappModalTitle' }),
                             message: <AIRequestForm onMount={(fn) => { getFormData = fn; }} />,
                             modalType: 'custom',
-                            okLabel: 'Generate',
-                            cancelLabel: 'Cancel',
+                            okLabel: intl.formatMessage({ id: 'udapp.generateDappOkLabel' }),
+                            cancelLabel: intl.formatMessage({ id: 'udapp.cancel' }),
 
                             okFn: async () => {
                               if (getFormData) {
@@ -371,8 +343,27 @@ export function UniversalDappUI(props: UdappProps) {
                         })
 
                         if (isGenerating.current) {
-                          await props.plugin.call('notification', 'toast', 'AI generation is already in progress.')
+                          await props.plugin.call('notification', 'toast', intl.formatMessage({ id: 'udapp.aiGenerationInProgress' }))
                           return
+                        }
+                        // @ts-ignore
+                        if (!selectedProvider.toLowerCase().startsWith('injected')) {
+                          const confirmed = await new Promise<boolean>((resolve) => {
+                            props.plugin.call('notification', 'modal', {
+                              id: 'remix-vm-warning',
+                              title: intl.formatMessage({ id: 'udapp.nonInjectedProviderWarningTitle' }),
+                              message: intl.formatMessage({ id: 'udapp.nonInjectedProviderWarningMessage' }),
+                              modalType: 'confirm',
+                              okLabel: intl.formatMessage({ id: 'udapp.continueAnyway' }),
+                              cancelLabel: intl.formatMessage({ id: 'udapp.cancel' }),
+                              okFn: () => resolve(true),
+                              cancelFn: () => resolve(false),
+                            })
+                          })
+
+                          if (!confirmed) {
+                            return
+                          }
                         }
 
                         isGenerating.current = true
@@ -408,7 +399,7 @@ export function UniversalDappUI(props: UdappProps) {
 
                           })
 
-                          await props.plugin.call('menuicons', 'select', 'quick-dapp-v2')
+                          await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
 
                         } catch (e) {
                           console.error("Quick Dapp V2 call failed:", e);
@@ -422,19 +413,6 @@ export function UniversalDappUI(props: UdappProps) {
                       } finally {
                         isGenerating.current = false
                       }
-                    }}
-                  ></i>
-                </CustomTooltip>
-              )}
-
-              {/* [V1 Logic] Legacy Edit Mode (Pencil) */}
-              {!useNewAiBuilder && props.exEnvironment && props.exEnvironment.startsWith('injected') && (
-                <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
-                  <i
-                    data-id="instanceEditIcon"
-                    className="fas fa-edit"
-                    onClick={() => {
-                      props.editInstance(props.instance)
                     }}
                   ></i>
                 </CustomTooltip>
@@ -523,7 +501,7 @@ export function UniversalDappUI(props: UdappProps) {
             </CustomTooltip>
           </div>
           <div className="d-flex flex-column align-items-start">
-            <label className="">CALLDATA</label>
+            <label className=""><FormattedMessage id="udapp.calldataLabel" /></label>
             <div className="d-flex justify-content-end w-100 align-items-center">
               <CustomTooltip
                 placement="bottom"
@@ -540,7 +518,7 @@ export function UniversalDappUI(props: UdappProps) {
                   className="btn udapp_instanceButton p-0 w-50 border-warning text-warning"
                   onClick={sendData}
                 >
-                  Transact
+                  <FormattedMessage id="udapp.transactButton" />
                 </button>
               </CustomTooltip>
             </div>

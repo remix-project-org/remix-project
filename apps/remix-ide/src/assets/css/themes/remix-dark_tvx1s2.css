@@ -12320,3 +12320,8 @@ textarea.form-control-lg {
   --bs-tooltip-bg: var(--bs-tertiary-bg);
   --bs-tooltip-color: var(--bs-emphasis-color);
 }
+
+/* Custom theme-aware text color for debugger values */
+.text-theme-contrast {
+  color: #eee;
+}

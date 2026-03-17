@@ -26,19 +26,16 @@ function HomeTabRecentWorkspaces({ plugin }: HomeTabFileProps) {
   const isDark = theme.name === 'dark'
 
   useEffect(() => {
-    plugin.on('filePanel', 'setWorkspace', async () => {
-      let recents = JSON.parse(localStorage.getItem('recentWorkspaces'))
+    let recents = JSON.parse(localStorage.getItem('recentWorkspaces'))
+    if (!recents) {
+      recents = []
+    } else {
+      const filtered = recents.filter((workspace) => workspace !== null)
 
-      if (!recents) {
-        recents = []
-      } else {
-        const filtered = recents.filter((workspace) => workspace !== null)
-
-        setState((prevState) => {
-          return { ...prevState, recentWorkspaces: filtered.slice(0, filtered.length <= 3 ? filtered.length : 3) }
-        })
-      }
-    })
+      setState((prevState) => {
+        return { ...prevState, recentWorkspaces: filtered.slice(0, filtered.length <= 10 ? filtered.length : 10) }
+      })
+    }
 
     const deleteSavedWorkspace = (name) => {
       const recents = JSON.parse(localStorage.getItem('recentWorkspaces'))
@@ -116,7 +113,7 @@ function HomeTabRecentWorkspaces({ plugin }: HomeTabFileProps) {
               const workspaceName = (workspace || {}).name ? workspace.name : workspace
               const workspaceTimestamp = (workspace || {}).timestamp ? workspace.timestamp : null
 
-              return index < 3 ? (
+              return index < 10 ? (
                 <div key={index} className="d-flex flex-row align-items-center mb-2">
                   { loadingWorkspace === workspace ? <i className="fad fa-spinner fa-spin me-2"></i> : <i className="fas fa-folder-tree me-2"></i> }
                   <div className="d-flex flex-row justify-content-between w-100 flex-wrap">

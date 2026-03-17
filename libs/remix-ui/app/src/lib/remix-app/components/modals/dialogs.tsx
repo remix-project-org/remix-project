@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { useDialogDispatchers, useDialogs } from '../../context/provider'
 import { ToasterContainer } from '@remix-ui/toaster'
 import ModalWrapper from './modal-wrapper'
+import ActionNotificationContainer from './action-notification-container'
 
 const AppDialogs = () => {
   const { handleHideModal, handleToaster } = useDialogDispatchers()
@@ -22,6 +23,7 @@ const AppDialogs = () => {
     <>
       <ModalWrapper {...focusModal} handleHide={handleHideModal}></ModalWrapper>
       <ToasterContainer toasts={toastList} />
+      <ActionNotificationContainer />
     </>
   )
 }

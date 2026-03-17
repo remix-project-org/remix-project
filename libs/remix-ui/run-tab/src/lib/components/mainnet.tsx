@@ -72,15 +72,15 @@ export function MainnetPrompt(props: MainnetProps) {
       </div>
       <div className="mt-3">
         <div>
-          <span className="text-dark me-2">From:</span>
+          <span className="text-dark me-2"><FormattedMessage id="udapp.fromLabel" /></span>
           <span>{props.tx.from}</span>
         </div>
         <div>
-          <span className="text-dark me-2">To:</span>
+          <span className="text-dark me-2"><FormattedMessage id="udapp.toLabel" /></span>
           <span>{props.tx.to ? props.tx.to : `(${intl.formatMessage({ id: 'udapp.contractCreation' })})`}</span>
         </div>
         <div className="d-flex align-items-center">
-          <span className="text-dark me-2">Data:</span>
+          <span className="text-dark me-2"><FormattedMessage id="udapp.dataLabel" /></span>
           <pre className="udapp_wrapword mb-0">
             {props.tx.data && props.tx.data.length > 50 ? props.tx.data.substring(0, 49) + '...' : props.tx.data}
             <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copy' })} content={props.tx.data} />
@@ -125,7 +125,7 @@ export function MainnetPrompt(props: MainnetProps) {
                   />
                   <CustomTooltip
                     placement="top"
-                    tooltipText="visit https://ethgasstation.info for current gas price info."
+                    tooltipText={intl.formatMessage({ id: 'udapp.gweiGasPriceInfo' })}
                     tooltipId="gweiTooltip"
                   >
                     <span>Gwei</span>

@@ -1,0 +1,22 @@
+{
+  "helper.askRemixAI": "Ask RemixAI",
+  "helper.web3ProviderNote": "Note: To use Geth & https://remix.ethereum.org, configure it to allow requests from Remix:(see <a>Geth Docs on rpc server</a>)",
+  "helper.web3ProviderLocalNote": "To run Remix & a local Geth test node, use this command: (see <a>Geth Docs on Dev mode</a>)",
+  "helper.web3ProviderWarningLabel": "WARNING:",
+  "helper.web3ProviderWarning": "It is not safe to use the --http.corsdomain flag with a wildcard: <b>--http.corsdomain *</b>",
+  "helper.web3ProviderMoreInfo": "For more info: <a>Remix Docs on Remix Provider</a>",
+  "helper.web3ProviderEndpoint": "External HTTP Provider Endpoint",
+  "helper.solidityScanResult": "SolidityScan result for",
+  "helper.scanColName": "NAME",
+  "helper.scanColSeverity": "SEVERITY",
+  "helper.scanColConfidence": "CONFIDENCE",
+  "helper.scanColDescription": "DESCRIPTION",
+  "helper.scanColRemediation": "REMEDIATION",
+  "helper.scanNotAvailable": "Not Available",
+  "helper.scanSummaryLabel": "Scan Summary: ",
+  "helper.scanLinesAnalyzed": "Lines Analyzed:",
+  "helper.scanScore": "Scan Score:",
+  "helper.scanIssueDistribution": "Issue Distribution:",
+  "helper.scanForMoreDetails": "For more details,",
+  "helper.scanGoToSolidityScan": "go to SolidityScan."
+}

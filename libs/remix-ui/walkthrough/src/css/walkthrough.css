@@ -1,0 +1,86 @@
+/* Override driver.js overflow:hidden on ancestor containers –
+   this rule clips the popover when the highlighted element sits
+   inside a scrollable panel (e.g. the Deploy & Run tab). */
+:not(body):has(> .driver-active-element) {
+  overflow: visible !important;
+}
+
+/* Make sure the popover itself is never clipped */
+.driver-popover {
+  z-index: 1000000000 !important;
+}
+
+/* Driver.js Remix theme overrides */
+.remix-walkthrough-popover {
+  font-family: inherit;
+  background-color: var(--custom-onsurface-layer-2) !important;
+  color: var(--bs-body-color) !important;
+  border: 1px solid var(--bs-border-color) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+  border-radius: var(--bs-border-radius) !important;
+}
+
+.remix-walkthrough-popover .driver-popover-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--bs-emphasis-color) !important;
+}
+
+.remix-walkthrough-popover .driver-popover-description {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--bs-body-color) !important;
+}
+
+.remix-walkthrough-popover .driver-popover-progress-text {
+  color: var(--bs-secondary-color) !important;
+}
+
+.remix-walkthrough-popover .driver-popover-prev-btn,
+.remix-walkthrough-popover .driver-popover-next-btn {
+  background-color: var(--bs-primary) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--bs-border-radius) !important;
+  text-shadow: none !important;
+}
+
+.remix-walkthrough-popover .driver-popover-prev-btn:hover,
+.remix-walkthrough-popover .driver-popover-next-btn:hover {
+  filter: brightness(1.15);
+}
+
+.remix-walkthrough-popover .driver-popover-close-btn {
+  color: var(--bs-body-color) !important;
+}
+
+.remix-walkthrough-popover .driver-popover-close-btn:hover {
+  color: var(--bs-emphasis-color) !important;
+}
+
+/* Arrow color matching the popover background */
+.remix-walkthrough-popover .driver-popover-arrow-side-left .driver-popover-arrow,
+.remix-walkthrough-popover .driver-popover-arrow-side-right .driver-popover-arrow,
+.remix-walkthrough-popover .driver-popover-arrow-side-top .driver-popover-arrow,
+.remix-walkthrough-popover .driver-popover-arrow-side-bottom .driver-popover-arrow {
+  border-color: var(--custom-onsurface-layer-2) !important;
+}
+
+/* Walkthrough panel cards */
+.walkthrough-card {
+  cursor: default;
+  transition: box-shadow 0.15s ease-in-out;
+  background-color: var(--custom-onsurface-layer-1) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.walkthrough-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background-color: var(--custom-onsurface-layer-2) !important;
+}
+
+.remix-walkthrough-panel {
+  font-size: 0.875rem;
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}

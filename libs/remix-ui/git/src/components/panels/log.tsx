@@ -1,6 +1,7 @@
 // src/LogViewer.tsx
 import React, { useContext } from 'react';
 import { gitPluginContext } from '../gitui';
+import { FormattedMessage } from 'react-intl';
 
 const LogViewer = () => {
   const context = useContext(gitPluginContext);
@@ -32,7 +33,7 @@ const LogViewer = () => {
       </div>
     );
   } else {
-    return <div className="p-1">No logs</div>
+    return <div className="p-1"><FormattedMessage id="gitui.noLogs" /></div>
   }
 };
 

@@ -67,6 +67,8 @@ import { ValidationMiddleware } from './middleware/ValidationMiddleware';
 import { FilePermissionMiddleware } from './middleware/FilePermissionMiddleware';
 import { MCPConfigManager } from './config/MCPConfigManager';
 
+import isElectron from 'is-electron'
+
 /**
  * Main Remix MCP Server implementation
  */
@@ -181,12 +183,6 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
       try {
         await this._configManager.loadConfig();
-        const securityConfig = this._configManager.getSecurityConfig();
-        const validationConfig = this._configManager.getValidationConfig();
-        console.log('[RemixMCPServer] Middlewares connected:');
-        console.log(`  - SecurityMiddleware: using ${securityConfig.excludeTools?.length || 0} excluded tools`);
-        console.log(`  - ValidationMiddleware: strictMode=${validationConfig.strictMode}, ${Object.keys(validationConfig.toolValidation || {}).length} tool-specific rules`);
-
       } catch (error) {
         console.log(`[RemixMCPServer] Failed to load MCP config: ${error.message}, using defaults`);
       }
@@ -279,6 +275,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
           description: tool.description,
           inputSchema: tool.inputSchema
         }));
+        console.log(`[RemixMCPServer] Returning tool list: ${tools.map(t => t.name).join(', ')}`);
         return { id: message.id, result: { tools } };
 
       case 'tools/call':
@@ -331,9 +328,13 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
     // Get current user (default to 'default' role)
     const currentUser = 'default'; // Can be extended to get from plugin context
-    console.log("checking permissions")
     const permissionCheckResult = await this.checkPermissions(call.name, currentUser);
-    console.log("permissions checked", permissionCheckResult)
+
+    const timestamp = Date.now();
+    const [workspace, currentFile] = await Promise.all([
+      this.getCurrentWorkspace(),
+      this.getCurrentFile()
+    ]);
 
     const execution: ToolExecutionStatus = {
       id: executionId,
@@ -341,7 +342,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       startTime,
       status: 'running',
       context: {
-        workspace: await this.getCurrentWorkspace(),
+        workspace,
         user: currentUser,
         permissions: permissionCheckResult.userPermissions
       }
@@ -352,28 +353,22 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
     try {
       const context = {
-        workspace: execution.context.workspace,
-        currentFile: await this.getCurrentFile(),
+        workspace,
+        currentFile,
         permissions: permissionCheckResult.userPermissions,
-        timestamp: Date.now(),
+        timestamp,
         requestId: executionId
       };
 
-      // STEP 1: Security Validation (uses MCPConfigManager for dynamic config)
-      console.log(`[RemixMCPServer] Step 1: Security validation for tool '${call.name}' (using MCPConfigManager)`);
       const securityResult = await this._securityMiddleware.validateToolCall(call, context, this._plugin);
 
       if (!securityResult.allowed) {
         console.log(`[RemixMCPServer] Security validation FAILED for tool '${call.name}': ${securityResult.reason}`);
         throw new Error(`Security validation failed: ${securityResult.reason}`);
       }
-      console.log(`[RemixMCPServer] Security validation PASSED for tool '${call.name}'`);
 
-      // STEP 2: Input Validation (uses MCPConfigManager for dynamic config)
-      console.log(`[RemixMCPServer] Step 2: Input validation for tool '${call.name}' (using MCPConfigManager)`);
       const toolDefinition = this._tools.get(call.name);
       const inputSchema = toolDefinition?.inputSchema;
-
       const validationResult = await this._validationMiddleware.validateToolCall(
         call,
         inputSchema,
@@ -391,14 +386,12 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       if (validationResult.warnings.length > 0) {
         const warnings = validationResult.warnings.map(w => w.message).join(', ');
         console.log(`[RemixMCPServer] Input validation warnings for tool '${call.name}': ${warnings}`);
-      } else {
-        console.log(`[RemixMCPServer] Input validation PASSED for tool '${call.name}'`);
       }
 
-      // STEP 3: File Write Permission Check (for file_write and file_create tools)
-      if (call.name === 'file_write' || call.name === 'file_create') {
-        console.log(`[RemixMCPServer] Step 3: File write permission check for tool '${call.name}'`);
-        const filePath = call.arguments?.path || call.arguments?.filePath;
+      // STEP 3: File Permision Check (for file operations)
+      const fileOperations = ['file_write', 'file_create', 'file_delete', 'file_move', 'file_copy', 'file_replace'];
+      if (fileOperations.includes(call.name)) {
+        const filePath = call.arguments?.path || call.arguments?.filePath || call.arguments?.from || call.arguments?.source;
 
         if (filePath) {
           const permissionResult = await this._filePermissionMiddleware.checkFileWritePermission(
@@ -407,10 +400,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
           );
 
           if (!permissionResult.allowed) {
-            console.log(`[RemixMCPServer] File write permission DENIED for '${filePath}': ${permissionResult.reason}`);
-            throw new Error(`File write permission denied: ${permissionResult.reason || 'User denied the operation'}`);
+            console.log(`[RemixMCPServer] File operation permission DENIED for '${filePath}': ${permissionResult.reason}`);
+            throw new Error(`File operation permission denied: ${permissionResult.reason || 'User denied the operation'}. See file remix.config.json`);
           }
-          console.log(`[RemixMCPServer] File write permission GRANTED for '${filePath}'`);
+          console.log(`[RemixMCPServer] File operation permission GRANTED for '${filePath}'`);
         }
       }
 
@@ -429,7 +422,6 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       this._stats.totalToolCalls++;
 
       trackMatomoEvent('ai', 'remixAI', `mcp_tool_executed_${call.name}`);
-      console.log(`[RemixMCPServer] Tool '${call.name}' executed successfully`);
       this.emit('tool-executed', execution);
       return result;
 
@@ -491,8 +483,6 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   async checkPermissions(operation: string, user: string, resource?: string): Promise<PermissionCheckResult> {
     try {
       const securityConfig = this._configManager.getSecurityConfig();
-      console.log("securityConfig", securityConfig)
-      // If permissions
 
       if (!securityConfig.permissions.requirePermissions) {
         return {
@@ -504,9 +494,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       }
 
       const userPermissions = this.getUserPermissions(user, securityConfig);
-      console.log("userPermissions", userPermissions)
       const requiredPermissions = this.getOperationPermissions(operation);
-      console.log("requiredPermissions", requiredPermissions)
 
       if (userPermissions.includes('*')) {
         return {
@@ -555,7 +543,6 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       // Additional resource-specific checks
       if (resource) {
         const resourceCheck = this.checkResourcePermissions(resource, userPermissions, securityConfig);
-        console.log("Resource check:", resourceCheck)
         if (!resourceCheck.allowed) {
           // Log denied resource access
           this.logAuditEntry({
@@ -647,7 +634,6 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   }
 
   private getUserPermissions(user: string, securityConfig: any): string[] {
-    console.log('security config', securityConfig)
     const permissions: string[] = [];
 
     if (securityConfig.permissions?.defaultPermissions) {
@@ -701,10 +687,14 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       // Analysis
       'analyze_code': ['analysis:static'],
       'security_scan': ['analysis:security'],
-      'estimate_gas': ['analysis:gas']
+      'estimate_gas': ['analysis:gas'],
+
+      // Additional tools
+      'run_script': ['transaction:send'],
+      'simulate_transaction': ['transaction:simulate']
     };
 
-    return defaultPermissionMap[operation] || ['*'];
+    return defaultPermissionMap[operation] || [`tool:${operation}`];
   }
 
   private checkResourcePermissions(resource: string, userPermissions: string[], securityConfig: any): { allowed: boolean; reason?: string } {
@@ -779,10 +769,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
    */
   async reloadConfig(): Promise<void> {
     try {
-      console.log('[RemixMCPServer] Reloading MCP configuration...');
       const mcpConfig = await this._configManager.reloadConfig();
-      console.log('[RemixMCPServer] Configuration reloaded successfully');
-      console.log('[RemixMCPServer] Configuration summary:', this._configManager.getConfigSummary());
       this.emit('config-reloaded', mcpConfig);
     } catch (error) {
       console.log(`[RemixMCPServer] Failed to reload config: ${error.message}`);
@@ -796,7 +783,6 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
   updateMCPConfig(partialConfig: Partial<any>): void {
     this._configManager.updateConfig(partialConfig);
-    console.log('[RemixMCPServer] Configuration updated at runtime');
     this.emit('config-updated', this._configManager.getConfig());
   }
 
@@ -852,21 +838,26 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       this._tools.registerBatch(tutorialTools);
 
       // Register Amp tools
+      /*
       const ampTools = createAmpTools();
       this._tools.registerBatch(ampTools);
+      */
 
       // Register Math Utils tools
       const mathUtilsTools = createMathUtilsTools();
       this._tools.registerBatch(mathUtilsTools);
 
       // Register Foundry and Hardhat tools
-      const foundryHardhatTools = createFoundryHardhatTools();
-      this._tools.registerBatch(foundryHardhatTools);
+      if (isElectron()) {
+        const foundryHardhatTools = createFoundryHardhatTools();
+        this._tools.registerBatch(foundryHardhatTools);
+      }
 
       // Register Chartjs tool
+      /*
       const chartJsTools = createChartJsTools();
       this._tools.registerBatch(chartJsTools);
-
+      */
       const totalTools = this._tools.list().length;
 
     } catch (error) {
@@ -894,18 +885,12 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       this._resources.register(compilationProvider);
 
       // Register deployment resource provider
-      const deploymentProvider = new DeploymentResourceProvider();
+      const deploymentProvider = new DeploymentResourceProvider(this._plugin);
       this._resources.register(deploymentProvider);
 
       // Register tutorial resource provider
       const tutorialsProvider = new TutorialsResourceProvider(this._plugin);
       this._resources.register(tutorialsProvider);
-
-      // Register Amp resource provider
-      /*
-        const ampProvider = new AmpResourceProvider(this._plugin);
-        this._resources.register(ampProvider);
-      */
 
       // Register debugging resource provider
       const debuggingProvider = new DebuggingResourceProvider(this._plugin);

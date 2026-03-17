@@ -1,20 +1,20 @@
 'use strict'
 import { Plugin } from '@remixproject/engine'
 import { util, execution } from '@remix-project/remix-lib'
-import { CompilerAbstract } from '@remix-project/remix-solidity'
+import { CompiledContract, CompilerAbstract } from '@remix-project/remix-solidity'
 import { toChecksumAddress } from '@ethereumjs/util'
 import { ContractData } from '../types/contract'
 
 const profile = {
   name: 'compilerArtefacts',
-  methods: ['get', 'addResolvedContract', 'getCompilerAbstract', 'getAllContractDatas', 'getLastCompilationResult', 'getArtefactsByContractName', 'getContractDataFromAddress', 'getContractDataFromByteCode', 'saveCompilerAbstract', 'getAllCompilerAbstracts'],
+  methods: ['get', 'addResolvedContract', 'getCompilerAbstract', 'getCompilerAbstractByContractName', 'getAllContractDatas', 'getLastCompilationResult', 'getArtefactsByContractName', 'getContractDataFromAddress', 'getContractDataFromByteCode', 'saveCompilerAbstract', 'getAllCompilerAbstracts'],
   events: ['compilationSaved'],
   version: '0.0.1',
 }
 
 export class CompilerArtefacts extends Plugin {
-  compilersArtefactsPerFile: any
-  compilersArtefacts: any
+  compilersArtefactsPerFile: { [key: string]: CompilerAbstract }
+  compilersArtefacts: { [key: string]: CompilerAbstract }
   constructor() {
     super(profile)
     this.compilersArtefacts = {}
@@ -35,7 +35,7 @@ export class CompilerArtefacts extends Plugin {
   }
 
   onActivation() {
-    const saveCompilationResult = (file, source, languageVersion, data, input?) => {
+    const saveCompilationResult = async (file, source, languageVersion, data, input?) => {
       this.compilersArtefactsPerFile[file] = new CompilerAbstract(languageVersion, data, source, input)
       this.compilersArtefacts.__last = this.compilersArtefactsPerFile[file]
       this.emit('compilationSaved', { [file]: this.compilersArtefactsPerFile[file] })
@@ -80,7 +80,7 @@ export class CompilerArtefacts extends Plugin {
    * filter compilation output for contracts compiled during a session of Remix IDE
    * @returns compilation output
    */
-  filterAllContractDatas(filter) {
+  filterAllContractDatas(filter: (fileName: string, contractData: { [contract: string]: CompiledContract }, compilerAbstract: CompilerAbstract) => boolean) {
     const contractsData = {}
     Object.keys(this.compilersArtefactsPerFile).map((targetFile) => {
       const artefact = this.compilersArtefactsPerFile[targetFile]
@@ -190,7 +190,21 @@ export class CompilerArtefacts extends Plugin {
     this.filterAllContractDatas((localFile, data, parentArtefact) => {
       if (localFile === file || (path && path.file && localFile === path.file)) {
         artefact = parentArtefact
+        return true
       }
+      return false
+    })
+    return artefact
+  }
+
+  async getCompilerAbstractByContractName(contractName) {
+    let artefact = null
+    this.filterAllContractDatas((localFile, data, parentArtefact) => {
+      if (data && data[contractName]) {
+        artefact = parentArtefact
+        return true
+      }
+      return false
     })
     return artefact
   }

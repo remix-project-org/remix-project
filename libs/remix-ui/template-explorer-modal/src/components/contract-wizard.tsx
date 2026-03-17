@@ -257,7 +257,7 @@ export function ContractWizard () {
                 </>
               </div> : <div className="w-50"></div>}
 
-              <button data-id="contract-wizard-validate-workspace-button" className="btn btn-primary btn-sm me-2 justify-content-end" onClick={async () => {
+              <button data-id="contract-wizard-validate-workspace-button" className="btn btn-primary btn-sm me-2 justify-content-end" disabled={state.creating} onClick={async () => {
                 if (state.manageCategory === 'Files') {
                   await validateAndCreateContractFile()
                 } else {
@@ -265,8 +265,7 @@ export function ContractWizard () {
                 }
               }}
               >
-                <i className="far fa-check me-2"></i>
-                {state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}
+                {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-check me-2"></i>{state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}</>}
               </button>
             </div>
           </div>

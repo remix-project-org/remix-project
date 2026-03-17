@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
 import copy from 'copy-to-clipboard'
-import { ChatMessage, assistantAvatar } from '../lib/types'
+import { ChatMessage, assistantAvatar, assitantAvatarLight } from '../lib/types'
 import React, { useState, useEffect } from 'react'
 import { CustomTooltip } from '@remix-ui/helper'
 import {
@@ -14,6 +14,7 @@ import {
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
 import { getToolExecutionMessage } from '../lib/toolDescriptions'
 import { QueryParams } from '@remix-project/remix-lib'
+import { AiChatButtons } from './aichatButtons'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -23,46 +24,36 @@ export interface ChatHistoryComponentProps {
   recordFeedback: (msgId: string, next: 'like' | 'dislike' | 'none') => void
   historyRef: React.RefObject<HTMLDivElement>
   theme: string
+  plugin?: any
+  handleGenerateWorkspace: () => void
 }
 
 interface AiChatIntroProps {
   sendPrompt: (prompt: string) => void
+  theme: string
+  plugin?: any
+  handleGenerateWorkspace: () => void
 }
 
-const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt }) => {
+const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, handleGenerateWorkspace }) => {
   const [conversationStarters, setConversationStarters] = useState<ConversationStarter[]>([])
 
   useEffect(() => {
-    const qp = new QueryParams()
-    const hasFlag = qp.exists('experimental')
-
     // Sample new conversation starters when component mounts
     // Use MCP starters only if experimental flag is set
-    const starters = sampleConversationStarters(hasFlag)
+    const starters = sampleConversationStarters(true)
     setConversationStarters(starters)
   }, [])
 
   return (
-    <div className="assistant-landing d-flex flex-column mx-1 align-items-center justify-content-center text-center h-100 w-100">
-      <img src={assistantAvatar} alt="RemixAI logo" style={{ width: '120px' }} className="mb-3 container-img" />
-      <h5 className="mb-2">RemixAI</h5>
-      <p className="mb-4" style={{ fontSize: '0.9rem' }}>
-        RemixAI provides you personalized guidance as you build. It can break down concepts,
-        answer questions about blockchain technology and assist you with your smart contracts.
-      </p>
-      {/* Dynamic Conversation Starters */}
-      <div className="d-flex flex-column mt-3" style={{ maxWidth: '400px' }}>
-        {conversationStarters.map((starter, index) => (
-          <button
-            key={`${starter.level}-${index}`}
-            data-id={`remix-ai-assistant-starter-${starter.level}-${index}`}
-            className="btn btn-secondary mb-2 w-100 text-start"
-            onClick={() => sendPrompt(starter.question)}
-          >
-            {starter.question}
-          </button>
-        ))}
+    <div className="assistant-landing d-flex flex-column mx-1 align-items-center justify-content-center text-center h-100 w-100" data-id="ai-assistant-landing">
+      <div className="d-flex align-items-center justify-content-center rounded-circle border mb-3" style={{ width: '120px', height: '120px', borderWidth: '2px', borderColor: 'var(--bs-border-color)' }}>
+        <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '60px', height: '60px' }} className="container-img" />
       </div>
+      <p className="mb-4" style={{ fontSize: '0.9rem' }}>
+        What do you want to build today?
+      </p>
+      <AiChatButtons theme={theme} plugin={plugin} sendPrompt={sendPrompt} handleGenerateWorkspace={handleGenerateWorkspace} />
     </div>
   )
 }
@@ -73,7 +64,9 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   sendPrompt,
   recordFeedback,
   historyRef,
-  theme
+  theme,
+  plugin,
+  handleGenerateWorkspace
 }) => {
   return (
     <div
@@ -81,28 +74,33 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       className="d-flex flex-column overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
     >
       {messages.length === 0 ? (
-        <AiChatIntro sendPrompt={sendPrompt} />
+        <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} handleGenerateWorkspace={handleGenerateWorkspace} />
       ) : (
         messages.map(msg => {
           const bubbleClass =
-            msg.role === 'user' ? 'bubble-user bg-light' : 'bubble-assistant bg-light'
+            msg.role === 'user' ? 'bubble-user' : 'bubble-assistant'
 
           return (
-            <div key={msg.id} className="chat-row d-flex mb-2" style={{ minWidth: '90%' }}>
+            <div key={msg.id} className={`chat-row d-flex mb-2 ${msg.role === 'user' ? 'justify-content-end' : ''}`} style={{ minWidth: '90%' }}>
               {/* Avatar for assistant */}
               {msg.role === 'assistant' && (
                 <img
-                  src={assistantAvatar}
+                  src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight}
                   alt="AI"
                   className="assistant-avatar me-2 flex-shrink-0 me-1"
                 />
               )}
 
               {/* Bubble */}
-              <div data-id="ai-response-chat-bubble-section" className="overflow-y-scroll" style={{ width: '90%' }}>
+              <div data-id="ai-response-chat-bubble-section" className={`overflow-y-scroll ${msg.role === 'assistant' ? 'me-3' : ''}`} style={{
+                width: '90%'
+              }}>
                 {/* Only render bubble if there's content OR not currently executing tools */}
                 {(msg.content || !msg.isExecutingTools) && (
-                  <div className={`chat-bubble p-2 rounded ${bubbleClass}`} data-id="ai-user-chat-bubble">
+                  <div
+                    className={`chat-bubble p-2 rounded ${bubbleClass}`}
+                    data-id="ai-user-chat-bubble"
+                  >
                     {msg.role === 'user' && (
                       <small className="text-uppercase fw-bold text-secondary d-block mb-1">
                         You
@@ -116,6 +114,23 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                         msg.content
                       )}
                     </div>
+
+                    {/* Copy button for user messages */}
+                    {msg.role === 'user' && (
+                      <div className="user-message-actions text-end mt-2">
+                        <CustomTooltip tooltipText="Copy message" placement="top">
+                          <span
+                            role="button"
+                            aria-label="copy message"
+                            className="message-copy-btn"
+                            onClick={() => copy(msg.content)}
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            <i className="far fa-copy"></i>
+                          </span>
+                        </CustomTooltip>
+                      </div>
+                    )}
                   </div>
                 )}
                 {msg.role === 'assistant' && msg.isExecutingTools && (
@@ -135,6 +150,18 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                 {/* Feedback buttons */}
                 {msg.role === 'assistant' && (
                   <div className="feedback text-end mt-2 me-1">
+                    <CustomTooltip tooltipText="Copy message" placement="top">
+                      <span
+                        role="button"
+                        aria-label="copy message"
+                        className="message-copy-btn me-3"
+                        onClick={() => copy(msg.content)}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        <i className="far fa-copy"></i>
+                      </span>
+                    </CustomTooltip>
+
                     <CustomTooltip tooltipText="Good Response" placement="top">
                       <span
                         role="button"

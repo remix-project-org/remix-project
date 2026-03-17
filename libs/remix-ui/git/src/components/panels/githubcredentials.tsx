@@ -86,16 +86,16 @@ export const GitHubCredentials = () => {
 
   return (
     <>
-      <label className="text-uppercase">Enter GitHub credentials manually</label>
+      <label className="text-uppercase"><FormattedMessage id="gitui.enterGitHubCredentialsManually" /></label>
       <br></br>
 
-      <label>Git username&nbsp;<small>(required)</small></label>
-      <input data-id='gitubUsername' name='githubUsername' onChange={e => handleChangeUserNameState(e.target.value)} value={githubUsername} className="form-control mb-3" placeholder="* Git username" type="text" id="githubUsername" />
-      <label>Git email&nbsp;<small>(required)</small></label>
-      <input data-id='githubEmail' name='githubEmail' onChange={e => handleChangeEmailState(e.target.value)} value={githubEmail} className="form-control mb-3" placeholder="* Git email" type="text" id="githubEmail" />
-      <label>GitHub token&nbsp;<small>(optional)</small></label>
+      <label><FormattedMessage id="gitui.gitUsernameLabel" />&nbsp;<small>(<FormattedMessage id="gitui.gitUsernameRequired" />)</small></label>
+      <input data-id='gitubUsername' name='githubUsername' onChange={e => handleChangeUserNameState(e.target.value)} value={githubUsername} className="form-control mb-3" placeholder={intl.formatMessage({ id: 'gitui.gitUsernamePlaceholder' })} type="text" id="githubUsername" />
+      <label><FormattedMessage id="gitui.gitEmailLabel" />&nbsp;<small>(<FormattedMessage id="gitui.gitUsernameRequired" />)</small></label>
+      <input data-id='githubEmail' name='githubEmail' onChange={e => handleChangeEmailState(e.target.value)} value={githubEmail} className="form-control mb-3" placeholder={intl.formatMessage({ id: 'gitui.gitEmailPlaceholder' })} type="text" id="githubEmail" />
+      <label><FormattedMessage id="gitui.gitHubTokenLabel" />&nbsp;<small>(<FormattedMessage id="gitui.gitUsernameOptional" />)</small></label>
       <div className="input-group text-secondary mb-3 h6">
-        <input data-id='githubToken' type="password" autoComplete="off" value={githubToken} placeholder="GitHub token" className="form-control" name='githubToken' onChange={e => handleChangeTokenState(e.target.value)} />
+        <input data-id='githubToken' type="password" autoComplete="off" value={githubToken} placeholder={intl.formatMessage({ id: 'gitui.gitHubTokenPlaceholder' })} className="form-control" name='githubToken' onChange={e => handleChangeTokenState(e.target.value)} />
         <div className="input-group-append">
           <CopyToClipboard content={githubToken} data-id='copyToClipboardCopyIcon' className='far fa-copy ms-1 p-2 mt-1' direction={"top"} />
         </div>
@@ -108,7 +108,7 @@ export const GitHubCredentials = () => {
         </button>
       </div>
       {scopeWarning ?
-        <div className="text-warning">Your GitHub token may or may not have the correct permissions. Remix can't verify the permissions when using your own token. Please use the connect with GitHub feature.</div> : null}
+        <div className="text-warning"><FormattedMessage id="gitui.tokenScopeWarning" /></div> : null}
       <hr />
     </>
   );

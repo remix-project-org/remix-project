@@ -44,7 +44,7 @@ module.exports = async function (st, privateKey, contractBytecode, compilationRe
     const { scopes, scopeStarts } = await waitForCallTree()
 
     // Get the nested JSON representation of scopes
-    const nestedScopes: NestedScope[] = callTree.getScopesAsNestedJSON()
+    const nestedScopes: NestedScope[] = callTree.getScopesAsNestedJSON('nojump')
 
     traverseScopes(nestedScopes[0])
 

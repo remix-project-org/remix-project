@@ -22,6 +22,16 @@
     "noir.exportVerificationKey": "Export verification key",
     "noir.exportVerifierCalldata": "Export verifier calldata",
     "noir.exportWtnsJson": "Export witness as JSON",
-    "noir.runSetup": "Run setup"
+    "noir.runSetup": "Run setup",
+    "noir.compilationArtifacts": "Compilation Artifacts",
+    "noir.proofArtifacts": "Proof Artifacts",
+    "noir.seeCompilerLicense": "See compiler license",
+    "noir.viewArtifact": "View Artifact",
+    "noir.generateProofTooltip": "If your circuit has public inputs, edit Prover.toml before generating the proof.",
+    "noir.generatingProof": "Generating Proof...",
+    "noir.viewProverToml": "View Prover.toml",
+    "noir.viewProof": "View Proof",
+    "noir.viewPublicInputs": "View Public Inputs",
+    "noir.viewVerifierSol": "View Verifier.sol",
+    "noir.viewVerifyTs": "View verify.ts"
   }
-  

@@ -15,25 +15,17 @@ module.exports = {
   'Should open submenu and close both menus on selection #group1': function (browser: NightwatchBrowser) {
    browser
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('[data-id="settingsSelectEnvOptions"]')
-      .click('[data-id="settingsSelectEnvOptions"]')
-      .waitForElementVisible('[data-id="custom-dropdown-items"]')
-      .moveToElement('*[data-id="custom-dropdown-items"] span:nth-of-type(1)', 10, 10)
-      .waitForElementVisible('[data-id="dropdown-item-vm-cancun"]')
-      .click('[data-id="dropdown-item-vm-cancun"]')
-      .assert.containsText('[data-id="selected-provider-vm-cancun"]', 'Remix VM (Cancun)')
+      .switchEnvironment('vm-cancun', 'Remix_VM')
+      .assert.containsText('[data-id="selected-provider-vm-cancun"]', 'Remix VM')
   },
 
   'Should display sample accounts and balances #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('[data-id="runTabSelectAccount"]')
       .click('[data-id="runTabSelectAccount"]')
-      .pause(3000)
-      .waitForElementVisible('[data-id^="txOriginSelectAccountItem-"]')
-      .assert.containsText({
-        selector: '[data-id^="txOriginSelectAccountItem-"]',
-        index: 0
-      }, '100.0 ETH')
+      .waitForElementVisible('.custom-dropdown-items.show')
+      .waitForElementVisible('[data-id="0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"]')
+      .assert.containsText('[data-id="0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"] .account-balance-text', '100.000 ETH')
       .end()
   }
 }

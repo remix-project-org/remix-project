@@ -26,7 +26,9 @@ module.exports = {
   },
 
   'Loads Main View': function (browser: NightwatchBrowser) {
-    browser.waitForElementVisible('div[data-id="mainPanelPluginsContainer"]')
+    browser
+      .click('[data-id="home"]') // hack to fix auto-open of README.txt
+      .waitForElementVisible('div[data-id="mainPanelPluginsContainer"]')
       .waitForElementVisible('div[data-id="landingPageHomeContainer"]')
       .waitForElementVisible('div[data-id="remixUIHTAll"]')
   },

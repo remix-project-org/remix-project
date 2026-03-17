@@ -10,7 +10,7 @@ import { ResourceCategory } from '../types/mcpResources';
 
 export class TutorialsResourceProvider extends BaseResourceProvider {
   name = 'tutorials';
-  description = 'Provides access to a list of tutorials and their details';
+  description = 'Provides access to a list of tutorials and their details. If applicable it returns the tutorial that the user is at the moment viewing.';
   private _plugin
 
   constructor (plugin){
@@ -26,7 +26,21 @@ export class TutorialsResourceProvider extends BaseResourceProvider {
         this.createResource(
           'tutorials://list',
           'Tutorials',
-          'List of tutorials for learning web3, solidity, blockchain and smart contract development',
+          'List of tutorials for learning web3, solidity, blockchain and smart contract development.',
+          'application/json',
+          {
+            category: ResourceCategory.TUTORIALS,
+            tags: ['solidity', 'web3', 'tutorial', 'basics'],
+            priority: 9
+          }
+        )
+      )
+
+      resources.push(
+        this.createResource(
+          'tutorials://current',
+          'Tutorials',
+          'Current tutorial that the user is at the moment viewing.',
           'application/json',
           {
             category: ResourceCategory.TUTORIALS,
@@ -47,11 +61,24 @@ export class TutorialsResourceProvider extends BaseResourceProvider {
       return this.getTutorialsList(plugin);
     }
 
+    if (uri === 'tutorials://current') {
+      return this.currentTutorial(plugin);
+    }
+
     throw new Error(`Unsupported compilation resource URI: ${uri}`);
   }
 
   canHandle(uri: string): boolean {
     return uri.startsWith('tutorials://');
+  }
+
+  private async currentTutorial(plugin: Plugin): Promise<IMCPResourceContent> {
+    try {
+      const tutorial = await plugin.call('LearnEth', 'getCurrentTutorial')
+      return this.createJsonContent('tutorials://current', tutorial);
+    } catch (error) {
+      return this.createTextContent('tutorials://current', `Error getting current tutorial: ${error.message}`);
+    }
   }
 
   private async getTutorialsList(plugin: Plugin): Promise<IMCPResourceContent> {

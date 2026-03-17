@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer, useState, useMemo, useRef } from 'react';
+import { LoginModal } from '@remix-ui/login';
 import { IntlProvider } from 'react-intl';
 import CreateInstance from './components/CreateInstance';
 import EditHtmlTemplate from './components/EditHtmlTemplate';
@@ -8,24 +9,12 @@ import { appInitialState, appReducer, AppAction } from './reducers';
 import { AppContext } from './contexts';
 import { DappManager } from './utils/DappManager';
 import { QuickDappV2PluginApi, DappConfig } from './types';
+import { endpointUrls } from '@remix-endpoints-helper';
 import './App.css';
 
-// Helper to get network name from chainId
-function getNetworkName(chainId: string | number): string {
-  const chainIdStr = String(chainId);
-  const networks: Record<string, string> = {
-    '1': 'Ethereum Mainnet',
-    '5': 'Goerli',
-    '11155111': 'Sepolia',
-    '137': 'Polygon',
-    '80001': 'Mumbai',
-    '8453': 'Base',
-    '84532': 'Base Sepolia',
-    '10': 'Optimism',
-    '42161': 'Arbitrum One',
-  };
-  return networks[chainIdStr] || (chainIdStr.startsWith('vm') ? 'Remix VM' : `Chain ${chainIdStr}`);
-}
+const QUICK_DAPP_FEATURE = 'dapp:quickdapp';
+
+import { getNetworkName } from './utils/networks';
 
 export interface RemixUiQuickDappV2Props {
   plugin: QuickDappV2PluginApi;
@@ -42,9 +31,66 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   const [isAppLoading, setIsAppLoading] = useState(true);
   const activeDappRef = useRef(appState.activeDapp);
 
+  // Permission gating state
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null); // null = checking
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
   // DappManager now receives the plugin from props instead of a singleton
   const dappManager = useMemo(() => new DappManager(plugin as any), [plugin]);
   const dappManagerRef = useRef(dappManager);
+
+  // Check dapp:quickdapp permission on mount and when auth state changes
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const token = typeof localStorage !== 'undefined'
+          ? localStorage.getItem('remix_access_token')
+          : null;
+
+        if (!token) {
+          setIsAuthenticated(false);
+          setHasAccess(false);
+          return;
+        }
+
+        const response = await fetch(endpointUrls.permissions, {
+          credentials: 'include',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsAuthenticated(true);
+          const feature = data.features?.[QUICK_DAPP_FEATURE];
+          setHasAccess(feature?.is_enabled === true);
+        } else {
+          setIsAuthenticated(false);
+          setHasAccess(false);
+        }
+      } catch (err) {
+        console.error('[QuickDapp] Permission check failed:', err);
+        setIsAuthenticated(false);
+        setHasAccess(false);
+      }
+    };
+
+    checkAccess();
+
+    // Re-check permissions when login/logout occurs
+    const onAuthChanged = () => { checkAccess(); };
+    try {
+      plugin.on('auth' as any, 'authStateChanged', onAuthChanged);
+    } catch (e) {
+      console.warn('[QuickDapp] Could not listen for authStateChanged:', e);
+    }
+
+    return () => {
+      try {
+        (plugin as any).off('auth', 'authStateChanged', onAuthChanged);
+      } catch (_) {}
+    };
+  }, [plugin]);
 
   useEffect(() => {
     dappsRef.current = appState.dapps;
@@ -62,6 +108,38 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     if (!plugin) return;
 
     const handleCreateDapp = async (payload: any) => {
+      // Permission gate: check dapp:quickdapp access before creating workspace
+      try {
+        const token = typeof localStorage !== 'undefined'
+          ? localStorage.getItem('remix_access_token')
+          : null;
+
+        if (!token) {
+          return;
+        }
+
+        const permResponse = await fetch(endpointUrls.permissions, {
+          credentials: 'include',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        if (permResponse.ok) {
+          const permData = await permResponse.json();
+          const feature = permData.features?.[QUICK_DAPP_FEATURE];
+          if (!feature?.is_enabled) {
+            plugin.call('notification', 'toast', 'QuickDapp V2 is currently available to beta testers only. Please contact the Remix team to request access.');
+            return;
+          }
+        } else {
+          plugin.call('notification', 'toast', 'Unable to verify access. Please sign in and try again.');
+          return;
+        }
+      } catch (err) {
+        console.error('[QuickDapp] Permission check failed in handleCreateDapp:', err);
+        plugin.call('notification', 'toast', 'Unable to verify access. Please try again.');
+        return;
+      }
+
       dispatch({ type: 'SET_AI_LOADING', payload: true });
       dispatch({ type: 'SET_VIEW', payload: 'create' });
 
@@ -125,6 +203,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       const workspaceName = data.slug;
 
       try {
+        plugin.call('ai-dapp-generator', 'consumePendingResult', workspaceName).catch(() => {})
         await dappManager.saveGeneratedFiles(workspaceName, data.content);
 
         if (data.isUpdate) {
@@ -195,6 +274,11 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     plugin.event.on('dappUpdateStart', handleDappUpdateStart);
     plugin.event.on('workspaceDeleted', handleWorkspaceDeleted);
 
+    const pending = plugin.consumePendingCreateDapp?.();
+    if (pending) {
+      handleCreateDapp(pending);
+    }
+
     // Cleanup function to remove event listeners
     return () => {
       plugin.event.off('createDapp', handleCreateDapp);
@@ -242,6 +326,19 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           const elapsed = now - processingStartedAt;
 
           if (status === 'creating' || status === 'updating') {
+            // Try to recover buffered results from ai-dapp-generator
+            try {
+              const pendingResult = await plugin.call('ai-dapp-generator', 'consumePendingResult', dapp.slug)
+              if (pendingResult) {
+                await dappManager.saveGeneratedFiles(dapp.slug, pendingResult.content)
+                await dappManager.updateDappConfig(dapp.slug, { status: 'created', processingStartedAt: null })
+                plugin.call('notification', 'toast', `DApp recovered: files saved for '${dapp.name}'`)
+                continue
+              }
+            } catch (e) {
+              console.warn('[QuickDapp] Could not check pending results:', e)
+            }
+
             if (elapsed < FIVE_MINUTES) {
               dispatch({
                 type: 'SET_DAPP_PROCESSING',
@@ -260,7 +357,24 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
         dispatch({ type: 'SET_DAPPS', payload: refreshedDapps });
 
         if (refreshedDapps.length > 0) {
-          dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
+          // Check if current workspace matches a DApp workspace
+          let autoOpenedDapp = false;
+          try {
+            const currentWs = await plugin.call('filePanel', 'getCurrentWorkspace');
+            if (currentWs?.name) {
+              const matchingDapp = refreshedDapps.find((d: any) => d.workspaceName === currentWs.name);
+              if (matchingDapp) {
+                dispatch({ type: 'SET_ACTIVE_DAPP', payload: matchingDapp });
+                dispatch({ type: 'SET_VIEW', payload: 'editor' });
+                autoOpenedDapp = true;
+              }
+            }
+          } catch (e) {
+            console.warn('[QuickDapp] Could not detect current workspace for auto-open:', e);
+          }
+          if (!autoOpenedDapp) {
+            dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
+          }
         } else {
           dispatch({ type: 'SET_VIEW', payload: 'create' });
         }
@@ -287,6 +401,11 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
         type: 'SET_DAPPS',
         payload: dappsRef.current.filter((d: DappConfig) => d.id !== dapp.id)
       });
+      // Re-focus quick-dapp-v2 tab after a delay since deleteWorkspace
+      // triggers async workspace switching that shifts mainPanel focus
+      setTimeout(async () => {
+        try { await plugin.call('tabs', 'focus', 'quick-dapp-v2'); } catch (e) {}
+      }, 500);
     } catch (e) {
       console.error('[QuickDapp] Failed to delete workspace:', e);
     }
@@ -302,9 +421,48 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     }
     dispatch({ type: 'SET_DAPPS', payload: []});
     dispatch({ type: 'SET_VIEW', payload: 'create' });
+    // Re-focus quick-dapp-v2 tab since deleteWorkspace shifts mainPanel focus
+    try { await plugin.call('tabs', 'focus', 'quick-dapp-v2'); } catch (e) {}
   };
 
   const renderContent = () => {
+    // Permission check: show loading while checking access
+    if (hasAccess === null) {
+      return (
+        <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '80vh' }}>
+          <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
+          <p className="text-muted">Checking access...</p>
+        </div>
+      );
+    }
+
+    // Permission check: show access denied if user doesn't have dapp:quickdapp feature
+    if (!hasAccess) {
+      return (
+        <div className="d-flex flex-column justify-content-center align-items-center text-center px-4" style={{ height: '80vh' }}>
+          <i className="fas fa-lock fa-3x mb-3 text-warning"></i>
+          <h4 className="mb-2">Access Required</h4>
+          {isAuthenticated ? (
+            <p className="text-muted" style={{ maxWidth: '400px' }}>
+              QuickDapp V2 is currently available to beta testers only. Please contact the Remix team to request access.
+            </p>
+          ) : (
+            <>
+              <p className="text-muted" style={{ maxWidth: '400px' }}>
+                Please sign in to access QuickDapp V2. This feature is available to beta testers.
+              </p>
+              <button
+                className="btn btn-sm btn-primary mt-2"
+                onClick={() => setShowLoginModal(true)}
+              >
+                Sign In
+              </button>
+            </>
+          )}
+        </div>
+      );
+    }
+
     if (isAppLoading || !locale.messages) {
       return (
         <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '80vh' }}>
@@ -395,6 +553,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           {renderContent()}
         </div>
         <LoadingScreen />
+        {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} plugin={plugin} />}
       </IntlProvider>
     </AppContext.Provider>
   );

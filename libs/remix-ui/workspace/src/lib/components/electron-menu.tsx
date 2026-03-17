@@ -1,7 +1,7 @@
 import React, { MouseEventHandler, useContext, useEffect, useState } from "react"
 import { FileSystemContext } from "../contexts"
 import { appPlatformTypes, platformContext } from '@remix-ui/app'
-import { FormattedMessage } from "react-intl"
+import { FormattedMessage, useIntl } from "react-intl"
 import '../css/electron-menu.css'
 import { CustomTooltip } from '@remix-ui/helper'
 
@@ -11,6 +11,7 @@ export const ElectronMenu = (props: {
  }) => {
   const platform = useContext(platformContext)
   const global = useContext(FileSystemContext)
+  const intl = useIntl()
 
   useEffect(() => {
     if (platform === appPlatformTypes.desktop) {
@@ -59,7 +60,7 @@ export const ElectronMenu = (props: {
                         </div>
 
                         <div className="recentfolder_actions gap-1">
-                          <CustomTooltip tooltipText="Open in New Window" placement="top">
+                          <CustomTooltip tooltipText={intl.formatMessage({ id: 'filePanel.openInNewWindow' })} placement="top">
                             <div
                               className="recentfolder_action new-window p-1"
                               onClick={async () => {
@@ -70,7 +71,7 @@ export const ElectronMenu = (props: {
                             </div>
                           </CustomTooltip>
 
-                          <CustomTooltip tooltipText="Show in Folder" placement="top">
+                          <CustomTooltip tooltipText={intl.formatMessage({ id: 'filePanel.showInFolder' })} placement="top">
                             <div
                               className="recentfolder_action show-folder p-1"
                               onClick={async () => {
@@ -81,7 +82,7 @@ export const ElectronMenu = (props: {
                             </div>
                           </CustomTooltip>
 
-                          <CustomTooltip tooltipText="Remove from Recent" placement="top">
+                          <CustomTooltip tooltipText={intl.formatMessage({ id: 'filePanel.removeFromRecent' })} placement="top">
                             <div
                               className="recentfolder_action remove p-1"
                               onClick={() => {

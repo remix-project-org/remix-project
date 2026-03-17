@@ -16,7 +16,7 @@ export function RecorderUI(props: RecorderProps) {
 
   const handleClickRunButton = () => {
     const liveMode = inputLive.current ? inputLive.current.checked : false
-    props.runCurrentScenario(liveMode, props.gasEstimationPrompt, props.passphrasePrompt, props.mainnetPrompt)
+    props.runCurrentScenario(liveMode)
   }
 
   useEffect(() => {
@@ -50,20 +50,7 @@ export function RecorderUI(props: RecorderProps) {
               {props.count}
             </div>
           </CustomTooltip>
-          <CustomTooltip
-            placement={'auto-end'}
-            tooltipClasses="text-nowrap"
-            tooltipId="recordedTransactionsWalkthroughtooltip"
-            tooltipText={<FormattedMessage id="udapp.transactionsWalkthroughTooltip" />}
-          >
-            <i
-              className={'ms-2 fas fa-info align-self-center'}
-              aria-hidden="true"
-              onClick={() => startWalkthrough()}
-              data-id="recorderStartWalkthrough"
-            >
-            </i>
-          </CustomTooltip>
+
         </div>
         <div className="w-100" onClick={toggleClass}></div>
         <div className="p-3">

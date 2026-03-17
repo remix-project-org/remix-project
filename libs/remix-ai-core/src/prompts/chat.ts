@@ -1,23 +1,131 @@
 import { ChatEntry } from "../types/types"
+import { ChatHistoryStorageManager } from "../storage/storageManager"
 
 export abstract class ChatHistory{
 
   private static chatEntries:ChatEntry[] = []
   static queueSize:number = 7 // change the queue size wrt the GPU size
+  private static storage: ChatHistoryStorageManager | null = null
+  private static currentConversationId: string | null = null
 
-  public static pushHistory(prompt, result){
+  /**
+   * Initialize the storage backend.
+   * Callers are responsible for calling storage.init() before passing it here.
+   * Calling init() again here was causing a second IDBOpenDBRequest, leaking the
+   * first connection handle.
+   */
+  public static async init(storage: ChatHistoryStorageManager): Promise<void> {
+    this.storage = storage
+  }
+
+  /**
+   * Set the current conversation ID
+   */
+  public static setCurrentConversation(id: string | null): void {
+    this.currentConversationId = id
+  }
+
+  /**
+   * Get the current conversation ID
+   */
+  public static getCurrentConversation(): string | null {
+    return this.currentConversationId
+  }
+
+  /**
+   * Start a new conversation
+   */
+  public static async startNewConversation(workspace: string = 'default'): Promise<string> {
+    if (!this.storage) {
+      throw new Error('Storage not initialized')
+    }
+
+    this.currentConversationId = await this.storage.createConversation(workspace)
+    this.clearHistory() // Clear in-memory context for new conversation
+    return this.currentConversationId
+  }
+
+  /**
+   * Load an existing conversation
+   */
+  public static async loadConversation(id: string): Promise<void> {
+    if (!this.storage) {
+      throw new Error('Storage not initialized')
+    }
+
+    const messages = await this.storage.getMessages(id)
+    this.currentConversationId = id
+
+    // Rebuild chatEntries from last N messages for context
+    this.chatEntries = []
+    const contextMessages = messages.slice(-this.queueSize)
+
+    // Convert messages to ChatEntry tuples (prompt, result pairs)
+    for (let i = 0; i < contextMessages.length; i += 2) {
+      const userMsg = contextMessages[i]
+      const assistantMsg = contextMessages[i + 1]
+
+      if (userMsg && userMsg.role === 'user' && assistantMsg && assistantMsg.role === 'assistant') {
+        this.chatEntries.push([userMsg.content, assistantMsg.content])
+      }
+    }
+
+    // Touch conversation to update lastAccessedAt
+    await this.storage.touchConversation(id)
+  }
+
+  public static pushHistory(prompt, result): Promise<void> | undefined {
     if (result === "" || !result) return // do not allow empty assistant message due to nested stream handles on toolcalls
 
     // Check if an entry with the same prompt already exists
     const existingEntryIndex = this.chatEntries.findIndex(entry => entry[0] === prompt)
 
     if (existingEntryIndex !== -1) {
+      // Only update the in-memory context — do NOT write to DB again.
+      // Calling persistMessages unconditionally here was the root cause of duplicate
+      // DB entries (different IDs, same title) when the same prompt was repeated.
       this.chatEntries[existingEntryIndex][1] = result
     } else {
       const chat:ChatEntry = [prompt, result]
       this.chatEntries.push(chat)
       if (this.chatEntries.length > this.queueSize){this.chatEntries.shift()}
+
+      // Persist to storage only for new (non-duplicate) entries
+      if (this.storage && this.currentConversationId) {
+        return this.persistMessages(prompt, result).catch(err => {
+          console.error('Failed to persist chat history:', err)
+        })
+      }
     }
+  }
+
+  /**
+   * Persist user and assistant messages to storage
+   */
+  private static async persistMessages(prompt: string, result: string): Promise<void> {
+    if (!this.storage || !this.currentConversationId) return
+
+    const now = Date.now()
+
+    // Create user message
+    const userMessage = {
+      id: this.generateMessageId(),
+      role: 'user' as const,
+      content: prompt,
+      timestamp: now,
+      conversationId: this.currentConversationId
+    }
+
+    // Create assistant message
+    const assistantMessage = {
+      id: this.generateMessageId(),
+      role: 'assistant' as const,
+      content: result,
+      timestamp: now + 1, // Slightly later timestamp
+      conversationId: this.currentConversationId
+    }
+
+    await this.storage.saveBatch(this.currentConversationId, [userMessage, assistantMessage])
   }
 
   public static getHistory(){
@@ -26,5 +134,20 @@ export abstract class ChatHistory{
 
   public static clearHistory(){
     this.chatEntries = []
+  }
+
+  /**
+   * Get the storage manager instance
+   */
+  public static getStorage(): ChatHistoryStorageManager | null {
+    return this.storage
+  }
+
+  /**
+   * Generate a unique message ID using the Web Crypto API, consistent with
+   * the rest of the codebase (e.g. crypto.randomUUID() in sendPrompt).
+   */
+  private static generateMessageId(): string {
+    return crypto.randomUUID()
   }
 }

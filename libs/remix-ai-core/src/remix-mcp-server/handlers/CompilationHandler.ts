@@ -2,6 +2,7 @@
  * Compilation Tool Handlers for Remix MCP Server
  */
 
+import { CompilerAbstract } from '@remix-project/remix-solidity';
 import { IMCPToolResult } from '../../types/mcp';
 import { BaseToolHandler } from '../registry/RemixToolRegistry';
 import {
@@ -12,6 +13,8 @@ import {
   CompilationResult
 } from '../types/mcpTools';
 import { Plugin } from '@remixproject/engine';
+import isElectron from 'is-electron';
+import { fetchContractFromEtherscan, Network } from '@remix-project/core-plugin' // eslint-disable-line
 
 /**
  * Solidity Compile Tool Handler
@@ -91,26 +94,24 @@ export class SolidityCompileHandler extends BaseToolHandler {
         };
       }
 
-      // if (args.version) compilerConfig.version = args.version;
-      // if (args.optimize !== undefined) compilerConfig.optimize = args.optimize;
-      // if (args.runs) compilerConfig.runs = args.runs;
-      // if (args.evmVersion) compilerConfig.evmVersion = args.evmVersion;
-
-      // await plugin.call('solidity' as any, 'setCompilerConfig', JSON.stringify(compilerConfig));
-
       let compilationResult: any;
       if (args.file) {
+        await plugin.call('solidity' as any, 'compile', args.file) // this will enable the UI
         // Compile specific file - need to use plugin API or direct compilation
         const content = await plugin.call('fileManager', 'readFile', args.file);
         const contract = {}
         contract[args.file] = { content: content }
-
-        const compilerPayload = await plugin.call('solidity' as any, 'compileWithParameters', contract, compilerConfig)
-        await plugin.call('solidity' as any, 'compile', args.file) // this will enable the UI
+        const compilerPayload: CompilerAbstract = await plugin.call('solidity' as any, 'compileWithParameters', contract, compilerConfig)
+        const errors = compilerPayload.getErrors(false)
+        console.log('Compilation errors:', errors)
+        if (errors && errors.length > 0) {
+          return this.createErrorResult(`Compilation failed with errors: ${errors.map((e) => e.formattedMessage).join('; ')}`);
+        }
         compilationResult = compilerPayload
       } else {
         return this.createErrorResult(`Compilation failed: Workspace compilation not yet implemented. The argument file is not provided`);
       }
+      plugin.call('compilerArtefacts', 'saveCompilerAbstract', args.file, compilationResult)
       // Process compilation result
       const result: CompilationResult = {
         success: !compilationResult.data?.errors || compilationResult.data?.errors.length === 0 || !compilationResult.data?.error,
@@ -118,7 +119,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
         errors: compilationResult.data.errors || [],
         errorFiles: compilationResult?.errFiles || [],
         warnings: [], //compilationResult?.data?.errors.find((error) => error.type === 'Warning') || [],
-        sources: compilationResult?.source.sources[args.file] || {}
+        // sources: compilationResult?.source.sources[args.file] || {}
       };
 
       // Emit compilationFinished event with correct parameters to trigger UI effects
@@ -184,7 +185,7 @@ export class GetCompilationResultHandler extends BaseToolHandler {
         errors: compilationResult?.data?.errors || [],
         errorFiles: compilationResult?.errFiles || [],
         warnings: [], //compilationResult?.data?.errors.find((error) => error.type === 'Warning') || [],
-        sources: compilationResult?.source || {}
+        // sources: compilationResult?.source || {}
       };
 
       if (compilationResult.data?.contracts) {
@@ -203,6 +204,49 @@ export class GetCompilationResultHandler extends BaseToolHandler {
       }
 
       return this.createSuccessResult(result);
+    } catch (error) {
+      return this.createErrorResult(`Failed to get compilation result: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Get Compilation Result Tool Handler
+ */
+export class GetCompilationResultByFilePathHandler extends BaseToolHandler {
+  name = 'get_compilation_result_sources_by_file_path';
+  description = 'Get the compilation result sources for a specific file path';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      filePath: {
+        type: 'string',
+        description: 'File Path of the contract to get compilation result from'
+      }
+    },
+    required: ['filePath']
+  };
+
+  getPermissions(): string[] {
+    return ['compile:read'];
+  }
+
+  async execute(args: any, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      const compilationResult: any = await plugin.call('compilerArtefacts' as any, 'getCompilerAbstract', args.filePath)
+      if (!compilationResult) {
+        return this.createErrorResult('No compilation result available for the specified file path');
+      }
+      if (!compilationResult.source) {
+        return this.createErrorResult('No compilation result available for the specified file path');
+      }
+      if (!compilationResult.source.sources) {
+        return this.createErrorResult('No compilation result available for the specified file path');
+      }
+
+      console.log('get_compilation_result_sources_by_file_path', compilationResult.source.sources)
+
+      return this.createSuccessResult(compilationResult.source.sources);
     } catch (error) {
       return this.createErrorResult(`Failed to get compilation result: ${error.message}`);
     }
@@ -542,10 +586,132 @@ export class GetCompilerVersionsHandler extends BaseToolHandler {
 }
 
 /**
+ * Get Verified Contract from Etherscan Tool Handler
+ */
+export class GetVerifiedContractFromEtherscanHandler extends BaseToolHandler {
+  name = 'get_verified_contract_from_etherscan';
+  description = 'Fetch a verified contract from Etherscan and import it into the workspace';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      contractAddress: {
+        type: 'string',
+        description: 'The contract address to fetch from Etherscan (0x...)',
+        pattern: '^0x[a-fA-F0-9]{40}$'
+      },
+      network: {
+        type: 'object',
+        description: 'Network configuration',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Network chain ID (1 for Ethereum mainnet, 11155111 for Sepolia, etc.)'
+          },
+          name: {
+            type: 'string',
+            description: 'Network name (ethereum, sepolia, polygon, etc.)'
+          }
+        },
+        required: ['id', 'name']
+      },
+      targetPath: {
+        type: 'string',
+        description: 'Target directory path to save the contract files',
+        default: 'contracts/imported'
+      }
+    },
+    required: ['contractAddress', 'network']
+  };
+
+  getPermissions(): string[] {
+    return ['file:write', 'etherscan:read'];
+  }
+
+  validate(args: {
+    contractAddress: string;
+    network: Network;
+    targetPath?: string;
+  }): boolean | string {
+    const required = this.validateRequired(args, ['contractAddress', 'network']);
+    if (required !== true) return required;
+
+    const types = this.validateTypes(args, {
+      contractAddress: 'string',
+      network: 'object',
+      targetPath: 'string',
+    });
+    if (types !== true) return types;
+
+    // Validate contract address format
+    if (!args.contractAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      return 'Contract address must be a valid Ethereum address (0x followed by 40 hex characters)';
+    }
+
+    // Validate network object
+    if (!args.network.id || !args.network.name) {
+      return 'Network must include both id and name properties';
+    }
+
+    if (typeof args.network.id !== 'number' || args.network.id < 1) {
+      return 'Network id must be a positive number';
+    }
+
+    return true;
+  }
+
+  async execute(args: {
+    contractAddress: string;
+    network: Network;
+    targetPath?: string;
+  }, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      const targetPath = args.targetPath || 'contracts/imported/' + args.contractAddress
+
+      // Ensure target directory exists
+      await plugin.call('fileManager', 'mkdir', targetPath);
+
+      // Fetch contract from Etherscan
+      const result = await fetchContractFromEtherscan(
+        plugin,
+        args.network,
+        args.contractAddress,
+        targetPath,
+        true, // shouldSetFile
+      );
+
+      if (!result) {
+        return this.createErrorResult('Failed to fetch contract from Etherscan - no result returned');
+      }
+
+      // Extract information about imported files
+      const importedFiles = Object.keys(result.compilationTargets);
+      const contractName = importedFiles.length > 0 ?
+        importedFiles[0].split('/').pop()?.replace('.sol', '') : 'Unknown';
+
+      return this.createSuccessResult({
+        success: true,
+        message: `Successfully imported verified contract from Etherscan`,
+        contractAddress: args.contractAddress,
+        network: args.network,
+        contractName: contractName,
+        compilerVersion: result.version,
+        importedFiles: importedFiles,
+        targetPath: targetPath,
+        compilerConfig: result.config,
+        optimizationUsed: result.config?.settings?.optimizer?.enabled || false,
+        optimizationRuns: result.config?.settings?.optimizer?.runs || 0
+      });
+    } catch (error) {
+      return this.createErrorResult(`Failed to fetch contract from Etherscan: ${error.message}`);
+    }
+  }
+}
+
+/**
  * Create compilation tool definitions
  */
 export function createCompilationTools(): RemixToolDefinition[] {
-  return [
+  const tools = [
     {
       name: 'solidity_compile',
       description: 'Compile Solidity smart contracts',
@@ -561,6 +727,14 @@ export function createCompilationTools(): RemixToolDefinition[] {
       category: ToolCategory.COMPILATION,
       permissions: ['compile:read'],
       handler: new GetCompilationResultHandler()
+    },
+    {
+      name: 'get_compilation_result_sources_by_file_path',
+      description: 'Get the compilation result for a specific file path',
+      inputSchema: new GetCompilationResultByFilePathHandler().inputSchema,
+      category: ToolCategory.COMPILATION,
+      permissions: ['compile:read'],
+      handler: new GetCompilationResultByFilePathHandler()
     },
     {
       name: 'set_compiler_config',
@@ -579,36 +753,47 @@ export function createCompilationTools(): RemixToolDefinition[] {
       handler: new GetCompilerConfigHandler()
     },
     {
-      name: 'compile_with_hardhat',
-      description: 'Compile using Hardhat framework',
-      inputSchema: new CompileWithHardhatHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:hardhat'],
-      handler: new CompileWithHardhatHandler()
-    },
-    {
-      name: 'compile_with_foundry',
-      description: 'Compile using Foundry framework',
-      inputSchema: new CompileWithFoundryHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:foundry'],
-      handler: new CompileWithFoundryHandler()
-    },
-    {
-      name: 'compile_with_truffle',
-      description: 'Compile using Truffle framework',
-      inputSchema: new CompileWithTruffleHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:truffle'],
-      handler: new CompileWithTruffleHandler()
-    },
-    {
       name: 'get_compiler_versions',
       description: 'Get list of available Solidity compiler versions',
       inputSchema: new GetCompilerVersionsHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:read'],
       handler: new GetCompilerVersionsHandler()
+    },
+    {
+      name: 'get_verified_contract_from_etherscan',
+      description: 'Fetch a verified contract from Etherscan and import it into the workspace',
+      inputSchema: new GetVerifiedContractFromEtherscanHandler().inputSchema,
+      category: ToolCategory.COMPILATION,
+      permissions: ['file:write', 'etherscan:read'],
+      handler: new GetVerifiedContractFromEtherscanHandler()
     }
-  ];
+  ]
+  if (isElectron()) {
+    tools.push({
+      name: 'compile_with_hardhat',
+      description: 'Compile using Hardhat framework',
+      inputSchema: new CompileWithHardhatHandler().inputSchema,
+      category: ToolCategory.COMPILATION,
+      permissions: ['compile:hardhat'],
+      handler: new CompileWithHardhatHandler()
+    })
+    tools.push({
+      name: 'compile_with_foundry',
+      description: 'Compile using Foundry framework',
+      inputSchema: new CompileWithFoundryHandler().inputSchema,
+      category: ToolCategory.COMPILATION,
+      permissions: ['compile:foundry'],
+      handler: new CompileWithFoundryHandler()
+    })
+    tools.push({
+      name: 'compile_with_truffle',
+      description: 'Compile using Truffle framework',
+      inputSchema: new CompileWithTruffleHandler().inputSchema,
+      category: ToolCategory.COMPILATION,
+      permissions: ['compile:truffle'],
+      handler: new CompileWithTruffleHandler()
+    })
+  }
+  return tools
 }

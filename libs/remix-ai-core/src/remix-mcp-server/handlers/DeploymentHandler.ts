@@ -16,7 +16,9 @@ import {
   AccountInfo,
   ContractInteractionResult,
   RunScriptArgs,
-  RunScriptResult
+  RunScriptResult,
+  AddInstanceArgs,
+  AddInstanceResult
 } from '../types/mcpTools';
 import { Plugin } from '@remixproject/engine';
 import { getContractData } from '@remix-project/core-plugin'
@@ -24,6 +26,7 @@ import type { TxResult } from '@remix-project/remix-lib';
 import { BrowserProvider, formatEther } from "ethers"
 import { toNumber } from 'ethers'
 import { execution } from '@remix-project/remix-lib';
+import { CompilerAbstract } from '@remix-project/remix-solidity';
 const { txFormat, txHelper: { makeFullTypeDefinition } } = execution;
 
 /**
@@ -65,12 +68,8 @@ export class DeployContractHandler extends BaseToolHandler {
         type: 'string',
         description: 'Account to deploy from (address or index)'
       },
-      file: {
-        type: 'string',
-        description: 'The file containing the contract to deploy'
-      }
     },
-    required: ['contractName', 'file']
+    required: ['contractName']
   };
 
   getPermissions(): string[] {
@@ -100,11 +99,11 @@ export class DeployContractHandler extends BaseToolHandler {
   async execute(args: DeployContractArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       // Get compilation result to find contract
-      const compilerAbstract = await plugin.call('compilerArtefacts', 'getCompilerAbstract', args.file) as any;
-      const data = getContractData(args.contractName, compilerAbstract)
-      if (!data) {
+      const compilerArtefact = await plugin.call('compilerArtefacts', 'getCompilerAbstractByContractName', args.contractName) as CompilerAbstract;
+      if (!compilerArtefact) {
         return this.createErrorResult(`Could not retrieve contract data for '${args.contractName}'`);
       }
+      const data = getContractData(args.contractName, compilerArtefact)
       await plugin.call('sidePanel', 'showContent', 'udapp' )
       plugin.emit('setValueRequest', args.value || '0', 'wei')
       if (args.value && args.value !== '0') {
@@ -114,29 +113,15 @@ export class DeployContractHandler extends BaseToolHandler {
 
       let txReturn
       try {
-        txReturn = await new Promise(async (resolve, reject) => {
-          const callbacks = { continueCb: (error, continueTxExecution, cancelCb) => {
-            continueTxExecution()
-          }, promptCb: () => {}, statusCb: (error) => {
-          }, finalCb: (error, contractObject, address: string, txResult: TxResult) => {
-            if (error) reject(error)
-            resolve({ contractObject, address, txResult })
-          } }
-          const confirmationCb = (network, tx, gasEstimation, continueTxExecution, cancelCb) => {
-            continueTxExecution(null)
-          }
-          const compilerContracts = await plugin.call('compilerArtefacts', 'getLastCompilationResult')
-          plugin.call('blockchain', 'deployContractAndLibraries',
-            data,
-            args.constructorArgs ? args.constructorArgs : [],
-            null,
-            compilerContracts.getData().contracts,
-            callbacks,
-            confirmationCb
-          )
-        })
+        const compilerContracts = await plugin.call('compilerArtefacts', 'getLastCompilationResult')
+        txReturn = await plugin.call('blockchain', 'deployContractAndLibraries',
+          data,
+          args.constructorArgs ? args.constructorArgs : [],
+          null,
+          compilerContracts.getData().contracts
+        )
       } catch (e) {
-        return this.createErrorResult(`Deployment error: ${e.message || e}`);
+        return this.createErrorResult(`Deployment error: ${e.message || e}`)
       }
 
       const receipt = (txReturn.txResult.receipt)
@@ -149,12 +134,11 @@ export class DeployContractHandler extends BaseToolHandler {
         contractAddress: receipt.contractAddress,
         success: receipt.status === 1 ? true : false
       }
-      plugin.call('udapp', 'addInstance', result.contractAddress, data.abi, args.contractName, data)
+      plugin.call('udappDeployedContracts', 'addInstance', result.contractAddress, data.abi, args.contractName, data)
 
       return this.createSuccessResult(result);
 
     } catch (error) {
-      console.log(error)
       return this.createErrorResult(`Deployment failed: ${error.message}`);
     }
   }
@@ -267,45 +251,17 @@ export class CallContractHandler extends BaseToolHandler {
           plugin.call('notification', 'toast', `Value of ${formatEther(args.value)} ETH will be sent with the deployment`)
           await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait a moment for the toast to be seen
         }
+        const params = funcABI.type !== 'fallback' ? (args.args? args.args.join(',') : ''): ''
+        txReturn = await plugin.call('blockchain', 'runOrCallContractMethod',
+          args.contractName,
+          args.abi,
+          funcABI,
+          undefined,
+          args.args ? args.args : [],
+          args.address,
+          params,
+          isView)
 
-        txReturn = await new Promise((resolve, reject) => {
-          const params = funcABI.type !== 'fallback' ? (args.args? args.args.join(',') : ''): ''
-          plugin.call('blockchain', 'runOrCallContractMethod',
-            args.contractName,
-            args.abi,
-            funcABI,
-            undefined,
-            args.args ? args.args : [],
-            args.address,
-            params,
-            isView,
-            (msg) => {
-              // logMsg
-            },
-            (msg) => {
-              // logCallback
-            },
-            (returnValue) => {
-              // outputCb
-            },
-            (network, tx, gasEstimation, continueTxExecution, cancelCb) => {
-              // confirmationCb
-              continueTxExecution(null)
-            },
-            (error, continueTxExecution, cancelCb) => {
-              if (error) reject(error)
-              // continueCb
-              continueTxExecution()
-            },
-            (okCb, cancelCb) => {
-              // promptCb
-            },
-            (error, { txResult, address, returnValue }) => {
-              if (error) return reject(error)
-              resolve({ txResult, address, returnValue })
-            },
-          )
-        })
       } catch (e) {
         return this.createErrorResult(`Deployment error: ${e.message}`);
       }
@@ -332,15 +288,14 @@ export class CallContractHandler extends BaseToolHandler {
  * Run Script
  */
 export class RunScriptHandler extends BaseToolHandler {
-  name = 'send_transaction';
+  name = 'run_script';
   description = 'Run a script in the current environment';
   inputSchema = {
     type: 'object',
     properties: {
       file: {
         type: 'string',
-        description: 'path to the file',
-        pattern: '^0x[a-fA-F0-9]{40}$'
+        description: 'path to the file'
       }
     },
     required: ['file']
@@ -476,7 +431,6 @@ export class SendTransactionHandler extends BaseToolHandler {
       return this.createSuccessResult(result);
 
     } catch (error) {
-      console.log(error)
       return this.createErrorResult(`Transaction failed: ${error.message}`);
     }
   }
@@ -487,24 +441,25 @@ export class SendTransactionHandler extends BaseToolHandler {
  */
 export class GetDeployedContractsHandler extends BaseToolHandler {
   name = 'get_deployed_contracts';
-  description = 'Get list of deployed contracts';
+  description = 'Get list of deployed contracts for the current environment';
   inputSchema = {
     type: 'object',
-    properties: {
-      network: {
-        type: 'string',
-        description: 'Network name (optional)'
-      }
-    }
+    properties: {}
   };
 
   getPermissions(): string[] {
     return ['deploy:read'];
   }
 
-  async execute(args: { network?: string }, plugin: Plugin): Promise<IMCPToolResult> {
+  async execute(args: any, plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      const deployedContracts = await plugin.call('udapp', 'getAllDeployedInstances')
+      const deployedContracts = await plugin.call('udappDeployedContracts', 'getDeployedContracts')
+      deployedContracts.forEach((contract: any) => {
+        if (!contract.abi) {
+          contract.abi = contract.contractData?.abi
+        }
+        delete contract.contractData // take too much space for the context.
+      })
       return this.createSuccessResult({
         success: true,
         contracts: deployedContracts,
@@ -558,7 +513,7 @@ export class SetExecutionEnvironmentHandler extends BaseToolHandler {
       if (!provider) {
         return this.createErrorResult(`Could not find provider for environment '${args.environment}'`);
       }
-      await plugin.call('blockchain', 'changeExecutionContext', { context: args.environment })
+      await plugin.call('udappEnv', 'changeExecutionContext', { context: args.environment })
       return this.createSuccessResult({
         success: true,
         message: `Execution environment set to: ${args.environment}`,
@@ -650,33 +605,28 @@ export class GetUserAccountsHandler extends BaseToolHandler {
   async execute(args: { includeBalances?: boolean }, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       // Get accounts from the run-tab plugin (udapp)
-      const runTabApi = await plugin.call('udapp' as any, 'getRunTabAPI');
+      const loadedAccounts = await plugin.call('udappEnv' as any, 'getLoadedAccounts');
+      const selectedAccount = await plugin.call('udappEnv' as any, 'getSelectedAccount');
 
-      if (!runTabApi || !runTabApi.accounts) {
+      if (!loadedAccounts) {
         return this.createErrorResult('Could not retrieve accounts from execution environment');
       }
 
       const accounts: AccountInfo[] = [];
-      const loadedAccounts = runTabApi.accounts.loadedAccounts || {};
-      const selectedAccount = runTabApi.accounts.selectedAccount;
-      for (const [address, displayName] of Object.entries(loadedAccounts)) {
-        const account: AccountInfo = {
-          address: address,
-          displayName: displayName as string,
-          isSmartAccount: (displayName as string)?.includes('[SMART]') || false
-        };
+      for (const loadedAccount of loadedAccounts) {
+        loadedAccount.isSmartAccount = await plugin.call('udappEnv' as any, 'isSmartAccount', loadedAccount.account) || false
 
         // Get balance if requested
         if (args.includeBalances !== false) {
           try {
-            const balance = await plugin.call('blockchain' as any, 'getBalanceInEther', address);
-            account.balance = balance || '0';
+            const balance = await plugin.call('blockchain' as any, 'getBalanceInEther', loadedAccount.account);
+            loadedAccount.balance = balance || '0';
           } catch (error) {
-            account.balance = 'unknown';
+            loadedAccount.balance = 'unknown';
           }
         }
 
-        accounts.push(account);
+        accounts.push(loadedAccount);
       }
 
       const result = {
@@ -748,11 +698,10 @@ export class SetSelectedAccountHandler extends BaseToolHandler {
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait a moment for the change to propagate
 
       // Verify the account was set
-      const runTabApi = await plugin.call('udapp' as any, 'getRunTabAPI');
-      const currentSelected = runTabApi?.accounts?.selectedAccount;
+      const selectedAccount = await plugin.call('udappEnv' as any, 'getSelectedAccount');
 
-      if (currentSelected !== args.address) {
-        return this.createErrorResult(`Failed to set account. Current selected: ${currentSelected}`);
+      if (selectedAccount !== args.address) {
+        return this.createErrorResult(`Failed to set account. Current selected: ${selectedAccount}`);
       }
 
       return this.createSuccessResult({
@@ -788,15 +737,16 @@ export class GetCurrentEnvironmentHandler extends BaseToolHandler {
       const network = await plugin.call('network', 'detectNetwork')
 
       // Verify the account was set
-      const runTabApi = await plugin.call('udapp' as any, 'getRunTabAPI');
-      const accounts = runTabApi?.accounts;
+      const loadedAccounts = await plugin.call('udappEnv' as any, 'getLoadedAccounts');
+      const selectedAccount = await plugin.call('udappEnv' as any, 'getSelectedAccount');
 
       const result = {
         success: true,
         environment: {
           provider,
           network,
-          accounts
+          loadedAccounts,
+          selectedAccount
         }
       };
 
@@ -931,6 +881,119 @@ export class SimulateTransactionHandler extends BaseToolHandler {
 }
 
 /**
+ * Add Instance Tool Handler
+ */
+export class AddInstanceHandler extends BaseToolHandler {
+  name = 'add_instance';
+  description = 'Add a new contract instance to the deployed contracts list';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      contractAddress: {
+        type: 'string',
+        description: 'Contract address',
+        pattern: '^0x[a-fA-F0-9]{40}$'
+      },
+      abi: {
+        type: 'array',
+        description: 'Contract ABI',
+        items: {
+          type: 'object'
+        }
+      },
+      contractName: {
+        type: 'string',
+        description: 'Contract name'
+      },
+      contractData: {
+        type: 'object',
+        description: 'Additional contract data (optional)'
+      }
+    },
+    required: ['contractAddress', 'abi', 'contractName']
+  };
+
+  getPermissions(): string[] {
+    return ['deploy:write'];
+  }
+
+  validate(args: AddInstanceArgs): boolean | string {
+    const required = this.validateRequired(args, ['contractAddress', 'abi', 'contractName']);
+    if (required !== true) return required;
+
+    const types = this.validateTypes(args, {
+      contractAddress: 'string',
+      contractName: 'string'
+    });
+    if (types !== true) return types;
+
+    if (!args.contractAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      return 'Invalid contract address format';
+    }
+
+    if (!Array.isArray(args.abi)) {
+      try {
+        args.abi = JSON.parse(args.abi as any);
+        if (!Array.isArray(args.abi)) {
+          return 'ABI must be an array';
+        }
+      } catch (e) {
+        return 'ABI must be an array or valid JSON string';
+      }
+    }
+
+    return true;
+  }
+
+  async execute(args: AddInstanceArgs, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      let abi = args.abi
+      if (typeof args.abi === 'string') {
+        try {
+          abi = JSON.parse(args.abi)
+          if (!Array.isArray(abi)) {
+            return this.createErrorResult('ABI must be an array');
+          }
+        } catch (e) {
+          return this.createErrorResult('ABI must be a valid JSON string');
+        }
+      }
+      await plugin.call('sidePanel', 'showContent', 'udapp');
+
+      let data
+      try {
+        const compilerAbstract = await plugin.call('compilerArtefacts', 'getArtefactsByContractName', args.contractName) as any;
+        data = getContractData(args.contractName, compilerAbstract)
+      } catch (e) {}
+
+      // Add the instance to udappDeployedContracts
+      await plugin.call(
+        'udappDeployedContracts',
+        'addInstance',
+        args.contractAddress,
+        abi,
+        args.contractName,
+        data || null
+      );
+
+      const result: AddInstanceResult = {
+        success: true,
+        contractAddress: args.contractAddress,
+        contractName: args.contractName,
+        message: `Successfully added contract instance ${args.contractName} at ${args.contractAddress}`
+      };
+
+      plugin.call('notification', 'toast', `Added contract instance: ${args.contractName}`);
+
+      return this.createSuccessResult(result);
+
+    } catch (error) {
+      return this.createErrorResult(`Failed to add contract instance: ${error.message}`);
+    }
+  }
+}
+
+/**
  * Create deployment and interaction tool definitions
  */
 export function createDeploymentTools(): RemixToolDefinition[] {
@@ -1022,6 +1085,14 @@ export function createDeploymentTools(): RemixToolDefinition[] {
       category: ToolCategory.DEPLOYMENT,
       permissions: ['transaction:simulate'],
       handler: new SimulateTransactionHandler()
+    },
+    {
+      name: 'add_instance',
+      description: 'Add a new contract instance to the deployed contracts list',
+      inputSchema: new AddInstanceHandler().inputSchema,
+      category: ToolCategory.DEPLOYMENT,
+      permissions: ['deploy:write'],
+      handler: new AddInstanceHandler()
     }
   ];
 }

@@ -2,12 +2,51 @@
   gap: 8px;
 }
 
+/* Beta-themed button */
+.user-menu-compact-button--beta {
+  background: linear-gradient(135deg, #0a7e82 0%, #0a9396 50%, #0d6e82 100%);
+  border: 1px solid rgba(125, 211, 252, 0.3);
+  color: white;
+  animation: beta-glow 3s ease-in-out infinite;
+}
+
+.user-menu-compact-button--beta:hover {
+  background: linear-gradient(135deg, #0b8f93 0%, #0db5b8 50%, #0e7f89 100%);
+  border-color: rgba(125, 211, 252, 0.5);
+  color: white;
+}
+
+@keyframes beta-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(10, 147, 150, 0.3); }
+  50% { box-shadow: 0 0 10px rgba(10, 147, 150, 0.5), 0 0 20px rgba(10, 147, 150, 0.15); }
+}
+
+.user-menu-compact-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.user-menu-compact-avatar-wrap--beta {
+  padding: 2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7dd3fc, #0a9396, #7dd3fc);
+  background-size: 200% 200%;
+  animation: avatar-ring-rotate 4s linear infinite;
+}
+
+@keyframes avatar-ring-rotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .user-menu-compact-avatar {
   width: 25px;
   height: 25px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  display: block;
 }
 
 .user-menu-compact-info {
@@ -19,6 +58,18 @@
 
 .user-menu-compact-name {
   font-weight: 500;
+}
+
+.user-menu-compact-beta-tag {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  line-height: 1.4;
 }
 
 .user-menu-dropdown {

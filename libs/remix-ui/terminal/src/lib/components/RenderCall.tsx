@@ -38,13 +38,13 @@ const RenderCall = ({ tx, resolvedData, logs, index, plugin, showTableHash, txDe
         <span>
           <span className="remix_ui_terminal_tx">[call]</span>
           <div className="remix_ui_terminal_txItem">
-            <span className="remix_ui_terminal_txItemTitle">from:</span> {from}
+            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callFrom" /></span> {from}
           </div>
           <div className="remix_ui_terminal_txItem">
-            <span className="remix_ui_terminal_txItemTitle">to:</span> {to}
+            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callTo" /></span> {to}
           </div>
           <div className="remix_ui_terminal_txItem">
-            <span className="remix_ui_terminal_txItemTitle">data:</span> {input}
+            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callData" /></span> {input}
           </div>
         </span>
         <div className="remix_ui_terminal_buttons">

@@ -20,7 +20,9 @@ export interface HomeTabEvent extends MatomoEventBase {
     | 'updatesActionClick'
     | 'homeGetStarted'
     | 'startLearnEthTutorial'
-    | 'featuredSection';
+    | 'featuredSection'
+    | 'explainEthereum'
+    | 'getStartedContract'
 }
 
 export interface TopbarEvent extends MatomoEventBase {
@@ -31,7 +33,8 @@ export interface TopbarEvent extends MatomoEventBase {
     | 'terminalPanel'
     | 'rightSidePanel'
     | 'header'
-    | 'feedback';
+    | 'feedback'
+    | 'support';
 }
 
 export interface LayoutEvent extends MatomoEventBase {

@@ -96,7 +96,7 @@ const showTable = (opts, showTableHash) => {
         {opts.from ? (
           <tr className="remix_ui_terminal_tr">
             <td className="remix_ui_terminal_td" data-shared={`key_${opts.hash}`}>
-              from
+              <FormattedMessage id="terminal.from" />
             </td>
             <td className="remix_ui_terminal_td" data-id={`txLoggerTableFrom${opts.hash}`} data-shared={`pair_${opts.hash}`}>
               {toChecksumAddress(opts.from)}
@@ -111,7 +111,7 @@ const showTable = (opts, showTableHash) => {
         {opts.to || (opts.isUserOp && opts.entrypoint)? (
           <tr className="remix_ui_terminal_tr">
             <td className="remix_ui_terminal_td" data-shared={`key_${opts.hash}`}>
-              to
+              <FormattedMessage id="terminal.to" />
             </td>
             <td className="remix_ui_terminal_td" data-id={`txLoggerTableTo${opts.hash}`} data-shared={`pair_${opts.hash}`}>
               {toHash}
@@ -126,10 +126,10 @@ const showTable = (opts, showTableHash) => {
         {opts.gas ? (
           <tr className="remix_ui_terminal_tr">
             <td className="remix_ui_terminal_td" data-shared={`key_${opts.hash}`}>
-              gas
+              <FormattedMessage id="terminal.gas" />
             </td>
             <td className="remix_ui_terminal_td" data-id={`txLoggerTableGas${opts.hash}`} data-shared={`pair_${opts.hash}`}>
-              {gasInt} gas
+              {gasInt} <FormattedMessage id="terminal.gas" />
               <CopyToClipboard content={opts.gas} />
             </td>
           </tr>
@@ -229,10 +229,10 @@ const showTable = (opts, showTableHash) => {
         {opts.val ? (
           <tr className="remix_ui_terminal_tr">
             <td className="remix_ui_terminal_td" data-shared={`key_${opts.hash}`}>
-              value
+              <FormattedMessage id="terminal.value" />
             </td>
             <td className="remix_ui_terminal_td" data-id={`txLoggerTableHash${opts.hash}`} data-shared={`pair_${opts.hash}`}>
-              {val} wei
+              {val} <FormattedMessage id="terminal.wei" />
               <CopyToClipboard content={`${val} wei`} />
             </td>
           </tr>

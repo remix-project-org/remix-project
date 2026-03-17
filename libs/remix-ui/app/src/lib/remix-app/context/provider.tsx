@@ -1,7 +1,7 @@
 import React, { useReducer } from 'react'
 import { useIntl, IntlShape } from 'react-intl'
 import { modalActionTypes } from '../actions/modals'
-import { AlertModal, AppModal } from '../interface'
+import { AlertModal, AppModal, ActionNotification } from '../interface'
 import { modalReducer } from '../reducer/modals'
 import { ModalInitialState } from '../state/modals'
 import { ModalTypes } from '../types'
@@ -13,7 +13,7 @@ declare global {
 }
 
 export const ModalProvider = ({ children = [], reducer = modalReducer, initialState = ModalInitialState } = {}) => {
-  const [{ modals, toasters, focusModal, focusToaster, focusTemplateExplorer }, dispatch] = useReducer(reducer, initialState)
+  const [{ modals, toasters, focusModal, focusToaster, focusTemplateExplorer, actionNotifications }, dispatch] = useReducer(reducer, initialState)
 
   const onNextFn = async () => {
     dispatch({
@@ -84,9 +84,23 @@ export const ModalProvider = ({ children = [], reducer = modalReducer, initialSt
     })
   }
 
+  const actionNotification = (data: ActionNotification) => {
+    dispatch({
+      type: modalActionTypes.setActionNotification,
+      payload: data
+    })
+  }
+
+  const hideActionNotification = (id: string) => {
+    dispatch({
+      type: modalActionTypes.hideActionNotification,
+      payload: { id }
+    })
+  }
+
   return (
-    <dispatchModalContext.Provider value={{ modal, toast, alert, handleHideModal, handleToaster }}>
-      <modalContext.Provider value={{ modals, toasters, focusModal, focusToaster, focusTemplateExplorer }}>
+    <dispatchModalContext.Provider value={{ modal, toast, alert, handleHideModal, handleToaster, actionNotification, hideActionNotification }}>
+      <modalContext.Provider value={{ modals, toasters, focusModal, focusToaster, focusTemplateExplorer, actionNotifications }}>
         {children}
       </modalContext.Provider>
     </dispatchModalContext.Provider>

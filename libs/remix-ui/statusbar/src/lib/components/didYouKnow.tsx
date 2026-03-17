@@ -1,6 +1,7 @@
 import { CustomTooltip } from '@remix-ui/helper'
 import axios from 'axios'
 import React, { useEffect, useState } from 'react'
+import { FormattedMessage } from 'react-intl'
 
 export default function DidYouKnow () {
   const [tip, setTip] = useState<string>('')
@@ -27,7 +28,7 @@ export default function DidYouKnow () {
     <CustomTooltip tooltipText={tip}>
       <div className="remixui_statusbar_didyouknow text-white small d-flex align-items-center">
         <span className="pe-2 text-success fa-solid fa-lightbulb"></span>
-        <div className="me-2" style={{ fontWeight: "bold" }}>Did you know?</div>
+        <div className="me-2" style={{ fontWeight: "bold" }}><FormattedMessage id="statusbar.didYouKnow" /></div>
         { tip && tip.length > 0 ? <div>{tip}</div> : null }
       </div>
     </CustomTooltip>

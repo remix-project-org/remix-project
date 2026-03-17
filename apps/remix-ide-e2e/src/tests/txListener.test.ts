@@ -24,20 +24,18 @@ module.exports = {
       .testContracts('Untitled.sol', sources[0]['Untitled.sol'], ['Ballot'])
       .clickLaunchIcon('udapp')
       .selectAccount('0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c')
-      .setValue('input[placeholder="bytes32[] proposalNames"]', '["0x48656c6c6f20576f726c64210000000000000000000000000000000000000000"]')
-      .click('*[data-id="Deploy - transact (not payable)"]')
-      .waitForElementPresent('*[data-id="universalDappUiContractActionWrapper"]', 60000)
+      .createContract('["0x48656c6c6f20576f726c64210000000000000000000000000000000000000000"]')
       .clickInstance(0)
-      .clickFunction('delegate - transact (not payable)', { types: 'address to', values: '"0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db"' })
+      .clickFunction(0, 0, ["0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db"])
       .testFunction('last',
         {
-          status: '1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution completed',
           'decoded input': { 'address to': '0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB' }
         })
       .clickLaunchIcon('solidity')
       .testContracts('Untitled1.sol', sources[1]['Untitled1.sol'], ['test'])
       .clickLaunchIcon('udapp')
-      .clickFunction('delegate - transact (not payable)', { types: 'address to', values: '"0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db"' })
+      .clickFunction(0, 0, ["0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db"])
       .testFunction('last',
         {
           status: '0 Transaction mined but execution failed',

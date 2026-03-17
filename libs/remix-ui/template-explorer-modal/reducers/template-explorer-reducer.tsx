@@ -39,7 +39,8 @@ export const initialState: TemplateExplorerWizardState = {
   gitUrl: '',
   tokenName: 'MyToken',
   contractName: 'MyToken',
-  manageCategory: 'Template'
+  manageCategory: 'Template',
+  creating: false
 }
 
 export const templateExplorerReducer = (state: TemplateExplorerWizardState, action: any) => {
@@ -132,6 +133,9 @@ export const templateExplorerReducer = (state: TemplateExplorerWizardState, acti
   }
   case ContractWizardAction.CONTRACT_TAG_UPDATE: {
     return { ...state, contractTag: action.payload }
+  }
+  case TemplateExplorerWizardAction.SET_CREATING: {
+    return { ...state, creating: action.payload }
   }
   default: {
     return { ...state, contractCode: getErc20ContractCode('erc20', state) }

@@ -3,6 +3,7 @@ import { Plugin } from '@remixproject/engine'
 import { LibraryProfile, MethodApi, StatusEvents } from '@remixproject/plugin-utils'
 import { AppModal } from '@remix-ui/app'
 import { AlertModal } from '@remix-ui/app'
+import { ActionNotification } from '@remix-ui/app'
 import { dispatchModalInterface } from '@remix-ui/app'
 import { Toaster, toast } from '@remix-ui/toaster'
 
@@ -13,6 +14,8 @@ interface INotificationApi {
     alert: (args: AlertModal) => void
     toast: (message: string) => number
     hideToaster: (id: number) => void
+    actionNotification: (args: ActionNotification) => void
+    hideActionNotification: (id: string) => void
   }
 }
 
@@ -20,7 +23,7 @@ const profile: LibraryProfile<INotificationApi> = {
   name: 'notification',
   displayName: 'Notification',
   description: 'Displays notifications',
-  methods: ['modal', 'alert', 'toast', 'hideToaster']
+  methods: ['modal', 'alert', 'toast', 'hideToaster', 'actionNotification', 'hideActionNotification']
 }
 
 export class NotificationPlugin extends Plugin implements MethodApi<INotificationApi> {
@@ -52,5 +55,14 @@ export class NotificationPlugin extends Plugin implements MethodApi<INotificatio
 
   async hideToaster(id: number) {
     toast.dismiss('toast-' + id)
+  }
+
+  async actionNotification(data: ActionNotification) {
+    const id = data.id || `action-notif-${Date.now()}-${++this.toastId}`
+    this.dispatcher.actionNotification({ ...data, id })
+  }
+
+  async hideActionNotification(id: string) {
+    this.dispatcher.hideActionNotification(id)
   }
 }

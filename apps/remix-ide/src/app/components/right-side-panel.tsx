@@ -13,7 +13,7 @@ const rightSidePanel = {
   description: 'Remix IDE right side panel',
   version: packageJson.version,
   methods: ['addView', 'removeView', 'currentFocus', 'pinView', 'unPinView', 'highlight',
-    'getHiddenPlugin', 'togglePanel', 'isPanelHidden'
+    'getHiddenPlugin', 'togglePanel', 'isPanelHidden', 'maximizePanel', 'isRightSidePanelMaximized'
   ],
   events: []
 }
@@ -303,6 +303,10 @@ export class RightSidePanel extends AbstractPanel {
     return this.isHidden
   }
 
+  isRightSidePanelMaximized() {
+    return this.isMaximized
+  }
+
   async maximizePanel() {
     if (!this.isMaximized) {
       // Store the current state of panels before maximizing
@@ -411,7 +415,7 @@ export class RightSidePanel extends AbstractPanel {
   }
 
   updateComponent(state: any) {
-    return <RemixPluginPanel header={<RemixUIPanelHeader plugins={state.plugins} pinView={this.pinView.bind(this)} unPinView={this.unPinView.bind(this)} togglePanel={this.togglePanel.bind(this)} maximizePanel={this.maximizePanel.bind(this)} isMaximized={this.isMaximized}></RemixUIPanelHeader>} { ...state } />
+    return <RemixPluginPanel header={<RemixUIPanelHeader sourcePlugin={this} plugins={state.plugins} pinView={this.pinView.bind(this)} unPinView={this.unPinView.bind(this)} togglePanel={this.togglePanel.bind(this)} maximizePanel={this.maximizePanel.bind(this)} isMaximized={this.isMaximized}></RemixUIPanelHeader>} { ...state } />
   }
 
   renderComponent() {

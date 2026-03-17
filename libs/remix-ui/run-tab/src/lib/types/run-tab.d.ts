@@ -20,7 +20,6 @@ export interface RunTab extends ViewPlugin {
   getAccounts(cb: any): any;
   pendingTransactionsCount(): any;
   onReady(api: any): void;
-  onInitDone(): void;
   recorder: Recorder;
 }
 import { ViewPlugin } from "@remixproject/engine-web";

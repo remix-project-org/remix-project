@@ -24,12 +24,12 @@ export const SettingsNavigation = ({ eventKey, activePanel, callback }) => {
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          <label className="nav ps-2 form-check-label">SETTINGS</label>
+          <label className="nav ps-2 form-check-label"><FormattedMessage id="gitui.settings" /></label>
 
         </span>
 
         <span className='d-flex justify-content-end align-items-center w-25'>
-          <CustomTooltip tooltipText={<FormattedMessage id="Missing values" />}>
+          <CustomTooltip tooltipText={<FormattedMessage id="gitui.missingValues" />}>
             <button onClick={async () => { await pluginactions.loadFiles() }} className='btn btn-sm text-warning'><FontAwesomeIcon icon={faTriangleExclamation} className="" /></button>
           </CustomTooltip>
 

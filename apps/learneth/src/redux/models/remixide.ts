@@ -4,18 +4,18 @@ import remixClient from '../../remix-client'
 import { router } from '../../App'
 import { trackMatomoEvent } from '@remix-api'
 
-const learnethWorkspaceName = 'learneth tutorials'
-
-export const ensureLearnethWorkspace = async (remixClient) => {
+export const ensureLearnethWorkspace = async (remixClient, workshopName) => {
   try {
+    const learnethWorkspaceName = 'Learneth ' + workshopName
     const current = await remixClient.call('filePanel', 'getCurrentWorkspace')
     if (current && current.name === learnethWorkspaceName) {
       return
     }
-    const exists = await remixClient.call('filePanel', 'workspaceExists')
+    const exists = await remixClient.call('filePanel', 'workspaceExists', learnethWorkspaceName)
     if (!exists) {
       await remixClient.call('filePanel', 'createWorkspace', learnethWorkspaceName, 'blank')
     }
+    remixClient.call('notification', 'toast', 'Opening a workshop workspace...')
     return remixClient.call('filePanel', 'switchToWorkspace', { name: learnethWorkspaceName, isLocalHost: false })
   } catch (err) {
     console.error('Error ensuring learneth workspace:', err)
@@ -101,11 +101,11 @@ const Model: ModelType = {
 
       const workshop = detail[selectedId]
 
-      path = `${workshop.name}/${step.name}/${path}`
+      path = `${step.name}/${path}`
       try {
         const isExist = yield remixClient.call('fileManager', 'exists' as any, path)
         if (!isExist) {
-          yield ensureLearnethWorkspace(remixClient)
+          yield ensureLearnethWorkspace(remixClient, remixClient.getCurrentTutorial().name)
           yield remixClient.call('fileManager', 'setFile', path, content)
         }
         yield remixClient.call('fileManager', 'switchFile', `${path}`)
@@ -150,13 +150,13 @@ const Model: ModelType = {
         let path: string
         if (step.solidity.file) {
           path = getFilePath(step.solidity.file)
-          path = `${workshop.name}/${step.name}/${path}`
+          path = `${step.name}/${path}`
           yield remixClient.call('fileManager', 'switchFile', `${path}`)
         }
 
         path = getFilePath(step.test.file)
-        path = `${workshop.name}/${step.name}/${path}`
-        yield ensureLearnethWorkspace(remixClient)
+        path = `${step.name}/${path}`
+        yield ensureLearnethWorkspace(remixClient, remixClient.getCurrentTutorial().name)
         yield remixClient.call('fileManager', 'setFile', path, step.test.content)
 
         const result = yield remixClient.call('solidityUnitTesting', 'testFromPath', path)
@@ -215,8 +215,8 @@ const Model: ModelType = {
         const { detail, selectedId } = yield select((state) => state.workshop)
 
         const workshop = detail[selectedId]
-        path = `${workshop.name}/${step.name}/${path}`
-        yield ensureLearnethWorkspace(remixClient)
+        path = `${step.name}/${path}`
+        yield ensureLearnethWorkspace(remixClient, remixClient.getCurrentTutorial().name)
         yield remixClient.call('fileManager', 'setFile', path, content)
         yield remixClient.call('fileManager', 'switchFile', `${path}`);
 

@@ -298,7 +298,7 @@ export class ExtractLocalsAtHandler extends BaseToolHandler {
       return this.createSuccessResult({
         success: true,
         step: args.step,
-        scope: result
+        locals: result
       });
 
     } catch (error) {

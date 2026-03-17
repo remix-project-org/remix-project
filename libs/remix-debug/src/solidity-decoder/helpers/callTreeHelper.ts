@@ -19,35 +19,6 @@ export function callDepthChange (step, trace) {
 }
 
 /**
-   * Checks if we're exiting a constructor based on stack depth.
-   * For constructors (especially in inheritance), the stack depth returning to entry level
-   * indicates the end of that constructor's execution.
-   *
-   * @param {InternalCallTree} tree - The call tree instance
-   * @param {string} scopeId - Current scope identifier
-   * @param {number} initialEntrystackIndex - Stack depth at constructor entry
-   * @param {StepDetail} stepDetail - Current step details with stack info
-   * @returns {boolean} True if exiting a constructor scope
-   */
-export function isConstructorExit (tree, step, scopeId, initialEntrystackIndex, stepDetail, isConstructor) {
-  if (!isConstructor) return false // we are not in a constructor anyway
-  const scope = tree.scopes[scopeId]
-  if (scope.firstStep === step) {
-    // we are just entering the constructor
-    return false
-  }
-  if (!scope || !scope.functionDefinition || scope.functionDefinition.kind !== 'constructor') {
-    return false
-  }
-  // Check if stack has returned to entry depth (or below, in case of cleanup)
-  if (initialEntrystackIndex !== undefined && stepDetail.stack.length <= initialEntrystackIndex) {
-    console.log('Exiting constructor scope ', scopeId, ' at step ', step)
-    return true
-  }
-  return false
-}
-
-/**
    * Checks if one source location is completely included within another.
    *
    * @param {Object} source - Outer source location to check against
@@ -115,15 +86,16 @@ export function getGeneratedSources (tree, scopeId, contractObj) {
  *
  * @param {InternalCallTree} tree - The call tree instance
  * @param {Object} functionDefinition - AST function definition node
+ * @param {Object} contractDefinition - AST function definition node
  * @param {number} step - VM trace step index at function entry
  * @param {string} scopeId - Scope identifier for this function
  * @param {Object} contractObj - Contract object with ABI
  * @param {Object} sourceLocation - Source location of the function
  * @param {string} address - Contract address
  */
-export async function registerFunctionParameters (tree, functionDefinition, step, scopeId, contractObj, sourceLocation, address) {
+export async function registerFunctionParameters (tree: InternalCallTree, functionDefinition, contractDefinition, step, scopeId, contractObj, sourceLocation, address) {
   if (!sourceLocation) return
-  if (sourceLocation.jump !== 'i') return
+  // if (sourceLocation.jump !== 'i') return
   tree.functionCallStack.push(step)
   const functionDefinitionAndInputs = { functionDefinition, inputs: []}
   // means: the previous location was a function definition && JUMPDEST
@@ -138,18 +110,42 @@ export async function registerFunctionParameters (tree, functionDefinition, step
       debugVariableTracking(tree, step, scopeId, `Function ${functionDefinition.name} entry - before parameter binding`)
     }
 
+    let stackPosOnCtor = 0
+    if (functionDefinition.kind === 'constructor') {
+      if (!tree.ctorLayout[functionDefinition.id]) {
+        const baseContracts = await tree.solidityProxy.getLinearizedBaseContracts(address, contractDefinition.id)
+        // baseContracts = baseContracts.filter((contract => contract.id !== contractDefinition.id))
+        // Find constructors in inherited contracts
+        for (const baseContract of baseContracts) {
+          if (baseContract.nodes) {
+            const constructor = baseContract.nodes.find(node =>
+              node.nodeType === 'FunctionDefinition' && node.kind === 'constructor'
+            )
+            if (constructor && constructor.parameters && constructor.parameters.parameters.length) {
+              stackPosOnCtor += constructor.parameters.parameters.length
+              if (!tree.ctorLayout[constructor.id]) tree.ctorLayout[constructor.id] = stackPosOnCtor
+            }
+          }
+        }
+      }
+      stackPosOnCtor = tree.ctorLayout[functionDefinition.id]
+    }
+
     if (functionDefinition.parameters) {
       const inputs = functionDefinition.parameters
       const outputs = functionDefinition.returnParameters
 
       // input params - they are at the bottom of the stack at function entry
+      let availableSlot = stack.length
       if (inputs && inputs.parameters && inputs.parameters.length > 0) {
-        functionDefinitionAndInputs.inputs = addInputParams(step, functionDefinition, inputs, tree, scopeId, states, contractObj, sourceLocation, stack.length)
+        const { params, freeStackIndex } = addInputParams(step, functionDefinition, inputs, tree, scopeId, states, contractObj, sourceLocation, stack.length, stackPosOnCtor)
+        if (freeStackIndex != null) availableSlot = freeStackIndex
+        functionDefinitionAndInputs.inputs = params
       }
 
       // return params - register them but they're not yet on the stack
       if (outputs && outputs.parameters && outputs.parameters.length > 0) {
-        addReturnParams(step + 1, functionDefinition, outputs, tree, scopeId, states, contractObj, sourceLocation)
+        addReturnParams(step, availableSlot, functionDefinition, outputs, tree, scopeId, states, contractObj, sourceLocation)
       }
     }
 
@@ -183,7 +179,7 @@ export async function includeVariableDeclaration (tree: InternalCallTree, step, 
   }
   let states = null
   // Use enhanced variable discovery with scope filtering
-  const variableDeclarations = await resolveVariableDeclarationEnhanced(tree, sourceLocation, generatedSources, address, scopeId)
+  const variableDeclarations = await resolveVariableDeclaration(tree, sourceLocation, generatedSources, address)
 
   if (variableDeclarations && variableDeclarations.length > 0) {
     if (tree.debug) {
@@ -198,6 +194,9 @@ export async function includeVariableDeclaration (tree: InternalCallTree, step, 
     for (const variableDeclaration of variableDeclarations) {
       if (variableDeclaration) {
         try {
+          // check if already processed
+          if (tree.scopes[scopeId] && tree.scopes[scopeId].locals && tree.scopes[scopeId].locals[variableDeclaration.name]) continue
+
           const stack = tree.traceManager.getStackAt(step)
           // the stack length at this point is where the value of the new local variable will be stored.
           // so, either this is the direct value, or the offset in memory. That depends on the type.
@@ -249,12 +248,14 @@ export async function includeVariableDeclaration (tree: InternalCallTree, step, 
 
             addReducedTrace(tree, safeStep)
 
+            const stackIndex = stack.length
+
             // Bind variable to symbolic stack with appropriate lifecycle
             const variable = isReturnParamDeclaration ? existingReturnParam : newVar
             tree.symbolicStackManager.bindVariableWithLifecycle(
               step + 1,
               variable,
-              stack.length,
+              stackIndex,
               isReturnParamDeclaration ? 'assigned' : 'declared',
               scopeId
             )
@@ -399,10 +400,10 @@ export function extractFunctionDefinitions (ast, astWalker) {
  * @param {number} stackLength - Current stack depth at function entry
  * @returns {Array<string>} Array of parameter names added to the scope
  */
-export function addInputParams (step, functionDefinition, parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation, stackLength) {
+export function addInputParams (step, functionDefinition, parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation, stackLength, forceFreeSlot) {
   if (!contractObj) {
     console.warn('No contract object found while adding input params')
-    return []
+    return { params: [], freeStackIndex: null }
   }
 
   const contractName = contractObj.name
@@ -414,13 +415,13 @@ export function addInputParams (step, functionDefinition, parameterList, tree: I
     console.log(`  - stackLength: ${stackLength}, paramCount: ${paramCount}`)
   }
 
-  const stackLengthAtStart = functionDefinition.kind === 'constructor' ? 0 : stackLength
+  const stackLengthAtStart = functionDefinition.kind === 'constructor' ? forceFreeSlot : stackLength
+  let lastStackIndex = stackLengthAtStart
   for (let i = 0; i < paramCount; i++) {
     const param = parameterList.parameters[i]
 
     // Calculate stack index based on call type
     let stackIndex = stackLengthAtStart - paramCount + i
-
     // Ensure stack index is valid
     if (stackIndex < 0 || stackIndex >= stackLength) {
       if (tree.debug) console.warn(`[addInputParams] Invalid stack index ${stackIndex} for parameter ${param.name} (stackLength: ${stackLength}), using fallback positioning`)
@@ -452,11 +453,10 @@ export function addInputParams (step, functionDefinition, parameterList, tree: I
     // Bind parameter to symbolic stack with lifecycle tracking
     // Use step + 1 because the symbolic stack represents the state AFTER the opcode execution
     tree.symbolicStackManager.bindVariableWithLifecycle(step + 1, newParam, stackIndex, 'assigned', scopeId)
-
+    lastStackIndex = stackIndex
     if (tree.debug) console.log(`[addInputParams] Bound parameter: ${attributesName} at stack index ${stackIndex}`)
   }
-
-  return params
+  return { params, freeStackIndex: lastStackIndex + 1 }
 }
 
 /**
@@ -472,7 +472,7 @@ export function addInputParams (step, functionDefinition, parameterList, tree: I
  * @param {Object} contractObj - Contract object with name and ABI
  * @param {Object} sourceLocation - Source location of the parameter
  */
-export function addReturnParams (step, functionDefinition, parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation) {
+export function addReturnParams (step, availableSlot, functionDefinition, parameterList, tree: InternalCallTree, scopeId, states, contractObj, sourceLocation) {
   if (!contractObj) {
     console.warn('No contract object found while adding return params')
     return
@@ -486,6 +486,9 @@ export function addReturnParams (step, functionDefinition, parameterList, tree: 
   for (let i = 0; i < paramCount; i++) {
     const param = parameterList.parameters[i]
 
+    // Calculate stack index based on call type
+    const stackIndex = availableSlot + i
+
     let location = extractLocationFromAstVariable(param)
     location = location === 'default' ? 'memory' : location
     const attributesName = param.name === '' ? `$return_${i}` : param.name
@@ -493,7 +496,7 @@ export function addReturnParams (step, functionDefinition, parameterList, tree: 
     const newReturnParam = {
       name: attributesName,
       type: parseType(param.typeDescriptions.typeString, states, contractName, location),
-      stackIndex: -1, // Not yet on stack
+      stackIndex,
       sourceLocation: sourceLocation,
       abi: contractObj.contract.abi,
       isParameter: false,
@@ -507,7 +510,11 @@ export function addReturnParams (step, functionDefinition, parameterList, tree: 
     // Don't add to locals yet - will be added when actually declared in the function body
     if (!tree.variables[param.id]) tree.variables[param.id] = newReturnParam
 
-    if (tree.debug) console.log(`[addReturnParams] Registered return parameter: ${attributesName} (not yet on stack)`)
+    // Bind parameter to symbolic stack with lifecycle tracking
+    // Use step + 1 because the symbolic stack represents the state AFTER the opcode execution
+    tree.symbolicStackManager.bindVariableWithLifecycle(step + 1, newReturnParam, stackIndex, 'assigned', scopeId)
+
+    if (tree.debug) console.log(`[addReturnParams] Registered return parameter: ${attributesName}`)
   }
 }
 
@@ -675,6 +682,7 @@ export function debugVariableTracking(tree: InternalCallTree, step: number, scop
 export async function resolveNodesAtSourceLocation (tree, sourceLocation, generatedSources, address) {
   const ast = await tree.solidityProxy.ast(sourceLocation, generatedSources, address)
   let funcDef
+  let contractDef
   const blocksDef = []
   if (ast) {
     const nodes = nodesAtPosition(null, sourceLocation.start, { ast })
@@ -690,12 +698,15 @@ export async function resolveNodesAtSourceLocation (tree, sourceLocation, genera
           funcDef = node
           blocksDef.push(node)
         }
+        if (node && node.nodeType === 'ContractDefinition') {
+          contractDef = node
+        }
       }
     }
 
-    return { nodes, functionDefinition: funcDef, blocksDefinition: blocksDef }
+    return { nodes, functionDefinitionInScope: funcDef, contractDefinition: contractDef, blocksDefinition: blocksDef }
   } else {
-    return { nodes: [], functionDefinition: null, blocksDefinition: []}
+    return { nodes: [], functionDefinitionInScope: null, contractDefinition: null, blocksDefinition: []}
   }
 }
 

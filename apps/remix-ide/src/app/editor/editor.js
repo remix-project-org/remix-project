@@ -14,7 +14,7 @@ const profile = {
   name: 'editor',
   description: 'service - editor',
   version: packageJson.version,
-  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff'],
+  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints'],
 }
 
 export default class Editor extends Plugin {
@@ -516,6 +516,10 @@ export default class Editor extends Plugin {
     return this.api.showCustomDiff(file, content)
   }
 
+  hasUnacceptedChanges () {
+    return this.api.hasUnacceptedChanges()
+  }
+
   addModel(path, content) {
     this.emit('addModel', content, this._getMode(path), path, this.readOnlySessions[path])
   }
@@ -876,5 +880,11 @@ export default class Editor extends Plugin {
 
   getPositionAt(offset) {
     return this.api.getPositionAt(offset)
+  }
+
+  clearAllBreakpoints() {
+    if (this.api && this.api.clearAllBreakpoints) {
+      return this.api.clearAllBreakpoints()
+    }
   }
 }

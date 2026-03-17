@@ -27,8 +27,9 @@ module.exports = {
 
     },
     'Should show hover over contract in editor #group1': function (browser: NightwatchBrowser) {
-        const path = "//*[contains(text(),'BallotHoverTest')]"
-        checkEditorHoverContent(browser, path, 'contract BallotHoverTest is BallotHoverTest')
+        browser.scrollToLine(10)
+        const path = "//*[@class='view-line' and contains(.,'contract') and contains(.,'BallotHoverTest')]//span//span[contains(.,'BallotHoverTest')]"
+        checkEditorHoverContent(browser, path, 'contract BallotHoverTest')
         checkEditorHoverContent(browser, path, 'contracts/3_BallotHover.sol 10:0')
         checkEditorHoverContent(browser, path, '@title Ballot')
     },
@@ -99,7 +100,7 @@ module.exports = {
     },
     // here we change quickly between files to test the files being parsed correctly when switching between them
     'Should show ERC20 hover over contract in editor #group1': function (browser: NightwatchBrowser) {
-        browser.scrollToLine(10)
+        browser.scrollToLine(11)
         const path = "//*[@class='view-line' and contains(.,'MyToken') and contains(.,'Pausable')]//span//span[contains(.,'ERC20Burnable')]"
         const expectedContent = 'contract ERC20Burnable is ERC20Burnable, ERC20, IERC20Errors, IERC20Metadata, IERC20, Context'
         checkEditorHoverContent(browser, path, expectedContent, 25)
@@ -287,12 +288,13 @@ contract BallotHoverTest {
 const myToken = `
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+// Berlin EVM doesn't support mcopy (requires Cancun)
+// OZ v5.2.0 added Bytes.sol with mcopy instruction
+import "@openzeppelin/contracts@5.0.0/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts@5.0.0/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts@5.0.0/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts@5.0.0/access/Ownable.sol";
+import "@openzeppelin/contracts@5.0.0/token/ERC20/extensions/ERC20Permit.sol";
 
 contract MyToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {
     constructor(address initialOwner)

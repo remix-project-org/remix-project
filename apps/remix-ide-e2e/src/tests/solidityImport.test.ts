@@ -144,7 +144,6 @@ module.exports = {
       .setValue('[data-id="modalDialogCustomPromptTextClone"]', 'https://github.com/remix-project-org/remix-reward')
       .click('[data-id="topbarModal-modal-footer-ok-react"]')
       .waitForElementPresent('.fa-spinner')
-      .waitForElementNotPresent('.fa-spinner', 120000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.git"]')
       .waitForElementContainsText('[data-id="workspacesSelect"]', 'remix-reward')
       .clickLaunchIcon('solidity')

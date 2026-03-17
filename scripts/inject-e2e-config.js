@@ -44,6 +44,7 @@ const configScript = `
 			binURL: '${binUrl}',
 			wasmURL: '${wasmUrl}'
 		};
+    window.__IS_E2E_TEST__ = true;
 	</script>
 `;
 

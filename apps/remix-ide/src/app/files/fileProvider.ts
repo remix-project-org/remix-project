@@ -95,6 +95,7 @@ export default class FileProvider {
     cb = cb || function () { /* do nothing. */ }
     path = this.getPathFromUrl(path) || path // ensure we actually use the normalized path from here
     const unprefixedpath = this.removePrefix(path)
+
     try {
       const content = await (window as any).remixFileSystem.readFile(unprefixedpath, options)
       if (cb) cb(null, content)
@@ -188,6 +189,7 @@ export default class FileProvider {
           return await this.removeFile(path)
         } else {
           await (window as any).remixFileSystem.unlink(path)
+          console.log(`Removed directory: ${path}`)
           this.event.emit('fileRemoved', this._normalizePath(path))
         }
       } catch (e) {
@@ -276,6 +278,7 @@ export default class FileProvider {
     if (path.indexOf('/') !== 0) path = '/' + path
     try {
       const files = await (window as any).remixFileSystem.readdir(path)
+      // console.log(`Resolved directory ${path} in ${Date.now() - startTime}ms`, files)
       const ret = {}
       if (files) {
         for (let element of files) {
@@ -311,4 +314,3 @@ export default class FileProvider {
     return !!relative && relative.split(pathModule.sep)[0] !== '..'
   }
 }
-

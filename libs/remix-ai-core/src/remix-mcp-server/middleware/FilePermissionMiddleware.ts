@@ -27,8 +27,6 @@ export class FilePermissionMiddleware extends BaseMiddleware {
   ): Promise<FilePermissionResult> {
     try {
       const permissions = this.configManager.getFileWritePermission();
-      console.log('[FilePermissionMiddleware] Checking file permission for:', filePath);
-      console.log('[FilePermissionMiddleware] Current permissions from config:', JSON.stringify(permissions, null, 2));
 
       // Check current mode
       switch (permissions.mode) {
@@ -69,8 +67,6 @@ export class FilePermissionMiddleware extends BaseMiddleware {
       // First modal: Allow or Deny?
       const allowWrite = await this.showFirstModal(filePath, plugin);
 
-      console.log('[FilePermissionMiddleware] First modal result:', allowWrite);
-
       if (!allowWrite) {
         // User denied the write - set mode to deny-all
         await this.configManager.setFileWritePermission('deny-all');
@@ -84,8 +80,6 @@ export class FilePermissionMiddleware extends BaseMiddleware {
       // Add delay to ensure first modal is fully dismissed
       await new Promise(resolve => setTimeout(resolve, 300));
       const scope = await this.showSecondModal(plugin);
-
-      console.log('[FilePermissionMiddleware] Second modal result:', scope);
 
       if (scope === 'all') {
         // User chose "All Files in Project"
@@ -113,7 +107,6 @@ export class FilePermissionMiddleware extends BaseMiddleware {
    */
   private async showFirstModal(filePath: string, plugin: Plugin): Promise<boolean> {
     try {
-      console.log('[FilePermissionMiddleware] Showing first modal for file:', filePath);
 
       const result = await plugin.call('notification', 'modal', {
         id: 'mcp_file_write_permission_initial',
@@ -122,11 +115,9 @@ export class FilePermissionMiddleware extends BaseMiddleware {
         okLabel: 'Allow',
         cancelLabel: 'Deny',
         hideFn: () => {
-          console.log('[FilePermissionMiddleware] First modal hidden');
         }
       });
 
-      console.log('[FilePermissionMiddleware] First modal raw result:', result);
       return result === true;
     } catch (error) {
       console.error('[FilePermissionMiddleware] Error showing first modal:', error);
@@ -136,8 +127,6 @@ export class FilePermissionMiddleware extends BaseMiddleware {
 
   private async showSecondModal(plugin: Plugin): Promise<'specific' | 'all'> {
     try {
-      console.log('[FilePermissionMiddleware] Showing second modal');
-
       const result = await plugin.call('notification', 'modal', {
         id: 'mcp_file_write_permission_scope',
         title: 'Permission Scope',
@@ -145,20 +134,15 @@ export class FilePermissionMiddleware extends BaseMiddleware {
         okLabel: 'Just This File',
         cancelLabel: 'All Files in Project',
         hideFn: () => {
-          console.log('[FilePermissionMiddleware] Second modal hidden');
         }
       });
-
-      console.log('[FilePermissionMiddleware] Second modal raw result:', result);
 
       try {
         await plugin.call('notification', 'hideModal');
       } catch (hideError) {
-        console.log('[FilePermissionMiddleware] Modal hide not available (this is normal)');
       }
 
       const scope = result === true ? 'specific' : 'all';
-      console.log('[FilePermissionMiddleware] Returning scope:', scope);
       return scope;
     } catch (error) {
       console.error('[FilePermissionMiddleware] Error showing second modal:', error);

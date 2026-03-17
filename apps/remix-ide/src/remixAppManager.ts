@@ -93,7 +93,6 @@ let requiredModules = [
   'remixAI',
   'remixAID',
   'remixaiassistant',
-  'quick-dapp-v2',
   'topbar',
   'templateexplorermodal',
   'githubAuthHandler',
@@ -101,15 +100,22 @@ let requiredModules = [
   'auth',
   'account',
   'transactionSimulator',
-  'resolutionIndex',
   'amp',
+  'resolutionIndex',
   'vega',
   'chartjs',
   'storageMonitor',
   'indexedDbCache',
   'notificationCenter',
   'invitationManager',
-  'feedback'
+  'membershipRequest',
+  'feedback',
+  'udappEnv',
+  'udappDeploy',
+  'udappDeployedContracts',
+  'udappTransactions',
+  'txRunner',
+  'betaCornerWidget'
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
@@ -180,7 +186,12 @@ export function isNative(name) {
     'amp',
     'vega',
     'chartjs',
-    'quick-dapp-v2'
+    'quick-dapp-v2',
+    'udappEnv',
+    'udappDeploy',
+    'udappDeployedContracts',
+    'udappTransactions',
+    'txRunner'
   ]
   return nativePlugins.includes(name) || requiredModules.includes(name) || isInjectedProvider(name) || isVM(name) || isScriptRunner(name)
 }

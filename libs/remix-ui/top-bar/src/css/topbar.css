@@ -122,3 +122,33 @@
   padding-right: 1rem;
   min-height: calc(100vh - 50px);
 }
+
+/* Beta promo pill */
+.beta-promo-pill {
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--bs-primary);
+  color: var(--bs-primary);
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+  user-select: none;
+}
+.beta-promo-pill:hover {
+  background-color: var(--bs-primary);
+  color: #fff;
+}
+.beta-promo-pill:hover .beta-promo-dismiss {
+  color: rgba(255, 255, 255, 0.7);
+}
+.beta-promo-dismiss {
+  font-size: 0.6rem;
+  opacity: 0.5;
+  padding: 2px;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.beta-promo-dismiss:hover {
+  opacity: 1;
+}

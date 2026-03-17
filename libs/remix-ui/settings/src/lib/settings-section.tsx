@@ -86,7 +86,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
         Object.keys(formUIData[name]).forEach((key) => {
           dispatch({ type: 'SET_VALUE', payload: { name: key, value: '' } })
         })
-        dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: 'Credentials removed' } })
+        dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: intl.formatMessage({ id: 'settings.credentialsRemoved' }) } })
       }
       if (name === 'copilot/suggest/activate') plugin.emit('copilotChoiceUpdated', newValue)
       if (name === 'matomo-perf-analytics') plugin.call('settings', 'updateMatomoPerfAnalyticsChoice', newValue)
@@ -110,7 +110,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
     Object.keys(formUIData[optionName]).forEach((key) => {
       dispatch({ type: 'SET_VALUE', payload: { name: key, value: formUIData[optionName][key] } })
     })
-    dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: 'Credentials updated' } })
+    dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: intl.formatMessage({ id: 'settings.credentialsUpdated' }) } })
   }
 
   return (
@@ -122,9 +122,9 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       {section.requiresAuth && authLoading && (
         <div className="pt-3">
           <div className="spinner-border spinner-border-sm" role="status">
-            <span className="sr-only">Loading...</span>
+            <span className="sr-only"><FormattedMessage id="settings.loading" /></span>
           </div>
-          <span className="ms-2">Loading...</span>
+          <span className="ms-2"><FormattedMessage id="settings.loading" /></span>
         </div>
       )}
 
@@ -133,7 +133,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
         <div className="pt-3">
           <div className="alert alert-warning" role="alert">
             <i className="fas fa-exclamation-triangle me-2"></i>
-            Not logged in. Please log in with Google, GitHub, Discord, or wallet to manage accounts.
+            <FormattedMessage id="settings.notLoggedIn" />
           </div>
         </div>
       )}
@@ -144,8 +144,8 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
 
         return (
           <div key={subSectionIndex} className='pt-3'>
-            {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}>{subSection.title}</h5>}
-            {subSection.description && <p className={`text-muted mb-3`} style={{ fontSize: '0.85rem' }}>{subSection.description}</p>}
+            {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}><FormattedMessage id={subSection.title} /></h5>}
+            {subSection.description && <p className={`text-muted mb-3`} style={{ fontSize: '0.85rem' }}><FormattedMessage id={subSection.description} /></p>}
             <div className={`card ${isDark ? 'text-light' : 'text-dark'} border-0 ${isLastItem ? 'mb-4' : ''}`}>
               <div className={`card-body ${section.key === 'account' ? 'pt-1' : ''}`} style={section.key === 'account' ? {} : { padding: '0.75rem' }}>
                 {subSection.options.map((option, optionIndex) => {
@@ -210,9 +210,9 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                       )}
                       {
                         option.footnote ? option.footnote.link ?
-                          <a href={option.footnote.link} className={`mt-1 ${option.footnote.styleClass}`} target="_blank" rel="noopener noreferrer">{option.footnote.text}</a>
+                          <a href={option.footnote.link} className={`mt-1 ${option.footnote.styleClass}`} target="_blank" rel="noopener noreferrer"><FormattedMessage id={option.footnote.text} /></a>
                           :
-                          <span className={`text-secondary mt-1 ${option.footnote.styleClass}`}>{option.footnote.text}</span>
+                          <span className={`text-secondary mt-1 ${option.footnote.styleClass}`}><FormattedMessage id={option.footnote.text} /></span>
                           : null
                       }
                       {option.toggleUIDescription && toggleValue && <span className="text-secondary mt-1">{option.toggleUIDescription}</span>}

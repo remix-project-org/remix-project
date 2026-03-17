@@ -253,7 +253,7 @@ nx generate @nrwl/node:library <name>
 ## Documentation & Resources
 
 - **Main Docs**: https://remix-ide.readthedocs.io/en/latest/
-- **Discord**: https://discord.gg/qhpCQGWkmf
+- **Discord**: https://discord.gg/9bw6pMWEAw
 - **Contributing**: See `CONTRIBUTING.md` at root
 - **Libs Overview**: See `libs/README.md`
 - **E2E Testing**: See `apps/remix-ide-e2e/README.md`

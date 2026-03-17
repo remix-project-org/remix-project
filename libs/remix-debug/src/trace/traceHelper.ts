@@ -31,6 +31,14 @@ export function isReturnInstruction (step) {
   return step.op === 'RETURN'
 }
 
+export function isReturnDataSizeInstruction (step) {
+  return step.op === 'RETURNDATASIZE'
+}
+
+export function isReturnDataCopyInstruction (step) {
+  return step.op === 'RETURNDATACOPY'
+}
+
 export function isJumpDestInstruction (step) {
   return step.op === 'JUMPDEST'
 }

@@ -37,20 +37,6 @@ export class ContextResourceProvider extends BaseResourceProvider {
     // Individual context components
     resources.push(
       this.createResource(
-        'context://file-tree',
-        'File Tree',
-        'Project file structure and hierarchy',
-        'application/json',
-        {
-          category: ResourceCategory.PROJECT_FILES,
-          tags: ['files', 'structure', 'tree'],
-          priority: 9
-        }
-      )
-    );
-
-    resources.push(
-      this.createResource(
         'context://editor-state',
         'Editor State',
         'Current editor state including open files, cursor position, and selection',
@@ -91,30 +77,12 @@ export class ContextResourceProvider extends BaseResourceProvider {
       )
     );
 
-    resources.push(
-      this.createResource(
-        'context://terminal-output',
-        'Terminal Output',
-        'Recent terminal output and command history',
-        'application/json',
-        {
-          category: ResourceCategory.CONFIGURATION,
-          tags: ['terminal', 'output', 'console'],
-          priority: 7
-        }
-      )
-    );
-
     return resources;
   }
 
   async getResourceContent(uri: string, _plugin: Plugin): Promise<IMCPResourceContent> {
     if (uri === 'context://workspace') {
       return this.getWorkspaceContext();
-    }
-
-    if (uri === 'context://file-tree') {
-      return this.getFileTree();
     }
 
     if (uri === 'context://editor-state') {
@@ -127,10 +95,6 @@ export class ContextResourceProvider extends BaseResourceProvider {
 
     if (uri === 'context://diagnostics') {
       return this.getDiagnostics();
-    }
-
-    if (uri === 'context://terminal-output') {
-      return this.getTerminalOutput();
     }
 
     throw new Error(`Unsupported context URI: ${uri}`);
@@ -158,25 +122,9 @@ export class ContextResourceProvider extends BaseResourceProvider {
         }
       };
 
-      console.log('Workspace context returned:', context)
       return this.createJsonContent('context://workspace', context);
     } catch (error) {
       return this.createTextContent('context://workspace', `Error gathering context: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get file tree structure
-   */
-  private async getFileTree(): Promise<IMCPResourceContent> {
-    try {
-      const fileTree = await this.collectFileTree();
-      return this.createJsonContent('context://file-tree', {
-        timestamp: new Date().toISOString(),
-        tree: fileTree
-      });
-    } catch (error) {
-      return this.createTextContent('context://file-tree', `Error getting file tree: ${error.message}`);
     }
   }
 
@@ -222,21 +170,6 @@ export class ContextResourceProvider extends BaseResourceProvider {
       });
     } catch (error) {
       return this.createTextContent('context://diagnostics', `Error getting diagnostics: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get terminal output
-   */
-  private async getTerminalOutput(): Promise<IMCPResourceContent> {
-    try {
-      const terminalOutput = await this.collectTerminalOutput();
-      return this.createJsonContent('context://terminal-output', {
-        timestamp: new Date().toISOString(),
-        ...terminalOutput
-      });
-    } catch (error) {
-      return this.createTextContent('context://terminal-output', `Error getting terminal output: ${error.message}`);
     }
   }
 
@@ -437,6 +370,17 @@ export class ContextResourceProvider extends BaseResourceProvider {
   }
 
   /**
+   * Strip large hex values from text using regex
+   */
+  private stripLargeHexFromText(text: string): string {
+    if (typeof text !== 'string') return text;
+    // Regex to find hex values (with or without 0x prefix) longer than 20 characters
+    return text.replace(/(0x[0-9a-fA-F]{21,}|(?<![0-9a-fA-F])[0-9a-fA-F]{21,}(?![0-9a-fA-F]))/g,
+      (match) => match.substring(0, 20) + '<removed to not blow up the payload>'
+    );
+  }
+
+  /**
    * Collect recent terminal output
    */
   private async collectTerminalOutput(): Promise<any> {
@@ -451,17 +395,23 @@ export class ContextResourceProvider extends BaseResourceProvider {
         const logs = await this._plugin.call('terminal', 'getLogs');
         if (logs && Array.isArray(logs)) {
           terminal.available = true;
-          // Get last 20 log entries
-          terminal.recent = logs.slice(-20).map((log: any) => ({
-            type: log.type || 'log',
-            value: log.value || log.message || log,
-            timestamp: log.timestamp || new Date().toISOString()
-          }));
+          // Get last 20 log entries and strip large hex values
+          terminal.recent = logs.slice(-20).map((log: any) => {
+            let value = log.value || log.message || log;
+            try {
+              value = typeof value === 'string'? value : JSON.stringify(value)
+            } catch (e) {}
+
+            return {
+              type: log.type || 'log',
+              value: this.stripLargeHexFromText(value),
+              timestamp: log.timestamp || new Date().toISOString()
+            };
+          });
         }
       } catch (error) {
         // Terminal logs not available
       }
-
       return terminal;
     } catch (error) {
       console.warn('Failed to collect terminal output:', error);

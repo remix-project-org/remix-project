@@ -153,9 +153,11 @@ module.exports = {
       .frameParent()
       .waitForElementVisible('[data-id="copy-abi"]')
       .clickLaunchIcon('udapp')
+      .selectContract('test')
       .createContract('')
+      .closeBetaPopUp()
       .clickInstance(0)
-      .clickFunction('totalPokemonCount - call')
+      .clickFunction(0, 0)
       .getAddressAtPosition(0, (address) => {
         console.log('Vyper contract ' + address)
         contractAddress = address

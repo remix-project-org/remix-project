@@ -9,10 +9,10 @@ import init from '../helpers/init'
 module.exports = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    init(browser, done, 'http://127.0.0.1:8080/#experimental=true', true, undefined, true, true)
+    init(browser, done)
   },
 
-  'Setup: Clear any existing file permissions': function (browser: NightwatchBrowser) {
+  'Setup: Clear any existing file permissions #group1 #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="remix-ai-assistant"]')
       .execute(function () {
@@ -29,7 +29,7 @@ module.exports = {
       .pause(500);
   },
 
-  'Should test file_write tool': function (browser: NightwatchBrowser) {
+  'Should test file_write tool #group1 #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="remix-ai-assistant"]')
       // Trigger file write - this will show the permission modal
@@ -100,7 +100,7 @@ module.exports = {
       });
   },
 
-  'Should test file_read tool': function (browser: NightwatchBrowser) {
+  'Should test file_read tool #group1': function (browser: NightwatchBrowser) {
     browser
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
@@ -128,8 +128,8 @@ module.exports = {
             success: !result.error,
             hasResult: !!resultData,
             readSuccess: resultData?.success || false,
-            content: resultData?.content || null,
-            containsContract: resultData?.content?.includes('contract WriteTest') || false
+            content: resultData?.payload || null,
+            containsContract: resultData?.payload.includes('contract WriteTest') || false
           });
         }).catch(function (error) {
           done({ error: error.message });
@@ -146,7 +146,7 @@ module.exports = {
       });
   },
 
-  'Should test file_exists tool': function (browser: NightwatchBrowser) {
+  'Should test file_exists tool #group1': function (browser: NightwatchBrowser) {
     browser
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
@@ -202,7 +202,7 @@ module.exports = {
       });
   },
 
-  'Should test file_create tool': function (browser: NightwatchBrowser) {
+  'Should test file_create tool #group1': function (browser: NightwatchBrowser) {
     browser
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
@@ -258,7 +258,7 @@ module.exports = {
       });
   },
 
-  'Should test directory_list tool': function (browser: NightwatchBrowser) {
+  'Should test directory_list tool #group1': function (browser: NightwatchBrowser) {
     browser
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
@@ -310,7 +310,7 @@ module.exports = {
       });
   },
 
-  'Should test file_copy tool': function (browser: NightwatchBrowser) {
+  'Should test file_copy tool #group1': function (browser: NightwatchBrowser) {
     browser
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
@@ -357,7 +357,7 @@ module.exports = {
       });
   },
 
-  'Should test file_move tool': function (browser: NightwatchBrowser) {
+  'Should test file_move tool #group1': function (browser: NightwatchBrowser) {
     browser
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
@@ -404,7 +404,7 @@ module.exports = {
       });
   },
 
-  'Should test file_delete tool': function (browser: NightwatchBrowser) {
+  'Should test file_delete tool #group1': function (browser: NightwatchBrowser) {
     browser
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
@@ -461,7 +461,7 @@ module.exports = {
       });
   },
 
-  'Should test file operations with invalid paths': function (browser: NightwatchBrowser) {
+  'Should test file operations with invalid paths #group1': function (browser: NightwatchBrowser) {
     browser
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
@@ -490,5 +490,79 @@ module.exports = {
         const data = result.value as any;
         browser.assert.ok(data.hasError, 'Should error on nonexistent file read');
       });
+  },
+
+  'Setup: Enable MCP for UI file tests #group2': function (browser: NightwatchBrowser) {
+    browser
+      .refresh()
+      .waitForElementVisible('*[data-id="remixIdeSidePanel"]', 10000)
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent('*[data-id="remix-ai-assistant-ready"]', 60000)
+      .pause(1000)
+      .click('*[data-assist-btn="assistant-selector-btn"]')
+      .pause(500)
+      .execute(function () {
+        const checkbox = document.getElementById('mcpEnhancementToggle') as HTMLInputElement;
+        if (checkbox && !checkbox.checked) {
+          checkbox.click();
+        }
+      })
+      .pause(500)
+      .execute(function () {
+        const checkbox = document.getElementById('mcpEnhancementToggle') as HTMLInputElement;
+        return { mcpEnabled: checkbox?.checked || false };
+      }, [], function (result) {
+        const data = result.value as any;
+        browser.assert.ok(data.mcpEnabled, 'MCP Enhancement should be enabled');
+      });
+  },
+
+  'Should read file prompt #group2': function (browser: NightwatchBrowser) {
+    browser
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .clearValue('*[data-id=remix-ai-prompt-input]')
+      .setValue('*[data-id=remix-ai-prompt-input]', 'Show me the contents of 1_Storage.sol')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(4000)
+      .useXpath()
+      .waitForElementVisible('//div[contains(@class,"chat-bubble") and contains(.,"contract Storage")]', 10000)
+      .useCss();
+  },
+
+  'Should check file existence #group2': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .clearValue('*[data-id=remix-ai-prompt-input]')
+      .setValue('*[data-id=remix-ai-prompt-input]', 'Does the file 3_Ballot.sol exist?')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(2000)
+      .useXpath()
+      .waitForElementVisible('//div[contains(@class,"chat-bubble") and (contains(.,"exist") or contains(.,"found"))]', 10000)
+      .useCss();
+  },
+
+  'Should list directory  #group2': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .setValue('*[data-id=remix-ai-prompt-input]', 'List all files in the project')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(4000)
+      .useXpath()
+      .waitForElementVisible('//div[contains(@class,"chat-bubble") and contains(.,"3_Ballot.sol")]', 10000)
+      .useCss();
+  },
+
+  'Should delete file #group2': function (browser: NightwatchBrowser) {
+    browser
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementVisible('*[data-id=remix-ai-prompt-input]', 5000)
+      .clearValue('*[data-id=remix-ai-prompt-input]')
+      .setValue('*[data-id=remix-ai-prompt-input]', 'Delete the file 2_Owner.sol')
+      .sendKeys('*[data-id=remix-ai-prompt-input]', browser.Keys.ENTER)
+      .pause(2000)
+      .clickLaunchIcon('filePanel')
+      .pause(500)
+      .expect.element('*[data-id="treeViewLitreeViewItem2_Owner.sol"]').to.not.be.present
   }
 };

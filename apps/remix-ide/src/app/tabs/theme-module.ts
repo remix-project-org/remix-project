@@ -157,9 +157,11 @@ export class ThemeModule extends Plugin {
       const theme = 'https://remix.ethereum.org/' + nextTheme.url.replace(/\\/g, '/').replace(/\/\//g, '/').replace(/\/$/g, '')
       this.emit('themeChanged', { ...nextTheme, url: theme })
       this.events.emit('themeChanged', { ...nextTheme, url: theme })
+      window.dispatchEvent(new CustomEvent('ideThemeChanged', { detail: { ...nextTheme, url: theme } }))
     } else {
       this.emit('themeChanged', nextTheme)
       this.events.emit('themeChanged', nextTheme)
+      window.dispatchEvent(new CustomEvent('ideThemeChanged', { detail: { ...nextTheme, url: theme } }))
     }
   }
 

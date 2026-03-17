@@ -60,12 +60,12 @@ module.exports = {
                 {
                     packagePath: '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol',
                     versionComment: '5.0.0',
-                    description: 'Should find OpenZeppelin v5.4.0 ERC20Burnable.sol in build-info'
+                    description: 'Should find OpenZeppelin v5.0.0 ERC20Burnable.sol in build-info'
                 },
                 {
                     packagePath: '@openzeppelin/contracts/access/AccessControl.sol',
-                    versionComment: '5.4.0',
-                    description: 'Should find OpenZeppelin v5.4.0 AccessControl.sol in build-info'
+                    versionComment: '5.6.0',
+                    description: 'Should find OpenZeppelin v5.6.0 AccessControl.sol in build-info'
                 }
             ])
     },

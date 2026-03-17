@@ -37,18 +37,18 @@ export const AVAILABLE_MODELS: AIModel[] = [
     capabilities: ['chat', 'code', 'completion']
   },
   {
-    id: 'claude-opus-4-5',
-    name: 'Claude Opus 4.5',
+    id: 'claude-opus-4-6',
+    name: 'Claude Opus 4.6',
     provider: 'anthropic',
-    description: 'Best for complex Solidity contracts',
+    description: 'Best for complex web3 contracts',
     requiresAuth: true,
     isDefault: false,
     category: 'coding',
     capabilities: ['chat', 'code', 'completion']
   },
   {
-    id: 'claude-sonnet-4-5',
-    name: 'Claude Sonnet 4.5',
+    id: 'claude-sonnet-4-6',
+    name: 'Claude Sonnet 4.6',
     provider: 'anthropic',
     description: 'Balanced performance and speed',
     requiresAuth: true,

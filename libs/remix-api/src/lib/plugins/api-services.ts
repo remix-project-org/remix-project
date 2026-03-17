@@ -20,6 +20,19 @@ import {
   GenericSuccessResponse,
   CreditTransaction,
   RefreshTokenResponse,
+  RegistrationModeResponse,
+  LoginModeResponse,
+  AccessPolicyResponse,
+  StorageHealthResponse,
+  StorageConfig,
+  PresignUploadRequest,
+  PresignUploadResponse,
+  PresignDownloadRequest,
+  PresignDownloadResponse,
+  StorageFile,
+  StorageFilesResponse,
+  StorageListOptions,
+  WorkspacesResponse,
   PermissionsResponse,
   FeatureCheckResponse,
   MultiFeatureCheckResponse,
@@ -45,7 +58,12 @@ import {
   InviteRedeemRequest,
   InviteRedeemResponse,
   InviteRedemptionsResponse,
-  UserTagsResponse
+  UserTagsResponse,
+  PoolCheckoutResponse,
+  PoolReleaseResponse,
+  PoolStatusResponse,
+  PoolAccountsResponse,
+  PoolReleaseAllResponse
 } from './api-types'
 
 /**
@@ -78,10 +96,11 @@ export class SSOApiService {
   }
   
   /**
-   * Refresh access token using refresh token
+   * Refresh access token using refresh token.
+   * Uses skipTokenRefresh to prevent recursive auto-refresh on 401.
    */
   async refreshToken(refreshToken: string): Promise<ApiResponse<RefreshTokenResponse>> {
-    return this.apiClient.post<RefreshTokenResponse>('/refresh', { refresh_token: refreshToken })
+    return this.apiClient.post<RefreshTokenResponse>('/refresh', { refresh_token: refreshToken }, { skipTokenRefresh: true })
   }
   
   /**
@@ -89,6 +108,32 @@ export class SSOApiService {
    */
   async getProviders(): Promise<ApiResponse<ProvidersResponse>> {
     return this.apiClient.get<ProvidersResponse>('/providers')
+  }
+
+  /**
+   * Get current registration mode (no auth required)
+   * Returns 'open', 'existing_only', or 'invite_only'
+   */
+  async getRegistrationMode(): Promise<ApiResponse<RegistrationModeResponse>> {
+    return this.apiClient.get<RegistrationModeResponse>('/registration-mode')
+  }
+
+  /**
+   * Get current login access control mode (no auth required).
+   * Returns 'open', 'feature_group', 'admins_only', or 'closed'.
+   * The `message` field contains an admin-customisable denial message.
+   */
+  async getLoginMode(): Promise<ApiResponse<LoginModeResponse>> {
+    return this.apiClient.get<LoginModeResponse>('/login-mode')
+  }
+
+  /**
+   * Get the unified access policy (no auth required).
+   * Replaces the separate login-mode + registration-mode endpoints.
+   * Returns policy, message, allows_registration, requires_invite.
+   */
+  async getAccessPolicy(): Promise<ApiResponse<AccessPolicyResponse>> {
+    return this.apiClient.get<AccessPolicyResponse>('/access-policy')
   }
   
   // ==================== SIWE ====================
@@ -182,6 +227,96 @@ export class CreditsApiService {
     
     const query = params.toString()
     return this.apiClient.get(`/transactions${query ? '?' + query : ''}`)
+  }
+}
+
+/**
+ * Storage API Service - All storage-related endpoints with full TypeScript typing
+ * Provides an abstraction layer for cloud storage operations (S3, etc.)
+ */
+export class StorageApiService {
+  constructor(private apiClient: IApiClient) {}
+  
+  /**
+   * Get the underlying API client
+   */
+  getApiClient(): IApiClient {
+    return this.apiClient
+  }
+  
+  // ==================== Health & Config ====================
+  
+  /**
+   * Check storage service health
+   */
+  async health(): Promise<ApiResponse<StorageHealthResponse>> {
+    return this.apiClient.get<StorageHealthResponse>('/health')
+  }
+  
+  /**
+   * Get storage configuration (limits, allowed types)
+   */
+  async getConfig(): Promise<ApiResponse<StorageConfig>> {
+    return this.apiClient.get<StorageConfig>('/config')
+  }
+  
+  // ==================== Presigned URLs ====================
+  
+  /**
+   * Get a presigned URL for uploading a file
+   * @param request - Upload request with filename, folder, and content type
+   * @returns Presigned URL and headers to use for direct S3 upload
+   */
+  async getUploadUrl(request: PresignUploadRequest): Promise<ApiResponse<PresignUploadResponse>> {
+    return this.apiClient.post<PresignUploadResponse>('/presign/upload', request)
+  }
+  
+  /**
+   * Get a presigned URL for downloading a file
+   * @param request - Download request with filename and optional folder
+   * @returns Presigned URL for direct S3 download
+   */
+  async getDownloadUrl(request: PresignDownloadRequest): Promise<ApiResponse<PresignDownloadResponse>> {
+    return this.apiClient.post<PresignDownloadResponse>('/presign/download', request)
+  }
+  
+  // ==================== File Management ====================
+  
+  /**
+   * List user's files
+   * @param options - Optional filtering and pagination
+   */
+  async listFiles(options?: StorageListOptions): Promise<ApiResponse<StorageFilesResponse>> {
+    const params = new URLSearchParams()
+    if (options?.folder) params.set('folder', options.folder)
+    if (options?.limit !== undefined) params.set('limit', options.limit.toString())
+    if (options?.cursor) params.set('cursor', options.cursor)
+    
+    const query = params.toString()
+    return this.apiClient.get<StorageFilesResponse>(`/files${query ? '?' + query : ''}`)
+  }
+  
+  /**
+   * Get metadata for a specific file
+   * @param filename - The filename (can include folder path)
+   */
+  async getFileMetadata(filename: string): Promise<ApiResponse<StorageFile>> {
+    return this.apiClient.get<StorageFile>(`/files/${encodeURIComponent(filename)}`)
+  }
+  
+  /**
+   * Delete a file
+   * @param filename - The filename to delete (can include folder path)
+   */
+  async deleteFile(filename: string): Promise<ApiResponse<GenericSuccessResponse>> {
+    return this.apiClient.delete<GenericSuccessResponse>(`/files/${encodeURIComponent(filename)}`)
+  }
+
+  /**
+   * Get list of user's remote workspaces with backup info
+   */
+  async getWorkspaces(): Promise<ApiResponse<WorkspacesResponse>> {
+    return this.apiClient.get<WorkspacesResponse>('/workspaces')
   }
 }
 
@@ -596,5 +731,117 @@ export class InviteApiService {
       default:
         return 'fa-check'
     }
+  }
+}
+
+/**
+ * E2E Test Account Pool API Service
+ *
+ * Manages a pool of 20 rotating test accounts for E2E tests.
+ * Each test run checks out an exclusive account, receives JWT tokens,
+ * runs tests, then releases the account (wiping all data).
+ *
+ * All endpoints require an API key via `Authorization: Bearer rmx_<key>`.
+ * Base URL: `{ssoBaseUrl}/test/pool/*`
+ */
+export class TestPoolApiService {
+  private baseUrl: string
+  private apiKey: string
+
+  /**
+   * @param ssoBaseUrl - The SSO base URL (e.g. https://auth.api.remix.live:8443/sso)
+   * @param apiKey - The test-account-access API key (e.g. rmx_abc123...)
+   */
+  constructor(ssoBaseUrl: string, apiKey: string) {
+    this.baseUrl = `${ssoBaseUrl}/test/pool`
+    this.apiKey = apiKey
+  }
+
+  private async request<T>(endpoint: string, options: { method?: string; body?: unknown } = {}): Promise<ApiResponse<T>> {
+    const { method = 'GET', body } = options
+    try {
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Accept': 'application/json',
+      }
+      if (body) {
+        headers['Content-Type'] = 'application/json'
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      })
+
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: response.status,
+          error: data?.error || data?.message || `Pool request failed: ${response.status}`,
+        }
+      }
+
+      return { ok: true, status: response.status, data: data as T }
+    } catch (error: any) {
+      return { ok: false, status: 0, error: error.message || 'Network error' }
+    }
+  }
+
+  /**
+   * Acquire an exclusive test account from the pool.
+   * Returns JWT tokens ready for use in tests.
+   *
+   * @param featureGroups - Feature groups to assign (must include one with login:allowed, e.g. 'beta')
+   * @returns Session info with tokens, userId, accountId
+   * @throws 503 POOL_EXHAUSTED when all 20 accounts are locked
+   * @throws 403 API_KEY_FORBIDDEN when API key is invalid
+   * @throws 403 LOGIN_FEATURE_GROUP_REQUIRED when no group with login:allowed is included
+   * @throws 400 INVALID_FEATURE_GROUPS when group names don't exist
+   */
+  async checkout(featureGroups: string[] = ['beta'], inviteToken?: string): Promise<ApiResponse<PoolCheckoutResponse>> {
+    console.log(`[TestPoolLogin] Checking out test account with feature groups: ${featureGroups.join(', ')}${inviteToken ? ' and invite token' : ''}`)
+    return this.request<PoolCheckoutResponse>('/checkout', {
+      method: 'POST',
+      body: { featureGroups, ...(inviteToken && { invite_token: inviteToken }) },
+    })
+  }
+
+  /**
+   * Release a test account and wipe all data (DB, S3, Redis).
+   * **Must be called after every test run.**
+   *
+   * @param sessionId - The sessionId from checkout
+   * @throws 404 SESSION_NOT_FOUND when sessionId is unknown or lock expired
+   */
+  async release(sessionId: string): Promise<ApiResponse<PoolReleaseResponse>> {
+    return this.request<PoolReleaseResponse>('/release', {
+      method: 'POST',
+      body: { sessionId },
+    })
+  }
+
+  /**
+   * Get current pool state. Useful for debugging CI hangs.
+   */
+  async status(): Promise<ApiResponse<PoolStatusResponse>> {
+    return this.request<PoolStatusResponse>('/status')
+  }
+
+  /**
+   * List all 20 pool account definitions (id, name, email).
+   */
+  async accounts(): Promise<ApiResponse<PoolAccountsResponse>> {
+    return this.request<PoolAccountsResponse>('/accounts')
+  }
+
+  /**
+   * Emergency: force-release every account and wipe all test data.
+   * Use when CI is stuck with stale locks.
+   */
+  async releaseAll(): Promise<ApiResponse<PoolReleaseAllResponse>> {
+    return this.request<PoolReleaseAllResponse>('/release-all', { method: 'POST' })
   }
 }

@@ -11,13 +11,13 @@ const profile = {
   icon: 'assets/img/quickdappv2.webp',
   description: 'Edit & deploy a Dapp',
   kind: 'quick-dapp-v2',
-  location: 'sidePanel',
+  location: 'mainPanel',
   documentation: '',
   version: packageJson.version,
   maintainedBy: 'Remix',
   permission: true,
   events: [],
-  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'openDapp', 'updateDapp']
+  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'openDapp', 'updateDapp', 'consumePendingCreateDapp']
 }
 
 export class QuickDappV2 extends ViewPlugin {
@@ -25,6 +25,7 @@ export class QuickDappV2 extends ViewPlugin {
   dispatch: React.Dispatch<any> = () => {}
   event: any
   private listenersRegistered: boolean = false
+  private pendingCreateDapp: any = null
 
   constructor() {
     super(profile)
@@ -55,7 +56,7 @@ export class QuickDappV2 extends ViewPlugin {
   }
 
   onDeactivation() {
-    // Plugin deactivated
+    this.listenersRegistered = false
   }
 
   setDispatch(dispatch: React.Dispatch<any>) {
@@ -104,7 +105,17 @@ export class QuickDappV2 extends ViewPlugin {
   }
 
   async createDapp(payload: any): Promise<void> {
-    this.event.emit('createDapp', payload)
+    if (this.event.listenerCount('createDapp') > 0) {
+      this.event.emit('createDapp', payload)
+    } else {
+      this.pendingCreateDapp = payload
+    }
+  }
+
+  consumePendingCreateDapp(): any {
+    const payload = this.pendingCreateDapp
+    this.pendingCreateDapp = null
+    return payload
   }
 
   async openDapp(slug: string): Promise<boolean> {

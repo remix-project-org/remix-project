@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Block access to assets that don't need indexing
+Disallow: /assets/js/
+Disallow: /assets/css/
+Disallow: /assets/fontawesome/
+
+# Allow important assets for SEO
+Allow: /assets/img/remix-logo-blue.png
+
+# Sitemap location
+Sitemap: https://remix.ethereum.org/sitemap.xml
+
+# Crawl-delay for respectful crawling (optional)
+Crawl-delay: 1

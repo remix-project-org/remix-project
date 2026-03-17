@@ -33,7 +33,7 @@ export type SymbolicStackSlot = {
   isReturnParameter?: boolean
 
   /** Variable lifecycle state */
-  lifecycle?: 'declared' | 'assigned' | 'destroyed'
+  lifecycle?: 'registered' | 'declared' | 'assigned' | 'destroyed'
 
   /** If this slot is a reference/copy of a variable (from DUP), contains original variable info */
   referencesVariable?: {
@@ -58,7 +58,7 @@ export class SymbolicStackManager {
   /** Map of VM trace step to symbolic stack state at that step */
   private stackPerStep: { [step: number]: SymbolicStackSlot[] } = {}
   /** Map of variable ID to its current stack position and lifecycle */
-  private variableLifecycle: { [variableId: number]: { step: number, stackIndex: number, lifecycle: string } } = {}
+  private variableLifecycle: { [variableId: number]: { step: number, stackIndex: number, lifecycle: string, variable: any, functionScopeId: string } } = {}
 
   /**
    * Initializes the symbolic stack manager
@@ -123,7 +123,7 @@ export class SymbolicStackManager {
    * @param lifecycle - Variable lifecycle state
    * @param functionScopeId - Function scope ID where this variable belongs
    */
-  bindVariableWithLifecycle(step: number, variable: any, stackIndex: number, lifecycle: 'declared' | 'assigned' | 'destroyed' = 'declared', functionScopeId?: string) {
+  bindVariableWithLifecycle(step: number, variable: any, stackIndex: number, lifecycle: 'registered' | 'declared' | 'assigned' | 'destroyed' = 'declared', functionScopeId?: string) {
     const stack = this.getStackAtStep(step)
 
     const newVar: SymbolicStackSlot = {
@@ -147,7 +147,9 @@ export class SymbolicStackManager {
     this.variableLifecycle[variable.id] = {
       step: step,
       stackIndex: stackIndex,
-      lifecycle: lifecycle
+      lifecycle: lifecycle,
+      variable,
+      functionScopeId
     }
 
     if (stackIndex >= 0 && stackIndex < stack.length) {
@@ -157,7 +159,8 @@ export class SymbolicStackManager {
     } else {
       // Handle out of bounds - this can happen with return parameters
       if (variable.isReturnParameter || stackIndex < 0) {
-        console.log(`Return parameter or negative stack index for ${variable.name}: stackIndex=${stackIndex}`)
+        this.variableLifecycle[variable.id].lifecycle = 'registered'
+        console.log(`Return parameter or negative stack index for ${variable.name}: stackIndex=${stackIndex}, stackLengthx=${stack.length}, step=${step} `)
       } else {
         // console.warn(`Cannot bind variable ${variable.name} at step ${step}: stackIndex ${stackIndex} out of bounds (stack length: ${stack.length})`)
       }
@@ -249,6 +252,16 @@ export class SymbolicStackManager {
       const stack = this.getStackAtStep(step)
       if (stack[stackIndex] && stack[stackIndex].variableId === variableId) {
         stack[stackIndex].lifecycle = newLifecycle
+      }
+    }
+  }
+
+  checkRegisteredVariables(step: number, currentStackLength: number) {
+    for (const i in this.variableLifecycle) {
+      const variable = this.variableLifecycle[i]
+      if (variable && variable.lifecycle === 'registered' && currentStackLength > variable.stackIndex) {
+        delete this.variableLifecycle[i]
+        this.bindVariableWithLifecycle(step, variable.variable, variable.stackIndex, 'declared', variable.functionScopeId)
       }
     }
   }

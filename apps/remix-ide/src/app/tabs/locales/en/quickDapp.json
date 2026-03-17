@@ -40,5 +40,8 @@
   "quickDapp.functionInstructions": "Instructions for function",
   "quickDapp.addColumn": "Add column",
   "quickDapp.column": "Column",
-  "quickDapp.text7": "You haven't created any dApp yet."
+  "quickDapp.text7": "You haven't created any dApp yet.",
+  "quickDapp.deployToIPFS": "Deploy to IPFS",
+  "quickDapp.preview": "Preview",
+  "quickDapp.send": "Send"
 }

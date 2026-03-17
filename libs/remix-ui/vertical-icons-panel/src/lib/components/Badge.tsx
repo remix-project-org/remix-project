@@ -31,6 +31,25 @@ function Badge({ badgeStatus }: BadgeProps) {
     case 'failed':
       classes += ' fas fa-exclamation-triangle text-' + type + ' ' + 'remixui_statusCheck'
       break
+    // Cloud workspace status icons
+    case 'login':
+      classes += ' fas fa-sign-in-alt text-' + type + ' ' + 'remixui_statusCheck'
+      break
+    case 'cloud-off':
+      classes += ' fas fa-cloud text-' + type + ' ' + 'remixui_statusCheck'
+      break
+    case 'synced':
+      classes += ' fas fa-cloud text-' + type + ' ' + 'remixui_statusCheck'
+      break
+    case 'autosave':
+      classes += ' fas fa-cloud-upload-alt text-' + type + ' ' + 'remixui_statusCheck'
+      break
+    case 'syncing':
+      classes += ' fas fa-sync fa-spin text-' + type + ' ' + 'remixui_statusCheck'
+      break
+    case 'error':
+      classes += ' fas fa-exclamation-circle text-' + type + ' ' + 'remixui_statusCheck'
+      break
     default: {
       classes += ' badge rounded-pill bg-' + type
     }

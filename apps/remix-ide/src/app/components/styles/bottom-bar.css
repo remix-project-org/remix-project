@@ -80,3 +80,60 @@
 .bottom-bar .switch input:checked + .slider:before {
     transform: translateX(8px);
 }
+
+/* Debug Controls */
+.bottom-bar .debug-bar-label {
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-right: 12px;
+}
+
+.bottom-bar .debug-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.bottom-bar .debug-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    height: 24px;
+    font-size: 11px;
+    border: none;
+    border-radius: 4px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.bottom-bar .debug-btn.btn-secondary {
+    background-color: var(--bs-secondary);
+}
+
+.bottom-bar .debug-btn.btn-secondary:hover:not(:disabled) {
+    background-color: var(--bs-btn-bg);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.bottom-bar .debug-btn.btn-primary:hover:not(:disabled) {
+    /* filter: brightness(1.15); */
+    transform: translateY(-1px);
+}
+
+.bottom-bar .debug-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.bottom-bar .debug-btn i {
+    font-size: 11px;
+}
+
+.bottom-bar .debug-btn .btn-label {
+    font-weight: 600;
+    white-space: nowrap;
+}

@@ -206,26 +206,26 @@ export function ContractGUI(props: ContractGUIProps) {
           } else {
             if (upgradeReport.warning) {
               props.modal(
-                'Proxy Upgrade Warning',
+                intl.formatMessage({ id: 'udapp.proxyUpgradeWarningTitle' }),
                 unavailableProxyLayoutMsg(),
-                'Proceed',
+                intl.formatMessage({ id: 'udapp.proceed' }),
                 () => {
                   !proxyAddressError && props.clickCallBack(props.funcABI.inputs, proxyAddress, ['Upgrade with Proxy'])
                 },
-                'Cancel',
+                intl.formatMessage({ id: 'udapp.cancel' }),
                 () => {},
                 'btn-warning',
                 'btn-secondary'
               )
             } else {
               props.modal(
-                'Proxy Upgrade Error',
+                intl.formatMessage({ id: 'udapp.proxyUpgradeErrorTitle' }),
                 upgradeReportMsg(upgradeReport),
-                'Continue anyway ',
+                intl.formatMessage({ id: 'udapp.continueAnywaySuffix' }),
                 () => {
                   !proxyAddressError && props.clickCallBack(props.funcABI.inputs, proxyAddress, ['Upgrade with Proxy'])
                 },
-                'Cancel',
+                intl.formatMessage({ id: 'udapp.cancel' }),
                 () => {},
                 'btn-warning',
                 'btn-secondary'
@@ -243,7 +243,8 @@ export function ContractGUI(props: ContractGUIProps) {
 
   const handleActionClick = async () => {
     props.getVersion()
-    if (props.runTabState.selectExEnv.toLowerCase().startsWith('vm-') || props.runTabState.selectExEnv.toLowerCase().includes('basic-http-provider') || props.runTabState.contracts.loadType !== 'sol') {
+    const selectedProvider = await props.plugin.call('udappEnv', 'getSelectedProvider')
+    if (selectedProvider.toLowerCase().startsWith('vm-') || selectedProvider.toLowerCase().includes('basic-http-provider') || props.runTabState.contracts.loadType !== 'sol') {
       await handleDeploy()
     } else {
       const status = await props.getCompilerDetails()
@@ -253,7 +254,8 @@ export function ContractGUI(props: ContractGUIProps) {
       }
       const tabState = props.runTabState
       const compilerState = await props.plugin.call('solidity', 'getCompilerState')
-      const IsCompatible = isChainCompatible(compilerState.evmVersion ?? 'osaka', parseInt(tabState.chainId))
+      const network = await props.plugin.call('udappEnv', 'getNetwork')
+      const IsCompatible = isChainCompatible(compilerState.evmVersion ?? 'osaka', network?.chainId)
       if (status === 'Passed' && IsCompatible) {
         await handleDeploy()
       } else {

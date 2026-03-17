@@ -176,7 +176,7 @@ export const FileExplorer = (props: FileExplorerProps) => {
   useEffect(() => {
     const performRename = async () => {
       if (feTarget?.length > 1 && feTarget[0]?.key.length > 1) {
-        await plugin.call('notification', 'alert', { id: 'renameAlert', message: 'You cannot rename multiple files at once!' })
+        await plugin.call('notification', 'alert', { id: 'renameAlert', message: intl.formatMessage({ id: 'filePanel.cannotRenameMultiple' }) })
       }
       props.editModeOn(feTarget[0].key, feTarget[0].type, false)
     }

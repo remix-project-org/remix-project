@@ -5,6 +5,7 @@ import GitUIButton from "../buttons/gituibutton";
 import { gitPluginContext } from "../gitui";
 import { BranchDifferences } from "./branches/branchdifferences";
 import { CommitDetails } from "./commits/commitdetails";
+import { FormattedMessage } from "react-intl";
 
 export const Commits = () => {
   const [hasNextPage, setHasNextPage] = React.useState(true)
@@ -55,9 +56,9 @@ export const Commits = () => {
             })}
           </div>
         </div>
-        {hasNextPage && <GitUIButton data-id='load-more-commits' disabledCondition={fetchIsDisabled()} className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}>Load more</GitUIButton>}
+        {hasNextPage && <GitUIButton data-id='load-more-commits' disabledCondition={fetchIsDisabled()} className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
         </>
-        : <div className="text-muted">No commits</div>}
+        : <div className="text-muted"><FormattedMessage id="gitui.noCommits" /></div>}
     </>
   )
 }

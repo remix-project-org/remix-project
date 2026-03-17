@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { CustomTooltip } from '@remix-ui/helper'
-import { NotificationItem, NotificationType, NotificationPriority } from '@remix-api'
+import { NotificationItem, NotificationType, NotificationPriority, NotificationAction } from '@remix-api'
 import { TopbarContext } from '../context/topbarContext'
 import './notification-center.css'
 
@@ -83,6 +84,7 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
     const willOpen = !isOpen
     setIsOpen(willOpen)
     if (willOpen) {
+      plugin.call('matomo', 'trackEvent', 'notifications', 'openDropdown', '', undefined).catch(() => {})
       setLoading(true)
       try {
         const result = await plugin.call('notificationCenter', 'getNotifications' as any, 20, 0, false)
@@ -101,6 +103,7 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
     e.stopPropagation()
     try {
       await plugin.call('notificationCenter', 'markAsRead' as any, id)
+      plugin.call('matomo', 'trackEvent', 'notifications', 'markAsRead', String(id), undefined).catch(() => {})
     } catch (e) {
       console.error('[NotificationBell] Failed to mark as read:', e)
     }
@@ -110,6 +113,7 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
     e.stopPropagation()
     try {
       await plugin.call('notificationCenter', 'dismiss' as any, id)
+      plugin.call('matomo', 'trackEvent', 'notifications', 'dismiss', String(id), undefined).catch(() => {})
     } catch (e) {
       console.error('[NotificationBell] Failed to dismiss:', e)
     }
@@ -118,19 +122,83 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
   const handleMarkAllAsRead = useCallback(async () => {
     try {
       await plugin.call('notificationCenter', 'markAllAsRead' as any)
+      plugin.call('matomo', 'trackEvent', 'notifications', 'markAllAsRead', '', undefined).catch(() => {})
     } catch (e) {
       console.error('[NotificationBell] Failed to mark all as read:', e)
     }
   }, [plugin])
 
-  const handleActionClick = useCallback((actionUrl: string) => {
+  const handleAction = useCallback(async (notification: NotificationItem) => {
+    // Track the action click
+    const actionType = notification.action?.action_type || 'legacy'
+    plugin.call('matomo', 'trackEvent', 'notifications', 'actionClick', `${notification.type}:${actionType}`, undefined).catch(() => {})
+
+    // Mark as read when acting
+    if (notification.read_status === null) {
+      plugin.call('notificationCenter', 'markAsRead' as any, notification.id).catch(() => {})
+    }
+
+    const action = notification.action
+    if (!action) {
+      // Fallback to legacy action_url
+      if (notification.action_url) {
+        handleLegacyActionUrl(notification.action_url)
+      }
+      return
+    }
+
     setIsOpen(false)
-    // Navigate within the app
+
+    switch (action.action_type) {
+    case 'plugin':
+      if (action.plugin_name && action.plugin_method) {
+        try {
+          if (action.plugin_params) {
+            await plugin.call(action.plugin_name as any, action.plugin_method as any, action.plugin_params)
+          } else {
+            await plugin.call(action.plugin_name as any, action.plugin_method as any)
+          }
+        } catch (e) {
+          console.error('[NotificationBell] Plugin action failed:', e)
+        }
+      }
+      break
+
+    case 'invitation':
+      if (action.invite_token) {
+        try {
+          await plugin.call('invitationManager' as any, 'showInvite', action.invite_token)
+        } catch (e) {
+          console.error('[NotificationBell] Invitation action failed:', e)
+        }
+      }
+      break
+
+    case 'feedback_form':
+      if (action.feedback_form_url) {
+        try {
+          await plugin.call('feedback' as any, 'openFeedbackForm', action.feedback_form_url)
+        } catch (e) {
+          // Fallback: open in new tab if feedback plugin unavailable
+          window.open(action.feedback_form_url, '_blank')
+        }
+      }
+      break
+
+    default:
+      // Unknown action type — fall back to legacy action_url
+      if (notification.action_url) {
+        handleLegacyActionUrl(notification.action_url)
+      }
+      break
+    }
+  }, [plugin])
+
+  const handleLegacyActionUrl = useCallback((actionUrl: string) => {
+    setIsOpen(false)
     if (actionUrl.startsWith('/')) {
-      // Try to activate and focus the plugin matching the route
       const pluginName = actionUrl.replace('/', '')
       plugin.call('tabs', 'focus', pluginName).catch(() => {
-        // If it's not a tab, try opening it as a side panel plugin
         plugin.call('menuicons', 'select', pluginName).catch(() => {})
       })
     } else if (actionUrl.startsWith('http')) {
@@ -200,7 +268,7 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
                 className={`notification-item ${notification.read_status === null ? 'notification-unread' : ''} ${getPriorityClass(notification.priority)}`}
                 onClick={(e) => {
                   if (notification.read_status === null) handleMarkAsRead(notification.id, e)
-                  if (notification.action_url) handleActionClick(notification.action_url)
+                  if (notification.action || notification.action_url) handleAction(notification)
                 }}
                 data-id={`notification-item-${notification.id}`}
               >
@@ -216,15 +284,18 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
                   </div>
                   <div className="notification-item-body">{notification.body}</div>
                   <div className="notification-item-actions">
-                    {notification.action_url && (
+                    {(notification.action || notification.action_url) && (
                       <button
-                        className="notification-action-btn"
+                        className={`notification-action-btn ${notification.action ? 'notification-action-' + notification.action.action_type : ''}`}
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleActionClick(notification.action_url!)
+                          handleAction(notification)
                         }}
                       >
-                        {notification.action_label || 'View'}
+                        {notification.action?.action_type === 'invitation' && <i className="fa fa-envelope-open me-1"></i>}
+                        {notification.action?.action_type === 'feedback_form' && <i className="fa fa-comment me-1"></i>}
+                        {notification.action?.action_type === 'plugin' && <i className="fa fa-play me-1"></i>}
+                        {notification.action?.action_label || notification.action_label || 'View'}
                       </button>
                     )}
                     <button

@@ -41,6 +41,7 @@ export interface TemplateExplorerWizardState {
   tokenName?: string
   gitUrl?: string
   manageCategory: 'Template' | 'Files'
+  creating: boolean
 }
 
 export type WizardStep = 'template' | 'finishSetup' | 'wizard' | 'import' | 'genAI' | 'generic' | 'remixdefault' | 'cookbook' | 'back' | 'reset' | 'ModifyWorkspace' | 'confirm' | 'scripts' | 'aiFileGeneration' | 'importFiles' | 'importHttps' | 'gitClone'
@@ -102,7 +103,8 @@ export enum TemplateExplorerWizardAction {
   IMPORT_FILES = 'IMPORT_FILES',
   IMPORT_HTTPS = 'IMPORT_HTTPS',
   SET_GIT_URL = 'SET_GIT_URL',
-  UPDATE_ERC20_PERMIT = 'UPDATE_ERC20_PERMIT'
+  UPDATE_ERC20_PERMIT = 'UPDATE_ERC20_PERMIT',
+  SET_CREATING = 'SET_CREATING'
 }
 
 export interface TemplateItem {

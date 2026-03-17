@@ -46,23 +46,9 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
 
   const loadServers = async () => {
     try {
-      // First try to get servers from the AI plugin (which includes defaults)
-      let servers: IMCPServer[] = []
-
-      try {
-        await plugin.call('remixAI', 'loadMCPServersFromSettings')
-        servers = await plugin.call('remixAI', 'getIMCPServers')
-        console.log('Loaded MCP servers from AI plugin:', servers)
-      } catch (error) {
-        console.log('AI plugin not available, loading from settings directly:', error)
-        // Fallback to loading directly from settings
-        const savedServers = await plugin.call('settings', 'get', 'settings/mcp/servers')
-        if (savedServers) {
-          servers = JSON.parse(savedServers)
-          console.log('Loaded MCP servers from settings:', servers)
-        }
-      }
-
+      // Get default servers from the AI plugin (runtime only, no persistence)
+      const servers: IMCPServer[] = await plugin.call('remixAI', 'getIMCPServers')
+      console.log('Loaded default MCP servers from AI plugin:', servers)
       setServers(servers)
     } catch (error) {
       console.warn('Failed to load MCP servers:', error)
@@ -112,7 +98,6 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
 
         const newServers = servers.map(s => s.name === editingServer.name ? server : s)
         setServers(newServers)
-        await plugin.call('settings', 'set', 'settings/mcp/servers', JSON.stringify(newServers))
 
         console.log(`[MCP Settings] Removing old connection for ${editingServer.name}...`)
         await plugin.call('remixAI', 'removeMCPServer', editingServer.name)
@@ -131,7 +116,6 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
 
         const newServers = [...servers, server]
         setServers(newServers)
-        await plugin.call('settings', 'set', 'settings/mcp/servers', JSON.stringify(newServers))
 
         await plugin.call('remixAI', 'addMCPServer', server)
 
@@ -160,7 +144,6 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
 
       const newServers = servers.filter(s => s.name !== serverName)
       setServers(newServers)
-      await plugin.call('settings', 'set', 'settings/mcp/servers', JSON.stringify(newServers))
       await plugin.call('remixAI', 'removeMCPServer', serverName)
       loadConnectionStatuses()
     } catch (error) {
@@ -182,7 +165,6 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
       console.log(`[MCP Settings] ${updatedServer.enabled ? 'Connecting to' : 'Disconnecting from'} server: ${server.name}`)
 
       setServers(newServers)
-      await plugin.call('settings', 'set', 'settings/mcp/servers', JSON.stringify(newServers))
 
       if (updatedServer.enabled) {
         console.log(`[MCP Settings] Adding server ${server.name} to remixAI plugin...`)

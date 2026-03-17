@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
+import { LoginMode } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
+import { AppContext } from '@remix-ui/app'
 
 interface Credits {
   balance: number
@@ -21,11 +23,13 @@ interface CreditsBalanceProps {
 }
 
 export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
+  const appContext = useContext(AppContext)
   const [credits, setCredits] = useState<Credits | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [showAllTransactions, setShowAllTransactions] = useState(false)
-  const [enableLogin, setEnableLogin] = useState<boolean>(false)
+  const [loginEnabled, setLoginEnabled] = useState<boolean>(false)
+  const configEnabled = appContext?.appConfig?.['billing.credits_enabled'] !== false
 
   const loadCredits = async () => {
     try {
@@ -90,11 +94,16 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
   }
 
   useEffect(() => {
-    const checkLoginEnabled = () => {
-      const enabled = localStorage.getItem('enableLogin') === 'true'
-      setEnableLogin(enabled)
+    const fetchLoginMode = async () => {
+      try {
+        const response = await plugin.call('auth', 'getLoginMode')
+        const mode: LoginMode = response?.mode || 'open'
+        setLoginEnabled(mode !== 'closed')
+      } catch {
+        setLoginEnabled(localStorage.getItem('enableLogin') === 'true')
+      }
     }
-    checkLoginEnabled()
+    fetchLoginMode()
 
     const loadData = async () => {
       await loadCredits()
@@ -105,11 +114,17 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
 
     const onAuthStateChanged = async (_payload: any) => {
       await loadData()
-      checkLoginEnabled()
+    }
+
+    const handleLoginModeChanged = (response: { mode: LoginMode; message: string }) => {
+      if (response?.mode) {
+        setLoginEnabled(response.mode !== 'closed')
+      }
     }
 
     try {
       plugin.on('auth', 'authStateChanged', onAuthStateChanged)
+      plugin.on('auth', 'loginModeChanged', handleLoginModeChanged)
     } catch (e) {
       // noop
     }
@@ -117,13 +132,14 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
     return () => {
       try {
         plugin.off('auth', 'authStateChanged')
+        plugin.off('auth', 'loginModeChanged')
       } catch (e) {
         // ignore
       }
     }
   }, [])
 
-  if (!enableLogin) {
+  if (!loginEnabled || !configEnabled) {
     return null
   }
 

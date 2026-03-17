@@ -269,7 +269,7 @@ For more details, see parameters' type definitions [here](src/types.ts).
 
 Please feel free to open an issue or a pull request. 
 
-In case you want to add code, do have a look at our contribution guidelines [here](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Discord](https://discord.gg/qhpCQGWkmf) in case of any queries.
+In case you want to add code, do have a look at our contribution guidelines [here](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Discord](https://discord.gg/9bw6pMWEAw) in case of any queries.
 
 ### License
 MIT © 2018-21 Remix Team

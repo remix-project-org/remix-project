@@ -9,6 +9,10 @@ import { FileSystemContext } from './contexts'
 import './css/remix-ui-workspace.css'
 import { ROOT_PATH, TEMPLATE_NAMES } from './utils/constants'
 import { HamburgerMenu } from './components/workspace-hamburger'
+import { CloudMigrationDialog } from './cloud/cloud-migration-dialog'
+import { useCloudStore, cloudStore } from './cloud/cloud-store'
+import { switchToCloudWorkspace, startFileChangeTracking, cloudLocalKey } from './cloud/cloud-workspace-actions'
+import { CloudSyncStatusIcon } from './cloud/cloud-sync-status-icon'
 
 import { MenuItems, WorkSpaceState, WorkspaceMetadata } from './types'
 import { contextMenuActions } from './utils'
@@ -54,6 +58,41 @@ export function Workspace() {
   const currentBranch = selectedWorkspace ? selectedWorkspace.currentBranch : null
 
   const [canPaste, setCanPaste] = useState(false)
+  const [showMigrationDialog, setShowMigrationDialog] = useState(false)
+  const { isCloudMode, activeWorkspaceId, syncStatus } = useCloudStore()
+
+  // ── Listen for migration dialog trigger from the top-bar dropdown ──
+  useEffect(() => {
+    const handler = () => setShowMigrationDialog(true)
+    cloudStore.on('showMigrationDialog', handler)
+    return () => { cloudStore.off('showMigrationDialog', handler) }
+  }, [])
+  const isCloudLoading = isCloudMode && activeWorkspaceId
+    ? (syncStatus[activeWorkspaceId]?.status === 'loading' || syncStatus[activeWorkspaceId]?.status === 'syncing')
+    : false
+  // Note: 'pushing' status is intentionally excluded — the file tree already
+  // reflects local edits, so we don't show a loading overlay for S3 uploads.
+
+  // ── Debounced loading overlay ──
+  // Turns on instantly when any source fires, turns off after a short delay
+  // once all sources settle. Smooths over the rapid state gaps during cloud
+  // workspace switches (cl→off … rw→on flickers).
+  const rawLoading = global.fs.browser.isRequestingWorkspace || global.fs.browser.isRequestingCloning || isCloudLoading
+  const [isLoadingOverlay, setIsLoadingOverlay] = useState(rawLoading)
+  const _offTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (rawLoading) {
+      // Instantly show
+      if (_offTimer.current) { clearTimeout(_offTimer.current); _offTimer.current = null }
+      setIsLoadingOverlay(true)
+    } else {
+      // Delay hiding so rapid on/off gaps don't flash the tree
+      _offTimer.current = setTimeout(() => setIsLoadingOverlay(false), isCloudMode ? 1500 : 300)
+    }
+    return () => { if (_offTimer.current) clearTimeout(_offTimer.current) }
+  }, [rawLoading])
+  // ── End debounced loading overlay ──
 
   const appContext = useContext(AppContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
@@ -260,7 +299,7 @@ export function Workspace() {
           toast(error.message || error)
         } else {
           try {
-            if (await workspace.exists(type + '/' + cleanUrl)) toast('File already exists in workspace')
+            if (await workspace.exists(type + '/' + cleanUrl)) toast(intl.formatMessage({ id: 'filePanel.fileAlreadyExists' }))
             else {
               workspace.addExternal(type + '/' + cleanUrl, content, url)
               global.plugin.call('menuicons', 'select', 'filePanel')
@@ -334,7 +373,7 @@ export function Workspace() {
       global.dispatchFetchWorkspaceDirectory(ROOT_PATH)
       setCurrentWorkspace(LOCALHOST)
     }
-  }, [global.fs.browser.currentWorkspace, global.fs.localhost.sharedFolder, global.fs.mode])
+  }, [global.fs.browser.currentWorkspace, global.fs.browser.workspaceSwitchVersion, global.fs.localhost.sharedFolder, global.fs.mode])
 
   useEffect(() => {
     if (global.fs.browser.currentWorkspace && !global.fs.browser.workspaces.find(({ name }) => name === global.fs.browser.currentWorkspace)) {
@@ -953,16 +992,22 @@ export function Workspace() {
     trackMatomoEvent({ category: 'workspace', action: 'GIT', name: 'login', isClick: true })
   }
 
-  const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean, mName: string}) => {
+  const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean, mName: string, remoteId?: string }) => {
     return (
       <>
         {props.isGitRepo ? (
           <div className="d-flex justify-content-between">
-            <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}</span>
+            <span>
+              {currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}
+              {props.remoteId && <CloudSyncStatusIcon remoteId={props.remoteId} />}
+            </span>
             <i className="fas fa-code-branch pt-1"></i>
           </div>
         ) : (
-          <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}</span>
+          <span>
+            {currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}
+            {props.remoteId && <CloudSyncStatusIcon remoteId={props.remoteId} />}
+          </span>
         )}
       </>
     )
@@ -973,7 +1018,7 @@ export function Workspace() {
     return (
       <>
         {
-          currentWorkspace === LOCALHOST && cachedFilter.length > 0 ? cachedFilter.map(({ name, isGitRepo }, index) => (
+          currentWorkspace === LOCALHOST && cachedFilter.length > 0 ? cachedFilter.map(({ name, isGitRepo, remoteId }, index) => (
             <Dropdown.Item
               key={index}
               onClick={() => {
@@ -981,7 +1026,7 @@ export function Workspace() {
               }}
               data-id={`dropdown-item-${name}`}
             >
-              <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} />
+              <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} remoteId={remoteId} />
             </Dropdown.Item>
           )) : <ShowAllMenuItems />
         }
@@ -992,13 +1037,13 @@ export function Workspace() {
   const ShowAllMenuItems = () => {
     return (
       <>
-        { global.fs.browser.workspaces.map(({ name, isGitRepo }, index) => (
+        { global.fs.browser.workspaces.map(({ name, isGitRepo, remoteId }, index) => (
           <Dropdown.Item
             key={index}
             onClick={() => { switchWorkspace(name) }}
             data-id={`dropdown-item-${name}`}
           >
-            <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} />
+            <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} remoteId={remoteId} />
           </Dropdown.Item>
         ))}
       </>
@@ -1091,12 +1136,19 @@ export function Workspace() {
             }}
           >
             <div className="h-100">
-              {(global.fs.browser.isRequestingWorkspace || global.fs.browser.isRequestingCloning) && (
+              {isLoadingOverlay && (
                 <div className="text-center py-5">
-                  <i className="fas fa-spinner fa-pulse fa-2x"></i>
+                  {isCloudMode ? (
+                    <>
+                      <i className="fas fa-cloud-arrow-down fa-beat-fade fa-2x" style={{ color: 'var(--bs-info)' }}></i>
+                      <div className="small mt-2" style={{ color: 'var(--bs-secondary-color)' }}><FormattedMessage id="filePanel.loadingCloudWorkspace" /></div>
+                    </>
+                  ) : (
+                    <i className="fas fa-spinner fa-pulse fa-2x"></i>
+                  )}
                 </div>
               )}
-              {!(global.fs.browser.isRequestingWorkspace || global.fs.browser.isRequestingCloning) && global.fs.mode === 'browser' && currentWorkspace !== NO_WORKSPACE && (
+              {!isLoadingOverlay && global.fs.mode === 'browser' && currentWorkspace !== NO_WORKSPACE && (
                 <FileExplorer
                   fileState={global.fs.browser.fileState}
                   name={currentWorkspace}
@@ -1253,7 +1305,7 @@ export function Workspace() {
           flexShrink: 0
         }}>
           <div className="d-flex justify-content-between p-1 w-100 mb-2">
-            <div className="text-uppercase text-dark pt-1 px-1">GIT</div>
+            <div className="text-uppercase text-dark pt-1 px-1"><FormattedMessage id="filePanel.gitSectionLabel" /></div>
             { selectedWorkspace.hasGitSubmodules?
               <>
                 <div className="pe-1">
@@ -1262,11 +1314,11 @@ export function Workspace() {
                       placement="top"
                       tooltipId="updatingSubmodules"
                       tooltipClasses="text-nowrap"
-                      tooltipText={"Updating submodules"}
+                      tooltipText={intl.formatMessage({ id: 'filePanel.updatingSubmodulesTooltip' })}
                     >
                       <button style={{ height: 30, minWidth: "9rem" }} className='btn btn-sm border text-dark'>
                         <i className="fad fa-spinner fa-spin me-2"></i>
-                        Updating...
+                        <FormattedMessage id="filePanel.updatingSubmodules" />
                       </button>
                     </CustomTooltip> :
                     <CustomTooltip
@@ -1276,7 +1328,7 @@ export function Workspace() {
                       tooltipText={<FormattedMessage id="filePanel.updateSubmodules" />}
                     >
                       <button style={{ height: 30, minWidth: "9rem" }} onClick={updateSubModules} data-id='updatesubmodules' className={`btn btn-sm border  ${highlightUpdateSubmodules ? 'text-warning' : 'text-dark'}`}>
-                       Update submodules
+                        <FormattedMessage id="filePanel.updateSubmodulesButton" />
                       </button>
                     </CustomTooltip>
                   }
@@ -1288,7 +1340,7 @@ export function Workspace() {
               placement="right"
               tooltipId="branchesDropdown"
               tooltipClasses="text-nowrap"
-              tooltipText={'Current branch: ' + (currentBranch && currentBranch.name) || 'Branches'}
+              tooltipText={currentBranch && currentBranch.name ? intl.formatMessage({ id: 'filePanel.currentBranch' }, { branchName: currentBranch.name }) : intl.formatMessage({ id: 'filePanel.branches' })}
               hide={showBranches}
             >
               <div className="pt-0 me-2" data-id="workspaceGitBranchesDropdown">
@@ -1415,15 +1467,15 @@ export function Workspace() {
         />
       )}
 
-      <ModalDialog id="homeTab" title={'Import from ' + modalState.modalInfo.title}
-        okLabel="Import" hide={!modalState.showModalDialog} handleHide={() => hideFullMessage()}
+      <ModalDialog id="homeTab" title={intl.formatMessage({ id: 'filePanel.importFrom' }, { title: modalState.modalInfo.title })}
+        okLabel={intl.formatMessage({ id: 'filePanel.importButton' })} hide={!modalState.showModalDialog} handleHide={() => hideFullMessage()}
         okFn={() => processLoading(modalState.modalInfo.title)} validationFn={validateUrlForImport}
       >
         <div className="p-2 user-select-auto">
-          {modalState.modalInfo.loadItem !== '' && <span>Enter the {modalState.modalInfo.loadItem} you would like to load.</span>}
+          {modalState.modalInfo.loadItem !== '' && <span><FormattedMessage id="filePanel.enterLoadItem" values={{ loadItem: modalState.modalInfo.loadItem }} /></span>}
           {modalState.modalInfo.examples.length !== 0 && (
             <>
-              <div>e.g</div>
+              <div><FormattedMessage id="filePanel.exampleAbbreviation" /></div>
               <div>{examples}</div>
             </>
           )}
@@ -1446,6 +1498,37 @@ export function Workspace() {
           </div>
         </div>
       </ModalDialog>
+
+      <CloudMigrationDialog
+        visible={showMigrationDialog}
+        onHide={() => {
+          setShowMigrationDialog(false)
+        }}
+        onMigrationComplete={async () => {
+          setShowMigrationDialog(false)
+          // After migration, switch to the first available cloud workspace
+          try {
+            const freshWorkspaces = cloudStore.getState().cloudWorkspaces
+            if (freshWorkspaces.length > 0) {
+              const targetWs = freshWorkspaces[0]
+              cloudStore.setActiveCloudWorkspace(targetWs.uuid)
+              cloudStore.updateSyncStatus(targetWs.uuid, { status: 'loading', lastSync: null, pendingChanges: 0 })
+              await switchToCloudWorkspace(targetWs, (status) => {
+                cloudStore.updateSyncStatus(targetWs.uuid, status)
+              })
+              const workspaceProvider = global.plugin.fileProviders?.workspace
+              if (workspaceProvider) {
+                startFileChangeTracking(workspaceProvider, targetWs.uuid)
+              }
+              global.dispatchFetchWorkspaceDirectory('/')
+              localStorage.setItem(cloudLocalKey('lastCloudWorkspace'), targetWs.name)
+            }
+          } catch (err) {
+            console.error('[Workspace] Failed to switch to migrated workspace:', err)
+          }
+        }}
+        plugin={global.plugin}
+      />
     </div>
   )
 }

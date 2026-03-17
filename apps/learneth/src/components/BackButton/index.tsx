@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Dropdown } from 'react-bootstrap'
+import remixClient from '../../remix-client'
 import './index.scss'
 
 function BackButton({ entity }: any) {
@@ -16,7 +17,11 @@ function BackButton({ entity }: any) {
   return (
     <div className="learneth-top-nav p-2">
       <div className="d-flex justify-content-between align-items-center">
-        <Link to="/home" className="btn nav-button d-flex align-items-center">
+        <Link 
+          to="/home" 
+          className="btn nav-button d-flex align-items-center"
+          onClick={() => remixClient.clearCurrentTutorial()}
+        >
           <i className="fas fa-chevron-left"></i>
           <span>Tutorials list</span>
         </Link>

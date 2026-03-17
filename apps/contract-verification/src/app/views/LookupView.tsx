@@ -10,9 +10,10 @@ import { useNavigate } from 'react-router-dom'
 import { VerifyFormContext } from '../VerifyFormContext'
 import { useSourcifySupported } from '../hooks/useSourcifySupported'
 import { CopyToClipboard } from '@remix-ui/clipboard'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 
 export const LookupView = () => {
+  const intl = useIntl()
   const { settings, clientInstance } = useContext(AppContext)
   const { selectedChain, setSelectedChain } = useContext(VerifyFormContext)
   const [contractAddress, setContractAddress] = useState('')
@@ -95,9 +96,9 @@ export const LookupView = () => {
                 <div key={verifierId} className="pt-4">
                   <div>
                     <span className="fw-bold text-secondary">{verifierId}</span>{' '}
-                    <CustomTooltip tooltipText="Configure the API in the settings">
+                    <CustomTooltip tooltipText={intl.formatMessage({ id: 'contract-verification.configureApiInSettingsTooltip' })}>
                       <span className="text-secondary" style={{ textDecoration: 'underline dotted', cursor: 'pointer' }} onClick={() => navigate('/settings')}>
-                        Enable?
+                        <FormattedMessage id="contract-verification.enableVerifierLink" />
                       </span>
                     </CustomTooltip>
                   </div>
@@ -112,7 +113,7 @@ export const LookupView = () => {
                     <span className="fw-bold text-secondary">{verifierId}</span>{' '}
                     <CustomTooltip tooltipText={`The configured Sourcify server (${chainSettings.verifiers['Sourcify'].apiUrl}) does not support chain ${selectedChain?.chainId}`}>
                       <span className="text-secondary w-auto" style={{ textDecoration: 'underline dotted', cursor: 'pointer' }} onClick={() => navigate('/settings')}>
-                        Unsupported
+                        <FormattedMessage id="contract-verification.unsupportedVerifier" />
                       </span>
                     </CustomTooltip>
                   </div>
@@ -134,7 +135,7 @@ export const LookupView = () => {
                 {!loadingVerifiers[verifierId] && !!lookupResults[verifierId] && (
                   <div>
                     <div className="pt-2">
-                      Status:{' '}
+                      <FormattedMessage id="contract-verification.lookupStatusLabel" />{' '}
                       <span className="fw-bold" style={{ textTransform: 'capitalize' }}>
                         {lookupResults[verifierId].status}
                       </span>{' '}
@@ -143,7 +144,7 @@ export const LookupView = () => {
                     {!!lookupResults[verifierId].sourceFiles && lookupResults[verifierId].sourceFiles.length > 0 && (
                       <div className="pt-2 d-flex flex-row justify-content-center">
                         <button className="btn btn-secondary bg-transparent text-body" onClick={() => handleOpenInRemix(lookupResults[verifierId])}>
-                          <i className="fas fa-download"></i> Open in Remix
+                          <i className="fas fa-download"></i> <FormattedMessage id="contract-verification.openInRemixButton" />
                         </button>
                       </div>
                     )}

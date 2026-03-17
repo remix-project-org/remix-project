@@ -278,7 +278,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
           <a href={'https://solidityscan.com/?utm_campaign=remix&utm_source=remix'}
             target="_blank"
             onClick={() => trackMatomoEvent({ category: 'solidityCompiler', action: 'solidityScan', name: 'learnMore', isClick: true })}>
-              Learn more
+            <FormattedMessage id="solidity.learnMore" />
           </a>
         </span>
         <br/>
@@ -429,7 +429,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             {/* Copy to Clipboard */}
             <div className="remixui_contractHelperButtons">
               <div className="input-group d-block">
-                <div className="btn-group float-end" role="group" aria-label="Copy to Clipboard">
+                <div className="btn-group float-end" role="group" aria-label={intl.formatMessage({ id: 'solidity.copyToClipboard' })}>
                   <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyABI' })} getContent={copyABI} direction="top">
                     <button className="btn remixui_copyButton">
                       <i className="remixui_copyIcon far fa-copy" aria-hidden="true"></i>

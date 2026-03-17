@@ -4,6 +4,7 @@
  */
 
 import { AuthUser, AuthProvider } from './sso-api'
+import { NotificationItem } from './notification-center-api'
 
 // ==================== Credits ====================
 
@@ -79,11 +80,124 @@ export interface GitHubTokenResponse {
   scopes?: string[]
 }
 
+// ==================== App Configuration ====================
+
+/**
+ * Public app configuration fetched from the backend.
+ * Keys use dot-notation categories (e.g. 'cloud.enabled').
+ * Known keys are typed explicitly; unknown keys are also accessible.
+ */
+export interface AppConfig {
+  // App
+  'app.supportenabled'?: boolean
+
+  // Auth
+  'auth.login_mode'?: string
+  'auth.login_mode_message'?: string
+  'auth.registration_mode'?: string
+  'auth.link_accounts_enabled'?: boolean
+  'auth.email_sign_in_enabled'?: boolean
+  'auth.sign_in_button_mode'?: 'default' | 'beta' | 'hidden'
+  
+  // Billing
+  'billing.enable_subscriptions'?: boolean
+  'billing.credits_enabled'?: boolean
+
+  // Cloud
+  'cloud.enabled'?: boolean
+  'cloud.button_visibility'?: 'off' | 'authenticated_users' | 'all_users'
+
+  // Notifications
+  'notifications.mode'?: 'off' | 'authenticated_users' | 'all_users'
+
+  // Features
+  'features.ai_enabled'?: boolean
+
+  // Limits
+  'limits.max_file_size_mb'?: number
+
+  // Settings
+  'settings.account_management'?: boolean
+
+  // Storage
+  'storage.max_backup_size_mb'?: number
+  'storage.max_workspaces'?: number
+
+  // UI flags
+  'show_beta_test_register_widget'?: boolean
+  'show_join_beta_top_button'?: boolean
+
+  // Allow unknown keys
+  [key: string]: string | number | boolean | undefined
+}
+
+/** Response from GET /sso/config (public, no auth required) */
+export type AppConfigResponse = AppConfig
+
+// ==================== Registration Mode ====================
+
+export type RegistrationMode = 'open' | 'existing_only' | 'invite_only'
+
+export interface RegistrationModeResponse {
+  mode: RegistrationMode
+}
+
+// ==================== Login Access Control (ACL) ====================
+
+/** Login mode values — controls who can log in (independent of registration mode) */
+export type LoginMode = 'open' | 'feature_group' | 'admins_only' | 'closed'
+
+/** Response from GET /sso/login-mode */
+export interface LoginModeResponse {
+  mode: LoginMode
+  message: string  // empty string when mode is 'open'
+}
+
+/** Login ACL denial codes (subset of postMessage error codes) */
+export type LoginDenialCode =
+  | 'LOGIN_CLOSED'
+  | 'LOGIN_ADMINS_ONLY'
+  | 'LOGIN_FEATURE_GROUP_REQUIRED'
+
+/** All login-related error codes that can come from the server */
+export const LOGIN_ACL_ERROR_CODES: string[] = [
+  'LOGIN_CLOSED',
+  'LOGIN_ADMINS_ONLY',
+  'LOGIN_FEATURE_GROUP_REQUIRED',
+  'LOGIN_LOCKED',
+  'LOGIN_MEMBERS_ONLY'
+]
+
+// ==================== Unified Access Policy ====================
+
+/** Access policy values — single axis replacing login_mode + registration_mode */
+export type AccessPolicy = 'open' | 'invite_only' | 'members_only' | 'admins_only' | 'locked'
+
+/** Response from GET /sso/access-policy */
+export interface AccessPolicyResponse {
+  policy: AccessPolicy
+  message: string
+  allows_registration: boolean
+  requires_invite: boolean
+}
+
+/** All access-policy denial codes from the server */
+export const ACCESS_POLICY_ERROR_CODES: string[] = [
+  'LOGIN_LOCKED',
+  'LOGIN_ADMINS_ONLY',
+  'LOGIN_MEMBERS_ONLY',
+  'INVITE_REQUIRED',
+  'INVITE_INVALID',
+  'REGISTRATION_CLOSED',
+  'ACCOUNT_BLOCKED'
+]
+
 // ==================== SIWE ====================
 
 export interface SiweVerifyRequest {
   message: string
   signature: string
+  invite_token?: string
 }
 
 export interface SiweVerifyResponse {
@@ -126,6 +240,122 @@ export interface RefreshTokenResponse {
   refresh_token?: string
 }
 
+// ==================== Storage ====================
+
+/**
+ * Storage health check response
+ */
+export interface StorageHealthResponse {
+  ok: boolean
+  provider: string
+  message?: string
+}
+
+/**
+ * Storage configuration (limits and allowed types)
+ */
+export interface StorageConfig {
+  maxFileSize: number
+  maxTotalStorage: number
+  allowedMimeTypes: string[]
+  allowedExtensions: string[]
+}
+
+/**
+ * Request for presigned upload URL
+ */
+export interface PresignUploadRequest {
+  filename: string
+  folder?: string
+  contentType: string
+  fileSize?: number
+  /** Optional metadata to store with the file (e.g., workspaceName, userId) */
+  metadata?: Record<string, string>
+}
+
+/**
+ * Response with presigned upload URL
+ */
+export interface PresignUploadResponse {
+  url: string
+  headers: Record<string, string>
+  expiresAt: string
+  key: string
+}
+
+/**
+ * Request for presigned download URL
+ */
+export interface PresignDownloadRequest {
+  filename: string
+  folder?: string
+}
+
+/**
+ * Response with presigned download URL
+ */
+export interface PresignDownloadResponse {
+  url: string
+  expiresAt: string
+}
+
+/**
+ * File metadata stored in the system
+ */
+export interface StorageFile {
+  filename: string
+  folder: string
+  key: string
+  contentType: string
+  size: number
+  uploadedAt: string
+  lastModified: string
+  etag?: string
+  /** S3 object metadata (workspaceName, userId, etc.) */
+  metadata?: Record<string, string>
+}
+
+/**
+ * List of user's files
+ */
+export interface StorageFilesResponse {
+  files: StorageFile[]
+  totalSize: number
+  totalCount: number
+  nextCursor?: string
+}
+
+/**
+ * File list request options
+ */
+export interface StorageListOptions {
+  folder?: string
+  limit?: number
+  cursor?: string
+}
+
+/**
+ * Summary of a remote workspace
+ */
+export interface WorkspaceSummary {
+  id: string
+  backupCount: number
+  lastBackup: string | null
+  totalSize: number
+  /** Original workspace name from the most recent backup metadata */
+  workspaceName?: string
+  /** User ID who owns this remote workspace */
+  userId?: string
+  /** Names of local workspaces on this device that are linked to this remote ID */
+  localWorkspaceNames?: string[]
+}
+
+/**
+ * List of user's remote workspaces
+ */
+export interface WorkspacesResponse {
+  workspaces: WorkspaceSummary[]
+}
 // ==================== Permissions ====================
 
 export interface Permission {
@@ -136,8 +366,27 @@ export interface Permission {
   category?: string
 }
 
+export interface FeatureGroup {
+  name: string
+  display_name: string
+  description: string
+  priority: number
+  source_type: string
+  starts_at: string
+  expires_at: string | null
+  is_recurring: boolean
+  grant_reason: string | null
+  created_at: string
+}
+
 export interface PermissionsResponse {
-  features: Permission[]
+  user_id?: number
+  group_id?: number
+  is_authenticated?: boolean
+  is_blocked?: boolean
+  is_admin?: boolean
+  feature_groups?: FeatureGroup[]
+  features: Permission[] | Record<string, any>
 }
 
 export interface FeatureCheckRequest {
@@ -450,9 +699,15 @@ export interface FeatureAccessCheckResponse {
  * Action that will be performed when a token is redeemed
  */
 export interface InviteTokenAction {
-  type: 'add_to_feature_group' | 'grant_credits' | 'grant_product' | 'add_tag'
+  type: 'add_to_feature_group' | 'grant_credits' | 'grant_product' | 'add_tag' | 'walkthrough' | 'membership_request'
   description: string
   config?: Record<string, unknown>
+  walkthrough_slug?: string
+  auto_trigger?: boolean
+  /** membership_request action fields */
+  feature_group_id?: number
+  feature_group_name?: string
+  feature_group_display_name?: string
 }
 
 /**
@@ -470,13 +725,16 @@ export interface InviteTokenInfo {
  */
 export interface InviteValidateResponse {
   valid: boolean
+  token_id?: number
   name?: string
   description?: string
+  invite_type?: 'default' | 'beta_program' | 'request' | string
   expires_at?: string | null
   uses_remaining?: number | null
   already_redeemed?: boolean
   redeemed_at?: string | null
   actions?: InviteTokenAction[]
+  content?: any[]
   error?: string
   error_code?: 'NOT_FOUND' | 'INACTIVE' | 'EXPIRED' | 'NOT_STARTED' | 'EXHAUSTED' | 'MAX_USES_REACHED'
 }
@@ -546,5 +804,144 @@ export interface UserTag {
  */
 export interface UserTagsResponse {
   tags: UserTag[]
+}
+
+// ==================== Anonymous Membership Requests ====================
+
+export interface MembershipGroup {
+  id: number
+  name: string
+  display_name: string
+  description: string
+}
+
+export interface MembershipGroupsResponse {
+  groups: MembershipGroup[]
+}
+
+export interface MembershipSubmitRequest {
+  feature_group_id: number
+  nickname?: string
+  email?: string
+  comment?: string
+}
+
+export interface MembershipSubmitResponse {
+  claim_token: string
+  request_id: number
+}
+
+export interface MembershipStatusRequest {
+  id: number
+  status: 'pending' | 'approved' | 'rejected' | 'expired'
+  nickname: string | null
+  comment: string | null
+  resolution_note: string | null
+  created_at: string
+  resolved_at: string | null
+  feature_group_name: string
+  feature_group_display_name: string
+}
+
+export interface MembershipStatusResponse {
+  request: MembershipStatusRequest
+  notifications: NotificationItem[]
+}
+
+// ==================== E2E Test Account Pool ====================
+
+/**
+ * User info returned from pool checkout
+ */
+export interface PoolUser {
+  id: number
+  name: string
+  email: string
+  is_admin: boolean
+  group_id: number
+}
+
+/**
+ * Request body for POST /sso/test/pool/checkout
+ */
+export interface PoolCheckoutRequest {
+  featureGroups: string[]
+}
+
+/**
+ * Response from POST /sso/test/pool/checkout
+ */
+export interface PoolCheckoutResponse {
+  sessionId: string
+  accountId: string
+  userId: number
+  groupId: number
+  featureGroups: string[]
+  access_token: string
+  refresh_token: string
+  user: PoolUser
+}
+
+/**
+ * Cleanup details returned on pool release
+ */
+export interface PoolCleanupDetails {
+  db: { nonCascadeDeleted: number; accountGroupDeleted: boolean }
+  s3: { workspaceObjects: number; avatarObjects: number; walletObjects: number }
+  redis: { keysDeleted: number }
+}
+
+/**
+ * Response from POST /sso/test/pool/release
+ */
+export interface PoolReleaseResponse {
+  ok: boolean
+  accountId: string
+  cleaned: PoolCleanupDetails
+}
+
+/**
+ * A single account lock entry in pool status
+ */
+export interface PoolAccountStatus {
+  accountId: string
+  locked: boolean
+  sessionId?: string
+  lockedAt?: string
+  expiresAt?: string
+}
+
+/**
+ * Response from GET /sso/test/pool/status
+ */
+export interface PoolStatusResponse {
+  total: number
+  available: number
+  locked: number
+  accounts: PoolAccountStatus[]
+}
+
+/**
+ * A pool account definition
+ */
+export interface PoolAccountDefinition {
+  id: string
+  name: string
+  email: string
+}
+
+/**
+ * Response from GET /sso/test/pool/accounts
+ */
+export interface PoolAccountsResponse {
+  accounts: PoolAccountDefinition[]
+}
+
+/**
+ * Response from POST /sso/test/pool/release-all
+ */
+export interface PoolReleaseAllResponse {
+  ok: boolean
+  released: number
 }
 

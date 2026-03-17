@@ -13,7 +13,8 @@ const profile = {
     'waitForLoad', 'getQueueStatus', 'processPreInitQueue',
     'clearPreInitQueue', 'getDiagnostics',
     'reset', 'addMatomoListener', 'removeMatomoListener', 'getMatomoManager',
-    'shouldShowConsentDialog', 'getBotDetectionResult', 'isBot', 'getBotType', 'getBotConfidence'
+    'shouldShowConsentDialog', 'getBotDetectionResult', 'isBot', 'getBotType', 'getBotConfidence',
+    'updateFeatureGroups', 'clearFeatureGroups'
   ],
   events: ['matomo-initialized', 'matomo-consent-changed', 'matomo-mode-switched'],
   version: '1.0.0'
@@ -84,6 +85,24 @@ export class Matomo extends Plugin {
 
   setCustomDimension(id: number, value: string): void {
     return matomoManager.setCustomDimension(id, value)
+  }
+
+  // ================== FEATURE GROUPS TRACKING ==================
+
+  /**
+   * Update feature groups dimension with current user memberships
+   * Call after login or when feature groups change (plan upgrade, invite redemption)
+   * @param groupNames - Array of feature group names (e.g., ['beta', 'ai-unlimited'])
+   */
+  updateFeatureGroups(groupNames: string[]): void {
+    return matomoManager.updateFeatureGroups(groupNames)
+  }
+
+  /**
+   * Clear feature groups dimension (e.g., on logout)
+   */
+  clearFeatureGroups(): void {
+    return matomoManager.clearFeatureGroups()
   }
 
   // ================== STATE & STATUS ==================

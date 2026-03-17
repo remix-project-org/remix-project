@@ -131,7 +131,7 @@ export async function createRemixMCPServer(
     // }
   }
 
-  console.log("Initializing server")
+  console.log("Initializing Remix MCP server")
   await server.initialize();
 
   return server;

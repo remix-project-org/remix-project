@@ -1,13 +1,15 @@
 import React, {useEffect, useState, useContext} from 'react' // eslint-disable-line
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { PluginRecord } from '../types'
 import './panel.css'
 import { CustomTooltip, RenderIf, RenderIfNot } from '@remix-ui/helper'
 import { TrackingContext } from '@remix-ide/tracking'
 import { PluginPanelEvent } from '@remix-api'
+import { appActionTypes, AppContext } from '@remix-ui/app'
 
 export interface RemixPanelProps {
   plugins: Record<string, PluginRecord>,
+  sourcePlugin?: any
   pinView?: (profile: PluginRecord['profile'], view: PluginRecord['view']) => void,
   unPinView?: (profile: PluginRecord['profile']) => void,
   togglePanel?: () => void,
@@ -17,7 +19,10 @@ export interface RemixPanelProps {
 const RemixUIPanelHeader = (props: RemixPanelProps) => {
   const [plugin, setPlugin] = useState<PluginRecord>()
   const [toggleExpander, setToggleExpander] = useState<boolean>(false)
+  const [trackMaximize, setTrackMaximize] = useState<boolean>(false);
   const { trackMatomoEvent } = useContext(TrackingContext)
+  const appContext = useContext(AppContext)
+  const intl = useIntl()
 
   useEffect(() => {
     setToggleExpander(false)
@@ -61,12 +66,42 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
           <i className="far fa-copy fs-3"></i>
         </div>
         <div className="d-flex flex-column ms-4">
-          <h6>File Explorer</h6>
-          <div className="">Create and manage your files.</div>
+          <h6><FormattedMessage id="panel.fileExplorerTitle" /></h6>
+          <div className=""><FormattedMessage id="panel.fileExplorerDescription" /></div>
         </div>
       </section>
     )
   }
+
+  const RemixAiPanelHeading = () => {
+
+    return (
+      <section className="px-1 pt-2 pb-0 d-flex flex-row align-items-center">
+        <div className="bg-light rounded-4 p-3">
+          <i className="fa-kit fa-remixai fs-3"></i>
+        </div>
+        <div className="d-flex flex-column ms-4">
+          <h6><FormattedMessage id="panel.remixAiTitle" /></h6>
+          <div className=""><FormattedMessage id="panel.remixAiDescription" /></div>
+        </div>
+      </section>
+    )
+  }
+
+  useEffect(() => {
+    function handleMaximize() {
+      if (plugin?.profile.name.toLowerCase() === 'remixaiassistant') {
+        setTrackMaximize(props.isMaximized);
+        dispatchEvent(new CustomEvent('rightSidePanelMaximized', { detail: { isMaximized: props.isMaximized } }));
+      }
+    }
+
+    (props.sourcePlugin as any)?.on('rightSidePanel', 'rightSidePanelMaximized', handleMaximize);
+
+    return () => {
+      (props.sourcePlugin as any)?.off('rightSidePanel', 'rightSidePanelMaximized', handleMaximize);
+    }
+  }, [props.sourcePlugin, props.isMaximized, plugin?.profile.name, appContext])
 
   return (
     <header className="d-flex flex-column">
@@ -81,7 +116,7 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
                 <i className="text-success mt-1 px-1 fa-solid fa-shield-halved"></i>
               </CustomTooltip>) :
               plugin?.profile?.maintainedBy ?
-                (<CustomTooltip placement="auto" tooltipId={"maintainedByTooltip" + plugin?.profile?.maintainedBy} tooltipText={"Maintained by " + plugin?.profile?.maintainedBy}>
+                (<CustomTooltip placement="auto" tooltipId={"maintainedByTooltip" + plugin?.profile?.maintainedBy} tooltipText={intl.formatMessage({ id: 'panel.maintainedByLabel' }) + ' ' + plugin?.profile?.maintainedBy}>
                   <i aria-hidden="true" className="mt-1 px-1 text-secondary fa-solid fa-shield-halved"></i>
                 </CustomTooltip>)
                 : (<CustomTooltip placement="auto" tooltipId="maintainedByTooltipRemixUnknown" tooltipText={<FormattedMessage id="panel.maintainedExternally" />}>
@@ -105,7 +140,9 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
                           <div className="codicon codicon-layout-sidebar-left-dock ms-2 fs-6 fw-bold lh-1" style={{ marginTop: '2px' }}></div>
                         </CustomTooltip>
                       </div>
-                      <CustomTooltip placement="bottom-end" tooltipText={props.isMaximized ? "Minimize Panel" : "Maximize Panel"}>
+                      <CustomTooltip placement="bottom-end" tooltipText={props.isMaximized
+                        ? intl.formatMessage({ id: 'panel.minimizePanel' })
+                        : intl.formatMessage({ id: 'panel.maximizePanel' })}>
                         <div
                           className="codicon-screen-icon ms-2"
                           onClick={maximizePanelHandler}
@@ -114,7 +151,7 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
                           {props.isMaximized ? '\ueb4d' : '\ueb4c' /* Actual icons were not being rendered, so used unicode for codicon-screen-full & codicon-screen-normal icons*/ }
                         </div>
                       </CustomTooltip>
-                      <CustomTooltip placement="bottom-end" tooltipText="Hide Panel">
+                      <CustomTooltip placement="bottom-end" tooltipText={intl.formatMessage({ id: 'panel.hidePanel' })}>
                         <div
                           className="codicon codicon-close ms-2 fs-5 fw-bold"
                           onClick={togglePanelHandler}
@@ -123,7 +160,7 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
                       </CustomTooltip>
                     </>
                   </RenderIf>
-                  <RenderIfNot condition={plugin.pinned}>
+                  <RenderIfNot condition={plugin.pinned || plugin.profile.name === 'debugger'}>
                     <div className='d-flex' data-id="movePluginToRight" data-pinnedplugin={`movePluginToRight-${plugin.profile.name}`} onClick={pinPlugin}>
                       <CustomTooltip placement="auto-end" tooltipId="pinnedMsg" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="panel.pinnedMsg" />}>
                         <div className="codicon codicon-layout-sidebar-right-dock ms-2 fs-6 fw-bold lh-1" style={{ marginTop: '2px' }}></div>
@@ -145,7 +182,7 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
           {plugin?.profile?.maintainedBy && (
             <div className="d-flex align-items-center mb-3">
               <span className={`font-weight-bold ${plugin.profile.maintainedBy.toLowerCase() === 'remix' ? 'text-success' : ''}`}>
-                Maintained by {plugin.profile.maintainedBy}
+                <FormattedMessage id="panel.maintainedByLabel" /> {plugin.profile.maintainedBy}
               </span>
               <i className={`fa-solid fa-shield-halved ms-2 ${plugin.profile.maintainedBy.toLowerCase() === 'remix' ? 'text-success' : 'text-body-secondary'}`}></i>
             </div>

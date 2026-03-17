@@ -5,6 +5,7 @@ import { defaultFocusTemplateExplorer } from '../context/provider'
 export const ModalInitialState: ModalState = {
   modals: [],
   toasters: [],
+  actionNotifications: [],
   focusModal: {
     id: '',
     hide: true,

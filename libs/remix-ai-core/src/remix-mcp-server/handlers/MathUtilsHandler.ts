@@ -249,7 +249,7 @@ export function createMathUtilsTools(): RemixToolDefinition[] {
   return [
     {
       name: 'wei_to_ether',
-      description: 'Convert wei to ether',
+      description: 'Convert wei to ether. ALWAYS use this tool when you want to output an ETHER value knowing the WEI value.',
       inputSchema: new WeiToEtherHandler().inputSchema,
       category: ToolCategory.DEPLOYMENT,
       permissions: ['utils:convert'],
@@ -257,7 +257,7 @@ export function createMathUtilsTools(): RemixToolDefinition[] {
     },
     {
       name: 'ether_to_wei',
-      description: 'Convert ether to wei',
+      description: 'Convert ether to wei. ALWAYS use this tool when you want to output a WEI value knowing the ETHER value.',
       inputSchema: new EtherToWeiHandler().inputSchema,
       category: ToolCategory.DEPLOYMENT,
       permissions: ['utils:convert'],
@@ -265,7 +265,7 @@ export function createMathUtilsTools(): RemixToolDefinition[] {
     },
     {
       name: 'decimal_to_hex',
-      description: 'Convert decimal number to hexadecimal',
+      description: 'Convert decimal number to hexadecimal. ALWAYS use this tool when you want to output an hexadecimal value knowing the decimal value.',
       inputSchema: new DecimalToHexHandler().inputSchema,
       category: ToolCategory.DEPLOYMENT,
       permissions: ['utils:convert'],
@@ -273,7 +273,7 @@ export function createMathUtilsTools(): RemixToolDefinition[] {
     },
     {
       name: 'hex_to_decimal',
-      description: 'Convert hexadecimal to decimal number',
+      description: 'Convert hexadecimal to decimal number. ALWAYS use this tool when you want to output an decimal value knowing the hexadecimal value.',
       inputSchema: new HexToDecimalHandler().inputSchema,
       category: ToolCategory.DEPLOYMENT,
       permissions: ['utils:convert'],

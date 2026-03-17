@@ -71,7 +71,7 @@ const tests = {
       .clickLaunchIcon('filePanel')
       .pause(2000)
       .waitForElementVisible('*[data-id="workspacesSelect"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -98,9 +98,9 @@ const tests = {
   'open template that sets a config': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="workspacesSelect"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .click('*[data-id="workspacecreate"]')
-      // .click('*[data-id="workspacesSelect"]')
+      // .clickWorkspaceDropdown()
       .waitForElementVisible('*[data-id="template-card-simpleEip7702-2"]')
       .click('*[data-id="template-card-simpleEip7702-2"]')
       .click('*[data-id="validate-simpleEip7702workspace-button"]')

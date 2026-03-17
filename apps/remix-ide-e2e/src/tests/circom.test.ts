@@ -12,7 +12,7 @@ module.exports = {
   'Should create semaphore workspace template #group1 #group2 #group3 #group4': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -188,7 +188,7 @@ module.exports = {
   'Should create a new workspace using hash checker template #group5 #group6': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .click('*[data-id="workspacecreate"]')
       .waitForElementPresent('*[data-id="template-card-hashchecker-1"]')
       .click('*[data-id="template-card-hashchecker-1"]')

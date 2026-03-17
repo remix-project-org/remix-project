@@ -1,3 +1,7 @@
+/* ============================
+   Invite Overlay — swirl aesthetic
+   ============================ */
+
 .invite-overlay {
   position: fixed;
   top: 0;
@@ -9,152 +13,459 @@
   justify-content: center;
   align-items: center;
   z-index: 10000;
-  animation: fadeIn 0.2s ease-out;
+  animation: invite-fadeIn 0.2s ease-out;
 }
 
-@keyframes fadeIn {
+@keyframes invite-fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
-.invite-modal {
-  background: var(--custom-bg-color-1, #1e1e1e);
+@keyframes invite-slideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- dialog wrapper ---------- */
+
+.invite-modal-dialog {
+  max-width: 560px;
+  width: 92%;
+  animation: invite-slideUp 0.3s ease-out;
+}
+
+.invite-modal-dialog--wide {
+  max-width: 860px;
+}
+
+/* ---------- card (the visible box) ---------- */
+
+.invite-modal-card {
+  display: flex;
+  flex-direction: row;
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  max-width: 480px;
-  width: 90%;
-  max-height: 90vh;
   overflow: hidden;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  background: var(--custom-bg-color-1, #1e1e1e);
+}
+
+/* ---------- left swirl panel ---------- */
+
+.invite-modal-left {
+  width: 35%;
+  min-height: 360px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.invite-modal-success {
-  border: 2px solid var(--bs-success, #28a745);
-}
-
-.invite-modal-header {
-  display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--custom-border-color, rgba(255,255,255,0.1));
+  background-image: url('https://raw.githubusercontent.com/remix-project-org/remix-dynamics/refs/heads/live/images/illusion.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  flex-shrink: 0;
 }
 
-.invite-modal-header h3 {
+/* gradient overlays by type */
+
+.invite-modal-left-gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.invite-modal-left-gradient--beta {
+  background: linear-gradient(135deg, rgba(8, 18, 42, 0.92) 0%, rgba(10, 80, 100, 0.85) 50%, rgba(8, 18, 42, 0.92) 100%);
+}
+
+.invite-modal-left-gradient--default {
+  background: linear-gradient(135deg, rgba(12, 12, 36, 0.92) 0%, rgba(55, 48, 107, 0.85) 50%, rgba(12, 12, 36, 0.92) 100%);
+}
+
+.invite-modal-left-gradient--success {
+  background: linear-gradient(135deg, rgba(6, 28, 20, 0.92) 0%, rgba(10, 100, 70, 0.85) 50%, rgba(6, 28, 20, 0.92) 100%);
+}
+
+.invite-modal-left-gradient--error {
+  background: linear-gradient(135deg, rgba(36, 12, 12, 0.92) 0%, rgba(120, 30, 30, 0.85) 50%, rgba(36, 12, 12, 0.92) 100%);
+}
+
+.invite-modal-left-gradient--info {
+  background: linear-gradient(135deg, rgba(12, 20, 36, 0.92) 0%, rgba(40, 80, 140, 0.85) 50%, rgba(12, 20, 36, 0.92) 100%);
+}
+
+/* left content (sits above gradient) */
+
+.invite-modal-left-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.invite-modal-hero-icon {
+  font-size: 2.8rem;
+  color: #7dd3fc;
+  margin-bottom: 0.75rem;
+  filter: drop-shadow(0 4px 12px rgba(125, 211, 252, 0.3));
+}
+
+.invite-modal-hero-icon--success {
+  color: #86efac;
+  filter: drop-shadow(0 4px 12px rgba(134, 239, 172, 0.35));
+}
+
+.invite-modal-hero-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #e0fbfc;
+  margin: 0 0 0.35rem;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.invite-modal-hero-subtitle {
+  font-size: 0.82rem;
+  color: rgba(125, 211, 252, 0.8);
+  line-height: 1.45;
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
 }
 
-.invite-modal-close {
+/* ---------- right content panel ---------- */
+
+.invite-modal-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.invite-modal-right-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.15rem 1.35rem 0.85rem;
+  border-bottom: 1px solid var(--custom-border-color, rgba(255, 255, 255, 0.08));
+}
+
+.invite-modal-right-header h5 {
+  margin: 0 0 0.15rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.invite-modal-close-btn {
   background: none;
   border: none;
   color: var(--custom-text-color-muted, #888);
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 2px 4px;
   line-height: 1;
-  transition: color 0.15s ease;
+  transition: color 0.15s;
+  flex-shrink: 0;
 }
 
-.invite-modal-close:hover {
+.invite-modal-close-btn:hover {
   color: var(--custom-text-color, #fff);
 }
 
-.invite-modal-body {
-  padding: 1.5rem 1.25rem;
-  overflow-y: auto;
+.invite-modal-right-body {
   flex: 1;
+  padding: 1.15rem 1.35rem;
+  overflow-y: auto;
+  max-height: 65vh;
 }
 
-.invite-token-info h4 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--custom-text-color, #fff);
+.invite-modal-right-footer {
+  padding: 1rem 1.35rem;
+  border-top: 1px solid var(--custom-border-color, rgba(255, 255, 255, 0.08));
 }
 
-.invite-token-info p {
-  font-size: 0.95rem;
-  line-height: 1.5;
+/* ---------- section label ---------- */
+
+.invite-modal-section {
+  margin-bottom: 1.1rem;
 }
 
-.invite-meta .badge {
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 0.4em 0.8em;
-}
-
-.invite-benefits h5 {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--custom-text-color-muted, #888);
+.invite-modal-section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.07em;
+  color: var(--bs-secondary-color, #888);
+  margin-bottom: 0.65rem;
 }
 
-.invite-benefits ul li {
-  padding: 0.5rem 0;
-  font-size: 0.95rem;
+/* ---------- benefits list ---------- */
+
+.invite-modal-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
-.invite-applied-actions h5 {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--custom-text-color-muted, #888);
+.invite-modal-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.invite-modal-benefit-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+
+.invite-modal-benefit-dot--teal  { background: #0d9488; }
+.invite-modal-benefit-dot--cyan  { background: #06b6d4; }
+.invite-modal-benefit-dot--blue  { background: #3b82f6; }
+
+.invite-modal-benefits li div {
+  display: flex;
+  flex-direction: column;
+}
+
+.invite-modal-benefits li strong {
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.invite-modal-benefits li span {
+  font-size: 0.78rem;
+  color: var(--bs-secondary-color, #888);
+}
+
+/* ---------- perks grid (success state) ---------- */
+
+.invite-modal-perks-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.invite-modal-perk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bs-body-bg, #222336);
+  border: 1px solid var(--bs-border-color, #444);
+  font-size: 0.8rem;
+}
+
+.invite-modal-perk-icon {
+  color: #0a9396;
+  font-size: 0.75rem;
+  width: 18px;
+  text-align: center;
+}
+
+/* ---------- walkthrough CTA ---------- */
+
+.invite-modal-walkthrough-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  margin-top: 1rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.12) 0%, rgba(6, 182, 212, 0.10) 100%);
+  border: 1px solid rgba(13, 148, 136, 0.25);
+}
+
+.invite-modal-walkthrough-icon {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0d6e82, #0a9396);
+  color: white;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.invite-modal-walkthrough-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.invite-modal-walkthrough-text strong {
+  font-size: 0.85rem;
+  margin-bottom: 1px;
+}
+
+.invite-modal-walkthrough-text span {
+  font-size: 0.76rem;
+  color: var(--bs-secondary-color, #888);
+}
+
+/* ---------- meta badges ---------- */
+
+.invite-modal-meta {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   margin-bottom: 0.75rem;
 }
 
-.invite-applied-actions ul li {
-  padding: 0.35rem 0;
-}
-
-.invite-error-message {
-  text-align: center;
-  padding: 1.5rem 0;
-}
-
-.invite-error-message p {
-  font-size: 1rem;
-  color: var(--custom-text-color, #fff);
-  margin: 0;
-}
-
-.invite-modal-footer {
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--custom-border-color, rgba(255,255,255,0.1));
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-}
-
-.invite-modal-footer .btn-lg {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
+.invite-modal-meta-badge {
+  font-size: 0.72rem;
   font-weight: 500;
+  padding: 0.3em 0.7em;
+  border-radius: 6px;
+  background: var(--bs-body-bg, #222336);
+  border: 1px solid var(--bs-border-color, #444);
+  color: var(--bs-secondary-color, #aaa);
 }
 
-/* Light theme adjustments */
-[data-theme="light"] .invite-modal {
+/* ---------- error strip ---------- */
+
+.invite-modal-error {
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(220, 53, 69, 0.12);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  color: #f87171;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.invite-modal-error-text {
+  font-size: 0.95rem;
+  color: var(--custom-text-color, #e2e2e2);
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+/* ---------- muted helper ---------- */
+
+.invite-modal-muted {
+  font-size: 0.82rem;
+  color: var(--bs-secondary-color, #888);
+}
+
+/* ---------- success message ---------- */
+
+.invite-modal-success-message {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+/* ---------- buttons ---------- */
+
+.invite-modal-btn-primary {
+  background: linear-gradient(135deg, #0d9488, #0891b2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.invite-modal-btn-primary:hover {
+  background: linear-gradient(135deg, #0f766e, #0e7490);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
+}
+
+.invite-modal-btn-primary:disabled {
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.invite-modal-btn--glow {
+  box-shadow: 0 0 18px rgba(13, 148, 136, 0.25);
+}
+
+.invite-modal-btn--glow:hover {
+  box-shadow: 0 4px 24px rgba(13, 148, 136, 0.4);
+}
+
+.invite-modal-btn-secondary {
+  background: var(--bs-body-bg, #222336);
+  color: var(--bs-body-color, #a2a3bd);
+  border: 1px solid var(--bs-border-color, #444);
+  border-radius: 8px;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.invite-modal-btn-secondary:hover {
+  background: var(--bs-tertiary-bg, #2a2a40);
+  color: var(--bs-body-color, #ccc);
+}
+
+/* ---------- footer actions (two-button layout) ---------- */
+
+.invite-modal-footer-actions {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.invite-modal-footer-actions .invite-modal-btn-secondary {
+  flex: 0 0 auto;
+}
+
+.invite-modal-footer-actions .invite-modal-btn-primary {
+  flex: 1;
+}
+
+/* ---------- Light theme ---------- */
+
+[data-theme="light"] .invite-modal-card {
   background: var(--custom-bg-color-1, #ffffff);
 }
 
-[data-theme="light"] .invite-modal-header h3,
-[data-theme="light"] .invite-token-info h4,
-[data-theme="light"] .invite-error-message p {
+[data-theme="light"] .invite-modal-right-header h5 {
   color: var(--custom-text-color, #212529);
+}
+
+[data-theme="light"] .invite-modal-error-text {
+  color: var(--custom-text-color, #333);
+}
+
+[data-theme="light"] .invite-modal-close-btn {
+  color: #666;
+}
+
+[data-theme="light"] .invite-modal-close-btn:hover {
+  color: #222;
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 540px) {
+  .invite-modal-card {
+    flex-direction: column;
+  }
+
+  .invite-modal-left {
+    width: 100%;
+    min-height: 140px;
+  }
+
+  .invite-modal-right-body {
+    max-height: 55vh;
+  }
+
+  .invite-modal-dialog,
+  .invite-modal-dialog--wide {
+    max-width: 95%;
+  }
 }

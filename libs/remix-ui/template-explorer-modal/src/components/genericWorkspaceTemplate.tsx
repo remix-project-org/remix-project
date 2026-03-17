@@ -94,7 +94,7 @@ export function GenericWorkspaceTemplate() {
             </>
           </div>
 
-          <button className="btn btn-primary btn-sm mx-3" data-id={`validate-${state.workspaceTemplateChosen.value}workspace-button`} onClick={async () => {
+          <button className="btn btn-primary btn-sm mx-3" data-id={`validate-${state.workspaceTemplateChosen.value}workspace-button`} disabled={state.creating} onClick={async () => {
             await facade.createWorkspace({
               workspaceName: uniqueWorkspaceName,
               workspaceTemplateName: state.workspaceTemplateChosen.value,
@@ -107,7 +107,7 @@ export function GenericWorkspaceTemplate() {
             })
             trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithGenericTemplate', name: state.workspaceTemplateChosen.value, isClick: true })
             facade.closeWizard()
-          }}>Finish</button>
+          }}>{state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : 'Finish'}</button>
         </div>
         <div className="overflow-y-auto" style={{ maxHeight: '70%' }}>
           {readMe?.readMe && (

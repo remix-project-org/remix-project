@@ -1,0 +1,137 @@
+.deployed-contracts-container {
+  margin-top: 0.5rem;
+}
+
+.deployed-contracts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--secondary);
+}
+
+.deployed-contracts-badge {
+  margin-left: 0.5rem;
+}
+
+.deployed-contracts-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.deployed-contract-item {
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--secondary);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  background-color: var(--custom-onsurface-layer-2);
+}
+
+.deployed-contract-item:hover {
+  background-color: var(--secondary);
+}
+
+.deployed-contract-item.pinned {
+  border-left: 3px solid var(--primary);
+}
+
+.deployed-contract-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.deployed-contract-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.deployed-contract-address {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.deployed-contract-network {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.empty-state-text {
+  margin-bottom: 1rem;
+}
+
+.add-contract-input {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+/* Custom scrollbar for function list */
+.deployed-contract-item ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.deployed-contract-item ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.deployed-contract-item ::-webkit-scrollbar-thumb {
+  background: var(--custom-onsurface-layer-3);
+  border-radius: 3px;
+}
+
+.deployed-contract-item ::-webkit-scrollbar-thumb:hover {
+  background: var(--bs-border-color);
+}
+
+@keyframes contractHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(100, 196, 255, 0.7);
+    border: 2px solid rgba(100, 196, 255, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 20px 10px rgba(100, 196, 255, 0.4);
+    border: 2px solid rgba(100, 196, 255, 1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(100, 196, 255, 0);
+    border: 2px solid transparent;
+  }
+}
+
+.contract-highlight-animation {
+  animation: contractHighlight 2s ease-in-out;
+}
+
+@keyframes buttonShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-4px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes buttonGlow {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(100, 196, 255, 0.6);
+  }
+}
+
+.floating-scroll-button {
+  animation: buttonShake 0.6s ease-in-out 0s 1, buttonGlow 2s ease-in-out infinite;
+}
+
+.floating-scroll-button:hover {
+  animation: none;
+  box-shadow: 0 6px 16px rgba(100, 196, 255, 0.8) !important;
+}

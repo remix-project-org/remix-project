@@ -35,9 +35,14 @@ export class TemplateExplorerModalFacade {
       })
       return
     }
-    const { workspaceName, workspaceTemplateName, opts, isEmpty, cb, isGitRepo, createCommit, contractContent, contractName } = deps
-    await createWorkspace(workspaceName, workspaceTemplateName, opts, isEmpty, cb, isGitRepo, createCommit, contractContent, contractName)
-    this.plugin.emit('createWorkspaceReducerEvent', workspaceName, workspaceTemplateName, opts, false, cb, isGitRepo)
+    this.dispatch({ type: TemplateExplorerWizardAction.SET_CREATING, payload: true })
+    try {
+      const { workspaceName, workspaceTemplateName, opts, isEmpty, cb, isGitRepo, createCommit, contractContent, contractName } = deps
+      await createWorkspace(workspaceName, workspaceTemplateName, opts, isEmpty, cb, isGitRepo, createCommit, contractContent, contractName)
+      this.plugin.emit('createWorkspaceReducerEvent', workspaceName, workspaceTemplateName, opts, false, cb, isGitRepo)
+    } finally {
+      this.dispatch({ type: TemplateExplorerWizardAction.SET_CREATING, payload: false })
+    }
   }
 
   getUniqueWorkspaceName() {

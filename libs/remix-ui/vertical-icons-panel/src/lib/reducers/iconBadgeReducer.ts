@@ -20,7 +20,10 @@ function setIconStatus(name: string, status: IconStatus) {
   if (typeof status.key === 'number') {
     key = status.key
     text = key
-  } else key = checkSpecialChars(status.key) ? bleach.sanitize(status.key) : status.key
+  } else {
+    key = checkSpecialChars(status.key) ? bleach.sanitize(status.key) : status.key
+    text = '' // String keys don't display text in the badge, just the icon
+  }
 
   let thisType: IconStatus['type']
   if (status.type === 'error') {

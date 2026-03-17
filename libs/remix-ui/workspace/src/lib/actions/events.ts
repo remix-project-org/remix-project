@@ -102,6 +102,7 @@ export const listenOnProviderEvents = (provider) => (reducerDispatch: React.Disp
 
   provider.event.on('folderAdded', (folderPath: string) => {
     if (folderPath.indexOf('/.workspaces') === 0) return
+    if (folderPath.indexOf('/.cloud-workspaces') === 0) return
     folderAdded(folderPath)
   })
 

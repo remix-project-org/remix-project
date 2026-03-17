@@ -131,7 +131,6 @@ export class RemoteInferencer implements ICompletions, IGeneration {
         if (done) break;
 
         try {
-          console.log("value" + decoder.decode(value))
           const chunk = parser.safeJsonParse<{ generatedText: string; isGenerating: boolean }>(decoder.decode(value, { stream: true }));
           for (const parsedData of chunk) {
             if (parsedData.isGenerating) {

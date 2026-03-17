@@ -6,6 +6,7 @@ import {Toaster} from '@remix-ui/toaster' // eslint-disable-line
 import { FileSystemContext } from '../contexts'
 import { browserReducer, browserInitialState } from '../reducers/workspace'
 import { branch } from '@remix-ui/git'
+import { CloudProvider } from '../cloud/cloud-context'
 import {
   initWorkspace,
   fetchDirectory,
@@ -413,16 +414,18 @@ export const FileSystemProvider = (props: WorkspaceProps) => {
     theme
   }
   return (
-    <FileSystemContext.Provider value={value}>
-      {fs.initializingFS && (
-        <div className="text-center py-5">
-          <i className="fas fa-spinner fa-pulse fa-2x"></i>
-        </div>
-      )}
-      {!fs.initializingFS && <Workspace />}
-      <ModalDialog id="fileSystem" {...focusModal} handleHide={handleHideModal} />
-      <Toaster message={focusToaster} handleHide={handleToaster} />
-    </FileSystemContext.Provider>
+    <CloudProvider plugin={plugin}>
+      <FileSystemContext.Provider value={value}>
+        {fs.initializingFS && (
+          <div className="text-center py-5">
+            <i className="fas fa-spinner fa-pulse fa-2x"></i>
+          </div>
+        )}
+        {!fs.initializingFS && <Workspace />}
+        <ModalDialog id="fileSystem" {...focusModal} handleHide={handleHideModal} />
+        <Toaster message={focusToaster} handleHide={handleToaster} />
+      </FileSystemContext.Provider>
+    </CloudProvider>
   )
 }
 

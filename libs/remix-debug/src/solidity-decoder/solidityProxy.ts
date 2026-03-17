@@ -2,7 +2,7 @@
 import { util } from '@remix-project/remix-lib'
 import { isContractCreation } from '../trace/traceHelper'
 import { extractStateVariables } from './stateDecoder'
-import { extractContractDefinitions, extractStatesDefinitions } from './helpers/astHelper'
+import { extractContractDefinitions, extractStatesDefinitions, getLinearizedBaseContracts } from './helpers/astHelper'
 import type { CompilerAbstract } from '@remix-project/remix-solidity'
 
 export class SolidityProxy {
@@ -76,6 +76,13 @@ export class SolidityProxy {
       this.cache.statesDefinitions[address] = extractStatesDefinitions(compilationResult.data.sources, this.cache.contractDeclarations[address])
     }
     return this.cache.statesDefinitions[address]
+  }
+
+  async getLinearizedBaseContracts(address: string, id: number) {
+    const compilationResult = await this.compilationResult(address)
+    if (!compilationResult || !compilationResult.data) return null
+    this.extractStatesDefinitions(address)
+    return getLinearizedBaseContracts(id, this.cache.contractDeclarations[address].contractsById)
   }
 
   /**

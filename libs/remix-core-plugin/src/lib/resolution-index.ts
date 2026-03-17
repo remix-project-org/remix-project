@@ -215,20 +215,20 @@ export class ResolutionIndexPlugin extends Plugin {
       // Find matching source in __sources__
       let resolvedPath: string | null = null
       if (sources[requestedPath]) {
-        console.log('[ResolutionIndexPlugin]   ✅ Found requestedPath in sources')
-        console.log('[ResolutionIndexPlugin]   📄 Source entry:', JSON.stringify(sources[requestedPath], null, 2))
+        this.log('[ResolutionIndexPlugin]   ✅ Found requestedPath in sources')
+        this.log('[ResolutionIndexPlugin]   📄 Source entry:', JSON.stringify(sources[requestedPath], null, 2))
         if (sources[requestedPath].file) {
           resolvedPath = sources[requestedPath].file
-          console.log('[ResolutionIndexPlugin]   📍 Extracted resolved path:', resolvedPath)
+          this.log('[ResolutionIndexPlugin]   📍 Extracted resolved path:', resolvedPath)
         } else {
-          console.log('[ResolutionIndexPlugin]   ⚠️  Source entry has no .file property')
+          this.log('[ResolutionIndexPlugin]   ⚠️  Source entry has no .file property')
         }
       } else {
-        console.log('[ResolutionIndexPlugin]   ⚠️  requestedPath NOT found in sources')
+        this.log('[ResolutionIndexPlugin]   ⚠️  requestedPath NOT found in sources')
       }
 
       if (!resolvedPath) {
-        console.log('[ResolutionIndexPlugin]   ❌ No match in __sources__ for:', requestedPath)
+        this.log('[ResolutionIndexPlugin]   ❌ No match in __sources__ for:', requestedPath)
         return null
       }
 

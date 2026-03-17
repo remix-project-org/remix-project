@@ -17,7 +17,7 @@ contract ResourceTest {
 module.exports = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    init(browser, done, 'http://127.0.0.1:8080/#experimental=true', true, undefined, true, true)
+    init(browser, done)
   },
 
   'Setup: Clear any existing file permissions': function (browser: NightwatchBrowser) {
@@ -833,50 +833,4 @@ module.exports = {
       });
   },
 
-  /**
-   * AMP RESOURCE PROVIDER TESTS
-   */
-  'Should test amp://examples resource': function (browser: NightwatchBrowser) {
-    browser
-      .executeAsync(function (done) {
-        const aiPlugin = (window as any).getRemixAIPlugin;
-        if (!aiPlugin?.remixMCPServer) {
-          done({ error: 'RemixMCPServer not available' });
-          return;
-        }
-
-        aiPlugin.remixMCPServer.handleMessage({
-          method: 'resources/read',
-          params: {
-            uri: 'amp://examples'
-          },
-          id: 'test-amp-examples'
-        }).then(function (result) {
-          const resourceData = result.result;
-          let examplesData = null;
-          if (resourceData?.text) {
-            try {
-              examplesData = JSON.parse(resourceData.text);
-            } catch (e) {
-              examplesData = resourceData.text;
-            }
-          }
-
-          done({
-            success: !result.error,
-            hasExamples: !!examplesData,
-            hasExamplesList: !!examplesData?.examples
-          });
-        }).catch(function (error) {
-          done({ error: error.message });
-        });
-      }, [], function (result) {
-        const data = result.value as any;
-        if (data.error) {
-          console.error('AMP examples resource error:', data.error);
-          return;
-        }
-        browser.assert.ok(data.success, 'Should read AMP examples resource');
-      });
-  }
 };

@@ -54,6 +54,7 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
       );
 
       // Add trace cache resource
+      /*
       resources.push(
         this.createResource(
           'debug://trace-cache',
@@ -66,9 +67,9 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
             priority: 8
           }
         )
-      );
+      );*/
 
-      // Add trace cache resource
+      // Add current-debugging-step
       resources.push(
         this.createResource(
           'debug://current-debugging-step',
@@ -99,9 +100,9 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
       return this.getGlobalContext(plugin);
     }
 
-    if (uri === 'debug://trace-cache') {
+    /* if (uri === 'debug://trace-cache') {
       return this.getTraceCache(plugin);
-    }
+    } */
 
     if (uri === 'debug://current-debugging-step') {
       return this.getCurrentSourceLocation(plugin);
@@ -118,6 +119,12 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
     try {
 
       const result = await plugin.call('debugger', 'getCurrentSourceLocation')
+      if (!result) {
+        return this.createTextContent(
+          'debug://current-debugging-step',
+          'current source location is not available. There is no debug session going on.'
+        );
+      }
       const stack = await plugin.call('debugger', 'getStackAt', result.step)
       if (!result) {
         return this.createTextContent(
@@ -125,7 +132,6 @@ export class DebuggingResourceProvider extends BaseResourceProvider {
           'current source location is not available. There is no debug session going on.'
         );
       }
-      console.log('current-debugging-step', result)
       return this.createJsonContent('debug://current-debugging-step', {
         success: true,
         description: 'Current source code highlighted in the editor in the debug session and the corresponding stack.',

@@ -1,0 +1,325 @@
+/* ============================
+   Membership Request Overlay
+   Form-specific styles (reuses invite-modal-* from invite-overlay.css)
+   ============================ */
+
+.membership-form-group {
+  margin-bottom: 0.85rem;
+}
+
+.membership-form-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--bs-body-color, #ccc);
+  margin-bottom: 0.3rem;
+}
+
+.membership-form-input,
+.membership-form-textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--bs-border-color, #444);
+  background: var(--bs-body-bg, #222336);
+  color: var(--bs-body-color, #e2e2e2);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.membership-form-input:focus,
+.membership-form-textarea:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+}
+
+.membership-form-input::placeholder,
+.membership-form-textarea::placeholder {
+  color: var(--bs-secondary-color, #666);
+}
+
+.membership-form-textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.membership-form-hint {
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color, #888);
+  margin-top: 0.2rem;
+}
+
+/* "Already a beta user?" callout */
+
+.membership-already-member {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, rgba(6, 182, 212, 0.06) 100%);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  font-size: 0.82rem;
+  color: var(--bs-body-color, #ccc);
+}
+
+.membership-already-member-link {
+  color: #7dd3fc;
+  cursor: pointer;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.membership-already-member-link:hover {
+  color: #bae6fd;
+}
+
+/* Pending status card */
+
+.membership-pending-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.membership-pending-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.membership-pending-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.membership-pending-text strong {
+  font-size: 0.85rem;
+  margin-bottom: 1px;
+}
+
+.membership-pending-text span {
+  font-size: 0.76rem;
+  color: var(--bs-secondary-color, #888);
+}
+
+/* Light theme */
+
+[data-theme="light"] .membership-form-input,
+[data-theme="light"] .membership-form-textarea {
+  background: var(--bs-body-bg, #fff);
+  color: var(--bs-body-color, #333);
+}
+
+/* ============================
+   Survey Components
+   ============================ */
+
+/* Step indicator on the left panel */
+
+.survey-step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-top: 1.25rem;
+}
+
+.survey-step-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 2px solid rgba(125, 211, 252, 0.3);
+  color: rgba(125, 211, 252, 0.4);
+  transition: all 0.25s;
+}
+
+.survey-step-dot--active {
+  background: rgba(13, 148, 136, 0.6);
+  border-color: #7dd3fc;
+  color: #e0fbfc;
+}
+
+.survey-step-line {
+  width: 28px;
+  height: 2px;
+  background: rgba(125, 211, 252, 0.2);
+}
+
+/* Chip grid (multi-select buttons) */
+
+.survey-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.survey-chip {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border-radius: 20px;
+  border: 1px solid var(--bs-border-color, #444);
+  background: var(--bs-body-bg, #222336);
+  color: var(--bs-body-color, #ccc);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.survey-chip:hover {
+  border-color: #0d9488;
+  color: #7dd3fc;
+}
+
+.survey-chip--selected {
+  background: rgba(13, 148, 136, 0.2);
+  border-color: #0d9488;
+  color: #7dd3fc;
+  box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.3);
+}
+
+/* Radio list */
+
+.survey-radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.survey-radio-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--bs-body-color, #ccc);
+}
+
+.survey-radio-item:hover {
+  background: rgba(13, 148, 136, 0.06);
+}
+
+.survey-radio-item--selected {
+  background: rgba(13, 148, 136, 0.1);
+  border-color: rgba(13, 148, 136, 0.25);
+}
+
+.survey-radio-item input[type="radio"] {
+  accent-color: #0d9488;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Checkbox list (for multi-select questions) */
+
+.survey-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.survey-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--bs-body-color, #ccc);
+}
+
+.survey-checkbox-item:hover {
+  background: rgba(13, 148, 136, 0.06);
+}
+
+.survey-checkbox-item--selected {
+  background: rgba(13, 148, 136, 0.1);
+  border-color: rgba(13, 148, 136, 0.25);
+}
+
+.survey-checkbox-input {
+  accent-color: #0d9488;
+  margin: 0;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+}
+
+/* Consent box */
+
+.survey-consent-box {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(13, 148, 136, 0.06);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+}
+
+.survey-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.78rem;
+  color: var(--bs-body-color, #ccc);
+  cursor: pointer;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.survey-consent-checkbox {
+  accent-color: #0d9488;
+  margin-top: 2px;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+/* Light theme survey overrides */
+
+[data-theme="light"] .survey-chip {
+  background: var(--bs-body-bg, #f8f9fa);
+  color: var(--bs-body-color, #333);
+}
+
+[data-theme="light"] .survey-chip--selected {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0d6e82;
+}
+
+[data-theme="light"] .survey-radio-item--selected {
+  background: rgba(13, 148, 136, 0.06);
+}
+
+[data-theme="light"] .survey-checkbox-item--selected {
+  background: rgba(13, 148, 136, 0.06);
+}

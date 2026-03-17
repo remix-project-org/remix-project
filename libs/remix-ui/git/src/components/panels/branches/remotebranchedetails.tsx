@@ -11,6 +11,7 @@ import { CommitDetailsItems } from "../commits/commitdetailsitem";
 import { CommitDetails } from "../commits/commitdetails";
 import GitUIButton from "../../buttons/gituibutton";
 import { TrackingContext } from "@remix-ide/tracking";
+import { FormattedMessage } from "react-intl";
 
 export interface BrancheDetailsProps {
   branch: branch;
@@ -118,7 +119,7 @@ export const RemoteBranchDetails = (props: BrancheDetailsProps) => {
           })}
 
         </div>
-        {hasNextPage && <GitUIButton data-id='load-more-remote-branches' className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}>Load more</GitUIButton>}
+        {hasNextPage && <GitUIButton data-id='load-more-remote-branches' className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
       </>
     </Accordion.Collapse>
   </Accordion>)

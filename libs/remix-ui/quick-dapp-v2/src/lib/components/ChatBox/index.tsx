@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Form, Button, Card } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
 import './ChatBox.css';
 import { trackMatomoEvent } from '@remix-api'
+import { AppContext } from '../../contexts';
 
 interface Message {
   id: string;
@@ -19,6 +20,7 @@ interface ChatBoxProps {
 
 const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
   const intl = useIntl();
+  const { plugin } = useContext(AppContext);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -39,7 +41,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
       const file = e.target.files[0];
 
       if (file.size > 4 * 1024 * 1024) {
-        alert("Image size should be less than 4MB");
+        try { plugin.call('notification', 'toast', 'Image size should be less than 4MB'); } catch (_) {}
         return;
       }
 
@@ -60,7 +62,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() && !selectedImage || isLoading) return;
 
-    trackMatomoEvent(this, {
+    trackMatomoEvent(plugin as any, {
       category: 'quick-dapp-v2',
       action: 'update',
       name: 'chat_request',
@@ -126,6 +128,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
             onClick={() => fileInputRef.current?.click()}
             title="Attach image (Screenshot, Mockup)"
             disabled={isLoading}
+            data-id="chat-attach-btn"
           >
             <i className="fas fa-paperclip"></i>
           </Button>
@@ -143,6 +146,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
             disabled={isLoading}
             className="chat-input flex-grow-1 mx-2"
             style={{ resize: 'none' }}
+            data-id="chat-input"
           />
 
           <Button
@@ -150,6 +154,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
             onClick={handleSendMessage}
             disabled={(!inputMessage.trim() && !selectedImage) || isLoading}
             className="send-button"
+            data-id="chat-send-btn"
           >
             <FormattedMessage id="quickDapp.send" defaultMessage="Send" />
           </Button>

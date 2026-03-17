@@ -24,8 +24,7 @@ export class MCPConfigManager {
 
             // Handle empty or whitespace-only files
             if (!configContent || configContent.trim() === '') {
-              console.log('[MCPConfigManager] Config file saved as empty, writing default config');
-              await this.saveConfig(minimalMCPConfig);
+              await this.saveConfigWithWorkspaceCheck(minimalMCPConfig);
               return;
             }
 
@@ -33,16 +32,14 @@ export class MCPConfigManager {
             if (userConfig.mcp) {
               // Merge with defaults to preserve any new default settings
               this.config = this.mergeConfig(defaultMCPConfig, userConfig.mcp);
-              console.log('[MCPConfigManager] Config reloaded from file save');
             } else {
-              console.log('[MCPConfigManager] No mcp config in saved file, writing default');
-              await this.saveConfig(minimalMCPConfig);
+              await this.saveConfigWithWorkspaceCheck(minimalMCPConfig);
             }
           } catch (error) {
             console.error('[MCPConfigManager] Error reloading config on file save:', error);
             // If there's an error, write the default config
             try {
-              await this.saveConfig(minimalMCPConfig);
+              await this.saveConfigWithWorkspaceCheck(minimalMCPConfig);
             } catch (saveError) {
               console.error('[MCPConfigManager] Error writing default config:', saveError);
             }
@@ -54,6 +51,7 @@ export class MCPConfigManager {
 
   async loadConfig(): Promise<MCPConfig> {
     try {
+      await this.waitForWorkspace();
       const exists = await this.plugin.call('fileManager', 'exists', this.configPath);
 
       if (exists) {
@@ -61,7 +59,6 @@ export class MCPConfigManager {
 
         // Handle empty or whitespace-only files
         if (!configContent || configContent.trim() === '') {
-          console.log('[MCPConfigManager] Config file is empty, creating default');
           this.config = minimalMCPConfig;
           await this.saveConfig(this.config);
           return this.config;
@@ -73,7 +70,6 @@ export class MCPConfigManager {
           // Merge with defaults
           if (userConfig?.mcp) {
             this.config = this.mergeConfig(defaultMCPConfig, userConfig.mcp);
-            console.log('[MCPConfigManager] Config loaded from file:', this.configPath);
 
             // Validate fileWritePermissions mode
             if (this.config.security.fileWritePermissions?.mode) {
@@ -84,7 +80,6 @@ export class MCPConfigManager {
               }
             }
           } else {
-            console.log('[MCPConfigManager] No mcp config in file, creating default');
             this.config = minimalMCPConfig;
             await this.saveConfig(this.config);
           }
@@ -94,7 +89,6 @@ export class MCPConfigManager {
           await this.saveConfig(this.config);
         }
       } else {
-        console.log('[MCPConfigManager] Config file does not exist, creating default');
         this.config = minimalMCPConfig;
         await this.saveConfig(this.config);
       }
@@ -105,6 +99,42 @@ export class MCPConfigManager {
       this.config = defaultMCPConfig;
       return this.config;
     }
+  }
+
+  private async isWorkspaceReady(): Promise<boolean> {
+    try {
+      const workspace = await this.plugin.call('filePanel', 'getCurrentWorkspace');
+      return workspace && workspace.name.trim() !== '';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private async waitForWorkspace(): Promise<boolean> {
+    if (await this.isWorkspaceReady()) {
+      return true;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const checkAndResolve = async () => {
+        if (await this.isWorkspaceReady()) {
+          resolve(true);
+        }
+      };
+
+      this.plugin.once('filePanel', 'setWorkspace', checkAndResolve);
+    });
+  }
+
+  async saveConfigWithWorkspaceCheck(config: MCPConfig): Promise<void> {
+    const workspaceReady = await this.waitForWorkspace();
+
+    if (!workspaceReady) {
+      this.config = config;
+      return;
+    }
+
+    await this.saveConfig(config);
   }
 
   async saveConfig(config: MCPConfig): Promise<void> {
@@ -120,8 +150,6 @@ export class MCPConfigManager {
           if (remixConfig && remixConfig.trim() !== '') {
             userConfig = JSON.parse(remixConfig);
           } else {
-            // File exists but is empty, start with empty object
-            console.log('[MCPConfigManager] Existing config file is empty, starting fresh');
             userConfig = {};
           }
         } catch (parseError) {
@@ -135,7 +163,6 @@ export class MCPConfigManager {
       const newConfigContent = JSON.stringify(userConfig, null, 2);
       await this.plugin.call('fileManager', 'writeFile', this.configPath, newConfigContent);
       this.config = config;
-      console.log('[MCPConfigManager] Config saved successfully');
     } catch (error) {
       console.error(`[MCPConfigManager] Error saving config: ${error.message}`);
       throw error;
@@ -147,12 +174,10 @@ export class MCPConfigManager {
 
       const exists = await this.plugin.call('fileManager', 'exists', this.configPath);
       if (exists) {
-        console.log('[MCPConfigManager] Config file already exists, skipping creation');
         return;
       }
 
-      await this.saveConfig(defaultMCPConfig);
-      console.log('[MCPConfigManager] Default config file created');
+      await this.saveConfigWithWorkspaceCheck(defaultMCPConfig);
     } catch (error) {
       console.error(`[MCPConfigManager] Error creating default config: ${error.message}`);
       throw error;
@@ -179,14 +204,13 @@ export class MCPConfigManager {
     const permissions = this.config.security.fileWritePermissions || {
       mode: 'ask' as const,
       allowedFiles: [],
-      lastPrompted: null
+      lastPrompted: undefined
     };
     return permissions;
   }
 
   updateConfig(partialConfig: Partial<MCPConfig>): void {
     this.config = this.mergeConfig(this.config, partialConfig);
-    console.log('[MCPConfigManager] Config updated at runtime');
   }
 
   async setFileWritePermission(
@@ -199,7 +223,7 @@ export class MCPConfigManager {
       config.security.fileWritePermissions = {
         mode: 'ask',
         allowedFiles: [],
-        lastPrompted: null
+        lastPrompted: undefined
       };
     }
 
@@ -207,14 +231,13 @@ export class MCPConfigManager {
     perms.mode = mode;
     perms.lastPrompted = new Date().toISOString();
 
-    if (mode === 'allow-specific' && filePath) {
+    if (mode === 'allow-specific' && filePath && perms.allowedFiles) {
       if (!perms.allowedFiles.includes(filePath)) {
         perms.allowedFiles.push(filePath);
       }
     }
 
     await this.saveConfig(config);
-    console.log(`[MCPConfigManager] File write permission updated: ${mode}${filePath ? ` for ${filePath}` : ''}`);
   }
 
   isToolAllowed(toolName: string): boolean {

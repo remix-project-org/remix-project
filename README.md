@@ -12,7 +12,7 @@
 [![GitHub contributors](https://img.shields.io/github/contributors/remix-project-org/remix-project?style=flat&logo=github)](https://github.com/remix-project-org/remix-project/graphs/contributors)
 [![Awesome Remix](https://img.shields.io/badge/Awesome--Remix-resources-green?logo=awesomelists)](https://github.com/remix-project-org/awesome-remix)
 [![GitHub](https://img.shields.io/github/license/remix-project-org/remix-project)](https://github.com/remix-project-org/remix-project/blob/master/LICENSE)
-[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/qhpCQGWkmf)
+[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/9bw6pMWEAw)
 [![X Follow](https://img.shields.io/twitter/follow/ethereumremix?style=flat&logo=x&color=green)](https://x.com/ethereumremix)
 
 </div>
@@ -274,7 +274,7 @@ parameters:
 - Official website: https://remix.live
 - Official documentation: https://remix-ide.readthedocs.io/en/latest/
 - Curated list of Remix resources: https://github.com/remix-project-org/awesome-remix
-- Medium: https://medium.com/remix-ide
+- Substack: https://ethereumremix.substack.com
 - Linkedin: https://www.linkedin.com/company/ethereum-remix
 - X: https://x.com/ethereumremix
-- Join Discord: https://discord.gg/qhpCQGWkmf
+- Join Discord: https://discord.gg/9bw6pMWEAw

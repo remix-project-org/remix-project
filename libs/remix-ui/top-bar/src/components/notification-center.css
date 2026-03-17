@@ -217,6 +217,14 @@
   opacity: 0.85;
 }
 
+.notification-action-invitation {
+  background: var(--bs-success, #27ae60);
+}
+
+.notification-action-feedback_form {
+  background: var(--bs-info, #17a2b8);
+}
+
 .notification-dismiss-btn {
   background: none;
   border: none;

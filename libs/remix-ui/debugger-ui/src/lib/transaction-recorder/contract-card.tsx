@@ -1,5 +1,5 @@
 import React, { useState } from 'react' // eslint-disable-line
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { ContractDeployment, ContractInteraction } from './types'
 import { CustomTooltip } from '@remix-ui/helper'
 import './contract-card.css'
@@ -11,8 +11,9 @@ interface ContractCardProps {
 }
 
 export const ContractCard = ({ deployment, transactions, onDebugTransaction }: ContractCardProps) => {
+  const intl = useIntl()
   const [isExpanded, setIsExpanded] = useState(true)
-  const [copyTooltip, setCopyTooltip] = useState('Copy Address')
+  const [copyTooltip, setCopyTooltip] = useState(intl.formatMessage({ id: 'debugger.copyAddress' }))
   const [copyTxTooltips, setCopyTxTooltips] = useState<{ [key: number]: string }>({})
   console.log('transactions--->', transactions)
 
@@ -23,23 +24,23 @@ export const ContractCard = ({ deployment, transactions, onDebugTransaction }: C
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-    setCopyTooltip('Copied')
+    setCopyTooltip(intl.formatMessage({ id: 'debugger.copied' }))
   }
 
   const resetTooltip = () => {
     setTimeout(() => {
-      setCopyTooltip('Copy Address')
+      setCopyTooltip(intl.formatMessage({ id: 'debugger.copyAddress' }))
     }, 500)
   }
 
   const copyTxHashToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text)
-    setCopyTxTooltips(prev => ({ ...prev, [index]: 'Copied' }))
+    setCopyTxTooltips(prev => ({ ...prev, [index]: intl.formatMessage({ id: 'debugger.copied' }) }))
   }
 
   const resetTxTooltip = (index: number) => {
     setTimeout(() => {
-      setCopyTxTooltips(prev => ({ ...prev, [index]: 'Copy Hash' }))
+      setCopyTxTooltips(prev => ({ ...prev, [index]: intl.formatMessage({ id: 'debugger.copyHash' }) }))
     }, 500)
   }
 
@@ -86,9 +87,9 @@ export const ContractCard = ({ deployment, transactions, onDebugTransaction }: C
         </div>
         <div className="contract-card-meta">
           <span className="badge bg-primary contract-card-count">
-            {transactions.length} {transactions.length === 1 ? 'transaction' : 'transactions'}
+            {transactions.length} {transactions.length === 1 ? <FormattedMessage id="debugger.contractCardTransaction" /> : <FormattedMessage id="debugger.contractCardTransactions" />}
           </span>
-          <span className="contract-card-deployed">Deployed {formatRelativeTime(deployment.timestamp)}</span>
+          <span className="contract-card-deployed"><FormattedMessage id="debugger.contractCardDeployed" values={{ relativeTime: formatRelativeTime(deployment.timestamp) }} /></span>
         </div>
       </div>
 
@@ -121,7 +122,7 @@ export const ContractCard = ({ deployment, transactions, onDebugTransaction }: C
                           <FormattedMessage id="debugger.txHash" defaultMessage="Hash:" /> {formatAddress(transaction.transactionHash)}
                         </span>
                         <CustomTooltip
-                          tooltipText={copyTxTooltips[index] || 'Copy Hash'}
+                          tooltipText={copyTxTooltips[index] || intl.formatMessage({ id: 'debugger.copyHash' })}
                           tooltipId={`tx-hash-copy-tooltip-${index}`}
                           placement="top"
                         >

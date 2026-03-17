@@ -2,6 +2,7 @@ import { faCaretUp, faCaretDown, faArrowUp, faArrowDown, faArrowRotateRight, faC
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { useContext, useEffect } from "react";
 import LoaderIndicator from "./loaderindicator";
+import { FormattedMessage } from "react-intl";
 
 export const CloneNavigation = ({ eventKey, activePanel, callback }) => {
 
@@ -20,7 +21,7 @@ export const CloneNavigation = ({ eventKey, activePanel, callback }) => {
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          <label className="ps-2 nav form-check-label ">CLONE</label>
+          <label className="ps-2 nav form-check-label "><FormattedMessage id="gitui.clone" /></label>
           <LoaderIndicator></LoaderIndicator>
         </span>
       </div>

@@ -14,7 +14,7 @@ parameters:
     default: ""
   run_file_tests_keyword:
     type: enum
-    enum: ["", "ai_panel", "ai_tool_selector", "ballot", "ballot_0_4_14", "blockchain", "bottom-bar", "circom", "code_format", "compile_run_widget", "compiler_api", "contract_flattener", "contract_verification", "debugger", "defaultLayout", "deploy_vefiry", "dgit_github", "dgit_local", "editor", "editorGoToDefinition", "editorHoverContext", "editorReferences", "editor_autocomplete", "editor_error_marker", "editor_line_text", "eip1153", "eip7702", "environment-account", "erc721", "etherscan_api", "expandAllFolders", "fileExplorer", "fileManager_api", "file_decorator", "file_explorer_context_menu", "file_explorer_dragdrop", "file_explorer_multiselect", "generalSettings", "gist", "homeTab", "importFromGithub", "importResolver", "layout", "learneth", "libraryDeployment", "matomo-bot-detection", "matomo-consent", "maximizePanels", "mcp_all_resources", "mcp_compilation_tools", "mcp_debugging_tools", "mcp_deployment_tools", "mcp_file_management_tools", "mcp_file_permissions", "mcp_integration_workflows", "mcp_misc_tools", "mcp_resource_providers", "mcp_security_middleware", "mcp_server_complete", "mcp_server_connection", "mcp_server_lifecycle", "metamask", "migrateFileSystem", "noir", "pinned_contracts", "pluginManager", "plugin_api", "providers", "proxy_oz_v4", "proxy_oz_v5", "proxy_oz_v5_non_shanghai_runtime", "publishContract", "quickDapp_metamask", "recorder", "remixd", "runAndDeploy", "script-runner", "search", "signingMessage", "sol2uml", "solidityImport", "solidityUnittests", "specialFunctions", "staticAnalysis", "stressEditor", "template_exp_modal", "terminal", "toggle_panels", "transaction-simulator", "transactionExecution", "txListener", "uniswap_v4_core", "url", "usingWebWorker", "verticalIconsPanel", "vm_state", "vyper_api", "walkthrough", "workspace", "workspace_git"]
+    enum: ["", "ai_panel", "ai_tool_selector", "ballot", "ballot_0_4_14", "blockchain", "bottom-bar", "chatHistory", "circom", "code_format", "compile_run_widget", "compiler_api", "contract_flattener", "contract_verification", "debugger", "defaultLayout", "deploy_vefiry", "dgit_github", "dgit_local", "editor", "editorGoToDefinition", "editorHoverContext", "editorReferences", "editor_autocomplete", "editor_error_marker", "editor_line_text", "eip1153", "eip7702", "environment-account", "erc20Breakpoint", "erc721", "etherscan_api", "expandAllFolders", "fileExplorer", "fileManager_api", "file_decorator", "file_explorer_context_menu", "file_explorer_dragdrop", "file_explorer_multiselect", "generalSettings", "gist", "homeTab", "importFromGithub", "importResolver", "invite_manual_code", "invite_membership_request", "invite_system", "layout", "learneth", "libraryDeployment", "matomo-bot-detection", "matomo-consent", "maximizePanels", "mcp_all_resources", "mcp_compilation_tools", "mcp_debugging_tools", "mcp_deployment_tools", "mcp_file_management_tools", "mcp_file_permissions_chat", "mcp_integration_workflows", "mcp_misc_tools", "mcp_resource_providers", "mcp_security_middleware", "mcp_server_complete", "mcp_server_connection", "mcp_server_lifecycle", "mcp_thegraph_tools", "metamask", "migrateFileSystem", "noir", "pinned_contracts", "pluginManager", "plugin_api", "providers", "proxy_oz_v4", "proxy_oz_v5", "proxy_oz_v5_non_shanghai_runtime", "publishContract", "quickDapp_metamask", "quickDapp_v2", "recorder", "remixd", "runAndDeploy", "script-runner", "search", "signingMessage", "sol2uml", "solidityImport", "solidityUnittests", "specialFunctions", "staticAnalysis", "stressEditor", "template_exp_modal", "terminal", "testPoolLogin", "toggle_panels", "transaction-simulator", "transactionExecution", "txListener", "uniswap_v4_core", "url", "usingWebWorker", "verticalIconsPanel", "vm_state", "vyper_api", "workspace", "workspace_git"]
     default: ""
   run_flaky_tests:
     type: boolean
@@ -98,7 +98,7 @@ commands:
             MEMORY="<< parameters.memory >>"
             TARGET="<< parameters.target >>"
             FALLBACK="<< parameters.fallback_command >>"
-            
+
             if [ -n "${NX_CLOUD_ACCESS_TOKEN:-}" ]; then
               echo "Attempting Nx Cloud build for $TARGET..."
               if NX_VERBOSE_LOGGING=1 node --max-old-space-size=$MEMORY ./node_modules/.bin/nx build $TARGET $CONFIG_FLAG --cloud --verbose; then
@@ -387,7 +387,7 @@ jobs:
                   if [ -n "${CIRCLECI_TOKEN:-}" ]; then
                     echo "Fetching timings for branch ${CIRCLE_BRANCH:-all}..."
                     yarn ci:timings --slug gh/remix-project-org/remix-project --workflow web --branch "${CIRCLE_BRANCH:-}" --limit << pipeline.parameters.timings_limit >> --json timings-current.json || true
-                    
+
                     # If no timings found for this branch (new branch), fall back to master
                     if [ ! -s timings-current.json ] || [ "$(jq -r '.files | length' timings-current.json 2>/dev/null || echo 0)" -eq 0 ]; then
                       echo "⚠️  No timings found for branch ${CIRCLE_BRANCH:-current}, falling back to master..."
@@ -439,7 +439,7 @@ jobs:
             if [ -n "${CIRCLECI_TOKEN:-}" ]; then
               echo "Fetching timings for branch ${CIRCLE_BRANCH:-all}..."
               yarn ci:timings --slug gh/remix-project-org/remix-project --workflow web --branch "${CIRCLE_BRANCH:-}" --limit << pipeline.parameters.timings_limit >> --json timings-current.json || true
-              
+
               # If no timings found for this branch (new branch), fall back to master
               if [ ! -s timings-current.json ] || [ "$(jq -r '.files | length' timings-current.json 2>/dev/null || echo 0)" -eq 0 ]; then
                 echo "⚠️  No timings found for branch ${CIRCLE_BRANCH:-current}, falling back to master..."
@@ -461,7 +461,7 @@ jobs:
               | grep -v metamask)
             COUNT=$(printf '%s\n' "$TEST_NAMES" | wc -l | awk '{print $1}')
             echo "Found $COUNT enabled tests. Planning for << parameters.shards >> shard(s)."
-            
+
             # Run planner once to produce a manifest with all bins
             printf '%s\n' "$TEST_NAMES" | node scripts/plan-shards.js \
               --shards << parameters.shards >> \
@@ -469,7 +469,7 @@ jobs:
               --timings timings-current.json \
               --manifest-out reports/shards/manifest.json \
               --verbose > /dev/null
-            
+
             # Generate overview and per-shard file lists using dedicated script
             node scripts/generate-shard-overview.js reports/shards timings-current.json
       - store_artifacts:

@@ -1,6 +1,6 @@
 # Remix Libraries
 
-[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/qhpCQGWkmf)
+[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/9bw6pMWEAw)
 [![CircleCI](https://circleci.com/gh/remix-project-org/remix-project/tree/master.svg?style=svg)](https://circleci.com/gh/remix-project-org/remix-project/tree/master)
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://remix-ide.readthedocs.io/en/latest/index.html)
 
@@ -30,7 +30,7 @@ Each library is an NPM package and has basic documentation about its usage in it
 
 ## Contributing
 
-Everyone is very welcome to contribute on Remix Project. Suggestions, issues, queries and feedback are our pleasure. Please reach us on [Discord](https://discord.gg/qhpCQGWkmf) in case of any query.
+Everyone is very welcome to contribute on Remix Project. Suggestions, issues, queries and feedback are our pleasure. Please reach us on [Discord](https://discord.gg/9bw6pMWEAw) in case of any query.
 
 For more information on the contributing to the code, see our [contribution guidelines](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md).
 

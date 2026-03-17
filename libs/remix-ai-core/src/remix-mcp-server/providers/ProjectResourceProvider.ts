@@ -426,7 +426,7 @@ export class ProjectResourceProvider extends BaseResourceProvider {
 
   private shouldIncludeFile(path: string, extension: string): boolean {
     // Include source files and important project files
-    const includedExtensions = ['sol', 'js', 'ts', 'json', 'md', 'txt', 'toml', 'yaml', 'yml'];
+    const includedExtensions = ['sol', 'js', 'ts', 'json', 'md', 'txt', 'toml', 'yaml', 'yml', 'sql', 'jsx', 'tsx', 'abi'];
     const includedFiles = ['README', 'LICENSE', 'Dockerfile'];
 
     const filename = path.split('/').pop() || '';
@@ -440,12 +440,16 @@ export class ProjectResourceProvider extends BaseResourceProvider {
       'sol': 'text/x-solidity',
       'js': 'application/javascript',
       'ts': 'application/typescript',
+      'abi': 'application/json',
       'json': 'application/json',
       'md': 'text/markdown',
       'txt': 'text/plain',
       'toml': 'text/x-toml',
       'yaml': 'text/x-yaml',
-      'yml': 'text/x-yaml'
+      'yml': 'text/x-yaml',
+      'sql': 'application/sql',
+      'jsx': 'text/jsx',
+      'tsx': 'text/tsx'
     };
 
     return mimeTypes[extension] || 'text/plain';
@@ -453,7 +457,7 @@ export class ProjectResourceProvider extends BaseResourceProvider {
 
   private getCategoryForFile(extension: string): ResourceCategory {
     if (['sol'].includes(extension)) return ResourceCategory.CODE;
-    if (['js', 'ts'].includes(extension)) return ResourceCategory.CODE;
+    if (['js', 'ts', 'jsx', 'tsx'].includes(extension)) return ResourceCategory.CODE;
     if (['json', 'toml', 'yaml', 'yml'].includes(extension)) return ResourceCategory.PROJECT_FILES;
     if (['md', 'txt'].includes(extension)) return ResourceCategory.DOCUMENTATION;
     return ResourceCategory.PROJECT_FILES;

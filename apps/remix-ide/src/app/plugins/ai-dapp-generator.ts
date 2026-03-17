@@ -1,11 +1,12 @@
 import { Plugin } from '@remixproject/engine'
 import { buildSystemPrompt, buildUserMessage, blockchain, PromptContext, BuildUserMessageOptions } from './prompt-blocks'
+import { trackMatomoEvent } from '@remix-api'
 
 const profile = {
   name: 'ai-dapp-generator',
   displayName: 'AI DApp Generator',
   description: 'AI-powered DApp frontend generator',
-  methods: ['generateDapp', 'updateDapp', 'resetDapp', 'getContext', 'getLastGeneratedDapp'],
+  methods: ['generateDapp', 'updateDapp', 'resetDapp', 'getContext', 'getLastGeneratedDapp', 'consumePendingResult', 'getAllPendingSlugs'],
   events: ['dappGenerated', 'dappUpdated', 'generationProgress'],
   version: '1.0.0'
 }
@@ -35,25 +36,61 @@ interface Pages {
 
 export class AIDappGenerator extends Plugin {
   private contexts: Map<string, DappGenerationContext> = new Map()
+  // Buffer for generation results — survives plugin reactivation cycles
+  private pendingResults: Map<string, { address: string, content: Pages, isUpdate: boolean }> = new Map()
 
   constructor() {
     super(profile)
+  }
+
+  async onActivation() {
+    // no-op
+  }
+
+  onDeactivation() {
+    // no-op (pendingResults intentionally preserved)
+  }
+
+  /**
+   * Consume a pending result for a given slug.
+   * Called by quick-dapp-v2 UI on initApp to recover missed events.
+   */
+  async consumePendingResult(slug: string): Promise<{ address: string, content: Pages, isUpdate: boolean } | null> {
+    const result = this.pendingResults.get(slug)
+    if (result) {
+      this.pendingResults.delete(slug)
+      return result
+    }
+    return null
+  }
+
+  /**
+   * Get all slugs that have pending results (for discovery).
+   */
+  async getAllPendingSlugs(): Promise<string[]> {
+    return Array.from(this.pendingResults.keys())
   }
 
   /**
    * Generate a new DApp or update an existing one
    */
   async generateDapp(options: GenerateDappOptions & { slug: string }): Promise<void> {
-
     if (options.figmaUrl && options.figmaToken) {
       this.processFigmaGeneration(options).catch(err => {
-        console.error("[DEBUG-AI] Figma process crashed:", err);
-        this.call('terminal', 'log', { type: 'error', value: err.message });
+        console.error('[AI-DAPP] Figma process crashed:', err);
+        try {
+          this.call('terminal', 'log', { type: 'error', value: err.message });
+          this.emit('dappGenerationError', { address: options.address, slug: options.slug, error: err.message });
+        } catch (_) {}
       });
     } else {
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate', name: 'start', isClick: true });
       this.processGeneration(options).catch(err => {
-        console.error("[DEBUG-AI] Background process crashed:", err);
-        this.call('terminal', 'log', { type: 'error', value: err.message });
+        console.error('[AI-DAPP] processGeneration crashed:', err);
+        try {
+          this.call('terminal', 'log', { type: 'error', value: err.message });
+          this.emit('dappGenerationError', { address: options.address, slug: options.slug, error: err.message });
+        } catch (_) {}
       });
     }
 
@@ -62,6 +99,7 @@ export class AIDappGenerator extends Plugin {
 
   private async processFigmaGeneration(options: GenerateDappOptions & { slug: string }) {
 
+    trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate_figma', name: 'start', isClick: true });
     await this.call('notification', 'toast', 'Analyzing Figma Design... (This may take time)')
     this.emit('generationProgress', { status: 'started', address: options.address })
 
@@ -113,23 +151,32 @@ export class AIDappGenerator extends Plugin {
       context.messages.push({ role: 'assistant', content: htmlContent });
       this.saveContext(options.address, context);
 
-      this.emit('dappGenerated', {
-        address: options.address,
-        slug: options.slug,
-        content: pages,
-        isUpdate: false
-      });
+      this.pendingResults.set(options.slug, { address: options.address, content: pages, isUpdate: false })
+      try {
+        this.emit('dappGenerated', {
+          address: options.address,
+          slug: options.slug,
+          content: pages,
+          isUpdate: false
+        });
+      } catch (_) {}
 
-      await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate_figma', name: 'success', isClick: false });
+      try {
+        await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
+      } catch (_) {}
 
     } catch (error: any) {
-      console.error('[DEBUG-AI] Figma Generation Failed:', error);
-      this.call('terminal', 'log', { type: 'error', value: error.message });
-      this.emit('dappGenerationError', {
-        address: options.address,
-        slug: options.slug,
-        error: error.message
-      });
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'error', name: 'figma_failed', isClick: false });
+      console.error('[AI-DAPP] Figma Generation Failed:', error);
+      try { this.call('terminal', 'log', { type: 'error', value: error.message }); } catch (_) {}
+      try {
+        this.emit('dappGenerationError', {
+          address: options.address,
+          slug: options.slug,
+          error: error.message
+        });
+      } catch (_) {}
     }
   }
 
@@ -137,10 +184,7 @@ export class AIDappGenerator extends Plugin {
     try {
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json"
-        },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify(payload)
       });
 
@@ -159,12 +203,13 @@ export class AIDappGenerator extends Plugin {
   }
 
   private async processGeneration(options: GenerateDappOptions & { slug: string }) {
-
     try {
       const hasImage = !!options.image;
 
-      await this.call('notification', 'toast', 'Generating... (Logs in console)')
-      this.emit('generationProgress', { status: 'started', address: options.address })
+      this.call('notification', 'toast', 'Generating... (Logs in console)').catch(() => {})
+      try {
+        this.emit('generationProgress', { status: 'started', address: options.address })
+      } catch (_) {}
 
       const context = this.getOrCreateContext(options.address)
 
@@ -193,7 +238,7 @@ export class AIDappGenerator extends Plugin {
       let pages = parsePages(htmlContent);
 
       if (Object.keys(pages).length === 0) {
-        console.error('[DEBUG-AI] ❌ CRITICAL: parsePages returned empty object!');
+        console.error('[AI-DAPP] parsePages returned empty object. Response length:', htmlContent?.length);
         throw new Error("AI generated empty content. Please try again.");
       }
 
@@ -207,33 +252,42 @@ export class AIDappGenerator extends Plugin {
       ]
       this.saveContext(options.address, context)
 
-      this.emit('dappGenerated', {
-        address: options.address,
-        slug: options.slug,
-        content: pages,
-        isUpdate: false
-      });
+      // Store result BEFORE emit — ensures recovery even if event is lost
+      this.pendingResults.set(options.slug, { address: options.address, content: pages, isUpdate: false })
+      try {
+        this.emit('dappGenerated', {
+          address: options.address,
+          slug: options.slug,
+          content: pages,
+          isUpdate: false
+        });
+      } catch (_) {}
 
-      await this.call('notification', 'toast', 'Generation Complete!');
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate', name: 'success', isClick: false });
+      try {
+        await this.call('notification', 'toast', 'Generation Complete!');
+      } catch (_) {}
 
     } catch (error: any) {
-      console.error('[DEBUG-AI] Generation Failed:', error);
-      this.call('terminal', 'log', { type: 'error', value: error.message });
-
-      this.emit('dappGenerationError', {
-        address: options.address,
-        slug: options.slug,
-        error: error.message
-      });
+      trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'error', name: 'generate_failed', isClick: false });
+      console.error('[AI-DAPP] Generation Failed:', error);
+      try { this.call('terminal', 'log', { type: 'error', value: error.message }); } catch (_) {}
+      try {
+        this.emit('dappGenerationError', {
+          address: options.address,
+          slug: options.slug,
+          error: error.message
+        });
+      } catch (_) {}
     }
   }
 
   /**
    * Update an existing DApp with new description
    */
-  async updateDapp(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string): Promise<void> {
+  async updateDapp(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string, abi?: any[], chainId?: string | number): Promise<void> {
 
-    this.processUpdate(address, description, currentFiles, hasImage, slug).catch(err => {
+    this.processUpdate(address, description, currentFiles, hasImage, slug, abi || [], chainId || 1).catch(err => {
       console.error("[DEBUG-AI] ❌ Background update crashed:", err);
       this.call('terminal', 'log', { type: 'error', value: err.message });
     });
@@ -241,16 +295,9 @@ export class AIDappGenerator extends Plugin {
     return;
   }
 
-  private async processUpdate(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string) {
-    const context = this.getOrCreateContext(address);
-
-    if (context.messages.length === 0) {
-      await this.call('terminal', 'log', { type: 'error', value: 'No context found for this dapp.' });
-      return;
-    }
-
+  private async processUpdate(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string, abi: any[] = [], chainId: string | number = 1) {
     const ctx: PromptContext = {
-      contract: { address, abi: [], chainId: 1 },
+      contract: { address, abi, chainId },
       isUpdate: true,
       hasImage,
     }
@@ -261,37 +308,46 @@ export class AIDappGenerator extends Plugin {
       currentFiles,
     }
     const userMessage = buildUserMessage(ctx, msgOptions)
-    context.messages.push({ role: 'user', content: userMessage });
+
+    // Send only the current request — no history needed since currentFiles
+    // already contains the full project state for every update.
+    const messages = [{ role: 'user', content: userMessage }];
 
     try {
-      const htmlContent = await this.callLLMAPI(context.messages, systemPrompt, hasImage);
+      const htmlContent = await this.callLLMAPI(messages, systemPrompt, hasImage, true);
 
-      const pages = parsePages(htmlContent);
+      const patchedPages = parsePages(htmlContent);
 
-      if (Object.keys(pages).length === 0) {
+      if (Object.keys(patchedPages).length === 0) {
         throw new Error("AI failed to return valid file structure.");
       }
 
-      context.messages.push({ role: 'assistant', content: htmlContent });
-      this.saveContext(address, context);
+      // Merge: start with current files, overwrite only the ones LLM returned
+      const mergedPages: Record<string, string> = { ...currentFiles };
+      for (const [file, content] of Object.entries(patchedPages)) {
+        mergedPages[file] = content;
+      }
 
-      this.emit('dappGenerated', {
-        address,
-        slug,
-        content: pages,
-        isUpdate: true
-      });
+      this.pendingResults.set(slug, { address, content: mergedPages, isUpdate: true })
+      try {
+        this.emit('dappGenerated', {
+          address,
+          slug,
+          content: mergedPages,
+          isUpdate: true
+        });
+      } catch (_) {}
 
     } catch (error: any) {
-      context.messages.pop();
-      console.error('[DEBUG-AI] Update failed:', error);
-      this.call('terminal', 'log', { type: 'error', value: `Update failed: ${error.message}` });
-
-      this.emit('dappGenerationError', {
-        address,
-        slug,
-        error: error.message || "Unknown error during generation"
-      });
+      console.error('[AI-DAPP] Update failed:', error);
+      try { this.call('terminal', 'log', { type: 'error', value: `Update failed: ${error.message}` }); } catch (_) {}
+      try {
+        this.emit('dappGenerationError', {
+          address,
+          slug,
+          error: error.message || "Unknown error during generation"
+        });
+      } catch (_) {}
     }
   }
 
@@ -384,6 +440,20 @@ export class AIDappGenerator extends Plugin {
     return Number.isNaN(id) || id === 0 || id === 1337 || id === 31337 || id === 5777
   }
 
+  private getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    }
+    if (typeof localStorage !== 'undefined') {
+      const token = localStorage.getItem('remix_access_token')
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+    }
+    return headers
+  }
+
   private async validateAndRetryMissingFiles(
     pages: Record<string, string>,
     htmlContent: string,
@@ -418,22 +488,20 @@ export class AIDappGenerator extends Plugin {
     return pages
   }
 
-  private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false): Promise<string> {
+  private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false, isUpdate: boolean = false): Promise<string> {
     const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
     // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
     try {
       const response = await fetch(BACKEND_URL, {
         method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json"
-        },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({
           messages,
           systemPrompt,
-          hasImage
-        })
+          hasImage,
+          isUpdate
+        }),
       });
 
       if (!response.ok) {
@@ -445,7 +513,7 @@ export class AIDappGenerator extends Plugin {
 
       return json.content;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('[AI-DAPP] API Call Failed:', error);
       throw error;
     }
@@ -504,7 +572,7 @@ const ensureCompleteHtml = (html: string): string => {
 
 const parsePages = (content: string) => {
   const pages: Record<string, string> = {}
-  const markerRegex = /<{3,}\s*START_TITLE\s+(.*?)\s+>{3,}\s*END_TITLE/g
+  const markerRegex = /<{3,}\s*START_TITLE\s+(.*?)\s+>{3,}(?:\s*END_TITLE)?/g
 
   const parts = content.split(markerRegex)
 

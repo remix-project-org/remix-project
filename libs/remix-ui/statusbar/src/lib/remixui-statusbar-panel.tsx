@@ -24,7 +24,7 @@ export type ScamAlert = {
 
 export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
   const platform = useContext(platformContext)
-  const [showScamDetails, setShowScamDetails] = useState(true)
+  const [showScamDetails, setShowScamDetails] = useState(false)
   const [scamAlerts, setScamAlerts] = useState<ScamAlert[]>([])
   const [gitBranchName, setGitBranchName] = useState('')
   const [isAiActive, setIsAiActive] = useState(false)

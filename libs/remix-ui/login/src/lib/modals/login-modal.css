@@ -99,6 +99,105 @@
   margin-top: auto;
 }
 
+/* ──────────────────────────────────────
+   Email OTP — Inline email input row
+   ────────────────────────────────────── */
+
+.login-modal-email-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.login-modal-email-input-wrap {
+  flex: 1;
+  position: relative;
+}
+
+.login-modal-email-field-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.login-modal-email-input {
+  padding-left: 2.25rem !important;
+  font-size: 0.875rem;
+  height: 100%;
+}
+
+.login-modal-email-input::placeholder {
+  color: #b0b8c4;
+}
+
+.login-modal-send-code-btn {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  min-width: 110px;
+}
+
+/* ──────────────────────────────────────
+   Email OTP — OTP digit inputs
+   ────────────────────────────────────── */
+
+.login-modal-otp-group {
+  justify-content: center;
+}
+
+.login-modal-otp-digit {
+  width: 46px;
+  height: 54px;
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 600;
+  border: 2px solid #dee2e6;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: #fff;
+  caret-color: var(--bs-primary, #0d6efd);
+}
+
+.login-modal-otp-digit:focus {
+  border-color: var(--bs-primary, #0d6efd);
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
+
+.login-modal-otp-digit.has-value {
+  border-color: var(--bs-primary, #0d6efd);
+  background: #f0f6ff;
+}
+
+.login-modal-otp-digit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ──────────────────────────────────────
+   Email OTP — Envelope icon
+   ────────────────────────────────────── */
+
+.login-modal-otp-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e0ecff 0%, #f0f6ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-modal-otp-icon {
+  font-size: 1.5rem;
+  color: var(--bs-primary, #0d6efd);
+}
+
 /* Font size utilities */
 .fs-small {
   font-size: 0.8rem;

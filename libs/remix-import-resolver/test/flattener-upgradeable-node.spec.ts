@@ -65,12 +65,12 @@ describe('SourceFlattener - upgradeable package resolution (Node adapter)', func
       /@openzeppelin\/contracts-upgradeable\/token\/ERC1155\/ERC1155Upgradeable\.sol$/, // entry dep
       /@openzeppelin\/contracts-upgradeable\/utils\/ContextUpgradeable\.sol$/, // utility
       /@openzeppelin\/contracts-upgradeable\/utils\/introspection\/ERC165Upgradeable\.sol$/, // introspection
-      /@openzeppelin\/contracts-upgradeable\/proxy\/utils\/Initializable\.sol$/ // initializer base
+      /@openzeppelin\/contracts\/proxy\/utils\/Initializable\.sol$/ // initializer base (in contracts, not contracts-upgradeable since v5.x)
     ]
     const filesToCheck = keys.filter(k => mustExistPatterns.some(re => re.test(k)))
     expect(filesToCheck.length, 'expected core upgradeable files present in bundle keys').to.equal(mustExistPatterns.length)
     // Check that files exist on disk under the versioned .deps/npm path (for caching)
-    for (const unversionedPath of filesToCheck) {
+    if (filesToCheck.length > 0) {
       // Files are cached on disk with versioned paths under .deps/npm
       const existsInDeps = await stat(`.deps/npm`).then(() => true).catch(() => false)
       expect(existsInDeps, `expected .deps/npm directory to exist for cached files`).to.equal(true)

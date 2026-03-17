@@ -12,9 +12,10 @@ import { CustomTooltip } from '@remix-ui/helper'
 import { AbstractVerifier, getVerifier } from '../Verifiers'
 import { VerifyFormContext } from '../VerifyFormContext'
 import { useSourcifySupported } from '../hooks/useSourcifySupported'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 
 export const VerifyView = () => {
+  const intl = useIntl()
   const { compilationOutput, setSubmittedContracts, settings, clientInstance } = useContext(AppContext)
   const { selectedChain, setSelectedChain, contractAddress, setContractAddress, contractAddressError, setContractAddressError, selectedContract, setSelectedContract, proxyAddress, setProxyAddress, proxyAddressError, setProxyAddressError, abiEncodedConstructorArgs, setAbiEncodedConstructorArgs, abiEncodingError, setAbiEncodingError } = useContext(VerifyFormContext)
   const [enabledVerifiers, setEnabledVerifiers] = useState<Partial<Record<VerifierIdentifier, boolean>>>({})
@@ -201,9 +202,9 @@ export const VerifyView = () => {
         contractAddressError={contractAddressError}
         setContractAddressError={setContractAddressError}
       />
-      <CustomTooltip tooltipText="Please compile and select the solidity contract you need to verify.">
+      <CustomTooltip tooltipText={intl.formatMessage({ id: 'contract-verification.compileAndSelectContractTooltip' })}>
         <div>
-          <ContractDropdown label="Contract Name" id="contract-dropdown-1" selectedContract={selectedContract} setSelectedContract={setSelectedContract} />
+          <ContractDropdown label={intl.formatMessage({ id: 'contract-verification.contractNameLabel' })} id="contract-dropdown-1" selectedContract={selectedContract} setSelectedContract={setSelectedContract} />
         </div>
       </CustomTooltip>
       {selectedContract && <ConstructorArguments
@@ -231,7 +232,7 @@ export const VerifyView = () => {
       </div>
 
       <div className="pt-3">
-        Verify on:
+        <FormattedMessage id="contract-verification.verifyOnLabel" />
         {VERIFIERS.map((verifierId) => {
           const disabledVerifier = !chainSettings || !validConfiguration(chainSettings, verifierId) || (verifierId === 'Sourcify' && !sourcifySupported)
 
@@ -258,15 +259,15 @@ export const VerifyView = () => {
                 {!chainSettings ? (
                   ''
                 ) : !validConfiguration(chainSettings, verifierId) ? (
-                  <CustomTooltip tooltipText="Configure the API in the settings">
+                  <CustomTooltip tooltipText={intl.formatMessage({ id: 'contract-verification.configureApiInSettingsTooltip' })}>
                     <span className="text-secondary w-auto" style={{ textDecoration: 'underline dotted', cursor: 'pointer' }} onClick={() => navigate('/settings')}>
-                      Enable?
+                      <FormattedMessage id="contract-verification.enableVerifierLink" />
                     </span>
                   </CustomTooltip>
                 ) : verifierId === 'Sourcify' && !sourcifySupported ? (
                   <CustomTooltip tooltipText={`The configured Sourcify server (${chainSettings.verifiers['Sourcify'].apiUrl}) does not support chain ${selectedChain?.chainId}`}>
                     <span className="text-secondary w-auto" style={{ textDecoration: 'underline dotted', cursor: 'pointer' }} onClick={() => navigate('/settings')}>
-                      Unsupported
+                      <FormattedMessage id="contract-verification.unsupportedVerifier" />
                     </span>
                   </CustomTooltip>
                 ) : (

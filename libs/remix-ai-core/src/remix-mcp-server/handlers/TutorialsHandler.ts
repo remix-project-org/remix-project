@@ -15,8 +15,8 @@ import { Plugin } from '@remixproject/engine';
  * Starts a tutorial using learneth
  */
 export class TutorialsHandler extends BaseToolHandler {
-  name = 'tutorials';
-  description = 'Use learneth to start a tutorial. Solidity basics and advanced topics.';
+  name = 'start_tutorial';
+  description = 'Start a learneth tutorial. Solidity basics and advanced topics.';
   inputSchema = {
     type: 'object',
     properties: {
@@ -59,8 +59,8 @@ export class TutorialsHandler extends BaseToolHandler {
 export function createTutorialsTools(): RemixToolDefinition[] {
   return [
     {
-      name: 'tutorials',
-      description: 'Use learneth to start a tutorial',
+      name: 'start_tutorial',
+      description: 'start a learneth tutorial',
       inputSchema: new TutorialsHandler().inputSchema,
       category: ToolCategory.ANALYSIS,
       permissions: ['analysis:scan', 'file:read'],

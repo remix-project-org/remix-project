@@ -87,13 +87,14 @@ export class BreakpointManager {
     */
   async jump (fromStep, direction, defaultToLimit, trace) {
     this.event.trigger('locatingBreakpoint', [])
-    let sourceLocation
+    const initialStepInfo = this.callTree.locationAndOpcodePerVMTraceIndex[fromStep]
+    let sourceLocation = initialStepInfo.sourceLocation
     let lineColumn
     let contractAddress
     let previousSourceLocation
     let currentStep = fromStep + direction
     let lineHadBreakpoint = false
-    let initialLine
+    const initialLine = initialStepInfo.lineColumnPos
     while (currentStep > 0 && currentStep < trace.length) {
       try {
         previousSourceLocation = sourceLocation
@@ -106,7 +107,6 @@ export class BreakpointManager {
         currentStep += direction
         continue
       }
-      if (!initialLine) initialLine = lineColumn
 
       if (initialLine.start.line !== lineColumn.start.line) {
         if (direction === -1 && lineHadBreakpoint) { // TODO : improve this when we will build the correct structure before hand
@@ -145,7 +145,8 @@ export class BreakpointManager {
     */
   async hasBreakpointAtLine (fileIndex, line, contractAddress) {
     const compResult = await this.solidityProxy.compilationResult(contractAddress)
-    const filename = Object.keys(compResult.data.contracts)[fileIndex]
+    let filename = compResult.getActualFilePath (compResult.getSourceName(fileIndex))
+    if (!filename) filename = Object.keys(compResult.data.contracts)[fileIndex]
     if (!(filename && this.breakpoints[filename])) {
       return false
     }

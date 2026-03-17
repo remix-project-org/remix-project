@@ -31,7 +31,7 @@ function checkStyle(browser: NightwatchBrowser, index: number, callback: VoidFun
 
     debugBtn && debugBtn.click()
   }, [index], function () {
-    browser.waitForElementVisible('*[data-id="buttonNavigatorJumpPreviousBreakpoint"]', 60000).perform(() => callback())
+    browser.waitForElementVisible('*[data-id="callTraceHeader"]', 60000).perform(() => callback())
   })
 
 }

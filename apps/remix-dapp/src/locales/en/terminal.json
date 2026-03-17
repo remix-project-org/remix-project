@@ -28,7 +28,7 @@
   "terminal.cancel": "Cancel",
   "terminal.callWarning": "(Cost only applies when called by a contract)",
   "terminal.msg1": "Transaction mined but execution failed",
-  "terminal.msg2": "Transaction mined and execution succeed",
+  "terminal.msg2": "Transaction mined and execution completed",
   "terminal.msg3": "Status not available at the moment",
   "terminal.status": "status",
   "terminal.transactionHash": "transaction hash",

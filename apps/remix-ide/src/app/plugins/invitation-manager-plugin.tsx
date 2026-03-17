@@ -18,6 +18,9 @@ const profile = {
 }
 
 export class InvitationManagerPlugin extends Plugin {
+  /** Set to true to enable verbose console.log output for debugging */
+  private static DEBUG = false
+
   dispatch: React.Dispatch<any> = () => {}
   private state: InviteState = {
     show: false,
@@ -33,12 +36,34 @@ export class InvitationManagerPlugin extends Plugin {
     super(profile)
   }
 
+  /** Debug-gated logger – silent when DEBUG is false */
+  private log(...args: any[]) {
+    if (InvitationManagerPlugin.DEBUG) console.log(...args)
+  }
+
   async onActivation(): Promise<void> {
     // Listen for auth state changes
     this.on('auth', 'authStateChanged', async (isAuthenticated: boolean) => {
-      console.log('[InvitationManager] Auth state changed:', isAuthenticated)
+      this.log('[InvitationManager] Auth state changed:', isAuthenticated)
       if (this.state.show) {
         this.state = { ...this.state, isAuthenticated }
+        this.renderComponent()
+      }
+    })
+
+    // Listen for invite token redeemed (e.g. auto-redeemed after login or already
+    // redeemed during the login/registration flow on the backend). This transitions
+    // the modal straight to the success state so the user never sees a stale
+    // "Redeem" button for a token that was already consumed.
+    this.on('auth', 'inviteTokenRedeemed', (data: { token: string; actions: any[] }) => {
+      this.log('[InvitationManager] Invite redeemed via auth plugin:', data.token)
+      if (this.state.show && this.state.token === data.token) {
+        this.state = {
+          ...this.state,
+          redeeming: false,
+          redeemResult: { success: true, actions_applied: data.actions },
+          error: null
+        }
         this.renderComponent()
       }
     })
@@ -59,6 +84,28 @@ export class InvitationManagerPlugin extends Plugin {
   async showInvite(token: string): Promise<void> {
     // Validate the token first
     const validation = await this.validateToken(token)
+
+    // ── "request" invite type ──
+    // Instead of granting access, these tokens trigger the membership request
+    // flow.  Each action with type === 'membership_request' maps to a feature
+    // group.  For 'beta' we open the AI interest survey; for anything else we
+    // open the default membership request form.
+    if (validation.valid && validation.invite_type === 'request') {
+      const membershipActions = (validation.actions || []).filter(
+        a => a.type === 'membership_request' && a.feature_group_name
+      )
+
+      if (membershipActions.length > 0) {
+        // Pick the first membership_request action to determine which form to show
+        const action = membershipActions[0]
+        this.log(
+          '[InvitationManager] "request" invite detected – routing to membershipRequest for group:',
+          action.feature_group_name
+        )
+        await this.call('membershipRequest', 'showRequestForm', action.feature_group_name)
+        return
+      }
+    }
 
     // Check auth state
     const isAuthenticated = await this.checkAuthState()
@@ -118,6 +165,8 @@ export class InvitationManagerPlugin extends Plugin {
       if (result.success) {
         // Clear pending token
         await this.call('auth', 'clearPendingInviteToken')
+        // Reload permissions so UI (top bar, badges) updates immediately
+        await this.call('auth', 'refreshPermissions')
         this.emit('inviteRedeemed', { token, result })
       }
 
@@ -136,6 +185,18 @@ export class InvitationManagerPlugin extends Plugin {
       }
       this.renderComponent()
       return result
+    }
+  }
+
+  /**
+   * Start a walkthrough via the walkthrough plugin
+   */
+  async startWalkthrough(slug: string): Promise<void> {
+    try {
+      this.log('[InvitationManager] Starting walkthrough:', slug)
+      await this.call('walkthrough' as any, 'start', slug)
+    } catch (e) {
+      console.error('[InvitationManager] Failed to start walkthrough:', e)
     }
   }
 
@@ -210,14 +271,35 @@ export class InvitationManagerPlugin extends Plugin {
 
   /**
    * Check URL for invite token on startup
+   * Supports: ?invite=TOKEN, ?invite_token=TOKEN, and #invite=TOKEN
    */
   private async checkUrlForInvite(): Promise<void> {
+    // Check query params first (?invite= or ?invite_token=)
+    const params = new URLSearchParams(window.location.search)
+    const queryToken = params.get('invite') || params.get('invite_token')
+
+    if (queryToken) {
+      this.log('[InvitationManager] Found invite token in query params:', queryToken)
+
+      // Clean URL — remove invite params from query string
+      params.delete('invite')
+      params.delete('invite_token')
+      const newSearch = params.toString()
+      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash
+      window.history.replaceState(null, '', newUrl)
+
+      // Show the invite modal
+      await this.showInvite(queryToken)
+      return
+    }
+
+    // Fallback: check hash (#invite=TOKEN)
     const hash = window.location.hash
     const match = hash.match(/[#&]invite=([A-Za-z0-9_-]+)/)
 
     if (match) {
       const token = match[1]
-      console.log('[InvitationManager] Found invite token in URL:', token)
+      this.log('[InvitationManager] Found invite token in URL hash:', token)
 
       // Clean URL
       this.cleanInviteFromUrl()
@@ -269,6 +351,8 @@ export class InvitationManagerPlugin extends Plugin {
         state={dispatchState.state}
         onRedeem={(token) => this.redeemToken(token)}
         onClose={() => this.close()}
+        onStartWalkthrough={(slug) => this.startWalkthrough(slug)}
+        plugin={dispatchState.plugin}
       />
     )
   }

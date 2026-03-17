@@ -152,7 +152,6 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       } else {
         setIsDappWorkspace(false)
         setSourceWorkspaceTarget(null)
-        setDappMappings([])
         setIsCheckingDappMappings(true)
       }
     }
@@ -250,13 +249,10 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       checkMappings()
     }
 
-    // Defer all async operations to avoid blocking file tree rendering
-    const timeoutId = setTimeout(() => {
-      detectWorkspaceType()
-      checkDappMappingsDeferred()
-    }, 1500)
+    detectWorkspaceType()
+    checkDappMappingsDeferred()
 
-    return () => clearTimeout(timeoutId)
+    return () => {}
   }, [global.fs.browser.currentWorkspace, navigationRefreshCounter])
 
   useEffect(() => {
@@ -299,7 +295,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       }
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      await global.plugin.call('menuicons', 'select', 'quick-dapp-v2')
+      await global.plugin.call('tabs', 'focus', 'quick-dapp-v2')
 
       try {
         await global.plugin.call('quick-dapp-v2', 'openDapp', workspaceName)
@@ -580,23 +576,18 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
           </span>
 
           {!isDappWorkspace && (isCheckingDappMappings || isSwitchingToDapp || dappMappings.length > 0) && (
-            <span className="ps-0 pb-1 w-50">
+            <span className="ps-0 pb-1 w-50" style={{ visibility: (isCheckingDappMappings && dappMappings.length === 0) ? 'hidden' : 'visible' }}>
               <Button
                 variant="primary"
                 className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
                 data-id="fileExplorerGoToDappButton"
                 onClick={handleGoToDapp}
-                disabled={isCheckingDappMappings || isSwitchingToDapp || dappMappings.length === 0}
+                disabled={isSwitchingToDapp || dappMappings.length === 0}
               >
                 {isSwitchingToDapp ? (
                   <>
                     <i className="fas fa-spinner fa-spin me-2"></i>
                     <span>Switching...</span>
-                  </>
-                ) : isCheckingDappMappings ? (
-                  <>
-                    <i className="fas fa-spinner fa-spin me-2"></i>
-                    <span>Checking DApps...</span>
                   </>
                 ) : (
                   <>
@@ -628,6 +619,22 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                     <span>Go to Contract</span>
                   </>
                 )}
+              </Button>
+              <Button
+                variant="primary"
+                className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
+                data-id="fileExplorerViewDappButton"
+                onClick={async () => {
+                  try {
+                    await global.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+                    await global.plugin.call('quick-dapp-v2', 'openDapp', global.fs.browser.currentWorkspace)
+                  } catch (e) {
+                    console.warn('[FileExplorerMenu] Could not open DApp detail:', e)
+                  }
+                }}
+              >
+                <i className="fas fa-eye me-2"></i>
+                <span>View DApp</span>
               </Button>
             </span>
           )}
@@ -678,7 +685,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                           </strong>
                           <br/>
                           <small style={{ color: selectedDappIndex === index ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>
-                            Network: {mapping.chainId || 'Unknown'}<br/>
+                            Network: {mapping.chainId?.startsWith('vm-') ? 'Remix VM' : mapping.chainId || 'Unknown'}<br/>
                             Address: {mapping.address.substring(0, 15)}...
                           </small>
                         </div>

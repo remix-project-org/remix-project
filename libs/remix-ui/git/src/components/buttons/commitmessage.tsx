@@ -5,6 +5,7 @@ import { gitPluginContext } from "../gitui"
 import { faArrowDown, faArrowUp, faCheck, faCloudArrowUp, faSync } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { syncStateContext } from "./sourceControlBase";
+import { FormattedMessage, useIntl } from "react-intl";
 
 enum buttonStateValues {
   Commit,
@@ -16,6 +17,7 @@ export const CommitMessage = () => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
   const syncState = React.useContext(syncStateContext)
+  const intl = useIntl()
   const [buttonState, setButtonState] = useState<buttonStateValues>(buttonStateValues.Commit)
 
   const [message, setMessage] = useState({ value: '' })
@@ -57,8 +59,8 @@ export const CommitMessage = () => {
 
   const commitMessagePlaceholder = () => {
     if (context.currentBranch === undefined || context.currentBranch.name === "")
-      return `message`
-    return `message ( commit on ${context.currentBranch.name} )`
+      return intl.formatMessage({ id: 'git.commit' })
+    return intl.formatMessage({ id: 'git.commit' }) + ` ( commit on ${context.currentBranch.name} )`
   }
 
   const syncEnabled = () => {
@@ -131,15 +133,15 @@ export const CommitMessage = () => {
       </div>
       <button data-id='commitButton' className={`btn btn-primary w-100 ${buttonState === buttonStateValues.Commit ? '' : 'd-none'}`} disabled={commitNotAllowed()} onClick={async () => await commit()} >
         <FontAwesomeIcon icon={faCheck} className="me-1" />
-        Commit
+        <FormattedMessage id="gitui.commitButton" />
       </button>
       <button data-id='syncButton' className={`btn btn-primary w-100 ${buttonState === buttonStateValues.Sync ? '' : 'd-none'}`} disabled={!syncEnabled()} onClick={async () => await sync()} >
         <FontAwesomeIcon icon={faSync} className="me-1" aria-hidden="true" />
-        Sync Changes {upDownArrows()}
+        <FormattedMessage id="gitui.syncChanges" /> {upDownArrows()}
       </button>
       <button data-id='publishBranchButton' className={`btn btn-primary w-100 ${buttonState === buttonStateValues.PublishBranch ? '' : 'd-none'}`} onClick={async () => await publishBranch()} >
         <FontAwesomeIcon icon={faCloudArrowUp} className="me-1" aria-hidden="true" />
-        Publish Branch
+        <FormattedMessage id="gitui.publishBranch" />
       </button>
       <hr></hr>
     </>

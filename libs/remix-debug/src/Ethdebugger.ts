@@ -160,7 +160,7 @@ export class Ethdebugger {
    * @returns {Object} Scope information containing local variables for the given step
    */
   extractLocalsAt (step) {
-    return this.callTree.findScope(step)
+    return this.callTree.symbolicStackManager.getAllVariablesAtStep(step)
   }
 
   /**

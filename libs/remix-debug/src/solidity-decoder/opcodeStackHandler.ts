@@ -173,8 +173,8 @@ function handleSwap(
 
     // Check if either slot is a variable declaration that needs special handling
     const isVariableDeclarationPattern =
-      (topSlot.kind === 'variable' || topSlot.kind === 'parameter') ||
-      (swapSlot.kind === 'variable' || swapSlot.kind === 'parameter')
+      (topSlot.kind === 'variable' || topSlot.kind === 'parameter' || topSlot.kind === 'return_value') ||
+      (swapSlot.kind === 'variable' || swapSlot.kind === 'parameter' || swapSlot.kind === 'return_value')
 
     if (isVariableDeclarationPattern) {
       // For variable declarations, we need to be more careful about swapping
@@ -185,7 +185,7 @@ function handleSwap(
       // - POP removes the temporary value position
 
       // Instead of blind swapping, preserve the variable declaration in its logical position
-      if (topSlot.kind === 'intermediate' && (swapSlot.kind === 'variable' || swapSlot.kind === 'parameter')) {
+      if (topSlot.kind === 'intermediate' && (swapSlot.kind === 'variable' || swapSlot.kind === 'parameter' || swapSlot.kind === 'return_value')) {
         // Top is a value, swap position is a variable - this is likely the PUSH0, PUSH1, SWAP pattern
         // The value should be associated with the variable, not just swapped
         newStack[swapIdx] = {
@@ -201,14 +201,14 @@ function handleSwap(
           kind: 'intermediate',
           originStep: step,
           originOp: opcode,
-          referencesVariable: swapSlot.kind === 'variable' || swapSlot.kind === 'parameter' ? {
+          referencesVariable: swapSlot.kind === 'variable' || swapSlot.kind === 'parameter' || swapSlot.kind === 'return_value'? {
             variableId: swapSlot.variableId,
             variableName: swapSlot.variableName,
             variableType: swapSlot.variableType,
             sourceStackIndex: swapIdx
           } : undefined
         }
-      } else if ((topSlot.kind === 'variable' || topSlot.kind === 'parameter') && swapSlot.kind === 'intermediate') {
+      } else if ((topSlot.kind === 'variable' || topSlot.kind === 'parameter' || topSlot.kind === 'return_value') && swapSlot.kind === 'intermediate') {
         // Variable is on top, value is below - reverse case
         newStack[top] = {
           ...topSlot, // Keep variable metadata
@@ -318,7 +318,7 @@ function handlePop(
     if (topSlot.kind === 'variable' || topSlot.kind === 'parameter') {
       // This should not happen in normal code generation, but if it does,
       // we should preserve the variable information somehow
-      console.warn(`POP at step ${step} is removing a variable declaration: ${topSlot.variableName}`)
+      // console.warn(`POP at step ${step} is removing a variable declaration: ${topSlot.variableName}`)
 
       // If this is a reference to a variable (created by SWAP), it's safe to remove
       if (topSlot.referencesVariable && topSlot.originOp?.startsWith('SWAP')) {
@@ -326,7 +326,7 @@ function handlePop(
       } else {
         // This is an actual variable declaration being removed - very unusual
         // Remove it but log for debugging
-        console.warn(`Removing actual variable declaration ${topSlot.variableName} at step ${step}`)
+        // console.warn(`Removing actual variable declaration ${topSlot.variableName} at step ${step}`)
         newStack.pop()
       }
     } else {

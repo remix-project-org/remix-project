@@ -22,8 +22,8 @@ const profile = {
   name: 'feedback',
   displayName: 'Feedback',
   description: 'Fetches and manages feedback forms for the authenticated user',
-  methods: ['getFeedbackForm', 'fetchFeedbackForms'],
-  events: ['feedbackFormChanged']
+  methods: ['getFeedbackForm', 'fetchFeedbackForms', 'openFeedbackForm'],
+  events: ['feedbackFormChanged', 'openFeedbackForm']
 }
 
 export class FeedbackPlugin extends Plugin {
@@ -94,5 +94,16 @@ export class FeedbackPlugin extends Plugin {
    */
   async getFeedbackForm(): Promise<FeedbackForm | null> {
     return this.currentForm
+  }
+
+  /**
+   * Open a feedback form panel with the given URL.
+   * If no URL is provided, opens the current highest-priority form.
+   */
+  async openFeedbackForm(url?: string): Promise<void> {
+    const formUrl = url || this.currentForm?.url
+    if (formUrl) {
+      this.emit('openFeedbackForm', formUrl)
+    }
   }
 }

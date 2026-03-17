@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Button, Row, Col, Card, Modal } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -52,7 +53,6 @@ function EditHtmlTemplate(): JSX.Element {
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const builderRef = useRef<InBrowserVite | null>(null);
-  const [isExperimental, setIsExperimental] = useState(false);
 
   const [notificationModal, setNotificationModal] = useState({
     show: false,
@@ -164,23 +164,6 @@ function EditHtmlTemplate(): JSX.Element {
     setNotificationModal(prev => ({ ...prev, show: false }));
   };
 
-  const checkUrlParams = useCallback(() => {
-    const targetFlag = 'experimental';
-    let hasFlag = false;
-    if (window.location.href.includes(targetFlag)) hasFlag = true;
-    if (!hasFlag && document.referrer && document.referrer.includes(targetFlag)) hasFlag = true;
-    try {
-      if (window.parent && window.parent.location.href.includes(targetFlag)) hasFlag = true;
-    } catch (e) {}
-    setIsExperimental(prev => (prev !== hasFlag ? hasFlag : prev));
-  }, []);
-
-  useEffect(() => {
-    checkUrlParams();
-    window.addEventListener('hashchange', checkUrlParams);
-    return () => window.removeEventListener('hashchange', checkUrlParams);
-  }, [checkUrlParams]);
-
   const handleBack = async () => {
     if (!isAiUpdating && !isBuilding) {
       await captureAndSaveThumbnail();
@@ -239,6 +222,7 @@ function EditHtmlTemplate(): JSX.Element {
   };
 
   const runBuild = async (showNotification: boolean = false) => {
+    console.log('[QuickDapp][runBuild] START', { slug: activeDapp?.slug, showNotification });
     if (!iframeRef.current || !activeDapp) return;
     if (isBuilding) return;
 
@@ -259,7 +243,7 @@ function EditHtmlTemplate(): JSX.Element {
           name: activeDapp.workspaceName,
           isLocalhost: false,
         });
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 800));
       }
     } catch (e) {
       console.warn('[QuickDapp] Failed to auto-switch workspace:', e);
@@ -275,6 +259,7 @@ function EditHtmlTemplate(): JSX.Element {
     try {
       const dappRootPath = '/';
       await readDappFiles(plugin, dappRootPath, mapFiles, 0);
+      console.log('[QuickDapp][runBuild] Files read:', mapFiles.size);
 
       if (mapFiles.size === 0) {
         setIframeError(`No files found in workspace root. Make sure you are in the DApp workspace "${activeDapp.workspaceName}".`);
@@ -311,12 +296,20 @@ function EditHtmlTemplate(): JSX.Element {
     const injectionScript = `
       <script>
         window.__QUICK_DAPP_CONFIG__ = {
-          logo: "${logoDataUrl}",
+          logo: ${JSON.stringify(logoDataUrl || '')},
           title: ${JSON.stringify(title || '')},
           details: ${JSON.stringify(details || '')}
         };
       </script>
     `;
+    const debugScript = `<script>
+window.onerror = function(msg, url, line, col, error) {
+  try { parent.console.error('[DApp-iframe] Error:', msg, 'at', url, 'line', line); } catch(e) {}
+};
+window.addEventListener('unhandledrejection', function(e) {
+  try { parent.console.error('[DApp-iframe] Unhandled rejection:', e.reason); } catch(e2) {}
+});
+</script>`;
     const ext = `<script>
 (function() {
   if (parent.__remixVMBridge) {
@@ -376,9 +369,9 @@ function EditHtmlTemplate(): JSX.Element {
         let finalHtml = indexHtmlContent || '<html><body><div id="root"></div></body></html>';
 
         if (finalHtml.includes('</head>')) {
-          finalHtml = finalHtml.replace('</head>', `${injectionScript}\n${ext}\n</head>`);
+          finalHtml = finalHtml.replace('</head>', `${debugScript}\n${injectionScript}\n${ext}\n</head>`);
         } else {
-          finalHtml = `<html><head>${injectionScript}${ext}</head>${finalHtml}</html>`;
+          finalHtml = `<html><head>${debugScript}${injectionScript}${ext}</head>${finalHtml}</html>`;
         }
 
         const scriptTag = `\n<script type="module">\n${result.js}\n</script>\n`;
@@ -394,13 +387,15 @@ function EditHtmlTemplate(): JSX.Element {
         doc.open();
         doc.write(finalHtml);
         doc.close();
+        console.log('[QuickDapp][runBuild] doc.write() completed (buildable)');
 
       } else {
         let finalHtml = indexHtmlContent;
-        finalHtml = finalHtml.replace('</head>', `${injectionScript}\n${ext}\n</head>`);
+        finalHtml = finalHtml.replace('</head>', `${debugScript}\n${injectionScript}\n${ext}\n</head>`);
         doc.open();
         doc.write(finalHtml);
         doc.close();
+        console.log('[QuickDapp][runBuild] doc.write() completed (static HTML)');
       }
 
       if (showNotification) {
@@ -422,20 +417,6 @@ function EditHtmlTemplate(): JSX.Element {
 
   const handleChatMessage = async (message: string, imageBase64?: string) => {
     if (!activeDapp || !plugin) return;
-    if (!isExperimental) {
-      setNotificationModal({
-        show: true,
-        title: 'Feature Locked',
-        message: (
-          <div>
-            <p>AI updates are only available in <strong>experimental mode</strong>.</p>
-            <p>Please add <code>?experimental</code> to the URL and <strong>refresh</strong> the page.</p>
-          </div>
-        ),
-        variant: 'danger'
-      });
-      return;
-    }
 
     dispatch({
       type: 'SET_DAPP_PROCESSING',
@@ -465,7 +446,9 @@ function EditHtmlTemplate(): JSX.Element {
         activeDapp.contract.address,
         userPrompt,
         currentFilesObject,
-        imageBase64 || null
+        imageBase64 || null,
+        activeDapp.contract.abi,
+        activeDapp.contract.chainId
       );
 
     } catch (error: any) {
@@ -505,6 +488,7 @@ function EditHtmlTemplate(): JSX.Element {
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
 
   const [isCurrentProviderVM, setIsCurrentProviderVM] = useState(false);
+  const [vmContractStatus, setVmContractStatus] = useState<'checking' | 'deployed' | 'not-found'>('checking');
 
   useEffect(() => {
     if (!plugin) return;
@@ -518,6 +502,48 @@ function EditHtmlTemplate(): JSX.Element {
     };
     checkVM();
   }, [plugin, activeDapp]);
+
+  useEffect(() => {
+    if (!isVM || !isCurrentProviderVM || !plugin || !activeDapp?.contract?.address) {
+      setVmContractStatus('checking');
+      return;
+    }
+
+    let cancelled = false;
+
+    const checkWithRetry = async () => {
+      const MAX_RETRIES = 5;
+      const RETRY_DELAY_MS = 3000;
+
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        if (cancelled) return;
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          if (cancelled) return;
+        }
+
+        try {
+          const code = await plugin.call('blockchain', 'sendRpc', 'eth_getCode', [
+            activeDapp.contract.address, 'latest'
+          ]);
+          console.log(`[QuickDapp] getCode attempt ${attempt + 1}/${MAX_RETRIES}:`, code?.substring(0, 20));
+          if (code && code !== '0x' && code !== '0x0' && code.length > 2) {
+            setVmContractStatus('deployed');
+            return;
+          }
+        } catch (e) {
+          console.warn(`[QuickDapp] getCode attempt ${attempt + 1} failed:`, e);
+        }
+      }
+
+      if (!cancelled) {
+        setVmContractStatus('not-found');
+      }
+    };
+
+    checkWithRetry();
+    return () => { cancelled = true; };
+  }, [isVM, isCurrentProviderVM, plugin, activeDapp?.contract?.address]);
 
   useEffect(() => {
     let isMounted = true;
@@ -537,6 +563,15 @@ function EditHtmlTemplate(): JSX.Element {
           const result = await plugin.call('blockchain', 'sendRpc', method, params || []);
 
           if (!isMounted) return;
+
+          if (method === 'eth_sendTransaction') {
+            try {
+              await plugin.call('blockchain', 'dumpState');
+            } catch (e) {
+              console.warn('[VM-Bridge] dumpState after TX failed:', e);
+            }
+          }
+
           return result;
         } catch (error: any) {
           if (!isMounted) return;
@@ -565,11 +600,12 @@ function EditHtmlTemplate(): JSX.Element {
           className="btn btn-sm btn-secondary me-3"
           onClick={handleBack}
           disabled={isCapturing}
+          data-id="back-to-dashboard-btn"
         >
           {isCapturing ? <><i className="fas fa-spinner fa-spin me-1"></i> Saving...</> : <><i className="fas fa-arrow-left me-1"></i> Back</>}
         </button>
         <div className="d-flex align-items-center flex-wrap gap-2">
-          <span className="fw-bold text-body" style={{ fontSize: '1.1rem' }}>
+          <span className="fw-bold text-body" style={{ fontSize: '1.1rem' }} data-id="editor-dapp-title">
             {activeDapp.config.title || activeDapp.name}
           </span>
           <span className="badge bg-secondary opacity-75">
@@ -578,7 +614,7 @@ function EditHtmlTemplate(): JSX.Element {
           <div className="vr mx-1 text-secondary opacity-50" style={{ height: '1.2rem' }}></div>
           <div className="d-flex align-items-center text-muted" title="Location in File Explorer">
             <i className="far fa-folder-open me-2 opacity-75"></i>
-            <span className="font-monospace small opacity-75">
+            <span className="font-monospace small opacity-75" data-id="editor-workspace-name">
               {activeDapp.workspaceName}
             </span>
           </div>
@@ -614,6 +650,7 @@ function EditHtmlTemplate(): JSX.Element {
                         size="sm"
                         onClick={() => runBuild(true)}
                         disabled={isBuilding || isAiUpdating}
+                        data-id="refresh-preview-btn"
                       >
                         {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
                       </Button>
@@ -622,6 +659,7 @@ function EditHtmlTemplate(): JSX.Element {
                         size="sm"
                         onClick={() => setShowDeleteModal(true)}
                         disabled={isBuilding || isCapturing}
+                        data-id="delete-dapp-editor-btn"
                       >
                         <i className="fas fa-trash me-1"></i> Delete Dapp
                       </Button>
@@ -640,28 +678,20 @@ function EditHtmlTemplate(): JSX.Element {
                   )}
 
                   {isVM && (
-                    <div className="alert alert-warning py-2 px-3 mb-2 small shadow-sm border-warning d-flex align-items-start">
-                      <i className="fas fa-exclamation-triangle me-2 mt-1 text-warning"></i>
+                    <div className={`alert py-2 px-3 mb-2 small shadow-sm d-flex align-items-start ${vmContractStatus === 'not-found' ? 'alert-danger border-danger' : 'alert-warning border-warning'}`} data-id="vm-warning-banner">
+                      <i className={`fas ${vmContractStatus === 'not-found' ? 'fa-times-circle text-danger' : 'fa-exclamation-triangle text-warning'} me-2 mt-1`}></i>
                       <div>
                         <div className="fw-bold mb-1">Remix VM — Local Only</div>
-                        {activeDapp.sourceWorkspace?.name && (
-                          <div>
-                            To run this DApp, switch to the contract workspace:{' '}
-                            <button
-                              className="btn btn-link btn-sm p-0 text-decoration-underline"
-                              onClick={async () => {
-                                try {
-                                  await plugin.call('filePanel', 'switchToWorkspace', {
-                                    name: activeDapp.sourceWorkspace!.name,
-                                    isLocalhost: false,
-                                  });
-                                } catch (e) {
-                                  console.warn('[QuickDapp] Failed to switch workspace:', e);
-                                }
-                              }}
-                            >
-                              <strong>{activeDapp.sourceWorkspace.name}</strong>
-                            </button>
+                        {vmContractStatus === 'not-found' && (
+                          <div className="text-danger mb-1">
+                            <i className="fas fa-exclamation-circle me-1"></i>
+                            No contract found at <code>{activeDapp.contract.address}</code>. The VM state may have been reset. Please redeploy the contract.
+                          </div>
+                        )}
+                        {vmContractStatus === 'checking' && isCurrentProviderVM && (
+                          <div className="mb-1">
+                            <i className="fas fa-spinner fa-spin me-1"></i>
+                            Checking contract status...
                           </div>
                         )}
                         <div className="mt-1 text-danger">
@@ -675,7 +705,7 @@ function EditHtmlTemplate(): JSX.Element {
                   <Card className="border flex-grow-1 d-flex position-relative">
                     <Card.Body className="p-0 d-flex flex-column position-relative" style={{ overflow: 'hidden' }}>
                       {isAiUpdating && (
-                        <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white" style={{ zIndex: 10, opacity: 0.9 }}>
+                        <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white" style={{ zIndex: 10, opacity: 0.9 }} data-id="ai-updating-overlay">
                           <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
                           <h6 className="text-muted">Your dapp is being updated by RemixAI Assistant.</h6>
                         </div>
@@ -685,6 +715,7 @@ function EditHtmlTemplate(): JSX.Element {
                         style={{ width: '100%', height: '100%', minHeight: '800px', border: 'none', backgroundColor: 'white', display: iframeError ? 'none' : 'block' }}
                         title="dApp Preview"
                         sandbox="allow-popups allow-scripts allow-same-origin allow-forms allow-top-navigation"
+                        data-id="dapp-preview-iframe"
                       />
                       {iframeError && (
                         <div className="d-flex align-items-center justify-content-center h-100 text-center p-4">
@@ -709,7 +740,7 @@ function EditHtmlTemplate(): JSX.Element {
         </div>
       </div>
 
-      <Modal show={notificationModal.show} onHide={closeNotificationModal} centered>
+      <Modal show={notificationModal.show} onHide={closeNotificationModal} centered data-id="notification-modal">
         <Modal.Header closeButton>
           <Modal.Title className={notificationModal.variant === 'danger' ? 'text-danger' : notificationModal.variant === 'warning' ? 'text-warning' : 'text-success'}>
             {notificationModal.title}
@@ -717,7 +748,7 @@ function EditHtmlTemplate(): JSX.Element {
         </Modal.Header>
         <Modal.Body>{notificationModal.message}</Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={closeNotificationModal}>Close</Button>
+          <Button variant="secondary" onClick={closeNotificationModal} data-id="notification-modal-close-btn">Close</Button>
         </Modal.Footer>
       </Modal>
 
@@ -726,7 +757,7 @@ function EditHtmlTemplate(): JSX.Element {
         <Modal.Body>Are you sure you want to delete this dapp? This action cannot be undone.</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDeleteDapp}>Yes, Delete</Button>
+          <Button variant="danger" onClick={handleDeleteDapp} data-id="confirm-delete-dapp-btn">Yes, Delete</Button>
         </Modal.Footer>
       </Modal>
     </div>

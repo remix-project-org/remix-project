@@ -4,10 +4,12 @@ import { gitPluginContext } from "../../gitui";
 import { selectStyles, selectTheme } from "../../../types/styles";
 import Select from 'react-select'
 import GitUIButton from "../../buttons/gituibutton";
+import { FormattedMessage, useIntl } from "react-intl";
 
 export const Merge = () => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
+  const intl = useIntl()
   const [localBranch, setLocalBranch] = useState('')
   const [localBranchOptions, setLocalBranchOptions] = useState<any>([]);
 
@@ -38,10 +40,10 @@ export const Merge = () => {
     <>
 
       <div className="btn-group w-100" role="group" aria-label="Basic example">
-        <GitUIButton type="button" onClick={async () => merge()} className="btn btn-primary me-1">Merge</GitUIButton>
+        <GitUIButton type="button" onClick={async () => merge()} className="btn btn-primary me-1"><FormattedMessage id="gitui.mergeButton" /></GitUIButton>
       </div>
 
-      <label>Merge from Branch</label>
+      <label><FormattedMessage id="gitui.mergeFromBranch" /></label>
       <Select
         options={localBranchOptions}
         isDisabled={context.branches.length === 0}
@@ -50,7 +52,7 @@ export const Merge = () => {
         styles={selectStyles}
         isClearable={true}
         value={{ value: localBranch, label: localBranch }}
-        placeholder="Type to search for a branch..."
+        placeholder={intl.formatMessage({ id: 'gitui.branchSearchPlaceholder' })}
       />
 
     </>)

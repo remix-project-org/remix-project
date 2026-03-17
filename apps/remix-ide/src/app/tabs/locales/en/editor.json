@@ -12,10 +12,10 @@
   "editor.title1": "Pasted Code Alert",
   "editor.title1.message1": "You have just pasted a code snippet or contract in the editor.",
   "editor.title1.message2": "Make sure you fully understand this code before deploying or interacting with it. Don't get scammed!",
-  "editor.title1.message3": "Running untrusted code can put your wallet <span> at risk </span>. In a worst-case scenario, you could <span>lose all your money</span>.",
+  "editor.title1.message3": "Running untrusted code can put your wallet <span>at risk</span>. In a worst-case scenario, you could <span>lose all your money</span>.",
   "editor.title1.message4": "If you don't fully understand it, please don't run this code.",
   "editor.title1.message5": "If you are not a smart contract developer, ask someone you trust who has the skills to determine if this code is safe to use.",
-  "editor.title1.message6": "See <a> these recommendations </a> for more information.",
+  "editor.title1.message6": "See <a>these recommendations</a> for more information.",
   "editor.zoomIn": "Zoom In",
   "editor.zoomOut": "Zoom Out",
   "editor.formatCode": "Format Code",
@@ -32,6 +32,7 @@
   "editor.executeFreeFunction": "Run a free function",
   "editor.executeFreeFunction2": "Run the free function \"{name}\"",
   "editor.toastText1": "This can only execute free function",
-  "editor.toastText2": "Please go to Remix settings and activate the code editor features or wait that the current editor context is loaded.",
-  "editor.text": "The file is opened in <b>read-only</b> mode."
+  "editor.toastText2": "Please go to Remix settings and activate the code editor features or wait for the current editor context to load.",
+  "editor.text": "The file is opened in <b>read-only</b> mode.",
+  "editor.doNotShowAgain": "Do not show this warning again"
 }

@@ -10,7 +10,8 @@ interface IRemixDragBarUi {
   maximiseTrigger: number
   enhanceTrigger: number
   resetTrigger: number
-  layoutPosition: 'left' | 'right'
+  layoutPosition: 'left' | 'right',
+  coeff?: number
 }
 
 const DragBar = (props: IRemixDragBarUi) => {
@@ -65,11 +66,11 @@ const DragBar = (props: IRemixDragBarUi) => {
 
   useEffect(() => {
     // Only use 0.4 for left, right will use its own value in triggerWidth
-    triggerWidth(props.maximiseTrigger, props.layoutPosition, props.refObject, 0.4)
+    triggerWidth(props.maximiseTrigger, props.layoutPosition, props.refObject, props.coeff || 0.4)
   }, [props.maximiseTrigger])
 
   useEffect(() => {
-    triggerWidth(props.enhanceTrigger, props.layoutPosition, props.refObject, 0.25)
+    triggerWidth(props.enhanceTrigger, props.layoutPosition, props.refObject, props.coeff || 0.25)
   }, [props.enhanceTrigger])
 
   useEffect(() => {

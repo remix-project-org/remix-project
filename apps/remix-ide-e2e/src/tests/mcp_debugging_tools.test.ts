@@ -333,58 +333,8 @@ module.exports = {
       });
   },
 
-  'Should test get_global_context tool': function (browser: NightwatchBrowser) {
-    browser
-      .executeAsync(function (done) {
-        const aiPlugin = (window as any).getRemixAIPlugin;
-
-        if (!aiPlugin?.remixMCPServer) {
-          done({ error: 'RemixMCPServer not available' });
-          return;
-        }
-
-        // Wait for debug session to be ready
-        setTimeout(function () {
-          aiPlugin.remixMCPServer.handleMessage({
-            method: 'tools/call',
-            params: {
-              name: 'get_global_context',
-              arguments: {}
-            },
-            id: 'test-global-context'
-          }).then(function (result) {
-            if (result.error) {
-              done({
-                success: false,
-                error: result.error.message || JSON.stringify(result.error)
-              });
-              return;
-            }
-            const resultData = JSON.parse(result.result?.content?.[0]?.text || '{}');
-            done({
-              success: !result.error,
-              hasContext: !!resultData?.context,
-              hasBlockInfo: !!resultData?.context?.block,
-              hasMessageInfo: !!resultData?.context?.msg,
-              hasTxInfo: !!resultData?.context?.tx
-            });
-          }).catch(function (error) {
-            done({ error: error.message });
-          });
-        }, 1000);
-      }, [], function (result) {
-        const data = result.value as any;
-        if (!data || data.error) {
-          console.error('Get global context error:', data?.error || 'No data returned');
-          return;
-        }
-        browser.assert.ok(data.success, 'Get global context should succeed');
-        browser.assert.ok(data.hasContext, 'Should return context object');
-      });
-  },
-
   'Should test extract_locals_at tool': function (browser: NightwatchBrowser) {
-    browser
+    browser.pause(5000)
       .executeAsync(function (done) {
         const aiPlugin = (window as any).getRemixAIPlugin;
 
@@ -406,18 +356,18 @@ module.exports = {
           if (result.error) {
             done({
               success: false,
-              error: result.error.message || JSON.stringify(result.error)
+              error: result.error.message || result.error
             });
             return;
           }
           const resultData = JSON.parse(result.result?.content?.[0]?.text || '{}');
           done({
             success: !result.error,
-            hasScope: !!resultData?.scope,
+            locals: resultData?.locals,
             step: resultData?.step
           });
         }).catch(function (error) {
-          done({ error: error.message });
+            done({ error: error.message });
         });
       }, [], function (result) {
         const data = result.value as any;
@@ -425,8 +375,8 @@ module.exports = {
           console.error('Extract locals error:', data?.error || 'No data returned');
           return;
         }
-        browser.assert.ok(data.success || data.error, 'Extract locals should execute');
-        browser.assert.ok(data.hasScope , 'Extract locals scope');
+        browser.assert.ok(data.success, 'Extract locals should execute');
+        browser.assert.ok(data.step === 5, 'Extract locals should execute');
       });
   },
 
@@ -523,7 +473,7 @@ module.exports = {
           if (result.error) {
             done({
               success: false,
-              error: result.error.message || JSON.stringify(result.error)
+              error: result.error.message || result.error
             });
             return;
           }
@@ -568,7 +518,6 @@ module.exports = {
           });
           return;
         }
-
         aiPlugin.remixMCPServer.handleMessage({
           method: 'tools/call',
           params: {
@@ -749,7 +698,6 @@ module.exports = {
           },
           id: 'test-jump-to'
         }).then(function (result) {
-          console.log('jump to result', result)
           if (result.error) {
             done({
               success: false,
@@ -800,7 +748,6 @@ module.exports = {
           },
           id: 'test-decode-local-var'
         }).then(function (result) {
-          console.log('local var debug', result)
           if (result.error) {
             done({
               success: false,
@@ -850,7 +797,6 @@ module.exports = {
           },
           id: 'test-decode-state-var'
         }).then(function (result) {
-          console.log(result)
           if (result.error) {
             done({
               success: false,

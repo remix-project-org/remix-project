@@ -39,7 +39,85 @@ export class RemixResourceProviderRegistry implements ResourceProviderRegistry {
 
   constructor(props){
     this.plugin = props
+    this.setupCacheInvalidationListeners();
   }
+
+  /**
+   * Set up event listeners for automatic cache invalidation
+   */
+  private setupCacheInvalidationListeners(): void {
+    if (!this.plugin) {
+      console.warn('[RemixResourceProviderRegistry] No plugin available for event listeners');
+      return;
+    }
+
+    try {
+      // File system changes invalidate project and context resources
+      this.plugin.on('fileManager', 'fileSaved', () => {
+        this.invalidateResourceCache('project');
+        this.invalidateResourceCache('context');
+      });
+
+      this.plugin.on('fileManager', 'fileAdded', () => {
+        this.invalidateResourceCache('project');
+        this.invalidateResourceCache('context');
+      });
+
+      this.plugin.on('fileManager', 'fileRemoved', () => {
+        this.invalidateResourceCache('project');
+        this.invalidateResourceCache('context');
+      });
+
+      this.plugin.on('fileManager', 'fileRenamed', () => {
+        this.invalidateResourceCache('project');
+        this.invalidateResourceCache('context');
+      });
+
+      this.plugin.on('fileManager', 'currentFileChanged', () => {
+        this.invalidateResourceCache('context');
+      });
+
+      // Compilation events invalidate compilation resources
+      this.plugin.on('solidity', 'compilationFinished', () => {
+        this.invalidateResourceCache('compilation');
+      });
+
+      // Deployment events invalidate deployment resources
+      this.plugin.on('blockchain', 'contractDeployed', () => {
+        this.invalidateResourceCache('deployment');
+      });
+
+      // Additional useful events
+      this.plugin.on('blockchain', 'contextChanged', () => {
+        this.invalidateResourceCache('deployment');
+      });
+
+    } catch (error) {
+      console.error('[RemixResourceProviderRegistry] Error setting up cache invalidation listeners:', error);
+    }
+  }
+
+  /**
+   * Invalidate cache for a specific provider
+   */
+  invalidateResourceCache(providerName: string): void {
+    const deleted = this.resourceCache.delete(providerName);
+    if (deleted) {
+
+      this.notifySubscribers({
+        type: 'updated',
+        resource: {
+          uri: `provider://${providerName}`,
+          name: providerName,
+          description: `${providerName} resources updated`,
+          mimeType: 'application/json'
+        },
+        timestamp: new Date(),
+        provider: providerName
+      });
+    }
+  }
+
   /**
    * Register a resource provider
    */
@@ -271,7 +349,7 @@ export class RemixResourceProviderRegistry implements ResourceProviderRegistry {
     // Filter by tags
     if (query.tags && query.tags.length > 0) {
       filtered = filtered.filter(resource =>
-        query.tags!.some(tag =>
+        query.tags?.some(tag =>
           (resource as any).metadata?.tags?.includes(tag) ||
           resource.name.toLowerCase().includes(tag.toLowerCase()) ||
           resource.description?.toLowerCase().includes(tag.toLowerCase())
@@ -289,7 +367,7 @@ export class RemixResourceProviderRegistry implements ResourceProviderRegistry {
           ...(resource.annotations?.audience || [])
         ].join(' ').toLowerCase();
 
-        return query.keywords!.some(keyword =>
+        return query.keywords?.some(keyword =>
           searchText.includes(keyword.toLowerCase())
         );
       });
@@ -302,7 +380,7 @@ export class RemixResourceProviderRegistry implements ResourceProviderRegistry {
         if (!lastModified) return false;
 
         const date = new Date(lastModified);
-        return date >= query.dateRange!.from && date <= query.dateRange!.to;
+        return date >= query.dateRange?.from && date <= query.dateRange?.to;
       });
     }
 
@@ -312,8 +390,8 @@ export class RemixResourceProviderRegistry implements ResourceProviderRegistry {
         const size = (resource as any).metadata?.size;
         if (size === undefined) return true;
 
-        const withinMin = !query.size!.min || size >= query.size!.min;
-        const withinMax = !query.size!.max || size <= query.size!.max;
+        const withinMin = !query.size?.min || size >= query.size?.min;
+        const withinMax = !query.size?.max || size <= query.size?.max;
         return withinMin && withinMax;
       });
     }

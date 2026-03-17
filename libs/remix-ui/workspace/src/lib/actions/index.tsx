@@ -6,13 +6,13 @@ import { customAction } from '@remixproject/plugin-api'
 import { trackMatomoEventAsync } from '@remix-api'
 import { displayNotification, displayPopUp, fetchDirectoryError, fetchDirectoryRequest, fetchDirectorySuccess, focusElement, fsInitializationCompleted, hidePopUp, removeInputFieldSuccess, setCurrentLocalFilePath, setCurrentWorkspace, setExpandPath, setMode, setWorkspaces } from './payload'
 import { listenOnPluginEvents, listenOnProviderEvents } from './events'
-import { createWorkspaceTemplate, getWorkspaces, loadWorkspacePreset, setPlugin, workspaceExists } from './workspace'
+import { createWorkspaceTemplate, getWorkspaces, loadWorkspacePreset, setPlugin, workspaceExists, createWorkspace } from './workspace'
+import { setCloudPlugin, setCreateDefaultCloudWorkspaceFn } from '../cloud/cloud-workspace-actions'
 import { QueryParams, Registry } from '@remix-project/remix-lib'
 import { fetchContractFromEtherscan, fetchContractFromBlockscout } from '@remix-project/core-plugin' // eslint-disable-line
 import JSZip from 'jszip'
 import { Actions, FileTree } from '../types'
 import IpfsHttpClient from 'ipfs-http-client'
-import { AppModal, ModalTypes } from '@remix-ui/app'
 import { Topbar } from 'apps/remix-ide/src/app/components/top-bar'
 
 export * from './events'
@@ -58,6 +58,10 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
     plugin = filePanelPlugin
     dispatch = reducerDispatch
     setPlugin(plugin, dispatch)
+    setCloudPlugin(plugin, dispatch)
+    // Register the createWorkspace function for cloud-workspace-actions to use
+    // when it needs to create a default workspace (avoids circular import).
+    setCreateDefaultCloudWorkspaceFn((name, template) => createWorkspace(name, template as any))
     const workspaceProvider = filePanelPlugin.fileProviders.workspace
     const localhostProvider = filePanelPlugin.fileProviders.localhost
     const electrOnProvider = filePanelPlugin.fileProviders.electron
@@ -256,14 +260,6 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       plugin.setWorkspace({ name: 'code-sample', isLocalhost: false })
       dispatch(setCurrentWorkspace({ name: 'code-sample', isGitRepo: false }))
       const filePath = await loadWorkspacePreset('code-template')
-      plugin.on('filePanel', 'workspaceInitializationCompleted', async () => {
-        if (editorMounted){
-          setTimeout(async () => {
-            await plugin.fileManager.openFile(filePath)}, 1000)
-        } else {
-          filePathToOpen = filePath
-        }
-      })
     } else if (params.address && params.blockscout) {
       if (params.address.startsWith('0x') && params.address.length === 42 && params.blockscout.length > 0) {
         const contractAddress = params.address
@@ -359,7 +355,6 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       dispatch(fsInitializationCompleted())
       plugin.emit('workspaceInitializationCompleted')
       return
-
     } else if (localStorage.getItem("currentWorkspace")) {
       const index = workspaces.findIndex(element => element.name == localStorage.getItem("currentWorkspace"))
       if (index !== -1) {
@@ -673,7 +668,6 @@ export const runScript = async (path: string) => {
 export const signTypedData = async (path: string) => {
   const typedData = await plugin.call('fileManager', 'readFile', path)
   const web3 = await plugin.call('blockchain', 'web3')
-  const settings = await plugin.call('udapp', 'getSettings')
   let parsed
   try {
     parsed = JSON.parse(typedData)
@@ -683,8 +677,9 @@ export const signTypedData = async (path: string) => {
   }
 
   try {
-    const result = await web3.send('eth_signTypedData_v4', [settings.selectedAccount, parsed])
-    plugin.call('terminal', 'log', { type: 'log', value: `${path} signature using ${settings.selectedAccount} : ${result}` })
+    const selectedAccount = await plugin.call('udappEnv', 'getSelectedAccount')
+    const result = await web3.send('eth_signTypedData_v4', [selectedAccount, parsed])
+    plugin.call('terminal', 'log', { type: 'log', value: `${path} signature using ${selectedAccount} : ${result}` })
   } catch (e) {
     console.error(e)
     plugin.call('terminal', 'log', { type: 'error', value: `error while signing ${path}: ${e.message || e}` })

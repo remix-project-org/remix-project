@@ -1,25 +1,42 @@
 import { Plugin } from '@remixproject/engine'
-import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, InviteApiService, Credits, InviteValidateResponse, InviteRedeemResponse } from '@remix-api'
+import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, InviteApiService, TestPoolApiService, Credits, InviteValidateResponse, InviteRedeemResponse, RegistrationMode, RegistrationModeResponse, LoginMode, LoginModeResponse, ACCESS_POLICY_ERROR_CODES, AccessPolicy, AccessPolicyResponse, AppConfig, PoolCheckoutResponse, PoolReleaseResponse, PoolStatusResponse } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
+import { QueryParams } from '@remix-project/remix-lib'
 import { getAddress } from 'ethers'
+import { SiweMessage } from 'siwe'
 
 const profile = {
   name: 'auth',
   displayName: 'Authentication',
   description: 'Handles SSO authentication and credits',
-  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken'],
-  events: ['authStateChanged', 'creditsUpdated', 'accountLinked', 'gitHubTokenReady', 'inviteTokenDetected', 'inviteTokenRedeemed']
+  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
+  events: ['authStateChanged', 'creditsUpdated', 'accountLinked', 'gitHubTokenReady', 'inviteTokenDetected', 'inviteTokenRedeemed', 'registrationModeChanged', 'loginModeChanged', 'accessPolicyChanged', 'appConfigChanged']
 }
 
 export class AuthPlugin extends Plugin {
+  /** Set to true to enable verbose console.log output for debugging */
+  private static DEBUG = true
+
   private apiClient: ApiClient
   private ssoApi: SSOApiService
   private creditsApi: CreditsApiService
   private permissionsApi: PermissionsApiService
   private billingApi: BillingApiService
   private inviteApi: InviteApiService
+  private testPoolApi: TestPoolApiService | null = null
+  private activePoolSession: { sessionId: string; accountId: string } | null = null
   private refreshTimer: number | null = null
   private pendingInviteToken: string | null = null
+  private cachedRegistrationMode: RegistrationMode | null = null
+  private cachedLoginMode: LoginMode | null = null
+  private cachedLoginMessage: string = ''
+  private cachedAccessPolicy: AccessPolicyResponse | null = null
+  private cachedAppConfig: AppConfig | null = null
+
+  /** Debug-gated logger – silent when DEBUG is false */
+  private log(...args: any[]) {
+    if (AuthPlugin.DEBUG) console.log(...args)
+  }
 
   constructor() {
     super(profile)
@@ -182,18 +199,36 @@ export class AuthPlugin extends Plugin {
 
   /**
    * Get all permissions for the current user
-   * @returns Array of all user permissions with their limits
+   * @returns Full permissions response including feature_groups
    */
-  async getAllPermissions(): Promise<{ feature_name: string; allowed: boolean; limit_value?: number; limit_unit?: string; category?: string }[]> {
+  async getAllPermissions(): Promise<any> {
     try {
       const response = await this.permissionsApi.getPermissions()
       if (response.ok && response.data) {
-        return response.data.features
+        return response.data
       }
-      return []
+      return { features: []}
     } catch (error) {
       console.error('[AuthPlugin] Get all permissions failed:', error)
-      return []
+      return { features: []}
+    }
+  }
+
+  /**
+   * Re-emit authStateChanged so consumers (e.g. AuthContext) refetch
+   * permissions / feature groups. Call after invite redemption, plan
+   * changes, or anything that mutates the user's entitlements.
+   */
+  async refreshPermissions(): Promise<void> {
+    const user = await this.getUser()
+    const token = await this.getToken()
+    if (user && token) {
+      this.log('[AuthPlugin] refreshPermissions – re-emitting authStateChanged')
+      this.emit('authStateChanged', {
+        isAuthenticated: true,
+        user,
+        token
+      })
     }
   }
 
@@ -254,19 +289,257 @@ export class AuthPlugin extends Plugin {
     }
   }
 
+  /**
+   * Check if the E2E test account pool is available.
+   * Returns true if a pool API key is configured (via URL param or env).
+   */
+  async isPoolAvailable(): Promise<{ available: boolean; reason?: string }> {
+    try {
+      // Check for API key in URL params (hash-based) first, then check pool endpoint
+      const queryParams = new QueryParams()
+      const allParams = queryParams.get() as Record<string, string>
+      const apiKey = allParams.e2e_pool_key
+
+      if (!apiKey) {
+        // Fall back to checking the old test/available endpoint
+        const response = await fetch(`${endpointUrls.sso}/test/available`, {
+          credentials: 'include'
+        })
+        if (response.ok) {
+          const data = await response.json()
+          return { available: data.available === true, reason: data.reason }
+        }
+        return { available: false, reason: 'No pool API key provided' }
+      }
+
+      // Verify the key works by checking pool status
+      const poolApi = new TestPoolApiService(endpointUrls.sso, apiKey)
+      const statusRes = await poolApi.status()
+      if (statusRes.ok && statusRes.data) {
+        this.testPoolApi = poolApi
+        return {
+          available: statusRes.data.available > 0,
+          reason: statusRes.data.available > 0
+            ? `${statusRes.data.available} of ${statusRes.data.total} accounts available`
+            : 'All pool accounts are currently in use'
+        }
+      }
+      return { available: false, reason: statusRes.error || 'Pool status check failed' }
+    } catch (error: any) {
+      console.log('[AuthPlugin] Pool availability check failed:', error)
+      return { available: false, reason: error.message || 'Network error' }
+    }
+  }
+
+  /**
+   * Get the current registration mode from the server.
+   * Returns 'open', 'existing_only', or 'invite_only'.
+   * No authentication required.
+   */
+  async getRegistrationMode(): Promise<RegistrationMode> {
+    try {
+      // Return cached value if available (mode rarely changes)
+      if (this.cachedRegistrationMode) {
+        return this.cachedRegistrationMode
+      }
+
+      const response = await this.ssoApi.getRegistrationMode()
+      if (response.ok && response.data) {
+        this.cachedRegistrationMode = response.data.mode
+        return response.data.mode
+      }
+
+      // Default to 'open' if endpoint not available
+      console.warn('[AuthPlugin] Failed to fetch registration mode, defaulting to open')
+      return 'open'
+    } catch (error) {
+      console.warn('[AuthPlugin] Error fetching registration mode:', error)
+      return 'open'
+    }
+  }
+
+  /**
+   * Get the current login access control mode from the server.
+   * Returns { mode, message } where mode is 'open', 'feature_group', 'admins_only', or 'closed'.
+   * No authentication required.
+   */
+  async getLoginMode(): Promise<LoginModeResponse> {
+    try {
+      // Return cached value if available
+      if (this.cachedLoginMode) {
+        return { mode: this.cachedLoginMode, message: this.cachedLoginMessage }
+      }
+
+      const response = await this.ssoApi.getLoginMode()
+      if (response.ok && response.data) {
+        this.cachedLoginMode = response.data.mode
+        this.cachedLoginMessage = response.data.message || ''
+        this.log('[AuthPlugin] Login mode:', this.cachedLoginMode, 'message:', this.cachedLoginMessage)
+        return { mode: this.cachedLoginMode, message: this.cachedLoginMessage }
+      }
+
+      // Default to 'open' if endpoint not available
+      console.warn('[AuthPlugin] Failed to fetch login mode, defaulting to open')
+      return { mode: 'open', message: '' }
+    } catch (error) {
+      console.warn('[AuthPlugin] Error fetching login mode:', error)
+      return { mode: 'open', message: '' }
+    }
+  }
+
+  /**
+   * Force re-fetch of login mode from the server (cache-busting).
+   * Emits 'loginModeChanged' if the mode or message changed.
+   */
+  async refreshLoginMode(): Promise<LoginModeResponse> {
+    const oldMode = this.cachedLoginMode
+    const oldMessage = this.cachedLoginMessage
+    this.cachedLoginMode = null
+    this.cachedLoginMessage = ''
+
+    const result = await this.getLoginMode()
+    if (result.mode !== oldMode || result.message !== oldMessage) {
+      this.emit('loginModeChanged', result)
+    }
+    return result
+  }
+
+  /**
+   * Get the unified access policy from the server.
+   * Replaces the separate login-mode + registration-mode endpoints.
+   * No authentication required.
+   */
+  async getAccessPolicy(): Promise<AccessPolicyResponse> {
+    try {
+      if (this.cachedAccessPolicy) {
+        return this.cachedAccessPolicy
+      }
+
+      const response = await this.ssoApi.getAccessPolicy()
+      if (response.ok && response.data) {
+        this.cachedAccessPolicy = response.data
+        this.log('[AuthPlugin] Access policy:', response.data.policy)
+        return response.data
+      }
+
+      console.warn('[AuthPlugin] Failed to fetch access policy, defaulting to open')
+      return { policy: 'open', message: '', allows_registration: true, requires_invite: false }
+    } catch (error) {
+      console.warn('[AuthPlugin] Error fetching access policy:', error)
+      return { policy: 'open', message: '', allows_registration: true, requires_invite: false }
+    }
+  }
+
+  /**
+   * Force re-fetch of access policy from the server (cache-busting).
+   * Emits 'accessPolicyChanged' if the policy changed.
+   */
+  async refreshAccessPolicy(): Promise<AccessPolicyResponse> {
+    const oldPolicy = this.cachedAccessPolicy?.policy
+    this.cachedAccessPolicy = null
+
+    const result = await this.getAccessPolicy()
+    if (result.policy !== oldPolicy) {
+      this.emit('accessPolicyChanged', result)
+    }
+    return result
+  }
+
+  /**
+   * Get the public app configuration from the server.
+   * Returns all public settings (cached after first fetch).
+   * No authentication required.
+   */
+  async getAppConfig(): Promise<AppConfig> {
+    try {
+      if (this.cachedAppConfig) {
+        return this.cachedAppConfig
+      }
+
+      // Config endpoint is at the auth server root: /config/public
+      const authBaseUrl = endpointUrls.sso.replace(/\/sso\/?$/, '')
+      const queryParams = new QueryParams()
+      const allParams = queryParams.get() as Record<string, string>
+      const apiKey = allParams.e2e_pool_key
+      const headers: Record<string, string> = {
+        'Accept': 'application/json'
+      }
+      if (apiKey) {
+        headers.Authorization = `Bearer ${apiKey}`
+      }
+
+      const response = await fetch(`${authBaseUrl}/config/public`, { headers })
+      if (response.ok) {
+        const data: AppConfig = await response.json()
+        this.cachedAppConfig = data
+        this.log('[AuthPlugin] App config loaded:', Object.keys(data).length, 'keys')
+        return data
+      }
+
+      console.warn('[AuthPlugin] Failed to fetch app config, status:', response.status)
+      return {}
+    } catch (error) {
+      console.warn('[AuthPlugin] Error fetching app config:', error)
+      return {}
+    }
+  }
+
+  /**
+   * Force re-fetch of app configuration from the server (cache-busting).
+   * Emits 'appConfigChanged' with the new config.
+   */
+  async refreshAppConfig(): Promise<AppConfig> {
+    this.cachedAppConfig = null
+    const config = await this.getAppConfig()
+    this.emit('appConfigChanged', config)
+    return config
+  }
+
+  /**
+   * Get a single config value with a typed default fallback.
+   * @param key - Config key (e.g. 'cloud.enabled')
+   * @param defaultValue - Value to return if key is missing
+   */
+  async getAppConfigValue<T extends string | number | boolean>(key: string, defaultValue: T): Promise<T> {
+    const config = await this.getAppConfig()
+    const val = config[key]
+    return (val !== undefined ? val : defaultValue) as T
+  }
+
   async login(provider: AuthProviderType): Promise<void> {
     try {
-      console.log('[AuthPlugin] Starting popup-based login for:', provider)
+      this.log('[AuthPlugin] Starting popup-based login for:', provider)
+
+      // Get pending invite token to pass through login flow
+      const inviteToken = this.getPendingInviteToken()
 
       // SIWE requires special handling (client-side wallet signature)
       if (provider === 'siwe') {
-        await this.loginWithSIWE()
+        await this.loginWithSIWE(inviteToken || undefined)
         return
+      }
+
+      // Base Account uses Base SDK for SIWE-based authentication
+      if (provider === 'base') {
+        await this.loginWithBase(inviteToken || undefined)
+        return
+      }
+
+      // Build login URL - test provider uses pool checkout (no popup needed)
+      if (provider === 'test') {
+        await this.loginWithPool(inviteToken || undefined)
+        return
+      }
+
+      // Build popup URL with invite_token if present
+      let loginUrl = `${endpointUrls.sso}/login/${provider}?mode=popup&origin=${encodeURIComponent(window.location.origin)}`
+      if (inviteToken) {
+        loginUrl += `&invite_token=${encodeURIComponent(inviteToken)}`
       }
 
       // Open popup directly (must be in user click event)
       const popup = window.open(
-        `${endpointUrls.sso}/login/${provider}?mode=popup&origin=${encodeURIComponent(window.location.origin)}`,
+        loginUrl,
         'RemixLogin',
         'width=500,height=600,menubar=no,toolbar=no,location=no,status=no'
       )
@@ -291,16 +564,16 @@ export class AuthPlugin extends Plugin {
         }, 500) // Check every 500ms
 
         const handleMessage = (event: MessageEvent) => {
-          console.log('[AuthPlugin] Received message event:', event)
+          this.log('[AuthPlugin] Received message event:', event)
           // Verify origin
           if (event.origin !== new URL(endpointUrls.sso).origin) {
             return
           }
 
           if (event.data.type === 'sso-auth-success') {
-            console.log('[AuthPlugin] Received auth success from popup')
-            console.log('[AuthPlugin] User data from popup:', event.data)
-            console.log('[AuthPlugin] User provider field:', event.data.user?.provider)
+            this.log('[AuthPlugin] Received auth success from popup')
+            this.log('[AuthPlugin] User data from popup:', event.data)
+            this.log('[AuthPlugin] User provider field:', event.data.user?.provider)
             cleanup()
             resolve({
               user: event.data.user,
@@ -310,7 +583,49 @@ export class AuthPlugin extends Plugin {
             })
           } else if (event.data.type === 'sso-auth-error') {
             cleanup()
-            reject(new Error(event.data.error || 'Login failed'))
+            const errorCode = event.data.error || ''
+            let errorMsg: string
+
+            // Map known error codes to user-friendly messages
+            if (ACCESS_POLICY_ERROR_CODES.includes(errorCode)) {
+              // Use the server message if available, then cached admin message, then map the code
+              const serverMsg = event.data.message
+              const adminMsg = this.cachedAccessPolicy?.message || this.cachedLoginMessage
+              switch (errorCode) {
+              case 'LOGIN_LOCKED':
+                errorMsg = serverMsg || adminMsg || 'Login is currently disabled. Please try again later.'
+                break
+              case 'LOGIN_ADMINS_ONLY':
+                errorMsg = serverMsg || adminMsg || 'Login is restricted to administrators.'
+                break
+              case 'LOGIN_MEMBERS_ONLY':
+                errorMsg = serverMsg || adminMsg || 'Only existing members can sign in at this time.'
+                break
+              case 'INVITE_REQUIRED':
+                errorMsg = serverMsg || 'An invite code is required to register.'
+                break
+              case 'INVITE_INVALID':
+                errorMsg = serverMsg || 'Your invite code is invalid or expired.'
+                break
+              case 'LOGIN_CLOSED':
+                errorMsg = serverMsg || adminMsg || 'Login is currently disabled. Please try again later.'
+                break
+              case 'LOGIN_FEATURE_GROUP_REQUIRED':
+                errorMsg = serverMsg || adminMsg || 'Your account does not have login access. Contact an administrator.'
+                break
+              default:
+                errorMsg = serverMsg || adminMsg || 'Login is currently restricted.'
+              }
+              // Refresh access policy since the server just told us access is restricted
+              this.refreshAccessPolicy().catch(() => {})
+            } else if (errorCode === 'REGISTRATION_CLOSED') {
+              errorMsg = 'Registration is currently closed. Only existing users can sign in.'
+            } else if (errorCode === 'ACCOUNT_BLOCKED') {
+              errorMsg = 'Your account has been blocked.'
+            } else {
+              errorMsg = errorCode || 'Login failed'
+            }
+            reject(new Error(errorMsg))
           }
         }
 
@@ -327,13 +642,13 @@ export class AuthPlugin extends Plugin {
       })
 
       // Store tokens in localStorage
-      console.log(result)
-      console.log('[AuthPlugin] Storing user in localStorage:', result.user)
-      console.log('[AuthPlugin] User has provider field:', result.user.provider)
+      this.log(result)
+      this.log('[AuthPlugin] Storing user in localStorage:', result.user)
+      this.log('[AuthPlugin] User has provider field:', result.user.provider)
       localStorage.setItem('remix_access_token', result.accessToken)
       localStorage.setItem('remix_refresh_token', result.refreshToken)
       localStorage.setItem('remix_user', JSON.stringify(result.user))
-      console.log('[AuthPlugin] Stored user JSON:', localStorage.getItem('remix_user'))
+      this.log('[AuthPlugin] Stored user JSON:', localStorage.getItem('remix_user'))
 
       // Schedule proactive refresh based on access token expiry
       this.scheduleRefresh(result.accessToken)
@@ -347,14 +662,14 @@ export class AuthPlugin extends Plugin {
 
       // If logged in via GitHub, bridge the provider token to dgit config
       if (result.user.provider === 'github' && result.providerToken) {
-        console.log('[AuthPlugin] GitHub provider detected, bridging token to dgit')
+        this.log('[AuthPlugin] GitHub provider detected, bridging token to dgit')
         await this.bridgeGitHubToken(result.providerToken)
       }
 
       // Fetch credits after successful login
       this.refreshCredits().catch(console.error)
 
-      console.log('[AuthPlugin] Login successful')
+      this.log('[AuthPlugin] Login successful')
     } catch (error) {
       console.error('[AuthPlugin] Login failed:', error)
       throw error
@@ -379,7 +694,7 @@ export class AuthPlugin extends Plugin {
         token: null
       })
 
-      console.log('[AuthPlugin] Logout successful')
+      this.log('[AuthPlugin] Logout successful')
     } catch (error) {
       console.error('[AuthPlugin] Logout failed:', error)
     }
@@ -387,7 +702,7 @@ export class AuthPlugin extends Plugin {
 
   async linkAccount(provider: AuthProviderType): Promise<void> {
     try {
-      console.log('[AuthPlugin] Starting account linking for:', provider)
+      this.log('[AuthPlugin] Starting account linking for:', provider)
 
       // Check if already logged in and save current session
       const currentToken = await this.getToken()
@@ -398,11 +713,17 @@ export class AuthPlugin extends Plugin {
         throw new Error('You must be logged in to link additional accounts')
       }
 
-      console.log('[AuthPlugin] Current user:', currentUser.sub)
+      this.log('[AuthPlugin] Current user:', currentUser.sub)
 
       // SIWE linking
       if (provider === 'siwe') {
         await this.linkSIWEAccount()
+        return
+      }
+
+      // Base wallet linking
+      if (provider === 'base') {
+        await this.linkBaseAccount()
         return
       }
 
@@ -456,7 +777,7 @@ export class AuthPlugin extends Plugin {
         window.addEventListener('message', handleMessage)
       })
 
-      console.log('[AuthPlugin] Got new account info:', result.user.sub)
+      this.log('[AuthPlugin] Got new account info:', result.user.sub)
 
       // DON'T update localStorage - keep the original session!
       // We're linking, not switching accounts
@@ -479,7 +800,7 @@ export class AuthPlugin extends Plugin {
         throw new Error(error.error || 'Account linking failed')
       }
 
-      console.log('[AuthPlugin] Account linked successfully! Keeping original session.')
+      this.log('[AuthPlugin] Account linked successfully! Keeping original session.')
       this.emit('accountLinked', { provider })
 
       // Restore original session in case popup response tried to change it
@@ -488,7 +809,7 @@ export class AuthPlugin extends Plugin {
 
       // If linking GitHub, bridge the provider token to dgit config
       if (provider === 'github' && result.providerToken) {
-        console.log('[AuthPlugin] GitHub linked, bridging token to dgit')
+        this.log('[AuthPlugin] GitHub linked, bridging token to dgit')
         await this.bridgeGitHubToken(result.providerToken)
       }
 
@@ -506,7 +827,7 @@ export class AuthPlugin extends Plugin {
     try {
       await this.call('config' as any, 'setAppParameter', 'settings/gist-access-token', token)
       this.emit('gitHubTokenReady' as any, { token })
-      console.log('[AuthPlugin] GitHub token bridged to dgit config')
+      this.log('[AuthPlugin] GitHub token bridged to dgit config')
     } catch (error) {
       console.error('[AuthPlugin] Failed to bridge GitHub token:', error)
     }
@@ -531,7 +852,7 @@ export class AuthPlugin extends Plugin {
       })
 
       if (!response.ok) {
-        console.log('[AuthPlugin] No GitHub token available from backend:', response.status)
+        this.log('[AuthPlugin] No GitHub token available from backend:', response.status)
         return null
       }
 
@@ -555,7 +876,7 @@ export class AuthPlugin extends Plugin {
     try {
       await this.call('config' as any, 'setAppParameter', 'settings/gist-access-token', '')
       this.emit('gitHubTokenReady' as any, { token: null })
-      console.log('[AuthPlugin] GitHub disconnected from dgit')
+      this.log('[AuthPlugin] GitHub disconnected from dgit')
     } catch (error) {
       console.error('[AuthPlugin] Failed to disconnect GitHub:', error)
     }
@@ -584,6 +905,7 @@ export class AuthPlugin extends Plugin {
       // Update other API services too
       this.creditsApi.setToken(token)
       this.permissionsApi.setToken(token)
+      this.billingApi.setToken(token)
       this.inviteApi.setToken(token)
     }
 
@@ -598,11 +920,12 @@ export class AuthPlugin extends Plugin {
     try {
       const refreshToken = localStorage.getItem('remix_refresh_token')
       if (!refreshToken) {
-        console.warn('[AuthPlugin] No refresh token available')
+        console.warn('[AuthPlugin] No refresh token available, logging out')
+        await this.logout()
         return null
       }
 
-      console.log('[AuthPlugin] Refreshing access token...')
+      this.log('[AuthPlugin] Refreshing access token...')
 
       const response = await this.ssoApi.refreshToken(refreshToken)
 
@@ -621,30 +944,27 @@ export class AuthPlugin extends Plugin {
         this.apiClient.setToken(newAccessToken)
         this.creditsApi.setToken(newAccessToken)
         this.permissionsApi.setToken(newAccessToken)
+        this.billingApi.setToken(newAccessToken)
         this.inviteApi.setToken(newAccessToken)
 
-        console.log('[AuthPlugin] Access token refreshed successfully')
+        this.log('[AuthPlugin] Access token refreshed successfully')
         // Reschedule next proactive refresh
         this.scheduleRefresh(newAccessToken)
 
-        // Notify other plugins about the refreshed token
-        const userStr = localStorage.getItem('remix_user')
-        const user = userStr ? JSON.parse(userStr) : null
-        this.emit('authStateChanged', {
-          isAuthenticated: true,
-          user,
-          token: newAccessToken
-        })
+        // Notify all listeners about the new token
+        // Only emit tokenRefreshed — NOT authStateChanged.
+        // The user hasn't changed, only the token was refreshed.
+        // Emitting authStateChanged here would cause all consumers to re-initialize
+        // (reload configs, re-read S3 data, etc.) for no reason.
+        this.emit('tokenRefreshed', { token: newAccessToken })
 
         return newAccessToken
       }
 
       console.warn('[AuthPlugin] Token refresh failed:', response.error)
 
-      // If refresh failed, clear tokens and emit logout
-      if (response.status === 401) {
-        await this.logout()
-      }
+      // Any failed refresh means tokens are no longer usable — log out
+      await this.logout()
 
       return null
     } catch (error) {
@@ -658,7 +978,7 @@ export class AuthPlugin extends Plugin {
       // Ensure token is set
       await this.getToken()
 
-      console.log('[AuthPlugin] Fetching credits using typed API')
+      this.log('[AuthPlugin] Fetching credits using typed API')
 
       const response = await this.creditsApi.getBalance()
 
@@ -729,13 +1049,47 @@ export class AuthPlugin extends Plugin {
     }
   }
 
-  onActivation(): void {
-    console.log('[AuthPlugin] Activated - using popup + localStorage mode')
+  async onActivation(): Promise<void> {
+    this.log('[AuthPlugin] Activated - using popup + localStorage mode')
+
+    // Fetch access policy, login mode, and app config early (non-blocking) so UI can adapt immediately
+    this.getAccessPolicy().then((accessPolicy) => {
+      this.emit('accessPolicyChanged', accessPolicy)
+    }).catch(() => {})
+
+    this.getLoginMode().then((loginMode) => {
+      this.emit('loginModeChanged', loginMode)
+    }).catch(() => {})
+
+    this.getAppConfig().then((config) => {
+      this.emit('appConfigChanged', config)
+    }).catch(() => {})
 
     // Validate existing token with the API on load
-    this.validateAndRestoreSession()
+    // Awaited so that plugin activation only completes after validation.
+    // This ensures AuthContext (which polls for activation) never sees
+    // stale/unvalidated tokens in localStorage.
+    await this.validateAndRestoreSession()
+  }
 
-    // Note: Invite token URL checking is handled by invitationManager plugin
+  /**
+   * Called by the email OTP flow in the LoginModal after it verifies the code
+   * and stores tokens in localStorage. The OTP flow bypasses `login()` and its
+   * popup-based message exchange, so we need a dedicated entry-point to:
+   *   1. Schedule proactive token refresh
+   *   2. Emit `authStateChanged` so CloudProvider (and others) react
+   *   3. Fetch credits
+   */
+  async notifyEmailOtpLogin(user: any, accessToken: string): Promise<void> {
+    this.scheduleRefresh(accessToken)
+
+    this.emit('authStateChanged', {
+      isAuthenticated: true,
+      user,
+      token: accessToken
+    })
+
+    this.refreshCredits().catch(console.error)
   }
 
   /**
@@ -745,24 +1099,40 @@ export class AuthPlugin extends Plugin {
   private async validateAndRestoreSession(): Promise<void> {
     const token = localStorage.getItem('remix_access_token')
     if (!token) {
-      console.log('[AuthPlugin] No stored token found')
+      this.log('[AuthPlugin] No stored token found')
       return
     }
 
-    console.log('[AuthPlugin] Validating stored token with API...')
+    this.log('[AuthPlugin] Validating stored token with API...')
 
     try {
       // First check if token is expired locally (quick check)
       const expMs = this.getTokenExpiryMs(token)
       if (expMs && expMs < Date.now()) {
-        console.log('[AuthPlugin] Token expired, attempting refresh...')
+        this.log('[AuthPlugin] Token expired, attempting refresh...')
         const refreshed = await this.refreshAccessToken()
         if (!refreshed) {
-          console.log('[AuthPlugin] Refresh failed, clearing session')
+          this.log('[AuthPlugin] Refresh failed, clearing session')
           this.clearStoredAuth()
+          this.emit('authStateChanged', {
+            isAuthenticated: false,
+            user: null,
+            token: null
+          })
           return
         }
-        // refreshAccessToken already emits authStateChanged if successful
+        // Refresh succeeded — emit authenticated state with refreshed data
+        const refreshedToken = localStorage.getItem('remix_access_token')
+        const userStr = localStorage.getItem('remix_user')
+        const user = userStr ? JSON.parse(userStr) : null
+        if (user && refreshedToken) {
+          this.emit('authStateChanged', {
+            isAuthenticated: true,
+            user,
+            token: refreshedToken
+          })
+          this.refreshCredits().catch(console.error)
+        }
         return
       }
 
@@ -770,7 +1140,7 @@ export class AuthPlugin extends Plugin {
       const response = await this.ssoApi.verify()
 
       if (response.ok && response.data?.authenticated) {
-        console.log('[AuthPlugin] Token verified successfully')
+        this.log('[AuthPlugin] Token verified successfully')
 
         // Update user data from API response if available
         let user = response.data.user
@@ -799,11 +1169,24 @@ export class AuthPlugin extends Plugin {
           this.scheduleRefresh(token)
         }
       } else {
-        console.log('[AuthPlugin] Token validation failed, attempting refresh...')
+        this.log('[AuthPlugin] Token validation failed, attempting refresh...')
         // Token is invalid, try to refresh
         const refreshed = await this.refreshAccessToken()
-        if (!refreshed) {
-          console.log('[AuthPlugin] Refresh failed, clearing session')
+        if (refreshed) {
+          // Refresh succeeded — emit authenticated state so cloud plugins activate
+          const refreshedToken = localStorage.getItem('remix_access_token')
+          const userStr = localStorage.getItem('remix_user')
+          const user = userStr ? JSON.parse(userStr) : null
+          if (user && refreshedToken) {
+            this.emit('authStateChanged', {
+              isAuthenticated: true,
+              user,
+              token: refreshedToken
+            })
+            this.refreshCredits().catch(console.error)
+          }
+        } else {
+          this.log('[AuthPlugin] Refresh failed, clearing session')
           this.clearStoredAuth()
           this.emit('authStateChanged', {
             isAuthenticated: false,
@@ -814,22 +1197,15 @@ export class AuthPlugin extends Plugin {
       }
     } catch (error) {
       console.error('[AuthPlugin] Session validation error:', error)
-      // Network error - don't clear session, user might be offline
-      // Try to use cached session but mark as unverified
-      const userStr = localStorage.getItem('remix_user')
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr)
-          this.emit('authStateChanged', {
-            isAuthenticated: true,
-            user,
-            token,
-            verified: false // Indicate session is not verified
-          })
-        } catch (e) {
-          // Invalid stored data
-        }
-      }
+      // Network error — cannot verify token, clear session to be safe.
+      // An unverifiable token should not grant access.
+      this.log('[AuthPlugin] Cannot reach auth server, clearing session')
+      this.clearStoredAuth()
+      this.emit('authStateChanged', {
+        isAuthenticated: false,
+        user: null,
+        token: null
+      })
     }
   }
 
@@ -863,7 +1239,7 @@ export class AuthPlugin extends Plugin {
       const token = await this.getToken()
 
       // Request account access
-      console.log('[SIWE Link] Requesting wallet accounts...')
+      this.log('[SIWE Link] Requesting wallet accounts...')
       const accounts = await ethereum.request({ method: 'eth_requestAccounts' })
       if (!accounts || accounts.length === 0) {
         throw new Error('No wallet accounts available')
@@ -871,7 +1247,7 @@ export class AuthPlugin extends Plugin {
 
       const rawAddress = accounts[0].toLowerCase()
       const address = this.toChecksumAddress(rawAddress)
-      console.log('[SIWE Link] Using checksummed address:', address)
+      this.log('[SIWE Link] Using checksummed address:', address)
 
       // Get chain ID
       const chainId = await ethereum.request({ method: 'eth_chainId' })
@@ -888,31 +1264,28 @@ export class AuthPlugin extends Plugin {
 
       const nonce = await nonceResponse.text()
 
-      // Create SIWE message
-      const domain = window.location.host
-      const origin = window.location.origin
-      const statement = 'Link this Ethereum account to your Remix account'
-
-      const message = `${domain} wants you to sign in with your Ethereum account:
-${address}
-
-${statement}
-
-URI: ${origin}
-Version: 1
-Chain ID: ${chainIdNumber}
-Nonce: ${nonce}
-Issued At: ${new Date().toISOString()}`
+      // Create SIWE message using the siwe library
+      const siweMessage = new SiweMessage({
+        domain: window.location.host,
+        address: address,
+        statement: 'Link this Ethereum account to your Remix account',
+        uri: window.location.origin,
+        version: '1',
+        chainId: chainIdNumber,
+        nonce: nonce,
+        issuedAt: new Date().toISOString()
+      })
+      const message = siweMessage.prepareMessage()
 
       // Request signature
-      console.log('[SIWE Link] Requesting signature...')
+      this.log('[SIWE Link] Requesting signature...')
       const signature = await ethereum.request({
         method: 'personal_sign',
         params: [message, address]
       })
 
       // Verify and get user_id
-      console.log('[SIWE Link] Verifying signature...')
+      this.log('[SIWE Link] Verifying signature...')
       const verifyResponse = await fetch(`${endpointUrls.sso}/siwe/verify`, {
         method: 'POST',
         credentials: 'include',
@@ -950,7 +1323,7 @@ Issued At: ${new Date().toISOString()}`
         throw new Error(error.error || 'Account linking failed')
       }
 
-      console.log('[SIWE Link] Account linked successfully!')
+      this.log('[SIWE Link] Account linked successfully!')
       this.emit('accountLinked', { provider: 'siwe' })
 
     } catch (error: any) {
@@ -959,7 +1332,111 @@ Issued At: ${new Date().toISOString()}`
     }
   }
 
-  private async loginWithSIWE(): Promise<void> {
+  /**
+   * Link Base wallet to existing account
+   */
+  private async linkBaseAccount(): Promise<void> {
+    try {
+      console.log('[Base Link] Starting Base Account linking...')
+
+      const token = await this.getToken()
+      if (!token) {
+        throw new Error('You must be logged in to link a Base account')
+      }
+
+      // Dynamically import the Base Account SDK
+      const { createBaseAccountSDK } = await import('@base-org/account')
+
+      // Initialize the SDK
+      const sdk = createBaseAccountSDK({
+        appName: 'Remix IDE',
+      })
+      const provider = sdk.getProvider()
+
+      // Get nonce from Base-specific endpoint
+      console.log('[Base Link] Fetching nonce from backend...')
+      const nonceResponse = await fetch(`${endpointUrls.sso}/base/nonce`, {
+        credentials: 'include'
+      })
+
+      if (!nonceResponse.ok) {
+        throw new Error('Failed to fetch nonce from server')
+      }
+
+      const nonce = await nonceResponse.text()
+      console.log('[Base Link] Got nonce:', nonce.substring(0, 10) + '...')
+
+      // Base Mainnet chain ID
+      const BASE_MAINNET_CHAIN_ID = '0x2105' // 8453
+
+      // Switch to Base chain
+      console.log('[Base Link] Switching to Base chain...')
+      try {
+        await provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: BASE_MAINNET_CHAIN_ID }],
+        })
+      } catch (switchError: any) {
+        console.log('[Base Link] Chain switch response:', switchError)
+      }
+
+      // Connect wallet and sign SIWE message
+      console.log('[Base Link] Connecting wallet with SIWE...')
+      const connectResult = await provider.request({
+        method: 'wallet_connect',
+        params: [{
+          version: '1',
+          capabilities: {
+            signInWithEthereum: {
+              version: '1',
+              domain: window.location.host,
+              uri: window.location.origin,
+              nonce,
+              chainId: BASE_MAINNET_CHAIN_ID,
+              statement: 'Link this Base account to your Remix account',
+              issuedAt: new Date().toISOString(),
+            },
+          },
+        }],
+      }) as { accounts: Array<{ address: string; capabilities: { signInWithEthereum: { message: string; signature: string } } }> }
+
+      const { address } = connectResult.accounts[0]
+      const { message, signature } = connectResult.accounts[0].capabilities.signInWithEthereum
+
+      console.log('[Base Link] Got address:', address)
+      console.log('[Base Link] Got message:', message)
+      console.log('[Base Link] Got signature:', signature.substring(0, 20) + '...')
+
+      // Link the Base account using the dedicated endpoint
+      console.log('[Base Link] Linking Base account...')
+      const linkResponse = await fetch(`${endpointUrls.sso}/base/link`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message,
+          signature
+        })
+      })
+
+      if (!linkResponse.ok) {
+        const error = await linkResponse.json().catch(() => ({ error: 'Failed to link account' }))
+        throw new Error(error.error || 'Base account linking failed')
+      }
+
+      console.log('[Base Link] Account linked successfully!')
+      this.emit('accountLinked', { provider: 'base' })
+
+    } catch (error: any) {
+      console.error('[Base Link] Failed:', error)
+      throw error
+    }
+  }
+
+  private async loginWithSIWE(inviteToken?: string): Promise<void> {
     try {
       // Check if wallet is available
       if (!(window as any).ethereum) {
@@ -969,7 +1446,7 @@ Issued At: ${new Date().toISOString()}`
       const ethereum = (window as any).ethereum
 
       // Request account access
-      console.log('[SIWE] Requesting wallet accounts...')
+      this.log('[SIWE] Requesting wallet accounts...')
       const accounts = await ethereum.request({ method: 'eth_requestAccounts' })
       if (!accounts || accounts.length === 0) {
         throw new Error('No wallet accounts available')
@@ -978,15 +1455,15 @@ Issued At: ${new Date().toISOString()}`
       // Convert address to EIP-55 checksum format
       const rawAddress = accounts[0].toLowerCase()
       const address = this.toChecksumAddress(rawAddress)
-      console.log('[SIWE] Using checksummed address:', address)
+      this.log('[SIWE] Using checksummed address:', address)
 
       // Get chain ID
       const chainId = await ethereum.request({ method: 'eth_chainId' })
       const chainIdNumber = parseInt(chainId, 16)
-      console.log('[SIWE] Chain ID:', chainIdNumber)
+      this.log('[SIWE] Chain ID:', chainIdNumber)
 
       // Get nonce from backend
-      console.log('[SIWE] Fetching nonce from backend...')
+      this.log('[SIWE] Fetching nonce from backend...')
       const nonceResponse = await fetch(`${endpointUrls.sso}/siwe/nonce`, {
         credentials: 'include'
       })
@@ -996,64 +1473,81 @@ Issued At: ${new Date().toISOString()}`
       }
 
       const nonce = await nonceResponse.text()
-      console.log('[SIWE] Got nonce:', nonce.substring(0, 10) + '...')
+      this.log('[SIWE] Got nonce:', nonce.substring(0, 10) + '...')
 
-      // Create SIWE message
-      const domain = window.location.host
-      const origin = window.location.origin
-      const statement = 'Sign in to Remix IDE with your Ethereum account'
+      // Create SIWE message using the siwe library
+      const siweMessage = new SiweMessage({
+        domain: window.location.host,
+        address: address,
+        statement: 'Sign in to Remix IDE with your Ethereum account',
+        uri: window.location.origin,
+        version: '1',
+        chainId: chainIdNumber,
+        nonce: nonce,
+        issuedAt: new Date().toISOString()
+      })
+      const message = siweMessage.prepareMessage()
 
-      const message = `${domain} wants you to sign in with your Ethereum account:
-${address}
-
-${statement}
-
-URI: ${origin}
-Version: 1
-Chain ID: ${chainIdNumber}
-Nonce: ${nonce}
-Issued At: ${new Date().toISOString()}`
-
-      console.log('[SIWE] Message to sign:', message)
+      this.log('[SIWE] Message to sign:', message)
 
       // Request signature from wallet
-      console.log('[SIWE] Requesting signature from wallet...')
+      this.log('[SIWE] Requesting signature from wallet...')
       const signature = await ethereum.request({
         method: 'personal_sign',
         params: [message, address]
       })
 
-      console.log('[SIWE] Got signature:', signature.substring(0, 20) + '...')
+      this.log('[SIWE] Got signature:', signature.substring(0, 20) + '...')
 
       // Send to backend for verification
-      console.log('[SIWE] Verifying signature with backend...')
+      this.log('[SIWE] Verifying signature with backend...')
+      const verifyBody: Record<string, string> = { message, signature }
+      if (inviteToken) {
+        verifyBody.invite_token = inviteToken
+      }
       const verifyResponse = await fetch(`${endpointUrls.sso}/siwe/verify`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          message,
-          signature
-        })
+        body: JSON.stringify(verifyBody)
       })
 
       if (!verifyResponse.ok) {
         const error = await verifyResponse.json().catch(() => ({ error: 'Verification failed' }))
+        if (verifyResponse.status === 403) {
+          const errCode = error.error || ''
+          if (ACCESS_POLICY_ERROR_CODES.includes(errCode)) {
+            this.refreshAccessPolicy().catch(() => {})
+            throw new Error(error.message || this.cachedAccessPolicy?.message || this.cachedLoginMessage || 'Login is currently restricted.')
+          }
+          if (errCode === 'REGISTRATION_CLOSED') {
+            throw new Error('Registration is currently closed. Only existing users can sign in.')
+          }
+          if (errCode === 'ACCOUNT_BLOCKED') {
+            throw new Error('Your account has been blocked.')
+          }
+        }
         throw new Error(error.error || error.message || 'SIWE verification failed')
       }
 
       const result = await verifyResponse.json()
-      console.log('[SIWE] Verification successful!')
+      this.log('[SIWE] Verification successful!')
 
       // Store tokens and user info
       localStorage.setItem('remix_access_token', result.token)
+      if (result.refreshToken) {
+        localStorage.setItem('remix_refresh_token', result.refreshToken)
+      }
       if (result.user) {
         localStorage.setItem('remix_user', JSON.stringify(result.user))
       }
 
-      console.log('[SIWE] Login successful!')
+      this.log('[SIWE] Login successful!')
+
+      // Schedule proactive token refresh
+      this.scheduleRefresh(result.token)
 
       // Emit auth state changed
       this.emit('authStateChanged', {
@@ -1067,6 +1561,140 @@ Issued At: ${new Date().toISOString()}`
 
     } catch (error: any) {
       console.error('[SIWE] Login failed:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Login with Base Account SDK
+   * Uses Base's smart wallet and SIWE-based authentication
+   */
+  private async loginWithBase(inviteToken?: string): Promise<void> {
+    try {
+      console.log('[Base] Starting Base Account authentication...')
+
+      // Dynamically import the Base Account SDK
+      const { createBaseAccountSDK } = await import('@base-org/account')
+
+      // Initialize the SDK
+      const sdk = createBaseAccountSDK({
+        appName: 'Remix IDE',
+      })
+      const provider = sdk.getProvider()
+
+      // Get nonce from Base-specific endpoint
+      console.log('[Base] Fetching nonce from backend...')
+      const nonceResponse = await fetch(`${endpointUrls.sso}/base/nonce`, {
+        credentials: 'include'
+      })
+
+      if (!nonceResponse.ok) {
+        throw new Error('Failed to fetch nonce from server')
+      }
+
+      const nonce = await nonceResponse.text()
+      console.log('[Base] Got nonce:', nonce.substring(0, 10) + '...')
+
+      // Base Mainnet chain ID
+      const BASE_MAINNET_CHAIN_ID = '0x2105' // 8453
+
+      // Switch to Base chain
+      console.log('[Base] Switching to Base chain...')
+      try {
+        await provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: BASE_MAINNET_CHAIN_ID }],
+        })
+      } catch (switchError: any) {
+        console.log('[Base] Chain switch response:', switchError)
+        // Some wallets might throw even on success, continue if it's not a real error
+      }
+
+      // Connect wallet and sign SIWE message using Base's wallet_connect method
+      console.log('[Base] Connecting wallet with SIWE...')
+      const connectResult = await provider.request({
+        method: 'wallet_connect',
+        params: [{
+          version: '1',
+          capabilities: {
+            signInWithEthereum: {
+              version: '1',
+              domain: window.location.host,
+              uri: window.location.origin,
+              nonce,
+              chainId: BASE_MAINNET_CHAIN_ID,
+              statement: 'Sign in to Remix IDE with your Base account',
+              issuedAt: new Date().toISOString(),
+            },
+          },
+        }],
+      }) as { accounts: Array<{ address: string; capabilities: { signInWithEthereum: { message: string; signature: string } } }> }
+
+      const { address } = connectResult.accounts[0]
+      const { message, signature } = connectResult.accounts[0].capabilities.signInWithEthereum
+
+      console.log('[Base] Got address:', address)
+      console.log('[Base] Got message:', message)
+      console.log('[Base] Got signature:', signature.substring(0, 20) + '...')
+
+      // Verify with Base-specific endpoint
+      console.log('[Base] Verifying signature with backend...')
+      const verifyBody: Record<string, string> = { message, signature }
+      if (inviteToken) {
+        verifyBody.invite_token = inviteToken
+      }
+      const verifyResponse = await fetch(`${endpointUrls.sso}/base/verify`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(verifyBody)
+      })
+
+      if (!verifyResponse.ok) {
+        const error = await verifyResponse.json().catch(() => ({ error: 'Verification failed' }))
+        if (verifyResponse.status === 403) {
+          const errCode = error.error || ''
+          if (ACCESS_POLICY_ERROR_CODES.includes(errCode)) {
+            this.refreshAccessPolicy().catch(() => {})
+            throw new Error(error.message || this.cachedAccessPolicy?.message || this.cachedLoginMessage || 'Login is currently restricted.')
+          }
+          if (errCode === 'REGISTRATION_CLOSED') {
+            throw new Error('Registration is currently closed. Only existing users can sign in.')
+          }
+          if (errCode === 'ACCOUNT_BLOCKED') {
+            throw new Error('Your account has been blocked.')
+          }
+        }
+        throw new Error(error.error || error.message || 'Base account verification failed')
+      }
+
+      const result = await verifyResponse.json()
+      console.log('[Base] Verification successful!')
+
+      // Store tokens and user info
+      localStorage.setItem('remix_access_token', result.token)
+      if (result.user) {
+        // Ensure provider is set to 'base'
+        result.user.provider = 'base'
+        localStorage.setItem('remix_user', JSON.stringify(result.user))
+      }
+
+      console.log('[Base] Login successful!')
+
+      // Emit auth state changed
+      this.emit('authStateChanged', {
+        isAuthenticated: true,
+        user: result.user,
+        token: result.token
+      })
+
+      // Auto-refresh credits
+      this.refreshCredits().catch(console.error)
+
+    } catch (error: any) {
+      console.error('[Base] Login failed:', error)
       throw error
     }
   }
@@ -1172,5 +1800,177 @@ Issued At: ${new Date().toISOString()}`
     this.pendingInviteToken = null
     sessionStorage.removeItem('remix_pending_invite')
     sessionStorage.removeItem('remix_pending_invite_validation')
+  }
+
+  // ==================== E2E Test Account Pool ====================
+
+  /**
+   * Ensure the TestPoolApiService is initialized.
+   * Looks for the API key in URL params (?e2e_pool_key=...) or
+   * falls back to a previously initialized instance.
+   */
+  private ensurePoolApi(): TestPoolApiService {
+    if (this.testPoolApi) return this.testPoolApi
+
+    const queryParams = new QueryParams()
+    const allParams = queryParams.get() as Record<string, string>
+    const apiKey = allParams.e2e_pool_key
+    if (!apiKey) {
+      throw new Error('No pool API key. Pass #e2e_pool_key=rmx_... in the URL or call poolCheckout from the test runner.')
+    }
+
+    this.testPoolApi = new TestPoolApiService(endpointUrls.sso, apiKey)
+    return this.testPoolApi
+  }
+
+  /**
+   * Login using the E2E test account pool.
+   * Checks out an exclusive account and logs in with the returned JWT tokens.
+   * No popup required — tokens come directly from the pool API.
+   */
+  private async loginWithPool(inviteToken?: string): Promise<void> {
+    this.log('[AuthPlugin] Starting pool-based test login')
+
+    const poolApi = this.ensurePoolApi()
+    const allParams = new QueryParams().get() as Record<string, string>
+    const groups = allParams.e2e_feature_groups ? allParams.e2e_feature_groups.split(',') : []
+    console.log('[AuthPlugin] Requesting pool checkout with groups:', groups)
+    const result = await poolApi.checkout(groups, inviteToken)
+
+    if (!result.ok || !result.data) {
+      throw new Error(`Pool checkout failed: ${result.error || 'Unknown error'}`)
+    }
+
+    const { sessionId, accountId, userId, access_token, refresh_token, user } = result.data
+
+    // Track the active session so we can release it later
+    this.activePoolSession = { sessionId, accountId }
+
+    // Build AuthUser from pool user data
+    const authUser: AuthUser = {
+      sub: String(userId),
+      email: user.email,
+      name: user.name,
+      provider: 'test'
+    }
+
+    // Store tokens in localStorage (same as OAuth flow)
+    localStorage.setItem('remix_access_token', access_token)
+    localStorage.setItem('remix_refresh_token', refresh_token)
+    localStorage.setItem('remix_user', JSON.stringify(authUser))
+
+    // Store pool session info so release can happen even after page reload
+    sessionStorage.setItem('remix_pool_session', JSON.stringify(this.activePoolSession))
+
+    // Schedule proactive refresh
+    this.scheduleRefresh(access_token)
+
+    // Emit auth state change
+    this.emit('authStateChanged', {
+      isAuthenticated: true,
+      user: authUser,
+      token: access_token
+    })
+
+    // Fetch credits after login
+    this.refreshCredits().catch(console.error)
+
+    this.log(`[AuthPlugin] Pool login successful: ${accountId} (session: ${sessionId})`)
+  }
+
+  /**
+   * Checkout an exclusive test account from the pool.
+   * Returns the full checkout response including JWT tokens.
+   *
+   * Prefer using `login('test')` from the UI, or call this directly
+   * from E2E test scripts that need the raw session data.
+   */
+  async poolCheckout(featureGroups: string[] = ['beta']): Promise<PoolCheckoutResponse> {
+    const poolApi = this.ensurePoolApi()
+    const result = await poolApi.checkout(featureGroups)
+
+    if (!result.ok || !result.data) {
+      throw new Error(`Pool checkout failed: ${result.error || 'Unknown error'}`)
+    }
+
+    this.activePoolSession = {
+      sessionId: result.data.sessionId,
+      accountId: result.data.accountId
+    }
+    sessionStorage.setItem('remix_pool_session', JSON.stringify(this.activePoolSession))
+
+    return result.data
+  }
+
+  /**
+   * Release the current (or specified) pool session and wipe all data.
+   * **Must be called after every test run.**
+   *
+   * @param sessionId - Optional. Uses active session if not provided.
+   */
+  async poolRelease(sessionId?: string): Promise<PoolReleaseResponse> {
+    const sid = sessionId
+      || this.activePoolSession?.sessionId
+      || (() => {
+        const stored = sessionStorage.getItem('remix_pool_session')
+        return stored ? JSON.parse(stored).sessionId : null
+      })()
+
+    if (!sid) {
+      throw new Error('No active pool session to release')
+    }
+
+    const poolApi = this.ensurePoolApi()
+    const result = await poolApi.release(sid)
+
+    if (!result.ok || !result.data) {
+      throw new Error(`Pool release failed: ${result.error || 'Unknown error'}`)
+    }
+
+    // Clean up local state
+    this.activePoolSession = null
+    sessionStorage.removeItem('remix_pool_session')
+
+    // Also clear auth state
+    this.clearStoredAuth()
+    this.emit('authStateChanged', {
+      isAuthenticated: false,
+      user: null,
+      token: null
+    })
+
+    this.log(`[AuthPlugin] Pool session released: ${sid}`)
+    return result.data
+  }
+
+  /**
+   * Get current pool status (available accounts, locks, etc.)
+   */
+  async poolStatus(): Promise<PoolStatusResponse> {
+    const poolApi = this.ensurePoolApi()
+    const result = await poolApi.status()
+
+    if (!result.ok || !result.data) {
+      throw new Error(`Pool status failed: ${result.error || 'Unknown error'}`)
+    }
+
+    return result.data
+  }
+
+  /**
+   * Emergency: force-release all pool accounts and wipe all test data.
+   */
+  async poolReleaseAll(): Promise<void> {
+    const poolApi = this.ensurePoolApi()
+    const result = await poolApi.releaseAll()
+
+    if (!result.ok) {
+      throw new Error(`Pool release-all failed: ${result.error || 'Unknown error'}`)
+    }
+
+    this.activePoolSession = null
+    sessionStorage.removeItem('remix_pool_session')
+
+    this.log(`[AuthPlugin] All pool sessions released`)
   }
 }

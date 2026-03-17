@@ -117,7 +117,7 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
               <HomeTabTitle />
               {!(platform === appPlatformTypes.desktop) ? <HomeTabRecentWorkspaces plugin={plugin} /> : <HomeTabRecentWorkspacesElectron plugin={plugin} />}
             </div>
-            <div className="col-lg-4 col-xl-7 col-sm-12" style={{ overflowY: 'auto', maxHeight: isTerminalHidden ? '85vh' : '61vh' }}>
+            <div className="col-lg-4 col-xl-7 col-sm-12" style={{ overflow: 'hidden', height: isTerminalHidden ? '85vh' : '61vh' }}>
               <HomeTabUpdates plugin={plugin} />
               <HomeTabFeaturedPlugins plugin={plugin} />
             </div>

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { useAuth } from '../../../app/src/lib/remix-app/context/auth-context'
+import { AppContext } from '../../../app/src/lib/remix-app/context/context'
 import { LoginModal } from './modals/login-modal'
 import { UserBadge } from './user-badge'
 import { UserMenuCompact } from './user-menu-compact'
@@ -23,10 +24,12 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   cloneGitRepository,
   publishToGist
 }) => {
+  const appContext = useContext(AppContext)
   const { isAuthenticated, user, credits, logout, login } = useAuth()
   const [showModal, setShowModal] = useState(false)
   const [themes, setThemes] = useState<Array<{ name: string; quality: string }>>([])
   const [currentTheme, setCurrentTheme] = useState<string>('')
+  const signInButtonMode = appContext?.appConfig?.['auth.sign_in_button_mode'] || 'default'
 
   useEffect(() => {
     if (plugin && typeof plugin.call === 'function') {
@@ -49,12 +52,16 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
 
   const handleLogout = async () => {
     await logout()
+    if (plugin && typeof plugin.call === 'function') {
+      plugin.call('matomo', 'trackEvent', 'auth', 'logout', 'Sign Out', undefined).catch(() => {})
+    }
   }
 
   const handleManageAccounts = () => {
     // Open Account overlay
     if (plugin && typeof plugin.call === 'function') {
-      (async () => {
+      plugin.call('matomo', 'trackEvent', 'userMenu', 'manageAccounts', 'Manage Accounts', undefined).catch(() => {})
+      ;(async () => {
         try {
           await plugin.call('account', 'open')
         } catch (err) {
@@ -85,7 +92,8 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
       'apple': 'Apple',
       'discord': 'Discord',
       'coinbase': 'Coinbase Wallet',
-      'siwe': 'Ethereum'
+      'siwe': 'Ethereum',
+      'base': 'Base'
     }
     return providerNames[provider] || provider
   }
@@ -110,16 +118,28 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   }
 
   if (!isAuthenticated) {
+    if (signInButtonMode === 'hidden') return null
+
     return (
       <>
         <button
           className={`btn btn-sm btn-primary ${className}`}
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setShowModal(true)
+            if (plugin && typeof plugin.call === 'function') {
+              plugin.call('matomo', 'trackEvent', 'auth', 'openLoginModal', 'Sign In', undefined).catch(() => {})
+            }
+          }}
           data-id="login-button"
         >
-          Sign In
+          <span className="d-inline-flex align-items-center">
+            <span className="me-1">Sign In</span>
+            {signInButtonMode === 'beta' && (
+              <span className="ms-2 text-primary user-menu-compact-beta-tag">BETA</span>
+            )}
+          </span>
         </button>
-        {showModal && <LoginModal onClose={() => setShowModal(false)} />}
+        {showModal && <LoginModal onClose={() => setShowModal(false)} plugin={plugin} />}
       </>
     )
   }

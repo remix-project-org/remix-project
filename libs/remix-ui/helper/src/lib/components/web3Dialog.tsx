@@ -1,5 +1,6 @@
 // eslint-disable-next-line no-use-before-define
 import React from 'react'
+import { FormattedMessage } from 'react-intl'
 
 interface web3ProviderDialogProps {
   setWeb3Endpoint: (value: string) => void
@@ -15,32 +16,28 @@ export function Web3ProviderDialog(props: web3ProviderDialogProps) {
   return (
     <>
       <div className="">
-        Note: To use Geth & https://remix.ethereum.org, configure it to allow requests from Remix:(see{' '}
-        <a href="https://geth.ethereum.org/docs/rpc/server" target="_blank" rel="noreferrer">
-          Geth Docs on rpc server
-        </a>
-        )<div className="border p-1">geth --http --http.corsdomain https://remix.ethereum.org</div>
+        <FormattedMessage id="helper.web3ProviderNote" values={{
+          a: (chunks) => <a href="https://geth.ethereum.org/docs/rpc/server" target="_blank" rel="noreferrer">{chunks}</a>
+        }} />
+        <div className="border p-1">geth --http --http.corsdomain https://remix.ethereum.org</div>
         <br />
-        To run Remix & a local Geth test node, use this command: (see{' '}
-        <a href="https://geth.ethereum.org/getting-started/dev-mode" target="_blank" rel="noreferrer">
-          Geth Docs on Dev mode
-        </a>
-        )
+        <FormattedMessage id="helper.web3ProviderLocalNote" values={{
+          a: (chunks) => <a href="https://geth.ethereum.org/getting-started/dev-mode" target="_blank" rel="noreferrer">{chunks}</a>
+        }} />
         <div className="border p-1">
           geth --http --http.corsdomain="{window.origin}" --http.api web3,eth,debug,net --vmdebug --datadir {thePath} --dev console
         </div>
         <br />
         <br />
-        <b>WARNING:</b> It is not safe to use the --http.corsdomain flag with a wildcard: <b>--http.corsdomain *</b>
+        <b><FormattedMessage id="helper.web3ProviderWarningLabel" /></b> <FormattedMessage id="helper.web3ProviderWarning" values={{ b: (chunks) => <b>{chunks}</b> }} />
         <br />
         <br />
-        For more info:{' '}
-        <a href="https://remix-ide.readthedocs.io/en/latest/run.html#more-about-web3-provider" target="_blank" rel="noreferrer">
-          Remix Docs on Remix Provider
-        </a>
+        <FormattedMessage id="helper.web3ProviderMoreInfo" values={{
+          a: (chunks) => <a href="https://remix-ide.readthedocs.io/en/latest/run.html#more-about-web3-provider" target="_blank" rel="noreferrer">{chunks}</a>
+        }} />
         <br />
         <br />
-        External HTTP Provider Endpoint
+        <FormattedMessage id="helper.web3ProviderEndpoint" />
       </div>
       <input
         onInput={handleInputEndpoint}

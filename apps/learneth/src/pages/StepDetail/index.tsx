@@ -10,6 +10,7 @@ import { useAppSelector, useAppDispatch } from '../../redux/hooks'
 import { trackMatomoEvent } from '@remix-api'
 import './index.scss'
 import remixClient from '../../remix-client'
+import { ensureLearnethWorkspace } from '../../redux/models/remixide'
 
 export function normalizeMarkdown(input: string): string {
   return input
@@ -32,7 +33,8 @@ function StepDetailPage() {
     workshop: { detail, selectedId },
     remixide: { errorLoadingFile, errors, success },
   } = useAppSelector((state: any) => state)
-  const entity = detail[selectedId].entities[id]
+  const workshop = detail[selectedId]
+  const entity = workshop.entities[id]
   const steps = entity.steps
   const step = steps[stepId]
 
@@ -40,9 +42,13 @@ function StepDetailPage() {
     setClonedStep(null)
     const clonedStep = JSON.parse(JSON.stringify(step))
     const loadFiles = async () => {
+      await ensureLearnethWorkspace(remixClient, entity.name)
       async function loadFile(step, fileType) {
         if (step[fileType] && step[fileType].file && !step[fileType].content) {
           clonedStep[fileType].content = (await remixClient.call('contentImport', 'resolve', step[fileType].file)).content;
+          if (fileType === 'markdown') {
+            await remixClient.call('fileManager', 'writeFile', 'step.md', clonedStep[fileType].content)
+          }
         }
       }
 
@@ -440,6 +446,9 @@ function StepDetailPage() {
                   const completedTutorials = JSON.parse(localStorage.getItem('learneth_completed_tutorials') || '{}');
                   completedTutorials[id] = true;
                   localStorage.setItem('learneth_completed_tutorials', JSON.stringify(completedTutorials));
+
+                  // Clear current tutorial ID since tutorial is finished
+                  remixClient.clearCurrentTutorial();
 
                   navigate(`/list?id=${id}`);
                   trackMatomoEvent(remixClient, {

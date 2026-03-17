@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { FeedbackAlertProps } from '../../types/compilerTypes'
 import { RenderIf } from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
+import { FormattedMessage } from 'react-intl'
 
 export function FeedbackAlert ({ message, askGPT }: FeedbackAlertProps) {
   const [showAlert, setShowAlert] = useState<boolean>(true)
@@ -29,7 +30,7 @@ export function FeedbackAlert ({ message, askGPT }: FeedbackAlertProps) {
               askGPT() }}
           >
             <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="explain-icon" />
-            <span>Ask RemixAI</span>
+            <span><FormattedMessage id="helper.askRemixAI" /></span>
           </button>
         </div>
       </>

@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { FormattedMessage, useIntl } from 'react-intl'
 
 export const AIRequestForm = ({
   onMount
 }: {
   onMount: (getValues: () => Promise<any>) => void
 }) => {
+  const intl = useIntl()
   const [mode, setMode] = useState<'text' | 'figma'>('text');
 
   // Text Mode State
@@ -70,7 +72,7 @@ export const AIRequestForm = ({
 
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        setFileError("File is too large (>10MB).");
+        setFileError(intl.formatMessage({ id: 'udapp.aiFileTooLarge' }));
         return;
       }
       const reader = new FileReader();
@@ -93,7 +95,7 @@ export const AIRequestForm = ({
             className={`nav-link ${mode === 'text' ? 'active' : ''}`}
             onClick={() => setMode('text')}
           >
-            <i className="fas fa-magic me-2"></i>Text / Image
+            <i className="fas fa-magic me-2"></i><FormattedMessage id="udapp.aiTextImageTab" />
           </button>
         </li>
         <li className="nav-item">
@@ -101,7 +103,7 @@ export const AIRequestForm = ({
             className={`nav-link ${mode === 'figma' ? 'active' : ''}`}
             onClick={() => setMode('figma')}
           >
-            <i className="fab fa-figma me-2"></i>Figma Import
+            <i className="fab fa-figma me-2"></i><FormattedMessage id="udapp.aiFigmaTab" />
           </button>
         </li>
       </ul>
@@ -110,7 +112,7 @@ export const AIRequestForm = ({
       {mode === 'text' && (
         <div className="fade-in">
           <div className="mb-3">
-            <span>Please describe how you would want the design to look like.</span>
+            <span><FormattedMessage id="udapp.aiDescribeDesign" /></span>
           </div>
 
           <textarea
@@ -137,10 +139,10 @@ export const AIRequestForm = ({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <i className="fas fa-image"></i>
-                {previewUrl ? "Change Image" : "Upload Reference Image"}
+                {previewUrl ? intl.formatMessage({ id: 'udapp.aiChangeImage' }) : intl.formatMessage({ id: 'udapp.aiUploadReferenceImage' })}
               </button>
 
-              <span className="text-muted small ms-2">Optional</span>
+              <span className="text-muted small ms-2"><FormattedMessage id="udapp.aiOptionalLabel" /></span>
             </div>
 
             {fileError && <div className="text-danger small mt-1">{fileError}</div>}
@@ -149,14 +151,14 @@ export const AIRequestForm = ({
               <div className="mt-2 position-relative d-inline-block border rounded overflow-hidden">
                 <img
                   src={previewUrl}
-                  alt="Preview"
+                  alt={intl.formatMessage({ id: 'udapp.aiImagePreviewAlt' })}
                   style={{ height: '80px', width: 'auto', display: 'block' }}
                 />
                 <button
                   onClick={handleRemoveImage}
                   className="position-absolute top-0 end-0 btn btn-danger btn-sm p-0 d-flex align-items-center justify-content-center"
                   style={{ width: '20px', height: '20px', borderRadius: '0 0 0 4px' }}
-                  title="Remove image"
+                  title={intl.formatMessage({ id: 'udapp.aiRemoveImage' })}
                 >
                   &times;
                 </button>
@@ -173,7 +175,7 @@ export const AIRequestForm = ({
               onChange={(e) => setIsBaseMiniApp(e.target.checked)}
             />
             <label className="form-check-label" htmlFor="base-miniapp-checkbox">
-              Create as Base Mini App (Farcaster Frame)
+              <FormattedMessage id="udapp.aiCreateBaseMiniApp" />
             </label>
           </div>
         </div>
@@ -184,11 +186,11 @@ export const AIRequestForm = ({
         <div className="fade-in">
           <div className="alert alert-info py-2 small">
             <i className="fas fa-info-circle me-1"></i>
-            Paste a link to a specific Figma layer
+            <FormattedMessage id="udapp.aiFigmaPasteLink" />
           </div>
 
           <div className="mb-3">
-            <label className="form-label small fw-bold">Figma File URL</label>
+            <label className="form-label small fw-bold"><FormattedMessage id="udapp.aiFigmaFileUrl" /></label>
             <input
               type="text"
               className="form-control"
@@ -197,12 +199,12 @@ export const AIRequestForm = ({
               onChange={(e) => setFigmaUrl(e.target.value)}
             />
             <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
-              Must contain <code>?node-id=...</code>
+              <FormattedMessage id="udapp.aiFigmaMustContainNodeId" /> <code>?node-id=...</code>
             </div>
           </div>
 
           <div className="mb-3">
-            <label className="form-label small fw-bold">Personal Access Token</label>
+            <label className="form-label small fw-bold"><FormattedMessage id="udapp.aiFigmaPersonalAccessToken" /></label>
             <div className="input-group">
               <input
                 type="password"
@@ -218,7 +220,7 @@ export const AIRequestForm = ({
                     className="btn btn-outline-secondary"
                     type="button"
                     onClick={() => setIsTokenLocked(false)}
-                    title="Edit Token"
+                    title={intl.formatMessage({ id: 'udapp.aiEditToken' })}
                   >
                     <i className="fas fa-pen"></i>
                   </button>
@@ -226,7 +228,7 @@ export const AIRequestForm = ({
                     className="btn btn-outline-secondary"
                     type="button"
                     onClick={handleDeleteToken}
-                    title="Delete Token"
+                    title={intl.formatMessage({ id: 'udapp.aiDeleteToken' })}
                   >
                     <i className="fas fa-trash"></i>
                   </button>
@@ -237,7 +239,7 @@ export const AIRequestForm = ({
                     className="btn btn-outline-secondary"
                     type="button"
                     onClick={() => setIsTokenLocked(true)}
-                    title="Save & Lock"
+                    title={intl.formatMessage({ id: 'udapp.aiSaveAndLock' })}
                   >
                     <i className="fas fa-check"></i>
                   </button>
@@ -245,12 +247,12 @@ export const AIRequestForm = ({
               )}
             </div>
             <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
-              Saved locally in your browser.
+              <FormattedMessage id="udapp.aiFigmaSavedLocally" />
             </div>
           </div>
 
           <div className="mb-3">
-            <label className="form-label small fw-bold">Additional Instructions (Optional)</label>
+            <label className="form-label small fw-bold"><FormattedMessage id="udapp.aiFigmaAdditionalInstructions" /></label>
             <textarea
               className="form-control"
               rows={2}
@@ -268,16 +270,16 @@ export const AIRequestForm = ({
               onChange={(e) => setIsBaseMiniApp(e.target.checked)}
             />
             <label className="form-check-label" htmlFor="base-miniapp-checkbox-figma">
-              Create as Base Mini App (Farcaster Frame)
+              <FormattedMessage id="udapp.aiCreateBaseMiniApp" />
             </label>
             <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
-              Includes Farcaster SDK and Meta tags automatically.
+              <FormattedMessage id="udapp.aiFigmaIncludesFarcaster" />
             </div>
           </div>
         </div>
       )}
 
-      <div className="mt-2 text-muted small">This might take up to 2 minutes.</div>
+      <div className="mt-2 text-muted small"><FormattedMessage id="udapp.aiMightTakeMinutes" /></div>
     </div>
   );
 };

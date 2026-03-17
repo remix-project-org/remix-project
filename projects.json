@@ -6653,7 +6653,9 @@
                   "apps/remix-ide/src/assets",
                   "apps/remix-ide/src/index.html",
                   "apps/remix-ide/src/404.html",
-                  "apps/remix-ide/src/favicon.ico"
+                  "apps/remix-ide/src/favicon.ico",
+                  "apps/remix-ide/src/robots.txt",
+                  "apps/remix-ide/src/sitemap.xml"
                 ],
                 "styles": [],
                 "scripts": [],

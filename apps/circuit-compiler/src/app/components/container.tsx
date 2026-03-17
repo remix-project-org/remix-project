@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import { CompileBtn, CustomTooltip, RenderIf } from '@remix-ui/helper'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { CircuitAppContext } from '../contexts'
 import { CompileOptions, CompilerReport } from '@remix-ui/helper'
 import { VersionList } from './versions'
@@ -15,6 +15,7 @@ import { compileCircuit } from '../actions'
 
 export function Container () {
   const circuitApp = useContext(CircuitAppContext)
+  const intl = useIntl()
 
   const showCompilerLicense = async (message = 'License not available') => {
     try {
@@ -122,7 +123,7 @@ export function Container () {
               placement="bottom"
               tooltipId="showCircumCompilerTooltip"
               tooltipClasses="text-nowrap"
-              tooltipText='See compiler license'
+              tooltipText={intl.formatMessage({ id: 'circuit.seeCompilerLicense' })}
             >
               <span className="far fa-file-certificate border-0 p-0 ms-2" onClick={() => showCompilerLicense()}></span>
             </CustomTooltip>
@@ -143,7 +144,7 @@ export function Container () {
                 dataId='setup_exports_toggler'
                 show={!circuitApp.appState.setupExportStatus}
                 icon={ circuitApp.appState.setupExportStatus === 'done' ? 'fas fa-check-circle text-success' : circuitApp.appState.setupExportStatus === 'update' ? 'fas fa-exclamation-triangle text-warning' : null }
-                iconTooltip={ circuitApp.appState.setupExportStatus === 'update' ? 'circom file content changed, please compile and re-run setup to update exported keys.' : null }
+                iconTooltip={ circuitApp.appState.setupExportStatus === 'update' ? intl.formatMessage({ id: 'circuit.rerunSetupWarning' }) : null }
               >
                 <>
                   <SetupExports />

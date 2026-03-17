@@ -42,7 +42,7 @@ module.exports = {
       .verifyContracts(['Ballot'])
   },
 
-  'Should run Solidity Scan and display results in terminal #group4': function (browser: NightwatchBrowser) {
+  'Should run Solidity Scan and display results in terminal #group4': ' ' + function (browser: NightwatchBrowser) {
     browser
       .openFile('contracts/3_Ballot.sol')
       .click('[data-id="compile-dropdown-trigger"]')

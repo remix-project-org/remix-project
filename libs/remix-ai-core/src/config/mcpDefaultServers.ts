@@ -98,6 +98,25 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       autoStart: true,
       enabled: true,
       timeout: 30000
-    }
+    },
+    {
+      name: 'ethskills',
+      description: 'ethereum dev skills',
+      transport: 'http',
+      url: endpointUrls.mcpCorsProxy8443 + '/ethskills/mcp',
+      autoStart: true,
+      enabled: true,
+      timeout: 30000
+    },
+    /*
+    {
+        name: 'slither',
+        description: 'slither static analysis tool',
+        transport: 'http',
+        url: 'http://localhost:9005/mcp', // endpointUrls.mcpCorsProxy8443 + '/slither/mcp',
+        autoStart: true,
+        enabled: true,
+        timeout: 30000
+    }*/
   ]
 };

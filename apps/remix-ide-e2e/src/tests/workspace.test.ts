@@ -36,7 +36,7 @@ module.exports = {
   'Should create Remix default workspace with files #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -54,7 +54,8 @@ module.exports = {
       .assert.textContains('*[data-id="default-workspace-name-span"]', 'WORKSPACE_REMIX_DEFAULT', 'Workspace name is correct')
       .pause(1000)
       .click('*[data-id="validateWorkspaceButton"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
+      .frameParent()
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]', 60000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/1_Storage.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/2_Owner.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/3_Ballot.sol"]')
@@ -96,7 +97,7 @@ module.exports = {
 
   'Should create blank workspace with no files #group1': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -126,7 +127,7 @@ module.exports = {
   'Should create ERC20 workspace with files #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -159,7 +160,7 @@ module.exports = {
           'Correct content')
       })
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemscripts"]')
-      .click('*[data-id="compile-action"]')
+      .click('*[data-id="compile_group"]')
       .waitForElementVisible('#verticalIconsKindsolidity > i.remixui_status.fas.fa-check-circle.text-success.remixui_statusCheck')
       .pause(1000)
       // check js and ts files are not transformed
@@ -191,7 +192,7 @@ module.exports = {
   'Should create ERC721 workspace with files #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -251,7 +252,7 @@ module.exports = {
   'Should create ERC1155 workspace with files #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -309,7 +310,7 @@ module.exports = {
   'Should create ERC1155 workspace with template customizations #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -368,7 +369,7 @@ module.exports = {
   },
   'Should create circom zkp hashchecker workspace #group1': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -412,7 +413,7 @@ module.exports = {
 
   'Should create two workspace and switch to the first one #group1': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -434,7 +435,7 @@ module.exports = {
         selector: "//div[contains(@class, 'view-line') and contains(.//span, 'test')]",
         locateStrategy: 'xpath'
       })
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -458,7 +459,7 @@ module.exports = {
   'Should rename a workspace #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementPresent('*[data-id="workspacesSelect"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .waitForElementVisible('*[data-id="dropdown-item-workspace_name"]')
       .waitForElementVisible('*[data-id="workspacesubMenuIcon"]')
       .click('*[data-id="workspacesubMenuIcon"]')
@@ -483,7 +484,7 @@ module.exports = {
   'Should delete a workspace #group1': function (browser: NightwatchBrowser) {
     const selector = 'a[data-id="dropdown-item-workspace_name_1"] + div [data-id="workspacesubMenuIcon"]'
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .waitForElementVisible(`[data-id="dropdown-item-workspace_name_1"]`)
       .waitForElementVisible(selector)
       .click(selector)
@@ -491,22 +492,22 @@ module.exports = {
       .waitForElementVisible('*[data-id="topbarModalStaticModalDialogModalFooter-react"]')
       .click('*[data-id="topbarModalStaticModalDialogModalFooter-react"] .modal-ok')
       .waitForElementVisible('*[data-id="workspacesSelect"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .waitForElementVisible('*[data-id="dropdown-item-workspace_name_renamed"]')
       .click('*[data-id="dropdown-item-workspace_name_renamed"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="workspacesSelect"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .click('*[data-id="dropdown-item-ERC1155 - 1"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .waitForElementNotPresent(`[data-id="dropdown-item-workspace_name_1"]`)
       .end()
   },
 
   'Should create workspace for test #group2': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -535,7 +536,7 @@ module.exports = {
 
   'Should create workspace for next test #group2': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -581,7 +582,7 @@ module.exports = {
   'Should create a cookbook workspace #group3': !function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -608,7 +609,7 @@ module.exports = {
   'Should add Create2 solidity factory #group4': !function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')

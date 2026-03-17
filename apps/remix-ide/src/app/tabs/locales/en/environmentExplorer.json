@@ -1,0 +1,14 @@
+{
+  "environmentExplorer.injectedSectionTitle": "Deploy using a Browser Extension.",
+  "environmentExplorer.remixVmsSectionTitle": "Deploy to an In-browser Virtual Machine.",
+  "environmentExplorer.forkedStatesSectionTitle": "Deploy to an In-browser Forked State.",
+  "environmentExplorer.externalsSectionTitle": "Deploy to an external Provider.",
+  "environmentExplorer.mainDescription": "Select the providers and chains to include them in the ENVIRONMENT select box of the Deploy & Run Transactions plugin.",
+  "environmentExplorer.latestBlock": "Latest Block: ",
+  "environmentExplorer.originBlock": "Origin Block: ",
+  "environmentExplorer.forkedOn": "Forked on: ",
+  "environmentExplorer.deleteEnvironment": "Delete Environment",
+  "environmentExplorer.deleteEnvironmentTooltip": "Delete Environment Immediately",
+  "environmentExplorer.showPinnedContracts": "Show Pinned Contracts",
+  "environmentExplorer.showPinnedContractsTooltip": "Show Pinned Contracts in the terminal"
+}

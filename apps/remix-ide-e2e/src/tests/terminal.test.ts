@@ -139,7 +139,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
       .clickLaunchIcon('udapp')
-      .switchEnvironment('vm-london')
+      .switchEnvironment('vm-london', 'Remix_VM')
       .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap', 5000)
       .click('*[data-id="terminalClearConsole"]') // clear the terminal
@@ -158,9 +158,8 @@ module.exports = {
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'Deployment successful.', 60000)
       .addAtAddressInstance('0xd9145CCE52D386f254917e481eB44e9943F39138', true, true, false)
       .click('*[data-id="terminalClearConsole"]') // clear the terminal
-      .waitForElementPresent('*[data-id="universalDappUiContractActionWrapper"]', 60000)
       .clickInstance(0)
-      .clickFunction('changeOwner - transact (not payable)', { types: 'address newOwner', values: '0xd9145CCE52D386f254917e481eB44e9943F39138' }) // execute the "changeOwner" function
+      .clickFunction(0, 0, ['0xd9145CCE52D386f254917e481eB44e9943F39138']) // execute the "changeOwner" function
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'previousOwner', 60000) // check that the script is logging the event
       .waitForElementContainsText('*[data-id="terminalJournal"]', '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', 60000) // check that the script is logging the event
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'newOwner', 60000)
@@ -218,8 +217,7 @@ module.exports = {
       .click('[for="autoCompile"]')
       .clickLaunchIcon('udapp')
       .verifyContracts(['OwnerTest'])
-      .clickLaunchIcon('udapp')
-      .click('*[data-id="deployAndRunClearInstances"]')
+      .clearDeployedContracts()
       .selectContract('OwnerTest')
       .createContract('')
       .pause(1000)
@@ -227,15 +225,15 @@ module.exports = {
       .pause(5000)
       .click('*[data-id="terminalClearConsole"]') // clear the terminal
       .clickInstance(0)
-      .clickFunction('changeOwner - transact (not payable)', { types: 'address newOwner', values: '0xd9145CCE52D386f254917e481eB44e9943F39138' })
+      .clickFunction(0, 0, ['0xd9145CCE52D386f254917e481eB44e9943F39138'])
       .pause(1000)
       .journalChildIncludes('inside changeOwner', { shouldHaveOnlyOneOccurrence: true })
-      .clickFunction('getOwner - call')
+      .clickFunction(0, 1)
       .pause(1000)
       .journalChildIncludes('inside getOwner', { shouldHaveOnlyOneOccurrence: true })
   },
 
-  'Emit 2 similar events and check the filtering is done properly #group11': function (browser: NightwatchBrowser) {
+  'Emit 2 similar events and check the filtering is done properly #group11': '' + function (browser: NightwatchBrowser) {
     let addressRef: string
     browser
       .addFile('contracts/contract_with_event.sol', { content: contract_with_event })
@@ -292,6 +290,8 @@ module.exports = {
         .openFile('README.txt')
         .addFile('scripts/log_tx_block.js', { content: scriptBlockAndTransaction })
         .pause(1000)
+        .click('*[data-id="toggleBottomPanelIcon"]')
+        .waitForElementVisible('.terminal-wrap', 5000)
         .executeScriptInTerminal('remix.execute(\'scripts/log_tx_block.js\')')
         // check if the input of the transaction is being logged (web3 call)
         .waitForElementContainsText('*[data-id="terminalJournal"]', '0x2b0006fa00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004e9e0000000000000000000000000000000000000000000000000000000000004ea373ded44d6900b8b479935bee9c82176261653e334586e0fd282f569357c0777bd9d084474837ac94bf96f2e26590222a2b8e46545657c7cf06ce2833d267bd6f131b5b3fd36cb1ca3e07cf422224df0766d1a677bbdb7ee4cc0d634efa5367a302a94dac422a16b9b8d5c10fe0555924f8189f6b498bef507b1d32e7915bd4df184f51e6d79ae6a1b11d5745ce7d625cecc3bd0dc50af4f999ffb927225f5e5c019b499f5e1fdcbc70c45df61df76013d1b0d45cdf6a267dac1b4620c0db2efd251f6548509c9c69f5bd9d1ee38ac0df0c73be2774f7d2e1fb7ef5129010f29d091e3c48aed0f035fc29804c99927d33ff2a19ff526979355ac50b2542bc5d8f2d41e4f850d5981e0420807469e828b03173b96b757fbaeacda335e11b3ab8b02a48456fab35d41ca26abde751d5fca8ef5e7ba5295278b6e46ce2aab6c10b3d185a6137d3e5c28bb8dd3a797feaf35520fcb949ea074e1869e0011ef01f8162135e44bb797d3d6215ff74ffbee972c97264fc15d11c840e6a7e796dc1a418572f6dbcc842594a558e1a9e3cb7a159284e16fec758bbc303d13edc28fb6d8bb110c3a398e4ded1748da9854eb84679ad0c99bc59bea7956b521db3ed0a9057510cc11365858704989690f0d891af81b213b1f2e91e41e4998a467656eac87e7025ac2840c17f2b106df7d32a0139036bdf5d87344ca37e9ce770e0dbeb5e021d03a7d496a6695eb06d3de9258b43f3883ce155767962b52083504b19d6d609090a2f96e9724902bf1adbf57359ac1dda48a8ffe596b8d95cac1429378769a6ec2ff1c8a9c0bc343b0a6468f36696bfb202cde9f6cd5241b814096d777751b44f0cc2ac9e7ba142227e8d5f2dd8da62573953540da1abce82c59287b2f7a87a111851758c2505d8c1ded6c42a49fc5577451ee56126d2275da490baa645c3bcac0c31dabee7aa35e6cdffb56ac0d952c2583c6f50f906dfb96f5a98c49a5919031cff880bffbe371a50162a7bd0fa0398a5898eaf6ad6db868a7d807846a3592325bb4207d67ad96bac76435368962ba8944d0201c2f620fb29373a6f35c815d101af98111e9b4cc61e8ae77fc63ce375068328ec8d05b49486666fb0f756f99d2fe747c95b2a553965f304a324879393897315d310841f0a200cd156f6ca4ed2', 120000)
@@ -364,13 +364,10 @@ module.exports = {
     if (runMasterTests)
       browser
         .clickLaunchIcon('udapp')
-        .switchEnvironment('vm-mainnet-fork')
-        .click('*[data-id="runTabSelectAccount"]')
-        .waitForElementPresent({
-          locateStrategy: 'css selector',
-          selector: '*[data-id="0xdD870fA1b7C4700F2BD7f44238821C26f7392148"]',
-          timeout: 240000
-        })
+        .switchEnvironment('vm-mainnet-fork', 'VM_Fork')
+        .selectAccount("0xdD870fA1b7C4700F2BD7f44238821C26f7392148")
+        .click('*[data-id="toggleBottomPanelIcon"]')
+        .waitForElementVisible('.terminal-wrap', 5000)
         .executeScriptInTerminal(`web3.eth.getCode('0x180587b00c8642e2c7ac3a758712d97e6f7bdcc7')`) // mainnet contract
         .waitForElementContainsText('*[data-id="terminalJournal"]', '0x608060405260043610601f5760003560e01c80635c60da1b14603157602b565b36602b576029605f565b005b6029605f565b348015603c57600080fd5b5060436097565b6040516001600160a01b03909116815260200160405180910390f35b609560917f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546001600160a01b031690565b60d1565b565b600060c97f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546001600160a01b031690565b905090565b90565b3660008037600080366000845af43d6000803e80801560ef573d6000f35b3d6000fdfea2646970667358221220969dbb4b1d8aec2bb348e26488dc1a33b6bcf0190f567d161312ab7ca9193d8d64736f6c63430008110033', 120000)
         .click('*[data-id="terminalClearConsole"]')
@@ -379,7 +376,7 @@ module.exports = {
   'Should connect to the sepolia fork and run web3.eth.getCode in the terminal #group9': function (browser: NightwatchBrowser) {
     if (runMasterTests)
       browser
-        .switchEnvironment('vm-custom-fork')
+        .switchEnvironment('vm-custom-fork', 'VM_Fork')
         .waitForElementVisible('[data-id="vm-custom-fork-modal-footer-ok-react"]')
         .execute(() => {
           (document.querySelector('*[data-id="vm-custom-forkModalDialogContainer-react"] input[data-id="CustomForkNodeUrl"]') as any).focus()
@@ -395,12 +392,7 @@ module.exports = {
         .click('*[data-id="CustomForkEvmType"] [value="cancun"]')
         .pause(5000)
         .modalFooterOKClick('vm-custom-fork')
-        .click('*[data-id="runTabSelectAccount"]')
-        .waitForElementPresent({
-          locateStrategy: 'css selector',
-          selector: '*[data-id="0xdD870fA1b7C4700F2BD7f44238821C26f7392148"]',
-          timeout: 240000
-        })
+        .selectAccount('0xdD870fA1b7C4700F2BD7f44238821C26f7392148')
         .pause(5000)
         .executeScriptInTerminal(`web3.eth.getCode('0x75F509A4eDA030470272DfBAf99A47D587E76709')`) // sepolia contract
         .waitForElementContainsText('*[data-id="terminalJournal"]', byteCodeInSepolia, 120000)
@@ -433,7 +425,7 @@ module.exports = {
 
       browser
         // .clickLaunchIcon('udapp')
-        .switchEnvironment('vm-mainnet-fork')
+        .switchEnvironment('vm-mainnet-fork', 'VM_Fork')
         .clickLaunchIcon('filePanel')
         .addFile('test_mainnet.sol', { content: script })
         .waitForElementVisible('#editorView')

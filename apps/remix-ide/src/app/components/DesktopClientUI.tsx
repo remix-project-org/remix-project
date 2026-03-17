@@ -1,7 +1,6 @@
 import React, { useContext, useEffect } from 'react'
 import { AppContext, appActionTypes } from '@remix-ui/app'
 import { Provider } from '@remix-ui/environment-explorer'
-import { providerLogos } from '../udapp/run-tab'
 import { desktopConnection } from '@remix-api'
 
 interface DesktopClientState {
@@ -9,6 +8,22 @@ interface DesktopClientState {
   providers: Provider[]
   disableconnect: boolean
   currentContext: string
+}
+
+export const providerLogos = {
+  'injected-metamask-optimism': ['assets/img/optimism-ethereum-op-logo.png', 'assets/img/metamask.png'],
+  'injected-metamask-arbitrum': ['assets/img/arbitrum-arb-logo.png', 'assets/img/metamask.png'],
+  'injected-metamask-gnosis': ['assets/img/gnosis_chain.png', 'assets/img/metamask.png'],
+  'injected-metamask-chiado': ['assets/img/gnosis_chain.png', 'assets/img/metamask.png'],
+  'injected-metamask-linea': ['assets/img/linea_chain.png', 'assets/img/metamask.png'],
+  'injected-metamask-sepolia': ['assets/img/metamask.png'],
+  'injected-metamask-ephemery': ['assets/img/metamask.png'],
+  'injected-MetaMask': ['assets/img/metamask.png'],
+  'injected-Brave Wallet': ['assets/img/brave.png'],
+  'injected-Trust Wallet': ['assets/img/trust-wallet.png'],
+  'hardhat-provider': ['assets/img/hardhat.png'],
+  'walletconnect': ['assets/img/Walletconnect-logo.png'],
+  'foundry-provider': ['assets/img/foundry.png']
 }
 
 const DesktopClientUI = (props: DesktopClientState & { openDesktopApp: () => void } & { onConnect: (providerName: Provider) => void }) => {

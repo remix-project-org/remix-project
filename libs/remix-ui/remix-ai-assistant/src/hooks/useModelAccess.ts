@@ -11,8 +11,11 @@ export interface ModelAccess {
 }
 
 export function useModelAccess(): ModelAccess {
-  const [allowedModels, setAllowedModels] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [allowedModels, setAllowedModels] = useState<string[]>(() => {
+    const defaultModel = getDefaultModel()
+    return [defaultModel.id, 'ollama']
+  })
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchModelAccess = async () => {
@@ -64,9 +67,6 @@ export function useModelAccess(): ModelAccess {
           }
         })
 
-        console.log('Enabled providers:', Array.from(enabledProviders))
-        console.log('Allowed models:', allowedModelIds)
-
         setAllowedModels(allowedModelIds)
       } else {
         // Fallback to default model and ollama only
@@ -88,8 +88,6 @@ export function useModelAccess(): ModelAccess {
   }, [])
 
   const checkAccess = (modelId: string) => {
-    console.log('checking  model access', allowedModels)
-
     return allowedModels.includes(modelId)
   }
 

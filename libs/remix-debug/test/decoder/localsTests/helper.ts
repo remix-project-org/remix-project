@@ -116,7 +116,6 @@ export async function decodeLocals (st, index, traceManager, callTree, verifier)
       getCallDataAt(index)
     ])
 
-    console.log(index, stackResult)
     const locals = await solidityLocals(
       index,
       callTree,

@@ -10,7 +10,7 @@ module.exports = {
   'Create blank workspace #group2': function (browser: NightwatchBrowser) {
     browser
       .refreshPage()
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -37,7 +37,7 @@ module.exports = {
   },
   'Create Pectra 7702 based workspace #group2': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -59,7 +59,7 @@ module.exports = {
   },
   'Create Semaphore based workspace #group2': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -89,7 +89,7 @@ module.exports = {
   },
   'Search for Noir Simple Multiplier template #group2': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -114,7 +114,7 @@ module.exports = {
   },
   'Create OpenZeppelin ERC20 template with Contract Wizard #group2': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -148,7 +148,7 @@ module.exports = {
   'Create OpenZeppelin ERC721 template with Contract Wizard #group2': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -324,7 +324,7 @@ module.exports = {
   },
   'Confirm that editing workspace name works #group3': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -335,6 +335,7 @@ module.exports = {
       .click('*[data-id="template-card-remixDefault-0"]')
       .click('*[data-id="validateWorkspaceButton"]')
       .pause(1000)
+      .click('*[data-id="home"]')
       .waitForElementVisible('*[data-id="landingPageImportFromTemplate"]')
       .click('*[data-id="landingPageImportFromTemplate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -358,7 +359,7 @@ module.exports = {
   },
   'Creating a workspace with the same name as an existing one should show an error #group3': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -379,7 +380,7 @@ module.exports = {
   },
   'Add contract file to workspace using contract wizard #group1': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')

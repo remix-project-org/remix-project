@@ -3,22 +3,23 @@ import React, { useEffect, useState } from 'react'
 import { environmentExplorerUIGridSections, environmentExplorerUIProps } from '../types'
 import { RemixUIGridCell, RemixUIGridSection, RemixUIGridView } from '@remix-ui/remix-ui-grid-view'
 import { CustomTooltip } from '@remix-ui/helper'
+import { FormattedMessage, useIntl } from 'react-intl'
 
 const defaultSections: environmentExplorerUIGridSections = {
   Injected: {
-    title: 'Deploy using a Browser Extension.',
+    title: 'environmentExplorer.injectedSectionTitle',
     keywords: ['Injected'],
     providers: [],
     filterFn: (provider) => provider.config.isInjected
   },
   'Remix VMs': {
-    title: 'Deploy to an In-browser Virtual Machine.',
+    title: 'environmentExplorer.remixVmsSectionTitle',
     keywords: ['Remix VMs'],
     providers: [],
     filterFn: (provider) => provider.config.isVM && !provider.config.isVMStateForked && !provider.config.isRpcForkedState
   },
   'Forked States': {
-    title: 'Deploy to an In-browser Forked State.',
+    title: 'environmentExplorer.forkedStatesSectionTitle',
     keywords: ['Forked State'],
     providers: [],
     filterFn: (provider) => provider.config.isVMStateForked || provider.config.isRpcForkedState,
@@ -27,7 +28,7 @@ const defaultSections: environmentExplorerUIGridSections = {
         const { latestBlock, timestamp } = JSON.parse(provider.description)
         return (
           <>
-            <div><b>Latest Block: </b>{provider.config.baseBlockNumber && provider.config.baseBlockNumber !== '0x0' ? parseInt(provider.config.baseBlockNumber) + parseInt(latestBlock) : parseInt(latestBlock)}</div>
+            <div><b><FormattedMessage id="environmentExplorer.latestBlock" /></b>{provider.config.baseBlockNumber && provider.config.baseBlockNumber !== '0x0' ? parseInt(provider.config.baseBlockNumber) + parseInt(latestBlock) : parseInt(latestBlock)}</div>
             <CustomTooltip
               placement="auto"
               tooltipId="overlay-tooltip-forkedAt"
@@ -35,9 +36,9 @@ const defaultSections: environmentExplorerUIGridSections = {
             >
               <div>
                 {
-                  provider.config.baseBlockNumber && provider.config.baseBlockNumber !== '0x0' && <div><b>Origin Block: </b>{parseInt(provider.config.baseBlockNumber)}</div>
+                  provider.config.baseBlockNumber && provider.config.baseBlockNumber !== '0x0' && <div><b><FormattedMessage id="environmentExplorer.originBlock" /></b>{parseInt(provider.config.baseBlockNumber)}</div>
                 }
-                <b>Forked on: </b>{(new Date(timestamp)).toDateString()}
+                <b><FormattedMessage id="environmentExplorer.forkedOn" /></b>{(new Date(timestamp)).toDateString()}
               </div>
             </CustomTooltip>
           </>)
@@ -51,13 +52,14 @@ const defaultSections: environmentExplorerUIGridSections = {
     }
   },
   'Externals': {
-    title: 'Deploy to an external Provider.',
+    title: 'environmentExplorer.externalsSectionTitle',
     keywords: ['Externals'],
     providers: [],
     filterFn: (provider) => (!provider.config.isInjected && !provider.config.isVM && !provider.config.isRpcForkedState && !provider.config.isVMStateForked)
   },
 }
 export const EnvironmentExplorerUI = (props: environmentExplorerUIProps) => {
+  const intl = useIntl()
 
   const [sections, setSections] = useState(defaultSections)
   const { state, pinStateCallback, profile } = props
@@ -84,13 +86,13 @@ export const EnvironmentExplorerUI = (props: environmentExplorerUIProps) => {
         showUntagged={true}
         showPin={true}
         title={profile.description}
-        description="Select the providers and chains to include them in the ENVIRONMENT select box of the Deploy & Run Transactions plugin."
+        description={intl.formatMessage({ id: 'environmentExplorer.mainDescription' })}
       >
         {Object.values(sections).map((section) => (
           section.providers.length > 0 && (
             <RemixUIGridSection
               plugin={this}
-              title={section.title}
+              title={intl.formatMessage({ id: section.title })}
               hScrollable={false}
               key={section.title}
             >
@@ -112,26 +114,26 @@ export const EnvironmentExplorerUI = (props: environmentExplorerUIProps) => {
                   { provider.config.isVMStateForked && provider.config.statePath && <CustomTooltip
                     placement="auto"
                     tooltipId={`overlay-tooltip-${provider.name}`}
-                    tooltipText="Delete Environment Immediately"
+                    tooltipText={intl.formatMessage({ id: 'environmentExplorer.deleteEnvironmentTooltip' })}
                   >
                     <span
                       onClick={async () => props.deleteForkedState(provider)}
                       className="btn btn-sm mt-1 border border-danger"
                     >
-                          Delete Environment
+                      <FormattedMessage id="environmentExplorer.deleteEnvironment" />
                     </span>
                   </CustomTooltip>
                   }
                   { false && provider.config.isVMStateForked && provider.config.statePath && <CustomTooltip
                     placement="auto"
                     tooltipId={`overlay-tooltip-${provider.name}`}
-                    tooltipText="Show Pinned Contracts in the terminal"
+                    tooltipText={intl.formatMessage({ id: 'environmentExplorer.showPinnedContractsTooltip' })}
                   >
                     <span
                       onClick={async () => props.showPinnedContracts(provider)}
                       className="btn btn-sm mt-1 border border-info"
                     >
-                          Show Pinned Contracts
+                      <FormattedMessage id="environmentExplorer.showPinnedContracts" />
                     </span>
                   </CustomTooltip>
                   }

@@ -15,7 +15,7 @@ export async function solidityLocals (vmtraceIndex, internalTreeCall, stack, mem
     if (blocks && blocks.length > 0) {
       if (!blocks.map(b => b.id).includes(variable.slot.variableScope)) continue
     } else {
-      console.warn('unable to find nodeAtLocation, decoding all the variables')
+      console.warn('unable to find nodeAtLocation, decoding all the variables', vmtraceIndex)
     }
     if (name.indexOf('$') !== -1) {
       name = '<' + anonymousIncr + '>'

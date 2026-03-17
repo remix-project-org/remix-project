@@ -5,7 +5,11 @@ import '../css/topbar.css'
 import { Button, Dropdown } from 'react-bootstrap'
 import { CustomToggle, CustomTopbarMenu } from 'libs/remix-ui/helper/src/lib/components/custom-dropdown'
 import { WorkspaceMetadata } from 'libs/remix-ui/workspace/src/lib/types'
+import { CloudToggle } from 'libs/remix-ui/workspace/src/lib/cloud/cloud-sync-status-icon'
+import { enableCloud, disableCloud } from 'libs/remix-ui/workspace/src/lib/cloud/cloud-workspace-actions'
+import { cloudStore } from 'libs/remix-ui/workspace/src/lib/cloud/cloud-store'
 import { AppContext, platformContext } from 'libs/remix-ui/app/src/lib/remix-app/context/context'
+import { useAuth } from 'libs/remix-ui/app/src/lib/remix-app/context/auth-context'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { TopbarContext } from '../context/topbarContext'
 import { WorkspacesDropdown } from '../components/WorkspaceDropdown'
@@ -17,11 +21,13 @@ import { GitHubLogin } from '../components/gitLogin'
 import { CustomTooltip } from 'libs/remix-ui/helper/src/lib/components/custom-tooltip'
 import { useCloneRepositoryModal } from '../components/CloneRepositoryModal'
 import { TrackingContext } from '@remix-ide/tracking'
-import { MatomoEvent, TopbarEvent, WorkspaceEvent } from '@remix-api'
+import { MatomoEvent, TopbarEvent, WorkspaceEvent, LoginMode, LoginModeResponse } from '@remix-api'
 import { LoginButton } from '@remix-ui/login'
+import { LoginModal } from 'libs/remix-ui/login/src/lib/modals/login-modal'
 import { appActionTypes } from 'libs/remix-ui/app/src/lib/remix-app/actions/app'
 import { NotificationBell } from '../components/NotificationBell'
 import { FeedbackPanel } from '../components/FeedbackPanel'
+import { BetaPromoPill } from '../components/BetaPromoPill'
 
 export function RemixUiTopbar() {
   const intl = useIntl()
@@ -54,9 +60,16 @@ export function RemixUiTopbar() {
 
   const [user, setUser] = useState<GitHubUser | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [enableLogin, setEnableLogin] = useState<boolean>(false);
+  const [loginMode, setLoginMode] = useState<LoginMode | null>(null);
+  const [loginModeMessage, setLoginModeMessage] = useState<string>('');
+  const [adminOverride, setAdminOverride] = useState<boolean>(false);
+  const [cloudEnabled, setCloudEnabled] = useState<boolean>(true); // default true until config loaded
   const [feedbackFormUrl, setFeedbackFormUrl] = useState<string | null>(null);
   const [feedbackPanelOpen, setFeedbackPanelOpen] = useState<boolean>(false);
+  const [showCloudLoginModal, setShowCloudLoginModal] = useState<boolean>(false);
+
+  // Auth state for cloud backup/restore and support link
+  const { isAuthenticated, token } = useAuth()
 
   // Use the clone repository modal hook
   const { showCloneModal } = useCloneRepositoryModal({
@@ -70,16 +83,81 @@ export function RemixUiTopbar() {
     return <GitHubCallback />;
   }
 
+  // Derive whether login UI should be shown based on ACL login mode
+  // 'open' or 'feature_group' => show normally
+  // 'admins_only' => hidden unless admin override
+  // 'closed' => hidden entirely
+  // null (not yet fetched) => hidden (safe default)
+  const showLoginUI = (() => {
+    if (!loginMode) return false
+    if (loginMode === 'closed') return false
+    if (loginMode === 'admins_only') return adminOverride
+    return true // 'open' or 'feature_group'
+  })()
+
+  const cloudEnabledByConfig = appContext?.appConfig?.['cloud.enabled'] !== false
+  const cloudVisibilityMode = appContext?.appConfig?.['cloud.button_visibility'] || 'authenticated_users'
+  const notificationMode = appContext?.appConfig?.['notifications.mode'] || 'all_users'
+  const supportEnabled = appContext?.appConfig?.['app.supportenabled'] !== false
+  const showJoinBetaTopButton = appContext?.appConfig?.['show_join_beta_top_button'] !== false
+
+  const isVisibleByAudience = (mode: 'off' | 'authenticated_users' | 'all_users', authenticated: boolean): boolean => {
+    if (mode === 'off') return false
+    if (mode === 'authenticated_users') return authenticated
+    return true
+  }
+
+  const showCloudToggle = showLoginUI && cloudEnabledByConfig && cloudEnabled && isVisibleByAudience(cloudVisibilityMode, isAuthenticated)
+  const showNotificationBell = isVisibleByAudience(notificationMode, isAuthenticated)
+
   useEffect(() => {
-    const checkLoginEnabled = () => {
-      const enabled = localStorage.getItem('enableLogin') === 'true';
-      setEnableLogin(enabled);
-    };
-    checkLoginEnabled();
-    // Listen for storage changes
-    window.addEventListener('storage', checkLoginEnabled);
-    return () => window.removeEventListener('storage', checkLoginEnabled);
+    // Fetch login mode from auth plugin
+    const fetchLoginMode = async () => {
+      try {
+        const result: LoginModeResponse = await plugin.call('auth', 'getLoginMode')
+        setLoginMode(result.mode)
+        setLoginModeMessage(result.message || '')
+      } catch (e) {
+        console.warn('[Topbar] Failed to fetch login mode:', e)
+        // Fallback: check legacy localStorage flag
+        const legacyEnabled = localStorage.getItem('enableLogin') === 'true'
+        setLoginMode(legacyEnabled ? 'open' : null)
+      }
+    }
+    fetchLoginMode()
+
+    // Listen for login mode changes
+    const handleLoginModeChanged = (result: LoginModeResponse) => {
+      setLoginMode(result.mode)
+      setLoginModeMessage(result.message || '')
+    }
+    plugin.on('auth', 'loginModeChanged', handleLoginModeChanged)
+
+    // Admin backdoor: Ctrl+Shift+Alt+L to toggle admin override
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.altKey && e.key === 'L') {
+        e.preventDefault()
+        setAdminOverride(prev => {
+          const next = !prev
+          console.log(`[Topbar] Admin login override ${next ? 'enabled' : 'disabled'}`)
+          return next
+        })
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      plugin.off('auth', 'loginModeChanged')
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, []);
+
+  useEffect(() => {
+    const enabled = appContext?.appConfig?.['cloud.enabled']
+    if (enabled !== undefined) {
+      setCloudEnabled(enabled as boolean)
+    }
+  }, [appContext?.appConfig])
 
   // Listen to feedback plugin for form URL
   useEffect(() => {
@@ -99,18 +177,22 @@ export function RemixUiTopbar() {
     plugin.on('feedback', 'feedbackFormChanged', (form: any) => {
       setFeedbackFormUrl(form?.url || null)
     })
+
+    plugin.on('feedback', 'openFeedbackForm', (url: string) => {
+      if (url) {
+        setFeedbackFormUrl(url)
+        setFeedbackPanelOpen(true)
+      }
+    })
     return () => {
       plugin.off('feedback', 'feedbackFormChanged')
+      plugin.off('feedback', 'openFeedbackForm')
     }
   }, [])
 
   const handleLoginSuccess = (user: GitHubUser, token: string) => {
     setUser(user);
     setError(null);
-  };
-
-  const handleLoginError = (error: string) => {
-    setError(error);
   };
 
   async function openTemplateExplorer(): Promise<void> {
@@ -120,11 +202,6 @@ export function RemixUiTopbar() {
       payload: true
     })
   }
-
-  const handleLogout = () => {
-    localStorage.removeItem('github_token');
-    setUser(null);
-  };
 
   const toggleDropdown = (isOpen: boolean) => {
     setShowDropdown(isOpen)
@@ -222,7 +299,7 @@ export function RemixUiTopbar() {
       fetchWorkspaceDirectory(ROOT_PATH)
       setCurrentWorkspace(LOCALHOST)
     }
-  }, [global.fs.browser.currentWorkspace, global.fs.localhost.sharedFolder, global.fs.mode, showDropdown])
+  }, [global.fs.browser.currentWorkspace, global.fs.browser.workspaceSwitchVersion, global.fs.localhost.sharedFolder, global.fs.mode, showDropdown])
 
   useEffect(() => {
     if (global.fs.browser.currentWorkspace && !global.fs.browser.workspaces.find(({ name }) => name === global.fs.browser.currentWorkspace)) {
@@ -273,6 +350,7 @@ export function RemixUiTopbar() {
       branches: workspace.branches,
       currentBranch: workspace.currentBranch,
       hasGitSubmodules: workspace.hasGitSubmodules,
+      remoteId: workspace.remoteId,
       submenu: subItems
     }))
     setMenuItems(menuItems)
@@ -351,6 +429,7 @@ export function RemixUiTopbar() {
       console.error(e)
     }
   }
+
   const onFinishDeleteAllWorkspaces = async () => {
     try {
       await deleteAllWorkspacesAction()
@@ -570,6 +649,13 @@ export function RemixUiTopbar() {
           >
             {currentReleaseVersion}
           </span>
+          {showCloudToggle && (
+            <CloudToggle
+              className="ms-2"
+              onEnableCloud={() => enableCloud()}
+              onDisableCloud={() => disableCloud()}
+            />)}
+          {showCloudLoginModal && <LoginModal onClose={() => setShowCloudLoginModal(false)} plugin={plugin} />}
         </div>
         <div className="m-1 justify-content-center d-flex align-self-center " style={{ minWidth: '33%' }}>
           <WorkspacesDropdown
@@ -594,6 +680,7 @@ export function RemixUiTopbar() {
             setMenuItems={setMenuItems}
             connectToLocalhost={() => switchWorkspace(LOCALHOST)}
             openTemplateExplorer={openTemplateExplorer}
+            onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
           />
           <div className="d-flex ms-4 gap-2 align-items-center" >
             <CustomTooltip placement="bottom-start" tooltipText={`Toggle Left Side Panel`}>
@@ -639,15 +726,15 @@ export function RemixUiTopbar() {
           style={{ minWidth: '33%' }}
         >
           <>
-            {!enableLogin && (
-              <GitHubLogin
-                cloneGitRepository={showCloneModal}
-                logOutOfGithub={logOutOfGithub}
-                publishToGist={publishToGist}
-                loginWithGitHub={loginWithGitHub}
-              />
-            )}
-            {enableLogin && (
+
+            <GitHubLogin
+              cloneGitRepository={showCloneModal}
+              logOutOfGithub={logOutOfGithub}
+              publishToGist={publishToGist}
+              loginWithGitHub={loginWithGitHub}
+            />
+
+            {showLoginUI && (
               <LoginButton
                 plugin={plugin}
                 variant="compact"
@@ -658,7 +745,24 @@ export function RemixUiTopbar() {
               />
             )}
           </>
-          <NotificationBell className="ms-3" />
+          {showJoinBetaTopButton && <BetaPromoPill plugin={plugin} />}
+          {showNotificationBell && <NotificationBell className="ms-3" />}
+          {supportEnabled && isAuthenticated && token && (
+            <CustomTooltip placement="bottom" tooltipText="Premium Support">
+              <span
+                className="btn btn-sm d-flex align-items-center gap-1 ms-3"
+                style={{ cursor: 'pointer', padding: '0.25rem 0.6rem', color: 'var(--text)' }}
+                onClick={() => {
+                  window.open(`https://support.remix.live/login?token=${encodeURIComponent(token)}`, '_blank')
+                  trackMatomoEvent({ category: 'topbar', action: 'support', name: 'SupportOpened', isClick: true })
+                }}
+                data-id="topbar-supportBtn"
+              >
+                <i className="fas fa-headset"></i>
+                <span>Support</span>
+              </span>
+            </CustomTooltip>
+          )}
           {feedbackFormUrl && (
             <CustomTooltip placement="bottom" tooltipText="Send Feedback">
               <span
@@ -693,7 +797,10 @@ export function RemixUiTopbar() {
       {feedbackFormUrl && (
         <FeedbackPanel
           isOpen={feedbackPanelOpen}
-          onClose={() => setFeedbackPanelOpen(false)}
+          onClose={() => {
+            setFeedbackPanelOpen(false)
+            trackMatomoEvent({ category: 'topbar', action: 'feedback', name: 'FeedbackClosed', isClick: true })
+          }}
           formUrl={feedbackFormUrl}
         />
       )}

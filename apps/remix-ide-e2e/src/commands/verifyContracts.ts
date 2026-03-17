@@ -15,6 +15,7 @@ class VerifyContracts extends EventEmitter {
 
 function verifyContracts (browser: NightwatchBrowser, compiledContractNames: string[], opts: { wait: number, version?: string, runs?: string }, callback: VoidFunction) {
   browser
+    .closeBetaPopUp()
     .clickLaunchIcon('solidity')
     .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
     .perform(async (done) => {

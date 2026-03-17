@@ -12,13 +12,15 @@ export const CustomToggle = React.forwardRef(
       onClick,
       icon,
       className = '',
-      useDefaultIcon = true
+      useDefaultIcon = true,
+      style
     }: {
       children: React.ReactNode
       onClick: (e) => void
       icon: string
       className: string
       useDefaultIcon?: boolean
+      style?: React.CSSProperties
     },
     ref: Ref<HTMLButtonElement>
   ) => (
@@ -29,6 +31,7 @@ export const CustomToggle = React.forwardRef(
         onClick(e)
       }}
       className={className.replace('dropdown-toggle', '')}
+      style={style}
     >
       <div className="d-flex align-items-center">
         <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm" data-id={`dropdown-content`}>{children}</div>
@@ -187,7 +190,7 @@ export const ProxyAddressToggle = React.forwardRef(
           className="udapp_input form-control"
           value={address}
           placeholder={intl.formatMessage({ id: 'udapp.enterProxyAddress' })}
-          style={{ width: '100%' }}
+          style={{ backgroundColor: 'var(--bs-body-bg)', color: 'var(--theme-text-color, white)', width: '100%' }}
           data-id="ERC1967AddressInput"
         />
       </div>
@@ -216,4 +219,74 @@ export const ProxyDropdownMenu = React.forwardRef(
       </div>
     )
   }
+)
+
+export const EnvironmentToggle = React.forwardRef(
+  (
+    {
+      children,
+      onClick,
+      className = '',
+      environmentUI,
+      style = {},
+      'data-id': dataId
+    }: {
+      children: React.ReactNode
+      onClick: (e) => void
+      className: string
+      environmentUI: React.ReactNode
+      style?: React.CSSProperties,
+      'data-id'?: string
+    },
+    ref: Ref<HTMLDivElement>
+  ) => (
+    <div
+      ref={ref}
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClick(e)
+      }}
+      className={className.replace('dropdown-toggle', '')}
+      style={style}
+      data-id={dataId}
+    >
+      <div className="d-flex align-items-center">
+        <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm">{children}</div>
+        {environmentUI}
+      </div>
+    </div>
+  )
+)
+
+export const AddressToggle = React.forwardRef(
+  (
+    {
+      children,
+      onClick,
+      className = '',
+      style = {},
+      'data-id': dataId
+    }: {
+      children: React.ReactNode
+      onClick: (e) => void
+      className: string
+      style?: React.CSSProperties,
+      'data-id'?: string
+    },
+    ref: Ref<HTMLButtonElement>
+  ) => (
+    <button
+      ref={ref}
+      onClick={(e) => {
+        e.preventDefault()
+        onClick(e)
+      }}
+      className={className.replace('dropdown-toggle', '')}
+      style={style}
+      data-id={dataId}
+    >
+      {children}
+    </button>
+  )
 )

@@ -1,0 +1,936 @@
+import React, { useContext, useEffect, useState, useRef, useMemo } from 'react'
+import { FormattedMessage, useIntl } from 'react-intl'
+import { CustomToggle, CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault } from '@remix-ui/helper'
+import { CopyToClipboard } from '@remix-ui/clipboard'
+import * as remixLib from '@remix-project/remix-lib'
+import { Dropdown } from 'react-bootstrap'
+import { parseUnits } from 'ethers'
+import { FuncABI } from '@remix-project/core-plugin'
+import { DeployedContractsAppContext } from '../contexts'
+import { DeployedContract } from '../types'
+import { runTransactions } from '../actions'
+import { ContractKebabMenu } from './ContractKebabMenu'
+import { AIRequestForm } from '@remix-ui/run-tab'
+import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
+import BN from 'bn.js'
+
+const txHelper = remixLib.execution.txHelper
+const highlightedContracts = new Set<string>()
+
+interface DeployedContractItemProps {
+  contract: DeployedContract
+  index: number
+  registerRef?: (ref: HTMLDivElement | null) => void
+}
+
+export function DeployedContractItem({ contract, index, registerRef }: DeployedContractItemProps) {
+  const { dispatch, plugin, themeQuality } = useContext(DeployedContractsAppContext)
+  const intl = useIntl()
+  const [networkName, setNetworkName] = useState<string>('')
+  const [isExpanded, setIsExpanded] = useState<boolean>(false)
+  const [contractABI, setContractABI] = useState(null)
+  const [value, setValue] = useState<string>('0')
+  const [valueUnit, setValueUnit] = useState<string>('wei')
+  const [gasLimit, setGasLimit] = useState<number>(0) // 0 means auto
+  const [calldataValue, setCalldataValue] = useState<string>('')
+  const [llIError, setLlIError] = useState<string>('')
+  const [showKebabMenu, setShowKebabMenu] = useState<boolean>(false)
+  const [shouldHighlight, setShouldHighlight] = useState<boolean>(false)
+  const kebabIconRef = useRef<HTMLElement>(null)
+  const contractItemRef = useRef<HTMLDivElement>(null)
+  const isGenerating = useRef<boolean>(false)
+  const [showHighLevel, setShowHighLevel] = useState<boolean>(true)
+  const [showLowLevel, setShowLowLevel] = useState<boolean>(false)
+  const [selectedFunctionIndex, setSelectedFunctionIndex] = useState<number | null>(null)
+  const [funcInputs, setFuncInputs] = useState<{[funcIndex: number]: {[paramIndex: number]: string}}>({})
+  const [expandPath, setExpandPath] = useState<string[]>([])
+
+  useEffect(() => {
+    plugin.call('udappEnv', 'getNetwork').then((net) => {
+      if (net && net.name) {
+        const networkName = net.name === 'VM' ? 'Remix VM' : net.name
+
+        setNetworkName(networkName)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!contract.abi) {
+      const abi = txHelper.sortAbiFunction(contract.contractData.abi)
+
+      setContractABI(abi)
+    } else {
+      setContractABI(contract.abi)
+    }
+  }, [])
+
+  // Intersection Observer to detect when contract becomes visible
+  useEffect(() => {
+    const contractAddress = contract.address
+    if (highlightedContracts.has(contractAddress)) {
+      return
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !highlightedContracts.has(contractAddress)) {
+          highlightedContracts.add(contractAddress)
+          setShouldHighlight(true)
+          setTimeout(() => {
+            setShouldHighlight(false)
+          }, 2000)
+
+          observer.disconnect()
+        }
+      })
+    }, {
+      threshold: 0.1, // Trigger when at least 10% of the element is visible
+      rootMargin: '0px'
+    })
+
+    if (contractItemRef.current) {
+      observer.observe(contractItemRef.current)
+    }
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [contract.address])
+
+  const functionABIs = useMemo(() => {
+    return contractABI?.filter((item: FuncABI) => item.type === 'function') || []
+  }, [contractABI])
+
+  const handleRemove = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (contract.isPinned) {
+      const network = await plugin.call('udappEnv', 'getNetwork')
+      const chainId = network?.chainId
+      const providerName = network?.name === 'VM' ? await plugin.call('udappEnv', 'getSelectedProvider') : chainId
+      let contractPath = `.deploys/pinned-contracts/${providerName}/${contract.address}.json`
+      const contractExists = await plugin.call('fileManager', 'exists', contractPath)
+      if (!contractExists) contractPath = `.deploys/pinned-contracts/${providerName}/${contract.address.toLowerCase()}.json` // To keep backward compatible
+      await plugin.call('fileManager', 'remove', contractPath)
+    }
+
+    dispatch({ type: 'REMOVE_CONTRACT', payload: contract.address })
+  }
+
+  const handlePinContract = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const network = await plugin.call('udappEnv', 'getNetwork')
+    const chainId = network?.chainId
+    const providerName = network?.name === 'VM' ? await plugin.call('udappEnv', 'getSelectedProvider') : chainId
+
+    if (contract.isPinned) {
+      let contractPath = `.deploys/pinned-contracts/${providerName}/${contract.address}.json`
+      const contractExists = await plugin.call('fileManager', 'exists', contractPath)
+      if (!contractExists) contractPath = `.deploys/pinned-contracts/${providerName}/${contract.address.toLowerCase()}.json` // To keep backward compatible
+      await plugin.call('fileManager', 'remove', contractPath)
+      dispatch({ type: 'UNPIN_CONTRACT', payload: index })
+      return
+    }
+    const provider = await plugin.call('blockchain', 'getProviderObject')
+
+    if (!provider.config.statePath && provider.config.isRpcForkedState) {
+      // we can't pin a contract in the following case:
+      // - state is not persisted
+      // - future state is browser stored (e.g it's not just a simple RPC provider)
+      plugin.call('notification', 'toast', 'Cannot pin this contract in the current context: state is not persisted. Please fork this provider to start pinning a contract to it.')
+      return
+    }
+
+    const workspace = await plugin.call('filePanel', 'getCurrentWorkspace')
+
+    const objToSave = {
+      name: contract.name,
+      address: contract.address,
+      timestamp: contract.timestamp,
+      abi: contract.abi || contract.contractData?.abi,
+      filePath: contract.filePath || `${workspace.name}/${contract.contractData?.contract?.file}`,
+      pinnedAt: Date.now()
+    }
+
+    await plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${providerName}/${contract.address}.json`, JSON.stringify(objToSave, null, 2))
+
+    dispatch({ type: 'PIN_CONTRACT', payload: { index, pinnedAt: objToSave.pinnedAt, filePath: objToSave.filePath } })
+  }
+
+  const handleContractClick = () => {
+    setIsExpanded(!isExpanded)
+  }
+
+  const toggleHighLevel = () => {
+    if (!showHighLevel) {
+      setShowHighLevel(true)
+      setShowLowLevel(false)
+    } else {
+      setShowHighLevel(false)
+      setSelectedFunctionIndex(null)
+    }
+  }
+
+  const toggleLowLevel = () => {
+    if (!showLowLevel) {
+      setShowLowLevel(true)
+      setShowHighLevel(false)
+      setSelectedFunctionIndex(null)
+    } else {
+      setShowLowLevel(false)
+    }
+  }
+
+  const handleFunctionClick = (funcIndex: number) => {
+    if (selectedFunctionIndex !== funcIndex) {
+      setSelectedFunctionIndex(funcIndex)
+    }
+  }
+
+  const handleFunctionInputChange = (funcIndex: number, paramIndex: number, value: string) => {
+    setFuncInputs(prev => ({
+      ...prev,
+      [funcIndex]: {
+        ...(prev[funcIndex] || {}),
+        [paramIndex]: value
+      }
+    }))
+  }
+
+  const handleExecuteTransaction = async (funcIndex: number) => {
+    const funcABI = functionABIs[funcIndex]
+    const funcParams = funcInputs[funcIndex] || {}
+    const inputsValues = funcABI.inputs.map((input: any, idx: number) => funcParams[idx] || '').join(',')
+    const sendValue = parseUnits(value.toString() || '0', valueUnit || 'wei')
+    const gasLimitValue = '0x' + new BN(gasLimit, 10).toString(16)
+    const isConstant = funcABI.constant !== undefined ? funcABI.constant : false
+    const lookupOnly = funcABI.stateMutability === 'view' || funcABI.stateMutability === 'pure' || isConstant
+
+    try {
+      await runTransactions(
+        plugin,
+        dispatch,
+        index,
+        lookupOnly,
+        funcABI,
+        inputsValues,
+        contract,
+        funcIndex,
+        { value: sendValue, gasLimit: gasLimitValue }
+      )
+    } catch (error) {
+      const functionName =
+      funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
+      const logMsg = `${lookupOnly ? "call" : "transact"} to ${contract.name}.${functionName} errored: ${error.message}`
+
+      await plugin.call('terminal', 'logHtml', logBuilder(logMsg))
+    }
+  }
+
+  const sendData = async () => {
+    setLlIError('')
+    const fallback = txHelper.getFallbackInterface(contractABI)
+    const receive = txHelper.getReceiveInterface(contractABI)
+    const amount = parseUnits(value.toString() || '0', valueUnit || 'wei').toString()
+
+    if (amount !== '0') {
+      if (!isNumeric(value.toString())) {
+        return setLlIError(intl.formatMessage({ id: 'udapp.llIError1' }))
+      } else if (!receive && !(fallback && fallback.stateMutability === 'payable')) {
+        return setLlIError(intl.formatMessage({ id: 'udapp.llIError2' }))
+      }
+    }
+    let calldata = calldataValue
+
+    if (calldata) {
+      if (calldata.length < 4 && is0XPrefixed(calldata)) {
+        return setLlIError(intl.formatMessage({ id: 'udapp.llIError3' }))
+      } else {
+        if (is0XPrefixed(calldata)) {
+          calldata = calldata.substring(2)
+        }
+        if (!isHexadecimal(calldata)) {
+          return setLlIError(intl.formatMessage({ id: 'udapp.llIError4' }))
+        }
+      }
+      if (!fallback) {
+        return setLlIError(intl.formatMessage({ id: 'udapp.llIError5' }))
+      }
+    }
+
+    if (!receive && !fallback) return setLlIError(intl.formatMessage({ id: 'udapp.llIError6' }))
+
+    // we have to put the right function ABI:
+    // if receive is defined and that there is no calldata => receive function is called
+    // if fallback is defined => fallback function is called
+    let funcABI = null
+    if (receive && !calldata) funcABI = receive
+    else if (fallback) funcABI = fallback
+
+    if (!funcABI) return setLlIError(intl.formatMessage({ id: 'udapp.llIError7' }))
+
+    try {
+      const sendValue = parseUnits(value.toString() || '0', valueUnit || 'wei')
+      const gasLimitValue = '0x' + new BN(gasLimit, 10).toString(16)
+
+      await runTransactions(
+        plugin,
+        dispatch,
+        index,
+        false,
+        funcABI,
+        calldata,
+        contract,
+        -1, // Use -1 for low level interactions
+        { value: sendValue, gasLimit: gasLimitValue }
+      )
+    } catch (error) {
+      const functionName =
+      funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
+      const logMsg = `transact to ${contract.name}.${functionName} errored: ${error.message}`
+
+      await plugin.call('terminal', 'logHtml', logBuilder(logMsg))
+    }
+  }
+
+  const handleKebabClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setShowKebabMenu(prev => !prev)
+  }
+
+  const handleCreateDapp = async (contract: DeployedContract) => {
+    setShowKebabMenu(false)
+
+    try {
+      let compilerData = null
+
+      try {
+        compilerData = await plugin.call('compilerArtefacts', 'getArtefactsByContractName', contract.name)
+      } catch (e) {
+        console.warn('[DeployedContractItem] Could not get compiler artefacts:', e)
+      }
+      const descriptionObj: any = await new Promise((resolve, reject) => {
+        let getFormData: () => Promise<any>
+
+        const modalContent = {
+          id: 'generate-website-ai',
+          title: intl.formatMessage({ id: 'udapp.generateDappModalTitle' }),
+          message: <AIRequestForm onMount={(fn) => { getFormData = fn }} />,
+          modalType: 'custom',
+          okLabel: intl.formatMessage({ id: 'udapp.generateDappOkLabel' }),
+          cancelLabel: intl.formatMessage({ id: 'udapp.cancel' }),
+          okFn: async () => {
+            if (getFormData) {
+              const formData = await getFormData()
+              resolve(formData)
+            } else {
+              reject(new Error('Form data not initialized'))
+            }
+          },
+          cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
+          hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
+        }
+
+        // @ts-ignore
+        plugin.call('notification', 'modal', modalContent)
+      })
+
+      if (isGenerating.current) {
+        await plugin.call('notification', 'toast', intl.formatMessage({ id: 'udapp.aiGenerationInProgress' }))
+        return
+      }
+
+      isGenerating.current = true
+
+      await plugin.call('ai-dapp-generator', 'resetDapp', contract.address)
+
+      const providerObject = await plugin.call('blockchain', 'getProviderObject')
+      const providerName = providerObject?.name || 'vm-unknown'
+      const isVM = providerName.startsWith('vm')
+
+      let chainId: string
+      if (isVM) {
+        chainId = providerName
+      } else {
+        const network = await plugin.call('network', 'detectNetwork')
+        chainId = network?.id?.toString() || providerName
+      }
+
+      let compilerFilePath = ''
+      if (compilerData?.fullyQualifiedName) {
+        const fqn = compilerData.fullyQualifiedName
+        compilerFilePath = fqn.includes(':') ? fqn.split(':')[0] : fqn
+      }
+
+      const resolvedFilePath = contract.filePath
+        || compilerFilePath
+        || contract.contractData?.contract?.file
+        || ''
+
+      try {
+        await plugin.call('quick-dapp-v2', 'createDapp', {
+          description: descriptionObj.text,
+          contractName: contract.name,
+          address: contract.address,
+          abi: contract.abi || contract.contractData?.abi,
+          chainId: chainId,
+          compilerData: compilerData,
+          isBaseMiniApp: descriptionObj.isBaseMiniApp,
+          image: descriptionObj.image,
+          figmaUrl: descriptionObj.figmaUrl,
+          figmaToken: descriptionObj.figmaToken,
+          sourceFilePath: resolvedFilePath
+        })
+
+        await plugin.call('tabs', 'focus', 'quick-dapp-v2')
+      } catch (e) {
+        console.error('[DeployedContractItem] Quick Dapp V2 call failed:', e)
+        await plugin.call('notification', 'toast', 'Failed to call Quick Dapp V2 plugin.')
+      }
+    } catch (error) {
+      if (error.message !== 'Canceled' && error.message !== 'Hide') {
+        console.error('[DeployedContractItem] Error creating dapp:', error)
+        await plugin.call('terminal', 'log', { type: 'error', value: error.message })
+      }
+    } finally {
+      isGenerating.current = false
+    }
+  }
+
+  const handleCopyABI = async (contract: DeployedContract) => {
+    setShowKebabMenu(false)
+    const abi = contract.abi || contract.contractData?.abi
+    if (abi) {
+      navigator.clipboard.writeText(JSON.stringify(abi, null, 2))
+      await plugin.call('notification', 'toast', 'ABI copied to clipboard')
+    }
+  }
+
+  const handleCopyBytecode = async (contract: DeployedContract) => {
+    setShowKebabMenu(false)
+    const bytecode = contract.contractData?.bytecode || contract.contractData?.object
+    if (bytecode) {
+      navigator.clipboard.writeText(bytecode)
+      await plugin.call('notification', 'toast', 'Bytecode copied to clipboard')
+    }
+  }
+
+  const handleOpenInExplorer = async (contract: DeployedContract) => {
+    setShowKebabMenu(false)
+    const network = await plugin.call('udappEnv', 'getNetwork')
+    let explorerUrl = ''
+
+    if (network?.name) {
+      switch (network.name.toLowerCase()) {
+      case 'mainnet':
+      case 'ethereum':
+        explorerUrl = `https://etherscan.io/address/${contract.address}`
+        break
+      case 'sepolia':
+        explorerUrl = `https://sepolia.etherscan.io/address/${contract.address}`
+        break
+      case 'goerli':
+        explorerUrl = `https://goerli.etherscan.io/address/${contract.address}`
+        break
+      default:
+        await plugin.call('notification', 'toast', 'Block explorer not available for this network')
+        return
+      }
+      window.open(explorerUrl, '_blank')
+    }
+  }
+
+  const handleClear = async () => {
+    setShowKebabMenu(false)
+    handleRemove({ stopPropagation: () => {} } as React.MouseEvent)
+  }
+
+  const getStateMutabilityBadge = (funcABI: FuncABI) => {
+    if (funcABI.stateMutability === 'view' || funcABI.stateMutability === 'pure') {
+      return <span className='badge text-info' style={{ backgroundColor: '#64C4FF14' }}>call</span>
+    } else if (funcABI.stateMutability === 'payable') {
+      return <span className='badge text-danger' style={{ backgroundColor: '#FF777714' }}>payable</span>
+    } else {
+      return <span className='badge text-warning' style={{ backgroundColor: '#FFB96414' }}>store</span>
+    }
+  }
+
+  const handleExpand = (path: string) => {
+    if (expandPath.includes(path)) {
+      const filteredPath = expandPath.filter((value) => value !== path)
+      setExpandPath(filteredPath)
+    } else {
+      setExpandPath([...expandPath, path])
+    }
+  }
+
+  const label = (key: string | number, value: string) => {
+    return (
+      <div className="d-flex mt-2 flex-row label_item align-items-baseline">
+        <label className="small font-weight-bold m-0">{key}:</label>
+        <label className="m-0 label_value">{value}</label>
+      </div>
+    )
+  }
+
+  const renderData = (item, parent, key: string | number, keyPath: string) => {
+    const data = extractDataDefault(item, parent)
+    const children = (data.children || []).map((child, index) => {
+      return renderData(child.value, data, child.key, keyPath + '/' + child.key)
+    })
+
+    if (children && children.length > 0) {
+      return (
+        <TreeViewItem id={`treeViewItem${key}`} key={keyPath} label={label(key, data.self)} onClick={() => handleExpand(keyPath)} expand={expandPath.includes(keyPath)}>
+          <TreeView id={`treeView${key}`} key={keyPath}>
+            {children}
+          </TreeView>
+        </TreeViewItem>
+      )
+    } else {
+      return <TreeViewItem id={key.toString()} key={keyPath} label={label(key, data.self)} onClick={() => handleExpand(keyPath)} expand={expandPath.includes(keyPath)} />
+    }
+  }
+
+  return (
+    <div
+      className="mb-3"
+      ref={(el) => {
+        contractItemRef.current = el
+        if (registerRef) registerRef(el)
+      }}
+    >
+      <div
+        className={`rounded ${shouldHighlight ? 'contract-highlight-animation' : ''}`}
+        style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}
+      >
+        <div id={`instance${contract.address}`} data-id={contract?.isPinned ? `pinnedInstance${contract?.address}` : `unpinnedInstance${contract?.address}`} className="w-100" data-shared="universalDappUiInstance">
+          <div className="d-flex align-items-center justify-content-between w-100 text-nowrap text-truncate overflow-hidden p-3" onClick={handleContractClick} data-id={`deployedContractItem-${index}`} style={{ cursor: 'pointer' }}>
+            <div className='d-flex align-items-center gap-2'>
+              <CustomTooltip
+                placement="top"
+                tooltipClasses="text-nowrap"
+                tooltipId="udapp_deployedContractPinTooltip"
+                tooltipText={contract.isPinned ? `Pinned at: ${new Date(contract.pinnedAt).toLocaleString()}` : intl.formatMessage({ id: 'udapp.pinContractTooltip' })}
+              >
+                <i
+                  data-id={`pinDeployedContract-${index}`}
+                  className={`${contract.isPinned ? 'fa-solid' : 'fa-regular'} fa-thumbtack`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={handlePinContract}
+                ></i>
+              </CustomTooltip>
+              <div className='d-flex flex-column align-items-start'>
+                <div className="text-truncate text-secondary d-flex align-items-center">
+                  <span>{contract.name}</span>
+                </div>
+                <div className="d-flex align-items-center gap-1 font-sm" style={{ color: 'var(--bs-tertiary-color)' }}>
+                  <span>{shortenAddress(contract.address)}</span>
+                  <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyAddressTooltip' })} icon="fa-copy" direction="top" getContent={() => contract?.address}>
+                    <i className="fa-solid fa-copy small ms-1" style={{ cursor: 'pointer' }}></i>
+                  </CopyToClipboard>
+                </div>
+              </div>
+            </div>
+            <div className='d-flex align-items-center gap-2'>
+              <div className='d-flex flex-column align-items-end'>
+                <span className='badge text-info' style={{ backgroundColor: '#64C4FF14' }}>{networkName}</span>
+                <span className='small'>{getTimeAgo(contract.timestamp, { truncateTimeAgo: true })} ago</span>
+              </div>
+              <i
+                ref={kebabIconRef as any}
+                className="fas fa-ellipsis-v align-self-center p-2 mx-1"
+                style={{ cursor: 'pointer' }}
+                onClick={handleKebabClick}
+                data-id={`contractKebabIcon-${index}`}
+              ></i>
+            </div>
+          </div>
+          <ContractKebabMenu
+            show={showKebabMenu}
+            target={kebabIconRef.current}
+            onHide={() => setShowKebabMenu(false)}
+            contract={contract}
+            onCreateDapp={handleCreateDapp}
+            onCopyABI={handleCopyABI}
+            onCopyBytecode={handleCopyBytecode}
+            onOpenInExplorer={handleOpenInExplorer}
+            onClear={handleClear}
+          />
+          {isExpanded && (
+            <div className="p-3 pt-0" onClick={(e) => e.stopPropagation()}>
+              {/* Divider */}
+              <div className="border-top mb-3"></div>
+
+              {/* High level interaction section */}
+              <div className="mb-3">
+                <div className="d-flex align-items-center justify-content-between mb-2" style={{ cursor: 'pointer' }} onClick={toggleHighLevel}>
+                  <p className='mb-0' style={{ color: 'var(--text-quaternary, #959bad)' }}><FormattedMessage id="udapp.highLevelInteraction" /></p>
+                  <div
+                    className="d-flex align-items-center justify-center rounded"
+                    style={{
+                      backgroundColor: 'var(--custom-onsurface-layer-3)',
+                      padding: '4px'
+                    }}
+                  >
+                    <i className={`fas fa-${showHighLevel ? 'minus' : 'plus'}`} style={{ fontSize: '10px', color: 'white' }}></i>
+                  </div>
+                </div>
+
+                {showHighLevel && (
+                  <>
+                    {functionABIs && functionABIs.length > 0 ? (
+                      <div
+                        className="mb-3"
+                        style={{
+                          maxHeight: '160px',
+                          overflowY: 'auto',
+                          overflowX: 'hidden',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}
+                      >
+                        {functionABIs.map((funcABI: FuncABI, actualIndex: number) => {
+                          const inputTypes = funcABI.inputs.map(input => input.type).join(', ')
+                          const isSelected = selectedFunctionIndex === actualIndex
+
+                          return (
+                            <div
+                              data-id={`deployedContractItem-${index}-function-${actualIndex}`}
+                              key={actualIndex}
+                              className="d-flex align-items-center gap-1"
+                              style={{
+                                cursor: 'pointer',
+                                padding: '4px 0',
+                                backgroundColor: isSelected ? 'var(--custom-onsurface-layer-3)' : 'transparent'
+                              }}
+                              onClick={() => handleFunctionClick(actualIndex)}
+                            >
+                              {getStateMutabilityBadge(funcABI)}
+                              <div className="d-flex align-items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                <span
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    color: 'var(--dark/text-secondary, #d5d7e3)',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0,
+                                    maxWidth: '100%'
+                                  }}
+                                  title={funcABI.name}
+                                >
+                                  {funcABI.name}
+                                </span>
+                                {funcABI.inputs.length > 0 && (
+                                  <span
+                                    style={{
+                                      fontSize: '10px',
+                                      color: 'var(--text-tertiary, #a2a3bd)',
+                                      fontFamily: 'Monaco, monospace',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      flexShrink: 1,
+                                      minWidth: 0
+                                    }}
+                                    title={inputTypes}
+                                  >
+                                    {inputTypes}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-muted pt-3 text-center"><FormattedMessage id="udapp.noABIAvailableForContract" /></div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="border-top mb-3"></div>
+
+              {/* Low level interaction section */}
+              <div className="mb-3">
+                <div
+                  className="d-flex align-items-center justify-content-between mb-2"
+                  style={{ cursor: 'pointer' }}
+                  onClick={toggleLowLevel}
+                >
+                  <p className='mb-0' style={{ color: 'var(--text-quaternary, #959bad)' }}><FormattedMessage id="udapp.lowLevelInteraction" /></p>
+                  <div
+                    data-id={`btnLowLevel-${index}`}
+                    className="d-flex align-items-center justify-center rounded"
+                    style={{
+                      backgroundColor: 'var(--custom-onsurface-layer-3)',
+                      padding: '4px'
+                    }}
+                  >
+                    <i className={`fas fa-${showLowLevel ? 'minus' : 'plus'}`} style={{ fontSize: '10px', color: 'white' }}></i>
+                  </div>
+                </div>
+
+                {showLowLevel && (
+                  <div className="mt-3">
+                    <input
+                      data-id={`fallbackInput-${index}`}
+                      type="text"
+                      placeholder="calldata"
+                      className="form-control form-control-sm"
+                      value={calldataValue}
+                      onChange={(e) => setCalldataValue(e.target.value)}
+                      style={{
+                        backgroundColor: 'var(--custom-onsurface-background, #222336)',
+                        color: themeQuality === 'dark' ? 'white' : 'black',
+                        border: 'none',
+                        padding: '8px 12px',
+                        fontSize: '10px'
+                      }}
+                    />
+                    {llIError && (
+                      <div data-id="deployAndRunLLTxError" className="alert alert-danger mt-2 p-2" role="alert" style={{ fontSize: '10px' }}>
+                        {llIError}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex] && (
+                // Divider
+                <div className="border-top mb-3"></div>
+              )}
+
+              {selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex] && (
+                <div className="mb-3">
+                  <div className="d-flex align-items-center gap-1 mb-2">
+                    {getStateMutabilityBadge(functionABIs[selectedFunctionIndex])}
+                    <div className="d-flex align-items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          color: 'var(--dark/text-secondary, #d5d7e3)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                          maxWidth: '100%'
+                        }}
+                        title={functionABIs[selectedFunctionIndex].name}
+                      >
+                        {functionABIs[selectedFunctionIndex].name}
+                      </span>
+                      {functionABIs[selectedFunctionIndex].inputs.length > 0 && (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            color: 'var(--text-tertiary, #a2a3bd)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 1,
+                            minWidth: 0
+                          }}
+                          title={functionABIs[selectedFunctionIndex].inputs.map((input: any) => input.type).join(', ')}
+                        >
+                          {functionABIs[selectedFunctionIndex].inputs.map((input: any) => input.type).join(', ')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {functionABIs[selectedFunctionIndex].inputs.length > 0 && functionABIs[selectedFunctionIndex].inputs.map((input: any, inputIdx: number) => (
+                    <div key={inputIdx} className="mb-2">
+                      <input
+                        data-id={`selectedFunction-${inputIdx}`}
+                        type="text"
+                        placeholder={`${input.name || `param${inputIdx}`} (${input.type})`}
+                        className="form-control form-control-sm"
+                        value={(funcInputs[selectedFunctionIndex]?.[inputIdx] || '')}
+                        onChange={(e) => {
+                          handleFunctionInputChange(selectedFunctionIndex, inputIdx, e.target.value)
+                        }}
+                        style={{
+                          backgroundColor: 'var(--custom-onsurface-background, #222336)',
+                          color: 'var(--dark/text-quaternary, #959bad)',
+                          border: 'none',
+                          padding: '8px 12px',
+                          fontSize: '0.7rem',
+                          minHeight: '30px'
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {(functionABIs[selectedFunctionIndex].stateMutability === 'view' || functionABIs[selectedFunctionIndex].stateMutability === 'pure') && (
+                    <div className="udapp_value" data-id="udapp_tree_value">
+                      <TreeView id="treeView">
+                        {Object.keys(contract.decodedResponse || {}).map((key) => {
+                          const response = contract.decodedResponse[key]
+
+                          return parseInt(key) === selectedFunctionIndex
+                            ? Object.keys(response || {}).map((innerkey) => {
+                              return renderData(contract.decodedResponse[key][innerkey], response, innerkey, innerkey)
+                            })
+                            : null
+                        })}
+                      </TreeView>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {((selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex] &&
+                functionABIs[selectedFunctionIndex].stateMutability !== 'view' &&
+                functionABIs[selectedFunctionIndex].stateMutability !== 'pure') || showLowLevel) && (
+                <div className="mb-3">
+                  <div className="d-flex align-items-center gap-1 mb-3">
+                    <label className="mb-0" style={{ fontSize: '12px', fontWeight: 700, minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                      <FormattedMessage id="udapp.valueLabel" />
+                    </label>
+                    <div className="position-relative flex-fill">
+                      <input
+                        data-id={`contractItem-sendValue-${index}`}
+                        type="number"
+                        min="0"
+                        className="form-control form-control-sm border-0"
+                        placeholder="3000000"
+                        value={value}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          // Only allow empty string or valid numeric strings
+                          if (val === '' || /^\d+$/.test(val)) {
+                            setValue(val)
+                          }
+                        }}
+                        style={{
+                          backgroundColor: 'var(--custom-onsurface-background, #222336)',
+                          color: 'var(--dark/text-quaternary, #959bad)',
+                          flex: 1,
+                          paddingRight: '3.5rem',
+                          fontSize: '0.7rem',
+                          minHeight: '30px'
+                        }}
+                      />
+                      <Dropdown style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
+                        <Dropdown.Toggle
+                          as={CustomToggle}
+                          className="btn-sm border-0 text-secondary rounded font-sm ps-1"
+                          style={{
+                            backgroundColor: 'var(--custom-onsurface-layer-2)',
+                            color: 'var(--text-secondary, #d5d7e3)'
+                          }}
+                          icon="fas fa-caret-down ms-1"
+                          useDefaultIcon={false}
+                        >
+                          {valueUnit}
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', '--bs-dropdown-min-width': '4rem', padding: 0 } as React.CSSProperties}>
+                          <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => setValueUnit('wei')} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>wei</Dropdown.Item>
+                          <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => setValueUnit('gwei')} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>gwei</Dropdown.Item>
+                          <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => setValueUnit('finney')} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>finney</Dropdown.Item>
+                          <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => setValueUnit('ether')} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>ether</Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    </div>
+                  </div>
+                  <div className="d-flex align-items-center gap-1 mb-3">
+                    <label className="mb-0" style={{ fontSize: '12px', fontWeight: 700, minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                      <FormattedMessage id="udapp.gasLimitLabel" />
+                    </label>
+                    <div className="position-relative flex-fill">
+                      <span
+                        className="badge font-sm"
+                        style={{
+                          position: 'absolute',
+                          left: '0.35rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          backgroundColor: '#64C4FF14',
+                          color: '#64c4ff',
+                          cursor: 'pointer',
+                          zIndex: 1
+                        }}
+                        onClick={() => {
+                          if (gasLimit === 0) {
+                            setGasLimit(3000000)
+                          } else {
+                            setGasLimit(0)
+                          }
+                        }}
+                      >
+                        {gasLimit === 0 ? 'auto' : 'custom'}
+                      </span>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm border-0"
+                        placeholder="3000000"
+                        value={gasLimit}
+                        onChange={(e) => setGasLimit(parseInt(e.target.value))}
+                        disabled={gasLimit === 0}
+                        style={{
+                          backgroundColor: 'var(--custom-onsurface-background, #222336)',
+                          color: 'var(--dark/text-quaternary, #959bad)',
+                          flex: 1,
+                          paddingLeft: '4rem',
+                          textAlign: 'right',
+                          opacity: gasLimit === 0 ? 0.6 : 1,
+                          cursor: gasLimit === 0 ? 'not-allowed' : 'text',
+                          fontSize: '0.7rem',
+                          minHeight: '30px'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              <div className="border-top mb-3"></div>
+              <div className='d-flex align-items-center gap-1' data-id="deployedContractBal">
+                <div style={{ fontSize: '12px', fontWeight: 700, flex: 1, color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.balanceLabel" /></div>
+                <div style={{ fontSize: '10px', color: 'var(--text-tertiary, #a2a3bd)', fontFamily: 'Monaco, monospace' }}>
+                  {contract.balance || 0} ETH
+                </div>
+              </div>
+              {((selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex]) || showLowLevel) && (
+                <button
+                  data-id={`btnExecute-${index}`}
+                  className="btn btn-primary w-100 mt-3"
+                  onClick={() => {
+                    if (showLowLevel) {
+                      sendData()
+                    } else if (selectedFunctionIndex !== null) {
+                      handleExecuteTransaction(selectedFunctionIndex)
+                    }
+                  }}
+                  style={{
+                    backgroundColor: 'var(--button/primary/default, #64c4ff)',
+                    color: 'var(--onsurface/background, #222336)',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    padding: '8px 24px',
+                    borderRadius: '4px'
+                  }}
+                >
+                  {showLowLevel
+                    ? intl.formatMessage({ id: 'udapp.transactButton' })
+                    : (functionABIs[selectedFunctionIndex].stateMutability === 'view' || functionABIs[selectedFunctionIndex].stateMutability === 'pure')
+                      ? intl.formatMessage({ id: 'udapp.callButton' })
+                      : intl.formatMessage({ id: 'udapp.transactButton' })}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

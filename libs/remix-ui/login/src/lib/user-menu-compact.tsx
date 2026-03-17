@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react'
-import { AuthUser, AuthProvider, LinkedAccount, AccountsResponse } from '@remix-api'
+import { AuthUser, AuthProvider, LinkedAccount, AccountsResponse, FeatureGroup } from '@remix-api'
 import type { Credits } from '../../../app/src/lib/remix-app/context/auth-context'
+import { useAuth } from '../../../app/src/lib/remix-app/context/auth-context'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import { AppContext } from '@remix-ui/app'
+import { FeatureBadges } from './feature-badges'
 import './user-menu-compact.css'
 
 interface Theme {
@@ -36,6 +38,7 @@ const getProviderIcon = (provider: AuthProvider | string) => {
   case 'github': return 'fab fa-github'
   case 'discord': return 'fab fa-discord'
   case 'siwe': return 'fab fa-ethereum'
+  case 'base': return 'base-icon' // Custom handling for Base icon
   default: return 'fas fa-sign-in-alt'
   }
 }
@@ -59,28 +62,51 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
   publishToGist
 }) => {
   const [showDropdown, setShowDropdown] = useState(false)
+  const { featureGroups } = useAuth()
   const appContext = useContext(AppContext)
   const gitHubUser = appContext?.appState?.gitHubUser
   const isGitHubConnected = gitHubUser?.isConnected
 
+  const trackEvent = (action: string, name?: string) => {
+    if (plugin && typeof plugin.call === 'function') {
+      plugin.call('matomo', 'trackEvent', 'userMenu', action, name || '', undefined).catch(() => {})
+    }
+  }
+
+  const hasBeta = featureGroups?.some(fg => fg.name === 'beta')
+  const buttonClass = `btn btn-sm d-flex flex-nowrap align-items-center user-menu-compact-button ${
+    hasBeta ? 'user-menu-compact-button--beta' : 'btn-success'
+  }`
+
   return (
     <div className={`position-relative ${className}`}>
       <button
-        className="btn btn-sm btn-success d-flex flex-nowrap align-items-center user-menu-compact-button"
-        onClick={() => setShowDropdown(!showDropdown)}
+        className={buttonClass}
+        onClick={() => {
+          const willOpen = !showDropdown
+          setShowDropdown(willOpen)
+          if (willOpen) trackEvent('openDropdown')
+        }}
         data-id="user-menu-compact"
         title={getUserDisplayName()}
       >
         {user.picture && (
-          <img
-            src={user.picture}
-            alt="Avatar"
-            className="user-menu-compact-avatar"
-          />
+          <div className={`user-menu-compact-avatar-wrap ${hasBeta ? 'user-menu-compact-avatar-wrap--beta' : ''}`}>
+            <img
+              src={user.picture}
+              alt="Avatar"
+              className="user-menu-compact-avatar"
+            />
+          </div>
         )}
-        <div className="user-menu-compact-info">
-          <span className="user-menu-compact-name">{getUserDisplayName()}</span>
-        </div>
+        {!user.picture && (
+          <div className="user-menu-compact-info">
+            <span className="user-menu-compact-name">{getUserDisplayName()}</span>
+          </div>
+        )}
+        {hasBeta && (
+          <span className="user-menu-compact-beta-tag">BETA</span>
+        )}
       </button>
       {showDropdown && (
         <>
@@ -108,8 +134,11 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
 
             {/* Menu Items */}
             <div className="user-menu-items-container">
-              {/* Account Settings */}
-              {onManageAccounts && (
+              {/* Feature Badges */}
+              <FeatureBadges plugin={plugin} onClose={() => setShowDropdown(false)} />
+
+              {/* Account Settings - temporarily hidden */}
+              {/* {onManageAccounts && (
                 <button
                   className="dropdown-item user-menu-item"
                   onClick={() => {
@@ -120,10 +149,10 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                   <i className="fas fa-user-cog user-menu-item-icon"></i>
                   Account Settings
                 </button>
-              )}
+              )} */}
 
-              {/* Credits */}
-              {credits && showCredits && (
+              {/* Credits - temporarily hidden */}
+              {/* {credits && showCredits && (
                 <div className="dropdown-item user-menu-credits-item">
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <i className="fas fa-coins user-menu-credits-icon"></i>
@@ -133,7 +162,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                     {credits.balance.toLocaleString()}
                   </strong>
                 </div>
-              )}
+              )} */}
 
               <div className="dropdown-divider user-menu-divider"></div>
 
@@ -158,6 +187,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                         className="dropdown-item user-menu-item"
                         onClick={() => {
                           cloneGitRepository()
+                          trackEvent('cloneGitRepository')
                           setShowDropdown(false)
                         }}
                       >
@@ -170,6 +200,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                         className="dropdown-item user-menu-item"
                         onClick={() => {
                           publishToGist()
+                          trackEvent('publishToGist')
                           setShowDropdown(false)
                         }}
                       >
@@ -183,6 +214,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                         if (plugin) {
                           await plugin.call('auth', 'disconnectGitHub')
                         }
+                        trackEvent('disconnectGitHub')
                         setShowDropdown(false)
                       }}
                     >
@@ -197,6 +229,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                         className="dropdown-item user-menu-item"
                         onClick={() => {
                           cloneGitRepository()
+                          trackEvent('cloneGitRepository')
                           setShowDropdown(false)
                         }}
                       >
@@ -214,6 +247,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                             console.error('Failed to connect GitHub:', error)
                           }
                         }
+                        trackEvent('connectGitHub')
                         setShowDropdown(false)
                       }}
                     >
@@ -231,6 +265,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                 className="dropdown-item user-menu-item"
                 onClick={() => {
                   window.open('https://github.com/ethereum/remix-project/issues/new?template=bug_report.md', '_blank')
+                  trackEvent('reportBug')
                   setShowDropdown(false)
                 }}
               >
@@ -243,6 +278,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                 className="dropdown-item user-menu-item"
                 onClick={() => {
                   window.open('https://github.com/ethereum/remix-project/issues/new?template=feature_request.md', '_blank')
+                  trackEvent('requestFeature')
                   setShowDropdown(false)
                 }}
               >
@@ -255,6 +291,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                 className="dropdown-item user-menu-item"
                 onClick={() => {
                   window.open('https://remix-ide.readthedocs.io/', '_blank')
+                  trackEvent('documentation')
                   setShowDropdown(false)
                 }}
               >
@@ -282,8 +319,10 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                       onClick={() => {
                         if (isDarkMode && lightTheme) {
                           onThemeChange(lightTheme.name)
+                          trackEvent('themeToggle', 'light')
                         } else if (!isDarkMode && darkTheme) {
                           onThemeChange(darkTheme.name)
+                          trackEvent('themeToggle', 'dark')
                         }
                       }}
                     />
@@ -295,8 +334,9 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
 
               {/* Sign Out */}
               <button
+                data-id="user-menu-sign-out"
                 className="dropdown-item user-menu-item-danger"
-                onClick={onLogout}
+                onClick={() => { trackEvent('signOut'); onLogout() }}
               >
                 <i className="fas fa-sign-out-alt user-menu-item-icon"></i>
                 Sign Out

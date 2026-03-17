@@ -3,6 +3,7 @@ import { StatusBar } from 'apps/remix-ide/src/app/components/status-bar'
 import { CustomTooltip } from '@remix-ui/helper'
 import React, { useContext, useEffect, useState } from 'react'
 import { appActionTypes, AppContext } from '@remix-ui/app'
+import { FormattedMessage, useIntl } from 'react-intl'
 
 interface AIStatusProps {
   plugin: StatusBar
@@ -14,6 +15,7 @@ interface AIStatusProps {
 export default function AIStatus(props: AIStatusProps) {
   const [copilotActive, setCopilotActive] = useState(false)
   const appContext = useContext(AppContext)
+  const intl = useIntl()
 
   useEffect(() => {
     const run = async () => {
@@ -48,7 +50,9 @@ export default function AIStatus(props: AIStatusProps) {
   return (
     <div>
       <CustomTooltip
-        tooltipText={copilotActive ? "Disable RemixAI Copilot" : "Enable RemixAI Copilot. Switch to .sol file to try it."}
+        tooltipText={copilotActive
+          ? intl.formatMessage({ id: 'statusbar.disableRemixAICopilot' })
+          : intl.formatMessage({ id: 'statusbar.enableRemixAICopilot' })}
       >
         <span
           style={{ cursor: 'pointer' }}
@@ -57,7 +61,9 @@ export default function AIStatus(props: AIStatusProps) {
             await props.plugin.call('settings' as any, 'updateCopilotChoice', !copilotActive)
           }}
         >
-          {copilotActive === false ? 'RemixAI Copilot (disabled)' : 'RemixAI Copilot (enabled)'}
+          {copilotActive === false
+            ? <FormattedMessage id="statusbar.remixAICopilotDisabled" />
+            : <FormattedMessage id="statusbar.remixAICopilotEnabled" />}
         </span>
       </CustomTooltip>
       <div className="d-flex text-sm flex-row pe-2 text-white justify-content-center align-items-center">

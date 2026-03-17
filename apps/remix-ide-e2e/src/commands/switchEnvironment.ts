@@ -3,7 +3,7 @@ import { NightwatchBrowser } from 'nightwatch'
 import EventEmitter from 'events'
 
 class switchEnvironment extends EventEmitter {
-  command (this: NightwatchBrowser, provider: string, returnWhenInitialized?: boolean): NightwatchBrowser {
+  command (this: NightwatchBrowser, provider: string, category?: string, returnWhenInitialized?: boolean): NightwatchBrowser {
     const submenuLabels = ['Remix VM', 'Browser extension', 'Dev']
 
     const clickAndMaybeWait = (
@@ -18,19 +18,12 @@ class switchEnvironment extends EventEmitter {
         .perform((done) => {
           if (shouldWait) {
             browser
-              .waitForElementVisible(`[data-id="selected-provider-${providerName}"]`, 15000)
+              .waitForElementVisible(`[data-id="dropdown-item-${providerName}"]`, 15000)
               .pause(1000)
               .perform(() => done())
           } else {
             done()
           }
-        })
-    }
-
-    const ensureDropdownClosed = (browser: NightwatchBrowser) => {
-      browser
-        .isVisible('body .dropdown-menu.show', (open) => {
-          if (open.value) browser.click('[data-id="settingsSelectEnvOptions"] button')
         })
     }
 
@@ -42,7 +35,7 @@ class switchEnvironment extends EventEmitter {
     ) => {
       const start = Date.now()
       const poll = () => {
-        browser.isPresent({ selector: `[data-id="selected-provider-${providerName}"]`, suppressNotFoundErrors: true, timeout: 0 }, (selRes) => {
+        browser.isPresent({ selector: `[data-id="dropdown-item-${providerName}"]`, suppressNotFoundErrors: true, timeout: 0 }, (selRes) => {
           if (selRes.value) return cb && cb(true)
           browser.isPresent({ selector: `*[data-id="${providerName}ModalDialogModalBody-react"]`, suppressNotFoundErrors: true, timeout: 0 }, (modalBody) => {
             if (modalBody.value) return cb && cb(true)
@@ -57,7 +50,7 @@ class switchEnvironment extends EventEmitter {
       poll()
     }
 
-    const tryHoverSubmenusAndClick = (
+    const tryOpenSubmenusAndClick = (
       browser: NightwatchBrowser,
       labels: string[],
       providerName: string,
@@ -87,8 +80,7 @@ class switchEnvironment extends EventEmitter {
                   element.dispatchEvent(event)
                 }
               },
-              [submenuXPath]
-            )
+              [submenuXPath])
               .useCss()
               .isPresent({
                 selector: `body .dropdown-menu.show [data-id="dropdown-item-${providerName}"]`,
@@ -115,11 +107,12 @@ class switchEnvironment extends EventEmitter {
     ) => {
       browser
         .isPresent({ selector: `[data-id="dropdown-item-${providerName}"]`, suppressNotFoundErrors: true, timeout: 1500 }, (topLevel) => {
+          console.log('attemptSelect result: ', topLevel)
           if (topLevel.value) {
             clickAndMaybeWait(browser, `[data-id="dropdown-item-${providerName}"]`, providerName, shouldWait)
             onComplete && browser.perform(() => onComplete())
           } else {
-            tryHoverSubmenusAndClick(browser, submenuLabels, providerName, !!shouldWait, () => {
+            tryOpenSubmenusAndClick(browser, submenuLabels, providerName, !!shouldWait, () => {
               onComplete && browser.perform(() => onComplete())
             })
           }
@@ -129,24 +122,46 @@ class switchEnvironment extends EventEmitter {
     this.api
       .useCss()
       .waitForElementVisible('[data-id="settingsSelectEnvOptions"]', 10000)
+      .execute(function() {
+        // Use JavaScript to click the button element directly, avoiding any overlapping elements
+        const button = document.querySelector('[data-id="settingsSelectEnvOptions"]') as HTMLElement
+        if (button) {
+          button.click()
+        }
+      }, [])
       .perform((done) => {
-        this.api.isPresent({ selector: `[data-id="selected-provider-${provider}"]`, suppressNotFoundErrors: true, timeout: 1000 }, (result) => {
-          if (result.value) return done()
-          
-          this.api.click('[data-id="settingsSelectEnvOptions"] button')
-            .waitForElementVisible('body .dropdown-menu.show', 3000)
-            .perform(() => {
-              attemptSelect(this.api, provider, returnWhenInitialized, () => {
-                waitForSelectedOrModal(this.api, provider, 10000, (ok) => {
-                  if (ok) {
-                    return done()
-                  } else {
-                    this.api.assert.fail(`Environment "${provider}" could not be selected or found in the dropdown.`)
-                    done()
-                  }
-                })
-              })
+        this.api.isVisible({ selector: `[data-id="dropdown-item-${provider}"]`, suppressNotFoundErrors: true, timeout: 1000 }, (result) => {
+          console.log('provider result: ', result)
+          if (result.value) {
+            this.api.click(`[data-id="dropdown-item-${provider}"]`)
+            return done()
+          } else {
+            this.api.isVisible({ selector: `[data-id="dropdown-item-${category}"]`, suppressNotFoundErrors: true, timeout: 1000 }, (result) => {
+              console.log('category result: ', result)
+              if (result.value) {
+                this.api
+                  .click(`[data-id="dropdown-item-${category}"]`)
+                  .click('[data-id="settingsSelectEnvOptions"] button')
+                  .waitForElementVisible('body .dropdown-menu.show', 3000)
+                  .perform(() => {
+                    attemptSelect(this.api, provider, returnWhenInitialized, () => {
+                      waitForSelectedOrModal(this.api, provider, 10000, (ok) => {
+                        if (ok) {
+                          return done()
+                        } else {
+                          this.api.assert.fail(`Environment "${provider}" could not be selected or found in the dropdown.`)
+                          return done()
+                        }
+                      })
+                    })
+                  })
+                return done()
+              } {
+                this.api.assert.fail(`Environment "${provider}" could not be selected or found in the dropdown.`)
+                done()
+              }
             })
+          }
         })
       })
       .perform(() => this.emit('complete'))

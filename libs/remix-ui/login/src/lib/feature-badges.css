@@ -1,0 +1,89 @@
+/* Feature Badges in User Menu */
+
+.feature-badges-section {
+  padding: 8px 12px;
+}
+
+.feature-badges-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bs-secondary-color, #888);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.feature-badges-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.feature-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.feature-badge--clickable {
+  cursor: pointer;
+}
+
+.feature-badge--clickable:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Beta badge - teal/cyan accent matching Remix branding */
+.feature-badge--beta {
+  background: linear-gradient(135deg, #0d6e82 0%, #0a9396 100%);
+  color: #e0fbfc;
+  border-color: rgba(10, 147, 150, 0.3);
+}
+
+.feature-badge--beta:hover {
+  border-color: rgba(10, 147, 150, 0.6);
+}
+
+/* AI Basic badge */
+.feature-badge--ai {
+  background: linear-gradient(135deg, #3d3d8e 0%, #5858b8 100%);
+  color: #e0e0ff;
+  border-color: rgba(88, 88, 184, 0.3);
+}
+
+/* AI Unlimited badge */
+.feature-badge--ai-unlimited {
+  background: linear-gradient(135deg, #7b2d8e 0%, #a855f7 100%);
+  color: #f3e8ff;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+/* Default badge */
+.feature-badge--default {
+  background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+  color: #e5e7eb;
+  border-color: rgba(75, 85, 99, 0.3);
+}
+
+.feature-badge-icon {
+  font-size: 0.65rem;
+}
+
+.feature-badge-name {
+  line-height: 1;
+}
+
+.feature-badge-arrow {
+  font-size: 0.55rem;
+  opacity: 0.7;
+  margin-left: 2px;
+}

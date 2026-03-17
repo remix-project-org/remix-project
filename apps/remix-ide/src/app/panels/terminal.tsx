@@ -56,9 +56,13 @@ export default class Terminal extends Plugin {
   terminalApi: any
   isHidden: boolean
   isMaximized: boolean
+  isDebugging: boolean
+  debuggerCallStack: any[]
   constructor(opts, api) {
     super(profile)
     this.isMaximized = false
+    this.isDebugging = false
+    this.debuggerCallStack = []
     this.fileImport = new CompilerImports()
     this.event = new EventManager()
     this.globalRegistry = Registry.getInstance()
@@ -118,6 +122,18 @@ export default class Terminal extends Plugin {
 
   onActivation() {
     this.renderComponent()
+
+    // Listen for debugger events
+    this.on('debugger', 'debuggingStarted', (data: any) => {
+      this.isDebugging = true
+      this.renderComponent()
+    })
+
+    this.on('debugger', 'debuggingStopped', () => {
+      this.isDebugging = false
+      this.debuggerCallStack = []
+      this.renderComponent()
+    })
 
     // Listen for file changes - auto-restore terminal panel if maximized when main panel is used
     this.on('fileManager', 'currentFileChanged', () => {
@@ -309,6 +325,8 @@ export default class Terminal extends Plugin {
           visible={true}
           isMaximized={this.isMaximized}
           maximizePanel={this.maximizePanel.bind(this)}
+          isDebugging={this.isDebugging}
+          debuggerCallStack={this.debuggerCallStack}
         />
       </>)
   }
@@ -319,6 +337,24 @@ export default class Terminal extends Plugin {
       plugin: this,
       onReady: onReady
     })
+
+    // Update terminal height based on debugging state
+    setTimeout(() => {
+      // Try to find terminal-wrap first, fall back to terminal-view
+      const terminalWrap = document.querySelector('.terminal-wrap') as HTMLElement
+      const terminalPanel = document.getElementById('terminal-view')
+      const element = terminalWrap || terminalPanel
+
+      if (element) {
+        if (this.isDebugging) {
+          element.style.height = '32.8vh'
+          element.style.minHeight = '32.8vh'
+        } else {
+          element.style.height = ''
+          element.style.minHeight = ''
+        }
+      }
+    }, 0)
   }
 
   scroll2bottom() {

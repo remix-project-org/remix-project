@@ -21,9 +21,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="movePluginToLeft"]')
       .waitForElementVisible('*[data-id="toggleRightSidePanelIcon"]')
       .waitForElementVisible('.codicon-layout-sidebar-right')
-      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-beginner-0"]')
-      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-intermediate-1"]')
-      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-expert-2"]')
+      .waitForElementVisible('*[data-id="remix-ai-assistant"]')
       .click('*[data-id="movePluginToLeft"]')
       .waitForElementVisible('*[data-pinnedPlugin="movePluginToRight-remixaiassistant"]')
       .waitForElementVisible('.codicon-layout-sidebar-right-off') // check the icon toggling on top bar
@@ -204,7 +202,7 @@ module.exports = {
       .waitForElementNotVisible('#side-panel')
       // Open the workspace dropdown
       .waitForElementVisible('*[data-id="workspacesSelect"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       // Click on "Create Workspace" menu item
       .waitForElementVisible('*[data-id="workspacecreate"]')

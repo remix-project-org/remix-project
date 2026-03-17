@@ -1,0 +1,179 @@
+/* ============================
+   Beta Corner Widget
+   Bottom-left floating promo card
+   ============================ */
+
+.beta-corner-widget {
+  position: fixed;
+  bottom: 40px;
+  left: 16px;
+  width: 280px;
+  z-index: 9000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(13, 148, 136, 0.15);
+  background: var(--custom-bg-color-1, #1a1a2e);
+  animation: beta-corner-slideIn 0.4s ease-out;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.beta-corner-widget--out {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
+@keyframes beta-corner-slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Close button */
+.beta-corner-widget-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  backdrop-filter: blur(4px);
+}
+
+.beta-corner-widget-close:hover {
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+/* Clickable body */
+.beta-corner-widget-body {
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s;
+}
+
+.beta-corner-widget-body:hover {
+  transform: translateY(-1px);
+}
+
+.beta-corner-widget-body:hover .beta-corner-widget-cta {
+  color: #a5f3fc;
+}
+
+/* Illustration area */
+.beta-corner-widget-illustration {
+  position: relative;
+  background: linear-gradient(135deg, rgba(8, 18, 42, 0.95) 0%, rgba(10, 80, 100, 0.9) 50%, rgba(8, 18, 42, 0.95) 100%);
+  padding: 1.25rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.beta-corner-widget-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.3), rgba(6, 182, 212, 0.2));
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  color: #7dd3fc;
+  filter: drop-shadow(0 4px 12px rgba(125, 211, 252, 0.2));
+}
+
+/* Text content */
+.beta-corner-widget-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0.85rem 1rem 0.35rem;
+  color: var(--bs-body-color, #e2e2e2);
+}
+
+.beta-corner-widget-desc {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--bs-secondary-color, #888);
+  margin: 0 1rem;
+}
+
+.beta-corner-widget-cta {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #7dd3fc;
+  margin: 0.65rem 1rem 1rem;
+  transition: color 0.15s;
+}
+
+.beta-corner-widget-cta i {
+  font-size: 0.6rem;
+  margin-left: 2px;
+  transition: transform 0.15s;
+}
+
+.beta-corner-widget-body:hover .beta-corner-widget-cta i {
+  transform: translateX(3px);
+}
+
+/* "Don't show again" link */
+.beta-corner-widget-never {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 0.45rem 1rem 0.65rem;
+  font-size: 0.68rem;
+  color: var(--bs-secondary-color, #666);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.06));
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.beta-corner-widget-never:hover {
+  color: var(--bs-body-color, #aaa);
+}
+
+/* Light theme */
+[data-theme="light"] .beta-corner-widget {
+  background: var(--custom-bg-color-1, #ffffff);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(13, 148, 136, 0.2);
+}
+
+[data-theme="light"] .beta-corner-widget-close {
+  background: rgba(255, 255, 255, 0.7);
+  color: #666;
+}
+
+[data-theme="light"] .beta-corner-widget-close:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: #222;
+}
+
+[data-theme="light"] .beta-corner-widget-cta {
+  color: #0d6e82;
+}
+
+/* Responsive — hide on very small screens */
+@media (max-width: 600px) {
+  .beta-corner-widget {
+    display: none;
+  }
+}

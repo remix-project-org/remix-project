@@ -10,25 +10,25 @@ const sources = [
     'myTokenV1.sol': {
       content: `
       // SPDX-License-Identifier: MIT
-      pragma solidity ^0.8.20;
-
-      import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-      import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-      import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-      import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-
+      pragma solidity ^0.8.4;
+      
+      import "@openzeppelin/contracts-upgradeable@4.8.3/token/ERC721/ERC721Upgradeable.sol";
+      import "@openzeppelin/contracts-upgradeable@4.8.3/access/OwnableUpgradeable.sol";
+      import "@openzeppelin/contracts-upgradeable@4.8.3/proxy/utils/Initializable.sol";
+      import "@openzeppelin/contracts-upgradeable@4.8.3/proxy/utils/UUPSUpgradeable.sol";
+      
       contract MyToken is Initializable, ERC721Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
           /// @custom:oz-upgrades-unsafe-allow constructor
           constructor() {
               _disableInitializers();
           }
-
-          function initialize(address initialOwner) initializer public {
+      
+          function initialize() initializer public {
               __ERC721_init("MyToken", "MTK");
-              __Ownable_init(initialOwner);
+              __Ownable_init();
               __UUPSUpgradeable_init();
           }
-
+      
           function _authorizeUpgrade(address newImplementation)
               internal
               onlyOwner
@@ -60,7 +60,6 @@ module.exports = {
 
       .url('http://127.0.0.1:8080/#autoCompile=true&optimize=true&runs=300&code=cHJhZ21hIHNvbGlkaXR5ID49MC42LjAgPDAuNy4wOwoKaW1wb3J0ICJodHRwczovL2dpdGh1Yi5jb20vT3BlblplcHBlbGluL29wZW56ZXBwZWxpbi1jb250cmFjdHMvYmxvYi9tYXN0ZXIvY29udHJhY3RzL2FjY2Vzcy9Pd25hYmxlLnNvbCI7Cgpjb250cmFjdCBHZXRQYWlkIGlzIE93bmFibGUgewogIGZ1bmN0aW9uIHdpdGhkcmF3KCkgZXh0ZXJuYWwgb25seU93bmVyIHsKICB9Cn0')
       .refreshPage() // we do one reload for making sure we already have the default workspace
-
       .verify.elementPresent('[data-id="compilerContainerAutoCompile"]:checked')
       .click('[for="autoCompile"]') // we set it too false again
       .click('[for="autoCompile"]') // back to True in the local storage
@@ -106,13 +105,13 @@ module.exports = {
       })
   },
 
-  'Should load Blockscout verified contracts from URL "address" and "blockscout" params (single source)': ''+function (browser: NightwatchBrowser) {
+  'Should load Blockscout verified contracts from URL "address" and "blockscout" params (single source)': function (browser: NightwatchBrowser) {
     browser
       .url('http://127.0.0.1:8080/#address=0xdAC17F958D2ee523a2206206994597C13D831ec7&blockscout=eth.blockscout.com')
       .refreshPage()
       .pause(7000)
       .currentWorkspaceIs('code-sample')
-      .assert.elementPresent('*[data-id="treeViewLitreeViewItemTetherToken.sol"]')
+      .assert.elementPresent('*[data-id="treeViewLitreeViewItemeth.blockscout.com/0xdAC17F958D2ee523a2206206994597C13D831ec7/TetherToken.sol"]')
       .getEditorValue((content) => {
         browser.assert.ok(content && content.indexOf(
           'contract TetherToken is Pausable, StandardToken, BlackList {') !== -1)
@@ -298,10 +297,9 @@ module.exports = {
       .click('[data-id="compilerContainerCompileBtn"]')
       .waitForElementPresent('select[id="compiledContracts"] option[value=MyToken]', 60000)
       .clickLaunchIcon('udapp')
-      .click('select.udapp_contractNames')
-      .click('select.udapp_contractNames option[value=MyToken]')
+      .selectContract('MyToken')
       .waitForElementPresent('[data-id="contractGUIDeployWithProxyLabel"]')
-      .expect.element('[data-id="contractGUIDeployWithProxy"]').to.be.selected
+      .waitForElementPresent('[data-id="contractGUIDeployWithProxy"] button i.fa-toggle-on')
   },
 
   'Should select upgrade with proxy option from URL params #group2': function (browser: NightwatchBrowser) {
@@ -319,10 +317,9 @@ module.exports = {
       .click('[data-id="compilerContainerCompileBtn"]')
       .waitForElementPresent('select[id="compiledContracts"] option[value=MyToken]', 60000)
       .clickLaunchIcon('udapp')
-      .click('select.udapp_contractNames')
-      .click('select.udapp_contractNames option[value=MyToken]')
+      .selectContract('MyToken')
       .waitForElementPresent('[data-id="contractGUIUpgradeImplementationLabel"]')
-      .expect.element('[data-id="contractGUIUpgradeImplementation"]').to.be.selected
+      .waitForElementPresent('[data-id="contractGUIUpgradeImplementation"] button i.fa-toggle-on')
   },
 
   'Should load using various URL compiler params #group2': function (browser: NightwatchBrowser) {

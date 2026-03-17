@@ -42,7 +42,7 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '', onStopDebug
   }
 
   return (
-    <div className="debugger-search-bar">
+    <div className="debugger-search-bar ms-2 me-2">
       <div className="search-input-wrapper">
         <i className="fas fa-search search-icon"></i>
         <input
@@ -76,7 +76,7 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '', onStopDebug
             onClick={onStopDebugging}
             aria-label="Stop debugging"
           >
-            <i className="fas fa-stop"></i> <FormattedMessage id="debugger.stopDebugging" defaultMessage="Stop Debugging" />
+            <i className="fas fa-stop"></i> <FormattedMessage id="debugger.stopDebugging" defaultMessage="Stop" />
           </button>
         )}
       </div>

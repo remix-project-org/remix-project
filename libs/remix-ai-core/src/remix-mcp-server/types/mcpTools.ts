@@ -29,9 +29,10 @@ export enum ToolCategory {
 }
 
 export interface AccountInfo {
-  address: string;
-  balance?: string;
-  displayName?: string;
+  alias: string,
+  account: string,
+  balance?: string,
+  symbol?: string
   isSmartAccount?: boolean;
 }
 
@@ -53,6 +54,12 @@ export interface ToolExecutionContext {
  */
 export interface FileReadArgs {
   path: string;
+}
+
+export interface FileReplacerArgs {
+  path: string
+  contentToReplace: string
+  regEx: string
 }
 
 export interface FileWriteArgs {
@@ -84,6 +91,22 @@ export interface FileCopyArgs {
 export interface DirectoryListArgs {
   path: string;
   recursive?: boolean;
+}
+
+export interface FileReadChunkArgs {
+  path: string;
+  offset?: number;
+  limit?: number;
+}
+
+export interface FileGrepArgs {
+  path: string;
+  pattern: string;
+  ignoreCase?: boolean;
+  lineNumbers?: boolean;
+  contextBefore?: number;
+  contextAfter?: number;
+  maxMatches?: number;
 }
 
 export interface SolidityCompileArgs {
@@ -146,6 +169,12 @@ export interface SimulateTransactionArgs {
 
 export interface RunScriptArgs {
   file: string
+}
+
+export interface AddInstanceArgs {
+  contractAddress: string;
+  abi: any[] | string;
+  contractName: string;
 }
 
 /**
@@ -234,9 +263,33 @@ export interface FileOperationResult {
   success: boolean;
   path: string;
   message?: string;
-  content?: string;
+  payload?: string;
   size?: number;
   lastModified?: string;
+}
+
+export interface FileReadChunkResult {
+  success: boolean;
+  path: string;
+  content: string;
+  startLine: number;
+  endLine: number;
+  totalLines: number;
+  hasMore: boolean;
+}
+
+export interface FileGrepResult {
+  success: boolean;
+  path: string;
+  pattern: string;
+  matches: Array<{
+    lineNumber: number;
+    line: string;
+    contextBefore?: string[];
+    contextAfter?: string[];
+  }>;
+  totalMatches: number;
+  truncated: boolean;
 }
 
 export interface CompilationResult {
@@ -251,7 +304,7 @@ export interface CompilationResult {
   errors: any[];
   errorFiles?: any[];
   warnings: any[];
-  sources: Record<string, any>;
+  // sources: Record<string, any>; // comment out to avoid large payloads, can be added back if needed
 }
 
 export interface DeploymentResult {
@@ -266,6 +319,13 @@ export interface DeploymentResult {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface RunScriptResult {}
+
+export interface AddInstanceResult {
+  success: boolean;
+  contractAddress: string;
+  contractName: string;
+  message?: string;
+}
 
 export interface ContractInteractionResult {
   success: boolean;

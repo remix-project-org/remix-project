@@ -1,9 +1,11 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Form, Button, Alert, Card, Spinner, Modal, ListGroup, Badge, InputGroup } from 'react-bootstrap';
 import { ethers } from 'ethers';
+import { toPng } from 'html-to-image';
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
+import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 
@@ -44,6 +46,7 @@ const BaseAppWizard: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalContent, setSuccessModalContent] = useState({ title: '', body: '' });
   const [showResetWarning, setShowResetWarning] = useState(false);
+  const [copiedField, setCopiedField] = useState('');
 
   useEffect(() => {
     if (activeDapp?.config?.isBaseMiniApp) {
@@ -185,18 +188,73 @@ const BaseAppWizard: React.FC = () => {
         logoDataUrl = logo;
       }
       const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
+      const walletScript = generateWalletSelectionScript();
+
+      const ensUrlForOG = savedWizardState.ensName
+        ? `https://${savedWizardState.ensName}.remixdapp.eth.limo`
+        : '';
+
+      // Step 1: Capture screenshot & upload to IPFS to get a stable URL
+      let screenshotBlob: Blob | null = null;
+      let screenshotIpfsUrl = '';
+      try {
+        const iframe = document.querySelector('[data-id="dapp-preview-iframe"]') as HTMLIFrameElement;
+        if (iframe?.contentDocument?.body) {
+          const dataUrl = await toPng(iframe.contentDocument.body, {
+            quality: 0.8, width: 1200, height: 630, backgroundColor: '#ffffff',
+            cacheBust: true, skipAutoScale: true, pixelRatio: 1,
+            style: { width: '1200px', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' },
+          });
+          const res = await fetch(dataUrl);
+          screenshotBlob = await res.blob();
+
+          // Upload screenshot to IPFS first
+          const ssFormData = new FormData();
+          ssFormData.append('files', screenshotBlob, 'screenshot.png');
+          const ssHeaders: Record<string, string> = {};
+          const ssToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
+          if (ssToken) ssHeaders['Authorization'] = `Bearer ${ssToken}`;
+          const ssResponse = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: ssFormData, headers: ssHeaders });
+          if (ssResponse.ok) {
+            const ssData = await ssResponse.json();
+            screenshotIpfsUrl = `https://ipfs.io/ipfs/${ssData.ipfsHash}/screenshot.png`;
+          }
+        }
+      } catch (e) {
+        console.warn('[IPFS Deploy] Screenshot upload failed, using fallback', e);
+      }
+
+      // Step 2: Build OG tags with screenshot IPFS URL
+      const ogImageUrl = screenshotIpfsUrl || 'https://remix.ethereum.org/assets/img/remix-logo-blue.png';
+      const twitterCardType = screenshotIpfsUrl ? 'summary_large_image' : 'summary';
+
+      const ogTags = [
+        `<meta property="og:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:type" content="website" />`,
+        ensUrlForOG ? `<meta property="og:url" content="${ensUrlForOG}" />` : '',
+        `<meta name="twitter:card" content="${twitterCardType}" />`,
+        `<meta name="twitter:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
+        `<meta name="twitter:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:image" content="${ogImageUrl}" />`,
+        `<meta name="twitter:image" content="${ogImageUrl}" />`,
+      ].filter(Boolean).join('\n    ');
 
       let modifiedHtml = indexHtmlContent;
-      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${injectionScript}\n</head>`);
-      else modifiedHtml = `<html><head>${injectionScript}</head>${modifiedHtml}</html>`;
+      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n    ${ogTags}\n</head>`);
+      else modifiedHtml = `<html><head>${injectionScript}\n${ogTags}</head>${modifiedHtml}</html>`;
 
       const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
       modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
       modifiedHtml = modifiedHtml.replace(/<link rel="stylesheet"[^>]*href="(?:\/|\.\/)?src\/index\.css"[^>]*>/, '');
 
+      // Step 3: Final IPFS deploy with HTML + screenshot
       const formData = new FormData();
       const htmlBlob = new Blob([modifiedHtml], { type: 'text/html' });
       formData.append('files', htmlBlob, 'index.html');
+      if (screenshotBlob) {
+        formData.append('files', screenshotBlob, 'screenshot.png');
+      }
 
       try {
         const manifestPath = '.well-known/farcaster.json';
@@ -208,7 +266,10 @@ const BaseAppWizard: React.FC = () => {
         }
       } catch (e) { }
 
-      const response = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: formData });
+      const uploadHeaders: Record<string, string> = {};
+      const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
+      if (authToken) uploadHeaders['Authorization'] = `Bearer ${authToken}`;
+      const response = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: formData, headers: uploadHeaders });
       if (!response.ok) throw new Error(await response.text());
 
       const data = await response.json();
@@ -221,6 +282,14 @@ const BaseAppWizard: React.FC = () => {
           config: { ...activeDapp.config, title: title || '', details: details || '', logo: logoDataUrl || undefined }
         });
       }
+
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'success',
+        isClick: false
+      });
+
       return data.ipfsHash;
 
     } catch (e: any) {
@@ -256,9 +325,20 @@ const BaseAppWizard: React.FC = () => {
       const accounts = await provider.send('eth_requestAccounts', []);
       const ownerAddress = accounts[0];
 
+      const ensHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      const ensAuthToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
+      if (ensAuthToken) ensHeaders['Authorization'] = `Bearer ${ensAuthToken}`;
+
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'register_ens',
+        name: 'start',
+        isClick: true
+      });
+
       const response = await fetch(`${REMIX_ENDPOINT_ENS}/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ensHeaders,
         body: JSON.stringify({
           label: savedWizardState.ensName.toLowerCase(),
           owner: ownerAddress,
@@ -272,6 +352,13 @@ const BaseAppWizard: React.FC = () => {
       }
 
       const resData = await response.json();
+
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'register_ens',
+        name: 'success',
+        isClick: false
+      });
 
       if (dappManager) {
         const fullDomain = `${savedWizardState.ensName}.remixdapp.eth`;
@@ -295,6 +382,12 @@ const BaseAppWizard: React.FC = () => {
       if (mode === 'initial') {
         completeStepAndGoNext(3);
       } else if (mode === 'finalize') {
+        trackMatomoEvent(plugin as any, {
+          category: 'quick-dapp-v2',
+          action: 'base_app_setup_complete',
+          name: 'success',
+          isClick: false
+        });
         completeStepAndGoNext(5);
         setSuccessModalContent({
           title: 'Base Mini App is Ready!',
@@ -433,7 +526,7 @@ const BaseAppWizard: React.FC = () => {
   const ipfsUrl = latestCid ? `https://ipfs.io/ipfs/${latestCid}` : '';
 
   return (
-    <div className="base-wizard-container">
+    <div className="base-wizard-container" data-id="base-app-wizard">
       <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered>
         <Modal.Header closeButton className="bg-success text-white">
           <Modal.Title>{successModalContent.title}</Modal.Title>
@@ -483,8 +576,18 @@ const BaseAppWizard: React.FC = () => {
         </Modal.Footer>
       </Modal>
 
+      <Alert variant="warning" className="mb-3 d-flex align-items-start" data-id="base-migration-alert">
+        <i className="fas fa-exclamation-triangle me-2 mt-1"></i>
+        <div>
+          <strong>Important:</strong> Starting April 9, 2026, the Base App will transition from the Farcaster mini-app spec to standard web apps.{' '}
+          <a href="https://docs.base.org/mini-apps/quickstart/migrate-to-standard-web-app" target="_blank" rel="noreferrer" className="fw-bold">
+            Learn more about the migration <i className="fas fa-external-link-alt small"></i>
+          </a>
+        </div>
+      </Alert>
+
       {viewStep >= 5 ? (
-        <Card className="border-success mb-3 shadow-sm">
+        <Card className="border-success mb-3 shadow-sm" data-id="live-app-dashboard">
           <Card.Header className="bg-success text-white fw-bold d-flex justify-content-between align-items-center">
             <span><i className="fas fa-check-circle me-2"></i>Live App Dashboard</span>
             <span className="badge bg-white text-success">Active</span>
@@ -516,6 +619,36 @@ const BaseAppWizard: React.FC = () => {
               </div>
             </div>
             <hr className="my-3" />
+            <div className="mb-3">
+              <h6 className="fw-bold text-muted small mb-2"><i className="fas fa-share-alt me-1"></i>Share</h6>
+              <div className="d-flex align-items-center bg-light border rounded p-2 mb-2">
+                <code className="text-truncate flex-grow-1 small" style={{ color: '#0d6efd' }}>
+                  {ensUrl}
+                </code>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="flex-shrink-0 p-0 ms-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(ensUrl);
+                    setCopiedField('url');
+                    setTimeout(() => setCopiedField(''), 2000);
+                  }}
+                >
+                  {copiedField === 'url' ? <i className="fas fa-check text-success"></i> : <i className="fas fa-copy text-muted"></i>}
+                </Button>
+              </div>
+              <div className="d-grid">
+                <Button
+                  variant="dark"
+                  size="sm"
+                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDapp ⚡\n\n${ensUrl}`)}`, '_blank')}
+                >
+                  <i className="fab fa-x-twitter me-1"></i> Post on X
+                </Button>
+              </div>
+            </div>
+            <hr className="my-3" />
             <div className="d-grid">
               <Button variant="secondary" size="sm" onClick={() => navigateToStep(1)}>
                 <i className="fas fa-cog me-2"></i>Re-configure Settings
@@ -541,7 +674,7 @@ const BaseAppWizard: React.FC = () => {
           </Card.Body>
         </Card>
       ) : (
-        <Card className="mb-3 border-primary">
+        <Card className="mb-3 border-primary" data-id="base-wizard-card">
           <Card.Header className="bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
             <span><i className="fas fa-rocket me-2"></i>Setup Wizard</span>
             <div className="d-flex gap-2 align-items-center">
@@ -588,7 +721,7 @@ const BaseAppWizard: React.FC = () => {
 
             <div className="wizard-content">
               {viewStep === 1 && (
-                <div className="fade-in">
+                <div className="fade-in" data-id="wizard-step-1-config">
                   <h6 className="fw-bold mb-2">Step 1: App Registration</h6>
                   <Card className="mb-3 bg-light border-0"><Card.Body>{renderEditForm()}</Card.Body></Card>
                   <Alert variant="info" className="small p-2 mb-3">
@@ -606,14 +739,14 @@ const BaseAppWizard: React.FC = () => {
                     />
                   </Form.Group>
 
-                  <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading}>
+                  <Button className="w-100" onClick={handleStep1Config} disabled={baseFlowLoading} data-id="wizard-step1-next-btn">
                     {baseFlowLoading ? 'Saving...' : 'Save & Next'}
                   </Button>
                 </div>
               )}
 
               {viewStep === 2 && (
-                <div className="fade-in">
+                <div className="fade-in" data-id="wizard-step-2-deploy">
                   <h6 className="fw-bold mb-2">Step 2: Deployment & ENS</h6>
                   <Alert variant="info" className="small p-2 mb-3">
                     Deploy your app to IPFS and register an ENS subdomain (`.remixdapp.eth`).
@@ -658,7 +791,7 @@ const BaseAppWizard: React.FC = () => {
               )}
 
               {viewStep === 3 && (
-                <div className="fade-in">
+                <div className="fade-in" data-id="wizard-step-3-verify">
                   <h6 className="fw-bold mb-2">Step 3: Verification & Association</h6>
                   <Alert variant="info" className="border small p-2 mb-3">
                     <ol className="mb-0 ps-3">
@@ -721,7 +854,7 @@ const BaseAppWizard: React.FC = () => {
               )}
 
               {viewStep === 4 && (
-                <div className="fade-in">
+                <div className="fade-in" data-id="wizard-step-4-finalize">
                   <h6 className="fw-bold mb-2">Step 4: Finalize</h6>
                   <Alert variant="success" className="small p-2 mb-3 bg-success bg-opacity-10 border-success">
                     Re-deploy your app with the association JSON to complete the verification.

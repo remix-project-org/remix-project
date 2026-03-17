@@ -32,6 +32,7 @@ export interface DomainCustomDimensions {
   trackingMode: number; // Dimension ID for 'anon'/'cookie' tracking mode
   clickAction: number; // Dimension ID for 'true'/'false' click tracking
   isBot: number; // Dimension ID for 'human'/'bot' detection
+  featureGroups: number; // Dimension ID for user feature group memberships (e.g., 'beta,ai-unlimited' or 'none')
 }
 
 // Type for domain keys (single source of truth)
@@ -77,34 +78,40 @@ export const MATOMO_CUSTOM_DIMENSIONS: CustomDimensionsConfig = {
   'alpha.remix.live': {
     trackingMode: 1, // Dimension for 'anon'/'cookie' tracking mode
     clickAction: 2, // Dimension for 'true'/'false' click tracking
-    isBot: 3 // Dimension for 'human'/'bot'/'automation' detection
+    isBot: 3, // Dimension for 'human'/'bot'/'automation' detection
+    featureGroups: 4 // Dimension for user feature groups (e.g., 'beta,ai-unlimited')
   },
   'beta.remix.live': {
     trackingMode: 1, // Dimension for 'anon'/'cookie' tracking mode
     clickAction: 2, // Dimension for 'true'/'false' click tracking
-    isBot: 3 // Dimension for 'human'/'bot'/'automation' detection
+    isBot: 3, // Dimension for 'human'/'bot'/'automation' detection
+    featureGroups: 4 // Dimension for user feature groups (e.g., 'beta,ai-unlimited')
   },
   'remix.ethereum.org': {
     trackingMode: 1, // Dimension for 'anon'/'cookie' tracking mode
     clickAction: 2, // Dimension for 'true'/'false' click tracking
-    isBot: 3 // Dimension for 'human'/'bot'/'automation' detection
+    isBot: 3, // Dimension for 'human'/'bot'/'automation' detection
+    featureGroups: 4 // Dimension for user feature groups (e.g., 'beta,ai-unlimited')
   },
   // Development domains
   localhost: {
     trackingMode: 1, // Dimension for 'anon'/'cookie' tracking mode
     clickAction: 3, // Dimension for 'true'/'false' click tracking
-    isBot: 4 // Dimension for 'human'/'bot'/'automation' detection
+    isBot: 4, // Dimension for 'human'/'bot'/'automation' detection
+    featureGroups: 5 // Dimension for user feature groups (e.g., 'beta,ai-unlimited')
   },
   '127.0.0.1': {
     trackingMode: 1, // Dimension for 'anon'/'cookie' tracking mode
     clickAction: 3, // Dimension for 'true'/'false' click tracking
-    isBot: 4 // Dimension for 'human'/'bot'/'automation' detection
+    isBot: 4, // Dimension for 'human'/'bot'/'automation' detection
+    featureGroups: 5 // Dimension for user feature groups (e.g., 'beta,ai-unlimited')
   },
   // Electron Desktop App
   electron: {
     trackingMode: 1, // Dimension for 'anon'/'cookie' tracking mode
     clickAction: 2, // Dimension for 'true'/'false' click tracking
-    isBot: 3 // Dimension for 'human'/'bot'/'automation' detection
+    isBot: 3, // Dimension for 'human'/'bot'/'automation' detection
+    featureGroups: 4 // Dimension for user feature groups (e.g., 'beta,ai-unlimited')
   }
 };
 
@@ -117,17 +124,20 @@ export const MATOMO_BOT_CUSTOM_DIMENSIONS: BotCustomDimensionsConfig = {
   'remix.ethereum.org': {
     trackingMode: 1,
     clickAction: 3,
-    isBot: 2
+    isBot: 2,
+    featureGroups: 4
   },
   'localhost': {
     trackingMode: 1,
     clickAction: 3,
-    isBot: 2
+    isBot: 2,
+    featureGroups: 4
   },
   '127.0.0.1': {
     trackingMode: 1,
     clickAction: 3,
-    isBot: 2
+    isBot: 2,
+    featureGroups: 4
   },
   'electron': null // Electron app uses same custom dimensions as human traffic
 };
