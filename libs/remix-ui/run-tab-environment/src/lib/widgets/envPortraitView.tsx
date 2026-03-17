@@ -302,7 +302,7 @@ function EnvironmentPortraitView() {
   }, [widgetState.network.chainId])
 
   const enableDelegationAuthorization = useMemo(() => {
-    return widgetState.providers.selectedProvider === 'vm-prague'
+    return widgetState.providers.selectedProvider === 'vm-prague' || widgetState.providers.selectedProvider === 'vm-osaka'
   }, [widgetState.providers.selectedProvider])
 
   const delegationAddress = useMemo(() => {
