@@ -184,7 +184,7 @@ export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: Reac
     if (safeAddresses.length && safeAddresses.includes(account)) {
       const storedSmartAccount = storedSmartAccounts[account]
       smartAccounts.push({
-        alias: alias,
+        alias: storedSmartAccount?.alias || alias,
         account: account,
         balance: formatBalance(balance, 3),
         salt: storedSmartAccount?.salt,
@@ -485,6 +485,19 @@ export async function updateAccountAlias (
 ) {
   // Save alias to localStorage
   setAccountAlias(accountAddress, newAlias)
+
+  // Also update alias in smart account storage if this is a smart account
+  const smartAccountsStr = localStorage.getItem(aaLocalStorageKey)
+  if (smartAccountsStr) {
+    const smartAccountsObj = JSON.parse(smartAccountsStr)
+    const networkStatus = await plugin.call('blockchain', 'getCurrentNetworkStatus')
+    const currentChainId = networkStatus?.network?.id
+
+    if (smartAccountsObj[currentChainId] && smartAccountsObj[currentChainId][accountAddress]) {
+      smartAccountsObj[currentChainId][accountAddress].alias = newAlias
+      localStorage.setItem(aaLocalStorageKey, JSON.stringify(smartAccountsObj))
+    }
+  }
 
   // Refresh accounts list to show updated alias
   await getAccountsList(plugin, dispatch)

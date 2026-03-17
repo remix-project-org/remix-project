@@ -269,20 +269,18 @@ function EnvironmentPortraitView() {
   }, [widgetState.providers.selectedProvider])
 
   const selectedAccount = useMemo(() => {
-    // First check in default accounts
+    // First check in smart accounts (to get correct alias from localStorage)
+    const smartAccount = widgetState.accounts.smartAccounts.find(
+      account => account.account === widgetState.accounts.selectedAccount
+    )
+    if (smartAccount) {
+      return smartAccount as Account
+    }
+
+    // If not found in smart accounts, check in default accounts
     const defaultAccount = widgetState.accounts.defaultAccounts.find(
       account => account.account === widgetState.accounts.selectedAccount
     )
-
-    // If not found in default accounts, check in smart accounts
-    if (!defaultAccount) {
-      const smartAccount = widgetState.accounts.smartAccounts.find(
-        account => account.account === widgetState.accounts.selectedAccount
-      )
-      if (smartAccount) {
-        return smartAccount as Account
-      }
-    }
 
     return defaultAccount || widgetState.accounts.defaultAccounts[0]
   }, [widgetState.accounts.selectedAccount, widgetState.accounts.defaultAccounts, widgetState.accounts.smartAccounts])
