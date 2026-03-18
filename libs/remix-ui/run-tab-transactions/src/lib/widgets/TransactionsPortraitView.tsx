@@ -25,6 +25,7 @@ function TransactionsPortraitView() {
   }
 
   const handleClearAllClick = () => {
+    setIsAccordionOpen(true) // Expand accordion to show the dialog
     dispatch({ type: 'SHOW_CLEAR_ALL_DIALOG', payload: true })
   }
 
@@ -41,6 +42,7 @@ function TransactionsPortraitView() {
       await plugin.call('notification', 'toast', intl.formatMessage({ id: 'udapp.noTransactionsToSave' }))
       return
     }
+    setIsAccordionOpen(true) // Expand accordion to show the dialog
     dispatch({ type: 'SHOW_SAVE_DIALOG', payload: true })
     dispatch({ type: 'SHOW_CLEAR_ALL_DIALOG', payload: false })
   }
@@ -125,7 +127,7 @@ function TransactionsPortraitView() {
 
   return (
     <div className="card mx-2 my-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-      <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }} onClick={toggleAccordion}>
+      <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }} onClick={toggleAccordion} data-id="transaction-recorder-accordion-toggle">
         <div className='d-flex align-items-center gap-2'>
           <h6 className="my-auto" style={{ color: themeQuality === 'dark' ? 'white' : 'black', margin: 0, }}>
             <FormattedMessage id="udapp.transactionRecorderTitle" defaultMessage="Transactions recorder" /> <span className="text-secondary small">{widgetState.recorderData.journal.length}</span>
