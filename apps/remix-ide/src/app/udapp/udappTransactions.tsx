@@ -102,7 +102,7 @@ export class TransactionsPlugin extends Plugin {
     }
   }
 
-  getUI() {
-    return <TransactionsWidget plugin={this} />
+  getUI(context?: string) {
+    return <TransactionsWidget plugin={this} context={context} />
   }
 }

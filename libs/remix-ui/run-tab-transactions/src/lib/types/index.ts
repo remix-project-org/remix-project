@@ -41,6 +41,7 @@ export interface TransactionsAppContextType {
   dispatch: React.Dispatch<Actions>
   plugin: TransactionsPlugin
   themeQuality: string
+  context?: string
 }
 
 export type Actions =

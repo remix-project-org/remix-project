@@ -70,7 +70,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
 
   useEffect(() => {
     // Get the transaction recorder UI from udappTransactions plugin
-    debuggerModule.call('udappTransactions', 'getUI').then((ui) => {
+    debuggerModule.call('udappTransactions', 'getUI', 'debugger').then((ui) => {
       setTransactionRecorderUI(ui)
     }).catch(() => {
       // If udappTransactions is not available, show fallback message

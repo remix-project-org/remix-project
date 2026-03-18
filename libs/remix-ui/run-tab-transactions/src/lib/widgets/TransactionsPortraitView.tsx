@@ -9,12 +9,19 @@ import { TransactionItem } from '../components/TransactionItem'
 
 function TransactionsPortraitView() {
   const intl = useIntl()
-  const { plugin, widgetState, dispatch, themeQuality } = useContext(TransactionsAppContext)
+  const { plugin, widgetState, dispatch, themeQuality, context } = useContext(TransactionsAppContext)
+
+  // Debugger: expanded by default, udapp: collapsed by default
+  const [isAccordionOpen, setIsAccordionOpen] = React.useState(context === 'debugger')
 
   const { activeTab, sortOrder, showClearAllDialog, showSaveDialog, scenarioInput } = widgetState
 
   const handleTabChange = (tab: TabType) => {
     dispatch({ type: 'SET_ACTIVE_TAB', payload: tab })
+  }
+
+  const toggleAccordion = () => {
+    setIsAccordionOpen(!isAccordionOpen)
   }
 
   const handleClearAllClick = () => {
@@ -118,31 +125,36 @@ function TransactionsPortraitView() {
 
   return (
     <div className="card mx-2 my-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-      <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }}>
+      <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }} onClick={toggleAccordion}>
         <div className='d-flex align-items-center gap-2'>
           <h6 className="my-auto" style={{ color: themeQuality === 'dark' ? 'white' : 'black', margin: 0, }}>
             <FormattedMessage id="udapp.transactionRecorderTitle" defaultMessage="Transactions recorder" /> <span className="text-secondary small">{widgetState.recorderData.journal.length}</span>
           </h6>
         </div>
-        { !showClearAllDialog && !showSaveDialog &&
-          <div>
-            <button data-id="save-transactions" className='btn btn-primary btn-sm small p-1' style={{ fontSize: '0.6rem' }} onClick={handleSaveClick}>
-              <i className='fa-solid fa-floppy-disk'></i> <FormattedMessage id="udapp.saveButton" />
-            </button>
-            <button
-              className="btn btn-outline-danger btn-sm pe-0"
-              data-id="clearAllTransactions"
-              style={{ background: 'none', border: 'none' }}
-              onClick={handleClearAllClick}
-            >
-              <i className="far fa-trash-alt text-danger" aria-hidden="true"></i>
-            </button>
-          </div>
-        }
+        <div className='d-flex align-items-center gap-2'>
+          { !showClearAllDialog && !showSaveDialog &&
+            <div onClick={(e) => e.stopPropagation()}>
+              <button data-id="save-transactions" className='btn btn-primary btn-sm small p-1' style={{ fontSize: '0.6rem' }} onClick={handleSaveClick}>
+                <i className='fa-solid fa-floppy-disk'></i> <FormattedMessage id="udapp.saveButton" />
+              </button>
+              <button
+                className="btn btn-outline-danger btn-sm pe-0"
+                data-id="clearAllTransactions"
+                style={{ background: 'none', border: 'none' }}
+                onClick={handleClearAllClick}
+              >
+                <i className="far fa-trash-alt text-danger" aria-hidden="true"></i>
+              </button>
+            </div>
+          }
+          <i className={`fas ${isAccordionOpen ? 'fa-angle-down' : 'fa-angle-right'}`} aria-hidden="true"></i>
+        </div>
       </div>
 
-      {/* Add Contract Dialog */}
-      {showSaveDialog && (
+      {isAccordionOpen && (
+        <>
+          {/* Add Contract Dialog */}
+          {showSaveDialog && (
         <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
           <div className="d-flex justify-content-between align-items-center mb-2">
             <p className="mb-0" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem' }}>
@@ -365,6 +377,8 @@ function TransactionsPortraitView() {
             )}
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   )

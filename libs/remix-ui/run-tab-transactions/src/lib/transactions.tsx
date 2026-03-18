@@ -6,7 +6,7 @@ import { transactionsReducer, transactionsInitialState } from './reducers'
 import TransactionsPortraitView from './widgets/TransactionsPortraitView'
 import "./css/transaction-recorder.css"
 
-function TransactionsWidget({ plugin }: { plugin: TransactionsPlugin }) {
+function TransactionsWidget({ plugin, context }: { plugin: TransactionsPlugin; context?: string }) {
   // Check if there's already a primary instance
   const isPrimaryInstance = useRef(!plugin.getWidgetState)
 
@@ -80,7 +80,7 @@ function TransactionsWidget({ plugin }: { plugin: TransactionsPlugin }) {
   }, [currentState.recorderData.journal, plugin, syncTrigger])
 
   return (
-    <TransactionsAppContext.Provider value={{ widgetState: currentState, dispatch, plugin, themeQuality }}>
+    <TransactionsAppContext.Provider value={{ widgetState: currentState, dispatch, plugin, themeQuality, context }}>
       <TransactionsPortraitView />
     </TransactionsAppContext.Provider>
   )
