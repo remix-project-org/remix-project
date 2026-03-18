@@ -157,229 +157,229 @@ function TransactionsPortraitView() {
         <>
           {/* Add Contract Dialog */}
           {showSaveDialog && (
-        <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <p className="mb-0" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem' }}>
-              <FormattedMessage id="udapp.saveTransactionsHeader" />
-            </p>
-            <button
-              className="btn btn-sm"
-              onClick={handleCancelSave}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--bs-quaternary)',
-                fontSize: '1.5rem',
-                lineHeight: 1,
-                padding: 0
-              }}
-            > × </button>
-          </div>
-          <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 fw-light">
-            <FormattedMessage
-              id="udapp.addDeployedContract"
-              defaultMessage="Save transactions (deployed contracts and function executions) and replay them in another environment"
-            />
-          </p>
-          <div className="d-flex align-items-center mb-2">
-            <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
-              <FormattedMessage id="udapp.scenarioNameLabel" />
-            </label>
-          </div>
-          <div className="position-relative flex-fill">
-            <input
-              type="text"
-              value={scenarioInput}
-              placeholder="scenario.json"
-              className="form-control"
-              onChange={handleScenarioInputChange}
-              style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', flex: 1, padding: '0.75rem', paddingRight: '3.5rem', fontSize: '0.75rem' }}
-            />
-            <button
-              data-id="save-transaction-dialog-btn"
-              className="btn btn-sm btn-primary"
-              onClick={handleSaveScenario}
-              style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, fontSize: '0.65rem', fontWeight: 'bold' }}
-            >
-              <FormattedMessage id="udapp.saveButton" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Clear All Confirmation Dialog */}
-      {showClearAllDialog && (
-        <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <p className="mb-0" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem' }}>
-              <FormattedMessage
-                id="udapp.clearAllTransactionsTitle"
-                defaultMessage="Clear all transactions"
-              />
-            </p>
-            <button
-              className="btn btn-sm"
-              onClick={handleCancelClearAll}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '1.2rem',
-                color: themeQuality === 'dark' ? 'white' : 'black',
-                padding: 0
-              }}
-            > × </button>
-          </div>
-          <p className="text-sm mb-3">
-            <FormattedMessage
-              id="udapp.clearAllTransactionsConfirm"
-              defaultMessage="You are about to delete the list of your recorded transactions."
-            />
-          </p>
-          <p style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.doYouWantToProceed" /></p>
-          <div className="d-flex justify-content-between align-items-center gap-3">
-            <button
-              className="btn btn-sm btn-secondary flex-fill"
-              onClick={handleCancelClearAll}
-              data-id="cancelClearAllTransactions"
-            >
-              <FormattedMessage id="udapp.cancel" defaultMessage="Cancel" />
-            </button>
-            <button
-              className={`btn btn-sm btn-danger ${themeQuality === 'dark' ? 'text-white' : 'text-dark'} flex-fill`}
-              onClick={handleConfirmClearAll}
-              data-id="confirmClearAllTransactions"
-            >
-              <FormattedMessage id="udapp.yesClearAllTransactions" defaultMessage="Yes clear all" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!showClearAllDialog && (
-        <div className="transaction-recorder-tabs p-2 pt-0">
-          <div className="tabs-filter-container">
-            <ul className="nav nav-tabs" role="tablist">
-              <li className="nav-item" role="presentation">
+            <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <p className="mb-0" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem' }}>
+                  <FormattedMessage id="udapp.saveTransactionsHeader" />
+                </p>
                 <button
-                  className={`nav-link ${activeTab === 'ContractCall' ? 'active' : ''} rounded px-2`}
-                  onClick={() => handleTabChange('ContractCall')}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === 'ContractCall'}
-                  style={{ backgroundColor: activeTab === 'ContractCall' ? 'var(--custom-onsurface-layer-2)' : '' }}
-                >
-                  <FormattedMessage id="debugger.contractCall" defaultMessage="Contract call" />
-                </button>
-              </li>
-              <li className="nav-item" role="presentation">
+                  className="btn btn-sm"
+                  onClick={handleCancelSave}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--bs-quaternary)',
+                    fontSize: '1.5rem',
+                    lineHeight: 1,
+                    padding: 0
+                  }}
+                > × </button>
+              </div>
+              <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 fw-light">
+                <FormattedMessage
+                  id="udapp.addDeployedContract"
+                  defaultMessage="Save transactions (deployed contracts and function executions) and replay them in another environment"
+                />
+              </p>
+              <div className="d-flex align-items-center mb-2">
+                <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
+                  <FormattedMessage id="udapp.scenarioNameLabel" />
+                </label>
+              </div>
+              <div className="position-relative flex-fill">
+                <input
+                  type="text"
+                  value={scenarioInput}
+                  placeholder="scenario.json"
+                  className="form-control"
+                  onChange={handleScenarioInputChange}
+                  style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', flex: 1, padding: '0.75rem', paddingRight: '3.5rem', fontSize: '0.75rem' }}
+                />
                 <button
-                  className={`nav-link ${activeTab === 'TransactionList' ? 'active' : ''} rounded px-2`}
-                  onClick={() => handleTabChange('TransactionList')}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === 'TransactionList'}
-                  style={{ backgroundColor: activeTab === 'TransactionList' ? 'var(--custom-onsurface-layer-2)' : '' }}
+                  data-id="save-transaction-dialog-btn"
+                  className="btn btn-sm btn-primary"
+                  onClick={handleSaveScenario}
+                  style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, fontSize: '0.65rem', fontWeight: 'bold' }}
                 >
-                  <FormattedMessage id="debugger.transactionList" defaultMessage="Transaction List" />
+                  <FormattedMessage id="udapp.saveButton" />
                 </button>
-              </li>
-            </ul>
-            <div className="transaction-recorder-filter">
-              <Dropdown>
-                <Dropdown.Toggle
-                  as={CustomToggle}
-                  className="btn-sm border-0 p-1 text-secondary rounded"
-                  style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', color: themeQuality === 'dark' ? 'white' : 'black' }}
-                  icon="fas fa-caret-down ms-2"
-                  useDefaultIcon={false}
-                >
-                  {sortOrder === 'newest' ? intl.formatMessage({ id: 'udapp.newestSortLabel' }) : intl.formatMessage({ id: 'udapp.oldestSortLabel' })}
-                </Dropdown.Toggle>
-                <Dropdown.Menu style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: 0, '--bs-dropdown-min-width' : '5rem' } as React.CSSProperties}>
-                  <Dropdown.Item className="unit-dropdown-item-hover small" onClick={() => dispatch({ type: 'SET_SORT_ORDER', payload: 'newest' })} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.newestSortLabel" /></Dropdown.Item>
-                  <Dropdown.Item className="unit-dropdown-item-hover small" onClick={() => dispatch({ type: 'SET_SORT_ORDER', payload: 'oldest' })} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.oldestSortLabel" /></Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="tab-content">
-            {activeTab === 'ContractCall' ? (
-              <div className="tab-pane active" role="tabpanel">
-                <div className="contract-call-content">
-                  {sortedDeployments.length > 0 ? (
-                    sortedDeployments.map((deployment) => (
-                      <TransactionRecordCard
-                        key={deployment?.record?.targetAddress}
-                        deployment={deployment}
-                      />
-                    ))
-                  ) : (
-                    <div className="text-muted p-3 mt-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-                      <div className="empty-state-text">
-                        <FormattedMessage
-                          id="debugger.noTransactionsToShow"
-                          defaultMessage="There is no deployment to show."
-                        />
-                      </div>
-                      <div>
-                        <span>
-                          <FormattedMessage
-                            id="debugger.initiateFirstTransaction"
-                            defaultMessage="Initiate your first transaction by deploying a contract, or learn more following our "
-                          />
-                        </span>
-                        <a href="#">
-                          <FormattedMessage
-                            id="debugger.inAppTutorials"
-                            defaultMessage="in-app tutorials."
-                          />
-                        </a>
-                      </div>
-                    </div>
-                  )}
+          {/* Clear All Confirmation Dialog */}
+          {showClearAllDialog && (
+            <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <p className="mb-0" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem' }}>
+                  <FormattedMessage
+                    id="udapp.clearAllTransactionsTitle"
+                    defaultMessage="Clear all transactions"
+                  />
+                </p>
+                <button
+                  className="btn btn-sm"
+                  onClick={handleCancelClearAll}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '1.2rem',
+                    color: themeQuality === 'dark' ? 'white' : 'black',
+                    padding: 0
+                  }}
+                > × </button>
+              </div>
+              <p className="text-sm mb-3">
+                <FormattedMessage
+                  id="udapp.clearAllTransactionsConfirm"
+                  defaultMessage="You are about to delete the list of your recorded transactions."
+                />
+              </p>
+              <p style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.doYouWantToProceed" /></p>
+              <div className="d-flex justify-content-between align-items-center gap-3">
+                <button
+                  className="btn btn-sm btn-secondary flex-fill"
+                  onClick={handleCancelClearAll}
+                  data-id="cancelClearAllTransactions"
+                >
+                  <FormattedMessage id="udapp.cancel" defaultMessage="Cancel" />
+                </button>
+                <button
+                  className={`btn btn-sm btn-danger ${themeQuality === 'dark' ? 'text-white' : 'text-dark'} flex-fill`}
+                  onClick={handleConfirmClearAll}
+                  data-id="confirmClearAllTransactions"
+                >
+                  <FormattedMessage id="udapp.yesClearAllTransactions" defaultMessage="Yes clear all" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!showClearAllDialog && (
+            <div className="transaction-recorder-tabs p-2 pt-0">
+              <div className="tabs-filter-container">
+                <ul className="nav nav-tabs" role="tablist">
+                  <li className="nav-item" role="presentation">
+                    <button
+                      className={`nav-link ${activeTab === 'ContractCall' ? 'active' : ''} rounded px-2`}
+                      onClick={() => handleTabChange('ContractCall')}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === 'ContractCall'}
+                      style={{ backgroundColor: activeTab === 'ContractCall' ? 'var(--custom-onsurface-layer-2)' : '' }}
+                    >
+                      <FormattedMessage id="debugger.contractCall" defaultMessage="Contract call" />
+                    </button>
+                  </li>
+                  <li className="nav-item" role="presentation">
+                    <button
+                      className={`nav-link ${activeTab === 'TransactionList' ? 'active' : ''} rounded px-2`}
+                      onClick={() => handleTabChange('TransactionList')}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === 'TransactionList'}
+                      style={{ backgroundColor: activeTab === 'TransactionList' ? 'var(--custom-onsurface-layer-2)' : '' }}
+                    >
+                      <FormattedMessage id="debugger.transactionList" defaultMessage="Transaction List" />
+                    </button>
+                  </li>
+                </ul>
+                <div className="transaction-recorder-filter">
+                  <Dropdown>
+                    <Dropdown.Toggle
+                      as={CustomToggle}
+                      className="btn-sm border-0 p-1 text-secondary rounded"
+                      style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', color: themeQuality === 'dark' ? 'white' : 'black' }}
+                      icon="fas fa-caret-down ms-2"
+                      useDefaultIcon={false}
+                    >
+                      {sortOrder === 'newest' ? intl.formatMessage({ id: 'udapp.newestSortLabel' }) : intl.formatMessage({ id: 'udapp.oldestSortLabel' })}
+                    </Dropdown.Toggle>
+                    <Dropdown.Menu style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: 0, '--bs-dropdown-min-width' : '5rem' } as React.CSSProperties}>
+                      <Dropdown.Item className="unit-dropdown-item-hover small" onClick={() => dispatch({ type: 'SET_SORT_ORDER', payload: 'newest' })} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.newestSortLabel" /></Dropdown.Item>
+                      <Dropdown.Item className="unit-dropdown-item-hover small" onClick={() => dispatch({ type: 'SET_SORT_ORDER', payload: 'oldest' })} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.oldestSortLabel" /></Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
                 </div>
               </div>
-            ) : (
-              <div className="tab-pane active" role="tabpanel">
-                <div className="transaction-list-content">
-                  {sortedTransactions.length > 0 ? (
-                    sortedTransactions.map((transaction, index) => (
-                      <TransactionItem
-                        key={`${transaction?.record?.txHash || transaction?.timestamp}-${index}`}
-                        transaction={transaction}
-                      />
-                    ))
-                  ) : (
-                    <div className="text-muted p-3 mt-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-                      <div className="empty-state-text">
-                        <FormattedMessage
-                          id="debugger.noTransactionsToShow"
-                          defaultMessage="There are no transactions to show."
-                        />
-                      </div>
-                      <div>
-                        <span>
-                          <FormattedMessage
-                            id="debugger.initiateFirstTransaction"
-                            defaultMessage="Initiate your first transaction by deploying a contract, or learn more following our "
+
+              <div className="tab-content">
+                {activeTab === 'ContractCall' ? (
+                  <div className="tab-pane active" role="tabpanel">
+                    <div className="contract-call-content">
+                      {sortedDeployments.length > 0 ? (
+                        sortedDeployments.map((deployment) => (
+                          <TransactionRecordCard
+                            key={deployment?.record?.targetAddress}
+                            deployment={deployment}
                           />
-                        </span>
-                        <a href="#">
-                          <FormattedMessage
-                            id="debugger.inAppTutorials"
-                            defaultMessage="in-app tutorials."
-                          />
-                        </a>
-                      </div>
+                        ))
+                      ) : (
+                        <div className="text-muted p-3 mt-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+                          <div className="empty-state-text">
+                            <FormattedMessage
+                              id="debugger.noTransactionsToShow"
+                              defaultMessage="There is no deployment to show."
+                            />
+                          </div>
+                          <div>
+                            <span>
+                              <FormattedMessage
+                                id="debugger.initiateFirstTransaction"
+                                defaultMessage="Initiate your first transaction by deploying a contract, or learn more following our "
+                              />
+                            </span>
+                            <a href="#">
+                              <FormattedMessage
+                                id="debugger.inAppTutorials"
+                                defaultMessage="in-app tutorials."
+                              />
+                            </a>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="tab-pane active" role="tabpanel">
+                    <div className="transaction-list-content">
+                      {sortedTransactions.length > 0 ? (
+                        sortedTransactions.map((transaction, index) => (
+                          <TransactionItem
+                            key={`${transaction?.record?.txHash || transaction?.timestamp}-${index}`}
+                            transaction={transaction}
+                          />
+                        ))
+                      ) : (
+                        <div className="text-muted p-3 mt-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+                          <div className="empty-state-text">
+                            <FormattedMessage
+                              id="debugger.noTransactionsToShow"
+                              defaultMessage="There are no transactions to show."
+                            />
+                          </div>
+                          <div>
+                            <span>
+                              <FormattedMessage
+                                id="debugger.initiateFirstTransaction"
+                                defaultMessage="Initiate your first transaction by deploying a contract, or learn more following our "
+                              />
+                            </span>
+                            <a href="#">
+                              <FormattedMessage
+                                id="debugger.inAppTutorials"
+                                defaultMessage="in-app tutorials."
+                              />
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
         </>
       )}
     </div>
