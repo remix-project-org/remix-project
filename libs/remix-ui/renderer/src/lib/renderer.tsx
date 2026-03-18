@@ -80,11 +80,7 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
   }
 
   const _errorClick = async (errFile, errLine, errCol) => {
-    const terminalLog = async (type: 'log' | 'error', value: string) => {
-      try { await plugin.call('terminal' as any, 'log', { type, value }) } catch (e) { /* ignore */ }
-    }
     console.debug('[renderer] _errorClick:start', { errFile, errLine, errCol })
-    await terminalLog('log', `[renderer] _errorClick:start file=${errFile} line=${errLine} col=${errCol}`)
     try {
       // Resolve the target path via the in-memory resolution index first to avoid chained plugin calls
       const currentFile = await plugin.call('fileManager', 'file')
@@ -109,7 +105,6 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
       }
 
       console.debug('[renderer] _errorClick final resolution ->', resolved)
-      await terminalLog('log', `[renderer] resolution result -> ${resolved || 'null'}`)
       if (resolved) errFile = resolved
     } catch (_) {
       // best-effort: leave errFile as-is; fileManager.open will attempt legacy mapping
@@ -122,7 +117,6 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
       // TODO: refactor with this._components.contextView.jumpTo
       try {
         console.debug('[renderer] _errorClick checking exists', errFile)
-        await terminalLog('log', `[renderer] checking exists -> ${errFile}`)
         const exists = await plugin.call('fileManager', 'exists', errFile)
         console.debug('[renderer] _errorClick exists=', exists)
         // if it doesn't exist, we do nothing here – index is the source of truth
@@ -130,22 +124,16 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
         const nowExists = await plugin.call('fileManager', 'exists', errFile)
         if (nowExists) {
           console.debug('[renderer] _errorClick opening', errFile)
-          await terminalLog('log', `[renderer] opening -> ${errFile}`)
           await plugin.call('fileManager', 'open', errFile)
           console.debug('[renderer] _errorClick gotoLine', { errLine, errCol })
           await plugin.call('editor', 'gotoLine', errLine, errCol)
-          await terminalLog('log', `[renderer] gotoLine -> line=${errLine} col=${errCol}`)
-        } else {
-          await terminalLog('error', `[renderer] not found -> ${errFile}`)
         }
       } catch (e) {
         console.error('[renderer] _errorClick error while opening/gotoLine', e)
-        await terminalLog('error', `[renderer] error while opening/gotoLine: ${String(e?.message || e)}`)
       }
     } else {
       console.debug('[renderer] _errorClick already on file; gotoLine only', { errLine, errCol })
       await plugin.call('editor', 'gotoLine', errLine, errCol)
-      await terminalLog('log', `[renderer] gotoLine only -> line=${errLine} col=${errCol}`)
     }
   }
 
