@@ -49,7 +49,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
   const [currentVersion, setCurrentVersion] = useState('')
   const [hideWarnings, setHideWarnings] = useState<boolean>(false)
   const [compileErrors, setCompileErrors] = useState<Record<string, CompileErrors>>({ [currentFile]: api.compileErrors })
-  const [badgeStatus, setBadgeStatus] = useState<Record<string, { key: string; title?: string; type?: string }>>({})
+  const [badgeStatus, setBadgeStatus] = useState<Record<string, { key: string | number; title?: string; type?: string }>>({})
   const [contractsFile, setContractsFile] = useState<ContractsFile>({})
   const platform = useContext(platformContext)
 
@@ -163,7 +163,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     }
   }
 
-  api.statusChanged = (data: { key: string; title?: string; type?: string }) => {
+  api.statusChanged = (data: { key: string | number; title?: string; type?: string }) => {
     setBadgeStatus({ ...badgeStatus, [currentFile]: data })
   }
 

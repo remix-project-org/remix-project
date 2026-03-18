@@ -27,7 +27,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
   onSessionSwitched: () => void
   onContentChanged: () => void
   onFileClosed: (name: string) => void
-  statusChanged: (data: { key: string, title?: string, type?: string }) => void
+  statusChanged: (data: { key: string | number, title?: string, type?: string }) => void
 
   setSolJsonBinData: (urls: iSolJsonBinData) => void
 
@@ -321,7 +321,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
         if (data.errors && data.errors.length > 0 && !hideWarnings) {
           const warningsCount = data.errors.length
           this.statusChanged({
-            key: warningsCount.toString(),
+            key: warningsCount,
             title: `Compilation successful with ${warningsCount} warning${warningsCount > 1 ? 's' : ''}`,
             type: 'warning'
           })
@@ -330,7 +330,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
         this.emit('compilationFailed', source.target, source, 'soljson', data, input, version)
         this.compileTabLogic.compiler.state.lastCompilationResult = { data, source }
         const count = (data.errors ? data.errors.filter(error => error.severity === 'error').length : 0 + (data.error ? 1 : 0))
-        this.statusChanged({ key: count.toString(), title: `Compilation failed with ${count} error${count > 1 ? 's' : ''}`, type: 'error' })
+        this.statusChanged({ key: count, title: `Compilation failed with ${count} error${count > 1 ? 's' : ''}`, type: 'error' })
       }
       // Store the contracts and Update contract Selection
       if (success) {
