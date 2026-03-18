@@ -555,7 +555,7 @@ export class JumpToHandler extends BaseToolHandler {
     properties: {
       step: {
         type: 'number',
-        description: 'The target step index to jump to'
+        description: 'The target step index to jump to. this is NOT a line number, but the index in the trace where to jump to.'
       }
     },
     required: ['step']

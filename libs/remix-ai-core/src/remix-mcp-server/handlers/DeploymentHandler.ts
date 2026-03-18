@@ -45,9 +45,7 @@ export class DeployContractHandler extends BaseToolHandler {
       constructorArgs: {
         type: 'array',
         description: 'Constructor arguments',
-        items: {
-          type: 'string'
-        },
+        items: {},
         default: []
       },
       gasLimit: {

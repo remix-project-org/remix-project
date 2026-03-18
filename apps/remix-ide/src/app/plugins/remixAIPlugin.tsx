@@ -2,7 +2,7 @@ import * as packageJson from '../../../../../package.json'
 import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent } from '@remix-api'
 import { RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer, isOllamaAvailable, getBestAvailableModel, listModels } from '@remix/remix-ai-core';
-import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig } from '@remix/remix-ai-core';
+import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig } from '@remix/remix-ai-core';
 import { MCPInferencer } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
@@ -74,6 +74,29 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async onActivation(): Promise<void> {
+    // check access
+    let hasBasicMcp = false
+    try {
+      const token = localStorage.getItem('remix_access_token')
+      if (token) {
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+        const response = await fetch(`${endpointUrls.permissions}`, {
+          credentials: 'include',
+          headers
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.features) {
+            // Check each AI feature and map to provider
+            hasBasicMcp = data.features['mcp:basicExternal']?.is_enabled
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(e)
+    }
+
     // IMPORTANT: Must await initialize() before loading MCP servers
     // to ensure remixMCPServer is created first (race condition fix)
     await this.initialize()
@@ -84,7 +107,7 @@ export class RemixAIPlugin extends Plugin {
     this.workspaceAgent = workspaceAgent.getInstance(this)
 
     // Initialize MCP servers with defaults (after initialize() completes)
-    this.mcpServers = mcpDefaultServersConfig.defaultServers;
+    this.mcpServers = [...mcpDefaultServersConfig.defaultServers, ...(hasBasicMcp ? mcpBasicServersConfig.defaultServers : [])]
 
     // Initialize MCP inferencer if we have servers and remixMCPServer exists
     if (this.mcpServers.length > 0 && this.remixMCPServer) {

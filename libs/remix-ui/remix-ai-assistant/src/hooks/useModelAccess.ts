@@ -3,6 +3,7 @@ import { endpointUrls } from '@remix-endpoints-helper'
 import { getDefaultModel, AVAILABLE_MODELS } from '@remix/remix-ai-core'
 
 export interface ModelAccess {
+  allowedMcps: string[]
   allowedModels: string[]
   isLoading: boolean
   error: string | null
@@ -15,6 +16,7 @@ export function useModelAccess(): ModelAccess {
     const defaultModel = getDefaultModel()
     return [defaultModel.id, 'ollama']
   })
+  const [allowedMcps, setAllowedMcps] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,6 +26,12 @@ export function useModelAccess(): ModelAccess {
 
     try {
       const token = localStorage.getItem('remix_access_token')
+      if (!token) {
+        // Fallback to default model and ollama only
+        const defaultModel = getDefaultModel()
+        setAllowedModels([defaultModel.id, 'ollama'])
+        return
+      }
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       const response = await fetch(`${endpointUrls.permissions}`, {
@@ -50,6 +58,14 @@ export function useModelAccess(): ModelAccess {
           }
         }
 
+        const alloweddMcps = []
+        if (data.features) {
+          // Check each AI feature and map to provider
+          if (data.features['mcp:basicExternal']?.is_enabled) {
+            alloweddMcps.push('mcpBasicExternal')
+          }
+        }
+
         // Start with default model and ollama (always available)
         const defaultModel = getDefaultModel()
         const allowedModelIds: string[] = [defaultModel.id, 'ollama']
@@ -68,6 +84,7 @@ export function useModelAccess(): ModelAccess {
         })
 
         setAllowedModels(allowedModelIds)
+        setAllowedMcps(allowedMcps)
       } else {
         // Fallback to default model and ollama only
         const defaultModel = getDefaultModel()
@@ -92,6 +109,7 @@ export function useModelAccess(): ModelAccess {
   }
 
   return {
+    allowedMcps,
     allowedModels,
     isLoading,
     error,

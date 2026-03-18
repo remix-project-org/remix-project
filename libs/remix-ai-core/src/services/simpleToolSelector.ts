@@ -20,7 +20,7 @@ interface IScoredTool {
 
 export class SimpleToolSelector {
   // Core tools ALWAYS included (essential utilities)
-  coreTools = ['file_read', 'file_write', 'directory_list', 'solidity_compile', 'get_compilation_result']
+  coreTools = ['file_read', 'file_write', 'directory_list', 'solidity_compile', 'get_compilation_result', 'get_skill', 'list_skills']
   // Keyword → Category mappings (for category-based scoring)
   private keywordMap: Record<string, string[]> = {
     // Compilation keywords

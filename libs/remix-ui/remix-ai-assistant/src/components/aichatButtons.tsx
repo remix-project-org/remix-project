@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { trackMatomoEvent } from '@remix-api'
+import { useModelAccess } from '../hooks/useModelAccess'
 interface AiChatButtonsProps {
   theme: string
   plugin?: any
@@ -165,8 +166,11 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
         plugin.call('tabs', 'focus', 'quick-dapp-v2')
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'create_dapp', isClick: true })
       }
-    },
-    {
+    }
+  ]
+
+  if (useModelAccess().allowedMcps.includes('mcpBasicExternal')) {
+    btnList.push({
       label: <FormattedMessage id="remixApp.aiChatButton.etherscan" />,
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
       color: '',
@@ -174,8 +178,8 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
         sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.etherscan' }))
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'etherscan', isClick: true })
       }
-    },
-    {
+    })
+    btnList.push({
       label: <FormattedMessage id="remixApp.aiChatButton.thegraph" />,
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
       color: '',
@@ -183,8 +187,8 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
         sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.thegraph' }))
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'thegraph', isClick: true })
       }
-    },
-    {
+    })
+    btnList.push({
       label: <FormattedMessage id="remixApp.aiChatButton.alchemy" />,
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
       color: '',
@@ -192,9 +196,10 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
         sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.alchemy' }))
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'alchemy', isClick: true })
       }
-    },
-    ...dynamicButtons
-  ]
+    })
+  }
+
+  btnList.push(...dynamicButtons)
 
   return (
     <div className="d-flex flex-column mt-3" style={{ maxWidth: '400px' }}>

@@ -354,6 +354,13 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   chatPipe = (message: string) => {
+    // Show right side panel if it's hidden
+    this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
+      if (isPanelHidden) {
+        this.call('rightSidePanel', 'togglePanel')
+      }
+    })
+
     // Navigate back to chat view if the history sidebar is open
     if (this.showHistorySidebar) {
       this.showHistorySidebar = false
