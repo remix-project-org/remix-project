@@ -12,7 +12,7 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(13, 148, 136, 0.15);
-  background: var(--custom-bg-color-1, #1a1a2e);
+  background: var(--custom-onsurface-layer-2, #1a1a2e);
   animation: beta-corner-slideIn 0.4s ease-out;
   transition: opacity 0.3s, transform 0.3s;
 }
@@ -151,25 +151,8 @@
   color: var(--bs-body-color, #aaa);
 }
 
-/* Light theme */
-[data-theme="light"] .beta-corner-widget {
-  background: var(--custom-bg-color-1, #ffffff);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(13, 148, 136, 0.2);
-}
-
-[data-theme="light"] .beta-corner-widget-close {
-  background: rgba(255, 255, 255, 0.7);
-  color: #666;
-}
-
-[data-theme="light"] .beta-corner-widget-close:hover {
-  background: rgba(255, 255, 255, 0.9);
-  color: #222;
-}
-
-[data-theme="light"] .beta-corner-widget-cta {
-  color: #0d6e82;
-}
+/* Note: Light theme works automatically via CSS variable redefinition
+   in theme stylesheets (--custom-onsurface-layer-2, --bs-body-color, etc.). */
 
 /* Responsive — hide on very small screens */
 @media (max-width: 600px) {

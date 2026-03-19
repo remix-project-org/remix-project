@@ -68,7 +68,7 @@
     width: 8px;
     left: 1px;
     bottom: 1px;
-    background-color: #222336; 
+    background-color: var(--bs-body-bg, #222336); 
     transition: .4s;
     border-radius: 50%;
 }

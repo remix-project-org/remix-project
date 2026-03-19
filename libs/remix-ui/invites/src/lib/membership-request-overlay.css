@@ -120,13 +120,9 @@
   color: var(--bs-secondary-color, #888);
 }
 
-/* Light theme */
-
-[data-theme="light"] .membership-form-input,
-[data-theme="light"] .membership-form-textarea {
-  background: var(--bs-body-bg, #fff);
-  color: var(--bs-body-color, #333);
-}
+/* Note: Light theme works automatically via CSS variable redefinition
+   in theme stylesheets. The --bs-* vars above resolve to light values
+   when remix-light_powaqg.css is loaded. */
 
 /* ============================
    Survey Components
@@ -304,22 +300,4 @@
   height: 16px;
 }
 
-/* Light theme survey overrides */
-
-[data-theme="light"] .survey-chip {
-  background: var(--bs-body-bg, #f8f9fa);
-  color: var(--bs-body-color, #333);
-}
-
-[data-theme="light"] .survey-chip--selected {
-  background: rgba(13, 148, 136, 0.12);
-  color: #0d6e82;
-}
-
-[data-theme="light"] .survey-radio-item--selected {
-  background: rgba(13, 148, 136, 0.06);
-}
-
-[data-theme="light"] .survey-checkbox-item--selected {
-  background: rgba(13, 148, 136, 0.06);
-}
+/* Note: Survey light theme also handled automatically by CSS variables. */

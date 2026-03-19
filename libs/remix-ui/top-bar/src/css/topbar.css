@@ -10,18 +10,18 @@
 }
 
 .btn-topbar {
-  background-color: #333446;
-  color: #fff;
+  background-color: var(--bs-secondary-bg, #333446);
+  color: var(--bs-emphasis-color, #fff);
 }
 
 .github-login {
-  color: #fff !important;
+  color: var(--bs-emphasis-color, #fff) !important;
   opacity: 1 !important;
 }
 
 .btn-topbar:hover {
-  background-color: #3F4455;
-  color: #fff;
+  background-color: var(--bs-tertiary-bg, #3F4455);
+  color: var(--bs-emphasis-color, #fff);
 }
 
 .version-btn:hover {

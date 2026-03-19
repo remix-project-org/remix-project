@@ -29,7 +29,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   const [showModal, setShowModal] = useState(false)
   const [themes, setThemes] = useState<Array<{ name: string; quality: string }>>([])
   const [currentTheme, setCurrentTheme] = useState<string>('')
-  const signInButtonMode = appContext?.appConfig?.['auth.sign_in_button_mode'] || 'default'
+  const signInButtonMode = appContext?.appConfig?.['auth.sign_in_button_mode'] || 'hidden'
 
   useEffect(() => {
     if (plugin && typeof plugin.call === 'function') {

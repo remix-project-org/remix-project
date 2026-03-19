@@ -46,7 +46,7 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
-  background: var(--custom-bg-color-1, #1e1e1e);
+  background: var(--custom-onsurface-layer-2, #1e1e1e);
 }
 
 /* ---------- left swirl panel ---------- */
@@ -144,7 +144,7 @@
   align-items: flex-start;
   justify-content: space-between;
   padding: 1.15rem 1.35rem 0.85rem;
-  border-bottom: 1px solid var(--custom-border-color, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.08));
 }
 
 .invite-modal-right-header h5 {
@@ -156,7 +156,7 @@
 .invite-modal-close-btn {
   background: none;
   border: none;
-  color: var(--custom-text-color-muted, #888);
+  color: var(--bs-secondary-color, #888);
   font-size: 1.15rem;
   cursor: pointer;
   padding: 2px 4px;
@@ -166,7 +166,7 @@
 }
 
 .invite-modal-close-btn:hover {
-  color: var(--custom-text-color, #fff);
+  color: var(--bs-emphasis-color, #fff);
 }
 
 .invite-modal-right-body {
@@ -178,7 +178,7 @@
 
 .invite-modal-right-footer {
   padding: 1rem 1.35rem;
-  border-top: 1px solid var(--custom-border-color, rgba(255, 255, 255, 0.08));
+  border-top: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.08));
 }
 
 /* ---------- section label ---------- */
@@ -340,7 +340,7 @@
 
 .invite-modal-error-text {
   font-size: 0.95rem;
-  color: var(--custom-text-color, #e2e2e2);
+  color: var(--bs-emphasis-color, #e2e2e2);
   text-align: center;
   margin: 1.5rem 0;
 }
@@ -427,26 +427,9 @@
 }
 
 /* ---------- Light theme ---------- */
-
-[data-theme="light"] .invite-modal-card {
-  background: var(--custom-bg-color-1, #ffffff);
-}
-
-[data-theme="light"] .invite-modal-right-header h5 {
-  color: var(--custom-text-color, #212529);
-}
-
-[data-theme="light"] .invite-modal-error-text {
-  color: var(--custom-text-color, #333);
-}
-
-[data-theme="light"] .invite-modal-close-btn {
-  color: #666;
-}
-
-[data-theme="light"] .invite-modal-close-btn:hover {
-  color: #222;
-}
+/* Note: Light theme works via CSS variable redefinition in theme stylesheets.
+   The --bs-* and --custom-onsurface-layer-* vars above resolve to light values
+   automatically when remix-light_powaqg.css is loaded. */
 
 /* ---------- responsive ---------- */
 
