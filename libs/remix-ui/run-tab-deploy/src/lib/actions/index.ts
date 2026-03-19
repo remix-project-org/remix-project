@@ -222,31 +222,13 @@ async function createInstance(selectedContract: ContractData, args, deployMode: 
     try {
       const status = await plugin.call('blockchain', 'detectNetwork')
       const currentChainId = parseInt(status.id)
-      const response = await fetch('https://chainid.network/chains.json')
-
-      if (!response.ok) throw new Error('Could not fetch chains list from chainid.network.')
-      const allChains = await response.json()
-      const currentChain = allChains.find(chain => chain.chainId === currentChainId)
-
-      if (!currentChain) {
-        console.error('Could not find chain data for Chain ID: ', currentChainId)
-        // const errorMsg = `Could not find chain data for Chain ID: ${currentChainId}. Verification cannot proceed.`
-        // const errorLog = logBuilder(errorMsg)
-        // terminalLogger(plugin, errorLog)
-        return
-      }
-
-      const etherscanApiKey = await plugin.call('config', 'getAppParameter', 'etherscan-access-token')
 
       const verificationData = {
         chainId: currentChainId.toString(),
-        currentChain: currentChain,
         address: result.address,
         contractName: selectedContract.name,
         filePath: selectedContract.contract.file,
-        compilationResult: await plugin.call('compilerArtefacts', 'getCompilerAbstract', selectedContract.contract.file),
-        constructorArgs: args,
-        etherscanApiKey: etherscanApiKey
+        args: args
       }
 
       setTimeout(async () => {

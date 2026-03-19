@@ -64,8 +64,13 @@ export class SourcifyVerifier extends AbstractVerifier {
     const metadata = JSON.parse(compilerAbstract.data.contracts[submittedContract.filePath][submittedContract.contractName].metadata)
     const compilerVersion = `v${metadata.compiler.version}`
     const contractIdentifier = `${submittedContract.filePath}:${submittedContract.contractName}`
-    // The CompilerAbstract.input property seems to be wrongly typed
-    const stdJsonInput = JSON.parse(compilerAbstract.input as unknown as string)
+
+    let stdJsonInput: any
+    if (typeof compilerAbstract.input === 'string') {
+      stdJsonInput = JSON.parse(compilerAbstract.input)
+    } else {
+      stdJsonInput = compilerAbstract.input
+    }
 
     const body: SourcifyVerificationRequest = {
       stdJsonInput,

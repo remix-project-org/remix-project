@@ -46,9 +46,14 @@ export class EtherscanVerifier extends AbstractVerifier {
   async verify(submittedContract: SubmittedContract, compilerAbstract: CompilerAbstract): Promise<VerificationResponse> {
     // TODO: Handle version Vyper contracts. This relies on Solidity metadata.
     const metadata = JSON.parse(compilerAbstract.data.contracts[submittedContract.filePath][submittedContract.contractName].metadata)
+
+    const sourceCode = typeof compilerAbstract.input === 'string'
+      ? compilerAbstract.input
+      : JSON.stringify(compilerAbstract.input)
+
     const formData = new FormData()
     formData.append('codeformat', 'solidity-standard-json-input')
-    formData.append('sourceCode', compilerAbstract.input.toString())
+    formData.append('sourceCode', sourceCode)
     formData.append('contractaddress', submittedContract.address)
     formData.append('contractname', submittedContract.filePath + ':' + submittedContract.contractName)
     formData.append('compilerversion', `v${metadata.compiler.version}`)
@@ -76,7 +81,7 @@ export class EtherscanVerifier extends AbstractVerifier {
     const verificationResponse: EtherscanRpcResponse = await response.json()
     const lookupUrl = this.getContractCodeUrl(submittedContract.address, submittedContract.chainId)
 
-    if (verificationResponse.result.includes('already verified')) {
+    if (verificationResponse.result?.includes('already verified')) {
       return { status: 'already verified', receiptId: null, lookupUrl }
     }
 
