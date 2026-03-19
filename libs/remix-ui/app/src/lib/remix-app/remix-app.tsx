@@ -55,7 +55,8 @@ const RemixApp = (props: IRemixAppUi) => {
   const [maximiseRightTrigger, setMaximiseRightTrigger] = useState<number>(0)
   const [enhanceRightTrigger, setEnhanceRightTrigger] = useState<number>(0)
   const [resetRightTrigger, setResetRightTrigger] = useState<number>(0)
-  const [coeff, setCoeff] = useState<number>(undefined)
+  const [leftPanelCoeff, setLeftPanelCoeff] = useState<number>(undefined)
+  const [rightPanelCoeff, setRightPanelCoeff] = useState<number>(undefined)
   const [themeTracker, setThemeTracker] = useState<{name: string, quality: string, backgroundColor: string, fillColor: string, shapeColor: string, textColor: string, url: string}>(null);
   const [showAiChatHistory, setShowAiChatHistory] = useState<boolean>(false)
 
@@ -72,6 +73,8 @@ const RemixApp = (props: IRemixAppUi) => {
   const sidePanelRef = useRef(null)
   const iconPanelRef = useRef<HTMLDivElement>(null)
   const pinnedPanelRef = useRef(null)
+  const topBarRef = useRef<HTMLDivElement>(null)
+  const [topBarHeight, setTopBarHeight] = useState<number>(0)
   const [appState, appStateDispatch] = useReducer(appReducer, {
     ...appInitialState,
     showPopupPanel: !window.localStorage.getItem('did_show_popup_panel') && !isElectron(),
@@ -132,6 +135,17 @@ const RemixApp = (props: IRemixAppUi) => {
       window.removeEventListener('resize', onResize)
     }
   }, [])
+
+  useEffect(() => {
+    const el = topBarRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => {
+      setTopBarHeight(el.offsetHeight)
+    })
+    observer.observe(el)
+    setTopBarHeight(el.offsetHeight)
+    return () => observer.disconnect()
+  }, [topBarRef.current])
 
   useEffect(() => {
     const theme = props.app.themeModule.currentTheme()
@@ -250,7 +264,7 @@ const RemixApp = (props: IRemixAppUi) => {
       })
 
       props.app.layout.event.on('maximisesidepanel', (coeff: number) => {
-        setCoeff(coeff)
+        setLeftPanelCoeff(coeff)
         setMaximiseLeftTrigger((prev) => {
           return prev + 1
         })
@@ -258,7 +272,7 @@ const RemixApp = (props: IRemixAppUi) => {
     }
 
     props.app.layout.event.on('enhancesidepanel', (coeff: number) => {
-      setCoeff(coeff)
+      setLeftPanelCoeff(coeff)
       setEnhanceLeftTrigger((prev) => {
         return prev + 1
       })
@@ -271,14 +285,14 @@ const RemixApp = (props: IRemixAppUi) => {
     })
 
     props.app.layout.event.on('maximiseRightSidePanel', (coeff: number) => {
-      setCoeff(coeff)
+      setRightPanelCoeff(coeff)
       setMaximiseRightTrigger((prev) => {
         return prev + 1
       })
     })
 
     props.app.layout.event.on('enhanceRightSidePanel', (coeff: number) => {
-      setCoeff(coeff)
+      setRightPanelCoeff(coeff)
       setEnhanceRightTrigger((prev) => {
         return prev + 1
       })
@@ -343,15 +357,18 @@ const RemixApp = (props: IRemixAppUi) => {
 
   const chatWidthFraction = viewportSize.width < 768 ? 0.86 : viewportSize.width < 1920 ? 0.22 : 0.18
   const floatingChatWidth = Math.max(260, Math.round(viewportSize.width * chatWidthFraction))
-  const floatingChatStyle = useMemo<React.CSSProperties>(() => ({
-    position: 'fixed',
-    overflow: 'hidden',
-    top: '3rem',
-    right: '0.8rem',
-    width: `${floatingChatWidth}px`,
-    height: '92vh',
-    zIndex: 1050
-  }), [floatingChatWidth])
+  const floatingChatStyle = useMemo<React.CSSProperties>(() => {
+    const height = topBarHeight + (topBarHeight - 8)
+    return {
+      position: 'fixed',
+      overflow: 'hidden',
+      top: `${height}px`,
+      right: '0.8rem',
+      width: `${floatingChatWidth}px`,
+      height: `calc(94vh - ${height}px)`,
+      zIndex: 1050
+    }
+  }, [floatingChatWidth, topBarHeight])
   const [showArchived, setShowArchived] = useState(false);
 
   // Memoize callbacks to prevent unnecessary re-renders
@@ -384,7 +401,7 @@ const RemixApp = (props: IRemixAppUi) => {
               <div className="d-flex flex-column col-12 vh-100">
                 <OriginWarning />
                 {!props.app.desktopClientMode && (
-                  <div className='top-bar'>
+                  <div ref={topBarRef} className='top-bar'>
                     {props.app.topBar.render()}
                   </div>
                 )}
@@ -427,7 +444,7 @@ const RemixApp = (props: IRemixAppUi) => {
                     hidden={hideSidePanel}
                     setHideStatus={setHideSidePanel}
                     layoutPosition='left'
-                    coeff={coeff}
+                    coeff={leftPanelCoeff}
                   ></DragBar>
                   <div id="main-panel" data-id="remixIdeMainPanel" className="mainpanel d-flex">
                     <RemixUIMainPanel layout={props.app.layout}></RemixUIMainPanel>
@@ -446,7 +463,7 @@ const RemixApp = (props: IRemixAppUi) => {
                       hidden={hidePinnedPanel}
                       setHideStatus={setHidePinnedPanel}
                       layoutPosition='right'
-                      coeff={coeff}
+                      coeff={rightPanelCoeff}
                     ></DragBar>
                   }
                   <div>{props.app.hiddenPanel.render()}</div>

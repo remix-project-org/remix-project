@@ -15,6 +15,8 @@ const RemixUIMainPanel = (props: RemixUIMainPanelProps) => {
   const { layout } = props
   const [plugins, setPlugins] = useState<PluginRecord[]>([])
   const [terminalVisible, setTerminalVisible] = useState(false)
+  const [terminalMaximized, setTerminalMaximized] = useState(false)
+  const [terminalLayoutRevision, setTerminalLayoutRevision] = useState(0)
   const editorRef = useRef<HTMLDivElement>(null)
   const mainPanelRef = useRef<HTMLDivElement>(null)
   const tabsRef = useRef<HTMLDivElement>(null)
@@ -56,7 +58,10 @@ const RemixUIMainPanel = (props: RemixUIMainPanelProps) => {
     const checkTerminalVisibility = () => {
       if (terminalRef.current) {
         const isHidden = terminalRef.current.classList.contains('d-none') || terminalRef.current.classList.contains('minimized')
+        const isMaximized = terminalRef.current.classList.contains('maximized')
         setTerminalVisible(!isHidden)
+        setTerminalMaximized(isMaximized)
+        setTerminalLayoutRevision((revision) => revision + 1)
       }
     }
 
@@ -68,7 +73,7 @@ const RemixUIMainPanel = (props: RemixUIMainPanelProps) => {
     if (terminalRef.current) {
       observer.observe(terminalRef.current, {
         attributes: true,
-        attributeFilter: ['class']
+        attributeFilter: ['class', 'style']
       })
     }
 
@@ -119,8 +124,15 @@ const RemixUIMainPanel = (props: RemixUIMainPanelProps) => {
 
         return (
           <React.Fragment key={`mainView${i}`}>
-            {pluginRecord.profile.name === 'terminal' && terminalVisible ? (
-              <DragBar key="dragbar-terminal" onResize={resize} hidden={!terminalVisible} setHideStatus={showTerminal} refObject={terminalRef}></DragBar>
+            {pluginRecord.profile.name === 'terminal' && terminalVisible && !terminalMaximized ? (
+              <DragBar
+                key="dragbar-terminal"
+                layoutRevision={terminalLayoutRevision}
+                onResize={resize}
+                hidden={!terminalVisible}
+                setHideStatus={showTerminal}
+                refObject={terminalRef}
+              ></DragBar>
             ) : null}
             <RemixUIPanelPlugin ref={panelRef} key={pluginRecord.profile.name} pluginRecord={pluginRecord} />
           </React.Fragment>

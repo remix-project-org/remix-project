@@ -52,14 +52,14 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
       align="end"
     >
       <Button
-        className="btn btn-topbar btn-sm border d-flex flex-nowrap align-items-center justify-content-between github-login"
+        className="btn btn-topbar btn-sm border d-flex flex-row flex-nowrap align-items-center justify-content-between github-login"
         variant={null}
         data-id="github-dropdown-toggle-login"
         onClick={isConnected ? undefined : handleLogin}
         disabled={isConnected}
       >
         {isConnected ? (
-          <div className="d-flex flex-nowrap align-items-center flex-row justify-content-center">
+          <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
             <i className="fab fa-github me-1"></i>
             <span>{gitHubUser.login}</span>
             <img src={gitHubUser.avatar_url} alt="Avatar" className="ms-1" style={{
@@ -70,9 +70,9 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
             }} />
           </div>
         ) : (
-          <div className="d-flex flex-nowrap align-items-center flex-row justify-content-center">
+          <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
             <i className="fab fa-github me-1"></i>
-            <span>Connect to GitHub</span>
+            <span className="d-flex flex-row flex-nowrap">Connect to GitHub</span>
           </div>
         )}
       </Button>

@@ -31,7 +31,7 @@ export type PanelConfiguration = {
 export class Layout extends Plugin {
   event: any
   panels: panels
-  enhanced: { [key: string]: boolean }
+  enhanced: { [key: string]: boolean | { coeff?: number } }
   maximized: { [key: string]: {
     maximized: boolean
     coeff?: number
@@ -52,6 +52,17 @@ export class Layout extends Plugin {
       'udapp': true
     }
     this.event = new EventEmitter()
+  }
+
+  private isEnhancedPanel(name: string) {
+    return Boolean(this.enhanced[name])
+  }
+
+  private getEnhancedCoeff(name: string, defaultCoeff = 0.25) {
+    const config = this.enhanced[name]
+    if (!config) return undefined
+    if (typeof config === 'object' && typeof config.coeff === 'number') return config.coeff
+    return defaultCoeff
   }
 
   async onActivation (): Promise<void> {
@@ -99,8 +110,8 @@ export class Layout extends Plugin {
       if (isMaxed) {
         this.enhanced[current] = false
       } else {
-        if (this.enhanced[current]) {
-          this.event.emit('enhancesidepanel')
+        if (this.isEnhancedPanel(current)) {
+          this.event.emit('enhancesidepanel', this.getEnhancedCoeff(current))
         }
       }
 
@@ -115,8 +126,8 @@ export class Layout extends Plugin {
 
     this.on('rightSidePanel', 'pinnedPlugin', async (name) => {
       const current = await this.call('rightSidePanel', 'currentFocus')
-      if (this.enhanced[current]) {
-        this.event.emit('enhanceRightSidePanel')
+      if (this.isEnhancedPanel(current)) {
+        this.event.emit('enhanceRightSidePanel', this.getEnhancedCoeff(current))
       }
 
       if (this.maximized[current] && this.maximized[current].maximized) {
@@ -130,8 +141,8 @@ export class Layout extends Plugin {
 
     this.on('rightSidePanel', 'rightSidePanelShown', async () => {
       const current = await this.call('rightSidePanel', 'currentFocus')
-      if (this.enhanced[current]) {
-        this.event.emit('enhanceRightSidePanel')
+      if (this.isEnhancedPanel(current)) {
+        this.event.emit('enhanceRightSidePanel', this.getEnhancedCoeff(current))
       }
 
       if (this.maximized[current] && this.maximized[current].maximized) {

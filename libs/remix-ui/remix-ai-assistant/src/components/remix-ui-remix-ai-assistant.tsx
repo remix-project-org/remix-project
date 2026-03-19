@@ -904,6 +904,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       })
     }
   }, [showModelSelector])
+  const [aiChatIsMaximized, setAiChatIsMaximized] = useState(false);
 
   useEffect(() => {
     props.plugin.on('rightSidePanel', 'rightSidePanelMaximized', () => {
@@ -920,7 +921,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('rightSidePanel', 'rightSidePanelRestored');
     }
   }, [])
-
+  console.log('Rendering AIChat aiChatIsMaximized:', aiChatIsMaximized)
   return (
     <div
       className="d-flex flex-column w-100 h-100"

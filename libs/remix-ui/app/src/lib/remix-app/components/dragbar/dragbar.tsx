@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useState, useRef } from 'react'
 import Draggable from 'react-draggable'
 import './dragbar.css'
 
@@ -15,131 +15,246 @@ interface IRemixDragBarUi {
 }
 
 const DragBar = (props: IRemixDragBarUi) => {
+  const handleSize = 6
+  const halfHandleSize = handleSize / 2
   const [dragState, setDragState] = useState<boolean>(false)
   const [dragBarPosX, setDragBarPosX] = useState<number>(0)
-  const [offset, setOffSet] = useState<number>(0)
-  const initialWidth = useRef<number>(props.minWidth)
+  const restoreWidthRef = useRef<number>(props.minWidth)
+  const initialMeasurementRef = useRef<boolean>(false)
+  const panelStartEdgeRef = useRef<number>(0)
+  const panelEndEdgeRef = useRef<number>(0)
+  const transitionSyncTimerRef = useRef<number | null>(null)
   const nodeRef = React.useRef(null) // fix for strictmode
 
-  useEffect(() => {
-    if (props.hidden) {
-      setDragBarPosX(offset)
-    } else if (props.layoutPosition === 'left') {
-      const checkResolution = () => {
-        const width = window.innerWidth
-        const height = window.innerHeight
+  const getContainerElement = () => nodeRef.current ? (nodeRef.current as HTMLDivElement).offsetParent as HTMLElement | null : null
 
-        if (height <= 781 && width <= 1150) {
-          setDragBarPosX(props.minWidth - 50)
-        } else {
-          setDragBarPosX(props.minWidth + 50)
-        }
+  const getHiddenLeftAnchor = () => {
+    const panelElement = props.refObject.current as HTMLElement | null
+    return panelElement?.previousElementSibling as HTMLElement | null
+  }
+
+  const readPanelMetrics = () => {
+    const panelElement = props.refObject.current as HTMLElement | null
+    const containerElement = getContainerElement()
+    if (!containerElement || !panelElement) return null
+
+    const containerRect = containerElement.getBoundingClientRect()
+    const panelIsVisible = panelElement.offsetParent !== null
+
+    if (props.layoutPosition === 'left' && props.hidden && !panelIsVisible) {
+      const hiddenAnchor = getHiddenLeftAnchor()
+      if (!hiddenAnchor || hiddenAnchor.offsetParent === null) return null
+
+      const anchorRect = hiddenAnchor.getBoundingClientRect()
+      const edgeX = anchorRect.right - containerRect.left
+
+      return {
+        startX: edgeX,
+        endX: edgeX,
+        width: 0
       }
-      checkResolution()
-      props.refObject.current.style.width = props.minWidth + 'px'
-    } else if (props.layoutPosition === 'right') {
-      setDragBarPosX(offset)
     }
-  }, [props.hidden, offset])
 
-  const triggerWidth = (maximiseTrigger, layoutPosition, refObject, coeff) => {
-    if (maximiseTrigger > 0) {
-      if (layoutPosition === 'left') {
-        const width = coeff * window.innerWidth
+    if (!panelIsVisible) return null
 
-        props.refObject.current.style.width = width + 'px'
-        setTimeout(() => {
-          setDragBarPosX(offset + width)
-        }, 300)
-      } else if (layoutPosition === 'right') {
-        // Use a smaller coefficient for the right panel
-        const rightCoeff = 0.25
-        const width = rightCoeff * window.innerWidth
+    const panelRect = panelElement.getBoundingClientRect()
 
-        refObject.current.style.width = width + 'px'
-        setTimeout(() => {
-          setDragBarPosX(window.innerWidth - width)
-        }, 300)
-      }
+    return {
+      startX: panelRect.left - containerRect.left,
+      endX: panelRect.right - containerRect.left,
+      width: panelRect.width
     }
   }
 
+  const syncDragbarPosition = () => {
+    const metrics = readPanelMetrics()
+    if (!metrics) return
+
+    panelStartEdgeRef.current = metrics.startX
+    panelEndEdgeRef.current = metrics.endX
+
+    if (!initialMeasurementRef.current && metrics.width > 0) {
+      restoreWidthRef.current = metrics.width
+      initialMeasurementRef.current = true
+    }
+
+    const edge = props.layoutPosition === 'left' ? metrics.endX : metrics.startX
+    setDragBarPosX(edge - halfHandleSize)
+  }
+
+  const scheduleSync = () => {
+    requestAnimationFrame(() => {
+      syncDragbarPosition()
+    })
+  }
+
+  const scheduleTransitionSync = () => {
+    if (transitionSyncTimerRef.current) {
+      window.clearTimeout(transitionSyncTimerRef.current)
+    }
+
+    transitionSyncTimerRef.current = window.setTimeout(() => {
+      syncDragbarPosition()
+      transitionSyncTimerRef.current = null
+    }, 300)
+  }
+
+  const applyPanelWidth = (width: number) => {
+    const panelElement = props.refObject.current as HTMLElement | null
+    if (!panelElement) return
+
+    panelElement.style.width = `${Math.max(width, props.minWidth)}px`
+    scheduleSync()
+    scheduleTransitionSync()
+  }
+
+  const getContainerWidth = () => {
+    const containerElement = getContainerElement()
+    return containerElement?.getBoundingClientRect().width || window.innerWidth
+  }
+
+  const getRightBoundary = () => {
+    const metrics = readPanelMetrics()
+    if (metrics) return metrics.endX
+    return panelEndEdgeRef.current || getContainerWidth()
+  }
+
+  const triggerWidth = (trigger: number, coeff: number) => {
+    if (trigger <= 0) return
+
+    const containerWidth = getContainerWidth()
+    if (props.layoutPosition === 'left') {
+      applyPanelWidth(containerWidth * coeff)
+      return
+    }
+
+    applyPanelWidth(getRightBoundary() * coeff)
+  }
+
   useEffect(() => {
-    // Only use 0.4 for left, right will use its own value in triggerWidth
-    triggerWidth(props.maximiseTrigger, props.layoutPosition, props.refObject, props.coeff || 0.4)
+    triggerWidth(props.maximiseTrigger, props.coeff || 0.4)
   }, [props.maximiseTrigger])
 
   useEffect(() => {
-    triggerWidth(props.enhanceTrigger, props.layoutPosition, props.refObject, props.coeff || 0.25)
+    triggerWidth(props.enhanceTrigger, props.coeff || 0.25)
   }, [props.enhanceTrigger])
 
   useEffect(() => {
-    if (props.maximiseTrigger > 0 || props.enhanceTrigger) {
-      if (props.layoutPosition === 'left') {
-        props.refObject.current.style.width = initialWidth.current + 'px'
-        setTimeout(() => {
-          setDragBarPosX(offset + initialWidth.current)
-        }, 300)
-      } else if (props.layoutPosition === 'right') {
-        props.refObject.current.style.width = props.minWidth + 'px'
-        setTimeout(() => {
-          setDragBarPosX(window.innerWidth - props.minWidth)
-        }, 300)
-      }
+    if (props.resetTrigger > 0) {
+      applyPanelWidth(restoreWidthRef.current)
     }
   }, [props.resetTrigger])
 
-  const handleResize = () => {
-    if (!props.refObject.current) return
-    setOffSet(props.refObject.current.offsetLeft)
-    if (props.layoutPosition === 'left') setDragBarPosX(props.refObject.current.offsetLeft + props.refObject.current.offsetWidth)
-    else if (props.layoutPosition === 'right') setDragBarPosX(props.refObject.current.offsetLeft)
-  }
+  useLayoutEffect(() => {
+    syncDragbarPosition()
+  }, [props.hidden, props.layoutPosition])
 
   useEffect(() => {
-    window.addEventListener('resize', handleResize)
-    // TODO: not a good way to wait on the ref doms element to be rendered of course
-    setTimeout(() => handleResize(), 2000)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+    const panelElement = props.refObject.current as HTMLElement | null
+    const containerElement = getContainerElement()
+    const hiddenAnchor = props.layoutPosition === 'left' ? getHiddenLeftAnchor() : null
+    if (!panelElement || !containerElement) return
 
-  function stopDrag(data: any) {
+    scheduleSync()
+    window.addEventListener('resize', scheduleSync)
+
+    const resizeObserver = new ResizeObserver(() => scheduleSync())
+    resizeObserver.observe(panelElement)
+    resizeObserver.observe(containerElement)
+    if (hiddenAnchor) resizeObserver.observe(hiddenAnchor)
+
+    const handleTransition = (event: TransitionEvent) => {
+      if (event.propertyName === 'width') {
+        scheduleSync()
+        scheduleTransitionSync()
+      }
+    }
+
+    panelElement.addEventListener('transitionrun', handleTransition)
+    panelElement.addEventListener('transitionend', handleTransition)
+    panelElement.addEventListener('transitioncancel', handleTransition)
+
+    const mutationObserver = new MutationObserver(() => scheduleSync())
+    mutationObserver.observe(panelElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    })
+    mutationObserver.observe(containerElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    })
+
+    return () => {
+      window.removeEventListener('resize', scheduleSync)
+      panelElement.removeEventListener('transitionrun', handleTransition)
+      panelElement.removeEventListener('transitionend', handleTransition)
+      panelElement.removeEventListener('transitioncancel', handleTransition)
+      resizeObserver.disconnect()
+      mutationObserver.disconnect()
+      if (transitionSyncTimerRef.current) {
+        window.clearTimeout(transitionSyncTimerRef.current)
+      }
+    }
+  }, [props.layoutPosition])
+
+  function stopDrag(_e: MouseEvent, data: { x: number }) {
+    const panelElement = props.refObject.current as HTMLElement | null
+    if (!panelElement) {
+      setDragState(false)
+      return
+    }
+
     setDragState(false)
+
+    const edgeX = data.x + halfHandleSize
     if (props.layoutPosition === 'left') {
-      if (data.x < props.minWidth + offset) {
-        setDragBarPosX(offset)
+      const startEdge = panelStartEdgeRef.current
+      const nextWidth = edgeX - startEdge
+
+      if (nextWidth < props.minWidth) {
         props.setHideStatus(true)
       } else {
-        props.refObject.current.style.width = data.x - offset + 'px'
-        setTimeout(() => {
-          props.setHideStatus(false)
-          setDragBarPosX(offset + props.refObject.current.offsetWidth)
-          initialWidth.current = props.refObject.current.clientWidth
-        }, 300)
-      }
-    } else if (props.layoutPosition === 'right') {
-      if (window.innerWidth - data.x < props.minWidth) {
-        setDragBarPosX(props.refObject.current.offsetLeft)
+        restoreWidthRef.current = nextWidth
+        panelElement.style.width = `${nextWidth}px`
         props.setHideStatus(false)
-      } else {
-        props.refObject.current.style.width = (window.innerWidth - data.x) + 'px'
-        setTimeout(() => {
-          props.setHideStatus(false)
-          setDragBarPosX(props.refObject.current.offsetLeft)
-          initialWidth.current = props.refObject.current.clientWidth
-        }, 300)
       }
+      scheduleSync()
+      scheduleTransitionSync()
+      return
+    }
+
+    const endEdge = panelEndEdgeRef.current || getRightBoundary()
+    const nextWidth = endEdge - edgeX
+    if (nextWidth >= props.minWidth) {
+      restoreWidthRef.current = nextWidth
+      panelElement.style.width = `${nextWidth}px`
+      props.setHideStatus(false)
+      scheduleSync()
+      scheduleTransitionSync()
+    } else {
+      props.setHideStatus(false)
+      scheduleSync()
     }
   }
 
   function startDrag() {
+    syncDragbarPosition()
+    const metrics = readPanelMetrics()
+    if (metrics) {
+      panelStartEdgeRef.current = metrics.startX
+      panelEndEdgeRef.current = metrics.endX
+      if (!props.hidden && metrics.width > 0) {
+        restoreWidthRef.current = metrics.width
+      }
+    }
     setDragState(true)
   }
+
   return (
     <>
-      <div className={`overlay ${dragState ? '' : 'd-none'}`}></div>
+      <div className={`overlay ${dragState ? '' : 'd-none'}`} data-id="sidepanel-dragbar-overlay" id="sidepanel-dragbar-overlay"></div>
       <Draggable nodeRef={nodeRef} position={{ x: dragBarPosX, y: 0 }} onStart={startDrag} onStop={stopDrag} axis="x">
-        <div ref={nodeRef} className={`dragbar ${dragState ? 'ondrag' : ''}`}></div>
+        <div ref={nodeRef} className={`dragbar ${dragState ? 'ondrag' : ''}`} data-id="sidepanel-dragbar-draggable" id="sidepanel-dragbar-draggable" data-right-sidepanel={props.layoutPosition === 'right' ? 'rightSidepanel-dragbar-draggable' : null}></div>
       </Draggable>
     </>
   )

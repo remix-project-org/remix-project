@@ -69,7 +69,7 @@ export default function ChatHistoryHeading({
               data-id="new-chat-btn new-conversation-btn"
             >
               <i className="fas fa-plus"></i>
-              {isAiChatMaximized ? <span className="ms-1">New chat</span> : null}
+              {isAiChatMaximized ? <span className="ms-1">New Chat</span> : null}
             </button>
           </CustomTooltip>
         )}

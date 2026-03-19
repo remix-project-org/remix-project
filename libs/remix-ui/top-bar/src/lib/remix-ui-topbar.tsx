@@ -2,8 +2,8 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import BasicLogo from '../components/BasicLogo'
 import '../css/topbar.css'
-import { Button, Dropdown } from 'react-bootstrap'
-import { CustomToggle, CustomTopbarMenu } from 'libs/remix-ui/helper/src/lib/components/custom-dropdown'
+import { Dropdown } from 'react-bootstrap'
+import { CustomToggle } from 'libs/remix-ui/helper/src/lib/components/custom-dropdown'
 import { WorkspaceMetadata } from 'libs/remix-ui/workspace/src/lib/types'
 import { CloudToggle } from 'libs/remix-ui/workspace/src/lib/cloud/cloud-sync-status-icon'
 import { enableCloud, disableCloud } from 'libs/remix-ui/workspace/src/lib/cloud/cloud-workspace-actions'
@@ -67,6 +67,7 @@ export function RemixUiTopbar() {
   const [feedbackFormUrl, setFeedbackFormUrl] = useState<string | null>(null);
   const [feedbackPanelOpen, setFeedbackPanelOpen] = useState<boolean>(false);
   const [showCloudLoginModal, setShowCloudLoginModal] = useState<boolean>(false);
+  const [isNonMaximizedWindow, setIsNonMaximizedWindow] = useState(false)
 
   // Auth state for cloud backup/restore and support link
   const { isAuthenticated, token } = useAuth()
@@ -109,6 +110,23 @@ export function RemixUiTopbar() {
 
   const showCloudToggle = showLoginUI && cloudEnabledByConfig && cloudEnabled && isVisibleByAudience(cloudVisibilityMode, isAuthenticated)
   const showNotificationBell = isVisibleByAudience(notificationMode, isAuthenticated)
+
+  const measureTopbarLayout = () => {
+    const maximizedViewportWidth = window.screen?.availWidth || window.innerWidth
+    const nonMaximizedTolerance = 120
+    const shouldUseCompactLayout = window.innerWidth < maximizedViewportWidth - nonMaximizedTolerance
+
+    setIsNonMaximizedWindow(shouldUseCompactLayout)
+  }
+
+  useEffect(() => {
+    measureTopbarLayout()
+    window.addEventListener('resize', measureTopbarLayout)
+
+    return () => {
+      window.removeEventListener('resize', measureTopbarLayout)
+    }
+  }, [])
 
   useEffect(() => {
     // Fetch login mode from auth plugin
@@ -602,10 +620,10 @@ export function RemixUiTopbar() {
     <section
       className="h-100 d-flex bg-light border flex-nowrap px-2"
     >
-      <div className="d-flex flex-row align-items-center justify-content-between w-100">
+      <div className="d-flex flex-row align-items-center justify-content-between w-100" style={{ minWidth: 0 }}>
         <div
           className="d-flex flex-row align-items-center m-1"
-          style={{ minWidth: '33%' }}
+          style={{ minWidth: 0, flex: isNonMaximizedWindow ? '0.78 1 0' : '1 1 0' }}
         >
           <div
             className="d-flex align-items-center justify-content-between me-3 cursor-pointer"
@@ -657,94 +675,114 @@ export function RemixUiTopbar() {
             />)}
           {showCloudLoginModal && <LoginModal onClose={() => setShowCloudLoginModal(false)} plugin={plugin} />}
         </div>
-        <div className="m-1 justify-content-center d-flex align-self-center " style={{ minWidth: '33%' }}>
-          <WorkspacesDropdown
-            menuItems={menuItems}
-            toggleDropdown={toggleDropdown}
-            showDropdown={showDropdown}
-            currentWorkspace={currentWorkspace}
-            NO_WORKSPACE={NO_WORKSPACE}
-            switchWorkspace={switchWorkspace}
-            ShowNonLocalHostMenuItems={ShowNonLocalHostMenuItems}
-            CustomToggle={CustomToggle}
-            showSubMenuFlyOut={showSubMenuFlyOut}
-            setShowSubMenuFlyOut={setShowSubMenuFlyOut}
-            createWorkspace={createWorkspace}
-            renameCurrentWorkspace={renameCurrentWorkspace}
-            downloadCurrentWorkspace={downloadCurrentWorkspace}
-            deleteCurrentWorkspace={deleteCurrentWorkspace}
-            downloadWorkspaces={downloadWorkspaces}
-            restoreBackup={restoreBackup}
-            deleteAllWorkspaces={deleteAllWorkspaces}
-            setCurrentMenuItemName={setCurrentMenuItemName}
-            setMenuItems={setMenuItems}
-            connectToLocalhost={() => switchWorkspace(LOCALHOST)}
-            openTemplateExplorer={openTemplateExplorer}
-            onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
-          />
-          <div className="d-flex ms-4 gap-2 align-items-center" >
-            <CustomTooltip placement="bottom-start" tooltipText={`Toggle Left Side Panel`}>
-              <div
-                className={`codicon codicon-layout-sidebar-left${leftPanelHidden ? '-off' : ''} fs-5`}
-                data-id="toggleLeftSidePanelIcon"
-                onClick={() => {
-                  if (leftPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'showLeftSidePanelClicked', isClick: true })
-                  else trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'hideLeftSidePanelClicked', isClick: true })
-                  plugin.call('sidePanel', 'togglePanel')
-                }
-                }
-              ></div>
-            </CustomTooltip>
-            <CustomTooltip placement="bottom-start" tooltipText={`Toggle Bottom Panel`}>
-              <div
-                className={`codicon codicon-layout-panel${bottomPanelHidden ? '-off' : ''} fs-5`}
-                data-id="toggleBottomPanelIcon"
-                onClick={() => {
-                  if (bottomPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'showTerminalPanelClicked', isClick: true })
-                  else trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'hideTerminalPanelClicked', isClick: true })
-                  plugin.call('terminal', 'togglePanel')
-                }
-                }
-              ></div>
-            </CustomTooltip>
-            <CustomTooltip placement="bottom-start" tooltipText={`Toggle Right Side Panel`}>
-              <div
-                className={`codicon codicon-layout-sidebar-right${rightPanelHidden ? '-off' : ''} fs-5`}
-                data-id="toggleRightSidePanelIcon"
-                onClick={() => {
-                  if (rightPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'showRightSidePanelClicked', isClick: true })
-                  else trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'hideRightSidePanelClicked', isClick: true })
-                  plugin.call('rightSidePanel', 'togglePanel')
-                }
-                }
-              ></div>
-            </CustomTooltip>
+        <div className="m-1 d-flex align-self-center" style={{ minWidth: 0, flex: isNonMaximizedWindow ? '1.22 1 0' : '1 1 0' }}>
+          <div
+            className="d-flex align-items-center flex-nowrap"
+            style={{ minWidth: 0, width: '100%', justifyContent: isNonMaximizedWindow ? 'flex-start' : 'center' }}
+          >
+            {/* <div
+              style={{
+                minWidth: 0,
+                width: isNonMaximizedWindow ? '50%' : '100%',
+                maxWidth: isNonMaximizedWindow ? '50%' : '100%',
+                flex: isNonMaximizedWindow ? '0 1 50%' : '0 1 100%',
+                overflow: 'hidden',
+                transition: 'width 180ms ease, max-width 180ms ease, flex-basis 180ms ease'
+              }}
+            > */}
+            <WorkspacesDropdown
+              menuItems={menuItems}
+              toggleDropdown={toggleDropdown}
+              showDropdown={showDropdown}
+              currentWorkspace={currentWorkspace}
+              NO_WORKSPACE={NO_WORKSPACE}
+              switchWorkspace={switchWorkspace}
+              ShowNonLocalHostMenuItems={ShowNonLocalHostMenuItems}
+              CustomToggle={CustomToggle}
+              showSubMenuFlyOut={showSubMenuFlyOut}
+              setShowSubMenuFlyOut={setShowSubMenuFlyOut}
+              createWorkspace={createWorkspace}
+              renameCurrentWorkspace={renameCurrentWorkspace}
+              downloadCurrentWorkspace={downloadCurrentWorkspace}
+              deleteCurrentWorkspace={deleteCurrentWorkspace}
+              downloadWorkspaces={downloadWorkspaces}
+              restoreBackup={restoreBackup}
+              deleteAllWorkspaces={deleteAllWorkspaces}
+              setCurrentMenuItemName={setCurrentMenuItemName}
+              setMenuItems={setMenuItems}
+              connectToLocalhost={() => switchWorkspace(LOCALHOST)}
+              openTemplateExplorer={openTemplateExplorer}
+              onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
+            />
+            {/* </div> */}
+            <div
+              className="d-flex gap-2 align-items-center"
+              style={{ marginLeft: isNonMaximizedWindow ? '0.75rem' : '1.5rem', flexShrink: 0 }}
+            >
+              <CustomTooltip placement="bottom-start" tooltipText={`Toggle Left Side Panel`}>
+                <div
+                  className={`codicon codicon-layout-sidebar-left${leftPanelHidden ? '-off' : ''} fs-5`}
+                  data-id="toggleLeftSidePanelIcon"
+                  onClick={() => {
+                    if (leftPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'showLeftSidePanelClicked', isClick: true })
+                    else trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'hideLeftSidePanelClicked', isClick: true })
+                    plugin.call('sidePanel', 'togglePanel')
+                  }
+                  }
+                ></div>
+              </CustomTooltip>
+              <CustomTooltip placement="bottom-start" tooltipText={`Toggle Bottom Panel`}>
+                <div
+                  className={`codicon codicon-layout-panel${bottomPanelHidden ? '-off' : ''} fs-5`}
+                  data-id="toggleBottomPanelIcon"
+                  onClick={() => {
+                    if (bottomPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'showTerminalPanelClicked', isClick: true })
+                    else trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'hideTerminalPanelClicked', isClick: true })
+                    plugin.call('terminal', 'togglePanel')
+                  }
+                  }
+                ></div>
+              </CustomTooltip>
+              <CustomTooltip placement="bottom-start" tooltipText={`Toggle Right Side Panel`}>
+                <div
+                  className={`codicon codicon-layout-sidebar-right${rightPanelHidden ? '-off' : ''} fs-5`}
+                  data-id="toggleRightSidePanelIcon"
+                  onClick={() => {
+                    if (rightPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'showRightSidePanelClicked', isClick: true })
+                    else trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'hideRightSidePanelClicked', isClick: true })
+                    plugin.call('rightSidePanel', 'togglePanel')
+                  }
+                  }
+                ></div>
+              </CustomTooltip>
+            </div>
           </div>
         </div>
         <div
           className="d-flex flex-row align-items-center justify-content-end flex-nowrap"
-          style={{ minWidth: '33%' }}
+          style={{ minWidth: 0, flex: '1 1 0', whiteSpace: 'nowrap' }}
         >
-          <>
-
-            <GitHubLogin
-              cloneGitRepository={showCloneModal}
-              logOutOfGithub={logOutOfGithub}
-              publishToGist={publishToGist}
-              loginWithGitHub={loginWithGitHub}
-            />
+          <div className="d-flex flex-row align-items-center flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
+            <div style={{ whiteSpace: 'nowrap' }}>
+              <GitHubLogin
+                cloneGitRepository={showCloneModal}
+                logOutOfGithub={logOutOfGithub}
+                publishToGist={publishToGist}
+                loginWithGitHub={loginWithGitHub}
+              />
+            </div>
 
             {showLoginUI && (
               <LoginButton
                 plugin={plugin}
                 variant="compact"
                 showCredits={true}
-                className="ms-3"
+                className="ms-3 text-nowrap"
                 cloneGitRepository={showCloneModal}
                 publishToGist={publishToGist}
               />
             )}
-          </>
+          </div>
           {showJoinBetaTopButton && <BetaPromoPill plugin={plugin} />}
           {showNotificationBell && <NotificationBell className="ms-3" />}
           {supportEnabled && isAuthenticated && token && (
