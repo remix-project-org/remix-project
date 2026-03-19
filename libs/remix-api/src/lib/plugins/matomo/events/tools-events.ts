@@ -292,5 +292,6 @@ export interface QuickDappV2Event extends MatomoEventBase {
     | 'deploy_ipfs'
     | 'register_ens'
     | 'base_app_setup_complete'
+    | 'ai_usage'
     | 'error';
 }

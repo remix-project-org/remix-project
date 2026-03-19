@@ -374,10 +374,11 @@ export class DappManager {
         try { await this.plugin.call('fileManager', 'mkdir', '.states'); } catch (_) {}
         for (const folder of foldersToWrite) {
           try { await this.plugin.call('fileManager', 'mkdir', `.states/${folder}`); } catch (_) {}
-          await this.plugin.call(
+          await (this.plugin as any).call(
             'fileManager', 'writeFile',
             `.states/${folder}/state.json`,
-            vmStateSnapshot
+            vmStateSnapshot,
+            { silent: true }
           );
         }
       } catch (e) {
@@ -403,10 +404,11 @@ export class DappManager {
       try { await this.plugin.call('fileManager', 'mkdir', '.deploys/pinned-contracts'); } catch (_) {}
       try { await this.plugin.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${pinnedChainId}`); } catch (_) {}
 
-      await this.plugin.call(
+      await (this.plugin as any).call(
         'fileManager', 'writeFile',
         pinnedPath,
-        JSON.stringify(pinnedContractData, null, 2)
+        JSON.stringify(pinnedContractData, null, 2),
+        { silent: true }
       );
       console.log('[DappManager] Contract pinned in dapp workspace:', pinnedPath);
 
@@ -461,7 +463,7 @@ export class DappManager {
           }
         };
 
-        await this.plugin.call('fileManager', 'writeFile', '.well-known/farcaster.json', JSON.stringify(manifestContent, null, 2));
+        await (this.plugin as any).call('fileManager', 'writeFile', '.well-known/farcaster.json', JSON.stringify(manifestContent, null, 2), { silent: true });
       } catch (e) {
         console.error('[DappManager] Failed to create .well-known folder or file', e);
       }
@@ -502,11 +504,12 @@ export class DappManager {
 
       const savePath = `.deploys/pinned-contracts/${chainId}/${address}.json`;
 
-      await this.plugin.call(
+      await (this.plugin as any).call(
         'fileManager',
         'writeFile',
         savePath,
-        JSON.stringify(objToSave, null, 2)
+        JSON.stringify(objToSave, null, 2),
+        { silent: true }
       );
 
       const dappMappingPath = `.deploys/dapp-mappings/${address}_${dappWorkspace}.json`;
@@ -517,11 +520,12 @@ export class DappManager {
         chainId,
         createdAt: Date.now()
       };
-      await this.plugin.call(
+      await (this.plugin as any).call(
         'fileManager',
         'writeFile',
         dappMappingPath,
-        JSON.stringify(dappMapping, null, 2)
+        JSON.stringify(dappMapping, null, 2),
+        { silent: true }
       );
     } catch (e) {
       console.warn('[DappManager] Failed to auto-pin instance:', e);
@@ -539,7 +543,7 @@ export class DappManager {
     config.updatedAt = Date.now();
     const sanitized = this.sanitizeConfig(config);
     const content = JSON.stringify(sanitized, null, 2);
-    await this.plugin.call('fileManager', 'writeFile', CONFIG_FILENAME, content);
+    await (this.plugin as any).call('fileManager', 'writeFile', CONFIG_FILENAME, content, { silent: true });
 
     if (currentWorkspace.name !== workspaceName) {
       await this.switchToWorkspace(currentWorkspace.name);
@@ -584,7 +588,7 @@ export class DappManager {
       }
 
       try {
-        await this.plugin.call('fileManager', 'writeFile', fullPath, content);
+        await (this.plugin as any).call('fileManager', 'writeFile', fullPath, content, { silent: true });
       } catch (e) {
         console.error(`[DEBUG-MANAGER] ❌ Failed to write ${fullPath}:`, e);
       }
@@ -736,7 +740,7 @@ export class DappManager {
 
       const sanitizedConfig = this.sanitizeConfig(newConfig);
 
-      await this.plugin.call('fileManager', 'writeFile', CONFIG_FILENAME, JSON.stringify(sanitizedConfig, null, 2));
+      await (this.plugin as any).call('fileManager', 'writeFile', CONFIG_FILENAME, JSON.stringify(sanitizedConfig, null, 2), { silent: true });
 
       if (currentWorkspace.name !== workspaceName) {
         await this.switchToWorkspace(currentWorkspace.name);

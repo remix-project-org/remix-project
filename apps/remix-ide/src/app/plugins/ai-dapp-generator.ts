@@ -126,7 +126,7 @@ export class AIDappGenerator extends Plugin {
       // const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate";
       const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
 
-      const htmlContent = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
+      const { content: htmlContent, meta: figmaMeta } = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
         figmaToken: options.figmaToken,
         figmaUrl: options.figmaUrl,
         userPrompt: options.description,
@@ -162,6 +162,38 @@ export class AIDappGenerator extends Plugin {
       } catch (_) {}
 
       trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate_figma', name: 'success', isClick: false });
+
+      if (figmaMeta?.usage) {
+        const usage = figmaMeta.usage;
+        let userId: string | undefined;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            const user = JSON.parse(window.localStorage.getItem('remix_user') || '');
+            userId = user.sub || user.id;
+          } catch (_) {}
+        }
+        if (!userId && typeof window !== 'undefined' && window.sessionStorage) {
+          userId = window.sessionStorage.getItem('remix_random_session_id') || undefined;
+        }
+
+        const eventLog = [
+          `provider:fireworks-figma`,
+          `prompt_tokens:${usage.prompt_tokens || 0}`,
+          `completion_tokens:${usage.completion_tokens || 0}`,
+          `total_tokens:${usage.total_tokens || 0}`,
+          `usage_source:${usage.source || 'unknown'}`,
+          `userId:${userId}`
+        ].filter(Boolean).join('|');
+
+        trackMatomoEvent(this, {
+          category: 'quick-dapp-v2',
+          action: 'ai_usage',
+          name: 'token_usage',
+          value: `|${eventLog}`,
+          isClick: false
+        });
+      }
+
       try {
         await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
       } catch (_) {}
@@ -180,7 +212,7 @@ export class AIDappGenerator extends Plugin {
     }
   }
 
-  private async callFigmaAPI(url: string, payload: any): Promise<string> {
+  private async callFigmaAPI(url: string, payload: any): Promise<{ content: string; meta?: any }> {
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -194,7 +226,7 @@ export class AIDappGenerator extends Plugin {
       }
 
       const json = await response.json();
-      return json.content;
+      return { content: json.content, meta: json.meta };
 
     } catch (error) {
       console.error('[AI-DAPP] Figma API Call Failed:', error);
@@ -512,8 +544,20 @@ export class AIDappGenerator extends Plugin {
       }
 
       const json = await response.json();
-      const promptTokens = Math.ceil((messages.length + systemPrompt.length) * 1.3)
-      const completionTokens = Math.ceil((json?.content.length) * 1.3 || 0);
+
+      const usage = json.meta?.usage;
+      const promptTokens = usage?.prompt_tokens ?? Math.ceil(systemPrompt.length / 4);
+      const completionTokens = usage?.completion_tokens ?? Math.ceil((json?.content?.length || 0) / 4);
+      const totalTokens = usage?.total_tokens ?? (promptTokens + completionTokens);
+      const usageSource = usage?.source || 'estimated';
+
+      console.log('[AI-DAPP] ┌─ TOKEN USAGE ─────────────────');
+      console.log('[AI-DAPP] │ Backend meta:', JSON.stringify(json.meta, null, 2));
+      console.log(`[AI-DAPP] │ Source: ${usageSource}`);
+      console.log(`[AI-DAPP] │ Prompt tokens: ${promptTokens}`);
+      console.log(`[AI-DAPP] │ Completion tokens: ${completionTokens}`);
+      console.log(`[AI-DAPP] │ Total tokens: ${totalTokens}`);
+      console.log('[AI-DAPP] └──────────────────────────────');
 
       let userId: string | undefined;
       if (typeof window !== 'undefined' && window.sessionStorage) {
@@ -539,16 +583,17 @@ export class AIDappGenerator extends Plugin {
 
       const eventLog = [
         `provider:fireworks-custom-llm`,
-        `promptTokens:${promptTokens}`,
-        `completionTokens:${completionTokens}`,
-        `totalTokens:${promptTokens + completionTokens}`,
-        `model:${json.meta?.model}` || 'unknown',
+        `prompt_tokens:${promptTokens}`,
+        `completion_tokens:${completionTokens}`,
+        `total_tokens:${totalTokens}`,
+        `model:${json.meta?.model || 'unknown'}`,
+        `usage_source:${usageSource}`,
         `userId:${userId}`
       ].filter(Boolean).join('|')
 
       trackMatomoEvent(this, {
         category: 'quick-dapp-v2',
-        action: 'generate',
+        action: 'ai_usage',
         name: 'token_usage',
         value: `|${eventLog}`,
         isClick: false
