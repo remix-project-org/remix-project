@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react' // eslint-disable-line
+import React, { useState, useEffect, useContext } from 'react' // eslint-disable-line
 import { CustomTooltip } from '@remix-ui/helper'
+import { DebuggerEvent, MatomoEvent } from '@remix-api';
+import { TrackingContext } from '@remix-ide/tracking'
 import './DebuggerCallStack.css'
 
 interface DebuggerCallStackProps {
@@ -7,6 +9,10 @@ interface DebuggerCallStackProps {
 }
 
 export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends MatomoEvent = DebuggerEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
   const [selectedScope, setSelectedScope] = useState<any>(null)
   const [deployments, setDeployments] = useState<any[]>([])
   const [expandedScopes, setExpandedScopes] = useState<Set<string>>(new Set())
@@ -176,7 +182,11 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
       <div key={scope.scopeId}>
         <div
           className="call-stack-item"
-          onClick={() => handleExecutionItemClick(scope)}
+          onClick={() => {
+              trackMatomoEvent({ category: 'debugger', action: 'jumpButtonExecTrace', value: `Execution item clicked`, isClick: true })
+              handleExecutionItemClick(scope)
+            }
+          }
           onMouseEnter={() => setHoveredScope(scope.scopeId)}
           onMouseLeave={() => setHoveredScope(null)}
         >
@@ -255,6 +265,7 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
                         className="jump-debug-btn"
                         onClick={(e) => {
                           e.stopPropagation()
+                          trackMatomoEvent({ category: 'debugger', action: 'jumpButtonExecTrace', value: `Jump Into clicked`, isClick: true })
                           const stepToJump = scope.functionEntryStep !== undefined ? scope.functionEntryStep : scope.firstStep
                           handleJumpTo(stepToJump)
                         }}
@@ -270,6 +281,7 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
                           className="jump-debug-btn"
                           onClick={(e) => {
                             e.stopPropagation()
+                            trackMatomoEvent({ category: 'debugger', action: 'jumpButtonExecTrace', value: `Jump End clicked`, isClick: true })
                             handleJumpTo(scope.lastStep)
                           }}
                         >
@@ -281,6 +293,7 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
                           className="jump-debug-btn"
                           onClick={(e) => {
                             e.stopPropagation()
+                            trackMatomoEvent({ category: 'debugger', action: 'jumpButtonExecTrace', value: `Jump Over clicked`, isClick: true })
                             handleJumpTo(scope.lastStep + 1)
                           }}
                         >
@@ -295,6 +308,7 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
                         className="jump-debug-btn"
                         onClick={(e) => {
                           e.stopPropagation()
+                          trackMatomoEvent({ category: 'debugger', action: 'jumpButtonExecTrace', value: `Jump Out clicked`, isClick: true })
                           handleJumpOut()
                         }}
                       >
