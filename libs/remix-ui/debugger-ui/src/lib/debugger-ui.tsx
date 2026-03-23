@@ -121,7 +121,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         setState((prevState) => {
           const isLocalNodeUsed = !provider.startsWith('vm') && !provider.startsWith('injected')
           trackMatomoEvent({ category: 'debugger', action: 'debugConfig', value: `isLocalNodeUsed status: ${isLocalNodeUsed}`, isClick: false })
-            return { ...prevState, isLocalNodeUsed: isLocalNodeUsed }
+          return { ...prevState, isLocalNodeUsed: isLocalNodeUsed }
         })
       })
     }
@@ -397,7 +397,9 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     const web3 = optWeb3 || (state.opt.debugWithLocalNode ? await debuggerModule.web3() : await debuggerModule.getDebugProvider())
     let networkId
     try {
-      networkId = (await web3.getNetwork()).chainId
+      const chainId = (await web3.getNetwork()).chainId
+      // Convert BigInt to number for analytics tracking
+      networkId = typeof chainId === 'bigint' ? Number(chainId) : chainId
     } catch (e) {
       console.error(e)
     }
@@ -675,7 +677,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
             callTree={callTreeInstance}
             debugWithGeneratedSources={state.opt.debugWithGeneratedSources}
             onDebugWithGeneratedSourcesChange={(checked) => {
-            trackMatomoEvent({ category: 'debugger', action: 'debugConfig', value: `debugWithGeneratedSources status: ${checked}`, isClick: true })
+              trackMatomoEvent({ category: 'debugger', action: 'debugConfig', value: `debugWithGeneratedSources status: ${checked}`, isClick: true })
               setState((prevState) => {
                 return {
                   ...prevState,

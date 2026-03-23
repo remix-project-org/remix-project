@@ -183,9 +183,9 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
         <div
           className="call-stack-item"
           onClick={() => {
-              trackMatomoEvent({ category: 'debugger', action: 'jumpButtonExecTrace', value: `Execution item clicked`, isClick: true })
-              handleExecutionItemClick(scope)
-            }
+            trackMatomoEvent({ category: 'debugger', action: 'jumpButtonExecTrace', value: `Execution item clicked`, isClick: true })
+            handleExecutionItemClick(scope)
+          }
           }
           onMouseEnter={() => setHoveredScope(scope.scopeId)}
           onMouseLeave={() => setHoveredScope(null)}

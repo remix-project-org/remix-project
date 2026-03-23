@@ -929,9 +929,9 @@ export const DebugLayout = ({
               <i
                 className={`fas ${expandedObjectPaths.has('root.opcode') ? 'fa-minus-square' : 'fa-plus-square'} json-expand-icon`}
                 onClick={() => {
-                    trackMatomoEvent({ category: 'debugger', action: 'toggle', value: `opcodes ${expandedObjectPaths.has('root.opcode') ? 'collpased' : 'expanded'}`, isClick: true })
-                    toggleObjectPath('root.opcode')
-                  }
+                  trackMatomoEvent({ category: 'debugger', action: 'toggle', value: `opcodes ${expandedObjectPaths.has('root.opcode') ? 'collpased' : 'expanded'}`, isClick: true })
+                  toggleObjectPath('root.opcode')
+                }
                 }
                 style={{ cursor: 'pointer', userSelect: 'none' }}
               />
@@ -1060,9 +1060,9 @@ export const DebugLayout = ({
         <div
           className="debug-section-header"
           onClick={() => {
-              trackMatomoEvent({ category: 'debugger', action: 'toggleAccordion', value: `transactionDetails section toggled`, isClick: true })
-              toggleSection('transactionDetails')
-            }
+            trackMatomoEvent({ category: 'debugger', action: 'toggleAccordion', value: `transactionDetails section toggled`, isClick: true })
+            toggleSection('transactionDetails')
+          }
           }
           style={{ cursor: 'pointer' }}
         >
@@ -1112,9 +1112,9 @@ export const DebugLayout = ({
         <div
           className="debug-section-header"
           onClick={() => {
-              trackMatomoEvent({ category: 'debugger', action: 'toggleAccordion', value: `parametersReturnValues section toggled`, isClick: true })
-              toggleSection('parametersReturnValues')
-            }
+            trackMatomoEvent({ category: 'debugger', action: 'toggleAccordion', value: `parametersReturnValues section toggled`, isClick: true })
+            toggleSection('parametersReturnValues')
+          }
           }
           style={{ cursor: 'pointer' }}
         >
@@ -1125,7 +1125,7 @@ export const DebugLayout = ({
                 trackMatomoEvent({ category: 'debugger', action: 'toggle', value: `State & Locals tab selected`, isClick: true })
                 setActiveObjectTab('stateLocals')
               }
-            }
+              }
             >
               <FormattedMessage id="debugger.stateLocals" defaultMessage="State & Locals" />
             </button>
@@ -1135,7 +1135,7 @@ export const DebugLayout = ({
                 trackMatomoEvent({ category: 'debugger', action: 'toggle', value: `Stack & Memory tab selected`, isClick: true })
                 setActiveObjectTab('stackMemory')
               }
-            }
+              }
             >
               <FormattedMessage id="debugger.stackMemory" defaultMessage="Stack & Memory" />
             </button>
