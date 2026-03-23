@@ -9,9 +9,13 @@ import { MatomoEventBase } from '../core/base-types';
 export interface DebuggerEvent extends MatomoEventBase {
   category: 'debugger';
   action:
+    | 'searchTxHash'
     | 'start'
     | 'step'
     | 'breakpoint'
+    | 'debugConfig'
+    | 'stopDebugging'
+    | 'errorInStartDebugging'
     | 'startDebugging';
 }
 
