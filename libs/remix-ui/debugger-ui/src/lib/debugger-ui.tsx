@@ -8,7 +8,6 @@ import {Toaster} from '@remix-ui/toaster' // eslint-disable-line
 import { CustomTooltip, isValidHash } from '@remix-ui/helper'
 import { DebuggerEvent, MatomoEvent } from '@remix-api';
 import { TrackingContext } from '@remix-ide/tracking'
-import { ContractDeployment } from './transaction-recorder/types'
 /* eslint-disable-next-line */
 import './debugger-ui.css'
 import type { CompilerAbstract } from '@remix-project/remix-solidity'
@@ -44,7 +43,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     showOpcodes: false
   })
 
-  const [deployments] = useState<ContractDeployment[]>([])
+  const [deployments] = useState<any[]>([])
   const [traceData, setTraceData] = useState<{ currentStep: number; traceLength: number } | null>(null)
   const [currentFunction, setCurrentFunction] = useState<string>('')
   const [functionStack, setFunctionStack] = useState<any[]>([])
@@ -186,7 +185,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
       })
     })
 
-    debuggerInstance.event.register('locatingBreakpoint', async (isActive) => {
+    debuggerInstance.event.register('locatingBreakpoint', async () => {
       setState((prevState) => {
         return {
           ...prevState,
@@ -195,7 +194,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
       })
     })
 
-    debuggerInstance.event.register('noBreakpointHit', async (isActive) => {
+    debuggerInstance.event.register('noBreakpointHit', async () => {
       setState((prevState) => {
         return { ...prevState, sourceLocationStatus: '' }
       })
@@ -336,29 +335,6 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         }
       })
     }
-  }
-  const requestDebug = (blockNumber, txNumber, tx) => {
-    startDebugging(blockNumber, txNumber, tx)
-  }
-
-  const updateTxNumberFlag = (empty: boolean) => {
-    setState((prevState) => {
-      return {
-        ...prevState,
-        txNumberIsEmpty: empty,
-        validationError: ''
-      }
-    })
-  }
-
-  const unloadRequested = (blockNumber, txIndex, tx) => {
-    unLoad()
-    setState((prevState) => {
-      return {
-        ...prevState,
-        sourceLocationStatus: ''
-      }
-    })
   }
 
   const unLoad = () => {
