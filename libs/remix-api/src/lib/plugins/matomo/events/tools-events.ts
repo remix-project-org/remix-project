@@ -13,6 +13,7 @@ export interface DebuggerEvent extends MatomoEventBase {
     | 'start'
     | 'step'
     | 'breakpoint'
+    | 'stepButton'
     | 'debugConfig'
     | 'jumpButtonCallTrace'
     | 'jumpButtonExecTrace'

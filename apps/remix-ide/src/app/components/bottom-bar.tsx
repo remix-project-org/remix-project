@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { Plugin } from '@remixproject/engine'
+import { DebuggerEvent, MatomoEvent } from '@remix-api';
+import { TrackingContext } from '@remix-ide/tracking'
 import './styles/bottom-bar.css'
 
 interface BottomBarProps {
@@ -9,6 +11,10 @@ interface BottomBarProps {
 const SUPPORTED_EXTENSIONS = ['sol', 'vy', 'circom', 'js', 'ts']
 
 export const BottomBar = ({ plugin }: BottomBarProps) => {
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends MatomoEvent = DebuggerEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
   const [explaining, setExplaining] = useState(false)
   const [aiSwitch, setAiSwitch] = useState(true)
   const [currentExt, setCurrentExt] = useState('')
@@ -196,7 +202,11 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
         <div className="debug-controls">
           <button
             className="btn btn-sm btn-secondary debug-btn"
-            onClick={() => stepManager?.jumpPreviousBreakpoint && stepManager.jumpPreviousBreakpoint()}
+            onClick={() => {
+                trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Previous Breakpoint clicked`, isClick: true })
+                stepManager?.jumpPreviousBreakpoint && stepManager.jumpPreviousBreakpoint()
+              }
+            }
             disabled={stepState === 'initial'}
             data-id="btnJumpPreviousBreakpoint"
           >
@@ -205,7 +215,11 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
           </button>
           <button
             className="btn btn-sm btn-secondary debug-btn"
-            onClick={() => stepManager?.stepOverBack && stepManager.stepOverBack(stepManager.showOpcodes ?? false)}
+            onClick={() => {
+                trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Backward clicked`, isClick: true })
+                stepManager?.stepOverBack && stepManager.stepOverBack(stepManager.showOpcodes ?? false)
+              }
+            }
             disabled={stepState === 'initial'}
             data-id="btnStepBackward"
           >
@@ -214,7 +228,11 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
           </button>
           <button
             className="btn btn-sm btn-primary debug-btn"
-            onClick={() => stepManager?.stepIntoBack && stepManager.stepIntoBack(stepManager.showOpcodes ?? false)}
+            onClick={() => {
+                trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Back clicked`, isClick: true })
+                stepManager?.stepIntoBack && stepManager.stepIntoBack(stepManager.showOpcodes ?? false)
+              }
+            }
             disabled={stepState === 'initial'}
             data-id="btnStepBack"
           >
@@ -223,7 +241,11 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
           </button>
           <button
             className="btn btn-sm btn-primary debug-btn"
-            onClick={() => stepManager?.stepIntoForward && stepManager.stepIntoForward(stepManager.showOpcodes ?? false)}
+            onClick={() => {
+                trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Into clicked`, isClick: true })
+                stepManager?.stepIntoForward && stepManager.stepIntoForward(stepManager.showOpcodes ?? false)
+              }
+            }
             disabled={stepState === 'end'}
             data-id="btnStepInto"
           >
@@ -232,7 +254,11 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
           </button>
           <button
             className="btn btn-sm btn-secondary debug-btn"
-            onClick={() => stepManager?.stepOverForward && stepManager.stepOverForward(stepManager.showOpcodes ?? false)}
+            onClick={() => {
+                trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Forward clicked`, isClick: true })
+                stepManager?.stepOverForward && stepManager.stepOverForward(stepManager.showOpcodes ?? false)
+              }
+            }
             disabled={stepState === 'end'}
             data-id="btnStepForward"
           >
@@ -241,7 +267,11 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
           </button>
           <button
             className="btn btn-sm btn-secondary debug-btn"
-            onClick={() => stepManager?.jumpNextBreakpoint && stepManager.jumpNextBreakpoint()}
+            onClick={() => {
+                trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Next Breakpoint clicked`, isClick: true })
+                stepManager?.jumpNextBreakpoint && stepManager.jumpNextBreakpoint()
+              }
+            }
             disabled={stepState === 'end'}
             data-id="btnJumpNextBreakpoint"
           >
@@ -251,7 +281,11 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
           {hasRevert && (
             <button
               className="btn btn-sm btn-warning debug-btn"
-              onClick={() => stepManager?.jumpToException && stepManager.jumpToException()}
+              onClick={() => {
+                  trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Jump to Revert clicked`, isClick: true })
+                  stepManager?.jumpToException && stepManager.jumpToException()
+                }
+              }
               data-id="btnJumpToRevert"
             >
               <i className="fas fa-undo"></i>
