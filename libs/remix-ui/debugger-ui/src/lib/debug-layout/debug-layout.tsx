@@ -1,7 +1,9 @@
-import React, { useState } from 'react' // eslint-disable-line
+import React, { useState, useContext } from 'react' // eslint-disable-line
 import { FormattedMessage, useIntl } from 'react-intl'
 import SearchBar from '../search-bar/search-bar' // eslint-disable-line
 import { CustomTooltip } from '@remix-ui/helper'
+import { DebuggerEvent, MatomoEvent } from '@remix-api'
+import { TrackingContext } from '@remix-ide/tracking'
 import './debug-layout.css'
 
 interface DebugLayoutProps {
@@ -53,6 +55,10 @@ export const DebugLayout = ({
   showOpcodes = false,
   registerEvent
 }: DebugLayoutProps) => {
+  const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends MatomoEvent = DebuggerEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
   const intl = useIntl()
   const [activeObjectTab, setActiveObjectTab] = useState<'stateLocals' | 'stackMemory'>('stateLocals')
   const [copyTooltips, setCopyTooltips] = useState<{ [key: string]: string }>({
@@ -665,6 +671,7 @@ export const DebugLayout = ({
                         className="jump-debug-btn"
                         onClick={(e) => {
                           e.stopPropagation()
+                          trackMatomoEvent({ category: 'debugger', action: 'jumpButtonCallTrace', value: `jumpInto clicked`, isClick: true })
                           if (stepManager && stepManager.jumpTo) {
                             // Use functionEntryStep if available (skips dispatcher), otherwise use firstStep
                             const stepToJump = scope.functionEntryStep !== undefined ? scope.functionEntryStep : scope.firstStep
@@ -683,6 +690,7 @@ export const DebugLayout = ({
                           className="jump-debug-btn"
                           onClick={(e) => {
                             e.stopPropagation()
+                            trackMatomoEvent({ category: 'debugger', action: 'jumpButtonCallTrace', value: `jumpEnd clicked`, isClick: true })
                             if (stepManager && stepManager.jumpTo) {
                               stepManager.jumpTo(scope.lastStep)
                             }
@@ -696,6 +704,7 @@ export const DebugLayout = ({
                           className="jump-debug-btn"
                           onClick={(e) => {
                             e.stopPropagation()
+                            trackMatomoEvent({ category: 'debugger', action: 'jumpButtonCallTrace', value: `jumpOver clicked`, isClick: true })
                             if (stepManager && stepManager.jumpTo) {
                               stepManager.jumpTo(scope.lastStep + 1)
                             }
@@ -712,6 +721,7 @@ export const DebugLayout = ({
                         className="jump-debug-btn"
                         onClick={(e) => {
                           e.stopPropagation()
+                          trackMatomoEvent({ category: 'debugger', action: 'jumpButtonCallTrace', value: `jumpOut clicked`, isClick: true })
                           if (stepManager && stepManager.jumpOut) {
                             stepManager.jumpOut(true) // true for solidity mode
                           }
@@ -918,7 +928,11 @@ export const DebugLayout = ({
             <div className="json-line" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <i
                 className={`fas ${expandedObjectPaths.has('root.opcode') ? 'fa-minus-square' : 'fa-plus-square'} json-expand-icon`}
-                onClick={() => toggleObjectPath('root.opcode')}
+                onClick={() => {
+                    trackMatomoEvent({ category: 'debugger', action: 'toggle', value: `opcodes ${expandedObjectPaths.has('root.opcode') ? 'collpased' : 'expanded'}`, isClick: true })
+                    toggleObjectPath('root.opcode')
+                  }
+                }
                 style={{ cursor: 'pointer', userSelect: 'none' }}
               />
               <span className="json-key">opcode</span>
@@ -1045,7 +1059,11 @@ export const DebugLayout = ({
       <div className="debug-section debug-section-transaction" style={!expandedSections.transactionDetails ? { minHeight: 'auto', flex: '0 0 auto' } : {}}>
         <div
           className="debug-section-header"
-          onClick={() => toggleSection('transactionDetails')}
+          onClick={() => {
+              trackMatomoEvent({ category: 'debugger', action: 'toggleAccordion', value: `transactionDetails section toggled`, isClick: true })
+              toggleSection('transactionDetails')
+            }
+          }
           style={{ cursor: 'pointer' }}
         >
           <h6 className="debug-section-title">
@@ -1064,7 +1082,10 @@ export const DebugLayout = ({
       <div className="debug-section debug-section-trace" style={!expandedSections.callTrace ? { minHeight: 'auto', flex: '0 0 auto' } : {}}>
         <div
           className="debug-section-header"
-          onClick={() => toggleSection('callTrace')}
+          onClick={() => {
+            trackMatomoEvent({ category: 'debugger', action: 'toggleAccordion', value: `callTrace section toggled`, isClick: true })
+            toggleSection('callTrace')}
+          }
           style={{ cursor: 'pointer' }}
         >
           <h6 className="debug-section-title" data-id="callTraceHeader">
@@ -1090,19 +1111,31 @@ export const DebugLayout = ({
       <div className="debug-section debug-section-object" style={!expandedSections.parametersReturnValues ? { minHeight: 'auto', flex: '0 0 auto' } : {}}>
         <div
           className="debug-section-header"
-          onClick={() => toggleSection('parametersReturnValues')}
+          onClick={() => {
+              trackMatomoEvent({ category: 'debugger', action: 'toggleAccordion', value: `parametersReturnValues section toggled`, isClick: true })
+              toggleSection('parametersReturnValues')
+            }
+          }
           style={{ cursor: 'pointer' }}
         >
           <div className="debug-tabs" onClick={(e) => e.stopPropagation()} style={{ paddingLeft: '1rem' }}>
             <button
               className={`debug-tab ${activeObjectTab === 'stateLocals' ? 'active' : ''}`}
-              onClick={() => setActiveObjectTab('stateLocals')}
+              onClick={() => {
+                trackMatomoEvent({ category: 'debugger', action: 'toggle', value: `State & Locals tab selected`, isClick: true })
+                setActiveObjectTab('stateLocals')
+              }
+            }
             >
               <FormattedMessage id="debugger.stateLocals" defaultMessage="State & Locals" />
             </button>
             <button
               className={`debug-tab ${activeObjectTab === 'stackMemory' ? 'active' : ''}`}
-              onClick={() => setActiveObjectTab('stackMemory')}
+              onClick={() => {
+                trackMatomoEvent({ category: 'debugger', action: 'toggle', value: `Stack & Memory tab selected`, isClick: true })
+                setActiveObjectTab('stackMemory')
+              }
+            }
             >
               <FormattedMessage id="debugger.stackMemory" defaultMessage="Stack & Memory" />
             </button>

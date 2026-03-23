@@ -104,7 +104,10 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
       })
 
       debuggerModule.onBreakpointAdded((fileName, row) => {
-        if (state.debugger) state.debugger.breakPointManager.add({ fileName: fileName, row: row })
+        if (state.debugger) {
+          trackMatomoEvent({ category: 'debugger', action: 'breakpoint', value: `breakpoint added`, isClick: true })
+          state.debugger.breakPointManager.add({ fileName: fileName, row: row })
+        }
       })
 
       debuggerModule.onEditorContentChanged(() => {
