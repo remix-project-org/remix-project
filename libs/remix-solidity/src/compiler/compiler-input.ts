@@ -35,6 +35,9 @@ export default (sources: Source, opts: CompilerInputOptions): string => {
     if (!o.settings.optimizer.details) { o.settings.optimizer.details = {} }
     o.settings.optimizer.details.yul = true
   }
+  if (o.language === 'Yul' && o.settings && o.settings.remappings) {
+    delete o.settings.remappings
+  }
   return JSON.stringify(o)
 }
 
@@ -51,5 +54,8 @@ export function getValidLanguage (val: string): Language {
 export function compilerInputForConfigFile(sources: Source, opts)
 {
   opts.sources = sources
+  if (opts.language === 'Yul' && opts.settings && opts.settings.remappings) {
+    delete opts.settings.remappings
+  }
   return JSON.stringify(opts)
 }
