@@ -57,7 +57,7 @@
     "build:libs": "node --max-old-space-size=4096 ./node_modules/.bin/nx run-many --target=build --parallel=false --with-deps=true --projects=remix-analyzer,remix-astwalker,remix-debug,remix-lib,remix-simulator,remix-solidity,remix-tests,remix-url-resolver,remix-ws-templates,remixd,ghaction-helper,remix-import-resolver",
     "test:libs": "nx run-many --target=test --projects=remix-analyzer,remix-astwalker,remix-debug,remix-lib,remix-simulator,remix-tests,remix-url-resolver,remix-import-resolver",
     "publish:remixd": "yarn build remixd && cd ./dist/libs/remixd && yarn publish && yarn run bumpVersion:remixd",
-    "publish:libs": "yarn run build:libs && lerna publish --skip-git && yarn run bumpVersion:libs",
+    "publish:libs": "yarn run build:libs && lerna publish --no-verify-access --skip-git && yarn run bumpVersion:libs",
     "publishDev:libs": "yarn run build:libs && lerna publish --npm-tag alpha --skip-git && yarn run bumpVersion:libs",
     "build:e2e": "node apps/remix-ide-e2e/src/cleanupGroupTests.js && node apps/remix-ide-e2e/src/buildGroupTests.js && tsc -p apps/remix-ide-e2e/tsconfig.e2e.json && node scripts/update-e2e-keywords.js",
     "inject-e2e-config": "node scripts/inject-e2e-config.js dist/apps/remix-ide \"http://127.0.0.1:8080/assets/js/soljson\" \"http://127.0.0.1:8080/assets/js/soljson\" \"http://127.0.0.1:9090/\"",

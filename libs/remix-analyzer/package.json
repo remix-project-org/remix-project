@@ -1,6 +1,6 @@
 {
   "name": "@remix-project/remix-analyzer",
-  "version": "0.5.93",
+  "version": "0.5.94",
   "description": "Tool to perform static analysis on Solidity smart contracts",
   "scripts": {
     "test": "./../../node_modules/.bin/ts-node --project ../../tsconfig.base.json --require tsconfig-paths/register ./../../node_modules/.bin/tape ./test/tests.ts"
@@ -25,8 +25,8 @@
     "@ethereumjs/tx": "^10.1.1",
     "@ethereumjs/util": "^10.1.1",
     "@ethereumjs/vm": "^10.1.1",
-    "@remix-project/remix-astwalker": "^0.0.114",
-    "@remix-project/remix-lib": "^0.5.91",
+    "@remix-project/remix-astwalker": "^0.0.115",
+    "@remix-project/remix-lib": "^0.5.93",
     "async": "^2.6.2",
     "ethers": "^6.14.0",
     "ethjs-util": "^0.1.6",
@@ -49,6 +49,6 @@
     "typescript": "^3.7.5"
   },
   "typings": "src/index.d.ts",
-  "gitHead": "1fe3e95e3ed73bdf9d371ec06f04580e8205e553",
+  "gitHead": "d070688d09c98251c71ca51906c6cc9845ec9a06",
   "main": "./src/index.js"
 }
