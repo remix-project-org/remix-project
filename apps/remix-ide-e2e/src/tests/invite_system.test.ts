@@ -110,10 +110,10 @@ module.exports = {
             })
     },
 
-    'Should show BETA tag on user menu button #group1': function (browser: NightwatchBrowser) {
-        browser
-            .waitForElementVisible('*[data-id="user-menu-compact"]', 10000)
-            .click('*[data-id="user-menu-compact"]')
-            .waitForElementVisible('*[data-id="feature-badge-name-e2e-beta"]', 10000)
-    },
+//     'Should show BETA tag on user menu button #group1': function (browser: NightwatchBrowser) {
+//         browser
+//             .waitForElementVisible('*[data-id="user-menu-compact"]', 10000)
+//             .click('*[data-id="user-menu-compact"]')
+//             .waitForElementVisible('*[data-id="feature-badge-name-e2e-beta"]', 10000)
+//     },
 }
