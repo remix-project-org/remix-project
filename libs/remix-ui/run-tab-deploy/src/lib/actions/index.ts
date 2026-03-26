@@ -21,7 +21,7 @@ export async function broadcastCompilationResult (compilerName: string, compileR
   const compiler = new CompilerAbstract(languageVersion, data, source, input)
   await plugin.call('compilerArtefacts', 'saveCompilerAbstract', file, compiler)
 
-  const contracts = getCompiledContracts(compiler, file, plugin)
+  const contracts = getCompiledContracts(compiler, file)
   if (contracts.length > 0) {
     for (let index = 0; index < contracts.length; index++) {
       const contract = contracts[index]
@@ -46,7 +46,7 @@ export async function broadcastCompilationResult (compilerName: string, compileR
   }
 }
 
-function getCompiledContracts (compiler: CompilerAbstract, filePath: string, plugin: DeployPlugin) {
+function getCompiledContracts (compiler: CompilerAbstract, filePath: string) {
   const contracts: ContractData[] = []
   let hasUnshifted = false
 
