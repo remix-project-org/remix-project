@@ -1061,10 +1061,10 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                       pointerEvents: state.useFileConfiguration ? 'none' : 'auto'
                     }}
                   >
-                    <option data-id={state.language === 'Solidity' ? 'selected' : ''} value="Solidity">
+                    <option data-sol-lang="solidity" data-id={state.language === 'Solidity' ? 'selected' : ''} value="Solidity">
                       Solidity
                     </option>
-                    <option data-id={state.language === 'Yul' ? 'selected' : ''} value="Yul">
+                    <option data-sol-lang="yul" data-id={state.language === 'Yul' ? 'selected' : ''} value="Yul">
                       Yul
                     </option>
                   </select>

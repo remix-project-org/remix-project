@@ -415,6 +415,7 @@ export class RightSidePanel extends AbstractPanel {
   }
 
   updateComponent(state: any) {
+    console.log('RightSidePanel updateComponent state ', state)
     const hasPlugins = state.plugins && Object.keys(state.plugins).length > 0
     return (
       <>

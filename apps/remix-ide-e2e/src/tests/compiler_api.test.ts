@@ -18,6 +18,23 @@ module.exports = {
     return sources
   },
 
+  'Should compile Yul contract and get no remapping errors #group1': function (browser: NightwatchBrowser) {
+    browser
+      .addFile('yulTest.yul', { content: yulTest })
+      .clickLaunchIcon('solidity')
+      .waitForElementVisible('*[data-id="scConfigExpander"]')
+      .click('*[data-id="scConfigExpander"]')
+      .waitForElementVisible('*[id="compilerLanguageSelectorWrapper"]')
+      .waitForElementVisible('*[id="compilerLanguageSelector"]')
+      .click('*[id="compilerLanguageSelector"]')
+      .waitForElementVisible('*[data-sol-lang="yul"]')
+      .click('*[data-sol-lang="yul"]')
+      .pause(500)
+      .waitForElementContainsText('*[data-id="compiledErrors"]', 'Compilation successful: 0 warnings and 0 errors', 60000)
+      .click('*[data-id="terminalClearConsole"]')
+      .pause()
+  },
+
   'Should compile using "compileWithParameters" API #group1': function (browser: NightwatchBrowser) {
     browser
       .addFile('test_jsCompile.js', { content: jsCompile })
@@ -80,18 +97,18 @@ contract StorageTestUpdateConfiguration {
   }
 
   /**
-   * @dev Return value 
+   * @dev Return value
    * @return value of 'number'
    */
   function retrieve() public view returns (uint256){
       return number;
   }
 }
-          
+
           `
 
 const jsCompile = `(async () => {
-    
+
   try {
       const contract = {
           "storage.sol": {content : \`${simpleContract}\` }
@@ -142,12 +159,12 @@ const jsCompileWithOptimizationDefault = `(async () => {
       const result = await remix.call('solidity', 'compileWithParameters', contract, params)
       console.log('result ', result)
   } catch (e) {
-      console.log(e.message)   
+      console.log(e.message)
   }
 })()`
 
 const updateConfiguration = `(async () => {
-  try {    
+  try {
       const params = {
           optimize: false,
           evmVersion: null,
@@ -156,16 +173,37 @@ const updateConfiguration = `(async () => {
       }
       await remix.call('solidity', 'setCompilerConfig', params)
   } catch (e) {
-      console.log(e.message)   
+      console.log(e.message)
   }
 })()`
 
 const contractStackLimit = `
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.9.1;
-contract DoesNotCompile {    
+contract DoesNotCompile {
     uint u;
-    function fStackLimit(uint u1, uint u2, uint u3, uint u4, uint u5, uint u6, uint u7, uint u8, uint u9, uint u10, uint u11, uint u12) public {        
+    function fStackLimit(uint u1, uint u2, uint u3, uint u4, uint u5, uint u6, uint u7, uint u8, uint u9, uint u10, uint u11, uint u12) public {
     }
 }`
 
+const yulTest = `
+object "Addition" {
+    code {
+        datacopy(0, dataoffset("runtime"), datasize("runtime"))
+        return(0, datasize("runtime"))
+    }
+    object "runtime" {
+        code {
+            // Read two 32-byte numbers from calldata
+            let a := calldataload(0)
+            let b := calldataload(32)
+
+            // Add them
+            let result := add(a, b)
+
+            // Store result in memory and return it
+            mstore(0, result)
+            return(0, 32)
+        }
+    }
+}`
