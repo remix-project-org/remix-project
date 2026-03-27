@@ -79,7 +79,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
     try {
       let compilerConfig: any = {};
 
-      await plugin.call('sidePanel', 'showContent', 'solidity' )
+      await plugin.call('sidePanel', 'showContent', 'solidity')
 
       try {
         // Try to get existing compiler config
@@ -150,6 +150,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
         }
       }
 
+      await new Promise(resolve => setTimeout(resolve, 2000));
       return this.createSuccessResult(result);
     } catch (error) {
       return this.createErrorResult(`Compilation failed: ${error.message}`);

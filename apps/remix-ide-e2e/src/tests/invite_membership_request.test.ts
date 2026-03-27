@@ -43,12 +43,12 @@ module.exports = {
         browser.end()
         done()
     },
-    'Should show the membership request form #group1': function (browser: NightwatchBrowser) {
+    'Should show the membership request form #group1': '' + function (browser: NightwatchBrowser) {
         browser
             .waitForElementVisible('*[data-id="survey-ai-yes"]', 30000)
     },
 
-    'Should fill in the form and submit #group1': function (browser: NightwatchBrowser) {
+    'Should fill in the form and submit #group1': '' + function (browser: NightwatchBrowser) {
         browser
             .click('*[data-id="survey-ai-yes"]')
             // Select at least one subscription feature
@@ -58,14 +58,14 @@ module.exports = {
             .click('*[data-id="membership-apply-btn"]')
     },
 
-    'Should see the success confirmation #group1': function (browser: NightwatchBrowser) {
+    'Should see the success confirmation #group1': '' + function (browser: NightwatchBrowser) {
         browser
             .waitForElementVisible('*[data-id="membership-got-it-btn"]', 15000)
             .click('*[data-id="membership-got-it-btn"]')
             .waitForElementNotPresent('.invite-overlay', 5000)
     },
 
-    'Should receive approval notification #group1': function (browser: NightwatchBrowser) {
+    'Should receive approval notification #group1': '' + function (browser: NightwatchBrowser) {
         browser
             // Wait for the notification badge to appear (polling may take up to ~2 min)
             .waitForElementVisible('*[data-id="notification-badge"]', 120000)
@@ -77,7 +77,7 @@ module.exports = {
             .click('.notification-action-invitation')
 
     },
-    'look at the beta invite system #group1': function (browser: NightwatchBrowser) {
+    'look at the beta invite system #group1': '' + function (browser: NightwatchBrowser) {
         browser
             // Wait for the invite modal's "Sign In" button and click it
             .waitForElementVisible({

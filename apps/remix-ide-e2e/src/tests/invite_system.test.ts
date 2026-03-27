@@ -43,7 +43,7 @@ module.exports = {
         browser.end()
         done()
     },
-    'look at the beta invite system #group1': function (browser: NightwatchBrowser) {
+    'look at the beta invite system #group1': '' + function (browser: NightwatchBrowser) {
         browser
             // Wait for the invite modal's "Sign In" button and click it
             .waitForElementVisible({
@@ -59,7 +59,7 @@ module.exports = {
     },
 
 
-    'Should login via the test pool through the real UI flow #group1': function (browser: NightwatchBrowser) {
+    'Should login via the test pool through the real UI flow #group1': '' + function (browser: NightwatchBrowser) {
         browser
             .pause(3000)
             // The modal should detect the e2e_pool_key and show the "E2E Test Pool" button
@@ -77,7 +77,7 @@ module.exports = {
             .pause(5000)
     },
 
-    'Should click Join Beta on the invite modal #group1': function (browser: NightwatchBrowser) {
+    'Should click Join Beta on the invite modal #group1': '' + function (browser: NightwatchBrowser) {
         browser
             // Wait for the "Join the Beta" button in the invite modal footer
             .waitForElementVisible('*[data-id="invite-join-beta-btn"]', 15000)
@@ -87,7 +87,7 @@ module.exports = {
             .click('*[data-id="invite-get-started-btn"]')
     },
 
-    'Should show the user as logged in with test provider #group1': function (browser: NightwatchBrowser) {
+    'Should show the user as logged in with test provider #group1': '' + function (browser: NightwatchBrowser) {
         browser
             .execute(function () {
                 const user = localStorage.getItem('remix_user')
@@ -110,10 +110,10 @@ module.exports = {
             })
     },
 
-//     'Should show BETA tag on user menu button #group1': function (browser: NightwatchBrowser) {
-//         browser
-//             .waitForElementVisible('*[data-id="user-menu-compact"]', 10000)
-//             .click('*[data-id="user-menu-compact"]')
-//             .waitForElementVisible('*[data-id="feature-badge-name-e2e-beta"]', 10000)
-//     },
+    'Should show BETA tag on user menu button #group1': '' + function (browser: NightwatchBrowser) {
+        browser
+            .waitForElementVisible('*[data-id="user-menu-compact"]', 10000)
+            .click('*[data-id="user-menu-compact"]')
+            .waitForElementVisible('*[data-id="feature-badge-name-e2e-beta"]', 10000)
+    },
 }

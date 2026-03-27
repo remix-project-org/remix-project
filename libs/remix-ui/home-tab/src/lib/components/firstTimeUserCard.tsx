@@ -52,6 +52,7 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
 
       plugin.call('notification', 'toast', 'Creating a new workspace and start building...')
       await new Promise((res) => setTimeout(() => res({}), 500)) // wait for the workspace to actually be created
+      await plugin.call('fileManager', 'open', 'contracts/MyToken.sol')
       plugin.call('remixaiassistant', 'chatPipe', `an ERC20 token workspace has been created. Compile and Deploy MyToken. Then give precise details for interacting with that contract in Remix. Propose some next steps for me to learn more about it and experiment with it. Then stop and let me ask you more questions.`)
     }, 200)
   }
@@ -82,8 +83,12 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
               backdropFilter: 'blur(10px)',
               border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
               transition: 'all 0.3s ease',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              outline: 'none',
+              userSelect: 'none'
             }}
+            tabIndex={-1}
+            onClick={handleExplainEthereum}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'
               e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,0.2)'
@@ -93,7 +98,7 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
               e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)'
             }}
           >
-            <div className="d-flex align-items-center flex-grow-1" onClick={handleExplainEthereum}>
+            <div className="d-flex align-items-center flex-grow-1">
               <div
                 className="d-flex justify-content-center align-items-center me-3 shadow-sm"
                 style={{
@@ -120,8 +125,12 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
               backdropFilter: 'blur(10px)',
               border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
               transition: 'all 0.3s ease',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              outline: 'none',
+              userSelect: 'none'
             }}
+            tabIndex={-1}
+            onClick={handleGetStarted}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'
               e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,0.2)'
@@ -131,7 +140,7 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
               e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)'
             }}
           >
-            <div className="d-flex align-items-center flex-grow-1" onClick={handleGetStarted}>
+            <div className="d-flex align-items-center flex-grow-1">
               <div
                 className="d-flex justify-content-center align-items-center me-3 shadow-sm"
                 style={{

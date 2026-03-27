@@ -42,7 +42,7 @@ module.exports = {
         done()
     },
 
-    'Should click Sign In to open login modal #group1': function (browser: NightwatchBrowser) {
+    'Should click Sign In to open login modal #group1': '' + function (browser: NightwatchBrowser) {
         browser
             // No invite in URL, so no invite overlay — just the normal IDE with a Sign In button
             .waitForElementVisible('*[data-id="login-button"]', 30000)
@@ -50,13 +50,13 @@ module.exports = {
             .pause(2000)
     },
 
-    'Should show login modal with "I have an invite code" button #group1': function (browser: NightwatchBrowser) {
+    'Should show login modal with "I have an invite code" button #group1': '' + function (browser: NightwatchBrowser) {
         browser
             // The login modal should now be open with the invite code toggle
             .waitForElementVisible('*[data-id="invite-code-toggle-btn"]', 15000)
     },
 
-    'Should enter invite code and submit #group1': function (browser: NightwatchBrowser) {
+    'Should enter invite code and submit #group1': '' + function (browser: NightwatchBrowser) {
         browser
             // Click the "I have an invite code" button to reveal the input
             .click('*[data-id="invite-code-toggle-btn"]')
@@ -69,7 +69,7 @@ module.exports = {
             .pause(2000)
     },
 
-    'Should show invite overlay and click Sign In #group1': function (browser: NightwatchBrowser) {
+    'Should show invite overlay and click Sign In #group1': '' + function (browser: NightwatchBrowser) {
         browser
             // The invite overlay should now be visible with a Sign In / login button
             .waitForElementVisible({
@@ -84,7 +84,7 @@ module.exports = {
             .pause(2000)
     },
 
-    'Should login via the test pool #group1': function (browser: NightwatchBrowser) {
+    'Should login via the test pool #group1': '' + function (browser: NightwatchBrowser) {
         browser
             .pause(3000)
             .waitForElementVisible({
@@ -99,7 +99,7 @@ module.exports = {
             .pause(5000)
     },
 
-    'Should click Join Beta on the invite modal #group1': function (browser: NightwatchBrowser) {
+    'Should click Join Beta on the invite modal #group1': '' + function (browser: NightwatchBrowser) {
         browser
             .waitForElementVisible('*[data-id="invite-join-beta-btn"]', 15000)
             .click('*[data-id="invite-join-beta-btn"]')
@@ -107,7 +107,7 @@ module.exports = {
             .click('*[data-id="invite-get-started-btn"]')
     },
 
-    'Should show the user as logged in with test provider #group1': function (browser: NightwatchBrowser) {
+    'Should show the user as logged in with test provider #group1': '' + function (browser: NightwatchBrowser) {
         browser
             .execute(function () {
                 const user = localStorage.getItem('remix_user')
@@ -130,10 +130,10 @@ module.exports = {
             })
     },
 
-    // 'Should show BETA tag on user menu button #group1': function (browser: NightwatchBrowser) {
-    //     browser
-    //         .waitForElementVisible('*[data-id="user-menu-compact"]', 10000)
-    //         .click('*[data-id="user-menu-compact"]')
-    //         .waitForElementVisible('*[data-id="feature-badge-name-e2e-beta"]', 10000)
-    // },
+    'Should show BETA tag on user menu button #group1': '' + function (browser: NightwatchBrowser) {
+        browser
+            .waitForElementVisible('*[data-id="user-menu-compact"]', 10000)
+            .click('*[data-id="user-menu-compact"]')
+            .waitForElementVisible('*[data-id="feature-badge-name-e2e-beta"]', 10000)
+    },
 }
