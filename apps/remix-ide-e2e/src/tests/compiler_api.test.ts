@@ -18,23 +18,6 @@ module.exports = {
     return sources
   },
 
-  'Should compile Yul contract and get no remapping errors #group1': function (browser: NightwatchBrowser) {
-    browser
-      .addFile('yulTest.yul', { content: yulTest })
-      .clickLaunchIcon('solidity')
-      .waitForElementVisible('*[data-id="scConfigExpander"]')
-      .click('*[data-id="scConfigExpander"]')
-      .waitForElementVisible('*[id="compilerLanguageSelectorWrapper"]')
-      .waitForElementVisible('*[id="compilerLanguageSelector"]')
-      .click('*[id="compilerLanguageSelector"]')
-      .waitForElementVisible('*[data-sol-lang="yul"]')
-      .click('*[data-sol-lang="yul"]')
-      .pause(500)
-      .waitForElementContainsText('*[data-id="compiledErrors"]', 'Compilation successful: 0 warnings and 0 errors', 60000)
-      .click('*[data-id="terminalClearConsole"]')
-      .pause()
-  },
-
   'Should compile using "compileWithParameters" API #group1': function (browser: NightwatchBrowser) {
     browser
       .addFile('test_jsCompile.js', { content: jsCompile })
@@ -74,6 +57,27 @@ module.exports = {
       .addFile('ContractStackLimit.sol', { content: contractStackLimit })
       .clickLaunchIcon('solidity')
       .waitForElementContainsText('*[data-id="compiledErrors"]', 'CompilerError: Stack too deep when compiling inline assembly: Variable headStart is 1 slot(s) too deep inside the stack.', 60000)
+  },
+
+  'Should compile Yul contract and get no remapping errors #group1': function (browser: NightwatchBrowser) {
+    browser
+      .addFile('yulTest.yul', { content: yulTest })
+      .clickLaunchIcon('solidity')
+      .waitForElementVisible('*[data-id="scConfigExpander"]')
+      .click('*[data-id="scConfigExpander"]')
+      .waitForElementVisible('*[id="compilerLanguageSelectorWrapper"]')
+      .waitForElementVisible('*[id="compilerLanguageSelector"]')
+      .click('*[id="compilerLanguageSelector"]')
+      .waitForElementVisible('*[data-sol-lang="yul"]')
+      .click('*[data-sol-lang="yul"]')
+      .pause(500)
+      .click('*[data-id="scConfigExpander"]')
+      .clickLaunchIcon('filePanel')
+      .waitForElementVisible('*[data-id="treeViewDivtreeViewItemyulTest.yul"]')
+      .click('*[data-id="treeViewDivtreeViewItemyulTest.yul"]')
+      .waitForElementVisible('*[data-id="compile-action"]')
+      .click('*[data-id="compile-action"]')
+      .waitForElementVisible('#verticalIconsKindsolidity > i.remixui_status.fas.fa-check-circle.text-success.remixui_statusCheck')
       .end()
   }
 }
