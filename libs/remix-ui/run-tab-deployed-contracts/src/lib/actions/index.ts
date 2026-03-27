@@ -4,7 +4,7 @@ import * as remixLib from '@remix-project/remix-lib'
 import { FuncABI } from '@remix-project/core-plugin'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
-import { Actions } from '../types'
+import { Actions, DeployedContract } from '../types'
 
 const txFormat = remixLib.execution.txFormat
 
@@ -49,8 +49,7 @@ export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: Re
     })
   } else if (['sol', 'vyper', 'lexon', 'contract'].includes(loadType)) {
     try {
-      const contractList: any = await plugin.call('udappDeploy', 'getCompiledContracts')
-      const contract = contractList.find(contract => contract.filePath === currentFile)
+      const contract: DeployedContract = await plugin.call('udappDeploy', 'getSelectedContractItem')
       const contractData = contract?.contractData
 
       if (!contractData) {

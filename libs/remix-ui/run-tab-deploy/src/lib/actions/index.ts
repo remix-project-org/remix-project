@@ -15,14 +15,16 @@ import { UpgradeableContract } from '../../../../../../node_modules/@openzeppeli
 
 export async function broadcastCompilationResult (compilerName: string, compileRawResult: CompilationRawResult, plugin: DeployPlugin, dispatch: React.Dispatch<Actions>) {
   const { file, source, languageVersion, data, input } = compileRawResult
+  dispatch({ type: 'REMOVE_CONTRACT_FILE', payload: file })
   await trackMatomoEvent(plugin, { category: 'udapp', action: 'broadcastCompilationResult', name: compilerName, isClick: false })
 
   const compiler = new CompilerAbstract(languageVersion, data, source, input)
   await plugin.call('compilerArtefacts', 'saveCompilerAbstract', file, compiler)
 
-  const contracts = getCompiledContracts(compiler, plugin)
+  const contracts = getCompiledContracts(compiler, file)
   if (contracts.length > 0) {
-    contracts.forEach(async (contract) => {
+    for (let index = 0; index < contracts.length; index++) {
+      const contract = contracts[index]
       if (contract.contract.file !== source.target) {
         dispatch({ type: 'UPDATE_COMPILED_CONTRACT', payload: { name: contract.name, filePath: file, contractData: contract, isUpgradeable: false } })
       } else {
@@ -40,20 +42,21 @@ export async function broadcastCompilationResult (compilerName: string, compileR
         }
         dispatch({ type: 'UPDATE_COMPILED_CONTRACT', payload: { name: contract.name, filePath: file, contractData: contract, isUpgradeable: isUpgradeable, deployOptions } })
       }
-    })
+    }
   }
 }
 
-function getCompiledContracts (compiler: CompilerAbstract, plugin: DeployPlugin) {
+function getCompiledContracts (compiler: CompilerAbstract, filePath: string) {
   const contracts: ContractData[] = []
+  let hasUnshifted = false
 
   compiler.visitContracts((contract: VisitedContract) => {
     const contractData = getContractData(contract.name, compiler)
-    const widgetState = plugin.getWidgetState()
-    const contractIndex = widgetState.contracts.contractList.findIndex(item => (item.name === contract.name) && (item.filePath === contract.file))
 
-    if (contractIndex > -1){
-      contracts.push(contractData)
+    if (contract.file === filePath && !hasUnshifted){
+      // push to front of array as this is the main contract
+      contracts.unshift(contractData)
+      hasUnshifted = true
     } else if (contractData && contractData.bytecodeObject.length !== 0) {
       contracts.push(contractData)
     }
@@ -357,27 +360,13 @@ export async function addContractFile (filePath: string, plugin: DeployPlugin, d
     const contract: string = await plugin.call('fileManager', 'readFile', filePath)
 
     if (contract) {
-      let contractName = null
-      const match = contract.match(/contract\s+([A-Za-z_][A-Za-z0-9_]*)/)
-      if (match) {
-        contractName = match[1]
-      }
-      if (contractName) {
-        dispatch({ type: 'ADD_CONTRACT_FILE', payload: { name: contractName, filePath } })
-      }
+      dispatch({ type: 'ADD_CONTRACT_FILE', payload: filePath })
     }
   } else if (filePath && filePath.endsWith('.yul')) {
     const contract: string = await plugin.call('fileManager', 'readFile', filePath)
 
     if (contract) {
-      let contractName = null
-      const match = contract.match(/object\s+"([^"]+)"/)
-      if (match) {
-        contractName = match[1]
-      }
-      if (contractName) {
-        dispatch({ type: 'ADD_CONTRACT_FILE', payload: { name: contractName, filePath } })
-      }
+      dispatch({ type: 'ADD_CONTRACT_FILE', payload: filePath })
     }
   }
 }

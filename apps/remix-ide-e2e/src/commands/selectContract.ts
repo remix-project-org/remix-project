@@ -5,6 +5,7 @@ class SelectContract extends EventEmitter {
   command(this: NightwatchBrowser, contractName: string): NightwatchBrowser {
     this.api
       .useCss()
+      .closeBetaPopUp()
       .waitForElementPresent('[data-id="contractDropdownToggle"]', 10000)
       .execute(function () {
         // Use JavaScript to click the dropdown, avoiding sticky header issues

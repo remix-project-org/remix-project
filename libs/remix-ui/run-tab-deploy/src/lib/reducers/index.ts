@@ -1,3 +1,4 @@
+import { extractNameFromKey } from '@remix-ui/helper'
 import { Actions, DeployWidgetState } from '../types'
 
 export const deployInitialState: DeployWidgetState = {
@@ -22,7 +23,7 @@ export const deployReducer = (state = deployInitialState, action: Actions): Depl
   switch (action.type) {
 
   case 'ADD_CONTRACT_FILE': {
-    const existingContractFile = state.contracts.contractList.findIndex((contract) => contract.filePath === action.payload.filePath)
+    const existingContractFile = state.contracts.contractList.findIndex((contract) => contract.filePath === action.payload)
 
     if (existingContractFile > -1) {
       return {
@@ -31,8 +32,8 @@ export const deployReducer = (state = deployInitialState, action: Actions): Depl
       }
     } else {
       const contract = {
-        name: action.payload.name,
-        filePath: action.payload.filePath,
+        name: extractNameFromKey(action.payload),
+        filePath: action.payload,
         contractData: null,
         isUpgradeable: false,
         isCompiled: false,
@@ -60,24 +61,30 @@ export const deployReducer = (state = deployInitialState, action: Actions): Depl
       isCompiled: true,
       isCompiling: false
     }
-    const existingContract = state.contracts.contractList.find((contract) => contract.name === action.payload.name && contract.filePath === action.payload.filePath)
+    const existingContractIndex = state.contracts.contractList.findIndex((contract) => contract.name === action.payload.name && contract.filePath === action.payload.filePath)
 
-    if (existingContract) {
-      existingContract.contractData = action.payload.contractData
-      existingContract.isUpgradeable = action.payload.isUpgradeable
-      existingContract.deployOptions = action.payload.deployOptions
-      existingContract.isCompiled = true
-      existingContract.isCompiling = false
+    let updatedContractIndex = existingContractIndex
+    if (existingContractIndex > -1) {
+      state.contracts.contractList[existingContractIndex].contractData = action.payload.contractData
+      state.contracts.contractList[existingContractIndex].isUpgradeable = action.payload.isUpgradeable
+      state.contracts.contractList[existingContractIndex].deployOptions = action.payload.deployOptions
+      state.contracts.contractList[existingContractIndex].isCompiled = true
+      state.contracts.contractList[existingContractIndex].isCompiling = false
     } else {
       state.contracts.contractList.push(contract)
+      updatedContractIndex = state.contracts.contractList.length - 1
     }
+
+    const currentlySelectedContract = state.contracts.contractList[state.selectedContractIndex]
+    const shouldUpdateSelectedIndex = currentlySelectedContract && currentlySelectedContract.filePath !== action.payload.filePath
 
     return {
       ...state,
       contracts: {
         ...state.contracts,
         contractList: [...state.contracts.contractList]
-      }
+      },
+      selectedContractIndex: shouldUpdateSelectedIndex ? updatedContractIndex : state.selectedContractIndex
     }
   }
 

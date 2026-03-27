@@ -37,7 +37,7 @@ export interface DeployWidgetState {
 }
 
 export interface ActionPayloadTypes {
-  ADD_CONTRACT_FILE: { name: string, filePath: FilePath },
+  ADD_CONTRACT_FILE: FilePath,
   UPDATE_COMPILED_CONTRACT: CompiledContractPayload,
   REMOVE_CONTRACT_FILE: FilePath,
   CLEAR_ALL_CONTRACT_FILES: void,

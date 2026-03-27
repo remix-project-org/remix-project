@@ -9,7 +9,7 @@ const profile = {
   name: 'udappDeploy',
   displayName: 'Udapp Deploy',
   description: 'Handles contract deployment UI and state',
-  methods: ['getUI', 'getGasLimit', 'getValueUnit', 'getMaxFee', 'getMaxPriorityFee', 'getBaseFeePerGas', 'getGasPrice', 'getConfirmSettings', 'getValue', 'getGasEstimationPrompt', 'getMainnetPrompt', 'getGasPriceStatus', 'setValue', 'setValueUnit', 'setBaseFeePerGas', 'getCompiledContracts'],
+  methods: ['getUI', 'getGasLimit', 'getValueUnit', 'getMaxFee', 'getMaxPriorityFee', 'getBaseFeePerGas', 'getGasPrice', 'getConfirmSettings', 'getValue', 'getGasEstimationPrompt', 'getMainnetPrompt', 'getGasPriceStatus', 'setValue', 'setValueUnit', 'setBaseFeePerGas', 'getCompiledContracts', 'getSelectedContractItem'],
   events: []
 }
 
@@ -76,6 +76,12 @@ export class DeployPlugin extends Plugin {
 
   getCompiledContracts() {
     return this.getWidgetState()?.contracts.contractList
+  }
+
+  getSelectedContractItem() {
+    const selectedIndex = this.getWidgetState()?.selectedContractIndex
+
+    return this.getWidgetState()?.contracts?.contractList[selectedIndex]
   }
 
   setGasPriceStatus(status: boolean) {

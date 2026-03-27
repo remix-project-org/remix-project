@@ -20,11 +20,9 @@ export const deployedContractsReducer = (state: DeployedContractsWidgetState, ac
       deployedContracts: action.payload
     }
   case 'ADD_CONTRACT': {
-    const duplicateContract = state.deployedContracts.find(contract => contract.address === action.payload.address)
-
     return {
       ...state,
-      deployedContracts: !duplicateContract ? [...state.deployedContracts, action.payload] : state.deployedContracts,
+      deployedContracts: [...state.deployedContracts, action.payload],
       showAddDialog: false,
       addressInput: ''
     }

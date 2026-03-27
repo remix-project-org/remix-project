@@ -33,11 +33,16 @@ export class DeployedContractsPlugin extends Plugin {
     address = (address.slice(0, 2) === '0x' ? '' : '0x') + address.toString('hex')
     address = ethJSUtil.toChecksumAddress(address)
     const instance = { address, abi, name, contractData, decodedResponse: {}, isPinned: !!pinnedAt, pinnedAt, timestamp }
+    const duplicateContract = this.getWidgetState()?.deployedContracts?.find(contract => contract.address === address)
 
-    await new Promise<void>((resolve) => {
-      this.getDispatch()?.({ type: 'ADD_CONTRACT', payload: instance })
-      setTimeout(resolve, 10)
-    })
+    if (!duplicateContract) {
+      await new Promise<void>((resolve) => {
+        this.getDispatch()?.({ type: 'ADD_CONTRACT', payload: instance })
+        setTimeout(resolve, 10)
+      })
+    } else {
+      this.call('notification', 'toast', 'Deployed contract with duplicate address already exist!')
+    }
   }
 
   getDeployedInstanceCount() {
