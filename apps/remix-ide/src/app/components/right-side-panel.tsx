@@ -253,7 +253,6 @@ export class RightSidePanel extends AbstractPanel {
 
     // Check if no plugin is pinned
     if (!pluginProfile) {
-      this.call('notification', 'toast', 'No plugin pinned on the Right Side Panel.')
       // Ensure the panel is hidden and toggle icon is off
       if (!this.isHidden) {
         this.isHidden = true

@@ -736,9 +736,18 @@ export function RemixUiTopbar() {
                 <div
                   className={`codicon codicon-layout-sidebar-right${rightPanelHidden ? '-off' : ''} fs-5`}
                   data-id="toggleRightSidePanelIcon"
-                  onClick={() => {
+                  onClick={async () => {
                     if (rightPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'showRightSidePanelClicked', isClick: true })
                     else trackMatomoEvent({ category: 'topbar', action: 'rightSidePanel', name: 'hideRightSidePanelClicked', isClick: true })
+
+                    // Check if there's a plugin pinned before toggling
+                    const currentPlugin = await plugin.call('rightSidePanel', 'currentFocus')
+                    if (!currentPlugin) {
+                      // No plugin pinned - show error and don't toggle
+                      plugin.call('notification', 'toast', 'No plugin pinned on the Right Side Panel.')
+                      return
+                    }
+
                     plugin.call('rightSidePanel', 'togglePanel')
                   }
                   }
