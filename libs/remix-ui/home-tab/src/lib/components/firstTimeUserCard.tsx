@@ -25,6 +25,8 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
       name: 'Explain Ethereum importance',
       isClick: true
     })
+    await plugin.call('manager', 'activatePlugin', 'remixaiassistant')
+    await plugin.call('menuicons', 'select', 'remixaiassistant')
     await plugin.call('remixaiassistant', 'newConversation')
     setTimeout(() => {
       plugin.call('remixaiassistant', 'chatPipe', `Why Ethereum and decentralized applications are important for the future of technology and society. Give me a concise and clear explanation. Provide use cases. Propose some areas of discussion, then stop and let me ask you more questions about it.`)
@@ -45,6 +47,8 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
       version: '0.8.34+commit.80d5c536'
     }
     await plugin.call('solidity', 'setCompilerConfig', params)
+    await plugin.call('manager', 'activatePlugin', 'remixaiassistant')
+    await plugin.call('menuicons', 'select', 'remixaiassistant')
     await plugin.call('remixaiassistant', 'newConversation')
     setTimeout(async () => {
       if (!await plugin.call('filePanel', 'workspaceExists', 'Introduction to ERC20 token')) await plugin.call('filePanel', 'createWorkspace', 'Introduction to ERC20 token', 'ozerc20')
