@@ -139,6 +139,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           }
           dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: workspaceName, isProcessing: false } });
           dispatch({ type: 'SET_AI_LOADING', payload: false });
+          dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
           plugin.call('notification', 'toast', `DApp '${updatedConfig?.name || workspaceName}' created successfully!`);
         }
       } catch (e: any) {
@@ -150,6 +151,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     const handleDappGenerationError = (data: any) => {
       console.error('[QuickDapp] Received dappGenerationError event:', data);
       dispatch({ type: 'SET_AI_LOADING', payload: false });
+      dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
 
       const slug = data?.slug;
       if (slug) {
@@ -175,6 +177,43 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       dispatch({ type: 'SET_DAPPS', payload: filtered });
     };
 
+    const generatedFilesRef: string[] = [];
+    let currentSlugRef = '';
+    let currentWritingFile = '';
+    const handleGenerationProgress = (data: any) => {
+      // Preserve slug from preparation across all subsequent events
+      if (data.slug) {
+        currentSlugRef = data.slug;
+      }
+      const enrichedData = { ...data, slug: data.slug || currentSlugRef };
+
+      if (data.status === 'preparing') {
+        generatedFilesRef.length = 0;
+        currentWritingFile = '';
+        dispatch({ type: 'SET_GENERATION_PROGRESS', payload: enrichedData });
+      } else if (data.status === 'generating_file' && data.filename) {
+        // Previous file is now done — move it to generatedFiles
+        if (currentWritingFile && !generatedFilesRef.includes(currentWritingFile)) {
+          generatedFilesRef.push(currentWritingFile);
+        }
+        currentWritingFile = data.filename;
+        dispatch({ type: 'SET_GENERATION_PROGRESS', payload: {
+          ...enrichedData,
+          generatedFiles: [...generatedFilesRef]
+        } });
+      } else {
+        // On parsing/validating/complete — finalize the last writing file
+        if (currentWritingFile && !generatedFilesRef.includes(currentWritingFile)) {
+          generatedFilesRef.push(currentWritingFile);
+          currentWritingFile = '';
+        }
+        dispatch({ type: 'SET_GENERATION_PROGRESS', payload: {
+          ...enrichedData,
+          generatedFiles: [...generatedFilesRef]
+        } });
+      }
+    };
+
     plugin.event.on('createDapp', handleCreateDapp);
     plugin.event.on('openDapp', handleOpenDapp);
     plugin.event.on('startAiLoading', handleStartAiLoading);
@@ -182,6 +221,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     plugin.event.on('dappGenerationError', handleDappGenerationError);
     plugin.event.on('dappUpdateStart', handleDappUpdateStart);
     plugin.event.on('workspaceDeleted', handleWorkspaceDeleted);
+    plugin.event.on('generationProgress', handleGenerationProgress);
 
     const pending = plugin.consumePendingCreateDapp?.();
     if (pending) {
@@ -197,6 +237,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       plugin.event.off('dappGenerationError', handleDappGenerationError);
       plugin.event.off('dappUpdateStart', handleDappUpdateStart);
       plugin.event.off('workspaceDeleted', handleWorkspaceDeleted);
+      plugin.event.off('generationProgress', handleGenerationProgress);
     };
   }, [plugin, dappManager]);
 
@@ -407,6 +448,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
         <Dashboard
           dapps={appState.dapps}
           processingState={appState.dappProcessing}
+          generationProgress={appState.generationProgress}
           onOpen={async (dapp) => {
             if (dapp.workspaceName) {
               try {

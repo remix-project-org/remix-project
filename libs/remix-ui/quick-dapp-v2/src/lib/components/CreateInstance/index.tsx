@@ -1,18 +1,50 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Card } from 'react-bootstrap';
+import { AppContext } from '../../contexts';
+import { GenerationProgress } from '../../types';
 
 interface CreateInstanceProps {
   isAiLoading: boolean;
 }
 
+const statusMessages: Record<string, string> = {
+  preparing: 'Preparing generation...',
+  calling_llm: 'Calling AI model...',
+  generating_file: 'Generating files...',
+  parsing: 'Parsing generated files...',
+  validating: 'Validating file structure...',
+  complete: 'Generation complete!',
+};
+
 const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
+  const { appState } = useContext(AppContext);
+  const progress: GenerationProgress | null = appState.generationProgress;
 
   if (isAiLoading) {
+    const currentFile = progress?.filename;
+    const generatedFiles = progress?.generatedFiles || [];
+    const statusText = progress?.status
+      ? (progress.status === 'generating_file' && currentFile
+        ? `Writing ${currentFile}`
+        : statusMessages[progress.status] || 'Creating DApp')
+      : 'Creating DApp';
+
     return (
       <div className="d-flex flex-column align-items-center justify-content-center py-5" data-id="ai-loading-spinner">
-        <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}></div>
-        <h5 className="text-primary">Creating Your DApp...</h5>
-        <p className="text-muted">RemixAI Assistant is generating your DApp code.</p>
+        <div className="spinner-border qd-progress-spinner qd-progress-spinner--lg mb-3" role="status"></div>
+        <h5 className="text-body fw-bold">{statusText}</h5>
+        <p className="text-muted">RemixAI is generating your DApp.</p>
+
+        {generatedFiles.length > 0 && (
+          <div className="mt-2 qd-progress-log qd-progress-log--lg" style={{ maxWidth: 400, width: '100%' }}>
+            {generatedFiles.map((f) => (
+              <div key={f} className="qd-progress-log__done">{f}</div>
+            ))}
+            {progress?.status === 'generating_file' && currentFile && !generatedFiles.includes(currentFile) && (
+              <div className="qd-progress-log__write">{currentFile}</div>
+            )}
+          </div>
+        )}
       </div>
     );
   }

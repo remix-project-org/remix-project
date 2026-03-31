@@ -53,6 +53,10 @@ export class QuickDappV2 extends ViewPlugin {
     this.on('filePanel', 'workspaceDeleted', (workspaceName: string) => {
       this.event.emit('workspaceDeleted', workspaceName)
     })
+
+    this.on('ai-dapp-generator', 'generationProgress', (data: any) => {
+      this.event.emit('generationProgress', data)
+    })
   }
 
   onDeactivation() {

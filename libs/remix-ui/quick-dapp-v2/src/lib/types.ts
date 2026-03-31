@@ -50,6 +50,18 @@ export interface AppState {
   activeDapp: DappConfig | null;
   instance: any;
   dappProcessing: Record<string, boolean>;
+  generationProgress: GenerationProgress | null;
+}
+
+export interface GenerationProgress {
+  status: 'preparing' | 'calling_llm' | 'generating_file' | 'parsing' | 'validating' | 'complete';
+  slug?: string;
+  address?: string;
+  filename?: string;
+  fileCount?: number;
+  totalFiles?: number;
+  generatedFiles?: string[];
+  missingFiles?: string[];
 }
 
 export interface QuickDappV2PluginApi {

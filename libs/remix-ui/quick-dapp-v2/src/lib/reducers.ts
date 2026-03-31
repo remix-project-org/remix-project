@@ -21,6 +21,7 @@ export const appInitialState: AppState = {
   activeDapp: null,
   instance: { ...initialInstanceState },
   dappProcessing: {},
+  generationProgress: null,
 };
 
 export type AppAction =
@@ -31,6 +32,7 @@ export type AppAction =
   | { type: 'SET_ACTIVE_DAPP'; payload: DappConfig | null }
   | { type: 'SET_INSTANCE'; payload: any }
   | { type: 'SET_DAPP_PROCESSING'; payload: { slug: string; isProcessing: boolean } }
+  | { type: 'SET_GENERATION_PROGRESS'; payload: any }
   | { type: 'RESET_INSTANCE' };
 
 export const appReducer = (state = appInitialState, action: AppAction): AppState => {
@@ -96,6 +98,9 @@ export const appReducer = (state = appInitialState, action: AppAction): AppState
 
   case 'RESET_INSTANCE':
     return { ...state, instance: { ...initialInstanceState } };
+
+  case 'SET_GENERATION_PROGRESS':
+    return { ...state, generationProgress: action.payload };
 
   default:
     return state;

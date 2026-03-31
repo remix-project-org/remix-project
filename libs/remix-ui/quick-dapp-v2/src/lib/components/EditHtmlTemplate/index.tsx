@@ -702,12 +702,37 @@ window.addEventListener('unhandledrejection', function(e) {
 
                   <Card className="border flex-grow-1 d-flex position-relative">
                     <Card.Body className="p-0 d-flex flex-column position-relative" style={{ overflow: 'hidden' }}>
-                      {isAiUpdating && (
-                        <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white" style={{ zIndex: 10, opacity: 0.9 }} data-id="ai-updating-overlay">
-                          <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
-                          <h6 className="text-muted">Your dapp is being updated by RemixAI Assistant.</h6>
-                        </div>
-                      )}
+                      {isAiUpdating && (() => {
+                        const progress = appState.generationProgress;
+                        const generatedFiles = progress?.generatedFiles || [];
+                        const currentFile = progress?.filename;
+                        const statusText = progress?.status === 'generating_file' && currentFile
+                          ? `Writing ${currentFile}`
+                          : progress?.status === 'validating'
+                            ? 'Validating file structure'
+                            : progress?.status === 'parsing'
+                              ? 'Parsing generated output'
+                              : progress?.status === 'calling_llm'
+                                ? 'Waiting for AI response'
+                                : 'Updating DApp';
+
+                        return (
+                          <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center qd-progress-overlay" data-id="ai-updating-overlay">
+                            <div className="spinner-border qd-progress-spinner qd-progress-spinner--lg mb-3" role="status"></div>
+                            <span className="qd-progress-status qd-progress-status--lg mb-2">{statusText}</span>
+                            {generatedFiles.length > 0 && (
+                              <div className="text-start mt-2 qd-progress-log qd-progress-log--lg" style={{ maxWidth: 380, width: '100%' }}>
+                                {generatedFiles.map((f: string) => (
+                                  <div key={f} className="qd-progress-log__done">{f}</div>
+                                ))}
+                                {progress?.status === 'generating_file' && currentFile && !generatedFiles.includes(currentFile) && (
+                                  <div className="qd-progress-log__write">{currentFile}</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <iframe
                         ref={iframeRef}
                         style={{ width: '100%', height: '100%', minHeight: '800px', border: 'none', backgroundColor: 'white', display: iframeError ? 'none' : 'block' }}

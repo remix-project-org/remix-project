@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Button, Form, Modal } from 'react-bootstrap';
-import { DappConfig } from '../types/dapp';
+import { DappConfig, GenerationProgress } from '../types';
 import DappCard from './DappCard';
 
 interface DashboardProps {
   dapps: DappConfig[];
   processingState?: Record<string, boolean>;
+  generationProgress?: GenerationProgress | null;
   onOpen: (dapp: DappConfig) => void | Promise<void>;
   onCreateNew: () => void;
   onDeleteAll?: () => void;
@@ -15,6 +16,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({
   dapps,
   processingState = {},
+  generationProgress,
   onOpen,
   onCreateNew,
   onDeleteAll,
@@ -149,6 +151,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               key={dapp.id}
               dapp={dapp}
               isProcessing={!!processingState[dapp.slug]}
+              generationProgress={
+                generationProgress?.slug === dapp.slug ? generationProgress : undefined
+              }
               onClick={() => onOpen(dapp)}
               onDelete={() => setDappToDelete(dapp.slug)}
             />

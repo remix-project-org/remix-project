@@ -225,3 +225,67 @@
     margin-bottom: 0;
   }
 }
+
+.qd-progress-overlay {
+  z-index: 10;
+  backdrop-filter: blur(2px);
+  background: rgba(13, 17, 23, 0.88);
+}
+
+.qd-progress-overlay--card {
+  border-radius: inherit;
+}
+
+.qd-progress-spinner {
+  width: 2rem;
+  height: 2rem;
+  color: var(--bs-info, #58a6ff);
+}
+
+.qd-progress-spinner--lg {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.qd-progress-status {
+  color: #e6edf3;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.qd-progress-status--lg {
+  font-size: 1.1rem;
+}
+
+.qd-progress-log {
+  max-height: 120px;
+  overflow-y: auto;
+  font-family: 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.qd-progress-log--lg {
+  max-height: 200px;
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.qd-progress-log__done {
+  color: #8b949e;
+}
+
+.qd-progress-log__done::before {
+  content: 'done ';
+  color: #7ee787;
+}
+
+.qd-progress-log__write {
+  color: #d2a8ff;
+}
+
+.qd-progress-log__write::before {
+  content: 'write ';
+}
