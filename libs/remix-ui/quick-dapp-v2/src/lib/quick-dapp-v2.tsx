@@ -32,6 +32,9 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
   // Permission gating
   const hasAccess = features?.['dapp:quickdapp']
+  const quickdappEnabled = remixAppContext?.appConfig?.['quickdapp.enabled']
+  const quickdappEnabledRef = useRef(quickdappEnabled)
+  quickdappEnabledRef.current = quickdappEnabled
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // DappManager now receives the plugin from props instead of a singleton
@@ -54,6 +57,10 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     if (!plugin) return;
 
     const handleCreateDapp = async (payload: any) => {
+      if (quickdappEnabledRef.current === false) {
+        plugin.call('notification', 'toast', 'QuickDapp is not available yet.')
+        return
+      }
       try {
         const contractData = {
           address: payload.address,
@@ -225,7 +232,9 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
     const pending = plugin.consumePendingCreateDapp?.();
     if (pending) {
-      handleCreateDapp(pending);
+      if (quickdappEnabledRef.current !== false) {
+        handleCreateDapp(pending);
+      }
     }
 
     // Cleanup function to remove event listeners

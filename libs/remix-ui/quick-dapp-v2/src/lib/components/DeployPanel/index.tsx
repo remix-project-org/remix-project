@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Form, Button, Alert, Card, Collapse, Spinner } from 'react-bootstrap';
-import { ethers } from 'ethers';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { toPng } from 'html-to-image';
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
 import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
+import { validateEnsName } from '../../utils/ens-utils';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 
 import BaseAppWizard from './BaseAppWizard';
+import EnsRegistrationModal from './EnsRegistrationModal';
 
 const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live';
-const REMIX_ENDPOINT_ENS = 'https://quickdapp-ens.api.remix.live';
 
 function DeployPanel(): JSX.Element {
   const intl = useIntl();
@@ -38,13 +38,13 @@ function DeployPanel(): JSX.Element {
   });
 
   const [isDeploying, setIsDeploying] = useState(false);
-  const [isEnsLoading, setIsEnsLoading] = useState(false);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(true);
   const [isEnsOpen, setIsEnsOpen] = useState(true);
   const [isShareOpen, setIsShareOpen] = useState(true);
   const [copiedField, setCopiedField] = useState('');
+  const [showEnsModal, setShowEnsModal] = useState(false);
 
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -290,7 +290,7 @@ function DeployPanel(): JSX.Element {
   const displayCid = deployResult.cid || activeDapp?.deployment?.ipfsCid;
   const displayGateway = deployResult.gatewayUrl || activeDapp?.deployment?.gatewayUrl;
   const displayEnsSuccess = ensResult.success || (activeDapp?.deployment?.ensDomain ? `Linked: ${activeDapp.deployment.ensDomain}` : '');
-  const ensButtonText = isEnsLoading ? (displayEnsSuccess ? 'Updating...' : 'Registering...') : (displayEnsSuccess ? 'Update Content Hash' : 'Register Subdomain');
+  const ensButtonText = displayEnsSuccess ? 'Update Content Hash' : 'Register Subdomain';
   const currentEnsDomain = ensResult.domain || activeDapp?.deployment?.ensDomain;
 
   return (
@@ -341,64 +341,42 @@ function DeployPanel(): JSX.Element {
                     const val = e.target.value.toLowerCase();
                     setEnsName(val);
                     setEnsResult({ ...ensResult, success: '' });
-                    if (val && !/^[a-z0-9-]+$/.test(val)) {
-                      setEnsNameError('Only lowercase letters, numbers, and hyphens are allowed.');
-                    } else if (val && (val.startsWith('-') || val.endsWith('-'))) {
-                      setEnsNameError('Name cannot start or end with a hyphen.');
-                    } else if (val && val.includes('--')) {
-                      setEnsNameError('Name cannot contain consecutive hyphens.');
-                    } else {
-                      setEnsNameError('');
-                    }
+                    setEnsNameError(validateEnsName(val));
                   }} />
                   <span className="input-group-text">.remixdapp.eth</span>
                 </div>
                 {ensNameError && <small className="text-danger mt-1 d-block">{ensNameError}</small>}
               </Form.Group>
               <Button variant="secondary" className="w-100" onClick={() => {
-                const targetCid = deployResult.cid || activeDapp?.deployment?.ipfsCid;
-                if (!targetCid) return;
-                setIsEnsLoading(true);
                 setEnsResult({ success: '', error: '', txHash: '', domain: '' });
-
                 trackMatomoEvent(plugin as any, {
                   category: 'quick-dapp-v2',
                   action: 'register_ens',
                   name: 'start',
                   isClick: true
                 });
-
-                (async () => {
-                  try {
-                    if (typeof window.ethereum === 'undefined') throw new Error("MetaMask missing");
-                    const provider = new ethers.BrowserProvider(window.ethereum as any);
-                    const accounts = await provider.send('eth_requestAccounts', []);
-                    const ensAuthToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
-                    const response = await fetch(`${REMIX_ENDPOINT_ENS}/register`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        ...(ensAuthToken ? { 'Authorization': `Bearer ${ensAuthToken}` } : {})
-                      },
-                      body: JSON.stringify({ label: ensName, owner: accounts[0], contentHash: targetCid })
-                    });
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.error);
-                    setEnsResult({ success: 'Success!', error: '', txHash: data.txHash, domain: data.domain });
-                    trackMatomoEvent(plugin as any, {
-                      category: 'quick-dapp-v2',
-                      action: 'register_ens',
-                      name: 'success',
-                      isClick: false
-                    });
-                    if (dappManager) {
-                      const newConfig = await dappManager.updateDappConfig(activeDapp.slug, { deployment: { ...activeDapp.deployment, ensDomain: data.domain } });
-                      if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
-                    }
-                  } catch (e: any) { setEnsResult(prev => ({ ...prev, error: e.message })) }
-                  finally { setIsEnsLoading(false) }
-                })();
-              }} disabled={isEnsLoading || !ensName || !!ensNameError}>{isEnsLoading ? 'Processing...' : ensButtonText}</Button>
+                setShowEnsModal(true);
+              }} disabled={!ensName || !!ensNameError}>{ensButtonText}</Button>
+              <EnsRegistrationModal
+                show={showEnsModal}
+                onHide={() => setShowEnsModal(false)}
+                ensName={ensName}
+                contentHash={deployResult.cid || activeDapp?.deployment?.ipfsCid || ''}
+                onSuccess={async (result) => {
+                  setShowEnsModal(false);
+                  setEnsResult({ success: 'Success!', error: '', txHash: result.txHash, domain: result.domain });
+                  trackMatomoEvent(plugin as any, {
+                    category: 'quick-dapp-v2',
+                    action: 'register_ens',
+                    name: 'success',
+                    isClick: false
+                  });
+                  if (dappManager) {
+                    const newConfig = await dappManager.updateDappConfig(activeDapp.slug, { deployment: { ...activeDapp.deployment, ensDomain: result.domain } });
+                    if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+                  }
+                }}
+              />
               {currentEnsDomain && (
                 <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }}>
                   <div className="fw-bold mb-1">
@@ -433,7 +411,7 @@ function DeployPanel(): JSX.Element {
                   </small>
                 </Alert>
               )}
-              {ensResult.error && <Alert variant="danger" className="mt-3">{ensResult.error}</Alert>}
+
             </Card.Body>
           </Collapse>
         </Card>
