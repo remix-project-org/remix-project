@@ -99,7 +99,7 @@ export const builtinWalkthroughs: WalkthroughDefinition[] = [
         ],
       },
       {
-        targetSelector: '#editor-container',
+        targetSelector: '#editor-container mx-auto px-4',
         title: 'Step 2: Open the Contract',
         content: 'Here is <b>1_Storage.sol</b> — a simple contract that stores and retrieves a number. Take a look at the code!',
         placement: 'left',

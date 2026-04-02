@@ -123,8 +123,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
     return (
       <>
         <button
-          className={`btn btn-sm btn-primary ${className}`}
-          style={{ whiteSpace: 'nowrap' }}
+          className={`px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors whitespace-nowrap ${className}`}
           onClick={() => {
             setShowModal(true)
             if (plugin && typeof plugin.call === 'function') {
@@ -133,10 +132,10 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
           }}
           data-id="login-button"
         >
-          <span className="d-inline-flex align-items-center">
-            <span className="me-1">Sign In</span>
+          <span className="inline-flex items-center">
+            <span className="mr-1">Sign In</span>
             {signInButtonMode === 'beta' && (
-              <span className="ms-2 user-menu-compact-beta-tag">BETA</span>
+              <span className="ml-2 user-menu-compact-beta-tag">BETA</span>
             )}
           </span>
         </button>

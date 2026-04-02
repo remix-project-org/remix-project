@@ -35,10 +35,10 @@ export class SidePanel extends AbstractPanel {
 
     if (panelStates.leftSidePanel) {
       this.isHidden = panelStates.leftSidePanel.isHidden || false
-      // Apply d-none class to hide the panel on reload if it was hidden
+      // Apply hidden class to hide the panel on reload if it was hidden
       if (this.isHidden) {
         const sidePanel = document.querySelector('#side-panel')
-        sidePanel?.classList.add('d-none')
+        sidePanel?.classList.add('hidden')
         trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'hiddenOnLoad', isClick: false })
       }
     } else {
@@ -59,9 +59,9 @@ export class SidePanel extends AbstractPanel {
       if (this.isHidden) {
         this.isHidden = false
 
-        // Immediately remove d-none class for instant visual feedback
+        // Immediately remove hidden class for instant visual feedback
         const sidePanel = document.querySelector('#side-panel')
-        sidePanel?.classList.remove('d-none')
+        sidePanel?.classList.remove('hidden')
 
         // Update localStorage before showing content
         const panelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
@@ -82,9 +82,9 @@ export class SidePanel extends AbstractPanel {
         // Plugin is active, so toggling will hide the panel
         this.isHidden = true
 
-        // Immediately add d-none class for instant visual feedback
+        // Immediately add hidden class for instant visual feedback
         const sidePanel = document.querySelector('#side-panel')
-        sidePanel?.classList.add('d-none')
+        sidePanel?.classList.add('hidden')
 
         // Update localStorage
         const panelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
@@ -214,13 +214,13 @@ export class SidePanel extends AbstractPanel {
     const sidePanel = document.querySelector('#side-panel')
     if (this.isHidden) {
       this.isHidden = false
-      sidePanel?.classList.remove('d-none')
+      sidePanel?.classList.remove('hidden')
       trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'shownOnToggleIconClick', isClick: false })
       this.emit('leftSidePanelShown')
       this.events.emit('leftSidePanelShown')
     } else {
       this.isHidden = true
-      sidePanel?.classList.add('d-none')
+      sidePanel?.classList.add('hidden')
       trackMatomoEvent(this, { category: 'topbar', action: 'leftSidePanel', name: 'hiddenOnToggleIconClick', isClick: false })
       this.emit('leftSidePanelHidden')
       this.events.emit('leftSidePanelHidden')

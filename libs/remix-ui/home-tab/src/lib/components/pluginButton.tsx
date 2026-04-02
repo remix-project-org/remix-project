@@ -17,29 +17,29 @@ function PluginButton({ imgPath, envID, envText, callback, l2, description, main
   const themeFilter = useContext(ThemeContext)
 
   return (
-    <div className="d-flex remixui_home_envButton">
+    <div className="flex relative remixui_home_envButton">
       <button
-        className="btn border-secondary d-flex flex-column  pb-2 text-nowrap justify-content-center align-items-center me-2 remixui_home_envButton"
+        className="flex flex-col items-center justify-center border border-secondary rounded-md pb-2 px-3 mr-2 min-w-0 whitespace-nowrap hover:border-secondary/80 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors remixui_home_envButton"
         data-id={'landingPageStart' + envText}
         onClick={() => callback()}
       >
-        <img className="px-2 mb-2 align-self-center remixui_home_envLogo" id={envID} src={imgPath} alt="" style={{ filter: themeFilter.filter }} />
-        <div className="mb-2 h-100 d-flex flex-column">
-          <label className="text-uppercase text-dark remixui_home_cursorStyle">{envText}</label>
-          <div className="remixui_home_envLogoDescription">{description}</div>
+        <img className="px-2 mb-2 self-center remixui_home_envLogo" id={envID} src={imgPath} alt="" style={{ filter: themeFilter.filter }} />
+        <div className="mb-2 h-full flex flex-col">
+          <label className="uppercase text-gray-800 dark:text-gray-200 cursor-pointer remixui_home_cursorStyle">{envText}</label>
+          <div className="text-xs text-gray-600 dark:text-gray-400 remixui_home_envLogoDescription">{description}</div>
         </div>
       </button>
-      {l2 && <label className="bg-light mx-1 px-1 mb-0 mx-2 position-absolute remixui_home_l2Label">L2</label>}
+      {l2 && <label className="bg-light mx-1 px-1 mb-0 mx-2 absolute top-0 right-0 text-xs rounded remixui_home_l2Label">L2</label>}
       { maintainedBy?.toLowerCase() === 'remix' ? (
         <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-by-remix" tooltipText={<FormattedMessage id="home.maintainedByRemix" />}>
-          <i className="bg-light text-success mx-1 px-1 mb-0 mx-2 position-absolute remixui_home_maintainedLabel fa-solid fa-shield-halved"></i>
+          <i className="bg-light text-success mx-1 px-1 mb-0 mx-2 absolute top-0 right-0 fa-solid fa-shield-halved remixui_home_maintainedLabel"></i>
         </CustomTooltip>) :
         maintainedBy ?
           (<CustomTooltip placement="bottom" tooltipId="overlay-tooltip-external" tooltipText={<FormattedMessage id="home.maintainedByExternal" values={{ maintainer: maintainedBy }} />}>
-            <i aria-hidden="true" className="bg-light mx-1 px-1 mb-0 mx-2 position-absolute remixui_home_maintainedLabel text-secondary fa-solid fa-shield-halved"></i>
+            <i aria-hidden="true" className="bg-light text-secondary mx-1 px-1 mb-0 mx-2 absolute top-0 right-0 fa-solid fa-shield-halved remixui_home_maintainedLabel"></i>
           </CustomTooltip>)
           : (<CustomTooltip placement="bottom" tooltipId="overlay-tooltip-external" tooltipText={<FormattedMessage id="panel.maintainedExternally" />}>
-            <i aria-hidden="true" className="bg-light mx-1 px-1 mb-0 mx-2 position-absolute remixui_home_maintainedLabel text-secondary fa-solid fa-shield-halved"></i>
+            <i aria-hidden="true" className="bg-light text-secondary mx-1 px-1 mb-0 mx-2 absolute top-0 right-0 fa-solid fa-shield-halved remixui_home_maintainedLabel"></i>
           </CustomTooltip>)
       }
     </div>

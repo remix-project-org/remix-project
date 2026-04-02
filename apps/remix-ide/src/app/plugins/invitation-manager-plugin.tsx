@@ -359,7 +359,7 @@ export class InvitationManagerPlugin extends Plugin {
 
   render(): JSX.Element {
     return (
-      <div id="invitation-manager" className="h-100">
+      <div id="invitation-manager" className="h-full">
         <PluginViewWrapper plugin={this} />
       </div>
     )

@@ -139,12 +139,12 @@ export const RemixUiXterminals = (props: RemixUiXterminalsProps) => {
   }
 
   return (<>
-    {<div style={{ flexGrow: 1 }} className={`flex-row ${xtermState.showOutput ? 'h-0 d-none' : 'h-100 d-flex'}`}>
+    {<div style={{ flexGrow: 1 }} className={`flex-row ${xtermState.showOutput ? 'h-0 hidden' : 'h-full flex'}`}>
       <>
-        {<div className={`flex-row w-100 h-100 ${xtermState.showOutput ? 'h-0 d-none' : 'h-100 d-flex'}`}>
+        {<div className={`flex-row w-full h-full ${xtermState.showOutput ? 'h-0 hidden' : 'h-full flex'}`}>
           {terminals.map((xtermState) => {
             return (
-              <div className={`h-100 w-100 ${xtermState.hidden ? 'd-none' : 'd-block'}`} data-active={`${xtermState.hidden ? '0' : '1'}`} key={xtermState.pid} data-type="remixUIXT" data-id={`remixUIXT${xtermState.pid}`}>
+              <div className={`h-full w-full ${xtermState.hidden ? 'hidden' : 'block'}`} data-active={`${xtermState.hidden ? '0' : '1'}`} key={xtermState.pid} data-type="remixUIXT" data-id={`remixUIXT${xtermState.pid}`}>
                 <RemixUiXterm
                   theme={theme}
                   setTerminalRef={setTerminalRef}
@@ -157,7 +157,7 @@ export const RemixUiXterminals = (props: RemixUiXterminalsProps) => {
               </div>
             )
           })}
-          <div className='d-flex flex-column border-start xterm-panel-left'>
+          <div className='flex flex-col border-l xterm-panel-left'>
             {terminals.map((xtermState, index) => {
               return (<button
                 key={index}

@@ -93,18 +93,18 @@ export const SourceControlButtons = (props: SourceControlButtonsProps) => {
   }
 
   return (
-    <span className="d-flex justify-content-end align-items-center">
+    <span className="flex justify-end items-center">
       {props.panel === gitUIPanels.COMMITS || props.panel === gitUIPanels.SOURCECONTROL ? (
         <>
           <GitUIButton
             data-id="sourcecontrol-button-pull"
             disabledCondition={buttonsDisabled()}
             onClick={pull}
-            className="btn btn-sm ps-0 pe-2"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors pl-0 pr-2"
             tooltip={getTooltipText('git.pull')}
           >
-            <div className="d-flex align-items-baseline">
-              {syncState.commitsBehind.length ? <div className="badge rounded-pill ps-0">{syncState.commitsBehind.length}</div> : null}
+            <div className="flex items-baseline">
+              {syncState.commitsBehind.length ? <div className="badge rounded-full pl-0">{syncState.commitsBehind.length}</div> : null}
               <FontAwesomeIcon icon={faArrowDown} className="" />
             </div>
           </GitUIButton>
@@ -112,11 +112,11 @@ export const SourceControlButtons = (props: SourceControlButtonsProps) => {
             data-id="sourcecontrol-button-push"
             disabledCondition={buttonsDisabled()}
             onClick={push}
-            className="btn btn-sm ps-0 pe-2"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors pl-0 pr-2"
             tooltip={getTooltipText('git.push')}
           >
-            <div className="d-flex align-items-baseline">
-              {syncState.commitsAhead.length ? <div className="badge rounded-pill ps-0">{syncState.commitsAhead.length}</div> : null}
+            <div className="flex items-baseline">
+              {syncState.commitsAhead.length ? <div className="badge rounded-full pl-0">{syncState.commitsAhead.length}</div> : null}
               <FontAwesomeIcon icon={faArrowUp} className="" />
             </div>
           </GitUIButton>
@@ -124,7 +124,7 @@ export const SourceControlButtons = (props: SourceControlButtonsProps) => {
             data-id="sourcecontrol-button-sync"
             disabledCondition={buttonsDisabled()}
             onClick={sync}
-            className="btn btn-sm ps-0 pe-2"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors pl-0 pr-2"
             tooltip={getTooltipText('git.sync')}
           >
             <FontAwesomeIcon icon={faArrowsUpDown} className="" />
@@ -133,7 +133,7 @@ export const SourceControlButtons = (props: SourceControlButtonsProps) => {
       ) : null}
       <GitUIButton
         onClick={refresh}
-        className="btn btn-sm"
+        className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
         tooltip={<FormattedMessage id="git.refresh" />}
       >
         <FontAwesomeIcon icon={faArrowRotateRight} className="" />

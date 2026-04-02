@@ -46,8 +46,8 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ isOpen, onClose, f
         ref={panelRef}
         className={`feedback-panel bg-light ${isOpen ? 'open' : ''}`}
       >
-        <div className="feedback-panel-header bg-light border-bottom d-flex align-items-center justify-content-between px-3 py-2">
-          <div className="d-flex align-items-center gap-2">
+        <div className="feedback-panel-header bg-light border-b flex items-center justify-between px-3 py-2">
+          <div className="flex items-center gap-2">
             <i className="fas fa-bug text-primary"></i>
             <span className="font-weight-bold" style={{ fontSize: '0.95rem' }}>Send Feedback</span>
           </div>

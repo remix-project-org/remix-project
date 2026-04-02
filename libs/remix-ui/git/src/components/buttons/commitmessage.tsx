@@ -70,8 +70,8 @@ export const CommitMessage = () => {
   const upDownArrows = () => {
     return (
       <>
-        {syncState.commitsBehind && syncState.commitsBehind.length ? <>{syncState.commitsBehind.length}<FontAwesomeIcon icon={faArrowDown} className="ms-1" /></> : null}
-        {syncState.commitsAhead && syncState.commitsAhead.length ? <>{syncState.commitsAhead.length}<FontAwesomeIcon icon={faArrowUp} className="ms-1" /></> : null}
+        {syncState.commitsBehind && syncState.commitsBehind.length ? <>{syncState.commitsBehind.length}<FontAwesomeIcon icon={faArrowDown} className="ml-1" /></> : null}
+        {syncState.commitsAhead && syncState.commitsAhead.length ? <>{syncState.commitsAhead.length}<FontAwesomeIcon icon={faArrowUp} className="ml-1" /></> : null}
       </>
     )
   }
@@ -131,16 +131,16 @@ export const CommitMessage = () => {
       <div className="mb-3 pt-3">
         <input placeholder={commitMessagePlaceholder()} data-id='commitMessage' disabled={!messageEnabled()} className="form-control" type="text" onChange={handleChange} value={message.value} />
       </div>
-      <button data-id='commitButton' className={`btn btn-primary w-100 ${buttonState === buttonStateValues.Commit ? '' : 'd-none'}`} disabled={commitNotAllowed()} onClick={async () => await commit()} >
-        <FontAwesomeIcon icon={faCheck} className="me-1" />
+      <button data-id='commitButton' className={`btn btn-primary w-full ${buttonState === buttonStateValues.Commit ? '' : 'hidden'}`} disabled={commitNotAllowed()} onClick={async () => await commit()} >
+        <FontAwesomeIcon icon={faCheck} className="mr-1" />
         <FormattedMessage id="gitui.commitButton" />
       </button>
-      <button data-id='syncButton' className={`btn btn-primary w-100 ${buttonState === buttonStateValues.Sync ? '' : 'd-none'}`} disabled={!syncEnabled()} onClick={async () => await sync()} >
-        <FontAwesomeIcon icon={faSync} className="me-1" aria-hidden="true" />
+      <button data-id='syncButton' className={`btn btn-primary w-full ${buttonState === buttonStateValues.Sync ? '' : 'hidden'}`} disabled={!syncEnabled()} onClick={async () => await sync()} >
+        <FontAwesomeIcon icon={faSync} className="mr-1" aria-hidden="true" />
         <FormattedMessage id="gitui.syncChanges" /> {upDownArrows()}
       </button>
-      <button data-id='publishBranchButton' className={`btn btn-primary w-100 ${buttonState === buttonStateValues.PublishBranch ? '' : 'd-none'}`} onClick={async () => await publishBranch()} >
-        <FontAwesomeIcon icon={faCloudArrowUp} className="me-1" aria-hidden="true" />
+      <button data-id='publishBranchButton' className={`btn btn-primary w-full ${buttonState === buttonStateValues.PublishBranch ? '' : 'hidden'}`} onClick={async () => await publishBranch()} >
+        <FontAwesomeIcon icon={faCloudArrowUp} className="mr-1" aria-hidden="true" />
         <FormattedMessage id="gitui.publishBranch" />
       </button>
       <hr></hr>

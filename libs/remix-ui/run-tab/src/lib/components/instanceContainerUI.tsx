@@ -16,24 +16,24 @@ export function InstanceContainerUI(props: InstanceContainerProps) {
 
   return (
     <div className="udapp_instanceContainer mt-2 border-0 list-group-item bg-dark">
-      <div className="d-flex justify-content-between align-items-center p-2">
-        <CustomTooltip placement="top-start" tooltipClasses="text-nowrap" tooltipId="deployAndRunClearInstancesTooltip" tooltipText={<FormattedMessage id="udapp.tooltipText6" />}>
-          <label className="udapp_deployedContracts text-nowrap" data-id="deployedContracts">
+      <div className="flex justify-between items-center p-2">
+        <CustomTooltip placement="top-start" tooltipClasses="whitespace-nowrap" tooltipId="deployAndRunClearInstancesTooltip" tooltipText={<FormattedMessage id="udapp.tooltipText6" />}>
+          <label className="udapp_deployedContracts whitespace-nowrap" data-id="deployedContracts">
             <FormattedMessage id="udapp.deployedContracts" />
           </label>
         </CustomTooltip>
-        <CustomTooltip placement="top-start" tooltipClasses="text-nowrap" tooltipId="numOfDeployedInstancesTooltip" tooltipText={<FormattedMessage id="udapp.numberOfDeployedContractsTooltip" />}>
-          <div className="badge rounded-pill text-bg-primary text-center ms-2" data-id="deployedContractsBadge">{instanceList.length}</div>
+        <CustomTooltip placement="top-start" tooltipClasses="whitespace-nowrap" tooltipId="numOfDeployedInstancesTooltip" tooltipText={<FormattedMessage id="udapp.numberOfDeployedContractsTooltip" />}>
+          <div className="badge rounded-full text-bg-primary text-center ml-2" data-id="deployedContractsBadge">{instanceList.length}</div>
         </CustomTooltip>
-        <div className="w-100"></div>
+        <div className="w-full"></div>
         {instanceList.length > 0 ? (
           <CustomTooltip
             placement={'auto-end'}
-            tooltipClasses="text-nowrap"
+            tooltipClasses="whitespace-nowrap"
             tooltipId="deployAndRunClearInstancesTooltip"
             tooltipText={<FormattedMessage id="udapp.deployAndRunClearInstances" />}
           >
-            <i className="far fa-trash-alt udapp_icon me-1 mb-2" data-id="deployAndRunClearInstances" onClick={clearInstance} aria-hidden="true"></i>
+            <i className="far fa-trash-alt udapp_icon mr-1 mb-2" data-id="deployAndRunClearInstances" onClick={clearInstance} aria-hidden="true"></i>
           </CustomTooltip>
         ) : null}
       </div>

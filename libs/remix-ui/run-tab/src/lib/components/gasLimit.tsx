@@ -36,10 +36,10 @@ export function GasLimitUI(props: GasPriceProps) {
       <label className="udapp_settingsLabel">
         <FormattedMessage id="udapp.gasLimit" />
       </label>
-      <div className='ps-0 form-check udapp_col2 udapp_gasNval'>
-        <div className="d-flex pb-1 form-check">
+      <div className='pl-0 udapp_col2 udapp_gasNval'>
+        <div className="flex pb-1">
           <input
-            className="form-check-input"
+            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
             type="radio"
             name="gasLimitRadio"
             value="auto"
@@ -47,13 +47,13 @@ export function GasLimitUI(props: GasPriceProps) {
             checked={gasLimitAuto}
             id="glAutoConfig"
           />
-          <label className="form-check-label ms-1" htmlFor="glAutoConfig" data-id="glAutoConfiguration">
+          <label className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300" htmlFor="glAutoConfig" data-id="glAutoConfiguration">
             <FormattedMessage id="udapp.gasLimitAuto" />
           </label>
         </div>
-        <div className="d-flex form-check align-items-baseline">
+        <div className="flex items-baseline">
           <input
-            className="form-check-input"
+            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
             type="radio"
             name="gasLimitRadio"
             value="manual"
@@ -61,15 +61,15 @@ export function GasLimitUI(props: GasPriceProps) {
             checked={!gasLimitAuto}
             id="glManualConfig"
           />
-          <label className="mb-1 w-50 form-check-label ms-1" htmlFor="glManualConfig" data-id="glManualConfiguration">
+          <label className="mb-1 w-1/2 ml-2 text-sm font-medium text-gray-900 dark:text-gray-300" htmlFor="glManualConfig" data-id="glManualConfiguration">
             <FormattedMessage id="udapp.gasLimitManual" />
           </label>
-          <CustomTooltip placement={'auto-end'} tooltipClasses="text-nowrap" tooltipId="remixGasPriceTooltip" tooltipText={<FormattedMessage id="udapp.tooltipText4" />}>
+          <CustomTooltip placement={'auto-end'} tooltipClasses="whitespace-nowrap" tooltipId="remixGasPriceTooltip" tooltipText={<FormattedMessage id="udapp.tooltipText4" />}>
             <input
               type="number"
               ref={inputComponent}
               disabled={gasLimitAuto}
-              className="form-control w-100 float-end"
+              className="w-full px-3 py-2 border border-theme rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:text-gray-500"
               id="gasLimit"
               value={props.gasLimit === 0 ? currentGasLimit.current : props.gasLimit}
               onChange={handleGasLimit}

@@ -10,7 +10,7 @@ export function TemplateExplorer() {
 
   return (
 
-    <div data-id="template-explorer-template-container" className={theme?.name === 'Dark' ? 'text-white-force' : 'text-dark'} style={{ overflowY: 'scroll', height: '85%' }}>
+    <div data-id="template-explorer-template-container mx-auto px-4" className={theme?.name === 'Dark' ? 'text-white-force' : 'text-dark'} style={{ overflowY: 'scroll', height: '85%' }}>
 
       {dedupedTemplates?.map((template: TemplateCategory, templateIndex) => (
         <div key={template.name} className="template-category mb-4" data-id={`template-category-${template.name}`}>
@@ -24,7 +24,7 @@ export function TemplateExplorer() {
             </p>
           )}
 
-          <div className="template-items-container d-flex flex-wrap gap-3 mb-4">
+          <div className="template-items-container flex flex-wrap gap-3 mb-4">
             {template.items.map((item: TemplateItem, itemIndex) => {
               // Add template metadata
               item.templateType = metadata[item.value]
@@ -62,15 +62,15 @@ export function TemplateExplorer() {
                     </h6>
 
                   </div>
-                  <div className="card-body d-flex flex-column justify-content-between overflow-y-auto">
+                  <div className="card-body flex flex-col justify-between overflow-y-auto">
                     {item.description && (
-                      <p className={theme?.name === 'Dark' ? 'card-description mb-1 text-dark text-wrap text-truncate overflow-hidden' : 'card-description mb-1 text-dark text-wrap text-truncate overflow-hidden'}>
+                      <p className={theme?.name === 'Dark' ? 'card-description mb-1 text-dark whitespace-normal truncate overflow-hidden' : 'card-description mb-1 text-dark whitespace-normal truncate overflow-hidden'}>
                         {item.description}
                       </p>
                     )}
 
                     {item.opts && Object.keys(item.opts).length > 0 && (
-                      <div className="options-badges d-flex flex-wrap">
+                      <div className="options-badges flex flex-wrap">
                         {item.opts.upgradeable && (
                           <span className="badge bg-success badge-uups">
                       UUPS
@@ -95,7 +95,7 @@ export function TemplateExplorer() {
                     )}
 
                     {item.tagList && item.tagList.length > 0 && (
-                      <div className="tag-list d-flex flex-wrap gap-1 align-items-end">
+                      <div className="tag-list flex flex-wrap gap-1 items-end">
                         {item.tagList.map((tag, tagIndex) => (
                           <span key={tagIndex} className="badge template-tag-badge">
                             {tag}

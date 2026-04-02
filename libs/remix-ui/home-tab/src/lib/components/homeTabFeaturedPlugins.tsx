@@ -145,51 +145,52 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
 
   function PluginCard(pluginInfo: PluginInfo) {
     return (
-      <div className="card border h-100">
-        <div className="d-flex align-items-center px-2 justify-content-between border-bottom">
-          <div className='d-flex align-items-center px-2'>
+      <div className="bg-white dark:bg-gray-800 border border-theme rounded-lg flex flex-col">
+        <div className="flex items-center py-3 px-4 justify-between border-b border-theme">
+          <div className='flex items-center gap-2'>
             <RenderIf condition={loadingPlugins.includes(pluginInfo.pluginId)}>
-              <i className="fad fa-spinner fa-spin me-2"></i>
+              <i className="fad fa-spinner fa-spin"></i>
             </RenderIf>
             <RenderIfNot condition={loadingPlugins.includes(pluginInfo.pluginId)}>
-              { pluginInfo.iconClass ? <i className={`${pluginInfo.iconClass} me-2`}></i> : <i className="fa-solid fa-file-book me-2"></i> }
+              { pluginInfo.iconClass ? <i className={pluginInfo.iconClass}></i> : <i className="fa-solid fa-file-book"></i> }
             </RenderIfNot>
-            <span className="fw-bold" style={{ color: isDark ? 'white' : 'black' }}>{pluginInfo.pluginTitle}</span>
+            <span className="font-bold text-gray-900 dark:text-white text-base">{pluginInfo.pluginTitle}</span>
           </div>
           <ToggleSwitch id={`toggleSwitch-${pluginInfo.pluginId}`} isOn={activePlugins.includes(pluginInfo.pluginId)} onClick={() => activateFeaturedPlugin(pluginInfo.pluginId)} />
         </div>
-        <div className="d-flex flex-column justify-content-between h-100">
-          <div className="p-3">
-            <div className={`text-${(pluginInfo.maintainedBy || '').toLowerCase() === 'remix' ? 'success' : 'dark'} mb-1`}><i className="fa-solid fa-shield-halved me-2"></i><FormattedMessage id="home.maintainedBy"/> {pluginInfo.maintainedBy || 'Community'}</div>
-            <div className="small mb-2" style={{ color: isDark ? 'white' : 'black' }}>{pluginInfo.description}</div>
+        <div className="flex flex-col flex-1 p-4">
+          <div className="flex-1">
+            <div className={`${(pluginInfo.maintainedBy || '').toLowerCase() === 'remix' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'} mb-2 text-sm flex items-center`}>
+              <i className="fa-solid fa-shield-halved mr-2"></i>
+              <FormattedMessage id="home.maintainedBy"/> {pluginInfo.maintainedBy || 'Community'}
+            </div>
+            <div className="text-sm text-gray-900 dark:text-gray-100 mb-4">{pluginInfo.description}</div>
           </div>
-          <div className="px-3 pb-3">
-            <button className="btn btn-light btn-sm w-100 text-decoration-none border" onClick={async () => await handleFeaturedPluginActionClick(pluginInfo)}>
-              <i className="fa-solid fa-book me-1"></i>{pluginInfo.action.label}
-            </button>
-          </div>
+          <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-sm w-full border border-theme rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium" onClick={async () => await handleFeaturedPluginActionClick(pluginInfo)}>
+            <i className="fa-solid fa-book mr-2"></i>{pluginInfo.action.label}
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="mt-2 w-100 align-items-end remixui_featuredplugins_container" id="hTFeaturedPlugins">
-      <div className="d-flex justify-content-between align-items-center mb-2">
-        <h6 style={{ color: isDark ? 'white' : 'black' }}>{pluginList.caption}</h6>
-        <button className="btn btn-secondary btn-md" onClick={() => plugin.call('menuicons', 'select', 'pluginManager')} ><FormattedMessage id="home.exploreAllPlugins"/></button>
+    <div className="mt-6 w-full items-end remixui_featuredplugins_container" id="hTFeaturedPlugins">
+      <div className="flex justify-between items-center mb-4">
+        <h6 className="text-gray-900 dark:text-white font-semibold text-base mb-0">{pluginList.caption}</h6>
+        <button className="px-4 py-2 bg-gray-600 dark:bg-gray-500 text-white rounded-md hover:bg-gray-700 dark:hover:bg-gray-400 transition-colors text-sm" onClick={() => plugin.call('menuicons', 'select', 'pluginManager')} ><FormattedMessage id="home.exploreAllPlugins"/></button>
       </div>
-      <div className="row">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {
           isLoading ? (
             Array.from({ length: 4 }).map((_, index) => (
-              <div key={`loading-${index}`} className="col-lg-12 col-xl-6 col-md-6 col-sm-12 mb-4 overflow-y-auto">
+              <div key={`loading-${index}`} className="overflow-y-auto">
                 <LoadingCard />
               </div>
             ))
           ) : (
             pluginList.plugins.map((pluginInfo: PluginInfo) => (
-              <div className="col-lg-12 col-xl-6 col-md-6 col-sm-12 mb-4 " key={pluginInfo.pluginId}>{ PluginCard(pluginInfo) }</div>
+              <div key={pluginInfo.pluginId}>{ PluginCard(pluginInfo) }</div>
             ))
           )
         }

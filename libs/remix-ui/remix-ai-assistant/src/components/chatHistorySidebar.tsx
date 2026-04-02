@@ -78,18 +78,18 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
 
   return (
     <div
-      className={`chat-history-sidebar border-0 d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating ' : isMaximized ? '' : 'w-100'}`}
+      className={`chat-history-sidebar border-0 flex flex-col h-full ${isFloating ? 'chat-history-sidebar-floating ' : isMaximized ? '' : 'w-full'}`}
       style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: theme === 'dark' ? 'var(--bs-dark)' : 'var(--bs-light)' }}
       data-id="chat-history-sidebar"
       data-theme={theme?.toLowerCase()}
     >
       {/* Header */}
       <div className="border-0 p-3" style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
-        <div className="d-flex justify-content-between align-items-center mb-3">
+        <div className="flex justify-between items-center mb-3">
           {isMaximized && (
             <CustomTooltip tooltipText="Close sidebar">
               <button
-                className="btn btn-sm p-0 sidebar-close-btn"
+                className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors p-0 sidebar-close-btn"
                 onClick={onClose}
                 data-id="close-sidebar-btn"
               >
@@ -104,7 +104,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
           <i className={`fas ${isSearching ? 'fa-spinner fa-spin' : 'fa-search'} search-icon`}></i>
           <input
             type="text"
-            className="form-control search-input ps-4 "
+            className="form-control search-input pl-4 "
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -113,46 +113,26 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
           />
         </div>
 
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <h6 className="mb-0 fw-normal sidebar-title" data-id="chat-history-sidebar-title">
-            {'Chat history'} <span className="ms-2 text-muted">{filteredConversations.length}</span>
+        {/* Archive Toggle */}
+        <div className="flex justify-between items-center">
+          <h6 className="mb-0 font-normal sidebar-title" data-id="chat-history-sidebar-title">
+            {'Chat history'} <span className="ml-2 text-gray-500 dark:text-gray-400">{filteredConversations.length}</span>
           </h6>
-          <div className="d-flex gap-2">
-            <button
-              className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`}
-              onClick={onToggleArchived}
-              data-id="toggle-archived-btn"
-            >
-              <i className="fas fa-archive me-2"></i>
-              {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
-            </button>
-            {onDeleteAllConversations && filteredConversations.length > 0 && (
-              <CustomTooltip tooltipText="Delete all conversations">
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={() => {
-                    const confirmMsg = showArchived
-                      ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.`
-                      : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
-                    if (confirm(confirmMsg)) {
-                      onDeleteAllConversations()
-                    }
-                  }}
-                  data-id="delete-all-conversations-btn"
-                >
-                  <i className="fas fa-trash-alt me-2"></i>
-                  Delete All
-                </button>
-              </CustomTooltip>
-            )}
-          </div>
+          <button
+            className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`}
+            onClick={onToggleArchived}
+            data-id="toggle-archived-btn"
+          >
+            <i className="fas fa-archive mr-2"></i>
+            {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
+          </button>
         </div>
       </div>
 
       {/* Conversation List */}
       <div className="sidebar-body flex-grow-1 overflow-y-auto p-2">
         {filteredConversations.length === 0 ? (
-          <div className="text-center text-muted mt-4">
+          <div className="text-center text-gray-500 dark:text-gray-400 mt-4">
             {searchQuery ? (
               <>
                 <i className="fas fa-search fa-2x mb-2"></i>

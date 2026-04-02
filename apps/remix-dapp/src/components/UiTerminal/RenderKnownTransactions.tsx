@@ -22,13 +22,13 @@ const RenderKnownTransactions = ({
   return (
     <span id={`tx${tx.hash}`} key={index}>
       <div
-        className="remix_ui_terminal_log d-flex align-items-center pt-2"
+        className="remix_ui_terminal_log flex items-center pt-2"
         onClick={(event) => txDetails(event, tx)}
       >
         <CheckTxStatus tx={receipt} type={txType} />
         <Context opts={options} provider={provider} />
         <i
-          className={`remix_ui_terminal_arrow d-flex ms-2 fas ${
+          className={`remix_ui_terminal_arrow flex ml-2 fas ${
             showTableHash.includes(tx.hash) ? 'fa-angle-up' : 'fa-angle-down'
           }`}
         ></i>

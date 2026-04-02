@@ -166,10 +166,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
   if (loading) {
     return (
       <div className="p-3">
-        <div className="spinner-border spinner-border-sm" role="status">
+        <div className="animate-spin inline-block w-4 h-4 border-[3px] border-current border-t-transparent text-blue-600 rounded-full" role="status">
           <span className="sr-only">Loading...</span>
         </div>
-        <span className="ms-2">Loading profile...</span>
+        <span className="ml-2">Loading profile...</span>
       </div>
     )
   }
@@ -183,28 +183,28 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
   return (
     <div>
       {error && (
-        <div className="alert alert-danger p-2 mb-3" role="alert">
-          <i className="fas fa-exclamation-circle me-2"></i>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-3 py-2 mb-3 rounded-md" role="alert">
+          <i className="fas fa-exclamation-circle mr-2"></i>
           {error}
         </div>
       )}
 
       {!isEditable && loginProvider && (
-        <div className="alert alert-info p-2 mb-3" role="alert">
-          <i className="fas fa-info-circle me-2"></i>
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 px-3 py-2 mb-3 rounded-md" role="alert">
+          <i className="fas fa-info-circle mr-2"></i>
           Profile editing is only available for email login. You are currently logged in with {loginProvider}.
         </div>
       )}
 
-      <div className="bg-light rounded p-3">
-        <div className="row">
-          <div className="col-md-3 mb-3 mb-md-0 text-center">
-            <div className="mb-2 position-relative d-inline-block">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-3 text-center">
+            <div className="mb-2 relative inline-block">
               {(avatarPreview || editedProfile?.avatar_url || displayProfile.avatar_url) ? (
                 <img
                   src={avatarPreview || editedProfile?.avatar_url || displayProfile.avatar_url}
                   alt="Profile Avatar"
-                  className="rounded-circle"
+                  className="rounded-full"
                   style={{ width: '100px', height: '100px', objectFit: 'cover' }}
                   onError={(e) => {
 
@@ -212,7 +212,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
                 />
               ) : (
                 <div
-                  className="rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white"
+                  className="rounded-full flex items-center justify-center bg-gray-500 text-white"
                   style={{ width: '100px', height: '100px', fontSize: '0.7rem' }}
                   title="Avatar not available"
                 >
@@ -223,10 +223,9 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
             <div>
               <button
                 type="button"
-                className="btn btn-sm btn-secondary d-flex align-items-center justify-content-center mx-auto"
+                className="px-3 py-1.5 text-sm bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white rounded-md flex items-center justify-center mx-auto gap-1 transition-colors"
                 onClick={handleUploadClick}
                 disabled={!isEditable}
-                style={{ gap: '0.25rem' }}
               >
                 <i className="fas fa-upload"></i>
                 <span>Upload</span>
@@ -242,12 +241,12 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
             </div>
           </div>
 
-          <div className="col-md-9">
+          <div className="md:col-span-9">
             <div className="mb-3">
-              <label className="form-label small font-weight-bold mb-1">Username</label>
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Username</label>
               <input
                 type="text"
-                className="form-control form-control-sm"
+                className="w-full px-3 py-2 text-sm border border-theme rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:text-gray-500"
                 value={editedProfile?.username || ''}
                 onChange={(e) => handleFieldChange('username', e.target.value)}
                 placeholder={isEditable ? "Enter username" : (!editedProfile?.username || editedProfile.username === '') ? "Not available" : ""}
@@ -257,10 +256,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
             </div>
 
             <div className="mb-3">
-              <label className="form-label small font-weight-bold mb-1">Email</label>
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email</label>
               <input
                 type="email"
-                className="form-control form-control-sm"
+                className="w-full px-3 py-2 text-sm border border-theme rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:text-gray-500"
                 value={editedProfile?.email || ''}
                 onChange={(e) => handleFieldChange('email', e.target.value)}
                 placeholder={isEditable ? "Enter email" : (!editedProfile?.email || editedProfile.email === '') ? "Not available" : ""}
@@ -270,26 +269,26 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ plugin }) => {
             </div>
 
             {hasChanges && (
-              <div className="d-flex gap-2">
+              <div className="flex gap-2">
                 <button
-                  className="btn btn-sm btn-primary"
+                  className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-md transition-colors flex items-center gap-1"
                   onClick={handleSave}
                   disabled={saving}
                 >
                   {saving ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                      <div className="animate-spin inline-block w-4 h-4 border-[3px] border-current border-t-transparent rounded-full" role="status" aria-hidden="true"></div>
                       Saving...
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-save me-1"></i>
+                      <i className="fas fa-save"></i>
                       Save
                     </>
                   )}
                 </button>
                 <button
-                  className="btn btn-sm btn-secondary"
+                  className="px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white rounded-md transition-colors"
                   onClick={handleCancel}
                   disabled={saving}
                 >

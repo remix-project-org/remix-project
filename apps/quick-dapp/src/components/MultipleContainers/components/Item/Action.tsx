@@ -14,7 +14,7 @@ export const Action = forwardRef<HTMLButtonElement, Props>(
       <button
         ref={ref}
         {...props}
-        className={`d-flex align-items-center justify-content-center border-0 rounded p-3 item-action`}
+        className={`flex items-center justify-center border-0 rounded p-3 item-action`}
         tabIndex={0}
         style={
           {

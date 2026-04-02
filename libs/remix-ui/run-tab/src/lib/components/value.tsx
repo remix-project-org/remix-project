@@ -49,26 +49,26 @@ export function ValueUI(props: ValueProps) {
       <label className="udapp_settingsLabel" data-id="remixDRValueLabel">
         <FormattedMessage id="udapp.value" />
       </label>
-      <div className="input-group udapp_gasValueContainer">
-        <CustomTooltip placement={'top-start'} tooltipClasses="text-nowrap" tooltipId="remixValueTooltip" tooltipText={<FormattedMessage id="udapp.tooltipText5" />}>
+      <div className="flex udapp_gasValueContainer">
+        <CustomTooltip placement={'top-start'} tooltipClasses="whitespace-nowrap" tooltipId="remixValueTooltip" tooltipText={<FormattedMessage id="udapp.tooltipText5" />}>
           <input
             ref={inputValue}
             type="number"
             min="0"
             pattern="^[0-9]"
             step="1"
-            className="form-control"
+            className="col py-2 border border-theme rounded-l-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             id="value"
             data-id="dandrValue"
             onChange={validateValue}
             value={props.sendValue}
           />
         </CustomTooltip>
-        <div className="input-group-append">
+        <div>
           <select
             name="unit"
             value={props.sendUnit}
-            className="form-select"
+            className="px-3 py-2 border border-l-0 border-theme rounded-r-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             id="unit"
             onChange={(e) => {
               props.setUnit(e.target.value as 'ether' | 'finney' | 'gwei' | 'wei')

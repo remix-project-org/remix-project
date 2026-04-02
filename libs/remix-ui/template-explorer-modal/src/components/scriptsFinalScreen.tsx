@@ -12,9 +12,9 @@ export function ScriptsFinalScreen(props: ScriptsFinalScreenProps) {
   const { state, dispatch, facade } = useContext(TemplateExplorerContext)
 
   return (
-    <section className="d-flex flex-column gap-3 bg-light" style={{ height: '80%' }}>
+    <section className="flex flex-col gap-3 bg-light" style={{ height: '80%' }}>
 
-      <button className="btn btn-primary btn-sm mx-3" data-id="validateWorkspaceButton" disabled={state.creating} onClick={async () => {
+      <button className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors btn-sm mx-3" data-id="validateWorkspaceButton" disabled={state.creating} onClick={async () => {
         await facade.createWorkspace({
           workspaceName: state.workspaceName,
           workspaceTemplateName: state.workspaceTemplateChosen.value,
@@ -26,7 +26,7 @@ export function ScriptsFinalScreen(props: ScriptsFinalScreenProps) {
           contractName: state.tokenName
         })
         facade.closeWizard()
-      }}>{state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : 'Finish'}</button>
+      }}>{state.creating ? <><i className="fas fa-spinner fa-spin mr-2"></i>Creating...</> : 'Finish'}</button>
     </section>
   )
 }

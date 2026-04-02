@@ -196,7 +196,7 @@ export class VerticalIcons extends Plugin {
         console.error('Error activating right side panel:', error)
         // Fallback: directly manipulate DOM if plugin system fails
         const pinnedPanel = document.querySelector('#right-side-panel')
-        pinnedPanel?.classList.remove('d-none')
+        pinnedPanel?.classList.remove('hidden')
       }
     } else {
       // For left panel plugins, activate if needed and show

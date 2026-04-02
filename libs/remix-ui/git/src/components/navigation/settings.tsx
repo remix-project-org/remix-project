@@ -19,18 +19,18 @@ export const SettingsNavigation = ({ eventKey, activePanel, callback }) => {
 
   return (
     <>
-      <div className={'d-flex justify-content-between ' + (activePanel === eventKey ? 'bg-light' : '')}>
-        <span onClick={() => handleClick()} role={'button'} className='nav d-flex justify-content-start align-items-center w-75 ms-1'>
+      <div className={'flex justify-between ' + (activePanel === eventKey ? 'bg-light' : '')}>
+        <span onClick={() => handleClick()} role={'button'} className='nav flex justify-start items-center w-3/4 ml-1'>
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          <label className="nav ps-2 form-check-label"><FormattedMessage id="gitui.settings" /></label>
+          <label className="nav pl-2 form-check-label"><FormattedMessage id="gitui.settings" /></label>
 
         </span>
 
-        <span className='d-flex justify-content-end align-items-center w-25'>
+        <span className='flex justify-end items-center w-1/4'>
           <CustomTooltip tooltipText={<FormattedMessage id="gitui.missingValues" />}>
-            <button onClick={async () => { await pluginactions.loadFiles() }} className='btn btn-sm text-warning'><FontAwesomeIcon icon={faTriangleExclamation} className="" /></button>
+            <button onClick={async () => { await pluginactions.loadFiles() }} className='inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors text-warning'><FontAwesomeIcon icon={faTriangleExclamation} className="" /></button>
           </CustomTooltip>
 
         </span>

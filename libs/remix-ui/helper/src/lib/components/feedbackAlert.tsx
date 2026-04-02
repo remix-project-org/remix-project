@@ -18,12 +18,12 @@ export function FeedbackAlert ({ message, askGPT }: FeedbackAlertProps) {
         <div className="close" data-id="renderer" onClick={handleCloseAlert}>
           <i className="fas fa-times"></i>
         </div>
-        <div className="d-flex pt-1 flex-row-reverse">
-          <span className="ms-3 pt-1 py-1" >
+        <div className="flex pt-1 flex-row-reverse">
+          <span className="ml-3 pt-1 py-1" >
             <CopyToClipboard content={message} className="p-0 m-0 far fa-copy error" direction={'top'} />
           </span>
           <button
-            className="btn btn-ai"
+            className="flex items-center gap-2 px-3 py-1 text-ai bg-ai/10 hover:bg-ai/20 rounded transition-colors duration-200 text-xs border-0"
             data-id="ask-remix-ai-button"
             onClick={(event) => {
               event.stopPropagation()

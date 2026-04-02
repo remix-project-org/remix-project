@@ -31,13 +31,13 @@ export const RemixUITerminalMenuButtons = (props: RemixUiTerminalProps) => {
   }
 
   return (
-    <div className='d-flex flex-row align-items-center'>
-      <button id="tabOutput" data-id="tabOutput" className={`xtermButton btn btn-sm border-secondary me-2 border ${!xtermState.showOutput ? '' : 'd-flex btn-secondary'}`} onClick={selectOutput}>
+    <div className='flex flex-row items-center'>
+      <button id="tabOutput" data-id="tabOutput" className={`xtermButton btn btn-sm border-secondary mr-2 border ${!xtermState.showOutput ? '' : 'flex btn-secondary'}`} onClick={selectOutput}>
         Output
       </button>
-      <button data-id="tabXTerm" id="tabXTerm" className={`xtermButton btn btn-sm border-secondary ${(xtermState.terminalsEnabled || platform === appPlatformTypes.desktop) ? 'd-block' : 'd-none'} ${xtermState.showOutput ? '' : 'btn-secondary'}`}
+      <button data-id="tabXTerm" id="tabXTerm" className={`xtermButton btn btn-sm border-secondary ${(xtermState.terminalsEnabled || platform === appPlatformTypes.desktop) ? 'block' : 'hidden'} ${xtermState.showOutput ? '' : 'btn-secondary'}`}
         onClick={async(e) => await showTerminal(e)}>
-        <span className="far fa-terminal border-0 ms-1"></span>
+        <span className="far fa-terminal border-0 ml-1"></span>
       </button>
     </div>
   )

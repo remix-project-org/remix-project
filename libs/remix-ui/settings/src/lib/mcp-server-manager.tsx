@@ -205,13 +205,13 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
   }
 
   const getStatusIcon = (status?: IMCPConnectionStatus) => {
-    if (!status) return <span className="text-muted">○</span>
+    if (!status) return <span className="text-gray-500 dark:text-gray-400">○</span>
 
     switch (status.status) {
     case 'connected': return <span className="text-success">●</span>
     case 'connecting': return <span className="text-warning">●</span>
     case 'error': return <span className="text-danger">●</span>
-    default: return <span className="text-muted">○</span>
+    default: return <span className="text-gray-500 dark:text-gray-400">○</span>
     }
   }
 
@@ -222,13 +222,13 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
 
   return (
     <div className="mcp-server-manager">
-      <div className="d-flex justify-content-between align-items-center mb-3">
+      <div className="flex justify-between items-center mb-3">
         <h6 className="mb-0">MCP Servers</h6>
       </div>
 
       <div className="mcp-servers-list">
         {servers.length === 0 ? (
-          <div className="text-center text-muted p-3">
+          <div className="text-center text-gray-500 dark:text-gray-400 p-3">
             <p>No MCP servers configured</p>
             <small>Add a server to start using MCP integration</small>
           </div>
@@ -236,28 +236,28 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
           <div className="list-group">
             {servers.map((server) => (
               <div key={server.name} className="list-group-item">
-                <div className="d-flex justify-content-between align-items-start">
+                <div className="flex justify-between items-start">
                   <div className="flex-grow-1">
-                    <div className="d-flex align-items-center mb-1">
+                    <div className="flex items-center mb-1">
                       {getStatusIcon(connectionStatuses[server.name])}
-                      <strong className="ms-2">{server.name}</strong>
+                      <strong className="ml-2">{server.name}</strong>
                       {connectionStatuses[server.name]?.status === 'connected' ? (
-                        <span className="badge bg-success ms-2">Connected</span>
+                        <span className="badge bg-success ml-2">Connected</span>
                       ) : connectionStatuses[server.name]?.status === 'connecting' ? (
-                        <span className="badge bg-warning ms-2">Connecting</span>
+                        <span className="badge bg-warning ml-2">Connecting</span>
                       ) : connectionStatuses[server.name]?.status === 'error' ? (
-                        <span className="badge bg-danger ms-2">Error</span>
+                        <span className="badge bg-danger ml-2">Error</span>
                       ) : server.enabled ? (
-                        <span className="badge bg-secondary ms-2">Connecting</span>
+                        <span className="badge bg-secondary ml-2">Connecting</span>
                       ) : (
-                        <span className="badge bg-secondary ms-2">Disconnected</span>
+                        <span className="badge bg-secondary ml-2">Disconnected</span>
                       )}
-                      {server.isBuiltIn && <span className="badge bg-primary ms-2">Built-in</span>}
+                      {server.isBuiltIn && <span className="badge bg-primary ml-2">Built-in</span>}
                     </div>
                     {server.description && (
-                      <p className="text-muted small mb-1">{server.description}</p>
+                      <p className="text-gray-500 dark:text-gray-400 small mb-1">{server.description}</p>
                     )}
-                    <div className="small text-muted">
+                    <div className="small text-gray-500 dark:text-gray-400">
                       <div>Transport: {server.transport === 'internal' ? 'Internal (Built-in)' : server.transport}</div>
                       {server.transport === 'internal' ? (
                         <div>Type: Built-in Remix IDE server</div>
@@ -272,7 +272,7 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
                       )}
                     </div>
                   </div>
-                  <div className="d-flex flex-column gap-1">
+                  <div className="flex flex-col gap-1">
                     {!server.isBuiltIn && (
                       <button
                         className={`btn btn-sm ${server.enabled ? 'btn-warning' : 'btn-success'}`}
@@ -294,7 +294,7 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
                       </button>
                     )}
                     {server.isBuiltIn && (
-                      <small className="text-muted">Built-in server is always connected</small>
+                      <small className="text-gray-500 dark:text-gray-400">Built-in server is always connected</small>
                     )}
                   </div>
                 </div>
@@ -306,14 +306,14 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
 
       <div className="mt-3">
         <button
-          className="btn btn-sm btn-outline-primary"
+          className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-outline-primary"
           onClick={loadConnectionStatuses}
         >
           Refresh Status
         </button>
       </div>
 
-      <div className="mt-3 small text-muted">
+      <div className="mt-3 small text-gray-500 dark:text-gray-400">
         <p><strong>Transport Types:</strong></p>
         <ul>
           <li><strong>Internal (Built-in):</strong> Built-in Remix IDE MCP servers</li>
@@ -323,10 +323,10 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
           <li><strong>HTTP (REST):</strong> Connect via HTTP requests (browser-compatible)</li>
         </ul>
         <p><strong>Status Indicators:</strong>
-          <span className="text-success ms-1">●</span> Connected
-          <span className="text-warning ms-1">●</span> Connecting
-          <span className="text-danger ms-1">●</span> Error
-          <span className="text-muted ms-1">○</span> Disconnected
+          <span className="text-success ml-1">●</span> Connected
+          <span className="text-warning ml-1">●</span> Connecting
+          <span className="text-danger ml-1">●</span> Error
+          <span className="text-gray-500 dark:text-gray-400 ml-1">○</span> Disconnected
         </p>
       </div>
 

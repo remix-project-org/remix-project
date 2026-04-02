@@ -102,29 +102,48 @@ function HomeTabRecentWorkspaces({ plugin }: HomeTabFileProps) {
   }
 
   return (
-    <div className="justify-content-start d-flex flex-column my-5" id="hTFileSection">
-      <div className="d-flex flex-column mb-5 remixui_recentworkspace">
-        <label style={{ fontSize: '1rem', color: isDark ? 'white' : 'black' }} className="mt-1 mb-3">
-                Recent Workspaces
-        </label>
-        <div className="d-flex flex-column ps-2">
+    <div className="flex flex-col my-5" id="hTFileSection">
+      <div className="flex flex-col mb-5">
+        <h3 className="text-base font-semibold mb-4 text-gray-900 dark:text-white">
+          Recent Workspaces
+        </h3>
+        <div className="space-y-1">
           {
-            Array.isArray(state.recentWorkspaces) && state.recentWorkspaces.map((workspace: any, index) => {
+            Array.isArray(state.recentWorkspaces) && state.recentWorkspaces.length > 0 ?
+            state.recentWorkspaces.map((workspace: any, index) => {
               const workspaceName = (workspace || {}).name ? workspace.name : workspace
               const workspaceTimestamp = (workspace || {}).timestamp ? workspace.timestamp : null
 
               return index < 10 ? (
-                <div key={index} className="d-flex flex-row align-items-center mb-2">
-                  { loadingWorkspace === workspace ? <i className="fad fa-spinner fa-spin me-2"></i> : <i className="fas fa-folder-tree me-2"></i> }
-                  <div className="d-flex flex-row justify-content-between w-100 flex-wrap">
-                    <a className="cursor-pointer text-decoration-none d-inline-block" href="#" onClick={(e) => handleSwitchToRecentWorkspace(e, workspaceName)} key={index}>
-                      <span style={{ color: isDark ? 'white' : 'black' }}>{workspaceName}</span>
-                    </a>
-                    <span className="text-muted">created {getTimeAgo(workspaceTimestamp)}</span>
+                <div key={index} className="flex items-center px-1 py-1 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md transition-colors cursor-pointer group"
+                     onClick={(e) => handleSwitchToRecentWorkspace(e, workspaceName)}>
+                  <div className="flex-shrink-0 w-5 flex justify-center mr-3">
+                    { loadingWorkspace === workspace ?
+                      <i className="fad fa-spinner fa-spin text-blue-600 dark:text-blue-400"></i> :
+                      <i className="fas fa-folder text-blue-600 dark:text-blue-400"></i>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {workspaceName}
+                      </h4>
+                      {workspaceTimestamp && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                          {getTimeAgo(workspaceTimestamp)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : null
             })
+            : (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <i className="fas fa-folder-open text-3xl mb-3 block"></i>
+                <p className="text-sm">No recent workspaces</p>
+              </div>
+            )
           }
         </div>
       </div>

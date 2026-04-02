@@ -79,9 +79,9 @@ export const LocalBranchDetails = (props: BrancheDetailsProps) => {
 
   return (<Accordion activeKey={activePanel} defaultActiveKey="">
     <BrancheDetailsNavigation allowCheckout={true} checkout={checkout} branch={branch} eventKey="0" activePanel={activePanel} callback={setActivePanel} />
-    <Accordion.Collapse className="ps-2 border-start ms-1" eventKey="0">
+    <Accordion.Collapse className="pl-2 border-l ml-1" eventKey="0">
       <>
-        <div className="ms-1">
+        <div className="ml-1">
           <BranchDifferences branch={branch}></BranchDifferences>
           <div data-id={`local-branch-commits-${branch && branch.name}`}>
             {context.localBranchCommits && Object.entries(context.localBranchCommits).map(([key, value]) => {
@@ -94,7 +94,7 @@ export const LocalBranchDetails = (props: BrancheDetailsProps) => {
             })}
           </div>
         </div>
-        {hasNextPage && <GitUIButton data-id='load-more-local-branches' className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
+        {hasNextPage && <GitUIButton data-id='load-more-local-branches' className="mb-1 ml-2 inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
       </>
     </Accordion.Collapse>
   </Accordion>)

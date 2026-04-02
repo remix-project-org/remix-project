@@ -165,38 +165,38 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
           <div className="col-md-4 mb-2">
             <div className="text-center p-3 bg-light rounded">
               <div className="h4 mb-0 font-weight-bold text-primary">{credits.balance.toLocaleString()}</div>
-              <small className="text-muted">Total Credits</small>
+              <small className="text-gray-500 dark:text-gray-400">Total Credits</small>
             </div>
           </div>
           <div className="col-md-4 mb-2">
             <div className="text-center p-3 bg-light rounded">
               <div className="h4 mb-0 text-success">{credits.free_credits.toLocaleString()}</div>
-              <small className="text-muted">Free Credits</small>
+              <small className="text-gray-500 dark:text-gray-400">Free Credits</small>
             </div>
           </div>
           <div className="col-md-4 mb-2">
             <div className="text-center p-3 bg-light rounded">
               <div className="h4 mb-0 text-info">{credits.paid_credits.toLocaleString()}</div>
-              <small className="text-muted">Paid Credits</small>
+              <small className="text-gray-500 dark:text-gray-400">Paid Credits</small>
             </div>
           </div>
         </div>
-        <p className="text-muted mb-0" style={{ fontSize: '0.85rem' }}>
-          <i className="fas fa-info-circle me-1"></i>
+        <p className="text-gray-500 dark:text-gray-400 mb-0" style={{ fontSize: '0.85rem' }}>
+          <i className="fas fa-info-circle mr-1"></i>
           Credits are shared across all your linked accounts
         </p>
       </div>
 
       {transactions && transactions.length > 0 && (
         <div>
-          <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="flex justify-between items-center mb-3">
             <h6 className="font-weight-bold mb-0">
               <i className="fas fa-history mr-2"></i>
               Recent Transactions
             </h6>
             {transactions.length > 5 && (
               <button
-                className="btn btn-sm btn-link"
+                className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-link"
                 onClick={() => setShowAllTransactions(!showAllTransactions)}
               >
                 {showAllTransactions ? 'Show Less' : `Show All (${transactions.length})`}
@@ -206,19 +206,19 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
           <div className="list-group" style={{ maxHeight: showAllTransactions ? 'none' : '300px', overflowY: 'auto' }}>
             {(showAllTransactions ? transactions : transactions.slice(0, 5)).map((tx) => (
               <div key={tx.id} className="list-group-item">
-                <div className="d-flex justify-content-between align-items-start">
+                <div className="flex justify-between items-start">
                   <div className="flex-grow-1">
-                    <div className="d-flex align-items-center mb-1">
+                    <div className="flex items-center mb-1">
                       <span className={`badge ${tx.amount > 0 ? 'badge-success' : 'badge-danger'} mr-2`}>
                         {tx.amount > 0 ? '+' : ''}{tx.amount}
                       </span>
                       <span className="font-weight-bold">{tx.reason || tx.type}</span>
                     </div>
-                    <div className="small text-muted">
+                    <div className="small text-gray-500 dark:text-gray-400">
                       {new Date(tx.created_at).toLocaleString()}
                     </div>
                     {tx.metadata && (
-                      <div className="small text-muted mt-1">
+                      <div className="small text-gray-500 dark:text-gray-400 mt-1">
                         {typeof tx.metadata === 'string' ? tx.metadata : JSON.stringify(tx.metadata)}
                       </div>
                     )}

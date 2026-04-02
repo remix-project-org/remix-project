@@ -98,7 +98,7 @@ export class RightSidePanel extends AbstractPanel {
         this.hiddenPlugin = null
       } else {
         this.isHidden = panelStates.rightSidePanel.isHidden || false
-        // Apply d-none class to hide the panel on reload if it was hidden
+        // Apply hidden class to hide the panel on reload if it was hidden
         if (this.isHidden) {
           this.hiddenPlugin = panelStates.rightSidePanel.pluginProfile
         } else {
@@ -109,13 +109,13 @@ export class RightSidePanel extends AbstractPanel {
       // Sync DOM state with localStorage state
       const pinnedPanel = document.querySelector('#right-side-panel')
       if (this.isHidden) {
-        pinnedPanel?.classList.add('d-none')
+        pinnedPanel?.classList.add('hidden')
         trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnLoad', isClick: false })
         this.emit('rightSidePanelHidden')
         this.events.emit('rightSidePanelHidden')
       } else {
-        // Explicitly remove d-none class when panel should be visible
-        pinnedPanel?.classList.remove('d-none')
+        // Explicitly remove hidden class when panel should be visible
+        pinnedPanel?.classList.remove('hidden')
         if (panelStates.rightSidePanel.pluginProfile) {
           trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnLoad', isClick: false })
           this.emit('rightSidePanelShown')
@@ -139,7 +139,7 @@ export class RightSidePanel extends AbstractPanel {
       }
       window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
       const pinnedPanel = document.querySelector('#right-side-panel')
-      pinnedPanel?.classList.add('d-none')
+      pinnedPanel?.classList.add('hidden')
       trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'InitializeDefaultAndHiddenOnLoad', isClick: false })
       this.emit('rightSidePanelHidden')
       this.events.emit('rightSidePanelHidden')
@@ -167,12 +167,12 @@ export class RightSidePanel extends AbstractPanel {
 
     if (shouldStayHidden) {
       // Keep the panel hidden for the same plugin
-      pinnedPanel?.classList.add('d-none')
+      pinnedPanel?.classList.add('hidden')
       this.hiddenPlugin = profile
       this.isHidden = true
     } else {
       // Show the panel for any new plugin or when switching plugins
-      pinnedPanel?.classList.remove('d-none')
+      pinnedPanel?.classList.remove('hidden')
       this.hiddenPlugin = null
       this.isHidden = false
       this.events.emit('rightSidePanelShown')
@@ -207,7 +207,7 @@ export class RightSidePanel extends AbstractPanel {
 
       // Show main panel
       const mainPanel = document.querySelector('#main-panel')
-      mainPanel?.classList.remove('d-none')
+      mainPanel?.classList.remove('hidden')
 
       // Remove full width from right panel
       const rightPanel = document.querySelector('#right-side-panel')
@@ -225,7 +225,7 @@ export class RightSidePanel extends AbstractPanel {
     this.hiddenPlugin = null
     this.isHidden = true
     const pinnedPanel = document.querySelector('#right-side-panel')
-    pinnedPanel?.classList.add('d-none')
+    pinnedPanel?.classList.add('hidden')
     const panelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
     panelStates.rightSidePanel = {
       isHidden: true,
@@ -257,7 +257,7 @@ export class RightSidePanel extends AbstractPanel {
       if (!this.isHidden) {
         this.isHidden = true
         trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnToggleIconClickAndNoPluginPinned', isClick: false })
-        pinnedPanel?.classList.add('d-none')
+        pinnedPanel?.classList.add('hidden')
         this.emit('rightSidePanelHidden')
         this.events.emit('rightSidePanelHidden')
         panelStates.rightSidePanel = {
@@ -272,7 +272,7 @@ export class RightSidePanel extends AbstractPanel {
 
     if (this.isHidden) {
       this.isHidden = false
-      pinnedPanel?.classList.remove('d-none')
+      pinnedPanel?.classList.remove('hidden')
       trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnToggleIconClick', isClick: false })
       this.emit('rightSidePanelShown')
       this.events.emit('rightSidePanelShown')
@@ -284,7 +284,7 @@ export class RightSidePanel extends AbstractPanel {
 
       this.isHidden = true
       this.hiddenPlugin = pluginProfile
-      pinnedPanel?.classList.add('d-none')
+      pinnedPanel?.classList.add('hidden')
       trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnToggleIconClick', isClick: false })
       this.emit('rightSidePanelHidden')
       this.events.emit('rightSidePanelHidden')
@@ -326,7 +326,7 @@ export class RightSidePanel extends AbstractPanel {
 
       // Hide main panel (center panel with editor)
       const mainPanel = document.querySelector('#main-panel')
-      mainPanel?.classList.add('d-none')
+      mainPanel?.classList.add('hidden')
 
       // Make right panel take full width
       const rightPanel = document.querySelector('#right-side-panel')
@@ -353,7 +353,7 @@ export class RightSidePanel extends AbstractPanel {
 
       // Show main panel
       const mainPanel = document.querySelector('#main-panel')
-      mainPanel?.classList.remove('d-none')
+      mainPanel?.classList.remove('hidden')
 
       // Remove full width from right panel
       const rightPanel = document.querySelector('#right-side-panel')
@@ -371,13 +371,13 @@ export class RightSidePanel extends AbstractPanel {
   highlight () {
     // If the right side panel is hidden, unhide it when a pinned icon is clicked
     const pinnedPanel = document.querySelector('#right-side-panel')
-    const isPanelHiddenInDOM = pinnedPanel?.classList.contains('d-none')
+    const isPanelHiddenInDOM = pinnedPanel?.classList.contains('hidden')
 
     // Check both the state variable and actual DOM state to ensure proper visibility
     if (this.isHidden || isPanelHiddenInDOM) {
       this.isHidden = false
       this.hiddenPlugin = null
-      pinnedPanel?.classList.remove('d-none')
+      pinnedPanel?.classList.remove('hidden')
       trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnVerticalIconClick', isClick: false })
       this.emit('rightSidePanelShown')
       this.events.emit('rightSidePanelShown')

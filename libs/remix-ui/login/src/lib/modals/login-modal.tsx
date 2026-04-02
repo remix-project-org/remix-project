@@ -547,7 +547,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
 
   return (
     <div
-      className="modal d-flex align-items-center justify-content-center login-modal-backdrop"
+      className="modal flex items-center justify-center login-modal-backdrop"
       onClick={onClose}
     >
       <div
@@ -555,11 +555,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
         role="document"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-content d-flex flex-row overflow-hidden login-modal-content">
+        <div className="modal-content flex flex-row overflow-hidden login-modal-content">
           {/* Left Section - 40% width */}
-          <div className="d-flex flex-column justify-content-center align-items-center position-relative login-modal-left-section">
-            <div className="position-absolute top-0 start-0 end-0 bottom-0 login-modal-gradient-overlay" />
-            <div className="text-start w-100 position-relative login-modal-content-wrapper">
+          <div className="flex flex-col justify-center items-center relative login-modal-left-section">
+            <div className="absolute top-0 start-0 end-0 bottom-0 login-modal-gradient-overlay" />
+            <div className="text-left w-full relative login-modal-content-wrapper">
               {accessPolicy.policy === 'locked' ? (
                 /* ── Locked / Maintenance ── */
                 <div className="text-center">
@@ -572,17 +572,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
               ) : accessPolicy.policy === 'admins_only' ? (
                 /* ── Admins Only ── */
                 <ul className="list-unstyled p-0 m-0">
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-shield-alt me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-shield-alt mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Admin access only</span>
                   </li>
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-lock me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-lock mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Login restricted to administrators</span>
                   </li>
                   {accessPolicy.message && (
-                    <li className="mb-4 d-flex align-items-center">
-                      <i className="fas fa-info-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
+                    <li className="mb-4 flex items-center">
+                      <i className="fas fa-info-circle mr-3 flex-shrink-0 login-modal-list-icon"></i>
                       <span className="login-modal-list-text">{accessPolicy.message}</span>
                     </li>
                   )}
@@ -590,21 +590,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
               ) : accessPolicy.policy === 'members_only' ? (
                 /* ── Members Only (existing users) ── */
                 <ul className="list-unstyled p-0 m-0">
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-sign-in-alt me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-sign-in-alt mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Sign in with your account</span>
                   </li>
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-user-lock me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-user-lock mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Registration is currently closed</span>
                   </li>
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-user-check me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-user-check mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Existing users can access all features</span>
                   </li>
                   {accessPolicy.message && (
-                    <li className="mb-4 d-flex align-items-center">
-                      <i className="fas fa-info-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
+                    <li className="mb-4 flex items-center">
+                      <i className="fas fa-info-circle mr-3 flex-shrink-0 login-modal-list-icon"></i>
                       <span className="login-modal-list-text">{accessPolicy.message}</span>
                     </li>
                   )}
@@ -612,32 +612,32 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
               ) : accessPolicy.policy === 'invite_only' ? (
                 /* ── Invite Only ── */
                 <ul className="list-unstyled p-0 m-0">
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-ticket-alt me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-ticket-alt mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Invite required for new accounts</span>
                   </li>
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-sign-in-alt me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-sign-in-alt mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Existing users can sign in directly</span>
                   </li>
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-gift me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-gift mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Got an invite? Enter it to get started</span>
                   </li>
                 </ul>
               ) : (
                 /* ── Open (default benefits) ── */
                 <ul className="list-unstyled p-0 m-0">
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-check-circle mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Full agentic RemixAI and new connected APIs</span>
                   </li>
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-check-circle mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">Cloud Storage, and Chat History</span>
                   </li>
-                  <li className="mb-4 d-flex align-items-center">
-                    <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
+                  <li className="mb-4 flex items-center">
+                    <i className="fas fa-check-circle mr-3 flex-shrink-0 login-modal-list-icon"></i>
                     <span className="login-modal-list-text">QuickDapp — AI-assisted front-end builder with decentralized hosting</span>
                   </li>
                 </ul>
@@ -646,12 +646,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
           </div>
 
           {/* Right Section - 60% width */}
-          <div className="d-flex flex-column login-modal-right-section">
-            <div className="modal-header border-0 flex-column align-items-start">
-              <div className="d-flex w-100 align-items-center mb-2">
+          <div className="flex flex-col login-modal-right-section">
+            <div className="modal-header border-0 flex-col items-start">
+              <div className="flex w-full items-center mb-2">
                 {otpStep === 'code' ? (
                   <button
-                    className="btn btn-link p-0 me-2 text-dark text-decoration-none"
+                    className="btn btn-link p-0 mr-2 text-dark no-underline"
                     onClick={handleBackToProviders}
                     title="Back to sign in options"
                   >
@@ -663,7 +663,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   <i className="fas fa-times text-dark"></i>
                 </div>
               </div>
-              <p className="text-muted mb-0 fs-small-medium">
+              <p className="text-gray-500 dark:text-gray-400 mb-0 fs-small-medium">
                 {otpStep === 'code'
                   ? 'Enter the verification code we sent to your email'
                   : accessPolicy.policy === 'locked'
@@ -687,7 +687,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   <div className="spinner-border text-primary" role="status">
                     <span className="visually-hidden">Loading providers...</span>
                   </div>
-                  <p className="text-muted mt-3">Loading authentication methods...</p>
+                  <p className="text-gray-500 dark:text-gray-400 mt-3">Loading authentication methods...</p>
                 </div>
               ) : providers.length === 0 ? (
                 <div className="alert alert-warning" role="alert">
@@ -696,20 +696,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
 
               ) : otpStep === 'code' ? (
                 /* ──────────────── OTP Verification View ──────────────── */
-                <div className="d-flex flex-column align-items-center">
+                <div className="flex flex-col items-center">
                   {/* Envelope icon */}
                   <div className="login-modal-otp-icon-wrap mb-3">
                     <i className="fas fa-envelope-open-text login-modal-otp-icon"></i>
                   </div>
 
                   <h6 className="fw-semibold mb-1">Check your email</h6>
-                  <p className="text-muted fs-small-medium mb-4 text-center">
+                  <p className="text-gray-500 dark:text-gray-400 fs-small-medium mb-4 text-center">
                     We sent a 6-digit code to <span className="fw-semibold text-dark">{maskEmail(emailValue)}</span>
                   </p>
 
                   {/* Error / status messages */}
                   {emailError && (
-                    <div className="alert alert-danger py-2 px-3 fs-small-medium w-100 mb-3" role="alert">
+                    <div className="alert alert-danger py-2 px-3 fs-small-medium w-full mb-3" role="alert">
                       {emailError}
                     </div>
                   )}
@@ -721,7 +721,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   )}
 
                   {/* 6-digit OTP inputs */}
-                  <div className="d-flex gap-2 mb-3 login-modal-otp-group" onPaste={handleOtpPaste}>
+                  <div className="flex gap-2 mb-3 login-modal-otp-group" onPaste={handleOtpPaste}>
                     {otpDigits.map((digit, i) => (
                       <input
                         key={i}
@@ -743,27 +743,27 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
 
                   {/* Code expiry timer */}
                   {codeExpiresIn > 0 && (
-                    <p className={`fs-small mb-3 ${codeExpiresIn <= 60 ? 'text-warning' : 'text-muted'}`}>
-                      <i className="fas fa-clock me-1"></i>
+                    <p className={`fs-small mb-3 ${codeExpiresIn <= 60 ? 'text-warning' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <i className="fas fa-clock mr-1"></i>
                       Code expires in {formatTimer(codeExpiresIn)}
                     </p>
                   )}
                   {codeExpiresIn === 0 && otpStep === 'code' && (
                     <p className="fs-small text-danger mb-3">
-                      <i className="fas fa-exclamation-circle me-1"></i>
+                      <i className="fas fa-exclamation-circle mr-1"></i>
                       Code expired
                     </p>
                   )}
 
                   {/* Verify button (fallback for manual submit) */}
                   <button
-                    className="btn btn-primary w-100 d-flex align-items-center justify-content-center py-2 mb-3"
+                    className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors w-full flex items-center justify-center py-2 mb-3"
                     onClick={() => handleVerifyCode()}
                     disabled={otpVerifying || otpDigits.join('').length !== 6}
                   >
                     {otpVerifying ? (
                       <>
-                        <div className="spinner-border spinner-border-sm text-white me-2" role="status">
+                        <div className="spinner-border spinner-border-sm text-white mr-2" role="status">
                           <span className="visually-hidden">Verifying...</span>
                         </div>
                         <span className="fw-medium fs-medium">Verifying...</span>
@@ -774,14 +774,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   </button>
 
                   {/* Resend / change email */}
-                  <div className="d-flex flex-column align-items-center gap-2">
-                    <p className="text-muted fs-small mb-0">
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-gray-500 dark:text-gray-400 fs-small mb-0">
                       Didn't receive it?{' '}
                       {sendCooldown > 0 ? (
-                        <span className="text-muted">Resend in {sendCooldown}s</span>
+                        <span className="text-gray-500 dark:text-gray-400">Resend in {sendCooldown}s</span>
                       ) : (
                         <button
-                          className="btn btn-link p-0 fs-small text-decoration-none fw-medium"
+                          className="btn btn-link p-0 fs-small no-underline fw-medium"
                           onClick={handleResendCode}
                           disabled={emailSending}
                         >
@@ -790,7 +790,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                       )}
                     </p>
                     <button
-                      className="btn btn-link p-0 fs-small text-decoration-none text-muted"
+                      className="btn btn-link p-0 fs-small no-underline text-gray-500 dark:text-gray-400"
                       onClick={handleChangeEmail}
                     >
                       Use a different email
@@ -800,16 +800,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
 
               ) : accessPolicy.policy === 'locked' ? (
                 /* ──────────────── Locked / Maintenance View ──────────────── */
-                <div className="d-flex flex-column align-items-center py-4">
+                <div className="flex flex-col items-center py-4">
                   <div className="mb-3" style={{ fontSize: '3rem' }}>
-                    <i className="fas fa-tools text-muted"></i>
+                    <i className="fas fa-tools text-gray-500 dark:text-gray-400"></i>
                   </div>
                   <h6 className="fw-semibold mb-2">Login Unavailable</h6>
-                  <p className="text-muted text-center fs-small-medium mb-4">
+                  <p className="text-gray-500 dark:text-gray-400 text-center fs-small-medium mb-4">
                     {accessPolicy.message || 'Login is temporarily unavailable while we perform maintenance. Please try again later.'}
                   </p>
                   <button
-                    className="btn btn-outline-primary btn-sm"
+                    className="inline-flex items-center px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary hover:text-white transition-colors btn-sm"
                     onClick={async () => {
                       setAccessPolicyLoading(true)
                       try {
@@ -832,9 +832,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                     disabled={accessPolicyLoading}
                   >
                     {accessPolicyLoading ? (
-                      <><div className="spinner-border spinner-border-sm me-1" role="status"><span className="visually-hidden">Checking...</span></div> Checking...</>
+                      <><div className="spinner-border spinner-border-sm mr-1" role="status"><span className="visually-hidden">Checking...</span></div> Checking...</>
                     ) : (
-                      <><i className="fas fa-sync-alt me-1"></i> Check Again</>
+                      <><i className="fas fa-sync-alt mr-1"></i> Check Again</>
                     )}
                   </button>
                 </div>
@@ -850,27 +850,27 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
 
                   {/* Invite token validation result */}
                   {inviteToken && inviteValidating && (
-                    <div className="d-flex align-items-center justify-content-center py-3 mb-3">
-                      <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                    <div className="flex items-center justify-center py-3 mb-3">
+                      <div className="spinner-border spinner-border-sm text-primary mr-2" role="status">
                         <span className="visually-hidden">Validating invite...</span>
                       </div>
-                      <span className="text-muted fs-small-medium">Validating invite code...</span>
+                      <span className="text-gray-500 dark:text-gray-400 fs-small-medium">Validating invite code...</span>
                     </div>
                   )}
 
                   {inviteToken && inviteValidation && !inviteValidating && (
                     inviteValidation.valid ? (
                       <div className="alert alert-success py-2 px-3 fs-small-medium mb-3" role="alert">
-                        <i className="fas fa-gift me-2"></i>
+                        <i className="fas fa-gift mr-2"></i>
                         <strong>{inviteValidation.name || 'Invite'}</strong>
                         {inviteValidation.description && (
-                          <span className="d-block mt-1">{inviteValidation.description}</span>
+                          <span className="block mt-1">{inviteValidation.description}</span>
                         )}
                         {inviteValidation.actions && inviteValidation.actions.length > 0 && (
                           <ul className="list-unstyled mb-0 mt-1">
                             {inviteValidation.actions.map((action, i) => (
                               <li key={i} className="fs-small">
-                                <i className="fas fa-check me-1 text-success"></i>
+                                <i className="fas fa-check mr-1 text-success"></i>
                                 {action.description}
                               </li>
                             ))}
@@ -879,7 +879,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                       </div>
                     ) : (
                       <div className="alert alert-warning py-2 px-3 fs-small-medium mb-3" role="alert">
-                        <i className="fas fa-exclamation-triangle me-2"></i>
+                        <i className="fas fa-exclamation-triangle mr-2"></i>
                         {inviteValidation.error || 'This invite link is invalid or expired.'}
                       </div>
                     )
@@ -889,7 +889,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   {accessPolicy.requires_invite && !inviteToken && showInviteInput && (
                     <div className="mb-3">
                       <label className="form-label fs-small-medium fw-medium">Enter your invite code</label>
-                      <div className="d-flex gap-2">
+                      <div className="flex gap-2">
                         <input
                           type="text"
                           className="form-control form-control-sm"
@@ -900,7 +900,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                           onKeyDown={(e) => e.key === 'Enter' && handleInviteSubmit()}
                         />
                         <button
-                          className="btn btn-primary btn-sm"
+                          className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors btn-sm"
                           data-id="invite-code-apply-btn"
                           onClick={handleInviteSubmit}
                           disabled={!inviteInputValue.trim() || inviteValidating}
@@ -913,10 +913,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                         </button>
                       </div>
                       <button
-                        className="btn btn-link btn-sm p-0 mt-1 text-muted text-decoration-none fs-small"
+                        className="btn btn-link btn-sm p-0 mt-1 text-gray-500 dark:text-gray-400 no-underline fs-small"
                         onClick={() => setShowInviteInput(false)}
                       >
-                        <i className="fas fa-arrow-left me-1"></i>Back
+                        <i className="fas fa-arrow-left mr-1"></i>Back
                       </button>
                     </div>
                   )}
@@ -924,11 +924,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   {/* "I have an invite" button for invite_only mode */}
                   {accessPolicy.requires_invite && !inviteToken && !showInviteInput && (
                     <button
-                      className="btn btn-outline-primary btn-sm w-100 mb-3"
+                      className="inline-flex items-center px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary hover:text-white transition-colors btn-sm w-full mb-3"
                       data-id="invite-code-toggle-btn"
                       onClick={() => setShowInviteInput(true)}
                     >
-                      <i className="fas fa-ticket-alt me-2"></i>
+                      <i className="fas fa-ticket-alt mr-2"></i>
                       I have an invite code
                     </button>
                   )}
@@ -936,16 +936,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   {/* Ethereum Wallet — Primary CTA */}
                   {siweProvider && (
                     <button
-                      className="btn btn-primary w-100 d-flex align-items-center justify-content-center py-2 mb-3"
+                      className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors w-full flex items-center justify-center py-2 mb-3"
                       onClick={() => handleLogin(siweProvider.id)}
                       disabled={loading || !siweProvider.enabled}
                     >
-                      <span className="me-1 login-modal-provider-icon fs-medium">
+                      <span className="mr-1 login-modal-provider-icon fs-medium">
                         {siweProvider.icon}
                       </span>
                       <span className="fw-medium fs-medium">{siweProvider.label}</span>
                       {loading && (
-                        <div className="spinner-border spinner-border-sm text-white ms-2" role="status">
+                        <div className="spinner-border spinner-border-sm text-white ml-2" role="status">
                           <span className="visually-hidden">Loading...</span>
                         </div>
                       )}
@@ -956,17 +956,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   {providers.filter(p => p.id === 'base').map((provider) => (
                     <button
                       key={provider.id}
-                      className="btn w-100 d-flex align-items-center justify-content-center py-2 mb-3"
+                      className="btn w-full flex items-center justify-center py-2 mb-3"
                       style={{ backgroundColor: '#0052FF', color: 'white', border: 'none' }}
                       onClick={() => handleLogin(provider.id)}
                       disabled={loading || !provider.enabled}
                     >
-                      <span className="me-2 login-modal-provider-icon fs-medium">
+                      <span className="mr-2 login-modal-provider-icon fs-medium">
                         {provider.icon}
                       </span>
                       <span className="fw-medium fs-medium">Continue with {provider.label}</span>
                       {loading && (
-                        <div className="spinner-border spinner-border-sm text-white ms-2" role="status">
+                        <div className="spinner-border spinner-border-sm text-white ml-2" role="status">
                           <span className="visually-hidden">Loading...</span>
                         </div>
                       )}
@@ -975,28 +975,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
 
                   {/* Divider */}
                   {oauthProviders.length > 0 && (
-                    <div className="d-flex align-items-center my-4">
+                    <div className="flex items-center my-4">
                       <hr className="flex-grow-1" />
-                      <span className="px-3 text-muted">or</span>
+                      <span className="px-3 text-gray-500 dark:text-gray-400">or</span>
                       <hr className="flex-grow-1" />
                     </div>
                   )}
 
                   {/* OAuth provider buttons */}
-                  <div className="d-flex flex-column gap-2">
+                  <div className="flex flex-col gap-2">
                     {oauthProviders.map((provider) => (
                       <button
                         key={provider.id}
-                        className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2 no-hover-effect"
+                        className="inline-flex items-center px-4 py-2 bg-light text-dark rounded-md hover:bg-light/90 transition-colors border-0 w-full flex items-center justify-center py-2 no-hover-effect"
                         onClick={() => handleLogin(provider.id)}
                         disabled={loading || !provider.enabled}
                       >
-                        <span className="me-2 login-modal-provider-icon fs-medium">
+                        <span className="mr-2 login-modal-provider-icon fs-medium">
                           {provider.icon}
                         </span>
                         <span className="fs-medium">Continue with {provider.label}</span>
                         {loading && (
-                          <div className="spinner-border spinner-border-sm text-primary ms-2" role="status">
+                          <div className="spinner-border spinner-border-sm text-primary ml-2" role="status">
                             <span className="visually-hidden">Loading...</span>
                           </div>
                         )}
@@ -1006,19 +1006,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                     {/* Test Account Pool button - only shown when pool is available */}
                     {testAccountsAvailable && (
                       <button
-                        className="btn btn-outline-warning w-100 d-flex align-items-center justify-content-center py-2 no-hover-effect"
+                        className="btn btn-outline-warning w-full flex items-center justify-center py-2 no-hover-effect"
                         onClick={() => handleLogin('test')}
                         disabled={loading}
                       >
-                        <span className="me-2 login-modal-provider-icon fs-medium">
+                        <span className="mr-2 login-modal-provider-icon fs-medium">
                           <i className="fas fa-flask"></i>
                         </span>
                         <span className="fs-medium">
                           E2E Test Pool
-                          {poolStatusText && <span className="ms-1 text-muted fs-small">({poolStatusText})</span>}
+                          {poolStatusText && <span className="ml-1 text-gray-500 dark:text-gray-400 fs-small">({poolStatusText})</span>}
                         </span>
                         {loading && (
-                          <div className="spinner-border spinner-border-sm text-warning ms-2" role="status">
+                          <div className="spinner-border spinner-border-sm text-warning ml-2" role="status">
                             <span className="visually-hidden">Loading...</span>
                           </div>
                         )}
@@ -1029,9 +1029,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   {/* ── Email OTP inline section ── */}
                   {emailEnabled && (
                     <>
-                      <div className="d-flex align-items-center my-4">
+                      <div className="flex items-center my-4">
                         <hr className="flex-grow-1" />
-                        <span className="px-3 text-muted fs-small-medium">or continue with email</span>
+                        <span className="px-3 text-gray-500 dark:text-gray-400 fs-small-medium">or continue with email</span>
                         <hr className="flex-grow-1" />
                       </div>
 
@@ -1056,7 +1056,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                           />
                         </div>
                         <button
-                          className="btn btn-primary login-modal-send-code-btn"
+                          className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors login-modal-send-code-btn"
                           onClick={handleSendCode}
                           disabled={emailSending || !emailValue.trim() || sendCooldown > 0}
                         >
@@ -1068,14 +1068,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                             <span className="fs-small">{sendCooldown}s</span>
                           ) : (
                             <>
-                              Send Code <i className="fas fa-arrow-right ms-1"></i>
+                              Send Code <i className="fas fa-arrow-right ml-1"></i>
                             </>
                           )}
                         </button>
                       </div>
 
-                      <p className="text-muted fs-small mt-2 mb-0 text-center">
-                        <i className="fas fa-lock me-1"></i>
+                      <p className="text-gray-500 dark:text-gray-400 fs-small mt-2 mb-0 text-center">
+                        <i className="fas fa-lock mr-1"></i>
                         No password needed — we'll email you a one-time code
                       </p>
                     </>
@@ -1086,7 +1086,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
 
             {/* Terms and Conditions Bar */}
             <div className="login-modal-terms-bar">
-              <p className="text-muted mb-0 fs-small">
+              <p className="text-gray-500 dark:text-gray-400 mb-0 fs-small">
                 By continuing, you agree to our{' '}
                 <a href="https://remix.live/termsandconditions" target="_blank" rel="noopener noreferrer">
                   Terms and Conditions

@@ -33,12 +33,12 @@ const App = () => {
         Explorer and select "Generate Docs" from the context menu).
       </h5>
       {fileName && (
-        <div className="border-bottom border-top px-2 py-3 justify-center align-items-center d-flex">
+        <div className="border-b border-t px-2 py-3 justify-center items-center flex">
           <h6>File: {fileName}</h6>
         </div>
       )}
       {hasBuild && (
-        <button className="btn btn-primary btn-block mt-4" onClick={() => client.generateDocs()}>
+        <button className="btn btn-primary w-full mt-4" onClick={() => client.generateDocs()}>
           Generate Docs
         </button>
       )}

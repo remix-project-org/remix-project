@@ -15,7 +15,7 @@ export const FindContainer = (props) => {
   }, [expanded])
   return (
     <div className="search_plugin_find_container">
-      <CustomTooltip tooltipText={<FormattedMessage id="search.toggleReplace" />} tooltipClasses="text-nowrap" tooltipId="toggleReplaceTooltip" placement="left-start">
+      <CustomTooltip tooltipText={<FormattedMessage id="search.toggleReplace" />} tooltipClasses="whitespace-nowrap" tooltipId="toggleReplaceTooltip" placement="left-start">
         <div
           data-id="toggle_replace"
           className={`codicon codicon-find-${expanded ? 'expanded' : 'collapsed'} search_plugin_find_container_arrow`}

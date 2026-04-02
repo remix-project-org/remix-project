@@ -39,7 +39,7 @@ const showTable = (opts, showTableHash) => {
   const val = opts.val != null ? typeConversion.toInt(opts.val) : 0
   const gasInt = opts.gas != null ? typeConversion.toInt(opts.gas) : 0
   return (
-    <table className={`mt-1 mb-2 me-4  align-self-center ${showTableHash.includes(opts.hash) ? 'active' : ''}`} id="txTable" data-id={`txLoggerTable${opts.hash}`}>
+    <table className={`mt-1 mb-2 mr-4  self-center ${showTableHash.includes(opts.hash) ? 'active' : ''}`} id="txTable" data-id={`txLoggerTable${opts.hash}`}>
       <tbody>
         {opts.status !== undefined ? (
           <tr className="remix_ui_terminal_tr">

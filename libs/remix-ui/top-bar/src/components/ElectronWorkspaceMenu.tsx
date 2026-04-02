@@ -48,7 +48,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
       {/* Recent Folders Section */}
       {recentFolders && recentFolders.length > 0 && (
         <>
-          <div className="px-2 py-1 small text-muted">
+          <div className="px-2 py-1 small text-gray-500 dark:text-gray-400">
             Recent Folders
           </div>
           <div className="recent-folders-section" style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -57,7 +57,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
               return (
                 <div
                   key={index}
-                  className="d-flex align-items-center mb-1 px-1 py-1 rounded"
+                  className="flex items-center mb-1 px-1 py-1 rounded"
                   style={{
                     cursor: 'pointer'
                   }}
@@ -68,7 +68,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                     e.currentTarget.style.backgroundColor = 'transparent'
                   }}
                 >
-                  <div className="flex-grow-1 d-flex align-items-center">
+                  <div className="flex-grow-1 flex items-center">
                     <CustomTooltip
                       placement="top"
                       tooltipId="recent-folder-open-tooltip"
@@ -76,7 +76,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                     >
                       <Button
                         variant="link"
-                        className="flex-grow-1 d-flex align-items-center py-1 px-2 text-start text-truncate"
+                        className="flex-grow-1 flex items-center py-1 px-2 text-left truncate"
                         onClick={(e) => {
                           openRecentFolder(folder)
                           setShowMain(false)
@@ -89,8 +89,8 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                           boxShadow: 'none'
                         }}
                       >
-                        <i className="fas fa-folder me-2"></i>
-                        <span className="text-truncate">{folderName}</span>
+                        <i className="fas fa-folder mr-2"></i>
+                        <span className="truncate">{folderName}</span>
                       </Button>
                     </CustomTooltip>
                     <CustomTooltip
@@ -101,7 +101,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                       <Button
                         variant="link"
                         size="sm"
-                        className="p-1 ms-1 text-muted opacity-75"
+                        className="p-1 ml-1 text-gray-500 dark:text-gray-400 opacity-75"
                         onClick={(e) => {
                           e.stopPropagation()
                           openRecentFolderInNewWindow(folder)
@@ -126,7 +126,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                       <Button
                         variant="link"
                         size="sm"
-                        className="p-1 ms-1 text-muted opacity-75"
+                        className="p-1 ml-1 text-gray-500 dark:text-gray-400 opacity-75"
                         onClick={(e) => {
                           e.stopPropagation()
                           revealRecentFolderInExplorer(folder)
@@ -151,7 +151,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                     <Button
                       variant="link"
                       size="sm"
-                      className="p-1 ms-1 text-muted opacity-50"
+                      className="p-1 ml-1 text-gray-500 dark:text-gray-400 opacity-50"
                       onClick={(e) => {
                         e.stopPropagation()
                         removeRecentFolder(folder)
@@ -177,7 +177,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                 <Button
                   variant="link"
                   size="sm"
-                  className="text-muted p-1"
+                  className="text-gray-500 dark:text-gray-400 p-1"
                   onClick={() => setShowAllRecent(true)}
                 >
                   <small>Show {recentFolders.length - 8} more recent folder{recentFolders.length - 8 > 1 ? 's' : ''}</small>
@@ -189,7 +189,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                 <Button
                   variant="link"
                   size="sm"
-                  className="text-muted p-1"
+                  className="text-gray-500 dark:text-gray-400 p-1"
                   onClick={() => setShowAllRecent(false)}
                 >
                   <small>Show less</small>
@@ -213,8 +213,8 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
             color: 'inherit',
           }}
         >
-          <button className="w-100 btn btn-primary font-weight-light text-decoration-none mb-2 rounded-lg">
-            <i className="fas fa-folder-open me-2"></i>
+          <button className="w-full inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors font-weight-light no-underline mb-2 rounded-lg">
+            <i className="fas fa-folder-open mr-2"></i>
             Open Folder
           </button>
         </Dropdown.Item>
@@ -229,8 +229,8 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
             color: 'inherit',
           }}
         >
-          <button className="w-100 btn btn-outline-primary font-weight-light text-decoration-none mb-2 rounded-lg">
-            <i className="fas fa-plus me-2"></i>
+          <button className="w-full inline-flex items-center px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary hover:text-white transition-colors font-weight-light no-underline mb-2 rounded-lg">
+            <i className="fas fa-plus mr-2"></i>
             Create New Project
           </button>
         </Dropdown.Item>

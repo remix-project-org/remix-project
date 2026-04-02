@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { Dropdown, DropdownButton } from 'react-bootstrap'
-import DropdownItem from 'react-bootstrap/DropdownItem'
+// Note: This component may need manual update to replace React Bootstrap with custom dropdown
+// import { Dropdown, DropdownButton } from 'react-bootstrap'
+// import DropdownItem from 'react-bootstrap/DropdownItem'
 import { localeLang } from './types/carouselTypes'
 import { FormattedMessage } from 'react-intl'
 import { HomeTabEvent, MatomoEvent } from '@remix-api'
@@ -33,17 +34,18 @@ export function LanguageOptions({ plugin }: { plugin: any }) {
 
   return (
     <>
-      <div className="d-flex justify-content-between w-100 align-items-center pt-4">
-        <label style={{ fontSize: '1.2rem' }} className="ms-2 pb-0 mb-0">
+      <div className="flex justify-between w-full items-center pt-4">
+        <label style={{ fontSize: '1.2rem' }} className="ml-2 pb-0 mb-0">
           <FormattedMessage id="home.featured" />
         </label>
+        {/* TODO: Replace with Tailwind-based custom dropdown */}
         <Dropdown>
           <Dropdown.Toggle title={langOptions} id="languagedropdown" size="sm" style={{ backgroundColor: 'var(--bs-secondary)', color: 'var(--text)' }}>
             {langOptions}
           </Dropdown.Toggle>
           <Dropdown.Menu className="dropdown-menu langSelector" style={{ paddingTop: "0px", paddingBottom: "0px", minWidth: 'fit-content', backgroundColor: 'var(--body-bg)' }}>
             {['EN', 'ES', 'FR', 'IT', 'KO', 'RU', 'ZH'].map((lang, index) => (
-              <DropdownItem as={'span'} className={langOptions === lang ? "border border-primary px-2" : "px-2"} onClick={() =>
+              <DropdownItem as={'span'} className={langOptions === lang ? "border border-blue-600 dark:border-blue-400 px-2" : "px-2"} onClick={() =>
               {
                 changeLanguage(lang.toLowerCase())
                 setLangOptions(lang)

@@ -2,31 +2,28 @@
 
 .login-modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2000;
-  background-color: rgba(0, 0, 0, 0.5);
+  /* TODO: Convert inset-0 to CSS */
+  /* TODO: Convert z-[2000] to CSS */
+  /* TODO: Convert bg-black/50 to CSS */
 }
 
 .login-modal-dialog {
-  max-width: 725px;
-  width: 90%;
+  /* TODO: Convert max-w-[725px] to CSS */
+  /* TODO: Convert w-[90%] to CSS */
 }
 
 .login-modal-content {
-  border-radius: 10px;
+  /* TODO: Convert rounded-lg to CSS */
 }
 
 .login-modal-left-section {
-  width: 40%;
+  /* TODO: Convert w-[40%] to CSS */
+  /* TODO: Convert bg-cover to CSS */
+  /* TODO: Convert bg-center to CSS */
+  /* TODO: Convert bg-no-repeat to CSS */
+  /* TODO: Convert p-8 to CSS */
+  /* TODO: Convert min-h-[500px] to CSS */
   background-image: url('https://raw.githubusercontent.com/remix-project-org/remix-dynamics/refs/heads/live/images/illusion.svg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  padding: 2rem;
-  min-height: 500px;
 }
 
 .login-modal-gradient-overlay {
@@ -67,8 +64,8 @@
 }
 
 .login-modal-provider-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+  /* TODO: Convert cursor-not-allowed to CSS */
+  /* TODO: Convert opacity-60 to CSS */
 }
 
 .no-hover-effect:hover {
@@ -105,23 +102,23 @@
 
 .login-modal-email-row {
   display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
+  /* TODO: Convert gap-2 to CSS */
+  /* TODO: Convert items-stretch to CSS */
 }
 
 .login-modal-email-input-wrap {
-  flex: 1;
+  /* TODO: Convert flex-1 to CSS */
   position: relative;
 }
 
 .login-modal-email-field-icon {
   position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  font-size: 0.85rem;
-  pointer-events: none;
+  /* TODO: Convert left-3 to CSS */
+  /* TODO: Convert top-1/2 to CSS */
+  /* TODO: Convert -translate-y-1/2 to CSS */
+  /* TODO: Convert text-gray-400 to CSS */
+  font-size: 0.875rem; line-height: 1.25rem;
+  /* TODO: Convert pointer-events-none to CSS */
 }
 
 .login-modal-email-input {

@@ -46,9 +46,9 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, ha
   }, [])
 
   return (
-    <div className="assistant-landing d-flex flex-column mx-1 align-items-center justify-content-center text-center h-100 w-100" data-id="ai-assistant-landing">
-      <div className="d-flex align-items-center justify-content-center rounded-circle border mb-3" style={{ width: '120px', height: '120px', borderWidth: '2px', borderColor: 'var(--bs-border-color)' }}>
-        <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '60px', height: '60px' }} className="container-img" />
+    <div className="assistant-landing flex flex-col mx-1 items-center justify-center text-center h-full w-full" data-id="ai-assistant-landing">
+      <div className="flex items-center justify-center rounded-full border mb-3" style={{ width: '120px', height: '120px', borderWidth: '2px', borderColor: 'var(--bs-border-color)' }}>
+        <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '60px', height: '60px' }} className="container mx-auto px-4-img" />
       </div>
       <p className="mb-4" style={{ fontSize: '0.9rem' }}>
         What do you want to build today?
@@ -71,7 +71,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   return (
     <div
       ref={historyRef}
-      className="d-flex flex-column overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
+      className="flex flex-col overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
     >
       {messages.length === 0 ? (
         <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} handleGenerateWorkspace={handleGenerateWorkspace} />
@@ -81,18 +81,18 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
             msg.role === 'user' ? 'bubble-user' : 'bubble-assistant'
 
           return (
-            <div key={msg.id} className={`chat-row d-flex mb-2 ${msg.role === 'user' ? 'justify-content-end' : ''}`} style={{ minWidth: '90%' }}>
+            <div key={msg.id} className={`chat-row flex mb-2 ${msg.role === 'user' ? 'justify-end' : ''}`} style={{ minWidth: '90%' }}>
               {/* Avatar for assistant */}
               {msg.role === 'assistant' && (
                 <img
                   src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight}
                   alt="AI"
-                  className="assistant-avatar me-2 flex-shrink-0 me-1"
+                  className="assistant-avatar mr-2 flex-shrink-0 mr-1"
                 />
               )}
 
               {/* Bubble */}
-              <div data-id="ai-response-chat-bubble-section" className={`overflow-y-scroll ${msg.role === 'assistant' ? 'me-3' : ''}`} style={{
+              <div data-id="ai-response-chat-bubble-section" className={`overflow-y-scroll ${msg.role === 'assistant' ? 'mr-3' : ''}`} style={{
                 width: '90%'
               }}>
                 {/* Only render bubble if there's content OR not currently executing tools */}
@@ -102,12 +102,12 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                     data-id="ai-user-chat-bubble"
                   >
                     {msg.role === 'user' && (
-                      <small className="text-uppercase fw-bold text-secondary d-block mb-1">
+                      <small className="uppercase font-bold text-secondary block mb-1">
                         You
                       </small>
                     )}
 
-                    <div className="aiMarkup lh-base text-wrap">
+                    <div className="aiMarkup lh-base whitespace-normal">
                       {msg.role === 'assistant' ? (
                         RemixMarkdownViewer(theme, msg.content)
                       ) : (
@@ -119,7 +119,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
 
                     {/* Copy button for user messages */}
                     {msg.role === 'user' && (
-                      <div className="user-message-actions text-end mt-2">
+                      <div className="user-message-actions text-right mt-2">
                         <CustomTooltip tooltipText="Copy message" placement="top">
                           <span
                             role="button"
@@ -136,8 +136,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                   </div>
                 )}
                 {msg.role === 'assistant' && msg.isExecutingTools && (
-                  <div className="tool-execution-indicator text-muted">
-                    <i className="fa fa-spinner fa-spin me-2"></i>
+                  <div className="tool-execution-indicator text-gray-500 dark:text-gray-400">
+                    <i className="fa fa-spinner fa-spin mr-2"></i>
                     <span>
                       {msg.executingToolName
                         ? getToolExecutionMessage({
@@ -151,12 +151,12 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
 
                 {/* Feedback buttons */}
                 {msg.role === 'assistant' && (
-                  <div className="feedback text-end mt-2 me-1">
+                  <div className="feedback text-right mt-2 mr-1">
                     <CustomTooltip tooltipText="Copy message" placement="top">
                       <span
                         role="button"
                         aria-label="copy message"
-                        className="message-copy-btn me-3"
+                        className="message-copy-btn mr-3"
                         onClick={() => copy(msg.content)}
                         onMouseDown={(e) => e.preventDefault()}
                       >
@@ -168,7 +168,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                       <span
                         role="button"
                         aria-label="thumbs up"
-                        className={`feedback-btn me-3 ${msg.sentiment === 'like' ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'
+                        className={`feedback-btn mr-3 ${msg.sentiment === 'like' ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'
                         }`}
                         onClick={() =>
                           recordFeedback(
@@ -182,7 +182,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                       <span
                         role="button"
                         aria-label="thumbs down"
-                        className={`feedback-btn ms-2 ${msg.sentiment === 'dislike'
+                        className={`feedback-btn ml-2 ${msg.sentiment === 'dislike'
                           ? 'fas fa-thumbs-down'
                           : 'far fa-thumbs-down'
                         }`}
@@ -203,7 +203,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       )}
       {isStreaming && (
         <div className="text-center my-2">
-          <i className="fa fa-spinner fa-spin fa-lg text-muted"></i>
+          <i className="fa fa-spinner fa-spin fa-lg text-gray-500 dark:text-gray-400"></i>
         </div>
       )}
     </div>
@@ -236,7 +236,7 @@ function RemixMarkdownViewer(theme: string, markDownContent: string): React.Reac
                 <span className="ai-code-language">{language}</span>
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-info border border-info"
+                  className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-outline-info border border-info"
                   onClick={() => copy(text)}
                 >
                   <i className="fa-regular fa-copy"></i>

@@ -37,7 +37,7 @@ ace.define("ace/theme/remixDark",["require","exports","module","ace/lib/dom"], f
   }\
   .ace-remixDark .ace_cursor.ace_overwrite {\
   border-left: 0px;\
-  border-bottom: 1px solid #FFFFFF;\
+  border-b: 1px solid #FFFFFF;\
   }\
   .ace-remixDark .ace_marker-layer .ace_selection {\
   background: #494836;\

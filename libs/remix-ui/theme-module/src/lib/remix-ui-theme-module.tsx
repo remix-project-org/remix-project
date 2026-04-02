@@ -17,12 +17,12 @@ export function RemixUiThemeModule({ themeModule }: RemixUiThemeModuleProps) {
   }, [themeName, themeModule])
 
   return (
-    <div className="border-top">
+    <div className="border-t">
       <div className="card-body pt-3 pb-2">
         <h6 className="card-title">
           <FormattedMessage id="settings.themes" />
         </h6>
-        <div className="card-text themes-container">
+        <div className="card-text themes-container mx-auto px-4">
           {themeModule.getThemes()
             ? themeModule.getThemes().map((theme, idx) => (
               <div className="radio form-check mb-1 form-check" key={idx}>

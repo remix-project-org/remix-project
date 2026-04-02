@@ -49,7 +49,7 @@ export const SelectAndCloneRepositories = (props: RepositoriesProps) => {
       {repo && <BranchSelect select={selectRemoteBranch} />}
 
       {repo && branch && branch.name && branch.name !== '0' ?
-        <button data-id={`clonebtn-${repo.full_name}-${branch.name}`} className='btn btn-primary mt-1 w-100' onClick={async () => {
+        <button data-id={`clonebtn-${repo.full_name}-${branch.name}`} className='btn btn-primary w-full mt-1' onClick={async () => {
           await clone()
         }}>clone {repo.full_name}:{branch.name}</button> : null}
 

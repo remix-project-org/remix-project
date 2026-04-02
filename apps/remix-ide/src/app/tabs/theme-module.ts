@@ -18,9 +18,14 @@ interface Theme {
 
 //sol2uml dot files cannot work with css variables so hex values for colors are used
 const themes = [
-  { name: 'Dark', quality: 'dark', url: 'assets/css/themes/remix-dark_tvx1s2.css', backgroundColor: '#222336', textColor: '#babbcc',
+  { name: 'Dark', quality: 'dark', url: 'assets/css/themes/tailwind-dark.css', backgroundColor: '#222336', textColor: '#babbcc',
     shapeColor: '#babbcc',fillColor: '#2a2c3f' },
-  { name: 'Light', quality: 'light', url: 'assets/css/themes/remix-light_powaqg.css', backgroundColor: '#eef1f6', textColor: '#3b445e',
+  { name: 'Light', quality: 'light', url: 'assets/css/themes/tailwind-light.css', backgroundColor: '#eef1f6', textColor: '#3b445e',
+    shapeColor: '#343a40',fillColor: '#ffffff' },
+  // Keep legacy Bootstrap themes for fallback during migration
+  { name: 'Dark (Legacy)', quality: 'dark', url: 'assets/css/themes/remix-dark_tvx1s2.css', backgroundColor: '#222336', textColor: '#babbcc',
+    shapeColor: '#babbcc',fillColor: '#2a2c3f' },
+  { name: 'Light (Legacy)', quality: 'light', url: 'assets/css/themes/remix-light_powaqg.css', backgroundColor: '#eef1f6', textColor: '#3b445e',
     shapeColor: '#343a40',fillColor: '#ffffff' },
 ]
 
@@ -97,6 +102,13 @@ export class ThemeModule extends Plugin {
       if (existingThemeLink) existingThemeLink.remove()
       const nextTheme = this.themes[this.active] // Theme
       document.documentElement.style.setProperty('--theme', nextTheme.quality)
+      
+      // Add/remove Tailwind dark class based on theme quality
+      if (nextTheme.quality === 'dark') {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
 
       // Reuse preloaded theme link if present to avoid double loading
       const preloaded = document.getElementById('pre-theme-css') as HTMLLinkElement | null
@@ -151,6 +163,14 @@ export class ThemeModule extends Plugin {
     })
     document.head.insertBefore(theme, document.head.firstChild)
     document.documentElement.style.setProperty('--theme', nextTheme.quality)
+    
+    // Add/remove Tailwind dark class based on theme quality
+    if (nextTheme.quality === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    
     if (themeName) this.active = themeName
     // TODO: Only keep `this.emit` (issue#2210)
     if (isElectron()) {

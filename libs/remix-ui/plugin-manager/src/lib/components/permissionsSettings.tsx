@@ -77,7 +77,7 @@ function PermisssionsSettings() {
               {permissions && Object.keys(permissions).length > 0 ? (
                 <>
                   <div className="remixui_checkbox">
-                    <span className="me-2">
+                    <span className="mr-2">
                       <input
                         type="checkbox"
                         onChange={() => handleCheckboxClick(targetPlugin, funcName, pluginName)}
@@ -86,7 +86,7 @@ function PermisssionsSettings() {
                         aria-describedby={`module ${pluginName} asks permission for ${funcName}`}
                       />
                       <label
-                        className="ms-4"
+                        className="ml-4"
                         htmlFor={`permission-checkbox-${targetPlugin}-${funcName}-${targetPlugin}`}
                         data-id={`permission-label-${targetPlugin}-${funcName}-${targetPlugin}`}
                       >
@@ -135,7 +135,7 @@ function PermisssionsSettings() {
         <form className="remixui_permissionForm" data-id="pluginManagerSettingsPermissionForm">
           <div className="p-2">
             {Object.keys(permissions).map((targetPlugin) => (
-              <div key={`container-${targetPlugin}`}>
+              <div key={`container mx-auto px-4-${targetPlugin}`}>
                 <RenderPluginHeader key={`header-${targetPlugin}`} headingName={targetPlugin} />
                 <RenderPermissions key={`permissions-${targetPlugin}`} targetPlugin={targetPlugin} />
               </div>
@@ -147,11 +147,11 @@ function PermisssionsSettings() {
         <CustomTooltip
           placement={'top'}
           tooltipId="pmPermissions"
-          tooltipClasses="text-nowrap"
+          tooltipClasses="whitespace-nowrap"
           tooltipText={<FormattedMessage id="pluginManager.managePluginsPermissions" />}
           key={'keypmPermissions'}
         >
-          <button onClick={openModal} className="btn btn-primary settings-button" data-id="pluginManagerPermissionsButton">
+          <button onClick={openModal} className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors settings-button" data-id="pluginManagerPermissionsButton">
             <FormattedMessage id="pluginManager.Permissions" />
           </button>
         </CustomTooltip>

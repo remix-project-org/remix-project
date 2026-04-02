@@ -13,7 +13,7 @@ const LoaderIndicator = ({ type, isLoadingCondition }: LoaderIndicatorProps) => 
   const isLoading = loading || isLoadingCondition
   if (!isLoading) return null
   return (
-    <i data-id='loader-indicator' style={{ fontSize: 'x-small' }} className="ms-1 fas fa-spinner fa-spin fa-4x"></i>
+    <i data-id='loader-indicator' style={{ fontSize: 'x-small' }} className="ml-1 fas fa-spinner fa-spin fa-4x"></i>
   );
 };
 

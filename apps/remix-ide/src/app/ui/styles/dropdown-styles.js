@@ -38,7 +38,7 @@ var css = csjs`
     width             : 245px;
     border            : 1px solid var(--dark);
     border-radius     : 3px;
-    border-top        : 0;
+    border-t        : 0;
     padding-left      : 5px;
   }
   .option {

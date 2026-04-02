@@ -76,11 +76,11 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
     >
       {props.showModelSelector && (
         <div
-          className="pt-2 mb-2 z-3 bg-light border border-text position-fixed"
+          className="pt-2 mb-2 z-3 bg-light border border-text fixed"
           style={{ borderRadius: '8px', top: props.modelOpt.top, left: props.modelOpt.left, zIndex: 1000, minWidth: '300px', maxWidth: '400px' }}
           ref={props.menuRef}
         >
-          <div className="text-uppercase ms-2 mb-2 small">AI Model</div>
+          <div className="uppercase ml-2 mb-2 small">AI Model</div>
           <GroupListMenu
             setChoice={props.handleModelSelection}
             setShowOptions={props.setShowModelSelector}
@@ -89,9 +89,9 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
             onLockedItemClick={handleLockedItemClick}
           />
           {props.mcpEnabled && (
-            <div className="border-top mt-2 pt-2">
-              <div className="text-uppercase ms-2 mb-2 small">MCP Enhancement</div>
-              <div className="form-check ms-2 mb-2">
+            <div className="border-t mt-2 pt-2">
+              <div className="uppercase ml-2 mb-2 small">MCP Enhancement</div>
+              <div className="form-check ml-2 mb-2">
                 <input
                   className="form-check-input"
                   type="checkbox"
@@ -103,7 +103,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
                         Enable MCP context enhancement
                 </label>
               </div>
-              <div className="small text-muted ms-2">
+              <div className="small text-gray-500 dark:text-gray-400 ml-2">
                       Adds relevant context from the connected MCP servers
               </div>
             </div>
@@ -112,10 +112,10 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
       )}
       {props.showOllamaModelSelector && props.selectedModel?.provider === 'ollama' && (
         <div
-          className="pt-2 mb-2 z-3 bg-light border border-text w-75 position-absolute"
+          className="pt-2 mb-2 z-3 bg-light border border-text w-3/4 absolute"
           style={{ borderRadius: '8px' }}
         >
-          <div className="text-uppercase ml-2 mb-2 small">Ollama Model</div>
+          <div className="uppercase ml-2 mb-2 small">Ollama Model</div>
           <GroupListMenu
             setChoice={props.handleOllamaModelSelection}
             setShowOptions={props.setShowOllamaModelSelector}
@@ -156,7 +156,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         modelSelectorBtnRef={props.modelSelectorBtnRef}
         stopRequest={props.stopRequest}
       />
-      <span className="mb-4 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
+      <span className="mb-4 mx-4 small w-full text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>
   )
 }

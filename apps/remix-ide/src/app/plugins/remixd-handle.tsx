@@ -160,7 +160,7 @@ function remixdDialog() {
   return (
     <>
       <div className="">
-        <div className="mb-2 text-break">
+        <div className="mb-2 break-words">
           <FormattedMessage
             id="remixd.text1"
             values={{
@@ -172,7 +172,7 @@ function remixdDialog() {
             }}
           />
         </div>
-        <div className="mb-2 text-break">
+        <div className="mb-2 break-words">
           <FormattedMessage
             id="remixd.text2"
             values={{
@@ -184,19 +184,19 @@ function remixdDialog() {
             }}
           />
         </div>
-        <div className="mb-2 text-break">
+        <div className="mb-2 break-words">
           <FormattedMessage id="remixd.text3" />
           <br />
           <b>{commandText}</b>
         </div>
-        <div className="mb-2 text-break">
+        <div className="mb-2 break-words">
           <FormattedMessage id="remixd.text4" />
         </div>
-        <div className="mb-2 text-break">
+        <div className="mb-2 break-words">
           <FormattedMessage id="remixd.text5" /> <br />
           <b>{fullCommandText}</b>
         </div>
-        <div className="mb-2 text-break">
+        <div className="mb-2 break-words">
           <FormattedMessage
             id="remixd.text6"
             values={{
@@ -208,10 +208,10 @@ function remixdDialog() {
             }}
           />
         </div>
-        <div className="mb-2 text-break">
+        <div className="mb-2 break-words">
           <FormattedMessage id="remixd.text7" />
         </div>
-        <div className="mb-2 text-break">
+        <div className="mb-2 break-words">
           <h6 className="text-danger">
             <FormattedMessage id="remixd.text8" /> <b>v{remixdVersion}</b>
             <br></br>

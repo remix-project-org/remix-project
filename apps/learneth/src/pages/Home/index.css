@@ -44,8 +44,7 @@
   position: sticky; 
   top: 0; 
   z-index: 2;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
+  padding-top: 0.25rem; padding-bottom: 0.25rem;
 }
 #learneth .search-bar-container { 
   position: relative; 

@@ -228,8 +228,8 @@ export function UniversalDappUI(props: UdappProps) {
 
   const label = (key: string | number, value: string) => {
     return (
-      <div className="d-flex mt-2 flex-row label_item align-items-baseline">
-        <label className="small fw-bold mb-0 pe-1 label_key">{key}:</label>
+      <div className="flex mt-2 flex-row label_item items-baseline">
+        <label className="small font-bold mb-0 pr-1 label_key">{key}:</label>
         <label className="m-0 label_value">{value}</label>
       </div>
     )
@@ -267,7 +267,7 @@ export function UniversalDappUI(props: UdappProps) {
         </span>
         <div className="input-group udapp_nameNbuts">
           <div className="udapp_titleText input-group-text p-0 bg-transparent">
-            { props.instance.isPinned ? ( <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappUnpinTooltip" tooltipText={props.instance.isPinned ? `Pinned for network: ${props.plugin.REACT_API.chainId}, at:  ${new Date(props.instance.pinnedAt).toLocaleString()}` : '' }>
+            { props.instance.isPinned ? ( <CustomTooltip placement="top" tooltipClasses="whitespace-nowrap" tooltipId="udapp_udappUnpinTooltip" tooltipText={props.instance.isPinned ? `Pinned for network: ${props.plugin.REACT_API.chainId}, at:  ${new Date(props.instance.pinnedAt).toLocaleString()}` : '' }>
               <span className="input-group-text udapp_spanTitleText">
                 {props.instance.name} at {shortenAddress(address)}
               </span>
@@ -279,34 +279,34 @@ export function UniversalDappUI(props: UdappProps) {
             <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyAddress' })} content={address} direction={'top'} />
           </div>
           { props.instance.isPinned ? ( <div className="btn p-0">
-            <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappUnpinTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextUnpin" />}>
+            <CustomTooltip placement="top" tooltipClasses="whitespace-nowrap" tooltipId="udapp_udappUnpinTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextUnpin" />}>
               <i className="fas fa-thumbtack p-2" aria-hidden="true" data-id="universalDappUiUdappUnpin" onClick={unpinContract}></i>
             </CustomTooltip>
           </div> ) : ( <div className="btn p-0">
-            <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappPinTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextPin" />}>
+            <CustomTooltip placement="top" tooltipClasses="whitespace-nowrap" tooltipId="udapp_udappPinTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextPin" />}>
               <i className="far fa-thumbtack p-2" aria-hidden="true" data-id="universalDappUiUdappPin" onClick={pinContract}></i>
             </CustomTooltip>
           </div> )
           }
         </div>
         <div className="btn p-0">
-          <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappCloseTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextRemove" />}>
+          <CustomTooltip placement="top" tooltipClasses="whitespace-nowrap" tooltipId="udapp_udappCloseTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextRemove" />}>
             <i className="fas fa-times p-2" aria-hidden="true" data-id="universalDappUiUdappClose" onClick={remove}></i>
           </CustomTooltip>
         </div>
       </div>
       <div className="udapp_cActionsWrapper" data-id="universalDappUiContractActionWrapper">
         <div className="udapp_contractActionsContainer">
-          <div className="d-flex flex-row justify-content-between align-items-center pb-2" data-id="instanceContractBal">
+          <div className="flex flex-row justify-between items-center pb-2" data-id="instanceContractBal">
             <span className="remixui_runtabBalancelabel run-tab">
               <b><FormattedMessage id="udapp.balance" />:</b> {instanceBalance} ETH
             </span>
             <div></div>
-            <div className="btn d-flex p-0 align-self-center">
+            <div className="btn flex p-0 self-center">
 
               {/* [V2 Logic] AI Builder Mode (Sparkles) */}
               {selectedProvider && (
-                <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
+                <CustomTooltip placement="top" tooltipClasses="whitespace-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
                   <i
                     data-id="instanceEditIcon"
                     className="fas fa-sparkles"
@@ -421,14 +421,14 @@ export function UniversalDappUI(props: UdappProps) {
             </div>
           </div>
           { props.instance.isPinned && props.instance.pinnedAt ? (
-            <div className="d-flex" data-id="instanceContractPinnedAt">
+            <div className="flex" data-id="instanceContractPinnedAt">
               <label>
                 <b><FormattedMessage id="udapp.pinnedAt" />:</b> {(new Date(props.instance.pinnedAt)).toLocaleString()}
               </label>
             </div>
           ) : null }
           { props.instance.isPinned && props.instance.filePath ? (
-            <div className="d-flex" data-id="instanceContractFilePath" style={{ textAlign: "start", lineBreak: "anywhere" }}>
+            <div className="flex" data-id="instanceContractFilePath" style={{ textAlign: "start", lineBreak: "anywhere" }}>
               <label>
                 <b><FormattedMessage id="udapp.filePath" />:</b> {props.instance.filePath}
               </label>
@@ -478,44 +478,44 @@ export function UniversalDappUI(props: UdappProps) {
               )
             })}
         </div>
-        <div className="d-flex flex-column">
-          <div className="d-flex flex-row justify-content-between mt-2">
-            <div className="py-2 border-top d-flex justify-content-start flex-grow-1">
+        <div className="flex flex-col">
+          <div className="flex flex-row justify-between mt-2">
+            <div className="py-2 border-t flex justify-start flex-grow-1">
               <FormattedMessage id="udapp.lowLevelInteractions" />
             </div>
             <CustomTooltip
               placement={'bottom-end'}
-              tooltipClasses="text-wrap"
+              tooltipClasses="whitespace-normal"
               tooltipId="receiveEthDocstoolTip"
               tooltipText={<FormattedMessage id="udapp.tooltipText8" />}
             >
               { // receive method added to solidity v0.6.x. use this as diff.
                 props.solcVersion.canReceive === false ? (
                   <a href={`https://docs.soliditylang.org/en/v${props.solcVersion.version}/contracts.html`} target="_blank" rel="noreferrer">
-                    <i aria-hidden="true" className="fas fa-info my-2 me-1"></i>
+                    <i aria-hidden="true" className="fas fa-info my-2 mr-1"></i>
                   </a>
                 ) :<a href={`https://docs.soliditylang.org/en/v${props.solcVersion.version}/contracts.html#receive-ether-function`} target="_blank" rel="noreferrer">
-                  <i aria-hidden="true" className="fas fa-info my-2 me-1"></i>
+                  <i aria-hidden="true" className="fas fa-info my-2 mr-1"></i>
                 </a>
               }
             </CustomTooltip>
           </div>
-          <div className="d-flex flex-column align-items-start">
+          <div className="flex flex-col items-start">
             <label className=""><FormattedMessage id="udapp.calldataLabel" /></label>
-            <div className="d-flex justify-content-end w-100 align-items-center">
+            <div className="flex justify-end w-full items-center">
               <CustomTooltip
                 placement="bottom"
-                tooltipClasses="text-nowrap"
+                tooltipClasses="whitespace-nowrap"
                 tooltipId="deployAndRunLLTxCalldataInputTooltip"
                 tooltipText={<FormattedMessage id="udapp.tooltipText9" />}
               >
                 <input id="deployAndRunLLTxCalldata" onChange={handleCalldataChange} className="udapp_calldataInput form-control" />
               </CustomTooltip>
-              <CustomTooltip placement="right" tooltipClasses="text-nowrap" tooltipId="deployAndRunLLTxCalldataTooltip" tooltipText={<FormattedMessage id="udapp.tooltipText10" />}>
+              <CustomTooltip placement="right" tooltipClasses="whitespace-nowrap" tooltipId="deployAndRunLLTxCalldataTooltip" tooltipText={<FormattedMessage id="udapp.tooltipText10" />}>
                 <button
                   id="deployAndRunLLTxSendTransaction"
                   data-id="pluginManagerSettingsDeployAndRunLLTxSendTransaction"
-                  className="btn udapp_instanceButton p-0 w-50 border-warning text-warning"
+                  className="btn udapp_instanceButton p-0 w-1/2 border-warning text-warning"
                   onClick={sendData}
                 >
                   <FormattedMessage id="udapp.transactButton" />

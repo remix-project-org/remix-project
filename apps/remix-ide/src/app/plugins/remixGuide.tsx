@@ -92,7 +92,7 @@ export class RemixGuidePlugin extends ViewPlugin {
 
   updateComponent(state: any) {
     return (
-      <div className='d-flex'>
+      <div className='flex'>
         <RemixUIGridView
           plugin={this}
           logo='assets/img/YouTubeLogo.webp'
@@ -150,20 +150,20 @@ export class RemixGuidePlugin extends ViewPlugin {
           data-id={`EnterModalDialogContainer-react`}
           data-bs-backdrop="static"
           data-bs-keyboard="false"
-          className={"modal d-flex"}
+          className={"modal flex"}
           role="dialog"
           style={{ justifyContent: "center" }}
         >
-          <div className="align-self-center pb-4" role="document">
+          <div className="self-center pb-4" role="document">
             <div
               tabIndex={-1}
               className={'modal-content remixModalContent mb-4'}
             >
-              <div className="text-break remixModalBody d-flex flex-column p-3 justify-content-between" data-id={`EnterModalDialogModalBody-react`}>
+              <div className="break-words remixModalBody flex flex-col p-3 justify-between" data-id={`EnterModalDialogModalBody-react`}>
                 <iframe style={{ minHeight: "500px", minWidth: "1000px" }} width="1000" height="500" src={"https://www.youtube.com/embed/" + this.videoID + "?si=ZdckOaSPR7VsLj_2"} allowFullScreen></iframe>
               </div>
-              <div className="modal-footer d-flex flex-column">
-                <button className="btn btn-secondary" onClick={() => {
+              <div className="modal-footer flex flex-col">
+                <button className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors" onClick={() => {
                   this.showVideo = false
                   this.renderComponent()
                 }}>Close</button>

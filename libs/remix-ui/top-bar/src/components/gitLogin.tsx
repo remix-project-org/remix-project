@@ -52,17 +52,17 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
       align="end"
     >
       <Button
-        className="btn btn-topbar btn-sm border d-flex flex-row flex-nowrap align-items-center justify-content-between github-login"
+        className="btn btn-topbar btn-sm border flex flex-row flex-nowrap items-center justify-between github-login"
         variant={null}
         data-id="github-dropdown-toggle-login"
         onClick={isConnected ? undefined : handleLogin}
         disabled={isConnected}
       >
         {isConnected ? (
-          <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
-            <i className="fab fa-github me-1"></i>
+          <div className="flex flex-row flex-nowrap items-center justify-center">
+            <i className="fab fa-github mr-1"></i>
             <span>{gitHubUser.login}</span>
-            <img src={gitHubUser.avatar_url} alt="Avatar" className="ms-1" style={{
+            <img src={gitHubUser.avatar_url} alt="Avatar" className="ml-1" style={{
               width: '25px',
               height: '25px',
               borderRadius: '50%',
@@ -70,9 +70,9 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
             }} />
           </div>
         ) : (
-          <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
-            <i className="fab fa-github me-1"></i>
-            <span className="d-flex flex-row flex-nowrap">Connect to GitHub</span>
+          <div className="flex flex-row flex-nowrap items-center justify-center">
+            <i className="fab fa-github mr-1"></i>
+            <span className="flex flex-row flex-nowrap">Connect to GitHub</span>
           </div>
         )}
       </Button>
@@ -86,13 +86,13 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
       </Dropdown.Toggle>
       <Dropdown.Menu
         as={CustomTopbarMenu}
-        className="custom-dropdown-items w-75 text-decoration-none bg-light"
+        className="custom-dropdown-items w-3/4 no-underline bg-light"
       >
         <Dropdown.Item
           data-id="github-dropdown-item-clone"
           onClick={cloneGitRepository}
         >
-          <i className="fab fa-github me-2"></i>
+          <i className="fab fa-github mr-2"></i>
           <span>Clone</span>
         </Dropdown.Item>
         {isConnected && (
@@ -104,7 +104,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
                 trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'publishToGist', isClick: true })
               }}
             >
-              <i className="fab fa-github me-2"></i>
+              <i className="fab fa-github mr-2"></i>
               <span>Publish to Gist</span>
             </Dropdown.Item>
             <Dropdown.Divider style={{ pointerEvents: 'none' }} className="border" />
@@ -120,7 +120,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
               }}
               className="text-danger"
             >
-              <i className="fas fa-sign-out-alt me-2"></i>
+              <i className="fas fa-sign-out-alt mr-2"></i>
               <span>Disconnect</span>
             </Dropdown.Item>
           </>

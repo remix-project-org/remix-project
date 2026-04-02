@@ -1,0 +1,91 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./apps/remix-ide/src/**/*.{js,ts,jsx,tsx}",
+    "./libs/remix-ui/**/*.{js,ts,jsx,tsx}",
+    "./apps/remixdesktop/**/*.{js,ts,jsx,tsx}",
+    "./apps/**/*.{js,ts,jsx,tsx}",
+    "./libs/**/*.{js,ts,jsx,tsx}",
+  ],
+  darkMode: 'class', // Enable class-based dark mode
+  theme: {
+    extend: {
+      colors: {
+        // Primary theme colors using CSS custom properties
+        primary: 'rgb(var(--color-primary) / <alpha-value>)',
+        secondary: 'rgb(var(--color-secondary) / <alpha-value>)', 
+        success: 'rgb(var(--color-success) / <alpha-value>)',
+        info: 'rgb(var(--color-info) / <alpha-value>)',
+        warning: 'rgb(var(--color-warning) / <alpha-value>)',
+        danger: 'rgb(var(--color-danger) / <alpha-value>)',
+        light: 'rgb(var(--color-light) / <alpha-value>)',
+        dark: 'rgb(var(--color-dark) / <alpha-value>)',
+        
+        // Semantic colors
+        body: 'rgb(var(--color-body-bg) / <alpha-value>)',
+        'body-text': 'rgb(var(--color-body-text) / <alpha-value>)',
+        emphasis: 'rgb(var(--color-emphasis) / <alpha-value>)',
+        
+        // Gray scale using CSS custom properties
+        gray: {
+          50: 'rgb(var(--color-gray-50) / <alpha-value>)',
+          100: 'rgb(var(--color-gray-100) / <alpha-value>)',
+          200: 'rgb(var(--color-gray-200) / <alpha-value>)',
+          300: 'rgb(var(--color-gray-300) / <alpha-value>)',
+          400: 'rgb(var(--color-gray-400) / <alpha-value>)',
+          500: 'rgb(var(--color-gray-500) / <alpha-value>)',
+          600: 'rgb(var(--color-gray-600) / <alpha-value>)',
+          700: 'rgb(var(--color-gray-700) / <alpha-value>)',
+          800: 'rgb(var(--color-gray-800) / <alpha-value>)',
+          900: 'rgb(var(--color-gray-900) / <alpha-value>)',
+        },
+        
+        // Remix custom colors
+        ai: 'rgb(var(--color-ai) / <alpha-value>)',
+        'surface-1': 'rgb(var(--color-surface-1) / <alpha-value>)',
+        'surface-2': 'rgb(var(--color-surface-2) / <alpha-value>)',
+        'surface-3': 'rgb(var(--color-surface-3) / <alpha-value>)',
+        'surface-4': 'rgb(var(--color-surface-4) / <alpha-value>)',
+        'border-light': 'rgb(var(--color-border-light) / <alpha-value>)',
+        'border-dark': 'rgb(var(--color-border-dark) / <alpha-value>)',
+
+        // Legacy Bootstrap compatibility (keep for transition)
+        'bs-primary': 'var(--bs-primary)',
+        'bs-secondary': 'var(--bs-secondary)', 
+        'bs-success': 'var(--bs-success)',
+        'bs-info': 'var(--bs-info)',
+        'bs-warning': 'var(--bs-warning)',
+        'bs-danger': 'var(--bs-danger)',
+        'bs-light': 'var(--bs-light)',
+        'bs-dark': 'var(--bs-dark)',
+        'remix-ai': 'var(--custom-ai-color)',
+        
+        // Legacy class mappings for transition period  
+        'light': 'var(--bs-light)',
+        'dark': 'var(--bs-dark)',
+        
+        // Add semantic color utilities for bg- classes
+        'danger': 'var(--bs-danger)',
+        'success': 'var(--bs-success)', 
+        'warning': 'var(--bs-warning)',
+        'info': 'var(--bs-info)',
+      },
+      fontFamily: {
+        sans: ['Nunito Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace']
+      },
+      spacing: {
+        // Bootstrap spacing utilities
+        '1': '0.25rem',  // 4px
+        '2': '0.5rem',   // 8px  
+        '3': '1rem',     // 16px
+        '4': '1.5rem',   // 24px
+        '5': '3rem',     // 48px
+      }
+    },
+  },
+  plugins: [
+    require('@tailwindcss/forms'),
+    require('@tailwindcss/typography')
+  ],
+}

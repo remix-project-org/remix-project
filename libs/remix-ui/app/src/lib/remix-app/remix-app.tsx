@@ -398,15 +398,15 @@ const RemixApp = (props: IRemixAppUi) => {
             <AppProvider value={value}>
               <MatomoDialog hide={!appReady} managePreferencesFn={() => setShowManagePreferencesDialog(true)}></MatomoDialog>
               {showManagePreferencesDialog && <ManagePreferencesDialog></ManagePreferencesDialog>}
-              <div className="d-flex flex-column col-12 vh-100">
+              <div className="flex flex-col col-12 h-screen">
                 <OriginWarning />
                 {!props.app.desktopClientMode && (
                   <div ref={topBarRef} className='top-bar'>
                     {props.app.topBar.render()}
                   </div>
                 )}
-                <div className={`remixIDE ${appReady ? '' : 'd-none'} ${showAiChatHistory ? 'chat-history-open' : ''}`} data-id="remixIDE">
-                  {showAiChatHistory ? <div className={`${themeTracker.name.toLowerCase() === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'} rounded-3 p-1`} style={floatingChatStyle}>
+                <div className={`remixIDE ${appReady ? '' : 'hidden'} ${showAiChatHistory ? 'chat-history-open' : ''}`} data-id="remixIDE">
+                  {showAiChatHistory ? <div className={`${themeTracker.name.toLowerCase() === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'} rounded-lg p-1`} style={floatingChatStyle}>
                     <FloatingChatHistory
                       conversations={props.app.remixAiAssistant.conversations}
                       currentConversationId={props.app.remixAiAssistant.currentConversationId}
@@ -431,7 +431,7 @@ const RemixApp = (props: IRemixAppUi) => {
                     ref={sidePanelRef}
                     id="side-panel"
                     data-id="remixIdeSidePanel"
-                    className={`sidepanel border-end border-start ${hideSidePanel ? 'd-none' : ''}`}
+                    className={`sidepanel border-r border-l ${hideSidePanel ? 'hidden' : ''}`}
                   >
                     {props.app.sidePanel.render()}
                   </div>
@@ -446,10 +446,10 @@ const RemixApp = (props: IRemixAppUi) => {
                     layoutPosition='left'
                     coeff={leftPanelCoeff}
                   ></DragBar>
-                  <div id="main-panel" data-id="remixIdeMainPanel" className="mainpanel d-flex">
+                  <div id="main-panel" data-id="remixIdeMainPanel" className="mainpanel flex">
                     <RemixUIMainPanel layout={props.app.layout}></RemixUIMainPanel>
                   </div>
-                  <div id="right-side-panel" ref={pinnedPanelRef} data-id="remixIdePinnedPanel" className={`flex-row-reverse pinnedpanel border-end border-start ${hidePinnedPanel ? 'd-none' : 'd-flex'}`}>
+                  <div id="right-side-panel" ref={pinnedPanelRef} data-id="remixIdePinnedPanel" className={`flex-row-reverse pinnedpanel border-r border-l ${hidePinnedPanel ? 'hidden' : 'flex'}`}>
                     {props.app.rightSidePanel.render()}
                   </div>
                   {

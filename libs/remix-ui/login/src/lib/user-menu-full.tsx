@@ -26,7 +26,7 @@ export const UserMenuFull: React.FC<UserMenuFullProps> = ({
   const [showDropdown, setShowDropdown] = useState(false)
 
   return (
-    <div className={`d-flex align-items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-2 ${className}`}>
       {credits && showCredits && (
         <div className="badge bg-primary">
           {credits.balance} credits
@@ -34,7 +34,7 @@ export const UserMenuFull: React.FC<UserMenuFullProps> = ({
       )}
       <div className="dropdown">
         <button
-          className="btn btn-sm btn-success dropdown-toggle d-flex flex-nowrap align-items-center"
+          className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-success dropdown-toggle flex flex-nowrap items-center"
           type="button"
           onClick={() => setShowDropdown(!showDropdown)}
           data-id="user-menu-button"
@@ -43,7 +43,7 @@ export const UserMenuFull: React.FC<UserMenuFullProps> = ({
             <img
               src={user.picture}
               alt="Avatar"
-              className="me-1"
+              className="mr-1"
               style={{
                 width: '25px',
                 height: '25px',
@@ -52,7 +52,7 @@ export const UserMenuFull: React.FC<UserMenuFullProps> = ({
               }}
             />
           ) : (
-            <span className="me-1">👤</span>
+            <span className="mr-1">👤</span>
           )}
           <span>{getUserDisplayName()}</span>
         </button>
@@ -64,7 +64,7 @@ export const UserMenuFull: React.FC<UserMenuFullProps> = ({
             >
               <div className="dropdown-header">
                 {user.picture && (
-                  <div className="d-flex justify-content-center mb-2">
+                  <div className="flex justify-center mb-2">
                     <img
                       src={user.picture}
                       alt="Avatar"
@@ -78,23 +78,23 @@ export const UserMenuFull: React.FC<UserMenuFullProps> = ({
                   </div>
                 )}
                 <div><strong>{getUserDisplayName()}</strong></div>
-                <div className="text-muted small">{getProviderDisplayName(user.provider)}</div>
-                {user.email && <div className="text-muted small">{user.email}</div>}
-                {user.address && <div className="text-muted small font-monospace">{formatAddress(user.address)}</div>}
+                <div className="text-gray-500 dark:text-gray-400 small">{getProviderDisplayName(user.provider)}</div>
+                {user.email && <div className="text-gray-500 dark:text-gray-400 small">{user.email}</div>}
+                {user.address && <div className="text-gray-500 dark:text-gray-400 small font-monospace">{formatAddress(user.address)}</div>}
               </div>
               {credits && (
                 <>
                   <div className="dropdown-divider"></div>
                   <div className="dropdown-item-text small">
-                    <div className="d-flex justify-content-between mb-1">
+                    <div className="flex justify-between mb-1">
                       <span>Total Credits:</span>
                       <strong>{credits.balance}</strong>
                     </div>
-                    <div className="d-flex justify-content-between text-muted">
+                    <div className="flex justify-between text-gray-500 dark:text-gray-400">
                       <span>Free:</span>
                       <span>{credits.free_credits}</span>
                     </div>
-                    <div className="d-flex justify-content-between text-muted">
+                    <div className="flex justify-between text-gray-500 dark:text-gray-400">
                       <span>Paid:</span>
                       <span>{credits.paid_credits}</span>
                     </div>

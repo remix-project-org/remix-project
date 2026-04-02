@@ -26,7 +26,7 @@ export const SourceControGroup = (props: SourceControGroupProps) => {
     {group.group.length > 0 ?
       <Accordion activeKey={activePanel} defaultActiveKey="">
         <SourceControlGroupNavigation group={group} eventKey="0" activePanel={activePanel} callback={setActivePanel} />
-        <Accordion.Collapse className="ps-2 border-start ms-1" eventKey="0">
+        <Accordion.Collapse className="pl-2 border-l ml-1" eventKey="0">
           <>
             {group.group.map((file, index) => {
               return (<SourceControlItem key={index} group={group} file={file}></SourceControlItem>)

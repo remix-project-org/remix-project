@@ -11,7 +11,7 @@ export function PromptSubmitButton(props: PromptSubmitButtonProps) {
 
   return (
     <button
-      className={`btn btn-sm d-flex justify-content-center align-items-center ${props.isStreaming ? 'bg-danger' : ''}`}
+      className={`btn btn-sm flex justify-center items-center ${props.isStreaming ? 'bg-danger' : ''}`}
       style={{ backgroundColor: props.isStreaming ? undefined : props.backgroundColor }}
       data-id="remix-ai-composer-send-btn"
       onClick={() => {

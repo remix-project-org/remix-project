@@ -72,8 +72,8 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
   if (appContext.appState.connectedToDesktop !== desktopConnectionType.disabled) {
     return (
       <>
-        <div id="iconsP" className="h-100">
-          <div className="remixui_icons d-flex flex-column remixui_icons_height" ref={iconPanelRef}>
+        <div id="iconsP" className="h-full">
+          <div className="remixui_icons flex flex-col remixui_icons_height" ref={iconPanelRef}>
             <Home disableClick={true} verticalIconPlugin={verticalIconsPlugin} />
           </div>
         </div>
@@ -82,8 +82,8 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
   }
 
   return (
-    <div id="iconsP" className="h-100">
-      <div className="remixui_icons d-flex flex-column remixui_icons_height" ref={iconPanelRef}>
+    <div id="iconsP" className="h-full">
+      <div className="remixui_icons flex flex-col remixui_icons_height" ref={iconPanelRef}>
         {/* <Home verticalIconPlugin={verticalIconsPlugin} /> */}
         <div className={scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? 'remixui_default-icons-container remixui_requiredSection' : activateScroll && activateScroll.scrollState ? 'remixui_default-icons-container remixui_requiredSection' : 'remixui_requiredSection'}>
           <IconList theme={theme} icons={icons.filter((p) => p.isRequired && p.profile.name !== 'pluginManager')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} />
@@ -105,11 +105,11 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
           {Registry.getInstance().get('platform').api.isDesktop() ? (
             online ? (
               <CustomTooltip placement="top" tooltipText={'You are online'}>
-                <i className="fa-solid fa-wifi text-success p-2"></i>
+                <i className="fa-solid fa-wifi text-green-500 p-2"></i>
               </CustomTooltip>
             ) : (
               <CustomTooltip placement="top" tooltipText={'You are offline'}>
-                <i className="fa-solid fa-wifi-exclamation text-danger p-2"></i>
+                <i className="fa-solid fa-wifi-exclamation text-red-500 p-2"></i>
               </CustomTooltip>
             )
           ) : null}

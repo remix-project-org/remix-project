@@ -87,7 +87,7 @@ const PermissionHandlerDialog = (props: PermissionHandlerProps) => {
         {pluginMessage()}
         {sensitiveCall ? (
           <p className="text-warning">
-            <i className="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>
+            <i className="fas fa-exclamation-triangle mr-2" aria-hidden="true"></i>
             <FormattedMessage id="permissionHandler.makeSureYouTrustThisPlugin" />
           </p>
         ) : (
@@ -96,20 +96,20 @@ const PermissionHandlerDialog = (props: PermissionHandlerProps) => {
       </article>
       <article className="remember">
         {
-          <div className="form-check">
+          <div className="flex items-center">
             <input
               type="checkbox"
               onChange={switchMode}
-              className="form-check-input"
+              className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
               id="rememberSwitchCheck"
               data-id={remember ? 'permissionHandlerRememberChecked' : 'permissionHandlerRememberUnchecked'}
             />
-            <label htmlFor="rememberSwitchCheck" className="form-check-label" data-id="permissionHandlerRememberChoice">
+            <label htmlFor="rememberSwitchCheck" className="ml-2 text-sm font-medium text-gray-700" data-id="permissionHandlerRememberChoice">
               <FormattedMessage id="permissionHandler.rememberThisChoice" />
             </label>
           </div>
         }
-        <button className="btn-secondary btn-sm" onClick={reset}>
+        <button className="btn btn-secondary btn-sm" onClick={reset}>
           <FormattedMessage id="permissionHandler.resetAllPermissions" />
         </button>
       </article>

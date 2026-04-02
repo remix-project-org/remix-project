@@ -11,7 +11,7 @@ html, body, #root, main {
   justify-content: space-between;
   align-items: center;
   height: 50px;
-  padding: 5px 15px;
+  padding: 0.25rem 1rem;
 }
 
 #vyper-plugin header a,
@@ -36,12 +36,12 @@ html, body, #root, main {
 .btn-group-toggle {
   width: 90%;
   text-transform: uppercase;
-  margin: 10px 0;
+  margin: 0.75rem 0;
 }
 
 .btn-group-toggle .btn {
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
 }
 
 #local-url {
@@ -54,7 +54,7 @@ html, body, #root, main {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  padding-top: 10px;
+  padding-top: 0.75rem;
   overflow: hidden;
 }
 
@@ -268,7 +268,6 @@ html, body, #root, main {
 }
 
 .vyper-errorBlobs {
-  padding-left: 5px;
-  padding-right: 5px;
+  padding-left: 5px; padding-right: 5px;
   word-break: break-word;
 }

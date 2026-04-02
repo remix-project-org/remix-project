@@ -50,11 +50,11 @@ export const CompilerMenuToggle = React.forwardRef(
       }}
       className={className.replace('dropdown-toggle', '')}
     >
-      <div className="d-flex">
+      <div className="flex">
         {children}
         {icon && (
-          <div className="pe-1">
-            <i className={`${icon} pe-1`}></i>
+          <div className="pr-1">
+            <i className={`${icon} pr-1`}></i>
           </div>
         )}
         <div>

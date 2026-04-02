@@ -393,13 +393,13 @@ function EnvironmentPortraitView() {
   return (
     <>
       <div className='card mx-2 mb-2 pb-3 env-card' style={{ '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-        <div className="d-flex align-items-center justify-content-between p-3">
-          <div className="d-flex align-items-center">
+        <div className="flex items-center justify-between p-3">
+          <div className="flex items-center">
             <h6 className="my-auto env-card-heading">{intl.formatMessage({ id: 'udapp.environment' })}</h6>
           </div>
-          <div className="toggle-container">
+          <div className="toggle-container mx-auto px-4">
             {widgetState.providers?.selectedProvider?.startsWith('vm') && !widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
-              <button data-id="fork-state-icon" className='btn btn-primary btn-sm small me-2 btn-small-text' onClick={handleForkClick}>
+              <button data-id="fork-state-icon" className='btn btn-primary btn-sm mr-2' onClick={handleForkClick}>
                 <i className='fas fa-code-branch'></i> {intl.formatMessage({ id: 'udapp.fork' })}
               </button>
             )}
@@ -413,8 +413,8 @@ function EnvironmentPortraitView() {
         {widgetState.fork.isVisible.forkUI && <ForkUI />}
         {widgetState.fork.isVisible.resetUI && <ResetUI />}
         {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
-          <div className="d-flex p-3 pt-0">
-            <Dropdown className="w-100" show={isEnvironmentDropdownOpen} onToggle={(isOpen) => {
+          <div className="flex p-3 pt-0">
+            <Dropdown className="w-full" show={isEnvironmentDropdownOpen} onToggle={(isOpen) => {
               if (isOpen) {
                 trackMatomoEvent({ category: 'udapp', action: 'environmentDropdownOpen', name: selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' })
               }
@@ -426,7 +426,7 @@ function EnvironmentPortraitView() {
               <Dropdown.Toggle
                 as={EnvironmentToggle}
                 data-id="settingsSelectEnvOptions"
-                className="w-100 d-inline-block border form-control env-toggle"
+                className="w-full inline-block border form-control env-toggle"
                 environmentUI={<EnvCategoryUI
                   key={selectedProvider?.category || widgetState.providers.selectedProvider}
                   isOpen={isSubCategoryDropdownOpen}
@@ -438,13 +438,13 @@ function EnvironmentPortraitView() {
                 />}
               >
                 <div className="env-toggle-content">
-                  <div className="text-truncate text-secondary">
+                  <div className="truncate text-secondary">
                     <span data-id={`selected-provider-${widgetState.providers.selectedProvider}`}> { selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' }</span>
                   </div>
                 </div>
               </Dropdown.Toggle>
 
-              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env p-0">
+              <Dropdown.Menu as={CustomMenu} className="w-full custom-dropdown-items overflow-hidden dropdown-menu-env">
                 {
                   uniqueDropdownItems.map((provider, index) => {
                     return (
@@ -457,9 +457,9 @@ function EnvironmentPortraitView() {
             </Dropdown>
           </div>)}
         {!widgetState.fork.isVisible.resetUI && (
-          <div className="d-flex px-3">
+          <div className="flex px-3">
             { hierarchicalAccounts.length > 0 &&
-            <Dropdown className="w-100" show={!widgetState.accounts.isRequesting && isAccountDropdownOpen} onToggle={(isOpen) => {
+            <Dropdown className="w-full" show={!widgetState.accounts.isRequesting && isAccountDropdownOpen} onToggle={(isOpen) => {
               if (!widgetState.accounts.isRequesting) {
                 if (isOpen) {
                   trackMatomoEvent({ category: 'udapp', action: 'accountDropdownOpen', name: shortenAddress(selectedAccount?.account) })
@@ -467,28 +467,28 @@ function EnvironmentPortraitView() {
                 setIsAccountDropdownOpen(isOpen)
               }
             }}>
-              <Dropdown.Toggle as={AddressToggle} data-id="runTabSelectAccount" className={`w-100 d-inline-block border form-control ${!selectedAccountIsSmartAccount ? 'selected-account-hover' : ''} account-toggle ${isAccountDropdownOpen ? 'dropdown-open' : ''} ${widgetState.accounts.isRequesting ? 'disabled' : ''}`} style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', cursor: widgetState.accounts.isRequesting ? 'not-allowed' : 'pointer', opacity: widgetState.accounts.isRequesting ? 0.6 : 1 }}>
+              <Dropdown.Toggle as={AddressToggle} data-id="runTabSelectAccount" className={`w-full inline-block border form-control ${!selectedAccountIsSmartAccount ? 'selected-account-hover' : ''} account-toggle ${isAccountDropdownOpen ? 'dropdown-open' : ''} ${widgetState.accounts.isRequesting ? 'disabled' : ''}`} style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', cursor: widgetState.accounts.isRequesting ? 'not-allowed' : 'pointer', opacity: widgetState.accounts.isRequesting ? 0.6 : 1 }}>
                 {widgetState.accounts.isRequesting ? (
-                  <div className="d-flex align-items-center justify-content-center w-100">
+                  <div className="flex items-center justify-center w-full">
                     <i className="fas fa-spinner fa-spin"></i>
                   </div>
                 ) : (
-                  <div className="d-flex align-items-center">
-                    <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
-                      <div className="d-flex align-items-center justify-content-between w-100">
-                        <div className='d-flex align-items-start account-info-container'>
+                  <div className="flex items-center">
+                    <div className="me-auto whitespace-nowrap truncate overflow-hidden font-sm w-full">
+                      <div className="flex items-center justify-between w-full">
+                        <div className='flex items-start account-info-container mx-auto px-4'>
                           {selectedAccountIsSmartAccount && (
                             <CustomTooltip
                               placement="top"
-                              tooltipClasses="text-nowrap"
+                              tooltipClasses="whitespace-nowrap"
                               tooltipId="selected-smart-account-badge-tooltip"
                               tooltipText="Smart Account"
                             >
                               <span className="smart-account-badge smart-account-badge-selected">S</span>
                             </CustomTooltip>
                           )}
-                          <div className='d-flex flex-column align-items-start ms-1'>
-                            <div className="text-truncate text-dark d-flex align-items-center">
+                          <div className='flex flex-col items-start ml-1'>
+                            <div className="truncate text-dark flex items-center">
                               {editingAccountId === 'selected' ? (
                                 <input
                                   ref={editingInputRef}
@@ -504,7 +504,7 @@ function EnvironmentPortraitView() {
                                 <>
                                   <span>{selectedAccount?.alias}</span>
                                   <i
-                                    className="fa-solid fa-pen small ms-1"
+                                    className="fa-solid fa-pen small ml-1"
                                     style={{ cursor: 'pointer' }}
                                     onClick={(e) => handleStartEditAlias('selected', selectedAccount?.alias, e)}
                                   ></i>
@@ -514,7 +514,7 @@ function EnvironmentPortraitView() {
                             <div className="account-address-label">
                               <span className="small">{shortenAddress(selectedAccount?.account)}</span>
                               <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => selectedAccount?.account} callback={() => trackMatomoEvent({ category: 'udapp', action: 'copyAccountAddress', name: shortenAddress(selectedAccount?.account), isClick: true })}>
-                                <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
+                                <i className="fa-solid fa-copy small ml-1 copy-icon"></i>
                               </CopyToClipboard>
                             </div>
                           </div>
@@ -553,7 +553,7 @@ function EnvironmentPortraitView() {
                 onDeleteAccount={handleDeleteAccount}
               />
 
-              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env p-0">
+              <Dropdown.Menu as={CustomMenu} className="w-full custom-dropdown-items overflow-hidden dropdown-menu-env">
                 {
                   hierarchicalAccounts.map((item, index) => {
                     const { account, isSmartAccount, level } = item
@@ -565,10 +565,10 @@ function EnvironmentPortraitView() {
                       <div key={index} className={isSmartAccount ? 'smart-account-item' : ''}>
                         <Dropdown.Item
                           data-id={accountData.account}
-                          className={`d-flex align-items-center justify-content-between py-1 account-item-hover cursor-pointer ${isIndented ? 'indented-account indented-dropdown-item' : 'normal-dropdown-item'}`}
+                          className={`flex items-center justify-between py-1 account-item-hover cursor-pointer ${isIndented ? 'indented-account indented-dropdown-item' : 'normal-dropdown-item'}`}
                           onClick={() => handleAccountSelection(accountData)}
                         >
-                          <div className='d-flex align-items-start indented-account-wrapper'>
+                          <div className='flex items-start indented-account-wrapper'>
                             {isIndented && (
                               <>
                                 <div className="tree-connector-vertical"></div>
@@ -578,15 +578,15 @@ function EnvironmentPortraitView() {
                             {isSmartAccount && (
                               <CustomTooltip
                                 placement="top"
-                                tooltipClasses="text-nowrap"
+                                tooltipClasses="whitespace-nowrap"
                                 tooltipId={`smart-account-badge-tooltip-${index}`}
                                 tooltipText="Smart Account"
                               >
                                 <span className="smart-account-badge smart-account-badge-dropdown">S</span>
                               </CustomTooltip>
                             )}
-                            <div className='d-flex flex-column align-items-start'>
-                              <div className="text-truncate text-dark d-flex align-items-center">
+                            <div className='flex flex-col items-start'>
+                              <div className="truncate text-dark flex items-center">
                                 {editingAccountId === accountId ? (
                                   <input
                                     ref={editingInputRef}
@@ -605,7 +605,7 @@ function EnvironmentPortraitView() {
                               <div className="account-address-label">
                                 <span className="small">{shortenAddress(accountData?.account)}</span>
                                 <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => accountData?.account} callback={() => trackMatomoEvent({ category: 'udapp', action: 'copyAccountAddress', name: shortenAddress(accountData?.account), isClick: true })}>
-                                  <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
+                                  <i className="fa-solid fa-copy small ml-1 copy-icon"></i>
                                 </CopyToClipboard>
                               </div>
                             </div>
@@ -640,11 +640,11 @@ function EnvironmentPortraitView() {
           </div>)}
         {!widgetState.fork.isVisible.resetUI && selectedSmartAccountOwner && (
           <div className="px-3">
-            <div className="d-flex align-items-center mt-2">
-              <span className="owner-label-badge d-flex align-items-center">
+            <div className="flex items-center mt-2">
+              <span className="owner-label-badge flex items-center">
                 Owner: {shortenAddress(selectedSmartAccountOwner)}
                 <CopyToClipboard tip="Copy owner address" icon="fa-copy" direction="top" getContent={() => selectedSmartAccountOwner} callback={() => trackMatomoEvent({ category: 'udapp', action: 'copyAccountAddress', name: shortenAddress(selectedSmartAccountOwner), isClick: true })}>
-                  <i className="fa-solid fa-copy ms-2 copy-icon"></i>
+                  <i className="fa-solid fa-copy ml-2 copy-icon"></i>
                 </CopyToClipboard>
               </span>
             </div>
@@ -652,12 +652,12 @@ function EnvironmentPortraitView() {
         )}
         {enableDelegationAuthorization && delegationAddress && (
           <div className="px-3">
-            <div className="alert alert-info d-flex align-items-center justify-content-between p-2 mt-2 mb-0 rounded delegation-alert">
-              <div className="d-flex align-items-center small">
-                <span className="me-2">Delegation:</span>
-                <span className="text-truncate delegation-address">{shortenAddress(delegationAddress)}</span>
+            <div className="alert alert-info flex items-center justify-between p-2 mt-2 mb-0 rounded delegation-alert">
+              <div className="flex items-center small">
+                <span className="mr-2">Delegation:</span>
+                <span className="truncate delegation-address">{shortenAddress(delegationAddress)}</span>
                 <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => delegationAddress} callback={() => trackMatomoEvent({ category: 'udapp', action: 'copyDelegationAddress', name: shortenAddress(delegationAddress), isClick: true })}>
-                  <i className="fa-solid fa-copy small ms-1 copy-icon"></i>
+                  <i className="fa-solid fa-copy small ml-1 copy-icon"></i>
                 </CopyToClipboard>
               </div>
               <i

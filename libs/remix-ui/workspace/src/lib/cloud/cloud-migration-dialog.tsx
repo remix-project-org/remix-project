@@ -135,11 +135,11 @@ const ProgressBar: React.FC<{ percent: number; color?: string; height?: number; 
   className = '',
 }) => (
   <div
-    className={`w-100 rounded-pill overflow-hidden ${className}`}
+    className={`w-full rounded-full overflow-hidden ${className}`}
     style={{ height, backgroundColor: 'var(--bs-border-color, rgba(128,128,128,0.2))' }}
   >
     <div
-      className="h-100 rounded-pill"
+      className="h-full rounded-full"
       style={{
         width: `${Math.min(100, Math.max(0, percent))}%`,
         backgroundColor: color,
@@ -170,14 +170,14 @@ const MigrationCard: React.FC<{ item: MigrationItem; localWs?: LocalWorkspaceInf
       }}
     >
       {/* Header row: icon + name + status badge */}
-      <div className="d-flex align-items-center mb-1">
+      <div className="flex items-center mb-1">
         <i
-          className={`${si.icon} me-2 flex-shrink-0`}
+          className={`${si.icon} mr-2 flex-shrink-0`}
           style={{ color: si.color, fontSize: '1.1rem', width: '1.2rem', textAlign: 'center' }}
         />
-        <span className="fw-bold text-truncate flex-grow-1">{item.cloudName || item.localName}</span>
+        <span className="font-bold truncate flex-grow-1">{item.cloudName || item.localName}</span>
         <span
-          className="badge ms-2 flex-shrink-0"
+          className="badge ml-2 flex-shrink-0"
           style={{
             backgroundColor: si.color,
             color: '#fff',
@@ -196,9 +196,9 @@ const MigrationCard: React.FC<{ item: MigrationItem; localWs?: LocalWorkspaceInf
 
       {/* Detail line: current operation + file counters */}
       {item.status !== 'pending' && item.status !== 'skipped' && (
-        <div className="d-flex justify-content-between align-items-center">
+        <div className="flex justify-between items-center">
           <div
-            className="small text-truncate flex-grow-1 me-2"
+            className="small truncate flex-grow-1 mr-2"
             style={{
               color: item.status === 'error' ? 'var(--bs-danger)' : 'var(--bs-secondary)',
               fontFamily: item.currentFile ? 'monospace' : 'inherit',
@@ -209,7 +209,7 @@ const MigrationCard: React.FC<{ item: MigrationItem; localWs?: LocalWorkspaceInf
           </div>
           {/* File counters */}
           {item.totalFiles != null && item.totalFiles > 0 && (
-            <div className="small text-muted flex-shrink-0" style={{ fontSize: '0.7rem' }}>
+            <div className="small text-gray-500 dark:text-gray-400 flex-shrink-0" style={{ fontSize: '0.7rem' }}>
               {item.status === 'copying' && item.copiedFiles != null && (
                 <span>{item.copiedFiles}/{item.totalFiles} copied</span>
               )}
@@ -217,7 +217,7 @@ const MigrationCard: React.FC<{ item: MigrationItem; localWs?: LocalWorkspaceInf
                 <span>
                   {item.uploadedFiles}/{item.totalFiles} uploaded
                   {item.uploadedBytes != null && item.totalBytes ? (
-                    <span className="ms-1">({formatSize(item.uploadedBytes)}/{formatSize(item.totalBytes)})</span>
+                    <span className="ml-1">({formatSize(item.uploadedBytes)}/{formatSize(item.totalBytes)})</span>
                   ) : null}
                 </span>
               )}
@@ -231,8 +231,8 @@ const MigrationCard: React.FC<{ item: MigrationItem; localWs?: LocalWorkspaceInf
 
       {/* Error detail */}
       {item.status === 'error' && item.error && (
-        <div className="small text-danger text-break mt-1" style={{ fontSize: '0.7rem' }}>
-          <i className="fas fa-exclamation-triangle me-1" />
+        <div className="small text-danger break-words mt-1" style={{ fontSize: '0.7rem' }}>
+          <i className="fas fa-exclamation-triangle mr-1" />
           {item.error}
         </div>
       )}
@@ -432,8 +432,8 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
     // Loading phase
     if (phase === 'loading') {
       return (
-        <div className="d-flex align-items-center justify-content-center py-4">
-          <i className="fas fa-spinner fa-spin fa-lg me-2" style={{ color: 'var(--bs-info)' }} />
+        <div className="flex items-center justify-center py-4">
+          <i className="fas fa-spinner fa-spin fa-lg mr-2" style={{ color: 'var(--bs-info)' }} />
           <span>Discovering local workspaces…</span>
         </div>
       )
@@ -443,7 +443,7 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
     if (error && phase === 'select') {
       return (
         <div className="alert alert-danger mb-0">
-          <i className="fas fa-exclamation-triangle me-2" />
+          <i className="fas fa-exclamation-triangle mr-2" />
           Failed to discover workspaces: {error}
         </div>
       )
@@ -452,7 +452,7 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
     // Nothing to migrate
     if (phase === 'select' && items.length === 0) {
       return (
-        <div className="d-flex flex-column align-items-center py-4">
+        <div className="flex flex-col items-center py-4">
           <i className="fas fa-circle-check mb-2" style={{ fontSize: '2.5rem', color: 'var(--bs-success)' }} />
           <span className="mt-1">All local workspaces have been migrated to the cloud.</span>
         </div>
@@ -462,17 +462,17 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
     // ── Selection phase ──
     if (phase === 'select') {
       return (
-        <div className="d-flex flex-column" style={{ maxHeight: '60vh', overflow: 'auto' }}>
-          <div className="mb-2 d-flex align-items-center">
+        <div className="flex flex-col" style={{ maxHeight: '60vh', overflow: 'auto' }}>
+          <div className="mb-2 flex items-center">
             <input
               type="checkbox"
               id="migration-select-all"
               data-id="migration-select-all"
               checked={selected.size === items.length}
               onChange={toggleSelectAll}
-              className="form-check-input me-2 mt-0"
+              className="form-check-input mr-2 mt-0"
             />
-            <label htmlFor="migration-select-all" className="form-check-label small text-muted">
+            <label htmlFor="migration-select-all" className="form-check-label small text-gray-500 dark:text-gray-400">
               Select all ({items.length} workspace{items.length !== 1 ? 's' : ''})
             </label>
           </div>
@@ -485,7 +485,7 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
               <div
                 key={item.localName}
                 data-id={`migration-ws-${item.localName}`}
-                className={`d-flex align-items-start p-2 mb-1 rounded ${
+                className={`flex items-start p-2 mb-1 rounded ${
                   isSelected ? 'border border-primary' : 'border'
                 }`}
                 style={{ cursor: 'pointer' }}
@@ -496,24 +496,24 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
                   data-id={`migration-ws-checkbox-${item.localName}`}
                   checked={isSelected}
                   onChange={() => toggleSelect(item.localName)}
-                  className="form-check-input me-2 mt-1 flex-shrink-0"
+                  className="form-check-input mr-2 mt-1 flex-shrink-0"
                   onClick={(e) => e.stopPropagation()}
                 />
                 <div className="flex-grow-1 min-w-0">
-                  <div className="d-flex align-items-center">
-                    <span className="fw-bold text-truncate">{item.localName}</span>
+                  <div className="flex items-center">
+                    <span className="font-bold truncate">{item.localName}</span>
                     {item.nameConflict && (
-                      <span className="badge bg-warning ms-2 flex-shrink-0">name conflict</span>
+                      <span className="badge bg-warning ml-2 flex-shrink-0">name conflict</span>
                     )}
                   </div>
                   {localWs && (
-                    <div className="small text-muted">
+                    <div className="small text-gray-500 dark:text-gray-400">
                       {localWs.fileCount} file{localWs.fileCount !== 1 ? 's' : ''} · {formatSize(localWs.totalSize)}
                     </div>
                   )}
                   {item.nameConflict && isSelected && (
                     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-                      <label className="small text-muted">Cloud workspace name:</label>
+                      <label className="small text-gray-500 dark:text-gray-400">Cloud workspace name:</label>
                       <input
                         type="text"
                         className="form-control form-control-sm"
@@ -532,22 +532,22 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
 
     // ── Migrating / Done phase ──
     return (
-      <div className="d-flex flex-column" data-id={`migration-phase-${phase}`}>
+      <div className="flex flex-col" data-id={`migration-phase-${phase}`}>
         {/* Overall progress header */}
         <div className="mb-3 p-3 rounded border" style={{ backgroundColor: 'rgba(var(--bs-info-rgb, 13,202,240), 0.06)' }}>
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <div className="d-flex align-items-center">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center">
               {phase === 'migrating' ? (
-                <i className="fas fa-cloud-arrow-up fa-beat-fade me-2" style={{ color: 'var(--bs-primary)', fontSize: '1.2rem' }} />
+                <i className="fas fa-cloud-arrow-up fa-beat-fade mr-2" style={{ color: 'var(--bs-primary)', fontSize: '1.2rem' }} />
               ) : (
-                <i className={`fas ${summary.failed > 0 ? 'fa-exclamation-triangle' : 'fa-circle-check'} me-2`}
+                <i className={`fas ${summary.failed > 0 ? 'fa-exclamation-triangle' : 'fa-circle-check'} mr-2`}
                   style={{ color: summary.failed > 0 ? 'var(--bs-warning)' : 'var(--bs-success)', fontSize: '1.2rem' }} />
               )}
-              <span className="fw-bold">
+              <span className="font-bold">
                 {phase === 'migrating' ? 'Migrating workspaces…' : 'Migration complete'}
               </span>
             </div>
-            <div className="small text-muted">
+            <div className="small text-gray-500 dark:text-gray-400">
               {phase === 'migrating' && <span>{formatElapsed(elapsed)}</span>}
               {phase === 'done' && <span>{formatElapsed(elapsed)} total</span>}
             </div>
@@ -563,11 +563,11 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
             className="mb-2"
           />
 
-          <div className="d-flex justify-content-between small text-muted">
+          <div className="flex justify-between small text-gray-500 dark:text-gray-400">
             <span>{overallProgress}% complete</span>
             <span>
               {summary.done}/{summary.total} workspaces
-              {summary.failed > 0 && <span className="text-danger ms-2">({summary.failed} failed)</span>}
+              {summary.failed > 0 && <span className="text-danger ml-2">({summary.failed} failed)</span>}
             </span>
           </div>
         </div>
@@ -583,14 +583,14 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
 
         {/* Done summary */}
         {phase === 'done' && (
-          <div className="mt-2 p-2 rounded border d-flex align-items-center">
-            <i className={`fas ${summary.failed > 0 ? 'fa-exclamation-triangle' : 'fa-circle-check'} me-2`}
+          <div className="mt-2 p-2 rounded border flex items-center">
+            <i className={`fas ${summary.failed > 0 ? 'fa-exclamation-triangle' : 'fa-circle-check'} mr-2`}
               style={{ color: summary.failed > 0 ? 'var(--bs-warning)' : 'var(--bs-success)' }} />
             <span className="small">
               <strong>{summary.done}</strong> migrated successfully
               {summary.failed > 0 && <>, <strong className="text-danger">{summary.failed}</strong> failed</>}
               {summary.skipped > 0 && <>, <strong>{summary.skipped}</strong> skipped</>}
-              {summary.done > 0 && <span className="text-muted"> — your cloud workspaces are ready to use.</span>}
+              {summary.done > 0 && <span className="text-gray-500 dark:text-gray-400"> — your cloud workspaces are ready to use.</span>}
             </span>
           </div>
         )}
@@ -611,7 +611,7 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
     case 'migrating':
       return (
         <span>
-          <i className="fas fa-spinner fa-spin me-1" />
+          <i className="fas fa-spinner fa-spin mr-1" />
           Migrating… {overallProgress}%
         </span>
       ) as any
@@ -631,7 +631,7 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
       id="cloud-migration-dialog"
       title={
         <span>
-          <i className="fas fa-cloud-arrow-up me-2" />
+          <i className="fas fa-cloud-arrow-up mr-2" />
           Migrate Workspaces to Cloud
         </span>
       }

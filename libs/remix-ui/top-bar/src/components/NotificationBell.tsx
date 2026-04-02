@@ -241,7 +241,7 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
                 onClick={handleMarkAllAsRead}
                 title="Mark all as read"
               >
-                <i className="fa fa-check-double me-1"></i>
+                <i className="fa fa-check-double mr-1"></i>
                 Mark all read
               </button>
             )}
@@ -250,7 +250,7 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
           <div className="notification-dropdown-body">
             {loading && (
               <div className="notification-loading">
-                <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                <span className="spinner-border spinner-border-sm mr-2" role="status"></span>
                 Loading...
               </div>
             )}
@@ -277,7 +277,7 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
                 </div>
                 <div className="notification-item-content">
                   <div className="notification-item-header">
-                    <span className={`notification-item-title ${notification.priority === 'high' || notification.priority === 'critical' ? 'fw-bold' : ''}`}>
+                    <span className={`notification-item-title ${notification.priority === 'high' || notification.priority === 'critical' ? 'font-bold' : ''}`}>
                       {notification.title}
                     </span>
                     <span className="notification-item-time">{timeAgo(notification.created_at)}</span>
@@ -292,9 +292,9 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
                           handleAction(notification)
                         }}
                       >
-                        {notification.action?.action_type === 'invitation' && <i className="fa fa-envelope-open me-1"></i>}
-                        {notification.action?.action_type === 'feedback_form' && <i className="fa fa-comment me-1"></i>}
-                        {notification.action?.action_type === 'plugin' && <i className="fa fa-play me-1"></i>}
+                        {notification.action?.action_type === 'invitation' && <i className="fa fa-envelope-open mr-1"></i>}
+                        {notification.action?.action_type === 'feedback_form' && <i className="fa fa-comment mr-1"></i>}
+                        {notification.action?.action_type === 'plugin' && <i className="fa fa-play mr-1"></i>}
                         {notification.action?.action_label || notification.action_label || 'View'}
                       </button>
                     )}

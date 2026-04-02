@@ -10,7 +10,7 @@ export function ContractTagSelector (props: any) {
   }, [state.contractTag, state.contractType])
 
   return (
-    <div className="d-flex align-items-center gap-2">
+    <div className="flex items-center gap-2">
       <DropdownButton id="contract-wizard-language-dropdown" data-id="contract-wizard-language-dropdown" variant="secondary" title="Solidity">
         <Dropdown.Item>Solidity</Dropdown.Item>
       </DropdownButton>

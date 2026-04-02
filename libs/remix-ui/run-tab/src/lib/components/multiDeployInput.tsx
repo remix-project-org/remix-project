@@ -20,7 +20,7 @@ export function MultiDeployInput(props: MultiDeployInputProps) {
             return (
               <div className="udapp_multiArg" key={index}>
                 <label htmlFor={inp.name}> {inp.name}: </label>
-                <CustomTooltip placement="left-end" tooltipId="udappMultiArgTooltip" tooltipClasses="text-nowrap" tooltipText={inp.name}>
+                <CustomTooltip placement="left-end" tooltipId="udappMultiArgTooltip" tooltipClasses="whitespace-nowrap" tooltipText={inp.name}>
                   <input
                     ref={(el) => {
                       multiFields.current[index] = el

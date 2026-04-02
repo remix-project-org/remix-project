@@ -26,10 +26,10 @@ export function ResetUI() {
 
   return (
     <div className='mx-3 p-3 rounded' style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-      <div className="d-flex justify-content-between align-items-center mb-2">
+      <div className="flex justify-between items-center mb-2">
         <p className="mb-0 text-danger" style={{ fontSize: '0.9rem' }}> {intl.formatMessage({ id: 'udapp.resetVmStateTitle' })} </p>
         <button
-          className="btn btn-sm"
+          className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
           onClick={() => {
             trackMatomoEvent?.({ category: 'udapp', action: 'resetDialogClose', name: 'close_button', isClick: true })
             dispatch({ type: 'HIDE_RESET_UI', payload: undefined })
@@ -46,7 +46,7 @@ export function ResetUI() {
       </div>
 
       <div>
-        <div style={{ color: 'var(--bs-tertiary)', fontSize: '0.75rem' }} className="mb-2 fw-light">
+        <div style={{ color: 'var(--bs-tertiary)', fontSize: '0.75rem' }} className="mb-2 font-light">
           <p className="mb-1"><FormattedMessage id="udapp.resetEnvironmentStateDescription" /></p>
           <p className="mb-1">
             {intl.formatMessage({ id: 'udapp.resetVmStateDesc1' })}
@@ -54,9 +54,9 @@ export function ResetUI() {
           </p>
           <p className="mb-3" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>{intl.formatMessage({ id: 'udapp.resetVmStateDesc3' })}</p>
         </div>
-        <div className="d-flex justify-content-between align-items-center gap-3">
+        <div className="flex justify-between items-center gap-3">
           <button
-            className="btn btn-sm btn-secondary rounded"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-secondary rounded"
             onClick={() => {
               trackMatomoEvent?.({ category: 'udapp', action: 'resetCancel', name: 'cancelled', isClick: true })
               dispatch({ type: 'HIDE_RESET_UI', payload: undefined })
@@ -68,7 +68,7 @@ export function ResetUI() {
           </button>
           <button
             data-id="btnResetState"
-            className="btn btn-sm btn-danger rounded text-light"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-danger rounded text-light"
             onClick={handleSubmit}
             disabled={widgetState.fork.isRequesting}
             style={{

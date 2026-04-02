@@ -128,95 +128,123 @@ export function RunTabUI(props: RunTabProps) {
 
   return (
     <Fragment>
-      <div className="udapp_runTabView run-tab" id="runTabView" data-id="runTabView">
-        <div className="list-group pb-4 list-group-flush">
-          <RecorderUI
-            plugin={plugin}
-            storeScenario={storeNewScenario}
-            runCurrentScenario={runScenario}
-            scenarioPrompt={scenarioPrompt}
-            count={runTab.recorder.transactionCount}
-            currentFile={currentfile}
-          />
-          {/* <InstanceContainerUI
-            plugin={plugin}
-            getCompilerDetails={getCompilerDetails}
-            evmCheckComplete={evmCheckComplete}
-            runTabState={runTab}
-            instances={runTab.instances}
-            clearInstances={removeInstances}
-            unpinInstance={unpinPinnedInstance}
-            pinInstance={pinUnpinnedInstance}
-            removeInstance={removeSingleInstance}
-            getContext={getExecutionContext}
-            runTransactions={executeTransactions}
-            solcVersion={solcVersion}
-            getVersion={getVersion}
-            getFuncABIInputs={getFuncABIValues}
-            editInstance={async (addressOrInstance, abi, name, devdoc, metadata, htmlTemplate) => {
-              const network = await plugin.call('udappEnv', 'getNetwork')
-              const payload = {
-                address: '',
-                abi: null,
-                name: '',
-                network: network?.name,
-                devdoc: null,
-                methodIdentifiers: null,
-                solcVersion: '',
-                htmlTemplate: null
-              }
+      <div className="udapp_runTabView run-tab bg-dark text-white" id="runTabView" data-id="runTabView">
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold mb-0">DEPLOY & RUN TRANSACTIONS</h3>
+            <div className="flex gap-2">
+              <button className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors bg-blue-600 hover:bg-blue-700 text-white">
+                Fork
+              </button>
+              <button className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors bg-red-600 hover:bg-red-700 text-white">
+                Reset
+              </button>
+            </div>
+          </div>
 
-              let targetPlugin = 'quick-dapp'
+          {/* Environment Section */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300">Environment</label>
+            <div className="flex items-center justify-between bg-gray-700 rounded-md px-3 py-2">
+              <span className="text-white">Remix VM</span>
+              <span className="text-gray-400">Osaka ▼</span>
+            </div>
+          </div>
 
-              try {
-                if (typeof addressOrInstance === 'object' && addressOrInstance !== null) {
-                  targetPlugin = 'quick-dapp'
+          {/* Account Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-300">Account 1 ✏</label>
+              <span className="text-white">100.000 ETH</span>
+            </div>
+            <div className="bg-gray-700 rounded-md px-3 py-2 text-sm text-gray-300">
+              0x5B3...edC4 📋
+            </div>
+          </div>
 
-                  const instance = addressOrInstance as any
-                  const { metadata: metaFromInst, abi: abiFromInst, object } = instance.contractData || {}
+          {/* Deploy Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-300">Deploy</label>
+              <span className="text-xs text-gray-400">Remix VM osaka</span>
+              <button className="ml-auto inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors bg-blue-600 hover:bg-blue-700 text-white">
+                ▶ Compile
+              </button>
+            </div>
+            
+            <div className="bg-gray-700 rounded-md px-3 py-2">
+              <div className="text-white">Ballot</div>
+              <div className="text-xs text-gray-400">3_Ballot.sol</div>
+            </div>
 
-                  payload.address = instance.address
-                  payload.abi = abiFromInst
-                  payload.name = instance.name
+            {/* Value Section */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-300 min-w-12">Value</label>
+              <div className="flex flex-1">
+                <input
+                  type="number"
+                  defaultValue="0"
+                  className="flex-1 bg-gray-600 border border-theme rounded-l-md px-3 py-1.5 text-white text-sm"
+                />
+                <select className="bg-gray-600 border border-l-0 border-theme rounded-r-md px-2 py-1.5 text-white text-sm">
+                  <option>wei</option>
+                </select>
+              </div>
+            </div>
 
-                  if (object) {
-                    payload.devdoc = object.devdoc
-                    payload.methodIdentifiers = object.evm?.methodIdentifiers
-                  }
+            {/* Gas Limit Section */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-300 min-w-16">Gas limit</label>
+              <div className="flex items-center gap-2">
+                <span className="text-blue-400 text-sm">auto:</span>
+                <input
+                  type="number"
+                  defaultValue="0"
+                  className="bg-gray-600 border border-theme rounded-md px-3 py-1.5 text-white text-sm w-20"
+                />
+              </div>
+            </div>
 
-                  if (metaFromInst) {
-                    try {
-                      payload.solcVersion = JSON.parse(metaFromInst).compiler.version
-                    } catch (e) {
-                      console.warn('[RunTab] Failed to parse solcVersion from V1 metadata', e)
-                    }
-                  }
+            {/* Deploy Button */}
+            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors">
+              Deploy
+            </button>
+          </div>
 
-                } else {
-                  targetPlugin = 'quick-dapp-v2'
+          {/* Deployed Contracts Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-300">Deployed Contracts</label>
+              <div className="flex items-center gap-2">
+                <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">0</span>
+                <button className="text-blue-400 hover:text-blue-300 text-sm">+ Add Contract</button>
+              </div>
+            </div>
+            <div className="text-sm text-gray-400">
+              <p>Interact with a deployed contract</p>
+              <p className="mt-1">There is no contract to show.</p>
+              <p className="mt-2">
+                Learn how to deploy <a href="#" className="text-blue-400 underline">"your first contract"</a>.
+              </p>
+            </div>
+          </div>
 
-                  payload.address = addressOrInstance as string
-                  payload.abi = abi
-                  payload.name = name
-                  payload.devdoc = devdoc
-                  payload.htmlTemplate = htmlTemplate
-
-                  if (metadata) {
-                    try {
-                      payload.solcVersion = JSON.parse(metadata).compiler.version
-                    } catch (e) {
-                      console.warn('[RunTab] Failed to parse solcVersion from V2 metadata', e)
-                    }
-                  }
-                }
-
-                plugin.call(targetPlugin, 'edit', payload)
-
-              } catch (error) {
-                console.error('[RunTab] Critical Error in editInstance:', error)
-              }
-            }}
-          /> */}
+          {/* Transactions Recorder Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-300">Transactions recorder</label>
+              <div className="flex items-center gap-2">
+                <button className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors bg-gray-600 hover:bg-gray-700 text-white">
+                  Save
+                </button>
+                <button className="text-gray-400 hover:text-gray-300">
+                  ▶
+                </button>
+              </div>
+            </div>
+            <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">0</span>
+          </div>
         </div>
       </div>
     </Fragment>

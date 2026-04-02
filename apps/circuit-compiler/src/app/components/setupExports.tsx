@@ -10,9 +10,9 @@ export function SetupExports () {
   const intl = useIntl()
 
   return (
-    <div className="flex-column">
-      <div className="flex-column d-flex">
-        <div className="mb-1 ms-0">
+    <div className="flex-col">
+      <div className="flex-col flex">
+        <div className="mb-1 ml-0">
           <label className="circuit_inner_label form-check-label">
             <FormattedMessage id="circuit.provingScheme" />
           </label>
@@ -47,14 +47,14 @@ export function SetupExports () {
             </label>
           </div>
         </div>
-        <div className="mb-1 ms-0">
+        <div className="mb-1 ml-0">
           <label className="circuit_inner_label form-check-label">
             <FormattedMessage id="circuit.ptau" />
           </label>
           <CustomTooltip
             placement={"auto"}
             tooltipId="circuitPtauTooltip"
-            tooltipClasses="text-nowrap"
+            tooltipClasses="whitespace-nowrap"
             tooltipText={<span>{intl.formatMessage({ id: 'circuit.ptauTooltip' })}</span>}
           >
             <div className="mb-1">

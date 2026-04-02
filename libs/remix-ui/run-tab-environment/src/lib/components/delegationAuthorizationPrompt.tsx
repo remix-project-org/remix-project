@@ -20,7 +20,7 @@ export function DelegationAuthorizationPrompt ({
   }
 
   return (
-    <div className="w-100" data-id="createDelegationAuthorizationModal">
+    <div className="w-full" data-id="createDelegationAuthorizationModal">
       <span>{intl.formatMessage({ id: 'udapp.createDelegationDescription' }, {
         a: (chunks) => (
           <a href='https://eip7702.io/' target="_blank" rel="noreferrer">

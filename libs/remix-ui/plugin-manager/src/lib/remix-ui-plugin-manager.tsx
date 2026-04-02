@@ -216,7 +216,7 @@ export const RemixUiPluginManager = ({ pluginComponent }: RemixUiPluginManagerPr
         setSelectedCategories={setSelectedCategories}
       >
         <section data-id="pluginManagerComponentPluginManagerSection" className="px-3">
-          <nav ref={tabsRef} className="plugin-manager-tabs mt-2 d-flex flex-row">
+          <nav ref={tabsRef} className="plugin-manager-tabs mt-2 flex flex-row">
             <a
               data-id="pluginManagerAllTab"
               className={`nav-link ${activeTab === 'all' ? 'active' : ''}`}
@@ -225,7 +225,7 @@ export const RemixUiPluginManager = ({ pluginComponent }: RemixUiPluginManagerPr
             >
               All plugins{' '}
               <span
-                className={`badge rounded-pill ${activeTab === 'all' ? 'bg-primary' : 'bg-secondary'}`}
+                className={`badge rounded-full ${activeTab === 'all' ? 'bg-primary' : 'bg-secondary'}`}
                 data-id="pluginManagerAllCount"
                 style={{ color: state.themeQuality.name === 'dark' ? 'white' : 'black' }}
               >
@@ -240,7 +240,7 @@ export const RemixUiPluginManager = ({ pluginComponent }: RemixUiPluginManagerPr
             >
               Active{' '}
               <span
-                className={`badge rounded-pill ${activeTab === 'active' ? 'bg-primary' : 'bg-secondary'}`}
+                className={`badge rounded-full ${activeTab === 'active' ? 'bg-primary' : 'bg-secondary'}`}
                 style={{ color: state.themeQuality.name === 'dark' ? 'white' : 'black' }}
                 data-id="pluginManagerComponentActiveTilesCount"
               >
@@ -255,7 +255,7 @@ export const RemixUiPluginManager = ({ pluginComponent }: RemixUiPluginManagerPr
             >
               Inactive{' '}
               <span
-                className={`badge rounded-pill ${activeTab === 'inactive' ? 'bg-primary' : 'bg-secondary'}`}
+                className={`badge rounded-full ${activeTab === 'inactive' ? 'bg-primary' : 'bg-secondary'}`}
                 data-id="pluginManagerComponentInactiveTilesCount"
                 style={{ color: state.themeQuality.name === 'dark' ? 'white' : 'black' }}
               >

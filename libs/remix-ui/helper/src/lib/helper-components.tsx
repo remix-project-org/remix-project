@@ -8,16 +8,16 @@ import type { OverSizeLimit } from '@remix-project/core-plugin'
 
 export const fileChangedToastMsg = (from: string, path: string) => (
   <div>
-    <i className="fas fa-exclamation-triangle text-danger me-1"></i>
+    <i className="fas fa-exclamation-triangle text-red-500 mr-1"></i>
     <span>
-      {from} <span className="fw-bold text-warning">is modifying</span> {path}
+      {from} <span className="font-bold text-yellow-500">is modifying</span> {path}
     </span>
   </div>
 )
 
 export const compilerConfigChangedToastMsg = (from: string, value: string) => (
   <div>
-    <b>{from}</b> is updating the <b>Solidity compiler configuration</b>.<pre className="text-start">{value}</pre>
+    <b>{from}</b> is updating the <b>Solidity compiler configuration</b>.<pre className="text-left">{value}</pre>
   </div>
 )
 
@@ -30,7 +30,7 @@ export const compileToastMsg = (from: string, fileName: string) => (
 export const compilingToastMsg = (settings: string) => (
   <div>
     <b>Recompiling and debugging with params</b>
-    <pre className="text-start">{settings}</pre>
+    <pre className="text-left">{settings}</pre>
   </div>
 )
 
@@ -60,18 +60,18 @@ export const sourceVerificationNotAvailableToastMsg = () => (
 
 export const envChangeNotification = (env: {context: string; fork: string}, from: string) => (
   <div>
-    <i className="fas fa-exclamation-triangle text-danger me-1"></i>
+    <i className="fas fa-exclamation-triangle text-red-500 mr-1"></i>
     <span>
       {from + ' '}
-      <span className="fw-bold text-warning">set your environment to</span> {env && env.context}
+      <span className="font-bold text-yellow-500">set your environment to</span> {env && env.context}
     </span>
   </div>
 )
 
 export const storageFullMessage = () => (
   <div>
-    <i className="fas fa-exclamation-triangle text-danger me-1"></i>
-    <span className="fw-bold">
+    <i className="fas fa-exclamation-triangle text-red-500 mr-1"></i>
+    <span className="font-bold">
       <span>Cannot save this file due to full LocalStorage. Backup existing files and free up some space.</span>
     </span>
   </div>
@@ -98,7 +98,7 @@ export const cancelUpgradeMsg = () => (
 export const deployWithProxyMsg = () => (
   <div>
     <b>Deploy with Proxy</b> will initiate two (2) transactions:
-    <ol className="ps-3">
+    <ol className="pl-3">
       <li key="impl-contract">Deploying the implementation contract</li>
       <li key="proxy-contract">Deploying an ERC1967 proxy contract</li>
     </ol>
@@ -108,7 +108,7 @@ export const deployWithProxyMsg = () => (
 export const upgradeWithProxyMsg = () => (
   <div>
     <b>Upgrade with Proxy</b> will initiate two (2) transactions:
-    <ol className="ps-3">
+    <ol className="pl-3">
       <li key="new-impl-contract">Deploying the new implementation contract</li>
       <li key="update-proxy-contract">Updating the proxy contract with the address of the new implementation contract</li>
     </ol>
@@ -126,17 +126,17 @@ export const unavailableProxyLayoutMsg = () => (
 
 export const upgradeReportMsg = (report: LayoutCompatibilityReport) => (
   <div>
-    <div className="py-2 ms-2 mb-1 align-self-end mb-2 d-flex">
-      <span className="align-self-center ps-4 mt-1">
-        <i className="pe-2 text-warning far fa-exclamation-triangle" aria-hidden="true" style={{ fontSize: 'xxx-large', fontWeight: 'lighter' }}></i>
+    <div className="py-2 ml-2 mb-1 self-end mb-2 flex">
+      <span className="self-center pl-4 mt-1">
+        <i className="pr-2 text-yellow-500 far fa-exclamation-triangle" aria-hidden="true" style={{ fontSize: 'xxx-large', fontWeight: 'lighter' }}></i>
       </span>
-      <div className="d-flex flex-column">
-        <span className="ps-4 mt-1">The storage layout of new implementation is NOT</span>
-        <span className="ps-4 mt-1">compatible with the previous implementation.</span>
-        <span className="ps-4 mt-1">Your contract's storage may be partially or fully erased!</span>
+      <div className="flex flex-col">
+        <span className="pl-4 mt-1">The storage layout of new implementation is NOT</span>
+        <span className="pl-4 mt-1">compatible with the previous implementation.</span>
+        <span className="pl-4 mt-1">Your contract's storage may be partially or fully erased!</span>
       </div>
     </div>
-    <div className="ps-4 text-danger">{report.explain()}</div>
+    <div className="pl-4 text-red-500">{report.explain()}</div>
   </div>
 )
 
@@ -151,27 +151,27 @@ export function RenderIfNot({ condition, children }: { condition: boolean, child
 export const CompileOptions = ({ autoCompile, hideWarnings, setCircuitAutoCompile, setCircuitHideWarnings }: CompileOptionsProps) => (
 
   <div>
-    <div className="mt-2 form-check">
+    <div className="mt-2 flex items-center">
       <input
-        className="form-check-input"
+        className="w-4 h-4 text-primary bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary focus:ring-2"
         type="checkbox"
         onChange={(e) => setCircuitAutoCompile(e.target.checked)}
         checked={autoCompile}
         id="autoCompileCircuit"
       />
-      <label className="form-check-label" htmlFor="autoCompileCircuit" data-id="auto_compile_circuit_checkbox_input">
+      <label className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300 cursor-pointer" htmlFor="autoCompileCircuit" data-id="auto_compile_circuit_checkbox_input">
         <FormattedMessage id="circuit.autoCompile" />
       </label>
     </div>
-    <div className="mt-1 mb-2 form-check">
+    <div className="mt-1 mb-2 flex items-center">
       <input
-        className="form-check-input"
+        className="w-4 h-4 text-primary bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary focus:ring-2"
         onChange={(e) => setCircuitHideWarnings(e.target.checked)}
         type="checkbox"
         checked={hideWarnings}
         id="hideCircuitWarnings"
       />
-      <label className="form-check-label" htmlFor="hideCircuitWarnings" data-id="hide_circuit_warnings_checkbox_input">
+      <label className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300 cursor-pointer" htmlFor="hideCircuitWarnings" data-id="hide_circuit_warnings_checkbox_input">
         <FormattedMessage id="solidity.hideWarnings" />
       </label>
     </div>
@@ -183,7 +183,7 @@ export const CompileBtn = ({ plugin, appState, id, compileAction }: { plugin: an
     placement="auto"
     tooltipId="overlay-tooltip-compile"
     tooltipText={
-      <div className="text-start">
+      <div className="text-left">
         <div>
           <b>Ctrl+S</b> to compile {appState.filePath}
         </div>
@@ -191,20 +191,20 @@ export const CompileBtn = ({ plugin, appState, id, compileAction }: { plugin: an
     }
   >
     <button
-      className="btn btn-primary btn-block d-block w-100 text-break mb-1 mt-1"
+      className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md transition-colors duration-200 block w-full break-words mb-1 mt-1 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed"
       onClick={() => { compileAction() }}
       disabled={(appState.filePath === "") || (appState.status === "compiling")}
       data-id={`compile_${id}_btn`}
     >
-      <div className="d-flex align-items-center justify-content-center">
+      <div className="flex items-center justify-center">
         <RenderIf condition={appState.status === 'compiling'}>
-          <i className="fas fa-sync fa-spin me-2" aria-hidden="true"></i>
+          <i className="fas fa-sync fa-spin mr-2" aria-hidden="true"></i>
         </RenderIf>
-        <div className="text-truncate overflow-hidden text-nowrap">
+        <div className="truncate overflow-hidden whitespace-nowrap">
           <span>
             <FormattedMessage id="circuit.compile" />
           </span>
-          <span className="ms-1 text-nowrap">
+          <span className="ml-1 whitespace-nowrap">
             <RenderIf condition={appState.filePath === ""}>
               <FormattedMessage id="circuit.noFileSelected" />
             </RenderIf>
@@ -308,14 +308,14 @@ export const isOverSizePrompt = (values: OverSizeLimit) => {
 
 export const SmartAccountPromptTitle = ({ title }: { title: string }) => {
   return (
-    <div className="d-flex align-items-center">
-      <span className="badge bg-success me-2">Alpha</span>
+    <div className="flex items-center">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mr-2">Alpha</span>
       <span>{title}</span>
     </div>
   )
 }
 export const checkSumWarning = () => (
-  <span className="text-start">
+  <span className="text-left">
     <FormattedMessage
       id="udapp.checkSumWarning"
       values={{

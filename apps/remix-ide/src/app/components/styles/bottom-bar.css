@@ -1,37 +1,40 @@
 .bottom-bar {
     display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    padding: 4px 16px;
+  /* TODO: Convert flex-none to CSS */
+  align-items: center;
+  padding-left: 1rem; padding-right: 1rem;
+  /* TODO: Convert py-1 to CSS */
+  /* TODO: Convert h-8 to CSS */
+  /* TODO: Convert sticky to CSS */
+  /* TODO: Convert top-0 to CSS */
+  z-index: 10;
     background-color: var(--bs-light) !important;
-    height: 32px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
 }
 
 .bottom-bar .explain-icon {
-    width: 12px;
-    height: 12px;
+    /* TODO: Convert w-3 to CSS */
+  /* TODO: Convert h-3 to CSS */
 }
   
 .bottom-bar .copilot-toggle {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 8px;
-    border-radius: 8px;
-    height: 24px;
-    line-height: 1; 
+    /* TODO: Convert ml-auto to CSS */
+  display: flex;
+  align-items: center;
+  /* TODO: Convert gap-2 to CSS */
+  /* TODO: Convert px-2 to CSS */
+  /* TODO: Convert py-1 to CSS */
+  /* TODO: Convert rounded-lg to CSS */
+  height: 1.5rem;
+  /* TODO: Convert leading-none to CSS */
 }
 
 .bottom-bar .copilot-toggle span {
-    font-family: 'Nunito Sans', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
+    /* TODO: Convert font-sans to CSS */
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  transition: color 300ms;
     color: var(--text-muted);
-    transition: color 0.3s;
 }
   
 .bottom-bar .copilot-toggle span.on {
@@ -40,37 +43,39 @@
   
 .bottom-bar .switch {
     position: relative;
-    display: inline-block;
-    width: 18px;
-    height: 10px;
+  display: inline-block;
+  /* TODO: Convert w-5 to CSS */
+  /* TODO: Convert h-3 to CSS */
 }
   
 .bottom-bar .switch input {
     opacity: 0;
-    width: 0;
-    height: 0;
+  /* TODO: Convert w-0 to CSS */
+  /* TODO: Convert h-0 to CSS */
 }
   
 .bottom-bar .slider {
     position: absolute;
-    cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
+  cursor: pointer;
+  /* TODO: Convert inset-0 to CSS */
+  border-radius: 9999px;
+  /* TODO: Convert p-px to CSS */
+  transition: all;
+  /* TODO: Convert duration-400 to CSS */
     background-color: var(--bs-secondary);
-    transition: .4s;
-    border-radius: 800px;
-    padding: 1px;
 }
   
 .bottom-bar .slider:before {
     position: absolute;
+  /* TODO: Convert w-2 to CSS */
+  /* TODO: Convert h-2 to CSS */
+  /* TODO: Convert left-px to CSS */
+  /* TODO: Convert bottom-px to CSS */
+  border-radius: 9999px;
+  transition: all;
+  /* TODO: Convert duration-400 to CSS */
     content: "";
-    height: 8px;
-    width: 8px;
-    left: 1px;
-    bottom: 1px;
-    background-color: var(--bs-body-bg, #222336); 
-    transition: .4s;
-    border-radius: 50%;
+    background-color: var(--bs-body-bg, #222336);
 }
   
 .bottom-bar .switch input:checked + .slider {
@@ -78,7 +83,7 @@
 }
   
 .bottom-bar .switch input:checked + .slider:before {
-    transform: translateX(8px);
+    /* TODO: Convert translate-x-2 to CSS */
 }
 
 /* Debug Controls */
@@ -92,8 +97,8 @@
 
 .bottom-bar .debug-controls {
     display: flex;
-    gap: 6px;
-    align-items: center;
+  /* TODO: Convert gap-2 to CSS */
+  align-items: center;
 }
 
 .bottom-bar .debug-btn {

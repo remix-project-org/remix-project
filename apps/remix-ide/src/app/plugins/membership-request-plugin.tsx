@@ -393,7 +393,7 @@ export class MembershipRequestPlugin extends Plugin {
 
   render(): JSX.Element {
     return (
-      <div id="membership-request" className="h-100">
+      <div id="membership-request" className="h-full">
         <PluginViewWrapper plugin={this} />
       </div>
     )

@@ -1,11 +1,11 @@
 .hover-row {
     white-space: pre;
-    background : var(--bs-light);    
-    font-weight : bold;
-    font-family : monospace;
-    font-size: smaller;
-    padding : 10px;
-    border-radius : 10px;
+    background-color: var(--bs-light);
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
     height: auto;
     width: auto;
 }
@@ -21,10 +21,10 @@
 }
 
 .inline-class {
-    background: var(--bs-info) !important;
-    color: var(--bs-white) !important;
-    filter: opacity(0.5);
-    font-weight: bolder;
+    background-color: var(--bs-info);
+    color: white;
+    opacity: 0.5;
+    font-weight: bold;
 }
 
 div.monaco-list-row > span.title {
@@ -32,15 +32,15 @@ div.monaco-list-row > span.title {
 }
 
 .modifiedChangesDecoration {
-    background-color: var(--bs-danger) !important;
-    color: var(--white) !important;
-    filter: opacity(0.1);
-    font-weight: bolder;
+    background-color: var(--bs-danger);
+    color: white;
+    opacity: 0.1;
+    font-weight: bold;
 }
 
 .newChangesDecoration {
+    color: white;
+    opacity: 0.1;
+    font-weight: bold;
     background-color: var(--custom-ai-color) !important;
-    color: var(--bs-white) !important;
-    filter: opacity(0.1);
-    font-weight: bolder;
 }

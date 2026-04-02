@@ -39,10 +39,10 @@ export const ConfigInput: React.FC<ConfigInputProps> = ({ label, id, secret, ini
   return (
     <div className="small mb-0">
       <label className='mt-3' htmlFor={id}>{label}</label>
-      <div className="d-flex flex-row justify-content-start">
+      <div className="flex flex-row justify-start">
         <input
           type={secret ? 'password' : 'text'}
-          className={`form-control small w-100 ${!enabled ? 'bg-transparent ps-0 border-0' : ''}`}
+          className={`form-control small w-full ${!enabled ? 'bg-transparent pl-0 border-0' : ''}`}
           id={id}
           placeholder={intl.formatMessage({ id: "contract-verification.configInputPlaceholderText" }, { label })}
           value={value}
@@ -52,16 +52,16 @@ export const ConfigInput: React.FC<ConfigInputProps> = ({ label, id, secret, ini
 
         { enabled ? (
           <>
-            <button type="button" className="btn btn-primary btn-sm ms-2" onClick={handleSave}>
+            <button type="button" className="btn btn-primary btn-sm ml-2" onClick={handleSave}>
               <FormattedMessage id="contract-verification.configInputSaveButton" />
             </button>
-            <button type="button" className="btn btn-secondary btn-sm ms-2" onClick={handleCancel}>
+            <button type="button" className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors btn-sm ml-2" onClick={handleCancel}>
               <FormattedMessage id="contract-verification.configInputCancelButton" />
             </button>
           </>
         ) : (
           <CustomTooltip tooltipText={`Edit ${label}`}>
-            <button type="button" className="btn btn-sm fas fa-pen my-1" style={{ height: '100%' }} disabled={enabled} onClick={handleChange}>
+            <button type="button" className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors fas fa-pen my-1" style={{ height: '100%' }} disabled={enabled} onClick={handleChange}>
             </button>
           </CustomTooltip>
         )}

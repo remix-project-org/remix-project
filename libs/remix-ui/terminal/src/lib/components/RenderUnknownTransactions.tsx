@@ -69,7 +69,7 @@ const RenderUnKnownTransactions = ({ tx, receipt, index, plugin, showTableHash, 
         <Context opts={options} provider={provider} />
         <div className="remix_ui_terminal_buttons">
           <div
-            className="remix_ui_terminal_debug btn btn-primary btn-sm"
+            className="remix_ui_terminal_debug inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors btn-sm"
             data-shared="txLoggerDebugButton"
             data-id={`txLoggerDebugButton${tx.hash}`}
             onClick={(event) => debug(event, tx)}

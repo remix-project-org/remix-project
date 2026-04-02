@@ -221,7 +221,7 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
                   contractName ? (
                     <>
                       <span className="contract-name">{contractName}</span>
-                      {contractAddress && <span className="text-muted"> ({contractAddress})</span>}
+                      {contractAddress && <span className="text-gray-500 dark:text-gray-400"> ({contractAddress})</span>}
                     </>
                   ) : contractAddress ? (
                     <span className="contract-name">({contractAddress})</span>
@@ -235,7 +235,7 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
                     {contractName ? (
                       <>
                         <span className="contract-name">{contractName}</span>
-                        {contractAddress && <span className="text-muted"> ({contractAddress})</span>}
+                        {contractAddress && <span className="text-gray-500 dark:text-gray-400"> ({contractAddress})</span>}
                       </>
                     ) : contractAddress ? (
                       <span className="contract-name">({contractAddress})</span>
@@ -251,7 +251,7 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
 
                     {/* Fallback: if no contract and no method, show unknown */}
                     {!contractName && !contractAddress && !itemName && (
-                      <span className="method-name text-muted">unknown</span>
+                      <span className="method-name text-gray-500 dark:text-gray-400">unknown</span>
                     )}
                   </>
                 )}
@@ -333,7 +333,7 @@ export const DebuggerCallStack = ({ plugin }: DebuggerCallStackProps) => {
 
   return (
     <div className="debugger-call-stack p-3 pt-0">
-      {!selectedScope ? (<div data-id="select-call-text" className="text-muted">Select a call from Call Trace to view execution details</div>) :
+      {!selectedScope ? (<div data-id="select-call-text" className="text-gray-500 dark:text-gray-400">Select a call from Call Trace to view execution details</div>) :
         (<div data-id="call-stack-list" className="call-stack-list">
           {renderExecutionItem(selectedScope, 0)}
         </div>)}

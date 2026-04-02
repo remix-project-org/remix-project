@@ -48,7 +48,7 @@ const RenderCall = ({ tx, resolvedData, logs, index, plugin, showTableHash, txDe
           </div>
         </span>
         <div className="remix_ui_terminal_buttons">
-          <div className="remix_ui_terminal_debug btn btn-primary btn-sm" onClick={(event) => debug(event, tx)}>
+          <div className="remix_ui_terminal_debug inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors btn-sm" onClick={(event) => debug(event, tx)}>
             <FormattedMessage id="terminal.debug" />
           </div>
         </div>

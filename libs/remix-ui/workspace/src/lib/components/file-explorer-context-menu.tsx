@@ -117,7 +117,7 @@ export const FileExplorerContextMenu = (props: FileExplorerContextMenuProps) => 
     return groupedActions.map((groupItem, groupIndex) =>
       groupItem.map((item, index) => {
         key++
-        const className = `px-3 remixui_liitem ${group !== item.group ? 'border-top' : ''}`
+        const className = `px-3 remixui_liitem ${group !== item.group ? 'border-t' : ''}`
         group = item.group
         if (item.name === 'Upload File') {
           return (

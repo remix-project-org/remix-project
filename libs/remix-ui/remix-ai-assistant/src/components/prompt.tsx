@@ -72,14 +72,14 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   return (
     <>
       <div
-        className="prompt-area d-flex flex-column mx-2 p-2 rounded-3 border border-text bg-light mb-1"
+        className="prompt-area flex flex-col mx-2 p-2 rounded-lg border border-text bg-light mb-1"
         style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#2a2c3f' }}
       >
-        <div className="d-flex justify-content-between align-items-center mb-3 border border-end-0 border-start-0 border-top-0 border-bottom pb-1">
-          <div className="d-flex">
+        <div className="flex justify-between items-center mb-3 border border-r-0 border-l-0 border-t-0 border-b pb-1">
+          <div className="flex">
             <button
               onClick={handleSetModel}
-              className="btn btn-text btn-sm small font-weight-light text-secondary mt-2 align-self-end border-0 rounded"
+              className="btn btn-text btn-sm small font-weight-light text-secondary mt-2 self-end border-0 rounded"
               data-assist-btn="assistant-selector-btn"
               ref={modelBtnRef}
             >
@@ -90,7 +90,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             {selectedModel?.provider === 'ollama' && ollamaModels.length > 0 && (
               <button
                 onClick={() => setShowOllamaModelSelector(prev => !prev)}
-                className="btn btn-text btn-sm small font-weight-light text-secondary mt-2 align-self-end border border-text rounded ms-2"
+                className="btn btn-text btn-sm small font-weight-light text-secondary mt-2 self-end border border-text rounded ml-2"
                 ref={modelSelectorBtnRef}
                 data-id="ollama-model-selector"
                 data-assist-btn="assistant-selector-btn"
@@ -102,15 +102,15 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             )}
           </div>
           <span
-            className="btn btn-sm disabled small rounded-3 align-self-center fw-light"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors disabled small rounded-lg self-center font-light"
             // eslint-disable-next-line no-constant-condition
             style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'dark' ? '#2b3b4d' : '#c6e8f1', color: themeTracker && themeTracker.name.toLowerCase() === 'light' ? '#1ea2aa' : '#2de7f3', cursor: 'default' }}
           >
           </span>
         </div>
-        <div className="ai-chat-input d-flex flex-column">
+        <div className="ai-chat-input flex flex-col">
           <div
-            className="d-flex flex-column rounded-3 p-1"
+            className="flex flex-col rounded-lg p-1"
             style={{
               backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
               outline: 'none',
@@ -169,16 +169,16 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             /> : null }
           </div>
 
-          <div className="d-flex flex-row justify-content-between align-items-center overflow-x-scroll overflow-y-hidden p-2 mt-2 gap-2"
+          <div className="flex flex-row justify-between items-center overflow-x-scroll overflow-y-hidden p-2 mt-2 gap-2"
             style={{
               scrollbarWidth: 'none'
             }}
           >
-            <button className={`btn fw-light rounded-4 text-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-light text-light-emphasis' : 'btn-remix-dark'}`}
+            <button className={`btn font-light rounded-xl whitespace-nowrap ${themeTracker && themeTracker.name.toLowerCase() === 'light' ? 'btn-light text-light-emphasis' : 'btn-remix-dark'}`}
               data-id="remix-ai-workspace-generate"
               onClick={handleGenerateWorkspace}>
-              <i className="fas fa-plus me-1"></i>
-              <span className="text-nowrap">New Workspace</span>
+              <i className="fas fa-plus mr-1"></i>
+              <span className="whitespace-nowrap">New Workspace</span>
             </button>
           </div>
         </div>

@@ -476,7 +476,7 @@ export class WalkthroughService extends ViewPlugin {
 
   render() {
     return (
-      <div data-id="walkthrough-container">
+      <div data-id="walkthrough-container mx-auto px-4">
         <PluginViewWrapper plugin={this} />
       </div>
     )

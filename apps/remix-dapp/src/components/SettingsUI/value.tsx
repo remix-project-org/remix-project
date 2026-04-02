@@ -50,14 +50,14 @@ export function ValueUI() {
   };
 
   return (
-    <div className="d-block mt-2">
+    <div className="block mt-2">
       <label data-id="remixDRValueLabel">
         <FormattedMessage id="udapp.value" />
       </label>
-      <div className="d-flex flex-row">
+      <div className="flex flex-row">
         <CustomTooltip
           placement={'top-start'}
-          tooltipClasses="text-nowrap"
+          tooltipClasses="whitespace-nowrap"
           tooltipId="remixValueTooltip"
           tooltipText={<FormattedMessage id="udapp.tooltipText5" />}
         >
@@ -67,7 +67,7 @@ export function ValueUI() {
             min="0"
             pattern="^[0-9]"
             step="1"
-            className="form-control w-75"
+            className="form-control w-3/4"
             id="value"
             data-id="dandrValue"
             onChange={validateValue}
@@ -78,7 +78,7 @@ export function ValueUI() {
         <select
           name="unit"
           value={sendUnit}
-          className="form-control p-1 w-25 ms-2 udapp_col2_2 form-select"
+          className="form-control p-1 w-1/4 ml-2 udapp_col2_2 form-select"
           id="unit"
           onChange={(e: any) => {
             dispatch({

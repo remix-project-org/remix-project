@@ -244,7 +244,7 @@ export const DebugLayout = ({
             {tx?.from && (
               <CustomTooltip tooltipText={copyTooltips.from} tooltipId="from-address-tooltip" placement="top">
                 <i
-                  className={`far ${copyTooltips.from === intl.formatMessage({ id: 'debugger.copied' }) ? 'fa-check' : 'fa-copy'} ms-2`}
+                  className={`far ${copyTooltips.from === intl.formatMessage({ id: 'debugger.copied' }) ? 'fa-check' : 'fa-copy'} ml-2`}
                   style={{ cursor: 'pointer' }}
                   onClick={() => copyToClipboard(tx.from, 'from')}
                   onMouseLeave={() => resetTooltip('from')}
@@ -266,7 +266,7 @@ export const DebugLayout = ({
             {(tx?.to || receipt?.contractAddress) && (
               <CustomTooltip tooltipText={copyTooltips.to} tooltipId="to-address-tooltip" placement="top">
                 <i
-                  className={`far ${copyTooltips.to === intl.formatMessage({ id: 'debugger.copied' }) ? 'fa-check' : 'fa-copy'} ms-2`}
+                  className={`far ${copyTooltips.to === intl.formatMessage({ id: 'debugger.copied' }) ? 'fa-check' : 'fa-copy'} ml-2`}
                   style={{ cursor: 'pointer' }}
                   onClick={() => copyToClipboard(tx?.to || receipt?.contractAddress || '', 'to')}
                   onMouseLeave={() => resetTooltip('to')}
@@ -618,7 +618,7 @@ export const DebugLayout = ({
                 {scope.isSenderNode ? (
                   // For SENDER node, show the sender address with SENDER badge
                   <>
-                    <span className="text-muted">
+                    <span className="text-gray-500 dark:text-gray-400">
                       {currentTransaction?.from ? currentTransaction.from : 'Unknown Sender'}
                     </span>
                   </>
@@ -627,7 +627,7 @@ export const DebugLayout = ({
                   contractName ? (
                     <>
                       <span className="contract-name">{contractName}</span>
-                      {contractAddress && <span className="text-muted"> ({contractAddress})</span>}
+                      {contractAddress && <span className="text-gray-500 dark:text-gray-400"> ({contractAddress})</span>}
                     </>
                   ) : contractAddress ? (
                     <span className="contract-name">({contractAddress})</span>
@@ -641,7 +641,7 @@ export const DebugLayout = ({
                     {contractName ? (
                       <>
                         <span className="contract-name">{contractName}</span>
-                        {contractAddress && <span className="text-muted"> ({contractAddress})</span>}
+                        {contractAddress && <span className="text-gray-500 dark:text-gray-400"> ({contractAddress})</span>}
                       </>
                     ) : contractAddress ? (
                       <span className="contract-name">({contractAddress})</span>
@@ -657,7 +657,7 @@ export const DebugLayout = ({
 
                     {/* Fallback: if no contract and no method, show unknown */}
                     {!contractName && !contractAddress && !itemName && (
-                      <span className="method-name text-muted">unknown</span>
+                      <span className="method-name text-gray-500 dark:text-gray-400">unknown</span>
                     )}
                   </>
                 )}
@@ -733,7 +733,7 @@ export const DebugLayout = ({
                   )}
                 </div>
               )}
-              {/* <span className="call-trace-gas ms-1"><i className="fas fa-gas-pump"></i> {scope.gasCost}</span> */}
+              {/* <span className="call-trace-gas ml-1"><i className="fas fa-gas-pump"></i> {scope.gasCost}</span> */}
             </div>
           </div>
         </div>
@@ -760,7 +760,7 @@ export const DebugLayout = ({
     // Show message in this case
     if (nestedScopes !== null && nestedScopes !== undefined) {
       return (
-        <p className="text-muted ms-1">
+        <p className="text-gray-500 dark:text-gray-400 ml-1">
           <FormattedMessage id="debugger.noExternalCalls" defaultMessage="No external calls found." />
         </p>
       )
@@ -769,7 +769,7 @@ export const DebugLayout = ({
     // Fallback to old implementation
     if (!functionStack || functionStack.length === 0) {
       return (
-        <p className="text-muted">
+        <p className="text-gray-500 dark:text-gray-400">
           <FormattedMessage id="debugger.noCallTrace" defaultMessage="No call trace available" />
         </p>
       )
@@ -823,7 +823,7 @@ export const DebugLayout = ({
                       </>
                     )}
                   </span>
-                  {/* <span className="call-trace-gas ms-1"><i className="fas fa-gas-pump"></i> {gasCost}</span> */}
+                  {/* <span className="call-trace-gas ml-1"><i className="fas fa-gas-pump"></i> {gasCost}</span> */}
                 </div>
               </div>
             </div>
@@ -835,7 +835,7 @@ export const DebugLayout = ({
 
   const renderOpcodes = () => {
     if (!opcodeData || !opcodeData.code || opcodeData.code.length === 0) {
-      return <div className="text-muted p-2"><FormattedMessage id="debugger.noOpcodeData" /></div>
+      return <div className="text-gray-500 dark:text-gray-400 p-2"><FormattedMessage id="debugger.noOpcodeData" /></div>
     }
 
     const { code, index, nextIndexes } = opcodeData
@@ -1023,7 +1023,7 @@ export const DebugLayout = ({
   return (
     <div className="debug-layout">
       {/* Section 1: Search Bar + Transaction Global Values */}
-      <div className="debug-section debug-section-search ms-1 me-1">
+      <div className="debug-section debug-section-search ml-1 mr-1">
         <SearchBar
           onSearch={onSearch}
           debugging={debugging}
@@ -1032,7 +1032,7 @@ export const DebugLayout = ({
         />
 
         {/* Use generated sources checkbox */}
-        <div className="mt-1 mb-2 ms-2 debuggerConfig form-check">
+        <div className="mt-1 mb-2 ml-2 debuggerConfig form-check">
           <CustomTooltip tooltipId="debuggerGenSourceCheckbox" tooltipText={<FormattedMessage id="debugger.debugWithGeneratedSources" />} placement="bottom-start">
             <span className="p-0 m-0">
               <input
@@ -1072,7 +1072,7 @@ export const DebugLayout = ({
           <i className={`fas ${expandedSections.transactionDetails ? 'fa-chevron-down' : 'fa-chevron-right'}`} style={{ fontSize: '0.75rem', marginRight: '1rem', color: 'var(--bs-body-color)' }}></i>
         </div>
         {expandedSections.transactionDetails && (
-          <div className="debug-section-content debug-section-scrollable ms-3">
+          <div className="debug-section-content debug-section-scrollable ml-3">
             {renderGlobalVariables()}
           </div>
         )}

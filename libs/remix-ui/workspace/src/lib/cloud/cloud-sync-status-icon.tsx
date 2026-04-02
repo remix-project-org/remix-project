@@ -111,7 +111,7 @@ interface CloudSyncStatusIconProps {
  */
 export const CloudSyncStatusIcon: React.FC<CloudSyncStatusIconProps> = ({
   remoteId,
-  className = 'ms-2',
+  className = 'ml-2',
   fontSize = '0.8em',
 }) => {
   const { syncStatus } = useCloudStore()
@@ -190,7 +190,7 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
     <CustomTooltip placement="bottom" tooltipText={tooltipText}>
       <button
         data-id="cloud-toggle"
-        className={`d-inline-flex align-items-center border-0 p-0 ${className}`}
+        className={`inline-flex items-center border-0 p-0 ${className}`}
         style={{
           background: 'transparent',
           cursor: isDisabled ? 'not-allowed' : 'pointer',

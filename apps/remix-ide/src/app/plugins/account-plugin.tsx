@@ -80,7 +80,7 @@ export class AccountPlugin extends ViewPlugin {
 
   render(): JSX.Element {
     return (
-      <div id="account-plugin" className="h-100">
+      <div id="account-plugin" className="h-full">
         <PluginViewWrapper plugin={this} />
       </div>
     )

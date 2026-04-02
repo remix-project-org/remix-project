@@ -4,28 +4,32 @@
    ============================ */
 
 .membership-form-group {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.75rem;
 }
 
 .membership-form-label {
-  display: block;
-  font-size: 0.78rem;
+  /* TODO: Convert block to CSS */
+  font-size: 0.75rem;
+  line-height: 1rem;
   font-weight: 600;
+  margin-bottom: 0.25rem;
   color: var(--bs-body-color, #ccc);
-  margin-bottom: 0.3rem;
 }
 
 .membership-form-input,
 .membership-form-textarea {
-  width: 100%;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.85rem;
-  border-radius: 8px;
-  border: 1px solid var(--bs-border-color, #444);
+  /* TODO: Convert w-full to CSS */
+  /* TODO: Convert px-3 to CSS */
+  /* TODO: Convert py-2 to CSS */
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  /* TODO: Convert rounded-lg to CSS */
+  border: 1px solid;
+  /* TODO: Convert outline-none to CSS */
+  transition: color 150ms;
+  border-color: var(--bs-border-color, #444);
   background: var(--bs-body-bg, #222336);
   color: var(--bs-body-color, #e2e2e2);
-  transition: border-color 0.15s, box-shadow 0.15s;
-  outline: none;
 }
 
 .membership-form-input:focus,
@@ -40,14 +44,14 @@
 }
 
 .membership-form-textarea {
-  min-height: 70px;
-  resize: vertical;
+  /* TODO: Convert min-h-[70px] to CSS */
+  /* TODO: Convert resize-y to CSS */
 }
 
 .membership-form-hint {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
   color: var(--bs-secondary-color, #888);
-  margin-top: 0.2rem;
 }
 
 /* "Already a beta user?" callout */
@@ -55,13 +59,15 @@
 .membership-already-member {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.65rem 0.85rem;
+  /* TODO: Convert gap-2 to CSS */
+  /* TODO: Convert p-3 to CSS */
   margin-bottom: 1rem;
-  border-radius: 8px;
+  /* TODO: Convert rounded-lg to CSS */
+  border: 1px solid;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   background: linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, rgba(6, 182, 212, 0.06) 100%);
-  border: 1px solid rgba(13, 148, 136, 0.2);
-  font-size: 0.82rem;
+  border-color: rgba(13, 148, 136, 0.2);
   color: var(--bs-body-color, #ccc);
 }
 

@@ -15,12 +15,12 @@ export function RemixUiLocaleModule({ localeModule }: RemixUiLocaleModuleProps) 
   }, [localeCode, localeModule])
 
   return (
-    <div className="border-top mb-4">
+    <div className="border-t mb-4">
       <div className="card-body pt-3 pb-2">
         <h6 className="card-title">
           <FormattedMessage id="settings.locales" />
         </h6>
-        <div className="card-text locales-container">
+        <div className="card-text locales-container mx-auto px-4">
           {localeModule.getLocales()
             ? localeModule.getLocales().map((locale, idx) => (
               <div className="radio form-check mb-1" key={idx}>

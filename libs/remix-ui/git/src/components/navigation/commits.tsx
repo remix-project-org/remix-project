@@ -42,14 +42,14 @@ export const CommitsNavigation = ({ eventKey, activePanel, callback, title, bran
 
   return (
     <>
-      <div className={`d-flex justify-content-between ${activePanel === eventKey ? 'bg-light' : ''} ${ahead || behind? 'text-success':''}`}>
-        <span data-id={`commits-panel${ahead?'-ahead':''}${behind?'-behind':''}`} onClick={() => handleClick()} role={'button'} className='nav d-flex justify-content-start align-items-center w-100 ms-1'>
+      <div className={`flex justify-between ${activePanel === eventKey ? 'bg-light' : ''} ${ahead || behind? 'text-success':''}`}>
+        <span data-id={`commits-panel${ahead?'-ahead':''}${behind?'-behind':''}`} onClick={() => handleClick()} role={'button'} className='nav flex justify-start items-center w-full ml-1'>
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          {ahead? <FontAwesomeIcon className='ms-1' icon={faCloudArrowUp}></FontAwesomeIcon> : null}
-          {behind? <FontAwesomeIcon className='ms-1' icon={faCloudArrowDown}></FontAwesomeIcon> : null}
-          <label className={`ps-2 nav form-check-label ${ahead || behind? 'text-success':''}`}>{title}</label>
+          {ahead? <FontAwesomeIcon className='ml-1' icon={faCloudArrowUp}></FontAwesomeIcon> : null}
+          {behind? <FontAwesomeIcon className='ml-1' icon={faCloudArrowDown}></FontAwesomeIcon> : null}
+          <label className={`pl-2 nav form-check-label ${ahead || behind? 'text-success':''}`}>{title}</label>
           <LoaderIndicator></LoaderIndicator>
         </span>
         {showButtons ?

@@ -433,14 +433,14 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
     <div className="billing-manager">
       {/* Header with credits balance */}
       {isAuthenticated && credits && (
-        <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+        <div className="p-3 border-b flex justify-between items-center">
           <div>
-            <i className="fas fa-wallet me-2"></i>
+            <i className="fas fa-wallet mr-2"></i>
             <strong>Your Balance</strong>
           </div>
           <div className="h5 mb-0">
             <span className="badge bg-primary">
-              <i className="fas fa-coins me-1"></i>
+              <i className="fas fa-coins mr-1"></i>
               {credits.balance.toLocaleString()} credits
             </span>
           </div>
@@ -450,7 +450,7 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
       {/* Paddle status warning */}
       {paddleError && (
         <div className="alert alert-warning m-3 mb-0">
-          <i className="fas fa-exclamation-triangle me-2"></i>
+          <i className="fas fa-exclamation-triangle mr-2"></i>
           {paddleError}
         </div>
       )}
@@ -458,7 +458,7 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
       {/* Login prompt */}
       {!isAuthenticated && (
         <div className="alert alert-info m-3">
-          <i className="fas fa-info-circle me-2"></i>
+          <i className="fas fa-info-circle mr-2"></i>
           <a href="#" onClick={(e) => { e.preventDefault(); plugin?.call('auth', 'login', 'github') }}>
             Sign in
           </a> to purchase credits or manage your subscription.
@@ -467,7 +467,7 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
 
       {/* Current subscription */}
       {isAuthenticated && (
-        <div className="p-3 border-bottom">
+        <div className="p-3 border-b">
           <CurrentSubscription
             subscription={subscription}
             loading={userLoading}
@@ -483,7 +483,7 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
             className={`nav-link ${activeTab === 'features' ? 'active' : ''}`}
             onClick={() => setActiveTab('features')}
           >
-            <i className="fas fa-unlock-alt me-2"></i>
+            <i className="fas fa-unlock-alt mr-2"></i>
             Feature Access
           </button>
         </li>
@@ -492,7 +492,7 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
             className={`nav-link ${activeTab === 'credits' ? 'active' : ''}`}
             onClick={() => setActiveTab('credits')}
           >
-            <i className="fas fa-coins me-2"></i>
+            <i className="fas fa-coins mr-2"></i>
             Credit Packages
           </button>
         </li>
@@ -501,7 +501,7 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
             className={`nav-link ${activeTab === 'subscription' ? 'active' : ''}`}
             onClick={() => setActiveTab('subscription')}
           >
-            <i className="fas fa-sync-alt me-2"></i>
+            <i className="fas fa-sync-alt mr-2"></i>
             Subscription Plans
           </button>
         </li>

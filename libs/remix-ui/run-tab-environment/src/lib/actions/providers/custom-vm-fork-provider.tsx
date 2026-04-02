@@ -40,7 +40,7 @@ export class CustomForkVMProvider extends BasicVMProvider {
             <label className="mt-3 mb-1">
               <FormattedMessage id="udapp.nodeUrl" />
             </label>
-            <input data-id="CustomForkNodeUrl" name="nodeUrl" type="text" className="border form-control border-end-0" />
+            <input data-id="CustomForkNodeUrl" name="nodeUrl" type="text" className="border form-control border-r-0" />
           </div>
           <div>
             <label className="mt-3 mb-1">
@@ -52,12 +52,12 @@ export class CustomForkVMProvider extends BasicVMProvider {
               type="text"
               defaultValue="latest"
               placeholder='block number or "latest"'
-              className="border form-control border-end-0"
+              className="border form-control border-r-0"
             />
           </div>
           <div>
             <label className="mt-3 mb-1">EVM</label>
-            <select data-id="CustomForkEvmType" name="evmType" defaultValue="merge" className="border form-control border-end-0">
+            <select data-id="CustomForkEvmType" name="evmType" defaultValue="merge" className="border form-control border-r-0">
               {Object.keys(Hardfork).map((value, index) => {
                 return (
                   <option value={Hardfork[value]} key={index}>

@@ -1,14 +1,17 @@
 .environment-item-hover:hover {
+    /* TODO: Convert rounded-none to CSS */
     background-color: var(--custom-onsurface-layer-3) !important;
     border-radius: 0 !important;
     color: var(--theme-text-color, --bs-gray-500) !important;
   }
   .account-item-hover:hover {
+    /* TODO: Convert rounded-none to CSS */
     background-color: var(--custom-onsurface-layer-3) !important;
     border-radius: 0 !important;
     color: var(--theme-text-color, --bs-gray-600) !important;
   }
   .category-item-hover:hover {
+    /* TODO: Convert rounded-none to CSS */
     background-color: var(--custom-onsurface-layer-4) !important;
     border-radius: 0 !important;
     color: var(--theme-text-color, --bs-gray-500) !important;
@@ -17,17 +20,17 @@
     position: relative;
   }
   .account-balance-text {
-    display: block;
+    /* TODO: Convert block to CSS */
   }
   .account-kebab-icon {
-    display: none;
+    /* TODO: Convert hidden to CSS */
   }
   .account-item-hover:hover .account-balance-text {
-    display: none;
+    /* TODO: Convert hidden to CSS */
   }
   .account-item-hover:hover .account-kebab-icon {
-    display: block;
-    padding-right: 0.5rem;
+    /* TODO: Convert block to CSS */
+  /* TODO: Convert pr-2 to CSS */
   }
   .account-kebab-icon:hover {
     color: var(--theme-text-color, white) !important;
@@ -73,17 +76,18 @@
   }
 
   .smart-account-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 0.25rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    border: none;
+    /* TODO: Convert py-1 to CSS */
+  /* TODO: Convert px-3 to CSS */
+  /* TODO: Convert rounded to CSS */
+  /* TODO: Convert text-lg to CSS */
+  font-weight: 600;
+  border: none;
+  /* TODO: Convert inline-flex to CSS */
+  align-items: center;
+  justify-content: center;
+  /* TODO: Convert whitespace-nowrap to CSS */
     color: var(--bs-info);
     background: var(--bs-light);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
   }
 
   .smart-account-badge-selected {

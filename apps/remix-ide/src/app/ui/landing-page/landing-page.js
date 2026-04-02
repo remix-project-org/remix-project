@@ -25,12 +25,12 @@ export class LandingPage extends ViewPlugin {
     this.verticalIcons = verticalIcons
     this.el = document.createElement('div')
     this.el.setAttribute('id', 'landingPageHomeContainer')
-    this.el.setAttribute('class', 'remixui_homeContainer justify-content-between bg-light d-flex')
+    this.el.setAttribute('class', 'remixui_homeContainer justify-between bg-light flex')
     this.el.setAttribute('data-id', 'landingPageHomeContainer')
   }
 
   render () {
-    return <div id='landingPageHomeContainer' className='remixui_homeContainer justify-content-between bg-light d-flex overflow-y-hidden' data-id='landingPageHomeContainer'>
+    return <div id='landingPageHomeContainer' className='remixui_homeContainer justify-between bg-light flex overflow-y-hidden' data-id='landingPageHomeContainer'>
       <RemixUiHomeTab plugin={this} />
     </div>
   }

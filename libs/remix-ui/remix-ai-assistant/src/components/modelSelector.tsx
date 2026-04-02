@@ -31,7 +31,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   return (
     <div
-      className="position-absolute bg-light border border-text rounded shadow"
+      className="absolute bg-light border border-text rounded shadow"
       style={{
         top: position.top,
         left: position.left,
@@ -44,7 +44,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       <div className="p-2">
         {Object.entries(groupedModels).map(([category, categoryModels]) => (
           <div key={category} className="mb-2">
-            <div className="text-uppercase small text-secondary px-2 py-1">
+            <div className="uppercase small text-secondary px-2 py-1">
               {category}
             </div>
             {categoryModels.map(model => {
@@ -53,17 +53,17 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
               return (
                 <div
                   key={model.id}
-                  className={`d-flex align-items-center p-2 cursor-pointer hover-bg-secondary ${
+                  className={`flex items-center p-2 cursor-pointer hover-bg-secondary ${
                     isSelected ? 'bg-secondary' : ''
                   }`}
                   onClick={() => onSelect(model.id)}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="flex-grow-1">
-                    <div className="d-flex align-items-center">
-                      <span className="fw-bold">{model.name}</span>
+                    <div className="flex items-center">
+                      <span className="font-bold">{model.name}</span>
                       {isSelected && (
-                        <i className="fa fa-check ms-2 text-success" />
+                        <i className="fa fa-check ml-2 text-success" />
                       )}
                     </div>
                     <div className="small text-secondary">
@@ -79,7 +79,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
       {/* Info footer */}
       {accessibleModels.length > 0 && (
-        <div className="border-top p-2 text-center">
+        <div className="border-t p-2 text-center">
           <small className="text-secondary">
             {accessibleModels.length} model{accessibleModels.length !== 1 ? 's' : ''} available
           </small>

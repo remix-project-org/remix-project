@@ -12,19 +12,19 @@ export function GasPriceUI() {
   const gasLimit = appState.settings.gasLimit;
 
   return (
-    <div className="d-block mt-2">
+    <div className="block mt-2">
       <label>
         <FormattedMessage id="udapp.gasLimit" />
       </label>
       <CustomTooltip
         placement={'top'}
-        tooltipClasses="text-nowrap"
+        tooltipClasses="whitespace-nowrap"
         tooltipId="remixGasPriceTooltip"
         tooltipText={<FormattedMessage id="udapp.tooltipText4" />}
       >
         <input
           type="number"
-          className="form-control w-75"
+          className="form-control w-3/4"
           id="gasLimit"
           value={gasLimit}
           onChange={handleGasLimit}

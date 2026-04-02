@@ -41,7 +41,9 @@ function itemPartial(item: DocItemWithContext, options?: RuntimeOptions) {
   if (!partial) {
     throw new Error(`Missing partial '${itemPartialName(item)}'`);
   }
-  return partial(item, options);
+  // Handle both string templates and compiled templates
+  const compiledPartial = typeof partial === 'string' ? Handlebars.compile(partial) : partial;
+  return compiledPartial(item, options);
 }
 
 function readmeHelper(H: typeof Handlebars, path: string, opts: RuntimeOptions) {

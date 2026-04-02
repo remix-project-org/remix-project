@@ -14,7 +14,7 @@ export const Results = () => {
       </div>
 
       {state.find && !state.clipped ? (
-        <div className="search_plugin_result_count_number badge rounded-pill text-bg-secondary">
+        <div className="search_plugin_result_count_number badge rounded-full text-bg-secondary">
           <FormattedMessage id="search.text1" values={{ count: state.count, fileCount: state.fileCount }} />
         </div>
       ) : null}

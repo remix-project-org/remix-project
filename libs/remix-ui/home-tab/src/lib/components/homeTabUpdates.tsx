@@ -115,34 +115,48 @@ function HomeTabUpdates({ plugin }: HomeTabUpdatesProps) {
   }
 
   function UpdateCard(updateInfo: UpdateInfo) {
+    // Map theme names to Tailwind colors
+    const getThemeColors = (theme: string) => {
+      const themeMap: Record<string, { text: string; border: string; buttonText: string }> = {
+        primary: { text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-600 dark:border-blue-400', buttonText: 'text-blue-600 dark:text-blue-400' },
+        success: { text: 'text-green-600 dark:text-green-400', border: 'border-green-600 dark:border-green-400', buttonText: 'text-green-600 dark:text-green-400' },
+        danger: { text: 'text-red-600 dark:text-red-400', border: 'border-red-600 dark:border-red-400', buttonText: 'text-red-600 dark:text-red-400' },
+        warning: { text: 'text-yellow-600 dark:text-yellow-400', border: 'border-yellow-600 dark:border-yellow-400', buttonText: 'text-yellow-600 dark:text-yellow-400' },
+        info: { text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-600 dark:border-cyan-400', buttonText: 'text-cyan-600 dark:text-cyan-400' },
+      }
+      return themeMap[theme] || themeMap.primary
+    }
+
+    const themeColors = getThemeColors(updateInfo.theme)
+
     return (
-      <div className="card border h-100 d-flex flex-column justify-content-between">
-        <div>
-          <div className="d-flex align-items-center p-3 overflow-hidden justify-content-between" style={{ height: '80px', backgroundColor: 'var(--bs-body-bg)' }}>
-            <span className={`badge bg-info bg-transparent border p-2 rounded-pill text-${updateInfo.theme}`} style={{ fontWeight: 'light', border: `1px solid var(--${updateInfo.theme})` }}>{updateInfo.badge}</span>
-            { updateInfo.icon ? <img src={`${HOME_TAB_BASE_URL + updateInfo.icon}`} alt="RemixAI Assistant" style={{ height: '150px', width: '150px' }} />
-              : <img src={`${HOME_TAB_BASE_URL + 'images/illusion.svg'}`} alt="RemixAI Assistant" style={{ height: '150px', width: '150px' }} />
+      <div className="bg-white dark:bg-gray-800 border border-theme rounded-lg h-full flex flex-col shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex-1">
+          <div className="flex items-center p-4 overflow-hidden justify-between h-24 bg-gray-50 dark:bg-gray-700/50">
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border bg-transparent ${themeColors.text} ${themeColors.border}`}>{updateInfo.badge}</span>
+            { updateInfo.icon ? <img src={`${HOME_TAB_BASE_URL + updateInfo.icon}`} alt="RemixAI Assistant" className="h-36 w-36" />
+              : <img src={`${HOME_TAB_BASE_URL + 'images/illusion.svg'}`} alt="RemixAI Assistant" className="h-36 w-36" />
             }
           </div>
-          <div className="px-3" style={{ fontSize: '1rem', zIndex: 1 }}>
-            <span className="d-block my-2" style={{ color: isDark ? 'white' : 'black' }}>
+          <div className="px-4 py-3 text-base relative z-10">
+            <span className="block mb-2 text-gray-900 dark:text-white font-semibold text-lg">
               {updateInfo.title}
             </span>
             {Array.isArray(updateInfo.descriptionList) && updateInfo.descriptionList.length > 0 ? (
-              <div className="mb-3 small">
-                <ul className="list-unstyled">
+              <div className="text-sm">
+                <ul className="list-none space-y-2">
                   {updateInfo.descriptionList.map((description: string, index: number) => (
-                    <li key={`description-${index}`} className='mb-1'><i className="far fa-check-circle me-2"></i>{description}</li>
+                    <li key={`description-${index}`} className='flex items-start'><i className="far fa-check-circle mr-2 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0"></i><span className="text-gray-900 dark:text-gray-100">{description}</span></li>
                   ))}
                 </ul>
               </div>
             ) : (
-              <div className="mb-3 small">{updateInfo.description}</div>
+              <div className="text-sm text-gray-900 dark:text-gray-100">{updateInfo.description}</div>
             )}
           </div>
         </div>
-        <div className="px-3 pb-3">
-          <button className={`btn btn-light btn-sm w-100 border ${updateInfo.theme !== 'primary' && `text-${updateInfo.theme}`}`} onClick={() => handleUpdatesActionClick(updateInfo)}>
+        <div className="px-4 pb-4">
+          <button className={`w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-theme rounded-md text-sm font-medium transition-colors ${themeColors.buttonText}`} onClick={() => handleUpdatesActionClick(updateInfo)}>
             {updateInfo.action.label}
           </button>
         </div>

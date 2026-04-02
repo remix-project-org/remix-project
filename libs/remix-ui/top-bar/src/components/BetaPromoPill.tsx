@@ -45,14 +45,14 @@ export function BetaPromoPill({ plugin }: BetaPromoPillProps) {
   return (
     <CustomTooltip placement="bottom" tooltipText="Get early access to new features">
       <span
-        className="beta-promo-pill d-flex align-items-center ms-3"
+        className="beta-promo-pill flex items-center ml-3"
         onClick={handleClick}
         data-id="beta-promo-pill"
       >
-        <i className="fas fa-flask me-1"></i>
+        <i className="fas fa-flask mr-1"></i>
         <span>Join Remix Beta</span>
         <span
-          className="beta-promo-dismiss ms-1"
+          className="beta-promo-dismiss ml-1"
           onClick={handleDismiss}
           title="Dismiss"
         >

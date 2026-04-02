@@ -521,7 +521,7 @@ export const EditorUI = (props: EditorUIProps) => {
         ),
         options: {
           isWholeLine,
-          inlineClassName: `${isWholeLine ? 'alert-info' : 'inline-class'}  border-0 highlightLine${decoration.position.start.line + 1}`,
+          inlineClassName: `${isWholeLine ? 'bg-info/10 border border-info text-info rounded' : 'inline-class'} border-0 highlightLine${decoration.position.start.line + 1}`,
         },
       }
     }
@@ -912,7 +912,7 @@ export const EditorUI = (props: EditorUIProps) => {
           message: (
             <div>
               {' '}
-              <i className="fas fa-exclamation-triangle text-danger me-1"></i>
+              <i className="fas fa-exclamation-triangle text-danger mr-1"></i>
               <FormattedMessage id="editor.title1.message1" />
               <div>
                 <FormattedMessage id="editor.title1.message2" />
@@ -940,11 +940,11 @@ export const EditorUI = (props: EditorUIProps) => {
               </div>
               {/* Added Checkbox section below */}
               <div className="mt-3">
-                <label htmlFor="donotshowagain" className="text-dark">
+                <label htmlFor="donotshowagain" className="text-gray-800">
                   <input
                     type="checkbox"
                     id="donotshowagain"
-                    className="me-2"
+                    className="mr-2"
                     onChange={(e) => dontShowAgainChecked = e.target.checked}
                   />
                   <FormattedMessage id="editor.doNotShowAgain" defaultMessage="Do not show this warning again" /> {/* Consider adding this to locale files */}
@@ -1426,7 +1426,7 @@ export const EditorUI = (props: EditorUIProps) => {
         const acceptBtn = document.createElement('button')
         acceptBtn.style.backgroundColor = 'var(--custom-ai-color)'
         acceptBtn.style.color = 'var(--vscode-editor-background)'
-        acceptBtn.classList.add(...['btn', 'border', 'align-items-center', 'px-1', 'py-0', 'me-1'])
+        acceptBtn.classList.add(...['inline-flex', 'items-center', 'px-1', 'py-0', 'mr-1', 'border', 'rounded', 'text-sm', 'transition-colors', 'hover:opacity-80'])
         acceptBtn.style.fontSize = '0.8rem'
         acceptBtn.textContent = 'Accept'
 
@@ -1438,7 +1438,7 @@ export const EditorUI = (props: EditorUIProps) => {
         }
 
         const rejectBtn = document.createElement('button')
-        rejectBtn.classList.add(...['btn', 'border', 'align-items-center', 'px-1', 'py-0', 'bg-light', 'text-dark'])
+        rejectBtn.classList.add(...['inline-flex', 'items-center', 'px-1', 'py-0', 'border', 'rounded', 'text-sm', 'bg-light', 'text-gray-800', 'transition-colors', 'hover:opacity-80'])
         rejectBtn.style.fontSize = '0.8rem'
         rejectBtn.textContent = 'Decline'
         rejectBtn.onclick = () => {
@@ -1453,7 +1453,7 @@ export const EditorUI = (props: EditorUIProps) => {
 
         if (acceptAllHandler) {
           const acceptAllBtn = document.createElement('button')
-          acceptAllBtn.classList.add(...['btn', 'border', 'align-items-center', 'px-1', 'py-0', 'bg-light', 'text-dark'])
+          acceptAllBtn.classList.add(...['inline-flex', 'items-center', 'px-1', 'py-0', 'border', 'rounded', 'text-sm', 'bg-light', 'text-gray-800', 'transition-colors', 'hover:opacity-80'])
           acceptAllBtn.style.fontSize = '0.8rem'
           acceptAllBtn.textContent = 'Accept All'
           acceptAllBtn.onclick = () => {
@@ -1467,7 +1467,7 @@ export const EditorUI = (props: EditorUIProps) => {
 
         if (rejectAllHandler) {
           const rejectAllBtn = document.createElement('button')
-          rejectAllBtn.classList.add(...['btn', 'border', 'align-items-center', 'px-1', 'py-0', 'bg-light', 'text-dark'])
+          rejectAllBtn.classList.add(...['inline-flex', 'items-center', 'px-1', 'py-0', 'border', 'rounded', 'text-sm', 'bg-light', 'text-gray-800', 'transition-colors', 'hover:opacity-80'])
           rejectAllBtn.style.fontSize = '0.8rem'
           rejectAllBtn.textContent = 'Decline All'
           rejectAllBtn.onclick = () => {
@@ -1664,7 +1664,7 @@ export const EditorUI = (props: EditorUIProps) => {
   }
 
   return (
-    <div className="w-100 h-100 d-flex flex-column-reverse">
+    <div className="w-full h-full flex flex-col-reverse">
       <DiffEditor
         originalLanguage={'remix-solidity'}
         modifiedLanguage={'remix-solidity'}
@@ -1674,7 +1674,7 @@ export const EditorUI = (props: EditorUIProps) => {
         options={{ readOnly: false, renderSideBySide: isSplit }}
         width='100%'
         height={props.isDiff ? '100%' : '0%'}
-        className={props.isDiff ? "d-block" : "d-none"}
+        className={props.isDiff ? "block" : "hidden"}
         data-id="diffEditor"
       />
       <Editor
@@ -1695,10 +1695,10 @@ export const EditorUI = (props: EditorUIProps) => {
           }
         }}
         defaultValue={defaultEditorValue}
-        className={props.isDiff ? "d-none" : "d-block"}
+        className={props.isDiff ? "hidden" : "block"}
       />
       {editorModelsState[props.currentFile]?.readOnly && (
-        <span className="ps-4 h6 mb-0 w-100 alert-info position-absolute bottom-0 end-0">
+        <span className="pl-4 text-base mb-0 w-full bg-info/10 border border-info text-info rounded absolute bottom-0 right-0 p-2">
           <i className="fas fa-lock-alt p-2"></i>
           <FormattedMessage
             id="editor.text"

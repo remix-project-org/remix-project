@@ -195,7 +195,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
       setAtAddressOptions({
         disabled: false,
         title: (
-          <span className="text-start">
+          <span className="text-left">
             <FormattedMessage id="udapp.atAddressOptionsTitle2" values={{ br: <br /> }} />
           </span>
         ),
@@ -206,7 +206,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
         title: loadedAddress ? (
           <FormattedMessage id="udapp.atAddressOptionsTitle3" />
         ) : (
-          <span className="text-start">
+          <span className="text-left">
             <FormattedMessage id="udapp.atAddressOptionsTitle4" values={{ br: <br /> }} />
           </span>
         ),
@@ -227,7 +227,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
         ['sol', 'vyper', 'lexon', 'contract'].includes(loadType) ? (
           <FormattedMessage id="udapp.contractOptionsTitle3" />
         ) : (
-          <span className="text-start">
+          <span className="text-left">
             <FormattedMessage id="udapp.contractOptionsTitle4" values={{ br: <br /> }} />
           </span>
         ),
@@ -380,7 +380,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
 
   const checkSumWarning = () => {
     return (
-      <span className="text-start">
+      <span className="text-left">
         <FormattedMessage
           id="udapp.checkSumWarning"
           values={{
@@ -444,13 +444,13 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
     ? intl.formatMessage({ id: 'udapp.deployAndVerify', defaultMessage: 'Deploy & Verify' })
     : intl.formatMessage({ id: 'udapp.deploy' })
 
-  const deployButtonWidthClass = isVerifyChecked ? 'w-auto' : 'w-50'
+  const deployButtonWidthClass = isVerifyChecked ? 'w-auto' : 'w-1/2'
 
   return (
     <div className="udapp_container mb-2" data-id="contractDropdownContainer">
-      <div className="d-flex justify-content-between">
-        <div className="d-flex justify-content-between align-items-end">
-          <label className="udapp_settingsLabel pe-1">
+      <div className="flex justify-between">
+        <div className="flex justify-between items-end">
+          <label className="udapp_settingsLabel pr-1">
             <FormattedMessage id="udapp.contract" />
           </label>
           {compilerName && compilerName !== '' && compilerName !== 'remix' && (
@@ -458,7 +458,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
               <FormattedMessage
                 id="udapp.compiledBy"
                 values={{
-                  compilerName: <span className="text-capitalize">{compilerName}</span>,
+                  compilerName: <span className="capitalize">{compilerName}</span>,
                 }}
               />
             </label>
@@ -466,10 +466,10 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
           {props.remixdActivated ? (
             <CustomTooltip
               placement={'right'}
-              tooltipClasses="text-wrap text-start"
+              tooltipClasses="whitespace-normal text-left"
               tooltipId="info-sync-compiled-contract"
               tooltipText={
-                <span className="text-start">
+                <span className="text-left">
                   <FormattedMessage id="udapp.infoSyncCompiledContractTooltip" values={{ br: <br /> }} />
                 </span>
               }
@@ -483,13 +483,13 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
         </div>
       </div>
       <div className="udapp_subcontainer">
-        <CustomTooltip placement={'auto-end'} tooltipClasses="text-nowrap text-start" tooltipId="remixUdappContractNamesTooltip" tooltipText={contractOptions.title}>
+        <CustomTooltip placement={'auto-end'} tooltipClasses="whitespace-nowrap text-left" tooltipId="remixUdappContractNamesTooltip" tooltipText={contractOptions.title}>
           <select
             ref={contractsRef}
             value={currentContract}
             name={contractOptions.title.toString()}
             onChange={handleContractChange}
-            className="udapp_contractNames w-100 form-select p-2 border"
+            className="udapp_contractNames w-full form-select p-2 border"
             disabled={contractOptions.disabled}
             style={{
               display: loadType === 'abi' && !isContractFile(currentFile) ? 'none' : 'block',
@@ -515,10 +515,10 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
       {evmVersion && loadedContractData && (
         <CustomTooltip
           placement={'auto-end'}
-          tooltipClasses="text-wrap text-start"
+          tooltipClasses="whitespace-normal text-left"
           tooltipId="info-evm-version-warn"
           tooltipText={
-            <span className="text-start">
+            <span className="text-left">
               <FormattedMessage id="udapp.warningEvmVersion" values={{ evmVersion }} />
             </span>
           }
@@ -568,9 +568,9 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
             </div>
           )}
         </div>
-        <div className="pt-2 d-flex flex-column sudapp_button udapp_atAddressSect">
-          <div className="d-flex flex-row">
-            <CustomTooltip placement={'top-end'} tooltipClasses="text-wrap text-start" tooltipId="runAndDeployAddresstooltip" tooltipText={atAddressOptions.title}>
+        <div className="pt-2 flex flex-col sudapp_button udapp_atAddressSect">
+          <div className="flex flex-row">
+            <CustomTooltip placement={'top-end'} tooltipClasses="whitespace-normal text-left" tooltipId="runAndDeployAddresstooltip" tooltipText={atAddressOptions.title}>
               <div id="runAndDeployAtAddressButtonContainer" data-bs-title={atAddressOptions.title}>
                 <button
                   className={atAddressOptions.disabled ? "disabled udapp_atAddress btn btn-sm py-2 btn-primary" : "udapp_atAddress btn btn-sm py-2 btn-primary"}
@@ -586,13 +586,13 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
             </CustomTooltip>
             <CustomTooltip
               placement={'top-end'}
-              tooltipClasses="text-wrap text-start"
+              tooltipClasses="whitespace-normal text-left"
               tooltipId="runAndDeployAddressInputtooltip"
               tooltipText={<FormattedMessage id="udapp.addressOfContract" />}
             >
               <input
                 ref={atAddressValue}
-                className={(!addressIsValid ? 'border border-danger' : 'border-dark') + ' h-100 udapp_input udapp_ataddressinput ataddressinput form-control'}
+                className={(!addressIsValid ? 'border border-danger' : 'border-dark') + ' h-full udapp_input udapp_ataddressinput ataddressinput form-control'}
                 placeholder={intl.formatMessage({
                   id: 'udapp.loadContractFromAddress',
                 })}
@@ -601,7 +601,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
             </CustomTooltip>
           </div>
           {!addressIsValid && (
-            <span className="text-danger text-end">
+            <span className="text-danger text-right">
               <FormattedMessage id="udapp.addressNotValid" />
             </span>
           )}

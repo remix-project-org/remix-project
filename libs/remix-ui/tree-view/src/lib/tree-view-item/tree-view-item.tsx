@@ -41,22 +41,22 @@ export const TreeViewItem = (props: TreeViewItemProps) => {
       <div
         key={`treeViewDiv${id}`}
         data-id={`treeViewDiv${id}`}
-        className={`d-flex flex-row align-items-center ${labelClass}`}
+        className={`flex flex-row items-center ${labelClass}`}
         onClick={handleLabelClick}
       >
         {children && showIcon ? (
           <div
             data-id={`treeViewDivIcon${id}`}
-            className={isExpanded ? `ps-2 ${iconY}` : `ps-2 ${iconX} caret caret_tv`}
+            className={isExpanded ? `pl-2 ${iconY}` : `pl-2 ${iconX} caret caret_tv`}
             style={{ visibility: children ? 'visible' : 'hidden' }}
             onClick={handleIconClick}
           ></div>
         ) : icon ? (
-          <div className={`pe-2 ps-2 ${icon} caret caret_tv`}></div>
+          <div className={`pr-2 pl-2 ${icon} caret caret_tv`}></div>
         ) : null}
-        <span className="w-100 ms-1 ps-2" data-id={`treeViewLabelDiv${id}`}>{label}</span>
+        <span className="w-full ml-1 pl-2" data-id={`treeViewLabelDiv${id}`}>{label}</span>
       </div>
-      {isExpanded ? <div className="ps-3">
+      {isExpanded ? <div className="pl-3">
         {children}
       </div> : null}
     </li>

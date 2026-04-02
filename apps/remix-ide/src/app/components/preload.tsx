@@ -9,7 +9,6 @@ import { fileSystem, fileSystems } from '../files/fileSystem'
 import { indexedDBFileSystem } from '../files/filesystems/indexedDB'
 import { localStorageFS } from '../files/filesystems/localStorage'
 import { fileSystemUtility, migrationTestData } from '../files/filesystems/fileSystemUtility'
-import './styles/preload.css'
 import isElectron from 'is-electron'
 import { initEndpoints } from '@remix-endpoints-helper'
 
@@ -141,20 +140,20 @@ export const Preload = (props: PreloadProps) => {
 
   return (
     <>
-      <div className="preload-container" >
-        <div className="preload-main">
-          <div className="preload-logo text-center">
+      <div className="min-h-screen bg-body flex flex-col justify-center items-center p-8" >
+        <div className="flex flex-col items-center max-w-md w-full">
+          <div className="text-center mb-8">
             <img src="assets/img/remix-logo-blue.png" alt="Remix logo" width="64" height="64" />
-            <div className="preload-title">REMIX IDE</div>
-            <div className="preload-sub"><span className="version">v{version}</span></div>
+            <div className="text-3xl font-bold text-body-text mt-4 mb-2">REMIX IDE</div>
+            <div className="text-sm text-gray-400"><span className="cursor-pointer text-xs font-normal max-w-xs">v{version}</span></div>
           </div>
           {!supported ? (
-            <div className="preload-info-container alert alert-warning">
+            <div className="bg-warning/10 border border-warning text-warning-800 p-4 rounded-lg mb-4 w-full">
               Your browser does not support any of the filesystems required by Remix. Either change the settings in your browser or use a supported browser.
             </div>
           ) : null}
           {error ? (
-            <div className="preload-info-container alert alert-danger text-start">
+            <div className="bg-danger/10 border border-danger text-danger-800 p-4 rounded-lg mb-4 w-full text-left">
               An unknown error has occurred while loading the application.
               <br></br>
               Doing a hard refresh might fix this issue:<br></br>
@@ -171,7 +170,7 @@ export const Preload = (props: PreloadProps) => {
             </div>
           ) : null}
           {showDownloader ? (
-            <div className="preload-info-container alert alert-info">
+            <div className="bg-info/10 border border-info text-info-800 p-4 rounded-lg mb-4 w-full">
               This app will be updated now. Please download a backup of your files now to make sure you don't lose your work.
               <br></br>
               You don't need to do anything else, your files will be available when the app loads.
@@ -180,7 +179,7 @@ export const Preload = (props: PreloadProps) => {
                   await downloadBackup()
                 }}
                 data-id="downloadbackup-btn"
-                className="btn btn-primary mt-1"
+                className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary border-0 rounded hover:bg-primary/90 transition-colors cursor-pointer mt-2 mr-2"
               >
                 download backup
               </div>
@@ -189,22 +188,22 @@ export const Preload = (props: PreloadProps) => {
                   await migrateAndLoad()
                 }}
                 data-id="skipbackup-btn"
-                className="btn btn-primary mt-1"
+                className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary border-0 rounded hover:bg-primary/90 transition-colors cursor-pointer mt-2"
               >
                 skip backup
               </div>
             </div>
           ) : null}
           {supported && !error && !showDownloader ? (
-            <div className='text-center' style={{ marginTop: '16px' }}>
-              <div className="pre-splash-spinner" role="progressbar" aria-label="Loading"></div>
+            <div className='text-center mt-4'>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" role="progressbar" aria-label="Loading"></div>
             </div>
           ) : null}
         </div>
-        <div className="preload-bottom opt-out">
-          { tip && <div className='remix_tips text-center mt-3'>
-            <div><b>DID YOU KNOW</b></div>
-            <span>{tip}</span>
+        <div className="mt-8 text-center max-w-md">
+          { tip && <div className='text-center mt-3 p-4 bg-surface-1 rounded-lg'>
+            <div className="font-bold text-emphasis mb-2">DID YOU KNOW</div>
+            <span className="text-body-text text-sm">{tip}</span>
           </div> }
         </div>
       </div>

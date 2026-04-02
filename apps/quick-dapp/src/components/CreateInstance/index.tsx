@@ -14,14 +14,14 @@ const CreateInstance: React.FC = () => {
   const [error, setError] = useState('')
   return (
     <Form
-      className="w-50 m-auto"
+      className="w-1/2 m-auto"
       onSubmit={(e: any) => {
         e.preventDefault();
         initInstance({ ...formVal });
       }}
     >
       <Form.Group className="mb-2" controlId="formAddress">
-        <Form.Label className="text-uppercase mb-0"><FormattedMessage id="quickDapp.address" /></Form.Label>
+        <Form.Label className="uppercase mb-0"><FormattedMessage id="quickDapp.address" /></Form.Label>
         <Form.Control
           type="address"
           placeholder={intl.formatMessage({ id: 'quickDapp.enterAddress' })}
@@ -33,7 +33,7 @@ const CreateInstance: React.FC = () => {
       </Form.Group>
 
       <Form.Group className="mb-2" controlId="formAbi">
-        <Form.Label className="text-uppercase mb-0">abi</Form.Label>
+        <Form.Label className="uppercase mb-0">abi</Form.Label>
         <Form.Control
           as="textarea"
           rows={3}
@@ -58,7 +58,7 @@ const CreateInstance: React.FC = () => {
       </Form.Group>
 
       <Form.Group className="mb-2" controlId="formName">
-        <Form.Label className="text-uppercase mb-0"><FormattedMessage id="quickDapp.name" /></Form.Label>
+        <Form.Label className="uppercase mb-0"><FormattedMessage id="quickDapp.name" /></Form.Label>
         <Form.Control
           type="name"
           placeholder={intl.formatMessage({ id: 'quickDapp.enterName' })}
@@ -70,7 +70,7 @@ const CreateInstance: React.FC = () => {
       </Form.Group>
 
       <Form.Group className="mb-2" controlId="formNetwork">
-        <Form.Label className="text-uppercase mb-0"><FormattedMessage id="quickDapp.network" /></Form.Label>
+        <Form.Label className="uppercase mb-0"><FormattedMessage id="quickDapp.network" /></Form.Label>
         <Form.Control
           type="network"
           placeholder={intl.formatMessage({ id: 'quickDapp.enterNetwork' })}

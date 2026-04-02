@@ -12,7 +12,7 @@ export const CurrentSubscription: React.FC<CurrentSubscriptionProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="d-flex justify-content-center p-3">
+      <div className="flex justify-center p-3">
         <div className="spinner-border spinner-border-sm" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -23,11 +23,11 @@ export const CurrentSubscription: React.FC<CurrentSubscriptionProps> = ({
   if (!subscription) {
     return (
       <div className="p-3 bg-light rounded">
-        <div className="text-muted">
-          <i className="fas fa-info-circle me-2"></i>
+        <div className="text-gray-500 dark:text-gray-400">
+          <i className="fas fa-info-circle mr-2"></i>
           No active subscription
         </div>
-        <small className="text-muted">
+        <small className="text-gray-500 dark:text-gray-400">
           You're on the free plan. Upgrade to get more credits!
         </small>
       </div>
@@ -83,22 +83,22 @@ export const CurrentSubscription: React.FC<CurrentSubscriptionProps> = ({
 
   return (
     <div className="current-subscription p-3 bg-light rounded">
-      <div className="d-flex justify-content-between align-items-start mb-2">
+      <div className="flex justify-between items-start mb-2">
         <div>
           <h6 className="mb-1">
             {planName} {getStatusBadge()}
           </h6>
           {price && (
-            <small className="text-muted">{price}/{billingInterval}</small>
+            <small className="text-gray-500 dark:text-gray-400">{price}/{billingInterval}</small>
           )}
         </div>
         {creditsPerMonth && (
-          <div className="text-end">
+          <div className="text-right">
             <div className="h5 mb-0 text-primary">
-              <i className="fas fa-coins me-1"></i>
+              <i className="fas fa-coins mr-1"></i>
               {creditsPerMonth.toLocaleString()}
             </div>
-            <small className="text-muted">credits/month</small>
+            <small className="text-gray-500 dark:text-gray-400">credits/month</small>
           </div>
         )}
       </div>
@@ -106,15 +106,15 @@ export const CurrentSubscription: React.FC<CurrentSubscriptionProps> = ({
       {periodStart && periodEnd && (
         <div className="row g-2 mb-3">
           <div className="col-6">
-            <small className="text-muted d-block">Current Period</small>
+            <small className="text-gray-500 dark:text-gray-400 block">Current Period</small>
             <small>
               {formatDate(periodStart)} - {formatDate(periodEnd)}
             </small>
           </div>
           {isCanceling && (
             <div className="col-6">
-              <small className="text-warning d-block">
-                <i className="fas fa-exclamation-triangle me-1"></i>
+              <small className="text-warning block">
+                <i className="fas fa-exclamation-triangle mr-1"></i>
                 Cancels at period end
               </small>
             </div>
@@ -122,19 +122,19 @@ export const CurrentSubscription: React.FC<CurrentSubscriptionProps> = ({
         </div>
       )}
 
-      <div className="d-flex gap-2">
+      <div className="flex gap-2">
         {onManage && (
           <button
-            className="btn btn-sm btn-outline-primary"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-outline-primary"
             onClick={onManage}
           >
-            <i className="fas fa-cog me-1"></i>
+            <i className="fas fa-cog mr-1"></i>
             Manage
           </button>
         )}
         {onCancel && subscription.status === 'active' && !subscription.cancelAtPeriodEnd && (
           <button
-            className="btn btn-sm btn-outline-danger"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-outline-danger"
             onClick={onCancel}
           >
             Cancel

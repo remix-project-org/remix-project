@@ -46,12 +46,12 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
 
   if (!isAuthenticated) {
     return (
-      <div className="account-overlay d-flex flex-column align-items-center justify-content-center h-100 p-4">
-        <i className="fas fa-user-circle fa-4x mb-3 text-muted"></i>
+      <div className="account-overlay flex flex-col items-center justify-center h-full p-4">
+        <i className="fas fa-user-circle fa-4x mb-3 text-gray-500 dark:text-gray-400"></i>
         <h4 className="mb-3">
           <FormattedMessage id="account.notLoggedIn" defaultMessage="Not Logged In" />
         </h4>
-        <p className="text-muted text-center mb-4">
+        <p className="text-gray-500 dark:text-gray-400 text-center mb-4">
           <FormattedMessage
             id="account.loginPrompt"
             defaultMessage="Please log in to access your account settings, credits, and billing information."
@@ -75,31 +75,31 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
   }
 
   return (
-    <div className="account-overlay d-flex h-100">
+    <div className="account-overlay flex h-full">
       {/* Sidebar Navigation */}
-      <div className="account-sidebar border-end d-flex flex-column" style={{ width: '220px', minWidth: '220px' }}>
-        <div className="p-3 border-bottom">
-          <div className="d-flex align-items-center">
+      <div className="account-sidebar border-r flex flex-col" style={{ width: '220px', minWidth: '220px' }}>
+        <div className="p-3 border-b">
+          <div className="flex items-center">
             {user?.picture ? (
               <img
                 src={user.picture}
                 alt={user.name || user.email}
-                className="rounded-circle mr-2"
+                className="rounded-full mr-2"
                 style={{ width: '40px', height: '40px' }}
               />
             ) : (
               <div
-                className="rounded-circle bg-secondary d-flex align-items-center justify-content-center mr-2"
+                className="rounded-full bg-secondary flex items-center justify-center mr-2"
                 style={{ width: '40px', height: '40px' }}
               >
                 <i className="fas fa-user text-white"></i>
               </div>
             )}
             <div className="ml-2 overflow-hidden">
-              <div className="font-weight-bold text-truncate" style={{ maxWidth: '140px' }}>
+              <div className="font-weight-bold truncate" style={{ maxWidth: '140px' }}>
                 {getUserDisplayName()}
               </div>
-              <small className="text-muted text-truncate d-block" style={{ maxWidth: '140px' }}>
+              <small className="text-gray-500 dark:text-gray-400 truncate block" style={{ maxWidth: '140px' }}>
                 {user?.email}
               </small>
             </div>
@@ -107,9 +107,9 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
         </div>
 
         {/* Credit Balance Summary */}
-        <div className="p-3 border-bottom" style={{ background: 'var(--bs-secondary-bg)' }}>
-          <div className="d-flex align-items-center justify-content-between">
-            <span className="text-muted small">Credits</span>
+        <div className="p-3 border-b" style={{ background: 'var(--bs-secondary-bg)' }}>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 dark:text-gray-400 small">Credits</span>
             <span className="font-weight-bold">
               🪙 {credits?.balance?.toLocaleString() || 0}
             </span>
@@ -121,7 +121,7 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={`account-nav-item d-flex align-items-center w-100 border-0 px-3 py-2 ${activeTab === tab.id ? 'active' : ''}`}
+              className={`account-nav-item flex items-center w-full border-0 px-3 py-2 ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
               style={{ background: 'transparent', textAlign: 'left' }}
             >
@@ -132,9 +132,9 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
         </nav>
 
         {/* Footer with logout */}
-        <div className="p-3 border-top">
+        <div className="p-3 border-t">
           <button
-            className="btn btn-outline-secondary btn-sm w-100"
+            className="inline-flex items-center px-4 py-2 border border-secondary text-secondary rounded-md hover:bg-secondary hover:text-white transition-colors btn-sm w-full"
             onClick={() => {
               plugin.call('auth', 'logout')
               plugin.call('overlay', 'hideOverlay')
@@ -189,7 +189,7 @@ export const AccountOverlay: React.FC<AccountOverlayProps> = ({ plugin }) => {
               <i className="fas fa-link mr-2"></i>
               Connected Accounts
             </h3>
-            <p className="text-muted mb-4">
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
               Link multiple authentication providers to access your account from anywhere.
               All linked accounts share the same credits and subscriptions.
             </p>

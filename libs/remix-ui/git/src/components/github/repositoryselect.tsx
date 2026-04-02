@@ -80,8 +80,8 @@ const RepositorySelect = (props: RepositorySelectProps) => {
   };
 
   return (
-    <><button data-id='fetch-repositories' onClick={fetchRepositories} className="w-100 mt-1 btn btn-secondary mb-2">
-      <i className="fab fa-github me-1"></i>{props.title}
+    <><button data-id='fetch-repositories' onClick={fetchRepositories} className="w-full mt-1 inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors mb-2">
+      <i className="fab fa-github mr-1"></i>{props.title}
     </button>
     {
       show ?

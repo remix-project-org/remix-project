@@ -118,7 +118,7 @@ export const EnvironmentExplorerUI = (props: environmentExplorerUIProps) => {
                   >
                     <span
                       onClick={async () => props.deleteForkedState(provider)}
-                      className="btn btn-sm mt-1 border border-danger"
+                      className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors mt-1 border border-danger"
                     >
                       <FormattedMessage id="environmentExplorer.deleteEnvironment" />
                     </span>
@@ -131,7 +131,7 @@ export const EnvironmentExplorerUI = (props: environmentExplorerUIProps) => {
                   >
                     <span
                       onClick={async () => props.showPinnedContracts(provider)}
-                      className="btn btn-sm mt-1 border border-info"
+                      className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors mt-1 border border-info"
                     >
                       <FormattedMessage id="environmentExplorer.showPinnedContracts" />
                     </span>

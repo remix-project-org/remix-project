@@ -72,28 +72,28 @@ export const RemixUITerminalBar = (props: RemixUiTerminalProps) => {
   const showExecutionTrace = props.isDebugging && isDebuggerActive
 
   return (<>
-    <div className="remix_ui_terminal_bar d-flex">
+    <div className="remix_ui_terminal_bar flex">
       <div
-        className="remix_ui_terminal_menu d-flex w-100 align-items-center position-relative border-top border-dark"
+        className="remix_ui_terminal_menu flex w-full items-center relative border-t border-dark"
         ref={terminalMenu}
         data-id="terminalToggleMenu"
       >
         {showExecutionTrace ? (
           // Only show "Execution trace" title when debugging
-          <div className="d-flex align-items-center ps-3">
+          <div className="flex items-center pl-3">
             <h6 className="m-0" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--bs-body-color)', lineHeight: '1.5rem' }}>Execution trace</h6>
           </div>
         ) : (
           // Show regular terminal menu when not debugging
           <>
             {platform === appPlatformTypes.desktop ?
-              <div className='d-flex flex-row w-100 justify-content-end align-items-center'>
+              <div className='flex flex-row w-full justify-end items-center'>
                 <RemixUITerminalMenuButtons {...props} />
                 {xtermState.showOutput? <RemixUITerminalMenu {...props} />: <RemixUIXtermMenu {...props} />}
                 <RemixUITerminalMenuMaximize {...props} />
                 <RemixUITerminalMenuToggle {...props} />
               </div> :
-              <div className='d-flex flex-row w-100 justify-content-end align-items-center'>
+              <div className='flex flex-row w-full justify-end items-center'>
                 <RemixUITerminalMenu {...props} />
                 <RemixUITerminalMenuMaximize {...props} />
                 <RemixUITerminalMenuToggle {...props} />

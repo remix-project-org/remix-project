@@ -82,8 +82,8 @@ export const initialState: SettingsState = {
     value: generateContractMetadata,
     isLoading: false
   },
-  'text-wrap': {
-    value: config.get('settings/text-wrap') || false,
+  'whitespace-normal': {
+    value: config.get('settings/whitespace-normal') || false,
     isLoading: false
   },
   'personal-mode': {

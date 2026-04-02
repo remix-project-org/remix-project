@@ -159,30 +159,30 @@ function HomeTabGetStarted({ plugin }: HomeTabGetStartedProps) {
   }
 
   return (
-    <div className="ps-2" id="hTGetStartedSection">
+    <div className="pl-2" id="hTGetStartedSection">
       <label className="pt-3" style={{ fontSize: '1.2rem' }}>
         <FormattedMessage id="home.projectTemplates" />
       </label>
-      <div ref={carouselRefDiv} className="w-100 d-flex flex-column pt-1">
+      <div ref={carouselRefDiv} className="w-full flex flex-col pt-1">
         <ThemeContext.Provider value={themeFilter}>
           <div className="pt-3">
-            <div className="d-flex flex-row align-items-center flex-wrap">
+            <div className="flex flex-row items-center flex-wrap">
               {workspaceTemplates.map((template, index) => (
                 <CustomTooltip
                   tooltipText={intl.formatMessage({ id: template.description })}
                   tooltipId={template.gsID}
-                  tooltipClasses="text-nowrap"
-                  tooltipTextClasses="border bg-light text-dark p-1 pe-3"
+                  tooltipClasses="whitespace-nowrap"
+                  tooltipTextClasses="border bg-light text-dark p-1 pr-3"
                   placement="top-start"
                   key={`${template.gsID}-${template.workspaceTitle}-${index}`}
                 >
                   <button
                     key={index}
                     className={index === 0 ?
-                      'btn btn-primary border p-2 text-nowrap me-3 mb-3' :
+                      'px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white border border-blue-600 dark:border-blue-500 whitespace-nowrap mr-3 mb-3 rounded-md hover:bg-blue-700 dark:hover:bg-blue-400 transition-colors' :
                       index === workspaceTemplates.length - 1 ?
-                        'btn border p-2 text-nowrap me-2 mb-3' :
-                        'btn border p-2 text-nowrap me-3 mb-3'
+                        'px-4 py-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-theme whitespace-nowrap mr-2 mb-3 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors' :
+                        'px-4 py-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-theme whitespace-nowrap mr-3 mb-3 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
                     }
                     onClick={async (e) => {
                       createWorkspace(template.templateName)

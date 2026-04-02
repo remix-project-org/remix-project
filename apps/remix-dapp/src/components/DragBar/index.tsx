@@ -40,7 +40,7 @@ const DragBar = () => {
   }
   return (
     <>
-      <div className={`position-absolute ${dragState ? '' : 'd-none'}`}></div>
+      <div className={`absolute ${dragState ? '' : 'hidden'}`}></div>
       <Draggable
         nodeRef={nodeRef}
         position={{ x: 0, y: dragBarPosY }}
@@ -50,7 +50,7 @@ const DragBar = () => {
       >
         <div
           ref={nodeRef}
-          className={`position-absolute w-100 dragbar_terminal ${
+          className={`absolute w-full dragbar_terminal ${
             dragState ? 'ondrag' : ''
           }`}
         ></div>

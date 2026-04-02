@@ -62,7 +62,7 @@ var css = csjs`
     font-family       : monospace;
     padding           : .4em;
     color             : var(--bs-primary)
-    border-top        : solid 2px var(--bs-secondary);
+    border-t        : solid 2px var(--bs-secondary);
   }
   .prompt             {
     margin-right      : 0.5em;
@@ -92,8 +92,8 @@ var css = csjs`
   }
   .searchIcon                   {
     width                       : 25px;
-    border-top-left-radius      : 3px;
-    border-bottom-left-radius   : 3px;
+    border-t-left-radius      : 3px;
+    border-b-left-radius   : 3px;
     display                     : flex;
     align-items                 : center;
     justify-content             : center;

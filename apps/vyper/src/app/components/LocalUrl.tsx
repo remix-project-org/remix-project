@@ -17,11 +17,11 @@ function LocalUrlInput({url, setUrl, environment}: Props) {
   }
 
   return (
-    <Form id="local-url" className="w-100 px-3">
+    <Form id="local-url" className="w-full px-3">
       <Form.Group controlId="localUrl">
         <Form.Label>Local Compiler Url</Form.Label>
         <Form.Control onBlur={updateUrl} defaultValue={url} type="email" placeholder="eg http://localhost:8000/compile" />
-        <Form.Text className="text-muted"></Form.Text>
+        <Form.Text className="text-gray-500 dark:text-gray-400"></Form.Text>
       </Form.Group>
     </Form>
   )

@@ -96,7 +96,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
         <div className="spinner-border spinner-border-sm" role="status">
           <span className="sr-only">Loading...</span>
         </div>
-        <span className="ms-2">Loading accounts...</span>
+        <span className="ml-2">Loading accounts...</span>
       </div>
     )
   }
@@ -104,7 +104,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
   if (error) {
     return (
       <div className="alert alert-warning p-3" role="alert">
-        <i className="fas fa-exclamation-triangle me-2"></i>
+        <i className="fas fa-exclamation-triangle mr-2"></i>
         {error}
       </div>
     )
@@ -113,7 +113,7 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
   if (!accounts || accounts.length === 0) {
     return (
       <div className="p-3">
-        <p className="text-muted">No accounts found. Please log in first.</p>
+        <p className="text-gray-500 dark:text-gray-400">No accounts found. Please log in first.</p>
       </div>
     )
   }
@@ -126,45 +126,45 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
             key={account.id}
             className={`list-group-item`}
           >
-            <div className="d-flex align-items-start gap-3 mt-1">
-              <div className={`badge ${getProviderColor(account.provider)} d-flex align-items-center justify-content-center rounded-circle flex-shrink-0`} style={{ width: '40px', height: '40px', fontSize: '1.2em' }}>
+            <div className="flex items-start gap-3 mt-1">
+              <div className={`badge ${getProviderColor(account.provider)} flex items-center justify-center rounded-full flex-shrink-0`} style={{ width: '40px', height: '40px', fontSize: '1.2em' }}>
                 {getProviderIcon(account.provider)}
               </div>
               <div className="flex-grow-1">
-                <div className="d-flex align-items-center mb-1">
-                  <span className="font-weight-bold text-capitalize">{account.provider}</span>
+                <div className="flex items-center mb-1">
+                  <span className="font-weight-bold capitalize">{account.provider}</span>
                   {account.isPrimary && (
-                    <span className="badge bg-primary ms-2">Primary</span>
+                    <span className="badge bg-primary ml-2">Primary</span>
                   )}
                   {account.has_access_token && (
-                    <span className="badge bg-success ms-2">
+                    <span className="badge bg-success ml-2">
                       <i className="fas fa-key mr-1"></i>Token Stored
                     </span>
                   )}
                 </div>
                 {account.name && (
-                  <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{account.name}</div>
+                  <div className="small text-gray-500 dark:text-gray-400" style={{ fontSize: '0.75rem' }}>{account.name}</div>
                 )}
               </div>
-              <div className="d-flex flex-column align-items-end">
+              <div className="flex flex-col items-end">
                 {account.picture && (
                   <img
                     src={account.picture}
                     alt={account.name || 'Profile'}
-                    className="rounded-circle"
+                    className="rounded-full"
                     style={{ width: '40px', height: '40px' }}
                   />
                 )}
               </div>
             </div>
             <div className="mt-2">
-              <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                <i className="fas fa-link me-1" style={{ fontSize: '0.65rem' }}></i>
+              <span className="text-gray-500 dark:text-gray-400" style={{ fontSize: '0.75rem' }}>
+                <i className="fas fa-link mr-1" style={{ fontSize: '0.65rem' }}></i>
                 Connected: {new Date(account.created_at).toLocaleDateString()}
               </span>
               {account.last_login_at && (
-                <span className="text-muted" style={{ fontSize: '0.75rem', float: 'right' }}>
-                  <i className="fas fa-clock me-1" style={{ fontSize: '0.65rem' }}></i>
+                <span className="text-gray-500 dark:text-gray-400" style={{ fontSize: '0.75rem', float: 'right' }}>
+                  <i className="fas fa-clock mr-1" style={{ fontSize: '0.65rem' }}></i>
                   Last login: {new Date(account.last_login_at).toLocaleString()}
                 </span>
               )}
@@ -177,16 +177,16 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
         <h6 className="mb-2">
           Link Additional Accounts
         </h6>
-        <p className="text-muted mb-2" style={{ fontSize: '0.85rem' }}>
+        <p className="text-gray-500 dark:text-gray-400 mb-2" style={{ fontSize: '0.85rem' }}>
           Connect more authentication providers to your account. Accounts with matching emails are automatically linked.
         </p>
-        <div className="d-flex flex-column gap-2">
+        <div className="flex flex-col gap-2">
           {!accounts.some(a => a.provider === 'github') && (
             <button
-              className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2"
+              className="inline-flex items-center px-4 py-2 bg-light text-dark rounded-md hover:bg-light/90 transition-colors border-0 w-full flex items-center justify-center py-2"
               onClick={handleLinkGitHub}
             >
-              <span className="me-2 fs-medium">
+              <span className="mr-2 fs-medium">
                 <i className="fab fa-github"></i>
               </span>
               <span className="fs-medium">Connect with GitHub</span>
@@ -194,10 +194,10 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
           )}
           {!accounts.some(a => a.provider === 'google') && (
             <button
-              className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2"
+              className="inline-flex items-center px-4 py-2 bg-light text-dark rounded-md hover:bg-light/90 transition-colors border-0 w-full flex items-center justify-center py-2"
               onClick={handleLinkGoogle}
             >
-              <span className="me-2 fs-medium">
+              <span className="mr-2 fs-medium">
                 <i className="fab fa-google"></i>
               </span>
               <span className="fs-medium">Continue with Google</span>
@@ -205,10 +205,10 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
           )}
           {!accounts.some(a => a.provider === 'discord') && (
             <button
-              className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2"
+              className="inline-flex items-center px-4 py-2 bg-light text-dark rounded-md hover:bg-light/90 transition-colors border-0 w-full flex items-center justify-center py-2"
               onClick={handleLinkDiscord}
             >
-              <span className="me-2 fs-medium">
+              <span className="mr-2 fs-medium">
                 <i className="fab fa-discord"></i>
               </span>
               <span className="fs-medium">Connect with Discord</span>
@@ -216,10 +216,10 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
           )}
           {!accounts.some(a => a.provider === 'siwe') && (
             <button
-              className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-center py-2"
+              className="inline-flex items-center px-4 py-2 bg-light text-dark rounded-md hover:bg-light/90 transition-colors border-0 w-full flex items-center justify-center py-2"
               onClick={handleLinkSIWE}
             >
-              <span className="me-2 fs-medium">
+              <span className="mr-2 fs-medium">
                 <i className="fab fa-ethereum"></i>
               </span>
               <span className="fs-medium">Connect Ethereum Wallet (SIWE)</span>
@@ -229,8 +229,8 @@ export const ConnectedAccounts: React.FC<ConnectedAccountsProps> = ({ plugin }) 
       </div>
 
       <div className="alert alert-info mt-2" role="alert">
-        <div className="d-flex align-items-start">
-          <i className="fas fa-info-circle me-1 mt-1"></i>
+        <div className="flex items-start">
+          <i className="fas fa-info-circle mr-1 mt-1"></i>
           <div>
             <strong>Automatic Linking</strong><br />
             When you log in with a new provider using the same email, accounts are automatically linked!

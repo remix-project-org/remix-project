@@ -23,11 +23,11 @@ export const ElectronWorkspaceName = (props: ElectronWorkspaceNameProps) => {
 
   return (
     (dir === undefined || dir === '') ? <></> :
-      <div className="d-flex align-items-baseline mt-2">
+      <div className="flex items-baseline mt-2">
         <CustomTooltip
           placement="bottom"
           tooltipId="workspace-name"
-          tooltipClasses="text-nowrap"
+          tooltipClasses="whitespace-nowrap"
           tooltipText={dir}
         >
           <div
@@ -42,10 +42,10 @@ export const ElectronWorkspaceName = (props: ElectronWorkspaceNameProps) => {
         <CustomTooltip
           placement="top"
           tooltipId="workspace-open-in-explorer"
-          tooltipClasses="text-nowrap"
+          tooltipClasses="whitespace-nowrap"
           tooltipText='Open in file explorer'
         >
-          <i onClick={openInExplorer} style={{ cursor: 'pointer' }} className="fa fas fa-arrow-up-right-from-square ms-2"></i>
+          <i onClick={openInExplorer} style={{ cursor: 'pointer' }} className="fa fas fa-arrow-up-right-from-square ml-2"></i>
         </CustomTooltip>
       </div>
 

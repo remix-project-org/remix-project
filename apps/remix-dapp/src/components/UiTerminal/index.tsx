@@ -55,17 +55,17 @@ export const RemixUiTerminal = (props: any) => {
     <div className="fixed-bottom" style={{ height }}>
       <div
         id="terminal-view"
-        className="h-100 d-flex"
+        className="h-full flex"
         data-id="terminalContainer-view"
       >
         <div
           style={{ fontSize: 12 }}
-          className="d-flex position-relative flex-column flex-grow-1"
+          className="flex relative flex-col flex-grow-1"
           ref={panelRef}
         >
-          <div className="z-2 d-flex">
+          <div className="z-2 flex">
             <div
-              className="d-flex w-100 align-items-center position-relative border-top border-dark bg-light"
+              className="flex w-full items-center relative border-t border-dark bg-light"
               ref={terminalMenu}
               style={{ height: 35 }}
               data-id="terminalToggleMenu"
@@ -73,7 +73,7 @@ export const RemixUiTerminal = (props: any) => {
               <CustomTooltip
                 placement="top"
                 tooltipId="terminalToggle"
-                tooltipClasses="text-nowrap"
+                tooltipClasses="whitespace-nowrap"
                 tooltipText={
                   !hidden ? (
                     <FormattedMessage id="terminal.hideTerminal" />
@@ -100,14 +100,14 @@ export const RemixUiTerminal = (props: any) => {
                 <CustomTooltip
                   placement="top"
                   tooltipId="terminalClear"
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipText={<FormattedMessage id="terminal.clearConsole" />}
                 >
                   <i className="fas fa-ban" aria-hidden="true"></i>
                 </CustomTooltip>
               </div>
               {/* <div
-                className="ps-2 remix_ui_terminal_toggleTerminal"
+                className="pl-2 remix_ui_terminal_toggleTerminal"
                 onClick={() => {
                   setDisplay('transaction');
                 }}
@@ -121,7 +121,7 @@ export const RemixUiTerminal = (props: any) => {
               </div>
               {shortname && (
                 <div
-                  className="ps-3 remix_ui_terminal_toggleTerminal"
+                  className="pl-3 remix_ui_terminal_toggleTerminal"
                   onClick={() => {
                     setDisplay('comment');
                   }}
@@ -142,18 +142,18 @@ export const RemixUiTerminal = (props: any) => {
           </div>
           <div
             tabIndex={-1}
-            className="remix_ui_terminal_container d-flex h-100 m-0 flex-column"
+            className="remix_ui_terminal_container flex h-full m-0 flex-col"
             data-id="terminalContainer"
           >
             <div
-              className={`position-relative flex-column-reverse h-100 ${
-                display === 'transaction' ? 'd-flex' : 'd-none'
+              className={`relative flex-col-reverse h-full ${
+                display === 'transaction' ? 'flex' : 'hidden'
               }`}
             >
               <TxList />
             </div>
             {/* {shortname && (
-              <div className={`p-3 ${display === 'comment' ? '' : 'd-none'}`}>
+              <div className={`p-3 ${display === 'comment' ? '' : 'hidden'}`}>
                 <DiscussionEmbed
                   shortname={shortname}
                   config={{

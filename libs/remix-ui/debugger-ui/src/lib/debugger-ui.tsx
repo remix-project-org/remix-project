@@ -74,7 +74,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     }).catch(() => {
       // If udappTransactions is not available, show fallback message
       setTransactionRecorderUI(
-        <div className="alert alert-info m-3">
+        <div className="bg-info/10 border border-info text-info rounded p-3 m-3">
           <i className="fas fa-info-circle mr-2"></i>
           <FormattedMessage id="debugger.transactionRecorderAvailable" />
         </div>
@@ -563,7 +563,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
   const customJSX = (
     <span className="p-0 m-0">
       <input
-        className="form-check-input"
+        className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
         id="debugGeneratedSourcesInput"
         onChange={({ target: { checked } }) => {
           setState((prevState) => {
@@ -575,7 +575,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
         }}
         type="checkbox"
       />
-      <label data-id="debugGeneratedSourcesLabel" className="form-check-label" htmlFor="debugGeneratedSourcesInput">
+      <label data-id="debugGeneratedSourcesLabel" className="ml-2 text-sm font-medium text-gray-700" htmlFor="debugGeneratedSourcesInput">
         <FormattedMessage id="debugger.useGeneratedSources" />
         (Solidity {'>='} v0.7.2)
       </label>
@@ -595,7 +595,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
           />
 
           {/* Informational Text */}
-          <div className="debugger-info ms-2 me-2 mb-2">
+          <div className="debugger-info ml-2 mr-2 mb-2">
             <h6 className="search-bar-title mt-3">
               <FormattedMessage id="debugger.startDebugging" defaultMessage="Start debugging a transaction" />
             </h6>
@@ -607,11 +607,11 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
           </div>
 
           {/* Validation Error */}
-          {state.validationError && <span className="w-100 py-1 text-danger validationError d-block mb-3">{state.validationError}</span>}
+          {state.validationError && <span className="w-full py-1 text-danger validationError block mb-3">{state.validationError}</span>}
 
           {/* Configuration Options */}
           <div>
-            <div className="ms-2 mb-2 debuggerConfig form-check">
+            <div className="ml-2 mb-2 debuggerConfig form-check">
               <CustomTooltip tooltipId="debuggerGenSourceCheckbox" tooltipText={<FormattedMessage id="debugger.debugWithGeneratedSources" />} placement="bottom-start">
                 {customJSX}
               </CustomTooltip>
@@ -646,7 +646,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
       )}
 
       {state.debugging && state.sourceLocationStatus && (
-        <div className="text-warning mt-1 ms-3">
+        <div className="text-warning mt-1 ml-3">
           <i className="fas fa-exclamation-triangle" aria-hidden="true"></i> {state.sourceLocationStatus}
         </div>
       )}

@@ -5,7 +5,7 @@ import { fileDecoration } from '../../types'
 const FileDecorationCustomIcon = (props: {fileDecoration: fileDecoration}) => {
   return (
     <>
-      <span data-id={`file-decoration-custom-${props.fileDecoration.path}`} className={`${props.fileDecoration.fileStateIconClass} pe-2`}>
+      <span data-id={`file-decoration-custom-${props.fileDecoration.path}`} className={`${props.fileDecoration.fileStateIconClass} pr-2`}>
         <>{props.fileDecoration.fileStateIcon}</>
       </span>
     </>

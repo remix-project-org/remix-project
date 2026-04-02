@@ -117,7 +117,7 @@ export const reducerActions = (models = initialState, action: Action) => {
 
 export const reducerListener = (plugin, dispatch, monaco, editors: any[], events) => {
   const config = Registry.getInstance().get('config').api
-  const wordWrap = config.get('settings/text-wrap')
+  const wordWrap = config.get('settings/whitespace-normal')
 
   dispatch({
     type: 'SET_WORDWRAP',

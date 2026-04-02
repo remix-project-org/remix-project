@@ -155,10 +155,10 @@ export default class Terminal extends Plugin {
 
     if (panelStates.bottomPanel) {
       this.isHidden = panelStates.bottomPanel.isHidden || false
-      // Apply d-none class to hide the terminal on reload if it was hidden
+      // Apply hidden class to hide the terminal on reload if it was hidden
       if (this.isHidden) {
         const terminalPanel = document.querySelector('.terminal-wrap')
-        terminalPanel?.classList.add('d-none')
+        terminalPanel?.classList.add('hidden')
         trackMatomoEvent(this, { category: 'topbar', action: 'terminalPanel', name: 'hiddenOnLoad', isClick: false })
       }
     } else {
@@ -169,9 +169,9 @@ export default class Terminal extends Plugin {
         pluginProfile: this.profile
       }
       window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
-      // Apply d-none class to hide the terminal on initial load
+      // Apply hidden class to hide the terminal on initial load
       const terminalPanel = document.querySelector('.terminal-wrap')
-      terminalPanel?.classList.add('d-none')
+      terminalPanel?.classList.add('hidden')
     }
   }
 
@@ -201,7 +201,7 @@ export default class Terminal extends Plugin {
   showPanel() {
     const terminalPanel = document.querySelector('.terminal-wrap')
     this.isHidden = false
-    terminalPanel?.classList.remove('d-none')
+    terminalPanel?.classList.remove('hidden')
     trackMatomoEvent(this, { category: 'topbar', action: 'terminalPanel', name: 'shownOnLog', isClick: false })
     this.emit('terminalPanelShown')
 
@@ -218,7 +218,7 @@ export default class Terminal extends Plugin {
     const terminalPanel = document.querySelector('.terminal-wrap')
     if (this.isHidden) {
       this.isHidden = false
-      terminalPanel?.classList.remove('d-none')
+      terminalPanel?.classList.remove('hidden')
       trackMatomoEvent(this, { category: 'topbar', action: 'terminalPanel', name: 'shownOnToggleIconClick', isClick: false })
       this.emit('terminalPanelShown')
     } else {
@@ -231,7 +231,7 @@ export default class Terminal extends Plugin {
           const wraps = mainView.querySelectorAll('[class*="-wrap"]')
           wraps.forEach((wrap: HTMLElement) => {
             if (!wrap.classList.contains('terminal-wrap')) {
-              wrap.classList.remove('d-none')
+              wrap.classList.remove('hidden')
             }
           })
         }
@@ -240,7 +240,7 @@ export default class Terminal extends Plugin {
         this.renderComponent()
       }
 
-      terminalPanel?.classList.add('d-none')
+      terminalPanel?.classList.add('hidden')
       trackMatomoEvent(this, { category: 'topbar', action: 'terminalPanel', name: 'hiddenOnToggleIconClick', isClick: false })
       this.emit('terminalPanelHidden')
     }
@@ -275,7 +275,7 @@ export default class Terminal extends Plugin {
         const wraps = mainView.querySelectorAll('[class*="-wrap"]')
         wraps.forEach((wrap: HTMLElement) => {
           if (!wrap.classList.contains('terminal-wrap')) {
-            wrap.classList.add('d-none')
+            wrap.classList.add('hidden')
           } else {
             // Add maximized class to terminal-wrap
             wrap.classList.add('maximized')
@@ -293,7 +293,7 @@ export default class Terminal extends Plugin {
         // Find all child elements with -wrap class and show them
         const wraps = mainView.querySelectorAll('[class*="-wrap"]')
         wraps.forEach((wrap: HTMLElement) => {
-          wrap.classList.remove('d-none')
+          wrap.classList.remove('hidden')
           // Remove maximized class from terminal-wrap
           if (wrap.classList.contains('terminal-wrap')) {
             wrap.classList.remove('maximized')

@@ -142,21 +142,21 @@ export function MiniFileExplorer() {
   const [selectedStyle, setSelectedStyle] = useState('')
 
   return (
-    <ul className="border mx-auto p-3 w-100" style={{ borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px', minHeight: '100%' }}>
+    <ul className="border mx-auto p-3 w-full" style={{ borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px', minHeight: '100%' }}>
       {Object.entries(structure).map(([key, value]) => (
-        <li key={key} className="list-unstyled d-flex flex-column">
+        <li key={key} className="list-unstyled flex flex-col">
           <div className="p-1">
             <i className={`fas fa-${value.type === 'folder' ? 'folder-open' : getFileExtension(value.name) === 'sol' ? 'fa-kit fa-solidity-mono' : getFileExtension(value.name) === 'json' ? 'small fas fa-brackets-curly' : 'file'}`}
               style={{ color: styleJson(value) }}></i>
-            <span className="ms-1">{value.name}</span>
+            <span className="ml-1">{value.name}</span>
           </div>
           {value.child?.map((child: any, index: number) => (
-            <span key={child.name} className="list-unstyled d-flex flex-column ps-3">
+            <span key={child.name} className="list-unstyled flex flex-col pl-3">
               <div className={`${selectedStyle}`} onClick={() => {
                 setSelectedStyle(child.selected ? '' : '')
               }}>
                 <i className={`${child.type === 'folder' ? child.isOpen ? 'fas fa-folder-open' : 'fas fa-folder' : getFileExtension(child.name) === 'sol' ? 'fa-kit fa-solidity-mono' : getFileExtension(child.name) === 'json' ? 'small fas fa-brackets-curly' : getFileExtension(child.name) === 'txt' ? 'fas fa-file-alt' : getFileExtension(child.name) === 'ts' ? 'small fa-kit fa-ts-logo' : 'fas fa-file'}`}></i>
-                <span className="ms-1">{child.name}</span>
+                <span className="ml-1">{child.name}</span>
               </div>
             </span>
           ))}

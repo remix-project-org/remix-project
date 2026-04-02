@@ -14,7 +14,7 @@ export const SearchTab = (props) => {
 
   return (
     <>
-      <div className="search_plugin_search_tab pe-4 px-2 pb-4">
+      <div className="search_plugin_search_tab pr-4 px-2 pb-4">
         <SearchProvider platform={platform} plugin={plugin} initialState={props.initialState}>
           <FindContainer></FindContainer>
           <Include></Include>

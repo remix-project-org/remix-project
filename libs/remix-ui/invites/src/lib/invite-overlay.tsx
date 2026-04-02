@@ -333,12 +333,12 @@ const SuccessModal: React.FC<{
                     Skip for now
                   </button>
                   <button className="btn invite-modal-btn-primary invite-modal-btn--glow" data-id="invite-lets-start-btn" onClick={handleStartWalkthrough}>
-                    <i className="fas fa-play me-2"></i>
+                    <i className="fas fa-play mr-2"></i>
                     Let's Start!
                   </button>
                 </div>
               ) : (
-                <button className="btn invite-modal-btn-primary w-100" data-id="invite-get-started-btn" onClick={onClose}>
+                <button className="btn invite-modal-btn-primary w-full" data-id="invite-get-started-btn" onClick={onClose}>
                   Get Started
                 </button>
               )}
@@ -454,13 +454,13 @@ const BetaProgramInviteModal: React.FC<{
             <div className="invite-modal-meta">
               {validation.expires_at && (
                 <span className="invite-modal-meta-badge">
-                  <i className="fas fa-clock me-1"></i>
+                  <i className="fas fa-clock mr-1"></i>
                   {formatExpiry(validation.expires_at)}
                 </span>
               )}
               {validation.uses_remaining != null && (
                 <span className="invite-modal-meta-badge">
-                  <i className="fas fa-ticket-alt me-1"></i>
+                  <i className="fas fa-ticket-alt mr-1"></i>
                   {validation.uses_remaining} left
                 </span>
               )}
@@ -468,7 +468,7 @@ const BetaProgramInviteModal: React.FC<{
 
             {error && (
               <div className="invite-modal-error">
-                <i className="fas fa-exclamation-triangle me-2"></i>
+                <i className="fas fa-exclamation-triangle mr-2"></i>
                 {error}
               </div>
             )}
@@ -477,24 +477,24 @@ const BetaProgramInviteModal: React.FC<{
           <div className="invite-modal-right-footer">
             {isAuthenticated ? (
               <button
-                className="btn invite-modal-btn-primary invite-modal-btn--glow w-100"
+                className="btn invite-modal-btn-primary invite-modal-btn--glow w-full"
                 data-id="invite-join-beta-btn"
                 onClick={() => onRedeem(token)}
                 disabled={redeeming}
               >
                 {redeeming ? (
-                  <><i className="fas fa-spinner fa-spin me-2"></i>Activating...</>
+                  <><i className="fas fa-spinner fa-spin mr-2"></i>Activating...</>
                 ) : (
-                  <><i className="fas fa-rocket me-2"></i>Join the Beta</>
+                  <><i className="fas fa-rocket mr-2"></i>Join the Beta</>
                 )}
               </button>
             ) : (
-              <div className="w-100">
+              <div className="w-full">
                 <p className="invite-modal-muted text-center mb-3">
-                  <i className="fas fa-lock me-1"></i>
+                  <i className="fas fa-lock mr-1"></i>
                   Sign in to activate this invite
                 </p>
-                <LoginButton className="btn-lg w-100" plugin={plugin} />
+                <LoginButton className="btn-lg w-full" plugin={plugin} />
               </div>
             )}
           </div>
@@ -549,13 +549,13 @@ const DefaultInviteModal: React.FC<{
             <div className="invite-modal-meta">
               {validation.expires_at && (
                 <span className="invite-modal-meta-badge">
-                  <i className="fas fa-clock me-1"></i>
+                  <i className="fas fa-clock mr-1"></i>
                   {formatExpiry(validation.expires_at)}
                 </span>
               )}
               {validation.uses_remaining != null && (
                 <span className="invite-modal-meta-badge">
-                  <i className="fas fa-ticket-alt me-1"></i>
+                  <i className="fas fa-ticket-alt mr-1"></i>
                   {validation.uses_remaining} left
                 </span>
               )}
@@ -563,7 +563,7 @@ const DefaultInviteModal: React.FC<{
 
             {error && (
               <div className="invite-modal-error">
-                <i className="fas fa-exclamation-triangle me-2"></i>
+                <i className="fas fa-exclamation-triangle mr-2"></i>
                 {error}
               </div>
             )}
@@ -572,24 +572,24 @@ const DefaultInviteModal: React.FC<{
           <div className="invite-modal-right-footer">
             {isAuthenticated ? (
               <button
-                className="btn invite-modal-btn-primary w-100"
+                className="btn invite-modal-btn-primary w-full"
                 data-id="invite-activate-btn"
                 onClick={() => onRedeem(token)}
                 disabled={redeeming}
               >
                 {redeeming ? (
-                  <><i className="fas fa-spinner fa-spin me-2"></i>Activating...</>
+                  <><i className="fas fa-spinner fa-spin mr-2"></i>Activating...</>
                 ) : (
-                  <><i className="fas fa-check me-2"></i>Activate Invite</>
+                  <><i className="fas fa-check mr-2"></i>Activate Invite</>
                 )}
               </button>
             ) : (
-              <div className="w-100">
+              <div className="w-full">
                 <p className="invite-modal-muted text-center mb-3">
-                  <i className="fas fa-lock me-1"></i>
+                  <i className="fas fa-lock mr-1"></i>
                   Sign in to activate this invite
                 </p>
-                <LoginButton className="btn-lg w-100" plugin={plugin} />
+                <LoginButton className="btn-lg w-full" plugin={plugin} />
               </div>
             )}
           </div>

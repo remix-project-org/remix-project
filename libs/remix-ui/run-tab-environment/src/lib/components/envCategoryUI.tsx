@@ -59,9 +59,9 @@ export const EnvCategoryUI: React.FC<EnvCategoryUIProps> = ({ isOpen, onToggle }
         e.stopPropagation()
       }}
     >
-      <Dropdown.Toggle as={CustomToggle} data-id="settingsSelectEnvCategoryOptions" className="btn btn-secondary w-100 d-inline-block pe-0 border-0" icon="fas fa-caret-down text-secondary ms-2" useDefaultIcon={false} style={{ backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+      <Dropdown.Toggle as={CustomToggle} data-id="settingsSelectEnvCategoryOptions" className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors w-full inline-block pr-0 border-0" icon="fas fa-caret-down text-secondary ml-2" useDefaultIcon={false} style={{ backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
         <div style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }}>
-          <div className="text-truncate text-secondary">
+          <div className="truncate text-secondary">
             {<span data-id="selectedVersion">{enforceSelect ? '<select>' : provider?.displayName}</span>}
           </div>
         </div>

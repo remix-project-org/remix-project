@@ -56,9 +56,9 @@ export const Commits = () => {
             })}
           </div>
         </div>
-        {hasNextPage && <GitUIButton data-id='load-more-commits' disabledCondition={fetchIsDisabled()} className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
+        {hasNextPage && <GitUIButton data-id='load-more-commits' disabledCondition={fetchIsDisabled()} className="mb-1 ml-2 inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
         </>
-        : <div className="text-muted"><FormattedMessage id="gitui.noCommits" /></div>}
+        : <div className="text-gray-500 dark:text-gray-400"><FormattedMessage id="gitui.noCommits" /></div>}
     </>
   )
 }

@@ -44,16 +44,16 @@ function RootView({ pluginComponent, children, filterByRemix, setFilterByRemix, 
   return (
     <Fragment>
       <div id="pluginManager" data-id="pluginManagerComponentPluginManager">
-        <header className="form-group mb-0 d-flex flex-column bg-light plugins-header pt-3 pb-2 px-3">
-          <div className="pb-3 mb-3 border-bottom w-100">
-            <button onClick={openModal} className="btn btn-secondary btn-sm d-flex align-items-center justify-content-center w-100" data-id="pluginManagerComponentPluginSearchButton">
-              <img className="icon-pluginManager me-1" style={{ filter: "invert(1)" }} src="assets/img/pluginManager.webp" alt="pluginManager" />
+        <header className="form-group mb-0 flex flex-col bg-light plugins-header pt-3 pb-2 px-3">
+          <div className="pb-3 mb-3 border-b w-full">
+            <button onClick={openModal} className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors btn-sm flex items-center justify-center w-full" data-id="pluginManagerComponentPluginSearchButton">
+              <img className="icon-pluginManager mr-1" style={{ filter: "invert(1)" }} src="assets/img/pluginManager.webp" alt="pluginManager" />
               <FormattedMessage id="pluginManager.connectExternal" defaultMessage="Connect to an external plugin" />
             </button>
           </div>
 
-          <div className="d-flex w-100 mb-2">
-            <div className="search-bar-container w-100">
+          <div className="flex w-full mb-2">
+            <div className="search-bar-container w-full">
               <img className="search-bar-icon" style={{ filter: "invert(0.6)" }} src="assets/img/search_icon.webp" alt={intl.formatMessage({ id: 'pluginManager.search' })} />
               <input
                 type="text"
@@ -67,10 +67,10 @@ function RootView({ pluginComponent, children, filterByRemix, setFilterByRemix, 
 
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="btn btn-sm btn-secondary ml-2 d-flex align-items-center"
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-secondary ml-2 flex items-center"
               data-id="pluginManagerComponentFilterButton"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" fill="none" className="me-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" fill="none" className="mr-1">
                 <g clipPath="url(#clip0_6001_5069)">
                   <path d="M0.0608558 0.857813C0.163981 0.639063 0.382731 0.5 0.624918 0.5H7.37492C7.61711 0.5 7.83586 0.639063 7.93898 0.857813C8.04211 1.07656 8.01086 1.33438 7.85773 1.52188L4.99992 5.01406V7C4.99992 7.18906 4.89367 7.3625 4.72336 7.44688C4.55304 7.53125 4.35148 7.51406 4.19992 7.4L3.19992 6.65C3.07336 6.55625 2.99992 6.40781 2.99992 6.25V5.01406L0.140543 1.52031C-0.0110192 1.33438 -0.0438317 1.075 0.0608558 0.857813Z" fill="currentColor"/>
                 </g>
@@ -92,10 +92,10 @@ function RootView({ pluginComponent, children, filterByRemix, setFilterByRemix, 
             />
           )}
 
-          <div className="d-flex align-items-center w-100">
+          <div className="flex items-center w-full">
             <label
               htmlFor="filter-by-remix-switch"
-              className="m-0 remixui-filter-label text-dark me-2"
+              className="m-0 remixui-filter-label text-dark mr-2"
               style={{ cursor: 'pointer' }}
             >
               <FormattedMessage id="pluginManager.onlyMaintainedByRemix" />

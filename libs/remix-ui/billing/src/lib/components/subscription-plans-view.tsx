@@ -16,7 +16,7 @@ export const SubscriptionPlansView: React.FC<SubscriptionPlansViewProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="d-flex justify-content-center p-4">
+      <div className="flex justify-center p-4">
         <div className="spinner-border spinner-border-sm" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -27,7 +27,7 @@ export const SubscriptionPlansView: React.FC<SubscriptionPlansViewProps> = ({
   if (error) {
     return (
       <div className="alert alert-warning m-3">
-        <i className="fas fa-exclamation-triangle me-2"></i>
+        <i className="fas fa-exclamation-triangle mr-2"></i>
         {error}
       </div>
     )
@@ -35,7 +35,7 @@ export const SubscriptionPlansView: React.FC<SubscriptionPlansViewProps> = ({
 
   if (!plans || plans.length === 0) {
     return (
-      <div className="text-muted text-center p-4">
+      <div className="text-gray-500 dark:text-gray-400 text-center p-4">
         No subscription plans available
       </div>
     )
@@ -55,21 +55,21 @@ export const SubscriptionPlansView: React.FC<SubscriptionPlansViewProps> = ({
 
           return (
             <div key={plan.id} className="col-12 col-md-6 col-lg-4">
-              <div className={`card h-100 ${plan.popular ? 'border-primary' : ''} ${isCurrent ? 'border-success' : ''}`}>
+              <div className={`card h-full ${plan.popular ? 'border-primary' : ''} ${isCurrent ? 'border-success' : ''}`}>
                 {plan.popular && !isCurrent && (
                   <div className="card-header bg-primary text-white text-center py-1">
-                    <small><i className="fas fa-star me-1"></i>Most Popular</small>
+                    <small><i className="fas fa-star mr-1"></i>Most Popular</small>
                   </div>
                 )}
                 {isCurrent && (
                   <div className="card-header bg-success text-white text-center py-1">
-                    <small><i className="fas fa-check me-1"></i>Current Plan</small>
+                    <small><i className="fas fa-check mr-1"></i>Current Plan</small>
                   </div>
                 )}
 
-                <div className="card-body d-flex flex-column">
+                <div className="card-body flex flex-col">
                   <h5 className="card-title">{plan.name}</h5>
-                  <p className="card-text text-muted small">
+                  <p className="card-text text-gray-500 dark:text-gray-400 small">
                     {plan.description}
                   </p>
 
@@ -79,24 +79,24 @@ export const SubscriptionPlansView: React.FC<SubscriptionPlansViewProps> = ({
                     ) : (
                       <>
                         <span className="h4">{BillingApiService.formatPrice(plan.priceUsd)}</span>
-                        <small className="text-muted">/month</small>
+                        <small className="text-gray-500 dark:text-gray-400">/month</small>
                       </>
                     )}
                   </div>
 
                   <div className="mb-3">
                     <div className="h5 text-primary">
-                      <i className="fas fa-coins me-2"></i>
+                      <i className="fas fa-coins mr-2"></i>
                       {plan.creditsPerMonth.toLocaleString()}
                     </div>
-                    <small className="text-muted">credits per month</small>
+                    <small className="text-gray-500 dark:text-gray-400">credits per month</small>
                   </div>
 
                   {plan.features && plan.features.length > 0 && (
                     <ul className="list-unstyled mb-3 flex-grow-1">
                       {plan.features.map((feature, idx) => (
                         <li key={idx} className="mb-1 small">
-                          <i className="fas fa-check text-success me-2"></i>
+                          <i className="fas fa-check text-success mr-2"></i>
                           {feature}
                         </li>
                       ))}
@@ -105,11 +105,11 @@ export const SubscriptionPlansView: React.FC<SubscriptionPlansViewProps> = ({
 
                   {isCurrent ? (
                     <button className="btn btn-outline-success" disabled>
-                      <i className="fas fa-check me-2"></i>
+                      <i className="fas fa-check mr-2"></i>
                       Current Plan
                     </button>
                   ) : isFree ? (
-                    <button className="btn btn-outline-secondary" disabled>
+                    <button className="inline-flex items-center px-4 py-2 border border-secondary text-secondary rounded-md hover:bg-secondary hover:text-white transition-colors" disabled>
                       Included
                     </button>
                   ) : (

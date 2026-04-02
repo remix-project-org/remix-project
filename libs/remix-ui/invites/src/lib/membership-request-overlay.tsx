@@ -47,7 +47,7 @@ export const MembershipRequestOverlay: React.FC<MembershipRequestOverlayProps> =
               </div>
             </div>
             <div className="invite-modal-right">
-              <div className="invite-modal-right-body d-flex align-items-center justify-content-center" style={{ minHeight: 200 }}>
+              <div className="invite-modal-right-body flex items-center justify-center" style={{ minHeight: 200 }}>
                 <i className="fas fa-spinner fa-spin fa-2x" style={{ color: 'var(--bs-secondary-color, #888)' }}></i>
               </div>
             </div>
@@ -135,7 +135,7 @@ export const MembershipRequestOverlay: React.FC<MembershipRequestOverlayProps> =
                 </div>
               </div>
               <div className="invite-modal-right-footer">
-                <button data-id="membership-got-it-btn" className="btn invite-modal-btn-primary w-100" onClick={onClose}>
+                <button data-id="membership-got-it-btn" className="btn invite-modal-btn-primary w-full" onClick={onClose}>
                   Got it!
                 </button>
               </div>
@@ -181,7 +181,7 @@ export const MembershipRequestOverlay: React.FC<MembershipRequestOverlayProps> =
                 </div>
               </div>
               <div className="invite-modal-right-footer">
-                <button className="btn invite-modal-btn-secondary w-100" onClick={onClose}>Close</button>
+                <button className="btn invite-modal-btn-secondary w-full" onClick={onClose}>Close</button>
               </div>
             </div>
           </div>
@@ -358,7 +358,7 @@ const RequestFormModal: React.FC<{
                   <h6 className="invite-modal-section-label">YOUR DETAILS</h6>
 
                   <div className="membership-form-group">
-                    <label className="membership-form-label">Nickname <span className="text-muted">(optional)</span></label>
+                    <label className="membership-form-label">Nickname <span className="text-gray-500 dark:text-gray-400">(optional)</span></label>
                     <input
                       type="text"
                       className="membership-form-input"
@@ -404,7 +404,7 @@ const RequestFormModal: React.FC<{
 
                 {error && (
                   <div className="invite-modal-error mt-2">
-                    <i className="fas fa-exclamation-triangle me-2"></i>
+                    <i className="fas fa-exclamation-triangle mr-2"></i>
                     {error}
                   </div>
                 )}
@@ -413,16 +413,16 @@ const RequestFormModal: React.FC<{
 
             <div className="invite-modal-right-footer">
               <button
-                className="btn invite-modal-btn-primary invite-modal-btn--glow w-100"
+                className="btn invite-modal-btn-primary invite-modal-btn--glow w-full"
                 onClick={handleSubmit}
                 data-id="membership-apply-btn"
                 disabled={submitting || !canSubmit}
                 title={!emailConsent ? 'Please accept the email consent to continue' : !email.trim() ? 'Please enter your email' : !canSubmit ? 'Please answer the required questions' : ''}
               >
                 {submitting ? (
-                  <><i className="fas fa-spinner fa-spin me-2"></i>Submitting...</>
+                  <><i className="fas fa-spinner fa-spin mr-2"></i>Submitting...</>
                 ) : (
-                  <><i className="fas fa-rocket me-2"></i>Apply for Private Beta Test Access</>
+                  <><i className="fas fa-rocket mr-2"></i>Apply for Private Beta Test Access</>
                 )}
               </button>
             </div>

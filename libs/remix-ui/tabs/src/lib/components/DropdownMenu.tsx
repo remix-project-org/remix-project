@@ -42,7 +42,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   return (
     <div className="custom-dropdown-wrapper dropdown" ref={ref}>
       <button
-        className="custom-dropdown-trigger btn btn-primary"
+        className="custom-dropdown-trigger inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -72,8 +72,8 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
                 'dropdown-item',
                 'custom-dropdown-item',
                 disabled ? 'disabled' : '',
-                item.borderTop ? 'border-top' : '',
-                item.borderBottom ? 'border-bottom' : '',
+                item.borderTop ? 'border-t' : '',
+                item.borderBottom ? 'border-b' : '',
                 hasSub ? 'has-submenu' : ''
               ].join(' ')}
               onMouseEnter={() => !disabled && hasSub && setActiveSubmenu(idx)}
@@ -104,8 +104,8 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
                       className={[
                         'dropdown-item',
                         'custom-dropdown-item',
-                        sub.borderTop ? 'border-top' : '',
-                        sub.borderBottom ? 'border-bottom' : ''
+                        sub.borderTop ? 'border-t' : '',
+                        sub.borderBottom ? 'border-b' : ''
                       ].join(' ')}
                       onClick={() => {
                         if (!disabled && sub.onClick) {

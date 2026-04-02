@@ -7,7 +7,7 @@ export const TreeView = (props: TreeViewProps) => {
   const { children, id, ...otherProps } = props
 
   return (
-    <ul data-id={`treeViewUl${id}`} className="ul_tv ms-0 ps-1" {...otherProps}>
+    <ul data-id={`treeViewUl${id}`} className="ul_tv ml-0 pl-1" {...otherProps}>
       {children}
     </ul>
   )

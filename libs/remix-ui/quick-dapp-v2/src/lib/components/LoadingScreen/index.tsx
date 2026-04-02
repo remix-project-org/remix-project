@@ -8,7 +8,7 @@ const LoadingScreen: React.FC = () => {
 
   return loading ? (
     <div
-      className="w-100 h-100 position-fixed bg-dark z-3"
+      className="w-full h-full fixed bg-dark z-3"
       style={{
         top: 0,
         opacity: 0.8
@@ -17,7 +17,7 @@ const LoadingScreen: React.FC = () => {
       <BounceLoader
         color="#a7b0ae"
         size={100}
-        className="position-absolute m-0"
+        className="absolute m-0"
         style={{
           top: '40%',
           left: '50%',

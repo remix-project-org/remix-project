@@ -16,22 +16,22 @@ function HomeTabScamAlert() {
   }
   return (
     <div className="" id="hTScamAlertSection">
-      <label className="ps-2 text-danger" style={{ fontSize: '1.2rem' }}>
+      <label className="pl-2 text-red-600 dark:text-red-400" style={{ fontSize: '1.2rem' }}>
         <FormattedMessage id="home.scamAlert" />
       </label>
-      <div className="py-2 ms-2 mb-1 align-self-end mb-2 d-flex  border border-danger">
-        <span className="align-self-center ps-4 mt-1">
-          <i style={{ fontSize: 'xxx-large', fontWeight: 'lighter' }} className="pe-2 text-danger far fa-exclamation-triangle"></i>
+      <div className="py-2 ml-2 mb-1 self-end mb-2 flex border border-red-600 dark:border-red-400">
+        <span className="self-center pl-4 mt-1">
+          <i style={{ fontSize: 'xxx-large', fontWeight: 'lighter' }} className="pr-2 text-red-600 dark:text-red-400 far fa-exclamation-triangle"></i>
         </span>
-        <div className="d-flex flex-column">
+        <div className="flex flex-col">
           {platform === appPlatformTypes.web && (
-            <span className="ps-4 mt-1">
+            <span className="pl-4 mt-1">
               <FormattedMessage id="home.scamAlertText" />
             </span>)}
-          <span className="ps-4 mt-1">
+          <span className="pl-4 mt-1">
             <FormattedMessage id="home.scamAlertText2" />:
             <a
-              className="ps-2 remixui_home_text"
+              className="pl-2 remixui_home_text"
               onClick={() => trackMatomoEvent({
                 category: 'hometab',
                 action: 'scamAlert',
@@ -44,7 +44,7 @@ function HomeTabScamAlert() {
               <FormattedMessage id="home.learnMore" />
             </a>
           </span>
-          <span className="ps-4 mt-1">
+          <span className="pl-4 mt-1">
             <FormattedMessage id="home.scamAlertText3" />: &nbsp;
             <a
               className="remixui_home_text"

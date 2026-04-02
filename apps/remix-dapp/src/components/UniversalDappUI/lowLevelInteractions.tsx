@@ -126,14 +126,14 @@ export function LowLevelInteractions(props: any) {
     >
       <div data-id="universalDappUiContractActionWrapper">
         <div>
-          <div className="d-flex flex-column">
-            <div className="d-flex flex-row justify-content-between mt-2">
-              <div className="py-2 d-flex justify-content-start flex-grow-1">
+          <div className="flex flex-col">
+            <div className="flex flex-row justify-between mt-2">
+              <div className="py-2 flex justify-start flex-grow-1">
                 <FormattedMessage id="udapp.lowLevelInteractions" />
               </div>
               <CustomTooltip
                 placement={'bottom-end'}
-                tooltipClasses="text-wrap"
+                tooltipClasses="whitespace-normal"
                 tooltipId="receiveEthDocstoolTip"
                 tooltipText={<FormattedMessage id="udapp.tooltipText8" />}
               >
@@ -147,7 +147,7 @@ export function LowLevelInteractions(props: any) {
                     >
                       <i
                         aria-hidden="true"
-                        className="fas fa-info my-2 me-1"
+                        className="fas fa-info my-2 mr-1"
                       ></i>
                     </a>
                   ) : (
@@ -158,19 +158,19 @@ export function LowLevelInteractions(props: any) {
                     >
                       <i
                         aria-hidden="true"
-                        className="fas fa-info my-2 me-1"
+                        className="fas fa-info my-2 mr-1"
                       ></i>
                     </a>
                   )
                 }
               </CustomTooltip>
             </div>
-            <div className="d-flex flex-column align-items-start">
+            <div className="flex flex-col items-start">
               <label className="">CALLDATA</label>
-              <div className="d-flex justify-content-end w-100 align-items-center">
+              <div className="flex justify-end w-full items-center">
                 <CustomTooltip
                   placement="bottom"
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipId="deployAndRunLLTxCalldataInputTooltip"
                   tooltipText={<FormattedMessage id="udapp.tooltipText9" />}
                 >
@@ -182,14 +182,14 @@ export function LowLevelInteractions(props: any) {
                 </CustomTooltip>
                 <CustomTooltip
                   placement="right"
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipId="deployAndRunLLTxCalldataTooltip"
                   tooltipText={<FormattedMessage id="udapp.tooltipText10" />}
                 >
                   <button
                     id="deployAndRunLLTxSendTransaction"
                     data-id="pluginManagerSettingsDeployAndRunLLTxSendTransaction"
-                    className="btn p-0 w-50 border-warning text-warning"
+                    className="btn p-0 w-1/2 border-warning text-warning"
                     onClick={sendData}
                     style={{ height: 32 }}
                   >

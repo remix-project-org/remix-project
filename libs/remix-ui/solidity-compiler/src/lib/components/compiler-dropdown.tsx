@@ -1,9 +1,5 @@
 import { appPlatformTypes, platformContext, onLineContext } from '@remix-ui/app';
-
-;
 import React, { useEffect, useState, useRef, useReducer, useContext } from 'react' // eslint-disable-line
-import { Dropdown } from 'react-bootstrap';
-import { CompilerMenu, CompilerMenuToggle } from './compiler-menu';
 
 export type compilerVersion = {
   path: string,
@@ -26,105 +22,143 @@ export const CompilerDropdown = (props: compilerDropdownProps) => {
   const online = useContext(onLineContext)
   const platform = useContext(platformContext)
   const { customVersions, selectedVersion, defaultVersion, allversions, handleLoadVersion, _shouldBeAdded, onlyDownloaded } = props
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  const getDisplayVersion = () => {
+    const customMatch = customVersions.find(url => selectedVersion === url)
+    if (customMatch) return 'custom'
+    
+    const buildMatch = allversions.find(build => (selectedVersion || defaultVersion) === build.path)
+    if (buildMatch) return buildMatch.longVersion
+    
+    return selectedVersion || defaultVersion
+  }
+
+  const handleItemClick = (version: string) => {
+    handleLoadVersion(version)
+    setIsOpen(false)
+  }
+
   return (
-    <Dropdown id="versionSelector" data-id="versionSelector">
-      <Dropdown.Toggle
+    <div className="relative" id="versionSelector" data-id="versionSelector" ref={dropdownRef}>
+      <button
         disabled={props.disabled}
-        as={CompilerMenuToggle}
         id="dropdown-custom-components"
-        className="btn btn-light w-100 d-inline-block border form-select"
-        icon={null}
+        className="w-full px-3 py-2 text-left bg-white dark:bg-gray-800 border border-theme rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={() => !props.disabled && setIsOpen(!isOpen)}
         style={{
           opacity: props.disabled ? 0.5 : 1,
           cursor: props.disabled ? 'not-allowed' : 'pointer',
           pointerEvents: props.disabled ? 'none' : 'auto'
         }}
       >
-        <div style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }}>
-          <div className={`text-truncate font-sm ${props.disabled ? 'text-muted' : ''}`}>
-            {customVersions.map((url, i) => {
-              if (selectedVersion === url) return (<span data-id="selectedVersion" key={i}>custom</span>)
-            })}
-            {allversions.map((build, i) => {
+        <div className="flex justify-between items-center">
+          <div className="flex-1 overflow-hidden">
+            <div className={`truncate text-sm ${props.disabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
+              <span data-id="selectedVersion">{getDisplayVersion()}</span>
+            </div>
+          </div>
+          <i className={`fas fa-caret-down text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`}></i>
+        </div>
+      </button>
 
-              if ((selectedVersion || defaultVersion) === build.path) {
-                return (<span data-id="selectedVersion" key={i}>{build.longVersion}</span>)
-              }
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-theme rounded-md shadow-lg max-h-60 overflow-auto" data-id="custom-dropdown-items">
+          <div className="py-1">
+            {allversions.length <= 0 && (
+              <button
+                type="button"
+                key={`default`}
+                data-id='builtin'
+                className="w-full px-3 py-2 text-left text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => handleItemClick(defaultVersion)}
+              >
+                <div className='flex w-full justify-between items-center'>
+                  {selectedVersion === defaultVersion && <span className='fas fa-check text-green-500 mr-2'></span>}
+                  <div className="flex-1 overflow-hidden">
+                    <div className="truncate">
+                      {defaultVersion}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            )}
+            {allversions.length <= 0 && (
+              <button
+                type="button"
+                key={`builtin`}
+                data-id='builtin'
+                className="w-full px-3 py-2 text-left text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => handleItemClick('builtin')}
+              >
+                <div className='flex w-full justify-between items-center'>
+                  {selectedVersion === "builtin" && <span className='fas fa-check text-green-500 mr-2'></span>}
+                  <div className="flex-1 overflow-hidden">
+                    <div className="truncate">
+                      builtin
+                    </div>
+                  </div>
+                </div>
+              </button>
+            )}
+            {customVersions.map((url, i) => (
+              <button
+                type="button"
+                key={`custom-${i}`}
+                data-id={`dropdown-item-${url}`}
+                className="w-full px-3 py-2 text-left text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => handleItemClick(url)}
+              >
+                <div className='flex w-full justify-between items-center'>
+                  {selectedVersion === url && <span className='fas fa-check text-green-500 mr-2'></span>}
+                  <div className="flex-1 overflow-hidden">
+                    <div className="truncate">
+                      custom: {url}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+            {allversions.map((build, i) => {
+              if (onlyDownloaded && !build.isDownloaded) return null
+              return _shouldBeAdded(build.longVersion) ? (
+                <button
+                  type="button"
+                  key={`soljson-${i}`}
+                  data-id={`dropdown-item-${build.path}`}
+                  className="w-full px-3 py-2 text-left text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => handleItemClick(build.path)}
+                >
+                  <div className='flex w-full justify-between items-center'>
+                    {selectedVersion === build.path && <span className='fas fa-check text-green-500 mr-2'></span>}
+                    <div className="flex-1 overflow-hidden">
+                      <div className="truncate">
+                        {build.longVersion}
+                      </div>
+                    </div>
+                    {platform == appPlatformTypes.desktop ? (build.isDownloaded ? <div className='fas fa-arrow-circle-down text-green-500 ml-auto'></div> : <div className='far fa-arrow-circle-down text-gray-400'></div>) : null}
+                  </div>
+                </button>
+              ) : null
             })}
           </div>
         </div>
-      </Dropdown.Toggle>
-
-      <Dropdown.Menu as={CompilerMenu} className="w-100 form-select overflow-hidden" data-id="custom-dropdown-items">
-        {allversions.length <= 0 && (
-          <Dropdown.Item
-            key={`default`}
-            data-id='builtin'
-            onClick={() => {}}
-          >
-            <div className='d-flex w-100 justify-content-between'>
-              {selectedVersion === defaultVersion ? <span className='fas fa-check text-success me-2'></span> : null}
-              <div style={{ flexGrow: 1, overflow: 'hidden' }}>
-                <div className="text-truncate">
-                  {defaultVersion}
-                </div>
-              </div>
-            </div>
-          </Dropdown.Item>
-        )}
-        {allversions.length <= 0 && (
-          <Dropdown.Item
-            key={`builtin`}
-            data-id='builtin'
-            onClick={() => {}}
-          >
-            <div className='d-flex w-100 justify-content-between'>
-              {selectedVersion === "builtin" ? <span className='fas fa-check text-success me-2'></span> : null}
-              <div style={{ flexGrow: 1, overflow: 'hidden' }}>
-                <div className="text-truncate">
-                  builtin
-                </div>
-              </div>
-            </div>
-          </Dropdown.Item>
-        )}
-        {customVersions.map((url, i) => (
-          <Dropdown.Item
-            key={`custom-${i}`}
-            data-id={`dropdown-item-${url}`}
-            onClick={() => handleLoadVersion(url)}
-          >
-            <div className='d-flex w-100 justify-content-between'>
-              {selectedVersion === url ? <span className='fas fa-check text-success me-2'></span> : null}
-              <div style={{ flexGrow: 1, overflow: 'hidden' }}>
-                <div className="text-truncate">
-                  custom: {url}
-                </div>
-              </div>
-            </div>
-          </Dropdown.Item>
-        ))}
-        {allversions.map((build, i) => {
-          if (onlyDownloaded && !build.isDownloaded) return null
-          return _shouldBeAdded(build.longVersion) ? (
-            <Dropdown.Item
-              key={`soljson-${i}`}
-              data-id={`dropdown-item-${build.path}`}
-              onClick={() => handleLoadVersion(build.path)}
-            >
-              <div className='d-flex w-100 justify-content-between'>
-                {selectedVersion === build.path ? <span className='fas fa-check text-success me-2'></span> : null}
-                <div style={{ flexGrow: 1, overflow: 'hidden' }}>
-                  <div className="text-truncate">
-                    {build.longVersion}
-                  </div>
-                </div>
-                {platform == appPlatformTypes.desktop ? (build.isDownloaded ? <div className='fas fa-arrow-circle-down text-success ms-auto'></div> : <div className='far fa-arrow-circle-down'></div>) : null}
-              </div>
-            </Dropdown.Item>
-          ) : null
-        })}
-      </Dropdown.Menu>
-    </Dropdown>
+      )}
+    </div>
   );
 }

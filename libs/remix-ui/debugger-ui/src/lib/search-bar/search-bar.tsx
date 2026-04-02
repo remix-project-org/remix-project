@@ -42,7 +42,7 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '', onStopDebug
   }
 
   return (
-    <div className="debugger-search-bar ms-2 me-2">
+    <div className="debugger-search-bar ml-2 mr-2">
       <div className="search-input-wrapper">
         <i className="fas fa-search search-icon"></i>
         <input
@@ -60,7 +60,7 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '', onStopDebug
         {!debugging && (
           <button
             data-id="debuggerTransactionStartButton"
-            className="btn btn-sm btn-primary search-start-btn"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-primary search-start-btn"
             onClick={handleSearch}
             disabled={!isValid || !txHash}
             aria-label="Start debugging"
@@ -72,7 +72,7 @@ export const SearchBar = ({ onSearch, debugging, currentTxHash = '', onStopDebug
           <button
             id="debuggerTransactionStartButtonContainer"
             data-id="debuggerTransactionStartButton"
-            className="btn btn-sm btn-danger stop-debugging-btn"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-danger stop-debugging-btn"
             onClick={onStopDebugging}
             aria-label="Stop debugging"
           >

@@ -15,7 +15,7 @@ export const Replace = (props) => {
   return (
     <>
       <div className="search_plugin_find-part ">
-        <label className="d-none">
+        <label className="hidden">
           <FormattedMessage id="search.replaceInFiles" />
         </label>
         <input id="search_replace" placeholder={intl.formatMessage({ id: 'search.replace' })} className="form-control" onChange={change}></input>

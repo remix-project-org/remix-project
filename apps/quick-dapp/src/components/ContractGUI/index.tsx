@@ -66,7 +66,7 @@ export function ContractGUI(props: { funcABI: any, funcId: any }) {
   }, [lookupOnly, props.funcABI, title]);
 
   return (
-    <div className={`d-inline-block`} style={{ width: '90%' }}>
+    <div className={`inline-block`} style={{ width: '90%' }}>
       <div className="p-2">
         <input
           data-id={`functionTitle${props.funcId}`}
@@ -78,15 +78,15 @@ export function ContractGUI(props: { funcABI: any, funcId: any }) {
           }}
         />
       </div>
-      <div className="p-2 d-flex">
+      <div className="p-2 flex">
         <div
-          className="d-flex p-0 wrapperElement"
+          className="flex p-0 wrapperElement"
           data-id={buttonOptions.dataId}
           data-bs-title={buttonOptions.title}
         >
           <button
             disabled
-            className={`text-nowrap overflow-hidden text-truncate btn btn-sm ${
+            className={`whitespace-nowrap overflow-hidden truncate btn btn-sm ${
               buttonOptions.classList
             } ${
               props.funcABI.inputs && props.funcABI.inputs.length > 0
@@ -102,7 +102,7 @@ export function ContractGUI(props: { funcABI: any, funcId: any }) {
         </div>
         <input
           disabled
-          className="instance-input w-100 p-2 border-0 rounded-end"
+          className="instance-input w-full p-2 border-0 rounded-end"
           data-id={'multiParamManagerBasicInputField'}
           placeholder={inputs}
           data-bs-title={inputs}

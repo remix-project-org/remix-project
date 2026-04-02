@@ -35,11 +35,11 @@ const CustomToggle = React.forwardRef(
       data-id="selectThemesOptions"
       className={className.replace('dropdown-toggle', '')}
     >
-      <div className="d-flex">
-        <div className="me-auto text-nowrap overflow-hidden">{children}</div>
+      <div className="flex">
+        <div className="me-auto whitespace-nowrap overflow-hidden">{children}</div>
         {icon && (
-          <div className="pe-1">
-            <i className={`${icon} pe-1`}></i>
+          <div className="pr-1">
+            <i className={`${icon} pr-1`}></i>
           </div>
         )}
         <div>
@@ -98,19 +98,19 @@ export function ThemeUI() {
   }, []);
 
   return (
-    <div className="d-block">
-      <label className="text-uppercase mb-0"><FormattedMessage id="quickDapp.themes" /></label>
-      <Dropdown className="w-100">
+    <div className="block">
+      <label className="uppercase mb-0"><FormattedMessage id="quickDapp.themes" /></label>
+      <Dropdown className="w-full">
         <Dropdown.Toggle
           as={CustomToggle}
-          className="btn btn-light btn-block w-100 d-inline-block border form-select"
+          className="inline-flex items-center px-4 py-2 bg-light text-dark rounded-md hover:bg-light/90 transition-colors btn-block w-full inline-block border form-select"
           icon={''}
         >
           {theme} - {themeMap[theme].quality}
         </Dropdown.Toggle>
         <Dropdown.Menu
           as={CustomMenu}
-          className="w-100 form-select"
+          className="w-full form-select"
           data-id="custom-dropdown-items"
         >
           {themeList.map((item) => (
@@ -122,7 +122,7 @@ export function ThemeUI() {
               data-id={`dropdown-item-${item}`}
             >
               {theme === item && (
-                <span className="fas fa-check text-success me-2"></span>
+                <span className="fas fa-check text-success mr-2"></span>
               )}
               {item} - {themeMap[item].quality}
             </Dropdown.Item>

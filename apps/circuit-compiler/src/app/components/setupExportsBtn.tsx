@@ -5,7 +5,7 @@ import { CompilerStatus } from "../types"
 export function SetupExportsBtn ({ handleRunSetup, status }: { handleRunSetup: () => Promise<void>, status: CompilerStatus }) {
   const intl = useIntl()
   return <button
-    className="btn btn-secondary btn-block d-block w-100 text-break mt-2"
+    className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors btn-block block w-full break-words mt-2"
     onClick={handleRunSetup}
     data-id="runSetupBtn"
   >
@@ -13,18 +13,18 @@ export function SetupExportsBtn ({ handleRunSetup, status }: { handleRunSetup: (
       placement="auto"
       tooltipId="overlay-tooltip-compile"
       tooltipText={
-        <div className="text-start">
+        <div className="text-left">
           <div>
               {intl.formatMessage({ id: 'circuit.setupAndExportTooltip' })}
           </div>
         </div>
       }
     >
-      <div className="d-flex align-items-center justify-content-center">
+      <div className="flex items-center justify-center">
         <RenderIf condition={status === 'exporting'}>
-          <i className="fas fa-sync fa-spin me-2" aria-hidden="true"></i>
+          <i className="fas fa-sync fa-spin mr-2" aria-hidden="true"></i>
         </RenderIf>
-        <div className="text-truncate overflow-hidden text-nowrap">
+        <div className="truncate overflow-hidden whitespace-nowrap">
           <span>
             <FormattedMessage id="circuit.runSetup" />
           </span>

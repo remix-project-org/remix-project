@@ -56,13 +56,13 @@ export const RemixUIGridSection = (props: RemixUIGridSectionProps) => {
   return (
     <ChildCallbackContext.Provider value={{ onChildCallback }}>
       <div
-        className={`${hide? 'd-none': `d-flex px-4 py-2 flex-column w-100 remixui_grid_section_container ${props.classList}`}`}
+        className={`${hide? 'hidden': `flex px-4 py-2 flex-col w-full remixui_grid_section_container ${props.classList}`}`}
         data-id={"remixUIGS" + props.title}
         style={{ overflowX: 'auto' }}
       >
-        <div className={`w-100 remixui_grid_section`}>
+        <div className={`w-full remixui_grid_section`}>
           { props.title && <h6 className={`mt-1 mb-0 align-items-left`}>{ props.title }</h6> }
-          <div className={(props.hScrollable) ? `d-flex flex-row pb-2  overflow-auto` : `d-flex flex-wrap`}>
+          <div className={(props.hScrollable) ? `flex flex-row pb-2  overflow-auto` : `flex flex-wrap`}>
             { props.children }
           </div>
           { props.expandedCell && <div>

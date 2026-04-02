@@ -30,7 +30,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
 
   const SectionHeader = () => {
     return (
-      <section className="text-nowrap me-1">
+      <section className="whitespace-nowrap mr-1">
         <div className="form-check fs-6">
           <input
             className="form-check-input"
@@ -49,7 +49,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
           />
           <label className="pointer form-check-label" htmlFor={`${props.config.title || props.config.name}`}
             data-id={`sr-${(props.activeConfig && props.activeConfig.name === props.config.name)?'loaded':'notloaded'}-${props.config.name}`}>
-            <div className="ps-1 fw-semibold">{props.config.title || props.config.name}</div>
+            <div className="pl-1 fw-semibold">{props.config.title || props.config.name}</div>
           </label>
         </div>
       </section>
@@ -64,7 +64,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
     return (
       <>
         {visibleDeps.map((dep, depIndex) => (
-          <li className="p-1 ms-1 text-secondary" data-id={`dependency-${dep.name}-${dep.version}`} key={depIndex}>
+          <li className="p-1 ml-1 text-secondary" data-id={`dependency-${dep.name}-${dep.version}`} key={depIndex}>
             {dep.name} (v{dep.version})
           </li>
         ))}
@@ -72,7 +72,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
           <li style={{ listStyle: 'none' }}>
             <a
               href="#"
-              className="text-primary text-decoration-none"
+              className="text-primary no-underline"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -80,7 +80,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
               }}
             >
               {showAll ? 'Show less' : 'Show more'}
-              <FontAwesomeIcon icon={showAll ? faCaretUp : faCaretDown} className="ms-1" />
+              <FontAwesomeIcon icon={showAll ? faCaretUp : faCaretDown} className="ml-1" />
             </a>
           </li>
         )}
@@ -90,39 +90,39 @@ export default function ConfigSection(props: ConfigSectionProps) {
 
   return (
     <section className="">
-      <section className="d-flex flex-row ">
+      <section className="flex flex-row ">
         <SectionHeader />
-        <label htmlFor={`${props.config.title || props.config.name}`} className="pointer w-100 d-flex flex-row mb-0">
+        <label htmlFor={`${props.config.title || props.config.name}`} className="pointer w-full flex flex-row mb-0">
           <div>
             {!props.config.isLoading && !props.config.errorStatus && !props.config.error &&
             <div onClick={() => props.loadScriptRunner(props.config)} className="pointer px-2 pb-1 mb-0 pb-0">
               { props.activeConfig && props.activeConfig.name === props.config.name &&
-                <div className="d-flex flex-row mt-1">
-                  <FontAwesomeIcon data-id={`sr-loaded-${props.config.name}`} className="text-success ms-1" icon={faCheck} size="lg"></FontAwesomeIcon>
+                <div className="flex flex-row mt-1">
+                  <FontAwesomeIcon data-id={`sr-loaded-${props.config.name}`} className="text-success ml-1" icon={faCheck} size="lg"></FontAwesomeIcon>
                   {isVisible && <span onAnimationEnd={handleAnimationEnd} className="text-success px-3 mb-0 pb-0" style={{ animation: 'fadeOut 5s forwards', animationFillMode: 'forwards' }}>Config loaded</span>}
                 </div>
               }
             </div>
             }
           </div>
-          {props.config.isLoading && <div className="d-flex flex-row mx-4">
-            <div className="d-flex flex-row pb-1 align-items-center justify-content-center">
-              <i className="fas fa-spinner fa-spin"></i><span className='ps-3'>Loading config</span>
+          {props.config.isLoading && <div className="flex flex-row mx-4">
+            <div className="flex flex-row pb-1 items-center justify-center">
+              <i className="fas fa-spinner fa-spin"></i><span className='pl-3'>Loading config</span>
             </div>
           </div>}
-          <div className="ms-4 d-flex" id="errorSection">
+          <div className="ml-4 flex" id="errorSection">
             {!props.config.isLoading && props.config.errorStatus && props.config.error &&
               <div
                 onClick={() => {
                   props.loadScriptRunner(props.config)
                   trackMatomoEvent({ category: 'scriptRunnerPlugin', action: 'error_reloadScriptRunnerConfig', name: props.config.name, isClick: true })
                 }}
-                className="pointer text-danger d-flex flex-row"
+                className="pointer text-danger flex flex-row"
               >
                 <CustomTooltip tooltipText={props.config.error}>
-                  <FontAwesomeIcon className="mt-1 pe-4" data-id={`sr-error-${props.config.name}`} icon={faTimes}></FontAwesomeIcon>
+                  <FontAwesomeIcon className="mt-1 pr-4" data-id={`sr-error-${props.config.name}`} icon={faTimes}></FontAwesomeIcon>
                 </CustomTooltip>
-                <span className="pe-2 mt-1 text-nowrap text-danger fw-bold">Loading error.</span>
+                <span className="pr-2 mt-1 whitespace-nowrap text-danger font-bold">Loading error.</span>
                 <span className="text-danger mt-1 ">We are not able to load your requested configuration for now, please try again later.</span>
               </div>
             }
@@ -130,7 +130,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
         </label>
       </section>
 
-      <section className="d-flex flex-column w-100">
+      <section className="flex flex-col w-full">
         <div
           className={`mt-2 bg-dark p-3 ${props.activeConfig && props.activeConfig.name === props.config.name || isHovered ? 'border border-primary' : ''} pointer`}
           style={{ borderRadius: '10px' }}
@@ -146,7 +146,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
         >
           <p className="text-dark font-monospace mb-2">{props.config.description}</p>
           <p className="text-dark mb-1">Dependencies:</p>
-          <ul className="m-0 ms-3">
+          <ul className="m-0 ml-3">
             <Dependencies />
           </ul>
         </div>

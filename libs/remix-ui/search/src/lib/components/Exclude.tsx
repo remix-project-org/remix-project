@@ -26,7 +26,7 @@ export const Exclude = (props) => {
 
   return (
     <>
-      <div className="search_plugin_find-part ps-3">
+      <div className="search_plugin_find-part pl-3">
         <label className="mt-2">
           <FormattedMessage id="search.filesToExclude" />
         </label>

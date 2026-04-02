@@ -4,15 +4,12 @@
 
 .invite-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  /* TODO: Convert inset-0 to CSS */
+  /* TODO: Convert bg-black/60 to CSS */
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10000;
+  /* TODO: Convert z-[10000] to CSS */
   animation: invite-fadeIn 0.2s ease-out;
 }
 
@@ -29,21 +26,21 @@
 /* ---------- dialog wrapper ---------- */
 
 .invite-modal-dialog {
-  max-width: 560px;
-  width: 92%;
+  /* TODO: Convert max-w-[560px] to CSS */
+  /* TODO: Convert w-[92%] to CSS */
   animation: invite-slideUp 0.3s ease-out;
 }
 
 .invite-modal-dialog--wide {
-  max-width: 860px;
+  /* TODO: Convert max-w-[860px] to CSS */
 }
 
 /* ---------- card (the visible box) ---------- */
 
 .invite-modal-card {
   display: flex;
-  flex-direction: row;
-  border-radius: 12px;
+  /* TODO: Convert flex-row to CSS */
+  border-radius: 0.75rem;
   overflow: hidden;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
   background: var(--custom-onsurface-layer-2, #1e1e1e);
@@ -52,26 +49,26 @@
 /* ---------- left swirl panel ---------- */
 
 .invite-modal-left {
-  width: 35%;
-  min-height: 360px;
+  /* TODO: Convert w-[35%] to CSS */
+  /* TODO: Convert min-h-[360px] to CSS */
   position: relative;
   display: flex;
-  flex-direction: column;
+  /* TODO: Convert flex-col to CSS */
   justify-content: center;
   align-items: center;
+  /* TODO: Convert bg-cover to CSS */
+  /* TODO: Convert bg-center to CSS */
+  /* TODO: Convert bg-no-repeat to CSS */
+  /* TODO: Convert flex-shrink-0 to CSS */
   background-image: url('https://raw.githubusercontent.com/remix-project-org/remix-dynamics/refs/heads/live/images/illusion.svg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  flex-shrink: 0;
 }
 
 /* gradient overlays by type */
 
 .invite-modal-left-gradient {
   position: absolute;
-  inset: 0;
-  z-index: 1;
+  /* TODO: Convert inset-0 to CSS */
+  z-index: 10;
 }
 
 .invite-modal-left-gradient--beta {
@@ -98,71 +95,74 @@
 
 .invite-modal-left-content {
   position: relative;
-  z-index: 2;
-  text-align: center;
-  padding: 2rem 1rem;
+  /* TODO: Convert z-20 to CSS */
+  /* TODO: Convert text-center to CSS */
+  /* TODO: Convert py-8 to CSS */
+  padding-left: 1rem; padding-right: 1rem;
 }
 
 .invite-modal-hero-icon {
-  font-size: 2.8rem;
-  color: #7dd3fc;
-  margin-bottom: 0.75rem;
+  /* TODO: Convert text-5xl to CSS */
+  color: rgb(125, 211, 252);
   filter: drop-shadow(0 4px 12px rgba(125, 211, 252, 0.3));
 }
 
 .invite-modal-hero-icon--success {
-  color: #86efac;
+  /* TODO: Convert text-green-300 to CSS */
   filter: drop-shadow(0 4px 12px rgba(134, 239, 172, 0.35));
 }
 
 .invite-modal-hero-title {
-  font-size: 1.35rem;
+  /* TODO: Convert text-xl to CSS */
   font-weight: 700;
-  color: #e0fbfc;
-  margin: 0 0 0.35rem;
+  /* TODO: Convert text-cyan-50 to CSS */
+  margin-bottom: 0.25rem;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .invite-modal-hero-subtitle {
-  font-size: 0.82rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: rgba(125, 211, 252, 0.8);
   line-height: 1.45;
-  margin: 0;
 }
 
 /* ---------- right content panel ---------- */
 
 .invite-modal-right {
-  flex: 1;
+  /* TODO: Convert flex-1 to CSS */
   display: flex;
-  flex-direction: column;
-  min-width: 0;
+  /* TODO: Convert flex-col to CSS */
+  /* TODO: Convert min-w-0 to CSS */
 }
 
 .invite-modal-right-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 1.15rem 1.35rem 0.85rem;
-  border-bottom: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.08));
+  /* TODO: Convert items-start to CSS */
+  /* TODO: Convert justify-between to CSS */
+  /* TODO: Convert px-5 to CSS */
+  padding-top: 1.25rem; padding-bottom: 1.25rem;
+  /* TODO: Convert pb-3 to CSS */
+  /* TODO: Convert border-b to CSS */
+  border-bottom-color: var(--bs-border-color, rgba(255, 255, 255, 0.08));
 }
 
 .invite-modal-right-header h5 {
-  margin: 0 0 0.15rem;
-  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+  /* TODO: Convert text-lg to CSS */
   font-weight: 600;
 }
 
 .invite-modal-close-btn {
-  background: none;
+  /* TODO: Convert bg-none to CSS */
   border: none;
-  color: var(--bs-secondary-color, #888);
-  font-size: 1.15rem;
+  /* TODO: Convert text-lg to CSS */
   cursor: pointer;
-  padding: 2px 4px;
-  line-height: 1;
-  transition: color 0.15s;
-  flex-shrink: 0;
+  /* TODO: Convert p-1 to CSS */
+  /* TODO: Convert leading-none to CSS */
+  transition: color 150ms;
+  /* TODO: Convert flex-shrink-0 to CSS */
+  color: var(--bs-secondary-color, #888);
 }
 
 .invite-modal-close-btn:hover {
@@ -170,30 +170,33 @@
 }
 
 .invite-modal-right-body {
-  flex: 1;
-  padding: 1.15rem 1.35rem;
-  overflow-y: auto;
-  max-height: 65vh;
+  /* TODO: Convert flex-1 to CSS */
+  /* TODO: Convert px-5 to CSS */
+  padding-top: 1.25rem; padding-bottom: 1.25rem;
+  /* TODO: Convert overflow-y-auto to CSS */
+  /* TODO: Convert max-h-[65vh] to CSS */
 }
 
 .invite-modal-right-footer {
-  padding: 1rem 1.35rem;
-  border-top: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.08));
+  /* TODO: Convert px-5 to CSS */
+  /* TODO: Convert py-4 to CSS */
+  /* TODO: Convert border-t to CSS */
+  border-top-color: var(--bs-border-color, rgba(255, 255, 255, 0.08));
 }
 
 /* ---------- section label ---------- */
 
 .invite-modal-section {
-  margin-bottom: 1.1rem;
+  margin-bottom: 1rem;
 }
 
 .invite-modal-section-label {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  /* TODO: Convert uppercase to CSS */
+  /* TODO: Convert tracking-wider to CSS */
   color: var(--bs-secondary-color, #888);
-  margin-bottom: 0.65rem;
 }
 
 /* ---------- benefits list ---------- */

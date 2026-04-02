@@ -38,10 +38,10 @@ export function DropdownLabel({ label, bridges, currentProvider, envLabel, runTa
     <>
       <span>{renderLabel}</span>
       <RenderIf condition={isL2(renderLabel) && bridges[renderLabel.substring(0, 13)]}>
-        <CustomTooltip placement={'auto-end'} tooltipClasses="text-nowrap" tooltipId="info-recorder" tooltipText={<FormattedMessage id="udapp.tooltipText3" />}>
+        <CustomTooltip placement={'auto-end'} tooltipClasses="whitespace-nowrap" tooltipId="info-recorder" tooltipText={<FormattedMessage id="udapp.tooltipText3" />}>
           <i
             style={{ fontSize: 'medium' }}
-            className={'ms-1 fa fa-rocket-launch'}
+            className={'ml-1 fa fa-rocket-launch'}
             aria-hidden="true"
             onClick={() => {
               window.open(bridges[currentProvider.displayName.substring(0, 13)], '_blank')
@@ -50,10 +50,10 @@ export function DropdownLabel({ label, bridges, currentProvider, envLabel, runTa
         </CustomTooltip>
       </RenderIf>
       <RenderIf condition={runTabState.selectExEnv === 'walletconnect'}>
-        <CustomTooltip placement={'auto-end'} tooltipClasses="text-nowrap" tooltipId="info-walletconnect" tooltipText={<FormattedMessage id="udapp.tooltipText14" />}>
+        <CustomTooltip placement={'auto-end'} tooltipClasses="whitespace-nowrap" tooltipId="info-walletconnect" tooltipText={<FormattedMessage id="udapp.tooltipText14" />}>
           <i
             style={{ fontSize: 'medium' }}
-            className={'ms-1 fa fa-wallet'}
+            className={'ml-1 fa fa-wallet'}
             aria-hidden="true"
             onClick={(e) => {
               e.preventDefault()

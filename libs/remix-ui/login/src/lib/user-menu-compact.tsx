@@ -74,12 +74,12 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
   }
 
   const hasBeta = featureGroups?.some(fg => fg.name === 'beta')
-  const buttonClass = `btn btn-sm d-flex flex-nowrap align-items-center user-menu-compact-button ${
+  const buttonClass = `btn btn-sm flex flex-nowrap items-center user-menu-compact-button ${
     hasBeta ? 'user-menu-compact-button--beta' : 'btn-success'
   }`
 
   return (
-    <div className={`position-relative ${className}`}>
+    <div className={`relative ${className}`}>
       <button
         className={buttonClass}
         onClick={() => {
@@ -126,14 +126,14 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
 
             {/* Connected Account */}
             {user.provider && (
-              <div className="dropdown-item-text small text-muted user-menu-provider">
-                <i className={`${getProviderIcon(user.provider)} me-2`}></i>
+              <div className="dropdown-item-text small text-gray-500 dark:text-gray-400 user-menu-provider">
+                <i className={`${getProviderIcon(user.provider)} mr-2`}></i>
                 {getProviderDisplayName(user.provider)}
               </div>
             )}
 
             {/* Menu Items */}
-            <div className="user-menu-items-container">
+            <div className="user-menu-items-container mx-auto px-4">
               {/* Feature Badges */}
               <FeatureBadges plugin={plugin} onClose={() => setShowDropdown(false)} />
 
@@ -170,8 +170,8 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
               <div className="user-menu-git-section">
                 {isGitHubConnected ? (
                   <>
-                    <div className="dropdown-item-text small text-muted d-flex align-items-center">
-                      <i className="fab fa-github me-2"></i>
+                    <div className="dropdown-item-text small text-gray-500 dark:text-gray-400 flex items-center">
+                      <i className="fab fa-github mr-2"></i>
                       <span>{gitHubUser.login}</span>
                       {gitHubUser.avatar_url && (
                         <img

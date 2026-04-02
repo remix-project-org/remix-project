@@ -19,11 +19,11 @@ export function WorkspaceDropdownSubMenu ({ menuItems, style }: WorkspaceDropdow
               <Dropdown.Item
                 key={item.label}
                 onClick={item.onClick}
-                className="text-decoration-none"
+                className="no-underline"
               >
-                <span className="d-flex justify-content-evenly align-items-center">
+                <span className="flex justify-evenly items-center">
                   <i className={item.icon}></i>
-                  <span className="ps-2">{item.label}</span>
+                  <span className="pl-2">{item.label}</span>
                 </span>
               </Dropdown.Item>
             )
@@ -37,11 +37,11 @@ export function WorkspaceDropdownSubMenu ({ menuItems, style }: WorkspaceDropdow
               <Dropdown.Item
                 key={item.label}
                 onClick={item.onClick}
-                className="text-decoration-none"
+                className="no-underline"
               >
-                <span className="d-flex justify-content-evenly align-items-center text-danger">
+                <span className="flex justify-evenly items-center text-danger">
                   <i className={item.icon}></i>
-                  <span className="ps-2">{item.label}</span>
+                  <span className="pl-2">{item.label}</span>
                 </span>
               </Dropdown.Item>
             ]

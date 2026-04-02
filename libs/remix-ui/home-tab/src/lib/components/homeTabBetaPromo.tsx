@@ -49,7 +49,7 @@ export default function HomeTabBetaPromo({ plugin }: HomeTabBetaPromoProps) {
 
   return (
     <div
-      className="card mb-3 rounded overflow-hidden border position-relative"
+      className="bg-white dark:bg-gray-800 mb-3 rounded-lg overflow-hidden border border-theme relative"
       style={{ cursor: 'pointer' }}
       onClick={handleJoin}
       data-id="beta-promo-banner"
@@ -68,24 +68,24 @@ export default function HomeTabBetaPromo({ plugin }: HomeTabBetaPromoProps) {
           pointerEvents: 'none'
         }}
       />
-      <div className="p-3 d-flex align-items-center" style={{ zIndex: 1 }}>
-        <div className="me-3 d-flex align-items-center justify-content-center" style={{ minWidth: 36 }}>
+      <div className="p-3 flex items-center" style={{ zIndex: 1 }}>
+        <div className="mr-3 flex items-center justify-center" style={{ minWidth: 36 }}>
           <i className="fas fa-flask fa-lg text-primary"></i>
         </div>
-        <div className="flex-grow-1">
-          <div className={`fw-bold mb-0 ${isDark ? 'text-white' : 'text-dark'}`} style={{ fontSize: '0.85rem' }}>
+        <div className="flex-grow">
+          <div className={`font-bold mb-0 ${isDark ? 'text-white' : 'text-gray-900'}`} style={{ fontSize: '0.85rem' }}>
             Try Remix Beta
           </div>
           <div style={{ fontSize: '0.75rem', opacity: 0.75 }}>
             Get early access to new features before they go live.
           </div>
         </div>
-        <div className="d-flex align-items-center ms-2">
-          <span className="text-primary me-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+        <div className="flex items-center ml-2">
+          <span className="text-blue-600 dark:text-blue-400 mr-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
             Register now <i className="fas fa-chevron-right" style={{ fontSize: '0.6rem' }}></i>
           </span>
           <button
-            className="btn btn-sm p-0 border-0"
+            className="px-0 py-0 bg-transparent border-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             onClick={handleDismiss}
             title="Dismiss"
             style={{ opacity: 0.5, lineHeight: 1 }}

@@ -67,7 +67,7 @@ export default function SubmenuPortal({
     <>
       <span
         ref={anchorRef}
-        className="dropdown-item d-flex justify-content-between align-items-center"
+        className="dropdown-item flex justify-between items-center"
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         role="button"
@@ -75,7 +75,7 @@ export default function SubmenuPortal({
         aria-expanded={open}
       >
         {label}
-        <i className="fas fa-angle-right ms-2" aria-hidden />
+        <i className="fas fa-angle-right ml-2" aria-hidden />
       </span>
       {open && pos &&
         createPortal(

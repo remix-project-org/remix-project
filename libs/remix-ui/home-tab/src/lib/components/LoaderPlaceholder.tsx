@@ -2,8 +2,8 @@ import React from 'react'
 
 export function LoadingCard() {
   return (
-    <div className="card">
-      <div className="d-flex align-items-center p-3 overflow-hidden justify-content-between" style={{ height: '80px', backgroundColor: 'var(--bs-body-bg)' }}>
+    <div className="bg-white dark:bg-gray-800 border border-theme rounded-lg">
+      <div className="flex items-center p-3 overflow-hidden justify-between" style={{ height: '80px', backgroundColor: 'var(--bs-body-bg)' }}>
         <div className="skeleton-badge" style={{
           width: '60px',
           height: '30px',

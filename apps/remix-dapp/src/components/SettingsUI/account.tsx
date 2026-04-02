@@ -21,19 +21,19 @@ export function AccountUI() {
   }, [accounts, selectedAccount]);
 
   return provider === 'metamask' ? (
-    <div className="d-block mt-2">
+    <div className="block mt-2">
       <label>
         <FormattedMessage id="udapp.account" />
         {isRequesting && (
-          <FontAwesomeIcon className="ms-2" icon={faSpinner} pulse />
+          <FontAwesomeIcon className="ml-2" icon={faSpinner} pulse />
         )}
       </label>
-      <div className="d-flex align-items-center">
+      <div className="flex items-center">
         <select
           id="txorigin"
           data-id="runTabSelectAccount"
           name="txorigin"
-          className="form-control overflow-hidden w-100 fw-normal form-select pe-4"
+          className="form-control overflow-hidden w-full font-normal form-select pr-4"
           value={selectedAccount || ''}
           onChange={(e) => {
             setAccount(e.target.value);

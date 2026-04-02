@@ -800,11 +800,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             <CustomTooltip
               placement="bottom"
               tooltipId="promptCompilerTooltip"
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipText={<FormattedMessage id="solidity.addACustomCompilerWithURL" />}
             >
               <span
-                className={`fas fa-plus border-0 p-0 ms-3 ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}
+                className={`fas fa-plus border-0 p-0 ml-3 ${(hhCompilation || foundryCompilation) ? 'text-gray-500 dark:text-gray-400' : ''}`}
                 onClick={() => !(hhCompilation || foundryCompilation) && promptCompiler()}
                 style={{
                   cursor: (hhCompilation || foundryCompilation) ? 'not-allowed' : 'pointer',
@@ -815,11 +815,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             <CustomTooltip
               placement="bottom"
               tooltipId="showCompilerTooltip"
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipText={<FormattedMessage id="solidity.seeCompilerLicense" />}
             >
               <span
-                className={`far fa-file-certificate border-0 p-0 ms-2 ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}
+                className={`far fa-file-certificate border-0 p-0 ml-2 ${(hhCompilation || foundryCompilation) ? 'text-gray-500 dark:text-gray-400' : ''}`}
                 onClick={() => !(hhCompilation || foundryCompilation) && showCompilerLicense()}
                 style={{
                   cursor: (hhCompilation || foundryCompilation) ? 'not-allowed' : 'pointer',
@@ -844,12 +844,12 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               </div>
             ):null}
           </div>
-          {!hhCompilation && !foundryCompilation && <div className={`mb-2 flex-row-reverse d-flex flex-row form-check ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}>
+          {!hhCompilation && !foundryCompilation && <div className={`mb-2 flex-row-reverse flex flex-row form-check ${(hhCompilation || foundryCompilation) ? 'text-gray-500 dark:text-gray-400' : ''}`}>
             <label htmlFor="nightlies" data-id="compilerNightliesBuild" className="pt-0 form-check-label">
               <FormattedMessage id="solidity.includeNightlyBuilds" />
             </label>
             <input
-              className="me-2 form-check-input"
+              className="mr-2 form-check-input"
               id="nightlies"
               type="checkbox"
               onChange={handleNightliesChange}
@@ -862,12 +862,12 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             />
           </div>}
           {platform === appPlatformTypes.desktop && !foundryCompilation && !hhCompilation && !truffleCompilation ?
-            <div className={`mb-2 flex-row-reverse d-flex flex-row form-check ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}>
+            <div className={`mb-2 flex-row-reverse flex flex-row form-check ${(hhCompilation || foundryCompilation) ? 'text-gray-500 dark:text-gray-400' : ''}`}>
               <label htmlFor="downloadedcompilers" data-id="compilerNightliesBuild" className="form-check-label">
                 <FormattedMessage id="solidity.downloadedCompilers" />
               </label>
               <input
-                className="me-2 form-check-input"
+                className="mr-2 form-check-input"
                 id="downloadedcompilers"
                 type="checkbox"
                 onChange={handleOnlyDownloadedChange}
@@ -917,18 +917,18 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               <label className="form-check-label" htmlFor="enableFoundry">
                 <FormattedMessage id="solidity.enableFoundry" />
               </label>
-              <a className="mt-1 text-nowrap" href="https://remix-ide.readthedocs.io/en/latest/foundry.html#enable-foundry-compilation" target={'_blank'}>
+              <a className="mt-1 whitespace-nowrap" href="https://remix-ide.readthedocs.io/en/latest/foundry.html#enable-foundry-compilation" target={'_blank'}>
                 <CustomTooltip
                   placement={'right'}
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipId="overlay-tooltip-foundry"
                   tooltipText={
-                    <span className="border bg-light text-dark p-1 pe-3" style={{ minWidth: '230px' }}>
+                    <span className="border bg-light text-dark p-1 pr-3" style={{ minWidth: '230px' }}>
                       <FormattedMessage id="solidity.learnFoundry" />
                     </span>
                   }
                 >
-                  <i className={'ms-2 fas fa-info'} aria-hidden="true"></i>
+                  <i className={'ml-2 fas fa-info'} aria-hidden="true"></i>
                 </CustomTooltip>
               </a>
             </div>
@@ -945,18 +945,18 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               <label className="form-check-label" htmlFor="enableHardhat">
                 <FormattedMessage id="solidity.enableHardhat" />
               </label>
-              <a className="mt-1 text-nowrap" href="https://remix-ide.readthedocs.io/en/latest/hardhat.html#enable-hardhat-compilation" target={'_blank'}>
+              <a className="mt-1 whitespace-nowrap" href="https://remix-ide.readthedocs.io/en/latest/hardhat.html#enable-hardhat-compilation" target={'_blank'}>
                 <CustomTooltip
                   placement={'right'}
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipId="overlay-tooltip-hardhat"
                   tooltipText={
-                    <span className="border bg-light text-dark p-1 pe-3" style={{ minWidth: '230px' }}>
+                    <span className="border bg-light text-dark p-1 pr-3" style={{ minWidth: '230px' }}>
                       <FormattedMessage id="solidity.learnHardhat" />
                     </span>
                   }
                 >
-                  <i className={'ms-2 fas fa-info'} aria-hidden="true"></i>
+                  <i className={'ml-2 fas fa-info'} aria-hidden="true"></i>
                 </CustomTooltip>
               </a>
             </div>
@@ -973,25 +973,25 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               <label className="form-check-label" htmlFor="enableTruffle">
                 <FormattedMessage id="solidity.enableTruffle" />
               </label>
-              <a className="mt-1 text-nowrap" href="https://remix-ide.readthedocs.io/en/latest/truffle.html#enable-truffle-compilation" target={'_blank'}>
+              <a className="mt-1 whitespace-nowrap" href="https://remix-ide.readthedocs.io/en/latest/truffle.html#enable-truffle-compilation" target={'_blank'}>
                 <CustomTooltip
                   placement={'right'}
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipId="overlay-tooltip-truffle"
                   tooltipText={
-                    <span className="border bg-light text-dark p-1 pe-3" style={{ minWidth: '230px' }}>
+                    <span className="border bg-light text-dark p-1 pr-3" style={{ minWidth: '230px' }}>
                       <FormattedMessage id="solidity.learnTruffle" />
                     </span>
                   }
                 >
-                  <i style={{ fontSize: 'medium' }} className={'ms-2 fas fa-info'} aria-hidden="true"></i>
+                  <i style={{ fontSize: 'medium' }} className={'ml-2 fas fa-info'} aria-hidden="true"></i>
                 </CustomTooltip>
               </a>
             </div>
           )}
         </div>
         <div
-          className={`d-flex px-4 remixui_compilerConfigSection justify-content-between ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}
+          className={`flex px-4 remixui_compilerConfigSection justify-between ${(hhCompilation || foundryCompilation) ? 'text-gray-500 dark:text-gray-400' : ''}`}
           onClick={() => {
             if (hhCompilation || foundryCompilation) return
             // Track advanced configuration toggle
@@ -1004,7 +1004,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             pointerEvents: (hhCompilation || foundryCompilation) ? 'none' : 'auto'
           }}
         >
-          <div className="d-flex">
+          <div className="flex">
             <label className="remixui_compilerConfigSection">
               <FormattedMessage id="solidity.advancedConfigurations" />
             </label>
@@ -1020,8 +1020,8 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             </span>
           </div>
         </div>
-        <div className={`px-4 pb-4 border-bottom flex-column ${toggleExpander ? 'd-flex' : 'd-none'}`}>
-          <div className="d-flex pb-1 remixui_compilerConfig form-check">
+        <div className={`px-4 pb-4 border-b flex-col ${toggleExpander ? 'flex' : 'hidden'}`}>
+          <div className="flex pb-1 remixui_compilerConfig form-check">
             <input
               className="form-check-input"
               type="radio"
@@ -1031,19 +1031,19 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               checked={!state.useFileConfiguration}
               id="scManualConfig"
             />
-            <label className="form-check-label ms-1" htmlFor="scManualConfig" data-id="scManualConfiguration">
+            <label className="form-check-label ml-1" htmlFor="scManualConfig" data-id="scManualConfiguration">
               <FormattedMessage id="solidity.compilerConfiguration" />
             </label>
           </div>
-          <div className={`flex-column 'd-flex'}`}>
-            <div className="mb-2 ms-4">
+          <div className={`flex-col 'flex'}`}>
+            <div className="mb-2 ml-4">
               <label className="remixui_compilerLabel form-check-label" htmlFor="compilerLanguageSelector">
                 <FormattedMessage id="solidity.language" />
               </label>
               <CustomTooltip
                 placement="right"
                 tooltipId="compilerLabelTooltip"
-                tooltipClasses="text-nowrap"
+                tooltipClasses="whitespace-nowrap"
                 tooltipText={
                   <span>
                     <FormattedMessage id="solidity.tooltipText6" />
@@ -1071,7 +1071,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                 </div>
               </CustomTooltip>
             </div>
-            <div className="mb-2 ms-4">
+            <div className="mb-2 ml-4">
               <label className="remixui_compilerLabel form-check-label" htmlFor="evmVersionSelector">
                 <FormattedMessage id="solidity.evmVersion" />
               </label>
@@ -1089,12 +1089,12 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                 ))}
               </select>
             </div>
-            <div className="mt-1 mt-3 border-dark pb-3 ms-4 remixui_compilerConfig ">
-              <div className="justify-content-between align-items-center d-flex">
+            <div className="mt-1 mt-3 border-dark pb-3 ml-4 remixui_compilerConfig ">
+              <div className="justify-between items-center flex">
                 <CustomTooltip
                   placement="top"
                   tooltipId="configfileOptimisationNumbeTooltip"
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipText={intl.formatMessage({ id: !state.optimize ? 'solidity.enableOptimizerTooltip' : 'solidity.disableOptimizerTooltip' })}
                 >
                   <div className='form-check'>
@@ -1116,12 +1116,12 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                 <CustomTooltip
                   placement="top"
                   tooltipId="configfileOptimisationNumberTooltip"
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipText={intl.formatMessage({ id: 'solidity.inputTitle2' })}
                 >
                   <input
                     min="1"
-                    className="form-select ms-4"
+                    className="form-select ml-4"
                     id="runs"
                     placeholder="200"
                     value={state.runs}
@@ -1133,7 +1133,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               </div>
             </div>
           </div>
-          <div className="d-flex pb-1 remixui_compilerConfig form-check">
+          <div className="flex pb-1 remixui_compilerConfig form-check">
             <input
               className="form-check-input"
               type="radio"
@@ -1143,17 +1143,17 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               checked={state.useFileConfiguration}
               id="scFileConfig"
             />
-            <label className="form-check-label ms-1" htmlFor="scFileConfig" data-id="scFileConfiguration">
+            <label className="form-check-label ml-1" htmlFor="scFileConfig" data-id="scFileConfiguration">
               <FormattedMessage id="solidity.useConfigurationFile" />
             </label>
           </div>
           <RenderIf condition={state.useFileConfiguration}>
-            <a data-id="view-solidity-config" className="cursor-pointer text-decoration-none ms-4" href='#' onClick={(e) => {
+            <a data-id="view-solidity-config" className="cursor-pointer no-underline ml-4" href='#' onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
               handleConfigFileClick()
             }}>
-              <i className="text-secondary mt-1 pe-1 far fa-edit"></i> <FormattedMessage id="solidity.updateConfigFile" />
+              <i className="text-secondary mt-1 pr-1 far fa-edit"></i> <FormattedMessage id="solidity.updateConfigFile" />
             </a>
           </RenderIf>
         </div>
@@ -1161,7 +1161,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
           <button
             id="compileBtn"
             data-id="compilerContainerCompileBtn"
-            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
+            className="btn btn-primary w-full mb-1 mt-3"
             onClick={compile}
             disabled={disableCompileButton}
           >
@@ -1169,7 +1169,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               placement="auto"
               tooltipId="overlay-tooltip-compile"
               tooltipText={
-                <div className="text-start">
+                <div className="text-left">
                   {(
                     <div>
                       <b>Ctrl+S</b> <FormattedMessage id="solidity.toCompile" /> {state.compiledFileName.endsWith('.sol') ? state.compiledFileName : null}{' '}
@@ -1178,13 +1178,13 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                 </div>
               }
             >
-              <div className="d-flex align-items-center justify-content-center">
-                {<i ref={compileIcon} className="fas fa-sync me-2" aria-hidden="true"></i>}
-                <div className="text-truncate overflow-hidden text-nowrap">
+              <div className="flex items-center justify-center">
+                {<i ref={compileIcon} className="fas fa-sync mr-2" aria-hidden="true"></i>}
+                <div className="truncate overflow-hidden whitespace-nowrap">
                   <span>
                     <FormattedMessage id="solidity.compile" />
                   </span>
-                  <span className="ms-1 text-nowrap">
+                  <span className="ml-1 whitespace-nowrap">
                     {typeof state.compiledFileName === 'string'
                       ? extractNameFromKey(state.compiledFileName) ||
                         `<${intl.formatMessage({
@@ -1198,11 +1198,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               </div>
             </CustomTooltip>
           </button>
-          <div className="d-flex align-items-center">
+          <div className="flex items-center">
             <button
               id="compileAndRunBtn"
               data-id="compilerContainerCompileAndRunBtn"
-              className="btn btn-secondary btn-block d-block w-100 text-break  d-inline-block remixui_disabled mb-1 mt-1"
+              className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors btn-block block w-full break-words  inline-block remixui_disabled mb-1 mt-1"
               onClick={compileAndRun}
               disabled={disableCompileButton}
             >
@@ -1210,7 +1210,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                 placement={'auto-end'}
                 tooltipId="overlay-tooltip-compile-run"
                 tooltipText={
-                  <div className="text-start">
+                  <div className="text-left">
                     {(
                       <div>
                         <b>Ctrl+Shift+S</b> <FormattedMessage id="solidity.tooltipText3" />
@@ -1228,7 +1228,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               placement="top"
               tooltipId="overlay-tooltip-compile-run-doc"
               tooltipText={
-                <div className="text-start p-2">
+                <div className="text-left p-2">
                   <div><FormattedMessage id="solidity.tooltipText1" /></div>
                   <pre>
                     <code>
@@ -1251,11 +1251,11 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               }
             >
               <a href="https://remix-ide.readthedocs.io/en/latest/running_js_scripts.html#compile-a-contract-and-run-a-script-on-the-fly" target="_blank">
-                <i className="ps-2 ms-2 fas fa-info text-dark"></i>
+                <i className="pl-2 ml-2 fas fa-info text-dark"></i>
               </a>
             </CustomTooltip>
             <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyNatSpecTag' })} getContent={() => '@custom:dev-run-script file_path'} direction="top">
-              <button className="btn remixui_copyButton  ms-2 my-1 text-dark">
+              <button className="btn remixui_copyButton  ml-2 my-1 text-dark">
                 <i className="remixui_copyIcon far fa-copy" aria-hidden="true"></i>
               </button>
             </CopyToClipboard>

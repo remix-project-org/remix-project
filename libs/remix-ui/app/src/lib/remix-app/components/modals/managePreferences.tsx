@@ -21,7 +21,7 @@ const ManagePreferencesSwitcher = (prop: {
 
   return (
     <>
-      <div data-id="matomoAnonAnalytics" className='justify-content-between d-flex'>
+      <div data-id="matomoAnonAnalytics" className='justify-between flex'>
         <div className='mt-2'>
           <h6 className='text-secondary'><FormattedMessage id="remixApp.mpOp1Title" /></h6>
           <p className='form-check-label text-secondary'><FormattedMessage id="remixApp.mpOp1Details" /></p>
@@ -35,7 +35,7 @@ const ManagePreferencesSwitcher = (prop: {
           ></ToggleSwitch>
         </div>
       </div>
-      <div data-id="matomoPerfAnalytics" className='justify-content-between d-flex'>
+      <div data-id="matomoPerfAnalytics" className='justify-between flex'>
         <div className='mt-3'>
           <h6><FormattedMessage id="remixApp.mpOp2Title" /></h6>
           <p className='form-check-label'><FormattedMessage id="remixApp.mpOp2Details" /></p>
@@ -59,7 +59,7 @@ const ManagePreferencesSwitcher = (prop: {
           ></ToggleSwitch>
         </div>
       </div>
-      <div data-id="remixAI" className='justify-content-between d-flex'>
+      <div data-id="remixAI" className='justify-between flex'>
         <div className='mt-2'>
           <h6><FormattedMessage id="remixApp.mpOp3Title" /></h6>
           <p className='form-check-label'><FormattedMessage id="remixApp.mpOp3Details" /></p>

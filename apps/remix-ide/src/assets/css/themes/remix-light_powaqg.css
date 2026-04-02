@@ -491,8 +491,7 @@ table {
 }
 
 caption {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.5rem; padding-bottom: 0.5rem;
   color: var(--bs-secondary-color);
   text-align: left;
 }
@@ -2160,22 +2159,19 @@ progress {
 }
 
 .col-form-label {
-  padding-top: calc(0.375rem + var(--bs-border-width));
-  padding-bottom: calc(0.375rem + var(--bs-border-width));
+  padding-top: calc(0.375rem + var(--bs-border-width)); padding-bottom: calc(0.375rem + var(--bs-border-width));
   margin-bottom: 0;
   font-size: inherit;
   line-height: 1.5;
 }
 
 .col-form-label-lg {
-  padding-top: calc(0.5rem + var(--bs-border-width));
-  padding-bottom: calc(0.5rem + var(--bs-border-width));
+  padding-top: calc(0.5rem + var(--bs-border-width)); padding-bottom: calc(0.5rem + var(--bs-border-width));
   font-size: 1.25rem;
 }
 
 .col-form-label-sm {
-  padding-top: calc(0.25rem + var(--bs-border-width));
-  padding-bottom: calc(0.25rem + var(--bs-border-width));
+  padding-top: calc(0.25rem + var(--bs-border-width)); padding-bottom: calc(0.25rem + var(--bs-border-width));
   font-size: 0.875rem;
 }
 
@@ -2422,16 +2418,14 @@ textarea.form-control-lg {
 }
 
 .form-select-sm {
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
+  padding-top: 0.25rem; padding-bottom: 0.25rem;
   padding-left: 0.5rem;
   font-size: 0.875rem;
   border-radius: var(--bs-border-radius-sm);
 }
 
 .form-select-lg {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.5rem; padding-bottom: 0.5rem;
   padding-left: 1rem;
   font-size: 1.25rem;
   border-radius: var(--bs-border-radius-lg);
@@ -4062,8 +4056,7 @@ textarea.form-control-lg {
   justify-content: space-between;
 }
 .navbar-brand {
-  padding-top: var(--bs-navbar-brand-padding-y);
-  padding-bottom: var(--bs-navbar-brand-padding-y);
+  padding-top: var(--bs-navbar-brand-padding-y); padding-bottom: var(--bs-navbar-brand-padding-y);
   margin-right: var(--bs-navbar-brand-margin-end);
   font-size: var(--bs-navbar-brand-font-size);
   color: var(--bs-navbar-brand-color);
@@ -4095,8 +4088,7 @@ textarea.form-control-lg {
 }
 
 .navbar-text {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.5rem; padding-bottom: 0.5rem;
   color: var(--bs-navbar-color);
 }
 .navbar-text a,
@@ -6414,8 +6406,7 @@ textarea.form-control-lg {
   right: 15%;
   bottom: 1.25rem;
   left: 15%;
-  padding-top: 1.25rem;
-  padding-bottom: 1.25rem;
+  padding-top: 1.25rem; padding-bottom: 1.25rem;
   color: var(--bs-carousel-caption-color);
   text-align: center;
 }
@@ -8385,33 +8376,27 @@ textarea.form-control-lg {
 }
 
 .py-0 {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
+  padding-top: 0 !important; padding-bottom: 0 !important;
 }
 
 .py-1 {
-  padding-top: 0.25rem !important;
-  padding-bottom: 0.25rem !important;
+  padding-top: 0.25rem !important; padding-bottom: 0.25rem !important;
 }
 
 .py-2 {
-  padding-top: 0.5rem !important;
-  padding-bottom: 0.5rem !important;
+  padding-top: 0.5rem !important; padding-bottom: 0.5rem !important;
 }
 
 .py-3 {
-  padding-top: 1rem !important;
-  padding-bottom: 1rem !important;
+  padding-top: 1rem !important; padding-bottom: 1rem !important;
 }
 
 .py-4 {
-  padding-top: 1.5rem !important;
-  padding-bottom: 1.5rem !important;
+  padding-top: 1.5rem !important; padding-bottom: 1.5rem !important;
 }
 
 .py-5 {
-  padding-top: 3rem !important;
-  padding-bottom: 3rem !important;
+  padding-top: 3rem !important; padding-bottom: 3rem !important;
 }
 
 .pt-0 {
@@ -9815,28 +9800,22 @@ textarea.form-control-lg {
     padding-left: 3rem !important;
   }
   .py-sm-0 {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    padding-top: 0 !important; padding-bottom: 0 !important;
   }
   .py-sm-1 {
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
+    padding-top: 0.25rem !important; padding-bottom: 0.25rem !important;
   }
   .py-sm-2 {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    padding-top: 0.5rem !important; padding-bottom: 0.5rem !important;
   }
   .py-sm-3 {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 1rem !important; padding-bottom: 1rem !important;
   }
   .py-sm-4 {
-    padding-top: 1.5rem !important;
-    padding-bottom: 1.5rem !important;
+    padding-top: 1.5rem !important; padding-bottom: 1.5rem !important;
   }
   .py-sm-5 {
-    padding-top: 3rem !important;
-    padding-bottom: 3rem !important;
+    padding-top: 3rem !important; padding-bottom: 3rem !important;
   }
   .pt-sm-0 {
     padding-top: 0 !important;
@@ -10376,28 +10355,22 @@ textarea.form-control-lg {
     padding-left: 3rem !important;
   }
   .py-md-0 {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    padding-top: 0 !important; padding-bottom: 0 !important;
   }
   .py-md-1 {
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
+    padding-top: 0.25rem !important; padding-bottom: 0.25rem !important;
   }
   .py-md-2 {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    padding-top: 0.5rem !important; padding-bottom: 0.5rem !important;
   }
   .py-md-3 {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 1rem !important; padding-bottom: 1rem !important;
   }
   .py-md-4 {
-    padding-top: 1.5rem !important;
-    padding-bottom: 1.5rem !important;
+    padding-top: 1.5rem !important; padding-bottom: 1.5rem !important;
   }
   .py-md-5 {
-    padding-top: 3rem !important;
-    padding-bottom: 3rem !important;
+    padding-top: 3rem !important; padding-bottom: 3rem !important;
   }
   .pt-md-0 {
     padding-top: 0 !important;
@@ -10937,28 +10910,22 @@ textarea.form-control-lg {
     padding-left: 3rem !important;
   }
   .py-lg-0 {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    padding-top: 0 !important; padding-bottom: 0 !important;
   }
   .py-lg-1 {
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
+    padding-top: 0.25rem !important; padding-bottom: 0.25rem !important;
   }
   .py-lg-2 {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    padding-top: 0.5rem !important; padding-bottom: 0.5rem !important;
   }
   .py-lg-3 {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 1rem !important; padding-bottom: 1rem !important;
   }
   .py-lg-4 {
-    padding-top: 1.5rem !important;
-    padding-bottom: 1.5rem !important;
+    padding-top: 1.5rem !important; padding-bottom: 1.5rem !important;
   }
   .py-lg-5 {
-    padding-top: 3rem !important;
-    padding-bottom: 3rem !important;
+    padding-top: 3rem !important; padding-bottom: 3rem !important;
   }
   .pt-lg-0 {
     padding-top: 0 !important;
@@ -11498,28 +11465,22 @@ textarea.form-control-lg {
     padding-left: 3rem !important;
   }
   .py-xl-0 {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    padding-top: 0 !important; padding-bottom: 0 !important;
   }
   .py-xl-1 {
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
+    padding-top: 0.25rem !important; padding-bottom: 0.25rem !important;
   }
   .py-xl-2 {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    padding-top: 0.5rem !important; padding-bottom: 0.5rem !important;
   }
   .py-xl-3 {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 1rem !important; padding-bottom: 1rem !important;
   }
   .py-xl-4 {
-    padding-top: 1.5rem !important;
-    padding-bottom: 1.5rem !important;
+    padding-top: 1.5rem !important; padding-bottom: 1.5rem !important;
   }
   .py-xl-5 {
-    padding-top: 3rem !important;
-    padding-bottom: 3rem !important;
+    padding-top: 3rem !important; padding-bottom: 3rem !important;
   }
   .pt-xl-0 {
     padding-top: 0 !important;
@@ -12059,28 +12020,22 @@ textarea.form-control-lg {
     padding-left: 3rem !important;
   }
   .py-xxl-0 {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    padding-top: 0 !important; padding-bottom: 0 !important;
   }
   .py-xxl-1 {
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
+    padding-top: 0.25rem !important; padding-bottom: 0.25rem !important;
   }
   .py-xxl-2 {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    padding-top: 0.5rem !important; padding-bottom: 0.5rem !important;
   }
   .py-xxl-3 {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 1rem !important; padding-bottom: 1rem !important;
   }
   .py-xxl-4 {
-    padding-top: 1.5rem !important;
-    padding-bottom: 1.5rem !important;
+    padding-top: 1.5rem !important; padding-bottom: 1.5rem !important;
   }
   .py-xxl-5 {
-    padding-top: 3rem !important;
-    padding-bottom: 3rem !important;
+    padding-top: 3rem !important; padding-bottom: 3rem !important;
   }
   .pt-xxl-0 {
     padding-top: 0 !important;

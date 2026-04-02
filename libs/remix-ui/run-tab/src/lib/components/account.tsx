@@ -183,12 +183,12 @@ export function AccountUI(props: AccountProps) {
 
   const createSmartAccount = () => {
     props.modal(
-      <div className="d-flex align-items-center">
-        <span className="badge bg-success me-2">Alpha</span>
+      <div className="flex items-center">
+        <span className="badge bg-success mr-2">Alpha</span>
         <span>{intl.formatMessage({ id: 'udapp.createSmartAccount' })}</span>
       </div>,
       (
-        <div className="w-100" data-id="createSmartAccountModal">
+        <div className="w-full" data-id="createSmartAccountModal">
           <p className="mb-2">
             <FormattedMessage id="udapp.createSmartAccountDesc1" />
           </p>
@@ -200,7 +200,7 @@ export function AccountUI(props: AccountProps) {
             target="_blank"
             rel="noreferrer noopener"
             onClick={() => trackMatomoEvent({ category: 'udapp', action: 'safeSmartAccount', name: 'learnMore', isClick: true })}
-            className="mb-3 d-inline-block link-primary"
+            className="mb-3 inline-block link-primary"
           >
             <FormattedMessage id="udapp.learnMore" />
           </a>
@@ -209,19 +209,19 @@ export function AccountUI(props: AccountProps) {
             <FormattedMessage id="udapp.createSmartAccountDesc4" />
           </p>
           { selectExEnv && selectExEnv.startsWith('injected') && (
-            <div className="alert alert-warning d-flex align-items-center" role="alert">
-              <i className="fas fa-exclamation-triangle me-2"></i>
+            <div className="alert alert-warning flex items-center" role="alert">
+              <i className="fas fa-exclamation-triangle mr-2"></i>
               <div>
                 <FormattedMessage id="udapp.createSmartAccountDesc5" />
               </div>
             </div>
           )}
-          <label className="form-label text-uppercase text-muted small mb-1">
+          <label className="form-label uppercase text-gray-500 dark:text-gray-400 small mb-1">
             <FormattedMessage id="udapp.accountLabel" />
           </label>
           <CustomTooltip
             placement="top"
-            tooltipClasses="text-wrap"
+            tooltipClasses="whitespace-normal"
             tooltipId="createSmartAccountOwnerTooltip"
             tooltipText={intl.formatMessage({ id: 'udapp.ownerAddressForSmartAccount' })}
           >
@@ -255,7 +255,7 @@ export function AccountUI(props: AccountProps) {
     props.modal(
       intl.formatMessage({ id: 'udapp.createDelegationTitle' }),
       (
-        <div className="w-100" data-id="createDelegationAuthorizationModal">
+        <div className="w-full" data-id="createDelegationAuthorizationModal">
           <span>{intl.formatMessage({ id: 'udapp.createDelegationDescription' }, {
             a: (chunks) => (
               <a href='https://eip7702.io/' target="_blank" rel="noreferrer">
@@ -288,7 +288,7 @@ export function AccountUI(props: AccountProps) {
     props.modal(
       intl.formatMessage({ id: 'udapp.removeDelegationTitle' }),
       (
-        <div className="w-100">
+        <div className="w-full">
           <FormattedMessage id="udapp.confirmRemoveDelegation" />
         </div>
       ),
@@ -369,10 +369,10 @@ export function AccountUI(props: AccountProps) {
 
   const passphraseCreationPrompt = () => {
     return (
-      <div className="d-flex flex-column">
+      <div className="flex flex-col">
         <FormattedMessage id="udapp.text1" />
-        <input id="prompt1" type="password" name="prompt_text" className="w-100 py-2" onInput={handlePassphrase} />
-        <input id="prompt2" type="password" name="prompt_text" className="w-100" onInput={handleMatchPassphrase} />
+        <input id="prompt1" type="password" name="prompt_text" className="w-full py-2" onInput={handlePassphrase} />
+        <input id="prompt2" type="password" name="prompt_text" className="w-full" onInput={handleMatchPassphrase} />
       </div>
     )
   }
@@ -392,7 +392,7 @@ export function AccountUI(props: AccountProps) {
           defaultValue={messageRef.current}
         ></textarea>
         <div className='mt-2'>
-          <span><FormattedMessage id="udapp.otherwiseLabel" /></span><button className='ms-2 modal-ok btn btn-sm border-primary' data-id="sign-eip-712" onClick={() => {
+          <span><FormattedMessage id="udapp.otherwiseLabel" /></span><button className='ml-2 modal-ok inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors border-primary' data-id="sign-eip-712" onClick={() => {
             props.modal(
               intl.formatMessage({ id: 'udapp.eip712ModalTitle' }),
               <div>
@@ -416,14 +416,14 @@ export function AccountUI(props: AccountProps) {
 
   const signedMessagePrompt = (msgHash: string, signedData: string) => {
     return (
-      <div className="d-flex flex-column">
-        <label className="text-uppercase">
+      <div className="flex flex-col">
+        <label className="uppercase">
           <FormattedMessage id="udapp.hash" />
         </label>
         <span id="remixRunSignMsgHash" data-id="settingsRemixRunSignMsgHash">
           {msgHash}
         </span>
-        <label className="pt-2 text-uppercase">
+        <label className="pt-2 uppercase">
           <FormattedMessage id="udapp.signature" />
         </label>
         <span id="remixRunSignMsgSignature" data-id="settingsRemixRunSignMsgSignature">
@@ -445,44 +445,44 @@ export function AccountUI(props: AccountProps) {
         return (
           <div className="udapp_owner-chip">
             <span><FormattedMessage id="udapp.ownerPrefix" />: {shortenAddress(owner)}
-              <CopyToClipboard className="fas fa-copy ms-2" tip={intl.formatMessage({ id: 'udapp.copyOwnerAccount' })} content={owner} direction="top" />
+              <CopyToClipboard className="fas fa-copy ml-2" tip={intl.formatMessage({ id: 'udapp.copyOwnerAccount' })} content={owner} direction="top" />
             </span>
           </div>
         )
       })()}
       <label className="udapp_settingsLabel">
         <FormattedMessage id="udapp.account" />
-        {!allSmartAccountsSet.has(selectedAccount) ? <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixPlusWrapperTooltip" tooltipText={plusOpt.title}>
+        {!allSmartAccountsSet.has(selectedAccount) ? <CustomTooltip placement={'top'} tooltipClasses="whitespace-normal" tooltipId="remixPlusWrapperTooltip" tooltipText={plusOpt.title}>
           <span className="px-1" id="remixRunPlusWrapper">
             <i id="remixRunPlus" className={`fas fa-plus udapp_icon ${plusOpt.classList}`} aria-hidden="true" onClick={newAccount}></i>
           </span>
         </CustomTooltip> : null }
-        {!allSmartAccountsSet.has(selectedAccount) ? <CustomTooltip placement={'top'} tooltipClasses="text-nowrap" tooltipId="remixSignMsgTooltip" tooltipText={<FormattedMessage id="udapp.signMsgUsingAccount" />}>
+        {!allSmartAccountsSet.has(selectedAccount) ? <CustomTooltip placement={'top'} tooltipClasses="whitespace-nowrap" tooltipId="remixSignMsgTooltip" tooltipText={<FormattedMessage id="udapp.signMsgUsingAccount" />}>
           <i id="remixRunSignMsg" data-id="settingsRemixRunSignMsg" className="mx-1 fas fa-edit udapp_icon" aria-hidden="true" onClick={signMessage}></i>
         </CustomTooltip> : null }
         <span className='mx-1'>
           <CopyToClipboard data-id="udapp-copy-account-address" className="fas fa-copy p-0" tip={intl.formatMessage({ id: 'udapp.copyAccount' })} content={selectedAccount} direction="top" />
         </span>
         { enableDelegationAuthorization ? (<span className="mx-1 mt-1">
-          <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixDelegationAuthTooltip" tooltipText={intl.formatMessage({ id: 'udapp.eip7702InfoTooltip' })}>
+          <CustomTooltip placement={'top'} tooltipClasses="whitespace-normal" tooltipId="remixDelegationAuthTooltip" tooltipText={intl.formatMessage({ id: 'udapp.eip7702InfoTooltip' })}>
             <a href={"https://remix-ide.readthedocs.io/en/latest/account-abstraction-7702.html#using-eip-7702-in-remix"} className="titleInfo p-0 mb-2" target="_blank" rel="noreferrer">
-              <i aria-hidden="true" className="ms-0 fas fa-info align-self-center"></i>
+              <i aria-hidden="true" className="ml-0 fas fa-info self-center"></i>
             </a>
           </CustomTooltip>
         </span>) : null }
         { smartAccountSelected ? (<span className="mx-1 mt-1">
-          <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixDelegationAuthTooltip" tooltipText={intl.formatMessage({ id: 'udapp.safeSmartAccountInfoTooltip' })}>
+          <CustomTooltip placement={'top'} tooltipClasses="whitespace-normal" tooltipId="remixDelegationAuthTooltip" tooltipText={intl.formatMessage({ id: 'udapp.safeSmartAccountInfoTooltip' })}>
             <a href={"https://remix-ide.readthedocs.io/en/latest/account-abstraction-7702.html#gnosis-safe-smart-accounts-in-remix"} className="titleInfo p-0 mb-2" target="_blank" rel="noreferrer">
-              <i aria-hidden="true" className="ms-0 fas fa-info align-self-center"></i>
+              <i aria-hidden="true" className="ml-0 fas fa-info self-center"></i>
             </a>
           </CustomTooltip>
         </span>) : null }
-        {props.accounts.isRequesting && <i className="fa fa-spinner fa-pulse ms-2" aria-hidden="true"></i>}
+        {props.accounts.isRequesting && <i className="fa fa-spinner fa-pulse ml-2" aria-hidden="true"></i>}
       </label>
       <div className="udapp_account">
-        <div className="udapp_account-toggle-container">
+        <div className="udapp_account-toggle-container mx-auto px-4">
           <Dropdown className="udapp_selectExEnvOptions" data-id="runTabSelectAccount">
-            <Dropdown.Toggle as={CustomToggle} icon={null} id="txorigin" data-id="runTabSelectAccount" className="btn btn-light btn-block w-100 d-inline-block border form-select">
+            <Dropdown.Toggle as={CustomToggle} icon={null} id="txorigin" data-id="runTabSelectAccount" className="inline-flex items-center px-4 py-2 bg-light text-dark rounded-md hover:bg-light/90 transition-colors btn-block w-full inline-block border form-select">
               { selectedAccount && loadedAccounts[selectedAccount] ? (
                 <div className="udapp_account-item">
                   {(() => {
@@ -505,7 +505,7 @@ export function AccountUI(props: AccountProps) {
               ) : '' }
             </Dropdown.Toggle>
 
-            <Dropdown.Menu as={CustomMenu} className="w-100 form-select" data-id="custom-dropdown-items">
+            <Dropdown.Menu as={CustomMenu} className="w-full form-select" data-id="custom-dropdown-items">
               {displayAccounts.map((value) => {
                 const isSmartAccount = allSmartAccountsSet.has(value)
                 const isOwner = ownerToSmartAccountsMap.has(value.toLowerCase())
@@ -541,26 +541,26 @@ export function AccountUI(props: AccountProps) {
       { contractHasDelegation ?
         <span className="alert-info badge text-bg-secondary">
           <FormattedMessage id="udapp.delegationPrefix" />: {shortenAddress(delegationAuthorizationAddressRef.current || "")}
-          <CopyToClipboard className="fas fa-copy ms-2 text-primary" content={delegationAuthorizationAddressRef.current} direction="top" />
+          <CopyToClipboard className="fas fa-copy ml-2 text-primary" content={delegationAuthorizationAddressRef.current} direction="top" />
           <a><span data-id="delete-delegation" style={{ padding: 'padding: 0.15rem' }} onClick={() => deleteDelegation()}>
-            <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_deleteDelegation" tooltipText={intl.formatMessage({ id: 'udapp.removeDelegationTooltip' })}>
-              <i className="fas fa-close ms-2 text-primary" aria-hidden="true" onClick={() => deleteDelegation()}></i>
+            <CustomTooltip placement="top" tooltipClasses="whitespace-nowrap" tooltipId="udapp_deleteDelegation" tooltipText={intl.formatMessage({ id: 'udapp.removeDelegationTooltip' })}>
+              <i className="fas fa-close ml-2 text-primary" aria-hidden="true" onClick={() => deleteDelegation()}></i>
             </CustomTooltip>
           </span></a>
         </span> : null
       }
       { !allSmartAccountsSet.has(selectedAccount) && aaSupportedChainIds.some(e => networkName.includes(e)) ? (<div className="mt-1">
-        <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixCSMPlusTooltip" tooltipText={intl.formatMessage({ id: 'udapp.createSmartAccount' })}>
-          <button type="button" className="btn btn-sm btn-secondary w-100" onClick={() => createSmartAccount()}>
-            <i id="createSmartAccountPlus" className="me-1 fas fa-plus" aria-hidden="true" style={{ "color": "#fff" }}></i>
+        <CustomTooltip placement={'top'} tooltipClasses="whitespace-normal" tooltipId="remixCSMPlusTooltip" tooltipText={intl.formatMessage({ id: 'udapp.createSmartAccount' })}>
+          <button type="button" className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-secondary w-full" onClick={() => createSmartAccount()}>
+            <i id="createSmartAccountPlus" className="mr-1 fas fa-plus" aria-hidden="true" style={{ "color": "#fff" }}></i>
             <FormattedMessage id="udapp.createSmartAccountButton" />
           </button>
         </CustomTooltip>
       </div>) : null }
       { enableDelegationAuthorization ? (<div className="mt-1">
-        <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="remixDelegationAuthTooltip" tooltipText={intl.formatMessage({ id: 'udapp.createDelegationAuthorization' })}>
-          <button data-id="create-delegation-authorization" type="button" className="btn btn-sm btn-secondary w-100" onClick={() => createDelegationAuthorization()}>
-            <i id="createDelegationPlus" className="me-1 fas fa-plus" aria-hidden="true" style={{ "color": "#fff" }}></i>
+        <CustomTooltip placement={'top'} tooltipClasses="whitespace-normal" tooltipId="remixDelegationAuthTooltip" tooltipText={intl.formatMessage({ id: 'udapp.createDelegationAuthorization' })}>
+          <button data-id="create-delegation-authorization" type="button" className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-secondary w-full" onClick={() => createDelegationAuthorization()}>
+            <i id="createDelegationPlus" className="mr-1 fas fa-plus" aria-hidden="true" style={{ "color": "#fff" }}></i>
             <FormattedMessage id="udapp.authorizeDelegationButton" />
           </button>
         </CustomTooltip>

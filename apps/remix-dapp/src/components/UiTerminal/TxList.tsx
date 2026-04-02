@@ -47,12 +47,12 @@ export const TxList = (props: any) => {
     scrollToBottom();
   };
 
-  const classNameBlock = 'remix_ui_terminal_block px-4 py-1 text-break';
+  const classNameBlock = 'remix_ui_terminal_block px-4 py-1 break-words';
 
   return (
     <div
       id="journal"
-      className="remix_ui_terminal_journal d-flex flex-column pt-3 pb-4 px-2 ms-2 me-0 mt-auto"
+      className="remix_ui_terminal_journal flex flex-col pt-3 pb-4 px-2 ml-2 mr-0 mt-auto"
       data-id="terminalJournal"
     >
       {journalBlocks?.map((x: any, index: number) => {

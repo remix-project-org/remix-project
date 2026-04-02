@@ -78,7 +78,7 @@ export function EnvironmentUI(props: EnvironmentProps) {
   const forkStatePrompt = (defaultName: string) => {
     return (
       <div data-id="forkVmStateModal">
-        <ul className='ms-3'>
+        <ul className='ml-3'>
           <li><FormattedMessage id="udapp.forkVmStateDesc1"/></li>
           <li><FormattedMessage id="udapp.forkVmStateDesc2"/></li>
         </ul>
@@ -99,7 +99,7 @@ export function EnvironmentUI(props: EnvironmentProps) {
   const deleteVmStatePrompt = () => {
     return (
       <div data-id="deleteVmStateModal">
-        <ul className='ms-3'>
+        <ul className='ml-3'>
           <li><FormattedMessage id="udapp.resetVmStateDesc1"/></li>
           <li><FormattedMessage id="udapp.resetVmStateDesc2"/></li>
         </ul>
@@ -184,23 +184,23 @@ export function EnvironmentUI(props: EnvironmentProps) {
 
   return (
     <div className="udapp_crow">
-      <label id="selectExEnv" className="udapp_settingsLabel w-100">
+      <label id="selectExEnv" className="udapp_settingsLabel w-full">
         <FormattedMessage id="udapp.environment" />
-        <CustomTooltip placement={'auto-end'} tooltipClasses="text-nowrap" tooltipId="info-recorder" tooltipText={<FormattedMessage id="udapp.tooltipText2" />}>
+        <CustomTooltip placement={'auto-end'} tooltipClasses="whitespace-nowrap" tooltipId="info-recorder" tooltipText={<FormattedMessage id="udapp.tooltipText2" />}>
           <a href="https://chainlist.org/" target="_blank">
-            <i className='udapp_infoDeployAction ms-2 fas fa-plug' aria-hidden="true"></i>
+            <i className='udapp_infoDeployAction ml-2 fas fa-plug' aria-hidden="true"></i>
           </a>
         </CustomTooltip>
-        { currentProvider && currentProvider.config.isVM && isSaveEvmStateChecked && <CustomTooltip placement={'auto-end'} tooltipClasses="text-wrap" tooltipId="forkStatetooltip" tooltipText={<FormattedMessage id="udapp.forkStateTitle" />}>
-          <i className="udapp_infoDeployAction ms-2 fas fa-code-branch" style={{ cursor: 'pointer' }} onClick={forkState} data-id="fork-state-icon"></i>
+        { currentProvider && currentProvider.config.isVM && isSaveEvmStateChecked && <CustomTooltip placement={'auto-end'} tooltipClasses="whitespace-normal" tooltipId="forkStatetooltip" tooltipText={<FormattedMessage id="udapp.forkStateTitle" />}>
+          <i className="udapp_infoDeployAction ml-2 fas fa-code-branch" style={{ cursor: 'pointer' }} onClick={forkState} data-id="fork-state-icon"></i>
         </CustomTooltip> }
-        { currentProvider && currentProvider.config.isVM && isSaveEvmStateChecked && !currentProvider.config.isVMStateForked && !currentProvider.config.isRpcForkedState && <CustomTooltip placement={'auto-end'} tooltipClasses="text-wrap" tooltipId="deleteVMStatetooltip" tooltipText={<FormattedMessage id="udapp.resetVmStateTitle" />}>
+        { currentProvider && currentProvider.config.isVM && isSaveEvmStateChecked && !currentProvider.config.isVMStateForked && !currentProvider.config.isRpcForkedState && <CustomTooltip placement={'auto-end'} tooltipClasses="whitespace-normal" tooltipId="deleteVMStatetooltip" tooltipText={<FormattedMessage id="udapp.resetVmStateTitle" />}>
           <span onClick={resetVmState} style={{ cursor: 'pointer', float: 'right', textTransform: 'none' }}>
-            <i className="udapp_infoDeployAction ms-2 fas fa-rotate-right" data-id="delete-state-icon"></i>
-            <span className="ms-1" style = {{ textTransform: 'none', fontSize: '13px' }}><FormattedMessage id="udapp.resetStateLabel" /></span>
+            <i className="udapp_infoDeployAction ml-2 fas fa-rotate-right" data-id="delete-state-icon"></i>
+            <span className="ml-1" style = {{ textTransform: 'none', fontSize: '13px' }}><FormattedMessage id="udapp.resetStateLabel" /></span>
           </span>
         </CustomTooltip> }
-        {isSwitching && <i className="fa fa-spinner fa-pulse ms-2" aria-hidden="true"></i>}
+        {isSwitching && <i className="fa fa-spinner fa-pulse ml-2" aria-hidden="true"></i>}
 
       </label>
       <div className="" data-id={`selected-provider-${currentProvider && currentProvider.name}`}>
@@ -209,11 +209,11 @@ export function EnvironmentUI(props: EnvironmentProps) {
           data-id="settingsSelectEnvOptions"
           className="udapp_selectExEnvOptions"
         >
-          <Dropdown.Toggle as={CustomToggle} id="dropdown-custom-components" className="btn btn-light btn-block w-100 d-inline-block border form-select" icon={null}>
+          <Dropdown.Toggle as={CustomToggle} id="dropdown-custom-components" className="inline-flex items-center px-4 py-2 bg-light text-dark rounded-md hover:bg-light/90 transition-colors btn-block w-full inline-block border form-select" icon={null}>
             {/* {isL2(currentProvider && currentProvider.displayName)} */}
             <DropdownLabel label={currentProvider && currentProvider.displayName} bridges={bridges} currentProvider={currentProvider} envLabel={props.envLabel} runTabState={props.udappState} setExecutionEnv={props.setExecutionContext} isL2={isL2} plugin={props.runTabPlugin} />
           </Dropdown.Toggle>
-          <Dropdown.Menu as={CustomMenu} className="w-100 form-select udapp_exenv_menu" data-id="custom-dropdown-items">
+          <Dropdown.Menu as={CustomMenu} className="w-full form-select udapp_exenv_menu" data-id="custom-dropdown-items">
             {providers.length === 0 && <Dropdown.Item><FormattedMessage id="udapp.noProviderPinned" /></Dropdown.Item>}
 
             {remixVMs.length > 0 && (

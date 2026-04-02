@@ -40,11 +40,11 @@ export const CustomToggle = React.forwardRef(
       }}
       className={className.replace('dropdown-toggle', '')}
     >
-      <div className="d-flex">
-        <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm" data-id={`dropdown-content`}>{children}</div>
+      <div className="flex">
+        <div className="me-auto whitespace-nowrap truncate overflow-hidden font-sm" data-id={`dropdown-content`}>{children}</div>
         {icon && (
-          <div className="pe-1">
-            <i className={`${icon} pe-1`}></i>
+          <div className="pr-1">
+            <i className={`${icon} pr-1`}></i>
           </div>
         )}
         <div>
@@ -202,7 +202,7 @@ export const SearchableChainDropdown: React.FC<DropdownProps> = ({ label, id, se
         placeholder={intl.formatMessage({ id: "contract-verification.searchableChainDropdown", defaultMessage: "Select a chain" })}
         className="form-control"
       />
-      <ul className="dropdown-menu form-select border bg-light show w-100" style={{ maxHeight: '400px', overflowY: 'auto', display: isOpen ? 'initial' : 'none' }}>
+      <ul className="dropdown-menu form-select border bg-light show w-full" style={{ maxHeight: '400px', overflowY: 'auto', display: isOpen ? 'initial' : 'none' }}>
         {filteredOptions.map((chain) => (
           <li
             key={chain.chainId}

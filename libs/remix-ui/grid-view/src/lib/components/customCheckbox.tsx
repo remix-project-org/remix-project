@@ -17,7 +17,7 @@ export const CustomCheckbox = (props: CustomCheckboxProps) => {
 
   return (
     <div id={textColor + props.label}
-      className="h-80 mx-1 align-items-center form-check"
+      className="h-80 mx-1 items-center form-check"
       style={{ minWidth: '4rem' }}
     >
       <input
@@ -29,7 +29,7 @@ export const CustomCheckbox = (props: CustomCheckboxProps) => {
         type="checkbox"
       />
       <label
-        className={"form-check-label text-nowrap text-" + textColor}
+        className={"form-check-label whitespace-nowrap text-" + textColor}
         style={{ paddingTop: '0.125rem' }}
         htmlFor={"GVCheckbox" + props.label}
         data-id={"GVCheckboxLabel" + props.label}

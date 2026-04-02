@@ -16,11 +16,11 @@ function CompilerButton({ contract, setOutput, compilerUrl, resetCompilerState, 
   const [loadingSpinner, setLoadingSpinnerState] = useState(false)
 
   if (!contract || !contract) {
-    return <Button disabled className="w-100">No contract selected</Button>
+    return <Button disabled className="w-full">No contract selected</Button>
   }
 
   if (!isVyper(contract)) {
-    return <Button disabled className="w-100">Not a vyper contract</Button>
+    return <Button disabled className="w-full">Not a vyper contract</Button>
   }
 
   /** Compile a Contract */
@@ -37,13 +37,13 @@ function CompilerButton({ contract, setOutput, compilerUrl, resetCompilerState, 
             setLoadingSpinnerState(true)
             await compileContract(contract, compilerUrl, setOutput, setLoadingSpinnerState)
           }}
-          className="btn btn-primary w-100 d-block btn-block text-break remixui_disabled"
+          className="btn btn-primary w-full"
         >
-          <div className="d-flex align-items-center justify-content-center fa-1x">
-            <span className={ loadingSpinner ? 'fas fa-sync fa-pulse me-1' : 'fas fa-sync me-1'} />
-            <div className="text-truncate overflow-hidden text-nowrap">
+          <div className="flex items-center justify-center fa-1x">
+            <span className={ loadingSpinner ? 'fas fa-sync fa-pulse mr-1' : 'fas fa-sync mr-1'} />
+            <div className="truncate overflow-hidden whitespace-nowrap">
               <span>Compile</span>
-              <span className="ms-1 text-nowrap">{contract}</span>
+              <span className="ml-1 whitespace-nowrap">{contract}</span>
             </div>
           </div>
         </button>

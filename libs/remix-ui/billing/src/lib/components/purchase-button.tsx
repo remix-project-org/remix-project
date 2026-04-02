@@ -15,7 +15,7 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
   requirePriceId = true
 }) => {
   const getButtonClass = () => {
-    const base = 'btn w-100'
+    const base = 'btn w-full'
     switch (variant) {
     case 'primary':
       return `${base} btn-primary`
@@ -39,12 +39,12 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
     >
       {loading ? (
         <>
-          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+          <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
           Processing...
         </>
       ) : (
         <>
-          {requirePriceId && !priceId && <i className="fas fa-lock me-2"></i>}
+          {requirePriceId && !priceId && <i className="fas fa-lock mr-2"></i>}
           {label}
         </>
       )}

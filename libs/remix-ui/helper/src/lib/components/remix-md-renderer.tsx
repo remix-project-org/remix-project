@@ -56,7 +56,7 @@ export function RemixMdRenderer({ markDownContent, theme }: { markDownContent: s
                   <span className="ai-code-language">{language}</span>
                   <button
                     type="button"
-                    className="btn btn-sm btn-outline-info border border-info"
+                    className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-outline-info border border-info"
                     onClick={() => copy(text)}
                   >
                     <i className="fa-regular fa-copy"></i>

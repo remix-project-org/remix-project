@@ -17,10 +17,10 @@ export default function SolidityCompile({ contractProperties, selectedContract, 
   }
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center me-1">
+      <div className="flex justify-between items-center mr-1">
         <span className="lead">{selectedContract}</span>
         <CustomTooltip tooltipText={intl.formatMessage({ id: 'solidity.compileDetails' })}>
-          <span className="btn btn-outline-success border-success me-1" onClick={downloadFn}>Download</span>
+          <span className="btn btn-outline-success border-success mr-1" onClick={downloadFn}>Download</span>
         </CustomTooltip>
       </div>
       <div className="remixui_detailsJSON">

@@ -203,16 +203,16 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
   btnList.push(...dynamicButtons)
 
   return (
-    <div className="d-flex flex-column mt-3" style={{ maxWidth: '400px' }}>
-      <div className="d-flex flex-row flex-wrap gap-1 justify-content-center">
+    <div className="flex flex-col mt-3" style={{ maxWidth: '400px' }}>
+      <div className="flex flex-row flex-wrap gap-1 justify-center">
         {btnList.map((starter, index) => (
           <button
             key={`${starter.label}-${index}`}
             data-id={`remix-ai-assistant-starter-${starter.label}-${index}`}
-            className={`mb-2 border-0 rounded-4 text-nowrap gap-2 btn ${theme?.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'} `}
+            className={`mb-2 border-0 rounded-xl whitespace-nowrap gap-2 btn ${theme?.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'} `}
             onClick={starter.action}
           >
-            <i className={`${starter.icon} me-1`}></i>
+            <i className={`${starter.icon} mr-1`}></i>
             {starter.label}
           </button>
         ))}

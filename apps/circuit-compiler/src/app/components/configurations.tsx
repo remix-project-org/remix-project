@@ -5,16 +5,16 @@ import { ConfigurationsProps, PrimeValue } from "../types"
 export function Configurations ({primeValue, setPrimeValue, versionValue}: ConfigurationsProps) {
   const intl = useIntl()
   return (
-    <div className="flex-column">
-      <div className="flex-column d-flex">
-        <div className="ms-0">
+    <div className="flex-col">
+      <div className="flex-col flex">
+        <div className="ml-0">
           <label className="circuit_inner_label form-check-label" htmlFor="circuitPrimeSelector">
             <FormattedMessage id="circuit.prime" />
           </label>
           <CustomTooltip
             placement={"auto"}
             tooltipId="circuitPrimeLabelTooltip"
-            tooltipClasses="text-nowrap"
+            tooltipClasses="whitespace-nowrap"
             tooltipText={<span>{intl.formatMessage({ id: 'circuit.primeTooltip' })}</span>}
           >
             <div>

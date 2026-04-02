@@ -73,7 +73,7 @@ export const RemotesImport = () => {
         : null}
 
       {repo && remoteName ?
-        <button data-id='remote-panel-addremote' className='btn btn-primary mt-1 w-100' onClick={async () => {
+        <button data-id='remote-panel-addremote' className='btn btn-primary w-full mt-1' onClick={async () => {
           await addRemote()
         }}><FormattedMessage id="gitui.addRemote" /> {remoteName}:{repo.full_name}</button> : null}
 

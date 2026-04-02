@@ -380,10 +380,10 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     const quickdappEnabled = remixAppContext?.appConfig?.['quickdapp.enabled']
     if (quickdappEnabled === false) {
       return (
-        <div className="d-flex flex-column justify-content-center align-items-center text-center px-4" style={{ height: '80vh' }}>
+        <div className="flex flex-col justify-center items-center text-center px-4" style={{ height: '80vh' }}>
           <i className="fas fa-flask fa-3x mb-3 text-info"></i>
           <h4 className="mb-2">Coming Soon</h4>
-          <p className="text-muted" style={{ maxWidth: '400px' }}>
+          <p className="text-gray-500 dark:text-gray-400" style={{ maxWidth: '400px' }}>
             QuickDapp V2 is under development and will be available soon. Stay tuned!
           </p>
         </div>
@@ -393,20 +393,20 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     // Permission check: show access denied if user doesn't have dapp:quickdapp feature
     if (!hasAccess) {
       return (
-        <div className="d-flex flex-column justify-content-center align-items-center text-center px-4" style={{ height: '80vh' }}>
+        <div className="flex flex-col justify-center items-center text-center px-4" style={{ height: '80vh' }}>
           <i className="fas fa-lock fa-3x mb-3 text-warning"></i>
           <h4 className="mb-2">Access Required</h4>
           {isAuthenticated ? (
-            <p className="text-muted" style={{ maxWidth: '400px' }}>
+            <p className="text-gray-500 dark:text-gray-400" style={{ maxWidth: '400px' }}>
               QuickDapp V2 is currently available to beta testers only. Please contact the Remix team to request access.
             </p>
           ) : (
             <>
-              <p className="text-muted" style={{ maxWidth: '400px' }}>
+              <p className="text-gray-500 dark:text-gray-400" style={{ maxWidth: '400px' }}>
                 Please sign in to access QuickDapp V2. This feature is available to beta testers.
               </p>
               <button
-                className="btn btn-sm btn-primary mt-2"
+                className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-primary mt-2"
                 onClick={() => setShowLoginModal(true)}
               >
                 Sign In
@@ -419,16 +419,16 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
     if (isAppLoading || !locale.messages) {
       return (
-        <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '80vh' }}>
+        <div className="flex flex-col justify-center items-center" style={{ height: '80vh' }}>
           <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
-          <p className="text-muted">Loading QuickDapp...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading QuickDapp...</p>
         </div>
       );
     }
 
     if (appState.isAiLoading) {
       return (
-        <div className="container-fluid">
+        <div className="container mx-auto px-4-fluid">
           <CreateInstance isAiLoading={true} />
         </div>
       );
@@ -436,7 +436,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
     if (!appState.dapps || appState.dapps.length === 0) {
       return (
-        <div className="container-fluid pt-3">
+        <div className="container mx-auto px-4-fluid pt-3">
           <CreateInstance isAiLoading={appState.isAiLoading} />
         </div>
       );
@@ -472,9 +472,9 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     case 'editor':
       if (!appState.activeDapp) return null;
       return (
-        <div className="d-flex flex-column h-100">
-          <div className="flex-grow-1 position-relative" style={{ overflow: 'hidden' }}>
-            <div className="container-fluid pt-3 h-100">
+        <div className="flex flex-col h-full">
+          <div className="flex-grow-1 relative" style={{ overflow: 'hidden' }}>
+            <div className="container mx-auto px-4-fluid pt-3 h-full">
               <EditHtmlTemplate />
             </div>
           </div>
@@ -484,14 +484,14 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     case 'create':
     default:
       return (
-        <div className="container-fluid pt-3">
+        <div className="container mx-auto px-4-fluid pt-3">
           {!appState.isAiLoading && (
             <div className="mb-3 px-2">
               <button
-                className="btn btn-sm btn-link text-decoration-none px-0"
+                className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-link no-underline px-0"
                 onClick={() => dispatch({ type: 'SET_VIEW', payload: 'dashboard' })}
               >
-                <i className="fas fa-arrow-left me-1"></i> Back to Dashboard
+                <i className="fas fa-arrow-left mr-1"></i> Back to Dashboard
               </button>
             </div>
           )}
@@ -504,7 +504,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   return (
     <AppContext.Provider value={{ dispatch, appState, dappManager, plugin }}>
       <IntlProvider locale={locale.code} messages={locale.messages || {}}>
-        <div className="App qd-container">
+        <div className="App qd-container mx-auto px-4">
           {renderContent()}
         </div>
         <LoadingScreen />

@@ -275,10 +275,12 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
       id="workspacesSelect"
       data-id="workspacesSelect"
       data-disabled={isDropdownLocked ? 'true' : undefined}
+      drop="down"
+      align="start"
     >
       <Dropdown.Toggle
         as={CustomToggle}
-        className="btn btn-sm w-100 border position-relative"
+        className="btn btn-sm w-100 border position-relative workspaceDropdown"
         variant="secondary"
         data-id="workspacesMenuDropdown"
         icon={selectedWorkspace && selectedWorkspace.isGitRepo ? 'fas fa-code-branch' : null}
@@ -307,7 +309,6 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
         style={{ minWidth: '100%' }}
         className="px-2"
         data-id="topbar-custom-dropdown-items"
-        show={showMain}
         as={"div"}
       >
         <div id="scrollable-section" className="overflow-y-scroll" style={{ maxHeight: '160px', opacity: isDropdownLocked ? 0.5 : 1, pointerEvents: isDropdownLocked ? 'none' : 'auto' }}>
@@ -318,10 +319,10 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
             const id = idx + 1
             if (!iconRefs.current[id]) iconRefs.current[id] = { current: null }
             return (
-              <div key={id} className="d-flex flex-row">
+              <div key={id} className="flex flex-row">
                 <Dropdown.Item
                   key={id}
-                  className="dropdown-item d-flex align-items-center position-relative"
+                  className="dropdown-item flex items-center relative"
                   onMouseDown={(e) => {
                     if (isDropdownLocked) { e.preventDefault(); return }
                     setDropdownOpen(false)
@@ -331,18 +332,18 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                   data-id={`dropdown-item-${item.name}`}
                 >
                   {item.isGitRepo && item.currentBranch && (
-                    <i className="fas fa-code-branch pt-1 me-2"></i>
+                    <i className="fas fa-code-branch pt-1 mr-2"></i>
                   )}
                   {item.remoteId && (
-                    <CloudSyncStatusIcon remoteId={item.remoteId} className="pt-1 me-2" />
+                    <CloudSyncStatusIcon remoteId={item.remoteId} className="pt-1 mr-2" />
                   )}
                   <span className="pl-1">{item.name}</span>
                 </Dropdown.Item>
-                <div className="d-flex align-items-center" id="submenu-activate-button">
+                <div className="flex items-center" id="submenu-activate-button">
                   <Button
                     ref={(el) => (iconRefs.current[id].current = el)}
                     variant="link"
-                    className="p-0 ms-2 text-muted submenu-trigger"
+                    className="p-0 ml-2 text-gray-500 dark:text-gray-400 submenu-trigger"
                     aria-label={`More actions for ${item.name}`}
                     onClick={(e) => {
                       e.preventDefault()
@@ -377,11 +378,11 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                       }}
                       data-id="workspacesubMenuOverlay"
                     >
-                      <div className="p-0 rounded w-75 border-warning">
+                      <div className="p-0 rounded w-3/4 border-warning">
                         <div className="d-grid gap-0">
                           <Button
                             variant="light"
-                            className="border d-flex align-items-center text-decoration-none rounded-start-0"
+                            className="border flex items-center no-underline rounded-start-0"
                             data-id="workspacesubMenuRename"
                             size="sm"
                             onClick={(e) => {
@@ -397,7 +398,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                               borderBottomLeftRadius: 4,
                             }}
                           >
-                            <span className="me-2">
+                            <span className="mr-2">
                               <i className="far fa-edit" />
                             </span>
                             <span>Rename</span>
@@ -408,7 +409,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                             style={{
                               color: 'var(--bs-body-color)'
                             }}
-                            className="border border-top-0 border-bottom-0 d-flex align-items-center text-decoration-none rounded-0"
+                            className="border border-t-0 border-b-0 flex items-center no-underline rounded-none"
                             data-id="workspacesubMenuDownload"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -417,7 +418,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                               setOpenSubmenuId(null)
                             }}
                           >
-                            <span className="me-2">
+                            <span className="mr-2">
                               <i className="fas fa-download" />
                             </span>
                             <span>Download</span>
@@ -432,7 +433,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                               borderTopLeftRadius: 0,
                               borderBottomLeftRadius: 4,
                             }}
-                            className="border d-flex align-items-center text-decoration-none"
+                            className="border flex items-center no-underline"
                             data-id="workspacesubMenuDelete"
                             onClick={(e) => {
                               deleteCurrentWorkspace(item.name)
@@ -440,7 +441,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                               setOpenSubmenuId(null)
                             }}
                           >
-                            <span className="me-2">
+                            <span className="mr-2">
                               <i className="fas fa-trash" />
                             </span>
                             <span>Delete</span>
@@ -483,8 +484,8 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
               <>
                 <Dropdown.Divider className="border mb-0 mt-0 remixui_menuhr" style={{ pointerEvents: 'none' }} />
                 <Dropdown.Item disabled style={{ fontSize: '0.85em', opacity: 0.8 }}>
-                  <span className="d-flex align-items-center">
-                    <i className={`${statusProps.icon}${statusProps.animate ? ' ' + statusProps.animate : ''} me-2`}
+                  <span className="flex items-center">
+                    <i className={`${statusProps.icon}${statusProps.animate ? ' ' + statusProps.animate : ''} mr-2`}
                       style={{ color: statusProps.color }} />
                     {activeSyncStatus.status === 'loading' && 'Loading workspace…'}
                     {activeSyncStatus.status === 'syncing' && 'Syncing to cloud…'}
@@ -492,7 +493,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                     {activeSyncStatus.status === 'idle' && !activeSyncStatus.lastSync && 'Cloud workspace'}
                     {activeSyncStatus.status === 'error' && `Sync error: ${activeSyncStatus.error || 'Unknown'}`}
                     {activeSyncStatus.pendingChanges > 0 && (
-                      <span className="badge bg-warning ms-2">{activeSyncStatus.pendingChanges}</span>
+                      <span className="badge bg-warning ml-2">{activeSyncStatus.pendingChanges}</span>
                     )}
                   </span>
                 </Dropdown.Item>
@@ -511,8 +512,8 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                 }}
                 data-id="workspaceMigrateToCloud"
               >
-                <span className="d-flex align-items-center">
-                  <i className="fas fa-cloud-upload-alt me-2" style={{ color: 'var(--bs-info)' }}></i>
+                <span className="flex items-center">
+                  <i className="fas fa-cloud-upload-alt mr-2" style={{ color: 'var(--bs-info)' }}></i>
                   Migrate local workspaces to cloud
                 </span>
               </Dropdown.Item>
@@ -529,7 +530,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                     'Download Cloud Snapshots',
                     <div>
                       <p className="mb-2">
-                        <i className="fas fa-history me-2" style={{ color: 'var(--bs-warning)' }}></i>
+                        <i className="fas fa-history mr-2" style={{ color: 'var(--bs-warning)' }}></i>
                         <strong>What are these?</strong>
                       </p>
                       <p className="small mb-2">
@@ -541,8 +542,8 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                         Snapshots expire after 7 days. This will download all available snapshots
                         as a single zip file you can inspect locally.
                       </p>
-                      <p className="small text-muted mb-0">
-                        <i className="fas fa-info-circle me-1"></i>
+                      <p className="small text-gray-500 dark:text-gray-400 mb-0">
+                        <i className="fas fa-info-circle mr-1"></i>
                         No changes will be made to your current workspace.
                       </p>
                     </div>,
@@ -562,8 +563,8 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                 }}
                 data-id="workspaceDownloadCloudSnapshots"
               >
-                <span className="d-flex align-items-center">
-                  <i className="fas fa-history me-2" style={{ color: 'var(--bs-warning)' }}></i>
+                <span className="flex items-center">
+                  <i className="fas fa-history mr-2" style={{ color: 'var(--bs-warning)' }}></i>
                   Download cloud snapshots
                 </span>
               </Dropdown.Item>
@@ -587,7 +588,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                   setShowMain(false)
                   setOpenSub(null)
                 }}>
-                  <i className="far fa-download me-2"></i>
+                  <i className="far fa-download mr-2"></i>
                   Backup
                 </span>
               </Dropdown.Item>
@@ -601,7 +602,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                   setShowMain(false)
                   setOpenSub(null)
                 }}>
-                  <i className="fas fa-upload me-2"></i>
+                  <i className="fas fa-upload mr-2"></i>
                   Restore
                 </span>
               </Dropdown.Item>
@@ -616,7 +617,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                   setShowMain(false)
                   setOpenSub(null)
                 }}>
-                  <i className="fas fa-desktop me-2"></i>
+                  <i className="fas fa-desktop mr-2"></i>
                   Connect to Localhost
                 </span>
               </Dropdown.Item>

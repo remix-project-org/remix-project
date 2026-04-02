@@ -71,7 +71,7 @@ export const ResultSummary = (props: ResultSummaryProps) => {
           </div>
           {state.replaceEnabled ? (
             <div className="search_plugin_search_control">
-              <CustomTooltip tooltipText={<FormattedMessage id="search.replace" />} tooltipClasses="text-nowrap" tooltipId="replaceTooltip" placement="top-start">
+              <CustomTooltip tooltipText={<FormattedMessage id="search.replace" />} tooltipClasses="whitespace-nowrap" tooltipId="replaceTooltip" placement="top-start">
                 <div
                   data-id={`replace-${props.searchResult.filename}-${lineItem.position.start.line}-${lineItem.position.start.column}`}
                   onClick={async () => {

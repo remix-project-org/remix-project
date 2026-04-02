@@ -52,7 +52,7 @@ const ErrorRenderer = ({ message, opt, editor, name, ssaState }: ErrorRendererPr
     <div>
       <div className={`sol ${opt.type} ${classList}`}>
         <div
-          className="d-flex flex-column"
+          className="flex flex-col"
           data-id={`${name}Button`}
           onClick={async () => await handlePointToErrorOnClick(opt.location, opt.fileName)}
           style={{
@@ -61,7 +61,7 @@ const ErrorRenderer = ({ message, opt, editor, name, ssaState }: ErrorRendererPr
             textOverflow: 'ellipsis'
           }}
         >
-          <span className="h6 fw-bold">{opt.name}</span>
+          <span className="h6 font-bold">{opt.name}</span>
           <span>{opt.item.warning}</span>
           {opt.item.more ? (
             <span>
@@ -73,7 +73,7 @@ const ErrorRenderer = ({ message, opt, editor, name, ssaState }: ErrorRendererPr
             <span> </span>
           )}
           <div>
-            <CustomTooltip placement="right" tooltipId="errorTooltip" tooltipText={`Position in ${ssaState.file}`} tooltipClasses="text-nowrap">
+            <CustomTooltip placement="right" tooltipId="errorTooltip" tooltipText={`Position in ${ssaState.file}`} tooltipClasses="whitespace-nowrap">
               <span>Pos: {opt.locationString}</span>
             </CustomTooltip>
           </div>

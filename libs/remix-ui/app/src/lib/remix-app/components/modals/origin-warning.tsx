@@ -28,13 +28,13 @@ export const OriginWarning = () => {
 
   return (
     <div
-      className="d-flex align-items-center justify-content-center px-3 py-1"
+      className="flex items-center justify-center px-3 py-1"
       style={{ backgroundColor: '#c9a000', color: '#000', fontSize: '0.85rem', flexShrink: 0 }}
     >
-      <i className="fas fa-exclamation-triangle me-2"></i>
+      <i className="fas fa-exclamation-triangle mr-2"></i>
       <span>{intl.formatMessage({ id: messageId })}</span>
       <button
-        className="btn btn-sm p-0 ms-3 border-0"
+        className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors p-0 ml-3 border-0"
         style={{ color: '#000', lineHeight: 1 }}
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"

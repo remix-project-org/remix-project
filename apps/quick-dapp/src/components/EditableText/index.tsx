@@ -49,24 +49,24 @@ const EditableText = ({
         onChange={handleChange}
         style={{ height: textarea ? 100 : 'auto' }}
       />
-      <div className="d-flex justify-content-end">
+      <div className="flex justify-end">
         <i
-          className="fas ms-2 mt-2 fa-save cursor_pointer"
+          className="fas ml-2 mt-2 fa-save cursor_pointer"
           onClick={handleSave}
         />
         <i
-          className="fas ms-2 mt-2 fa-ban cursor_pointer"
+          className="fas ml-2 mt-2 fa-ban cursor_pointer"
           onClick={handleCancel}
         />
       </div>
     </>
   ) : (
-    <div className="d-flex justify-content-between align-items-center">
+    <div className="flex justify-between items-center">
       <TextElement className="udapp_intro">
         {value ? value : placeholder}
       </TextElement>
       <i
-        className="fas fa-edit ms-2 float-end cursor_pointer"
+        className="fas fa-edit ml-2 float-end cursor_pointer"
         onClick={handleEdit}
       />
     </div>

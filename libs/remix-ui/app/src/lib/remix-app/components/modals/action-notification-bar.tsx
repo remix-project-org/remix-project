@@ -38,18 +38,18 @@ const ActionNotificationBar = ({ notification, onActionClick }: ActionNotificati
   }, [notification.id, onActionClick])
 
   return (
-    <div className="action-notification-bar d-flex flex-column border rounded shadow-sm p-3 mb-2 bg-light"
+    <div className="action-notification-bar flex flex-col border rounded shadow-sm p-3 mb-2 bg-light"
       style={{
         minWidth: '360px',
         maxWidth: '480px',
         animation: 'slideInUp 0.25s ease-out'
       }}
     >
-      <div className="d-flex justify-content-between align-items-start mb-1">
-        <span className="fw-bold small text-dark">{notification.title}</span>
+      <div className="flex justify-between items-start mb-1">
+        <span className="font-bold small text-dark">{notification.title}</span>
         <button
           type="button"
-          className="btn-close ms-2"
+          className="btn-close ml-2"
           aria-label={intl.formatMessage({ id: 'remixApp.closeNotification' })}
           style={{ fontSize: '0.65rem' }}
           onClick={handleDismiss}
@@ -59,7 +59,7 @@ const ActionNotificationBar = ({ notification, onActionClick }: ActionNotificati
         {notification.message}
       </div>
       {notification.actions && notification.actions.length > 0 && (
-        <div className="d-flex flex-wrap gap-1 justify-content-end">
+        <div className="flex flex-wrap gap-1 justify-end">
           {notification.actions.map((action, idx) => (
             <button
               key={idx}

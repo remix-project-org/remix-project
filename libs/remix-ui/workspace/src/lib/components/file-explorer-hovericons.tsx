@@ -14,7 +14,7 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
   const [mouseOver, setMouseOver] = useState(false)
   return (
     <>
-      {<div className="d-flex flex-row align-items-center">
+      {<div className="flex flex-row items-center">
         {
           props.file.isDirectory ? (
             <>
@@ -23,11 +23,11 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
                 delay={{ show: 1000, hide: 0 }}
                 tooltipText={<FormattedMessage id="filePanel.createNewFolder" />}
                 tooltipId={`filePanel.createNewFolder.${props.file.path}`}
-                tooltipClasses="text-nowrap"
+                tooltipClasses="whitespace-nowrap"
               >
                 <span
                   data-id="fileExplorerHoverIcons-createNewFolder"
-                  className="far fa-folder fa-1x me-2 remixui_icons"
+                  className="far fa-folder fa-1x mr-2 remixui_icons"
                   onClick={async (e) => {
                     e.stopPropagation()
                     await props.handleNewFolderOp(props.file.path)
@@ -42,11 +42,11 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
                 delay={{ show: 1000, hide: 0 }}
                 tooltipText={<FormattedMessage id="filePanel.createNewFile" />}
                 tooltipId={`fileExplorer.createNewFile.${props.file.path}`}
-                tooltipClasses="text-nowrap"
+                tooltipClasses="whitespace-nowrap"
               >
                 <span
                   data-id="fileExplorerHoverIcons-createNewFile"
-                  className="far fa-file fa-1x remixui_icons me-2"
+                  className="far fa-file fa-1x remixui_icons mr-2"
                   onClick={async (e) => {
                     e.stopPropagation()
                     await props.handleNewFileOp(props.file.path)
@@ -64,11 +64,11 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
           delay={{ show: 1000, hide: 0 }}
           tooltipText={<FormattedMessage id="filePanel.rename" />}
           tooltipId={`filePanel.rename.${props.file.path}`}
-          tooltipClasses="text-nowrap"
+          tooltipClasses="whitespace-nowrap"
         >
           <span
             data-id="fileExplorerHoverIcons-rename"
-            className="far fa-pen fa-1x remixui_icons me-2"
+            className="far fa-pen fa-1x remixui_icons mr-2"
             onClick={(e) => {
               e.stopPropagation()
               props.renamePathOp(props.file.path, props.file.type)
@@ -83,11 +83,11 @@ export function FileHoverIcons(props: FileHoverIconsProps) {
           delay={{ show: 1000, hide: 0 }}
           tooltipText={<FormattedMessage id="filePanel.deleteItem" />}
           tooltipId={`filePanel.deleteItem.${props.file.path}`}
-          tooltipClasses="text-nowrap"
+          tooltipClasses="whitespace-nowrap"
         >
           <span
             data-id="fileExplorerHoverIcons-delete"
-            className="far fa-trash fa-1x remixui_icons me-2"
+            className="far fa-trash fa-1x remixui_icons mr-2"
             onClick={async (e) => {
               e.stopPropagation()
               await props.deletePathOp(props.file.path)

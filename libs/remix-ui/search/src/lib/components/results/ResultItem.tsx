@@ -126,7 +126,7 @@ export const ResultItem = (props: ResultItemProps) => {
             </button>{' '}
             <ResultFileName file={props.file} />
             <div className="search_plugin_result_count">
-              <div className="search_plugin_result_count_number badge rounded-pill text-bg-secondary">{props.file.count}</div>
+              <div className="search_plugin_result_count_number badge rounded-full text-bg-secondary">{props.file.count}</div>
             </div>
           </div>
           {loading ? (
@@ -139,7 +139,7 @@ export const ResultItem = (props: ResultItemProps) => {
             <div className="search_plugin_wrap_summary">
               {state.replaceEnabled ? (
                 <div className="search_plugin_wrap_summary_replace">
-                  <div data-id={`replace-all-${props.file.filename}`} onClick={async () => replace()} className="btn btn-secondary mb-2 btn-sm">
+                  <div data-id={`replace-all-${props.file.filename}`} onClick={async () => replace()} className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors mb-2 btn-sm">
                     <FormattedMessage id="search.replaceAll" />
                   </div>
                 </div>

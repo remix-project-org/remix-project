@@ -139,20 +139,20 @@ function TransactionsPortraitView() {
 
   return (
     <div className="card mx-2 my-2 text-theme-contrast" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-      <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }} onClick={toggleAccordion} data-id="transaction-recorder-accordion-toggle">
-        <div className='d-flex align-items-center gap-2'>
+      <div className="p-3 flex items-center justify-between" style={{ cursor: 'pointer' }} onClick={toggleAccordion} data-id="transaction-recorder-accordion-toggle">
+        <div className='flex items-center gap-2'>
           <h6 className="my-auto text-theme-contrast" style={{ margin: 0, }}>
             <FormattedMessage id="udapp.transactionRecorderTitle" defaultMessage="Transactions recorder" /> <span className="text-secondary small">{widgetState.recorderData.journal.length}</span>
           </h6>
         </div>
-        <div className='d-flex align-items-center gap-2'>
+        <div className='flex items-center gap-2'>
           { !showClearAllDialog && !showSaveDialog &&
             <div onClick={(e) => e.stopPropagation()}>
-              <button data-id="save-transactions" className='btn btn-primary btn-sm small p-1' style={{ fontSize: '0.6rem' }} onClick={handleSaveClick}>
+              <button data-id="save-transactions" className='btn btn-primary btn-sm' style={{ fontSize: '0.6rem' }} onClick={handleSaveClick}>
                 <i className='fa-solid fa-floppy-disk'></i> <FormattedMessage id="udapp.saveButton" />
               </button>
               <button
-                className="btn btn-outline-danger btn-sm pe-0"
+                className="btn btn-outline-danger btn-sm pr-0"
                 data-id="clearAllTransactions"
                 style={{ background: 'none', border: 'none' }}
                 onClick={handleClearAllClick}
@@ -170,12 +170,12 @@ function TransactionsPortraitView() {
           {/* Add Contract Dialog */}
           {showSaveDialog && (
             <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-              <div className="d-flex justify-content-between align-items-center mb-2 text-theme-contrast">
+              <div className="flex justify-between items-center mb-2 text-theme-contrast">
                 <p className="mb-0" style={{ fontSize: '0.9rem' }}>
                   <FormattedMessage id="udapp.saveTransactionsHeader" />
                 </p>
                 <button
-                  className="btn btn-sm"
+                  className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
                   onClick={() => {
                     trackMatomoEvent?.({ category: 'udapp', action: 'transactionsSaveDialogClose', name: 'close_button', isClick: true })
                     handleCancelSave()
@@ -190,18 +190,18 @@ function TransactionsPortraitView() {
                   }}
                 > × </button>
               </div>
-              <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 fw-light">
+              <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 font-light">
                 <FormattedMessage
                   id="udapp.addDeployedContract"
                   defaultMessage="Save transactions (deployed contracts and function executions) and replay them in another environment"
                 />
               </p>
-              <div className="d-flex align-items-center mb-2">
-                <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
+              <div className="flex items-center mb-2">
+                <label className="mb-0 mr-2" style={{ color: 'var(--bs-tertiary)' }}>
                   <FormattedMessage id="udapp.scenarioNameLabel" />
                 </label>
               </div>
-              <div className="position-relative flex-fill">
+              <div className="relative flex-1">
                 <input
                   type="text"
                   value={scenarioInput}
@@ -212,7 +212,7 @@ function TransactionsPortraitView() {
                 />
                 <button
                   data-id="save-transaction-dialog-btn"
-                  className="btn btn-sm btn-primary"
+                  className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-primary"
                   onClick={handleSaveScenario}
                   style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, fontSize: '0.65rem', fontWeight: 'bold' }}
                 >
@@ -225,7 +225,7 @@ function TransactionsPortraitView() {
           {/* Clear All Confirmation Dialog */}
           {showClearAllDialog && (
             <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-              <div className="d-flex justify-content-between align-items-center mb-2 text-theme-contrast">
+              <div className="flex justify-between items-center mb-2 text-theme-contrast">
                 <p className="mb-0" style={{ fontSize: '0.9rem' }}>
                   <FormattedMessage
                     id="udapp.clearAllTransactionsTitle"
@@ -233,7 +233,7 @@ function TransactionsPortraitView() {
                   />
                 </p>
                 <button
-                  className="btn btn-sm text-theme-contrast"
+                  className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors text-theme-contrast"
                   onClick={() => {
                     trackMatomoEvent?.({ category: 'udapp', action: 'transactionsClearAllDialogClose', name: 'close_button', isClick: true })
                     handleCancelClearAll()
@@ -253,16 +253,16 @@ function TransactionsPortraitView() {
                 />
               </p>
               <p style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.doYouWantToProceed" /></p>
-              <div className="d-flex justify-content-between align-items-center gap-3">
+              <div className="flex justify-between items-center gap-3">
                 <button
-                  className="btn btn-sm btn-secondary flex-fill"
+                  className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-secondary flex-1"
                   onClick={handleCancelClearAll}
                   data-id="cancelClearAllTransactions"
                 >
                   <FormattedMessage id="udapp.cancel" defaultMessage="Cancel" />
                 </button>
                 <button
-                  className={`btn btn-sm btn-danger text-theme-contrast flex-fill`}
+                  className={`btn btn-sm btn-danger text-theme-contrast flex-1`}
                   onClick={handleConfirmClearAll}
                   data-id="confirmClearAllTransactions"
                 >
@@ -274,7 +274,7 @@ function TransactionsPortraitView() {
 
           {!showClearAllDialog && (
             <div className="transaction-recorder-tabs p-2 pt-0">
-              <div className="tabs-filter-container">
+              <div className="tabs-filter-container mx-auto px-4">
                 <ul className="nav nav-tabs" role="tablist">
                   <li className="nav-item" role="presentation">
                     <button
@@ -307,7 +307,7 @@ function TransactionsPortraitView() {
                       as={CustomToggle}
                       className="btn-sm border-0 p-1 text-secondary rounded"
                       style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', color: themeQuality === 'dark' ? 'white' : 'black' }}
-                      icon="fas fa-caret-down ms-2"
+                      icon="fas fa-caret-down ml-2"
                       useDefaultIcon={false}
                     >
                       {sortOrder === 'newest' ? intl.formatMessage({ id: 'udapp.newestSortLabel' }) : intl.formatMessage({ id: 'udapp.oldestSortLabel' })}
@@ -340,7 +340,7 @@ function TransactionsPortraitView() {
                           />
                         ))
                       ) : (
-                        <div className="text-muted p-3 mt-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+                        <div className="text-gray-500 dark:text-gray-400 p-3 mt-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
                           <div className="empty-state-text">
                             <FormattedMessage
                               id="debugger.noTransactionsToShow"
@@ -372,7 +372,7 @@ function TransactionsPortraitView() {
                           />
                         ))
                       ) : (
-                        <div className="text-muted p-3 mt-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+                        <div className="text-gray-500 dark:text-gray-400 p-3 mt-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
                           <div className="empty-state-text">
                             <FormattedMessage
                               id="debugger.noTransactionsToShow"

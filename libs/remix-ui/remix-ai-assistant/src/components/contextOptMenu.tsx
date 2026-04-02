@@ -12,7 +12,7 @@ export interface GroupListMenuProps {
 export default function GroupListMenu(props: GroupListMenuProps) {
 
   return (
-    <div className="btn-group-vertical w-100">
+    <div className="btn-group-vertical w-full">
       {props.groupList.map((item, index) => (
         <button
           key={`${item.label}-${index}`}
@@ -27,21 +27,21 @@ export default function GroupListMenu(props: GroupListMenuProps) {
             }
           }}
         >
-          <div className="d-flex flex-column small text-start">
-            <div className="d-flex align-items-center mb-1">
-              <span className="form-check-label fw-bold">{item.label}</span>
+          <div className="flex flex-col small text-left">
+            <div className="flex items-center mb-1">
+              <span className="form-check-label font-bold">{item.label}</span>
               {item.isLocked && (
                 <span
-                  className="badge bg-info ms-2 text-white"
+                  className="badge bg-info ml-2 text-white"
                   style={{ fontSize: '0.65rem', padding: '2px 6px' }}
                 >
-                  <i className="fas fa-flask me-1" style={{ fontSize: '0.6rem' }}></i>
+                  <i className="fas fa-flask mr-1" style={{ fontSize: '0.6rem' }}></i>
                   Beta
                 </span>
               )}
             </div>
-            <div className="d-flex justify-content-between">
-              <span className="form-check-label me-2 text-wrap">{item.bodyText}</span>
+            <div className="flex justify-between">
+              <span className="form-check-label mr-2 whitespace-normal">{item.bodyText}</span>
               {props.choice === item.stateValue && !item.isLocked && <span className={item.icon}></span>}
             </div>
           </div>

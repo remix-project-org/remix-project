@@ -80,47 +80,47 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
       </div>
       <div className="mt-3">
         <div>
-          <span className="text-dark me-2"><FormattedMessage id="udapp.fromLabel" /></span>
+          <span className="text-dark mr-2"><FormattedMessage id="udapp.fromLabel" /></span>
           <span>{tx.from}</span>
         </div>
         <div>
-          <span className="text-dark me-2"><FormattedMessage id="udapp.toLabel" /></span>
+          <span className="text-dark mr-2"><FormattedMessage id="udapp.toLabel" /></span>
           <span>{tx.to ? tx.to : `(${intl.formatMessage({ id: 'udapp.contractCreation' })})`}</span>
         </div>
-        <div className="d-flex align-items-center">
-          <span className="text-dark me-2"><FormattedMessage id="udapp.dataLabel" /></span>
+        <div className="flex items-center">
+          <span className="text-dark mr-2"><FormattedMessage id="udapp.dataLabel" /></span>
           <pre className="udapp_wrapword mb-0">
             {tx.data && tx.data.length > 50 ? tx.data.substring(0, 49) + '...' : tx.data}
             <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copy' })} content={tx.data} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyTransactionData', name: 'clicked', isClick: true })} />
           </pre>
         </div>
         <div className="mb-3">
-          <span className="text-dark me-2">
+          <span className="text-dark mr-2">
             <FormattedMessage id="udapp.amount" />:
           </span>
           <span>{amount} Ether</span>
         </div>
         <div>
-          <span className="text-dark me-2">
+          <span className="text-dark mr-2">
             <FormattedMessage id="udapp.gasEstimation" />:
           </span>
           <span>{gasEstimation}</span>
         </div>
         <div>
-          <span className="text-dark me-2">
+          <span className="text-dark mr-2">
             <FormattedMessage id="udapp.gasLimit" />:
           </span>
           <span>{tx.gasLimit}</span>
         </div>
         {network?.lastBlock?.baseFeePerGas ? (
           <div>
-            <div className="align-items-center my-1" title={intl.formatMessage({ id: 'udapp.title1' })}>
-              <div className="d-flex">
-                <span className="text-dark me-2 text-nowrap">
+            <div className="items-center my-1" title={intl.formatMessage({ id: 'udapp.title1' })}>
+              <div className="flex">
+                <span className="text-dark mr-2 whitespace-nowrap">
                   <FormattedMessage id="udapp.maxPriorityFee" />:
                 </span>
                 <input
-                  className="form-control me-1 text-end"
+                  className="form-control mr-1 text-right"
                   style={{ height: '1.2rem', width: '6rem' }}
                   id="maxpriorityfee"
                   onInput={(e: any) => onMaxPriorityFeeChange(e.target.value)}
@@ -129,29 +129,29 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
                 <span title={intl.formatMessage({ id: 'udapp.gweiGasPriceInfo' })}>Gwei</span>
               </div>
             </div>
-            <div className="align-items-center my-1" title={intl.formatMessage({ id: 'udapp.title2' })}>
-              <div className="d-flex">
-                <span className="text-dark me-2 text-nowrap">
+            <div className="items-center my-1" title={intl.formatMessage({ id: 'udapp.title2' })}>
+              <div className="flex">
+                <span className="text-dark mr-2 whitespace-nowrap">
                   <FormattedMessage id="udapp.maxFee" values={{ baseFeePerGas: formatUnits(BigInt(network.lastBlock.baseFeePerGas), 'gwei') }} />:
                 </span>
                 <input
-                  className="form-control me-1 text-end"
+                  className="form-control mr-1 text-right"
                   style={{ height: '1.2rem', width: '6rem' }}
                   id="maxfee"
                   onInput={(e: any) => onMaxFeeChange(e.target.value)}
                   defaultValue={baseFee}
                 />
                 <span>Gwei</span>
-                <span className="text-dark ms-2"></span>
+                <span className="text-dark ml-2"></span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="d-flex align-items-center my-1">
-            <span className="text-dark me-2 text-nowrap">
+          <div className="flex items-center my-1">
+            <span className="text-dark mr-2 whitespace-nowrap">
               <FormattedMessage id="udapp.gasPrice" />:
             </span>
-            <input className="form-control me-1 text-end" style={{ width: '40px', height: '28px' }} id="gasprice" onInput={(e: any) => onGasPriceChange(e.target.value)} />
+            <input className="form-control mr-1 text-right" style={{ width: '40px', height: '28px' }} id="gasprice" onInput={(e: any) => onGasPriceChange(e.target.value)} />
             <span>
                 Gwei (
               <FormattedMessage
@@ -169,7 +169,7 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
           </div>
         )}
         <div className="mb-3">
-          <span className="text-dark me-2">
+          <span className="text-dark mr-2">
             <FormattedMessage id="udapp.maxTransactionFee" />:
           </span>
           <span className="text-warning" id="txfee">
@@ -177,14 +177,14 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
           </span>
         </div>
       </div>
-      <div className="d-flex py-1 align-items-center form-check">
+      <div className="flex py-1 items-center form-check">
         <input
           className="form-check-input"
           id="confirmsetting"
           type="checkbox"
           onChange={(e) => trackMatomoEvent?.({ category: 'udapp', action: 'mainnetConfirmCheckbox', name: e.target.checked ? 'checked' : 'unchecked', isClick: true })}
         />
-        <label className="ms-1 mt-1 form-check-label" htmlFor="confirmsetting">
+        <label className="ml-1 mt-1 form-check-label" htmlFor="confirmsetting">
           <FormattedMessage id="udapp.mainnetText3" />
         </label>
       </div>

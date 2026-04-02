@@ -19,11 +19,11 @@ export const Disabled = () => {
     (platform === appPlatformTypes.desktop) ?
       <div className='p-1'>
         <div><FormattedMessage id="gitui.openFolderMessage"/></div>
-        <div data-id="openFolderButtonInDisabled" onClick={async () => { await openFolderElectron(null) }} className='btn btn-primary w-100 my-1'><FormattedMessage id="electron.openFolder" /></div>
-        <div data-id="cloneButton" onClick={async () => { await clone() }} className='btn btn-primary w-100'><FormattedMessage id="electron.gitClone" /></div>
+        <div data-id="openFolderButtonInDisabled" onClick={async () => { await openFolderElectron(null) }} className='btn btn-primary w-full my-1'><FormattedMessage id="electron.openFolder" /></div>
+        <div data-id="cloneButton" onClick={async () => { await clone() }} className='btn btn-primary w-full'><FormattedMessage id="electron.gitClone" /></div>
       </div>
       :
-      <div data-id='disabled' className='text-sm w-100 alert alert-warning'>
+      <div data-id='disabled' className='text-sm w-full alert alert-warning'>
         Git is currently disabled.<br></br>
         If you are using RemixD you can use git on the terminal.<br></br>
       </div>)

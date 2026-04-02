@@ -46,7 +46,7 @@ export const PublishToStorage = (props: RemixUiPublishToStorageProps) => {
                 <br></br>
                 <FormattedMessage id="publishToStorage.title4.message2" /><br></br><FormattedMessage id="publishToStorage.title4.message3" /><br></br>
                 <br></br>
-                <ul className="ps-3">
+                <ul className="pl-3">
                   <li key="ipfs-default"><FormattedMessage id="publishToStorage.title4.message4" /></li>
                   <li key="infura-options">
                     <FormattedMessage

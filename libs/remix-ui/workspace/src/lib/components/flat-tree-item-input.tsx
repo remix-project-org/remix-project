@@ -57,7 +57,7 @@ export const FlatTreeItemInput = (props: FlatTreeItemInputProps) => {
     style={{
       height: '1.5em',
     }}
-    className='form-control p-0 ms-2 remixui_items'
+    className='form-control p-0 ml-2 remixui_items'
     onFocus={handleFocus}
     onChange={changeValue}
     defaultValue={file.name}>

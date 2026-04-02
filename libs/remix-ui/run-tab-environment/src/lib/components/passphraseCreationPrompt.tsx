@@ -28,10 +28,10 @@ export function PassphraseCreationPrompt ({ udappEnv }: { udappEnv: EnvironmentP
   }
 
   return (
-    <div className="d-flex flex-column">
+    <div className="flex flex-col">
       <FormattedMessage id="udapp.text1" />
-      <input id="prompt1" type="password" name="prompt_text" className="w-100 py-2" onInput={handlePassphrase} />
-      <input id="prompt2" type="password" name="prompt_text" className="w-100" onInput={handleMatchPassphrase} />
+      <input id="prompt1" type="password" name="prompt_text" className="w-full py-2" onInput={handlePassphrase} />
+      <input id="prompt2" type="password" name="prompt_text" className="w-full" onInput={handleMatchPassphrase} />
     </div>
   )
 }

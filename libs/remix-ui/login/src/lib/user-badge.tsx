@@ -25,10 +25,10 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
   const [showDropdown, setShowDropdown] = useState(false)
 
   return (
-    <div className={`d-flex align-items-center ${className}`}>
+    <div className={`flex items-center ${className}`}>
       <div className="dropdown">
         <button
-          className="btn btn-sm btn-success dropdown-toggle d-flex flex-nowrap align-items-center"
+          className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-success dropdown-toggle flex flex-nowrap items-center"
           type="button"
           onClick={() => setShowDropdown(!showDropdown)}
           data-id="user-badge"
@@ -37,7 +37,7 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
             <img
               src={user.picture}
               alt="Avatar"
-              className="me-1"
+              className="mr-1"
               style={{
                 width: '20px',
                 height: '20px',
@@ -46,11 +46,11 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
               }}
             />
           ) : (
-            <span className="me-1">✓</span>
+            <span className="mr-1">✓</span>
           )}
           <span>{getUserDisplayName()}</span>
           {showCredits && credits && (
-            <span className="badge bg-light text-dark ms-2">
+            <span className="badge bg-light text-dark ml-2">
               {credits.balance} credits
             </span>
           )}
@@ -62,7 +62,7 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
           >
             <div className="dropdown-header">
               {user.picture && (
-                <div className="d-flex justify-content-center mb-2">
+                <div className="flex justify-center mb-2">
                   <img
                     src={user.picture}
                     alt="Avatar"
@@ -76,21 +76,21 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
                 </div>
               )}
               <div><strong>{getUserDisplayName()}</strong></div>
-              <div className="text-muted small">{getProviderDisplayName(user.provider)}</div>
+              <div className="text-gray-500 dark:text-gray-400 small">{getProviderDisplayName(user.provider)}</div>
             </div>
             {credits && (
               <>
                 <div className="dropdown-divider"></div>
                 <div className="dropdown-item-text small">
-                  <div className="d-flex justify-content-between mb-1">
+                  <div className="flex justify-between mb-1">
                     <span>Total Credits:</span>
                     <strong>{credits.balance}</strong>
                   </div>
-                  <div className="d-flex justify-content-between text-muted">
+                  <div className="flex justify-between text-gray-500 dark:text-gray-400">
                     <span>Free:</span>
                     <span>{credits.free_credits}</span>
                   </div>
-                  <div className="d-flex justify-content-between text-muted">
+                  <div className="flex justify-between text-gray-500 dark:text-gray-400">
                     <span>Paid:</span>
                     <span>{credits.paid_credits}</span>
                   </div>

@@ -34,7 +34,7 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
     errLine: null,
     errFile: null
   })
-  const [classList, setClassList] = useState(opt.type === 'error' ? 'alert alert-danger' : 'alert alert-warning')
+  const [classList, setClassList] = useState(opt.type === 'error' ? 'bg-danger/10 border border-danger text-danger rounded p-3' : 'bg-warning/10 border border-warning text-warning rounded p-3')
   const [close, setClose] = useState(false)
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
     setMessageText(text)
     setEditorOptions(opt)
     setClose(false)
-    setClassList(opt.type === 'error' ? 'alert alert-danger' : 'alert alert-warning')
+    setClassList(opt.type === 'error' ? 'bg-danger/10 border border-danger text-danger rounded p-3' : 'bg-warning/10 border border-warning text-warning rounded p-3')
   }, [message, opt])
 
   const handleErrorClick = (opt) => {
@@ -172,17 +172,17 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
           <div className="close" data-id="renderer" onClick={handleClose}>
             <i className="fas fa-times"></i>
           </div>
-          <div className="d-flex pt-1 flex-row-reverse">
-            <span className="ms-3 pt-1 py-1" >
+          <div className="flex pt-1 flex-row-reverse">
+            <span className="ml-3 pt-1 py-1" >
               <CopyToClipboard content={messageText} className={` p-0 m-0 far fa-copy ${classList}`} direction={'top'} />
             </span>
             <span
-              className="position-relative text-ai text-sm ps-0 pe-2"
+              className="relative text-ai text-sm pl-0 pr-2"
               style={{ fontSize: "x-small", alignSelf: "end" }}
             >
             </span>
             <button
-              className="btn btn-ai"
+              className="inline-flex items-center px-3 py-2 text-sm bg-ai border border-ai text-white rounded hover:bg-ai/80 transition-colors"
               data-id="ask-remix-ai-button"
               onClick={(event) => { event.preventDefault(); askGtp() }}
             >

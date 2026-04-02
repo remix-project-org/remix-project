@@ -31,16 +31,16 @@ export const ElectronMenu = (props: {
   return (
     (platform !== appPlatformTypes.desktop) ? null :
       (global.fs.browser.isSuccessfulWorkspace ? null :
-        <div className="p-3 d-flex flex-column h-100">
+        <div className="p-3 flex flex-col h-full">
           <div>
-            <div data-id="openFolderButton" onClick={async () => { await openFolderElectron(null) }} className='btn btn-primary mb-2 w-100'><FormattedMessage id="electron.openFolder" /></div>
-            <div data-id="createWorkspaceButton" onClick={async () => { await props.createWorkspace() }} className='btn btn-primary mb-2 w-100'><FormattedMessage id="electron.createProject" /></div>
-            <div data-id="cloneFromGitButton" onClick={async () => { props.clone() }} className='btn btn-primary mb-3 w-100'><FormattedMessage id="electron.gitClone" /></div>
+            <div data-id="openFolderButton" onClick={async () => { await openFolderElectron(null) }} className='inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors mb-2 w-full'><FormattedMessage id="electron.openFolder" /></div>
+            <div data-id="createWorkspaceButton" onClick={async () => { await props.createWorkspace() }} className='inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors mb-2 w-full'><FormattedMessage id="electron.createProject" /></div>
+            <div data-id="cloneFromGitButton" onClick={async () => { props.clone() }} className='inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors mb-3 w-full'><FormattedMessage id="electron.gitClone" /></div>
           </div>
 
           {global.fs.browser.recentFolders.length > 0 ?
-            <div className="border-top pt-3 d-flex flex-column flex-fill recent-folders-section">
-              <div className="recent-folders-label mb-2 fw-bold text-uppercase">
+            <div className="border-t pt-3 flex flex-col flex-1 recent-folders-section">
+              <div className="recent-folders-label mb-2 font-bold uppercase">
                 <FormattedMessage id="electron.recentFolders" />
               </div>
               <ul className="recent-folders-list gap-2">
@@ -55,7 +55,7 @@ export const ElectronMenu = (props: {
                             tooltipId={`electron-recent-folder-path-${index}`}
                             placement='bottom'
                           >
-                            <div className="recentfolder_path text-muted small" data-id={`recent_folder_${folder}`}>{folder}</div>
+                            <div className="recentfolder_path text-gray-500 dark:text-gray-400 small" data-id={`recent_folder_${folder}`}>{folder}</div>
                           </CustomTooltip>
                         </div>
 

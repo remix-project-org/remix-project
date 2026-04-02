@@ -54,12 +54,12 @@ export function ForkUI() {
 
   return (
     <div className='m-3 mt-0 p-3 pt-2 pb-0 rounded' style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-      <div className="d-flex justify-content-between align-items-center mb-2">
+      <div className="flex justify-between items-center mb-2">
         <p className="mb-0" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem' }}>
           {intl.formatMessage({ id: 'udapp.forkStateTitle' })}
         </p>
         <button
-          className="btn btn-sm"
+          className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
           onClick={() => {
             trackMatomoEvent?.({ category: 'udapp', action: 'forkDialogClose', name: 'close_button', isClick: true })
             dispatch({ type: 'HIDE_FORK_UI', payload: undefined })
@@ -74,16 +74,16 @@ export function ForkUI() {
           }}
         > × </button>
       </div>
-      <p style={{ color: 'var(--bs-tertiary)' }} className="mb-2 fw-light small">
+      <p style={{ color: 'var(--bs-tertiary)' }} className="mb-2 font-light small">
         <FormattedMessage id="udapp.forkingStateDescription" />
       </p>
       <div className="mb-3">
-        <div className="d-flex align-items-center mb-2">
-          <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
+        <div className="flex items-center mb-2">
+          <label className="mb-0 mr-2" style={{ color: 'var(--bs-tertiary)' }}>
             <FormattedMessage id="udapp.forkNameLabel" />
           </label>
         </div>
-        <div className="position-relative flex-fill">
+        <div className="relative flex-1">
           <input
             data-id="forkInput"
             type="text"
@@ -99,7 +99,7 @@ export function ForkUI() {
           />
           <button
             data-id="btnForkState"
-            className="btn btn-sm btn-primary"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-primary"
             onClick={handleSubmit}
             disabled={widgetState.fork.isRequesting || !forkName.trim()}
             style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, fontSize: '0.65rem', fontWeight: 'bold' }}

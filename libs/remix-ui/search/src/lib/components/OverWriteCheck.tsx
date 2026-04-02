@@ -13,8 +13,8 @@ export const OverWriteCheck = (props) => {
     <>
       {state.replaceEnabled ? (
         <div className="search_plugin_find-part">
-          <div className="mb-2 d-flex flex-row form-check">
-            <input className="me-2 form-check-input" id="confirm_replace" type="checkbox" onChange={change} />
+          <div className="mb-2 flex flex-row form-check">
+            <input className="mr-2 form-check-input" id="confirm_replace" type="checkbox" onChange={change} />
             <label htmlFor="confirm_replace" data-id="confirm_replace_label" className="form-check-label">
               <FormattedMessage id="search.replaceWithoutConfirmation" />
             </label>

@@ -1,13 +1,13 @@
 body {
-    font-size          : .8rem;
+    font-size: 0.875rem;
 }
 .circuit_section {
-    padding: 12px 24px 16px;
+    padding: 0.75rem 1.5rem 1rem 1.5rem;
 }
 .circuit_label {
-    margin-bottom: 2px;
-    font-size: 11px;
-    line-height: 12px;
+    margin-bottom: 0.125rem;
+    font-size: 0.75rem;
+    line-height: 0.75rem;
     text-transform: uppercase;
 }
 .circuit_warnings_box {
@@ -31,25 +31,27 @@ body {
     margin: 0;
 }
 .circuit_inner_label {
-    margin-bottom: 2px;
-    font-size: 11px;
-    line-height: 12px;
+    margin-bottom: 0.125rem;
+    font-size: 0.75rem;
+    line-height: 0.75rem;
     text-transform: uppercase;
 }
 .circuit_errors_box {
     word-break: break-word;
+    overflow-wrap: break-word;
 }
 .circuit_feedback.success,
 .circuit_feedback.error,
 .circuit_feedback.warning {
   white-space: pre-line;
-  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
   cursor: pointer;
   position: relative;
-  margin: 0.5em 0 1em 0;
-  border-radius: 5px;
+  margin: 0.5rem 0 1rem 0;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
   line-height: 20px;
-  padding: 8px 15px;
 }
 
 .circuit_feedback.success pre,
@@ -59,8 +61,8 @@ body {
   overflow-y: hidden;
   background-color: transparent;
   margin: 0;
-  font-size: 12px;
-  border: 0 none;
+  font-size: 0.75rem;
+  border: none;
   padding: 0;
   border-radius: 0;
 }
@@ -72,10 +74,10 @@ body {
   white-space: pre-line;
   font-weight: bold;
   position: absolute;
-  color: hsl(0, 0%, 0%); /* black in style-guide.js */
   top: 0;
   right: 0;
-  padding: 0.5em;
+  padding: 0.5rem;
+  color: hsl(0, 0%, 0%); /* black in style-guide.js */
 }
 
 .circuit_feedback.success a,
@@ -85,17 +87,17 @@ body {
   right: 0;
 }
 .custom-dropdown-items {
-    padding: 0.25rem 0.25rem;
-    border-radius: .25rem;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
     background: var(--custom-select);
 }
 .custom-dropdown-items a {
-    border-radius: .25rem;
+    border-radius: 0.25rem;
     text-transform: none;
     text-decoration: none;
     font-weight: normal;
     font-size: 0.875rem;
-    padding: 0.25rem 0.25rem;
+    padding: 0.25rem;
     width: auto;
     color: var(--text);
 }

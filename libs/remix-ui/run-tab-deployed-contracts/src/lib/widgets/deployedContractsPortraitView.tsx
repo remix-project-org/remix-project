@@ -178,20 +178,20 @@ export default function DeployedContractsPortraitView() {
 
   return (
     <div className="deployed-contracts-container card mx-2 my-2" data-id="deployedContractsContainer" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', position: 'relative' } as React.CSSProperties}>
-      <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }}>
-        <div className='d-flex align-items-center gap-2'>
+      <div className="p-3 flex items-center justify-between" style={{ cursor: 'pointer' }}>
+        <div className='flex items-center gap-2'>
           <h6 className="my-auto" style={{ color: themeQuality === 'dark' ? 'white' : 'black', margin: 0 }}>
             <FormattedMessage id="udapp.deployedContracts" defaultMessage="Deployed Contracts" />
           </h6>
           <span className="text-secondary" data-id="deployedContractsBadge">{deployedContracts.length}</span>
         </div>
         <div>
-          <button className='btn btn-primary btn-sm small' style={{ fontSize: '0.7rem' }} onClick={handleAddClick} data-id="addDeployedContract">
+          <button className='btn btn-primary btn-sm' style={{ fontSize: '0.7rem' }} onClick={handleAddClick} data-id="addDeployedContract">
             <i className='fa-solid fa-plus'></i> Add Contract
           </button>
           {deployedContracts.length > 0 && (
             <button
-              className="btn btn-outline-danger btn-sm pe-0"
+              className="btn btn-outline-danger btn-sm pr-0"
               data-id="clearAllDeployedContracts"
               onClick={handleClearAllClick}
               style={{ background: 'none', border: 'none' }}
@@ -201,16 +201,16 @@ export default function DeployedContractsPortraitView() {
           )}
         </div>
       </div>
-      { !showClearAllDialog && <p className='text-muted px-3' style={{ fontSize: '0.8rem' }}>Interact with a deployed contract</p>}
+      { !showClearAllDialog && <p className='text-gray-500 dark:text-gray-400 px-3' style={{ fontSize: '0.8rem' }}>Interact with a deployed contract</p>}
       {/* Add Contract Dialog */}
       {showAddDialog && (
         <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-          <div className="d-flex justify-content-between align-items-center mb-2">
+          <div className="flex justify-between items-center mb-2">
             <p className="mb-0" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem' }}>
               Add a deployed contract
             </p>
             <button
-              className="btn btn-sm"
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
               onClick={() => {
                 trackMatomoEvent?.({ category: 'udapp', action: 'addContractDialogClose', name: 'close_button', isClick: true })
                 handleCancelAdd()
@@ -225,18 +225,18 @@ export default function DeployedContractsPortraitView() {
               }}
             > × </button>
           </div>
-          <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 fw-light">
+          <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 font-light">
             <FormattedMessage
               id="udapp.addDeployedContract"
               defaultMessage="Open the contract .abi or compiled .sol file in the code editor and paste the contract address below."
             />
           </p>
-          <div className="d-flex align-items-center mb-2">
-            <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
+          <div className="flex items-center mb-2">
+            <label className="mb-0 mr-2" style={{ color: 'var(--bs-tertiary)' }}>
                 Contract address
             </label>
           </div>
-          <div className="position-relative flex-fill">
+          <div className="relative flex-1">
             <input
               type="text"
               value={addressInput}
@@ -247,7 +247,7 @@ export default function DeployedContractsPortraitView() {
               style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', flex: 1, padding: '0.75rem', paddingRight: '3.5rem', fontSize: '0.75rem' }}
             />
             <button
-              className="btn btn-sm btn-primary"
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-primary"
               disabled={!enableAtAddress}
               onClick={handleAddContract}
               data-id="addDeployedContractButton"
@@ -262,12 +262,12 @@ export default function DeployedContractsPortraitView() {
       {/* Clear All Confirmation Dialog */}
       {showClearAllDialog && (
         <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-          <div className="d-flex justify-content-between align-items-center mb-2">
+          <div className="flex justify-between items-center mb-2">
             <p className="mb-0 text-danger text-theme-contrast" style={{ fontSize: '0.9rem' }}>
             Clear all deployed contracts
             </p>
             <button
-              className="btn btn-sm"
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
               onClick={() => {
                 trackMatomoEvent?.({ category: 'udapp', action: 'clearAllDialogClose', name: 'close_button', isClick: true })
                 handleCancelClearAll()
@@ -289,16 +289,16 @@ export default function DeployedContractsPortraitView() {
             />
           </p>
           <p className="text-theme-contrast">Do you want to proceed?</p>
-          <div className="d-flex justify-content-between align-items-center gap-3">
+          <div className="flex justify-between items-center gap-3">
             <button
-              className="btn btn-sm btn-secondary flex-fill"
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-secondary flex-1"
               onClick={handleCancelClearAll}
               data-id="cancelClearAll"
             >
               <FormattedMessage id="udapp.cancel" defaultMessage="Cancel" />
             </button>
             <button
-              className="btn btn-sm btn-danger text-light flex-fill"
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-danger text-light flex-1"
               onClick={handleConfirmClearAll}
               data-id="confirmClearAll"
             >
@@ -310,7 +310,7 @@ export default function DeployedContractsPortraitView() {
 
       {/* Contract List or Empty State */}
       {deployedContracts.length === 0 && !showClearAllDialog ? (
-        <div className="text-muted px-3 pb-1">
+        <div className="text-gray-500 dark:text-gray-400 px-3 pb-1">
           <div className="empty-state-text">
             <FormattedMessage
               id="udapp.noDeployedContracts"

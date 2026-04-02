@@ -20,11 +20,11 @@ export function SettingsUI() {
   return (
     <div className="px-4">
       <div className="bg-light mt-2 mb-4 p-3">
-        <div className="d-flex justify-content-between align-items-center">
+        <div className="flex justify-between items-center">
           <div className="bg-transparent m-0 p-0 border-0 alert alert-secondary">
             <div className="input-group-prepend">
               <span
-                className="input-group-text border-0 p-0 bg-transparent text-uppercase"
+                className="input-group-text border-0 p-0 bg-transparent uppercase"
                 style={{ fontSize: 11 }}
               >
                 {name} at {shortenAddress(address)}
@@ -39,7 +39,7 @@ export function SettingsUI() {
             </div>
             <div className="input-group-prepend">
               <div
-                className="input-group-text border-0 p-0 bg-transparent text-uppercase"
+                className="input-group-text border-0 p-0 bg-transparent uppercase"
                 style={{ fontSize: 11 }}
               >
                 <FormattedMessage id="udapp.balance" />: {balance} ETH
@@ -57,14 +57,14 @@ export function SettingsUI() {
         {/* <ThemeUI /> */}
       </div>
       <LowLevelInteractions />
-      <div className="p-2 w-auto d-flex justify-content-between align-items-center">
+      <div className="p-2 w-auto flex justify-between items-center">
         <span>
           QuickDapp by{' '}
           <a href={`https://remix.ethereum.org`} target="_blank">
             <CustomTooltip
               placement="top"
               tooltipId="remix"
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipText="Remix IDE"
             >
               <img
@@ -79,7 +79,7 @@ export function SettingsUI() {
         {!isMobile() && verified && (
           <a
             href={`https://remix.ethereum.org/address/${address}`}
-            className="btn btn-primary"
+            className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
             role="button"
             aria-disabled="true"
             target="_blank"

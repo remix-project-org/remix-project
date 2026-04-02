@@ -10,7 +10,7 @@ interface Props {
 
 export const DefaultLayout = ({ children, title, description }: PropsWithChildren<Props>) => {
   return (
-    <div className="d-flex flex-column h-100">
+    <div className="flex flex-col h-full">
       <NavMenu />
       <div className="py-4 px-3 flex-grow-1 bg-light" style={{ overflowY: 'auto' }}>
         <div data-id={`${title}Description`}>

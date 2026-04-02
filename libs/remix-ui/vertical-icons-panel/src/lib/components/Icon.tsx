@@ -87,7 +87,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme }: Icon
   const stylePC = iconRecord.active ? 'flex-start' : 'center'
   return (
     <>
-      <div className='d-flex py-1' style={{ width: 'auto', placeContent: stylePC }}>
+      <div className='flex py-1' style={{ width: 'auto', placeContent: stylePC }}>
         <div
           className={`pt-1 ${iconRecord.active ? 'bg-primary' : 'bg-transparent'}`}
           style={{ width: "6px", height: "36px", position: 'relative', borderRadius: '24%' }}
@@ -100,7 +100,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme }: Icon
           {
             name === 'remixaiassistant' ? (
               <div
-                className={`remixui_icon_ai ms-1  pt-1`}
+                className={`remixui_icon_ai ml-1  pt-1`}
                 onClick={() => {
                   if (iconRecord.pinned) {
                     verticalIconPlugin.call('rightSidePanel', 'highlight')

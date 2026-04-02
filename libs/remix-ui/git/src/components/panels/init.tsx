@@ -22,7 +22,7 @@ export const Init = () => {
           <h6><FormattedMessage id="gitui.initialize" /></h6>
           <GitUIButton
             onClick={init}
-            className="btn w-md-25 w-100 btn-primary"
+            className="btn w-md-25 w-full btn-primary"
             data-id="initgit-btn"
           ><FormattedMessage id='git.init' /></GitUIButton>
         </div>

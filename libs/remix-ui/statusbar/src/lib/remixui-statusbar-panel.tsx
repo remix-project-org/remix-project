@@ -77,7 +77,7 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
   }
 
   if (platform !== appPlatformTypes.desktop && appContext.appState.connectedToDesktop !== desktopConnectionType.disabled) {
-    return (<><div className="d-flex remixui_statusbar_height flex-row bg-warning justify-content-between align-items-center">
+    return (<><div className="flex remixui_statusbar_height flex-row bg-warning justify-between items-center">
       <DesktopStatus /></div></>)
   }
 
@@ -101,30 +101,30 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
             />
           </FloatingFocusManager>
         )}
-        <div className="d-flex remixui_statusbar_height flex-row bg-info justify-content-between align-items-center">
-          {(platform !== appPlatformTypes.desktop) && <div className="remixui_statusbar bg-warning px-2 remixui_statusbar_custom_padding d-flex justify-center align-items-center">
+        <div className="flex remixui_statusbar_height flex-row bg-info justify-between items-center">
+          {(platform !== appPlatformTypes.desktop) && <div className="remixui_statusbar bg-warning px-2 remixui_statusbar_custom_padding flex justify-center items-center">
             <ScamAlertStatus refs={refs} getReferenceProps={getReferenceProps} />
           </div>}
           {(platform === appPlatformTypes.desktop) && <div className="remixui_statusbar">
             <DesktopStatus /></div>}
 
-          <div className='d-flex w-100 justify-content-between'>
+          <div className='flex w-full justify-between'>
             <div className="remixui_statusbar remixui_statusbar_gitstatus">
               <GitStatus plugin={statusBarPlugin} gitBranchName={gitBranchName} setGitBranchName={setGitBranchName} />
             </div>
             {isTypeLoadingActive &&
-              <div className="remixui_statusbar d-flex w-100 justify-content-start p-0 ms-3 text-white">
-                <span className="spinner-border spinner-border-sm me-2" role="status">
+              <div className="remixui_statusbar flex w-full justify-start p-0 ml-3 text-white">
+                <span className="spinner-border spinner-border-sm mr-2" role="status">
                 </span>
                 <span className="">loading typescript types</span>
               </div>}
           </div>
 
-          <div className="w-100 remixui_statusbar">
+          <div className="w-full remixui_statusbar">
             <DidYouKnow />
           </div>
 
-          <div className="remixui_statusbar d-flex w-100 justify-content-end p-0">
+          <div className="remixui_statusbar flex w-full justify-end p-0">
 
             <div className="remixui_statusbar" data-id="remixui_status_bottom_bar">
               <AIStatus plugin={statusBarPlugin} aiActive={lightAiUp} isAiActive={isAiActive} setIsAiActive={setIsAiActive} />

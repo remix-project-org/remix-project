@@ -105,7 +105,7 @@ export class StatusBar extends Plugin<any, CustomRemixApi> implements StatusBarI
 
   render() {
     return (
-      <div data-id="status-bar-container">
+      <div data-id="status-bar-container mx-auto px-4">
         <PluginViewWrapper useAppContext={true} plugin={this} />
       </div>
     )

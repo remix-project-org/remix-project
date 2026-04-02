@@ -33,7 +33,7 @@ const ActionNotificationContainer = () => {
 
   return (
     <div
-      className="action-notification-container"
+      className="action-notification-container mx-auto px-4"
       style={{
         position: 'fixed',
         bottom: '30px',

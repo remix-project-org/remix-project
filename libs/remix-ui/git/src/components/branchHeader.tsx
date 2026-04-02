@@ -60,34 +60,34 @@ export const BranchHeader = () => {
 
   const Heading = () => {
     return (
-      <div className="container-fluid px-0">
-        <div className="d-flex flex-column pt-1 mb-1">
-          <div className="d-flex flex-column justify-content-start align-items-start w-100">
+      <div className="container mx-auto px-4-fluid px-0">
+        <div className="flex flex-col pt-1 mb-1">
+          <div className="flex flex-col justify-start items-start w-full">
             {getName() ? (
-              <span className={`text-truncate overflow-hidden whitespace-nowrap w-100`}>
+              <span className={`truncate overflow-hidden whitespace-nowrap w-full`}>
                 {getName() ?? ''}
                 {context.currentBranch && context.currentBranch.remote && context.currentBranch.remote.name ? ` on ${context.currentBranch.remote.name}` : ''}
               </span>
             ) : null
             }
             {context.currentBranch && context.currentBranch.name ?
-              <span className="text-secondary text-truncate overflow-hidden whitespace-nowrap w-100">
-                <i className="fa fa-code-branch me-1"></i>{context.currentBranch && context.currentBranch.name}{changed?'*':''}
+              <span className="text-secondary truncate overflow-hidden whitespace-nowrap w-full">
+                <i className="fa fa-code-branch mr-1"></i>{context.currentBranch && context.currentBranch.name}{changed?'*':''}
               </span> : null}
             {(latestCommit && latestCommit.commit && latestCommit.commit.message) ?
-              <span className="text-secondary text-truncate overflow-hidden whitespace-nowrap w-100">
+              <span className="text-secondary truncate overflow-hidden whitespace-nowrap w-full">
                 {latestCommit ?
                   latestCommit.commit && latestCommit.commit.message ? `"${latestCommit.commit.message}"` : '' : null}
               </span>
               : null}
             {isDetached ?
-              <span className="text-secondary text-truncate overflow-hidden whitespace-nowrap w-100">
+              <span className="text-secondary truncate overflow-hidden whitespace-nowrap w-full">
                 {isDetached ?
-                  <>You are in a detached state<i onClick={showDetachedWarningText} className="btn fa fa-info-circle me-1"></i></> : null}
+                  <>You are in a detached state<i onClick={showDetachedWarningText} className="btn fa fa-info-circle mr-1"></i></> : null}
               </span>
               : null}
             {context.storage.enabled ?
-              <span className="text-secondary text-sm text-truncate overflow-hidden whitespace-nowrap w-100">
+              <span className="text-secondary text-sm truncate overflow-hidden whitespace-nowrap w-full">
                 {context.storage.used} MB used
                 ({context.storage.percentUsed} %)
               </span>
@@ -99,7 +99,7 @@ export const BranchHeader = () => {
   }
 
   return (<>
-    <div className='text-sm w-100'>
+    <div className='text-sm w-full'>
       <Heading />
     </div>
     <hr></hr>

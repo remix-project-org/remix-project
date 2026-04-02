@@ -46,42 +46,42 @@ export const LogNavigation = ({ eventKey, activePanel, callback }) => {
 
   return (
     <>
-      <div className={'d-flex justify-content-between pt-1 pb-1 ' + (activePanel === eventKey ? 'bg-light' : '')}>
-        <span onClick={() => handleClick()} role={'button'} className='nav d-flex justify-content-start align-items-center w-75 ms-1'>
+      <div className={'flex justify-between pt-1 pb-1 ' + (activePanel === eventKey ? 'bg-light' : '')}>
+        <span onClick={() => handleClick()} role={'button'} className='nav flex justify-start items-center w-3/4 ml-1'>
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          <label className="ps-2 nav form-check-label me-2"><FormattedMessage id="gitui.log" /></label>
+          <label className="pl-2 nav form-check-label mr-2"><FormattedMessage id="gitui.log" /></label>
           {logState.errorCount > 0 && (
-            <div className="text-danger me-1">
+            <div className="text-danger mr-1">
               {logState.errorCount}
-              <FontAwesomeIcon className="ms-1" icon={faTriangleExclamation} />
+              <FontAwesomeIcon className="ml-1" icon={faTriangleExclamation} />
             </div>
           )}
 
           {logState.warningCount > 0 && (
-            <div className="text-warning me-1">
+            <div className="text-warning mr-1">
               {logState.warningCount}
-              <FontAwesomeIcon className="ms-1" icon={faWarning} />
+              <FontAwesomeIcon className="ml-1" icon={faWarning} />
             </div>
           )}
 
           {logState.infoCount > 0 && (
-            <div className="text-info me-1">
+            <div className="text-info mr-1">
               {logState.infoCount}
-              <FontAwesomeIcon className="ms-1" icon={faCircleInfo} />
+              <FontAwesomeIcon className="ml-1" icon={faCircleInfo} />
             </div>
           )}
 
           {logState.successCount > 0 && (
             <div className="text-success">
               {logState.successCount}
-              <FontAwesomeIcon className="ms-1" icon={faCircleCheck} />
+              <FontAwesomeIcon className="ml-1" icon={faCircleCheck} />
             </div>
           )}
         </span>
         {context.log && context.log.length > 0 && (
-          <FontAwesomeIcon onClick={clearLogs} className='btn btn-sm' icon={faBan}></FontAwesomeIcon>)}
+          <FontAwesomeIcon onClick={clearLogs} className='inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors' icon={faBan}></FontAwesomeIcon>)}
       </div>
     </>
   );

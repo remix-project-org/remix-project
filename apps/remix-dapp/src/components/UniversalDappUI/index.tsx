@@ -101,8 +101,8 @@ export function UniversalDappUI(props: any) {
 
   const label = (key: string | number, value: string) => {
     return (
-      <div className="d-flex mt-2 flex-row label_item">
-        <label className="small fw-bold mb-0 pe-1 text-break label_key">
+      <div className="flex mt-2 flex-row label_item">
+        <label className="small font-bold mb-0 pr-1 break-words label_key">
           {key}:
         </label>
         <label className="m-0 label_value">{value}</label>
@@ -180,7 +180,7 @@ export function UniversalDappUI(props: any) {
                   data-id={`function${funcId}`}
                   key={funcId}
                 >
-                  <div className="w-100 mb-2">
+                  <div className="w-full mb-2">
                     <div>
                       {funcABI.title && <h3 data-id={`functionTitle${funcId}`}>{funcABI.title}</h3>}
                       <ContractGUI

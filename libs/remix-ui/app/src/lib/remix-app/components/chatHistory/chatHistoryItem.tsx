@@ -97,7 +97,7 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
 
   return (
     <div
-      className={`conversation-item chat-history-item p-3 mb-2 rounded-3 cursor-pointer position-relative ${active ? (theme.toLowerCase() === 'light' ? 'conversation-item-active-light' : 'conversation-item-active') : ''}`}
+      className={`conversation-item chat-history-item p-3 mb-2 rounded-lg cursor-pointer relative ${active ? (theme.toLowerCase() === 'light' ? 'conversation-item-active-light' : 'conversation-item-active') : ''}`}
       onClick={onClick}
       data-id={`conversation-item-${conversation.id}`}
       data-theme={theme.toLowerCase()}
@@ -113,16 +113,16 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
         e.currentTarget.style.backgroundColor = theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--bs-body-bg)'
       }}
     >
-      <div className="d-flex align-items-center gap-2 flex-nowrap">
-        <div className={`conversation-title text-truncate flex-grow-1 mb-0 ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-dark'}`}>
+      <div className="flex items-center gap-2 flex-nowrap">
+        <div className={`conversation-title truncate flex-grow-1 mb-0 ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-dark'}`}>
           {conversation.title}
         </div>
-        <div className={`conversation-meta text-nowrap ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-muted'} small`}>
+        <div className={`conversation-meta whitespace-nowrap ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-gray-500 dark:text-gray-400'} small`}>
           {formatDate(conversation.lastAccessedAt)} · {conversation.messageCount} message{conversation.messageCount !== 1 ? 's' : ''}
         </div>
-        <div className="conversation-menu-trigger ms-1 flex-shrink-0" ref={menuContainerRef}>
+        <div className="conversation-menu-trigger ml-1 flex-shrink-0" ref={menuContainerRef}>
           <button
-            className="btn btn-sm p-0 conversation-menu-btn"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors p-0 conversation-menu-btn"
             onClick={(event) => {
               event.stopPropagation()
               if (showMenu) {
@@ -151,7 +151,7 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
 
           {showMenu && (
             <div
-              className="conversation-menu position-fixed shadow-sm"
+              className="conversation-menu fixed shadow-sm"
               ref={menuPanelRef}
               data-theme={theme.toLowerCase()}
               style={{
@@ -161,25 +161,25 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
               }}
             >
               <button
-                className="conversation-menu-item w-100 text-start"
+                className="conversation-menu-item w-full text-left"
                 onClick={(e) => {
                   e.stopPropagation()
                   onArchive(e)
                   setShowMenu(false)
                 }}
               >
-                <i className={`fas ${conversation.archived ? 'fa-inbox' : 'fa-archive'} me-2`}></i>
+                <i className={`fas ${conversation.archived ? 'fa-inbox' : 'fa-archive'} mr-2`}></i>
                 {conversation.archived ? 'Unarchive' : 'Archive'}
               </button>
               <button
-                className="conversation-menu-item conversation-menu-item-danger w-100 text-start"
+                className="conversation-menu-item conversation-menu-item-danger w-full text-left"
                 onClick={(e) => {
                   e.stopPropagation()
                   onDelete(e)
                   setShowMenu(false)
                 }}
               >
-                <i className="fas fa-trash me-2"></i>
+                <i className="fas fa-trash mr-2"></i>
                 Delete
               </button>
             </div>

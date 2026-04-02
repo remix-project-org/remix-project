@@ -22,7 +22,7 @@ export class HardhatProvider extends AbstractProvider {
       <div>
         {' '}
         <FormattedMessage id="udapp.hardhatProviderText1" />
-        <div className="p-1 ps-3">
+        <div className="p-1 pl-3">
           <b>npx hardhat node</b>
         </div>
         <div className="pt-2 pb-4">

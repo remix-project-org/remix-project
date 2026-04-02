@@ -43,7 +43,7 @@ export const Remotes = () => {
 
   return (
     <>
-      <div data-id="remotes-panel-content" className="d-flex flex-column">
+      <div data-id="remotes-panel-content" className="flex flex-col">
         {context.remotes && context.remotes.length ?
           <div>
 
@@ -54,17 +54,17 @@ export const Remotes = () => {
               );
             })}
           </div> : <div>
-            <label className="text-uppercase"><FormattedMessage id="gitui.noRemotes" /></label>
+            <label className="uppercase"><FormattedMessage id="gitui.noRemotes" /></label>
           </div>}
         <hr></hr>
-        <label className="text-uppercase"><FormattedMessage id="gitui.addRemoteFromGitHub" /></label>
+        <label className="uppercase"><FormattedMessage id="gitui.addRemoteFromGitHub" /></label>
         <RemotesImport />
         <hr></hr>
-        <label className="text-uppercase"><FormattedMessage id="gitui.addRemoteManually" /></label>
+        <label className="uppercase"><FormattedMessage id="gitui.addRemoteManually" /></label>
         <input data-id="add-manual-remotename" placeholder={intl.formatMessage({ id: 'gitui.remoteNamePlaceholder' })} name='remotename' onChange={e => onRemoteNameChange(e.target.value)} value={remoteName} className="form-control mb-2" type="text" id="remotename" />
         <input data-id="add-manual-remoteurl" placeholder={intl.formatMessage({ id: 'gitui.remoteUrlPlaceholder' })} name='remoteurl' onChange={e => onUrlChange(e.target.value)} value={url} className="form-control mb-2" type="text" id="remoteurl" />
 
-        <button data-id="add-manual-remotebtn" disabled={(remoteName && url) ? false : true} className='btn btn-primary mt-1 w-100' onClick={async () => {
+        <button data-id="add-manual-remotebtn" disabled={(remoteName && url) ? false : true} className='btn btn-primary w-full mt-1' onClick={async () => {
           addRemote();
         }}><FormattedMessage id="gitui.addRemote" /></button>
         <hr className="mt-0 border border-2" />

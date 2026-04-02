@@ -9,9 +9,9 @@ export function GenerateWorkspaceWithAi() {
   const { setIsAiWorkspaceBeingGenerated } = useContext(AppContext)
   return (
     <section className="mx-3 p-2">
-      <div className="d-flex flex-column p-3 bg-light" style={{ minHeight: '90%', borderRadius: '10px' }}>
-        <div className="d-flex flex-row justify-content-between align-items-center mb-3 border-bottom border-light">
-          <label className="form-label text-uppercase mb-2">Write a prompt to generate a workspace</label>
+      <div className="flex flex-col p-3 bg-light" style={{ minHeight: '90%', borderRadius: '10px' }}>
+        <div className="flex flex-row justify-between items-center mb-3 border-b border-light">
+          <label className="form-label uppercase mb-2">Write a prompt to generate a workspace</label>
           <span className="badge badge-pill text-primary border mb-2 border-primary">Beta</span>
         </div>
         <div>
@@ -20,15 +20,15 @@ export function GenerateWorkspaceWithAi() {
             rows={10}
           />
         </div>
-        <div className="d-flex justify-content-end align-items-center mt-3">
-          <button className="btn btn-primary btn-sm" data-id="validateWorkspaceButton" onClick={async () => {
+        <div className="flex justify-end items-center mt-3">
+          <button className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors btn-sm" data-id="validateWorkspaceButton" onClick={async () => {
             facade.closeWizard()
 
             trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiRequestSent', name: state.workspaceName, isClick: true })
             await plugin.call('remixaiassistant', 'chatPipe', '/generate ' + state.workspaceName)
             // further matomo events handled by generate function
           }}>
-            <i className="fa-solid fa-magic me-2"></i>
+            <i className="fa-solid fa-magic mr-2"></i>
           Generate my Workspace
           </button>
         </div>

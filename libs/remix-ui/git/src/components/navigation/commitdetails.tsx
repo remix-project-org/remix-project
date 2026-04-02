@@ -27,7 +27,7 @@ export const CommitDetailsNavigation = (props: CommitDetailsNavigationProps) => 
   }
   return (
     <>
-      <div onClick={() => handleClick()} role={'button'} className={`pointer mb-2 mt-2 w-100 d-flex flex-row commit-navigation ${isAheadOfRepo ? 'text-success' : ''}`}>
+      <div onClick={() => handleClick()} role={'button'} className={`pointer mb-2 mt-2 w-full flex flex-row commit-navigation ${isAheadOfRepo ? 'text-success' : ''}`}>
         {
           activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
         }

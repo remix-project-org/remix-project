@@ -28,15 +28,15 @@ const FilterView = ({ categoryMap, selectedCategories, setSelectedCategories }: 
 
   return (
     <div data-id="filter-panel" className="my-2 bg-light border rounded p-3">
-      <div className="d-flex justify-content-between align-items-center mb-2">
+      <div className="flex justify-between items-center mb-2">
         <span className="font-weight-bold">Filters</span>
-        <button onClick={clearFilters} className="btn btn-sm btn-link text-primary p-0 clear-filters-btn" data-id="clear-filters-btn">
-          <span className="clear-x me-1" aria-hidden>&times;</span>
+        <button onClick={clearFilters} className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-link text-primary p-0 clear-filters-btn" data-id="clear-filters-btn">
+          <span className="clear-x mr-1" aria-hidden>&times;</span>
           <span className="clear-text">Clear filters</span>
         </button>
       </div>
-      <div className="border-bottom">
-        <button className="d-flex justify-content-between align-items-center w-100 py-2 btn btn-transparent text-secondary p-0" onClick={() => setIsOpen(!isOpen)}>
+      <div className="border-b">
+        <button className="flex justify-between items-center w-full py-2 btn btn-transparent text-secondary p-0" onClick={() => setIsOpen(!isOpen)}>
           <span className="font-size-12">CATEGORY</span>
           <span className={`chevron-icon ${isOpen ? 'open' : ''}`}><ChevronRight /></span>
         </button>
@@ -49,7 +49,7 @@ const FilterView = ({ categoryMap, selectedCategories, setSelectedCategories }: 
                 <div className="custom-control custom-checkbox mb-2" key={categoryId}>
                   <input
                     type="checkbox"
-                    className="custom-control-input me-1"
+                    className="custom-control-input mr-1"
                     id={checkboxId}
                     data-id={checkboxId}
                     checked={selectedCategories.includes(categoryId)}

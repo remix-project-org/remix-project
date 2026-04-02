@@ -22,24 +22,24 @@ const RenderCall = ({
   return (
     <span id={`tx${tx.hash}`} key={index}>
       <div
-        className="remix_ui_terminal_log d-flex align-items-center pt-2"
+        className="remix_ui_terminal_log flex items-center pt-2"
         onClick={(event) => txDetails(event, tx)}
       >
         <CheckTxStatus tx={tx} type={txType} />
         <span>
-          <span className="remix_ui_terminal_tx fw-bold">[call]</span>
+          <span className="remix_ui_terminal_tx font-bold">[call]</span>
           <div className="remix_ui_terminal_txItem">
-            <span className="fw-bold">from:</span> {from}
+            <span className="font-bold">from:</span> {from}
           </div>
           <div className="remix_ui_terminal_txItem">
-            <span className="fw-bold">to:</span> {to}
+            <span className="font-bold">to:</span> {to}
           </div>
           <div className="remix_ui_terminal_txItem">
-            <span className="fw-bold">data:</span> {input}
+            <span className="font-bold">data:</span> {input}
           </div>
         </span>
         <i
-          className={`remix_ui_terminal_arrow d-flex ms-2 fas ${
+          className={`remix_ui_terminal_arrow flex ml-2 fas ${
             showTableHash.includes(tx.hash) ? 'fa-angle-up' : 'fa-angle-down'
           }`}
         ></i>

@@ -185,11 +185,11 @@ export function ContractGUI(props: any) {
           : ''
       }`}
     >
-      <div className={`${toggleContainer ? 'd-none' : 'd-flex'} w-100 pt-2`}>
+      <div className={`${toggleContainer ? 'hidden' : 'flex'} w-full pt-2`}>
         <CustomTooltip
           delay={0}
           placement={'right'}
-          tooltipClasses="text-wrap"
+          tooltipClasses="whitespace-normal"
           tooltipId="remixUdappInstanceButtonTooltip"
           tooltipText={
             props.inputs !== '' && basicInput === ''
@@ -198,13 +198,13 @@ export function ContractGUI(props: any) {
           }
         >
           <div
-            className="d-flex p-0 wrapperElement"
+            className="flex p-0 wrapperElement"
             onClick={handleActionClick}
             data-id={buttonOptions.dataId}
             data-bs-title={buttonOptions.title}
           >
             <button
-              className={`text-nowrap overflow-hidden text-truncate ${props.widthClass} btn btn-sm ${buttonOptions.classList}`}
+              className={`whitespace-nowrap overflow-hidden truncate ${props.widthClass} btn btn-sm ${buttonOptions.classList}`}
               data-id={buttonOptions.dataId}
               data-bs-title={buttonOptions.title}
               disabled={
@@ -261,11 +261,11 @@ export function ContractGUI(props: any) {
           }}
         ></i>
       </div>
-      <div className={`${toggleContainer ? 'd-flex' : 'd-none'} w-100`}>
-        <div className="w-100 text-dark">
+      <div className={`${toggleContainer ? 'flex' : 'hidden'} w-full`}>
+        <div className="w-full text-dark">
           <div
             onClick={switchMethodViewOff}
-            className="d-flex justify-content-between align-items-center pt-2"
+            className="flex justify-between items-center pt-2"
           >
             <div className="run-instance-multi-title" style={{ fontSize: 12 }}>
               {title}
@@ -276,14 +276,14 @@ export function ContractGUI(props: any) {
             {props.funcABI.inputs.map((inp: any, index: number) => {
               return (
                 <div
-                  className="udapp_multiArg d-flex align-items-center justify-content-end mt-2"
+                  className="udapp_multiArg flex items-center justify-end mt-2"
                   key={index}
                 >
                   <label htmlFor={inp.name}> {inp.name}: </label>
                   <CustomTooltip
                     placement="left-end"
                     tooltipId="udappContractActionsTooltip"
-                    tooltipClasses="text-nowrap"
+                    tooltipClasses="whitespace-nowrap"
                     tooltipText={inp.name}
                   >
                     <input
@@ -300,7 +300,7 @@ export function ContractGUI(props: any) {
               );
             })}
           </div>
-          <div className="d-flex udapp_group udapp_multiArg d-flex align-items-center justify-content-end mt-2">
+          <div className="flex udapp_group udapp_multiArg flex items-center justify-end mt-2">
             <CopyToClipboard
               tip={intl.formatMessage({ id: 'udapp.copyCalldata' })}
               icon="fa-clipboard"
@@ -310,7 +310,7 @@ export function ContractGUI(props: any) {
               <button className="btn">
                 <i
                   id="copyCalldata"
-                  className="me-2 far fa-copy"
+                  className="mr-2 far fa-copy"
                   aria-hidden="true"
                 ></i>
                 <label htmlFor="copyCalldata">Calldata</label>
@@ -325,7 +325,7 @@ export function ContractGUI(props: any) {
               <button className="btn">
                 <i
                   id="copyParameters"
-                  className="me-2 far fa-copy"
+                  className="mr-2 far fa-copy"
                   aria-hidden="true"
                 ></i>
                 <label htmlFor="copyParameters">
@@ -335,7 +335,7 @@ export function ContractGUI(props: any) {
             </CopyToClipboard>
             <CustomTooltip
               placement={'right'}
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipId="remixUdappInstanceButtonTooltip"
               tooltipText={buttonOptions.title}
             >

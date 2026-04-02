@@ -90,7 +90,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       }
       if (name === 'copilot/suggest/activate') plugin.emit('copilotChoiceUpdated', newValue)
       if (name === 'matomo-perf-analytics') plugin.call('settings', 'updateMatomoPerfAnalyticsChoice', newValue)
-      if (name === 'text-wrap') plugin.emit('textWrapChoiceUpdated', newValue)
+      if (name === 'whitespace-normal') plugin.emit('textWrapChoiceUpdated', newValue)
     } else {
       console.error('Setting does not exist: ', name)
     }
@@ -121,18 +121,18 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       {/* Show loading state for auth-required sections */}
       {section.requiresAuth && authLoading && (
         <div className="pt-3">
-          <div className="spinner-border spinner-border-sm" role="status">
+          <div className="animate-spin inline-block w-4 h-4 border-[3px] border-current border-t-transparent text-blue-600 rounded-full" role="status">
             <span className="sr-only"><FormattedMessage id="settings.loading" /></span>
           </div>
-          <span className="ms-2"><FormattedMessage id="settings.loading" /></span>
+          <span className="ml-2"><FormattedMessage id="settings.loading" /></span>
         </div>
       )}
 
       {/* Show warning for auth-required sections when not logged in */}
       {section.requiresAuth && !authLoading && !isLoggedIn && (
         <div className="pt-3">
-          <div className="alert alert-warning" role="alert">
-            <i className="fas fa-exclamation-triangle me-2"></i>
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-md" role="alert">
+            <i className="fas fa-exclamation-triangle mr-2"></i>
             <FormattedMessage id="settings.notLoggedIn" />
           </div>
         </div>
@@ -145,9 +145,9 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
         return (
           <div key={subSectionIndex} className='pt-3'>
             {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}><FormattedMessage id={subSection.title} /></h5>}
-            {subSection.description && <p className={`text-muted mb-3`} style={{ fontSize: '0.85rem' }}><FormattedMessage id={subSection.description} /></p>}
-            <div className={`card ${isDark ? 'text-light' : 'text-dark'} border-0 ${isLastItem ? 'mb-4' : ''}`}>
-              <div className={`card-body ${section.key === 'account' ? 'pt-1' : ''}`} style={section.key === 'account' ? {} : { padding: '0.75rem' }}>
+            {subSection.description && <p className={`text-gray-500 dark:text-gray-400 mb-3`} style={{ fontSize: '0.85rem' }}><FormattedMessage id={subSection.description} /></p>}
+            <div className={`bg-white dark:bg-gray-800 rounded-lg border-0 shadow-sm ${isDark ? 'text-gray-100' : 'text-gray-900'} ${isLastItem ? 'mb-4' : ''}`}>
+              <div className={`${section.key === 'account' ? 'pt-1' : 'p-3'}`}>
                 {subSection.options.map((option, optionIndex) => {
                   const isFirstOption = optionIndex === 0
                   const isLastOption = optionIndex === subSection.options.length - 1
@@ -156,13 +156,13 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
 
                   const isAccountSection = section.key === 'account'
                   const paddingClass = isAccountSection
-                    ? (isLastOption ? 'pt-0 pb-0' : isFirstOption ? 'border-bottom pb-1' : 'border-bottom py-1')
-                    : (isLastOption ? 'pt-2 pb-0' : isFirstOption ? 'border-bottom pb-2' : 'border-bottom py-2')
+                    ? (isLastOption ? 'pt-0 pb-0' : isFirstOption ? 'border-b pb-1' : 'border-b py-1')
+                    : (isLastOption ? 'pt-2 pb-0' : isFirstOption ? 'border-b pb-2' : 'border-b py-2')
 
                   return (
-                    <div className={`card border-0 rounded-0 ${paddingClass}`} key={optionIndex}>
+                    <div className={`border-0 ${paddingClass}`} key={optionIndex}>
                       {option.label && option.label.length > 0 && (
-                        <div className="d-flex align-items-center">
+                        <div className="flex items-center">
                           <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
                             <FormattedMessage id={option.label} />
                             {option.labelIconTooltip ?
@@ -170,10 +170,10 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                               option.labelIcon && <i className={option.labelIcon}></i>
                             }
                           </h6>
-                          <div className="ms-auto">
+                          <div className="ml-auto">
                             {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
                             {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
-                            {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
+                            {option.type === 'button' && <button className="px-3 py-1.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions.label} /></button>}
                             {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'profileSection' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'creditsBalance' && <span></span>}
@@ -182,7 +182,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                           </div>
                         </div>
                       )}
-                      {option.description && option.label && option.label.length > 0 && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
+                      {option.description && option.label && option.label.length > 0 && <span className="text-gray-500 dark:text-gray-400 mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
                       {option.type === 'custom' && option.customComponent === 'mcpServerManager' && (
                         <div className="mt-3">
                           <IMCPServerManager plugin={plugin} />
@@ -210,12 +210,12 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                       )}
                       {
                         option.footnote ? option.footnote.link ?
-                          <a href={option.footnote.link} className={`mt-1 ${option.footnote.styleClass}`} target="_blank" rel="noopener noreferrer"><FormattedMessage id={option.footnote.text} /></a>
+                          <a href={option.footnote.link} className={`mt-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 ${option.footnote.styleClass}`} target="_blank" rel="noopener noreferrer"><FormattedMessage id={option.footnote.text} /></a>
                           :
-                          <span className={`text-secondary mt-1 ${option.footnote.styleClass}`}><FormattedMessage id={option.footnote.text} /></span>
+                          <span className={`text-gray-500 dark:text-gray-400 mt-1 ${option.footnote.styleClass}`}><FormattedMessage id={option.footnote.text} /></span>
                           : null
                       }
-                      {option.toggleUIDescription && toggleValue && <span className="text-secondary mt-1">{option.toggleUIDescription}</span>}
+                      {option.toggleUIDescription && toggleValue && <span className="text-gray-500 dark:text-gray-400 mt-1">{option.toggleUIDescription}</span>}
                       {option.toggleUIOptions && toggleValue && option.toggleUIOptions.map((toggleOption, toggleOptionIndex) => {
                         const isLastOption = toggleOptionIndex === option.toggleUIOptions.length - 1
                         const inputValue = state[toggleOption.name] && typeof state[toggleOption.name].value === 'string' ? state[toggleOption.name].value as string : ''
@@ -227,15 +227,15 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                                 name={toggleOption.name}
                                 data-id={`settingsTab${toggleOption.name}`}
                                 type={toggleOption.type}
-                                className="form-control"
+                                className="w-full px-3 py-2 border border-theme rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                 onChange={(e) => handleFormUIData(option.name, toggleOption.name, e.target.value)}
                                 defaultValue={inputValue}
                                 placeholder={intl.formatMessage({ id: `settings.${toggleOption.name}` })}
                               />
                             </div>
-                            {isLastOption && <div className="d-flex pt-3">
+                            {isLastOption && <div className="flex pt-3">
                               <input
-                                className="btn btn-sm btn-primary"
+                                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
                                 id={`settingsTabSave${option.name}`}
                                 data-id={`settingsTabSave${option.name}`}
                                 onClick={() => saveFormUIData(option.name)}

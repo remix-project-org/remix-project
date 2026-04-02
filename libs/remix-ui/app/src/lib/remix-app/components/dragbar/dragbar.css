@@ -18,6 +18,7 @@
   height: 100vh;
   display: block;
   z-index: 1000;
+  pointer-events: none;
 }
 
 .dragbar:hover,

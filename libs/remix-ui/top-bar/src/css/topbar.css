@@ -6,7 +6,7 @@
 }
 
 .remixui_homeIcon:hover {
-  box-shadow: 0px 0px 14px -7px;
+  /* TODO: Convert shadow-md to CSS */
 }
 
 .btn-topbar {
@@ -16,6 +16,7 @@
 
 .github-login {
   color: var(--bs-emphasis-color, #fff) !important;
+  /* TODO: Convert opacity-100 to CSS */
   opacity: 1 !important;
 }
 
@@ -25,13 +26,13 @@
 }
 
 .version-btn:hover {
-  text-decoration: none;
+  /* TODO: Convert no-underline to CSS */
   color: var(--bs-secondary);
 }
 
 .top-bar-dropdownItem {
-  color: var(--text);
   cursor: pointer;
+  color: var(--text);
 }
 
 .top-bar-dropdownItem:hover {
@@ -40,24 +41,56 @@
 
 .dropdown-menu .dropdown-item:focus,
 .dropdown-menu .dropdown-item:active {
+  /* TODO: Convert bg-transparent to CSS */
+  /* TODO: Convert outline-none to CSS */
   background-color: transparent !important;
   color: inherit !important;
-  outline: none;
   box-shadow: none;
 }
 
+/* Workspace dropdown toggle - position caret on right side */
+button.workspaceDropdown > div {
+  position: relative !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+button.workspaceDropdown > div > div:last-child {
+  position: absolute !important;
+  right: 0.5rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+  padding-right: 0.25rem !important;
+}
+
+/* Ensure dropdown menu appears from bottom of button */
+#workspacesSelect {
+  position: relative !important;
+}
+
+#workspacesSelect > .dropdown-menu {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  margin-top: 0.25rem !important;
+}
+
 .custom-form-control {
-  display: block;
-  width: 100%;
+  /* TODO: Convert block to CSS */
+  /* TODO: Convert w-full to CSS */
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  /* TODO: Convert font-normal to CSS */
+  /* TODO: Convert bg-clip-padding to CSS */
+  transition: all 150ms;
   height: calc(1em + 1rem + 2px);
   padding: 0.25rem 0.5rem !important;
   font-size: 0.875rem !important;
-  font-weight: 400;
   line-height: 1;
-  background-clip: padding-box;
   border: none !important;
   border-radius: 2px !important;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
 }
@@ -65,44 +98,46 @@
 /* Feedback slide-in panel */
 .feedback-panel-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 9998;
+  /* TODO: Convert inset-0 to CSS */
+  /* TODO: Convert z-[9998] to CSS */
   opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
+  /* TODO: Convert pointer-events-none to CSS */
+  /* TODO: Convert transition-opacity to CSS */
+  transition-duration: 300ms;
+  /* TODO: Convert ease-out to CSS */
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .feedback-panel-overlay.open {
-  opacity: 1;
-  pointer-events: auto;
+  /* TODO: Convert opacity-100 to CSS */
+  /* TODO: Convert pointer-events-auto to CSS */
 }
 
 .feedback-panel {
   position: fixed;
-  top: 0;
-  right: 0;
+  /* TODO: Convert top-0 to CSS */
+  /* TODO: Convert right-0 to CSS */
   width: 420px;
-  max-width: 100vw;
-  height: 100vh;
-  z-index: 9999;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
-  transform: translateX(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* TODO: Convert max-w-full to CSS */
+  /* TODO: Convert h-screen to CSS */
+  /* TODO: Convert z-[9999] to CSS */
   display: flex;
-  flex-direction: column;
-  border-left: 1px solid var(--secondary);
+  /* TODO: Convert flex-col to CSS */
+  /* TODO: Convert transform to CSS */
+  /* TODO: Convert translate-x-full to CSS */
+  transition: transform 300ms;
+  /* TODO: Convert border-l to CSS */
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  border-left-color: var(--secondary);
 }
 
 .feedback-panel.open {
-  transform: translateX(0);
+  /* TODO: Convert translate-x-0 to CSS */
 }
 
 .feedback-panel-header {
-  flex-shrink: 0;
+  /* TODO: Convert flex-shrink-0 to CSS */
 }
 
 .feedback-panel-header .feedback-panel-close:hover {
@@ -110,16 +145,15 @@
 }
 
 .feedback-panel-body {
-  flex: 1;
-  overflow-y: auto;
+  /* TODO: Convert flex-1 to CSS */
+  /* TODO: Convert overflow-y-auto to CSS */
   padding: 0;
 }
 
 .feedback-panel-body iframe {
-  width: 100%;
-  height: 100%;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  /* TODO: Convert w-full to CSS */
+  /* TODO: Convert h-full to CSS */
+  padding-left: 1rem; padding-right: 1rem;
   min-height: calc(100vh - 50px);
 }
 
@@ -127,28 +161,33 @@
 .beta-promo-pill {
   cursor: pointer;
   font-size: 0.75rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid var(--bs-primary);
+  line-height: 1rem;
+  /* TODO: Convert py-1 to CSS */
+  /* TODO: Convert px-2 to CSS */
+  border-radius: 9999px;
+  border: 1px solid;
+  /* TODO: Convert whitespace-nowrap to CSS */
+  transition: color 150ms;
+  /* TODO: Convert select-none to CSS */
+  border-color: var(--bs-primary);
   color: var(--bs-primary);
-  white-space: nowrap;
-  transition: background-color 0.15s, color 0.15s;
-  user-select: none;
 }
 .beta-promo-pill:hover {
+  /* TODO: Convert text-white to CSS */
   background-color: var(--bs-primary);
-  color: #fff;
 }
 .beta-promo-pill:hover .beta-promo-dismiss {
-  color: rgba(255, 255, 255, 0.7);
+  /* TODO: Convert text-white/70 to CSS */
 }
 .beta-promo-dismiss {
-  font-size: 0.6rem;
-  opacity: 0.5;
-  padding: 2px;
-  line-height: 1;
-  transition: opacity 0.15s;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  /* TODO: Convert opacity-50 to CSS */
+  /* TODO: Convert p-0.5 to CSS */
+  /* TODO: Convert leading-none to CSS */
+  /* TODO: Convert transition-opacity to CSS */
+  transition-duration: 150ms;
 }
 .beta-promo-dismiss:hover {
-  opacity: 1;
+  /* TODO: Convert opacity-100 to CSS */
 }

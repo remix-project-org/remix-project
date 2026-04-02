@@ -11,10 +11,10 @@ function EditInstance(): JSX.Element {
   const { abi, items, containers, title, details, userInput, natSpec } =
     appState.instance;
   return (
-    <div className="col-9 d-inline-block row">
+    <div className="col-9 inline-block row">
       <div className="row">
         <ImageUpload />
-        <div className="col-9 ps-0">
+        <div className="col-9 pl-0">
           <div className="my-2 p-3 bg-light">
             <input
               data-id="dappTitle"

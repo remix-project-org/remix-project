@@ -103,40 +103,26 @@ export class OverlayPanel extends AbstractPanel {
 
     return (
       <div
-        className={`overlay-panel ${appState?.showOverlayPanel ? 'd-flex' : 'd-none'}`}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 1000,
-          background: 'var(--bs-body-bg)',
-          overflow: 'hidden'
-        }}
+        className={`fixed inset-0 z-[1000] bg-body overflow-hidden ${appState?.showOverlayPanel ? 'flex' : 'hidden'}`}
         data-id="overlayPanelContainer"
       >
-        <div className="d-flex flex-column w-100 h-100" style={{ background: 'var(--bs-body-bg)' }}>
+        <div className="flex flex-col w-full h-full bg-body">
           {/* Header with close button */}
-          <div
-            className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
-            style={{
-              backgroundColor: 'var(--bs-secondary-bg)',
-              minHeight: '48px'
-            }}
-          >
-            <div className="d-flex align-items-center">
+          <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-100 dark:bg-surface-2 min-h-12">
+            <div className="flex items-center">
               {activePlugin?.profile?.icon && (
                 <img
                   src={activePlugin.profile.icon}
                   alt=""
-                  className="mr-2"
-                  style={{ width: '24px', height: '24px' }}
+                  className="mr-2 w-6 h-6"
                 />
               )}
-              <span className="h5 mb-0">
+              <span className="text-xl font-medium">
                 {activePlugin?.profile?.displayName || 'Overlay'}
               </span>
             </div>
             <button
-              className="btn btn-sm"
+              className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               onClick={() => this.hideOverlay()}
               data-id="overlayPanelClose"
               aria-label="Close overlay"
@@ -146,7 +132,7 @@ export class OverlayPanel extends AbstractPanel {
           </div>
 
           {/* Content area */}
-          <div className="flex-grow-1 overflow-auto" style={{ background: 'var(--bs-body-bg)' }}>
+          <div className="flex-1 overflow-auto bg-body">
             <RemixPluginPanel
               header={<></>}
               plugins={state.plugins}

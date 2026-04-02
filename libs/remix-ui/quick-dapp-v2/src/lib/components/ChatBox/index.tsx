@@ -95,10 +95,10 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
   };
 
   return (
-    <Card className="chat-box-container">
-      <Card.Footer className="chat-box-footer d-flex flex-column">
+    <Card className="chat-box-container mx-auto px-4">
+      <Card.Footer className="chat-box-footer flex flex-col">
         {selectedImage && (
-          <div className="mb-2 position-relative d-inline-block align-self-start">
+          <div className="mb-2 relative inline-block self-start">
             <img
               src={selectedImage}
               alt="Preview"
@@ -107,7 +107,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
             <Button
               onClick={handleClearImage}
               variant="danger"
-              className="position-absolute top-0 start-100 translate-middle badge border border-light rounded-circle p-0 d-flex justify-content-center align-items-center"
+              className="absolute top-0 start-100 translate-middle badge border border-light rounded-full p-0 flex justify-center items-center"
               style={{ width: '20px', height: '20px' }}
             >
               <i className="fas fa-times" style={{ fontSize: '10px' }}></i>
@@ -115,7 +115,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ onSendMessage, isLoading }) => {
           </div>
         )}
 
-        <div className="chat-input-group d-flex w-100">
+        <div className="chat-input-group flex w-full">
           <input
             type="file"
             accept="image/*"

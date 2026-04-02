@@ -9,7 +9,7 @@ export function GenerateProof () {
   const status = circuitApp.appState.status
 
   return (
-    <div className="flex-column d-flex">
+    <div className="flex-col flex">
       <div className="mt-2 form-check">
         <input
           className="form-check-input"
@@ -23,13 +23,13 @@ export function GenerateProof () {
         </label>
       </div>
       <button
-        className="btn btn-secondary btn-block d-block w-100 text-break mb-1 mt-1"
+        className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors btn-block block w-full break-words mb-1 mt-1"
         onClick={() => generateProof(circuitApp.plugin, circuitApp.appState, circuitApp.dispatch)}
         disabled={(status === "compiling") || (status === "computing") || (status === "proving") || (status === "exporting")}
         data-id="generateProofBtn"
       >
         <RenderIf condition={status === 'proving'}>
-          <i className="fas fa-sync fa-spin me-2" aria-hidden="true"></i>
+          <i className="fas fa-sync fa-spin mr-2" aria-hidden="true"></i>
         </RenderIf>
         <FormattedMessage id="circuit.generateProof" />
       </button>

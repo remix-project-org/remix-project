@@ -15,16 +15,16 @@ function WorkspaceTemplate({ gsID, workspaceTitle, description, projectLogo, cal
   const themeFilter = useContext(ThemeContext)
 
   return (
-    <div className="d-flex remixui_home_workspaceTemplate">
+    <div className="flex remixui_home_workspaceTemplate">
       <button
-        className="btn border-secondary p-1 d-flex flex-column  text-nowrap justify-content-center me-2 remixui_home_workspaceTemplate"
+        className="px-2 py-1 bg-white dark:bg-gray-800 border border-theme flex flex-col whitespace-nowrap justify-center mr-2 remixui_home_workspaceTemplate rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         data-id={'landingPageStart' + gsID}
         onClick={() => callback()}
       >
-        <div className="w-100 p-1 h-100 align-items-center d-flex flex-column">
-          <CustomTooltip placement={'top'} tooltipClasses="text-wrap" tooltipId="etherscan-receipt-proxy-status" tooltipText={description}>
-            <div className='d-flex flex-column align-items-center'>
-              <label className="h5 pb-1 mt-1 text-uppercase remixui_home_cursorStyle" style={{ color: themeFilter.name == "dark" ? "var(--white)" : "var(--black)" }}>{workspaceTitle}</label>
+        <div className="w-full p-1 h-full items-center flex flex-col">
+          <CustomTooltip placement={'top'} tooltipClasses="whitespace-normal" tooltipId="etherscan-receipt-proxy-status" tooltipText={description}>
+            <div className='flex flex-col items-center'>
+              <label className="text-lg font-medium pb-1 mt-1 uppercase remixui_home_cursorStyle text-black dark:text-white">{workspaceTitle}</label>
               <img className="" src={projectLogo} alt="" style={{ height: "20px", filter: themeFilter.name == "dark" ? "invert(1)" : "invert(0)" }} />
             </div>
           </CustomTooltip>

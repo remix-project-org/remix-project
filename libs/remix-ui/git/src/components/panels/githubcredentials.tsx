@@ -86,7 +86,7 @@ export const GitHubCredentials = () => {
 
   return (
     <>
-      <label className="text-uppercase"><FormattedMessage id="gitui.enterGitHubCredentialsManually" /></label>
+      <label className="uppercase"><FormattedMessage id="gitui.enterGitHubCredentialsManually" /></label>
       <br></br>
 
       <label><FormattedMessage id="gitui.gitUsernameLabel" />&nbsp;<small>(<FormattedMessage id="gitui.gitUsernameRequired" />)</small></label>
@@ -97,14 +97,14 @@ export const GitHubCredentials = () => {
       <div className="input-group text-secondary mb-3 h6">
         <input data-id='githubToken' type="password" autoComplete="off" value={githubToken} placeholder={intl.formatMessage({ id: 'gitui.gitHubTokenPlaceholder' })} className="form-control" name='githubToken' onChange={e => handleChangeTokenState(e.target.value)} />
         <div className="input-group-append">
-          <CopyToClipboard content={githubToken} data-id='copyToClipboardCopyIcon' className='far fa-copy ms-1 p-2 mt-1' direction={"top"} />
+          <CopyToClipboard content={githubToken} data-id='copyToClipboardCopyIcon' className='far fa-copy ml-1 p-2 mt-1' direction={"top"} />
         </div>
       </div>
-      <div className="d-flex justify-content-between">
-        <button data-id='saveGitHubCredentials' className="btn btn-primary w-100" onClick={saveGithubToken}>
+      <div className="flex justify-between">
+        <button data-id='saveGitHubCredentials' className="btn btn-primary w-full" onClick={saveGithubToken}>
           <FormattedMessage id="save" defaultMessage="Save" />
         </button>
-        <button className="btn btn-danger far fa-trash-alt" onClick={removeToken}>
+        <button className="inline-flex items-center px-4 py-2 bg-danger text-white rounded-md hover:bg-danger/90 transition-colors far fa-trash-alt" onClick={removeToken}>
         </button>
       </div>
       {scopeWarning ?

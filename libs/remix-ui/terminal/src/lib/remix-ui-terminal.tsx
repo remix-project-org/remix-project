@@ -594,7 +594,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
 
   const handleAutoComplete = () => (
     <div
-      className="remix_ui_terminal_popup bg-light ms-4 p-2 position-absolute text-start "
+      className="remix_ui_terminal_popup bg-light ml-4 p-2 absolute text-left "
       style={{
         display:
           autoCompletState.showSuggestions && autoCompletState.userInput !== '' && autoCompletState.userInput.length > 0 && autoCompletState.data._options.length > 0
@@ -649,7 +649,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
     }
   }, [])
 
-  const classNameBlock = 'remix_ui_terminal_block px-4 py-1 text-break'
+  const classNameBlock = 'remix_ui_terminal_block px-4 py-1 break-words'
 
   const replacer = (key, value) => {
     if (typeof value === 'bigint') value = value.toString()
@@ -674,17 +674,17 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
 
   return (
     ( props.visible &&
-      <div style={{ flexGrow: 1 }} className="remix_ui_terminal_panel h-100 mb-2" ref={panelRef}>
-        <div tabIndex={-1} className="remix_ui_terminal_container d-flex h-100 m-0 flex-column" data-id="terminalContainer">
+      <div style={{ flexGrow: 1 }} className="remix_ui_terminal_panel h-full mb-2" ref={panelRef}>
+        <div tabIndex={-1} className="remix_ui_terminal_container flex h-full m-0 flex-col" data-id="terminalContainer">
           {handleAutoComplete()}
-          <div className="position-relative d-flex flex-column-reverse h-100" key={`terminal-view-${showDebuggerCallStack ? 'debug' : 'normal'}`}>
+          <div className="relative flex flex-col-reverse h-full" key={`terminal-view-${showDebuggerCallStack ? 'debug' : 'normal'}`}>
             {showDebuggerCallStack ? (
-              <div id="debugger-call-stack-view" className="w-100 h-100">
+              <div id="debugger-call-stack-view" className="w-full h-full">
                 <DebuggerCallStack plugin={props.plugin} />
               </div>
             ) : (
               <>
-                <div id="journal" className="remix_ui_terminal_journal d-flex flex-column pt-3 pb-4 px-2 mx-2 me-0" data-id="terminalJournal">
+                <div id="journal" className="remix_ui_terminal_journal flex flex-col pt-3 pb-4 px-2 mx-2 mr-0" data-id="terminalJournal">
                   {!terminalState.clearConsole && <TerminalWelcomeMessage storage={storage} packageJson={version} />}
                   {terminalState.journalBlocks &&
               terminalState.journalBlocks.map((x, index) => {
@@ -829,10 +829,10 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
                   <div ref={messagesEndRef} />
                 </div>
                 {isOpen && (
-                  <div id="terminalCli" data-id="terminalCli" className="remix_ui_terminal_cli position-absolute w-100" onClick={focusinput}>
-                    <span className="remix_ui_terminal_prompt blink mx-1 fw-bold text-dark">{'>'}</span>
+                  <div id="terminalCli" data-id="terminalCli" className="remix_ui_terminal_cli absolute w-full" onClick={focusinput}>
+                    <span className="remix_ui_terminal_prompt blink mx-1 font-bold text-dark">{'>'}</span>
                     <input
-                      className="remix_ui_terminal_input ms-1 text-dark text-break border-0"
+                      className="remix_ui_terminal_input ml-1 text-dark break-words border-0"
                       ref={inputEl}
                       spellCheck="false"
                       contentEditable="true"

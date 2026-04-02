@@ -75,19 +75,19 @@ export const RemixUIGridCell = (props: RemixUIGridCellProps) => {
         props.handleExpand(!expand)
       else return
     }}>
-      { anyEnabled && <div className='me-2 mt-3 pb-1 d-flex flex-column'>
-        <div className='d-flex flex-grid'>
-          <div className={ `${pinned ? "" : "border-light "}` + "d-flex mx-0 p-2 bg-light border border-secondary remixui_grid_cell_container " + props.classList || ''} data-id={"remixUIGS" + props.title}>
-            <div className="d-flex remixui_grid_cell w-100 space-between justify-content-between flex-column">
-              { !props.hideTitle && <div className='d-flex flex-row pb-1 my-1 align-items-end' style={{ minWidth: '8rem', height: '1rem' }}>
+      { anyEnabled && <div className='mr-2 mt-3 pb-1 flex flex-col'>
+        <div className='flex flex-grid'>
+          <div className={ `${pinned ? "" : "border-light "}` + "flex mx-0 p-2 bg-light border border-secondary remixui_grid_cell_container " + props.classList || ''} data-id={"remixUIGS" + props.title}>
+            <div className="flex remixui_grid_cell w-full space-between justify-between flex-col">
+              { !props.hideTitle && <div className='flex flex-row pb-1 my-1 items-end' style={{ minWidth: '8rem', height: '1rem' }}>
                 { props.logo ? props.logoURL !== '' ?
                   <a href={props.logoURL} target="__blank">
-                    <img className='remixui_grid_view_logo me-1' src={props.logo} style={{ width: '1rem', height: '1rem' }}/>
+                    <img className='remixui_grid_view_logo mr-1' src={props.logo} style={{ width: '1rem', height: '1rem' }}/>
                   </a> :
-                  <img className='remixui_grid_view_logo me-1' src={props.logo} style={{ width: '1rem', height: '1rem' }}/> :
+                  <img className='remixui_grid_view_logo mr-1' src={props.logo} style={{ width: '1rem', height: '1rem' }}/> :
                   <></>
                 }
-                { props.logos && props.logos.map((logo, index) => <img key={index} className='remixui_grid_view_logo me-1' src={logo} style={{ width: '1rem', height: '1rem' }}/>)}
+                { props.logos && props.logos.map((logo, index) => <img key={index} className='remixui_grid_view_logo mr-1' src={logo} style={{ width: '1rem', height: '1rem' }}/>)}
                 { props.title &&
                   <CustomTooltip
                     placement="top"
@@ -95,7 +95,7 @@ export const RemixUIGridCell = (props: RemixUIGridCellProps) => {
                     tooltipText={ props.titleTooltip ? props.titleTooltip : props.title }
                   >
                     <label
-                      className='m-0 p-0 text-uppercase align-items-left fw-bold text-truncate overflow-hidden whitespace-nowrap'
+                      className='m-0 p-0 uppercase align-items-left font-bold truncate overflow-hidden whitespace-nowrap'
                       style={{ fontSize: '11px', lineHeight: '12px' }}
                     >{ props.title }
                     </label>
@@ -104,7 +104,7 @@ export const RemixUIGridCell = (props: RemixUIGridCellProps) => {
               </div> }
               { props.children }
               { filterCon.showPin && <button
-                className={`${pinned ? 'fas fa-toggle-on fa-lg text-dark' : 'fas fa-toggle-off fa-lg text-secondary'}` + ` fa-regular border-0 p-0 mt-2 align-self-end me-1 remixui_grid_cell_pin`}
+                className={`${pinned ? 'fas fa-toggle-on fa-lg text-dark' : 'fas fa-toggle-off fa-lg text-secondary'}` + ` fa-regular border-0 p-0 mt-2 self-end mr-1 remixui_grid_cell_pin`}
                 style={{ fontSize: 'large' }}
                 data-id={`${pinned ? `${props.id}-pinned` : `${props.id}-unpinned`}`}
                 onClick={async () => {
@@ -115,13 +115,13 @@ export const RemixUIGridCell = (props: RemixUIGridCellProps) => {
             </div>
           </div>
 
-          { props.tagList && <div className={`d-flex flex-column align-items-begin ` +`${filterCon.showPin ? 'remixui_grid_cell_tags' : 'remixui_grid_cell_tags_no_pin'}`}>
+          { props.tagList && <div className={`flex flex-col align-items-begin ` +`${filterCon.showPin ? 'remixui_grid_cell_tags' : 'remixui_grid_cell_tags_no_pin'}`}>
             { Object.keys(props.tagList).map((key) => (
               filterCon.keyValueMap[props.tagList[key]]?.enabled && (
                 <CustomTooltip
                   placement="right"
                   tooltipId="pluginManagerInactiveTitleLinkToDoc"
-                  tooltipClasses="text-nowrap"
+                  tooltipClasses="whitespace-nowrap"
                   tooltipText={props.tagList[key]}
                   key={props.tagList[key]}
                 >

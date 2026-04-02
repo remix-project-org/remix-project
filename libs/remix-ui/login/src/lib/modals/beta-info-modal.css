@@ -2,69 +2,67 @@
 
 .beta-modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2100;
-  background-color: rgba(0, 0, 0, 0.6);
+  /* TODO: Convert inset-0 to CSS */
+  /* TODO: Convert z-[2100] to CSS */
+  /* TODO: Convert bg-black/60 to CSS */
 }
 
 .beta-modal-dialog {
-  max-width: 740px;
-  width: 90%;
+  /* TODO: Convert max-w-[740px] to CSS */
+  /* TODO: Convert w-[90%] to CSS */
 }
 
 .beta-modal-content {
-  border-radius: 12px;
+  border-radius: 0.75rem;
   border: none;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
 }
 
 /* Left Section - swirl art panel */
 .beta-modal-left-section {
-  width: 35%;
+  /* TODO: Convert w-[35%] to CSS */
+  /* TODO: Convert bg-cover to CSS */
+  /* TODO: Convert bg-center to CSS */
+  /* TODO: Convert bg-no-repeat to CSS */
+  /* TODO: Convert p-8 to CSS */
+  /* TODO: Convert min-h-[500px] to CSS */
   background-image: url('https://raw.githubusercontent.com/remix-project-org/remix-dynamics/refs/heads/live/images/illusion.svg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  padding: 2rem;
-  min-height: 500px;
 }
 
 .beta-modal-gradient-overlay {
+  z-index: 10;
   background: linear-gradient(135deg, rgba(8, 18, 42, 0.92) 0%, rgba(10, 80, 100, 0.85) 50%, rgba(8, 18, 42, 0.92) 100%);
-  z-index: 1;
 }
 
 .beta-modal-content-wrapper {
-  z-index: 2;
+  /* TODO: Convert z-20 to CSS */
 }
 
 .beta-modal-hero-icon {
-  font-size: 3rem;
-  color: #7dd3fc;
+  /* TODO: Convert text-5xl to CSS */
+  color: rgb(125, 211, 252);
   margin-bottom: 1rem;
   filter: drop-shadow(0 4px 12px rgba(125, 211, 252, 0.3));
 }
 
 .beta-modal-hero-title {
   font-size: 1.5rem;
+  line-height: 2rem;
   font-weight: 700;
-  color: #e0fbfc;
-  margin-bottom: 0.5rem;
+  /* TODO: Convert text-cyan-50 to CSS */
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .beta-modal-hero-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: rgba(125, 211, 252, 0.8);
   line-height: 1.4;
 }
 
 /* Right Section */
 .beta-modal-right-section {
-  width: 65%;
+  /* TODO: Convert w-[65%] to CSS */
 }
 
 .beta-modal-close-btn {

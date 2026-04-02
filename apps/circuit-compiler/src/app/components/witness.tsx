@@ -36,12 +36,12 @@ export function WitnessSection () {
   }
 
   return (
-    <div className="flex-column d-flex">
+    <div className="flex-col flex">
       <RenderIf condition={signalInputs.length > 0}>
         <>
           {
             signalInputs.map((input, index) => (
-              <div className="mb-2 ms-0" key={index}>
+              <div className="mb-2 ml-0" key={index}>
                 <label className="circuit_inner_label form-check-label" htmlFor="circuitPrimeSelector">
                   <FormattedMessage id="circuit.signalInput" /> { input }
                 </label>
@@ -62,13 +62,13 @@ export function WitnessSection () {
             </label>
           </div>
           <button
-            className="btn btn-secondary btn-block d-block w-100 text-break mb-1 mt-1"
+            className="inline-flex items-center px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors btn-block block w-full break-words mb-1 mt-1"
             onClick={() => { computeWitness(plugin, appState, dispatch, status, witnessValues) }}
             disabled={(status === "compiling") || (status === "computing")}
             data-id="compute_witness_btn"
           >
             <RenderIf condition={status === 'computing'}>
-              <i className="fas fa-sync fa-spin me-2" aria-hidden="true"></i>
+              <i className="fas fa-sync fa-spin mr-2" aria-hidden="true"></i>
             </RenderIf>
             <FormattedMessage id="circuit.compute" />
           </button>

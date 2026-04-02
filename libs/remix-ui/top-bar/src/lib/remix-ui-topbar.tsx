@@ -467,7 +467,7 @@ export function RemixUiTopbar() {
     global.modal(
       intl.formatMessage({ id: 'filePanel.workspace.deleteAll' }),
       <>
-        <div className="d-flex flex-column">
+        <div className="flex flex-col">
           <span className="pb-1">{intl.formatMessage({ id: 'filePanel.workspace.deleteAllConfirm1' })}</span>
           <span>{intl.formatMessage({ id: 'filePanel.workspace.deleteAllConfirm2' })}</span>
         </div>
@@ -491,7 +491,7 @@ export function RemixUiTopbar() {
 
   const renameModalMessage = (workspaceName?: string) => {
     return (
-      <div className='d-flex flex-column'>
+      <div className='flex flex-col'>
         <label><FormattedMessage id="filePanel.name" /></label>
         <input type="text" data-id="modalDialogCustomPromptTextRename" defaultValue={workspaceName || currentMenuItemName} ref={workspaceRenameInput} className="form-control" />
       </div>
@@ -529,18 +529,18 @@ export function RemixUiTopbar() {
       <>
         {props.isGitRepo ? (
           <div
-            className="d-flex flex-row-reverse justify-content-end"
+            className="flex flex-row-reverse justify-end"
           >
             <span
             >
-              {currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-1">{props.mName}</span>}</span>
+              {currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="pl-1">{props.mName}</span>}</span>
             <i className="fas fa-code-branch pt-1"></i>
           </div>
         ) : (
           <div
-            className="d-flex justify-content-between"
+            className="flex justify-between"
           >
-            <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}</span>
+            <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="pl-3">{props.mName}</span>}</span>
           </div>
         )}
       </>
@@ -571,20 +571,20 @@ export function RemixUiTopbar() {
         {global.fs.browser.workspaces.map(({ name, isGitRepo }, index) => (
           <div
             key={index}
-            className="d-flex justify-content-between w-100"
+            className="flex justify-between w-full"
           >
             <Dropdown.Item
               key={index}
               onClick={() => { switchWorkspace(name) }}
               data-id={`dropdown-item-${name}`}
-              className="text-truncate"
+              className="truncate"
               style={{ width: '90%' }}
             >
               <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} />
             </Dropdown.Item>
             <i
               ref={subMenuIconRef}
-              className="fas fa-ellipsis-vertical pt-1 pe-2 top-bar-dropdownItem"
+              className="fas fa-ellipsis-vertical pt-1 pr-2 top-bar-dropdownItem"
               onClick={() => {
                 setShowSubMenuFlyOut(!showSubMenuFlyOut)
               }}
@@ -618,15 +618,15 @@ export function RemixUiTopbar() {
 
   return (
     <section
-      className="h-100 d-flex bg-light border flex-nowrap px-2"
+      className="h-full flex bg-light border flex-nowrap px-2"
     >
-      <div className="d-flex flex-row align-items-center justify-content-between w-100" style={{ minWidth: 0 }}>
+      <div className="flex flex-row items-center justify-between w-full" style={{ minWidth: 0 }}>
         <div
-          className="d-flex flex-row align-items-center m-1"
+          className="flex flex-row items-center m-1"
           style={{ minWidth: 0, flex: isNonMaximizedWindow ? '0.78 1 0' : '1 1 0' }}
         >
           <div
-            className="d-flex align-items-center justify-content-between me-3 cursor-pointer"
+            className="flex items-center justify-between mr-3 cursor-pointer"
             onClick={async () => {
               await plugin.call('tabs', 'focus', 'home')
               trackMatomoEvent({ category: 'topbar', action: 'header', name: 'Home', isClick: true })
@@ -645,7 +645,7 @@ export function RemixUiTopbar() {
               <BasicLogo />
             </div>
             <div
-              className="text-primary ms-2 font-weight-light text-uppercase cursor-pointer"
+              className="text-primary ml-2 font-weight-light uppercase cursor-pointer"
               style={{ fontSize: '1.2rem' }}
               onClick={async () => {
                 await plugin.call('tabs', 'focus', 'home')
@@ -656,7 +656,7 @@ export function RemixUiTopbar() {
             </div>
           </div>
           <span
-            className="btn btn-sm border border-secondary text-decoration-none font-weight-light"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors border border-secondary no-underline font-weight-light"
             onClick={() => {
               window.open(latestReleaseNotesUrl, '_blank')
             }}
@@ -669,15 +669,15 @@ export function RemixUiTopbar() {
           </span>
           {showCloudToggle && (
             <CloudToggle
-              className="ms-2"
+              className="ml-2"
               onEnableCloud={() => enableCloud()}
               onDisableCloud={() => disableCloud()}
             />)}
           {showCloudLoginModal && <LoginModal onClose={() => setShowCloudLoginModal(false)} plugin={plugin} />}
         </div>
-        <div className="m-1 d-flex align-self-center" style={{ minWidth: 0, flex: isNonMaximizedWindow ? '1.22 1 0' : '1 1 0' }}>
+        <div className="m-1 flex self-center" style={{ minWidth: 0, flex: isNonMaximizedWindow ? '1.22 1 0' : '1 1 0' }}>
           <div
-            className="d-flex align-items-center flex-nowrap"
+            className="flex items-center flex-nowrap"
             style={{ minWidth: 0, width: '100%', justifyContent: isNonMaximizedWindow ? 'flex-start' : 'center' }}
           >
             <WorkspacesDropdown
@@ -705,7 +705,7 @@ export function RemixUiTopbar() {
               onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
             />
             <div
-              className="d-flex gap-2 align-items-center"
+              className="flex gap-2 items-center"
               style={{ marginLeft: isNonMaximizedWindow ? '0.75rem' : '1.5rem', flexShrink: 0 }}
             >
               <CustomTooltip placement="bottom-start" tooltipText={`Toggle Left Side Panel`}>
@@ -757,10 +757,10 @@ export function RemixUiTopbar() {
           </div>
         </div>
         <div
-          className="d-flex flex-row align-items-center justify-content-end flex-nowrap"
+          className="flex flex-row items-center justify-end flex-nowrap"
           style={{ minWidth: 0, flex: '1 1 0', whiteSpace: 'nowrap' }}
         >
-          <div className="d-flex flex-row align-items-center flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
+          <div className="flex flex-row items-center flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
             <div style={{ whiteSpace: 'nowrap' }}>
               <GitHubLogin
                 cloneGitRepository={showCloneModal}
@@ -775,18 +775,18 @@ export function RemixUiTopbar() {
                 plugin={plugin}
                 variant="compact"
                 showCredits={true}
-                className="ms-3 text-nowrap"
+                className="ml-3 whitespace-nowrap"
                 cloneGitRepository={showCloneModal}
                 publishToGist={publishToGist}
               />
             )}
           </div>
           {showJoinBetaTopButton && <BetaPromoPill plugin={plugin} />}
-          {showNotificationBell && <NotificationBell className="ms-3" />}
+          {showNotificationBell && <NotificationBell className="ml-3" />}
           {supportEnabled && isAuthenticated && token && (
             <CustomTooltip placement="bottom" tooltipText="Premium Support">
               <span
-                className="btn btn-sm d-flex align-items-center gap-1 ms-3"
+                className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1 ml-3"
                 style={{ cursor: 'pointer', padding: '0.25rem 0.6rem', color: 'var(--text)' }}
                 onClick={() => {
                   window.open(`https://support.remix.live/login?token=${encodeURIComponent(token)}`, '_blank')
@@ -802,7 +802,7 @@ export function RemixUiTopbar() {
           {feedbackFormUrl && (
             <CustomTooltip placement="bottom" tooltipText="Send Feedback">
               <span
-                className="btn btn-sm btn-primary d-flex align-items-center gap-1 ms-3"
+                className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-primary flex items-center gap-1 ml-3"
                 style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
                 onClick={() => {
                   setFeedbackPanelOpen(true)
@@ -817,7 +817,7 @@ export function RemixUiTopbar() {
           )}
           <span
             style={{ fontSize: '1.5rem', cursor: 'pointer' }}
-            className="ms-3"
+            className="ml-3"
             onClick={async () => {
               const isActive = await plugin.call('manager', 'isActive', 'settings')
               if (!isActive) await plugin.call('manager', 'activatePlugin', 'settings')

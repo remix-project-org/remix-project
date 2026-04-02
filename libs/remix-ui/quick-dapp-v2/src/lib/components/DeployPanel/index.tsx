@@ -255,32 +255,32 @@ function DeployPanel(): JSX.Element {
   const renderEditForm = () => (
     <div className="mb-3">
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp logo</Form.Label>
+        <Form.Label className="uppercase mb-0 form-label">Dapp logo</Form.Label>
         <input ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
         {logo && typeof logo === 'string' ? (
-          <div className="mt-2 mb-2 position-relative d-inline-block border bg-white rounded p-1">
+          <div className="mt-2 mb-2 relative inline-block border bg-white rounded p-1">
             <img src={logo} alt="Preview" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} onError={(e) => e.currentTarget.style.display = 'none'} />
-            <span onClick={handleRemoveLogo} style={{ cursor: 'pointer', position: 'absolute', top: -10, right: -10 }} className="badge bg-danger rounded-circle"><i className="fas fa-times"></i></span>
+            <span onClick={handleRemoveLogo} style={{ cursor: 'pointer', position: 'absolute', top: -10, right: -10 }} className="badge bg-danger rounded-full"><i className="fas fa-times"></i></span>
           </div>
         ) : (
           <div className="mt-1">
             <Button variant="outline-secondary" size="sm" onClick={() => logoInputRef.current?.click()}>
-              <i className="fas fa-upload me-1"></i> Choose Image
+              <i className="fas fa-upload mr-1"></i> Choose Image
             </Button>
           </div>
         )}
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp Title</Form.Label>
+        <Form.Label className="uppercase mb-0 form-label">Dapp Title</Form.Label>
         <Form.Control value={title} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { title: value } })} />
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp Description</Form.Label>
+        <Form.Label className="uppercase mb-0 form-label">Dapp Description</Form.Label>
         <Form.Control as="textarea" rows={3} value={details} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { details: value } })} />
       </Form.Group>
 
       <div className="d-grid">
-        <Button variant="primary" className="w-100" onClick={handleSaveConfig} disabled={isSavingConfig}>
+        <Button variant="primary" className="w-full" onClick={handleSaveConfig} disabled={isSavingConfig}>
           {isSavingConfig ? <><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Saving...</> : 'Save Configuration'}
         </Button>
       </div>
@@ -296,7 +296,7 @@ function DeployPanel(): JSX.Element {
   return (
     <div data-id="deploy-panel">
       <Card className="mb-2">
-        <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+        <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="flex justify-between bg-transparent border-0">
           Dapp details <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isDetailsOpen}>
@@ -307,17 +307,17 @@ function DeployPanel(): JSX.Element {
       </Card>
 
       <Card className="mb-2">
-        <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+        <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="flex justify-between bg-transparent border-0">
           Publish to IPFS <i className={`fas ${isPublishOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isPublishOpen}>
           <Card.Body>
-            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying} data-id="deploy-ipfs-btn">
-              {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
+            <Button variant="primary" className="w-full" onClick={() => handleIpfsDeploy()} disabled={isDeploying} data-id="deploy-ipfs-btn">
+              {isDeploying ? <><i className="fas fa-spinner fa-spin mr-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
             </Button>
             {displayCid && (
               <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
-                <div className="fw-bold">Deployed Successfully!</div>
+                <div className="font-bold">Deployed Successfully!</div>
                 <div><strong>CID:</strong> {displayCid}</div>
                 {displayGateway && <div className="mt-1"><a href={displayGateway} target="_blank" rel="noopener noreferrer">View DApp</a></div>}
               </Alert>
@@ -329,7 +329,7 @@ function DeployPanel(): JSX.Element {
 
       {displayCid && (
         <Card className="mb-2">
-          <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0" data-id="ens-section-header">
+          <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="flex justify-between bg-transparent border-0" data-id="ens-section-header">
             Register ENS (Arbitrum) <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
           <Collapse in={isEnsOpen}>
@@ -353,9 +353,9 @@ function DeployPanel(): JSX.Element {
                   }} />
                   <span className="input-group-text">.remixdapp.eth</span>
                 </div>
-                {ensNameError && <small className="text-danger mt-1 d-block">{ensNameError}</small>}
+                {ensNameError && <small className="text-danger mt-1 block">{ensNameError}</small>}
               </Form.Group>
-              <Button variant="secondary" className="w-100" onClick={() => {
+              <Button variant="secondary" className="w-full" onClick={() => {
                 const targetCid = deployResult.cid || activeDapp?.deployment?.ipfsCid;
                 if (!targetCid) return;
                 setIsEnsLoading(true);
@@ -401,34 +401,34 @@ function DeployPanel(): JSX.Element {
               }} disabled={isEnsLoading || !ensName || !!ensNameError}>{isEnsLoading ? 'Processing...' : ensButtonText}</Button>
               {currentEnsDomain && (
                 <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }}>
-                  <div className="fw-bold mb-1">
-                    <i className="fas fa-check-circle me-2"></i>ENS Linked!
+                  <div className="font-bold mb-1">
+                    <i className="fas fa-check-circle mr-2"></i>ENS Linked!
                   </div>
                   <div>
                     <a
                       href={`https://${currentEnsDomain}.limo`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-decoration-underline fw-bold"
+                      className="underline font-bold"
                     >
                       https://{currentEnsDomain}.limo
                     </a>
                   </div>
                   {ensResult.txHash && (
                     <div className="mt-2 small">
-                      <span className="text-muted">Tx: </span>
+                      <span className="text-gray-500 dark:text-gray-400">Tx: </span>
                       <a
                         href={`https://arbiscan.io/tx/${ensResult.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-muted text-decoration-none"
+                        className="text-gray-500 dark:text-gray-400 no-underline"
                       >
                         View on Explorer <i className="fas fa-external-link-alt small"></i>
                       </a>
                     </div>
                   )}
-                  <small className="d-block mt-2 text-muted">
-                    <i className="fas fa-info-circle me-1"></i>
+                  <small className="block mt-2 text-gray-500 dark:text-gray-400">
+                    <i className="fas fa-info-circle mr-1"></i>
                     It may take a few minutes for the ENS link to become accessible. If not available yet, try the IPFS gateway link above.
                   </small>
                 </Alert>
@@ -441,27 +441,27 @@ function DeployPanel(): JSX.Element {
 
       {currentEnsDomain && (
         <Card className="mb-2">
-          <Card.Header onClick={() => setIsShareOpen(!isShareOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
-            <span><i className="fas fa-share-alt me-2"></i>Share</span>
+          <Card.Header onClick={() => setIsShareOpen(!isShareOpen)} style={{ cursor: 'pointer' }} className="flex justify-between bg-transparent border-0">
+            <span><i className="fas fa-share-alt mr-2"></i>Share</span>
             <i className={`fas ${isShareOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
           <Collapse in={isShareOpen}>
             <Card.Body>
-              <div className="d-flex align-items-center bg-light border rounded p-2 mb-3">
-                <code className="text-truncate flex-grow-1 small" style={{ color: '#0d6efd' }}>
+              <div className="flex items-center bg-light border rounded p-2 mb-3">
+                <code className="truncate flex-grow-1 small" style={{ color: '#0d6efd' }}>
                   https://{currentEnsDomain}.limo
                 </code>
                 <Button
                   variant="link"
                   size="sm"
-                  className="flex-shrink-0 p-0 ms-2"
+                  className="flex-shrink-0 p-0 ml-2"
                   onClick={() => {
                     navigator.clipboard.writeText(`https://${currentEnsDomain}.limo`);
                     setCopiedField('url');
                     setTimeout(() => setCopiedField(''), 2000);
                   }}
                 >
-                  {copiedField === 'url' ? <i className="fas fa-check text-success"></i> : <i className="fas fa-copy text-muted"></i>}
+                  {copiedField === 'url' ? <i className="fas fa-check text-success"></i> : <i className="fas fa-copy text-gray-500 dark:text-gray-400"></i>}
                 </Button>
               </div>
               <div className="d-grid">
@@ -470,7 +470,7 @@ function DeployPanel(): JSX.Element {
                   size="sm"
                   onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDapp ⚡\n\nhttps://${currentEnsDomain}.limo`)}`, '_blank')}
                 >
-                  <i className="fab fa-x-twitter me-1"></i> Post on X
+                  <i className="fab fa-x-twitter mr-1"></i> Post on X
                 </Button>
               </div>
             </Card.Body>

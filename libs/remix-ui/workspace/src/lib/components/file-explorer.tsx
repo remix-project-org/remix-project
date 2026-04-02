@@ -577,20 +577,20 @@ export const FileExplorer = (props: FileExplorerProps) => {
   }
 
   return (
-    <div className="h-100 remixui_treeview" data-id="filePanelFileExplorerTree">
+    <div className="h-full remixui_treeview" data-id="filePanelFileExplorerTree">
       <div ref={treeRef} tabIndex={0} style={{
         outline: 'none',
         display: 'flex',
         flexDirection: 'column'
       }}
-      className="h-100 ms-0 ps-1"
+      className="h-full ml-0 pl-1"
       >
 
         <div key={`treeViewLiMenu`} data-id={`treeViewLiMenu`}>
           <div
             key={`treeViewDivMenu`}
             data-id={`treeViewDivMenu`}
-            className={`d-flex flex-row align-items-center`}
+            className={`flex flex-row items-center`}
           >
 
           </div>

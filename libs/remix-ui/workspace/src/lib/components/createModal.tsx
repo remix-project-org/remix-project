@@ -20,7 +20,7 @@ export const createModalMessage = async (
         onChange={(e) => onChangeTemplateName(e.target.value)}
         onInput={(e) => onChangeTemplateName((e.target as any).value)}
       />
-      <div className="d-flex py-2 align-items-center form-check">
+      <div className="flex py-2 items-center form-check">
         <input
           id="initGitRepository"
           data-id="initGitRepository"
@@ -33,7 +33,7 @@ export const createModalMessage = async (
         <label
           htmlFor="initGitRepository"
           data-id="initGitRepositoryLabel"
-          className="ms-1 form-check-label udapp_checkboxAlign"
+          className="ml-1 form-check-label udapp_checkboxAlign"
           title={window._intl.formatMessage({ id: 'filePanel.initGitRepoTitle' })}
         >
           <FormattedMessage id="filePanel.initGitRepositoryLabel" />

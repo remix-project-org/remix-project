@@ -26,7 +26,7 @@ export const ToggleSwitch = (props: IToggleSwitch) => {
     <CustomTooltip
       placement={"auto"}
       tooltipId={ id + "Tooltip"}
-      tooltipClasses="text-nowrap"
+      tooltipClasses="whitespace-nowrap"
       tooltipText={<FormattedMessage id={tooltipTextId} />}
     >
       <button

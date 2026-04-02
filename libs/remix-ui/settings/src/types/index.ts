@@ -87,7 +87,7 @@ interface ConfigState {
 
 export interface SettingsState {
   'generate-contract-metadata': ConfigState
-  'text-wrap': ConfigState
+  'whitespace-normal': ConfigState
   'personal-mode': ConfigState
   'matomo-perf-analytics': ConfigState
   'matomo-analytics': ConfigState

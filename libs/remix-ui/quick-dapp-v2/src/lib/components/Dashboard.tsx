@@ -75,35 +75,35 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="container-fluid p-4" data-id="quick-dapp-dashboard" style={{ minHeight: '100vh' }}>
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 qd-header">
+    <div className="container mx-auto px-4-fluid p-4" data-id="quick-dapp-dashboard" style={{ minHeight: '100vh' }}>
+      <div className="flex flex-col flex-md-row justify-between align-items-md-center mb-4 qd-header">
         <div>
-          <h3 className="fw-bold mb-1 text-body">Quick Dapp</h3>
+          <h3 className="font-bold mb-1 text-body">Quick Dapp</h3>
           <p className="text-secondary mb-0">Edit and deploy your dapps.</p>
         </div>
-        <div className="d-flex gap-2 mt-3 mt-md-0 qd-header-buttons">
+        <div className="flex gap-2 mt-3 mt-md-0 qd-header-buttons">
           <Button variant="primary" onClick={onCreateNew} data-id="create-new-dapp-btn">
-            <i className="fas fa-plus me-2"></i> Create a new dapp
+            <i className="fas fa-plus mr-2"></i> Create a new dapp
           </Button>
           {dapps.length > 0 && (
             <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)} data-id="delete-all-dapps-btn">
-              <i className="fas fa-trash me-2"></i> Delete all dapps
+              <i className="fas fa-trash mr-2"></i> Delete all dapps
             </Button>
           )}
         </div>
       </div>
 
-      <div className="rounded p-3 mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2 border qd-filter-bar">
+      <div className="rounded p-3 mb-4 flex flex-wrap justify-between items-center gap-2 border qd-filter-bar">
         <h5 className="mb-0 text-body" style={{ whiteSpace: 'nowrap' }}>
-          Your dapps <span className="badge bg-secondary ms-2" data-id="dapp-count-badge">{filteredAndSortedDapps.length}</span>
+          Your dapps <span className="badge bg-secondary ml-2" data-id="dapp-count-badge">{filteredAndSortedDapps.length}</span>
           {filteredAndSortedDapps.length !== validDapps.length && (
-            <small className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
+            <small className="text-gray-500 dark:text-gray-400 ml-2" style={{ fontSize: '0.8rem' }}>
               (filtered from {validDapps.length})
             </small>
           )}
         </h5>
 
-        <div className="d-flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <Form.Select
             size="sm"
             className="border-secondary"
@@ -135,7 +135,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="row">
         {filteredAndSortedDapps.length === 0 ? (
           <div className="col-12 text-center py-5">
-            <div className="text-muted">
+            <div className="text-gray-500 dark:text-gray-400">
               <i className="fas fa-box-open fa-3x mb-3"></i>
               <h5>No DApps found</h5>
               {validDapps.length > 0 ? (
@@ -168,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <Modal.Body>
           <p>Are you sure you want to delete this DApp?</p>
           <p className="text-warning small mb-0">
-            <i className="fas fa-exclamation-triangle me-1"></i>
+            <i className="fas fa-exclamation-triangle mr-1"></i>
             This will also delete the associated workspace and all its files. This action cannot be undone.
           </p>
         </Modal.Body>
@@ -189,7 +189,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <Modal.Body>
           <p>Are you sure you want to delete all your DApps?</p>
           <p className="text-warning small mb-0">
-            <i className="fas fa-exclamation-triangle me-1"></i>
+            <i className="fas fa-exclamation-triangle mr-1"></i>
             This will also delete all associated workspaces and their files. This action cannot be undone.
           </p>
         </Modal.Body>

@@ -40,7 +40,7 @@ export const Container = forwardRef<HTMLDivElement, Props>(
             '--columns': columns,
           } as React.CSSProperties
         }
-        className={`col pe-0 d-flex rounded container ${hover && 'hover'} ${
+        className={`col pr-0 flex rounded container ${hover && 'hover'} ${
           placeholder && 'placeholder'
         }`}
         onClick={onClick}
@@ -48,10 +48,10 @@ export const Container = forwardRef<HTMLDivElement, Props>(
       >
         {label ? (
           <div
-            className={`px-2 py-1 d-flex align-items-center justify-content-between container-header`}
+            className={`px-2 py-1 flex items-center justify-between container-header`}
           >
             {label}
-            <div className={`d-flex container-actions`}>
+            <div className={`flex container-actions`}>
               <Remove onClick={onRemove} data-id={`remove${label.replace(/\s*/g,"")}`} />
               <Handle {...handleProps} data-id={`handle${label.replace(/\s*/g,"")}`} />
             </div>

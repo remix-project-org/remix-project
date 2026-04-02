@@ -80,8 +80,8 @@ export const ContractSelection = (props: ContractSelectionProps) => {
           id={`treeViewItem${key}`}
           key={keyPath}
           label={
-            <div className="d-flex mt-2 flex-row remixui_label_item">
-              <label className="fw-bold pe-1 remixui_label_key">{key}:</label>
+            <div className="flex mt-2 flex-row remixui_label_item">
+              <label className="font-bold pr-1 remixui_label_key">{key}:</label>
               <label className="m-0 remixui_label_value">{typeof data.self === 'boolean' ? `${data.self}` : data.self}</label>
             </div>
           }
@@ -97,8 +97,8 @@ export const ContractSelection = (props: ContractSelectionProps) => {
           id={key.toString()}
           key={keyPath}
           label={
-            <div className="d-flex mt-2 flex-row remixui_label_item">
-              <label className="fw-bold pe-1 remixui_label_key">{key}:</label>
+            <div className="flex mt-2 flex-row remixui_label_item">
+              <label className="font-bold pr-1 remixui_label_key">{key}:</label>
               <label className="m-0 remixui_label_value">{typeof data.self === 'boolean' ? `${data.self}` : data.self}</label>
             </div>
           }
@@ -273,7 +273,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
     const modal: AppModal = {
       id: 'SolidityScanPermissionHandler',
       title: <FormattedMessage id="solidity.solScan.modalTitle" />,
-      message: <div className='d-flex flex-column'>
+      message: <div className='flex flex-col'>
         <span><FormattedMessage id="solidity.solScan.modalMessage" />
           <a href={'https://solidityscan.com/?utm_campaign=remix&utm_source=remix'}
             target="_blank"
@@ -314,7 +314,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             <CustomTooltip
               placement={'auto-end'}
               tooltipId="runStaticAnalysisTooltip"
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipText={`${intl.formatMessage({
                 id: 'solidity.runStaticAnalysis.iconTooltip'
               })}`}
@@ -327,7 +327,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
                 }}
               >
                 <span>
-                  <img id="ssaLogo" className="remixui_storageLogo me-2" src="assets/img/staticAnalysisColorBlue.webp" />
+                  <img id="ssaLogo" className="remixui_storageLogo mr-2" src="assets/img/staticAnalysisColorBlue.webp" />
                   <span>
                     <FormattedMessage id="solidity.runStaticAnalysis" />
                   </span>
@@ -337,7 +337,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             <CustomTooltip
               placement={'auto-end'}
               tooltipId="runSolidityScanTooltip"
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipText={`${intl.formatMessage({
                 id: 'solidity.solScan.iconTooltip'
               })}`}
@@ -350,7 +350,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
                 }}
               >
                 <span>
-                  <img id="solscanLogo" className="remixui_storageLogo me-2" src="assets/img/solidityScanLogo.webp" />
+                  <img id="solscanLogo" className="remixui_storageLogo mr-2" src="assets/img/solidityScanLogo.webp" />
                   <span>
                     <FormattedMessage id="solidity.runSolidityScan" />
                   </span>
@@ -360,7 +360,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             <CustomTooltip
               placement={'auto-end'}
               tooltipId="publishOnIpfsTooltip"
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipText={`${intl.formatMessage({
                 id: 'solidity.publishOn'
               })} Ipfs`}
@@ -374,7 +374,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
               >
 
                 <span>
-                  <img id="ipfsLogo" className="remixui_storageLogo me-2" src="assets/img/ipfs.webp" />
+                  <img id="ipfsLogo" className="remixui_storageLogo mr-2" src="assets/img/ipfs.webp" />
                   <span>
                     <FormattedMessage id="solidity.publishOn" /> IPFS
                   </span>
@@ -384,7 +384,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             <CustomTooltip
               placement={'auto-end'}
               tooltipId="publishOnSwarmTooltip"
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipText={`${intl.formatMessage({
                 id: 'solidity.publishOn'
               })} Swarm`}
@@ -397,7 +397,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
                 }}
               >
                 <span>
-                  <img id="swarmLogo" className="remixui_storageLogo me-2" src="assets/img/swarmColor.webp" />
+                  <img id="swarmLogo" className="remixui_storageLogo mr-2" src="assets/img/swarmColor.webp" />
                   <span>
                     <FormattedMessage id="solidity.publishOn" /> Swarm
                   </span>
@@ -407,7 +407,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             <CustomTooltip
               placement={'auto-end'}
               tooltipId="CompilationDetailsTooltip"
-              tooltipClasses="text-nowrap"
+              tooltipClasses="whitespace-nowrap"
               tooltipText={<FormattedMessage id="solidity.displayContractDetails" />}
             >
               <button
@@ -419,7 +419,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
                 }}
               >
                 <span>
-                  <i className="fa-regular fa-memo-pad me-2 text-primary"></i>
+                  <i className="fa-regular fa-memo-pad mr-2 text-primary"></i>
                   <span>
                     <FormattedMessage id="solidity.compilationDetails" />
                   </span>
@@ -428,7 +428,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             </CustomTooltip>
             {/* Copy to Clipboard */}
             <div className="remixui_contractHelperButtons">
-              <div className="input-group d-block">
+              <div className="input-group block">
                 <div className="btn-group float-end" role="group" aria-label={intl.formatMessage({ id: 'solidity.copyToClipboard' })}>
                   <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyABI' })} getContent={copyABI} direction="top">
                     <button className="btn remixui_copyButton">
@@ -449,8 +449,8 @@ export const ContractSelection = (props: ContractSelectionProps) => {
         </section>
       ) : (
         <section className="m-0 clearfix">
-          <article className="px-2 mt-2 pb-0 d-flex w-100">
-            <span className="mt-2 mx-3 w-100 alert alert-warning" role="alert">
+          <article className="px-2 mt-2 pb-0 flex w-full">
+            <span className="mt-2 mx-3 w-full alert alert-warning" role="alert">
               <FormattedMessage id="solidity.noContractCompiled" />
             </span>
           </article>

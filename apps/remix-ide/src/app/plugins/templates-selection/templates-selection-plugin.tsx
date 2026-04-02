@@ -85,9 +85,9 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
       const modalResult = await this.call('notification', 'modal', aiTemplateModal)
       const alertModal: AlertModal = {
         id: 'TemplatesSelectionAiAlert',
-        message: <div className='d-flex flex-row align-items-center'>
+        message: <div className='flex flex-row items-center'>
           <span><img src="../../../assets/img/remixai-logoDefault.webp" style={{ width: '50px', height: '50px' }} alt="Ai alert" /></span>
-          <p className='ms-2' style={{ fontSize: '1.1rem' }}>Your request is being processed. Please wait while I generate the workspace for you. It won't be long.</p>
+          <p className='ml-2' style={{ fontSize: '1.1rem' }}>Your request is being processed. Please wait while I generate the workspace for you. It won't be long.</p>
         </div>,
         title: 'Generating Workspace'
       }
@@ -277,19 +277,19 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
                       tagList={item.tagList}
                       classList={'TSCellStyle'}
                     >
-                      <div className='d-flex justify-content-between h-100 flex-column'>
-                        <div className='d-flex flex-column'>
+                      <div className='flex justify-between h-full flex-col'>
+                        <div className='flex flex-col'>
                           <div>
                             {item.description && <span className='text-dark'>{item.description}</span>}
                           </div>
-                          <div className='d-flex flex-wrap mb-2'>
+                          <div className='flex flex-wrap mb-2'>
                             {(item.opts && item.opts.upgradeable && item.opts.upgradeable === 'uups') && <span className='badgeForCell badge text-secondary'>Upgradeable-UUPS</span>}
                             {(item.opts && item.opts.mintable) && <span className='badgeForCell text-secondary'>mintable</span>}
                             {(item.opts && item.opts.burnable) && <span className='badgeForCell text-secondary'>burnable</span>}
                             {(item.opts && item.opts.pausable) && <span className='badgeForCell text-secondary'>pausable</span>}
                           </div>
                         </div>
-                        <div className='align-items-center justify-content-between w-100 d-flex pt- flex-row'>
+                        <div className='items-center justify-between w-full flex pt- flex-row'>
                           {(!template.IsArtefact || !item.IsArtefact) && <CustomTooltip
                             placement="auto"
                             tooltipId={`overlay-tooltip-new${item.name}`}
@@ -304,11 +304,11 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
                                   createWorkspace(item, template)
                                 }
                               }}
-                              className="btn btn-sm me-2 border border-primary"
+                              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors mr-2 border border-primary"
                               data-template-name={item.name}
                             >
                               {isElectron() ?
-                                <><i className='fa fa-folder-open me-1'></i>Create</> : 'Create'}
+                                <><i className='fa fa-folder-open mr-1'></i>Create</> : 'Create'}
                             </span>
                           </CustomTooltip>}
                           {item.templateType && item.templateType.forceCreateNewWorkspace ? <></> : isElectron() ?
@@ -322,9 +322,9 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
                                 <span
                                   data-id={`add-${item.value}`}
                                   onClick={async () => addToCurrentElectronFolder(item, template.name)}
-                                  className="btn btn-sm border"
+                                  className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors border"
                                 >
-                                  <i className="fa fa-folder-plus me-1" aria-hidden="true"></i>
+                                  <i className="fa fa-folder-plus mr-1" aria-hidden="true"></i>
                                  Add here
                                 </span>
                               </CustomTooltip>
@@ -338,7 +338,7 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
                               <span
                                 data-id={`add-${item.value}`}
                                 onClick={async () => addToCurrentWorkspace(item, template)}
-                                className="btn btn-sm border"
+                                className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors border"
                               >
                                 Add to current
                               </span>
@@ -358,9 +358,9 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
                 tagList={[]}
                 classList='TSCellStyle'
               >
-                <div className='d-flex justify-content-between h-100 flex-column'>
+                <div className='flex justify-between h-full flex-col'>
                   <span className='pt-2 px-1 h6 text-dark'>{template.description}</span>
-                  <span style={{ cursor: 'pointer' }} className='mt-2 mb-1 btn btn-sm border align-items-left' onClick={() => template.onClick()}>{template.onClickLabel}</span>
+                  <span style={{ cursor: 'pointer' }} className='mt-2 mb-1 inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors border align-items-left' onClick={() => template.onClick()}>{template.onClickLabel}</span>
                 </div>
               </RemixUIGridCell>}
             </RemixUIGridSection>
@@ -394,7 +394,7 @@ const createModalMessage = async (
         onInput={(e) => onChangeTemplateName((e.target as any).value)}
       />
       {templateGroup.hasOptions ? createOptionsModal(onChangeCheckBoxRefs, onChangeRadioRefs) : null}
-      <div className="d-flex py-2 align-items-center form-check">
+      <div className="flex py-2 items-center form-check">
         <input
           id="initGitRepository"
           data-id="initGitRepository"
@@ -407,7 +407,7 @@ const createModalMessage = async (
         <label
           htmlFor="initGitRepository"
           data-id="initGitRepositoryLabel"
-          className="ms-1 form-check-label udapp_checkboxAlign"
+          className="ml-1 form-check-label udapp_checkboxAlign"
           title={window._intl.formatMessage({ id: 'filePanel.initGitRepoTitle' })}
         >
           <FormattedMessage id="filePanel.initGitRepositoryLabel" />
@@ -429,32 +429,32 @@ const createOptionsModal = (
   onChangeRadioRefs: (event: any) => void
 ) => (
   <div id="ozcustomization" data-id="ozCustomization" style={{ display: 'block' }} className="mb-2">
-    <label className="form-check-label d-block mb-2" style={{ fontWeight: 'bolder' }}>
+    <label className="form-check-label block mb-2" style={{ fontWeight: 'bolder' }}>
       <FormattedMessage id="filePanel.customizeTemplate" />
     </label>
 
-    <label className="form-check-label d-block mb-1">
+    <label className="form-check-label block mb-1">
       <FormattedMessage id="filePanel.features" />
     </label>
     <div className="mb-2">
       {['mintable', 'burnable', 'pausable'].map((feature) => (
-        <div key={feature} className="d-flex ms-2 form-check">
+        <div key={feature} className="flex ml-2 form-check">
           <input className="form-check-input" type="checkbox" name="feature" value={feature} id={feature} onChange={onChangeCheckBoxRefs} />
-          <label className="form-check-label ms-1" htmlFor={feature} data-id={`featureType${feature.charAt(0).toUpperCase() + feature.slice(1)}`}>
+          <label className="form-check-label ml-1" htmlFor={feature} data-id={`featureType${feature.charAt(0).toUpperCase() + feature.slice(1)}`}>
             <FormattedMessage id={`filePanel.${feature}`} />
           </label>
         </div>
       ))}
     </div>
 
-    <label className="form-check-label d-block mb-1">
+    <label className="form-check-label block mb-1">
       <FormattedMessage id="filePanel.upgradeability" />
     </label>
     <div>
       {['transparent', 'uups'].map((type) => (
-        <div key={type} className="d-flex ms-2 form-check">
+        <div key={type} className="flex ml-2 form-check">
           <input className="form-check-input" type="radio" name="upgradeability" value={type} id={type} onChange={onChangeRadioRefs} />
-          <label className="form-check-label ms-1" htmlFor={type} data-id={`upgradeType${type.charAt(0).toUpperCase() + type.slice(1)}`}>
+          <label className="form-check-label ml-1" htmlFor={type} data-id={`upgradeType${type.charAt(0).toUpperCase() + type.slice(1)}`}>
             {type.toUpperCase()}
           </label>
         </div>

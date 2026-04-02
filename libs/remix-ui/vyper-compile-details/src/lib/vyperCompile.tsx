@@ -68,17 +68,17 @@ export default function VyperCompile({ result, theme, themeStyle }: VyperCompile
   ]
 
   return (
-    <div className='w-100 h-100 d-flex flex-row'>
-      <Tabs className="flex-column" style={{ height: "fit-content", backgroundColor: 'var(--bs-body-bg)' }} id="result" activeKey={active} onSelect={(key: any) => setActive(key)}>
+    <div className='w-full h-full flex flex-row'>
+      <Tabs className="flex-col" style={{ height: "fit-content", backgroundColor: 'var(--bs-body-bg)' }} id="result" activeKey={active} onSelect={(key: any) => setActive(key)}>
         {tabContent.map((content, index) => (
-          <Tab className="border-top border-start p-4 bg-light" style={{ width: '50rem', height: 'fit-content', minHeight: '25rem' }} eventKey={content.eventKey} title={content.tabHeadingText} as={'span'} key={`${index}-${content.eventKey}`}>
-            <div className="d-flex flex-column w-90 justify-content-center mx-auto rounded-2">
+          <Tab className="border-t border-l p-4 bg-light" style={{ width: '50rem', height: 'fit-content', minHeight: '25rem' }} eventKey={content.eventKey} title={content.tabHeadingText} as={'span'} key={`${index}-${content.eventKey}`}>
+            <div className="flex flex-col w-90 justify-center mx-auto rounded">
               <CopyToClipboard getContent={() => (content.eventKey !== 'abi' ? content.tabPayload : JSON.stringify(result['abi']))}>
                 <Button
-                  className="copy ms-2 btn btn-sm btn-secondary"
+                  className="copy ml-2 inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-secondary"
                   data-id={content.eventKey === 'abi' ? 'copy-abi' : ''}
                 >
-                  <span className="far fa-copy me-2"></span>
+                  <span className="far fa-copy mr-2"></span>
                   {content.tabButtonText()}
                 </Button>
               </CopyToClipboard>
@@ -91,8 +91,8 @@ export default function VyperCompile({ result, theme, themeStyle }: VyperCompile
                   /> : null}
                 </div>
               ) : (
-                <div className="w-100 mt-2 p-2 mx-auto">
-                  <textarea className="form-control rounded-2" defaultValue={content.tabPayload as string} rows={15}></textarea>
+                <div className="w-full mt-2 p-2 mx-auto">
+                  <textarea className="form-control rounded" defaultValue={content.tabPayload as string} rows={15}></textarea>
                 </div>
               )}
             </div>

@@ -100,7 +100,7 @@ export function SignMessagePrompt ({
       <div className='mt-2'>
         <span><FormattedMessage id="udapp.otherwiseLabel" /></span>
         <button
-          className='ms-2 modal-ok btn btn-sm border-primary'
+          className='ml-2 modal-ok inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors border-primary'
           data-id="sign-eip-712"
           onClick={handleEIP712Click}
         >
@@ -113,14 +113,14 @@ export function SignMessagePrompt ({
 
 export function SignedMessagePrompt ({ msgHash, signedData }: { msgHash: string, signedData: string }) {
   return (
-    <div className="d-flex flex-column">
-      <label className="text-uppercase">
+    <div className="flex flex-col">
+      <label className="uppercase">
         <FormattedMessage id="udapp.hash" />
       </label>
       <span id="remixRunSignMsgHash" data-id="settingsRemixRunSignMsgHash">
         {msgHash}
       </span>
-      <label className="pt-2 text-uppercase">
+      <label className="pt-2 uppercase">
         <FormattedMessage id="udapp.signature" />
       </label>
       <span id="remixRunSignMsgSignature" data-id="settingsRemixRunSignMsgSignature">

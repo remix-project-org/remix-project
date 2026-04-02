@@ -121,9 +121,9 @@ const App = () => {
     <IntlProvider locale={locale.code} messages={locale.messages}>
       <main id="vyper-plugin">
         <section>
-          <div className="px-3 pt-3 mb-3 w-100">
+          <div className="px-3 pt-3 mb-3 w-full">
             <CustomTooltip placement="bottom" tooltipText="Clone a repo of Vyper examples. Switch to the File Explorer to see the examples.">
-              <button data-id="add-repository" className="w-100 text-dark btn border" onClick={() => {
+              <button data-id="add-repository" className="w-full text-dark btn border" onClick={() => {
                 {cloneCount === 0 ? remixClient.cloneVyperRepo() : remixClient.cloneVyperRepo(cloneCount)}
                 setCloneCount((prev) => {
                   return ++prev
@@ -134,7 +134,7 @@ const App = () => {
             </CustomTooltip>
           </div>
 
-          <Accordion className="border-0 w-100 accordion-background">
+          <Accordion className="border-0 w-full accordion-background">
             <div className="border-0">
               <div className="">
                 <CustomAccordionToggle eventKey="0">
@@ -142,10 +142,10 @@ const App = () => {
                 </CustomAccordionToggle>
               </div>
               <Accordion.Collapse eventKey="0">
-                <div className="pb-2 border-bottom">
+                <div className="pb-2 border-b">
                   <Form>
-                    <div className="d-flex flex-row justify-content-around mb-1 mt-2">
-                      <div className={`form-control custom-radio ${state.environment === 'remote' ? 'd-flex' : 'd-flex cursor-status'} bg-body`}>
+                    <div className="flex flex-row justify-around mb-1 mt-2">
+                      <div className={`form-control custom-radio ${state.environment === 'remote' ? 'flex' : 'flex cursor-status'} bg-body`}>
                         <input
                           type="radio"
                           id="remote-compiler"
@@ -154,14 +154,14 @@ const App = () => {
                           value={state.environment}
                           checked={state.environment === 'remote'}
                           onChange={() => setEnvironment('remote')}
-                          className={`form-check-input ${state.environment === 'remote' ? 'd-flex me-1' : 'd-flex me-1 cursor-status'}`}
+                          className={`form-check-input ${state.environment === 'remote' ? 'flex mr-1' : 'flex mr-1 cursor-status'}`}
                         />
                         <label
                           htmlFor="remote-compiler"
                           className="form-check-label"
                         >Remote Compiler</label>
                       </div>
-                      <div className={`form-control custom-radio ${state.environment === 'local' ? 'me-2' : `cursor-status`} bg-body p-0 mt-1`}>
+                      <div className={`form-control custom-radio ${state.environment === 'local' ? 'mr-2' : `cursor-status`} bg-body p-0 mt-1`}>
                         <input
                           id="local-compiler"
                           data-id="local-compiler"
@@ -170,7 +170,7 @@ const App = () => {
                           name="local"
                           value={state.environment}
                           onChange={() => setEnvironment('local')}
-                          className={`form-check-input  ${state.environment === 'local' ? '' : `cursor-status`} me-1`}
+                          className={`form-check-input  ${state.environment === 'local' ? '' : `cursor-status`} mr-1`}
                         />
                         <label
                           htmlFor="local-compiler"
@@ -184,7 +184,7 @@ const App = () => {
               </Accordion.Collapse>
             </div>
           </Accordion>
-          <span className="w-100 px-3 mt-3 mb-1 small text-warning">
+          <span className="w-full px-3 mt-3 mb-1 small text-warning">
           Specify the{' '}
             <a className="text-warning" target="_blank" href="https://remix-ide.readthedocs.io/en/latest/vyper.html#specify-vyper-version">
             compiler version
@@ -195,10 +195,10 @@ const App = () => {
             </a>{' '}
           in the .vy file.
           </span>
-          <div className="px-3 w-100 mb-3 mt-1" id="compile-btn">
+          <div className="px-3 w-full mb-3 mt-1" id="compile-btn">
             <CompilerButton compilerUrl={compilerUrl()} contract={contract} setOutput={(name, update) => setOutput({ ...output, [name]: update })} resetCompilerState={resetCompilerResultState} output={output} remixClient={remixClient}/>
           </div>
-          <article id="result" className="px-3 p-2 w-100 border-top mt-2 vyper-errorBlobs">
+          <article id="result" className="px-3 p-2 w-full border-t mt-2 vyper-errorBlobs">
             {output && output.status === 'success' &&
             <>
               <VyperResult output={output} plugin={remixClient} />

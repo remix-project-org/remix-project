@@ -105,9 +105,9 @@ export const RemoteBranchDetails = (props: BrancheDetailsProps) => {
 
   return (<Accordion activeKey={activePanel} defaultActiveKey="">
     <BrancheDetailsNavigation allowCheckout={allowCheckout} checkout={checkout} branch={branch} eventKey="0" activePanel={activePanel} callback={setActivePanel} />
-    <Accordion.Collapse className="ps-2 border-start ms-1" eventKey="0">
+    <Accordion.Collapse className="pl-2 border-l ml-1" eventKey="0">
       <>
-        <div data-id={`remote-branch-commits-${branch && branch.name}`} className="ms-1">
+        <div data-id={`remote-branch-commits-${branch && branch.name}`} className="ml-1">
           {context.remoteBranchCommits && Object.entries(context.remoteBranchCommits).map(([key, value]) => {
             if (key == branch.name) {
               return value.map((page, index) => {
@@ -119,7 +119,7 @@ export const RemoteBranchDetails = (props: BrancheDetailsProps) => {
           })}
 
         </div>
-        {hasNextPage && <GitUIButton data-id='load-more-remote-branches' className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
+        {hasNextPage && <GitUIButton data-id='load-more-remote-branches' className="mb-1 ml-2 inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
       </>
     </Accordion.Collapse>
   </Accordion>)

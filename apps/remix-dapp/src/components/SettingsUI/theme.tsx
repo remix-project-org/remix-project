@@ -36,16 +36,16 @@ export function ThemeUI() {
   };
 
   return (
-    <div className="d-block mt-2">
+    <div className="block mt-2">
       <label>
         <FormattedMessage id="udapp.themes" />
       </label>
-      <div className="d-flex align-items-center">
+      <div className="flex items-center">
         <select
           id="txorigin"
           data-id="runTabSelectAccount"
           name="txorigin"
-          className="form-control overflow-hidden w-100 fw-normal form-select pe-4"
+          className="form-control overflow-hidden w-full font-normal form-select pr-4"
           value={theme}
           onChange={(e) => {
             selectTheme(e.target.value);

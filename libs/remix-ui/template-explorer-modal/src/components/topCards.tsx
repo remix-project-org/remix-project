@@ -59,7 +59,7 @@ export function TopCards() {
 
     return (
       <ul
-        className="list-unstyled p-3 gap-2 d-flex flex-column align-items-start justify-content-end bg-light position-absolute"
+        className="list-unstyled p-3 gap-2 flex flex-col items-start justify-end bg-light absolute"
         ref={importOptionRef}
         style={{
           borderRadius: '10px',
@@ -71,18 +71,18 @@ export function TopCards() {
         data-id="importOptionsMenu"
       >
         <li
-          className="d-flex flex-row align-items-center import-option-item"
+          className="flex flex-row items-center import-option-item"
           onClick={() => {
             importFileInputRef.current?.click()
           }}
           data-id="importOptionsMenuLocalFileSystem"
         >
-          <i className="me-2 fa-solid fa-upload"></i>
+          <i className="mr-2 fa-solid fa-upload"></i>
           <input
             ref={importFileInputRef}
             type="file"
             id="importFilesInput"
-            className="d-none"
+            className="hidden"
             onChange={async (e) => {
               e.stopPropagation()
               if (e.target.files.length === 0 || !e.target.files) return
@@ -93,23 +93,23 @@ export function TopCards() {
               await plugin.call('notification', 'toast', 'Files imported successfully')
             }}
           />
-          <span className="fw-light">Upload files</span>
+          <span className="font-light">Upload files</span>
         </li>
         <li
-          className="d-flex flex-row align-items-center import-option-item"
+          className="flex flex-row items-center import-option-item"
           onClick={() => {
             importFolderInputRef.current?.click()
           }}
           data-id="importOptionsMenuLocalFileSystem"
         >
-          <i className="me-2 fa-solid fa-folder-upload"></i>
+          <i className="mr-2 fa-solid fa-folder-upload"></i>
           <input
             ref={importFolderInputRef}
             type="file"
             id="importFoldersInput"
             multiple
             {...enableDirUpload}
-            className="d-none"
+            className="hidden"
             onChange={async (e) => {
               e.stopPropagation()
               if (e.target.files.length === 0 || !e.target.files) return
@@ -120,10 +120,10 @@ export function TopCards() {
               await plugin.call('notification', 'toast', 'Folders imported successfully')
             }}
           />
-          <span className="fw-light">Upload folders</span>
+          <span className="font-light">Upload folders</span>
         </li>
         <li
-          className="d-flex flex-row align-items-center import-option-item "
+          className="flex flex-row items-center import-option-item "
           onClick={() => {
             if (state.manageCategory === 'Template') {
               dispatch({ type: TemplateExplorerWizardAction.SET_MANAGE_CATEGORY, payload: 'Files' })
@@ -134,10 +134,10 @@ export function TopCards() {
           }}
           data-id="importOptionsMenuIPFS"
         >
-          <i className="me-2 far fa-cube"></i><span className="fw-light">Import from IPFS</span>
+          <i className="mr-2 far fa-cube"></i><span className="font-light">Import from IPFS</span>
         </li>
         <li
-          className="d-flex flex-row align-items-center import-option-item"
+          className="flex flex-row items-center import-option-item"
           onClick={() => {
             if (state.manageCategory === 'Template') {
               dispatch({ type: TemplateExplorerWizardAction.SET_MANAGE_CATEGORY, payload: 'Files' })
@@ -148,7 +148,7 @@ export function TopCards() {
           }}
           data-id="importOptionsMenuHTTPS"
         >
-          <i className="me-2 fa-solid fa-link"></i><span className="fw-light">Import from HTTPS</span></li>
+          <i className="mr-2 fa-solid fa-link"></i><span className="font-light">Import from HTTPS</span></li>
       </ul>
     )
   }
@@ -159,7 +159,7 @@ export function TopCards() {
         <div className="col-12 col-md-6">
           <div
             data-id="create-blank-workspace-topcard"
-            className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
+            className={`explora-topcard flex flex-row items-center bg-light p-3 p-md-4 shadow-sm border-0 h-full ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
             onClick={async () => {
               if (state.manageCategory === 'Template') {
                 dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE, payload: { value: 'blank', displayName: 'Blank', tagList: ["Blank", "Solidity"], description: 'A blank project' } })
@@ -186,19 +186,19 @@ export function TopCards() {
               e.currentTarget.style.transform = 'translateY(0)'
             }}
           >
-            <span className="d-flex flex-shrink-0">
+            <span className="flex flex-shrink-0">
               <i className={`fa-2x fas fa-plus`}></i>
             </span>
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
+            <span className="flex flex-col flex-grow-1 ml-2 ms-md-3">
               <p className="mb-0 fw-semibold">Create blank</p>
-              <p className="mb-0 fw-light text-wrap">{state.manageCategory === 'Template' ? 'Create an empty workspace' : 'Create a blank file'}</p>
+              <p className="mb-0 font-light whitespace-normal">{state.manageCategory === 'Template' ? 'Create an empty workspace' : 'Create a blank file'}</p>
             </span>
           </div>
         </div>
         <div className="col-12 col-md-6">
           <div
             data-id="create-with-ai-topcard"
-            className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
+            className={`explora-topcard flex flex-row items-center bg-light p-3 p-md-4 shadow-sm border-0 h-full ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
             onClick={async () => {
               let aiPluginProfile = await plugin.call('remixaiassistant', 'getProfile')
               if (state.manageCategory === 'Template') {
@@ -238,19 +238,19 @@ export function TopCards() {
               e.currentTarget.style.transform = 'translateY(0)'
             }}
           >
-            <span className="d-flex flex-shrink-0">
+            <span className="flex flex-shrink-0">
               <img src={'assets/img/remixai-logoDefault.webp'} className="img-fluid" style={{ width: '20px', height: '20px' }} />
             </span>
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
+            <span className="flex flex-col flex-grow-1 ml-2 ms-md-3">
               <p className="mb-0 fw-semibold">Create with AI</p>
-              <p className="mb-0 fw-light text-wrap">{state.manageCategory === 'Template' ? 'Generate a workspace with AI' : 'Generate files with AI'}</p>
+              <p className="mb-0 font-light whitespace-normal">{state.manageCategory === 'Template' ? 'Generate a workspace with AI' : 'Generate files with AI'}</p>
             </span>
           </div>
         </div>
         <div className="col-12 col-md-6">
           <div
             data-id="contract-wizard-topcard"
-            className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
+            className={`explora-topcard flex flex-row items-center bg-light p-3 p-md-4 shadow-sm border-0 h-full ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
             onClick={() => {
               if (state.manageCategory === 'Template') {
                 dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
@@ -274,12 +274,12 @@ export function TopCards() {
               e.currentTarget.style.transform = 'translateY(0)'
             }}
           >
-            <span className="d-flex flex-shrink-0">
+            <span className="flex flex-shrink-0">
               <img src={'assets/img/openzeppelin-logo.png'} className="img-fluid" style={{ width: '20px', height: '20px' }} />
             </span>
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
+            <span className="flex flex-col flex-grow-1 ml-2 ms-md-3">
               <p className="mb-0 fw-semibold">Contract Wizard</p>
-              <p className="mb-0 fw-light text-wrap">{state.manageCategory === 'Template' ? 'Create a new workspace with the OpenZeppelin Wizard' : 'Create a contract file with the OpenZeppelin Wizard'}</p>
+              <p className="mb-0 font-light whitespace-normal">{state.manageCategory === 'Template' ? 'Create a new workspace with the OpenZeppelin Wizard' : 'Create a contract file with the OpenZeppelin Wizard'}</p>
             </span>
           </div>
         </div>
@@ -287,7 +287,7 @@ export function TopCards() {
           <div
             ref={importCardRef}
             data-id="import-project-topcard"
-            className={`explora-topcard d-flex flex-row align-items-center p-3  shadow-sm import-files border border-light h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
+            className={`explora-topcard flex flex-row items-center p-3  shadow-sm import-files border border-light h-full ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
             style={{
               backgroundColor: 'transparent',
               transition: 'background 0.3s, transform 0.2s, box-shadow 0.2s',
@@ -315,7 +315,7 @@ export function TopCards() {
                 type="file"
                 id="importProjectInput"
                 multiple
-                className="d-none"
+                className="hidden"
                 onChange={async (e) => {
                   e.stopPropagation()
                   if (e.target.files.length === 0 || !e.target.files) return
@@ -340,13 +340,13 @@ export function TopCards() {
               />) : null
             }
 
-            <span className="d-flex flex-shrink-0">
+            <span className="flex flex-shrink-0">
               <i className="fa-2x fas fa-upload"></i>
             </span>
 
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
+            <span className="flex flex-col flex-grow-1 ml-2 ms-md-3">
               <p className="mb-0 fw-semibold">{state.manageCategory === 'Template' ? 'Import Project' : 'Import Files'}</p>
-              <p className="mb-0 fw-light text-wrap">{state.manageCategory === 'Template' ? 'Import an existing project' : 'Import existing files'}</p>
+              <p className="mb-0 font-light whitespace-normal">{state.manageCategory === 'Template' ? 'Import an existing project' : 'Import existing files'}</p>
             </span>
           </div>
         </div>}
@@ -354,7 +354,7 @@ export function TopCards() {
         {state.manageCategory === 'Template' && <div className="col-12 col-md-6">
           <div
             data-id="create-git-clone"
-            className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
+            className={`explora-topcard flex flex-row items-center bg-light p-3 p-md-4 shadow-sm border-0 h-full ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
             onClick={async () => {
               // facade.closeWizard()
               // showCloneModal()
@@ -373,12 +373,12 @@ export function TopCards() {
               e.currentTarget.style.transform = 'translateY(0)'
             }}
           >
-            <span className="d-flex flex-shrink-0">
+            <span className="flex flex-shrink-0">
               <i className={`fa-2x fab fa-github`}></i>
             </span>
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
+            <span className="flex flex-col flex-grow-1 ml-2 ms-md-3">
               <p className="mb-0 fw-semibold">Git Clone</p>
-              <p className="mb-0 fw-light text-wrap">Clone a git repository</p>
+              <p className="mb-0 font-light whitespace-normal">Clone a git repository</p>
             </span>
           </div>
         </div>}

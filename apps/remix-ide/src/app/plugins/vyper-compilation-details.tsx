@@ -99,7 +99,7 @@ export class VyperCompilationDetailsPlugin extends ViewPlugin {
   }
   render() {
     return (
-      <div className="d-flex h-100 w-100 m-0 p-5 bg-light" id="compileDetails">
+      <div className="flex h-full w-full m-0 p-5 bg-light" id="compileDetails">
         <PluginViewWrapper plugin={this} />
       </div>
     )

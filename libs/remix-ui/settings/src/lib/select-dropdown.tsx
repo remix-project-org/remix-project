@@ -1,7 +1,5 @@
-import React from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Registry } from "@remix-project/remix-lib"
-import { CustomMenu, CustomToggle } from "@remix-ui/helper"
-import { Dropdown } from "react-bootstrap"
 
 type SelectDropdownProps = {
     value: string,
@@ -14,6 +12,9 @@ type SelectDropdownProps = {
   }
 
 const SelectDropdown = ({ value, options, name, dispatch }: SelectDropdownProps) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
   const handleChange = (name: string, value: string) => {
     dispatch({ type: 'SET_LOADING', payload: { name: name } })
     if (name === 'theme') {
@@ -29,28 +30,57 @@ const SelectDropdown = ({ value, options, name, dispatch }: SelectDropdownProps)
     } else {
       dispatch({ type: 'SET_VALUE', payload: { name: name, value: value } })
     }
+    setIsOpen(false)
   }
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
   return (
-    <Dropdown>
-      <Dropdown.Toggle as={CustomToggle} className="btn-light btn-block w-100 d-inline-block border border-secondary form-control" icon="fas fa-caret-down text-secondary" useDefaultIcon={false}>
-        <div style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }} data-id={`settingsTabDropdownToggle${name}`}>
-          <div className="text-truncate text-secondary">
-            {<span data-id="selectedVersion">{value}</span>}
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        className="w-full px-3 py-2 text-left bg-white dark:bg-gray-800 border border-theme rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+        data-id={`settingsTabDropdownToggle${name}`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex justify-between items-center">
+          <span className="block truncate text-gray-700 dark:text-gray-300" data-id="selectedVersion">
+            {value}
+          </span>
+          <i className={`fas fa-caret-down text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`}></i>
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-theme rounded-md shadow-lg" data-id="custom-dropdown-items">
+          <div className="py-1 max-h-60 overflow-auto">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className="w-full px-3 py-2 text-left text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => handleChange(name, option.value)}
+                data-id={`settingsTabDropdownItem${option.value}`}
+              >
+                <span>{option.label}</span>
+              </button>
+            ))}
           </div>
         </div>
-      </Dropdown.Toggle>
-
-      <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden bg-light p-0" data-id="custom-dropdown-items">
-        {
-          options.map((option) => (
-            <Dropdown.Item key={option.value} onClick={() => handleChange(name, option.value)} data-id={`settingsTabDropdownItem${option.value}`}>
-              <span>{option.label}</span>
-            </Dropdown.Item>
-          ))
-        }
-      </Dropdown.Menu>
-    </Dropdown>
+      )}
+    </div>
   )
 }
 

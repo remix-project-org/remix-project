@@ -40,7 +40,7 @@ const VerticalIconsContextMenu = (props: VerticalIconsContextMenuProps) => {
   return (
     <div
       id="menuItemsContainer"
-      className="p-2 text-start remixui_verticalIconContextcontainer bg-light shadow border"
+      className="p-2 text-left remixui_verticalIconContextcontainer bg-light shadow border"
       style={{
         left: props.pageX,
         top: props.pageY,

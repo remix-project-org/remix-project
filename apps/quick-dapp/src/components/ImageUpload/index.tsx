@@ -29,17 +29,17 @@ const ImageUpload = () => {
   }
 
   return (
-    <div className="col-3 pe-0 my-2 d-flex justify-content-center align-items-center">
-      <input data-id="uploadLogo" className="d-none" type="file" accept="image/*" onChange={handleImageChange} id="upload-button" />
+    <div className="col-3 pr-0 my-2 flex justify-center items-center">
+      <input data-id="uploadLogo" className="hidden" type="file" accept="image/*" onChange={handleImageChange} id="upload-button" />
       {logo ? (
-        <div className='position-absolute'>
+        <div className='absolute'>
           <img src={preview} alt="preview" style={{ width: 95, height: 95 }} />
           <CustomTooltip
             placement="right"
             tooltipText={intl.formatMessage({ id: 'quickDapp.deleteLogoTooltip' })}
           >
             <span
-              className="btn position-absolute"
+              className="btn absolute"
               style={{
                 top: -30,
                 right: -30,
@@ -59,12 +59,12 @@ const ImageUpload = () => {
         <div className="bg-light" style={{ height: 158.5, width: 158.5 }}>
           <div style={{ padding: 15 }}>
             <div className='mt-2' style={{ fontSize: 15, lineHeight: '18px' }}>A logo is optional and should be<br/> 95px ✖️ 95px.</div>
-            <label htmlFor="upload-button" className='text-center d-block'>
+            <label htmlFor="upload-button" className='text-center block'>
               <CustomTooltip
                 placement="right"
                 tooltipText={intl.formatMessage({ id: 'quickDapp.addLogoTooltip' })}
               >
-                <div className='mt-4 btn btn-primary btn-sm' style={{ height: 32, width: 100, lineHeight: '22px' }}>Select Logo</div>
+                <div className='mt-4 inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors btn-sm' style={{ height: 32, width: 100, lineHeight: '22px' }}>Select Logo</div>
               </CustomTooltip>
             </label>
           </div>

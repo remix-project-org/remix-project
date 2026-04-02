@@ -7,6 +7,7 @@
 
 /* Make sure the popover itself is never clipped */
 .driver-popover {
+  /* TODO: Convert z-[1000000000] to CSS */
   z-index: 1000000000 !important;
 }
 
@@ -68,19 +69,21 @@
 
 /* Walkthrough panel cards */
 .walkthrough-card {
-  cursor: default;
-  transition: box-shadow 0.15s ease-in-out;
+  /* TODO: Convert cursor-default to CSS */
+  /* TODO: Convert transition-shadow to CSS */
+  transition-duration: 150ms;
+  /* TODO: Convert ease-in-out to CSS */
   background-color: var(--custom-onsurface-layer-1) !important;
   border-color: var(--bs-border-color) !important;
 }
 
 .walkthrough-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  /* TODO: Convert shadow-lg to CSS */
   background-color: var(--custom-onsurface-layer-2) !important;
 }
 
 .remix-walkthrough-panel {
-  font-size: 0.875rem;
+  font-size: 0.875rem; line-height: 1.25rem;
   background-color: var(--bs-body-bg);
   color: var(--bs-body-color);
 }

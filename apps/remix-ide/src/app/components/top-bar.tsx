@@ -185,7 +185,7 @@ export class Topbar extends Plugin {
 
   render() {
     return (
-      <div data-id="top-bar-container">
+      <div data-id="top-bar-container mx-auto px-4">
         <PluginViewWrapper useAppContext={true} plugin={this} />
       </div>
     )

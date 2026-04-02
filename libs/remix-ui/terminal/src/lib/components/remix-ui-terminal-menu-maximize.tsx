@@ -15,7 +15,7 @@ export const RemixUITerminalMenuMaximize = (props: RemixUiTerminalProps) => {
       <CustomTooltip
         placement="top"
         tooltipId="terminalMaximize"
-        tooltipClasses="text-nowrap"
+        tooltipClasses="whitespace-nowrap"
         tooltipText={props.isMaximized ? "Minimize Panel" : "Maximize Panel"}
       >
         <div

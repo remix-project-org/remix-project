@@ -232,6 +232,6 @@ export class Xterm extends React.Component<IProps> {
   }
 
   render() {
-    return <div className={`${this.props.className} mt-2 ms-2`} ref={this.terminalRef} />
+    return <div className={`${this.props.className} mt-2 ml-2`} ref={this.terminalRef} />
   }
 }

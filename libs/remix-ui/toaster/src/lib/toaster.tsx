@@ -37,19 +37,24 @@ export const ToastTrigger = (props: ToasterProps) => {
       if (typeof props.message === 'string') {
         const toastId = toast.custom(
           () => (
-            <div data-shared="tooltipPopup" className="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-              <div className="toast-header">
+            <div data-shared="tooltipPopup" className="max-w-xs bg-white dark:bg-gray-800 border border-theme rounded-xl shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+              <div className="flex items-center justify-between p-4 border-b border-theme">
                 {showLoadingIcon && (
-                  <span className="spinner-border spinner-border-sm me-2" role="status">
-                    <span className="visually-hidden">Loading...</span>
+                  <span className="inline-block w-4 h-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-none mr-2" role="status">
+                    <span className="sr-only">Loading...</span>
                   </span>
                 )}
-                <strong className="me-auto">Remix</strong>
+                <div className="flex items-center"><strong className="mr-auto font-bold text-gray-900 dark:text-gray-100">Remix</strong></div>
                 {showCloseButton && (
-                  <button type="button" className="btn-close" onClick={() => toast.dismiss(toastId)} aria-label="Close"></button>
+                  <button type="button" className="ml-auto -mx-1.5 -my-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-lg focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex h-8 w-8 items-center justify-center" onClick={() => toast.dismiss(toastId)} aria-label="Close">
+                    <span className="sr-only">Close</span>
+                    <svg className="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                    </svg>
+                  </button>
                 )}
               </div>
-              <div className="toast-body">
+              <div className="p-4 text-sm text-gray-800 dark:text-gray-200">
                 {props.message}
               </div>
             </div>
@@ -75,19 +80,24 @@ export const ToastTrigger = (props: ToasterProps) => {
         // For JSX elements, use toast.custom
         const toastId = toast.custom(
           () => (
-            <div data-shared="tooltipPopup" className="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-              <div className="toast-header">
+            <div data-shared="tooltipPopup" className="max-w-xs bg-white dark:bg-gray-800 border border-theme rounded-xl shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+              <div className="flex items-center justify-between p-4 border-b border-theme">
                 {showLoadingIcon && (
-                  <span className="spinner-border spinner-border-sm me-2" role="status">
-                    <span className="visually-hidden">Loading...</span>
+                  <span className="inline-block w-4 h-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-none mr-2" role="status">
+                    <span className="sr-only">Loading...</span>
                   </span>
                 )}
-                <strong className="me-auto">Remix</strong>
+                <div className="flex items-center"><strong className="mr-auto font-bold text-gray-900 dark:text-gray-100">Remix</strong></div>
                 {showCloseButton && (
-                  <button type="button" className="btn-close" onClick={() => toast.dismiss(toastId)} aria-label="Close"></button>
+                  <button type="button" className="ml-auto -mx-1.5 -my-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-lg focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex h-8 w-8 items-center justify-center" onClick={() => toast.dismiss(toastId)} aria-label="Close">
+                    <span className="sr-only">Close</span>
+                    <svg className="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                    </svg>
+                  </button>
                 )}
               </div>
-              <div className="toast-body">
+              <div className="p-4 text-sm text-gray-800 dark:text-gray-200">
                 {props.message}
               </div>
             </div>
@@ -158,19 +168,24 @@ export const Toaster = (props: ToasterProps) => {
 
         toastId = toast.custom(
           () => (
-            <div data-shared="tooltipPopup" className="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-              <div className="toast-header">
+            <div data-shared="tooltipPopup" className="max-w-xs bg-white dark:bg-gray-800 border border-theme rounded-xl shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+              <div className="flex items-center justify-between p-4 border-b border-theme">
                 {showLoadingIcon && (
-                  <span className="spinner-border spinner-border-sm me-2" role="status">
-                    <span className="visually-hidden">Loading...</span>
+                  <span className="inline-block w-4 h-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-none mr-2" role="status">
+                    <span className="sr-only">Loading...</span>
                   </span>
                 )}
-                <strong className="me-auto">Remix</strong>
+                <div className="flex items-center"><strong className="mr-auto font-bold text-gray-900 dark:text-gray-100">Remix</strong></div>
                 {showCloseButton && (
-                  <button type="button" className="btn-close" onClick={() => toast.dismiss(toastId)} aria-label="Close"></button>
+                  <button type="button" className="ml-auto -mx-1.5 -my-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-lg focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex h-8 w-8 items-center justify-center" onClick={() => toast.dismiss(toastId)} aria-label="Close">
+                    <span className="sr-only">Close</span>
+                    <svg className="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                    </svg>
+                  </button>
                 )}
               </div>
-              <div className="toast-body">
+              <div className="p-4 text-sm text-gray-800 dark:text-gray-200">
                 {props.message}
               </div>
             </div>
@@ -192,19 +207,24 @@ export const Toaster = (props: ToasterProps) => {
         // For JSX elements, use toast.custom
         toastId = toast.custom(
           () => (
-            <div data-shared="tooltipPopup" className="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-              <div className="toast-header">
+            <div data-shared="tooltipPopup" className="max-w-xs bg-white dark:bg-gray-800 border border-theme rounded-xl shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+              <div className="flex items-center justify-between p-4 border-b border-theme">
                 {showLoadingIcon && (
-                  <span className="spinner-border spinner-border-sm me-2" role="status">
-                    <span className="visually-hidden">Loading...</span>
+                  <span className="inline-block w-4 h-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-none mr-2" role="status">
+                    <span className="sr-only">Loading...</span>
                   </span>
                 )}
-                <strong className="me-auto">Remix</strong>
+                <div className="flex items-center"><strong className="mr-auto font-bold text-gray-900 dark:text-gray-100">Remix</strong></div>
                 {showCloseButton && (
-                  <button type="button" className="btn-close" onClick={() => toast.dismiss(toastId)} aria-label="Close"></button>
+                  <button type="button" className="ml-auto -mx-1.5 -my-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-lg focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex h-8 w-8 items-center justify-center" onClick={() => toast.dismiss(toastId)} aria-label="Close">
+                    <span className="sr-only">Close</span>
+                    <svg className="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                    </svg>
+                  </button>
                 )}
               </div>
-              <div className="toast-body">
+              <div className="p-4 text-sm text-gray-800 dark:text-gray-200">
                 {props.message}
               </div>
             </div>

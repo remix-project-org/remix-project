@@ -20,7 +20,7 @@ export function CustomTooltip({ children, placement, tooltipId, tooltipClasses, 
 
   if (typeof tooltipText !== 'string') {
     tooltipText = React.cloneElement(tooltipText, {
-      className: ' bg-body text-wrap p-1 px-2 '
+      className: ' bg-white dark:bg-gray-800 whitespace-normal p-1 px-2 '
     })
   }
 
@@ -39,9 +39,9 @@ export function CustomTooltip({ children, placement, tooltipId, tooltipClasses, 
           <Popover.Body
             id={!tooltipId ? `${tooltipText}Tooltip` : tooltipId}
             style={{ minWidth: 'fit-content' }}
-            className={'text-wrap p-1 px-2 bg-body w-100' + tooltipClasses}
+            className={'whitespace-normal p-1 px-2 bg-white dark:bg-gray-800 w-full ' + tooltipClasses}
           >
-            {typeof tooltipText === 'string' ? <span className={'text-wrap p-1 px-2 bg-body ' + { tooltipTextClasses }}>{tooltipText}</span> : tooltipText}
+            {typeof tooltipText === 'string' ? <span className={'whitespace-normal p-1 px-2 bg-white dark:bg-gray-800 ' + { tooltipTextClasses }}>{tooltipText}</span> : tooltipText}
           </Popover.Body>
         </Popover>
       }>

@@ -265,10 +265,10 @@ export const FlatTree = (props: FlatTreeProps) => {
         data-path={`${file.path}`}
         data-id={`treeViewLitreeViewItem${file.path}`}
       >
-        <div data-id={`treeViewDivtreeViewItem${file.path}`} className={`d-flex flex-row align-items-center`}>
+        <div data-id={`treeViewDivtreeViewItem${file.path}`} className={`flex flex-row items-center`}>
           {getIndentLevelDiv(file.path)}
 
-          <div className={`ps-2 ${file.isDirectory ? expandPath && expandPath.includes(file.path) ? 'fa fa-folder-open' : 'fa fa-folder' : `${getPathIcon(file.path)} pe-2 caret caret_tv`} `}></div>
+          <div className={`pl-2 ${file.isDirectory ? expandPath && expandPath.includes(file.path) ? 'fa fa-folder-open' : 'fa fa-folder' : `${getPathIcon(file.path)} pr-2 caret caret_tv`} `}></div>
           {focusEdit && file.path && focusEdit.element === file.path ?
             <FlatTreeItemInput
               editModeOff={editModeOff}
@@ -278,13 +278,13 @@ export const FlatTree = (props: FlatTreeProps) => {
               draggable={true}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
-              className={`ms-1 ps-2 text-nowrap remixui_leaf ${getFileStateClasses(file)}`}
+              className={`ml-1 pl-2 whitespace-nowrap remixui_leaf ${getFileStateClasses(file)}`}
               data-label-type={file.isDirectory ? 'folder' : 'file'}
               data-label-path={`${file.path}`}
               key={index}>
               {file.name}
             </div>
-            <div className="d-flex flex-row align-items-center">
+            <div className="flex flex-row items-center">
               {showIcons(file)}
               {getFileStateIcons(file)}
             </div>
@@ -295,7 +295,7 @@ export const FlatTree = (props: FlatTreeProps) => {
   }
 
   return (<>
-    <div ref={containerRef} className='h-100 ps-1 mt-1'>
+    <div ref={containerRef} className='h-full pl-1 mt-1'>
       <FlatTreeDrop
         dragSource={dragSource}
         getFlatTreeItem={getFlatTreeItem}
@@ -310,7 +310,7 @@ export const FlatTree = (props: FlatTreeProps) => {
         setSelectedItems={setSelectedItems}
       >
         <div data-id="treeViewUltreeViewMenu"
-          className='d-flex h-100 w-100 pb-2'
+          className='flex h-full w-full pb-2'
           onClick={handleTreeClick}
           onMouseLeave={onMouseLeave}
           onMouseMove={onMouseMove}
@@ -329,7 +329,7 @@ export const FlatTree = (props: FlatTreeProps) => {
                   minWidth: 'fit-content'
                 }
               }>
-              <Popover.Body className='text-wrap p-1 px-2 bg-body w-100'>
+              <Popover.Body className='whitespace-normal p-1 px-2 bg-body w-full'>
                 {mouseOverTarget && mouseOverTarget.path}
               </Popover.Body>
             </Popover>

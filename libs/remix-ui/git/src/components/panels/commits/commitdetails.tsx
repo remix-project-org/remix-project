@@ -47,7 +47,7 @@ export const CommitDetails = (props: CommitDetailsProps) => {
 
   return (<Accordion activeKey={activePanel} defaultActiveKey="">
     <CommitDetailsNavigation isAheadOfRepo={isAheadOfRepo()} branch={branch} commit={commit} checkout={checkout} eventKey="0" activePanel={activePanel} callback={setActivePanel} />
-    <Accordion.Collapse className="ps-2 border-start ms-1" eventKey="0">
+    <Accordion.Collapse className="pl-2 border-l ml-1" eventKey="0">
       <>
         {context.commitChanges && context.commitChanges.filter(
           (change) => change.hashModified === commit.oid && change.hashOriginal === commit.commit.parent[0]

@@ -9,7 +9,7 @@ interface BetaInfoModalProps {
 export const BetaInfoModal: React.FC<BetaInfoModalProps> = ({ onClose, plugin }) => {
   return (
     <div
-      className="modal d-flex align-items-center justify-content-center beta-modal-backdrop"
+      className="modal flex items-center justify-center beta-modal-backdrop"
       onClick={onClose}
     >
       <div
@@ -17,11 +17,11 @@ export const BetaInfoModal: React.FC<BetaInfoModalProps> = ({ onClose, plugin })
         role="document"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-content d-flex flex-row overflow-hidden beta-modal-content">
+        <div className="modal-content flex flex-row overflow-hidden beta-modal-content">
           {/* Left Section - swirl art */}
-          <div className="d-flex flex-column justify-content-center align-items-center position-relative beta-modal-left-section">
-            <div className="position-absolute top-0 start-0 end-0 bottom-0 beta-modal-gradient-overlay" />
-            <div className="text-center w-100 position-relative beta-modal-content-wrapper">
+          <div className="flex flex-col justify-center items-center relative beta-modal-left-section">
+            <div className="absolute top-0 start-0 end-0 bottom-0 beta-modal-gradient-overlay" />
+            <div className="text-center w-full relative beta-modal-content-wrapper">
               <div className="beta-modal-hero-icon">
                 <i className="fas fa-flask"></i>
               </div>
@@ -31,15 +31,15 @@ export const BetaInfoModal: React.FC<BetaInfoModalProps> = ({ onClose, plugin })
           </div>
 
           {/* Right Section */}
-          <div className="d-flex flex-column beta-modal-right-section">
-            <div className="modal-header border-0 flex-column align-items-start">
-              <div className="d-flex w-100 align-items-center mb-2">
+          <div className="flex flex-col beta-modal-right-section">
+            <div className="modal-header border-0 flex-col items-start">
+              <div className="flex w-full items-center mb-2">
                 <h5 className="modal-title mb-0">Remix Beta Testing Program</h5>
                 <div className="close ms-auto beta-modal-close-btn fs-5" onClick={onClose}>
                   <i className="fas fa-times text-dark"></i>
                 </div>
               </div>
-              <p className="text-muted mb-0 fs-small-medium">
+              <p className="text-gray-500 dark:text-gray-400 mb-0 fs-small-medium">
                 Help us build the future of Web3 development tooling.
               </p>
             </div>
@@ -102,21 +102,21 @@ export const BetaInfoModal: React.FC<BetaInfoModalProps> = ({ onClose, plugin })
                   className="btn beta-modal-btn-discord"
                   onClick={() => window.open('https://discord.gg/remix', '_blank')}
                 >
-                  <i className="fab fa-discord me-2"></i>
+                  <i className="fab fa-discord mr-2"></i>
                   Join our Discord
                 </button>
                 <button
                   className="btn beta-modal-btn-docs"
                   onClick={() => window.open('https://remix-ide.readthedocs.io/', '_blank')}
                 >
-                  <i className="fas fa-book me-2"></i>
+                  <i className="fas fa-book mr-2"></i>
                   Read the Docs
                 </button>
                 <button
                   className="btn beta-modal-btn-blog"
                   onClick={() => window.open('https://medium.com/remix-ide', '_blank')}
                 >
-                  <i className="fas fa-newspaper me-2"></i>
+                  <i className="fas fa-newspaper mr-2"></i>
                   Latest Blog Posts
                 </button>
               </div>
@@ -124,8 +124,8 @@ export const BetaInfoModal: React.FC<BetaInfoModalProps> = ({ onClose, plugin })
 
             {/* Footer */}
             <div className="beta-modal-footer">
-              <p className="text-muted mb-0 fs-small">
-                <i className="fas fa-heart me-1" style={{ color: '#e74c3c' }}></i>
+              <p className="text-gray-500 dark:text-gray-400 mb-0 fs-small">
+                <i className="fas fa-heart mr-1" style={{ color: '#e74c3c' }}></i>
                 Thank you for being a beta tester!
               </p>
             </div>

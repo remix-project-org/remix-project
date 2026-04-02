@@ -16,7 +16,7 @@ export function DeployInput(props: DeployInputProps) {
       <CustomTooltip
         placement="right"
         tooltipId="deployInputTooltip"
-        tooltipClasses="text-nowrap"
+        tooltipClasses="whitespace-nowrap"
         tooltipText={props.funcABI.type === 'fallback' || props.funcABI.type === 'receive' ? `'(${props.funcABI.type}')` : props.inputs}
       >
         <input

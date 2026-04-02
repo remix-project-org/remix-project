@@ -35,12 +35,12 @@ export default function ChatHistoryHeading({
     : null
 
   return (
-    <section className={`d-flex flex-row justify-content-between align-items-center p-2 border-0`} data-theme={theme?.toLowerCase()}
+    <section className={`flex flex-row justify-between items-center p-2 border-0`} data-theme={theme?.toLowerCase()}
       style={{ backgroundColor: theme && theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
-      <div className="flex-grow-1 overflow-hidden me-2">
+      <div className="flex-grow-1 overflow-hidden mr-2">
         {truncatedTitle ? (
           <span
-            className="fw-semibold text-truncate d-block"
+            className="fw-semibold truncate block"
             style={{ fontSize: '0.85rem', maxWidth: '100%' }}
             title={chatTitle}
             data-id="current-chat-title"
@@ -50,26 +50,26 @@ export default function ChatHistoryHeading({
         ) : (
           <CustomTooltip tooltipText={'Start a new chat'}>
             <button
-              className="btn btn-sm btn-link text-decoration-none"
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-link no-underline"
               onClick={onNewChat}
               data-id="new-chat-btn new-conversation-btn"
             >
-              <i className="fas fa-plus me-1"></i>
+              <i className="fas fa-plus mr-1"></i>
               New chat
             </button>
           </CustomTooltip>
         )}
       </div>
-      <div className="d-flex flex-row gap-2 justify-content-end align-items-center flex-shrink-0">
+      <div className="flex flex-row gap-2 justify-end items-center flex-shrink-0">
         {truncatedTitle && (
           <CustomTooltip tooltipText={'Start a new chat'}>
             <button
-              className="btn btn-sm btn-link text-decoration-none"
+              className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-link no-underline"
               onClick={onNewChat}
               data-id="new-chat-btn new-conversation-btn"
             >
               <i className="fas fa-plus"></i>
-              {isAiChatMaximized ? <span className="ms-1">New Chat</span> : null}
+              {isAiChatMaximized ? <span className="ml-1">New Chat</span> : null}
             </button>
           </CustomTooltip>
         )}

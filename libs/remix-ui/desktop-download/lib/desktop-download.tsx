@@ -244,11 +244,11 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
 
   if (loading) {
     return (
-      <div className={`d-flex align-items-center ${className}`}>
-        <div className="spinner-border spinner-border-sm me-2" role="status">
+      <div className={`flex items-center ${className}`}>
+        <div className="spinner-border spinner-border-sm mr-2" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
-        <span className="text-muted">
+        <span className="text-gray-500 dark:text-gray-400">
           <FormattedMessage id="desktopDownload.loading" defaultMessage="Loading desktop app info..." />
         </span>
       </div>
@@ -257,7 +257,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
 
   if (error || !releaseData) {
     return (
-      <div className={`text-muted ${className}`}>
+      <div className={`text-gray-500 dark:text-gray-400 ${className}`}>
         <small>
           <FormattedMessage
             id="desktopDownload.error"
@@ -268,7 +268,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
                   href="https://github.com/remix-project-org/remix-desktop/releases"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-decoration-none"
+                  className="no-underline"
                 >
                   releases page
                 </a>
@@ -284,7 +284,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
     <div className={`desktop-download ${compact ? 'compact' : 'full'} ${variant === 'span' ? 'span-variant' : ''} ${className}`} style={style}>
       {variant === 'span' ? (
         // Span variant - for use in dropdown items (uses <span> not <a> to avoid nested anchors inside Dropdown.Item)
-        <div className="d-flex align-items-center">
+        <div className="flex items-center">
           {detectedDownload ? (
             <CustomTooltip
               placement="top"
@@ -292,7 +292,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
               tooltipId="desktop-download-tooltip"
             >
               <span
-                className="text-decoration-none d-flex align-items-center"
+                className="no-underline flex items-center"
                 role="link"
                 style={{ color: 'inherit', cursor: 'pointer' }}
                 onClick={(e) => {
@@ -321,7 +321,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
               tooltipId="desktop-download-tooltip"
             >
               <span
-                className="text-decoration-none d-flex align-items-center gap-2"
+                className="no-underline flex items-center gap-2"
                 role="link"
                 style={{ color: 'inherit', cursor: 'pointer' }}
                 onClick={(e) => {
@@ -343,7 +343,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
         </div>
       ) : compact ? (
         // Compact layout - single line with additional info below
-        <div className="d-flex flex-column gap-1">
+        <div className="flex flex-col gap-1">
           {detectedDownload ? (
             <>
               <CustomTooltip
@@ -353,7 +353,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
               >
                 <a
                   href={detectedDownload.url}
-                  className="btn btn-sm btn-primary d-flex align-items-center gap-2"
+                  className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-primary flex items-center gap-2"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => trackDownloadClick(detectedDownload.platform, detectedDownload.filename, 'compact')}
@@ -371,13 +371,13 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
                   </span>
                 </a>
               </CustomTooltip>
-              <div className="text-muted">
+              <div className="text-gray-500 dark:text-gray-400">
                 <small>
                   <a
                     href={releaseData.html_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-decoration-none text-muted"
+                    className="no-underline text-gray-500 dark:text-gray-400"
                   >
                     <FormattedMessage
                       id="desktopDownload.otherVersions"
@@ -396,7 +396,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
               >
                 <a
                   href={releaseData.html_url}
-                  className="btn btn-sm btn-primary d-flex align-items-center gap-2"
+                  className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-primary flex items-center gap-2"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => trackDownloadClick(undefined, undefined, 'compact-fallback')}
@@ -411,7 +411,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
                   </span>
                 </a>
               </CustomTooltip>
-              <div className="text-muted">
+              <div className="text-gray-500 dark:text-gray-400">
                 <small>
                   <FormattedMessage
                     id="desktopDownload.noAutoDetect"
@@ -424,15 +424,15 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
         </div>
       ) : (
         // Full layout - original multi-line design
-        <div className="d-flex flex-column gap-2">
-          <div className="d-flex align-items-center gap-2">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
             <h5 className="mb-0">
               <FormattedMessage id="desktopDownload.title" defaultMessage="Remix Desktop" />
             </h5>
             <span className="badge bg-primary">{releaseData.tag_name}</span>
           </div>
 
-          <div className="text-muted mb-2">
+          <div className="text-gray-500 dark:text-gray-400 mb-2">
             <small>
               <FormattedMessage
                 id="desktopDownload.releaseDate"
@@ -443,7 +443,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
           </div>
 
           {detectedDownload ? (
-            <div className="d-flex flex-column gap-2">
+            <div className="flex flex-col gap-2">
               <CustomTooltip
                 placement="top"
                 tooltipText={`Download ${detectedDownload.filename} (${formatSize(detectedDownload.size)})`}
@@ -451,7 +451,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
               >
                 <a
                   href={detectedDownload.url}
-                  className="btn btn-primary d-flex align-items-center gap-2"
+                  className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => trackDownloadClick(detectedDownload.platform, detectedDownload.filename, 'full')}
@@ -469,14 +469,14 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
                 </a>
               </CustomTooltip>
 
-              <div className="text-muted">
+              <div className="text-gray-500 dark:text-gray-400">
                 <small>
                   {formatSize(detectedDownload.size)} • {' '}
                   <a
                     href={releaseData.html_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-decoration-none text-muted"
+                    className="no-underline text-gray-500 dark:text-gray-400"
                   >
                     <FormattedMessage
                       id="desktopDownload.otherVersions"
@@ -487,10 +487,10 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
               </div>
             </div>
           ) : (
-            <div className="d-flex flex-column gap-2">
+            <div className="flex flex-col gap-2">
               <a
                 href={releaseData.html_url}
-                className="btn btn-primary d-flex align-items-center gap-2"
+                className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackDownloadClick(undefined, undefined, 'full-fallback')}
@@ -501,7 +501,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
                 </span>
               </a>
 
-              <div className="text-muted">
+              <div className="text-gray-500 dark:text-gray-400">
                 <small>
                   <FormattedMessage
                     id="desktopDownload.noAutoDetect"

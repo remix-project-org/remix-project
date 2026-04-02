@@ -22,7 +22,7 @@ const PCPage: React.FC = () => {
         overflowY: 'auto',
       }}
     >
-      <div className="col-xl-9 col-lg-8 col-md-7 d-inline-block pe-0">
+      <div className="col-xl-9 col-lg-8 col-md-7 inline-block pr-0">
         <div className="mx-3 my-2 row">
           {instance.showLogo && <div className="col-2 text-center">
             <img src="/assets/logo.png" style={{ width: 95, height: 95 }} />
@@ -31,7 +31,7 @@ const PCPage: React.FC = () => {
         </div>
         <UniversalDappUI />
       </div>
-      <div className="col-xl-3 col-lg-4 col-md-5 d-inline-block ps-0">
+      <div className="col-xl-3 col-lg-4 col-md-5 inline-block pl-0">
         <SettingsUI />
       </div>
     </div>

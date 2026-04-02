@@ -130,8 +130,7 @@
   margin-right: 0.3em;
 }
 .remixui_errorBlobs {
-  padding-left: 5px;
-  padding-right: 5px;
+  padding-left: 5px; padding-right: 5px;
   word-break: break-word;
 }
 .remixui_storageLogo {

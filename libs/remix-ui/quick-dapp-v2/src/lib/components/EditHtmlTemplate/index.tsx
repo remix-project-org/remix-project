@@ -82,7 +82,7 @@ function EditHtmlTemplate(): JSX.Element {
               <div>
                 <p>The AI has successfully updated your dapp code.</p>
                 <div className="alert alert-warning mb-0">
-                  <i className="fas fa-exclamation-triangle me-2"></i>
+                  <i className="fas fa-exclamation-triangle mr-2"></i>
                   <strong>Action Required:</strong> The live IPFS deployment is outdated.
                   Please <strong>"Deploy to IPFS"</strong> again.
                 </div>
@@ -588,26 +588,26 @@ window.addEventListener('unhandledrejection', function(e) {
   if (!activeDapp) return <div className="p-3">No active dapp selected.</div>;
 
   return (
-    <div className="d-flex flex-column h-100">
-      <div className="py-2 px-3 border-bottom d-flex align-items-center flex-shrink-0">
+    <div className="flex flex-col h-full">
+      <div className="py-2 px-3 border-b flex items-center flex-shrink-0">
         <button
-          className="btn btn-sm btn-secondary me-3"
+          className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors btn-secondary mr-3"
           onClick={handleBack}
           disabled={isCapturing}
           data-id="back-to-dashboard-btn"
         >
-          {isCapturing ? <><i className="fas fa-spinner fa-spin me-1"></i> Saving...</> : <><i className="fas fa-arrow-left me-1"></i> Back</>}
+          {isCapturing ? <><i className="fas fa-spinner fa-spin mr-1"></i> Saving...</> : <><i className="fas fa-arrow-left mr-1"></i> Back</>}
         </button>
-        <div className="d-flex align-items-center flex-wrap gap-2">
-          <span className="fw-bold text-body" style={{ fontSize: '1.1rem' }} data-id="editor-dapp-title">
+        <div className="flex items-center flex-wrap gap-2">
+          <span className="font-bold text-body" style={{ fontSize: '1.1rem' }} data-id="editor-dapp-title">
             {activeDapp.config.title || activeDapp.name}
           </span>
           <span className="badge bg-secondary opacity-75">
             {activeDapp.contract.networkName}
           </span>
           <div className="vr mx-1 text-secondary opacity-50" style={{ height: '1.2rem' }}></div>
-          <div className="d-flex align-items-center text-muted" title="Location in File Explorer">
-            <i className="far fa-folder-open me-2 opacity-75"></i>
+          <div className="flex items-center text-gray-500 dark:text-gray-400" title="Location in File Explorer">
+            <i className="far fa-folder-open mr-2 opacity-75"></i>
             <span className="font-monospace small opacity-75" data-id="editor-workspace-name">
               {activeDapp.workspaceName}
             </span>
@@ -615,30 +615,30 @@ window.addEventListener('unhandledrejection', function(e) {
         </div>
       </div>
 
-      <div className="flex-grow-1 position-relative" style={{ overflow: 'hidden' }}>
-        <div className="container-fluid pt-3 h-100">
-          <Row className="m-0 h-100">
-            <Col xs={12} lg={8} className="pe-lg-3 d-flex flex-column qd-main-col">
+      <div className="flex-grow-1 relative" style={{ overflow: 'hidden' }}>
+        <div className="container mx-auto px-4-fluid pt-3 h-full">
+          <Row className="m-0 h-full">
+            <Col xs={12} lg={8} className="pe-lg-3 flex flex-col qd-main-col">
               <Row>
                 <div className="flex-grow-1 mb-3" style={{ minHeight: '30px' }}>
                   <ChatBox onSendMessage={handleChatMessage} isLoading={isAiUpdating}/>
                 </div>
               </Row>
               <Row className="flex-grow-1 mb-3">
-                <Col xs={12} className="d-flex flex-column h-100">
-                  <div className="d-flex justify-content-between align-items-center mb-2 flex-shrink-0">
+                <Col xs={12} className="flex flex-col h-full">
+                  <div className="flex justify-between items-center mb-2 flex-shrink-0">
                     <h5 className="mb-0 text-body">
                       <FormattedMessage id="quickDapp.preview" defaultMessage="Preview" />
                       <button
-                        className="btn btn-link text-muted p-0 ms-2 text-decoration-none"
+                        className="btn btn-link text-gray-500 dark:text-gray-400 p-0 ml-2 no-underline"
                         onClick={() => setShowTips(!showTips)}
                         style={{ fontSize: '0.85rem' }}
                       >
-                        <i className="far fa-question-circle me-1"></i>
+                        <i className="far fa-question-circle mr-1"></i>
                         {showTips ? 'Hide Tips' : 'Help & Tips'}
                       </button>
                     </h5>
-                    <div className="d-flex gap-2">
+                    <div className="flex gap-2">
                       <Button
                         variant="primary"
                         size="sm"
@@ -646,7 +646,7 @@ window.addEventListener('unhandledrejection', function(e) {
                         disabled={isBuilding || isAiUpdating}
                         data-id="refresh-preview-btn"
                       >
-                        {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
+                        {isBuilding ? <><i className="fas fa-spinner fa-spin mr-1"></i> Building...</> : <><i className="fas fa-play mr-1"></i> Refresh Preview</>}
                       </Button>
                       <Button
                         variant="outline-danger"
@@ -655,15 +655,15 @@ window.addEventListener('unhandledrejection', function(e) {
                         disabled={isBuilding || isCapturing}
                         data-id="delete-dapp-editor-btn"
                       >
-                        <i className="fas fa-trash me-1"></i> Delete Dapp
+                        <i className="fas fa-trash mr-1"></i> Delete Dapp
                       </Button>
                     </div>
                   </div>
 
                   {showTips && (
                     <div className="alert alert-info py-2 px-3 mb-2 small shadow-sm fade-in border-info bg-opacity-10">
-                      <div className="fw-bold mb-1"><i className="fas fa-robot me-1"></i>AI Code Generation Tips</div>
-                      <ul className="mb-0 ps-3">
+                      <div className="font-bold mb-1"><i className="fas fa-robot mr-1"></i>AI Code Generation Tips</div>
+                      <ul className="mb-0 pl-3">
                         <li>AI code might not be perfect. If the preview is broken:</li>
                         <li><strong>Option 1:</strong> Edit code manually in the <strong>File Explorer</strong> (left panel), then click <strong>Refresh Preview</strong>.</li>
                         <li><strong>Option 2:</strong> Ask the AI to fix it in the <strong>Chat Box</strong> above.</li>
@@ -672,24 +672,24 @@ window.addEventListener('unhandledrejection', function(e) {
                   )}
 
                   {isVM && (
-                    <div className={`alert py-2 px-3 mb-2 small shadow-sm d-flex align-items-start ${vmContractStatus === 'not-found' ? 'alert-danger border-danger' : 'alert-warning border-warning'}`} data-id="vm-warning-banner">
-                      <i className={`fas ${vmContractStatus === 'not-found' ? 'fa-times-circle text-danger' : 'fa-exclamation-triangle text-warning'} me-2 mt-1`}></i>
+                    <div className={`alert py-2 px-3 mb-2 small shadow-sm flex items-start ${vmContractStatus === 'not-found' ? 'alert-danger border-danger' : 'alert-warning border-warning'}`} data-id="vm-warning-banner">
+                      <i className={`fas ${vmContractStatus === 'not-found' ? 'fa-times-circle text-danger' : 'fa-exclamation-triangle text-warning'} mr-2 mt-1`}></i>
                       <div>
-                        <div className="fw-bold mb-1">Remix VM — Local Only</div>
+                        <div className="font-bold mb-1">Remix VM — Local Only</div>
                         {vmContractStatus === 'not-found' && (
                           <div className="text-danger mb-1">
-                            <i className="fas fa-exclamation-circle me-1"></i>
+                            <i className="fas fa-exclamation-circle mr-1"></i>
                             No contract found at <code>{activeDapp.contract.address}</code>. The VM state may have been reset. Please redeploy the contract.
                           </div>
                         )}
                         {vmContractStatus === 'checking' && isCurrentProviderVM && (
                           <div className="mb-1">
-                            <i className="fas fa-spinner fa-spin me-1"></i>
+                            <i className="fas fa-spinner fa-spin mr-1"></i>
                             Checking contract status...
                           </div>
                         )}
                         <div className="mt-1 text-danger">
-                          <i className="fas fa-ban me-1"></i>
+                          <i className="fas fa-ban mr-1"></i>
                           IPFS deployment will not work — Remix VM is local to this browser only.
                         </div>
                         <div className="mt-1 text-warning">
@@ -700,8 +700,8 @@ window.addEventListener('unhandledrejection', function(e) {
                     </div>
                   )}
 
-                  <Card className="border flex-grow-1 d-flex position-relative">
-                    <Card.Body className="p-0 d-flex flex-column position-relative" style={{ overflow: 'hidden' }}>
+                  <Card className="border flex-grow-1 flex relative">
+                    <Card.Body className="p-0 flex flex-col relative" style={{ overflow: 'hidden' }}>
                       {isAiUpdating && (() => {
                         const progress = appState.generationProgress;
                         const generatedFiles = progress?.generatedFiles || [];
@@ -717,7 +717,7 @@ window.addEventListener('unhandledrejection', function(e) {
                                 : 'Updating DApp';
 
                         return (
-                          <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center qd-progress-overlay" data-id="ai-updating-overlay">
+                          <div className="absolute w-full h-full flex flex-col items-center justify-center bg-white" style={{ zIndex: 10, opacity: 0.9 }} data-id="ai-updating-overlay">
                             <div className="spinner-border qd-progress-spinner qd-progress-spinner--lg mb-3" role="status"></div>
                             <span className="qd-progress-status qd-progress-status--lg mb-2">{statusText}</span>
                             {generatedFiles.length > 0 && (
@@ -741,11 +741,11 @@ window.addEventListener('unhandledrejection', function(e) {
                         data-id="dapp-preview-iframe"
                       />
                       {iframeError && (
-                        <div className="d-flex align-items-center justify-content-center h-100 text-center p-4">
+                        <div className="flex items-center justify-center h-full text-center p-4">
                           <div>
                             <i className="fas fa-exclamation-triangle text-warning mb-2" style={{ fontSize: '2rem' }}></i>
-                            <h6 className="text-muted mb-2">Preview Error</h6>
-                            <p className="text-muted small">{iframeError}</p>
+                            <h6 className="text-gray-500 dark:text-gray-400 mb-2">Preview Error</h6>
+                            <p className="text-gray-500 dark:text-gray-400 small">{iframeError}</p>
                           </div>
                         </div>
                       )}
@@ -754,7 +754,7 @@ window.addEventListener('unhandledrejection', function(e) {
                 </Col>
               </Row>
             </Col>
-            <Col xs={12} lg={4} className="d-flex flex-column qd-side-col">
+            <Col xs={12} lg={4} className="flex flex-col qd-side-col">
               <div className="flex-shrink-0">
                 <DeployPanel />
               </div>

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext } from 'react'
 import { Plugin } from '@remixproject/engine'
 import { DebuggerEvent, MatomoEvent } from '@remix-api';
 import { TrackingContext } from '@remix-ide/tracking'
-import './styles/bottom-bar.css'
 
 interface BottomBarProps {
   plugin: Plugin
@@ -198,10 +197,10 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
   // Show debugger controls when debugging AND debugger plugin is active
   if (isDebugging && isDebuggerActive) {
     return (
-      <div className="bottom-bar border-top border-bottom" data-id="bottomBarPanel">
-        <div className="debug-controls">
+      <div className="flex flex-none items-center px-4 py-1 bg-light border-t border-b h-8 sticky top-0 z-10" data-id="bottomBarPanel">
+        <div className="flex gap-1.5 items-center">
           <button
-            className="btn btn-sm btn-secondary debug-btn"
+            className="flex items-center gap-1 px-2 py-0.5 h-6 text-xs border-0 rounded transition-all cursor-pointer bg-secondary hover:bg-gray-600 hover:text-white hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Previous Breakpoint clicked`, isClick: true })
               stepManager?.jumpPreviousBreakpoint && stepManager.jumpPreviousBreakpoint()
@@ -211,10 +210,10 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
             data-id="btnJumpPreviousBreakpoint"
           >
             <i className="fas fa-step-backward"></i>
-            <span className="btn-label">Previous Breakpoint</span>
+            <span className="font-semibold whitespace-nowrap">Previous Breakpoint</span>
           </button>
           <button
-            className="btn btn-sm btn-secondary debug-btn"
+            className="flex items-center gap-1 px-2 py-0.5 h-6 text-xs border-0 rounded transition-all cursor-pointer bg-secondary hover:bg-gray-600 hover:text-white hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Backward clicked`, isClick: true })
               stepManager?.stepOverBack && stepManager.stepOverBack(stepManager.showOpcodes ?? false)
@@ -224,10 +223,10 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
             data-id="btnStepBackward"
           >
             <i className="fas fa-reply"></i>
-            <span className="btn-label">Step Backward</span>
+            <span className="font-semibold whitespace-nowrap">Step Backward</span>
           </button>
           <button
-            className="btn btn-sm btn-primary debug-btn"
+            className="flex items-center gap-1 px-2 py-0.5 h-6 text-xs border-0 rounded transition-all cursor-pointer bg-primary hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Back clicked`, isClick: true })
               stepManager?.stepIntoBack && stepManager.stepIntoBack(stepManager.showOpcodes ?? false)
@@ -237,10 +236,10 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
             data-id="btnStepBack"
           >
             <i className="fas fa-level-up-alt"></i>
-            <span className="btn-label">Step Back</span>
+            <span className="font-semibold whitespace-nowrap">Step Back</span>
           </button>
           <button
-            className="btn btn-sm btn-primary debug-btn"
+            className="flex items-center gap-1 px-2 py-0.5 h-6 text-xs border-0 rounded transition-all cursor-pointer bg-primary hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Into clicked`, isClick: true })
               stepManager?.stepIntoForward && stepManager.stepIntoForward(stepManager.showOpcodes ?? false)
@@ -250,10 +249,10 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
             data-id="btnStepInto"
           >
             <i className="fas fa-level-down-alt"></i>
-            <span className="btn-label">Step Into</span>
+            <span className="font-semibold whitespace-nowrap">Step Into</span>
           </button>
           <button
-            className="btn btn-sm btn-secondary debug-btn"
+            className="flex items-center gap-1 px-2 py-0.5 h-6 text-xs border-0 rounded transition-all cursor-pointer bg-secondary hover:bg-gray-600 hover:text-white hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Forward clicked`, isClick: true })
               stepManager?.stepOverForward && stepManager.stepOverForward(stepManager.showOpcodes ?? false)
@@ -263,10 +262,10 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
             data-id="btnStepForward"
           >
             <i className="fas fa-share"></i>
-            <span className="btn-label">Step Forward</span>
+            <span className="font-semibold whitespace-nowrap">Step Forward</span>
           </button>
           <button
-            className="btn btn-sm btn-secondary debug-btn"
+            className="flex items-center gap-1 px-2 py-0.5 h-6 text-xs border-0 rounded transition-all cursor-pointer bg-secondary hover:bg-gray-600 hover:text-white hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Next Breakpoint clicked`, isClick: true })
               stepManager?.jumpNextBreakpoint && stepManager.jumpNextBreakpoint()
@@ -276,11 +275,11 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
             data-id="btnJumpNextBreakpoint"
           >
             <i className="fas fa-step-forward"></i>
-            <span className="btn-label">Next Breakpoint</span>
+            <span className="font-semibold whitespace-nowrap">Next Breakpoint</span>
           </button>
           {hasRevert && (
             <button
-              className="btn btn-sm btn-warning debug-btn"
+              className="flex items-center gap-1 px-2 py-0.5 h-6 text-xs border-0 rounded transition-all cursor-pointer bg-warning hover:-translate-y-px"
               onClick={() => {
                 trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Jump to Revert clicked`, isClick: true })
                 stepManager?.jumpToException && stepManager.jumpToException()
@@ -289,7 +288,7 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
               data-id="btnJumpToRevert"
             >
               <i className="fas fa-undo"></i>
-              <span className="btn-label">Jump to Revert</span>
+              <span className="font-semibold whitespace-nowrap">Jump to Revert</span>
             </button>
           )}
         </div>
@@ -303,21 +302,21 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
   }
 
   return (
-    <div className="bottom-bar border-top border-bottom" data-id="bottomBarPanel">
+    <div className="flex flex-none items-center px-4 py-1 bg-light border-t border-b h-8 sticky top-0 z-10" data-id="bottomBarPanel">
       <button
-        className="btn btn-ai"
+        className="flex items-center gap-1 px-2 py-0.5 h-6 text-xs border-0 rounded transition-all cursor-pointer bg-ai hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
         onClick={handleExplain}
         disabled={explaining || !currentFilePath}
         data-id="bottomBarExplainBtn"
       >
-        <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="explain-icon" />
+        <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="w-3 h-3" />
         <span>{getExplainLabel()}</span>
       </button>
-      <div className="copilot-toggle">
-        <span className={aiSwitch ? 'on' : ''}>AI copilot</span>
-        <label className="switch" data-id="copilot_toggle">
-          <input type="checkbox" checked={aiSwitch} onChange={toggleAI} />
-          <span className="slider"></span>
+      <div className="ml-auto flex items-center gap-2 px-2 py-1 rounded-lg h-6 leading-none">
+        <span className={`font-bold text-xs transition-colors ${aiSwitch ? 'text-body-text' : 'text-gray-400'}`}>AI copilot</span>
+        <label className="relative inline-block w-4.5 h-2.5" data-id="copilot_toggle">
+          <input type="checkbox" checked={aiSwitch} onChange={toggleAI} className="opacity-0 w-0 h-0" />
+          <span className={`absolute cursor-pointer inset-0 rounded-full p-px transition-colors duration-400 ${aiSwitch ? 'bg-ai' : 'bg-secondary'} before:absolute before:content-[''] before:h-2 before:w-2 before:left-px before:bottom-px before:bg-body before:transition-transform before:duration-400 before:rounded-full ${aiSwitch ? 'before:translate-x-2' : ''}`}></span>
         </label>
       </div>
     </div>

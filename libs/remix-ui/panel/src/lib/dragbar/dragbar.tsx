@@ -32,7 +32,7 @@ const DragBar = (props: IRemixDragBarUi) => {
 
   const isTerminalReady = (terminalElement: HTMLElement, containerElement: HTMLElement) => {
     if (props.hidden || terminalElement.offsetParent === null) return false
-    if (terminalElement.classList.contains('d-none') || terminalElement.classList.contains('minimized') || terminalElement.classList.contains('maximized')) return false
+    if (terminalElement.classList.contains('hidden') || terminalElement.classList.contains('minimized') || terminalElement.classList.contains('maximized')) return false
 
     const terminalRect = terminalElement.getBoundingClientRect()
     const containerRect = containerElement.getBoundingClientRect()
@@ -143,7 +143,7 @@ const DragBar = (props: IRemixDragBarUi) => {
 
   return (
     <>
-      <div className={`overlay ${dragState ? '' : 'd-none'}`} data-id="dragbar-overlay" id="dragbar-overlay"></div>
+      <div className={`overlay ${dragState ? '' : 'hidden'}`} data-id="dragbar-overlay" id="dragbar-overlay"></div>
       <Draggable nodeRef={nodeRef} position={{ x: 0, y: dragBarPosY }} onStart={startDrag} onStop={stopDrag} axis="y">
         <div ref={nodeRef} className={`dragbar_terminal ${dragState ? 'ondrag' : ''}`} data-id="dragbar-draggable" id="dragbar-draggable"></div>
       </Draggable>

@@ -93,14 +93,14 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
   return (
     <div
-      className={`conversation-item p-3 mb-1 rounded-3 cursor-pointer position-relative ${active ? 'conversation-item-active' : ''}`}
+      className={`conversation-item p-3 mb-1 rounded-lg cursor-pointer relative ${active ? 'conversation-item-active' : ''}`}
       onClick={onClick}
       data-id={`conversation-item-${conversation.id}`}
       data-theme={theme?.toLowerCase()}
     >
-      <div className="d-flex justify-content-between align-items-start">
-        <div className="flex-grow-1 overflow-hidden pe-2">
-          <div className="conversation-title text-truncate mb-1 text-light-emphasis" data-id="conversation-item-title">
+      <div className="flex justify-between items-start">
+        <div className="flex-grow-1 overflow-hidden pr-2">
+          <div className="conversation-title truncate mb-1 text-light-emphasis" data-id="conversation-item-title">
             {conversation.title}
           </div>
           <div className="conversation-meta text-light-emphasis small" data-id="conversation-item-meta">
@@ -110,7 +110,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
         <div className="conversation-menu-trigger" ref={menuContainerRef}>
           <button
-            className="btn btn-sm p-0 conversation-menu-btn"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-colors p-0 conversation-menu-btn"
             onClick={(e) => {
               e.stopPropagation()
               if (showMenu) {
@@ -129,7 +129,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
           {showMenu && (
             <div
-              className="conversation-menu position-fixed shadow-sm"
+              className="conversation-menu fixed shadow-sm"
               ref={menuPanelRef}
               style={{
                 top: `${menuPosition.top}px`,
@@ -138,25 +138,25 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               }}
             >
               <button
-                className="conversation-menu-item w-100 text-start"
+                className="conversation-menu-item w-full text-left"
                 onClick={(e) => {
                   e.stopPropagation()
                   onArchive(e)
                   setShowMenu(false)
                 }}
               >
-                <i className={`fas ${conversation.archived ? 'fa-inbox' : 'fa-archive'} me-2`}></i>
+                <i className={`fas ${conversation.archived ? 'fa-inbox' : 'fa-archive'} mr-2`}></i>
                 {conversation.archived ? 'Unarchive' : 'Archive'}
               </button>
               <button
-                className="conversation-menu-item conversation-menu-item-danger w-100 text-start"
+                className="conversation-menu-item conversation-menu-item-danger w-full text-left"
                 onClick={(e) => {
                   e.stopPropagation()
                   onDelete(e)
                   setShowMenu(false)
                 }}
               >
-                <i className="fas fa-trash me-2"></i>
+                <i className="fas fa-trash mr-2"></i>
                 Delete
               </button>
             </div>

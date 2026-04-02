@@ -43,7 +43,7 @@ const showTable = (opts: any, showTableHash: any) => {
   const gasInt = opts.gas != null ? typeConversion.toInt(opts.gas) : 0;
   return (
     <table
-      className={`mt-1 mb-2 me-4  align-self-center ${
+      className={`mt-1 mb-2 mr-4  self-center ${
         showTableHash.includes(opts.hash) ? 'active' : ''
       }`}
       id="txTable"

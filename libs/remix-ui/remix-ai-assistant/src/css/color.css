@@ -27,8 +27,7 @@
   /* margin-top: 15px; */
   /* display: none !important; */
   width: 100% !important;
-  margin-left: 10px !important;
-  margin-right: 10px !important;
+  margin-left: 10px !important; margin-right: 10px !important;
   min-height: 10vh !important;
   margin-bottom: 20px !important;
   display: flex !important;
@@ -42,8 +41,7 @@
 
 .nlux-comp-composer>textarea  {
   padding: 10px !important;
-  margin-left: 10px !important;
-  margin-right: 10px !important;
+  margin-left: 10px !important; margin-right: 10px !important;
   border-radius: 0px !important;
 }
 
@@ -93,8 +91,7 @@ div#composer-button {
   /* border: 2px solid blue !important; */
   /* display: flex !important;
   flex-direction: column !important;
-  margin-left: 10px !important;
-  margin-right: 10px !important; */
+  margin-left: 10px !important; margin-right: 10px !important; */
 }
 
 .nlux-comp-chatItem.nlux-comp-chatItem--received.nlux-comp-chatItem--bubblesLayout {

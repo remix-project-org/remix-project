@@ -14,21 +14,21 @@ export function Toggler ({ children, title, dataId, show = false, icon, iconTool
   }
 
   return (
-    <div className="pt-2 border-top pb-2">
-      <div className="d-flex circuit_config_section justify-content-between" onClick={toggleConfigurations} data-id={dataId}>
-        <div className="d-flex">
+    <div className="pt-2 border-t pb-2">
+      <div className="flex circuit_config_section justify-between" onClick={toggleConfigurations} data-id={dataId}>
+        <div className="flex">
           <label className="circuit_config_section">
             <FormattedMessage id={title} />
             { icon ? iconTooltip ? (
               <CustomTooltip
                 placement="auto"
                 tooltipId="rerunSetupWarningTooltip"
-                tooltipClasses="text-nowrap"
+                tooltipClasses="whitespace-nowrap"
                 tooltipText={iconTooltip}
               >
-                <span className={`${icon} border-0 p-0 ms-2`} aria-hidden="true"></span>
+                <span className={`${icon} border-0 p-0 ml-2`} aria-hidden="true"></span>
               </CustomTooltip>) :
-              <span className={`${icon} border-0 p-0 ms-2`} aria-hidden="true"></span> : null }
+              <span className={`${icon} border-0 p-0 ml-2`} aria-hidden="true"></span> : null }
           </label>
         </div>
         <div>

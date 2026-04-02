@@ -497,7 +497,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
 
   const label = (key: string | number, value: string) => {
     return (
-      <div className="d-flex mt-2 flex-row label_item align-items-baseline">
+      <div className="flex mt-2 flex-row label_item items-baseline">
         <label className="small font-weight-bold m-0">{key}:</label>
         <label className="m-0 label_value">{value}</label>
       </div>
@@ -535,12 +535,12 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
         className={`rounded ${shouldHighlight ? 'contract-highlight-animation' : ''}`}
         style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}
       >
-        <div id={`instance${contract.address}`} data-id={contract?.isPinned ? `pinnedInstance${contract?.address}` : `unpinnedInstance${contract?.address}`} className="w-100" data-shared="universalDappUiInstance">
-          <div className="d-flex align-items-center justify-content-between w-100 text-nowrap text-truncate overflow-hidden p-3" onClick={handleContractClick} data-id={`deployedContractItem-${index}`} style={{ cursor: 'pointer' }}>
-            <div className='d-flex align-items-center gap-2'>
+        <div id={`instance${contract.address}`} data-id={contract?.isPinned ? `pinnedInstance${contract?.address}` : `unpinnedInstance${contract?.address}`} className="w-full" data-shared="universalDappUiInstance">
+          <div className="flex items-center justify-between w-full whitespace-nowrap truncate overflow-hidden p-3" onClick={handleContractClick} data-id={`deployedContractItem-${index}`} style={{ cursor: 'pointer' }}>
+            <div className='flex items-center gap-2'>
               <CustomTooltip
                 placement="top"
-                tooltipClasses="text-nowrap"
+                tooltipClasses="whitespace-nowrap"
                 tooltipId="udapp_deployedContractPinTooltip"
                 tooltipText={contract.isPinned ? `Pinned at: ${new Date(contract.pinnedAt).toLocaleString()}` : intl.formatMessage({ id: 'udapp.pinContractTooltip' })}
               >
@@ -551,26 +551,26 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                   onClick={handlePinContract}
                 ></i>
               </CustomTooltip>
-              <div className='d-flex flex-column align-items-start'>
-                <div className="text-truncate text-secondary d-flex align-items-center">
+              <div className='flex flex-col items-start'>
+                <div className="truncate text-secondary flex items-center">
                   <span>{contract.name}</span>
                 </div>
-                <div className="d-flex align-items-center gap-1 font-sm" style={{ color: 'var(--bs-tertiary-color)' }}>
+                <div className="flex items-center gap-1 font-sm" style={{ color: 'var(--bs-tertiary-color)' }}>
                   <span>{shortenAddress(contract.address)}</span>
                   <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyAddressTooltip' })} icon="fa-copy" direction="top" getContent={() => contract?.address} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyDeployedContractAddress', name: shortenAddress(contract.address), isClick: true })}>
-                    <i className="fa-solid fa-copy small ms-1" style={{ cursor: 'pointer' }}></i>
+                    <i className="fa-solid fa-copy small ml-1" style={{ cursor: 'pointer' }}></i>
                   </CopyToClipboard>
                 </div>
               </div>
             </div>
-            <div className='d-flex align-items-center gap-2'>
-              <div className='d-flex flex-column align-items-end'>
+            <div className='flex items-center gap-2'>
+              <div className='flex flex-col items-end'>
                 <span className='badge text-info' style={{ backgroundColor: '#64C4FF14' }}>{networkName}</span>
                 <span className='small'>{getTimeAgo(contract.timestamp, { truncateTimeAgo: true })} ago</span>
               </div>
               <i
                 ref={kebabIconRef as any}
-                className="fas fa-ellipsis-v align-self-center p-2 mx-1"
+                className="fas fa-ellipsis-v self-center p-2 mx-1"
                 style={{ cursor: 'pointer' }}
                 onClick={handleKebabClick}
                 data-id={`contractKebabIcon-${index}`}
@@ -595,14 +595,14 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
           {isExpanded && (
             <div className="p-3 pt-0" onClick={(e) => e.stopPropagation()}>
               {/* Divider */}
-              <div className="border-top mb-3"></div>
+              <div className="border-t mb-3"></div>
 
               {/* High level interaction section */}
               <div className="mb-3">
-                <div className="d-flex align-items-center justify-content-between mb-2" style={{ cursor: 'pointer' }} onClick={toggleHighLevel}>
+                <div className="flex items-center justify-between mb-2" style={{ cursor: 'pointer' }} onClick={toggleHighLevel}>
                   <p className='mb-0' style={{ color: 'var(--text-quaternary, #959bad)' }}><FormattedMessage id="udapp.highLevelInteraction" /></p>
                   <div
-                    className="d-flex align-items-center justify-center rounded"
+                    className="flex items-center justify-center rounded"
                     style={{
                       backgroundColor: 'var(--custom-onsurface-layer-3)',
                       padding: '4px'
@@ -634,7 +634,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                             <div
                               data-id={`deployedContractItem-${index}-function-${actualIndex}`}
                               key={actualIndex}
-                              className="d-flex align-items-center gap-1"
+                              className="flex items-center gap-1"
                               style={{
                                 cursor: 'pointer',
                                 padding: '4px 0',
@@ -643,7 +643,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                               onClick={() => handleFunctionClick(actualIndex)}
                             >
                               {getStateMutabilityBadge(funcABI)}
-                              <div className="d-flex align-items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                              <div className="flex items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                                 <span
                                   style={{
                                     fontSize: '12px',
@@ -682,26 +682,26 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                         })}
                       </div>
                     ) : (
-                      <div className="text-muted pt-3 text-center"><FormattedMessage id="udapp.noABIAvailableForContract" /></div>
+                      <div className="text-gray-500 dark:text-gray-400 pt-3 text-center"><FormattedMessage id="udapp.noABIAvailableForContract" /></div>
                     )}
                   </>
                 )}
               </div>
 
               {/* Divider */}
-              <div className="border-top mb-3"></div>
+              <div className="border-t mb-3"></div>
 
               {/* Low level interaction section */}
               <div className="mb-3">
                 <div
-                  className="d-flex align-items-center justify-content-between mb-2"
+                  className="flex items-center justify-between mb-2"
                   style={{ cursor: 'pointer' }}
                   onClick={toggleLowLevel}
                 >
                   <p className='mb-0' style={{ color: 'var(--text-quaternary, #959bad)' }}><FormattedMessage id="udapp.lowLevelInteraction" /></p>
                   <div
                     data-id={`btnLowLevel-${index}`}
-                    className="d-flex align-items-center justify-center rounded"
+                    className="flex items-center justify-center rounded"
                     style={{
                       backgroundColor: 'var(--custom-onsurface-layer-3)',
                       padding: '4px'
@@ -741,14 +741,14 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
 
               {selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex] && (
                 // Divider
-                <div className="border-top mb-3"></div>
+                <div className="border-t mb-3"></div>
               )}
 
               {selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex] && (
                 <div className="mb-3">
-                  <div className="d-flex align-items-center gap-1 mb-2">
+                  <div className="flex items-center gap-1 mb-2">
                     {getStateMutabilityBadge(functionABIs[selectedFunctionIndex])}
-                    <div className="d-flex align-items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                    <div className="flex items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                       <span
                         style={{
                           fontSize: '12px',
@@ -826,11 +826,11 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                 functionABIs[selectedFunctionIndex].stateMutability !== 'view' &&
                 functionABIs[selectedFunctionIndex].stateMutability !== 'pure') || showLowLevel) && (
                 <div className="mb-3">
-                  <div className="d-flex align-items-center gap-1 mb-3">
+                  <div className="flex items-center gap-1 mb-3">
                     <label className="mb-0" style={{ fontSize: '12px', fontWeight: 700, minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
                       <FormattedMessage id="udapp.valueLabel" />
                     </label>
-                    <div className="position-relative flex-fill">
+                    <div className="relative flex-1">
                       <input
                         data-id={`contractItem-sendValue-${index}`}
                         type="number"
@@ -857,12 +857,12 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                       <Dropdown style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
                         <Dropdown.Toggle
                           as={CustomToggle}
-                          className="btn-sm border-0 text-secondary rounded font-sm ps-1"
+                          className="btn-sm border-0 text-secondary rounded font-sm pl-1"
                           style={{
                             backgroundColor: 'var(--custom-onsurface-layer-2)',
                             color: 'var(--text-secondary, #d5d7e3)'
                           }}
-                          icon="fas fa-caret-down ms-1"
+                          icon="fas fa-caret-down ml-1"
                           useDefaultIcon={false}
                         >
                           {valueUnit}
@@ -888,11 +888,11 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                       </Dropdown>
                     </div>
                   </div>
-                  <div className="d-flex align-items-center gap-1 mb-3">
+                  <div className="flex items-center gap-1 mb-3">
                     <label className="mb-0" style={{ fontSize: '12px', fontWeight: 700, minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
                       <FormattedMessage id="udapp.gasLimitLabel" />
                     </label>
-                    <div className="position-relative flex-fill">
+                    <div className="relative flex-1">
                       <span
                         className="badge font-sm"
                         style={{
@@ -946,7 +946,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
               {((selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex]) || showLowLevel) && (
                 <button
                   data-id={`btnExecute-${index}`}
-                  className="btn btn-primary w-100 mt-3"
+                  className="btn btn-primary w-full mt-3"
                   onClick={() => {
                     const actionType = showLowLevel ? 'lowLevel' : functionABIs[selectedFunctionIndex]?.name || 'function'
                     trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractExecute', name: actionType, isClick: true })
@@ -975,8 +975,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
               )}
 
               {/* Divider */}
-              <div className="border-top my-3"></div>
-              <div className='d-flex align-items-center gap-1' data-id="deployedContractBal">
+              <div className="border-t my-3"></div>
+              <div className='flex items-center gap-1' data-id="deployedContractBal">
                 <div style={{ fontSize: '12px', fontWeight: 700, flex: 1 }}><FormattedMessage id="udapp.balanceLabel" /></div>
                 <div style={{ fontSize: '10px', color: 'var(--text-tertiary, #a2a3bd)', fontFamily: 'Monaco, monospace' }}>
                   {contract.balance || 0} ETH

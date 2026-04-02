@@ -22,10 +22,10 @@ export class FoundryProvider extends AbstractProvider {
       <div>
         {' '}
         <FormattedMessage id="udapp.foundryProviderText1" />
-        <div className="p-1 ps-3">
+        <div className="p-1 pl-3">
           <b>curl -L https://foundry.paradigm.xyz | bash</b>
         </div>
-        <div className="p-1 ps-3">
+        <div className="p-1 pl-3">
           <b>anvil --steps-tracing</b>
         </div>
         <div className="pt-2 pb-4">

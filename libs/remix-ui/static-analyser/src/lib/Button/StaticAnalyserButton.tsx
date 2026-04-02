@@ -22,15 +22,15 @@ const StaticAnalyserButton = ({ onClick, buttonText, disabled, title, classList 
 
   const buttonWithoutTooltip = () => (
     <button id="staticAnalysisRunBtn" className={newclassList} disabled={disabled} onClick={onClick}>
-      <span className="ps-3 pe-4">{buttonText}</span>
+      <span className="pl-3 pr-4">{buttonText}</span>
     </button>
   )
 
   const buttonWithTooltip = () => (
-    <CustomTooltip placement={'auto-end'} tooltipId="ssaRunButtonTooltip" tooltipClasses="text-nowrap" tooltipText={title}>
+    <CustomTooltip placement={'auto-end'} tooltipId="ssaRunButtonTooltip" tooltipClasses="whitespace-nowrap" tooltipText={title}>
       <div id="staticAnalysisWrapper" className={`${newclassList} p-0`}>
         <button id="staticAnalysisRunBtn" className={newclassList} disabled={disabled} onClick={onClick} style={{ pointerEvents: 'none', color: 'white' }}>
-          <span className="ps-3 pe-4">{buttonText}</span>
+          <span className="pl-3 pr-4">{buttonText}</span>
         </button>
       </div>
     </CustomTooltip>

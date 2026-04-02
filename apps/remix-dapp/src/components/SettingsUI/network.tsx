@@ -11,13 +11,13 @@ export function NetworkUI() {
       <label>
         <FormattedMessage id="udapp.environment" />
       </label>
-      <div className="d-flex align-items-center">
+      <div className="flex items-center">
         <select
           id="txorigin"
           data-id="runTabSelectAccount"
           name="txorigin"
           value={provider}
-          className="form-control overflow-hidden w-100 fw-normal form-select pe-4"
+          className="form-control overflow-hidden w-full font-normal form-select pr-4"
           onChange={(e) => {
             dispatch({
               type: 'SET_SETTINGS',
@@ -34,7 +34,7 @@ export function NetworkUI() {
           </option> */}
         </select>
       </div>
-      <div className="position-relative w-100" data-id="settingsNetworkEnv">
+      <div className="relative w-full" data-id="settingsNetworkEnv">
         <span className="badge bg-secondary">{networkName}</span>
       </div>
       {/* {provider === 'walletconnect' && (

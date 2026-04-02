@@ -125,12 +125,12 @@ export const CustomScriptRunner = (props: ScriptRunnerUIProps) => {
           tooltipText="use require when the module doesn't support import statements"
         >
           <div>
-            <label className="pe-2 pt-2">Use 'require':</label>
+            <label className="pr-2 pt-2">Use 'require':</label>
             <FontAwesomeIcon className={useRequire ? 'text-success' : ''} onClick={toggleRequire} icon={useRequire ? faToggleOn : faToggleOff}></FontAwesomeIcon>
           </div>
         </CustomTooltip>
         <button
-          className="btn btn-primary w-100 mt-1"
+          className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors w-full mt-1"
           onClick={handleAddDependency}>
                     Add
         </button>
@@ -138,11 +138,11 @@ export const CustomScriptRunner = (props: ScriptRunnerUIProps) => {
       <ul>
         {dependencies.map((dependency, index) => (
           <li key={index} style={{ marginBottom: '5px' }}>
-            <div className="d-flex align-items-baseline justify-content-between">
+            <div className="flex items-baseline justify-between">
               {dependency.name} - {dependency.version}
               <button
                 onClick={() => handleRemoveDependency(index)}
-                className="btn btn-danger"
+                className="inline-flex items-center px-4 py-2 bg-danger text-white rounded-md hover:bg-danger/90 transition-colors"
                 style={{ marginLeft: '10px' }}
               >
                 <FontAwesomeIcon icon={faTrash} />
@@ -152,15 +152,15 @@ export const CustomScriptRunner = (props: ScriptRunnerUIProps) => {
         ))}
       </ul>
       {dependencies.length > 0 && (
-        <button className="btn btn-primary w-100" onClick={handleSaveToFile} style={{ marginTop: '20px' }}>
+        <button className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors w-full" onClick={handleSaveToFile} style={{ marginTop: '20px' }}>
                     Save config
         </button>
       )}
-      <button className="btn btn-primary w-100" onClick={openConfig} style={{ marginTop: '20px' }}>
+      <button className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors w-full" onClick={openConfig} style={{ marginTop: '20px' }}>
                 Open config
       </button>
       {dependencies.length > 0 && (
-        <button className="btn btn-success w-100" onClick={activateCustomConfig} style={{ marginTop: '20px' }}>
+        <button className="inline-flex items-center px-4 py-2 bg-success text-white rounded-md hover:bg-success/90 transition-colors w-full" onClick={activateCustomConfig} style={{ marginTop: '20px' }}>
                     Activate
         </button>)}
     </div>

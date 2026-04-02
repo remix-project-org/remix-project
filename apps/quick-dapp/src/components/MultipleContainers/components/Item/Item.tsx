@@ -62,7 +62,7 @@ export const Item = React.memo(
 
       return (
         <li
-          className={`position-relative mb-3 list-unstyled item-wrapper`}
+          className={`relative mb-3 list-unstyled item-wrapper`}
           style={
             {
               ...wrapperStyle,
@@ -93,13 +93,13 @@ export const Item = React.memo(
             {...props}
             tabIndex={!handle ? 0 : undefined}
           >
-            <div className="border-dark bg-light d-flex">
+            <div className="border-dark bg-light flex">
               {children}
               <Handle {...handleProps} {...listeners} data-id={`handle${id}`} />
             </div>
             <button
               data-id={`remove${id}`}
-              className={`d-flex justify-content-center align-items-center position-absolute border-0 rounded-circle item-remove`}
+              className={`flex justify-center items-center absolute border-0 rounded-full item-remove`}
               onClick={onRemove}
             >
               <i className="fas fa-times"></i>

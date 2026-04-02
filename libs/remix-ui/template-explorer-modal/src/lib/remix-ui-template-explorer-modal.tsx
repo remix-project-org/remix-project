@@ -49,14 +49,14 @@ export function RemixUiTemplateExplorerModal (props: RemixUiTemplateExplorerModa
     <section data-id="template-explorer-modal-react" data-path={`templateExplorerModal-${state.manageCategory}`}>
       <section className="template-explorer-modal-background" style={{ zIndex: 8888 }}>
         <div ref={containerRef} className="template-explorer-modal-container border bg-dark p-2" style={{ height: modalHeight }}>
-          <div className="template-explorer-modal-close-container bg-dark mb-3 w-100 d-flex flex-row justify-content-between align-items-center">
-            {state.wizardStep === 'template' || state.wizardStep === 'reset' ? <div className="d-flex flex-row gap-2 w-100 mx-3 my-2">
+          <div className="template-explorer-modal-close-container bg-dark mb-3 w-full flex flex-row justify-between items-center">
+            {state.wizardStep === 'template' || state.wizardStep === 'reset' ? <div className="flex flex-row gap-2 w-full mx-3 my-2">
               <input
                 type="text"
                 name="template-explorer-search"
                 data-id="template-explorer-search-input"
                 placeholder="Search"
-                className="form-control template-explorer-modal-search-input ps-5 fw-light"
+                className="form-control template-explorer-modal-search-input pl-5 font-light"
                 style={{ color: theme?.name === 'Light' ? '#1B1D24' : '#FFF' }}
                 onChange={(e) => {
                   setSearchTerm(e.target.value)
@@ -64,7 +64,7 @@ export function RemixUiTemplateExplorerModal (props: RemixUiTemplateExplorerModa
                 }}
               />
             </div> : <div>
-              <div className="d-flex flex-row gap-2 w-100 mx-1 my-2">
+              <div className="flex flex-row gap-2 w-full mx-1 my-2">
                 <button className="btn" onClick={() => {
                   if (state.wizardStep === 'importFiles' || state.manageCategory === 'Files') {
                     dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'template' })
@@ -73,7 +73,7 @@ export function RemixUiTemplateExplorerModal (props: RemixUiTemplateExplorerModa
                     facade.resetExplorerWizard(dispatch as any)
                   }
                 }}>
-                  <i className="fa-solid fa-chevron-left me-2"></i>
+                  <i className="fa-solid fa-chevron-left mr-2"></i>
                   {state.manageCategory === 'Template' ? 'Back to Workspace Templates' : 'Back to File Templates'}
                 </button>
               </div>

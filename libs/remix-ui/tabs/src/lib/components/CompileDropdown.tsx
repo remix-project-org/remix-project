@@ -171,7 +171,7 @@ export const CompileDropdown: React.FC<CompileDropdownProps> = ({ tabPath, plugi
     const modal: AppModal = {
       id: 'SolidityScanPermissionHandler',
       title: <FormattedMessage id="solidity.solScan.modalTitle" />,
-      message: <div className='d-flex flex-column'>
+      message: <div className='flex flex-col'>
         <span><FormattedMessage id="solidity.solScan.modalMessage" />
           <a href={'https://solidityscan.com/?utm_campaign=remix&utm_source=remix'}
             target="_blank"

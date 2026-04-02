@@ -186,7 +186,7 @@ export class Blockchain extends Plugin {
           'terminal',
           'logHtml',
           <span className="flex flex-row">
-            <a href={etherScanLink(network.name, txhash)} className="me-3" target="_blank">
+            <a href={etherScanLink(network.name, txhash)} className="mr-3" target="_blank">
                   view on Etherscan
             </a>
             {' '}

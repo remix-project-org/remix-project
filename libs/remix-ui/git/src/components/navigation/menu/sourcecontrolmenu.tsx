@@ -20,7 +20,7 @@ export const SourceControlMenu = () => {
           <CustomTooltip
             placement="right-start"
             tooltipId="cloneWorkspaceTooltip"
-            tooltipClasses="text-nowrap"
+            tooltipClasses="whitespace-nowrap"
             tooltipText={<FormattedMessage id='filePanel.workspace.clone' defaultMessage='Clone Git Repository' />}
           >
             <div
@@ -36,10 +36,10 @@ export const SourceControlMenu = () => {
                 onClick={() => {
                   hideIconsMenu(!showIconsMenu)
                 }}
-                className='fab fa-github ps-2'
+                className='fab fa-github pl-2'
               >
               </span>
-              <span className="ps-3"><FormattedMessage id='filePanel.clone' defaultMessage='Clone' /></span>
+              <span className="pl-3"><FormattedMessage id='filePanel.clone' defaultMessage='Clone' /></span>
             </div>
           </CustomTooltip>
         </Dropdown.Item>

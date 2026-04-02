@@ -63,59 +63,46 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
 
   return (
     <div
-      className="card border-0 h-100 shadow-lg"
+      className="border-0 h-full shadow-lg rounded-lg"
       style={{
-        background: `linear-gradient(135deg, var(--bs-body-bg) 0%, ${isDark ? '#2a2a3e' : '#f8f9ff'} 100%)`,
+        background: isDark
+          ? 'linear-gradient(135deg, #1f2937 0%, #2a2a3e 100%)'
+          : 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
         borderRadius: '20px',
         minHeight: '280px'
       }}
     >
-      <div className="card-body p-4">
+      <div className="p-6">
         {/* Welcome Header */}
-        <div className="text-center mb-4">
-          <h4 className="mb-2 fw-bold" style={{ color: isDark ? 'white' : 'black' }}>
+        <div className="text-center mb-6">
+          <h4 className="mb-0 font-bold text-gray-900 dark:text-white text-lg">
             <FormattedMessage id="homeTab.newToRemix" defaultMessage="First time in Remix? here's what you can do" />
           </h4>
         </div>
 
         {/* Action Cards */}
-        <div className="d-flex flex-column gap-3">
+        <div className="flex flex-col gap-4">
           <div
-            className="p-3 rounded-4 d-flex align-items-center justify-content-between shadow-sm position-relative overflow-hidden"
+            className="p-4 rounded-lg flex items-center justify-between shadow-sm relative overflow-hidden border-2 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl"
             style={{
-              background: `linear-gradient(45deg, var(--bs-body-bg), ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'})`,
+              background: isDark
+                ? 'linear-gradient(45deg, #1f2937, rgba(255,255,255,0.05))'
+                : 'linear-gradient(45deg, #ffffff, rgba(0,0,0,0.02))',
               backdropFilter: 'blur(10px)',
-              border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              outline: 'none',
-              userSelect: 'none'
+              borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
             }}
             tabIndex={-1}
             onClick={handleExplainEthereum}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'
-              e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,0.2)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0) scale(1)'
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)'
-            }}
           >
-            <div className="d-flex align-items-center flex-grow-1">
-              <div
-                className="d-flex justify-content-center align-items-center me-3 shadow-sm"
-                style={{
-                  width: '20px'
-                }}
-              >
-                <i className="fas fa-lightbulb text-primary" style={{ color: isDark ? '#64c4ff' : 'var(--bs-primary)', fontSize: '1.2rem' }}></i>
+            <div className="flex items-center flex-grow gap-3">
+              <div className="flex justify-center items-center flex-shrink-0">
+                <i className="fas fa-lightbulb" style={{ color: isDark ? '#64c4ff' : '#0d6efd', fontSize: '1.5rem' }}></i>
               </div>
-              <div className="flex-grow-1 pe-3">
-                <h5 className="mb-2" style={{ color: isDark ? 'white' : 'black' }}>
+              <div className="flex-1">
+                <h5 className="mb-1 text-gray-900 dark:text-white font-semibold text-base">
                   <FormattedMessage id="home.learnFoundationTitle" />
                 </h5>
-                <p className="mb-0" style={{ fontSize: '0.875rem', color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
+                <p className="mb-0 text-sm text-gray-800 dark:text-gray-100">
                   <FormattedMessage id="home.learnFoundationDesc" />
                 </p>
               </div>
@@ -123,41 +110,26 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
           </div>
 
           <div
-            className="p-3 rounded-4 d-flex align-items-center justify-content-between shadow-sm position-relative overflow-hidden"
+            className="p-4 rounded-lg flex items-center justify-between shadow-sm relative overflow-hidden border-2 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl"
             style={{
-              background: `linear-gradient(45deg, var(--bs-body-bg), ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'})`,
+              background: isDark
+                ? 'linear-gradient(45deg, #1f2937, rgba(255,255,255,0.05))'
+                : 'linear-gradient(45deg, #ffffff, rgba(0,0,0,0.02))',
               backdropFilter: 'blur(10px)',
-              border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              outline: 'none',
-              userSelect: 'none'
+              borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
             }}
             tabIndex={-1}
             onClick={handleGetStarted}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'
-              e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,0.2)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0) scale(1)'
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)'
-            }}
           >
-            <div className="d-flex align-items-center flex-grow-1">
-              <div
-                className="d-flex justify-content-center align-items-center me-3 shadow-sm"
-                style={{
-                  width: '20px'
-                }}
-              >
-                <i className="fas fa-code text-primary" style={{ color: isDark ? '#64c4ff' : 'var(--bs-primary)', fontSize: '1.2rem' }}></i>
+            <div className="flex items-center flex-grow gap-3">
+              <div className="flex justify-center items-center flex-shrink-0">
+                <i className="fas fa-code" style={{ color: isDark ? '#64c4ff' : '#0d6efd', fontSize: '1.5rem' }}></i>
               </div>
-              <div className="flex-grow-1 pe-3">
-                <h5 className="mb-2" style={{ color: isDark ? 'white' : 'black' }}>
+              <div className="flex-1">
+                <h5 className="mb-1 text-gray-900 dark:text-white font-semibold text-base">
                   <FormattedMessage id="home.buildFirstContractTitle" />
                 </h5>
-                <p className="mb-0" style={{ fontSize: '0.875rem', color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
+                <p className="mb-0 text-sm text-gray-800 dark:text-gray-100">
                   <FormattedMessage id="home.buildFirstContractDesc" />
                 </p>
               </div>

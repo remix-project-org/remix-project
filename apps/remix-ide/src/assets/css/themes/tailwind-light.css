@@ -1,0 +1,292 @@
+@charset "UTF-8";
+/*!
+ * Remix IDE Light Theme - Tailwind Version  
+ * Converted from Bootstrap Flatly theme
+ * Based on Bootswatch v5.3.7 Flatly theme
+ */
+
+/* Import Google Font */
+@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=swap");
+
+/* Light theme (default) - no class selector needed, matches Bootstrap Flatly theme */
+:root {
+  /* Core theme colors - matching Bootstrap Flatly */
+  --color-primary: 0 122 166;      /* #007aa6 */
+  --color-secondary: 162 163 189;   /* #a2a3bd */
+  --color-success: 24 188 156;      /* #18bc9c */
+  --color-info: 52 152 219;         /* #3498db */
+  --color-warning: 243 156 18;      /* #f39c12 */
+  --color-danger: 231 76 60;        /* #e74c3c */
+  --color-light: 248 250 254;       /* #f8fafe */
+  --color-dark: 142 148 166;        /* #8e94a6 */
+
+  /* Gray scale for light theme - matching Bootstrap Flatly */
+  --color-gray-50: 248 249 250;     /* #f8f9fa */
+  --color-gray-100: 248 249 250;    /* #f8f9fa */
+  --color-gray-200: 236 240 241;    /* #ecf0f1 */
+  --color-gray-300: 222 226 230;    /* #dee2e6 */
+  --color-gray-400: 206 212 218;    /* #ced4da */
+  --color-gray-500: 180 188 194;    /* #b4bcc2 */
+  --color-gray-600: 149 165 166;    /* #95a5a6 */
+  --color-gray-700: 123 138 139;    /* #7b8a8b */
+  --color-gray-800: 52 58 64;       /* #343a40 */
+  --color-gray-900: 33 37 41;       /* #212529 */
+
+  /* Body colors for light theme - matching Bootstrap Flatly */
+  --color-body-bg: 239 241 245;     /* #eff1f5 */
+  --color-body-text: 116 123 144;   /* #747b90 */
+  --color-emphasis: 0 0 0;          /* #000 */
+
+  /* Remix custom colors for light theme */
+  --color-ai: 30 162 170;           /* #1ea2aa */
+  --color-surface-1: 248 250 254;   /* #f8fafe */
+  --color-surface-2: 255 255 255;   /* #fff */
+  --color-surface-3: 255 255 255;   /* #fff - using same as surface-2 for light */
+  --color-surface-4: 255 255 255;   /* #fff - using same as surface-2 for light */
+  --color-border-light: 222 226 230; /* #dee2e6 */
+  --color-border-dark: 206 212 218;  /* #ced4da */
+
+  /* Background color */
+  background-color: rgb(239, 241, 245); /* #eff1f5 */
+  color: rgb(116, 123, 144);            /* #747b90 */
+}
+
+/* Comprehensive Bootstrap variables for compatibility - matching Flatly theme */
+:root {
+  /* Base color palette */
+  --bs-blue: #2c3e50;
+  --bs-indigo: #6610f2;
+  --bs-purple: #6f42c1;
+  --bs-pink: #e83e8c;
+  --bs-red: #e74c3c;
+  --bs-orange: #fd7e14;
+  --bs-yellow: #f39c12;
+  --bs-green: #18bc9c;
+  --bs-teal: #20c997;
+  --bs-cyan: #3498db;
+  --bs-black: #000;
+  --bs-white: #fff;
+  --bs-gray: #95a5a6;
+  --bs-gray-dark: #343a40;
+
+  /* Gray scale with RGB values */
+  --bs-gray-100: #f8f9fa;
+  --bs-gray-200: #ecf0f1;
+  --bs-gray-300: #dee2e6;
+  --bs-gray-400: #ced4da;
+  --bs-gray-500: #b4bcc2;
+  --bs-gray-600: #95a5a6;
+  --bs-gray-700: #7b8a8b;
+  --bs-gray-800: #343a40;
+  --bs-gray-900: #212529;
+
+  /* Theme colors */
+  --bs-primary: #007aa6;
+  --bs-secondary: #a2a3bd;
+  --bs-success: #18bc9c;
+  --bs-info: #3498db;
+  --bs-warning: #f39c12;
+  --bs-danger: #e74c3c;
+  --bs-light: #f8fafe;
+  --bs-dark: #8e94a6;
+
+  /* RGB values for theme colors */
+  --bs-primary-rgb: 0, 122, 166;
+  --bs-secondary-rgb: 162, 163, 189;
+  --bs-success-rgb: 24, 188, 156;
+  --bs-info-rgb: 52, 152, 219;
+  --bs-warning-rgb: 243, 156, 18;
+  --bs-danger-rgb: 231, 76, 60;
+  --bs-light-rgb: 248, 250, 254;
+  --bs-dark-rgb: 142, 148, 166;
+  --bs-white-rgb: 255, 255, 255;
+  --bs-black-rgb: 0, 0, 0;
+
+  /* Text emphasis colors */
+  --bs-primary-text-emphasis: #121920;
+  --bs-secondary-text-emphasis: #3c4242;
+  --bs-success-text-emphasis: #0a4b3e;
+  --bs-info-text-emphasis: #153d58;
+  --bs-warning-text-emphasis: #613e07;
+  --bs-danger-text-emphasis: #5c1e18;
+  --bs-light-text-emphasis: #7b8a8b;
+  --bs-dark-text-emphasis: #7b8a8b;
+
+  /* Background subtle colors */
+  --bs-primary-bg-subtle: #d5d8dc;
+  --bs-secondary-bg-subtle: #eaeded;
+  --bs-success-bg-subtle: #d1f2eb;
+  --bs-info-bg-subtle: #d6eaf8;
+  --bs-warning-bg-subtle: #C97539;
+  --bs-danger-bg-subtle: #ff7777;
+  --bs-light-bg-subtle: #fcfcfd;
+  --bs-dark-bg-subtle: #ced4da;
+
+  /* Border subtle colors */
+  --bs-primary-border-subtle: #abb2b9;
+  --bs-secondary-border-subtle: #d5dbdb;
+  --bs-success-border-subtle: #a3e4d7;
+  --bs-info-border-subtle: #aed6f1;
+  --bs-warning-border-subtle: #fad7a0;
+  --bs-danger-border-subtle: #f5b7b1;
+  --bs-light-border-subtle: #ecf0f1;
+  --bs-dark-border-subtle: #b4bcc2;
+
+  /* Typography */
+  --bs-font-sans-serif: "Nunito Sans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --bs-font-monospace: Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  --bs-body-font-family: var(--bs-font-sans-serif);
+  --bs-body-font-size: 1rem;
+  --bs-body-font-weight: 400;
+  --bs-body-line-height: 1.5;
+
+  /* Body colors */
+  --bs-body-color: #747b90;
+  --bs-body-color-rgb: 116, 123, 144;
+  --bs-body-bg: #eff1f5;
+  --bs-body-bg-rgb: 239, 241, 245;
+  --bs-emphasis-color: #000;
+  --bs-emphasis-color-rgb: 0, 0, 0;
+
+  /* Secondary and tertiary colors */
+  --bs-secondary-color: rgba(33, 37, 41, 0.75);
+  --bs-secondary-color-rgb: 33, 37, 41;
+  --bs-secondary-bg: #ecf0f1;
+  --bs-secondary-bg-rgb: 236, 240, 241;
+  --bs-tertiary-color: rgba(33, 37, 41, 0.5);
+  --bs-tertiary-color-rgb: 33, 37, 41;
+  --bs-tertiary-bg: #f8f9fa;
+  --bs-tertiary-bg-rgb: 248, 249, 250;
+
+  /* Heading and link colors */
+  --bs-heading-color: inherit;
+  --bs-link-color: #747b90;
+  --bs-link-hover-color: #b6b8d4;
+  --bs-link-color-rgb: 116, 123, 144;
+  --bs-link-hover-color-rgb: 182, 184, 212;
+  --bs-link-decoration: underline;
+
+  /* Code and highlight */
+  --bs-code-color: #e83e8c;
+  --bs-highlight-color: #212529;
+  --bs-highlight-bg: #fdebd0;
+
+  /* Borders */
+  --bs-border-width: 1px;
+  --bs-border-style: solid;
+  --bs-border-color: #dadbe0;
+  --bs-border-color-translucent: rgba(0, 0, 0, 0.175);
+  --bs-border-radius: 0.375rem;
+  --bs-border-radius-sm: 0.25rem;
+  --bs-border-radius-lg: 0.5rem;
+  --bs-border-radius-xl: 1rem;
+  --bs-border-radius-xxl: 2rem;
+  --bs-border-radius-2xl: var(--bs-border-radius-xxl);
+  --bs-border-radius-pill: 50rem;
+
+  /* Shadows */
+  --bs-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  --bs-box-shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --bs-box-shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+  --bs-box-shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.075);
+
+  /* Focus ring */
+  --bs-focus-ring-width: 0.25rem;
+  --bs-focus-ring-opacity: 0.25;
+  --bs-focus-ring-color: rgba(44, 62, 80, 0.25);
+
+  /* Form validation */
+  --bs-form-valid-color: #18bc9c;
+  --bs-form-valid-border-color: #18bc9c;
+  --bs-form-invalid-color: #e74c3c;
+  --bs-form-invalid-border-color: #e74c3c;
+
+  /* Gradient */
+  --bs-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0));
+
+  /* Button color overrides for light theme */
+  --bs-btn-primary-bg: #007aa6;
+  --bs-btn-primary-border: #007aa6;
+  --bs-btn-primary-hover-bg: #008abc;
+  --bs-btn-primary-hover-border: #008abc;
+  --bs-btn-primary-active-bg: #00729b;
+  --bs-btn-primary-active-border: #00729b;
+  --bs-btn-primary-color: #fff;
+
+  --bs-btn-secondary-bg: #595c76;
+  --bs-btn-secondary-border: #595c76;
+  --bs-btn-secondary-hover-bg: #676a83;
+  --bs-btn-secondary-hover-border: #676a83;
+  --bs-btn-secondary-active-bg: #4d516f;
+  --bs-btn-secondary-active-border: #4d516f;
+  --bs-btn-secondary-color: #fff;
+
+  /* Dropdown variables - matching Bootstrap Flatly */
+  --bs-dropdown-zindex: 1000;
+  --bs-dropdown-min-width: 10rem;
+  --bs-dropdown-padding-x: 0;
+  --bs-dropdown-padding-y: 0.5rem;
+  --bs-dropdown-spacer: 0.125rem;
+  --bs-dropdown-font-size: .875rem;
+  --bs-dropdown-color: var(--bs-body-color);
+  --bs-dropdown-bg: var(--bs-body-bg);
+  --bs-dropdown-border-color: #ced4da;
+  --bs-dropdown-border-radius: var(--bs-border-radius);
+  --bs-dropdown-border-width: var(--bs-border-width);
+  --bs-dropdown-inner-border-radius: calc(var(--bs-border-radius) - var(--bs-border-width));
+  --bs-dropdown-divider-bg: #ced4da;
+  --bs-dropdown-divider-margin-y: 0.5rem;
+  --bs-dropdown-box-shadow: var(--bs-box-shadow);
+  --bs-dropdown-link-color: #7b8a8b;
+  --bs-dropdown-link-hover-color: #fff;
+  --bs-dropdown-link-hover-bg: #2c3e50;
+  --bs-dropdown-link-active-color: #fff;
+  --bs-dropdown-link-active-bg: #2c3e50;
+  --bs-dropdown-link-disabled-color: var(--bs-tertiary-color);
+  --bs-dropdown-item-padding-x: 1rem;
+  --bs-dropdown-item-padding-y: 0.25rem;
+  --bs-dropdown-header-color: #95a5a6;
+  --bs-dropdown-header-padding-x: 1rem;
+  --bs-dropdown-header-padding-y: 0.5rem;
+
+  /* Remix custom variables */
+  --custom-ai-color: #1ea2aa;
+  --custom-onsurface-layer-1: #f8fafe;
+  --custom-onsurface-layer-2: #fff;
+  --custom-onsurface-layer-3: #fff;
+  --custom-onsurface-layer-4: #fff;
+  --custom-border-light: #dee2e6;
+  --custom-border-light-rgb: 222, 226, 230;
+  --custom-border-dark: #ced4da;
+  --custom-border-dark-rgb: 206, 212, 218;
+}
+
+/* Component styles for light theme */
+.btn-ai {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 4px 12px !important;
+  background: color-mix(in srgb, var(--custom-ai-color) 8%, transparent) !important;
+  color: var(--custom-ai-color) !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.btn-ai:hover {
+  opacity: 0.8;
+}
+
+.btn-ai span {
+  color: var(--custom-ai-color);
+}
+
+.text-ai {
+  color: var(--custom-ai-color) !important;
+}
