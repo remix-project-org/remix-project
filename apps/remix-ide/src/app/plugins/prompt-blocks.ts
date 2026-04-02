@@ -86,13 +86,9 @@ export const invariants = {
 
   /** index.html template with import map */
   indexHtmlTemplate: (ctx: PromptContext): string => {
-    const baseMiniAppImport = ctx.isBaseMiniApp
-      ? `,\n              "@farcaster/miniapp-sdk": "https://esm.sh/@farcaster/miniapp-sdk@0.0.14"`
-      : ''
-
-    const baseMiniAppMeta = ctx.isBaseMiniApp
-      ? `\n    <meta property="fc:frame" content="vNext" />\n    <meta name="fc:miniapp" content='{"version":"next","imageUrl":"https://github.com/remix-project-org.png","button":{"title":"Launch","action":{"type":"launch_miniapp","name":"App","url":"https://google.com"}}}' />`
-      : ''
+    // Farcaster SDK and fc: meta tags removed — Base App now uses standard web app model (April 2026)
+    const baseMiniAppImport = ''
+    const baseMiniAppMeta = ''
 
     return `
 **INDEX.HTML TEMPLATE (COPY THIS STRUCTURE):**
@@ -406,17 +402,14 @@ The Remix IDE preview automatically provides \`window.ethereum\` connected to th
 
 export const platform = {
 
-  /** Base Mini App (Farcaster) requirements */
+  /** Base App requirements — standard web app model (Farcaster SDK deprecated April 2026) */
   baseMiniApp: (): string => `
-**BASE MINI APP REQUIREMENTS (MANDATORY):**
-1. **Farcaster SDK:** Import \`sdk\` from \`@farcaster/miniapp-sdk\`.
-2. **Initialization:** Call \`sdk.actions.ready()\` inside a \`useEffect\` in \`src/App.jsx\`:
-   \`\`\`javascript
-   import { sdk } from '@farcaster/miniapp-sdk';
-   useEffect(() => { sdk.actions.ready(); }, []);
-   \`\`\`
-3. **Meta Tags:** The \`fc:frame\` and \`fc:miniapp\` meta tags MUST be in \`index.html\` (already included in the template above).
-4. **Base Network:** Default to Base Mainnet (8453) or Base Sepolia (84532) based on contract chain ID.
+**BASE APP REQUIREMENTS (MANDATORY):**
+1. **NO Farcaster SDK:** Do NOT import \`@farcaster/miniapp-sdk\`. It is deprecated and will cause errors.
+2. **NO fc: meta tags:** Do NOT include \`fc:frame\` or \`fc:miniapp\` meta tags in index.html.
+3. **ready() NOT NEEDED:** The app is considered ready when it loads. Do NOT call \`sdk.actions.ready()\`.
+4. **Wallet:** Use the same wallet pattern as standard DApps (\`window.__qdapp_getProvider\` or \`window.ethereum\`).
+5. **Base Network:** Default to Base Mainnet (8453) or Base Sepolia (84532) based on contract chain ID.
 `,
 
   /** Figma-to-React transformation rules */
