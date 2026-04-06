@@ -40,7 +40,6 @@ export function useModelAccess(): ModelAccess {
       })
       if (response.ok) {
         const data = await response.json()
-        console.log('Permission response:', data)
 
         // Parse enabled AI features from backend response
         const enabledProviders = new Set<string>()
