@@ -94,7 +94,12 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
       }
       const networkProvider = await plugin.call('udappEnv', 'getSelectedProvider')
       const isVM = networkProvider.startsWith('vm') ? true : false
-      const netUI = !isVM ? `${network.name} (${network.id || '-'}) network` : `Remix VM ${networkProvider?.replace('vm-', '')}`
+      // For forked VM states (vm-fs-*), remove the vm-fs- prefix to show just the state name
+      // For regular VM states (vm-*), remove the vm- prefix to show the fork name
+      const vmName = networkProvider?.startsWith('vm-fs-')
+        ? networkProvider.replace('vm-fs-', '')
+        : networkProvider?.replace('vm-', '')
+      const netUI = !isVM ? `${network.name} (${network.id || '-'}) network` : `Remix VM ${vmName}`
 
       dispatch({ type: 'SET_DETECTED_NETWORK', payload: netUI })
     })
