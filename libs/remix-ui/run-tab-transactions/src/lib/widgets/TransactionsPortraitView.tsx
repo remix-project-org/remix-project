@@ -52,6 +52,29 @@ function TransactionsPortraitView() {
     }
     trackMatomoEvent?.({ category: 'udapp', action: 'transactionsSaveButtonClick', name: 'clicked', isClick: true })
     setIsAccordionOpen(true) // Expand accordion to show the dialog
+
+    // Generate non-clashing filename
+    try {
+      const { createNonClashingNameAsync } = await import('@remix-ui/helper')
+      // Create a fileManager wrapper that createNonClashingNameAsync can use
+      const fileManagerWrapper = {
+        exists: async (path: string) => {
+          try {
+            await plugin.call('fileManager', 'readFile', path)
+            return true
+          } catch (e) {
+            return false
+          }
+        }
+      }
+      const nonClashingName = await createNonClashingNameAsync('scenario.json', fileManagerWrapper)
+      dispatch({ type: 'SET_SCENARIO_INPUT', payload: nonClashingName })
+    } catch (error) {
+      console.error('Error generating non-clashing name:', error)
+      // Fallback to default name if error occurs
+      dispatch({ type: 'SET_SCENARIO_INPUT', payload: 'scenario.json' })
+    }
+
     dispatch({ type: 'SHOW_SAVE_DIALOG', payload: true })
     dispatch({ type: 'SHOW_CLEAR_ALL_DIALOG', payload: false })
   }

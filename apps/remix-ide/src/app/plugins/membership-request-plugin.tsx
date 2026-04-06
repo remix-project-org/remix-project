@@ -11,6 +11,7 @@ import {
   MembershipStatusResponse,
   NotificationItem
 } from '@remix-api'
+import { QueryParams } from '@remix-project/remix-lib'
 import * as packageJson from '../../../../../package.json'
 
 const STORAGE_KEY = 'remix_anonymous_request_tokens'
@@ -51,11 +52,23 @@ export class MembershipRequestPlugin extends Plugin {
   constructor() {
     super(profile)
     this.apiClient = new ApiClient(endpointUrls.membershipRequests)
+    const queryParams = new QueryParams()
+    const allParams = queryParams.get() as Record<string, string>
+    const apiKey = allParams.e2e_pool_key
+    if (apiKey) {
+      console.warn('[MembershipRequest] Using API key from URL query parameters. This is intended for testing purposes only.')
+      this.apiClient.setToken(apiKey)
+    }
   }
 
   async onActivation(): Promise<void> {
     // Check pending requests on startup
     await this.checkPendingRequests()
+    // Start polling if there are still pending tokens
+    const stored = this.getStoredTokens()
+    if (stored.length > 0) {
+      this.startPolling()
+    }
     this.renderComponent()
   }
 
@@ -178,12 +191,6 @@ export class MembershipRequestPlugin extends Plugin {
       } catch (e) {
         console.error('[MembershipRequest] Error checking token status:', e)
       }
-    }
-
-    // Start polling if there are still pending tokens
-    const remaining = this.getStoredTokens()
-    if (remaining.length > 0) {
-      this.startPolling()
     }
   }
 
