@@ -74,7 +74,7 @@ export class RemixAIPlugin extends Plugin {
 
   async onActivation(): Promise<void> {
     // check access
-    const hasBasicMcp = await this.checkMCPAccess()
+    const { hasBasicMcp, isBetaUser } = await this.checkMCPAccess()
 
     // IMPORTANT: Must await initialize() before loading MCP servers
     // to ensure remixMCPServer is created first (race condition fix)
@@ -84,6 +84,12 @@ export class RemixAIPlugin extends Plugin {
     this.codeExpAgent = new CodeExplainAgent(this)
     this.contractor = ContractAgent.getInstance(this)
     this.workspaceAgent = workspaceAgent.getInstance(this)
+
+    // Switch to claude-sonnet-4-6 for beta users
+    if (isBetaUser) {
+      console.log('[RemixAI Plugin] Beta user detected, switching to claude-sonnet-4-6')
+      await this.setModel('claude-sonnet-4-6')
+    }
 
     // Initialize MCP servers with defaults (after initialize() completes)
     this.mcpServers = [...mcpDefaultServersConfig.defaultServers, ...(hasBasicMcp ? mcpBasicServersConfig.defaultServers : [])]
@@ -390,7 +396,6 @@ export class RemixAIPlugin extends Plugin {
 
   async setModel(modelId: string) {
     let model = getModelById(modelId)
-    console.log('setting model:', model)
     if (!model) {
       model = getDefaultModel()
       modelId = model.id
@@ -684,11 +689,25 @@ export class RemixAIPlugin extends Plugin {
       const isAuthenticated = authState?.isAuthenticated || false;
 
       if (!isAuthenticated) { // logged out or no user
+        console.log('[RemixAI Plugin] User logged out, resetting to default model and MCP servers');
+        const defaultModel = getDefaultModel();
+        await this.setModel(defaultModel.id);
         await this.resetMCPServersToDefault();
         return;
       }
 
-      const hasBasicMcp = await this.checkMCPAccess();
+      const { hasBasicMcp, isBetaUser } = await this.checkMCPAccess();
+
+      // Switch to claude-sonnet-4-6 for beta users
+      if (isBetaUser) {
+        console.log('[RemixAI Plugin] Beta user logged in, switching to claude-sonnet-4-6');
+        await this.setModel('claude-sonnet-4-6');
+      } else {
+        const defaultModel = getDefaultModel();
+        console.log(`[RemixAI Plugin] Non-beta user logged in, using default model: ${defaultModel.id}`);
+        await this.setModel(defaultModel.id);
+      }
+
       const newServerList = [
         ...mcpDefaultServersConfig.defaultServers,
         ...(hasBasicMcp ? mcpBasicServersConfig.defaultServers : [])
@@ -738,10 +757,10 @@ export class RemixAIPlugin extends Plugin {
     }
   }
 
-  private async checkMCPAccess(): Promise<boolean> {
+  private async checkMCPAccess(): Promise<{ hasBasicMcp: boolean; isBetaUser: boolean }> {
     try {
       const token = localStorage.getItem('remix_access_token');
-      if (!token) return false;
+      if (!token) return { hasBasicMcp: false, isBetaUser: false };
 
       const headers = { 'Authorization': `Bearer ${token}` };
       const response = await fetch(`${endpointUrls.permissions}`, {
@@ -751,14 +770,16 @@ export class RemixAIPlugin extends Plugin {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.features) {
-          return data.features['mcp:basicExternal']?.is_enabled || false;
-        }
+
+        const hasBasicMcp = data.features?.['mcp:basicExternal']?.is_enabled || false;
+        const isBetaUser = data.feature_groups?.some((group: any) => group.name === 'beta') || false;
+
+        return { hasBasicMcp, isBetaUser };
       }
-      return false;
+      return { hasBasicMcp: false, isBetaUser: false };
     } catch (error) {
       console.error('[RemixAI Plugin] Failed to check MCP access:', error);
-      return false;
+      return { hasBasicMcp: false, isBetaUser: false };
     }
   }
 

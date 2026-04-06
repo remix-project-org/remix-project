@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, M
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, listModels, isOllamaAvailable, AVAILABLE_MODELS, getDefaultModel, AIModel } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, listModels, isOllamaAvailable, AVAILABLE_MODELS, getDefaultModel, getModelById, AIModel } from '@remix/remix-ai-core'
 import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
 import '../css/color.css'
@@ -229,6 +229,41 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('theme', 'themeChanged')
     }
   }, [])
+
+  useEffect(() => {
+    // Initialize: fetch current model from plugin on mount
+    const initializeModel = async () => {
+      try {
+        const currentModelId = await props.plugin.call('remixAI', 'getSelectedModel')
+        const model = getModelById(currentModelId)
+        if (model) {
+          setSelectedModelId(currentModelId)
+          setSelectedModel(model)
+          setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+        }
+      } catch (error) {
+        console.warn('[RemixAI Assistant UI] Failed to get initial model from plugin:', error)
+      }
+    }
+
+    initializeModel()
+
+    const handleModelChanged = async (modelId: string) => {
+      console.log('[RemixAI Assistant UI] Model changed to:', modelId)
+      const model = getModelById(modelId)
+      if (model) {
+        setSelectedModelId(modelId)
+        setSelectedModel(model)
+        setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+      }
+    }
+
+    props.plugin.on('remixAI', 'modelChanged', handleModelChanged)
+
+    return () => {
+      props.plugin.off('remixAI', 'modelChanged')
+    }
+  }, [props.plugin])
 
   useEffect(() => {
     let refreshTimeout: NodeJS.Timeout | null = null
