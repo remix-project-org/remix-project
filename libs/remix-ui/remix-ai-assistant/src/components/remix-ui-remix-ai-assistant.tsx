@@ -295,7 +295,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         }
         await modelAccess.refreshAccess()
         isRefreshing = false
-      }, 2000)
+      }, 500) // Reduced from 2000ms to 500ms for faster UI Update
     }
 
     props.plugin.on('auth', 'authStateChanged', handleAuthStateChanged)
@@ -1105,6 +1105,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   theme={themeTracker?.name}
                   plugin={props.plugin}
                   handleGenerateWorkspace={handleGenerateWorkspace}
+                  allowedMcps={modelAccess.allowedMcps}
                 />
               </section>
             </div>
@@ -1183,6 +1184,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     theme={themeTracker?.name}
                     plugin={props.plugin}
                     handleGenerateWorkspace={handleGenerateWorkspace}
+                    allowedMcps={modelAccess.allowedMcps}
                   />
                 </section>
               </div>

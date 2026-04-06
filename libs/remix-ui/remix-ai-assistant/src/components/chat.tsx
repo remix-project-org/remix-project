@@ -26,6 +26,7 @@ export interface ChatHistoryComponentProps {
   theme: any
   plugin?: any
   handleGenerateWorkspace: () => void
+  allowedMcps: string[]
 }
 
 interface AiChatIntroProps {
@@ -33,9 +34,10 @@ interface AiChatIntroProps {
   theme: string
   plugin?: any
   handleGenerateWorkspace: () => void
+  allowedMcps: string[]
 }
 
-const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, handleGenerateWorkspace }) => {
+const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, handleGenerateWorkspace, allowedMcps }) => {
   const [conversationStarters, setConversationStarters] = useState<ConversationStarter[]>([])
 
   useEffect(() => {
@@ -53,7 +55,7 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, ha
       <p className="mb-4" style={{ fontSize: '0.9rem' }}>
         What do you want to build today?
       </p>
-      <AiChatButtons theme={theme} plugin={plugin} sendPrompt={sendPrompt} handleGenerateWorkspace={handleGenerateWorkspace} />
+      <AiChatButtons theme={theme} plugin={plugin} sendPrompt={sendPrompt} handleGenerateWorkspace={handleGenerateWorkspace} allowedMcps={allowedMcps} />
     </div>
   )
 }
@@ -66,7 +68,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   historyRef,
   theme,
   plugin,
-  handleGenerateWorkspace
+  handleGenerateWorkspace,
+  allowedMcps
 }) => {
   return (
     <div
@@ -74,7 +77,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       className="d-flex flex-column overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
     >
       {messages.length === 0 ? (
-        <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} handleGenerateWorkspace={handleGenerateWorkspace} />
+        <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} handleGenerateWorkspace={handleGenerateWorkspace} allowedMcps={allowedMcps} />
       ) : (
         messages.map(msg => {
           const bubbleClass =

@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { trackMatomoEvent } from '@remix-api'
-import { useModelAccess } from '../hooks/useModelAccess'
+
 interface AiChatButtonsProps {
   theme: string
   plugin?: any
   sendPrompt: (s: string) => void
   handleGenerateWorkspace: () => void
+  allowedMcps: string[]
 }
 
-export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspace }: AiChatButtonsProps) {
+export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspace, allowedMcps }: AiChatButtonsProps) {
   const intl = useIntl()
   const [currentFile, setCurrentFile] = useState<string | null>(null)
   const [latestCompiledContracts, setLatestCompiledContracts] = useState<string[] | null>(null)
@@ -170,7 +171,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
     }
   ]
 
-  if (useModelAccess().allowedMcps.includes('mcpBasicExternal')) {
+  if (allowedMcps.includes('mcpBasicExternal')) {
     btnList.push({
       label: <FormattedMessage id="remixApp.aiChatButton.etherscan" />,
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,

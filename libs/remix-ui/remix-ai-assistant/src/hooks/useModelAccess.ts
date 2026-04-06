@@ -30,6 +30,7 @@ export function useModelAccess(): ModelAccess {
         // Fallback to default model and ollama only
         const defaultModel = getDefaultModel()
         setAllowedModels([defaultModel.id, 'ollama'])
+        setAllowedMcps([])
         return
       }
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -88,11 +89,13 @@ export function useModelAccess(): ModelAccess {
         // Fallback to default model and ollama only
         const defaultModel = getDefaultModel()
         setAllowedModels([defaultModel.id, 'ollama'])
+        setAllowedMcps([])
       }
     } catch (err) {
       console.error('Failed to fetch model access:', err)
       const defaultModel = getDefaultModel()
       setAllowedModels([defaultModel.id, 'ollama'])
+      setAllowedMcps([])
       setError('Failed to load model access')
     } finally {
       setIsLoading(false)
