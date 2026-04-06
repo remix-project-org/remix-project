@@ -236,11 +236,11 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
           <div className="list-group">
             {servers.map((server) => (
               <div key={server.name} className="list-group-item">
-                <div className="d-flex justify-content-between align-items-start">
-                  <div className="flex-grow-1">
-                    <div className="d-flex align-items-center mb-1">
+                <div className="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                  <div className="flex-grow-1 min-width-0">
+                    <div className="d-flex align-items-center mb-1 flex-wrap gap-1">
                       {getStatusIcon(connectionStatuses[server.name])}
-                      <strong className="ms-2">{server.name}</strong>
+                      <strong className="ms-2 text-break">{server.name}</strong>
                       {connectionStatuses[server.name]?.status === 'connected' ? (
                         <span className="badge bg-success ms-2">Connected</span>
                       ) : connectionStatuses[server.name]?.status === 'connecting' ? (
@@ -255,24 +255,24 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
                       {server.isBuiltIn && <span className="badge bg-primary ms-2">Built-in</span>}
                     </div>
                     {server.description && (
-                      <p className="text-muted small mb-1">{server.description}</p>
+                      <p className="text-muted small mb-1 text-break">{server.description}</p>
                     )}
                     <div className="small text-muted">
-                      <div>Transport: {server.transport === 'internal' ? 'Internal (Built-in)' : server.transport}</div>
+                      <div className="text-break">Transport: {server.transport === 'internal' ? 'Internal (Built-in)' : server.transport}</div>
                       {server.transport === 'internal' ? (
-                        <div>Type: Built-in Remix IDE server</div>
+                        <div className="text-break">Type: Built-in Remix IDE server</div>
                       ) : server.transport === 'stdio' ? (
-                        <div>Command: {server.command?.join(' ')}</div>
+                        <div className="text-break">Command: {server.command?.join(' ')}</div>
                       ) : (
-                        <div>URL: {server.url}</div>
+                        <div className="text-break">URL: {server.url}</div>
                       )}
-                      <div>Status: {getStatusText(connectionStatuses[server.name])}</div>
+                      <div className="text-break">Status: {getStatusText(connectionStatuses[server.name])}</div>
                       {connectionStatuses[server.name]?.error && (
-                        <div className="text-danger">Error: {connectionStatuses[server.name]?.error}</div>
+                        <div className="text-danger text-break">Error: {connectionStatuses[server.name]?.error}</div>
                       )}
                     </div>
                   </div>
-                  <div className="d-flex flex-column gap-1">
+                  <div className="d-flex flex-column gap-1 flex-shrink-0">
                     {!server.isBuiltIn && (
                       <button
                         className={`btn btn-sm ${server.enabled ? 'btn-warning' : 'btn-success'}`}
@@ -294,7 +294,7 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
                       </button>
                     )}
                     {server.isBuiltIn && (
-                      <small className="text-muted">Built-in server is always connected</small>
+                      <small className="text-muted text-nowrap">Built-in server is always connected</small>
                     )}
                   </div>
                 </div>

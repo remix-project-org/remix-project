@@ -420,11 +420,11 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
           </div>
         </div>
         {filteredSections.length === 0 ? <div className="text-info text-center cursor-pointer"><FormattedMessage id="settings.noMatchFound" /></div> :
-          <div className="d-flex flex-wrap align-items-stretch flex-fill gap-4" style={{ minHeight: 0, overflow: 'hidden' }}>
+          <div className="d-flex align-items-stretch flex-fill gap-4" style={{ minHeight: 0, overflow: 'hidden' }}>
             {/* Sidebar */}
             <div
-              className="flex-column bg-transparent p-0 px-3 remix-settings-sidebar overflow-auto"
-              style={{ width: '25em', height: '100%' }}
+              className="flex-column bg-transparent p-0 px-3 remix-settings-sidebar overflow-auto flex-shrink-0"
+              style={{ width: '25em', minWidth: '16em', height: '100%' }}
             >
               <ul className="list-unstyled">
                 {filteredSections.map((section, index) => (
