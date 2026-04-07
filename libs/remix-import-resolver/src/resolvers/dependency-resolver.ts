@@ -358,10 +358,20 @@ export class DependencyResolver {
     let actualPath = importPath
 
     if (isLocal) {
-      const localResult = await this.resolveLocalFile(importPath)
-      if (!localResult) return null
-      content = localResult.content
-      actualPath = localResult.actualPath
+      let localResult = null
+      try {
+        localResult = await this.resolveLocalFile(importPath)
+      } catch (err) {
+        this.logIf('fileProcessing', `[DependencyResolver]   ⚠️  Local resolution failed for ${importPath}:`, err)
+      }
+
+      if (localResult) {
+        content = localResult.content
+        actualPath = localResult.actualPath
+      } else {
+        this.logIf('fileProcessing', `[DependencyResolver]   🌐 Probable external import detected, delegating to ImportResolver`)
+        content = await this.resolver.resolveAndSave(importPath, undefined, false)
+      }
     } else {
       this.logIf('fileProcessing', `[DependencyResolver]   🌐 External import detected, delegating to ImportResolver`)
       content = await this.resolver.resolveAndSave(importPath, undefined, false)
