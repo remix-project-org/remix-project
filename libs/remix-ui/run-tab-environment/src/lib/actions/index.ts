@@ -518,3 +518,19 @@ export async function updateAccountAlias (
   plugin.call('notification', 'toast', `Account alias updated to "${newAlias}"`)
   trackMatomoEvent(plugin, { category: 'udapp', action: 'accountAliasSaved', name: newAlias, isClick: false })
 }
+
+export async function refreshAccountBalances (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
+  const widgetState = plugin.getWidgetState()
+
+  for (const account of widgetState.accounts.defaultAccounts) {
+    const balance = await plugin.call('blockchain', 'getBalanceInEther', account.account)
+
+    dispatch({ type: 'SET_ACCOUNT_BALANCE', payload: { address: account.account, balance: formatBalance(balance, 3) } })
+  }
+
+  for (const account of widgetState.accounts.smartAccounts) {
+    const balance = await plugin.call('blockchain', 'getBalanceInEther', account.account)
+
+    dispatch({ type: 'SET_ACCOUNT_BALANCE', payload: { address: account.account, balance: formatBalance(balance, 3) } })
+  }
+}

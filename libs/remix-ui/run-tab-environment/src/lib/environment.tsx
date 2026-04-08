@@ -3,7 +3,7 @@ import isElectron from 'is-electron'
 import { EnvAppContext } from './contexts'
 import { widgetInitialState, widgetReducer } from './reducers'
 import EnvironmentPortraitView from './widgets/envPortraitView'
-import { addFVSProvider, addProvider, getAccountsList, loadAllDelegations, registerInjectedProvider } from './actions'
+import { addFVSProvider, addProvider, getAccountsList, loadAllDelegations, refreshAccountBalances, registerInjectedProvider } from './actions'
 import { ProviderDetailsEvent } from './types'
 import { formatBalance } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
@@ -113,7 +113,7 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
 
     plugin.on('blockchain', 'networkStatus', async (networkStatus: any) => {
       dispatch({ type: 'SET_NETWORK_STATUS', payload: { chainId: networkStatus.network.id, name: networkStatus.network.name } })
-      await getAccountsList(plugin, dispatch)
+      refreshAccountBalances(plugin, dispatch)
     })
 
     plugin.on('udappDeployedContracts', 'deployedInstanceUpdated', async (deployedInstances: any[]) => {
