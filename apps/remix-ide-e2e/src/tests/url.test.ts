@@ -161,17 +161,9 @@ module.exports = {
       })
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
-      .currentWorkspaceIs('default_workspace')
-      /*
-      .execute(() => {
-        // Check that no code-sample or code-sample-* workspaces are persisted
-        const dropdown = document.querySelector('[data-id="workspacesSelect"]')
-        if (!dropdown) return true
-        const options = Array.from(dropdown.querySelectorAll('option'))
-        return !options.some(opt => /^code-sample(-[a-z0-9]{8})?$/.test(opt.value))
-      }, [], (result) => {
-        browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
-      })*/
+      // With the new persistent workspace behavior, code-sample workspaces are kept
+      // and the workspace remains as 'code-sample-' instead of switching to 'default_workspace'
+      .currentWorkspaceIs('code-sample-')
   },
 
   'Should load the code from URL & code params with special character #group1': function (browser: NightwatchBrowser) {
@@ -197,17 +189,9 @@ module.exports = {
       })
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
-      .currentWorkspaceIs('default_workspace')
-      /*
-      .execute(() => {
-        // Check that no code-sample or code-sample-* workspaces are persisted
-        const dropdown = document.querySelector('[data-id="workspacesSelect"]')
-        if (!dropdown) return true
-        const options = Array.from(dropdown.querySelectorAll('option'))
-        return !options.some(opt => /^code-sample(-[a-z0-9]{8})?$/.test(opt.value))
-      }, [], (result) => {
-        browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
-      })*/
+      // With the new persistent workspace behavior, code-sample workspaces are kept
+      // and the workspace remains as 'code-sample-' instead of switching to 'default_workspace'
+      .currentWorkspaceIs('code-sample-')
   },
 
   'Should load the code with remaps URL parameter #group1': function (browser: NightwatchBrowser) {
@@ -222,6 +206,7 @@ module.exports = {
       .currentWorkspaceIs('code-sample-')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemremappings.txt"]')
       .click('*[data-id="treeViewLitreeViewItemremappings.txt"]')
+      .pause(500) // Wait for editor to load remappings.txt content
       .getEditorValue((content) => {
         browser.assert.ok(content && content.indexOf(
           '@openzeppelin/contracts/=https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.0/contracts/') !== -1,
@@ -235,6 +220,11 @@ module.exports = {
         selector: `//li[contains(@data-id, "treeViewLitreeViewItemcontract-") and contains(@data-id, ".sol")]`,
         locateStrategy: 'xpath'
       })
+      .waitForElementVisible({
+        selector: '//*[@id="editorView"]',
+        locateStrategy: 'xpath'
+      })
+      .pause(500) // Wait for editor content to fully load
       .getEditorValue((content) => {
         browser.assert.ok(content && content.indexOf(
           '@openzeppelin/contracts/token/ERC20/ERC20.sol') !== -1,
@@ -270,17 +260,9 @@ module.exports = {
       })
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
-      .currentWorkspaceIs('default_workspace')
-      /*
-      .execute(() => {
-        // Check that no code-sample or code-sample-* workspaces are persisted
-        const dropdown = document.querySelector('[data-id="workspacesSelect"]')
-        if (!dropdown) return true
-        const options = Array.from(dropdown.querySelectorAll('option'))
-        return !options.some(opt => /^code-sample(-[a-z0-9]{8})?$/.test(opt.value))
-      }, [], (result) => {
-        browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
-      })*/
+      // With the new persistent workspace behavior, code-sample workspaces are kept
+      // and the workspace remains as 'code-sample-' instead of switching to 'default_workspace'
+      .currentWorkspaceIs('code-sample-')
   },
 
   'Should load the code from language & code params #group1': function (browser: NightwatchBrowser) {
