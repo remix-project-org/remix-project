@@ -521,14 +521,9 @@ export async function updateAccountAlias (
 
 export async function refreshAccountBalances (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
   const widgetState = plugin.getWidgetState()
+  const allAccounts = [...widgetState.accounts?.defaultAccounts || [], ...plugin.getWidgetState()?.accounts?.smartAccounts || []]
 
-  for (const account of widgetState.accounts.defaultAccounts) {
-    const balance = await plugin.call('blockchain', 'getBalanceInEther', account.account)
-
-    dispatch({ type: 'SET_ACCOUNT_BALANCE', payload: { address: account.account, balance: formatBalance(balance, 3) } })
-  }
-
-  for (const account of widgetState.accounts.smartAccounts) {
+  for (const account of allAccounts) {
     const balance = await plugin.call('blockchain', 'getBalanceInEther', account.account)
 
     dispatch({ type: 'SET_ACCOUNT_BALANCE', payload: { address: account.account, balance: formatBalance(balance, 3) } })
