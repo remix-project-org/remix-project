@@ -162,6 +162,7 @@ module.exports = {
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
       .currentWorkspaceIs('default_workspace')
+      /*
       .execute(() => {
         // Check that no code-sample or code-sample-* workspaces are persisted
         const dropdown = document.querySelector('[data-id="workspacesSelect"]')
@@ -170,7 +171,7 @@ module.exports = {
         return !options.some(opt => /^code-sample(-[a-z0-9]{8})?$/.test(opt.value))
       }, [], (result) => {
         browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
-      })
+      })*/
   },
 
   'Should load the code from URL & code params with special character #group1': function (browser: NightwatchBrowser) {
@@ -197,6 +198,7 @@ module.exports = {
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
       .currentWorkspaceIs('default_workspace')
+      /*
       .execute(() => {
         // Check that no code-sample or code-sample-* workspaces are persisted
         const dropdown = document.querySelector('[data-id="workspacesSelect"]')
@@ -205,7 +207,7 @@ module.exports = {
         return !options.some(opt => /^code-sample(-[a-z0-9]{8})?$/.test(opt.value))
       }, [], (result) => {
         browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
-      })
+      })*/
   },
 
   'Should load the code with remaps URL parameter #group1': function (browser: NightwatchBrowser) {
@@ -269,6 +271,7 @@ module.exports = {
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
       .currentWorkspaceIs('default_workspace')
+      /*
       .execute(() => {
         // Check that no code-sample or code-sample-* workspaces are persisted
         const dropdown = document.querySelector('[data-id="workspacesSelect"]')
@@ -277,7 +280,7 @@ module.exports = {
         return !options.some(opt => /^code-sample(-[a-z0-9]{8})?$/.test(opt.value))
       }, [], (result) => {
         browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
-      })
+      })*/
   },
 
   'Should load the code from language & code params #group1': function (browser: NightwatchBrowser) {

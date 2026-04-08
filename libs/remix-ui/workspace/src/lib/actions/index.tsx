@@ -22,8 +22,28 @@ const queryParams = new QueryParams()
 
 let plugin, dispatch: React.Dispatch<Actions>
 
+async function generate10LetterHash(input) {
+  // Encode the input string as UTF-8
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+
+  // Hash the data using SHA-256
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+  // Convert the hash to a hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Take the first 10 characters
+  return hashHex.substring(0, 10);
+}
+
 // Generate an 8-letter random suffix for temporary workspace names
-const generateRandomSuffix = (): string => {
+const generateRandomSuffix = async (content?: string): Promise<string> => {
+  if (content) {
+    // If content is provided, generate a deterministic suffix based on the content
+    return await generate10LetterHash(content)
+  }
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
   let result = ''
   for (let i = 0; i < 8; i++) {
@@ -134,7 +154,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       dispatch(setWorkspaces(workspaces))
 
       // Clean up temporary code-sample workspaces from previous sessions (non-blocking)
-      cleanupCodeSampleWorkspaces(allWorkspaces, workspaceProvider)
+      // cleanupCodeSampleWorkspaces(allWorkspaces, workspaceProvider)
     }
     if (params.gist) {
       const name = 'gist ' + params.gist
@@ -143,7 +163,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       dispatch(setCurrentWorkspace({ name, isGitRepo: false }))
       await loadWorkspacePreset('gist-template')
     } else if (params.code || params.url || params.shareCode || params.ghfolder) {
-      const workspaceName = `code-sample-${generateRandomSuffix()}`
+      const workspaceName = `code-sample-${await generateRandomSuffix(params.code || params.url || params.shareCode || params.ghfolder)}`
       await createWorkspaceTemplate(workspaceName, 'code-template')
       plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
       dispatch(setCurrentWorkspace({ name: workspaceName, isGitRepo: false }))
@@ -159,7 +179,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         let data
         let count = 0
         try {
-          const workspaceName = `code-sample-${generateRandomSuffix()}`
+          const workspaceName = `code-sample-${await generateRandomSuffix(params.address + params.blockscout)}`
           let filePath
           const target = `/${blockscoutUrl}/${contractAddress}`
 
@@ -189,7 +209,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         try {
           let etherscanKey = await plugin.call('config', 'getAppParameter', 'etherscan-access-token')
           if (!etherscanKey) etherscanKey = '2HKUX5ZVASZIKWJM8MIQVCRUVZ6JAWT531'
-          const workspaceName = `code-sample-${generateRandomSuffix()}`
+          const workspaceName = `code-sample-${await generateRandomSuffix(params.address)}`
           let filePath
           const foundOnNetworks = []
           const endpoint = params.endpoint || 'api.etherscan.io'
@@ -283,7 +303,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       dispatch(setWorkspaces(workspaces))
 
       // Clean up temporary code-sample workspaces from previous sessions (non-blocking)
-      cleanupCodeSampleWorkspaces(allWorkspaces, workspaceProvider)
+      // cleanupCodeSampleWorkspaces(allWorkspaces, workspaceProvider)
     }
     if (params.gist) {
       const name = 'gist ' + params.gist
@@ -292,7 +312,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       dispatch(setCurrentWorkspace({ name, isGitRepo: false }))
       await loadWorkspacePreset('gist-template')
     } else if (params.code || params.url || params.shareCode || params.ghfolder) {
-      const workspaceName = `code-sample-${generateRandomSuffix()}`
+      const workspaceName = `code-sample-${await generateRandomSuffix(params.code || params.url || params.shareCode || params.ghfolder)}`
       await createWorkspaceTemplate(workspaceName, 'code-template')
       plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
       dispatch(setCurrentWorkspace({ name: workspaceName, isGitRepo: false }))
@@ -308,7 +328,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         let data
         let count = 0
         try {
-          const workspaceName = `code-sample-${generateRandomSuffix()}`
+          const workspaceName = `code-sample-${await generateRandomSuffix(params.address + params.blockscout)}`
           let filePath
           const target = `/${blockscoutUrl}/${contractAddress}`
 
@@ -338,7 +358,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         try {
           let etherscanKey = await plugin.call('config', 'getAppParameter', 'etherscan-access-token')
           if (!etherscanKey) etherscanKey = '2HKUX5ZVASZIKWJM8MIQVCRUVZ6JAWT531'
-          const workspaceName = `code-sample-${generateRandomSuffix()}`
+          const workspaceName = `code-sample-${await generateRandomSuffix(params.address)}`
           let filePath
           const foundOnNetworks = []
           const endpoint = params.endpoint || 'api.etherscan.io'
