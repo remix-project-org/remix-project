@@ -1,6 +1,6 @@
 {
   "name": "@remix-project/remix-ws-templates",
-  "version": "1.0.84",
+  "version": "1.0.85",
   "description": "Create a Remix IDE workspace using different templates",
   "main": "src/index.js",
   "types": "src/index.d.ts",
@@ -24,5 +24,5 @@
     "ethers": "^6.14.0",
     "snarkjs": "^0.7.0"
   },
-  "gitHead": "adf7086a81ee237465a0295eb644b437095f160d"
+  "gitHead": "4609da36eff8706df8ee506d67138435992ebfc6"
 }
