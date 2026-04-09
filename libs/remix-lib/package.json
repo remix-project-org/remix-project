@@ -17,6 +17,11 @@
     "test": "./../../node_modules/.bin/ts-node --require tsconfig-paths/register ./../../node_modules/.bin/tape ./test/tests.ts"
   },
   "dependencies": {
+    "@ethereumjs/blockchain": "^10.1.1",
+    "@ethereumjs/common": "^10.1.1",
+    "@ethereumjs/mpt": "^10.1.1",
+    "@ethereumjs/statemanager": "^10.1.1",
+    "@ethereumjs/tx": "^10.1.1",
     "@ethereumjs/util": "^10.1.1",
     "async": "^2.1.2",
     "bn.js": "^5.1.2",
@@ -29,7 +34,8 @@
     "rlp": "^3.0.0",
     "solc": "0.8.26",
     "string-similarity": "^4.0.4",
-    "viem": "2.22.3"
+    "viem": "2.22.3",
+    "xstate": "^5"
   },
   "devDependencies": {
     "@babel/core": "^7.4.5",
