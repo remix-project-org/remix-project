@@ -40,6 +40,8 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   // DappManager now receives the plugin from props instead of a singleton
   const dappManager = useMemo(() => new DappManager(plugin as any), [plugin]);
   const dappManagerRef = useRef(dappManager);
+  // Track workspaces being deleted by us to prevent double SET_DAPPS dispatch
+  const deletingWorkspacesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     dappsRef.current = appState.dapps;
@@ -57,7 +59,9 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     if (!plugin) return;
 
     const handleCreateDapp = async (payload: any) => {
+      console.log('[QuickDapp:handleCreateDapp] ENTERED, payload=', payload ? Object.keys(payload) : 'null', 'quickdappEnabled=', quickdappEnabledRef.current);
       if (quickdappEnabledRef.current === false) {
+        console.log('[QuickDapp:handleCreateDapp] BLOCKED: quickdapp disabled');
         plugin.call('notification', 'toast', 'QuickDapp is not available yet.')
         return
       }
@@ -180,6 +184,8 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     };
 
     const handleWorkspaceDeleted = (workspaceName: string) => {
+      // Skip if we triggered this deletion ourselves (prevents double dispatch)
+      if (deletingWorkspacesRef.current.has(workspaceName)) return;
       const filtered = dappsRef.current.filter((d: any) => d.workspaceName !== workspaceName);
       dispatch({ type: 'SET_DAPPS', payload: filtered });
     };
@@ -352,36 +358,47 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
   // Handle delete operations
   const handleDeleteOne = async (dapp: DappConfig) => {
-    if (!dapp.workspaceName) return;
+    if (!dapp.workspaceName || !dappManager) {
+      console.error('[QuickDapp:deleteOne] ABORT: no workspaceName or no dappManager', dapp.workspaceName, !!dappManager);
+      return;
+    }
 
+    console.log('[QuickDapp:deleteOne] START ws=' + dapp.workspaceName);
     try {
-      await plugin.call('filePanel', 'deleteWorkspace', dapp.workspaceName);
-      dispatch({
-        type: 'SET_DAPPS',
-        payload: dappsRef.current.filter((d: DappConfig) => d.id !== dapp.id)
-      });
-      // Re-focus quick-dapp-v2 tab after a delay since deleteWorkspace
-      // triggers async workspace switching that shifts mainPanel focus
-      setTimeout(async () => {
-        try { await plugin.call('tabs', 'focus', 'quick-dapp-v2'); } catch (e) {}
-      }, 500);
+      deletingWorkspacesRef.current.add(dapp.workspaceName);
+      await dappManager.deleteDapp(dapp.workspaceName);
+      console.log('[QuickDapp:deleteOne] deleteDapp resolved, calling getDapps...');
+      const updatedDapps = await dappManager.getDapps();
+      console.log('[QuickDapp:deleteOne] getDapps returned ' + (updatedDapps?.length ?? 0) + ' dapps');
+      dispatch({ type: 'SET_DAPPS', payload: updatedDapps || []});
+
+      if (!updatedDapps || updatedDapps.length === 0) {
+        dispatch({ type: 'SET_VIEW', payload: 'create' });
+      }
     } catch (e) {
-      console.error('[QuickDapp] Failed to delete workspace:', e);
+      console.error('[QuickDapp:deleteOne] CAUGHT ERROR:', e);
+    } finally {
+      deletingWorkspacesRef.current.delete(dapp.workspaceName);
+      console.log('[QuickDapp:deleteOne] COMPLETE');
     }
   };
 
   const handleDeleteAll = async () => {
-    for (const dapp of dappsRef.current) {
-      if (dapp.workspaceName) {
-        try {
-          await plugin.call('filePanel', 'deleteWorkspace', dapp.workspaceName);
-        } catch (e) {}
+    try {
+      // Collect workspace names to mark as "deleting by us"
+      for (const dapp of dappsRef.current) {
+        if (dapp.workspaceName) {
+          deletingWorkspacesRef.current.add(dapp.workspaceName);
+        }
       }
+      await dappManager.deleteAllDapps();
+      dispatch({ type: 'SET_DAPPS', payload: []});
+      dispatch({ type: 'SET_VIEW', payload: 'create' });
+    } catch (e) {
+      console.error('[QuickDapp] Failed to delete all:', e);
+    } finally {
+      deletingWorkspacesRef.current.clear();
     }
-    dispatch({ type: 'SET_DAPPS', payload: []});
-    dispatch({ type: 'SET_VIEW', payload: 'create' });
-    // Re-focus quick-dapp-v2 tab since deleteWorkspace shifts mainPanel focus
-    try { await plugin.call('tabs', 'focus', 'quick-dapp-v2'); } catch (e) {}
   };
 
   const renderContent = () => {
@@ -471,7 +488,9 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           }}
           onCreateNew={() => dispatch({ type: 'SET_VIEW', payload: 'create' })}
           onDeleteOne={(slug: string) => {
+            console.log('[QuickDapp:onDeleteOne] slug=' + slug + ' dapps.length=' + appState.dapps.length);
             const dapp = appState.dapps.find((d: DappConfig) => d.slug === slug);
+            console.log('[QuickDapp:onDeleteOne] found dapp?', !!dapp, dapp?.workspaceName);
             if (dapp) handleDeleteOne(dapp);
           }}
           onDeleteAll={handleDeleteAll}

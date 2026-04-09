@@ -68,26 +68,27 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [validDapps, selectedNetwork, sortOrder]);
 
   const confirmDeleteOne = () => {
-    if (dappToDelete && onDeleteOne) {
-      onDeleteOne(dappToDelete);
+    const slug = dappToDelete;
+    setDappToDelete(null); // Close modal immediately
+    if (slug && onDeleteOne) {
+      onDeleteOne(slug);
     }
-    setDappToDelete(null);
   };
 
   return (
     <div className="container-fluid p-4" data-id="quick-dapp-dashboard" style={{ minHeight: '100vh' }}>
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 qd-header">
         <div>
-          <h3 className="fw-bold mb-1 text-body">Quick Dapp</h3>
-          <p className="text-secondary mb-0">Edit and deploy your dapps.</p>
+          <h3 className="fw-bold mb-1 text-body">Quick DApp</h3>
+          <p className="text-secondary mb-0">Edit and deploy your DApps.</p>
         </div>
         <div className="d-flex gap-2 mt-3 mt-md-0 qd-header-buttons">
           <Button variant="primary" onClick={onCreateNew} data-id="create-new-dapp-btn">
-            <i className="fas fa-plus me-2"></i> Create a new dapp
+            <i className="fas fa-plus me-2"></i> Create a new DApp
           </Button>
           {dapps.length > 0 && (
             <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)} data-id="delete-all-dapps-btn">
-              <i className="fas fa-trash me-2"></i> Delete all dapps
+              <i className="fas fa-trash me-2"></i> Delete all DApps
             </Button>
           )}
         </div>
@@ -198,8 +199,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             Cancel
           </Button>
           <Button variant="danger" data-id="confirm-delete-all-btn" onClick={() => {
+            setShowDeleteAllModal(false); // Close modal immediately
             if (onDeleteAll) onDeleteAll();
-            setShowDeleteAllModal(false);
           }}>
             Yes, Delete All
           </Button>

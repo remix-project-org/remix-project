@@ -122,13 +122,18 @@ export class QuickDappV2 extends ViewPlugin {
   }
 
   async createDapp(payload: any): Promise<void> {
+    console.log('[QuickDappPlugin:createDapp] CALLED, payload keys=', payload ? Object.keys(payload) : 'null');
     if (!(await this.isQuickDappEnabled())) {
+      console.log('[QuickDappPlugin:createDapp] BLOCKED: quickdapp disabled');
       this.call('notification', 'toast', 'QuickDapp is coming soon. Stay tuned!')
       return
     }
-    if (this.event.listenerCount('createDapp') > 0) {
+    const listenerCount = this.event.listenerCount('createDapp');
+    console.log('[QuickDappPlugin:createDapp] listenerCount=', listenerCount);
+    if (listenerCount > 0) {
       this.event.emit('createDapp', payload)
     } else {
+      console.log('[QuickDappPlugin:createDapp] NO LISTENERS, storing as pending');
       this.pendingCreateDapp = payload
     }
   }

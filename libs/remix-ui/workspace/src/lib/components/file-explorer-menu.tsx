@@ -263,9 +263,11 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
     }
 
     global.plugin.on('filePanel', 'setWorkspace', handleWorkspaceChange)
+    global.plugin.on('filePanel', 'workspaceDeleted', handleWorkspaceChange)
 
     return () => {
       global.plugin.off('filePanel', 'setWorkspace', handleWorkspaceChange)
+      global.plugin.off('filePanel', 'workspaceDeleted')
     }
   }, [])
 
@@ -575,8 +577,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
             </Dropdown>
           </span>
 
-          {!isDappWorkspace && (isCheckingDappMappings || isSwitchingToDapp || dappMappings.length > 0) && (
-            <span className="ps-0 pb-1 w-50" style={{ visibility: (isCheckingDappMappings && dappMappings.length === 0) ? 'hidden' : 'visible' }}>
+          {!isDappWorkspace && (isSwitchingToDapp || dappMappings.length > 0) && (
+            <span className="ps-0 pb-1 w-50">
               <Button
                 variant="primary"
                 className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"

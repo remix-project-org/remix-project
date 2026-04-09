@@ -1171,8 +1171,10 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
           ).then((workspacesList) => resolve(workspacesList))
         })
       })
-      await plugin.setWorkspaces(workspaces)
-      return workspaces
+      // Filter out ghost workspaces with null/empty names (corrupted IndexedDB entries)
+      const validWorkspaces = workspaces.filter(ws => ws && ws.name)
+      await plugin.setWorkspaces(validWorkspaces)
+      return validWorkspaces
     } catch (e) {
       console.error('[getWorkspaces] Failed to retrieve workspaces:', e)
       return []

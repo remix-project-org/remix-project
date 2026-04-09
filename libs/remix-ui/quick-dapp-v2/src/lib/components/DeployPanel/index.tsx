@@ -319,7 +319,7 @@ function DeployPanel(): JSX.Element {
               <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
                 <div className="fw-bold">Deployed Successfully!</div>
                 <div><strong>CID:</strong> {displayCid}</div>
-                {displayGateway && <div className="mt-1"><a href={displayGateway} target="_blank" rel="noopener noreferrer">View DApp</a></div>}
+                {displayGateway && <div className="mt-1"><a href={displayGateway} target="_blank" rel="noopener noreferrer" className="text-primary fw-bold text-decoration-underline">View DApp</a></div>}
               </Alert>
             )}
             {deployResult.error && <Alert variant="danger" className="mt-3 small">{deployResult.error}</Alert>}

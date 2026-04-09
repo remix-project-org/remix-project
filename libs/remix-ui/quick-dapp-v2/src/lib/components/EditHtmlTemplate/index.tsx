@@ -139,14 +139,18 @@ function EditHtmlTemplate(): JSX.Element {
 
   const handleDeleteDapp = async () => {
     if (!activeDapp || !dappManager) return;
+
+    // Hide modal immediately to prevent UI hang during async deletion
+    setShowDeleteModal(false);
+    const slugToDelete = activeDapp.slug;
+
     try {
-      await dappManager.deleteDapp(activeDapp.slug);
+      await dappManager.deleteDapp(slugToDelete);
       let updatedDapps = await dappManager.getDapps();
       if (!updatedDapps) updatedDapps = [];
 
       dispatch({ type: 'SET_DAPPS', payload: updatedDapps });
       dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
-      setShowDeleteModal(false);
 
       if (updatedDapps.length === 0) {
         dispatch({ type: 'SET_VIEW', payload: 'create' });
@@ -155,8 +159,7 @@ function EditHtmlTemplate(): JSX.Element {
       }
 
     } catch (e: any) {
-      console.error('Delete failed:', e);
-      setShowDeleteModal(false);
+      console.error('[QuickDapp] Delete failed:', e);
     }
   };
 
@@ -776,8 +779,14 @@ window.addEventListener('unhandledrejection', function(e) {
       </Modal>
 
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton><Modal.Title>Delete Dapp?</Modal.Title></Modal.Header>
-        <Modal.Body>Are you sure you want to delete this dapp? This action cannot be undone.</Modal.Body>
+        <Modal.Header closeButton><Modal.Title>Delete DApp?</Modal.Title></Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to delete this DApp?</p>
+          <p className="text-warning small mb-0">
+            <i className="fas fa-exclamation-triangle me-1"></i>
+            This will also delete the associated workspace and all its files. This action cannot be undone.
+          </p>
+        </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
           <Button variant="danger" onClick={handleDeleteDapp} data-id="confirm-delete-dapp-btn">Yes, Delete</Button>

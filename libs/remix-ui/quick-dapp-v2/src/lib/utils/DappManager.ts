@@ -236,6 +236,14 @@ export class DappManager {
     const sourceWorkspaceInfo = await this.getCurrentWorkspace();
     const sourceWorkspaceName = sourceWorkspaceInfo.name;
 
+    // Block creating DApps from within a dapp workspace.
+    if (sourceWorkspaceName.startsWith(DAPP_WORKSPACE_PREFIX)) {
+      throw new Error(
+        'Cannot create a DApp from within a DApp workspace. ' +
+        'Please switch to the original contract workspace first.'
+      );
+    }
+
     if (contractData.sourceFilePath && contractData.sourceFilePath.includes('/')) {
       const parts = contractData.sourceFilePath.split('/');
       const possibleWorkspace = parts[0];
@@ -419,14 +427,22 @@ export class DappManager {
 
       // Notify the Deployed Contracts UI so it shows immediately without workspace switch
       try {
-        await (this.plugin as any).call(
-          'udappDeployedContracts', 'addInstance',
-          contractData.address,
-          contractData.abi,
-          contractData.name,
-          null,
-          pinnedContractData.pinnedAt
+        const existingContracts = await (this.plugin as any).call(
+          'udappDeployedContracts', 'getDeployedContracts'
         );
+        const alreadyExists = existingContracts?.some?.(
+          (c: any) => c.address?.toLowerCase() === contractData.address?.toLowerCase()
+        );
+        if (!alreadyExists) {
+          await (this.plugin as any).call(
+            'udappDeployedContracts', 'addInstance',
+            contractData.address,
+            contractData.abi,
+            contractData.name,
+            null,
+            pinnedContractData.pinnedAt
+          );
+        }
       } catch (_) {
         // Non-critical: UI will refresh on next workspace switch
       }
@@ -570,36 +586,85 @@ export class DappManager {
   }
 
   async deleteDapp(workspaceName: string): Promise<void> {
-    const currentWorkspace = await this.getCurrentWorkspace();
-
-    if (currentWorkspace.name === workspaceName) {
-      const workspaces = await this.getWorkspaces();
-      const nonDappWorkspace = workspaces.find((ws) =>
-        ws.name !== workspaceName && !ws.name.startsWith(DAPP_WORKSPACE_PREFIX)
+    let dappConfig: DappConfig | null = null;
+    try {
+      const content = await (this.plugin as any).call(
+        'filePanel', 'readFileFromWorkspace', workspaceName, CONFIG_FILENAME
       );
-      const otherDappWorkspace = workspaces.find((ws) => ws.name !== workspaceName);
-
-      if (nonDappWorkspace) {
-        await this.switchToWorkspace(nonDappWorkspace.name);
-      } else if (otherDappWorkspace) {
-        await this.switchToWorkspace(otherDappWorkspace.name);
-      } else {
-        try {
-          await this.plugin.call('filePanel', 'createWorkspace', 'default_workspace', true);
-          await this.switchToWorkspace('default_workspace');
-        } catch (e) {
-          console.warn('[DappManager] Could not create default workspace:', e);
-        }
+      if (content) {
+        dappConfig = JSON.parse(content);
       }
+    } catch (e) {
+      console.warn('[DappManager:deleteDapp] config read failed (proceeding):', e);
     }
 
     try {
       await this.plugin.call('filePanel', 'deleteWorkspace', workspaceName);
     } catch (e) {
-      console.error('[DappManager] Failed to delete workspace:', workspaceName, e);
+      console.error('[DappManager:deleteDapp] deleteWorkspace FAILED:', e);
+    }
+
+    const sourceWs = dappConfig?.sourceWorkspace?.name || 'default_workspace';
+    try {
+      await this.switchToWorkspace(sourceWs);
+    } catch (e) {
+      try { await this.switchToWorkspace('default_workspace'); } catch {}
+    }
+
+    if (dappConfig?.sourceWorkspace?.name && dappConfig?.contract?.address) {
+      const mappingPath = `.deploys/dapp-mappings/${dappConfig.contract.address}_${workspaceName}.json`;
+      try {
+        await (this.plugin as any).call('fileManager', 'remove', mappingPath);
+      } catch (e) {}
     }
 
     await this.focusPlugin();
+  }
+
+  /**
+   * Removes the dapp-mapping file from the source workspace after a DApp is deleted.
+   * Uses cross-workspace check to minimize workspace switching.
+   */
+  private async cleanupDappMappings(
+    sourceWorkspace: string,
+    address: string,
+    dappWorkspace: string
+  ): Promise<void> {
+    try {
+      const mappingPath = `.deploys/dapp-mappings/${address}_${dappWorkspace}.json`;
+
+      // Check if the mapping file exists without switching workspaces
+      const exists = await (this.plugin as any).call(
+        'filePanel', 'existsInWorkspace', sourceWorkspace, mappingPath
+      );
+      if (!exists) return;
+
+      // File exists — need to switch to source workspace to remove it
+      const currentWs = await this.getCurrentWorkspace();
+      const needSwitch = currentWs.name !== sourceWorkspace;
+
+      if (needSwitch) {
+        await this.switchToWorkspace(sourceWorkspace);
+      }
+
+      await (this.plugin as any).call('fileManager', 'remove', mappingPath);
+
+      if (needSwitch) {
+        // Switch back only if the original workspace still exists (wasn't the deleted one)
+        try {
+          const wsExists = await (this.plugin as any).call(
+            'filePanel', 'workspaceExists', currentWs.name
+          );
+          if (wsExists) {
+            await this.switchToWorkspace(currentWs.name);
+          }
+        } catch (e) {
+          // Original workspace gone, stay on source workspace
+        }
+      }
+    } catch (e) {
+      console.warn('[DappManager] Failed to cleanup dapp-mappings:', e);
+    }
   }
 
   async deleteAllDapps(): Promise<void> {

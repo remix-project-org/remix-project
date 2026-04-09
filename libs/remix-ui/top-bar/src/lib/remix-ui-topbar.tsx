@@ -331,6 +331,16 @@ export function RemixUiTopbar() {
   }, [global.fs.browser.workspaces, global.fs.browser.workspaces.length])
 
   useEffect(() => {
+    const handleWorkspaceChanged = () => updateMenuItems()
+    plugin.on('filePanel', 'workspaceDeleted', handleWorkspaceChanged)
+    plugin.on('filePanel', 'workspaceCreated', handleWorkspaceChanged)
+    return () => {
+      plugin.off('filePanel', 'workspaceDeleted')
+      plugin.off('filePanel', 'workspaceCreated')
+    }
+  }, [])
+
+  useEffect(() => {
     plugin.on('theme', 'themeChanged', (theme) => {
       setCurrentTheme(theme)
     })
