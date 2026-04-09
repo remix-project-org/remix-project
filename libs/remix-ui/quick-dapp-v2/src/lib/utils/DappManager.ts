@@ -250,8 +250,11 @@ export class DappManager {
 
       if (possibleWorkspace !== sourceWorkspaceName) {
         try {
-          await this.switchToWorkspace(possibleWorkspace);
-          await new Promise(resolve => setTimeout(resolve, 300));
+          const wsExists = await (this.plugin as any).call('filePanel', 'workspaceExists', possibleWorkspace);
+          if (wsExists) {
+            await this.switchToWorkspace(possibleWorkspace);
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
         } catch (e) {
           console.warn(`[DappManager] Could not switch to workspace "${possibleWorkspace}":`, e);
         }

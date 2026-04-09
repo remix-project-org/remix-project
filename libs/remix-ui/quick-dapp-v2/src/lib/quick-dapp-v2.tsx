@@ -59,9 +59,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     if (!plugin) return;
 
     const handleCreateDapp = async (payload: any) => {
-      console.log('[QuickDapp:handleCreateDapp] ENTERED, payload=', payload ? Object.keys(payload) : 'null', 'quickdappEnabled=', quickdappEnabledRef.current);
       if (quickdappEnabledRef.current === false) {
-        console.log('[QuickDapp:handleCreateDapp] BLOCKED: quickdapp disabled');
         plugin.call('notification', 'toast', 'QuickDapp is not available yet.')
         return
       }
@@ -363,13 +361,10 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       return;
     }
 
-    console.log('[QuickDapp:deleteOne] START ws=' + dapp.workspaceName);
     try {
       deletingWorkspacesRef.current.add(dapp.workspaceName);
       await dappManager.deleteDapp(dapp.workspaceName);
-      console.log('[QuickDapp:deleteOne] deleteDapp resolved, calling getDapps...');
       const updatedDapps = await dappManager.getDapps();
-      console.log('[QuickDapp:deleteOne] getDapps returned ' + (updatedDapps?.length ?? 0) + ' dapps');
       dispatch({ type: 'SET_DAPPS', payload: updatedDapps || []});
 
       if (!updatedDapps || updatedDapps.length === 0) {
@@ -379,7 +374,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       console.error('[QuickDapp:deleteOne] CAUGHT ERROR:', e);
     } finally {
       deletingWorkspacesRef.current.delete(dapp.workspaceName);
-      console.log('[QuickDapp:deleteOne] COMPLETE');
+
     }
   };
 
@@ -488,9 +483,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           }}
           onCreateNew={() => dispatch({ type: 'SET_VIEW', payload: 'create' })}
           onDeleteOne={(slug: string) => {
-            console.log('[QuickDapp:onDeleteOne] slug=' + slug + ' dapps.length=' + appState.dapps.length);
             const dapp = appState.dapps.find((d: DappConfig) => d.slug === slug);
-            console.log('[QuickDapp:onDeleteOne] found dapp?', !!dapp, dapp?.workspaceName);
             if (dapp) handleDeleteOne(dapp);
           }}
           onDeleteAll={handleDeleteAll}

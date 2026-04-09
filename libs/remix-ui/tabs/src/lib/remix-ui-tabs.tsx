@@ -717,10 +717,8 @@ export const TabsUI = (props: TabsUIProps) => {
   }
 
   const openSparkleModal = async (instance: any) => {
-    console.log('[Tabs:openSparkleModal] ENTERED, instance=', instance?.name, instance?.address);
     try {
       const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', instance.name)
-      console.log('[Tabs:openSparkleModal] artefacts loaded, showing modal...');
 
       const descriptionObj: any = await new Promise((resolve, reject) => {
         let getFormData: () => Promise<any>
@@ -733,14 +731,11 @@ export const TabsUI = (props: TabsUIProps) => {
           okLabel: 'Generate',
           cancelLabel: 'Cancel',
           okFn: async () => {
-            console.log('[Tabs:openSparkleModal] okFn CALLED, getFormData=', !!getFormData);
             if (getFormData) {
               try {
                 const formData = await getFormData()
-                console.log('[Tabs:openSparkleModal] formData resolved=', formData ? Object.keys(formData) : 'null');
                 resolve(formData)
               } catch (e) {
-                console.error('[Tabs:openSparkleModal] getFormData THREW:', e);
                 reject(e)
               }
             } else {
@@ -750,13 +745,10 @@ export const TabsUI = (props: TabsUIProps) => {
           cancelFn: () => reject(new Error('Canceled')),
           hideFn: () => reject(new Error('Hide'))
         }
-        console.log('[Tabs:openSparkleModal] calling notification.modal...');
         props.plugin.call('notification', 'modal', modalContent)
       })
-      console.log('[Tabs:openSparkleModal] Promise resolved, calling blockchain.getProviderObject...');
 
       const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
-      console.log('[Tabs:openSparkleModal] providerObject=', providerObject?.name);
       const providerName = providerObject?.name || 'vm-unknown'
       const isVM = providerName.startsWith('vm')
 
@@ -764,15 +756,11 @@ export const TabsUI = (props: TabsUIProps) => {
       if (isVM) {
         chainId = providerName
       } else {
-        console.log('[Tabs:openSparkleModal] detecting network...');
         const network = await props.plugin.call('network', 'detectNetwork')
         chainId = network?.id?.toString() || providerName
       }
-      console.log('[Tabs:openSparkleModal] chainId=', chainId, ', activating plugin...');
 
-      console.log('[Tabs:openSparkleModal] activating quick-dapp-v2 plugin...');
       await props.plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
-      console.log('[Tabs:openSparkleModal] calling createDapp...');
       await props.plugin.call('quick-dapp-v2', 'createDapp', {
         description: descriptionObj.text,
         contractName: instance.name,
@@ -786,7 +774,6 @@ export const TabsUI = (props: TabsUIProps) => {
         figmaToken: descriptionObj.figmaToken,
         sourceFilePath: tabsState.name
       })
-      console.log('[Tabs:openSparkleModal] createDapp call returned');
 
       await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
 
