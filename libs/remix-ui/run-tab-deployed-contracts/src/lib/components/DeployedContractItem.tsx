@@ -608,7 +608,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                       padding: '4px'
                     }}
                   >
-                    <i className={`fas fa-${showHighLevel ? 'minus' : 'plus'}`} style={{ fontSize: '10px', color: 'white' }}></i>
+                    <i className={`text-theme-contrast fas fa-${showHighLevel ? 'minus' : 'plus'}`} style={{ fontSize: '10px' }}></i>
                   </div>
                 </div>
 
@@ -707,7 +707,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                       padding: '4px'
                     }}
                   >
-                    <i className={`fas fa-${showLowLevel ? 'minus' : 'plus'}`} style={{ fontSize: '10px', color: 'white' }}></i>
+                    <i className={`text-theme-contrast fas fa-${showLowLevel ? 'minus' : 'plus'}`} style={{ fontSize: '10px' }}></i>
                   </div>
                 </div>
 
