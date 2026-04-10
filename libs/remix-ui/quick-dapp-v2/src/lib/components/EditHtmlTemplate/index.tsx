@@ -200,6 +200,14 @@ function EditHtmlTemplate(): JSX.Element {
     if (!doc || !doc.body || doc.body.innerHTML === '') return;
 
     try {
+      const currentWs = await plugin.call('filePanel', 'getCurrentWorkspace');
+      if (currentWs?.name !== activeDapp.workspaceName) {
+        await plugin.call('filePanel', 'switchToWorkspace', {
+          name: activeDapp.workspaceName,
+          isLocalhost: false,
+        });
+      }
+
       setIsCapturing(true);
       const dataUrl = await toPng(doc.body, {
         quality: 0.8,
@@ -692,8 +700,8 @@ window.addEventListener('unhandledrejection', function(e) {
                           </div>
                         )}
                         <div className="mt-1 text-danger">
-                          <i className="fas fa-ban me-1"></i>
-                          IPFS deployment will not work — Remix VM is local to this browser only.
+                          <i className="fas fa-exclamation-triangle me-1"></i>
+                          You can deploy to IPFS, but the deployed DApp will not function — Remix VM only runs locally in this browser and is not accessible externally.
                         </div>
                         <div className="mt-1 text-warning">
                           <i className="fas fa-info-circle me-1"></i>

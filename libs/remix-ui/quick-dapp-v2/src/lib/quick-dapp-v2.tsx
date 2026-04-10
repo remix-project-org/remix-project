@@ -182,9 +182,12 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     };
 
     const handleWorkspaceDeleted = (workspaceName: string) => {
+      const isOurs = deletingWorkspacesRef.current.has(workspaceName);
+      console.log(`[QuickDapp:delete] workspaceDeleted event received: ws="${workspaceName}" triggeredByUs=${isOurs} deletingSet=[${[...deletingWorkspacesRef.current]}] currentDappsCount=${dappsRef.current.length}`);
       // Skip if we triggered this deletion ourselves (prevents double dispatch)
-      if (deletingWorkspacesRef.current.has(workspaceName)) return;
+      if (isOurs) return;
       const filtered = dappsRef.current.filter((d: any) => d.workspaceName !== workspaceName);
+      console.log(`[QuickDapp:delete] external deletion — dispatching SET_DAPPS: before=${dappsRef.current.length} after=${filtered.length}`);
       dispatch({ type: 'SET_DAPPS', payload: filtered });
     };
 
@@ -357,28 +360,55 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   // Handle delete operations
   const handleDeleteOne = async (dapp: DappConfig) => {
     if (!dapp.workspaceName || !dappManager) {
-      console.error('[QuickDapp:deleteOne] ABORT: no workspaceName or no dappManager', dapp.workspaceName, !!dappManager);
+      console.error('[QuickDapp:delete] deleteOne ABORT: no workspaceName or no dappManager', dapp.workspaceName, !!dappManager);
       return;
     }
+    const t0 = Date.now();
+    console.log(`[QuickDapp:delete] deleteOne START: ws="${dapp.workspaceName}" slug="${dapp.slug}"`);
+    console.log(`[QuickDapp:delete] deleteOne recentWorkspaces BEFORE:`, localStorage.getItem('recentWorkspaces'));
 
     try {
       deletingWorkspacesRef.current.add(dapp.workspaceName);
       await dappManager.deleteDapp(dapp.workspaceName);
+      console.log(`[QuickDapp:delete] deleteOne deleteDapp done (${Date.now() - t0}ms)`);
       const updatedDapps = await dappManager.getDapps();
+      console.log(`[QuickDapp:delete] deleteOne getDapps returned ${updatedDapps?.length} dapps`);
       dispatch({ type: 'SET_DAPPS', payload: updatedDapps || []});
 
       if (!updatedDapps || updatedDapps.length === 0) {
         dispatch({ type: 'SET_VIEW', payload: 'create' });
       }
+
+      // Directly clean localStorage.recentWorkspaces
+      try {
+        const raw = localStorage.getItem('recentWorkspaces');
+        if (raw) {
+          const recents = JSON.parse(raw);
+          const cleaned = recents.filter((entry: any) => {
+            const name = typeof entry === 'string' ? entry : entry?.name;
+            return name !== dapp.workspaceName;
+          });
+          localStorage.setItem('recentWorkspaces', JSON.stringify(cleaned));
+          console.log(`[QuickDapp:delete] deleteOne recentWorkspaces cleaned: before=${recents.length} after=${cleaned.length}`);
+        }
+      } catch {}
     } catch (e) {
-      console.error('[QuickDapp:deleteOne] CAUGHT ERROR:', e);
+      console.error('[QuickDapp:delete] deleteOne CAUGHT ERROR:', e);
     } finally {
       deletingWorkspacesRef.current.delete(dapp.workspaceName);
-
+      console.log(`[QuickDapp:delete] deleteOne END: total=${Date.now() - t0}ms recentWorkspaces AFTER:`, localStorage.getItem('recentWorkspaces'));
     }
   };
 
   const handleDeleteAll = async () => {
+    const t0 = Date.now();
+    // Snapshot workspace names before clearing
+    const deletedWorkspaceNames = dappsRef.current
+      .map(d => d.workspaceName)
+      .filter(Boolean);
+    console.log(`[QuickDapp:delete] deleteAll START: dappCount=${dappsRef.current.length} workspaces=[${deletedWorkspaceNames}]`);
+    console.log(`[QuickDapp:delete] deleteAll recentWorkspaces BEFORE:`, localStorage.getItem('recentWorkspaces'));
+
     try {
       // Collect workspace names to mark as "deleting by us"
       for (const dapp of dappsRef.current) {
@@ -386,13 +416,42 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           deletingWorkspacesRef.current.add(dapp.workspaceName);
         }
       }
-      await dappManager.deleteAllDapps();
+      // Optimistic UI: clear DApp list immediately so user sees instant feedback
       dispatch({ type: 'SET_DAPPS', payload: []});
       dispatch({ type: 'SET_VIEW', payload: 'create' });
+      console.log(`[QuickDapp:delete] deleteAll UI cleared (optimistic), now awaiting deleteAllDapps...`);
+
+      await dappManager.deleteAllDapps();
+      console.log(`[QuickDapp:delete] deleteAll deleteAllDapps done (${Date.now() - t0}ms)`);
+
+      // Directly clean localStorage.recentWorkspaces to avoid depending on
+      // homeTab's workspaceDeleted event listener (which may not be mounted)
+      try {
+        const raw = localStorage.getItem('recentWorkspaces');
+        if (raw) {
+          const recents = JSON.parse(raw);
+          const cleaned = recents.filter((entry: any) => {
+            const name = typeof entry === 'string' ? entry : entry?.name;
+            return !deletedWorkspaceNames.includes(name);
+          });
+          localStorage.setItem('recentWorkspaces', JSON.stringify(cleaned));
+          console.log(`[QuickDapp:delete] deleteAll recentWorkspaces cleaned: before=${recents.length} after=${cleaned.length}`);
+        }
+      } catch {}
     } catch (e) {
-      console.error('[QuickDapp] Failed to delete all:', e);
+      console.error('[QuickDapp:delete] deleteAll CAUGHT ERROR:', e);
+      // Recover: re-fetch actual state if deletion failed
+      try {
+        const remaining = await dappManager.getDapps();
+        console.log(`[QuickDapp:delete] deleteAll RECOVERY: getDapps returned ${remaining?.length} dapps`);
+        dispatch({ type: 'SET_DAPPS', payload: remaining || []});
+        if (remaining && remaining.length > 0) {
+          dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
+        }
+      } catch {}
     } finally {
       deletingWorkspacesRef.current.clear();
+      console.log(`[QuickDapp:delete] deleteAll END: total=${Date.now() - t0}ms recentWorkspaces AFTER:`, localStorage.getItem('recentWorkspaces'));
     }
   };
 
