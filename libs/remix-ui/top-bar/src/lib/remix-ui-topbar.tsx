@@ -777,6 +777,7 @@ export function RemixUiTopbar() {
                 logOutOfGithub={logOutOfGithub}
                 publishToGist={publishToGist}
                 loginWithGitHub={loginWithGitHub}
+                theme={currentTheme?.quality}
               />
             </div>
 

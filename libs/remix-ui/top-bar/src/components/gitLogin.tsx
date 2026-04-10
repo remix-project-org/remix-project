@@ -1,5 +1,5 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
-import React, { useContext, useCallback } from 'react'
+import React, { useContext, useCallback, useState } from 'react'
 import { Button, ButtonGroup, Dropdown } from 'react-bootstrap'
 import { CustomTopbarMenu } from '@remix-ui/helper'
 import { AppContext } from '@remix-ui/app'
@@ -11,13 +11,15 @@ interface GitHubLoginProps {
   logOutOfGithub: () => void
   loginWithGitHub: () => Promise<void>
   publishToGist: () => void
+  theme?: 'light' | 'dark'
 }
 
 export const GitHubLogin: React.FC<GitHubLoginProps> = ({
   cloneGitRepository,
   logOutOfGithub,
   publishToGist,
-  loginWithGitHub
+  loginWithGitHub,
+  theme = 'dark'
 }) => {
   const appContext = useContext(AppContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
@@ -45,7 +47,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
       console.error('Failed to start GitHub login:', error)
     }
   }, [loginWithGitHub])
-
+  const [buttonHoverTheme, setButtonHoverTheme] = useState('')
   return (
     <Dropdown
       as={ButtonGroup}
@@ -57,6 +59,11 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
         data-id="github-dropdown-toggle-login"
         onClick={isConnected ? undefined : handleLogin}
         disabled={isConnected}
+        style={{
+          backgroundColor: buttonHoverTheme
+        }}
+        onMouseOver={() => setButtonHoverTheme(prev => theme === 'dark' ? '#2b2c3f' : '#f9fafe')}
+        onMouseOut={() => setButtonHoverTheme('')}
       >
         {isConnected ? (
           <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
@@ -82,6 +89,11 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
         variant="outline-secondary"
         className="btn-topbar btn-sm"
         data-id="github-dropdown-toggle"
+        style={{
+          backgroundColor: buttonHoverTheme
+        }}
+        onMouseOver={() => setButtonHoverTheme(prev => theme === 'dark' ? '#2b2c3f' : '#f9fafe')}
+        onMouseOut={() => setButtonHoverTheme('')}
       >
       </Dropdown.Toggle>
       <Dropdown.Menu
