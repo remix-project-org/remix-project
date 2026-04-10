@@ -682,6 +682,7 @@ export function RemixUiTopbar() {
               className="ms-2"
               onEnableCloud={() => enableCloud()}
               onDisableCloud={() => disableCloud()}
+              theme={currentTheme?.quality}
             />)}
           {showCloudLoginModal && <LoginModal onClose={() => setShowCloudLoginModal(false)} plugin={plugin} />}
         </div>
