@@ -589,8 +589,6 @@ export class DappManager {
   }
 
   async deleteDapp(workspaceName: string): Promise<void> {
-    const t0 = Date.now();
-    console.log(`[QuickDapp:delete] DappManager.deleteDapp START: ws="${workspaceName}"`);
     let dappConfig: DappConfig | null = null;
     try {
       const content = await (this.plugin as any).call(
@@ -599,23 +597,19 @@ export class DappManager {
       if (content) {
         dappConfig = JSON.parse(content);
       }
-      console.log(`[QuickDapp:delete] DappManager.deleteDapp config read: slug="${dappConfig?.slug}" sourceWs="${dappConfig?.sourceWorkspace?.name}" (${Date.now() - t0}ms)`);
     } catch (e) {
-      console.warn('[QuickDapp:delete] DappManager.deleteDapp config read failed (proceeding):', e);
+      console.warn('[DappManager] deleteDapp config read failed (proceeding):', e);
     }
 
     try {
-      console.log(`[QuickDapp:delete] DappManager.deleteDapp calling filePanel.deleteWorkspace("${workspaceName}")...`);
       await this.plugin.call('filePanel', 'deleteWorkspace', workspaceName);
-      console.log(`[QuickDapp:delete] DappManager.deleteDapp deleteWorkspace done (${Date.now() - t0}ms)`);
     } catch (e) {
-      console.error('[QuickDapp:delete] DappManager.deleteDapp deleteWorkspace FAILED:', e);
+      console.error('[DappManager] deleteDapp deleteWorkspace failed:', e);
     }
 
     const sourceWs = dappConfig?.sourceWorkspace?.name || 'default_workspace';
     try {
       await this.switchToWorkspace(sourceWs);
-      console.log(`[QuickDapp:delete] DappManager.deleteDapp switched to "${sourceWs}" (${Date.now() - t0}ms)`);
     } catch (e) {
       try { await this.switchToWorkspace('default_workspace'); } catch {}
     }
@@ -624,12 +618,10 @@ export class DappManager {
       const mappingPath = `.deploys/dapp-mappings/${dappConfig.contract.address}_${workspaceName}.json`;
       try {
         await (this.plugin as any).call('fileManager', 'remove', mappingPath);
-        console.log(`[QuickDapp:delete] DappManager.deleteDapp mapping removed: ${mappingPath}`);
       } catch (e) {}
     }
 
     await this.focusPlugin();
-    console.log(`[QuickDapp:delete] DappManager.deleteDapp END: total=${Date.now() - t0}ms`);
   }
 
   /**
@@ -679,41 +671,32 @@ export class DappManager {
   }
 
   async deleteAllDapps(): Promise<void> {
-    const t0 = Date.now();
     const dapps = await this.getDapps();
     const workspacesToDelete = dapps.map(dapp => dapp.workspaceName);
-    console.log(`[QuickDapp:delete] DappManager.deleteAllDapps START: count=${workspacesToDelete.length} workspaces=[${workspacesToDelete}]`);
 
     const allWorkspaces = await this.getWorkspaces();
     const nonDappWorkspace = allWorkspaces.find(ws => !ws.name.startsWith(DAPP_WORKSPACE_PREFIX));
-    console.log(`[QuickDapp:delete] DappManager.deleteAllDapps allWorkspaces=${allWorkspaces.length} nonDapp="${nonDappWorkspace?.name}"`);
 
     if (nonDappWorkspace) {
-      console.log(`[QuickDapp:delete] DappManager.deleteAllDapps switching to "${nonDappWorkspace.name}"`);
       await this.switchToWorkspace(nonDappWorkspace.name);
     } else {
       try {
-        console.log(`[QuickDapp:delete] DappManager.deleteAllDapps creating default_workspace`);
         await this.plugin.call('filePanel', 'createWorkspace', 'default_workspace', true);
         await this.switchToWorkspace('default_workspace');
       } catch (e) {
-        console.warn('[QuickDapp:delete] DappManager.deleteAllDapps could not create default:', e);
+        console.warn('[DappManager] Could not create default workspace:', e);
       }
     }
 
-    for (let i = 0; i < workspacesToDelete.length; i++) {
-      const workspaceName = workspacesToDelete[i];
+    for (const workspaceName of workspacesToDelete) {
       try {
-        console.log(`[QuickDapp:delete] DappManager.deleteAllDapps deleting [${i + 1}/${workspacesToDelete.length}] "${workspaceName}"...`);
         await this.plugin.call('filePanel', 'deleteWorkspace', workspaceName);
-        console.log(`[QuickDapp:delete] DappManager.deleteAllDapps deleted [${i + 1}/${workspacesToDelete.length}] "${workspaceName}" (${Date.now() - t0}ms)`);
       } catch (e) {
-        console.error(`[QuickDapp:delete] DappManager.deleteAllDapps FAILED [${i + 1}/${workspacesToDelete.length}] "${workspaceName}":`, e);
+        console.error('[DappManager] Failed to delete workspace:', workspaceName, e);
       }
     }
 
     await this.focusPlugin();
-    console.log(`[QuickDapp:delete] DappManager.deleteAllDapps END: total=${Date.now() - t0}ms`);
   }
 
   async getDappConfig(workspaceName: string): Promise<DappConfig | null> {
