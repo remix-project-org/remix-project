@@ -89,7 +89,7 @@ module.exports = {
       .click('*[data-id="createDapp"]')
       .pause(2000)
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 10000)
-      .assert.textContains('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 'Generate a Dapp UI with AI')
+      .assert.textContains('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 'Generate a DApp UI with AI')
       .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
       .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 5000)
       .pause(500)
@@ -566,7 +566,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 10000)
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
       .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Option 1: Start Now Banner')
-      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Option 2: Create a dapp')
+      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Option 2: Create a DApp')
   },
 
   // ══════════════════════════════════
