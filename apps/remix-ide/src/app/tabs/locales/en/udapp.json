@@ -240,7 +240,7 @@
   "udapp._comment_universalDappUI_new": "new keys for universalDappUI.tsx",
   "udapp.calldataLabel": "CALLDATA",
   "udapp.transactButton": "Transact",
-  "udapp.generateDappModalTitle": "Generate a Dapp UI with AI",
+  "udapp.generateDappModalTitle": "Generate a DApp UI with AI",
   "udapp.generateDappOkLabel": "Generate",
   "udapp.nonInjectedProviderWarningTitle": "Warning: Non-Injected Provider",
   "udapp.nonInjectedProviderWarningMessage": "You are using Remix VM or a non-browser wallet environment. The generated DApp is designed to work with browser extension wallets like MetaMask. It may not function correctly with the current environment. Do you want to continue anyway?",
@@ -270,7 +270,7 @@
   "udapp.resetEnvironmentStateDescription": "You are about to reset your environment state.",
 
   "udapp._comment_contractKebab": "keys for ContractKebabMenu.tsx",
-  "udapp.createDappMenuItem": "Create a dapp",
+  "udapp.createDappMenuItem": "Create a DApp",
   "udapp.copyABIMenuItem": "Copy ABI",
   "udapp.copyBytecodeMenuItem": "Copy Bytecode",
   "udapp.openInExplorerMenuItem": "Open in explorer",

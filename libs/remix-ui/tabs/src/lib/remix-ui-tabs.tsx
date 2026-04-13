@@ -725,7 +725,7 @@ export const TabsUI = (props: TabsUIProps) => {
 
         const modalContent = {
           id: 'generate-website-ai-banner',
-          title: 'Generate a Dapp UI with AI',
+          title: 'Generate a DApp UI with AI',
           message: <AIRequestForm onMount={(fn) => { getFormData = fn }} />,
           modalType: 'custom',
           okLabel: 'Generate',

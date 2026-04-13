@@ -666,7 +666,7 @@ window.addEventListener('unhandledrejection', function(e) {
                         disabled={isBuilding || isCapturing}
                         data-id="delete-dapp-editor-btn"
                       >
-                        <i className="fas fa-trash me-1"></i> Delete Dapp
+                        <i className="fas fa-trash me-1"></i> Delete DApp
                       </Button>
                     </div>
                   </div>

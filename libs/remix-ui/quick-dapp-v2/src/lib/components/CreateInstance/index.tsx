@@ -54,7 +54,7 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
       <div className="text-center mb-4">
         <h2 className="mb-2">Welcome to QuickDapp</h2>
         <p className="text-muted mb-0 fs-5">
-          Transform your smart contracts into interactive Dapps with AI.
+          Transform your smart contracts into interactive DApps with AI.
         </p>
       </div>
 
@@ -66,7 +66,7 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
           </h4>
         </Card.Header>
         <Card.Body>
-          <p className="mb-4 fs-5">After deploying your contract, create a Dapp using one of these options:</p>
+          <p className="mb-4 fs-5">After deploying your contract, create a DApp using one of these options:</p>
 
           <div className="row g-4">
             <div className="col-12 col-md-6 qd-grid-col">
@@ -97,10 +97,10 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
               <div className="border rounded p-3 h-100">
                 <h5 className="text-primary mb-3">
                   <i className="fas fa-magic me-2"></i>
-                  Option 2: Create a dapp
+                  Option 2: Create a DApp
                 </h5>
                 <p className="text-muted mb-3">
-                  Click the "Create a dapp" on your deployed contract instance.
+                  Click the "Create a DApp" on your deployed contract instance.
                 </p>
                 <img
                   src='assets/img/create-a-dapp.png'
