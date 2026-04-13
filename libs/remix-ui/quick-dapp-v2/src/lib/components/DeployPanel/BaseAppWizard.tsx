@@ -118,12 +118,57 @@ const BaseAppWizard: React.FC = () => {
 
   // validateEnsName is now imported from ens-utils.ts
 
+  const extractAppId = (raw: string): string | null => {
+    const input = raw.trim();
+    if (!input) return null;
+
+    const quoteChars = `"'\u201C\u201D\u2018\u2019`;
+    const contentRegex = new RegExp(
+      `content\\s*=\\s*[${quoteChars}]([^${quoteChars}]+)[${quoteChars}]`, 'i'
+    );
+    const contentMatch = input.match(contentRegex);
+    if (contentMatch && contentMatch[1].trim()) {
+      return contentMatch[1].trim();
+    }
+
+    const unquotedMatch = input.match(/content\s*=\s*([^\s/>'"]+)/i);
+    if (unquotedMatch && unquotedMatch[1].trim()) {
+      return unquotedMatch[1].trim();
+    }
+
+    if (!input.startsWith('<')) {
+      const stripped = input.replace(/<[^>]*>/g, '').trim();
+      if (stripped && /^[\w.:-]+$/.test(stripped)) {
+        return stripped;
+      }
+    }
+
+    return null;
+  };
+
   const handleStep1Config = async () => {
     if (!savedWizardState.appIdMeta) {
       // @ts-ignore
       await plugin.call('notification', 'toast', "Please enter the App ID Meta Tag.");
       return;
     }
+
+    const appIdValue = extractAppId(savedWizardState.appIdMeta);
+    if (!appIdValue) {
+      // @ts-ignore
+      await plugin.call('notification', 'toast',
+        'Could not extract App ID. Expected format: <meta name="base:app_id" content="your-app-id" />');
+      return;
+    }
+
+    const safeAppId = appIdValue.replace(/[<>"'&]/g, '');
+    if (!safeAppId) {
+      // @ts-ignore
+      await plugin.call('notification', 'toast', 'The App ID value contains only invalid characters.');
+      return;
+    }
+
+    const cleanMetaTag = `<meta name="base:app_id" content="${safeAppId}" />`;
 
     try {
       setBaseFlowLoading(true);
@@ -133,8 +178,9 @@ const BaseAppWizard: React.FC = () => {
       let content = await plugin.call('fileManager', 'readFile', indexHtmlPath);
       if (!content) throw new Error("index.html not found");
 
-      content = content.replace(/<meta\s+name=["']base:app_id["'][^>]*>/gi, '');
-      content = content.replace('</head>', `    ${savedWizardState.appIdMeta}\n  </head>`);
+      content = content.replace(/<meta\s+[^>]*base:app_id[^>]*\/?>/gi, '');
+      content = content.replace(/<meta\s+[^>]*base:app_id[^>]*/gi, '');
+      content = content.replace('</head>', `    ${cleanMetaTag}\n  </head>`);
 
       // @ts-ignore
       await plugin.call('fileManager', 'writeFile', indexHtmlPath, content);
@@ -181,8 +227,18 @@ const BaseAppWizard: React.FC = () => {
       if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
         logoDataUrl = logo;
       }
-      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:"${logoDataUrl}",title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
+      // Escape </  to <\/ inside JSON strings to prevent HTML parser from
+      // seeing </script> in user text as the closing tag for this script element.
+      const safeJson = (val: string) => JSON.stringify(val).replace(/<\//g, '<\\/');
+      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${safeJson(logoDataUrl || '')},title:${safeJson(title || '')},details:${safeJson(details || '')}};</script>`;
       const walletScript = generateWalletSelectionScript();
+
+      // Escape text for safe use in HTML attribute values (OG/Twitter meta tags)
+      const escapeHtmlAttr = (str: string) => str
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 
       const ensUrlForOG = savedWizardState.ensName
         ? `https://${savedWizardState.ensName}.remixdapp.eth.limo`
@@ -223,13 +279,13 @@ const BaseAppWizard: React.FC = () => {
       const twitterCardType = screenshotIpfsUrl ? 'summary_large_image' : 'summary';
 
       const ogTags = [
-        `<meta property="og:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
-        `<meta property="og:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:title" content="${escapeHtmlAttr(title || 'DApp')}" />`,
+        `<meta property="og:description" content="${escapeHtmlAttr(details || 'Built with Remix QuickDApp')}" />`,
         `<meta property="og:type" content="website" />`,
         ensUrlForOG ? `<meta property="og:url" content="${ensUrlForOG}" />` : '',
         `<meta name="twitter:card" content="${twitterCardType}" />`,
-        `<meta name="twitter:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
-        `<meta name="twitter:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta name="twitter:title" content="${escapeHtmlAttr(title || 'DApp')}" />`,
+        `<meta name="twitter:description" content="${escapeHtmlAttr(details || 'Built with Remix QuickDApp')}" />`,
         `<meta property="og:image" content="${ogImageUrl}" />`,
         `<meta name="twitter:image" content="${ogImageUrl}" />`,
       ].filter(Boolean).join('\n    ');

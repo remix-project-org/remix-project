@@ -147,8 +147,18 @@ function DeployPanel(): JSX.Element {
         logoDataUrl = logo;
       }
 
-      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${JSON.stringify(logoDataUrl || '')},title:${JSON.stringify(title || '')},details:${JSON.stringify(details || '')}};</script>`;
+      // Escape </  to <\/ inside JSON strings to prevent HTML parser from
+      // seeing </script> in user text as the closing tag for this script element.
+      const safeJson = (val: string) => JSON.stringify(val).replace(/<\//g, '<\\/');
+      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${safeJson(logoDataUrl || '')},title:${safeJson(title || '')},details:${safeJson(details || '')}};</script>`;
       const walletScript = generateWalletSelectionScript();
+
+      // Escape text for safe use in HTML attribute values (OG/Twitter meta tags)
+      const escapeHtmlAttr = (str: string) => str
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 
       const ogUrl = activeDapp?.deployment?.ensDomain
         ? `https://${activeDapp.deployment.ensDomain}.limo`
@@ -189,13 +199,13 @@ function DeployPanel(): JSX.Element {
       const twitterCardType = screenshotIpfsUrl ? 'summary_large_image' : 'summary';
 
       const ogTags = [
-        `<meta property="og:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
-        `<meta property="og:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta property="og:title" content="${escapeHtmlAttr(title || 'DApp')}" />`,
+        `<meta property="og:description" content="${escapeHtmlAttr(details || 'Built with Remix QuickDApp')}" />`,
         `<meta property="og:type" content="website" />`,
         ogUrl ? `<meta property="og:url" content="${ogUrl}" />` : '',
         `<meta name="twitter:card" content="${twitterCardType}" />`,
-        `<meta name="twitter:title" content="${(title || 'DApp').replace(/"/g, '&quot;')}" />`,
-        `<meta name="twitter:description" content="${(details || 'Built with Remix QuickDapp').replace(/"/g, '&quot;')}" />`,
+        `<meta name="twitter:title" content="${escapeHtmlAttr(title || 'DApp')}" />`,
+        `<meta name="twitter:description" content="${escapeHtmlAttr(details || 'Built with Remix QuickDApp')}" />`,
         `<meta property="og:image" content="${ogImageUrl}" />`,
         `<meta name="twitter:image" content="${ogImageUrl}" />`,
       ].filter(Boolean).join('\n    ');
