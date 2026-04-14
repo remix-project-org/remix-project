@@ -277,4 +277,4 @@ parameters:
 - Substack: https://ethereumremix.substack.com
 - Linkedin: https://www.linkedin.com/company/ethereum-remix
 - X: https://x.com/ethereumremix
-- Join Discord: https://discord.gg/MzhfCGstNA
+- Join our Discord: https://discord.gg/MzhfCGstNA
