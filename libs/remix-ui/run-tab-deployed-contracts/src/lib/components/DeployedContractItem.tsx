@@ -672,7 +672,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                             useDefaultIcon={false}
                           >
                             <div className="d-flex align-items-center gap-1 flex-fill text-start">
-                              <span style={{ color: 'var(--text-tertiary, #a2a3bd)' }}>Select a function to interact...</span>
+                              <span style={{ color: 'var(--text-tertiary, #a2a3bd)' }}>Select a function to interact with...</span>
                             </div>
                           </Dropdown.Toggle>
                           <Dropdown.Menu 
