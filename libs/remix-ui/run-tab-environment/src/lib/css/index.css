@@ -220,3 +220,20 @@
   .normal-dropdown-item {
     padding-left: 0.5rem !important;
   }
+
+  /* Sticky header shadow effect */
+  #udappEnvComponent {
+    transition: box-shadow 0.3s ease-in-out;
+  }
+
+  #udappEnvComponent.scrolled {
+    box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.2), 0 3px 6px -2px rgba(0, 0, 0, 0.15);
+  }
+
+  #udappScrollableContent {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+
+  [data-theme="dark"] #udappScrollableContent {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
