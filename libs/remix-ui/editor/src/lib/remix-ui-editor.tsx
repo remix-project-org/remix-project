@@ -197,7 +197,7 @@ export const EditorUI = (props: EditorUIProps) => {
   \t\t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.importantLinks.text1' })}: https://remix.live/\n
   \t\t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.importantLinks.text2' })}: https://remix-ide.readthedocs.io/en/latest/\n
   \t\t\t\t\t\t\t\tGithub: https://github.com/ethereum/remix-project\n
-  \t\t\t\t\t\t\t\tDiscord: https://discord.gg/9bw6pMWEAw\n
+  \t\t\t\t\t\t\t\tDiscord: https://discord.gg/MzhfCGstNA\n
   \t\t\t\t\t\t\t\tSubstack: https://ethereumremix.substack.com\n
   \t\t\t\t\t\t\t\tX: https://x.com/ethereumremix\n
   `
