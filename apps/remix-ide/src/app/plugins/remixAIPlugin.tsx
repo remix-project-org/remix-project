@@ -27,6 +27,7 @@ const profile = {
     'addMCPServer', 'removeMCPServer', 'getMCPConnectionStatus', 'getMCPResources', 'getMCPTools', 'executeMCPTool',
     'enableMCPEnhancement', 'disableMCPEnhancement', 'isMCPEnabled', 'getIMCPServers',
     'enableDeepAgent', 'disableDeepAgent', 'isDeepAgentEnabled',
+    'respondToToolApproval',
     'clearCaches', 'cancelRequest'
   ],
   events: [
@@ -84,6 +85,7 @@ export class RemixAIPlugin extends Plugin {
     eventEmitter.removeAllListeners('onInferenceDone')
     eventEmitter.removeAllListeners('onStreamResult')
     eventEmitter.removeAllListeners('onStreamComplete')
+    eventEmitter.removeAllListeners('onToolApprovalRequired')
 
     // Set up fresh listeners
     eventEmitter.on('onInference', () => {
@@ -97,6 +99,12 @@ export class RemixAIPlugin extends Plugin {
     })
     eventEmitter.on('onStreamComplete', (finalText: string) => {
       this.emit('onStreamComplete', finalText)
+    })
+
+    // Human-in-the-loop: relay approval requests to UI
+    eventEmitter.on('onToolApprovalRequired', (request: any) => {
+      console.log('[HITL] Plugin relaying approval request to UI:', request.requestId)
+      this.emit('onToolApprovalRequired', request)
     })
 
     this.deepAgentEventListenersSetup = true
@@ -824,6 +832,13 @@ export class RemixAIPlugin extends Plugin {
 
   isDeepAgentEnabled(): boolean {
     return this.deepAgentEnabled
+  }
+
+  respondToToolApproval(response: { requestId: string; approved: boolean; modifiedArgs?: Record<string, any> }): void {
+    console.log('[HITL] Plugin forwarding approval response to agent:', response.requestId, response.approved)
+    if (this.deepAgentInferencer) {
+      this.deepAgentInferencer.getEventEmitter().emit('onToolApprovalResponse', response)
+    }
   }
 
   clearCaches(){

@@ -8,6 +8,15 @@ import { IMCPToolResult, IMCPTool, IMCPToolCall } from '../../types/mcp'
 import { DynamicStructuredTool } from '@langchain/core/tools'
 import { z } from 'zod'
 import { RemixToolDefinition, ToolRegistry } from '../../remix-mcp-server/types/mcpTools'
+import EventEmitter from 'events'
+import {
+  ToolApprovalRequest,
+  ToolApprovalResponse,
+  ToolApprovalPolicy,
+  shouldRequireApproval,
+  getToolMetadata,
+  isSafeTool
+} from '../../types/humanInTheLoop'
 
 /**
  * Convert JSON Schema to Zod schema for LangChain
@@ -20,29 +29,29 @@ function jsonSchemaToZod(schema: any): z.ZodObject<any> {
       let zodType: z.ZodTypeAny
 
       switch (prop.type) {
-        case 'string':
-          zodType = z.string()
-          if (prop.description) zodType = zodType.describe(prop.description)
-          if (prop.enum) zodType = z.enum(prop.enum)
-          break
-        case 'number':
-          zodType = z.number()
-          if (prop.description) zodType = zodType.describe(prop.description)
-          break
-        case 'boolean':
-          zodType = z.boolean()
-          if (prop.description) zodType = zodType.describe(prop.description)
-          break
-        case 'array':
-          zodType = z.array(z.any())
-          if (prop.description) zodType = zodType.describe(prop.description)
-          break
-        case 'object':
-          zodType = z.record(z.string(), z.any())
-          if (prop.description) zodType = zodType.describe(prop.description)
-          break
-        default:
-          zodType = z.any()
+      case 'string':
+        zodType = z.string()
+        if (prop.description) zodType = zodType.describe(prop.description)
+        if (prop.enum) zodType = z.enum(prop.enum)
+        break
+      case 'number':
+        zodType = z.number()
+        if (prop.description) zodType = zodType.describe(prop.description)
+        break
+      case 'boolean':
+        zodType = z.boolean()
+        if (prop.description) zodType = zodType.describe(prop.description)
+        break
+      case 'array':
+        zodType = z.array(z.any())
+        if (prop.description) zodType = zodType.describe(prop.description)
+        break
+      case 'object':
+        zodType = z.record(z.string(), z.any())
+        if (prop.description) zodType = zodType.describe(prop.description)
+        break
+      default:
+        zodType = z.any()
       }
 
       // Make optional if not required
@@ -78,15 +87,105 @@ function mcpResultToString(result: IMCPToolResult): string {
 }
 
 /**
+ * Wraps tool execution with user approval when the tool is risky.
+ * Emits 'onToolApprovalRequired' and waits for 'onToolApprovalResponse'.
+ */
+export class ToolApprovalGate {
+  private eventEmitter: EventEmitter
+  private policy: ToolApprovalPolicy
+  private plugin: Plugin
+  private pendingApprovals = new Map<string, { resolve: (approved: boolean, modified?: Record<string, any>) => void }>()
+
+  constructor(plugin: Plugin, eventEmitter: EventEmitter, policy: ToolApprovalPolicy = 'ask_risky') {
+    this.plugin = plugin
+    this.eventEmitter = eventEmitter
+    this.policy = policy
+
+    this.eventEmitter.on('onToolApprovalResponse', (response: ToolApprovalResponse) => {
+      const pending = this.pendingApprovals.get(response.requestId)
+      if (pending) {
+        pending.resolve(response.approved, response.modifiedArgs)
+        this.pendingApprovals.delete(response.requestId)
+      }
+    })
+  }
+
+  setPolicy(policy: ToolApprovalPolicy) {
+    this.policy = policy
+  }
+
+  /**
+   * Wrap a tool's func so risky calls require user approval first.
+   */
+  wrap(toolName: string, originalFunc: (args: Record<string, any>) => Promise<string>): (args: Record<string, any>) => Promise<string> {
+    if (isSafeTool(toolName)) return originalFunc
+
+    return async (args: Record<string, any>): Promise<string> => {
+      if (!shouldRequireApproval(toolName, this.policy)) {
+        return originalFunc(args)
+      }
+
+      const meta = getToolMetadata(toolName)
+      const requestId = `approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+      // For file writes, try to read existing content for diff
+      let existingContent: string | undefined
+      if (meta.category === 'file_write' && args.path) {
+        try {
+          existingContent = await this.plugin.call('fileManager', 'readFile', args.path)
+        } catch {
+          // file doesn't exist yet
+        }
+      }
+
+      const request: ToolApprovalRequest = {
+        requestId,
+        toolName,
+        toolArgs: args,
+        category: meta.category,
+        risk: meta.risk,
+        existingContent,
+        proposedContent: args.content || args.data,
+        filePath: args.path || args.filePath,
+        timestamp: Date.now()
+      }
+
+      // Wait for user decision
+      const { approved, modifiedArgs } = await new Promise<{ approved: boolean; modifiedArgs?: Record<string, any> }>(
+        (resolve) => {
+          this.pendingApprovals.set(requestId, {
+            resolve: (approved, modified) => resolve({ approved, modifiedArgs: modified })
+          })
+          this.eventEmitter.emit('onToolApprovalRequired', request)
+        }
+      )
+
+      if (!approved) {
+        return JSON.stringify({ cancelled: true, reason: 'User rejected the action' })
+      }
+
+      return originalFunc(modifiedArgs || args)
+    }
+  }
+
+  dispose() {
+    this.eventEmitter.removeAllListeners('onToolApprovalResponse')
+    this.pendingApprovals.clear()
+  }
+}
+
+/**
  * RemixToolAdapter converts Remix MCP tools to LangChain format
  */
 export class RemixToolAdapter {
   private plugin: Plugin
   private toolRegistry: ToolRegistry
+  private approvalGate?: ToolApprovalGate
 
-  constructor(plugin: Plugin, toolRegistry: ToolRegistry) {
+  constructor(plugin: Plugin, toolRegistry: ToolRegistry, approvalGate?: ToolApprovalGate) {
     this.plugin = plugin
     this.toolRegistry = toolRegistry
+    this.approvalGate = approvalGate
   }
 
   /**
@@ -182,24 +281,26 @@ export class RemixToolAdapter {
    * Convert a Remix MCP tool definition to LangChain tool
    */
   private convertToLangChainTool(toolDef: RemixToolDefinition): DynamicStructuredTool {
-    // Convert inputSchema to Zod schema
     const zodSchema = jsonSchemaToZod(toolDef.inputSchema)
+
+    let func = async (input: Record<string, any>): Promise<string> => {
+      try {
+        const result = await toolDef.handler.execute(input, this.plugin)
+        return mcpResultToString(result)
+      } catch (error) {
+        return `Tool execution error: ${error.message}`
+      }
+    }
+
+    if (this.approvalGate) {
+      func = this.approvalGate.wrap(toolDef.name, func)
+    }
 
     return new DynamicStructuredTool({
       name: toolDef.name,
       description: toolDef.description,
       schema: zodSchema,
-      func: async (input: Record<string, any>) => {
-        try {
-          // Execute the tool handler
-          const result = await toolDef.handler.execute(input, this.plugin)
-
-          // Convert result to string
-          return mcpResultToString(result)
-        } catch (error) {
-          return `Tool execution error: ${error.message}`
-        }
-      }
+      func
     })
   }
 
@@ -296,9 +397,10 @@ export class RemixToolAdapter {
 export async function createRemixTools(
   plugin: Plugin,
   toolRegistry: ToolRegistry,
-  mcpInferencer?: any
+  mcpInferencer?: any,
+  approvalGate?: ToolApprovalGate
 ): Promise<DynamicStructuredTool[]> {
-  const adapter = new RemixToolAdapter(plugin, toolRegistry)
+  const adapter = new RemixToolAdapter(plugin, toolRegistry, approvalGate)
 
   // Get Solidity-specific tools from internal Remix MCP server
   const solidityTools = adapter.getSolidityTools()

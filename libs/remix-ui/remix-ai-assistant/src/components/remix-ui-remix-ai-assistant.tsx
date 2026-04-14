@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, M
 import '../css/remix-ai-assistant.css'
 
 import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, listModels, isOllamaAvailable, AVAILABLE_MODELS, getDefaultModel, getModelById, AIModel } from '@remix/remix-ai-core'
+import { ToolApprovalRequest } from '@remix/remix-ai-core'
 import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
 import '../css/color.css'
@@ -21,6 +22,7 @@ import { ChatHistorySidebar } from './chatHistorySidebar'
 import AiChatPromptAreaForHistory from './aiChatPromptAreaForHistory'
 import AiChatPromptArea from './aiChatPromptArea'
 import { useModelAccess } from '../hooks/useModelAccess'
+import { ToolApprovalModal } from './ToolApprovalModal'
 
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
@@ -81,6 +83,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const mcpEnabled = true
 
   const [mcpEnhanced, setMcpEnhanced] = useState(mcpEnabled)
+  const [pendingApproval, setPendingApproval] = useState<ToolApprovalRequest | null>(null)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = AIEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
@@ -341,9 +344,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     props.plugin.on('remixAI', 'onStreamResult', handleStreamChunk)
     props.plugin.on('remixAI', 'onStreamComplete', handleStreamComplete)
 
+    // Human-in-the-loop: listen for tool approval requests
+    const handleToolApproval = (request: ToolApprovalRequest) => {
+      console.log('[HITL] UI received approval request:', request.requestId, request.toolName, request.filePath)
+      setPendingApproval(request)
+    }
+    props.plugin.on('remixAI', 'onToolApprovalRequired', handleToolApproval)
+
     return () => {
       props.plugin.off('remixAI', 'onStreamResult')
       props.plugin.off('remixAI', 'onStreamComplete')
+      props.plugin.off('remixAI', 'onToolApprovalRequired')
     }
   }, [props.plugin])
 
@@ -396,6 +407,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'dislike-response', isClick: true })
     }
   }
+
+  const handleApproveToolAction = useCallback((modifiedArgs?: Record<string, any>) => {
+    if (!pendingApproval) return
+    console.log('[HITL] UI approving:', pendingApproval.requestId)
+    props.plugin.call('remixAI', 'respondToToolApproval', {
+      requestId: pendingApproval.requestId,
+      approved: true,
+      modifiedArgs
+    })
+    setPendingApproval(null)
+  }, [pendingApproval, props.plugin])
+
+  const handleRejectToolAction = useCallback(() => {
+    if (!pendingApproval) return
+    console.log('[HITL] UI rejecting:', pendingApproval.requestId)
+    props.plugin.call('remixAI', 'respondToToolApproval', {
+      requestId: pendingApproval.requestId,
+      approved: false
+    })
+    setPendingApproval(null)
+  }, [pendingApproval, props.plugin])
 
   // Push a queued message (if any) into history once props update
   useEffect(() => {
@@ -1176,6 +1208,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   handleGenerateWorkspace={handleGenerateWorkspace}
                   allowedMcps={modelAccess.allowedMcps}
                 />
+                {pendingApproval && (
+                  <div style={{ padding: '0 12px' }}>
+                    <ToolApprovalModal
+                      request={pendingApproval}
+                      onApprove={handleApproveToolAction}
+                      onReject={handleRejectToolAction}
+                    />
+                  </div>
+                )}
               </section>
             </div>
           ) : (
@@ -1255,6 +1296,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     handleGenerateWorkspace={handleGenerateWorkspace}
                     allowedMcps={modelAccess.allowedMcps}
                   />
+                  {pendingApproval && (
+                    <div style={{ padding: '0 12px' }}>
+                      <ToolApprovalModal
+                        request={pendingApproval}
+                        onApprove={handleApproveToolAction}
+                        onReject={handleRejectToolAction}
+                      />
+                    </div>
+                  )}
                 </section>
               </div>
             )

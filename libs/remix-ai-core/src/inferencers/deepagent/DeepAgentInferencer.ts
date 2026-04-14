@@ -7,7 +7,7 @@ import { IAIStreamResponse, ICompletions, IGeneration, IParams } from '../../typ
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
 import { RemixFilesystemBackend } from './RemixFilesystemBackend'
-import { createRemixTools } from './RemixToolAdapter'
+import { createRemixTools, ToolApprovalGate } from './RemixToolAdapter'
 import {
   REMIX_DEEPAGENT_SYSTEM_PROMPT,
   SOLIDITY_CODE_GENERATION_PROMPT,
@@ -39,6 +39,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private filesystemBackend: RemixFilesystemBackend
   private memoryBackend: DeepAgentMemoryBackend | null = null
   private tools: DynamicStructuredTool[] = []
+  private approvalGate: ToolApprovalGate | null = null
   private currentAbortController: AbortController | null = null
   private fallbackInferencer: any = null
   private model: ChatAnthropic | null = null
@@ -65,10 +66,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       enablePlanning: config?.enablePlanning !== false
     }
 
-    // Initialize filesystem backend
-    this.filesystemBackend = new RemixFilesystemBackend(plugin)
+    // Initialize filesystem backend with shared EventEmitter for approval
+    this.filesystemBackend = new RemixFilesystemBackend(plugin, this.event)
 
-    // Initialize tools (with external MCP clients if available)
+    // Initialize tools with approval gate
+    this.approvalGate = new ToolApprovalGate(plugin, this.event, 'ask_risky')
     this.initializeTools(toolRegistry, mcpInferencer)
   }
 
@@ -173,7 +175,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
    */
   private async initializeTools(toolRegistry: ToolRegistry, mcpInferencer?: any): Promise<void> {
     try {
-      this.tools = await createRemixTools(this.plugin, toolRegistry, mcpInferencer)
+      this.tools = await createRemixTools(this.plugin, toolRegistry, mcpInferencer, this.approvalGate)
       console.log(`[DeepAgentInferencer] Initialized ${this.tools.length} tools`)
     } catch (error) {
       console.warn('[DeepAgentInferencer] Failed to initialize tools:', error)
@@ -537,6 +539,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   async close(): Promise<void> {
     if (this.memoryBackend) {
       this.memoryBackend.close()
+    }
+    if (this.approvalGate) {
+      this.approvalGate.dispose()
+      this.approvalGate = null
     }
     this.agent = null
     this.model = null
