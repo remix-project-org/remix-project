@@ -657,7 +657,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                 {showHighLevel && (
                   <>
                     {functionABIs && functionABIs.length > 0 ? (
-                      <div className="mb-3">
+                      <div className="mb-3" data-id={`functionDropdown-${index}`}>
                         <Dropdown>
                           <Dropdown.Toggle
                             as={CustomToggle}
