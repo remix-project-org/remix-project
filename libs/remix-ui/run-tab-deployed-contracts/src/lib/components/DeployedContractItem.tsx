@@ -486,11 +486,44 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
 
   const getStateMutabilityBadge = (funcABI: FuncABI) => {
     if (funcABI.stateMutability === 'view' || funcABI.stateMutability === 'pure') {
-      return <span className='badge text-info' style={{ backgroundColor: '#64C4FF14' }}>call</span>
+      return (
+        <span 
+          className='d-inline-block rounded-circle' 
+          title='call'
+          style={{ 
+            width: '8px', 
+            height: '8px', 
+            backgroundColor: '#64c4ff',
+            flexShrink: 0
+          }}
+        />
+      )
     } else if (funcABI.stateMutability === 'payable') {
-      return <span className='badge text-danger' style={{ backgroundColor: '#FF777714' }}>payable</span>
+      return (
+        <span 
+          className='d-inline-block rounded-circle' 
+          title='payable'
+          style={{ 
+            width: '8px', 
+            height: '8px', 
+            backgroundColor: '#ff7777',
+            flexShrink: 0
+          }}
+        />
+      )
     } else {
-      return <span className='badge text-warning' style={{ backgroundColor: '#FFB96414' }}>non-payable</span>
+      return (
+        <span 
+          className='d-inline-block rounded-circle' 
+          title='non-payable'
+          style={{ 
+            width: '8px', 
+            height: '8px', 
+            backgroundColor: '#ffb964',
+            flexShrink: 0
+          }}
+        />
+      )
     }
   }
 
