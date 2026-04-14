@@ -35,7 +35,7 @@ astWalker.on("node", node => {
 
 Please feel free to open an issue or a pull request. 
 
-In case you want to add some code, do have a look at our contribution guidelines [here](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md). Reach us on [Discord](https://discord.gg/MzhfCGstNA) in case of any queries.
+If you'd like to add some code, please take a look at our contribution guidelines [here](https://github.com/remix-project-org/remix-project/blob/master/CONTRIBUTING.md). You can reach us on [Discord](https://discord.gg/MzhfCGstNA) with any questions.
 
 ### License
 MIT © 2018-21 Remix Team
