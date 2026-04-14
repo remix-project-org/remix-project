@@ -47,6 +47,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const [selectedFunctionIndex, setSelectedFunctionIndex] = useState<number | null>(null)
   const [funcInputs, setFuncInputs] = useState<{[funcIndex: number]: {[paramIndex: number]: string}}>({})
   const [expandPath, setExpandPath] = useState<string[]>([])
+  const [functionSearchTerm, setFunctionSearchTerm] = useState<string>('')
 
   useEffect(() => {
     plugin.call('udappEnv', 'getNetwork').then((net) => {
@@ -104,6 +105,14 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const functionABIs = useMemo(() => {
     return contractABI?.filter((item: FuncABI) => item.type === 'function') || []
   }, [contractABI])
+
+  const filteredFunctionABIs = useMemo(() => {
+    if (!functionSearchTerm.trim()) return functionABIs
+    return functionABIs.filter((funcABI: FuncABI) => 
+      funcABI.name.toLowerCase().includes(functionSearchTerm.toLowerCase()) ||
+      funcABI.inputs.some((input: any) => input.type.toLowerCase().includes(functionSearchTerm.toLowerCase()))
+    )
+  }, [functionABIs, functionSearchTerm])
 
   const handleRemove = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -637,12 +646,39 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                             style={{ 
                               backgroundColor: 'var(--custom-onsurface-layer-2)', 
                               border: '1px solid var(--custom-onsurface-layer-4)',
-                              maxHeight: '200px',
+                              maxHeight: '240px',
                               overflowY: 'auto',
-                              width: '100%'
+                              width: '100%',
+                              padding: 0
                             }}
                           >
-                            {functionABIs.map((funcABI: FuncABI, actualIndex: number) => {
+                            <div style={{ 
+                              padding: '8px', 
+                              borderBottom: '1px solid var(--custom-onsurface-layer-4)',
+                              backgroundColor: 'var(--custom-onsurface-layer-2)'
+                            }}>
+                              <input
+                                type="text"
+                                placeholder="Search functions..."
+                                className="form-control form-control-sm"
+                                value={functionSearchTerm}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  setFunctionSearchTerm(e.target.value)
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  backgroundColor: 'var(--custom-onsurface-layer-3)',
+                                  border: '1px solid var(--custom-onsurface-layer-4)',
+                                  color: 'var(--dark/text-secondary, #d5d7e3)',
+                                  fontSize: '11px'
+                                }}
+                              />
+                            </div>
+                            <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                              {filteredFunctionABIs.map((funcABI: FuncABI, filteredIndex: number) => {
+                                // Find the actual index in the original functionABIs array
+                                const actualIndex = functionABIs.findIndex(f => f === funcABI)
                               const inputTypes = funcABI.inputs.map(input => input.type).join(', ')
                               const isSelected = selectedFunctionIndex === actualIndex
 
@@ -696,6 +732,12 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                                 </Dropdown.Item>
                               )
                             })}
+                            {filteredFunctionABIs.length === 0 && functionSearchTerm.trim() && (
+                              <div className="text-muted text-center py-2" style={{ fontSize: '11px' }}>
+                                No functions found matching "{functionSearchTerm}"
+                              </div>
+                            )}
+                            </div>
                           </Dropdown.Menu>
                         </Dropdown>
                       </div>
