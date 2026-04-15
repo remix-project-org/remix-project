@@ -94,11 +94,23 @@ export class RunTab extends ViewPlugin {
 
   render() {
     return (
-      <div id="runTabView" style={{ position: 'relative', height: '100%', overflow: 'auto' }}>
+      <div id="runTabView" style={{ position: 'relative', height: '100%', overflow: 'auto' }} onScroll={(e) => {
+        const target = e.target as HTMLElement
+        const envComponent = document.getElementById('udappEnvComponent')
+        if (envComponent) {
+          if (target.scrollTop > 0) {
+            envComponent.classList.add('scrolled')
+          } else {
+            envComponent.classList.remove('scrolled')
+          }
+        }
+      }}>
         <div id="udappEnvComponent" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--body-bg)' }}></div>
-        <div id="udappDeployComponent"></div>
-        <div id="udappDeployedContractsComponent"></div>
-        <div id="udappTransactionsComponent"></div>
+        <div id="udappScrollableContent">
+          <div id="udappDeployComponent"></div>
+          <div id="udappDeployedContractsComponent"></div>
+          <div id="udappTransactionsComponent"></div>
+        </div>
         <PluginViewWrapper plugin={this} />
       </div>
     )

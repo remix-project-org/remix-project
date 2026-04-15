@@ -11,14 +11,10 @@ class ClickFunction extends EventEmitter {
     expectedInput?: string[]
   ): NightwatchBrowser {
     this.api
-      .execute(function (instanceIndex, functionIndex) {
-        // Use JavaScript to click the button, avoiding sticky header issues
-        const contractFunction = document.querySelector(`[data-id="deployedContractItem-${instanceIndex}-function-${functionIndex}"]`) as HTMLElement
-        if (contractFunction) {
-          contractFunction.scrollIntoView({ behavior: 'auto', block: 'center' })
-          contractFunction.click()
-        }
-      }, [instanceIndex, functionIndex])
+      .click(`[data-id="functionDropdown-${instanceIndex}"] button`)
+      .pause(1000) // Wait for the dropdown to open
+      .click(`[data-id="deployedContractItem-${instanceIndex}-function-${functionIndex}"]`)
+      .pause(1000) // Wait for the function details to load
       .waitForElementPresent(`[data-id="btnExecute-${instanceIndex}"]`)
       .execute(function (instanceIndex) {
         const executeBtn = document.querySelector(`[data-id="btnExecute-${instanceIndex}"]`) as HTMLElement

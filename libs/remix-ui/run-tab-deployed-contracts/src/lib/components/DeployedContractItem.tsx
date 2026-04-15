@@ -47,6 +47,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const [selectedFunctionIndex, setSelectedFunctionIndex] = useState<number | null>(null)
   const [funcInputs, setFuncInputs] = useState<{[funcIndex: number]: {[paramIndex: number]: string}}>({})
   const [expandPath, setExpandPath] = useState<string[]>([])
+  const [functionSearchTerm, setFunctionSearchTerm] = useState<string>('')
 
   useEffect(() => {
     plugin.call('udappEnv', 'getNetwork').then((net) => {
@@ -104,6 +105,14 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const functionABIs = useMemo(() => {
     return contractABI?.filter((item: FuncABI) => item.type === 'function') || []
   }, [contractABI])
+
+  const filteredFunctionABIs = useMemo(() => {
+    if (!functionSearchTerm.trim()) return functionABIs
+    return functionABIs.filter((funcABI: FuncABI) =>
+      funcABI.name.toLowerCase().includes(functionSearchTerm.toLowerCase()) ||
+      funcABI.inputs.some((input: any) => input.type.toLowerCase().includes(functionSearchTerm.toLowerCase()))
+    )
+  }, [functionABIs, functionSearchTerm])
 
   const handleRemove = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -477,11 +486,44 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
 
   const getStateMutabilityBadge = (funcABI: FuncABI) => {
     if (funcABI.stateMutability === 'view' || funcABI.stateMutability === 'pure') {
-      return <span className='badge text-info' style={{ backgroundColor: '#64C4FF14' }}>call</span>
+      return (
+        <span
+          className='d-inline-block rounded-circle'
+          title='call'
+          style={{
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#64c4ff',
+            flexShrink: 0
+          }}
+        />
+      )
     } else if (funcABI.stateMutability === 'payable') {
-      return <span className='badge text-danger' style={{ backgroundColor: '#FF777714' }}>payable</span>
+      return (
+        <span
+          className='d-inline-block rounded-circle'
+          title='payable'
+          style={{
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#ff7777',
+            flexShrink: 0
+          }}
+        />
+      )
     } else {
-      return <span className='badge text-warning' style={{ backgroundColor: '#FFB96414' }}>non-payable</span>
+      return (
+        <span
+          className='d-inline-block rounded-circle'
+          title='non-payable'
+          style={{
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#ffb964',
+            flexShrink: 0
+          }}
+        />
+      )
     }
   }
 
@@ -615,71 +657,122 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                 {showHighLevel && (
                   <>
                     {functionABIs && functionABIs.length > 0 ? (
-                      <div
-                        className="mb-3"
-                        style={{
-                          maxHeight: '160px',
-                          overflowY: 'auto',
-                          overflowX: 'hidden',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '4px'
-                        }}
-                      >
-                        {functionABIs.map((funcABI: FuncABI, actualIndex: number) => {
-                          const inputTypes = funcABI.inputs.map(input => input.type).join(', ')
-                          const isSelected = selectedFunctionIndex === actualIndex
-
-                          return (
-                            <div
-                              data-id={`deployedContractItem-${index}-function-${actualIndex}`}
-                              key={actualIndex}
-                              className="d-flex align-items-center gap-1"
-                              style={{
-                                cursor: 'pointer',
-                                padding: '4px 0',
-                                backgroundColor: isSelected ? 'var(--custom-onsurface-layer-3)' : 'transparent'
-                              }}
-                              onClick={() => handleFunctionClick(actualIndex)}
-                            >
-                              {getStateMutabilityBadge(funcABI)}
-                              <div className="d-flex align-items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                                <span
-                                  style={{
-                                    fontSize: '12px',
-                                    fontWeight: 700,
-                                    color: 'var(--dark/text-secondary, #d5d7e3)',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    flexShrink: 0,
-                                    maxWidth: '100%'
-                                  }}
-                                  title={funcABI.name}
-                                >
-                                  {funcABI.name}
-                                </span>
-                                {funcABI.inputs.length > 0 && (
-                                  <span
-                                    style={{
-                                      fontSize: '10px',
-                                      color: 'var(--text-tertiary, #a2a3bd)',
-                                      fontFamily: 'Monaco, monospace',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                      flexShrink: 1,
-                                      minWidth: 0
-                                    }}
-                                    title={inputTypes}
-                                  >
-                                    {inputTypes}
-                                  </span>
-                                )}
-                              </div>
+                      <div className="mb-3" data-id={`functionDropdown-${index}`}>
+                        <Dropdown>
+                          <Dropdown.Toggle
+                            as={CustomToggle}
+                            className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between"
+                            style={{
+                              backgroundColor: 'var(--custom-onsurface-layer-3)',
+                              border: '1px solid var(--custom-onsurface-layer-4)',
+                              color: 'var(--dark/text-secondary, #d5d7e3)',
+                              padding: '8px 12px'
+                            }}
+                            icon="fas fa-caret-down"
+                            useDefaultIcon={false}
+                          >
+                            <div className="d-flex align-items-center gap-1 flex-fill text-start">
+                              <span style={{ color: 'var(--text-tertiary, #a2a3bd)' }}>Select a function to interact with...</span>
                             </div>
-                          )
-                        })}
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu
+                            style={{
+                              backgroundColor: 'var(--custom-onsurface-layer-2)',
+                              border: '1px solid var(--custom-onsurface-layer-4)',
+                              maxHeight: '240px',
+                              overflowY: 'auto',
+                              width: '100%',
+                              padding: 0
+                            }}
+                          >
+                            <div style={{
+                              padding: '8px',
+                              borderBottom: '1px solid var(--custom-onsurface-layer-4)',
+                              backgroundColor: 'var(--custom-onsurface-layer-2)'
+                            }}>
+                              <input
+                                type="text"
+                                placeholder="Search functions..."
+                                className="form-control form-control-sm"
+                                value={functionSearchTerm}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  setFunctionSearchTerm(e.target.value)
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  backgroundColor: 'var(--custom-onsurface-layer-3)',
+                                  border: '1px solid var(--custom-onsurface-layer-4)',
+                                  color: 'var(--dark/text-secondary, #d5d7e3)',
+                                  fontSize: '11px'
+                                }}
+                              />
+                            </div>
+                            <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                              {filteredFunctionABIs.map((funcABI: FuncABI, filteredIndex: number) => {
+                                // Find the actual index in the original functionABIs array
+                                const actualIndex = functionABIs.findIndex(f => f === funcABI)
+                                const inputTypes = funcABI.inputs.map(input => input.type).join(', ')
+                                const isSelected = selectedFunctionIndex === actualIndex
+
+                                return (
+                                  <Dropdown.Item
+                                    key={actualIndex}
+                                    data-id={`deployedContractItem-${index}-function-${actualIndex}`}
+                                    className="d-flex align-items-center gap-1"
+                                    style={{
+                                      backgroundColor: isSelected ? 'var(--custom-onsurface-layer-3)' : 'transparent',
+                                      color: 'var(--dark/text-secondary, #d5d7e3)',
+                                      padding: '8px 12px',
+                                      border: 'none'
+                                    }}
+                                    onClick={() => handleFunctionClick(actualIndex)}
+                                  >
+                                    {getStateMutabilityBadge(funcABI)}
+                                    <div className="d-flex align-items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                      <span
+                                        style={{
+                                          fontSize: '12px',
+                                          fontWeight: 700,
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          flexShrink: 0,
+                                          maxWidth: '100%'
+                                        }}
+                                        title={funcABI.name}
+                                      >
+                                        {funcABI.name}
+                                      </span>
+                                      {funcABI.inputs.length > 0 && (
+                                        <span
+                                          style={{
+                                            fontSize: '10px',
+                                            color: 'var(--text-tertiary, #a2a3bd)',
+                                            fontFamily: 'Monaco, monospace',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            flexShrink: 1,
+                                            minWidth: 0
+                                          }}
+                                          title={inputTypes}
+                                        >
+                                          {inputTypes}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </Dropdown.Item>
+                                )
+                              })}
+                              {filteredFunctionABIs.length === 0 && functionSearchTerm.trim() && (
+                                <div className="text-muted text-center py-2" style={{ fontSize: '11px' }}>
+                                No functions found matching "{functionSearchTerm}"
+                                </div>
+                              )}
+                            </div>
+                          </Dropdown.Menu>
+                        </Dropdown>
                       </div>
                     ) : (
                       <div className="text-muted pt-3 text-center"><FormattedMessage id="udapp.noABIAvailableForContract" /></div>

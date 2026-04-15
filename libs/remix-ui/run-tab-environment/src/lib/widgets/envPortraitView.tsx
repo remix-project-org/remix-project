@@ -440,6 +440,9 @@ function EnvironmentPortraitView() {
                 <div className="env-toggle-content">
                   <div className="text-truncate text-secondary">
                     <span data-id={`selected-provider-${widgetState.providers.selectedProvider}`}> { selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' }</span>
+                    <span className="pe-1">
+                      <i className="fas fa-caret-down text-secondary ms-2"></i>
+                    </span>
                   </div>
                 </div>
               </Dropdown.Toggle>

@@ -36,17 +36,17 @@ export const CustomToggle = React.forwardRef(
       <div className="d-flex align-items-center">
         <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm" data-id={`dropdown-content`}>{children}</div>
         {icon ? useDefaultIcon ? (
-          <div className="pe-1">
+          <div className="pe-1 ms-1">
             <i className={`${icon} pe-1`}></i>
           </div>
         ) : (
-          <div className="pe-1">
+          <div className="pe-1 ms-1">
             <i className={`${icon} pe-1`}></i>
           </div>
         ) : null}
 
         {useDefaultIcon && (
-          <div className="pe-1">
+          <div className="pe-1 ms-1">
             <i className="fad fa-sort-circle"></i>
           </div>
         )}

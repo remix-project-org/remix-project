@@ -12,6 +12,8 @@ class TestConstantFunction extends EventEmitter {
     expectedOutput: string
   ): NightwatchBrowser {
     this.api
+      .click(`[data-id="functionDropdown-${instanceIndex}"] button`)
+      .pause(1000) // Wait for the dropdown to open
       .execute(function (instanceIndex, functionIndex) {
       // Use JavaScript to click the button, avoiding sticky header issues
         const contractFunction = document.querySelector(`[data-id="deployedContractItem-${instanceIndex}-function-${functionIndex}"]`) as HTMLElement
