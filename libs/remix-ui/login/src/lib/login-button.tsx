@@ -133,7 +133,6 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
           className={`btn btn-sm btn-primary ${className}`}
           style={{ whiteSpace: 'nowrap' }}
           onClick={() => {
-            console.log('what does this open?')
             setShowModal(true)
             if (plugin && typeof plugin.call === 'function') {
               plugin.call('matomo', 'trackEvent', 'auth', 'openLoginModal', 'Sign In', undefined).catch(() => {})
