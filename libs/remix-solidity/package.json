@@ -1,6 +1,6 @@
 {
   "name": "@remix-project/remix-solidity",
-  "version": "0.5.75",
+  "version": "0.5.76",
   "description": "Tool to load and run Solidity compiler",
   "main": "src/index.js",
   "types": "src/index.d.ts",
@@ -19,7 +19,7 @@
     "@ethereumjs/tx": "^10.1.1",
     "@ethereumjs/util": "^10.1.1",
     "@ethereumjs/vm": "^10.1.1",
-    "@remix-project/remix-lib": "^0.5.98",
+    "@remix-project/remix-lib": "^0.5.99",
     "async": "^2.6.2",
     "eslint-scope": "^5.0.0",
     "ethers": "^6.14.0",
@@ -56,5 +56,5 @@
   },
   "homepage": "https://github.com/remix-project-org/remix-project/tree/master/libs/remix-solidity#readme",
   "typings": "src/index.d.ts",
-  "gitHead": "4609da36eff8706df8ee506d67138435992ebfc6"
+  "gitHead": "e54c4f9a6257689aa4d907feed3c6e0da49a833d"
 }
