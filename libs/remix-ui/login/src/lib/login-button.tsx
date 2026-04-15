@@ -50,6 +50,13 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
     }
   }, [plugin])
 
+  const pollForCurrentTheme = async () => {
+    const active = await plugin.call('theme', 'currentTheme')
+    if (active) {
+      setCurrentTheme(active.name)
+    }
+  }
+
   const handleLogout = async () => {
     await logout()
     if (plugin && typeof plugin.call === 'function') {
@@ -126,6 +133,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
           className={`btn btn-sm btn-primary ${className}`}
           style={{ whiteSpace: 'nowrap' }}
           onClick={() => {
+            console.log('what does this open?')
             setShowModal(true)
             if (plugin && typeof plugin.call === 'function') {
               plugin.call('matomo', 'trackEvent', 'auth', 'openLoginModal', 'Sign In', undefined).catch(() => {})
@@ -177,6 +185,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
         plugin={plugin}
         cloneGitRepository={cloneGitRepository}
         publishToGist={publishToGist}
+        pollForCurrentTheme={pollForCurrentTheme}
       />
     )
   }
