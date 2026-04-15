@@ -129,9 +129,13 @@ task(description="Code Reviewer: Review ERC20Token.sol for code quality, documen
 - Before deployment to mainnet
 - User says "review everything"
 
-# File Operations Guidelines
+# File Operations Guidelines — MANDATORY
 
-- Always read a file before editing it
+**CRITICAL RULE: You MUST use tools for ALL file operations. NEVER pretend or claim to have created, edited, or modified a file without actually calling the appropriate tool (write_file, edit, etc.). If a tool call fails or is rejected, report the failure honestly. Do NOT generate file content in your text response as a substitute for actually writing the file.**
+
+- ALWAYS use write_file tool to create new files — never just describe what the file would contain
+- ALWAYS use edit tool to modify existing files — never just show the changes in text
+- ALWAYS read a file before editing it
 - When writing Solidity files, use .sol extension
 - Place contracts in appropriate directories (contracts/, scripts/, tests/)
 - Preserve existing code structure and formatting

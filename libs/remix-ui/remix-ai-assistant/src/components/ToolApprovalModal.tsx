@@ -34,29 +34,61 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
   const [editedContent, setEditedContent] = useState(request.proposedContent || '')
   const [timeLeft, setTimeLeft] = useState(60)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const dismissedRef = useRef(false)
 
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  // Auto-reject after 60 seconds
   useEffect(() => {
+    console.log('[HITL][Modal] MOUNTED for:', request.requestId, 'tool:', request.toolName, 'path:', request.filePath)
+    // Reset state for StrictMode re-mount
+    dismissedRef.current = false
+    stopTimer()
+
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          onReject()
+          stopTimer()
+          if (!dismissedRef.current) {
+            console.log('[HITL][Modal] TIMEOUT — auto-rejecting:', request.requestId)
+            dismissedRef.current = true
+            onReject()
+          }
           return 0
         }
         return prev - 1
       })
     }, 1000)
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [])
+    return () => {
+      stopTimer()
+    }
+  }, [request.requestId])
 
   const handleApprove = () => {
+    stopTimer()
+    dismissedRef.current = true
     if (editMode && editedContent !== request.proposedContent) {
       const modified = { ...request.toolArgs }
       if (modified.content !== undefined) modified.content = editedContent
       else if (modified.data !== undefined) modified.data = editedContent
+      console.log('[HITL][Modal] APPROVE (edited):', request.requestId, 'modifiedKeys:', Object.keys(modified))
       onApprove(modified)
     } else {
+      console.log('[HITL][Modal] APPROVE (as-is):', request.requestId)
       onApprove()
     }
+  }
+
+  const handleReject = () => {
+    console.log('[HITL][Modal] REJECT (user click):', request.requestId)
+    stopTimer()
+    dismissedRef.current = true
+    onReject()
   }
 
   const risk = request.risk || 'medium'
@@ -179,7 +211,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
           </button>
         )}
         <button
-          onClick={onReject}
+          onClick={handleReject}
           style={{
             padding: '6px 16px', borderRadius: '4px', border: 'none',
             background: '#e74c3c', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500

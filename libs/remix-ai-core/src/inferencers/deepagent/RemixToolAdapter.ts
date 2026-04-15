@@ -102,10 +102,13 @@ export class ToolApprovalGate {
     this.policy = policy
 
     this.eventEmitter.on('onToolApprovalResponse', (response: ToolApprovalResponse) => {
+      console.log('[HITL][ApprovalGate] Received response for:', response.requestId, 'approved:', response.approved)
       const pending = this.pendingApprovals.get(response.requestId)
       if (pending) {
         pending.resolve(response.approved, response.modifiedArgs)
         this.pendingApprovals.delete(response.requestId)
+      } else {
+        console.log('[HITL][ApprovalGate] No pending approval for this requestId (handled by Backend?)')
       }
     })
   }
@@ -118,13 +121,18 @@ export class ToolApprovalGate {
    * Wrap a tool's func so risky calls require user approval first.
    */
   wrap(toolName: string, originalFunc: (args: Record<string, any>) => Promise<string>): (args: Record<string, any>) => Promise<string> {
-    if (isSafeTool(toolName)) return originalFunc
+    if (isSafeTool(toolName)) {
+      console.log('[HITL][ApprovalGate] Safe tool, no wrap needed:', toolName)
+      return originalFunc
+    }
 
     return async (args: Record<string, any>): Promise<string> => {
       if (!shouldRequireApproval(toolName, this.policy)) {
+        console.log('[HITL][ApprovalGate] Policy allows auto-approve for:', toolName)
         return originalFunc(args)
       }
 
+      console.log('[HITL][ApprovalGate] Requesting approval for MCP tool:', toolName, 'args:', Object.keys(args))
       const meta = getToolMetadata(toolName)
       const requestId = `approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
@@ -150,6 +158,7 @@ export class ToolApprovalGate {
         timestamp: Date.now()
       }
 
+      console.log('[HITL][ApprovalGate] Emitting approval request:', requestId, 'for:', toolName)
       // Wait for user decision
       const { approved, modifiedArgs } = await new Promise<{ approved: boolean; modifiedArgs?: Record<string, any> }>(
         (resolve) => {
@@ -160,8 +169,9 @@ export class ToolApprovalGate {
         }
       )
 
+      console.log('[HITL][ApprovalGate] User decision for', toolName, ':', approved ? 'APPROVED' : 'REJECTED')
       if (!approved) {
-        return JSON.stringify({ cancelled: true, reason: 'User rejected the action' })
+        return JSON.stringify({ cancelled: true, reason: `REJECTED: The user rejected this ${toolName} operation.` })
       }
 
       return originalFunc(modifiedArgs || args)
@@ -248,24 +258,31 @@ export class RemixToolAdapter {
         // Convert inputSchema to Zod schema
         const zodSchema = jsonSchemaToZod(tool.inputSchema)
 
+        let func = async (input: Record<string, any>): Promise<string> => {
+          try {
+            const toolCall: IMCPToolCall = {
+              name: tool.name,
+              arguments: input
+            }
+
+            const result: IMCPToolResult = await mcpInferencer.executeTool(serverName, toolCall)
+            return mcpResultToString(result)
+          } catch (error) {
+            return `Tool execution error: ${error.message}`
+          }
+        }
+
+        // Wrap risky MCP tools with approval gate (file_write, file_create, etc.)
+        if (this.approvalGate) {
+          console.log(`[HITL][ToolAdapter] Wrapping MCP tool with approval gate: ${tool.name}`)
+          func = this.approvalGate.wrap(tool.name, func)
+        }
+
         const langChainTool = new DynamicStructuredTool({
           name: tool.name,
           description: `[${serverName}] ${tool.description}`,
           schema: zodSchema,
-          func: async (input: Record<string, any>) => {
-            try {
-              // Execute tool through MCPInferencer
-              const toolCall: IMCPToolCall = {
-                name: tool.name,
-                arguments: input
-              }
-
-              const result: IMCPToolResult = await mcpInferencer.executeTool(serverName, toolCall)
-              return mcpResultToString(result)
-            } catch (error) {
-              return `Tool execution error: ${error.message}`
-            }
-          }
+          func
         })
 
         tools.push(langChainTool)

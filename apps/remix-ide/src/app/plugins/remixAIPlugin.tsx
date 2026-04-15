@@ -103,7 +103,7 @@ export class RemixAIPlugin extends Plugin {
 
     // Human-in-the-loop: relay approval requests to UI
     eventEmitter.on('onToolApprovalRequired', (request: any) => {
-      console.log('[HITL] Plugin relaying approval request to UI:', request.requestId)
+      console.log('[HITL][Plugin][Step 5] Relaying approval request to UI:', request.requestId, 'tool:', request.toolName, 'path:', request.filePath)
       this.emit('onToolApprovalRequired', request)
     })
 
@@ -835,7 +835,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   respondToToolApproval(response: { requestId: string; approved: boolean; modifiedArgs?: Record<string, any> }): void {
-    console.log('[HITL] Plugin forwarding approval response to agent:', response.requestId, response.approved)
+    console.log('[HITL][Plugin][Step 6] Forwarding approval response to Backend:', response.requestId, 'approved:', response.approved, 'hasModifiedArgs:', !!response.modifiedArgs)
     if (this.deepAgentInferencer) {
       this.deepAgentInferencer.getEventEmitter().emit('onToolApprovalResponse', response)
     }
