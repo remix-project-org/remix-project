@@ -15,7 +15,8 @@ import {
   ToolApprovalPolicy,
   shouldRequireApproval,
   getToolMetadata,
-  isSafeTool
+  isSafeTool,
+  DIRECT_WRITE_TOOLS
 } from '../../types/humanInTheLoop'
 
 /**
@@ -102,13 +103,13 @@ export class ToolApprovalGate {
     this.policy = policy
 
     this.eventEmitter.on('onToolApprovalResponse', (response: ToolApprovalResponse) => {
-      console.log('[HITL][ApprovalGate] Received response for:', response.requestId, 'approved:', response.approved)
+
       const pending = this.pendingApprovals.get(response.requestId)
       if (pending) {
         pending.resolve(response.approved, response.modifiedArgs)
         this.pendingApprovals.delete(response.requestId)
       } else {
-        console.log('[HITL][ApprovalGate] No pending approval for this requestId (handled by Backend?)')
+
       }
     })
   }
@@ -119,31 +120,59 @@ export class ToolApprovalGate {
 
   /**
    * Wrap a tool's func so risky calls require user approval first.
+   * For file-write MCP tools, after approval, writes directly to avoid
+   * the handler's internal showCustomDiff (which would cause double-approval).
    */
   wrap(toolName: string, originalFunc: (args: Record<string, any>) => Promise<string>): (args: Record<string, any>) => Promise<string> {
     if (isSafeTool(toolName)) {
-      console.log('[HITL][ApprovalGate] Safe tool, no wrap needed:', toolName)
+
       return originalFunc
     }
 
     return async (args: Record<string, any>): Promise<string> => {
       if (!shouldRequireApproval(toolName, this.policy)) {
-        console.log('[HITL][ApprovalGate] Policy allows auto-approve for:', toolName)
+
         return originalFunc(args)
       }
 
-      console.log('[HITL][ApprovalGate] Requesting approval for MCP tool:', toolName, 'args:', Object.keys(args))
+
       const meta = getToolMetadata(toolName)
       const requestId = `approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      const filePath = args.path || args.filePath
 
-      // For file writes, try to read existing content for diff
+      // === Compute existingContent and proposedContent for the approval modal ===
       let existingContent: string | undefined
-      if (meta.category === 'file_write' && args.path) {
+      let proposedContent: string | undefined
+
+      if (meta.category === 'file_write' && filePath) {
         try {
-          existingContent = await this.plugin.call('fileManager', 'readFile', args.path)
+          existingContent = await this.plugin.call('fileManager', 'readFile', filePath)
+
         } catch {
-          // file doesn't exist yet
+          // File doesn't exist yet — that's fine for file_create / file_write on new files
+
         }
+
+        if (toolName === 'file_replace') {
+          // file_replace uses regEx + contentToReplace, NOT content.
+          // Compute the full resulting file content so the user sees a proper diff.
+          if (existingContent && args.regEx && args.contentToReplace !== undefined) {
+            try {
+              proposedContent = existingContent.replace(new RegExp(args.regEx, 'g'), args.contentToReplace)
+
+            } catch (regexErr) {
+              console.warn('[HITL][ApprovalGate] file_replace: regex failed:', regexErr)
+              proposedContent = undefined
+            }
+          }
+        } else {
+          // file_write, file_create: content is in args.content or args.data
+          proposedContent = args.content || args.data
+
+        }
+      } else {
+        // Non-file tools — just use content/data if present
+        proposedContent = args.content || args.data
       }
 
       const request: ToolApprovalRequest = {
@@ -153,12 +182,13 @@ export class ToolApprovalGate {
         category: meta.category,
         risk: meta.risk,
         existingContent,
-        proposedContent: args.content || args.data,
-        filePath: args.path || args.filePath,
+        proposedContent,
+        filePath,
         timestamp: Date.now()
       }
 
-      console.log('[HITL][ApprovalGate] Emitting approval request:', requestId, 'for:', toolName)
+      console.log('[HITL][ApprovalGate] Requesting approval:', requestId, 'tool:', toolName, 'path:', filePath)
+
       // Wait for user decision
       const { approved, modifiedArgs } = await new Promise<{ approved: boolean; modifiedArgs?: Record<string, any> }>(
         (resolve) => {
@@ -169,12 +199,52 @@ export class ToolApprovalGate {
         }
       )
 
-      console.log('[HITL][ApprovalGate] User decision for', toolName, ':', approved ? 'APPROVED' : 'REJECTED')
+      console.log('[HITL][ApprovalGate] User decision for', toolName, ':', approved ? 'APPROVED' : 'REJECTED',
+        'hasModifiedArgs:', !!modifiedArgs)
+
       if (!approved) {
-        return JSON.stringify({ cancelled: true, reason: `REJECTED: The user rejected this ${toolName} operation.` })
+        return JSON.stringify({ cancelled: true, reason: `REJECTED: The user explicitly rejected this ${toolName} operation. Do NOT retry this operation or use alternative tools/methods. Inform the user and move on.` })
       }
 
-      return originalFunc(modifiedArgs || args)
+      const finalArgs = modifiedArgs || args
+
+      // === DIRECT WRITE: For file-write MCP tools, write directly via fileManager ===
+      // This bypasses the handler's execute() which would call showCustomDiff and
+      // create a double-approval situation.
+      if (DIRECT_WRITE_TOOLS.has(toolName) && filePath) {
+
+        try {
+          if (toolName === 'file_replace') {
+            // Re-compute the replacement with (possibly modified) args
+            const currentContent = await this.plugin.call('fileManager', 'readFile', filePath)
+            const resultContent = currentContent.replace(
+              new RegExp(finalArgs.regEx, 'g'),
+              finalArgs.contentToReplace
+            )
+            await this.plugin.call('fileManager', 'writeFile', filePath, resultContent)
+
+            return JSON.stringify({ success: true, path: filePath, message: 'File replaced successfully' })
+
+          } else {
+            // file_write or file_create
+            const content = finalArgs.content || finalArgs.data || ''
+            const exists = await this.plugin.call('fileManager', 'exists', filePath)
+            if (!exists) {
+              // Ensure parent directory structure is created (writeFile handles this)
+
+            }
+            await this.plugin.call('fileManager', 'writeFile', filePath, content)
+
+            return JSON.stringify({ success: true, path: filePath, message: 'File written successfully' })
+          }
+        } catch (writeErr) {
+          console.error('[HITL][ApprovalGate][DirectWrite] Write failed:', writeErr)
+          return JSON.stringify({ success: false, error: `Failed to write file: ${writeErr.message}` })
+        }
+      }
+
+      // === FALLBACK: For non-file tools, call the original handler as before ===
+      return originalFunc(finalArgs)
     }
   }
 
@@ -274,7 +344,7 @@ export class RemixToolAdapter {
 
         // Wrap risky MCP tools with approval gate (file_write, file_create, etc.)
         if (this.approvalGate) {
-          console.log(`[HITL][ToolAdapter] Wrapping MCP tool with approval gate: ${tool.name}`)
+
           func = this.approvalGate.wrap(tool.name, func)
         }
 

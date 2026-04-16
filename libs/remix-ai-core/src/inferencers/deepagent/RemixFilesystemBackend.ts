@@ -25,23 +25,28 @@ export class RemixFilesystemBackend {
   private eventEmitter: EventEmitter | null = null
   private pendingApprovals = new Map<string, (result: { approved: boolean; modifiedContent?: string }) => void>()
 
+  // Edit batching: accumulate edits per file, flush as one combined diff
+  private editBatches = new Map<string, {
+    originalContent: string
+    virtualContent: string
+    totalEdits: number
+  }>()
+
   constructor(plugin: Plugin, eventEmitter?: EventEmitter) {
     this.plugin = plugin
-    console.log('[HITL][Backend] Constructor called, eventEmitter:', !!eventEmitter)
+
     if (eventEmitter) {
       this.eventEmitter = eventEmitter
       this.eventEmitter.on('onToolApprovalResponse', (response: ToolApprovalResponse) => {
-        console.log('[HITL][Backend][Step 7] Received approval response:', response.requestId, 'approved:', response.approved, 'hasModifiedArgs:', !!response.modifiedArgs)
         const resolve = this.pendingApprovals.get(response.requestId)
         if (resolve) {
-          console.log('[HITL][Backend][Step 8] Resolving pending promise for:', response.requestId)
           resolve({
             approved: response.approved,
             modifiedContent: response.modifiedArgs?.content
           })
           this.pendingApprovals.delete(response.requestId)
         } else {
-          console.warn('[HITL][Backend] WARNING: No pending approval found for requestId:', response.requestId, 'pendingKeys:', [...this.pendingApprovals.keys()])
+
         }
       })
     }
@@ -52,33 +57,60 @@ export class RemixFilesystemBackend {
     filePath: string, oldString: string, newString: string, replaceAll = false
   ): Promise<{ error?: string; occurrences?: number; metadata?: any; filesUpdate?: any }> {
 
-    console.log('[HITL][Backend] edit() called:', filePath, 'replaceAll:', replaceAll)
+
     try {
-      const content = await this.read_file(filePath)
-      if (typeof content !== 'string') {
-        console.log('[HITL][Backend] edit() read_file returned error:', content)
-        return { error: `Failed to read file: ${(content as any).error || 'unknown error'}` }
+      // If there are pending edits for a DIFFERENT file, flush them first
+      for (const [batchFile] of this.editBatches) {
+        if (batchFile !== filePath) {
+
+          await this.flushEditBatch(batchFile)
+        }
       }
+
+      // Get content — either from an existing batch or from the filesystem
+      let batch = this.editBatches.get(filePath)
+      let content: string
+
+      if (batch) {
+        // Use virtual content from previous edits in this batch
+        content = batch.virtualContent
+
+      } else {
+        // First edit — read from filesystem and start a new batch
+        const readResult = await this.read_file(filePath)
+        if (typeof readResult !== 'string') {
+          return { error: `Failed to read file: ${(readResult as any).error || 'unknown error'}` }
+        }
+        content = readResult
+        batch = {
+          originalContent: content,
+          virtualContent: content,
+          totalEdits: 0
+        }
+        this.editBatches.set(filePath, batch)
+
+      }
+
+      // Check if oldString exists in the virtual content
       if (!content.includes(oldString)) {
-        console.log('[HITL][Backend] edit() oldString not found in file')
+
         return { error: `Text not found in file: "${oldString.substring(0, 50)}..."` }
       }
+
+      // Apply replacement to virtual content
       const updated = replaceAll
         ? content.split(oldString).join(newString)
         : content.replace(oldString, newString)
       const occurrences = replaceAll
         ? (content.split(oldString).length - 1)
         : 1
-      console.log('[HITL][Backend] edit() applied', occurrences, 'replacement(s), requesting approval as edit_file')
 
-      const result = await this.requestWriteApproval(filePath, content, updated, 'edit_file')
-      if (!result.approved) {
+      batch.virtualContent = updated
+      batch.totalEdits += occurrences
 
-        return { error: `REJECTED: The user explicitly rejected editing ${filePath}. Do NOT retry or use alternative methods to edit this file. Ask the user what they want instead.` }
-      }
-      const finalContent = result.modifiedContent || updated
-      console.log('[HITL][Backend] edit() approved, hasModifiedContent:', !!result.modifiedContent, '→ writeFileInternal')
-      await this.writeFileInternal(filePath, finalContent)
+
+
+      // Return success immediately — approval will come later via flush
       return { occurrences }
     } catch (err) {
       console.error('[HITL][Backend] edit() error:', err)
@@ -87,9 +119,47 @@ export class RemixFilesystemBackend {
   }
 
   /**
+   * Flush accumulated edits for a file: show combined diff, request ONE approval.
+   */
+  private async flushEditBatch(filePath: string): Promise<void> {
+    const batch = this.editBatches.get(filePath)
+    if (!batch) return
+    this.editBatches.delete(filePath)
+
+    console.log('[HITL][Backend] flushEditBatch:', filePath, 'edits:', batch.totalEdits)
+
+    // Request ONE approval for the combined diff
+    const result = await this.requestWriteApproval(filePath, batch.originalContent, batch.virtualContent, 'edit_file')
+
+    if (!result.approved) {
+
+      // Revert: the file still has original content (we never wrote during batching)
+      return
+    }
+
+    const finalContent = result.modifiedContent || batch.virtualContent
+
+    await this.writeFileInternal(filePath, finalContent)
+  }
+
+  /**
+   * Flush ALL pending edit batches. Called before any non-edit backend method
+   * to ensure the user approves all accumulated edits before the agent moves on.
+   */
+  public async flushAllPendingBatches(): Promise<void> {
+    const files = [...this.editBatches.keys()]
+    if (files.length === 0) return
+
+    for (const file of files) {
+      await this.flushEditBatch(file)
+    }
+  }
+
+  /**
    * Get current working directory
    */
   async cwd(): Promise<string> {
+    await this.flushAllPendingBatches()
     try {
       // Try to get the current file's directory
       const currentFile = await this.plugin.call('fileManager', 'getCurrentFile')
@@ -111,17 +181,25 @@ export class RemixFilesystemBackend {
    */
   async read_file(path: string): Promise<string | { error: string }> {
     try {
-      console.log('[HITL][Backend] read_file:', path)
+
+
+      // If there are pending batched edits for this file, return the virtual content
+      const batch = this.editBatches.get(path)
+      if (batch) {
+
+        return batch.virtualContent
+      }
+
       const normalizedPath = path
       const exists = await this.plugin.call('fileManager', 'exists', normalizedPath)
 
       if (!exists) {
-        console.log('[HITL][Backend] read_file: file not found:', path)
+
         throw new Error(`File not found: ${path}`)
       }
 
       const content = await this.plugin.call('fileManager', 'readFile', normalizedPath)
-      console.log('[HITL][Backend] read_file: OK, length:', content.length)
+
 
       if (content.length > MAX_FILE_SIZE) {
         return this.summarizeFile(normalizedPath, content)
@@ -154,31 +232,32 @@ export class RemixFilesystemBackend {
    * Called by deepagents built-in write_file tool and our write() alias.
    */
   async write_file(path: string, content: string): Promise<{ success?: boolean, error?: string }> {
-    console.log('[HITL][Backend][Step 1] write_file called:', path, 'contentLength:', content.length)
+    await this.flushAllPendingBatches()
+
 
     try {
       const normalizedPath = path
       const exists = await this.plugin.call('fileManager', 'exists', normalizedPath)
-      console.log('[HITL][Backend][Step 1] file exists:', exists)
+
 
       let oldContent = ''
       if (exists) {
         oldContent = await this.plugin.call('fileManager', 'readFile', normalizedPath)
-        console.log('[HITL][Backend][Step 1] old content length:', oldContent.length)
+
       }
 
-      console.log('[HITL][Backend][Step 2] Requesting approval as write_file...')
+
       const result = await this.requestWriteApproval(normalizedPath, oldContent, content, 'write_file')
-      console.log('[HITL][Backend][Step 9] Approval result:', result.approved, 'hasModifiedContent:', !!result.modifiedContent)
+
 
       if (!result.approved) {
-        return { error: `REJECTED: The user rejected writing to ${path}.` }
+        return { error: `REJECTED: The user explicitly rejected writing to ${path}. Do NOT retry this operation or use alternative tools/methods to write this file. Inform the user and move on.` }
       }
 
       const finalContent = result.modifiedContent || content
-      console.log('[HITL][Backend][Step 10] Writing file via writeFileInternal:', path, 'finalLength:', finalContent.length)
+
       await this.writeFileInternal(normalizedPath, finalContent)
-      console.log('[HITL][Backend][Step 11] File written successfully:', path)
+
       return { success: true }
     } catch (error) {
       console.error('[HITL][Backend] write_file ERROR:', path, error)
@@ -187,7 +266,7 @@ export class RemixFilesystemBackend {
   }
 
   async write(file_path: string, content: string): Promise<any> {
-    console.log('[HITL][Backend] write() alias called → delegating to write_file:', file_path)
+
     return await this.write_file(file_path, content)
   }
 
@@ -195,7 +274,7 @@ export class RemixFilesystemBackend {
    * Internal write — bypasses approval (used after approval has already been granted).
    */
   private async writeFileInternal(path: string, content: string): Promise<void> {
-    console.log('[HITL][Backend] writeFileInternal (no approval):', path)
+
     await this.plugin.call('fileManager', 'writeFile', path, content)
   }
 
@@ -204,14 +283,15 @@ export class RemixFilesystemBackend {
    * Goes through HITL approval showing the full before/after diff.
    */
   async edit_file(path: string, edits: EditInstruction[]): Promise<{ success?: boolean, error?: string }> {
-    console.log('[HITL][Backend] edit_file() called:', path, 'edits:', edits.length)
+    await this.flushAllPendingBatches()
+
 
     try {
       const normalizedPath = this.normalizePath(path)
       const originalContent = await this.read_file(normalizedPath)
 
       if (typeof originalContent !== 'string') {
-        console.log('[HITL][Backend] edit_file(): read failed:', originalContent)
+
         return { error: `Failed to read file: ${(originalContent as any).error}` }
       }
 
@@ -219,22 +299,22 @@ export class RemixFilesystemBackend {
       for (const edit of edits) {
         const { oldText, newText } = edit
         if (!content.includes(oldText)) {
-          console.log('[HITL][Backend] edit_file(): oldText not found:', oldText.substring(0, 50))
+
           return { error: `Text not found in file: "${oldText.substring(0, 50)}..."` }
         }
         content = content.replace(oldText, newText)
       }
 
-      console.log('[HITL][Backend] edit_file(): all edits applied, requesting approval as edit_file')
+
       const result = await this.requestWriteApproval(normalizedPath, originalContent, content, 'edit_file')
       if (!result.approved) {
-        return { error: `REJECTED: The user rejected editing ${path}.` }
+        return { error: `REJECTED: The user explicitly rejected editing ${path}. Do NOT retry this operation or use alternative tools/methods to edit this file. Inform the user and move on.` }
       }
 
       const finalContent = result.modifiedContent || content
-      console.log('[HITL][Backend] edit_file(): approved, writing...')
+
       await this.writeFileInternal(normalizedPath, finalContent)
-      console.log('[HITL][Backend] edit_file(): done')
+
       return { success: true }
     } catch (error) {
       console.error('[HITL][Backend] edit_file() ERROR:', error)
@@ -246,8 +326,9 @@ export class RemixFilesystemBackend {
    * List directory contents
    */
   async ls(path?: string): Promise<string[]> {
+    await this.flushAllPendingBatches()
     try {
-      console.log('[HITL][Backend] ls:', path || 'cwd')
+
       const targetPath = path ? this.normalizePath(path) : await this.cwd()
 
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
@@ -271,6 +352,7 @@ export class RemixFilesystemBackend {
   }
 
   async lsInfo(path?: string): Promise<{ name: string, path: string, is_dir: boolean }[]> {
+    await this.flushAllPendingBatches()
     try {
       const targetPath = path ? this.normalizePath(path) : await this.cwd()
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
@@ -300,6 +382,7 @@ export class RemixFilesystemBackend {
    * Create a new directory
    */
   async mkdir(path: string): Promise<void> {
+    await this.flushAllPendingBatches()
     try {
       const normalizedPath = this.normalizePath(path)
       await this.plugin.call('fileManager', 'mkdir', normalizedPath)
@@ -308,6 +391,7 @@ export class RemixFilesystemBackend {
   }
 
   async globInfo(pattern: string, path?: string): Promise<{ name: string, path: string, is_dir: boolean }[]> {
+    await this.flushAllPendingBatches()
     try {
       const targetPath = path ? this.normalizePath(path) : await this.cwd()
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
@@ -509,7 +593,7 @@ export class RemixFilesystemBackend {
     }
 
     const requestId = `fs_approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    console.log('[HITL][Backend][Step 3] requestWriteApproval:', requestId, 'toolName:', toolName, 'path:', path, 'oldLen:', oldContent.length, 'newLen:', newContent.length)
+    console.log('[HITL][Backend] requestWriteApproval:', requestId, 'tool:', toolName, 'path:', path)
 
     const request: ToolApprovalRequest = {
       requestId,
@@ -523,7 +607,7 @@ export class RemixFilesystemBackend {
       timestamp: Date.now()
     }
 
-    console.log('[HITL][Backend][Step 4] Emitting onToolApprovalRequired, waiting for response...')
+
     return new Promise<{ approved: boolean; modifiedContent?: string }>((resolve) => {
       this.pendingApprovals.set(requestId, resolve)
       this.eventEmitter.emit('onToolApprovalRequired', request)

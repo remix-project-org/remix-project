@@ -75,7 +75,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         const value = Reflect.get(target, prop, receiver)
         if (typeof value === 'function') {
           return function (...args: any[]) {
-            console.log(`[HITL][Proxy] Backend.${String(prop)}() called with`, args.length, 'args:', args.map(a => typeof a === 'string' ? a.substring(0, 80) : a))
+
             return value.apply(target, args)
           }
         }
@@ -450,7 +450,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         } else if (eventType === 'on_tool_start') {
           const toolName = event.name
           console.log(`[DeepAgentInferencer] ★ TOOL START: ${toolName}`, JSON.stringify(event.data?.input || {}).substring(0, 200))
-          this.event.emit('onStreamResult', `\n[Using tool: ${toolName}]\n`)
+          console.log('onStreamResult', `\n[Using tool: ${toolName}]\n`)
         } else if (eventType === 'on_tool_end') {
           const toolName = event.name
           console.log(`[DeepAgentInferencer] ★ TOOL END: ${toolName}`, JSON.stringify(event.data?.output || '').substring(0, 200))
@@ -464,7 +464,12 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         fullResponse = finalMessageFromChain
       }
 
-      console.log('[DeepAgentInferencer] Stream complete, full response length:', fullResponse.length)
+      // Flush any pending edit batches — this triggers the HITL modal immediately
+      // after the agent finishes, so the user sees the combined diff right away
+
+      await (this.filesystemBackend as any).flushAllPendingBatches()
+
+      console.log('[DeepAgentInferencer] Full response length:', fullResponse.length)
       return fullResponse
     } catch (error) {
       console.error('[DeepAgentInferencer] Error during agent execution:', error)

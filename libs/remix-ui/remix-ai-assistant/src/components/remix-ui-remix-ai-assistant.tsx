@@ -84,6 +84,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   const [mcpEnhanced, setMcpEnhanced] = useState(mcpEnabled)
   const [pendingApproval, setPendingApproval] = useState<ToolApprovalRequest | null>(null)
+  const approvalQueueRef = useRef<ToolApprovalRequest[]>([])
+  // Tracks if user is currently reviewing changes in the editor via showCustomDiff
+  const [isReviewingInEditor, setIsReviewingInEditor] = useState(false)
+  const pendingDiffApprovalRef = useRef<{ requestId: string; filePath: string } | null>(null)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = AIEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
@@ -344,10 +348,20 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     props.plugin.on('remixAI', 'onStreamResult', handleStreamChunk)
     props.plugin.on('remixAI', 'onStreamComplete', handleStreamComplete)
 
-    // Human-in-the-loop: listen for tool approval requests
+    // Human-in-the-loop: listen for tool approval requests (queued)
     const handleToolApproval = (request: ToolApprovalRequest) => {
-      console.log('[HITL][UI][Step 5b] Received approval request:', request.requestId, 'tool:', request.toolName, 'path:', request.filePath)
-      setPendingApproval(request)
+
+      // If no modal is currently showing, display immediately.
+      // Otherwise queue it — setPendingApproval(next) is called after approve/reject.
+      setPendingApproval(prev => {
+        if (prev === null) {
+
+          return request
+        }
+
+        approvalQueueRef.current.push(request)
+        return prev  // keep the current modal
+      })
     }
     props.plugin.on('remixAI', 'onToolApprovalRequired', handleToolApproval)
 
@@ -408,27 +422,139 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }
 
-  const handleApproveToolAction = useCallback((modifiedArgs?: Record<string, any>) => {
+  // Helper: after handling the current approval, show the next queued one (if any)
+  const advanceApprovalQueue = useCallback(() => {
+    setIsReviewingInEditor(false)
+    pendingDiffApprovalRef.current = null
+    const next = approvalQueueRef.current.shift()
+    if (next) {
+
+      setPendingApproval(next)
+    } else {
+      setPendingApproval(null)
+    }
+  }, [])
+
+  /**
+   * Open showCustomDiff in the editor for line-by-line review.
+   * The agent stays blocked until the user clicks Accept All or Reject All.
+   */
+  const handleReviewChanges = useCallback(async () => {
     if (!pendingApproval) return
-    console.log('[HITL][UI][Step 6a] User APPROVED:', pendingApproval.requestId, 'hasModifiedArgs:', !!modifiedArgs)
-    if (modifiedArgs) console.log('[HITL][UI] modifiedArgs keys:', Object.keys(modifiedArgs))
+    const { proposedContent, requestId } = pendingApproval
+    let { filePath } = pendingApproval
+    if (!filePath || !proposedContent) {
+      console.warn('[HITL][Review] Cannot open review — missing filePath or proposedContent')
+      return
+    }
+
+    // Normalize path: Remix fileManager expects paths without leading '/'
+    // (e.g. 'contracts/X.sol', not '/contracts/X.sol')
+    const normalizedPath = filePath.replace(/^\/+/, '')
+
+
+    try {
+      // For new files: create empty file and open it (same as Stefan's handler pattern)
+      const exists = await props.plugin.call('fileManager', 'exists', normalizedPath)
+      if (!exists) {
+
+        await props.plugin.call('fileManager', 'writeFile', normalizedPath, '')
+      }
+      await props.plugin.call('fileManager', 'open', normalizedPath)
+
+      // Store pending state before calling showCustomDiff
+      pendingDiffApprovalRef.current = { requestId, filePath: normalizedPath }
+      setIsReviewingInEditor(true)
+
+      // Call showCustomDiff — this shows inline diff with Accept/Decline widgets
+      await props.plugin.call('editor', 'showCustomDiff', normalizedPath, proposedContent)
+
+    } catch (err) {
+      console.error('[HITL][Review] Failed to open showCustomDiff:', err)
+      // Fallback: reset reviewing state so the modal buttons are usable again
+      setIsReviewingInEditor(false)
+      pendingDiffApprovalRef.current = null
+    }
+  }, [pendingApproval, props.plugin])
+
+  // Listen for Accept All / Reject All events from the editor
+  useEffect(() => {
+    const handleDiffAccepted = async (file: string) => {
+      const pending = pendingDiffApprovalRef.current
+      if (!pending) return
+
+
+      // Read the final editor model content (includes selective accept/decline)
+      let finalContent: string | undefined
+      try {
+        finalContent = await props.plugin.call('editor', 'getText')
+
+      } catch (err) {
+        console.warn('[HITL][Review] Could not read editor text, using proposedContent as fallback')
+      }
+
+      // Send approval with the final content as modifiedArgs
+      const modifiedArgs = finalContent ? { content: finalContent } : undefined
+      props.plugin.call('remixAI', 'respondToToolApproval', {
+        requestId: pending.requestId,
+        approved: true,
+        modifiedArgs
+      })
+
+      advanceApprovalQueue()
+    }
+
+    const handleDiffRejected = (file: string) => {
+      const pending = pendingDiffApprovalRef.current
+      if (!pending) return
+
+
+      props.plugin.call('remixAI', 'respondToToolApproval', {
+        requestId: pending.requestId,
+        approved: false
+      })
+
+      advanceApprovalQueue()
+    }
+
+    props.plugin.on('editor', 'customDiffAccepted', handleDiffAccepted)
+    props.plugin.on('editor', 'customDiffRejected', handleDiffRejected)
+
+    return () => {
+      props.plugin.off('editor', 'customDiffAccepted')
+      props.plugin.off('editor', 'customDiffRejected')
+    }
+  }, [props.plugin, advanceApprovalQueue])
+
+  const handleApproveToolAction = useCallback(async (modifiedArgs?: Record<string, any>) => {
+    if (!pendingApproval) return
+
+
     props.plugin.call('remixAI', 'respondToToolApproval', {
       requestId: pendingApproval.requestId,
       approved: true,
       modifiedArgs
     })
-    setPendingApproval(null)
-  }, [pendingApproval, props.plugin])
+    advanceApprovalQueue()
+  }, [pendingApproval, props.plugin, advanceApprovalQueue])
 
-  const handleRejectToolAction = useCallback(() => {
+  const handleRejectToolAction = useCallback(async () => {
     if (!pendingApproval) return
-    console.log('[HITL][UI][Step 6a] User REJECTED:', pendingApproval.requestId)
+
+
+    // If reviewing in editor, the reject came from the modal's Reject button (shouldn't happen normally)
+    // Reset reviewing state
+    if (isReviewingInEditor) {
+      setIsReviewingInEditor(false)
+      pendingDiffApprovalRef.current = null
+    }
+
     props.plugin.call('remixAI', 'respondToToolApproval', {
       requestId: pendingApproval.requestId,
       approved: false
     })
-    setPendingApproval(null)
-  }, [pendingApproval, props.plugin])
+    advanceApprovalQueue()
+  }, [pendingApproval, props.plugin, advanceApprovalQueue, isReviewingInEditor])
 
   // Push a queued message (if any) into history once props update
   useEffect(() => {
@@ -1215,6 +1341,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       request={pendingApproval}
                       onApprove={handleApproveToolAction}
                       onReject={handleRejectToolAction}
+                      onReviewChanges={handleReviewChanges}
+                      isReviewing={isReviewingInEditor}
                     />
                   </div>
                 )}
@@ -1303,6 +1431,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         request={pendingApproval}
                         onApprove={handleApproveToolAction}
                         onReject={handleRejectToolAction}
+                        onReviewChanges={handleReviewChanges}
+                        isReviewing={isReviewingInEditor}
                       />
                     </div>
                   )}

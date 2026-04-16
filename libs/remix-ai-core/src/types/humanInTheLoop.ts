@@ -39,7 +39,17 @@ const SAFE_TOOLS = new Set([
   'get_contract_abi', 'get_compiler_config',
   'compile_solidity', 'solidity_compile', 'analyze_contract',
   'dapp_list', 'dapp_get_status', 'dapp_open', 'dapp_navigate',
-  'get_deployed_contracts', 'debug_transaction'
+  'get_deployed_contracts', 'debug_transaction',
+  'file_exists' // read-only check, no side effects
+])
+
+/**
+ * Tools where ToolApprovalGate should write the file directly after approval,
+ * bypassing the handler's execute() which would trigger a second review via showCustomDiff.
+ * This prevents the double-approval problem.
+ */
+export const DIRECT_WRITE_TOOLS = new Set([
+  'file_write', 'file_create', 'file_replace'
 ])
 
 const TOOL_METADATA: Record<string, { category: ToolCategory; risk: ToolRisk }> = {

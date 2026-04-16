@@ -410,15 +410,16 @@ export const EditorUI = (props: EditorUIProps) => {
    * currentFileRef.current is the previous file, props.currentFile is the new file.
    */
   useEffect(() => {
+    // Process pending diffs for the new file (works even on first file open when currentFileRef is undefined)
+    if (props.currentFile && pendingCustomDiff.current[props.currentFile]) {
+      const pendingDiff = pendingCustomDiff.current[props.currentFile]
+
+      showCustomDiff(pendingDiff, props.currentFile, editorRef.current, monacoRef.current, addDecoratorCollection, addAcceptDeclineWidget, setDecoratorListCollection, acceptHandler, rejectHandler, acceptAllHandler, rejectAllHandler, setCurrentDiffFile, changedTypeMap.current)
+      delete pendingCustomDiff.current[props.currentFile]
+    }
+
     if (currentFileRef.current) {
       if (props.currentFile !== currentFileRef.current) {
-
-        // add the widgets that are still pending to be applied
-        const pendingDiff = pendingCustomDiff.current[props.currentFile]
-        if (pendingDiff) {
-          showCustomDiff(pendingDiff, props.currentFile, editorRef.current, monacoRef.current, addDecoratorCollection, addAcceptDeclineWidget, setDecoratorListCollection, acceptHandler, rejectHandler, acceptAllHandler, rejectAllHandler, setCurrentDiffFile, changedTypeMap.current)
-          delete pendingCustomDiff.current[props.currentFile]
-        }
         // restore the widgets if they exist to the new file and were already applied
         const restoredWidgets = disposedWidgets[props.currentFile]
         if (restoredWidgets) {
@@ -804,7 +805,15 @@ export const EditorUI = (props: EditorUIProps) => {
     const currentContent = await props.plugin.call('fileManager', 'readFile', file)
     const diff = diffLines(currentContent, content)
     const changes: ChangeType[] = extractLineNumberRangesWithText(diff)
-    if (props.currentFile === file) {
+
+    // Use fileManager.getCurrentFile() instead of props.currentFile (React prop lags behind)
+    let activeFile: string | undefined
+    try {
+      activeFile = await props.plugin.call('fileManager', 'getCurrentFile')
+    } catch (e) { /* ignore */ }
+
+
+    if (activeFile === file) {
       showCustomDiff(changes, file, editorRef.current, monacoRef.current, addDecoratorCollection, addAcceptDeclineWidget, setDecoratorListCollection, acceptHandler, rejectHandler, acceptAllHandler, rejectAllHandler, setCurrentDiffFile, changedTypeMap.current)
     } else {
       pendingCustomDiff.current[file] = changes
@@ -1533,6 +1542,11 @@ export const EditorUI = (props: EditorUIProps) => {
     decoratorList.clear()
     setDecoratorListCollection(decoratorListCollection => {
       const { [widgetId]: _, ...rest } = decoratorListCollection
+      // If all widgets processed individually, emit accepted event
+      if (Object.keys(rest).length === 0) {
+
+        ;(props.plugin as any).emit('customDiffAccepted', currentDiffFile)
+      }
       return rest
     })
   }
@@ -1572,6 +1586,11 @@ export const EditorUI = (props: EditorUIProps) => {
     decoratorList.clear()
     setDecoratorListCollection(decoratorListCollection => {
       const { [widgetId]: _, ...rest } = decoratorListCollection
+      // If all widgets processed individually, emit rejected event
+      if (Object.keys(rest).length === 0) {
+
+        ;(props.plugin as any).emit('customDiffRejected', currentDiffFile)
+      }
       return rest
     })
   }
@@ -1587,6 +1606,10 @@ export const EditorUI = (props: EditorUIProps) => {
         getId: () => widgetId
       })
     })
+
+    // Notify HITL that all changes were accepted (no-op if nobody listens)
+
+    ;(props.plugin as any).emit('customDiffAccepted', currentDiffFile)
   }
 
   function rejectAllHandler() {
@@ -1600,6 +1623,10 @@ export const EditorUI = (props: EditorUIProps) => {
         getId: () => widgetId
       })
     })
+
+    // Notify HITL that all changes were rejected (no-op if nobody listens)
+
+    ;(props.plugin as any).emit('customDiffRejected', currentDiffFile)
   }
 
   function addDecoratorCollection (widgetId: string, ranges: monacoTypes.IRange[]): monacoTypes.editor.IEditorDecorationsCollection {

@@ -5,6 +5,10 @@ interface ToolApprovalModalProps {
   request: ToolApprovalRequest
   onApprove: (modifiedArgs?: Record<string, any>) => void
   onReject: () => void
+  /** Triggers showCustomDiff in the editor for line-by-line review */
+  onReviewChanges?: () => void
+  /** Whether the user is currently reviewing changes in the editor */
+  isReviewing?: boolean
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -28,10 +32,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   other: '🔧'
 }
 
-export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, onApprove, onReject }) => {
-  const [showDiff, setShowDiff] = useState(!!request.existingContent)
-  const [editMode, setEditMode] = useState(false)
-  const [editedContent, setEditedContent] = useState(request.proposedContent || '')
+export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, onApprove, onReject, onReviewChanges, isReviewing }) => {
   const [timeLeft, setTimeLeft] = useState(60)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const dismissedRef = useRef(false)
@@ -43,10 +44,9 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
     }
   }
 
-  // Auto-reject after 60 seconds
+  // Auto-reject after 60 seconds (paused while reviewing in editor)
   useEffect(() => {
-    console.log('[HITL][Modal] MOUNTED for:', request.requestId, 'tool:', request.toolName, 'path:', request.filePath)
-    // Reset state for StrictMode re-mount
+
     dismissedRef.current = false
     stopTimer()
 
@@ -69,166 +69,139 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
     }
   }, [request.requestId])
 
+  // Pause timer while reviewing in editor
+  useEffect(() => {
+    if (isReviewing) {
+      stopTimer()
+    }
+  }, [isReviewing])
+
   const handleApprove = () => {
+
     stopTimer()
     dismissedRef.current = true
-    if (editMode && editedContent !== request.proposedContent) {
-      const modified = { ...request.toolArgs }
-      if (modified.content !== undefined) modified.content = editedContent
-      else if (modified.data !== undefined) modified.data = editedContent
-      console.log('[HITL][Modal] APPROVE (edited):', request.requestId, 'modifiedKeys:', Object.keys(modified))
-      onApprove(modified)
-    } else {
-      console.log('[HITL][Modal] APPROVE (as-is):', request.requestId)
-      onApprove()
-    }
+    onApprove()
   }
 
   const handleReject = () => {
-    console.log('[HITL][Modal] REJECT (user click):', request.requestId)
+
     stopTimer()
     dismissedRef.current = true
     onReject()
   }
 
+  const handleReviewChanges = () => {
+
+    stopTimer()
+    onReviewChanges?.()
+  }
+
   const risk = request.risk || 'medium'
   const icon = CATEGORY_ICONS[request.category] || '🔧'
+  const isFileOperation = !!request.filePath
+  const isExistingFile = request.existingContent !== undefined && request.existingContent !== ''
+  const hasProposedContent = !!request.proposedContent
+  const canReview = isFileOperation && hasProposedContent && onReviewChanges
 
   return (
     <div style={{
       background: 'var(--secondary, #2d2d2d)',
       border: `1px solid ${RISK_COLORS[risk]}44`,
       borderRadius: '8px',
-      padding: '16px',
+      padding: '12px',
       marginTop: '8px',
       marginBottom: '8px',
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '20px' }}>{icon}</span>
-          <span style={{ fontWeight: 600 }}>Tool: {request.toolName}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '18px' }}>{icon}</span>
+          <span style={{ fontWeight: 600, fontSize: '13px' }}>Tool: {request.toolName}</span>
           <span style={{
-            fontSize: '11px',
-            padding: '2px 8px',
-            borderRadius: '10px',
+            fontSize: '10px',
+            padding: '1px 6px',
+            borderRadius: '8px',
             backgroundColor: `${RISK_COLORS[risk]}22`,
             color: RISK_COLORS[risk],
             fontWeight: 500
           }}>
             {RISK_LABELS[risk]}
           </span>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted, #999)' }}>
+        </div>
+        {!isReviewing && (
+          <span style={{ fontSize: '11px', color: 'var(--text-muted, #999)' }}>
             {timeLeft}s
           </span>
-        </div>
+        )}
       </div>
 
       {/* File path */}
       {request.filePath && (
         <div style={{ fontSize: '12px', color: 'var(--text-muted, #aaa)', marginBottom: '8px' }}>
-          {request.category === 'file_delete' ? 'Delete' : 'Write'}: <code>{request.filePath}</code>
+          {request.category === 'file_delete' ? 'Delete' : isExistingFile ? 'Edit' : 'Create'}: <code>{request.filePath}</code>
+          {!isExistingFile && <span style={{ color: '#27ae60', marginLeft: '6px', fontSize: '11px' }}>(new file)</span>}
         </div>
       )}
 
-      {/* Args summary (non-file tools) */}
+      {/* Args summary (non-file tools only) */}
       {!request.filePath && (
-        <div style={{ fontSize: '12px', marginBottom: '8px', maxHeight: '80px', overflow: 'auto' }}>
+        <div style={{ fontSize: '12px', marginBottom: '8px', maxHeight: '60px', overflow: 'auto' }}>
           <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text, #ccc)' }}>
             {JSON.stringify(request.toolArgs, null, 2)}
           </pre>
         </div>
       )}
 
-      {/* Diff view */}
-      {showDiff && request.existingContent !== undefined && request.proposedContent && (
-        <div style={{ marginBottom: '12px', fontSize: '12px', maxHeight: '200px', overflow: 'auto' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 500, marginBottom: '4px', color: '#e74c3c' }}>Before</div>
-              <pre style={{
-                margin: 0, padding: '8px', borderRadius: '4px',
-                background: 'var(--bg, #1e1e1e)', whiteSpace: 'pre-wrap',
-                border: '1px solid #e74c3c33', maxHeight: '150px', overflow: 'auto'
-              }}>
-                {request.existingContent || '(new file)'}
-              </pre>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 500, marginBottom: '4px', color: '#27ae60' }}>After</div>
-              <pre style={{
-                margin: 0, padding: '8px', borderRadius: '4px',
-                background: 'var(--bg, #1e1e1e)', whiteSpace: 'pre-wrap',
-                border: '1px solid #27ae6033', maxHeight: '150px', overflow: 'auto'
-              }}>
-                {editMode ? editedContent : request.proposedContent}
-              </pre>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit area */}
-      {editMode && (
-        <div style={{ marginBottom: '12px' }}>
-          <textarea
-            value={editedContent}
-            onChange={(e) => setEditedContent(e.target.value)}
-            style={{
-              width: '100%', minHeight: '100px', padding: '8px', borderRadius: '4px',
-              background: 'var(--bg, #1e1e1e)', color: 'var(--text, #ccc)',
-              border: '1px solid var(--border, #444)', fontFamily: 'monospace', fontSize: '12px',
-              resize: 'vertical'
-            }}
-          />
+      {/* Reviewing in Editor indicator */}
+      {isReviewing && (
+        <div style={{
+          fontSize: '12px',
+          color: '#3498db',
+          marginBottom: '8px',
+          padding: '6px 8px',
+          borderRadius: '4px',
+          background: '#3498db11',
+          border: '1px solid #3498db33',
+          textAlign: 'center'
+        }}>
+          🔍 Reviewing in Editor — Use <strong>Accept All</strong> or <strong>Reject All</strong> in the editor to finalize
         </div>
       )}
 
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-        {request.proposedContent && !showDiff && request.existingContent !== undefined && (
+      {!isReviewing && (
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
           <button
-            onClick={() => setShowDiff(true)}
+            onClick={handleReject}
             style={{
-              padding: '6px 12px', borderRadius: '4px', border: '1px solid var(--border, #555)',
-              background: 'transparent', color: 'var(--text, #ccc)', cursor: 'pointer', fontSize: '12px'
+              padding: '5px 14px', borderRadius: '4px', border: 'none',
+              background: '#e74c3c', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
             }}
           >
-            Show Diff
+            Reject
           </button>
-        )}
-        {request.proposedContent && (
           <button
-            onClick={() => setEditMode(!editMode)}
+            onClick={handleApprove}
             style={{
-              padding: '6px 12px', borderRadius: '4px', border: '1px solid var(--border, #555)',
-              background: 'transparent', color: 'var(--text, #ccc)', cursor: 'pointer', fontSize: '12px'
+              padding: '5px 14px', borderRadius: '4px', border: 'none',
+              background: '#27ae60', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
             }}
           >
-            {editMode ? 'Cancel Edit' : 'Edit'}
+            Approve
           </button>
-        )}
-        <button
-          onClick={handleReject}
-          style={{
-            padding: '6px 16px', borderRadius: '4px', border: 'none',
-            background: '#e74c3c', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
-          }}
-        >
-          Reject
-        </button>
-        <button
-          onClick={handleApprove}
-          style={{
-            padding: '6px 16px', borderRadius: '4px', border: 'none',
-            background: '#27ae60', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
-          }}
-        >
-          {editMode ? 'Approve (Edited)' : 'Approve'}
-        </button>
-      </div>
+          {canReview && (
+            <button
+              onClick={handleReviewChanges}
+              style={{
+                padding: '5px 14px', borderRadius: '4px', border: 'none',
+                background: '#3498db', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
+              }}
+            >
+              🔍 Review Changes
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
