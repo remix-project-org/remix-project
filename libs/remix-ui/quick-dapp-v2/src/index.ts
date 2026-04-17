@@ -2,3 +2,4 @@
 export * from './lib/quick-dapp-v2'
 export * from './lib/types'
 export * from './lib/contexts'
+export { DappManager } from './lib/utils/DappManager'

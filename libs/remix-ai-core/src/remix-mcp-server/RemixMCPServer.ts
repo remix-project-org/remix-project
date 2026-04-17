@@ -51,6 +51,7 @@ import { createTutorialsTools } from './handlers/TutorialsHandler';
 import { createAmpTools } from './handlers/AmpHandler';
 import { createMathUtilsTools } from './handlers/MathUtilsHandler';
 import { createFoundryHardhatTools } from './handlers/FoundryHardhatHandler';
+import { createDappTools } from './handlers/DappHandler';
 
 // Import resource providers
 import { ProjectResourceProvider } from './providers/ProjectResourceProvider';
@@ -689,7 +690,15 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
       // Additional tools
       'run_script': ['transaction:send'],
-      'simulate_transaction': ['transaction:simulate']
+      'simulate_transaction': ['transaction:simulate'],
+
+      // DApp management
+      'dapp_create': ['dapp:create'],
+      'dapp_update': ['dapp:update'],
+      'dapp_list': ['dapp:read'],
+      'dapp_open': ['dapp:read'],
+      'dapp_get_status': ['dapp:read'],
+      'dapp_navigate': ['dapp:read']
     };
 
     return defaultPermissionMap[operation] || [`tool:${operation}`];
@@ -850,6 +859,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
         const foundryHardhatTools = createFoundryHardhatTools();
         this._tools.registerBatch(foundryHardhatTools);
       }
+
+      // Register DApp management tools
+      const dappTools = createDappTools();
+      this._tools.registerBatch(dappTools);
 
       // Register Chartjs tool
       /*
