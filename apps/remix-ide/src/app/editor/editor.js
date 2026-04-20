@@ -717,7 +717,11 @@ export default class Editor extends Plugin {
   }
 
   async openDiff(change) {
-    // await this.call('fileManager', 'openFile', change.path)
+    const openedfiles = await this.call('fileManager', 'getOpenedFiles')
+    if (!openedfiles[change.path] || !openedfiles) {
+      await this.call('fileManager', 'openFile', change.path)
+      await new Promise(resolve => setTimeout(resolve, 500)) // wait for file to be opened and content to be loaded in the file manager
+    }
     const hashedPathModified = change.readonly ? change.path + change.hashModified : change.path
     const hashedPathOriginal = change.path + change.hashOriginal
     const session = await this._createSession(hashedPathModified, change.modified, this._getMode(change.path), change.readonly)
