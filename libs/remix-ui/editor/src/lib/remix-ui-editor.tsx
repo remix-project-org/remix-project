@@ -128,6 +128,16 @@ export type PluginType = {
   call: (plugin: string, method: string, arg1?: any, arg2?: any, arg3?: any, arg4?: any) => any
 }
 
+export type DiffSession = {
+  id: string
+  originalPath: string
+  modifiedPath: string
+  originalContent: string
+  modifiedContent: string
+  filePath: string
+  createdAt: number
+}
+
 export type EditorAPIType = {
   findMatches: (uri: string, value: string) => any
   getFontSize: () => number
@@ -145,6 +155,9 @@ export type EditorAPIType = {
   hasUnacceptedChanges: () => boolean
   acceptDiff: () => Promise<boolean>
   discardDiff: () => Promise<boolean>
+  getDiffSessions: () => Promise<DiffSession[]>
+  setActiveDiff: (diffId: string) => Promise<boolean>
+  closeDiffSession: (diffId: string) => Promise<boolean>
 }
 
 /* eslint-disable-next-line */
@@ -182,6 +195,8 @@ export const EditorUI = (props: EditorUIProps) => {
   const [currentDiffFile, setCurrentDiffFile] = useState(props.currentDiffFile || '')
   const [decoratorListCollection, setDecoratorListCollection] = useState<Record<string, monacoTypes.editor.IEditorDecorationsCollection>>({})
   const [disposedWidgets, setDisposedWidgets] = useState<Record<string, Record<string, monacoTypes.IRange[]>>>({})
+  const [diffSessions, setDiffSessions] = useState<DiffSession[]>([])
+  const [activeDiffId, setActiveDiffId] = useState<string | null>(null)
   const defaultEditorValue = `
   \t\t\t\t\t\t\t ____    _____   __  __   ___  __  __   ___   ____    _____
   \t\t\t\t\t\t\t|  _ \\  | ____| |  \\/  | |_ _| \\ \\/ /  |_ _| |  _ \\  | ____|
@@ -488,6 +503,58 @@ export const EditorUI = (props: EditorUIProps) => {
       monacoRef.current.editor.setModelLanguage(file.model, 'markdown')
     }
   }, [props.currentFile, props.isDiff])
+
+  // Load and sync diff sessions
+  useEffect(() => {
+    if (props.isDiff) {
+      const loadDiffSessions = async () => {
+        try {
+          const sessions = await props.editorAPI.getDiffSessions()
+          setDiffSessions(sessions)
+          if (sessions.length > 0) {
+            // Set the first session as active if no active session is set
+            if (!activeDiffId) {
+              setActiveDiffId(sessions[0].id)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load diff sessions:', error)
+        }
+      }
+      loadDiffSessions()
+    }
+  }, [props.isDiff])
+
+  const handleTabSwitch = async (diffId: string) => {
+    try {
+      const success = await props.editorAPI.setActiveDiff(diffId)
+      if (success) {
+        setActiveDiffId(diffId)
+      }
+    } catch (error) {
+      console.error('Failed to switch diff tab:', error)
+    }
+  }
+
+  const handleCloseDiff = async (diffId: string, event: React.MouseEvent) => {
+    event.stopPropagation()
+    try {
+      const success = await props.editorAPI.closeDiffSession(diffId)
+      if (success) {
+        const updatedSessions = diffSessions.filter(session => session.id !== diffId)
+        setDiffSessions(updatedSessions)
+        if (activeDiffId === diffId) {
+          if (updatedSessions.length > 0) {
+            setActiveDiffId(updatedSessions[0].id)
+          } else {
+            setActiveDiffId(null)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to close diff session:', error)
+    }
+  }
 
   const convertToMonacoDecoration = (decoration: lineText | sourceAnnotation | sourceMarker, typeOfDecoration: string) => {
     if (typeOfDecoration === 'sourceAnnotationsPerFile') {
@@ -828,6 +895,18 @@ export const EditorUI = (props: EditorUIProps) => {
 
   props.editorAPI.discardDiff = async (): Promise<boolean> => {
     return await props.plugin.call('editor', 'discardDiff')
+  }
+
+  props.editorAPI.getDiffSessions = async (): Promise<DiffSession[]> => {
+    return await props.plugin.call('editor', 'getDiffSessions')
+  }
+
+  props.editorAPI.setActiveDiff = async (diffId: string): Promise<boolean> => {
+    return await props.plugin.call('editor', 'setActiveDiff', diffId)
+  }
+
+  props.editorAPI.closeDiffSession = async (diffId: string): Promise<boolean> => {
+    return await props.plugin.call('editor', 'closeDiffSession', diffId)
   }
 
   function removeAllWidgets() {
@@ -1703,34 +1782,51 @@ export const EditorUI = (props: EditorUIProps) => {
   return (
     <div className="w-100 h-100 d-flex flex-column-reverse">
       {props.isDiff && (
-        <div className="d-flex justify-content-center gap-2 p-2 border-bottom">
-          <button 
-            className="btn btn-success btn-sm" 
-            onClick={async () => {
-              const result = await props.editorAPI.acceptDiff()
-              if (result) {
-                console.log('Diff accepted successfully')
-              }
-            }}
-            title="Accept all changes and close diff view"
-          >
-            <i className="fas fa-check me-1"></i>
-            Accept All Changes
-          </button>
-          <button 
-            className="btn btn-secondary btn-sm" 
-            onClick={async () => {
-              const result = await props.editorAPI.discardDiff()
-              if (result) {
-                console.log('Diff discarded successfully')
-              }
-            }}
-            title="Discard all changes and close diff view"
-          >
-            <i className="fas fa-times me-1"></i>
-            Discard Changes
-          </button>
-        </div>
+        <>
+          {/* Action Buttons */}
+          <div className="d-flex justify-content-center gap-2 p-2 border-bottom">
+            <button 
+              className="btn btn-success btn-sm" 
+              onClick={async () => {
+                const result = await props.editorAPI.acceptDiff()
+                if (result) {
+                  console.log('Diff accepted successfully')
+                  // Refresh diff sessions after accepting
+                  const sessions = await props.editorAPI.getDiffSessions()
+                  setDiffSessions(sessions)
+                  if (sessions.length === 0) {
+                    setActiveDiffId(null)
+                  }
+                }
+              }}
+              title="Accept all changes and close diff view"
+              disabled={diffSessions.length === 0}
+            >
+              <i className="fas fa-check me-1"></i>
+              Accept All Changes
+            </button>
+            <button 
+              className="btn btn-secondary btn-sm" 
+              onClick={async () => {
+                const result = await props.editorAPI.discardDiff()
+                if (result) {
+                  console.log('Diff discarded successfully')
+                  // Refresh diff sessions after discarding
+                  const sessions = await props.editorAPI.getDiffSessions()
+                  setDiffSessions(sessions)
+                  if (sessions.length === 0) {
+                    setActiveDiffId(null)
+                  }
+                }
+              }}
+              title="Discard all changes and close diff view"
+              disabled={diffSessions.length === 0}
+            >
+              <i className="fas fa-times me-1"></i>
+              Discard Changes
+            </button>
+          </div>
+        </>
       )}
       <DiffEditor
         originalLanguage={'remix-solidity'}

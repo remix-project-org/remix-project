@@ -169,7 +169,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
       )}
 
       {/* Action buttons */}
-      {!isReviewing && (
+      {(
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
           <button
             onClick={handleReject}

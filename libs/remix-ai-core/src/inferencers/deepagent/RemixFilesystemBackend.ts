@@ -142,14 +142,14 @@ export class RemixFilesystemBackend {
   /**
    * Flush ALL pending edit batches. Called before any non-edit backend method
    * to ensure the user approves all accumulated edits before the agent moves on.
+   * All flushEditBatch operations are triggered synchronously and we wait for all to complete.
    */
   public async flushAllPendingBatches(): Promise<void> {
     const files = [...this.editBatches.keys()]
     if (files.length === 0) return
 
-    for (const file of files) {
-      await this.flushEditBatch(file)
-    }
+    // Trigger all flush operations synchronously and wait for all to complete
+    await Promise.all(files.map(file => this.flushEditBatch(file)))
   }
 
   /**
