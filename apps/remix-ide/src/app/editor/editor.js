@@ -14,7 +14,7 @@ const profile = {
   name: 'editor',
   description: 'service - editor',
   version: packageJson.version,
-  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints'],
+  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints', 'acceptDiff'],
 }
 
 export default class Editor extends Plugin {
@@ -512,12 +512,75 @@ export default class Editor extends Plugin {
     return this.api.findMatches(this.currentFile, string)
   }
 
+  _simpleHash(str) {
+    let hash = 0;
+    if (str.length === 0) return hash.toString();
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString();
+  }
+
   async showCustomDiff (file, content) {
-    return this.api.showCustomDiff(file, content)
+    const source = this.getText(file)
+    console.log('Showing diff for', file, { source, content })
+    this.openDiff({
+      hashOriginal: this._simpleHash(source),
+      hashModified: this._simpleHash(content),
+      readonly: true,
+      path: file,
+      modified: content,
+      original: source,
+      type: "modified",
+    })
+    // return this.api.showCustomDiff(file, content)
   }
 
   hasUnacceptedChanges () {
     return this.api.hasUnacceptedChanges()
+  }
+
+  setIsDiff (isDiff, currentDiffFile = null, hashedPathModified = null) {
+    this.isDiff = isDiff
+    this.currentDiffFile = currentDiffFile
+    this.hashedPathModified = hashedPathModified
+  }
+
+  acceptDiff () {
+    if (!this.isDiff || !this.currentDiffFile) {
+      return false
+    }
+    
+    // Get the modified content from the current session
+    const modifiedPath = this.hashedPathModified
+    
+    if (!modifiedPath) {
+      return false
+    }
+    
+    console.log('Accepting diff for', this.currentDiffFile, { modifiedPath, modifiedContent: this.sessions[modifiedPath].getValue() } )
+    const modifiedContent = this.sessions[modifiedPath].getValue()
+    // Extract original path by removing the hash suffix (e.g., "contracts/1_Storage.sol2053058977" -> "contracts/1_Storage.sol")
+    const originalPath = this.currentDiffFile.replace(/\d+$/, '')
+    
+    // Close diff view and switch to normal editing
+    this.setIsDiff(false)
+    
+  
+    // Clean up diff sessions
+    if (this.sessions[this.currentDiffFile]) {
+      delete this.sessions[this.currentDiffFile]
+    }
+    if (this.sessions[modifiedPath]) {
+      delete this.sessions[modifiedPath]
+    }
+    
+    // Open the original file with the modified content
+    this.open(originalPath, modifiedContent)
+    
+    return true
   }
 
   addModel(path, content) {
@@ -566,7 +629,7 @@ export default class Editor extends Plugin {
        - URL prepended with "browser"
        - URL not prepended with the file explorer. We assume (as it is in the whole app, that this is a "browser" URL
     */
-    this.isDiff = false
+    this.setIsDiff(false)
     if (!this.sessions[path]) {
       this.readOnlySessions[path] = false
       const session = await this._createSession(path, content, this._getMode(path))
@@ -588,7 +651,7 @@ export default class Editor extends Plugin {
       const session = await this._createSession(path, content, this._getMode(path))
       this.sessions[path] = session
     }
-    this.isDiff = false
+    this.setIsDiff(false)
     this._switchSession(path)
   }
 
@@ -598,8 +661,7 @@ export default class Editor extends Plugin {
     const session = await this._createSession(hashedPathModified, change.modified, this._getMode(change.path), change.readonly)
     await this._createSession(hashedPathOriginal, change.original, this._getMode(change.path), change.readonly)
     this.sessions[hashedPathModified] = session
-    this.currentDiffFile = hashedPathOriginal
-    this.isDiff = true
+    this.setIsDiff(true, hashedPathOriginal, hashedPathModified)
     this._switchSession(hashedPathModified)
   }
 

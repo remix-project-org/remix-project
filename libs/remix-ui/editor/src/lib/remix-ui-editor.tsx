@@ -143,6 +143,7 @@ export type EditorAPIType = {
   showCustomDiff: (file: string, content: string) => Promise<void>
   clearAllBreakpoints: () => void
   hasUnacceptedChanges: () => boolean
+  acceptDiff: () => Promise<boolean>
 }
 
 /* eslint-disable-next-line */
@@ -818,6 +819,10 @@ export const EditorUI = (props: EditorUIProps) => {
     } else {
       pendingCustomDiff.current[file] = changes
     }
+  }
+
+  props.editorAPI.acceptDiff = async (): Promise<boolean> => {
+    return await props.plugin.call('editor', 'acceptDiff')
   }
 
   function removeAllWidgets() {
@@ -1692,6 +1697,23 @@ export const EditorUI = (props: EditorUIProps) => {
 
   return (
     <div className="w-100 h-100 d-flex flex-column-reverse">
+      {props.isDiff && (
+        <div className="d-flex justify-content-center p-2 border-bottom">
+          <button 
+            className="btn btn-success btn-sm" 
+            onClick={async () => {
+              const result = await props.editorAPI.acceptDiff()
+              if (result) {
+                console.log('Diff accepted successfully')
+              }
+            }}
+            title="Accept all changes and close diff view"
+          >
+            <i className="fas fa-check me-1"></i>
+            Accept All Changes
+          </button>
+        </div>
+      )}
       <DiffEditor
         originalLanguage={'remix-solidity'}
         modifiedLanguage={'remix-solidity'}
