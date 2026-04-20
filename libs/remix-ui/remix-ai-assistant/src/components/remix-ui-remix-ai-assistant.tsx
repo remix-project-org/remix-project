@@ -539,6 +539,34 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     removeApproval(approval.requestId)
   }, [props.plugin, removeApproval])
 
+  // Handle approving all pending approvals at once
+  const handleApproveAll = useCallback(async () => {
+    const approvals = [...pendingApprovals]
+    for (const approval of approvals) {
+      props.plugin.call('remixAI', 'respondToToolApproval', {
+        requestId: approval.requestId,
+        approved: true
+      })
+    }
+    // Clear all approvals
+    setPendingApprovals([])
+    setReviewingApprovals(new Set())
+  }, [pendingApprovals, props.plugin])
+
+  // Handle rejecting all pending approvals at once
+  const handleRejectAll = useCallback(async () => {
+    const approvals = [...pendingApprovals]
+    for (const approval of approvals) {
+      props.plugin.call('remixAI', 'respondToToolApproval', {
+        requestId: approval.requestId,
+        approved: false
+      })
+    }
+    // Clear all approvals
+    setPendingApprovals([])
+    setReviewingApprovals(new Set())
+  }, [pendingApprovals, props.plugin])
+
   // Push a queued message (if any) into history once props update
   useEffect(() => {
     if (props.queuedMessage) {
@@ -1318,6 +1346,31 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   handleGenerateWorkspace={handleGenerateWorkspace}
                   allowedMcps={modelAccess.allowedMcps}
                 />
+                {pendingApprovals.length > 1 && (
+                  <div style={{ padding: '12px', borderBottom: '1px solid #ccc', marginBottom: '8px' }}>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
+                      <div className="d-flex gap-2">
+                        <button
+                          className="btn btn-success btn-sm"
+                          onClick={handleApproveAll}
+                          data-id="approve-all-changes"
+                        >
+                          <i className="fas fa-check-double me-1"></i>
+                          Approve All
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={handleRejectAll}
+                          data-id="reject-all-changes"
+                        >
+                          <i className="fas fa-times-circle me-1"></i>
+                          Discard All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {pendingApprovals.map((approval) => (
                   <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
                     <ToolApprovalModal
@@ -1408,6 +1461,31 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     handleGenerateWorkspace={handleGenerateWorkspace}
                     allowedMcps={modelAccess.allowedMcps}
                   />
+                  {pendingApprovals.length > 1 && (
+                    <div style={{ padding: '12px', borderBottom: '1px solid #ccc', marginBottom: '8px' }}>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={handleApproveAll}
+                            data-id="approve-all-changes"
+                          >
+                            <i className="fas fa-check-double me-1"></i>
+                            Approve All
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={handleRejectAll}
+                            data-id="reject-all-changes"
+                          >
+                            <i className="fas fa-times-circle me-1"></i>
+                            Discard All
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {pendingApprovals.map((approval) => (
                     <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
                       <ToolApprovalModal
