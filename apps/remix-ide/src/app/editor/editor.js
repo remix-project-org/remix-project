@@ -579,7 +579,7 @@ export default class Editor extends Plugin {
     
     // Open the original file with the modified content
     this.open(originalPath, modifiedContent)
-    
+    this.emit('customDiffAccepted', originalPath)
     return true
   }
 
@@ -613,7 +613,7 @@ export default class Editor extends Plugin {
     
     // Open the original file with the original content (discarding changes)
     this.open(originalPath, originalContent)
-    
+    this.emit('customDiffRejected', originalPath)
     return true
   }
 
