@@ -30,17 +30,53 @@ export interface ToolPolicyConfig {
   perToolOverrides?: Record<string, ToolApprovalPolicy>
 }
 
-// Read-only tools that never require approval
-// Covers both deepagents built-in names and MCP tool names
+// Read-only tools that never require approval.
+// Any tool NOT in this set and NOT in TOOL_METADATA defaults to { risk: 'medium' },
+// which triggers the approval modal under the 'ask_risky' policy.
+// When adding new MCP tools, register read-only ones here.
 const SAFE_TOOLS = new Set([
+  // --- File system (read-only) ---
   'read_file', 'file_read', 'read_file_chunk', 'grep_file',
   'list_directory', 'directory_list', 'ls',
   'get_current_file', 'get_opened_files', 'open_file',
-  'get_contract_abi', 'get_compiler_config',
+  'file_exists',
+
+  // --- Compilation & analysis (read-only results) ---
   'compile_solidity', 'solidity_compile', 'analyze_contract',
+  'get_compilation_result', 'get_compilation_result_sources_by_file_path',
+  'get_compiler_config', 'get_compiler_versions',
+  'get_verified_contract_from_etherscan',
+  'compile_with_hardhat', 'compile_with_foundry', 'compile_with_truffle',
+  'get_contract_abi', 'slither_scan',
+
+  // --- Debugging (read-only introspection) ---
+  'debug_transaction', 'start_debug_session',
+  'decode_local_variable', 'decode_state_variable',
+  'get_valid_source_location_from_vm_trace_index',
+  'extract_locals_at', 'decode_locals_at',
+  'extract_state_at', 'decode_state_at',
+  'storage_view_at', 'jump_to', 'get_stack_at', 'get_scopes_with_root',
+
+  // --- Environment & account queries (read-only) ---
+  'get_deployed_contracts', 'get_current_environment',
+  'get_account_balance', 'get_user_accounts',
+  'get_foundry_hardhat_info',
+
+  // --- DApp (read-only) ---
   'dapp_list', 'dapp_get_status', 'dapp_open', 'dapp_navigate',
-  'get_deployed_contracts', 'debug_transaction',
-  'file_exists' // read-only check, no side effects
+
+  // --- Skills (deepagents built-in, read-only) ---
+  'get_skill', 'list_skills',
+
+  // --- Utilities (pure computation, no side effects) ---
+  'wei_to_ether', 'ether_to_wei', 'decimal_to_hex', 'hex_to_decimal', 'timestamp_to_date',
+  'chartjs_generate',
+
+  // --- Tutorials (read-only) ---
+  'tutorials_list', 'start_tutorial',
+
+  // --- AMP (read-only queries) ---
+  'amp_query', 'amp_dataset_manifest',
 ])
 
 /**

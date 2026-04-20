@@ -67,21 +67,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     }
 
     // Initialize filesystem backend with shared EventEmitter for approval
-    const rawBackend = new RemixFilesystemBackend(plugin, this.event)
-
-    // Proxy wrapper: logs every method call from the deepagents library
-    this.filesystemBackend = new Proxy(rawBackend, {
-      get(target, prop, receiver) {
-        const value = Reflect.get(target, prop, receiver)
-        if (typeof value === 'function') {
-          return function (...args: any[]) {
-
-            return value.apply(target, args)
-          }
-        }
-        return value
-      }
-    }) as any
+    this.filesystemBackend = new RemixFilesystemBackend(plugin, this.event) as any
 
     // Initialize tools with approval gate
     this.approvalGate = new ToolApprovalGate(plugin, this.event, 'ask_risky')
