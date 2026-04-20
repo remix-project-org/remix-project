@@ -14,7 +14,7 @@ const profile = {
   name: 'editor',
   description: 'service - editor',
   version: packageJson.version,
-  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints', 'acceptDiff'],
+  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints', 'acceptDiff', 'discardDiff'],
 }
 
 export default class Editor extends Plugin {
@@ -579,6 +579,40 @@ export default class Editor extends Plugin {
     
     // Open the original file with the modified content
     this.open(originalPath, modifiedContent)
+    
+    return true
+  }
+
+  discardDiff () {
+    if (!this.isDiff || !this.currentDiffFile) {
+      return false
+    }
+    
+    // Get the original content from the current session
+    const modifiedPath = this.hashedPathModified
+    
+    if (!modifiedPath) {
+      return false
+    }
+    
+    console.log('Discarding diff for', this.currentDiffFile, { modifiedPath } )
+    const originalContent = this.sessions[this.currentDiffFile].getValue()
+    // Extract original path by removing the hash suffix
+    const originalPath = this.currentDiffFile.replace(/\d+$/, '')
+    
+    // Close diff view and switch to normal editing
+    this.setIsDiff(false)
+    
+    // Clean up diff sessions
+    if (this.sessions[this.currentDiffFile]) {
+      delete this.sessions[this.currentDiffFile]
+    }
+    if (this.sessions[modifiedPath]) {
+      delete this.sessions[modifiedPath]
+    }
+    
+    // Open the original file with the original content (discarding changes)
+    this.open(originalPath, originalContent)
     
     return true
   }

@@ -144,6 +144,7 @@ export type EditorAPIType = {
   clearAllBreakpoints: () => void
   hasUnacceptedChanges: () => boolean
   acceptDiff: () => Promise<boolean>
+  discardDiff: () => Promise<boolean>
 }
 
 /* eslint-disable-next-line */
@@ -823,6 +824,10 @@ export const EditorUI = (props: EditorUIProps) => {
 
   props.editorAPI.acceptDiff = async (): Promise<boolean> => {
     return await props.plugin.call('editor', 'acceptDiff')
+  }
+
+  props.editorAPI.discardDiff = async (): Promise<boolean> => {
+    return await props.plugin.call('editor', 'discardDiff')
   }
 
   function removeAllWidgets() {
@@ -1698,7 +1703,7 @@ export const EditorUI = (props: EditorUIProps) => {
   return (
     <div className="w-100 h-100 d-flex flex-column-reverse">
       {props.isDiff && (
-        <div className="d-flex justify-content-center p-2 border-bottom">
+        <div className="d-flex justify-content-center gap-2 p-2 border-bottom">
           <button 
             className="btn btn-success btn-sm" 
             onClick={async () => {
@@ -1711,6 +1716,19 @@ export const EditorUI = (props: EditorUIProps) => {
           >
             <i className="fas fa-check me-1"></i>
             Accept All Changes
+          </button>
+          <button 
+            className="btn btn-secondary btn-sm" 
+            onClick={async () => {
+              const result = await props.editorAPI.discardDiff()
+              if (result) {
+                console.log('Diff discarded successfully')
+              }
+            }}
+            title="Discard all changes and close diff view"
+          >
+            <i className="fas fa-times me-1"></i>
+            Discard Changes
           </button>
         </div>
       )}
