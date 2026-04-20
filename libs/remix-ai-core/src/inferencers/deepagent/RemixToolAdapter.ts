@@ -30,29 +30,29 @@ function jsonSchemaToZod(schema: any): z.ZodObject<any> {
       let zodType: z.ZodTypeAny
 
       switch (prop.type) {
-        case 'string':
-          zodType = z.string()
-          if (prop.description) zodType = zodType.describe(prop.description)
-          if (prop.enum) zodType = z.enum(prop.enum)
-          break
-        case 'number':
-          zodType = z.number()
-          if (prop.description) zodType = zodType.describe(prop.description)
-          break
-        case 'boolean':
-          zodType = z.boolean()
-          if (prop.description) zodType = zodType.describe(prop.description)
-          break
-        case 'array':
-          zodType = z.array(z.any())
-          if (prop.description) zodType = zodType.describe(prop.description)
-          break
-        case 'object':
-          zodType = z.record(z.string(), z.any())
-          if (prop.description) zodType = zodType.describe(prop.description)
-          break
-        default:
-          zodType = z.any()
+      case 'string':
+        zodType = z.string()
+        if (prop.description) zodType = zodType.describe(prop.description)
+        if (prop.enum) zodType = z.enum(prop.enum)
+        break
+      case 'number':
+        zodType = z.number()
+        if (prop.description) zodType = zodType.describe(prop.description)
+        break
+      case 'boolean':
+        zodType = z.boolean()
+        if (prop.description) zodType = zodType.describe(prop.description)
+        break
+      case 'array':
+        zodType = z.array(z.any())
+        if (prop.description) zodType = zodType.describe(prop.description)
+        break
+      case 'object':
+        zodType = z.record(z.string(), z.any())
+        if (prop.description) zodType = zodType.describe(prop.description)
+        break
+      default:
+        zodType = z.any()
       }
 
       // Make optional if not required
@@ -134,7 +134,6 @@ export class ToolApprovalGate {
 
         return originalFunc(args)
       }
-
 
       const meta = getToolMetadata(toolName)
       const requestId = `approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`

@@ -57,7 +57,6 @@ export class RemixFilesystemBackend {
     filePath: string, oldString: string, newString: string, replaceAll = false
   ): Promise<{ error?: string; occurrences?: number; metadata?: any; filesUpdate?: any }> {
 
-
     try {
       // If there are pending edits for a DIFFERENT file, flush them first
       for (const [batchFile] of this.editBatches) {
@@ -107,8 +106,6 @@ export class RemixFilesystemBackend {
 
       batch.virtualContent = updated
       batch.totalEdits += occurrences
-
-
 
       // Return success immediately — approval will come later via flush
       return { occurrences }
@@ -182,7 +179,6 @@ export class RemixFilesystemBackend {
   async read_file(path: string): Promise<string | { error: string }> {
     try {
 
-
       // If there are pending batched edits for this file, return the virtual content
       const batch = this.editBatches.get(path)
       if (batch) {
@@ -199,7 +195,6 @@ export class RemixFilesystemBackend {
       }
 
       const content = await this.plugin.call('fileManager', 'readFile', normalizedPath)
-
 
       if (content.length > MAX_FILE_SIZE) {
         return this.summarizeFile(normalizedPath, content)
@@ -234,11 +229,9 @@ export class RemixFilesystemBackend {
   async write_file(path: string, content: string): Promise<{ success?: boolean, error?: string }> {
     await this.flushAllPendingBatches()
 
-
     try {
       const normalizedPath = path
       const exists = await this.plugin.call('fileManager', 'exists', normalizedPath)
-
 
       let oldContent = ''
       if (exists) {
@@ -246,9 +239,7 @@ export class RemixFilesystemBackend {
 
       }
 
-
       const result = await this.requestWriteApproval(normalizedPath, oldContent, content, 'write_file')
-
 
       if (!result.approved) {
         return { error: `REJECTED: The user explicitly rejected writing to ${path}. Do NOT retry this operation or use alternative tools/methods to write this file. Inform the user and move on.` }
@@ -285,7 +276,6 @@ export class RemixFilesystemBackend {
   async edit_file(path: string, edits: EditInstruction[]): Promise<{ success?: boolean, error?: string }> {
     await this.flushAllPendingBatches()
 
-
     try {
       const normalizedPath = this.normalizePath(path)
       const originalContent = await this.read_file(normalizedPath)
@@ -304,7 +294,6 @@ export class RemixFilesystemBackend {
         }
         content = content.replace(oldText, newText)
       }
-
 
       const result = await this.requestWriteApproval(normalizedPath, originalContent, content, 'edit_file')
       if (!result.approved) {
@@ -606,7 +595,6 @@ export class RemixFilesystemBackend {
       filePath: path,
       timestamp: Date.now()
     }
-
 
     return new Promise<{ approved: boolean; modifiedContent?: string }>((resolve) => {
       this.pendingApprovals.set(requestId, resolve)
