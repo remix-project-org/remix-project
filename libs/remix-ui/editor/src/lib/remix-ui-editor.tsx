@@ -641,6 +641,8 @@ export const EditorUI = (props: EditorUIProps) => {
   }
 
   props.editorAPI.hasUnacceptedChanges = () => {
+    return false
+    /* keeping the previous logic, the current logic shows a diff editor and doesn't pollute the editor content.
     let found = false
     if (disposedWidgets && Object.keys(disposedWidgets).length > 0) {
       found = !!Object.keys(disposedWidgets).find(file => {
@@ -651,6 +653,7 @@ export const EditorUI = (props: EditorUIProps) => {
       })
     }
     return !!found
+    */
   }
 
   props.editorAPI.keepDecorationsFor = (filePath: string, plugin: string, typeOfDecoration: string, registeredDecorations: any, currentDecorations: any) => {
