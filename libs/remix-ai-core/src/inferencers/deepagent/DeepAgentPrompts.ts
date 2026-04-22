@@ -1544,3 +1544,20 @@ Launch interactive tutorials in Remix IDE.
 - Community and collaboration enhance learning
 
 Your goal is to make Web3 development accessible, engaging, and practical for learners at all levels.`
+
+// Re-export DApp Generator prompts
+export {
+  DAPP_GENERATOR_SUBAGENT_PROMPT,
+  buildDAppSystemPrompt,
+  buildDAppUserMessage,
+  parsePages,
+  findMissingImports,
+  isLocalVMChainId,
+  REQUIRED_DAPP_FILES,
+  cleanFileContent,
+  ensureCompleteHtml,
+  // Types
+  type DAppPromptContext,
+  type DAppContractInfo,
+  type DAppUserMessageOptions
+} from './DAppGeneratorPrompts'

@@ -100,7 +100,7 @@ export class AIDappGenerator extends Plugin {
   private async processFigmaGeneration(options: GenerateDappOptions & { slug: string }) {
 
     trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate_figma', name: 'start', isClick: true });
-    await this.call('notification', 'toast', 'Analyzing Figma Design... (This may take time)')
+    await this.call('notification', 'toast', 'Analyzing Figma Design via DeepAgent... (This may take time)')
     this.emit('generationProgress', { status: 'preparing', address: options.address, slug: options.slug })
 
     const context = this.getOrCreateContext(options.address)
@@ -123,14 +123,12 @@ export class AIDappGenerator extends Plugin {
     try {
       const startTime = Date.now();
 
-      // const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate";
-      // const FIGMA_BACKEND_URL = "http://localhost:4000/figma/generate";
-      const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
+      this.emit('generationProgress', { status: 'fetching_figma', address: options.address, slug: options.slug })
 
-      this.emit('generationProgress', { status: 'calling_llm', address: options.address, slug: options.slug })
-      const { content: htmlContent, meta: figmaMeta } = await this.callFigmaAPI(FIGMA_BACKEND_URL, {
-        figmaToken: options.figmaToken,
-        figmaUrl: options.figmaUrl,
+      // Use DeepAgent to fetch Figma design and generate DApp
+      const htmlContent = await this.callDeepAgentWithFigma({
+        figmaUrl: options.figmaUrl!,
+        figmaToken: options.figmaToken!,
         userPrompt: options.description,
         contractInfo: contractInfo,
         isBaseMiniApp: options.isBaseMiniApp,
@@ -143,7 +141,7 @@ export class AIDappGenerator extends Plugin {
       this.emit('generationProgress', { status: 'parsing', address: options.address, slug: options.slug, fileCount: Object.keys(pages).length })
 
       if (Object.keys(pages).length === 0) {
-        console.error('[DEBUG-AI] ❌ CRITICAL: No files parsed from Figma generation');
+        console.error('[DEBUG-AI] CRITICAL: No files parsed from Figma generation');
         throw new Error("AI failed to return valid file structure from Figma design.");
       }
 
@@ -166,35 +164,13 @@ export class AIDappGenerator extends Plugin {
 
       trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate_figma', name: 'success', isClick: false });
 
-      if (figmaMeta?.usage) {
-        const usage = figmaMeta.usage;
-        let userId: string | undefined;
-        if (typeof window !== 'undefined' && window.localStorage) {
-          try {
-            const user = JSON.parse(window.localStorage.getItem('remix_user') || '');
-            userId = user.sub || user.id;
-          } catch (_) {}
-        }
-        if (!userId && typeof window !== 'undefined' && window.sessionStorage) {
-          userId = window.sessionStorage.getItem('remix_random_session_id') || undefined;
-        }
-
-        const eventLog = [
-          `provider:fireworks-figma`,
-          `prompt_tokens:${usage.prompt_tokens || 0}`,
-          `completion_tokens:${usage.completion_tokens || 0}`,
-          `total_tokens:${usage.total_tokens || 0}`,
-          `usage_source:${usage.source || 'unknown'}`,
-          `userId:${userId}`
-        ].filter(Boolean).join('|');
-
-        trackMatomoEvent(this, {
-          category: 'quick-dapp-v2',
-          action: 'ai_usage',
-          name: `token_usage|${eventLog}`,
-          isClick: false
-        });
-      }
+      // Log DeepAgent usage
+      trackMatomoEvent(this, {
+        category: 'quick-dapp-v2',
+        action: 'ai_usage',
+        name: `token_usage|provider:deepagent-figma|duration:${duration.toFixed(2)}s`,
+        isClick: false
+      });
 
       try {
         await this.call('notification', 'toast', 'Figma Design Imported Successfully!');
@@ -287,7 +263,7 @@ export class AIDappGenerator extends Plugin {
     try {
       const hasImage = !!options.image;
 
-      this.call('notification', 'toast', 'Generating... (Logs in console)').catch(() => {})
+      this.call('notification', 'toast', 'Generating via DeepAgent... (Logs in console)').catch(() => {})
       this.emit('generationProgress', { status: 'preparing', address: options.address, slug: options.slug })
 
       const context = this.getOrCreateContext(options.address)
@@ -311,7 +287,10 @@ export class AIDappGenerator extends Plugin {
       const startTime = Date.now();
 
       this.emit('generationProgress', { status: 'calling_llm', address: options.address, slug: options.slug })
-      const htmlContent = await this.callLLMAPI(messagesToSend, systemPrompt, hasImage);
+
+      // Use DeepAgent via remixAI plugin instead of external API
+      const htmlContent = await this.callDeepAgent(messagesToSend, systemPrompt, hasImage, false);
+      console.log('[AI-DAPP] Generation response received is meant to be done yet, length:', htmlContent?.length || 0);
 
       const duration = (Date.now() - startTime) / 1000;
 
@@ -400,7 +379,8 @@ export class AIDappGenerator extends Plugin {
 
     try {
       this.emit('generationProgress', { status: 'calling_llm', address, slug })
-      const htmlContent = await this.callLLMAPI(messages, systemPrompt, hasImage, true);
+      // Use DeepAgent via remixAI plugin instead of external API
+      const htmlContent = await this.callDeepAgent(messages, systemPrompt, hasImage, true);
 
       const patchedPages = parsePages(htmlContent);
       this.emit('generationProgress', { status: 'parsing', address, slug, fileCount: Object.keys(patchedPages).length })
@@ -436,7 +416,7 @@ export class AIDappGenerator extends Plugin {
               content: `The following files are imported in the code but were not included in your response:\n${missingImports.map(f => `- ${f}`).join('\n')}\n\nPlease generate ONLY these missing files using the START_TITLE format. Do not regenerate files that were already provided.`
             }
           ];
-          const additionalContent = await this.callLLMAPI(retryMessages, systemPrompt, false, true);
+          const additionalContent = await this.callDeepAgent(retryMessages, systemPrompt, false, true);
           const additionalPages = parsePages(additionalContent);
           for (const [file, content] of Object.entries(additionalPages)) {
             mergedPages[normalizeKey(file)] = content;
@@ -572,6 +552,113 @@ export class AIDappGenerator extends Plugin {
     return headers
   }
 
+  /**
+   * Call DeepAgent via remixAI plugin for DApp generation
+   * This replaces the external API call with local DeepAgent processing
+   */
+  private async callDeepAgent(
+    messages: any[],
+    systemPrompt: string,
+    hasImage: boolean = false,
+    isUpdate: boolean = false
+  ): Promise<string> {
+    try {
+      console.log('[AI-DAPP] Calling DeepAgent via remixAI plugin', { isUpdate, hasImage, messageCount: messages.length });
+
+      // Call the remixAI plugin with DApp generation context
+      // The remixAI plugin routes this to DeepAgent with the DApp Generator subagent
+      const response = await this.call('remixAI' as any, 'generateDAppContent', {
+        messages,
+        systemPrompt,
+        hasImage,
+        isUpdate
+      });
+
+      if (!response) {
+        throw new Error('No response received from DeepAgent');
+      }
+
+      console.log('[AI-DAPP] DeepAgent response received, length:', response?.length || 0);
+      return response;
+
+    } catch (error: any) {
+      console.error('[AI-DAPP] DeepAgent call failed:', error);
+
+      // Fallback to external API if DeepAgent fails
+      console.log('[AI-DAPP] Falling back to external LLM API...');
+      return this.callLLMAPI(messages, systemPrompt, hasImage, isUpdate);
+    }
+  }
+
+  /**
+   * Call DeepAgent with Figma integration for design-based DApp generation
+   */
+  private async callDeepAgentWithFigma(payload: {
+    figmaUrl: string;
+    figmaToken: string;
+    userPrompt: string;
+    contractInfo: any;
+    isBaseMiniApp?: boolean;
+    systemPrompt: string;
+  }): Promise<string> {
+    try {
+      console.log('[AI-DAPP] Calling DeepAgent with Figma integration');
+
+      // First, fetch and process the Figma design via DeepAgent
+      const figmaResult = await this.call('remixAI' as any, 'fetchFigmaDesign', {
+        figmaUrl: payload.figmaUrl,
+        figmaToken: payload.figmaToken
+      });
+
+      if (!figmaResult || !figmaResult.success) {
+        throw new Error(figmaResult?.message || 'Failed to fetch Figma design');
+      }
+
+      // Build the user message with Figma context
+      const enrichedDescription = `
+${payload.userPrompt || 'Implement the design exactly as shown in the Figma file.'}
+
+**FIGMA DESIGN DATA:**
+File: ${figmaResult.fileName || 'Untitled'}
+${figmaResult.rawJson || ''}
+`
+
+      const messages = [{
+        role: 'user',
+        content: enrichedDescription
+      }];
+
+      // Add contract information to the prompt
+      const contractBlock = blockchain.contract(payload.contractInfo);
+      messages[0].content += '\n\n' + contractBlock;
+
+      // Generate the DApp using DeepAgent
+      const response = await this.call('remixAI' as any, 'generateDAppContent', {
+        messages,
+        systemPrompt: payload.systemPrompt,
+        hasImage: false, // Figma provides structured data, not an image
+        isUpdate: false,
+        hasFigma: true
+      });
+
+      if (!response) {
+        throw new Error('No response received from DeepAgent for Figma generation');
+      }
+
+      console.log('[AI-DAPP] DeepAgent Figma response received, length:', response?.length || 0);
+      return response;
+
+    } catch (error: any) {
+      console.error('[AI-DAPP] DeepAgent Figma call failed:', error);
+
+      // Fallback to external Figma API if DeepAgent fails
+      console.log('[AI-DAPP] Falling back to external Figma API...');
+      const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
+      const result = await this.callFigmaAPI(FIGMA_BACKEND_URL, payload);
+      return result.content;
+    }
+  }
+
   private async validateAndRetryMissingFiles(
     pages: Record<string, string>,
     htmlContent: string,
@@ -596,7 +683,8 @@ export class AIDappGenerator extends Plugin {
         }
       ]
 
-      const additionalContent = await this.callLLMAPI(retryMessages, systemPrompt, false)
+      // Use DeepAgent via remixAI plugin
+      const additionalContent = await this.callDeepAgent(retryMessages, systemPrompt, false, false)
       const additionalPages = parsePages(additionalContent)
       Object.assign(pages, additionalPages)
     } catch (retryErr) {
