@@ -294,33 +294,33 @@ export class AIDappGenerator extends Plugin {
 
       const duration = (Date.now() - startTime) / 1000;
 
-      let pages = parsePages(htmlContent);
+      // let pages = parsePages(htmlContent);
 
-      this.emit('generationProgress', { status: 'parsing', address: options.address, slug: options.slug, fileCount: Object.keys(pages).length })
+      // this.emit('generationProgress', { status: 'parsing', address: options.address, slug: options.slug, fileCount: Object.keys(pages).length })
 
-      if (Object.keys(pages).length === 0) {
-        console.error('[AI-DAPP] parsePages returned empty object. Response length:', htmlContent?.length);
-        throw new Error("AI generated empty content. Please try again.");
-      }
+      // if (Object.keys(pages).length === 0) {
+      //   console.error('[AI-DAPP] parsePages returned empty object. Response length:', htmlContent?.length);
+      //   throw new Error("AI generated empty content. Please try again.");
+      // }
 
-      this.emit('generationProgress', { status: 'validating', address: options.address, slug: options.slug })
-      pages = await this.validateAndRetryMissingFiles(
-        pages, htmlContent, messagesToSend, systemPrompt, hasImage
-      );
+      // this.emit('generationProgress', { status: 'validating', address: options.address, slug: options.slug })
+      // pages = await this.validateAndRetryMissingFiles(
+      //   pages, htmlContent, messagesToSend, systemPrompt, hasImage
+      // );
 
-      context.messages = [
-        { role: 'user', content: userMessage },
-        { role: 'assistant', content: htmlContent }
-      ]
-      this.saveContext(options.address, context)
+      // context.messages = [
+      //   { role: 'user', content: userMessage },
+      //   { role: 'assistant', content: htmlContent }
+      // ]
+      // this.saveContext(options.address, context)
 
-      // Store result BEFORE emit — ensures recovery even if event is lost
-      this.pendingResults.set(options.slug, { address: options.address, content: pages, isUpdate: false })
+      // // Store result BEFORE emit — ensures recovery even if event is lost
+      // this.pendingResults.set(options.slug, { address: options.address, content: pages, isUpdate: false })
       try {
         this.emit('dappGenerated', {
           address: options.address,
           slug: options.slug,
-          content: pages,
+          content: "pages",
           isUpdate: false
         });
       } catch (_) {}

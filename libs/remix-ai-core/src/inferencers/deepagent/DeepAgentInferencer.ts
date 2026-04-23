@@ -568,7 +568,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       // Use runAgentWithCustomMessages for non-streaming full response
-      const response = await this.runAgentSync(messages, systemPrompt)
+      const response = await this.runAgent(messages, params)
 
       this.event.emit('onInferenceDone')
       return response
@@ -754,6 +754,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           signal: this.currentAbortController?.signal
         }
       )
+
+
 
       let finalMessageFromChain = ''
       for await (const event of eventStream) {

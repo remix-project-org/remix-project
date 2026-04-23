@@ -302,7 +302,8 @@ export class FileCreateHandler extends BaseToolHandler {
         await new Promise(resolve => setTimeout(resolve, 300))
 
         const cleanContent = typeof args.content === 'string' ? args.content : String(args.content || '')
-        await plugin.call('editor', 'showCustomDiff', args.path, cleanContent)
+        // await plugin.call('editor', 'showCustomDiff', args.path, cleanContent)
+        await plugin.call('fileManager', 'writeFile', args.path, cleanContent)
       }
 
       const result: FileOperationResult = {

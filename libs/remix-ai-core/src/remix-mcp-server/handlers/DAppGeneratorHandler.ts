@@ -165,6 +165,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       plugin.emit('generationProgress', { status: 'calling_llm', contractAddress: args.contractAddress })
 
       const response = await this.callAIModel(plugin, systemPrompt, userMessage, hasImage)
+      console.log('[GenerateDAppHandler] AI model response received:', response)
 
       // Parse the response into files
       plugin.emit('generationProgress', { status: 'parsing', contractAddress: args.contractAddress })
@@ -260,8 +261,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
         isUpdate: false
       })
 
-      const additionalPages = parsePages(additionalResponse)
-      Object.assign(pages, additionalPages)
+      // const additionalPages = parsePages(additionalResponse)
+      // Object.assign(pages, additionalPages)
     } catch (retryErr: any) {
       console.warn('[DAppGenerator] Retry for missing files failed:', retryErr.message)
     }
@@ -412,89 +413,89 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
       // Parse the patched pages
       console.log('[DAppGenerator] Update response received, parsing files... shouldnt be parsing files as subagent already does that, response length:', response?.length || 0)
-      const patchedPages = parsePages(response)
-      plugin.emit('generationProgress', { status: 'parsing', contractAddress: args.contractAddress, fileCount: Object.keys(patchedPages).length })
+      // const patchedPages = parsePages(response)
+      // plugin.emit('generationProgress', { status: 'parsing', contractAddress: args.contractAddress, fileCount: Object.keys(patchedPages).length })
 
-      if (Object.keys(patchedPages).length === 0) {
-        return this.createErrorResult('AI failed to return valid file structure.')
-      }
+      // if (Object.keys(patchedPages).length === 0) {
+      //   return this.createErrorResult('AI failed to return valid file structure.')
+      // }
 
       // Normalize paths and merge with current files
-      const normalizeKey = (k: string) => k.startsWith('/') ? k.substring(1) : k
+      // const normalizeKey = (k: string) => k.startsWith('/') ? k.substring(1) : k
 
-      const normalizedCurrent: Record<string, string> = {}
-      for (const [file, content] of Object.entries(args.currentFiles)) {
-        normalizedCurrent[normalizeKey(file)] = content
-      }
+      // const normalizedCurrent: Record<string, string> = {}
+      // for (const [file, content] of Object.entries(args.currentFiles)) {
+      //   normalizedCurrent[normalizeKey(file)] = content
+      // }
 
-      const mergedPages: Record<string, string> = { ...normalizedCurrent }
-      for (const [file, content] of Object.entries(patchedPages)) {
-        mergedPages[normalizeKey(file)] = content
-      }
+      // const mergedPages: Record<string, string> = { ...normalizedCurrent }
+      // for (const [file, content] of Object.entries(patchedPages)) {
+      //   mergedPages[normalizeKey(file)] = content
+      // }
 
       // Detect missing imports
       plugin.emit('generationProgress', { status: 'validating', contractAddress: args.contractAddress })
-      const missingImports = findMissingImports(mergedPages)
+      // const missingImports = findMissingImports(mergedPages)
 
-      if (missingImports.length > 0) {
-        try {
-          const retryMessages = [
-            { role: 'user', content: userMessage },
-            { role: 'assistant', content: response },
-            {
-              role: 'user',
-              content: `The following files are imported in the code but were not included in your response:\n${missingImports.map(f => `- ${f}`).join('\n')}\n\nPlease generate ONLY these missing files using the START_TITLE format. Do not regenerate files that were already provided.`
-            }
-          ]
+      // if (missingImports.length > 0) {
+      //   try {
+      //     const retryMessages = [
+      //       { role: 'user', content: userMessage },
+      //       { role: 'assistant', content: response },
+      //       {
+      //         role: 'user',
+      //         content: `The following files are imported in the code but were not included in your response:\n${missingImports.map(f => `- ${f}`).join('\n')}\n\nPlease generate ONLY these missing files using the START_TITLE format. Do not regenerate files that were already provided.`
+      //       }
+      //     ]
 
-          const additionalResponse = await plugin.call('remixAI' as any, 'generateDAppContent', {
-            messages: retryMessages,
-            systemPrompt,
-            hasImage: false,
-            isUpdate: true
-          })
+      //     const additionalResponse = await plugin.call('remixAI' as any, 'generateDAppContent', {
+      //       messages: retryMessages,
+      //       systemPrompt,
+      //       hasImage: false,
+      //       isUpdate: true
+      //     })
 
-          const additionalPages = parsePages(additionalResponse)
-          for (const [file, content] of Object.entries(additionalPages)) {
-            mergedPages[normalizeKey(file)] = content
-          }
-        } catch (retryErr: any) {
-          console.warn('[DAppGenerator] Retry for missing imports failed:', retryErr.message)
-        }
-      }
+      //     const additionalPages = parsePages(additionalResponse)
+      //     for (const [file, content] of Object.entries(additionalPages)) {
+      //       mergedPages[normalizeKey(file)] = content
+      //     }
+      //   } catch (retryErr: any) {
+      //     console.warn('[DAppGenerator] Retry for missing imports failed:', retryErr.message)
+      //   }
+      // }
 
       // Write files to workspace if specified
-      if (args.workspaceName) {
-        // Only write changed/new files, not the entire merged set
-        for (const [filename, content] of Object.entries(patchedPages)) {
-          const normalizedPath = filename.startsWith('/') ? filename : `/${filename}`
-          try {
-            const dirPath = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'))
-            if (dirPath && dirPath !== '/') {
-              try {
-                await plugin.call('fileManager', 'mkdir', dirPath)
-              } catch (e) {
-                // Directory may already exist
-              }
-            }
-            await plugin.call('fileManager', 'writeFile', normalizedPath, content)
-          } catch (error: any) {
-            console.error(`[DAppGenerator] Failed to write file ${normalizedPath}:`, error.message)
-          }
-        }
-      }
+      // if (args.workspaceName) {
+      //   // Only write changed/new files, not the entire merged set
+      //   for (const [filename, content] of Object.entries(patchedPages)) {
+      //     const normalizedPath = filename.startsWith('/') ? filename : `/${filename}`
+      //     try {
+      //       const dirPath = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'))
+      //       if (dirPath && dirPath !== '/') {
+      //         try {
+      //           await plugin.call('fileManager', 'mkdir', dirPath)
+      //         } catch (e) {
+      //           // Directory may already exist
+      //         }
+      //       }
+      //       await plugin.call('fileManager', 'writeFile', normalizedPath, content)
+      //     } catch (error: any) {
+      //       console.error(`[DAppGenerator] Failed to write file ${normalizedPath}:`, error.message)
+      //     }
+      //   }
+      // }
 
       const result: DAppGenerationResult = {
         success: true,
-        files: mergedPages,
-        fileCount: Object.keys(mergedPages).length,
+        files: 'all files' as any,
+        fileCount: -1,
         contractAddress: args.contractAddress,
-        message: `Updated DApp with ${Object.keys(patchedPages).length} modified/new files`
+        message: `Updated DApp files`
       }
 
       plugin.emit('dappGenerated', {
         address: args.contractAddress,
-        content: mergedPages,
+        content: {} as any,
         isUpdate: true
       })
 
