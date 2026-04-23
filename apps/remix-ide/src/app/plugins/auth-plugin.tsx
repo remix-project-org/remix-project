@@ -15,7 +15,7 @@ const profile = {
 
 export class AuthPlugin extends Plugin {
   /** Set to true to enable verbose console.log output for debugging */
-  private static DEBUG = true
+  private static DEBUG = false
 
   private apiClient: ApiClient
   private ssoApi: SSOApiService
@@ -453,7 +453,7 @@ export class AuthPlugin extends Plugin {
   async getAppConfig(): Promise<AppConfig> {
     try {
       if (this.cachedAppConfig) {
-        console.log('[AuthPlugin] Returning cached app config', this.cachedAppConfig)
+        this.log('[AuthPlugin] Returning cached app config', this.cachedAppConfig)
         return this.cachedAppConfig
       }
 

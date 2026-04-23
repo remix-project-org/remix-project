@@ -11,7 +11,7 @@ declare global {
 
 /* ─── Constants ─── */
 
-const DEBUG = true
+const DEBUG = false
 const log = (...args: any[]) => { if (DEBUG) console.log('[BetaCornerWidget]', ...args) }
 
 const DISMISSED_KEY = 'remix_beta_corner_dismissed'
@@ -26,7 +26,7 @@ const TOKEN_STORAGE_KEY = 'remix_anonymous_request_tokens'
  * The widget surfaces once the score reaches ACTIVITY_THRESHOLD **and** at least
  * MIN_SESSION_MS have elapsed (so it never flash-appears on first load).
  */
-const ACTIVITY_THRESHOLD = 6
+const ACTIVITY_THRESHOLD = 10
 const MIN_SESSION_MS = 5_000 // 5 seconds minimum
 
 /* ─── Plugin profile ─── */
@@ -89,17 +89,17 @@ export class BetaCornerWidgetPlugin extends Plugin {
   /* ─── Lifecycle ─── */
 
   async onActivation(): Promise<void> {
+    // Disable the plugin behavior in E2E runs to avoid invite-modal flakiness.
+    if (window.__IS_E2E_TEST__) {
+      this.renderComponent()
+      return
+    }
+
     // Don't bother listening if already permanently dismissed or already beta
     if (this.state.dismissed || await this.hasBetaAccess()) {
       this.renderComponent()
       return
     }
-
-    // If app config provides an auto_invite_token, route the user directly to
-    // the invitation flow instead of showing the corner widget.
-
-
-
 
     // Listen for dev-activity events via the plugin engine (proper namespaced listeners)
     this.on('fileManager', 'fileSaved', () => this.addScore(1))
@@ -168,6 +168,8 @@ export class BetaCornerWidgetPlugin extends Plugin {
   }
 
   private async showWidget(): Promise<void> {
+    if (window.__IS_E2E_TEST__) return
+
     // Never show widget or invite modal when beta access is already present.
     if (await this.hasBetaAccess()) {
       this.autoDismiss()
