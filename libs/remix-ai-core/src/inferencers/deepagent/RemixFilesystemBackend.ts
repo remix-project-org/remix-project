@@ -123,7 +123,7 @@ export class RemixFilesystemBackend {
     if (!batch) return
     this.editBatches.delete(filePath)
 
-    console.log('[HITL][Backend] flushEditBatch:', filePath, 'edits:', batch.totalEdits)
+
 
     // Request ONE approval for the combined diff
     const result = await this.requestWriteApproval(filePath, batch.originalContent, batch.virtualContent, 'edit_file')
@@ -579,12 +579,12 @@ export class RemixFilesystemBackend {
     toolName: string = 'write_file'
   ): Promise<{ approved: boolean; modifiedContent?: string }> {
     if (!this.eventEmitter) {
-      console.log('[HITL][Backend] No eventEmitter — auto-approving')
+
       return { approved: true }
     }
 
     const requestId = `fs_approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    console.log('[HITL][Backend] requestWriteApproval:', requestId, 'tool:', toolName, 'path:', path)
+
 
     const request: ToolApprovalRequest = {
       requestId,

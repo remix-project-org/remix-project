@@ -55,7 +55,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
         if (prev <= 1) {
           stopTimer()
           if (!dismissedRef.current) {
-            console.log('[HITL][Modal] TIMEOUT — auto-rejecting:', request.requestId)
+
             dismissedRef.current = true
             onReject()
           }

@@ -186,7 +186,7 @@ export class ToolApprovalGate {
         timestamp: Date.now()
       }
 
-      console.log('[HITL][ApprovalGate] Requesting approval:', requestId, 'tool:', toolName, 'path:', filePath)
+
 
       // Wait for user decision
       const { approved, modifiedArgs } = await new Promise<{ approved: boolean; modifiedArgs?: Record<string, any> }>(
@@ -198,8 +198,7 @@ export class ToolApprovalGate {
         }
       )
 
-      console.log('[HITL][ApprovalGate] User decision for', toolName, ':', approved ? 'APPROVED' : 'REJECTED',
-        'hasModifiedArgs:', !!modifiedArgs)
+
 
       if (!approved) {
         return JSON.stringify({ cancelled: true, reason: `REJECTED: The user explicitly rejected this ${toolName} operation. Do NOT retry this operation or use alternative tools/methods. Inform the user and move on.` })
