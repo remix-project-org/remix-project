@@ -109,6 +109,11 @@ module.exports = {
             .click('*[data-id="user-menu-compact"]')
             .waitForElementVisible('*[data-id="feature-badge-name-e2e-beta"]', 10000)
     },
+    'refresh and there should not be an invite modal #group1': function (browser: NightwatchBrowser) {
+        browser
+            .refreshPage()
+            .assert.not.elementPresent('*[data-id="invite-sign-in-btn"]', 'Invite modal should not reappear after refresh')
+    },
 
     // ─── Group 2: invite token in URL — defer / dismiss behaviour ───────────────
 

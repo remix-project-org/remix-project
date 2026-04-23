@@ -48,6 +48,7 @@ export class MembershipRequestPlugin extends Plugin {
   private pollTimer: ReturnType<typeof setTimeout> | null = null
   private pollStartTime: number = 0
   private invitationManagerBusy = false
+  debugEnabled = true
   private state: MembershipRequestState = {
     show: false,
     view: 'loading',
@@ -60,6 +61,7 @@ export class MembershipRequestPlugin extends Plugin {
   constructor() {
     super(profile)
     this.apiClient = new ApiClient(endpointUrls.membershipRequests)
+    this.debugEnabled = true
     const queryParams = new QueryParams()
     const allParams = queryParams.get() as Record<string, string>
     const apiKey = allParams.e2e_pool_key
@@ -69,11 +71,20 @@ export class MembershipRequestPlugin extends Plugin {
     }
   }
 
+  private log(message: string, ...args: any[]): void {
+    if (this.debugEnabled) console.log(`[MembershipRequest] ${message}`, ...args)
+  }
+
   async onActivation(): Promise<void> {
+    this.log('activated')
     // Track whether invitationManager is currently showing a modal
-    this.on('invitationManager' as any, 'inviteShown', () => { this.invitationManagerBusy = true })
+    this.on('invitationManager' as any, 'inviteShown', () => {
+      this.log('invitationManager busy — invite shown')
+      this.invitationManagerBusy = true
+    })
     this.on('invitationManager' as any, 'inviteClosed', (data: { token: string | null }) => {
       this.invitationManagerBusy = false
+      this.log('invite closed (later)', { token: data?.token })
       // User clicked "I'll do this later" — persist the token so we can show the modal again later
       if (data?.token) {
         this.storeUnredeemedInvite({
@@ -81,33 +92,55 @@ export class MembershipRequestPlugin extends Plugin {
           group_name: '',
           stored_at: new Date().toISOString()
         })
+        this.log('stored unredeemed invite for later', data.token)
       }
     })
     this.on('invitationManager' as any, 'inviteRedeemed', (data: { token: string }) => {
       this.invitationManagerBusy = false
+      this.log('invite redeemed — removing from storage', data?.token)
       // Clean up unredeemed storage when the invite is actually redeemed
       if (data?.token) this.removeUnredeemedInvite(data.token)
     })
     this.on('invitationManager' as any, 'inviteDismissedForever', (data: { token: string }) => {
       this.invitationManagerBusy = false
+      this.log('invite dismissed forever — removing from storage', data?.token)
       // User chose "Don't show me again" — remove from unredeemed storage
       if (data?.token) this.removeUnredeemedInvite(data.token)
     })
 
     // When the user authenticates, silently clean up any unredeemed invite tokens
     // that were already redeemed server-side (e.g. auto-redeemed on account creation).
-    this.on('auth', 'authStateChanged', async (isAuthenticated: boolean) => {
+    this.on('auth', 'authStateChanged', async (state: { isAuthenticated: boolean } | boolean) => {
+      const isAuthenticated = typeof state === 'boolean' ? state : !!state?.isAuthenticated
+      this.log('authStateChanged', { isAuthenticated })
       if (isAuthenticated) {
         await this.purgeRedeemedInvites()
       }
+      await this.checkUnredeemedInvites()
     })
 
+    // Fallback sync: if auth resolved before this plugin subscribed, pull current state
+    // from auth plugin and run the same invite reconciliation flow.
+    try {
+      const isAuthenticated = await this.call('auth', 'isAuthenticated') as boolean
+      this.log('initial auth sync from auth plugin', { isAuthenticated })
+      if (isAuthenticated) {
+        await this.purgeRedeemedInvites()
+      }
+      await this.checkUnredeemedInvites()
+    } catch (e) {
+      this.log('initial auth sync failed', e)
+    }
+
+    
+
     // Check pending requests on startup
-    await this.checkPendingRequests()
+    //await this.checkPendingRequests()
     // Try to show any unredeemed invites from previous sessions
-    await this.checkUnredeemedInvites()
+   
     // Start polling if there are still pending tokens
     const stored = this.getStoredTokens()
+    this.log(`found ${stored.length} pending claim token(s) in storage`)
     if (stored.length > 0) {
       this.startPolling()
     }
@@ -115,6 +148,7 @@ export class MembershipRequestPlugin extends Plugin {
   }
 
   onDeactivation(): void {
+    this.log('deactivated — stopping poller')
     this.stopPolling()
   }
 
@@ -123,6 +157,7 @@ export class MembershipRequestPlugin extends Plugin {
    * Called by other plugins: this.call('membershipRequest', 'showRequestForm', 'beta_program')
    */
   async showRequestForm(groupName?: string): Promise<void> {
+    this.log('showRequestForm', { groupName })
     this.state = {
       ...this.state,
       show: true,
@@ -137,8 +172,10 @@ export class MembershipRequestPlugin extends Plugin {
       if (groupName) {
         const pending = this.findPendingToken(groupName)
         if (pending) {
+          this.log('found existing claim token for group', groupName, pending.token)
           const statusResponse = await this.checkTokenStatus(pending.token)
           if (statusResponse && statusResponse.request.status === 'pending') {
+            this.log('request still pending — showing pending view')
             this.state = {
               ...this.state,
               view: 'pending',
@@ -149,6 +186,7 @@ export class MembershipRequestPlugin extends Plugin {
           }
           // If not pending anymore, inject notifications into the bell and clean up
           if (statusResponse && statusResponse.request.status !== 'pending') {
+            this.log('request no longer pending — injecting notifications and removing token', { status: statusResponse.request.status })
             await this.injectNotifications(statusResponse.notifications, pending.token)
             this.removeStoredToken(pending.token)
           }
@@ -156,12 +194,14 @@ export class MembershipRequestPlugin extends Plugin {
       }
 
       // Fetch available groups
+      this.log('fetching available groups')
       const response = await this.apiClient.get<MembershipGroupsResponse>('/groups')
       if (!response.ok || !response.data) {
         throw new Error(response.error || 'Failed to fetch available groups')
       }
 
       const groups = response.data.groups
+      this.log(`received ${groups.length} group(s)`, groups.map(g => g.name))
       let selectedGroup: MembershipGroup | null = null
 
       if (groupName) {
@@ -170,6 +210,7 @@ export class MembershipRequestPlugin extends Plugin {
       if (!selectedGroup && groups.length > 0) {
         selectedGroup = groups[0]
       }
+      this.log('selected group', selectedGroup?.name)
 
       this.state = {
         ...this.state,
@@ -197,16 +238,20 @@ export class MembershipRequestPlugin extends Plugin {
    */
   async checkPendingRequests(): Promise<void> {
     const stored = this.getStoredTokens()
+    this.log(`checkPendingRequests — ${stored.length} token(s)`)
     if (stored.length === 0) return
 
     for (const item of stored) {
       try {
+        this.log('checking status for token', item.token, `(group: ${item.group_name})`)
         const statusResponse = await this.checkTokenStatus(item.token)
         if (!statusResponse) {
+          this.log('no response for token', item.token)
           continue
         }
 
         const { status } = statusResponse.request
+        this.log('token status', { token: item.token, status })
 
         if (status === 'approved' || status === 'rejected' || status === 'expired') {
           // Inject all notifications from the response into the notification bell.
@@ -218,6 +263,7 @@ export class MembershipRequestPlugin extends Plugin {
               n => n.action?.invite_token
             )
             if (inviteNotification?.action?.invite_token) {
+              this.log('request approved — emitting requestApproved and storing invite token', inviteNotification.action.invite_token)
               this.emit('requestApproved', {
                 group: item.group_name,
                 inviteToken: inviteNotification.action.invite_token
@@ -230,18 +276,25 @@ export class MembershipRequestPlugin extends Plugin {
               })
               // Show invite modal only if invitationManager is not already busy
               if (!this.invitationManagerBusy) {
+                this.log('showing invite modal for approved token', inviteNotification.action.invite_token)
                 try {
                   await this.call('invitationManager' as any, 'showInvite', inviteNotification.action.invite_token)
                 } catch (e) {
                   console.error('[MembershipRequest] Failed to show invite modal:', e)
                 }
+              } else {
+                this.log('invitationManager busy — skipping auto-show of invite modal')
               }
             }
           } else {
+            this.log(`request ${status} — emitting requestStatusChanged`)
             this.emit('requestStatusChanged', { token: item.token, status })
           }
 
+          this.log('removing resolved token from storage', item.token)
           this.removeStoredToken(item.token)
+        } else {
+          this.log('token still pending — keeping in storage', item.token)
         }
         // 'pending' => keep polling
       } catch (e) {
@@ -254,6 +307,7 @@ export class MembershipRequestPlugin extends Plugin {
    * Close the membership request overlay
    */
   async close(): Promise<void> {
+    this.log('close')
     this.state = {
       show: false,
       view: 'loading',
@@ -269,6 +323,7 @@ export class MembershipRequestPlugin extends Plugin {
    * Handle form submission
    */
   private async handleSubmit(groupId: number, nickname: string, email: string, comment: string): Promise<void> {
+    this.log('handleSubmit', { groupId, nickname, email: email ? '(provided)' : '(empty)', comment: comment ? '(provided)' : '(empty)' })
     this.state = { ...this.state, view: 'submitting', error: null }
     this.renderComponent()
 
@@ -289,6 +344,7 @@ export class MembershipRequestPlugin extends Plugin {
 
       // Store the claim token
       const group = this.state.selectedGroup
+      this.log('request submitted — storing claim token', response.data.claim_token, `(group: ${group?.name})`)
       this.storeToken({
         token: response.data.claim_token,
         group_id: groupId,
@@ -321,6 +377,7 @@ export class MembershipRequestPlugin extends Plugin {
    * Trigger login flow
    */
   private async handleLogin(): Promise<void> {
+    this.log('handleLogin — triggering auth.login')
     try {
       await this.call('auth', 'login')
     } catch (e) {
@@ -331,6 +388,7 @@ export class MembershipRequestPlugin extends Plugin {
   /* ==================== Polling ==================== */
 
   private startPolling(): void {
+    this.log('startPolling')
     this.stopPolling()
     this.pollStartTime = Date.now()
     this.schedulePoll()
@@ -338,6 +396,7 @@ export class MembershipRequestPlugin extends Plugin {
 
   private stopPolling(): void {
     if (this.pollTimer) {
+      this.log('stopPolling')
       clearTimeout(this.pollTimer)
       this.pollTimer = null
     }
@@ -355,12 +414,15 @@ export class MembershipRequestPlugin extends Plugin {
 
   private schedulePoll(): void {
     const interval = this.getAdaptiveInterval()
+    this.log(`schedulePoll — next check in ${interval / 1000}s`)
     this.pollTimer = setTimeout(async () => {
       await this.checkPendingRequests()
       // Continue polling if there are still pending tokens
       const remaining = this.getStoredTokens()
       if (remaining.length > 0) {
         this.schedulePoll()
+      } else {
+        this.log('no more pending tokens — polling stopped')
       }
     }, interval)
   }
@@ -368,11 +430,14 @@ export class MembershipRequestPlugin extends Plugin {
   /* ==================== Token Status ==================== */
 
   private async checkTokenStatus(token: string): Promise<MembershipStatusResponse | null> {
+    this.log('checkTokenStatus', token)
     try {
       const response = await this.apiClient.get<MembershipStatusResponse>(`/${token}`)
       if (response.ok && response.data) {
+        this.log('checkTokenStatus result', { token, status: response.data.request.status })
         return response.data
       }
+      this.log('checkTokenStatus non-ok response', { token, status: response.status })
     } catch (e) {
       console.error('[MembershipRequest] Status check failed:', e)
     }
@@ -387,13 +452,18 @@ export class MembershipRequestPlugin extends Plugin {
    * the same notification is never added twice (even across polls).
    */
   private async injectNotifications(notifications: NotificationItem[], claimToken: string): Promise<void> {
-    if (!notifications || notifications.length === 0) return
+    if (!notifications || notifications.length === 0) {
+      this.log('injectNotifications — no notifications to inject')
+      return
+    }
+    this.log(`injectNotifications — injecting ${notifications.length} notification(s) for token`, claimToken)
 
     for (let i = 0; i < notifications.length; i++) {
       const notification = notifications[i]
       const key = `membership_${claimToken}_${i}`
       try {
         await this.call('notificationCenter', 'addLocalNotification', notification, key)
+        this.log('injected notification', { key, title: notification.title })
       } catch (e) {
         console.error('[MembershipRequest] Failed to inject notification:', e)
       }
@@ -409,12 +479,14 @@ export class MembershipRequestPlugin extends Plugin {
    */
   private async purgeRedeemedInvites(): Promise<void> {
     const unredeemed = this.getUnredeemedInvites()
+    this.log(`purgeRedeemedInvites — checking ${unredeemed.length} unredeemed invite(s)`)
     if (unredeemed.length === 0) return
 
     for (const item of unredeemed) {
       try {
         const validation = await this.call('invitationManager' as any, 'validateToken', item.invite_token)
         if (validation?.already_redeemed || !validation?.valid) {
+          this.log('purging invite token (already redeemed or invalid)', item.invite_token)
           this.removeUnredeemedInvite(item.invite_token)
         }
       } catch (e) {
@@ -430,17 +502,22 @@ export class MembershipRequestPlugin extends Plugin {
    */
   private async checkUnredeemedInvites(): Promise<void> {
     const unredeemed = this.getUnredeemedInvites()
+    this.log(`checkUnredeemedInvites — ${unredeemed.length} stored unredeemed invite(s)`)
     if (unredeemed.length === 0) return
 
     for (const item of unredeemed) {
       try {
+        this.log('validating unredeemed invite token', item.invite_token)
         // Check if the invite token has already been redeemed
         const validation = await this.call('invitationManager' as any, 'validateToken', item.invite_token)
+        this.log('validation result for unredeemed invite', validation)
         if (validation?.already_redeemed) {
+          this.log('invite already redeemed — removing', item.invite_token)
           this.removeUnredeemedInvite(item.invite_token)
           continue
         }
         if (!validation?.valid) {
+          this.log('invite invalid/expired — removing', item.invite_token)
           // Token is invalid/expired — remove it
           this.removeUnredeemedInvite(item.invite_token)
           continue
@@ -448,10 +525,12 @@ export class MembershipRequestPlugin extends Plugin {
 
         // If invitationManager is already showing an invite, skip for now
         if (this.invitationManagerBusy) {
+          this.log('invitationManager busy — skipping unredeemed invite for now', item.invite_token)
           continue
         }
 
         // Show the invite modal
+        this.log('showing unredeemed invite modal', item.invite_token)
         try {
           await this.call('invitationManager' as any, 'showInvite', item.invite_token)
         } catch (e) {
@@ -479,10 +558,14 @@ export class MembershipRequestPlugin extends Plugin {
     if (!invites.find(i => i.invite_token === item.invite_token)) {
       invites.push(item)
       localStorage.setItem(UNREDEEMED_KEY, JSON.stringify(invites))
+      this.log('stored unredeemed invite', item.invite_token, `(group: ${item.group_name})`)
+    } else {
+      this.log('unredeemed invite already in storage — skipping', item.invite_token)
     }
   }
 
   private removeUnredeemedInvite(inviteToken: string): void {
+    this.log('removeUnredeemedInvite', inviteToken)
     const invites = this.getUnredeemedInvites().filter(i => i.invite_token !== inviteToken)
     localStorage.setItem(UNREDEEMED_KEY, JSON.stringify(invites))
   }
@@ -504,10 +587,14 @@ export class MembershipRequestPlugin extends Plugin {
     if (!tokens.find(t => t.token === item.token)) {
       tokens.push(item)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens))
+      this.log('stored claim token', item.token, `(group: ${item.group_name})`)
+    } else {
+      this.log('claim token already in storage — skipping', item.token)
     }
   }
 
   private removeStoredToken(token: string): void {
+    this.log('removeStoredToken', token)
     const tokens = this.getStoredTokens().filter(t => t.token !== token)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens))
   }

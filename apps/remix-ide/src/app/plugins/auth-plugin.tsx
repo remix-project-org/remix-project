@@ -15,7 +15,7 @@ const profile = {
 
 export class AuthPlugin extends Plugin {
   /** Set to true to enable verbose console.log output for debugging */
-  private static DEBUG = false
+  private static DEBUG = true
 
   private apiClient: ApiClient
   private ssoApi: SSOApiService
@@ -1106,6 +1106,11 @@ export class AuthPlugin extends Plugin {
     const token = localStorage.getItem('remix_access_token')
     if (!token) {
       this.log('[AuthPlugin] No stored token found')
+      this.emit('authStateChanged', {
+        isAuthenticated: false,
+        user: null,
+        token: null
+      })
       return
     }
 

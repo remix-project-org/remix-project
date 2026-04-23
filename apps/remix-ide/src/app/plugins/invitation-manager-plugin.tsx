@@ -20,7 +20,7 @@ const profile = {
 
 export class InvitationManagerPlugin extends Plugin {
   /** Set to true to enable verbose console.log output for debugging */
-  private static DEBUG = false
+  private static DEBUG = true
 
   dispatch: React.Dispatch<any> = () => {}
   private state: InviteState = {
@@ -44,7 +44,8 @@ export class InvitationManagerPlugin extends Plugin {
 
   async onActivation(): Promise<void> {
     // Listen for auth state changes
-    this.on('auth', 'authStateChanged', async (isAuthenticated: boolean) => {
+    this.on('auth', 'authStateChanged', async (state: { isAuthenticated: boolean } | boolean) => {
+      const isAuthenticated = typeof state === 'boolean' ? state : !!state?.isAuthenticated
       this.log('[InvitationManager] Auth state changed:', isAuthenticated)
       if (this.state.show) {
         this.state = { ...this.state, isAuthenticated }
@@ -81,6 +82,7 @@ export class InvitationManagerPlugin extends Plugin {
    * Can be called by any plugin: this.call('invitationManager', 'showInvite', 'TOKEN')
    */
   async showInvite(token: string): Promise<void> {
+    this.log('[InvitationManager] Showing invite for token:', token)
     // Validate the token first
     const validation = await this.validateToken(token)
     this.log('[InvitationManager] Token validation result:', validation)
