@@ -11,7 +11,7 @@ declare global {
 
 /* ─── Constants ─── */
 
-const DEBUG = false
+const DEBUG = true
 const log = (...args: any[]) => { if (DEBUG) console.log('[BetaCornerWidget]', ...args) }
 
 const DISMISSED_KEY = 'remix_beta_corner_dismissed'
@@ -27,7 +27,7 @@ const TOKEN_STORAGE_KEY = 'remix_anonymous_request_tokens'
  * MIN_SESSION_MS have elapsed (so it never flash-appears on first load).
  */
 const ACTIVITY_THRESHOLD = 6
-const MIN_SESSION_MS = 45_000 // 45 seconds minimum
+const MIN_SESSION_MS = 5_000 // 5 seconds minimum
 
 /* ─── Plugin profile ─── */
 
@@ -68,7 +68,7 @@ function hasExistingBetaToken(): boolean {
 /* ─── Plugin class ─── */
 
 export class BetaCornerWidgetPlugin extends Plugin {
-  dispatch: React.Dispatch<any> = () => {}
+  dispatch: React.Dispatch<any> = () => { }
 
   private score = 0
   private sessionStart = Date.now()
@@ -90,10 +90,16 @@ export class BetaCornerWidgetPlugin extends Plugin {
 
   async onActivation(): Promise<void> {
     // Don't bother listening if already permanently dismissed or already beta
-    if (this.state.dismissed || hasExistingBetaToken()) {
+    if (this.state.dismissed || await this.hasBetaAccess()) {
       this.renderComponent()
       return
     }
+
+    // If app config provides an auto_invite_token, route the user directly to
+    // the invitation flow instead of showing the corner widget.
+
+
+
 
     // Listen for dev-activity events via the plugin engine (proper namespaced listeners)
     this.on('fileManager', 'fileSaved', () => this.addScore(1))
@@ -105,16 +111,16 @@ export class BetaCornerWidgetPlugin extends Plugin {
     this.on('membershipRequest', 'requestApproved', () => this.autoDismiss())
 
     // Hide when a beta invite is redeemed through the invitation system
-    this.on('invitationManager' as any, 'inviteRedeemed', (data: any) => {
+    this.on('invitationManager' as any, 'inviteRedeemed', async () => {
       // Any successful invite redemption could grant beta — re-check token
-      if (hasExistingBetaToken()) {
+      if (await this.hasBetaAccess()) {
         this.autoDismiss()
       }
     })
 
     // Hide when auth state changes and the user now has beta access
-    this.on('auth' as any, 'authStateChanged', () => {
-      if (hasExistingBetaToken()) {
+    this.on('auth' as any, 'authStateChanged', async () => {
+      if (await this.hasBetaAccess()) {
         this.autoDismiss()
       }
     })
@@ -161,10 +167,49 @@ export class BetaCornerWidgetPlugin extends Plugin {
     }
   }
 
-  private showWidget(): void {
+  private async showWidget(): Promise<void> {
+    // Never show widget or invite modal when beta access is already present.
+    if (await this.hasBetaAccess()) {
+      this.autoDismiss()
+      return
+    }
+
+    const autoInviteToken = await this.call('auth' as any, 'getAppConfigValue', 'auto_invite_token', '')
+    console.log('Retrieved auto_invite_token from appConfig:', autoInviteToken)
+    if (autoInviteToken && typeof autoInviteToken === 'string' && autoInviteToken.trim() !== '') {
+      log('auto_invite_token found in appConfig, delegating to invitationManager')
+      this.shown = true
+      this.state = { ...this.state, closedThisSession: true }
+      this.renderComponent()
+      this.call('invitationManager' as any, 'showInvite', autoInviteToken, (action: 'later' | 'never') => {
+        if (action === 'never') {
+          this.dismissPermanent()
+          return
+        }
+        this.dismiss()
+      }).catch((err) => {
+        log('Failed to show invite via invitationManager', err)
+      })
+      return
+    }
     this.shown = true
     this.state = { ...this.state, visible: true }
     this.renderComponent()
+  }
+
+  private async hasBetaAccess(): Promise<boolean> {
+    if (hasExistingBetaToken()) return true
+
+    try {
+      const isAuthenticated = await this.call('auth' as any, 'isAuthenticated')
+      if (!isAuthenticated) return false
+
+      const permissions = await this.call('auth' as any, 'getAllPermissions')
+      const groups = permissions?.feature_groups || []
+      return groups.some((g: any) => g?.name === 'beta')
+    } catch {
+      return false
+    }
   }
 
   /** Auto-hide after the user submits a request or gets approved */
@@ -184,7 +229,7 @@ export class BetaCornerWidgetPlugin extends Plugin {
   dismiss(): void {
     this.state = { ...this.state, animateOut: true }
     this.renderComponent()
-    this.call('matomo', 'trackEvent', 'cornerWidget', 'betaPromo', 'closedSession', undefined).catch(() => {})
+    this.call('matomo', 'trackEvent', 'cornerWidget', 'betaPromo', 'closedSession', undefined).catch(() => { })
     setTimeout(() => {
       this.state = { ...this.state, closedThisSession: true }
       this.renderComponent()
@@ -196,7 +241,7 @@ export class BetaCornerWidgetPlugin extends Plugin {
     this.state = { ...this.state, animateOut: true }
     this.renderComponent()
     localStorage.setItem(DISMISSED_KEY, 'true')
-    this.call('matomo', 'trackEvent', 'cornerWidget', 'betaPromo', 'dismissedPermanent', undefined).catch(() => {})
+    this.call('matomo', 'trackEvent', 'cornerWidget', 'betaPromo', 'dismissedPermanent', undefined).catch(() => { })
     setTimeout(() => {
       this.state = { ...this.state, dismissed: true }
       this.renderComponent()
@@ -206,7 +251,7 @@ export class BetaCornerWidgetPlugin extends Plugin {
   /** Called when the user clicks "Register now" */
   private handleRegisterClick(): void {
     this.call('membershipRequest', 'showRequestForm', 'beta')
-    this.call('matomo', 'trackEvent', 'cornerWidget', 'betaPromo', 'joinClicked', undefined).catch(() => {})
+    this.call('matomo', 'trackEvent', 'cornerWidget', 'betaPromo', 'joinClicked', undefined).catch(() => { })
   }
 
   /* ─── Rendering ─── */

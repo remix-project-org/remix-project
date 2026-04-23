@@ -58,6 +58,11 @@ export class NudgeEngine {
     return this.guard.has(eventId)
   }
 
+  /** Remove a previously fired context event */
+  unfire(eventId: string): void {
+    this.guard.unfire(eventId)
+  }
+
   // ─── Rule management ─────────────────────────────────────────────
 
   /** Register a nudge rule. If a rule with the same id exists, it's replaced. */

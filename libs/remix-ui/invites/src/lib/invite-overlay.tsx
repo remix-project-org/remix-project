@@ -18,6 +18,8 @@ interface InviteOverlayProps {
   state: InviteState
   onRedeem: (token: string) => Promise<InviteRedeemResponse>
   onClose: () => void
+  onDoLater?: () => void
+  onDismissPermanent?: () => void
   onStartWalkthrough?: (slug: string) => void
   plugin?: any
 }
@@ -30,6 +32,8 @@ export const InviteOverlay: React.FC<InviteOverlayProps> = ({
   state,
   onRedeem,
   onClose,
+  onDoLater,
+  onDismissPermanent,
   onStartWalkthrough,
   plugin
 }) => {
@@ -105,6 +109,8 @@ export const InviteOverlay: React.FC<InviteOverlayProps> = ({
         error={error}
         onRedeem={onRedeem}
         onClose={onClose}
+        onDoLater={onDoLater}
+        onDismissPermanent={onDismissPermanent}
         plugin={plugin}
       />
     )
@@ -119,6 +125,8 @@ export const InviteOverlay: React.FC<InviteOverlayProps> = ({
       error={error}
       onRedeem={onRedeem}
       onClose={onClose}
+      onDoLater={onDoLater}
+      onDismissPermanent={onDismissPermanent}
       plugin={plugin}
     />
   )
@@ -369,8 +377,10 @@ const DefaultInviteModal: React.FC<{
   error: string | null
   onRedeem: (token: string) => Promise<InviteRedeemResponse>
   onClose: () => void
+  onDoLater?: () => void
+  onDismissPermanent?: () => void
   plugin?: any
-}> = ({ token, validation, isAuthenticated, redeeming, error, onRedeem, onClose, plugin }) => (
+}> = ({ token, validation, isAuthenticated, redeeming, error, onRedeem, onClose, onDoLater, onDismissPermanent, plugin }) => (
   <div className="invite-overlay" onClick={onClose}>
     <div className="invite-modal-dialog" onClick={e => e.stopPropagation()}>
       <div className="invite-modal-card">
@@ -426,18 +436,34 @@ const DefaultInviteModal: React.FC<{
 
           <div className="invite-modal-right-footer">
             {isAuthenticated ? (
-              <button
-                className="btn invite-modal-btn-primary w-100"
-                data-id="invite-activate-btn"
-                onClick={() => onRedeem(token)}
-                disabled={redeeming}
-              >
-                {redeeming ? (
-                  <><i className="fas fa-spinner fa-spin me-2"></i>Activating...</>
-                ) : (
-                  <><i className="fas fa-check me-2"></i>Activate Invite</>
+              <div className="w-100">
+                <button
+                  className="btn invite-modal-btn-primary w-100"
+                  data-id="invite-activate-btn"
+                  onClick={() => onRedeem(token)}
+                  disabled={redeeming}
+                >
+                  {redeeming ? (
+                    <><i className="fas fa-spinner fa-spin me-2"></i>Activating...</>
+                  ) : (
+                    <><i className="fas fa-check me-2"></i>Activate Invite</>
+                  )}
+                </button>
+                {(onDoLater || onDismissPermanent) && (
+                  <div className="d-flex justify-content-center gap-2 mt-3">
+                    {onDoLater && (
+                      <button className="btn invite-modal-btn-secondary" onClick={onDoLater}>
+                        I will join later
+                      </button>
+                    )}
+                    {onDismissPermanent && (
+                      <button className="btn invite-modal-btn-secondary" onClick={onDismissPermanent}>
+                        Don&apos;t show again
+                      </button>
+                    )}
+                  </div>
                 )}
-              </button>
+              </div>
             ) : (
               <div className="w-100">
                 <p className="invite-modal-muted text-center mb-3">
@@ -445,6 +471,20 @@ const DefaultInviteModal: React.FC<{
                   Sign in to activate this invite
                 </p>
                 <LoginButton className="btn-lg w-100" plugin={plugin} />
+                {(onDoLater || onDismissPermanent) && (
+                  <div className="d-flex justify-content-center gap-2 mt-3">
+                    {onDoLater && (
+                      <button className="btn invite-modal-btn-secondary" onClick={onDoLater}>
+                        I will join later
+                      </button>
+                    )}
+                    {onDismissPermanent && (
+                      <button className="btn invite-modal-btn-secondary" onClick={onDismissPermanent}>
+                        Don&apos;t show again
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

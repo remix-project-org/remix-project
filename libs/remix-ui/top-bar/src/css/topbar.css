@@ -125,30 +125,48 @@
 
 /* Beta promo pill */
 .beta-promo-pill {
+  position: relative;
+  overflow: hidden;
   cursor: pointer;
   font-size: 0.75rem;
-  padding: 0.2rem 0.55rem;
+  font-weight: 500;
+  padding: 0.24rem 0.62rem;
   border-radius: 999px;
-  border: 1px solid var(--bs-primary);
-  color: var(--bs-primary);
+  border: 1px solid rgba(55, 201, 255, 0.55);
+  color: #9be7ff;
+  background: linear-gradient(115deg, rgba(0, 138, 203, 0.14) 0%, rgba(12, 86, 157, 0.22) 45%, rgba(0, 179, 255, 0.15) 100%);
+  box-shadow: 0 0 0 1px rgba(18, 138, 212, 0.2) inset, 0 6px 14px rgba(0, 97, 164, 0.22);
   white-space: nowrap;
-  transition: background-color 0.15s, color 0.15s;
+  transition: transform 0.18s ease, box-shadow 0.2s ease, color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
   user-select: none;
 }
+.beta-promo-pill::before {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -36%;
+  width: 28%;
+  height: 300%;
+  transform: rotate(23deg);
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(173, 239, 255, 0.34) 52%, rgba(255, 255, 255, 0) 100%);
+  opacity: 0.85;
+  pointer-events: none;
+}
 .beta-promo-pill:hover {
-  background-color: var(--bs-primary);
-  color: #fff;
+  color: #e8fbff;
+  border-color: rgba(110, 224, 255, 0.85);
+  background: linear-gradient(115deg, rgba(15, 168, 233, 0.28) 0%, rgba(54, 98, 190, 0.34) 45%, rgba(23, 203, 255, 0.3) 100%);
+  box-shadow: 0 0 0 1px rgba(146, 232, 255, 0.3) inset, 0 10px 22px rgba(22, 136, 228, 0.35), 0 0 18px rgba(26, 177, 255, 0.28);
+  transform: translateY(-1px);
 }
-.beta-promo-pill:hover .beta-promo-dismiss {
-  color: rgba(255, 255, 255, 0.7);
+.beta-promo-pill:hover::before {
+  animation: beta-pill-shine 0.9s ease;
 }
-.beta-promo-dismiss {
-  font-size: 0.6rem;
-  opacity: 0.5;
-  padding: 2px;
-  line-height: 1;
-  transition: opacity 0.15s;
-}
-.beta-promo-dismiss:hover {
-  opacity: 1;
+@keyframes beta-pill-shine {
+  0% {
+    left: -36%;
+  }
+  100% {
+    left: 128%;
+  }
 }

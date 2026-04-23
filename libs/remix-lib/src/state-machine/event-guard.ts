@@ -155,6 +155,17 @@ export class EventGuard {
     return this.firedEvents.has(eventId)
   }
 
+  /**
+   * Remove a previously fired event from the context.
+   * Useful for mutually exclusive state flags (e.g. logged_in vs not_logged_in).
+   */
+  unfire(eventId: EventId): void {
+    if (!this.firedEvents.has(eventId)) return
+    this.firedEvents.delete(eventId)
+    this.orderedEvents = this.orderedEvents.filter(e => e !== eventId)
+    this.log(`🧹 unfire("${eventId}") — total fired: [${[...this.firedEvents].join(', ')}]`)
+  }
+
   /** Get a snapshot of all fired events */
   getFiredEvents(): string[] {
     return [...this.firedEvents]
