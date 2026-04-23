@@ -7,10 +7,11 @@ interface AiChatButtonsProps {
   plugin?: any
   sendPrompt: (s: string) => void
   handleGenerateWorkspace: () => void
+  handleLoadSkills: () => void
   allowedMcps: string[]
 }
 
-export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspace, allowedMcps }: AiChatButtonsProps) {
+export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspace, handleLoadSkills, allowedMcps }: AiChatButtonsProps) {
   const intl = useIntl()
   const [currentFile, setCurrentFile] = useState<string | null>(null)
   const [latestCompiledContracts, setLatestCompiledContracts] = useState<string[] | null>(null)
@@ -136,8 +137,8 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       label: <FormattedMessage id="remixApp.aiChatButton.loadSkills" />,
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
       color: '',
-      action: async () => {
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.loadSkills' }))
+      action: () => {
+        handleLoadSkills()
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'load_skills', isClick: true })
       }
     },

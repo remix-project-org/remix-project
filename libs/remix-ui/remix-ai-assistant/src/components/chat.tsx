@@ -26,6 +26,7 @@ export interface ChatHistoryComponentProps {
   theme: any
   plugin?: any
   handleGenerateWorkspace: () => void
+  handleLoadSkills: () => void
   allowedMcps: string[]
 }
 
@@ -34,10 +35,11 @@ interface AiChatIntroProps {
   theme: string
   plugin?: any
   handleGenerateWorkspace: () => void
+  handleLoadSkills: () => void
   allowedMcps: string[]
 }
 
-const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, handleGenerateWorkspace, allowedMcps }) => {
+const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, handleGenerateWorkspace, handleLoadSkills, allowedMcps }) => {
   const [conversationStarters, setConversationStarters] = useState<ConversationStarter[]>([])
 
   useEffect(() => {
@@ -55,7 +57,7 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, ha
       <p className="mb-4" style={{ fontSize: '0.9rem' }}>
         What do you want to build today?
       </p>
-      <AiChatButtons theme={theme} plugin={plugin} sendPrompt={sendPrompt} handleGenerateWorkspace={handleGenerateWorkspace} allowedMcps={allowedMcps} />
+      <AiChatButtons theme={theme} plugin={plugin} sendPrompt={sendPrompt} handleGenerateWorkspace={handleGenerateWorkspace} handleLoadSkills={handleLoadSkills} allowedMcps={allowedMcps} />
     </div>
   )
 }
@@ -69,6 +71,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   theme,
   plugin,
   handleGenerateWorkspace,
+  handleLoadSkills,
   allowedMcps
 }) => {
   return (
@@ -77,7 +80,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       className="d-flex flex-column overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
     >
       {messages.length === 0 ? (
-        <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} handleGenerateWorkspace={handleGenerateWorkspace} allowedMcps={allowedMcps} />
+        <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} handleGenerateWorkspace={handleGenerateWorkspace} handleLoadSkills={handleLoadSkills} allowedMcps={allowedMcps} />
       ) : (
         messages.map(msg => {
           const bubbleClass =

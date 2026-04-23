@@ -920,6 +920,82 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [toggleRecording, isRecording])
 
+  const handleLoadSkills = useCallback(async () => {
+    try {
+      const res = await fetch('http://187.77.100.93:9005/skills')
+      const data = res.ok ? await res.json() : { skills: [] }
+      const skills: { id: string; name: string; description?: string; source?: string }[] = data?.skills || []
+
+      await new Promise<void>((resolve, reject) => {
+        const SkillsList = () => {
+          const [filter, setFilter] = React.useState('')
+          const filtered = filter.trim()
+            ? skills.filter(s => `${s.name} ${s.description || ''} ${s.source || ''}`.toLowerCase().includes(filter.toLowerCase()))
+            : skills
+          return (
+            <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <input
+                className="form-control mb-3"
+                placeholder="Search skills..."
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+                autoFocus
+              />
+              <div className="d-flex flex-wrap gap-2">
+                {filtered.map(skill => (
+                  <div
+                    key={skill.id}
+                    className="card bg-secondary text-light"
+                    style={{ width: 200, cursor: 'pointer' }}
+                    onClick={() => {
+                      sendPrompt(`Please load and apply the "${skill.name}" skill (id: ${skill.id}) to help me with Ethereum development.`)
+                      trackMatomoEvent<AIEvent>({ category: 'ai', action: 'conv_starter', name: 'load_skill', value: skill.id, isClick: true })
+                      resolve()
+                      props.plugin.call('notification', 'modal', { id: 'skills-close', title: '', message: '', modalType: ModalTypes.alert, okLabel: 'close', okFn: () => {}, cancelFn: () => {}, hideFn: () => {} })
+                    }}
+                  >
+                    <div className="card-body p-2">
+                      <h6 className="card-title mb-1" style={{ fontSize: '0.85rem' }}>{skill.name}</h6>
+                      {skill.source && <span className="badge bg-dark mb-1" style={{ fontSize: '0.65rem' }}>{skill.source}</span>}
+                      <p className="card-text" style={{ fontSize: '0.75rem', opacity: 0.85 }}>{skill.description || ''}</p>
+                    </div>
+                  </div>
+                ))}
+                {filtered.length === 0 && <div className="text-muted">No skills found.</div>}
+              </div>
+            </div>
+          )
+        }
+        const modalContent = {
+          id: 'load-skills',
+          title: 'Load Skills',
+          message: <SkillsList />,
+          modalType: ModalTypes.default,
+          okLabel: 'Close',
+          okFn: () => setTimeout(() => resolve(), 0),
+          cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
+          hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
+        }
+        // @ts-ignore
+        props.plugin.call('notification', 'modal', modalContent)
+      })
+    } catch (e: any) {
+      if (e?.message !== 'Canceled' && e?.message !== 'Hide') {
+        // @ts-ignore
+        props.plugin.call('notification', 'modal', {
+          id: 'load-skills-error',
+          title: 'Load Skills',
+          message: <div className="text-danger">Failed to load skills. Make sure the ethskills server is running at http://187.77.100.93:9005.</div>,
+          modalType: ModalTypes.alert,
+          okLabel: 'OK',
+          okFn: () => {},
+          cancelFn: () => {},
+          hideFn: () => {}
+        })
+      }
+    }
+  }, [props.plugin, sendPrompt])
+
   const handleGenerateWorkspace = useCallback(async () => {
     dispatchActivity('button', 'generateWorkspace')
     try {
@@ -1105,6 +1181,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   theme={themeTracker?.name}
                   plugin={props.plugin}
                   handleGenerateWorkspace={handleGenerateWorkspace}
+                    handleLoadSkills={handleLoadSkills}
                   allowedMcps={modelAccess.allowedMcps}
                 />
               </section>
@@ -1184,6 +1261,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     theme={themeTracker?.name}
                     plugin={props.plugin}
                     handleGenerateWorkspace={handleGenerateWorkspace}
+                    handleLoadSkills={handleLoadSkills}
                     allowedMcps={modelAccess.allowedMcps}
                   />
                 </section>
