@@ -15,7 +15,7 @@ const profile = {
 
 export class AuthPlugin extends Plugin {
   /** Set to true to enable verbose console.log output for debugging */
-  private static DEBUG = true
+  private static DEBUG = false
 
   private apiClient: ApiClient
   private ssoApi: SSOApiService

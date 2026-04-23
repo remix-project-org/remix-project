@@ -48,7 +48,7 @@ export class MembershipRequestPlugin extends Plugin {
   private pollTimer: ReturnType<typeof setTimeout> | null = null
   private pollStartTime: number = 0
   private invitationManagerBusy = false
-  debugEnabled = true
+  debugEnabled = false
   private state: MembershipRequestState = {
     show: false,
     view: 'loading',
@@ -61,7 +61,7 @@ export class MembershipRequestPlugin extends Plugin {
   constructor() {
     super(profile)
     this.apiClient = new ApiClient(endpointUrls.membershipRequests)
-    this.debugEnabled = true
+    this.debugEnabled = false
     const queryParams = new QueryParams()
     const allParams = queryParams.get() as Record<string, string>
     const apiKey = allParams.e2e_pool_key

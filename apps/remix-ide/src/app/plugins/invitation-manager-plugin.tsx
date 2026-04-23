@@ -20,7 +20,7 @@ const profile = {
 
 export class InvitationManagerPlugin extends Plugin {
   /** Set to true to enable verbose console.log output for debugging */
-  private static DEBUG = true
+  private static DEBUG = false
 
   dispatch: React.Dispatch<any> = () => {}
   private state: InviteState = {
