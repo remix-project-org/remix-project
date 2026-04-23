@@ -927,11 +927,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const skills: { id: string; name: string; description?: string; source?: string }[] = data?.skills || []
 
       await new Promise<void>((resolve, reject) => {
+        // Use a ref-like object to share selected state across renders without re-creating the modal
+        const selectionState = { selected: new Set<string>() }
+
         const SkillsList = () => {
           const [filter, setFilter] = React.useState('')
+          const [selected, setSelected] = React.useState<Set<string>>(new Set())
+
           const filtered = filter.trim()
             ? skills.filter(s => `${s.name} ${s.description || ''} ${s.source || ''}`.toLowerCase().includes(filter.toLowerCase()))
             : skills
+
+          const toggleSkill = (id: string) => {
+            setSelected(prev => {
+              const next = new Set(prev)
+              if (next.has(id)) next.delete(id)
+              else next.add(id)
+              selectionState.selected = next
+              return next
+            })
+          }
+
           return (
             <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               <input
@@ -941,26 +957,35 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 onChange={e => setFilter(e.target.value)}
                 autoFocus
               />
+              {selected.size > 0 && (
+                <div className="mb-2 text-info small">{selected.size} skill{selected.size > 1 ? 's' : ''} selected</div>
+              )}
               <div className="d-flex flex-wrap gap-2">
-                {filtered.map(skill => (
-                  <div
-                    key={skill.id}
-                    className="card bg-secondary text-light"
-                    style={{ width: 200, cursor: 'pointer' }}
-                    onClick={() => {
-                      sendPrompt(`Please load and apply the "${skill.name}" skill (id: ${skill.id}) to help me with Ethereum development.`)
-                      trackMatomoEvent<AIEvent>({ category: 'ai', action: 'conv_starter', name: 'load_skill', value: skill.id, isClick: true })
-                      resolve()
-                      props.plugin.call('notification', 'modal', { id: 'skills-close', title: '', message: '', modalType: ModalTypes.alert, okLabel: 'close', okFn: () => {}, cancelFn: () => {}, hideFn: () => {} })
-                    }}
-                  >
-                    <div className="card-body p-2">
-                      <h6 className="card-title mb-1" style={{ fontSize: '0.85rem' }}>{skill.name}</h6>
-                      {skill.source && <span className="badge bg-dark mb-1" style={{ fontSize: '0.65rem' }}>{skill.source}</span>}
-                      <p className="card-text" style={{ fontSize: '0.75rem', opacity: 0.85 }}>{skill.description || ''}</p>
+                {filtered.map(skill => {
+                  const isSelected = selected.has(skill.id)
+                  return (
+                    <div
+                      key={skill.id}
+                      className={`card text-light ${isSelected ? 'border-info' : 'bg-secondary'}`}
+                      style={{
+                        width: 200,
+                        cursor: 'pointer',
+                        backgroundColor: isSelected ? '#1a3a4a' : undefined,
+                        boxShadow: isSelected ? '0 0 0 2px #0dcaf0' : undefined
+                      }}
+                      onClick={() => toggleSkill(skill.id)}
+                    >
+                      <div className="card-body p-2">
+                        <div className="d-flex align-items-center gap-1 mb-1">
+                          {isSelected && <i className="fas fa-check-circle text-info" style={{ fontSize: '0.75rem' }}></i>}
+                          <h6 className="card-title mb-0" style={{ fontSize: '0.85rem' }}>{skill.name}</h6>
+                        </div>
+                        {skill.source && <span className="badge bg-dark mb-1" style={{ fontSize: '0.65rem' }}>{skill.source}</span>}
+                        <p className="card-text" style={{ fontSize: '0.75rem', opacity: 0.85 }}>{skill.description || ''}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
                 {filtered.length === 0 && <div className="text-muted">No skills found.</div>}
               </div>
             </div>
@@ -971,8 +996,16 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           title: 'Load Skills',
           message: <SkillsList />,
           modalType: ModalTypes.default,
-          okLabel: 'Close',
-          okFn: () => setTimeout(() => resolve(), 0),
+          okLabel: 'Load Selected Skills',
+          okFn: () => setTimeout(() => {
+            const selectedSkills = skills.filter(s => selectionState.selected.has(s.id))
+            if (selectedSkills.length > 0) {
+              const skillList = selectedSkills.map(s => `"${s.name}" (id: ${s.id})`).join(', ')
+              sendPrompt(`Please load and apply the following Ethereum development skills: ${skillList}`)
+              trackMatomoEvent<AIEvent>({ category: 'ai', action: 'conv_starter', name: 'load_skills', value: selectedSkills.map(s => s.id).join(','), isClick: true })
+            }
+            resolve()
+          }, 0),
           cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
           hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
         }
