@@ -15,6 +15,10 @@ import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix
 import { getToolExecutionMessage } from '../lib/toolDescriptions'
 import { QueryParams } from '@remix-project/remix-lib'
 import { AiChatButtons } from './aichatButtons'
+import { ToolCallList } from './ToolCallCard'
+import { ThinkingBubble } from './ThinkingBubble'
+import { SubagentPanel } from './SubagentPanel'
+import '../css/deepagent-ui.css'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -79,7 +83,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       {messages.length === 0 ? (
         <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} handleGenerateWorkspace={handleGenerateWorkspace} allowedMcps={allowedMcps} />
       ) : (
-        messages.map(msg => {
+        messages.map((msg, index) => {
           const bubbleClass =
             msg.role === 'user' ? 'bubble-user' : 'bubble-assistant'
 
@@ -138,7 +142,18 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                     )}
                   </div>
                 )}
-                {msg.role === 'assistant' && msg.isExecutingTools && (
+                {/* Thinking/Reasoning Bubble — shows Claude's reasoning when available */}
+                {msg.role === 'assistant' && msg.thinkingContent && (
+                  <ThinkingBubble
+                    thinkingContent={msg.thinkingContent}
+                    isStreaming={isStreaming && index === messages.length - 1}
+                  />
+                )}
+                {/* Tool calls: prefer ToolCallCard when toolCalls[] is available,
+                    otherwise fall back to legacy spinner indicator for backward compat */}
+                {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 ? (
+                  <ToolCallList toolCalls={msg.toolCalls} />
+                ) : msg.role === 'assistant' && msg.isExecutingTools ? (
                   <div className="tool-execution-indicator text-muted">
                     <i className="fa fa-spinner fa-spin me-2"></i>
                     <span>
@@ -150,15 +165,21 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                         : 'Executing tools...'}
                     </span>
                   </div>
-                )}
+                ) : null}
 
-                {/* Subagent Activity Indicator */}
-                {msg.role === 'assistant' && msg.activeSubagent && (
+                {/* Subagent Activity: prefer SubagentPanel when subagentHistory[] is available,
+                    otherwise fall back to legacy inline indicator for backward compat */}
+                {msg.role === 'assistant' && msg.subagentHistory && msg.subagentHistory.length > 0 ? (
+                  <SubagentPanel
+                    subagentHistory={msg.subagentHistory}
+                    isStreaming={isStreaming && index === messages.length - 1}
+                  />
+                ) : msg.role === 'assistant' && msg.activeSubagent ? (
                   <div className="subagent-indicator text-info small mb-2">
                     <i className="fa fa-robot fa-spin me-2"></i>
                     <span><strong>{msg.activeSubagent}</strong>: {msg.subagentTask}</span>
                   </div>
-                )}
+                ) : null}
 
                 {/* Task Activity Indicator */}
                 {msg.role === 'assistant' && msg.currentTask && msg.taskStatus === 'running' && (

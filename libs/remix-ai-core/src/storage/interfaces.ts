@@ -4,6 +4,43 @@
  */
 
 /**
+ * Record of a single tool call (accumulated during agent execution)
+ */
+export interface ToolCallRecord {
+  id: string
+  toolName: string
+  toolArgs: Record<string, any>
+  toolOutput?: string
+  status: 'pending' | 'completed' | 'error'
+  startTime: number
+  endTime?: number
+}
+
+/**
+ * Record of a subagent execution
+ */
+export interface SubagentRecord {
+  id: string
+  name: string
+  task: string
+  status: 'running' | 'completed' | 'failed'
+  startTime: number
+  endTime?: number
+  duration?: number
+}
+
+/**
+ * Record of a task in the agent's plan
+ */
+export interface TaskRecord {
+  id: string
+  name: string
+  status: 'started' | 'running' | 'completed'
+  startTime: number
+  endTime?: number
+}
+
+/**
  * Chat message structure
  */
 export interface ChatMessage {
@@ -20,6 +57,15 @@ export interface ChatMessage {
   activeSubagent?: string
   subagentTask?: string
   isIntermediateContent?: boolean
+
+  // --- History arrays (accumulated during agent execution) ---
+  toolCalls?: ToolCallRecord[]
+  subagentHistory?: SubagentRecord[]
+  taskHistory?: TaskRecord[]
+
+  // --- Thinking/reasoning content ---
+  // Accumulated from Claude's thinking blocks, displayed in collapsible ThinkingBubble
+  thinkingContent?: string
 }
 
 /**

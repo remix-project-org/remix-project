@@ -23,6 +23,7 @@ import AiChatPromptAreaForHistory from './aiChatPromptAreaForHistory'
 import AiChatPromptArea from './aiChatPromptArea'
 import { useModelAccess } from '../hooks/useModelAccess'
 import { ToolApprovalModal } from './ToolApprovalModal'
+import { AgentStatusBar } from './AgentStatusBar'
 
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
@@ -350,84 +351,190 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
 
     // Handle tool call events from DeepAgent
+    // Accumulates toolCalls[] array for Phase 1 ToolCallCard rendering,
+    // while preserving legacy isExecutingTools/executingToolName fields for chat.tsx compat.
     const handleToolCall = (data: { toolName: string; toolInput?: any; toolOutput?: any; status: 'start' | 'end' }) => {
       console.log('[RemixAI Assistant] Tool call event:', data)
       const assistantId = streamingAssistantIdRef.current
       if (!assistantId) return
 
       if (data.status === 'start') {
-        setMessages(prev =>
-          prev.map(m => (m.id === assistantId ? {
+        const newRecord = {
+          id: `tool_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          toolName: data.toolName,
+          toolArgs: data.toolInput || {},
+          status: 'pending' as const,
+          startTime: Date.now()
+        }
+        console.log(`[Phase1] Tool START: ${data.toolName} → new record id=${newRecord.id}`)
+        setMessages(prev => {
+          const msg = prev.find(m => m.id === assistantId)
+          const prevCount = msg?.toolCalls?.length || 0
+          console.log(`[Phase1] toolCalls array: ${prevCount} → ${prevCount + 1}`)
+          return prev.map(m => (m.id === assistantId ? {
             ...m,
+            // Legacy fields (chat.tsx compat)
             isExecutingTools: true,
             executingToolName: data.toolName,
-            executingToolArgs: data.toolInput
+            executingToolArgs: data.toolInput,
+            // New history array
+            toolCalls: [...(m.toolCalls || []), newRecord]
           } : m))
-        )
+        })
       } else {
+        // 'end' event — if toolName is empty (finally block blanket end), mark ALL pending as completed.
+        // Otherwise, mark only the matching pending tool as completed.
+        console.log(`[Phase1] Tool END: toolName="${data.toolName || '(blanket)'}" output=${data.toolOutput != null ? 'yes' : 'no'}`)
         setMessages(prev =>
-          prev.map(m => (m.id === assistantId ? {
-            ...m,
-            isExecutingTools: false,
-            executingToolName: undefined,
-            executingToolArgs: undefined
-          } : m))
+          prev.map(m => {
+            if (m.id !== assistantId) return m
+
+            const updatedToolCalls = (m.toolCalls || []).map(tc => {
+              if (tc.status !== 'pending') return tc
+              // Empty toolName = blanket end from finally block, complete all pending
+              if (!data.toolName || tc.toolName === data.toolName) {
+                console.log(`[Phase1] Marking completed: ${tc.toolName} (${tc.id})`)
+                // Safely serialize toolOutput — handles ToolMessage objects, plain strings, etc.
+                let outputStr: string | undefined
+                if (data.toolOutput != null) {
+                  if (typeof data.toolOutput === 'string') {
+                    outputStr = data.toolOutput
+                  } else if (typeof data.toolOutput === 'object' && data.toolOutput.content) {
+                    outputStr = String(data.toolOutput.content)
+                  } else {
+                    try { outputStr = JSON.stringify(data.toolOutput) } catch { outputStr = String(data.toolOutput) }
+                  }
+                }
+                return {
+                  ...tc,
+                  status: 'completed' as const,
+                  toolOutput: outputStr,
+                  endTime: Date.now()
+                }
+              }
+              return tc
+            })
+
+            const hasPending = updatedToolCalls.some(tc => tc.status === 'pending')
+            console.log(`[Phase1] After end: ${updatedToolCalls.length} total, hasPending=${hasPending}`)
+
+            return {
+              ...m,
+              // Legacy fields
+              isExecutingTools: hasPending,
+              executingToolName: hasPending ? m.executingToolName : undefined,
+              executingToolArgs: hasPending ? m.executingToolArgs : undefined,
+              // Updated history
+              toolCalls: updatedToolCalls
+            }
+          })
         )
       }
     }
 
-    // Handle subagent start events
+    // Handle subagent start events — accumulates subagentHistory[]
     const handleSubagentStart = (data: { id: string; name: string; task: string; status: string }) => {
       console.log('[RemixAI Assistant] Subagent started:', data)
       if (streamingAssistantIdRef.current) {
+        const newRecord = {
+          id: data.id,
+          name: data.name,
+          task: data.task,
+          status: 'running' as const,
+          startTime: Date.now()
+        }
         setMessages(prev =>
           prev.map(m =>
             m.id === streamingAssistantIdRef.current
-              ? { ...m, activeSubagent: data.name, subagentTask: data.task }
+              ? {
+                ...m,
+                activeSubagent: data.name,
+                subagentTask: data.task,
+                // New history array
+                subagentHistory: [...(m.subagentHistory || []), newRecord]
+              }
               : m
           )
         )
       }
     }
 
-    // Handle subagent complete events
+    // Handle subagent complete events — updates matching subagentHistory record
     const handleSubagentComplete = (data: { id: string; name: string; status: string; duration: number }) => {
       console.log('[RemixAI Assistant] Subagent completed:', data)
       if (streamingAssistantIdRef.current) {
         setMessages(prev =>
-          prev.map(m =>
-            m.id === streamingAssistantIdRef.current
-              ? { ...m, activeSubagent: undefined, subagentTask: undefined }
-              : m
-          )
+          prev.map(m => {
+            if (m.id !== streamingAssistantIdRef.current) return m
+
+            const updatedHistory = (m.subagentHistory || []).map(sa =>
+              sa.id === data.id
+                ? { ...sa, status: 'completed' as const, endTime: Date.now(), duration: data.duration }
+                : sa
+            )
+            const hasRunning = updatedHistory.some(sa => sa.status === 'running')
+
+            return {
+              ...m,
+              activeSubagent: hasRunning ? m.activeSubagent : undefined,
+              subagentTask: hasRunning ? m.subagentTask : undefined,
+              // Updated history
+              subagentHistory: updatedHistory
+            }
+          })
         )
       }
     }
 
-    // Handle task start events
+    // Handle task start events — accumulates taskHistory[]
     const handleTaskStart = (data: { id: string; name: string; status: string }) => {
       console.log('[RemixAI Assistant] Task started:', data)
       if (streamingAssistantIdRef.current) {
+        const newRecord = {
+          id: data.id,
+          name: data.name,
+          status: 'running' as const,
+          startTime: Date.now()
+        }
         setMessages(prev =>
           prev.map(m =>
             m.id === streamingAssistantIdRef.current
-              ? { ...m, currentTask: data.name, taskStatus: 'running' }
+              ? {
+                ...m,
+                currentTask: data.name,
+                taskStatus: 'running' as const,
+                // New history array
+                taskHistory: [...(m.taskHistory || []), newRecord]
+              }
               : m
           )
         )
       }
     }
 
-    // Handle task complete events
+    // Handle task complete events — updates matching taskHistory record
     const handleTaskComplete = (data: { id: string; name: string; status: string }) => {
       console.log('[RemixAI Assistant] Task completed:', data)
       if (streamingAssistantIdRef.current) {
         setMessages(prev =>
-          prev.map(m =>
-            m.id === streamingAssistantIdRef.current
-              ? { ...m, currentTask: undefined, taskStatus: 'completed' }
-              : m
-          )
+          prev.map(m => {
+            if (m.id !== streamingAssistantIdRef.current) return m
+
+            const updatedHistory = (m.taskHistory || []).map(t =>
+              t.id === data.id
+                ? { ...t, status: 'completed' as const, endTime: Date.now() }
+                : t
+            )
+            const hasRunning = updatedHistory.some(t => t.status === 'running' || t.status === 'started')
+
+            return {
+              ...m,
+              currentTask: hasRunning ? m.currentTask : undefined,
+              taskStatus: hasRunning ? 'running' as const : 'completed' as const,
+              // Updated history
+              taskHistory: updatedHistory
+            }
+          })
         )
       }
     }
@@ -439,6 +546,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     props.plugin.on('remixAI', 'onSubagentComplete', handleSubagentComplete)
     props.plugin.on('remixAI', 'onTaskStart', handleTaskStart)
     props.plugin.on('remixAI', 'onTaskComplete', handleTaskComplete)
+
+    // Handle Claude thinking/reasoning blocks
+    // Accumulates thinking content into the current assistant message
+    const handleThinkingContent = (data: { content: string; source?: string }) => {
+      if (streamingAssistantIdRef.current) {
+        console.log(`[Phase3] Thinking content received (${data.content.length} chars) from ${data.source || 'agent'}`)
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === streamingAssistantIdRef.current
+              ? { ...m, thinkingContent: (m.thinkingContent || '') + data.content }
+              : m
+          )
+        )
+      }
+    }
+    props.plugin.on('remixAI', 'onThinkingContent', handleThinkingContent)
 
     // Human-in-the-loop: listen for tool approval requests (batch processing)
     const handleToolApproval = (request: ToolApprovalRequest) => {
@@ -455,6 +578,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onSubagentComplete')
       props.plugin.off('remixAI', 'onTaskStart')
       props.plugin.off('remixAI', 'onTaskComplete')
+      props.plugin.off('remixAI', 'onThinkingContent')
       props.plugin.off('remixAI', 'onToolApprovalRequired')
     }
   }, [props.plugin])
@@ -704,7 +828,23 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             subagentTask: undefined,
             currentTask: undefined,
             taskStatus: undefined,
-            isIntermediateContent: undefined
+            isIntermediateContent: undefined,
+            // History arrays cleanup — mark pending items as completed/failed
+            toolCalls: m.toolCalls?.map(tc =>
+              tc.status === 'pending'
+                ? { ...tc, status: 'error' as const, endTime: Date.now() }
+                : tc
+            ),
+            subagentHistory: m.subagentHistory?.map(sa =>
+              sa.status === 'running'
+                ? { ...sa, status: 'failed' as const, endTime: Date.now() }
+                : sa
+            ),
+            taskHistory: m.taskHistory?.map(t =>
+              t.status === 'running' || t.status === 'started'
+                ? { ...t, status: 'completed' as const, endTime: Date.now() }
+                : t
+            )
           }))
 
         return [
@@ -1485,6 +1625,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     />
                   </div>
                 ))}
+                {/* Agent Status Bar */}
+                {(() => {
+                  const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant')
+                  return (
+                    <AgentStatusBar
+                      isStreaming={isStreaming}
+                      isExecutingTools={lastAssistant?.isExecutingTools || false}
+                      executingToolName={lastAssistant?.executingToolName}
+                      pendingApprovalCount={pendingApprovals.length}
+                      activeSubagent={lastAssistant?.activeSubagent}
+                      subagentTask={lastAssistant?.subagentTask}
+                      currentTask={lastAssistant?.currentTask}
+                      taskStatus={lastAssistant?.taskStatus}
+                    />
+                  )
+                })()}
               </section>
             </div>
           ) : (
@@ -1600,6 +1756,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       />
                     </div>
                   ))}
+                  {/* Agent Status Bar */}
+                  {(() => {
+                    const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant')
+                    return (
+                      <AgentStatusBar
+                        isStreaming={isStreaming}
+                        isExecutingTools={lastAssistant?.isExecutingTools || false}
+                        executingToolName={lastAssistant?.executingToolName}
+                        pendingApprovalCount={pendingApprovals.length}
+                        activeSubagent={lastAssistant?.activeSubagent}
+                        subagentTask={lastAssistant?.subagentTask}
+                        currentTask={lastAssistant?.currentTask}
+                        taskStatus={lastAssistant?.taskStatus}
+                      />
+                    )
+                  })()}
                 </section>
               </div>
             )

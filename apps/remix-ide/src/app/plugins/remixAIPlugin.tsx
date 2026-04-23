@@ -91,6 +91,7 @@ export class RemixAIPlugin extends Plugin {
     eventEmitter.removeAllListeners('onTaskStart')
     eventEmitter.removeAllListeners('onTaskComplete')
     eventEmitter.removeAllListeners('onToolApprovalRequired')
+    eventEmitter.removeAllListeners('onThinkingContent')
 
     // Set up fresh listeners
     eventEmitter.on('onInference', () => {
@@ -119,6 +120,11 @@ export class RemixAIPlugin extends Plugin {
     })
     eventEmitter.on('onTaskComplete', (data: { id: string; name: string; status: string }) => {
       this.emit('onTaskComplete', data)
+    })
+
+    // Relay Claude thinking/reasoning blocks to UI
+    eventEmitter.on('onThinkingContent', (data: { content: string; source?: string }) => {
+      this.emit('onThinkingContent', data)
     })
 
     // Human-in-the-loop: relay approval requests to UI

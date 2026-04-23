@@ -552,15 +552,37 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           if (chunk?.content) {
             // Extract delta content - handle different response formats
             let deltaContent = ''
+            let thinkingDelta = ''
+
             if (typeof chunk.content === 'string') {
               deltaContent = chunk.content
             } else if (Array.isArray(chunk.content) && chunk.content.length > 0) {
-              // Handle array format (e.g., [{type: 'text', text: '...'}])
-              if (chunk.content[0]?.text) {
-                deltaContent = chunk.content[0].text
-              } else if (typeof chunk.content[0] === 'string') {
-                deltaContent = chunk.content[0]
+              // Handle array format from Claude (extended thinking):
+              //   [{type: 'thinking', thinking: '...'}, {type: 'text', text: '...'}]
+              // Process each block in the array — there can be multiple types in one chunk
+              for (const block of chunk.content) {
+                if (block.type === 'thinking' && block.thinking) {
+                  // Claude reasoning/thinking block — accumulate separately
+                  thinkingDelta += block.thinking
+                } else if (block.type === 'text' && block.text) {
+                  // Normal text content
+                  deltaContent += block.text
+                } else if (block.text) {
+                  // Legacy format: {text: '...'} without explicit type
+                  deltaContent += block.text
+                } else if (typeof block === 'string') {
+                  deltaContent += block
+                }
               }
+            }
+
+            // Emit thinking content separately
+            // This is additive — does not affect the existing stream content flow
+            if (thinkingDelta) {
+              this.event.emit('onThinkingContent', {
+                content: thinkingDelta,
+                source: event.metadata?.langgraph_node || 'agent'
+              })
             }
 
             if (deltaContent) {
@@ -592,12 +614,65 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           const toolInput = event.data?.input || {}
           console.log('[DeepAgentInferencer] Tool call started:', toolName, toolInput)
           this.event.emit('onToolCall', { toolName, toolInput, status: 'start' })
+
+          // Subagent detection: deepagents library spawns subagents via a 'task' tool.
+          // The tool input contains { description, subagent_type } identifying which subagent runs.
+          // We emit onSubagentStart here because on_chain_start names don't contain 'subagent'.
+          if (toolName === 'task') {
+            let parsedInput = toolInput
+            // toolInput may be a JSON string or already an object
+            if (typeof toolInput === 'string') {
+              try { parsedInput = JSON.parse(toolInput) } catch { parsedInput = {} }
+            } else if (toolInput?.input && typeof toolInput.input === 'string') {
+              try { parsedInput = JSON.parse(toolInput.input) } catch { parsedInput = toolInput }
+            }
+
+            const subagentName = parsedInput.subagent_type || 'Subagent'
+            const subagentTask = parsedInput.description || 'Processing...'
+
+            activeSubagents.set(event.run_id, { name: subagentName, startTime: Date.now() })
+            console.log(`[DeepAgentInferencer] Subagent spawned via task tool: ${subagentName} (run_id: ${event.run_id})`)
+
+            this.event.emit('onSubagentStart', {
+              id: event.run_id,
+              name: subagentName,
+              task: subagentTask,
+              status: 'running'
+            })
+          }
         } else if (eventType === 'on_tool_end') {
           const toolName = event.name
-          const toolOutput = event.data?.output
+          const rawOutput = event.data?.output
+          // LangChain on_tool_end returns a ToolMessage object — extract .content
+          let toolOutput: string | undefined
+          if (rawOutput != null) {
+            if (typeof rawOutput === 'string') {
+              toolOutput = rawOutput
+            } else if (typeof rawOutput.content === 'string') {
+              toolOutput = rawOutput.content
+            } else if (typeof rawOutput === 'object') {
+              try { toolOutput = JSON.stringify(rawOutput) } catch { toolOutput = String(rawOutput) }
+            } else {
+              toolOutput = String(rawOutput)
+            }
+          }
           console.log('[DeepAgentInferencer] Tool call ended:', toolName)
-          // let the tool callback for while
-          //this.event.emit('onToolCall', { toolName, toolOutput, status: 'end' })
+          this.event.emit('onToolCall', { toolName, toolOutput, status: 'end' })
+
+          // Subagent completion: if this was a 'task' tool, emit onSubagentComplete
+          if (toolName === 'task' && activeSubagents.has(event.run_id)) {
+            const subagent = activeSubagents.get(event.run_id)!
+            const duration = Date.now() - subagent.startTime
+            console.log(`[DeepAgentInferencer] Subagent completed: ${subagent.name} (${duration}ms)`)
+
+            this.event.emit('onSubagentComplete', {
+              id: event.run_id,
+              name: subagent.name,
+              status: 'completed',
+              duration
+            })
+            activeSubagents.delete(event.run_id)
+          }
         }
       }
 

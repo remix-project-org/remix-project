@@ -1,0 +1,551 @@
+/* ========================================================
+   DeepAgent UI Components — Tool Call Cards & Agent Status Bar
+   Colors: var(--bs-body-color) for text, low-opacity overlays for bg.
+   ======================================================== */
+
+/* === ToolCallCard base === */
+.tool-call-card {
+  border-radius: 6px;
+  margin: 4px 0;
+  font-size: 0.82rem;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+/* --- Status variants ---
+   Use semi-transparent overlays that adapt to any background.
+   Avoids --bs-*-bg-subtle which can be too bright in some themes. */
+.tool-call-card--pending {
+  background: color-mix(in srgb, var(--bs-info) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bs-info) 30%, transparent);
+  border-left: 3px solid var(--bs-info, #0dcaf0);
+}
+
+.tool-call-card--completed {
+  background: color-mix(in srgb, var(--bs-body-color) 4%, transparent);
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--bs-success, #198754);
+}
+
+.tool-call-card--error {
+  background: color-mix(in srgb, var(--bs-danger) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bs-danger) 25%, transparent);
+  border-left: 3px solid var(--bs-danger, #dc3545);
+}
+
+/* --- Collapsed state (after auto-hide) --- */
+.tool-call-card--collapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  color: var(--bs-body-color);
+  transition: background 0.15s ease;
+  margin: 2px 4px 2px 0;
+}
+
+.tool-call-card--collapsed:hover {
+  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+}
+
+.tool-call-card__icon--small {
+  font-size: 0.65rem;
+  opacity: 0.6;
+  color: var(--bs-body-color);
+}
+
+.tool-call-card__name--small {
+  text-transform: capitalize;
+  color: var(--bs-body-color);
+}
+
+.tool-call-card__elapsed--small {
+  opacity: 0.6;
+  font-size: 0.65rem;
+  color: var(--bs-body-color);
+}
+
+.tool-call-card__check {
+  color: var(--bs-success, #198754);
+  font-size: 0.6rem;
+}
+
+/* --- Header --- */
+.tool-call-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: default;
+  user-select: none;
+}
+
+.tool-call-card--completed .tool-call-card__header,
+.tool-call-card--error .tool-call-card__header {
+  cursor: pointer;
+}
+
+.tool-call-card--completed .tool-call-card__header:hover,
+.tool-call-card--error .tool-call-card__header:hover {
+  background: color-mix(in srgb, var(--bs-body-color) 5%, transparent);
+}
+
+.tool-call-card__status-icon {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.tool-call-card__status-icon .fa-spinner {
+  color: var(--bs-info, #0dcaf0);
+}
+
+.tool-call-card__icon {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  width: 14px;
+  text-align: center;
+  color: var(--bs-body-color);
+}
+
+.tool-call-card__name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--bs-body-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tool-call-card__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.tool-call-card__elapsed {
+  font-size: 0.7rem;
+  color: var(--bs-body-color);
+  opacity: 0.6;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.tool-call-card__chevron {
+  font-size: 0.6rem;
+  color: var(--bs-body-color);
+  opacity: 0.5;
+  transition: transform 0.2s ease;
+}
+
+/* --- Expanded body --- */
+.tool-call-card__body {
+  padding: 0 10px 8px 10px;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.tool-call-card__section {
+  margin-top: 6px;
+}
+
+.tool-call-card__label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--bs-body-color);
+  opacity: 0.6;
+  margin-bottom: 2px;
+}
+
+.tool-call-card__json {
+  background: color-mix(in srgb, var(--bs-body-color) 5%, transparent);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.7rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  color: var(--bs-body-color);
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tool-call-card__error-msg {
+  color: var(--bs-danger, #dc3545);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+/* === ToolCallList === */
+.tool-call-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 4px 0;
+}
+
+.tool-call-list .tool-call-card--collapsed {
+  display: inline-flex;
+}
+
+/* Pulse animation for pending cards */
+@keyframes tool-card-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.tool-call-card--pending {
+  animation: tool-card-pulse 2s ease-in-out infinite;
+}
+
+/* ========================================================
+   DeepAgent UI Components — Agent Status Bar
+   Transparent background — just floating text above the prompt.
+   ======================================================== */
+
+.agent-status-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  min-height: 30px;
+  font-size: 0.8rem;
+  /* No background, no border — just text floating above the prompt area */
+  background: transparent;
+  border: none;
+}
+
+.agent-status-bar--complete {
+  animation: status-bar-fade-out 2s ease-out forwards;
+}
+
+@keyframes status-bar-fade-out {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.agent-status-bar__content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.agent-status-bar__content i {
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.agent-status-bar__label {
+  color: var(--bs-body-color);
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+/* Animated dots */
+.agent-status-bar__dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+  align-items: center;
+}
+
+.agent-status-bar__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--bs-body-color);
+  opacity: 0.4;
+  animation: status-dot-bounce 1.4s ease-in-out infinite;
+}
+
+.agent-status-bar__dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.agent-status-bar__dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes status-dot-bounce {
+  0%, 80%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+/* Status-specific icon colors — using Bootstrap variables */
+.agent-status-bar--thinking .agent-status-bar__icon {
+  color: var(--bs-purple, #6f42c1);
+}
+
+.agent-status-bar--using_tools .agent-status-bar__icon {
+  color: var(--bs-info, #0dcaf0);
+}
+
+.agent-status-bar--waiting_approval .agent-status-bar__icon {
+  color: var(--bs-warning, #ffc107);
+}
+
+.agent-status-bar--spawning_subagent .agent-status-bar__icon {
+  color: var(--bs-success, #198754);
+}
+
+.agent-status-bar--planning .agent-status-bar__icon {
+  color: var(--bs-purple, #6f42c1);
+}
+
+.agent-status-bar--complete .agent-status-bar__icon {
+  color: var(--bs-success, #198754);
+}
+
+/* ========================================================
+   DeepAgent UI Components — Thinking Bubble (Phase 3)
+   ======================================================== */
+
+.thinking-bubble {
+  margin: 4px 0 8px 0;
+}
+
+/* Toggle button — looks like a subtle pill */
+.thinking-bubble__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--bs-body-color);
+  opacity: 0.7;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.thinking-bubble__toggle:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--bs-body-color) 6%, transparent);
+}
+
+.thinking-bubble__toggle--expanded {
+  opacity: 1;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.thinking-bubble__icon {
+  font-size: 0.7rem;
+  color: var(--bs-purple, #6f42c1);
+}
+
+.thinking-bubble__label {
+  font-weight: 500;
+}
+
+.thinking-bubble__length {
+  opacity: 0.6;
+  font-size: 0.68rem;
+}
+
+.thinking-bubble__chevron {
+  font-size: 0.55rem;
+  opacity: 0.5;
+  margin-left: 2px;
+}
+
+/* Expanded content area */
+.thinking-bubble__content {
+  border: 1px solid var(--bs-border-color);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 8px 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.thinking-bubble__text {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--bs-body-color);
+  opacity: 0.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Preview when collapsed */
+.thinking-bubble__preview {
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  color: var(--bs-body-color);
+  opacity: 0.45;
+  font-style: italic;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400px;
+}
+
+.thinking-bubble__preview:hover {
+  opacity: 0.7;
+}
+
+/* ========================================================
+   DeepAgent UI Components — Subagent Panel (Phase 4)
+   ======================================================== */
+
+.subagent-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 4px 0;
+}
+
+/* Single subagent entry */
+.subagent-entry {
+  border-radius: 6px;
+  font-size: 0.82rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.subagent-entry--running {
+  background: color-mix(in srgb, var(--bs-info) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bs-info) 20%, transparent);
+  border-left: 3px solid var(--bs-info, #0dcaf0);
+}
+
+.subagent-entry--completed {
+  background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--bs-success, #198754);
+}
+
+.subagent-entry--failed {
+  background: color-mix(in srgb, var(--bs-danger) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bs-danger) 20%, transparent);
+  border-left: 3px solid var(--bs-danger, #dc3545);
+}
+
+/* Header */
+.subagent-entry__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.subagent-entry--running .subagent-entry__header {
+  cursor: default;
+}
+
+.subagent-entry--completed .subagent-entry__header:hover,
+.subagent-entry--failed .subagent-entry__header:hover {
+  background: color-mix(in srgb, var(--bs-body-color) 4%, transparent);
+}
+
+.subagent-entry__status-icon {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.subagent-entry__status-icon .fa-spinner {
+  color: var(--bs-info, #0dcaf0);
+}
+
+.subagent-entry__icon {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--bs-body-color);
+  opacity: 0.5;
+}
+
+.subagent-entry__name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--bs-body-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subagent-entry__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.subagent-entry__duration {
+  font-size: 0.7rem;
+  color: var(--bs-body-color);
+  opacity: 0.6;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.subagent-entry__chevron {
+  font-size: 0.6rem;
+  color: var(--bs-body-color);
+  opacity: 0.5;
+  transition: transform 0.2s ease;
+}
+
+/* Body (task detail) */
+.subagent-entry__body {
+  padding: 0 10px 8px 10px;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.subagent-entry__label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--bs-body-color);
+  opacity: 0.6;
+  margin: 6px 0 2px 0;
+}
+
+.subagent-entry__task {
+  font-size: 0.75rem;
+  color: var(--bs-body-color);
+  opacity: 0.8;
+  line-height: 1.4;
+}
+
+/* Pulse for running */
+.subagent-entry--running {
+  animation: tool-card-pulse 2s ease-in-out infinite;
+}
+
+
