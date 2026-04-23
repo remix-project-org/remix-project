@@ -63,6 +63,8 @@ function EditHtmlTemplate(): JSX.Element {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showTips, setShowTips] = useState(false);
+  const [showVmTips, setShowVmTips] = useState(false);
+  const [showChatBox, setShowChatBox] = useState(false);
 
   useEffect(() => {
     if (!plugin) return;
@@ -495,6 +497,13 @@ window.addEventListener('unhandledrejection', function(e) {
     }
   }, [isBuilderReady, isAiUpdating, activeDapp?.slug, isCurrentProviderVM]);
 
+  // Show ChatBox when AI starts updating
+  useEffect(() => {
+    if (isAiUpdating) {
+      setShowChatBox(true);
+    }
+  }, [isAiUpdating]);
+
   // Detect when blockchain VM is ready via contextChanged event (debounced).
   // Uses plugin.on (passive event) instead of plugin.call (blocked by engine queue).
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -623,6 +632,57 @@ window.addEventListener('unhandledrejection', function(e) {
               {activeDapp.workspaceName}
             </span>
           </div>
+          <div className="vr mx-1 text-secondary opacity-50" style={{ height: '1.2rem' }}></div>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <button
+              className="btn btn-link text-muted p-0 text-decoration-none"
+              onClick={() => setShowTips(!showTips)}
+              style={{ fontSize: '0.85rem' }}
+            >
+              <i className="far fa-question-circle me-1"></i>
+              {showTips ? 'Hide Tips' : 'Help & Tips'}
+            </button>
+            {isVM && (
+              <button
+                className="btn btn-link text-warning p-0 text-decoration-none"
+                onClick={() => setShowVmTips(!showVmTips)}
+                style={{ fontSize: '0.85rem' }}
+                title="VM Deployment Information"
+                data-id="vm-deployment-btn"
+              >
+                <i className="fas fa-exclamation-triangle me-1"></i>
+                {showVmTips ? 'Hide VM Info' : 'VM Info'}
+              </button>
+            )}
+            <Button
+              variant={showChatBox ? "outline-secondary" : "success"}
+              size="sm"
+              onClick={() => setShowChatBox(!showChatBox)}
+              disabled={isAiUpdating}
+              data-id="update-with-ai-btn"
+            >
+              <i className="fas fa-robot me-1"></i>
+              {showChatBox ? 'Hide AI Chat' : 'Update with AI'}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => runBuild(true)}
+              disabled={isBuilding || isAiUpdating}
+              data-id="refresh-preview-btn"
+            >
+              {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
+            </Button>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              onClick={() => setShowDeleteModal(true)}
+              disabled={isBuilding || isCapturing}
+              data-id="delete-dapp-editor-btn"
+            >
+              <i className="fas fa-trash me-1"></i> Delete DApp
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -630,47 +690,13 @@ window.addEventListener('unhandledrejection', function(e) {
         <div className="container-fluid pt-3 h-100">
           <Row className="m-0 h-100">
             <Col xs={12} lg={8} className="pe-lg-3 d-flex flex-column qd-main-col">
-              <Row>
-                <div className="flex-grow-1 mb-3" style={{ minHeight: '30px' }}>
-                  <ChatBox onSendMessage={handleChatMessage} isLoading={isAiUpdating}/>
-                </div>
-              </Row>
               <Row className="flex-grow-1 mb-3">
                 <Col xs={12} className="d-flex flex-column h-100">
-                  <div className="d-flex justify-content-between align-items-center mb-2 flex-shrink-0">
-                    <h5 className="mb-0 text-body">
-                      <FormattedMessage id="quickDapp.preview" defaultMessage="Preview" />
-                      <button
-                        className="btn btn-link text-muted p-0 ms-2 text-decoration-none"
-                        onClick={() => setShowTips(!showTips)}
-                        style={{ fontSize: '0.85rem' }}
-                      >
-                        <i className="far fa-question-circle me-1"></i>
-                        {showTips ? 'Hide Tips' : 'Help & Tips'}
-                      </button>
-                    </h5>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => runBuild(true)}
-                        disabled={isBuilding || isAiUpdating}
-                        data-id="refresh-preview-btn"
-                      >
-                        {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
-                      </Button>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => setShowDeleteModal(true)}
-                        disabled={isBuilding || isCapturing}
-                        data-id="delete-dapp-editor-btn"
-                      >
-                        <i className="fas fa-trash me-1"></i> Delete DApp
-                      </Button>
+                  {showChatBox && (
+                    <div className="flex-grow-1 mb-3 fade-in" style={{ minHeight: '30px' }}>
+                      <ChatBox onSendMessage={handleChatMessage} isLoading={isAiUpdating}/>
                     </div>
-                  </div>
-
+                  )}
                   {showTips && (
                     <div className="alert alert-info py-2 px-3 mb-2 small shadow-sm fade-in border-info bg-opacity-10">
                       <div className="fw-bold mb-1"><i className="fas fa-robot me-1"></i>AI Code Generation Tips</div>
@@ -682,8 +708,8 @@ window.addEventListener('unhandledrejection', function(e) {
                     </div>
                   )}
 
-                  {isVM && (
-                    <div className={`alert py-2 px-3 mb-2 small shadow-sm d-flex align-items-start ${vmContractStatus === 'not-found' ? 'alert-danger border-danger' : 'alert-warning border-warning'}`} data-id="vm-warning-banner">
+                  {isVM && showVmTips && (
+                    <div className={`alert py-2 px-3 mb-2 small shadow-sm d-flex align-items-start fade-in ${vmContractStatus === 'not-found' ? 'alert-danger border-danger' : 'alert-warning border-warning'}`} data-id="vm-warning-banner">
                       <i className={`fas ${vmContractStatus === 'not-found' ? 'fa-times-circle text-danger' : 'fa-exclamation-triangle text-warning'} me-2 mt-1`}></i>
                       <div>
                         <div className="fw-bold mb-1">Remix VM — Local Only</div>

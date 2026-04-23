@@ -211,17 +211,17 @@
 /* EditHtmlTemplate layout - wide container: side-by-side */
 @container qd-main (min-width: 700px) {
   .qd-main-col {
-    width: 66.667% !important;
-    flex: 0 0 66.667% !important;
-    max-width: 66.667% !important;
+    width: 80% !important;
+    flex: 0 0 80% !important;
+    max-width: 80% !important;
     padding-right: 1rem !important;
     margin-bottom: 0;
   }
   
   .qd-side-col {
-    width: 33.333% !important;
-    flex: 0 0 33.333% !important;
-    max-width: 33.333% !important;
+    width: 20% !important;
+    flex: 0 0 20% !important;
+    max-width: 20% !important;
     margin-bottom: 0;
   }
 }

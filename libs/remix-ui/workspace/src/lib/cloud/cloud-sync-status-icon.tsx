@@ -185,7 +185,7 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
       : !isAuthenticated
         ? 'Sign in to use cloud storage'
         : isOn
-          ? (syncProps!.title + ' — click to disable cloud')
+          ? (syncProps?.title + ' — click to disable cloud')
           : 'Cloud storage is OFF — click to enable'
 
   return (
