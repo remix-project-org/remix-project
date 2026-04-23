@@ -1719,6 +1719,8 @@ export class AuthPlugin extends Plugin {
    * @param token - The invite token string
    */
   async validateInviteToken(token: string): Promise<InviteValidateResponse> {
+    this.log('[AuthPlugin] Validating invite token:', token)
+    
     const response = await this.inviteApi.validateToken(token)
     if (!response.ok) {
       return {

@@ -72,10 +72,9 @@ module.exports = {
             // Open the notification panel
             .click('*[data-id="notification-bell"]')
             .waitForElementVisible('*[data-id="notification-dropdown"]', 5000)
-            // Click "Accept Invitation"
+            // look at "Accept Invitation"
             .waitForElementVisible('.notification-action-invitation', 120000)
-            .click('.notification-action-invitation')
-
+            // the invite will appear automatically
     },
     'look at the beta invite system #group1': function (browser: NightwatchBrowser) {
         browser
@@ -83,5 +82,43 @@ module.exports = {
             .waitForElementVisible('*[data-id="invite-sign-in-btn"]', 15000)
         // the rest we tested in invite_system.test.ts, but we can keep the test here to check the full flow with the pool login
     },
+    'should click on I will do this later button in the invite modal #group1': function (browser: NightwatchBrowser) {
+        browser
+            // Wait for the BetaJoinModal's "I will do this later" button and click it
+            .waitForElementVisible('*[data-id="invite-later-btn"]', 15000)
+            .click('*[data-id="invite-later-btn"]')
+            .waitForElementNotPresent('.invite-overlay', 5000)
+    },
+
+    'should reappear after reload when clicked later #group1': function (browser: NightwatchBrowser) {
+        browser
+            // Reload the page — the modal should come back because "later" was chosen
+            .refreshPage()
+            .waitForElementVisible('*[data-id="invite-sign-in-btn"]', 15000)
+    },
+
+    'should not reappear after clicking do not show me again #group1': function (browser: NightwatchBrowser) {
+        browser
+            .waitForElementVisible('*[data-id="invite-never-btn"]', 15000)
+            .click('*[data-id="invite-never-btn"]')
+            .waitForElementNotPresent('.invite-overlay', 5000)
+            // Reload — the modal must NOT appear this time
+            .refreshPage()
+            .pause(5000)
+            .assert.not.elementPresent('*[data-id="invite-sign-in-btn"]')
+    },
+
+    'should still be able to open invite modal via notification bell after dismissing forever #group1': function (browser: NightwatchBrowser) {
+        browser
+            // The invite modal was dismissed forever, but the notification badge should still be visible
+            .waitForElementVisible('*[data-id="notification-badge"]', 15000)
+            .click('*[data-id="notification-bell"]')
+            .waitForElementVisible('*[data-id="notification-dropdown"]', 5000)
+            // Click the invitation action in the notification panel
+            .waitForElementVisible('.notification-action-invitation', 15000)
+            .click('.notification-action-invitation')
+            // The invite modal should reopen
+            .waitForElementVisible('*[data-id="invite-sign-in-btn"]', 15000)
+    }
 
 }

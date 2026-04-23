@@ -590,8 +590,7 @@ const BetaJoinModal: React.FC<BetaJoinModalProps> = ({
               <span
                 onClick={onClose}
                 onMouseEnter={() => setLaterHovered(true)}
-                onMouseLeave={() => setLaterHovered(false)}
-                style={{
+                onMouseLeave={() => setLaterHovered(false)}                data-id="invite-later-btn"                style={{
                   fontSize: 11, color: laterHovered ? c.tx : c.tm,
                   cursor: "pointer", transition: "color 0.2s",
                   textDecoration: laterHovered ? "underline" : "none",
@@ -603,8 +602,7 @@ const BetaJoinModal: React.FC<BetaJoinModalProps> = ({
                 <span
                   onClick={onDismissForever}
                   onMouseEnter={() => setNeverHovered(true)}
-                  onMouseLeave={() => setNeverHovered(false)}
-                  style={{
+                  onMouseLeave={() => setNeverHovered(false)}                  data-id="invite-never-btn"                  style={{
                     fontSize: 11, color: neverHovered ? c.tx : c.td,
                     cursor: "pointer", transition: "color 0.2s",
                     textDecoration: neverHovered ? "underline" : "none",

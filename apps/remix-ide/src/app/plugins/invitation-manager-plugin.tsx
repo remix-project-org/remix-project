@@ -69,8 +69,6 @@ export class InvitationManagerPlugin extends Plugin {
       }
     })
 
-    // Check for pending invite on activation (handles page refresh)
-    await this.checkPendingInvite()
 
     // Check URL for invite token
     await this.checkUrlForInvite()
@@ -85,6 +83,7 @@ export class InvitationManagerPlugin extends Plugin {
   async showInvite(token: string): Promise<void> {
     // Validate the token first
     const validation = await this.validateToken(token)
+    this.log('[InvitationManager] Token validation result:', validation)
 
     // ── "request" invite type ──
     // Instead of granting access, these tokens trigger the membership request
@@ -135,6 +134,7 @@ export class InvitationManagerPlugin extends Plugin {
    * Validate a token (no auth required)
    */
   async validateToken(token: string): Promise<InviteValidateResponse> {
+    this.log('[InvitationManager] Validating token:', token)
     try {
       return await this.call('auth', 'validateInviteToken', token)
     } catch (e: any) {
@@ -264,8 +264,10 @@ export class InvitationManagerPlugin extends Plugin {
    * Check for pending invite (from previous session or after login)
    */
   private async checkPendingInvite(): Promise<void> {
+    this.log('[InvitationManager] Checking for pending invite...')
     try {
       const pending = await this.call('auth', 'getPendingInviteValidation')
+      this.log('[InvitationManager] Pending invite from auth plugin:', pending)
       if (pending && pending.token && pending.validation) {
         const isAuthenticated = await this.checkAuthState()
         this.state = {
@@ -353,6 +355,7 @@ export class InvitationManagerPlugin extends Plugin {
   }
 
   renderComponent(): void {
+    this.log('[InvitationManager] Rendering component with state:', this.state)
     this.dispatch({
       state: this.state,
       plugin: this
