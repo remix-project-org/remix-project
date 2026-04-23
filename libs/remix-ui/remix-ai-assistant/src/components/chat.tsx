@@ -112,7 +112,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
 
                     <div className="aiMarkup lh-base text-wrap">
                       {msg.role === 'assistant' ? (
-                        RemixMarkdownViewer(theme, msg.content)
+                        RemixMarkdownViewer(theme, msg.content ?? '')
                       ) : (
                         <div className="ai-paragraph pb-0">
                           {msg.content}
