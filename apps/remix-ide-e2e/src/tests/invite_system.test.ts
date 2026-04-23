@@ -109,4 +109,36 @@ module.exports = {
             .click('*[data-id="user-menu-compact"]')
             .waitForElementVisible('*[data-id="feature-badge-name-e2e-beta"]', 10000)
     },
+
+    // ─── Group 2: invite token in URL — defer / dismiss behaviour ───────────────
+
+    'should show the invite modal when arriving with invite token in URL #group2': function (browser: NightwatchBrowser) {
+        browser
+            .waitForElementVisible('*[data-id="invite-sign-in-btn"]', 15000)
+    },
+
+    'should dismiss with I will do this later and close the modal #group2': function (browser: NightwatchBrowser) {
+        browser
+            .waitForElementVisible('*[data-id="invite-later-btn"]', 15000)
+            .click('*[data-id="invite-later-btn"]')
+            .waitForElementNotPresent('.invite-overlay', 5000)
+    },
+
+    'should reappear after page reload when later was chosen #group2': function (browser: NightwatchBrowser) {
+        browser
+            // Reload — the invite token is still in sessionStorage so the modal must come back
+            .refreshPage()
+            .waitForElementVisible('*[data-id="invite-sign-in-btn"]', 15000)
+    },
+
+    'should dismiss forever with do not show me again #group2': function (browser: NightwatchBrowser) {
+        browser
+            .waitForElementVisible('*[data-id="invite-never-btn"]', 15000)
+            .click('*[data-id="invite-never-btn"]')
+            .waitForElementNotPresent('.invite-overlay', 5000)
+            // Reload — the modal must NOT reappear
+            .refreshPage()
+            .pause(5000)
+            .assert.not.elementPresent('*[data-id="invite-sign-in-btn"]')
+    }
 }
