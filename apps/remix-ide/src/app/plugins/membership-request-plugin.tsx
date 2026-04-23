@@ -122,6 +122,7 @@ export class MembershipRequestPlugin extends Plugin {
     // Fallback sync: if auth resolved before this plugin subscribed, pull current state
     // from auth plugin and run the same invite reconciliation flow.
     try {
+      await this.call('auth', 'waitForAuthResolution')
       const isAuthenticated = await this.call('auth', 'isAuthenticated') as boolean
       this.log('initial auth sync from auth plugin', { isAuthenticated })
       if (isAuthenticated) {

@@ -9,7 +9,7 @@ const profile = {
   name: 'auth',
   displayName: 'Authentication',
   description: 'Handles SSO authentication and credits',
-  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
+  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'waitForAuthResolution', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
   events: ['authStateChanged', 'creditsUpdated', 'accountLinked', 'gitHubTokenReady', 'inviteTokenDetected', 'inviteTokenRedeemed', 'registrationModeChanged', 'loginModeChanged', 'accessPolicyChanged', 'appConfigChanged']
 }
 
@@ -27,6 +27,8 @@ export class AuthPlugin extends Plugin {
   private activePoolSession: { sessionId: string; accountId: string } | null = null
   private refreshTimer: number | null = null
   private pendingInviteToken: string | null = null
+  private authResolved = false
+  private authResolvedWaiters: Array<() => void> = []
   private cachedRegistrationMode: RegistrationMode | null = null
   private cachedLoginMode: LoginMode | null = null
   private cachedLoginMessage: string = ''
@@ -36,6 +38,15 @@ export class AuthPlugin extends Plugin {
   /** Debug-gated logger – silent when DEBUG is false */
   private log(...args: any[]) {
     if (AuthPlugin.DEBUG) console.log(...args)
+  }
+
+  private markAuthResolved(): void {
+    if (this.authResolved) return
+    this.authResolved = true
+    this.log('[AuthPlugin] Auth resolution completed')
+    const waiters = [...this.authResolvedWaiters]
+    this.authResolvedWaiters = []
+    waiters.forEach(resolve => resolve())
   }
 
   constructor() {
@@ -897,6 +908,27 @@ export class AuthPlugin extends Plugin {
     return !!localStorage.getItem('remix_access_token')
   }
 
+  async waitForAuthResolution(timeoutMs = 15000): Promise<void> {
+    if (this.authResolved) return
+
+    return new Promise<void>((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const resolveOnce = () => {
+        if (timer) clearTimeout(timer)
+        resolve()
+      }
+
+      this.authResolvedWaiters.push(resolveOnce)
+
+      if (timeoutMs > 0) {
+        timer = setTimeout(() => {
+          this.authResolvedWaiters = this.authResolvedWaiters.filter(r => r !== resolveOnce)
+          reject(new Error(`waitForAuthResolution timed out after ${timeoutMs}ms`))
+        }, timeoutMs)
+      }
+    })
+  }
+
   async getToken(): Promise<string | null> {
     const token = localStorage.getItem('remix_access_token')
 
@@ -1076,6 +1108,7 @@ export class AuthPlugin extends Plugin {
     // This ensures AuthContext (which polls for activation) never sees
     // stale/unvalidated tokens in localStorage.
     await this.validateAndRestoreSession()
+    this.markAuthResolved()
   }
 
   /**

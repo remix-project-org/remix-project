@@ -112,6 +112,7 @@ module.exports = {
     'refresh and there should not be an invite modal #group1': function (browser: NightwatchBrowser) {
         browser
             .refreshPage()
+            .pause(3000)
             .assert.not.elementPresent('*[data-id="invite-sign-in-btn"]', 'Invite modal should not reappear after refresh')
     },
 
