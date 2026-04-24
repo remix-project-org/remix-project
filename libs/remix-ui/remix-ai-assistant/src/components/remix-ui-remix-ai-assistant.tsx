@@ -92,6 +92,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [selectedModel, setSelectedModel] = useState<AIModel>(getDefaultModel())
   const [isOllamaFailureFallback, setIsOllamaFailureFallback] = useState(false)
   const [themeTracker, setThemeTracker] = useState<{ name: string } | null>(() => ({ name: getSystemThemeFallback() }))
+  // Bridge for Load Skills modal → sendPrompt (avoids stale closure in okFn)
+  const [pendingSkillsPrompt, setPendingSkillsPrompt] = useState<string | null>(null)
   const historyRef = useRef<HTMLDivElement | null>(null)
   const modelBtnRef = useRef(null)
   const modelSelectorBtnRef = useRef(null)
@@ -719,6 +721,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setInput('')
   }, [input, sendPrompt])
 
+  // Bridge: fire sendPrompt when Load Skills modal sets pendingSkillsPrompt
+  useEffect(() => {
+    if (!pendingSkillsPrompt) return
+    const prompt = pendingSkillsPrompt
+    setPendingSkillsPrompt(null)
+    sendPrompt(prompt)
+  }, [pendingSkillsPrompt, sendPrompt])
+
   useEffect(() => {
     const handleMCPToggle = async () => {
       // Only toggle MCP if it's enabled via query parameter
@@ -920,114 +930,140 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [toggleRecording, isRecording])
 
-  const handleLoadSkills = useCallback(async () => {
-    try {
-      const res = await fetch('http://187.77.100.93:9005/skills')
-      const data = res.ok ? await res.json() : { skills: [] }
-      const skills: { id: string; name: string; description?: string; source?: string }[] = data?.skills || []
+  const handleLoadSkills = useCallback(() => {
+    // Mutable shared state so okFn always reads the latest selection and skills list
+    const sharedState: {
+      skills: { id: string; name: string; description?: string; source?: string }[]
+      selected: Set<string>
+      okHandled: boolean
+    } = { skills: [], selected: new Set(), okHandled: false }
 
-      await new Promise<void>((resolve, reject) => {
-        // Use a ref-like object to share selected state across renders without re-creating the modal
-        const selectionState = { selected: new Set<string>() }
+    const SkillsList = () => {
+      type Skill = { id: string; name: string; description?: string; source?: string }
+      const [loading, setLoading] = React.useState(true)
+      const [error, setError] = React.useState<string | null>(null)
+      const [skills, setSkills] = React.useState<Skill[]>([])
+      const [selected, setSelected] = React.useState<Set<string>>(new Set())
+      const [filter, setFilter] = React.useState('')
 
-        const SkillsList = () => {
-          const [filter, setFilter] = React.useState('')
-          const [selected, setSelected] = React.useState<Set<string>>(new Set())
+      React.useEffect(() => {
+        fetch('/api/skills')
+          .then(res => {
+            if (!res.ok) throw new Error(`Server error ${res.status}`)
+            return res.json()
+          })
+          .then(data => {
+            const list: Skill[] = data?.skills || []
+            sharedState.skills = list
+            setSkills(list)
+            setLoading(false)
+          })
+          .catch(err => {
+            setError(err?.message || 'Failed to load skills')
+            setLoading(false)
+          })
+      }, [])
 
-          const filtered = filter.trim()
-            ? skills.filter(s => `${s.name} ${s.description || ''} ${s.source || ''}`.toLowerCase().includes(filter.toLowerCase()))
-            : skills
-
-          const toggleSkill = (id: string) => {
-            setSelected(prev => {
-              const next = new Set(prev)
-              if (next.has(id)) next.delete(id)
-              else next.add(id)
-              selectionState.selected = next
-              return next
-            })
-          }
-
-          return (
-            <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-              <input
-                className="form-control mb-3"
-                placeholder="Search skills..."
-                value={filter}
-                onChange={e => setFilter(e.target.value)}
-                autoFocus
-              />
-              {selected.size > 0 && (
-                <div className="mb-2 text-info small">{selected.size} skill{selected.size > 1 ? 's' : ''} selected</div>
-              )}
-              <div className="d-flex flex-wrap gap-2">
-                {filtered.map(skill => {
-                  const isSelected = selected.has(skill.id)
-                  return (
-                    <div
-                      key={skill.id}
-                      className={`card text-light ${isSelected ? 'border-info' : 'bg-secondary'}`}
-                      style={{
-                        width: 200,
-                        cursor: 'pointer',
-                        backgroundColor: isSelected ? '#1a3a4a' : undefined,
-                        boxShadow: isSelected ? '0 0 0 2px #0dcaf0' : undefined
-                      }}
-                      onClick={() => toggleSkill(skill.id)}
-                    >
-                      <div className="card-body p-2">
-                        <div className="d-flex align-items-center gap-1 mb-1">
-                          {isSelected && <i className="fas fa-check-circle text-info" style={{ fontSize: '0.75rem' }}></i>}
-                          <h6 className="card-title mb-0" style={{ fontSize: '0.85rem' }}>{skill.name}</h6>
-                        </div>
-                        {skill.source && <span className="badge bg-dark mb-1" style={{ fontSize: '0.65rem' }}>{skill.source}</span>}
-                        <p className="card-text" style={{ fontSize: '0.75rem', opacity: 0.85 }}>{skill.description || ''}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-                {filtered.length === 0 && <div className="text-muted">No skills found.</div>}
-              </div>
-            </div>
-          )
-        }
-        const modalContent = {
-          id: 'load-skills',
-          title: 'Load Skills',
-          message: <SkillsList />,
-          modalType: ModalTypes.default,
-          okLabel: 'Load Selected Skills',
-          okFn: () => setTimeout(() => {
-            const selectedSkills = skills.filter(s => selectionState.selected.has(s.id))
-            if (selectedSkills.length > 0) {
-              const skillList = selectedSkills.map(s => `"${s.name}" (id: ${s.id})`).join(', ')
-              sendPrompt(`Please load and apply the following Ethereum development skills: ${skillList}`)
-              trackMatomoEvent<AIEvent>({ category: 'ai', action: 'conv_starter', name: 'load_skills', value: selectedSkills.map(s => s.id).join(','), isClick: true })
-            }
-            resolve()
-          }, 0),
-          cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
-          hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
-        }
-        // @ts-ignore
-        props.plugin.call('notification', 'modal', modalContent)
-      })
-    } catch (e: any) {
-      if (e?.message !== 'Canceled' && e?.message !== 'Hide') {
-        // @ts-ignore
-        props.plugin.call('notification', 'modal', {
-          id: 'load-skills-error',
-          title: 'Load Skills',
-          message: <div className="text-danger">Failed to load skills. Make sure the ethskills server is running at http://187.77.100.93:9005.</div>,
-          modalType: ModalTypes.alert,
-          okLabel: 'OK',
-          okFn: () => {},
-          cancelFn: () => {},
-          hideFn: () => {}
+      const toggleSkill = (id: string) => {
+        setSelected(prev => {
+          const next = new Set(prev)
+          if (next.has(id)) next.delete(id)
+          else next.add(id)
+          sharedState.selected = next
+          return next
         })
       }
+
+      const filtered = filter.trim()
+        ? skills.filter(s => `${s.name} ${s.description || ''} ${s.source || ''}`.toLowerCase().includes(filter.toLowerCase()))
+        : skills
+
+      if (loading) {
+        return (
+          <div className="d-flex align-items-center justify-content-center py-5">
+            <div className="spinner-border text-info me-3" role="status" style={{ width: '1.5rem', height: '1.5rem' }}></div>
+            <span className="text-muted">Loading skills...</span>
+          </div>
+        )
+      }
+
+      if (error) {
+        return (
+          <div className="text-danger py-3">
+            <i className="fas fa-exclamation-circle me-2"></i>
+            {error}
+            <div className="small mt-1 text-muted">Make sure the ethskills server is running at http://187.77.100.93:9005</div>
+          </div>
+        )
+      }
+
+      return (
+        <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          <input
+            className="form-control mb-2"
+            placeholder="Search skills..."
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            autoFocus
+          />
+          {selected.size > 0 && (
+            <div className="mb-2 text-info small">{selected.size} skill{selected.size > 1 ? 's' : ''} selected — click "Load Selected Skills" to confirm</div>
+          )}
+          <div className="d-flex flex-wrap gap-2">
+            {filtered.map(skill => {
+              const isSelected = selected.has(skill.id)
+              return (
+                <div
+                  key={skill.id}
+                  className={`card text-light ${isSelected ? 'border-info' : 'bg-secondary'}`}
+                  style={{
+                    width: 200,
+                    cursor: 'pointer',
+                    backgroundColor: isSelected ? '#1a3a4a' : undefined,
+                    boxShadow: isSelected ? '0 0 0 2px #0dcaf0' : undefined,
+                    transition: 'box-shadow 0.15s, background-color 0.15s'
+                  }}
+                  onClick={() => toggleSkill(skill.id)}
+                >
+                  <div className="card-body p-2">
+                    <div className="d-flex align-items-center gap-1 mb-1">
+                      {isSelected && <i className="fas fa-check-circle text-info" style={{ fontSize: '0.75rem', flexShrink: 0 }}></i>}
+                      <h6 className="card-title mb-0" style={{ fontSize: '0.85rem' }}>{skill.name}</h6>
+                    </div>
+                    {skill.source && <span className="badge bg-dark mb-1" style={{ fontSize: '0.65rem' }}>{skill.source}</span>}
+                    <p className="card-text" style={{ fontSize: '0.75rem', opacity: 0.85 }}>{skill.description || ''}</p>
+                  </div>
+                </div>
+              )
+            })}
+            {filtered.length === 0 && <div className="text-muted">No skills found.</div>}
+          </div>
+        </div>
+      )
     }
-  }, [props.plugin, sendPrompt])
+
+    const modalContent = {
+      id: 'load-skills',
+      title: 'Load Skills',
+      message: <SkillsList />,
+      modalType: ModalTypes.default,
+      okLabel: 'Load Selected Skills',
+      okFn: () => {
+        sharedState.okHandled = true
+        const selectedSkills = sharedState.skills.filter(s => sharedState.selected.has(s.id))
+        if (selectedSkills.length > 0) {
+          const skillList = selectedSkills.map(s => `"${s.name}" (id: ${s.id})`).join(', ')
+          // Use state to bridge into the React lifecycle with a fresh sendPrompt ref
+          setPendingSkillsPrompt(`Please load and apply the following Ethereum development skills: ${skillList}`)
+          trackMatomoEvent<AIEvent>({ category: 'ai', action: 'conv_starter', name: 'load_skills', value: selectedSkills.map(s => s.id).join(','), isClick: true })
+        }
+      },
+      cancelFn: () => {},
+      hideFn: () => {}
+    }
+    // @ts-ignore
+    props.plugin.call('notification', 'modal', modalContent)
+  }, [props.plugin, setPendingSkillsPrompt])
 
   const handleGenerateWorkspace = useCallback(async () => {
     dispatchActivity('button', 'generateWorkspace')
