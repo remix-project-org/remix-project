@@ -316,24 +316,6 @@ export const FlatTree = (props: FlatTreeProps) => {
           onMouseMove={onMouseMove}
           onContextMenu={handleContextMenu}
         >
-          { showMouseOverTarget && mouseOverTarget && !isDragging &&
-            <Popover id='popover-basic'
-              placement='top'
-              ref={ref}
-              className='custom-popover'
-              style={
-                {
-                  position: 'fixed',
-                  top: `${mouseOverTarget.position.top}px`,
-                  left: `${mouseOverTarget.position.left}px`,
-                  minWidth: 'fit-content'
-                }
-              }>
-              <Popover.Body className='text-wrap p-1 px-2 bg-body w-100'>
-                {mouseOverTarget && mouseOverTarget.path}
-              </Popover.Body>
-            </Popover>
-          }
           <Virtuoso
             ref={virtuoso}
             style={{ height: `100%`, width: '100%' }}

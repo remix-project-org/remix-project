@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState, useRef, useMemo } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { CustomToggle, CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault } from '@remix-ui/helper'
+import { CustomToggle, CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault, getMultiValsString } from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import * as remixLib from '@remix-project/remix-lib'
 import { Dropdown } from 'react-bootstrap'
@@ -16,6 +16,7 @@ import BN from 'bn.js'
 import { TrackingContext } from '@remix-ide/tracking'
 
 const txHelper = remixLib.execution.txHelper
+const txFormat = remixLib.execution.txFormat
 const highlightedContracts = new Set<string>()
 
 interface DeployedContractItemProps {
@@ -215,10 +216,56 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
     }))
   }
 
+  const getEncodedCall = (funcIndex: number) => {
+    const funcABI = functionABIs[funcIndex]
+    if (!funcABI || !funcABI.inputs || funcABI.inputs.length === 0) {
+      return intl.formatMessage({ id: 'udapp.getEncodedCallError' })
+    }
+    const funcParams = funcInputs[funcIndex] || {}
+    const inputValues = funcABI.inputs.map((_: any, idx: number) => funcParams[idx] || '')
+    const multiString = getMultiValsString(inputValues)
+    if (!multiString) {
+      return intl.formatMessage({ id: 'udapp.getEncodedCallError' })
+    }
+    try {
+      const multiJSON = JSON.parse('[' + multiString + ']')
+      const encodeObj = txFormat.encodeData(funcABI, multiJSON, null)
+      if (encodeObj.error) {
+        console.error(encodeObj.error)
+        return encodeObj.error
+      } else {
+        return encodeObj.data
+      }
+    } catch (e) {
+      console.error(e)
+      return intl.formatMessage({ id: 'udapp.getEncodedCallError' })
+    }
+  }
+
+  const getEncodedParams = (funcIndex: number) => {
+    const funcABI = functionABIs[funcIndex]
+    if (!funcABI || !funcABI.inputs || funcABI.inputs.length === 0) {
+      return intl.formatMessage({ id: 'udapp.getEncodedCallError' })
+    }
+    const funcParams = funcInputs[funcIndex] || {}
+    const inputValues = funcABI.inputs.map((_: any, idx: number) => funcParams[idx] || '')
+    const multiString = getMultiValsString(inputValues)
+    if (!multiString) {
+      return intl.formatMessage({ id: 'udapp.getEncodedCallError' })
+    }
+    try {
+      const multiJSON = JSON.parse('[' + multiString + ']')
+      return txHelper.encodeParams(funcABI, multiJSON)
+    } catch (e) {
+      console.error(e)
+      return intl.formatMessage({ id: 'udapp.getEncodedCallError' })
+    }
+  }
+
   const handleExecuteTransaction = async (funcIndex: number) => {
     const funcABI = functionABIs[funcIndex]
     const funcParams = funcInputs[funcIndex] || {}
-    const inputsValues = funcABI.inputs.map((input: any, idx: number) => funcParams[idx] || '').join(',')
+    const inputsValues = funcABI.inputs.map((_: any, idx: number) => funcParams[idx] || '').join(',')
     const sendValue = parseUnits(value.toString() || '0', valueUnit || 'wei')
     const gasLimitValue = '0x' + new BN(gasLimit, 10).toString(16)
     const isConstant = funcABI.constant !== undefined ? funcABI.constant : false
@@ -897,6 +944,44 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                       />
                     </div>
                   ))}
+                  {functionABIs[selectedFunctionIndex].inputs.length > 0 && (
+                    <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
+                      <CopyToClipboard
+                        tip={intl.formatMessage({ id: 'udapp.copyCalldata' })}
+                        icon="fa-clipboard"
+                        direction="bottom"
+                        getContent={() => getEncodedCall(selectedFunctionIndex)}
+                      >
+                        <button
+                          className="btn btn-sm flex-fill border-0"
+                          style={{ minWidth: '100px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}
+                          data-id={`copyCalldata-${selectedFunctionIndex}`}
+                        >
+                          <span className="text-secondary" style={{ fontSize: '0.7rem' }}>
+                            <FormattedMessage id="udapp.calldata" defaultMessage="Calldata" />
+                          </span>
+                          <i className="far fa-copy ms-1 text-secondary" style={{ fontSize: '0.7rem' }}></i>
+                        </button>
+                      </CopyToClipboard>
+                      <CopyToClipboard
+                        tip={intl.formatMessage({ id: 'udapp.copyParameters' })}
+                        icon="fa-clipboard"
+                        direction="bottom"
+                        getContent={() => getEncodedParams(selectedFunctionIndex)}
+                      >
+                        <button
+                          className="btn btn-sm flex-fill border-0"
+                          style={{ minWidth: '100px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}
+                          data-id={`copyParameters-${selectedFunctionIndex}`}
+                        >
+                          <span className="text-secondary" style={{ fontSize: '0.7rem' }}>
+                            <FormattedMessage id="udapp.parameters" />
+                          </span>
+                          <i className="far fa-copy ms-1 text-secondary" style={{ fontSize: '0.7rem' }}></i>
+                        </button>
+                      </CopyToClipboard>
+                    </div>
+                  )}
                   {(functionABIs[selectedFunctionIndex].stateMutability === 'view' || functionABIs[selectedFunctionIndex].stateMutability === 'pure') && (
                     <div className="udapp_value" data-id="udapp_tree_value">
                       <TreeView id="treeView">

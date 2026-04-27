@@ -453,6 +453,7 @@ export class AuthPlugin extends Plugin {
   async getAppConfig(): Promise<AppConfig> {
     try {
       if (this.cachedAppConfig) {
+        this.log('[AuthPlugin] Returning cached app config', this.cachedAppConfig)
         return this.cachedAppConfig
       }
 
@@ -502,8 +503,14 @@ export class AuthPlugin extends Plugin {
    */
   async getAppConfigValue<T extends string | number | boolean>(key: string, defaultValue: T): Promise<T> {
     const config = await this.getAppConfig()
-    const val = config[key]
-    return (val !== undefined ? val : defaultValue) as T
+    let val: any
+    if (Array.isArray(config)) {
+      const entry = (config as any[]).find((c) => c && c.key === key)
+      val = entry?.value
+    } else if (config && typeof config === 'object') {
+      val = (config as any)[key]
+    }
+    return (val !== undefined && val !== null ? val : defaultValue) as T
   }
 
   async login(provider: AuthProviderType): Promise<void> {
@@ -902,15 +909,32 @@ export class AuthPlugin extends Plugin {
 
     // Update API clients with current token
     if (token) {
-      this.apiClient.setToken(token)
-      // Update other API services too
-      this.creditsApi.setToken(token)
-      this.permissionsApi.setToken(token)
-      this.billingApi.setToken(token)
-      this.inviteApi.setToken(token)
+      this.applyAuthTokenToApiClients(token)
+    } else {
+      // Keep in-memory clients in sync with storage so stale Bearer headers
+      // are never sent after logout or manual token removal.
+      this.clearAuthTokenFromApiClients()
     }
 
     return token
+  }
+
+  private applyAuthTokenToApiClients(token: string): void {
+    this.apiClient.setToken(token)
+    this.creditsApi.setToken(token)
+    this.permissionsApi.setToken(token)
+    this.billingApi.setToken(token)
+    this.inviteApi.setToken(token)
+  }
+
+  private clearAuthTokenFromApiClients(): void {
+    this.apiClient.setToken(null)
+    // Api service wrappers expose setToken(string). Empty string clears
+    // Authorization because ApiClient only sends Bearer when token is truthy.
+    this.creditsApi.setToken('')
+    this.permissionsApi.setToken('')
+    this.billingApi.setToken('')
+    this.inviteApi.setToken('')
   }
 
   /**
@@ -1222,6 +1246,7 @@ export class AuthPlugin extends Plugin {
     localStorage.removeItem('remix_access_token')
     localStorage.removeItem('remix_refresh_token')
     localStorage.removeItem('remix_user')
+    this.clearAuthTokenFromApiClients()
     this.clearRefreshTimer()
   }
 

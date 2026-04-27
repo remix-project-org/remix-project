@@ -419,7 +419,6 @@ module.exports = {
         const ids = result.value as string[]
         if (!ids || ids.length < 2) return
 
-        const newestId = ids[0]
         const oldestId = ids[1]
 
         browser
@@ -497,8 +496,8 @@ module.exports = {
         const lastBubble = bubbles[bubbles.length - 1]
         return lastBubble ? lastBubble.textContent : null
       }, [], function (result) {
-        browser.assert.ok(
-          result.value && (result.value as string).includes('<script>'),
+        //@ts-ignore
+        browser.assert.ok(result.value && (result.value as string).includes('<script>'),
           'Special characters are properly escaped'
         )
       })
@@ -700,5 +699,126 @@ module.exports = {
             'Prompt contains the current user request content'
           )
       })
-  },
+  },'Should show an emtpy bubble and not crash the UI when payload is null or undefined #group4': function (browser: NightwatchBrowser) {
+    const convId = 'null-content-crash-test-conv-001'
+
+    browser
+      // Seed a conversation whose assistant messages have null / missing content
+      // to simulate a corrupted or partially-written IndexedDB entry
+      .executeAsync(function (convId, done) {
+        const request = indexedDB.open('RemixAIChatHistory', 1)
+        request.onerror = () => done(false)
+        request.onsuccess = () => {
+          const db = request.result
+          const now = Date.now()
+          const tx = db.transaction(['conversations', 'messages'], 'readwrite')
+          tx.objectStore('conversations').put({
+            id: convId,
+            title: 'Null content crash regression',
+            preview: 'Valid user message',
+            createdAt: now,
+            updatedAt: now,
+            lastAccessedAt: now,
+            messageCount: 3,
+            archived: false
+          })
+          const msgStore = tx.objectStore('messages')
+          // Healthy user message — gives the conversation a real title/preview
+          msgStore.put({
+            id: convId + '-user-1',
+            role: 'user',
+            content: 'Valid user message',
+            timestamp: now,
+            conversationId: convId
+          })
+          // Corrupted assistant message: content explicitly null
+          msgStore.put({
+            id: convId + '-assistant-null',
+            role: 'assistant',
+            content: null,
+            timestamp: now + 1,
+            conversationId: convId
+          })
+          // Corrupted assistant message: content field entirely absent (undefined on read-back)
+          msgStore.put({
+            id: convId + '-assistant-missing',
+            role: 'assistant',
+            timestamp: now + 2,
+            conversationId: convId
+          })
+          tx.oncomplete = () => done(true)
+          tx.onerror = () => done(false)
+        }
+        request.onupgradeneeded = (event: any) => {
+          const db = event.target.result
+          if (!db.objectStoreNames.contains('conversations')) {
+            const store = db.createObjectStore('conversations', { keyPath: 'id' })
+            store.createIndex('createdAt', 'createdAt', { unique: false })
+            store.createIndex('archived', 'archived', { unique: false })
+            store.createIndex('lastAccessedAt', 'lastAccessedAt', { unique: false })
+          }
+          if (!db.objectStoreNames.contains('messages')) {
+            const msgStore = db.createObjectStore('messages', { keyPath: 'id' })
+            msgStore.createIndex('conversationId', 'conversationId', { unique: false })
+            msgStore.createIndex('timestamp', 'timestamp', { unique: false })
+          }
+        }
+      }, [convId], function (result) {
+        browser.assert.equal(result.value, true, 'Conversation with null/missing content seeded into IndexedDB')
+      })
+      .refreshPage()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 60000
+      })
+      // Open history sidebar and load the corrupted conversation
+      .waitForElementVisible('*[data-id="toggle-history-btn"]')
+      .click('*[data-id="toggle-history-btn"]')
+      .pause(1000)
+      .waitForElementVisible(`*[data-id="conversation-item-${convId}"]`, 5000)
+      .click(`*[data-id="conversation-item-${convId}"]`)
+      .pause(1000)
+      // Primary assertion: the IDE panel is still mounted — not blank or frozen.
+      // Before the fix this element was absent because the TypeError unmounted the tree.
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 10000
+      })
+      // The chat bubble section must be present — proves React did not hard-crash
+      .waitForElementVisible('*[data-id="ai-response-chat-bubble-section"]', 5000)
+      // The valid user message must render with its text intact
+      .assert.textContains('*[data-id="ai-user-chat-bubble"]', 'Valid user message')
+      // Verify via DOM inspection that both panels survived and no uncaught error
+      // replaced the React root with an empty document body
+      .execute(function () {
+        const panelReady = document.querySelector('[data-id="remix-ai-assistant-ready"]')
+        const bubbleSection = document.querySelector('[data-id="ai-response-chat-bubble-section"]')
+        const allBubbles = document.querySelectorAll('.chat-bubble')
+        // Each assistant bubble with null/undefined content should render as an
+        // empty node — not throw, and not be completely absent
+        const assistantBubbles = Array.from(allBubbles).filter(el => el.classList.contains('bubble-assistant'))
+        return {
+          panelPresent: panelReady !== null,
+          bubbleSectionPresent: bubbleSection !== null,
+          assistantBubbleCount: assistantBubbles.length,
+          // Confirm the null-content bubbles did not inject "null" or "undefined" as literal text
+          noLiteralNull: assistantBubbles.every(b => b.textContent !== 'null' && b.textContent !== 'undefined')
+        }
+      }, [], function (result) {
+        const info = result.value as {
+          panelPresent: boolean
+          bubbleSectionPresent: boolean
+          assistantBubbleCount: number
+          noLiteralNull: boolean
+        }
+        browser
+          .assert.ok(info.panelPresent, 'AI assistant panel is present — UI did not crash on null content')
+          .assert.ok(info.bubbleSectionPresent, 'Chat bubble section rendered — no blank screen')
+          .assert.ok(info.assistantBubbleCount >= 1, `At least one assistant bubble rendered, got ${info.assistantBubbleCount}`)
+          .assert.ok(info.noLiteralNull, 'Null/undefined content rendered as empty string, not as literal "null"/"undefined"')
+      })
+  }
 }

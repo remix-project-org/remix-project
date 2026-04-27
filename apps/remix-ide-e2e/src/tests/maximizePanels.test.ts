@@ -128,11 +128,11 @@ module.exports = {
   },
   'Test panel maximization persists with different plugin #group1': function (browser: NightwatchBrowser) {
     browser
-      .clickLaunchIcon('udapp')
+      .clickLaunchIcon('search')
       .pause(500)
       .waitForElementVisible('*[data-id="movePluginToRight"]')
       .click('*[data-id="movePluginToRight"]')
-      .waitForElementVisible('*[data-pinnedPlugin="movePluginToLeft-udapp"]')
+      .waitForElementVisible('*[data-pinnedPlugin="movePluginToLeft-search"]')
       .pause(1000)
       .waitForElementVisible('*[data-id="maximizeRightSidePanel"]')
       .click('*[data-id="maximizeRightSidePanel"]')

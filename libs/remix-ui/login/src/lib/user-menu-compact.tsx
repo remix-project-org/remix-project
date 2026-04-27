@@ -29,6 +29,7 @@ interface UserMenuCompactProps {
   plugin?: any
   cloneGitRepository?: () => void
   publishToGist?: () => void
+  pollForCurrentTheme?: () => Promise<void>
 }
 
 const getProviderIcon = (provider: AuthProvider | string) => {
@@ -59,7 +60,9 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
   onThemeChange,
   plugin,
   cloneGitRepository,
-  publishToGist
+  publishToGist,
+  pollForCurrentTheme
+
 }) => {
   const [showDropdown, setShowDropdown] = useState(false)
   const { featureGroups } = useAuth()
@@ -82,8 +85,9 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
     <div className={`position-relative ${className}`}>
       <button
         className={buttonClass}
-        onClick={() => {
+        onClick={async () => {
           const willOpen = !showDropdown
+          await pollForCurrentTheme?.()
           setShowDropdown(willOpen)
           if (willOpen) trackEvent('openDropdown')
         }}

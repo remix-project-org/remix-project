@@ -28,7 +28,6 @@ interface SkillData {
   resources: Record<string, string>; // filename -> file content
 }
 
-
 /**
  * Skill Loader Tool Handler
  */
@@ -39,7 +38,7 @@ export class SkillLoaderHandler extends BaseToolHandler {
   - .skills/{skill_id}/resources/{filename} (for each resource file)
   
   Returns information about the loaded skill and created files.`;
-  
+
   inputSchema = {
     type: 'object',
     properties: {
@@ -75,8 +74,8 @@ export class SkillLoaderHandler extends BaseToolHandler {
   async execute(args: LoadSkillArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       console.log(`[SkillLoaderHandler] Loading skill: ${args.skill_id}`);
-      
-      const skillUrl =  endpointUrls.mcpCorsProxy + '/ethskills/skills/' + args.skill_id;
+
+      const skillUrl = endpointUrls.mcpCorsProxy + '/ethskills/skills/' + args.skill_id;
 
       // Fetch skill data from remote endpoint
       const skillData = await this.fetchSkillData(skillUrl);
@@ -126,13 +125,13 @@ export class SkillLoaderHandler extends BaseToolHandler {
    */
   private async fetchSkillData(url: string): Promise<SkillData> {
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    
+
     // Validate response structure
     if (!data.id || !data.name || !data.content || !data.resources) {
       throw new Error('Invalid skill data format - missing required fields (id, name, content, resources)');
@@ -166,7 +165,7 @@ export class ListSkillsHandler extends BaseToolHandler {
   description = `List available skills.
   Returns a list of available skills with their id, name, and description.
   Use load_skill to actually download and install a specific skill.`;
-  
+
   inputSchema = {
     type: 'object',
     properties: {},
@@ -185,7 +184,7 @@ export class ListSkillsHandler extends BaseToolHandler {
   async execute(_args: ListSkillsArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       console.log(`[ListSkillsHandler] Fetching skills list`);
-      
+
       const skillsUrl = endpointUrls.mcpCorsProxy + '/ethskills/skills'
 
       // Fetch skills list from remote endpoint
@@ -212,13 +211,13 @@ export class ListSkillsHandler extends BaseToolHandler {
    */
   private async fetchSkillsList(url: string): Promise<SkillInfo[]> {
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    
+
     // Validate response structure - expect array of skill objects
     if (!Array.isArray(data.skills)) {
       throw new Error('Invalid skills list format - expected array of skills');
@@ -231,7 +230,7 @@ export class ListSkillsHandler extends BaseToolHandler {
         console.warn(`[ListSkillsHandler] Skipping invalid skill object:`, skill);
         continue;
       }
-      
+
       skills.push({
         id: skill.id,
         name: skill.name,

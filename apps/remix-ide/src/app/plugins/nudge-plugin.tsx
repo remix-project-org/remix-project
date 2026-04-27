@@ -105,10 +105,10 @@ export class NudgePlugin extends Plugin {
     // Auth state changes
     this.on('auth', 'authStateChanged', (state: { isAuthenticated: boolean }) => {
       if (state?.isAuthenticated) {
-        this.engine_.fire('user:logged_in')
+        this._setAuthState(true)
         this._checkBetaMembership()
       } else {
-        this.engine_.fire('user:not_logged_in')
+        this._setAuthState(false)
       }
     })
 
@@ -241,14 +241,26 @@ export class NudgePlugin extends Plugin {
     try {
       const isAuth = await this.call('auth' as any, 'isAuthenticated')
       if (isAuth) {
-        this.engine_.fire('user:logged_in')
+        this._setAuthState(true)
         this._checkBetaMembership()
       } else {
-        this.engine_.fire('user:not_logged_in')
+        this._setAuthState(false)
       }
     } catch {
       // Auth not ready yet — we'll catch it via the event listener
     }
+  }
+
+  private _setAuthState(isAuthenticated: boolean): void {
+    if (isAuthenticated) {
+      this.engine_.unfire('user:not_logged_in')
+      this.engine_.fire('user:logged_in')
+      return
+    }
+
+    this.engine_.unfire('user:logged_in')
+    this.engine_.unfire('user:logged_in_beta')
+    this.engine_.fire('user:not_logged_in')
   }
 
   private async _checkBetaMembership(): Promise<void> {

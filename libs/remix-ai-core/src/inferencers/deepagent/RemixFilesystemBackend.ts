@@ -201,7 +201,6 @@ export class RemixFilesystemBackend {
 
       return content
     } catch (error) {
-      console.error('[HITL][Backend] read_file error:', path, error.message)
       return `Failed to read file ${path}: ${error.message}`
     }
   }

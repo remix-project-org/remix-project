@@ -50,6 +50,13 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
     }
   }, [plugin])
 
+  const pollForCurrentTheme = async () => {
+    const active = await plugin.call('theme', 'currentTheme')
+    if (active) {
+      setCurrentTheme(active.name)
+    }
+  }
+
   const handleLogout = async () => {
     await logout()
     if (plugin && typeof plugin.call === 'function') {
@@ -177,6 +184,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
         plugin={plugin}
         cloneGitRepository={cloneGitRepository}
         publishToGist={publishToGist}
+        pollForCurrentTheme={pollForCurrentTheme}
       />
     )
   }

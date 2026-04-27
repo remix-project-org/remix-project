@@ -100,10 +100,10 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
   const isWorkspaceLoading = activeSyncStatus?.status === 'loading' || activeSyncStatus?.status === 'syncing'
   const isDropdownLocked = isWorkspaceLoading || workspaceQueueBusy
 
-  const toggleSubmenu = (id) => {
+  const toggleSubmenu = (id: any) => {
     setOpenSubmenuId((current) => (current === id ? null : id));
   }
-  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceMetadata>(null)
+  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceMetadata>({} as WorkspaceMetadata)
   const mainRef = useRef<HTMLDivElement>(null)
   const subRefs = useMemo( // useMemo or else rules of hooks is broken.
     () => menuItems.map(() => React.createRef<HTMLDivElement>()),
@@ -178,12 +178,12 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
 
   useEffect(() => {
     if (platform !== appPlatformTypes.desktop) {
-      global.plugin.on('filePanel', 'setWorkspace', async (workspace) => {
+      global.plugin.on('filePanel', 'setWorkspace', async (workspace: any) => {
         setTogglerText(workspace.name)
-        let workspaces = []
+        let workspaces: any[] | undefined = []
         const fromLocalStore = localStorage.getItem('currentWorkspace')
         workspaces = await getWorkspaces()
-        const current = workspaces.find((workspace) => workspace.name === fromLocalStore)
+        const current = workspaces?.find((workspace) => workspace.name === fromLocalStore)
         setSelectedWorkspace(current)
       })
 
@@ -195,7 +195,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
 
   useEffect(() => {
     if (platform !== appPlatformTypes.desktop) {
-      let workspaces: any[] = []
+      let workspaces: any[] | undefined = []
 
       try {
         setTimeout(async () => {
@@ -374,6 +374,8 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                       id={`submenu-${id}`}
                       style={{
                         minWidth: 160,
+                        zIndex: 9999,
+                        position: 'relative',
                       }}
                       data-id="workspacesubMenuOverlay"
                     >

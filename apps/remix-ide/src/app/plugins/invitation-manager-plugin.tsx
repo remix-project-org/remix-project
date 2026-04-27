@@ -22,6 +22,8 @@ export class InvitationManagerPlugin extends Plugin {
   /** Set to true to enable verbose console.log output for debugging */
   private static DEBUG = false
 
+  private onShowInviteDismissAction: ((action: 'later' | 'never') => void) | null = null
+
   dispatch: React.Dispatch<any> = () => {}
   private state: InviteState = {
     show: false,
@@ -82,7 +84,9 @@ export class InvitationManagerPlugin extends Plugin {
    * Show the invite modal with a specific token
    * Can be called by any plugin: this.call('invitationManager', 'showInvite', 'TOKEN')
    */
-  async showInvite(token: string): Promise<void> {
+  async showInvite(token: string, onDismissAction?: (action: 'later' | 'never') => void): Promise<void> {
+    this.onShowInviteDismissAction = typeof onDismissAction === 'function' ? onDismissAction : null
+
     // Validate the token first
     const validation = await this.validateToken(token)
 
@@ -204,7 +208,7 @@ export class InvitationManagerPlugin extends Plugin {
   /**
    * Close the invite modal
    */
-  async close(): Promise<void> {
+  async close(reason: 'close' | 'later' | 'never' = 'close'): Promise<void> {
     this.state = {
       show: false,
       token: null,
@@ -220,6 +224,17 @@ export class InvitationManagerPlugin extends Plugin {
       await this.call('auth', 'clearPendingInviteToken')
     } catch (e) {
       // Ignore
+    }
+
+    if (this.onShowInviteDismissAction) {
+      const callback = this.onShowInviteDismissAction
+      this.onShowInviteDismissAction = null
+      const action: 'later' | 'never' = reason === 'never' ? 'never' : 'later'
+      try {
+        callback(action)
+      } catch (e) {
+        console.error('[InvitationManager] Invite dismiss callback failed:', e)
+      }
     }
 
     this.emit('inviteClosed')
@@ -351,7 +366,9 @@ export class InvitationManagerPlugin extends Plugin {
       <InviteOverlay
         state={dispatchState.state}
         onRedeem={(token) => this.redeemToken(token)}
-        onClose={() => this.close()}
+        onClose={() => this.close('close')}
+        onDoLater={this.onShowInviteDismissAction ? () => this.close('later') : undefined}
+        onDismissPermanent={this.onShowInviteDismissAction ? () => this.close('never') : undefined}
         onStartWalkthrough={(slug) => this.startWalkthrough(slug)}
         plugin={dispatchState.plugin}
       />

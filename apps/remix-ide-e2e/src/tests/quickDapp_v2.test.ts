@@ -155,6 +155,8 @@ module.exports = {
   // ──────────────────────────────────
   'Should display all editor UI elements #group1': function (browser: NightwatchBrowser) {
     browser
+      .waitForElementVisible('*[data-id="update-with-ai-btn"]', 10000)
+      .click('*[data-id="update-with-ai-btn"]')
       .waitForElementVisible('*[data-id="chat-input"]', 10000)
       .waitForElementVisible('*[data-id="chat-send-btn"]', 10000)
       .waitForElementVisible('*[data-id="chat-attach-btn"]', 10000)
@@ -170,6 +172,8 @@ module.exports = {
   // ──────────────────────────────────
   'Should display VM warning banner in editor #group1': function (browser: NightwatchBrowser) {
     browser
+      .waitForElementVisible('*[data-id="vm-deployment-btn"]', 10000)
+      .click('*[data-id="vm-deployment-btn"]')
       .waitForElementVisible('*[data-id="vm-warning-banner"]', 30000)
       .assert.textContains('*[data-id="vm-warning-banner"]', 'Remix VM')
       .assert.textContains('*[data-id="vm-warning-banner"]', 'Local Only')

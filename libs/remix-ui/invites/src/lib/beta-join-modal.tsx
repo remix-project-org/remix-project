@@ -21,6 +21,10 @@ interface BetaJoinModalProps {
   error: string | null;
   /** Called when the user clicks "Join the Beta". */
   onRedeem: (token: string) => Promise<InviteRedeemResponse>;
+  /** Optional action to defer for this session only. */
+  onDoLater?: () => void;
+  /** Optional action to permanently dismiss related nudges. */
+  onDismissPermanent?: () => void;
   /** Plugin reference passed to LoginButton. */
   plugin?: any;
 }
@@ -276,7 +280,7 @@ function formatExpiry(expiresAt: string | null | undefined): string | null {
 // ─── Main component ──────────────────────────────────────────────
 
 const BetaJoinModal: React.FC<BetaJoinModalProps> = ({
-  open, onClose, token, validation, isAuthenticated, redeeming, error, onRedeem, plugin,
+  open, onClose, token, validation, isAuthenticated, redeeming, error, onRedeem, onDoLater, onDismissPermanent, plugin,
 }) => {
   const [ctaHovered, setCtaHovered] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -380,7 +384,7 @@ const BetaJoinModal: React.FC<BetaJoinModalProps> = ({
                 fontSize: 24, fontWeight: 500, color: c.tx, lineHeight: 1.25, marginBottom: 8,
               }}
             >
-              Help Us Build the{" "}
+              Join the{" "}
               <span
                 style={{
                   background: `linear-gradient(90deg, ${c.cy}, ${c.bl}, ${c.pu}, ${c.cy})`,
@@ -390,7 +394,7 @@ const BetaJoinModal: React.FC<BetaJoinModalProps> = ({
                   animation: "bjShimmer 4s linear infinite",
                 }}
               >
-                Future of Web3 Tooling
+                Remix Beta Program
               </span>
             </div>
             <div style={{ position: "relative", zIndex: 2, fontSize: 14, color: c.tm, lineHeight: 1.5 }}>
@@ -494,15 +498,21 @@ const BetaJoinModal: React.FC<BetaJoinModalProps> = ({
                 data-id="invite-join-beta-btn"
                 style={{
                   width: "100%", padding: 14, borderRadius: 12,
-                  background: c.cy, border: "none",
+                  background: "linear-gradient(135deg, #8af7df 0%, #45d4cb 26%, #68b2ff 58%, #b08dff 100%)",
+                  backgroundSize: "220% 220%",
+                  border: "1px solid rgba(255,255,255,0.24)",
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: 14, fontWeight: 500, color: c.bg,
                   cursor: redeeming ? "wait" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   transition: "all 0.2s",
                   opacity: redeeming ? 0.7 : 1,
-                  filter: ctaHovered && !redeeming ? "brightness(1.1)" : "none",
+                  filter: ctaHovered && !redeeming ? "brightness(1.06) saturate(1.05)" : "none",
                   transform: ctaHovered && !redeeming ? "translateY(-1px)" : "none",
+                  boxShadow: ctaHovered && !redeeming
+                    ? "0 18px 36px rgba(69,212,203,0.28), 0 8px 18px rgba(104,178,255,0.22), inset 0 1px 0 rgba(255,255,255,0.35)"
+                    : "0 14px 28px rgba(69,212,203,0.22), 0 6px 14px rgba(176,141,255,0.18), inset 0 1px 0 rgba(255,255,255,0.28)",
+                  animation: redeeming ? "none" : "bjShimmer 5s linear infinite",
                 }}
               >
                 {redeeming ? (
@@ -518,7 +528,7 @@ const BetaJoinModal: React.FC<BetaJoinModalProps> = ({
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M2 8l5 5L14 3" />
                     </svg>
-                    Start Using Remix Beta
+                    Start Using the Beta
                   </>
                 )}
               </button>
@@ -548,6 +558,51 @@ const BetaJoinModal: React.FC<BetaJoinModalProps> = ({
             <div style={{ textAlign: "center", fontSize: 11, color: c.td, marginTop: 10, lineHeight: 1.4 }}>
               Free to join. Free to leave anytime. Around a month of testing.
             </div>
+            {(onDoLater || onDismissPermanent) && (
+              <div style={{
+                marginTop: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                flexWrap: "wrap"
+              }}>
+                {onDoLater && (
+                  <button
+                    onClick={onDoLater}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      background: c.s1,
+                      border: "0.5px solid rgba(255,255,255,0.08)",
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 12,
+                      color: c.tm,
+                      cursor: "pointer"
+                    }}
+                  >
+                    I will join later
+                  </button>
+                )}
+                {onDismissPermanent && (
+                  <button
+                    onClick={onDismissPermanent}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      background: c.s1,
+                      border: "0.5px solid rgba(255,255,255,0.08)",
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 12,
+                      color: c.tm,
+                      cursor: "pointer"
+                    }}
+                  >
+                    Don&apos;t show again
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── Footer ── */}

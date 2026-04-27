@@ -300,10 +300,24 @@ export default class TabProxy extends Plugin {
     this.tabsApi.activateTab(name)
   }
 
-  switchTab (tabName) {
+  async switchTab (tabName) {
     if (this._handlers[tabName]) {
       this._handlers[tabName].switchTo()
       this.tabsApi.activateTab(tabName)
+    }
+    if (tabName && tabName.toLowerCase().includes('quick-dapp')) {
+      const leftPanelHidden = await this.call('sidePanel', 'isPanelHidden')
+      const terminalPanelHidden = await this.call('terminal', 'isPanelHidden')
+
+      // Hide left panel if it's visible
+      if (!leftPanelHidden) {
+        await this.call('sidePanel', 'togglePanel')
+      }
+
+      // Hide terminal panel if it's visible
+      if (!terminalPanelHidden) {
+        await this.call('terminal', 'togglePanel')
+      }
     }
   }
 

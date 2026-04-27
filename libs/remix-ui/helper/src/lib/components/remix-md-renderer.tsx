@@ -7,6 +7,9 @@ import remarkGfm from 'remark-gfm'
 import '../css/helper.css'
 
 export function normalizeMarkdown(input: string): string {
+  if (typeof input !== 'string') {
+    return ''
+  }
   let result = input
     .trim()
     .replace(/\n{2,}/g, '\n\n')

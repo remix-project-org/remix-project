@@ -81,6 +81,25 @@ export class MembershipRequestPlugin extends Plugin {
    * Called by other plugins: this.call('membershipRequest', 'showRequestForm', 'beta_program')
    */
   async showRequestForm(groupName?: string): Promise<void> {
+    if (groupName) {
+      try {
+        const [autoInviteToken, autoInviteGroup] = await Promise.all([
+          this.call('auth' as any, 'getAppConfigValue', 'auto_invite_token', ''),
+          this.call('auth' as any, 'getAppConfigValue', 'auto_invite_group', '')
+        ])
+
+        if (
+          typeof autoInviteToken === 'string' && autoInviteToken.trim() !== '' &&
+          typeof autoInviteGroup === 'string' && autoInviteGroup.trim() === groupName
+        ) {
+          await this.call('invitationManager' as any, 'showInvite', autoInviteToken.trim())
+          return
+        }
+      } catch {
+        // Fall back to the normal membership request flow if app config is unavailable.
+      }
+    }
+
     this.state = {
       ...this.state,
       show: true,

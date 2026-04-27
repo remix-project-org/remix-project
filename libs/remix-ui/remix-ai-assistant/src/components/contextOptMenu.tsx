@@ -16,7 +16,7 @@ export default function GroupListMenu(props: GroupListMenuProps) {
       {props.groupList.map((item, index) => (
         <button
           key={`${item.label}-${index}`}
-          className={`btn btn-light border border-0 ${item.isLocked ? 'opacity-75' : ''}`}
+          className={`btn btn-light border-0 ${item.isLocked ? 'opacity-75' : ''}`}
           data-id={item.dataId}
           onClick={() => {
             props.setShowOptions(false)

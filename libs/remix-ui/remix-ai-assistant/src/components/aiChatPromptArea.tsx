@@ -77,7 +77,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
       {props.showModelSelector && (
         <div
           className="pt-2 mb-2 z-3 bg-light border border-text position-fixed"
-          style={{ borderRadius: '8px', top: props.modelOpt.top, left: props.modelOpt.left, zIndex: 1000, minWidth: '300px', maxWidth: '400px' }}
+          style={{ borderRadius: '8px', top: props.modelOpt.top, left: props.modelOpt.left + 16, zIndex: 2000, minWidth: '300px', maxWidth: '400px' }}
           ref={props.menuRef}
         >
           <div className="text-uppercase ms-2 mb-2 small">AI Model</div>
