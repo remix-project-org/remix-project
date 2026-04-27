@@ -30,6 +30,7 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
 import { buildChatPrompt } from '../../prompts/promptBuilder'
 import { MemorySaver } from "@langchain/langgraph";
+import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 
 // Model provider types
 type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'ollama'
@@ -192,8 +193,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       // LangGraph checkpointer — manages agent internal state (conversation, tool calls)
-      // Ref: Yann's PR #7080 (langchain_skills)
-      const checkpointer = new MemorySaver();
+      // Using IndexedDB-based saver for persistence across browser refreshes
+      const checkpointer = new IndexedDBCheckpointSaver();
 
       // Create DeepAgent configuration
       console.log('[DeepAgentInferencer] Setting up agent configuration...')
