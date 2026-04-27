@@ -112,8 +112,20 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
   /** Reset the session thread_id (e.g. after error or new conversation) */
   private resetSessionThread(): void {
+    const oldId = this.sessionThreadId
     this.sessionThreadId = DeepAgentInferencer.generateThreadId()
-    console.log('[DeepAgentInferencer] Session thread reset:', this.sessionThreadId)
+    console.log('[DeepAgent-Thread] resetSessionThread:', this.sessionThreadId, '(was:', oldId, ')')
+  }
+
+  /** Set the session thread_id (e.g. when switching conversations) */
+  setSessionThreadId(threadId: string): void {
+    console.log('[DeepAgent-Thread] setSessionThreadId:', threadId, '(was:', this.sessionThreadId, ')')
+    this.sessionThreadId = threadId
+  }
+
+  /** Get the current session thread_id */
+  getSessionThreadId(): string {
+    return this.sessionThreadId
   }
 
   constructor(
@@ -491,7 +503,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       let previousRunId: string | null = null
 
       // https://docs.langchain.com/oss/python/deepagents/streaming
-      console.log('[DeepAgentInferencer] Using session thread_id:', this.sessionThreadId)
+      console.log('[DeepAgent-Thread] ▶ runAgent called | thread_id:', this.sessionThreadId, '| message:', String(langchainMessages[0]?.content || '').substring(0, 60) + '...')
       const eventStream = this.agent.streamEvents(
         {
           messages: langchainMessages

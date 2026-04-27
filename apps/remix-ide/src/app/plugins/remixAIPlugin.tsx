@@ -27,6 +27,7 @@ const profile = {
     'addMCPServer', 'removeMCPServer', 'getMCPConnectionStatus', 'getMCPResources', 'getMCPTools', 'executeMCPTool',
     'enableMCPEnhancement', 'disableMCPEnhancement', 'isMCPEnabled', 'getIMCPServers',
     'enableDeepAgent', 'disableDeepAgent', 'isDeepAgentEnabled',
+    'setDeepAgentThread',
     'respondToToolApproval',
     'clearCaches', 'cancelRequest'
   ],
@@ -904,6 +905,18 @@ export class RemixAIPlugin extends Plugin {
 
   isDeepAgentEnabled(): boolean {
     return this.deepAgentEnabled
+  }
+
+  /**
+   * Set DeepAgent thread for an existing conversation.
+   * Uses conversationId as part of thread_id so MemorySaver restores that conversation's context.
+   */
+  setDeepAgentThread(conversationId: string): void {
+    if (this.deepAgentInferencer) {
+      const threadId = `remix-conv-${conversationId}`
+      this.deepAgentInferencer.setSessionThreadId(threadId)
+      console.log('[DeepAgent-Thread] Plugin: thread set for conversation:', conversationId, '→', threadId)
+    }
   }
 
   respondToToolApproval(response: { requestId: string; approved: boolean; modifiedArgs?: Record<string, any> }): void {

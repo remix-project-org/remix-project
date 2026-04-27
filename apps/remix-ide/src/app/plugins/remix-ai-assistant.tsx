@@ -171,19 +171,31 @@ export class RemixAIAssistant extends ViewPlugin {
         c => c.title === 'New Conversation' && c.messageCount === 0
       )
       if (emptyExisting) {
+        console.log('[DeepAgent-Thread] newConversation → reusing empty conversation:', emptyExisting.id)
         this.currentConversationId = emptyExisting.id
         this.history = []
         ChatHistory.setCurrentConversation(emptyExisting.id)
         ChatHistory.clearHistory()
+
+        // Set DeepAgent thread to this conversation's ID — ensures thread_id matches
+        // when loadConversation() is called later with the same conversation ID
+        try { await this.call('remixAI', 'setDeepAgentThread', emptyExisting.id) } catch (e) {}
+
         this.renderComponent()
         return
       }
 
       const workspace = 'default'
       this.currentConversationId = await ChatHistory.startNewConversation(workspace)
+      console.log('[DeepAgent-Thread] newConversation → created new conversation:', this.currentConversationId)
       this.history = []
       await this.loadConversations()
       trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'create_new_conversation', isClick: true })
+
+      // Set DeepAgent thread to this conversation's ID — ensures thread_id matches
+      // when loadConversation() is called later with the same conversation ID
+      try { await this.call('remixAI', 'setDeepAgentThread', this.currentConversationId) } catch (e) {}
+
       this.renderComponent()
     } catch (error) {
       console.error('Failed to create new conversation:', error)
@@ -196,11 +208,16 @@ export class RemixAIAssistant extends ViewPlugin {
     try {
       // Load messages from storage
       const messages = await this.storageManager.getMessages(id)
+      console.log('[DeepAgent-Thread] loadConversation:', id, '| messages loaded:', messages.length)
       this.history = messages
       this.currentConversationId = id
 
       // Update ChatHistory context
       await ChatHistory.loadConversation(id)
+
+      // Switch DeepAgent thread to this conversation's context
+      try { await this.call('remixAI', 'setDeepAgentThread', id) } catch (e) {}
+
       trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'load_conversation', isClick: true })
       this.renderComponent()
     } catch (error) {
