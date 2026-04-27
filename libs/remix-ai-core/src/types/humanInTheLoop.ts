@@ -19,6 +19,7 @@ export interface ToolApprovalResponse {
   requestId: string
   approved: boolean
   modifiedArgs?: Record<string, any>
+  timedOut?: boolean
 }
 
 export type ToolCategory = 'file_write' | 'file_delete' | 'deployment' | 'transaction' | 'dapp' | 'other'

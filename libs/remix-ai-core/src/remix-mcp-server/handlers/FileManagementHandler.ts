@@ -541,7 +541,11 @@ export class DirectoryListHandler extends BaseToolHandler {
       const fileList = [];
 
       for (const file in files) {
-        const fullPath = `${args.path}/${file}`;
+        // Remix readdir may return keys that already include the parent path
+        // e.g. readdir('contracts') → { "contracts/1_Storage.sol": ... }
+        const fullPath = file.startsWith(args.path + '/') || file.startsWith(args.path + '\\')
+          ? file
+          : `${args.path}/${file}`;
         try {
           const isDir = await plugin.call('fileManager', 'isDirectory', fullPath);
           let size = 0;

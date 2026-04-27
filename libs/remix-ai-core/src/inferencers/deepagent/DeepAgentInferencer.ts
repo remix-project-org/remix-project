@@ -101,6 +101,20 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private fallbackInferencer: any = null
   private model: BaseChatModel | null = null
   private modelSelection: ModelSelection
+  // Session-level thread_id for multi-turn context via MemorySaver checkpointer.
+  // Same thread_id is reused so LangGraph remembers previous conversation.
+  // Auto-resets on errors (e.g. ToolInputParsingException from stale tool state).
+  private sessionThreadId: string = DeepAgentInferencer.generateThreadId()
+
+  private static generateThreadId(): string {
+    return `remix-session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+  }
+
+  /** Reset the session thread_id (e.g. after error or new conversation) */
+  private resetSessionThread(): void {
+    this.sessionThreadId = DeepAgentInferencer.generateThreadId()
+    console.log('[DeepAgentInferencer] Session thread reset:', this.sessionThreadId)
+  }
 
   constructor(
     plugin: Plugin,
@@ -461,31 +475,35 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.currentAbortController = new AbortController()
     let fullResponse = ''
 
-    try {
-      // Filter out system messages - they're already set during agent creation
-      const langchainMessages = messages
-        .filter(msg => msg.role !== 'system')
-        .map(msg => {
-          if (msg.role === 'user') return new HumanMessage(msg.content)
-          if (msg.role === 'assistant') return new AIMessage(msg.content)
-          return new HumanMessage(msg.content)
-        })
+    // Filter out system messages - they're already set during agent creation
+    const langchainMessages = messages
+      .filter(msg => msg.role !== 'system')
+      .map(msg => {
+        if (msg.role === 'user') return new HumanMessage(msg.content)
+        if (msg.role === 'assistant') return new AIMessage(msg.content)
+        return new HumanMessage(msg.content)
+      })
 
+    try {
       // Tracking state for subagents and intermediate/final answers
       let isIntermediatePhase = true
       const activeSubagents: Map<string, { name: string; startTime: number }> = new Map()
       let previousRunId: string | null = null
 
       // https://docs.langchain.com/oss/python/deepagents/streaming
+      console.log('[DeepAgentInferencer] Using session thread_id:', this.sessionThreadId)
       const eventStream = this.agent.streamEvents(
         {
           messages: langchainMessages
         },
         {
           version: 'v2',
-          // Each request gets a unique thread_id for the LangGraph checkpointer.
+          // Reuse session-level thread_id so MemorySaver carries multi-turn context.
+          // buildChatPrompt() is intentionally NOT used — its incomplete history
+          // (missing tool_use blocks) caused LLM hallucination.
+          // On ToolInputParsingException, sessionThreadId is auto-reset (see catch block).
           configurable: {
-            thread_id: `remix-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+            thread_id: this.sessionThreadId
           },
           subgraphs: true, // Enable subgraph/subagent visibility
           signal: this.currentAbortController?.signal // Pass abort signal for cancellation
@@ -620,6 +638,48 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         console.log('[DeepAgentInferencer] Request cancelled by user')
         return fullResponse
       }
+
+      // If ToolInputParsingException (stale multi-turn state), reset session and retry once
+      if (error?.message?.includes('ToolInputParsingException') || error?.message?.includes('did not match expected schema')) {
+        console.warn('[DeepAgentInferencer] Tool input schema error detected — resetting session thread and retrying...')
+        console.warn('[DeepAgentInferencer] Error details:', error?.message)
+        console.warn('[DeepAgentInferencer] Error cause:', error?.cause?.message || error?.cause)
+        console.warn('[DeepAgentInferencer] Thread ID was:', this.sessionThreadId)
+        this.resetSessionThread()
+
+        // Retry with fresh thread_id (only once — if it fails again, propagate the error)
+        try {
+          this.currentAbortController = new AbortController()
+          fullResponse = ''
+          const retryStream = this.agent.streamEvents(
+            { messages: langchainMessages },
+            {
+              version: 'v2',
+              configurable: { thread_id: this.sessionThreadId },
+              subgraphs: true,
+              signal: this.currentAbortController?.signal
+            }
+          )
+          for await (const event of retryStream) {
+            if (this.currentAbortController?.signal.aborted) break
+            if (event.event === 'on_chat_model_stream' && event.data?.chunk?.content) {
+              const content = typeof event.data.chunk.content === 'string'
+                ? event.data.chunk.content
+                : event.data.chunk.content.map((c: any) => c.text || '').join('')
+              if (content) {
+                fullResponse += content
+                this.event.emit('onStreamResult', { content, isIntermediate: false, source: 'retry' })
+              }
+            }
+          }
+          await (this.filesystemBackend as any).flushAllPendingBatches()
+          return fullResponse
+        } catch (retryError: any) {
+          console.error('[DeepAgentInferencer] Retry also failed:', retryError)
+          throw retryError
+        }
+      }
+
       console.error('[DeepAgentInferencer] Error during agent execution:', error)
       throw error
     } finally {

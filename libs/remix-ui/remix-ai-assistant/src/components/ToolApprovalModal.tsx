@@ -5,34 +5,14 @@ interface ToolApprovalModalProps {
   request: ToolApprovalRequest
   onApprove: (modifiedArgs?: Record<string, any>) => void
   onReject: () => void
+  onTimeout: () => void
   /** Triggers showCustomDiff in the editor for line-by-line review */
   onReviewChanges?: () => void
   /** Whether the user is currently reviewing changes in the editor */
   isReviewing?: boolean
 }
 
-const RISK_COLORS: Record<string, string> = {
-  high: '#e74c3c',
-  medium: '#f39c12',
-  low: '#27ae60'
-}
-
-const RISK_LABELS: Record<string, string> = {
-  high: 'High Risk',
-  medium: 'Medium Risk',
-  low: 'Low Risk'
-}
-
-const CATEGORY_ICONS: Record<string, string> = {
-  file_write: '📝',
-  file_delete: '🗑️',
-  deployment: '🚀',
-  transaction: '💸',
-  dapp: '🌐',
-  other: '🔧'
-}
-
-export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, onApprove, onReject, onReviewChanges, isReviewing }) => {
+export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, onApprove, onReject, onTimeout, onReviewChanges, isReviewing }) => {
   const [timeLeft, setTimeLeft] = useState(60)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const dismissedRef = useRef(false)
@@ -57,7 +37,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
           if (!dismissedRef.current) {
 
             dismissedRef.current = true
-            onReject()
+            setTimeout(() => onTimeout(), 0)
           }
           return 0
         }
@@ -96,8 +76,6 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
     onReviewChanges?.()
   }
 
-  const risk = request.risk || 'medium'
-  const icon = CATEGORY_ICONS[request.category] || '🔧'
   const isFileOperation = !!request.filePath
   const isExistingFile = request.existingContent !== undefined && request.existingContent !== ''
   const hasProposedContent = !!request.proposedContent
@@ -106,7 +84,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
   return (
     <div style={{
       background: 'var(--secondary, #2d2d2d)',
-      border: `1px solid ${RISK_COLORS[risk]}44`,
+      border: '1px solid var(--bs-border-color, #444)',
       borderRadius: '8px',
       padding: '12px',
       marginTop: '8px',
@@ -114,20 +92,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '18px' }}>{icon}</span>
-          <span style={{ fontWeight: 600, fontSize: '13px' }}>Tool: {request.toolName}</span>
-          <span style={{
-            fontSize: '10px',
-            padding: '1px 6px',
-            borderRadius: '8px',
-            backgroundColor: `${RISK_COLORS[risk]}22`,
-            color: RISK_COLORS[risk],
-            fontWeight: 500
-          }}>
-            {RISK_LABELS[risk]}
-          </span>
-        </div>
+        <span style={{ fontWeight: 600, fontSize: '13px' }}>Tool: {request.toolName}</span>
         {!isReviewing && (
           <span style={{ fontSize: '11px', color: 'var(--text-muted, #999)' }}>
             {timeLeft}s
@@ -164,7 +129,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
           border: '1px solid #3498db33',
           textAlign: 'center'
         }}>
-          🔍 Reviewing in Editor — Use <strong>Accept All</strong> or <strong>Reject All</strong> in the editor to finalize
+          Reviewing in Editor — Use <strong>Accept All</strong> or <strong>Reject All</strong> in the editor to finalize
         </div>
       )}
 
@@ -197,7 +162,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
                 background: '#3498db', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
               }}
             >
-              🔍 Review Changes
+              Review Changes
             </button>
           )}
         </div>

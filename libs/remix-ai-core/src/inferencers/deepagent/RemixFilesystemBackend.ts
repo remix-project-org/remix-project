@@ -23,7 +23,7 @@ export class RemixFilesystemBackend {
   private plugin: Plugin
   private workspaceRoot: string = '/'
   private eventEmitter: EventEmitter | null = null
-  private pendingApprovals = new Map<string, (result: { approved: boolean; modifiedContent?: string }) => void>()
+  private pendingApprovals = new Map<string, (result: { approved: boolean; modifiedContent?: string; timedOut?: boolean }) => void>()
 
   // Edit batching: accumulate edits per file, flush as one combined diff
   private editBatches = new Map<string, {
@@ -42,7 +42,8 @@ export class RemixFilesystemBackend {
         if (resolve) {
           resolve({
             approved: response.approved,
-            modifiedContent: response.modifiedArgs?.content
+            modifiedContent: response.modifiedArgs?.content,
+            timedOut: response.timedOut
           })
           this.pendingApprovals.delete(response.requestId)
         } else {
@@ -122,8 +123,6 @@ export class RemixFilesystemBackend {
     const batch = this.editBatches.get(filePath)
     if (!batch) return
     this.editBatches.delete(filePath)
-
-
 
     // Request ONE approval for the combined diff
     const result = await this.requestWriteApproval(filePath, batch.originalContent, batch.virtualContent, 'edit_file')
@@ -242,6 +241,9 @@ export class RemixFilesystemBackend {
       const result = await this.requestWriteApproval(normalizedPath, oldContent, content, 'write_file')
 
       if (!result.approved) {
+        if (result.timedOut) {
+          return { error: `TIMEOUT: No user input within 60 seconds for writing to ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
+        }
         return { error: `REJECTED: The user explicitly rejected writing to ${path}. Do NOT retry this operation or use alternative tools/methods to write this file. Inform the user and move on.` }
       }
 
@@ -297,6 +299,9 @@ export class RemixFilesystemBackend {
 
       const result = await this.requestWriteApproval(normalizedPath, originalContent, content, 'edit_file')
       if (!result.approved) {
+        if (result.timedOut) {
+          return { error: `TIMEOUT: No user input within 60 seconds for editing ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
+        }
         return { error: `REJECTED: The user explicitly rejected editing ${path}. Do NOT retry this operation or use alternative tools/methods to edit this file. Inform the user and move on.` }
       }
 
@@ -310,8 +315,6 @@ export class RemixFilesystemBackend {
       return { error: `Failed to edit file ${path}: ${error.message}` }
     }
   }
-
-
 
   /**
    * List directory contents
@@ -360,7 +363,7 @@ export class RemixFilesystemBackend {
 
       const res = Object.keys(files).map(name => ({
         name,
-        path: `${targetPath}/${name}`.replace('//', '/'),
+        path: `${name}`.replace('//', '/'),
         is_dir: files[name].isDirectory
       }))
       return res
@@ -577,14 +580,13 @@ export class RemixFilesystemBackend {
     oldContent: string,
     newContent: string,
     toolName: string = 'write_file'
-  ): Promise<{ approved: boolean; modifiedContent?: string }> {
+  ): Promise<{ approved: boolean; modifiedContent?: string; timedOut?: boolean }> {
     if (!this.eventEmitter) {
 
       return { approved: true }
     }
 
     const requestId = `fs_approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-
 
     const request: ToolApprovalRequest = {
       requestId,
@@ -598,7 +600,7 @@ export class RemixFilesystemBackend {
       timestamp: Date.now()
     }
 
-    return new Promise<{ approved: boolean; modifiedContent?: string }>((resolve) => {
+    return new Promise<{ approved: boolean; modifiedContent?: string; timedOut?: boolean }>((resolve) => {
       this.pendingApprovals.set(requestId, resolve)
       this.eventEmitter.emit('onToolApprovalRequired', request)
     })

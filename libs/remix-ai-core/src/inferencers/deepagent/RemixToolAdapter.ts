@@ -186,8 +186,6 @@ export class ToolApprovalGate {
         timestamp: Date.now()
       }
 
-
-
       // Wait for user decision
       const { approved, modifiedArgs } = await new Promise<{ approved: boolean; modifiedArgs?: Record<string, any> }>(
         (resolve) => {
@@ -197,8 +195,6 @@ export class ToolApprovalGate {
           this.eventEmitter.emit('onToolApprovalRequired', request)
         }
       )
-
-
 
       if (!approved) {
         return JSON.stringify({ cancelled: true, reason: `REJECTED: The user explicitly rejected this ${toolName} operation. Do NOT retry this operation or use alternative tools/methods. Inform the user and move on.` })
