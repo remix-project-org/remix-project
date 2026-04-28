@@ -15,7 +15,13 @@
 // ──────────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────────
-import { AgentMiddleware } from 'langchain'
+// Local interface for middleware pattern (used by QuickDappPromptMiddleware)
+// Note: This was originally imported from 'langchain' but that export doesn't exist.
+// Defined locally for future use when MCP tool-based generation is activated.
+interface AgentMiddleware {
+  name: string
+  beforeModel?(state: any, runtime: any): Promise<any>
+}
 
 export interface DAppPromptContext {
   contract: {

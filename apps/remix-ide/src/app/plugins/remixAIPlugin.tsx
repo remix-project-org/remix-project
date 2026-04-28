@@ -1051,7 +1051,7 @@ export class RemixAIPlugin extends Plugin {
         throw new Error('DeepAgent not enabled')
       }
 
-      console.log('[RemixAI Plugin] generateDAppContent called', {
+      console.log('[QuickDapp] generateDAppContent called', {
         messageCount: params.messages.length,
         hasImage: params.hasImage,
         isUpdate: params.isUpdate,
@@ -1100,11 +1100,11 @@ export class RemixAIPlugin extends Plugin {
         throw new Error('No response from DeepAgent')
       }
 
-      console.log('[RemixAI Plugin] generateDAppContent result length:', result.length)
+      console.log('[QuickDapp] generateDAppContent result length:', result.length)
       return result
 
     } catch (error: any) {
-      console.error('[RemixAI Plugin] generateDAppContent error:', error)
+      console.error('[QuickDapp] generateDAppContent error:', error)
       throw error // Re-throw to trigger fallback in ai-dapp-generator
     }
   }
@@ -1209,7 +1209,7 @@ export class RemixAIPlugin extends Plugin {
         ? rawJson.substring(0, maxJsonLength) + '\n... [truncated for token limit]'
         : rawJson
 
-      console.log('[RemixAI Plugin] fetchFigmaDesign success:', figmaData.name)
+      console.log('[QuickDapp] fetchFigmaDesign success:', figmaData.name)
 
       return {
         success: true,
@@ -1218,7 +1218,7 @@ export class RemixAIPlugin extends Plugin {
         rawJson: truncatedJson
       }
     } catch (error: any) {
-      console.error('[RemixAI Plugin] fetchFigmaDesign error:', error)
+      console.error('[QuickDapp] fetchFigmaDesign error:', error)
       return { success: false, message: error.message || 'Failed to fetch Figma design' }
     }
   }
@@ -1264,7 +1264,7 @@ ${figmaResult.rawJson}
         hasFigma: true
       })
     } catch (error: any) {
-      console.error('[RemixAI Plugin] generateDAppFromFigma error:', error)
+      console.error('[QuickDapp] generateDAppFromFigma error:', error)
       throw error
     }
   }

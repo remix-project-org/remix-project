@@ -295,6 +295,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
   /**
    * Create the appropriate model instance based on provider selection
+   * @param maxTokens - Override default token limit (default: 4096, DApp generation uses 16384)
    */
   private createModelInstance(maxTokens: number=DAPP_MAX_TOKENS, modelSelection?: ModelSelection): BaseChatModel {
     const { provider, modelId } = modelSelection || this.modelSelection
@@ -514,8 +515,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   }
 
   /**
-   * Answer with a custom system prompt - used for specialized generation like DApps
-   * This creates a temporary agent configuration with the custom prompt
+   * Answer with a custom system prompt - used for specialized generation like DApps.
+   * Creates a dedicated model instance with higher token limit (16384) to avoid
+   * truncation in large code generation tasks. Invokes the model directly (no agent
+   * tools needed — DApp generation is pure text output).
    */
   async answerWithCustomSystemPrompt(
     prompt: string,
@@ -524,29 +527,31 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     imageBase64?: string
   ): Promise<string> {
     this.event.emit('onInference')
+    this.currentAbortController = new AbortController()
 
     try {
-      if (!this.agent || !this.model) {
+      if (!this.model) {
         throw new DeepAgentError(
           'DeepAgent not initialized',
           DeepAgentErrorType.INITIALIZATION_FAILED
         )
       }
 
-      console.log('[DeepAgentInferencer] Running answerWithCustomSystemPrompt')
 
-      // For custom system prompts, we need to include the system message explicitly
-      // since the agent was created with the default system prompt
+      // Create a dedicated model with higher token limit for DApp code generation
+      // (the default agent model uses 4096 which truncates multi-file output)
+      const DAPP_MAX_TOKENS = 16384
+      const dappModel = this.createModelInstance(DAPP_MAX_TOKENS)
+
+      // Build the full prompt with system context
       const fullPrompt = `${systemPrompt}\n\n---\n\nUser Request:\n${prompt}`
 
-      // Build messages with image support if provided
-      let messages: any[] = []
+      // Convert to LangChain messages with image support
+      let langchainMessages: any[]
 
       if (imageBase64) {
-        // Use multimodal message with image
-        messages = [
-          {
-            role: 'user',
+        langchainMessages = [
+          new HumanMessage({
             content: [
               {
                 type: 'image_url',
@@ -554,28 +559,50 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
                   url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/png;base64,${imageBase64}`
                 }
               },
-              {
-                type: 'text',
-                text: fullPrompt
-              }
+              { type: 'text', text: fullPrompt }
             ]
-          }
+          })
         ]
       } else {
-        messages = [
-          { role: 'user', content: fullPrompt }
-        ]
+        langchainMessages = [new HumanMessage(fullPrompt)]
       }
 
-      // Use runAgentWithCustomMessages for non-streaming full response
-      const response = await this.runAgent(messages, params)
+      // Invoke the model directly — DApp generation is pure code output,
+      // no agent tools needed. This avoids the agent's 4096 token ceiling.
+      // 60s timeout ensures fast fallback to external API if proxy is unreachable.
+      const timeoutMs = 60_000
+      const timeoutSignal = AbortSignal.timeout(timeoutMs)
+      const combinedController = this.currentAbortController!
+      timeoutSignal.addEventListener('abort', () => combinedController.abort(), { once: true })
+
+      const response = await dappModel.invoke(langchainMessages, {
+        signal: combinedController.signal
+      })
+
+      // Extract text from response
+      let result = ''
+      if (typeof response.content === 'string') {
+        result = response.content
+      } else if (Array.isArray(response.content)) {
+        result = response.content
+          .map((c: any) => (typeof c === 'string' ? c : c.text || ''))
+          .join('')
+      }
+
 
       this.event.emit('onInferenceDone')
-      return response
-    } catch (error) {
+      return result
+    } catch (error: any) {
       this.event.emit('onInferenceDone')
-      console.error('[DeepAgentInferencer] answerWithCustomSystemPrompt error:', error)
-      return await this.handleError(error, 'answerWithCustomSystemPrompt', prompt, params)
+      if (error?.name === 'AbortError' || this.currentAbortController?.signal.aborted) {
+        console.log('[QuickDapp] DApp generation request cancelled')
+        return ''
+      }
+      console.error('[QuickDapp] answerWithCustomSystemPrompt error:', error)
+      // Re-throw so callDeepAgent can fall back to external API
+      throw error
+    } finally {
+      this.currentAbortController = null
     }
   }
 

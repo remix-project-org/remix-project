@@ -77,7 +77,7 @@ export class AIDappGenerator extends Plugin {
   async generateDapp(options: GenerateDappOptions & { slug: string }): Promise<void> {
     if (options.figmaUrl && options.figmaToken) {
       this.processFigmaGeneration(options).catch(err => {
-        console.error('[AI-DAPP] Figma process crashed:', err);
+        console.error('[QuickDapp] Figma process crashed:', err);
         try {
           this.call('terminal', 'log', { type: 'error', value: err.message });
           this.emit('dappGenerationError', { address: options.address, slug: options.slug, error: err.message });
@@ -86,7 +86,7 @@ export class AIDappGenerator extends Plugin {
     } else {
       trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'generate', name: 'start', isClick: true });
       this.processGeneration(options).catch(err => {
-        console.error('[AI-DAPP] processGeneration crashed:', err);
+        console.error('[QuickDapp] processGeneration crashed:', err);
         try {
           this.call('terminal', 'log', { type: 'error', value: err.message });
           this.emit('dappGenerationError', { address: options.address, slug: options.slug, error: err.message });
@@ -178,7 +178,7 @@ export class AIDappGenerator extends Plugin {
 
     } catch (error: any) {
       trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'error', name: 'figma_failed', isClick: false });
-      console.error('[AI-DAPP] Figma Generation Failed:', error);
+      console.error('[QuickDapp] Figma Generation Failed:', error);
       try { this.call('terminal', 'log', { type: 'error', value: error.message }); } catch (_) {}
       try {
         this.emit('dappGenerationError', {
@@ -228,7 +228,7 @@ export class AIDappGenerator extends Plugin {
             try {
               const data = JSON.parse(event.slice(6));
               if (data.type === 'file_start') {
-                console.log(`[AI-DAPP] 📄 Figma generating: ${data.filename}`);
+                console.log(`[QuickDapp] 📄 Figma generating: ${data.filename}`);
                 this.emit('generationProgress', {
                   status: 'generating_file',
                   filename: data.filename
@@ -247,14 +247,14 @@ export class AIDappGenerator extends Plugin {
       } else {
         // Legacy JSON response (production backend without SSE)
         json = await response.json();
-        console.log('[AI-DAPP] Using legacy Figma JSON response (no SSE)');
+        console.log('[QuickDapp] Using legacy Figma JSON response (no SSE)');
       }
 
       if (!json) throw new Error('No response received from Figma backend');
       return { content: json.content, meta: json.meta };
 
     } catch (error) {
-      console.error('[AI-DAPP] Figma API Call Failed:', error);
+      console.error('[QuickDapp] Figma API Call Failed:', error);
       throw error;
     }
   }
@@ -290,37 +290,36 @@ export class AIDappGenerator extends Plugin {
 
       // Use DeepAgent via remixAI plugin instead of external API
       const htmlContent = await this.callDeepAgent(messagesToSend, systemPrompt, hasImage, false);
-      console.log('[AI-DAPP] Generation response received is meant to be done yet, length:', htmlContent?.length || 0);
 
       const duration = (Date.now() - startTime) / 1000;
 
-      // let pages = parsePages(htmlContent);
+      let pages = parsePages(htmlContent);
 
-      // this.emit('generationProgress', { status: 'parsing', address: options.address, slug: options.slug, fileCount: Object.keys(pages).length })
+      this.emit('generationProgress', { status: 'parsing', address: options.address, slug: options.slug, fileCount: Object.keys(pages).length })
 
-      // if (Object.keys(pages).length === 0) {
-      //   console.error('[AI-DAPP] parsePages returned empty object. Response length:', htmlContent?.length);
-      //   throw new Error("AI generated empty content. Please try again.");
-      // }
+      if (Object.keys(pages).length === 0) {
+        console.error('[QuickDapp] parsePages returned empty object. Response length:', htmlContent?.length);
+        throw new Error("AI generated empty content. Please try again.");
+      }
 
-      // this.emit('generationProgress', { status: 'validating', address: options.address, slug: options.slug })
-      // pages = await this.validateAndRetryMissingFiles(
-      //   pages, htmlContent, messagesToSend, systemPrompt, hasImage
-      // );
+      this.emit('generationProgress', { status: 'validating', address: options.address, slug: options.slug })
+      pages = await this.validateAndRetryMissingFiles(
+        pages, htmlContent, messagesToSend, systemPrompt, hasImage
+      );
 
-      // context.messages = [
-      //   { role: 'user', content: userMessage },
-      //   { role: 'assistant', content: htmlContent }
-      // ]
-      // this.saveContext(options.address, context)
+      context.messages = [
+        { role: 'user', content: userMessage },
+        { role: 'assistant', content: htmlContent }
+      ]
+      this.saveContext(options.address, context)
 
-      // // Store result BEFORE emit — ensures recovery even if event is lost
-      // this.pendingResults.set(options.slug, { address: options.address, content: pages, isUpdate: false })
+      // Store result BEFORE emit — ensures recovery even if event is lost
+      this.pendingResults.set(options.slug, { address: options.address, content: pages, isUpdate: false })
       try {
         this.emit('dappGenerated', {
           address: options.address,
           slug: options.slug,
-          content: "pages",
+          content: pages,
           isUpdate: false
         });
       } catch (_) {}
@@ -332,7 +331,7 @@ export class AIDappGenerator extends Plugin {
 
     } catch (error: any) {
       trackMatomoEvent(this, { category: 'quick-dapp-v2', action: 'error', name: 'generate_failed', isClick: false });
-      console.error('[AI-DAPP] Generation Failed:', error);
+      console.error('[QuickDapp] Generation Failed:', error);
       try { this.call('terminal', 'log', { type: 'error', value: error.message }); } catch (_) {}
       try {
         this.emit('dappGenerationError', {
@@ -422,7 +421,7 @@ export class AIDappGenerator extends Plugin {
             mergedPages[normalizeKey(file)] = content;
           }
         } catch (retryErr: any) {
-          console.warn('[AI-DAPP] Retry for missing imports failed:', retryErr.message);
+          console.warn('[QuickDapp] Retry for missing imports failed:', retryErr.message);
         }
       }
 
@@ -437,7 +436,7 @@ export class AIDappGenerator extends Plugin {
       } catch (_) {}
 
     } catch (error: any) {
-      console.error('[AI-DAPP] Update failed:', error);
+      console.error('[QuickDapp] Update failed:', error);
       try { this.call('terminal', 'log', { type: 'error', value: `Update failed: ${error.message}` }); } catch (_) {}
       try {
         this.emit('dappGenerationError', {
@@ -563,7 +562,7 @@ export class AIDappGenerator extends Plugin {
     isUpdate: boolean = false
   ): Promise<string> {
     try {
-      console.log('[AI-DAPP] Calling DeepAgent via remixAI plugin', { isUpdate, hasImage, messageCount: messages.length });
+      console.log('[QuickDapp] Calling DeepAgent via remixAI plugin', { isUpdate, hasImage, messageCount: messages.length });
 
       // Call the remixAI plugin with DApp generation context
       // The remixAI plugin routes this to DeepAgent with the DApp Generator subagent
@@ -578,14 +577,14 @@ export class AIDappGenerator extends Plugin {
         throw new Error('No response received from DeepAgent');
       }
 
-      console.log('[AI-DAPP] DeepAgent response received, length:', response?.length || 0);
+      console.log('[QuickDapp] DeepAgent response received, length:', response?.length || 0);
       return response;
 
     } catch (error: any) {
-      console.error('[AI-DAPP] DeepAgent call failed:', error);
+      console.error('[QuickDapp] DeepAgent call failed:', error);
 
       // Fallback to external API if DeepAgent fails
-      console.log('[AI-DAPP] Falling back to external LLM API...');
+      console.log('[QuickDapp] Falling back to external LLM API...');
       return this.callLLMAPI(messages, systemPrompt, hasImage, isUpdate);
     }
   }
@@ -602,7 +601,7 @@ export class AIDappGenerator extends Plugin {
     systemPrompt: string;
   }): Promise<string> {
     try {
-      console.log('[AI-DAPP] Calling DeepAgent with Figma integration');
+      console.log('[QuickDapp] Calling DeepAgent with Figma integration');
 
       // First, fetch and process the Figma design via DeepAgent
       const figmaResult = await this.call('remixAI' as any, 'fetchFigmaDesign', {
@@ -645,14 +644,14 @@ ${figmaResult.rawJson || ''}
         throw new Error('No response received from DeepAgent for Figma generation');
       }
 
-      console.log('[AI-DAPP] DeepAgent Figma response received, length:', response?.length || 0);
+      console.log('[QuickDapp] DeepAgent Figma response received, length:', response?.length || 0);
       return response;
 
     } catch (error: any) {
-      console.error('[AI-DAPP] DeepAgent Figma call failed:', error);
+      console.error('[QuickDapp] DeepAgent Figma call failed:', error);
 
       // Fallback to external Figma API if DeepAgent fails
-      console.log('[AI-DAPP] Falling back to external Figma API...');
+      console.log('[QuickDapp] Falling back to external Figma API...');
       const FIGMA_BACKEND_URL = "https://quickdapp-figma.api.remix.live/generate";
       const result = await this.callFigmaAPI(FIGMA_BACKEND_URL, payload);
       return result.content;
@@ -671,7 +670,7 @@ ${figmaResult.rawJson || ''}
 
     if (missing.length === 0) return pages
 
-    console.warn(`[AI-DAPP] Missing required files: ${missing.join(', ')}. Requesting retry...`)
+    console.warn(`[QuickDapp] Missing required files: ${missing.join(', ')}. Requesting retry...`)
 
     try {
       const retryMessages = [
@@ -688,7 +687,7 @@ ${figmaResult.rawJson || ''}
       const additionalPages = parsePages(additionalContent)
       Object.assign(pages, additionalPages)
     } catch (retryErr) {
-      console.warn('[AI-DAPP] Retry for missing files failed:', retryErr)
+      console.warn('[QuickDapp] Retry for missing files failed:', retryErr)
     }
 
     return pages
@@ -699,7 +698,7 @@ ${figmaResult.rawJson || ''}
     // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
     try {
-      console.log('[AI-DAPP] Calling LLM API', { isUpdate, hasImage, messageCount: messages.length + systemPrompt.length });
+      console.log('[QuickDapp] Calling LLM API', { isUpdate, hasImage, messageCount: messages.length + systemPrompt.length });
 
       const response = await fetch(BACKEND_URL, {
         method: "POST",
@@ -743,7 +742,7 @@ ${figmaResult.rawJson || ''}
             try {
               const data = JSON.parse(event.slice(6));
               if (data.type === 'file_start') {
-                console.log(`[AI-DAPP] 📄 Generating: ${data.filename}`);
+                console.log(`[QuickDapp] 📄 Generating: ${data.filename}`);
                 this.emit('generationProgress', {
                   status: 'generating_file',
                   filename: data.filename
@@ -762,7 +761,7 @@ ${figmaResult.rawJson || ''}
       } else {
         // Legacy JSON response (production backend without SSE)
         json = await response.json();
-        console.log('[AI-DAPP] Using legacy JSON response (no SSE)');
+        console.log('[QuickDapp] Using legacy JSON response (no SSE)');
       }
 
       if (!json) throw new Error('No response received from backend');
@@ -773,13 +772,13 @@ ${figmaResult.rawJson || ''}
       const totalTokens = usage?.total_tokens ?? (promptTokens + completionTokens);
       const usageSource = usage?.source || 'estimated';
 
-      console.log('[AI-DAPP] ┌─ TOKEN USAGE ─────────────────');
-      console.log('[AI-DAPP] │ Backend meta:', JSON.stringify(json.meta, null, 2));
-      console.log(`[AI-DAPP] │ Source: ${usageSource}`);
-      console.log(`[AI-DAPP] │ Prompt tokens: ${promptTokens}`);
-      console.log(`[AI-DAPP] │ Completion tokens: ${completionTokens}`);
-      console.log(`[AI-DAPP] │ Total tokens: ${totalTokens}`);
-      console.log('[AI-DAPP] └──────────────────────────────');
+      console.log('[QuickDapp] ┌─ TOKEN USAGE ─────────────────');
+      console.log('[QuickDapp] │ Backend meta:', JSON.stringify(json.meta, null, 2));
+      console.log(`[QuickDapp] │ Source: ${usageSource}`);
+      console.log(`[QuickDapp] │ Prompt tokens: ${promptTokens}`);
+      console.log(`[QuickDapp] │ Completion tokens: ${completionTokens}`);
+      console.log(`[QuickDapp] │ Total tokens: ${totalTokens}`);
+      console.log('[QuickDapp] └──────────────────────────────');
 
       let userId: string | undefined;
       if (typeof window !== 'undefined' && window.sessionStorage) {
@@ -822,7 +821,7 @@ ${figmaResult.rawJson || ''}
       return json.content;
 
     } catch (error: any) {
-      console.error('[AI-DAPP] API Call Failed:', error);
+      console.error('[QuickDapp] API Call Failed:', error);
       throw error;
     }
   }
