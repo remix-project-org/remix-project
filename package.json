@@ -1,6 +1,6 @@
 {
   "name": "remix-project",
-  "version": "2.2.0-dev",
+  "version": "2.3.0-dev",
   "license": "MIT",
   "description": "Remix Project Monorepo",
   "main": "index.js",
