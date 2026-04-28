@@ -138,12 +138,20 @@ export class AIDappGenerator extends Plugin {
       const duration = (Date.now() - startTime) / 1000;
 
       const pages = parsePages(htmlContent);
+      console.log('[QuickDapp] Figma parsePages result:', Object.keys(pages))
+
       this.emit('generationProgress', { status: 'parsing', address: options.address, slug: options.slug, fileCount: Object.keys(pages).length })
 
       if (Object.keys(pages).length === 0) {
-        console.error('[DEBUG-AI] CRITICAL: No files parsed from Figma generation');
+        console.error('[QuickDapp] CRITICAL: No files parsed from Figma generation');
         throw new Error("AI failed to return valid file structure from Figma design.");
       }
+
+      // Validate and retry missing/truncated files (same as text-based generation)
+      this.emit('generationProgress', { status: 'validating', address: options.address, slug: options.slug })
+      const validatedPages = await this.validateAndRetryMissingFiles(
+        pages, htmlContent, [], systemPrompt, false
+      );
 
       context.messages.push({
         role: 'user',
@@ -152,7 +160,7 @@ export class AIDappGenerator extends Plugin {
       context.messages.push({ role: 'assistant', content: htmlContent });
       this.saveContext(options.address, context);
 
-      this.pendingResults.set(options.slug, { address: options.address, content: pages, isUpdate: false })
+      this.pendingResults.set(options.slug, { address: options.address, content: validatedPages, isUpdate: false })
       try {
         this.emit('dappGenerated', {
           address: options.address,
@@ -666,11 +674,54 @@ ${figmaResult.rawJson || ''}
     hasImage: boolean
   ): Promise<Record<string, string>> {
     const REQUIRED_FILES = ['index.html', 'src/main.jsx', 'src/App.jsx']
+
+    console.log('[QuickDapp] validateAndRetry — generated files:', Object.keys(pages))
+
+    // Dynamically detect imported component files from App.jsx
+    const appContent = pages['src/App.jsx'] || ''
+    const importRegex = /import\s+\w+\s+from\s+['"]\.\/(.+?)['"]/g
+    let match: RegExpExecArray | null
+    while ((match = importRegex.exec(appContent)) !== null) {
+      const importPath = match[1]
+      // Resolve relative to src/ and add .jsx if no extension
+      const fullPath = `src/${importPath}${importPath.includes('.') ? '' : '.jsx'}`
+      if (!REQUIRED_FILES.includes(fullPath)) {
+        REQUIRED_FILES.push(fullPath)
+      }
+    }
+
+    console.log('[QuickDapp] validateAndRetry — required files (incl. imports):', REQUIRED_FILES)
+
+    // Check for missing files
     const missing = REQUIRED_FILES.filter(f => !pages[f])
 
-    if (missing.length === 0) return pages
+    // Check for truncated files (incomplete JSX — no closing tag or export)
+    const truncated: string[] = []
+    for (const [file, content] of Object.entries(pages)) {
+      if (file.endsWith('.jsx') && content.length > 100) {
+        const trimmed = content.trimEnd()
+        const lastChars = trimmed.slice(-20)
+        console.log(`[QuickDapp] validateAndRetry — ${file} ends with: "${lastChars}"`)
+        // If it doesn't end with a complete statement, it's likely truncated
+        if (!trimmed.endsWith('}') && !trimmed.endsWith(';') && !trimmed.endsWith(')')) {
+          truncated.push(file)
+        }
+      }
+    }
 
-    console.warn(`[QuickDapp] Missing required files: ${missing.join(', ')}. Requesting retry...`)
+    if (missing.length === 0 && truncated.length === 0) {
+      console.log('[QuickDapp] validateAndRetry — all files OK, no retry needed')
+      return pages
+    }
+
+    if (missing.length > 0) {
+      console.warn(`[QuickDapp] Missing files: ${missing.join(', ')}. Requesting retry...`)
+    }
+    if (truncated.length > 0) {
+      console.warn(`[QuickDapp] Truncated files detected: ${truncated.join(', ')}. Requesting retry...`)
+    }
+
+    const filesToRetry = [...missing, ...truncated]
 
     try {
       const retryMessages = [
@@ -678,7 +729,7 @@ ${figmaResult.rawJson || ''}
         { role: 'assistant', content: htmlContent },
         {
           role: 'user',
-          content: `The following required files were missing from your response: ${missing.join(', ')}. Please generate ONLY these missing files using the START_TITLE format. Do not regenerate files that were already provided.`
+          content: `The following files were missing or incomplete in your response: ${filesToRetry.join(', ')}. Please generate ONLY these files using the START_TITLE format. Each file must be complete — do not truncate. Do not regenerate files that were already provided correctly.`
         }
       ]
 
