@@ -35,7 +35,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const { features } = useAuth()
   const hasQuickdappAccess = features?.['dapp:quickdapp']?.is_enabled
   const [networkName, setNetworkName] = useState<string>('')
-  const [isExpanded, setIsExpanded] = useState<boolean>(false)
+  const [isExpanded, setIsExpanded] = useState<boolean>(true)
   const [contractABI, setContractABI] = useState(null)
   const [value, setValue] = useState<string>('0')
   const [valueUnit, setValueUnit] = useState<string>('wei')
