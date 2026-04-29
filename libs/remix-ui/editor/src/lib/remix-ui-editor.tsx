@@ -1700,7 +1700,6 @@ export const EditorUI = (props: EditorUIProps) => {
     })
 
     // Notify HITL that all changes were accepted (no-op if nobody listens)
-
     ;(props.plugin as any).emit('customDiffAccepted', currentDiffFile)
   }
 
@@ -1793,7 +1792,6 @@ export const EditorUI = (props: EditorUIProps) => {
               onClick={async () => {
                 const result = await props.editorAPI.acceptDiff()
                 if (result) {
-                  console.log('Diff accepted successfully')
                   // Refresh diff sessions after accepting
                   const sessions = await props.editorAPI.getDiffSessions()
                   setDiffSessions(sessions)
@@ -1805,7 +1803,6 @@ export const EditorUI = (props: EditorUIProps) => {
               title="Accept all changes and close diff view"
               disabled={diffSessions.length === 0}
             >
-              <i className="fas fa-check me-1"></i>
               Accept All Changes
             </button>
             <button 
@@ -1813,7 +1810,6 @@ export const EditorUI = (props: EditorUIProps) => {
               onClick={async () => {
                 const result = await props.editorAPI.discardDiff()
                 if (result) {
-                  console.log('Diff discarded successfully')
                   // Refresh diff sessions after discarding
                   const sessions = await props.editorAPI.getDiffSessions()
                   setDiffSessions(sessions)
@@ -1825,7 +1821,6 @@ export const EditorUI = (props: EditorUIProps) => {
               title="Discard all changes and close diff view"
               disabled={diffSessions.length === 0}
             >
-              <i className="fas fa-times me-1"></i>
               Discard Changes
             </button>
           </div>

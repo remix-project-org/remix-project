@@ -618,23 +618,47 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const handleApproveToolAction = useCallback(async (approval: ToolApprovalRequest, modifiedArgs?: Record<string, any>) => {
     if (!approval) return
 
+    // Close DiffEditor tab if the user had opened a Review
+    if (reviewingApprovals.has(approval.requestId)) {
+      try {
+        const sessions = await props.plugin.call('editor', 'getDiffSessions')
+        for (const session of sessions) {
+          await props.plugin.call('editor', 'closeDiffSession', session.id)
+        }
+      } catch (err) {
+        console.warn('[HITL] Failed to close diff sessions:', err)
+      }
+    }
+
     props.plugin.call('remixAI', 'respondToToolApproval', {
       requestId: approval.requestId,
       approved: true,
       modifiedArgs
     })
     removeApproval(approval.requestId)
-  }, [props.plugin, removeApproval])
+  }, [props.plugin, removeApproval, reviewingApprovals])
 
   const handleRejectToolAction = useCallback(async (approval: ToolApprovalRequest) => {
     if (!approval) return
+
+    // Close DiffEditor tab if the user had opened a Review
+    if (reviewingApprovals.has(approval.requestId)) {
+      try {
+        const sessions = await props.plugin.call('editor', 'getDiffSessions')
+        for (const session of sessions) {
+          await props.plugin.call('editor', 'closeDiffSession', session.id)
+        }
+      } catch (err) {
+        console.warn('[HITL] Failed to close diff sessions:', err)
+      }
+    }
 
     props.plugin.call('remixAI', 'respondToToolApproval', {
       requestId: approval.requestId,
       approved: false
     })
     removeApproval(approval.requestId)
-  }, [props.plugin, removeApproval])
+  }, [props.plugin, removeApproval, reviewingApprovals])
 
   const handleTimeoutToolAction = useCallback(async (approval: ToolApprovalRequest) => {
     if (!approval) return
@@ -648,6 +672,18 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   // Handle approving all pending approvals at once
   const handleApproveAll = useCallback(async () => {
+    // Close any open DiffEditor sessions first
+    if (reviewingApprovals.size > 0) {
+      try {
+        const sessions = await props.plugin.call('editor', 'getDiffSessions')
+        for (const session of sessions) {
+          await props.plugin.call('editor', 'closeDiffSession', session.id)
+        }
+      } catch (err) {
+        console.warn('[HITL] Failed to close diff sessions:', err)
+      }
+    }
+
     const approvals = [...pendingApprovals]
     for (const approval of approvals) {
       props.plugin.call('remixAI', 'respondToToolApproval', {
@@ -658,10 +694,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     // Clear all approvals
     setPendingApprovals([])
     setReviewingApprovals(new Set())
-  }, [pendingApprovals, props.plugin])
+  }, [pendingApprovals, props.plugin, reviewingApprovals])
 
   // Handle rejecting all pending approvals at once
   const handleRejectAll = useCallback(async () => {
+    // Close any open DiffEditor sessions first
+    if (reviewingApprovals.size > 0) {
+      try {
+        const sessions = await props.plugin.call('editor', 'getDiffSessions')
+        for (const session of sessions) {
+          await props.plugin.call('editor', 'closeDiffSession', session.id)
+        }
+      } catch (err) {
+        console.warn('[HITL] Failed to close diff sessions:', err)
+      }
+    }
+
     const approvals = [...pendingApprovals]
     for (const approval of approvals) {
       props.plugin.call('remixAI', 'respondToToolApproval', {
@@ -672,7 +720,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     // Clear all approvals
     setPendingApprovals([])
     setReviewingApprovals(new Set())
-  }, [pendingApprovals, props.plugin])
+  }, [pendingApprovals, props.plugin, reviewingApprovals])
 
   // Push a queued message (if any) into history once props update
   useEffect(() => {
@@ -1469,7 +1517,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                           onClick={handleApproveAll}
                           data-id="approve-all-changes"
                         >
-                          <i className="fas fa-check-double me-1"></i>
                           Approve All
                         </button>
                         <button
@@ -1477,7 +1524,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                           onClick={handleRejectAll}
                           data-id="reject-all-changes"
                         >
-                          <i className="fas fa-times-circle me-1"></i>
                           Discard All
                         </button>
                       </div>
@@ -1585,7 +1631,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                             onClick={handleApproveAll}
                             data-id="approve-all-changes"
                           >
-                            <i className="fas fa-check-double me-1"></i>
                             Approve All
                           </button>
                           <button
@@ -1593,7 +1638,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                             onClick={handleRejectAll}
                             data-id="reject-all-changes"
                           >
-                            <i className="fas fa-times-circle me-1"></i>
                             Discard All
                           </button>
                         </div>

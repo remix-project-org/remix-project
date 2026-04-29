@@ -529,18 +529,20 @@ export default class Editor extends Plugin {
   }
 
   async showCustomDiff (file, content) {
-    const source = this.getText(file)
-    console.log('Showing diff for', file, { source, content })
-    this.openDiff({
-      hashOriginal: this._simpleHash(source),
-      hashModified: this._simpleHash(content),
-      readonly: true,
-      path: file,
-      modified: content,
-      original: source,
-      type: "modified",
-    })
-    // return this.api.showCustomDiff(file, content)
+    const source = this.getText(file) || ''
+    try {
+      await this.openDiff({
+        hashOriginal: this._simpleHash(source),
+        hashModified: this._simpleHash(content),
+        readonly: true,
+        path: file,
+        modified: content,
+        original: source,
+        type: "modified",
+      })
+    } catch (err) {
+      console.error('[editor] showCustomDiff failed:', err)
+    }
   }
 
   hasUnacceptedChanges () {
@@ -597,6 +599,7 @@ export default class Editor extends Plugin {
         } else {
           this.setIsDiff(false)
           this.activeDiffId = null
+          this.renderComponent()
         }
       }
       return true
