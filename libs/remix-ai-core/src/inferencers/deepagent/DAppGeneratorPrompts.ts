@@ -70,7 +70,23 @@ export const invariants = {
   /** File delimiter format used to separate generated files */
   fileFormat: (): string => `
 **CRITICAL FILE FORMATTING:**
-Directly write to the filesystem in the directory dapp
+You MUST separate each file using this EXACT delimiter format:
+
+\`\`\`
+<<<START_TITLE index.html>>>
+(file content here)
+<<<START_TITLE src/main.jsx>>>
+(file content here)
+<<<START_TITLE src/App.jsx>>>
+(file content here)
+\`\`\`
+
+**RULES:**
+1. Each file MUST start with \`<<<START_TITLE filename>>>\` on its own line.
+2. The filename must include the path (e.g. \`src/App.jsx\`, not just \`App.jsx\`).
+3. Do NOT use markdown code blocks (\`\`\`) around individual files — just the raw code after the delimiter.
+4. Do NOT add any explanation text between files — only code.
+5. EVERY file must be complete — do not truncate or leave placeholders.
 `,
 
   /** Minimum required files and extension rules */
@@ -563,8 +579,13 @@ export const updateRules = {
   /** Text-only update: user request + current files */
   textUpdate: (description: string | any[], currentFiles: string): string => {
     const descText = Array.isArray(description)
-      ? description.map((p: any) => p.text || '').join('\n')
-      : description
+      ? description.map((p: any) => p.text || '').filter(Boolean).join('\n')
+      : (description || 'Update the DApp as requested.')
+
+    // Safety: ensure currentFiles is a valid string
+    const safeFiles = (typeof currentFiles === 'string' && currentFiles.length > 0)
+      ? currentFiles
+      : '{}'
 
     return `
 IMPORTANT: The user has provided a modification request.
@@ -575,7 +596,7 @@ ${descText}
 
 ---
 **Current Project Code:**
-${currentFiles}
+${safeFiles}
 
 **RULES:**
 1. Return ALL modified files AND all NEW files using START_TITLE format. Do NOT return files that are completely unmodified.
@@ -685,10 +706,21 @@ export const buildDAppUserMessage = (
   if (ctx.isUpdate && options.currentFiles) {
     const filteredFiles: Record<string, string> = {}
     for (const [fileName, content] of Object.entries(options.currentFiles)) {
+      // Only include source files
       if (fileName === 'index.html' || fileName.startsWith('src/') || fileName.startsWith('/src/') || fileName === '/index.html') {
+        // Safety: skip undefined/null/non-string content
+        if (content === undefined || content === null || typeof content !== 'string') {
+          console.warn(`[DAppPrompts] Skipping file with invalid content: ${fileName} (type: ${typeof content})`)
+          continue
+        }
         filteredFiles[fileName] = content
       }
     }
+
+    if (Object.keys(filteredFiles).length === 0) {
+      console.warn('[DAppPrompts] No valid source files found in currentFiles')
+    }
+
     const filesString = JSON.stringify(filteredFiles, null, 2)
 
     if (ctx.hasImage && Array.isArray(options.description)) {
@@ -819,7 +851,7 @@ export const ensureCompleteHtml = (html: string): string => {
 /** Parse multi-file output from LLM response */
 export const parsePages = (content: string): Record<string, string> => {
   const pages: Record<string, string> = {}
-  const markerRegex = /<{3,}\s*START_TITLE\s+(.*?)\s+>{3,}(?:\s*END_TITLE)?/g
+  const markerRegex = /<{3,}\s*START_TITLE\s+(.*?)\s*>{3,}(?:\s*END_TITLE)?/g
 
   const parts = content.split(markerRegex)
 

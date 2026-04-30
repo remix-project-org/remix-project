@@ -29,30 +29,39 @@ function jsonSchemaToZod(schema: any): z.ZodObject<any> {
     for (const [key, prop] of Object.entries(schema.properties as Record<string, any>)) {
       let zodType: z.ZodTypeAny
 
-      switch (prop.type) {
-      case 'string':
-        zodType = z.string()
+      // Handle union types like type: ['number', 'string']
+      const propType = Array.isArray(prop.type) ? prop.type : [prop.type]
+
+      if (propType.length > 1) {
+        // Union type — use z.union
+        zodType = z.union([z.string(), z.number()] as any)
         if (prop.description) zodType = zodType.describe(prop.description)
-        if (prop.enum) zodType = z.enum(prop.enum)
-        break
-      case 'number':
-        zodType = z.number()
-        if (prop.description) zodType = zodType.describe(prop.description)
-        break
-      case 'boolean':
-        zodType = z.boolean()
-        if (prop.description) zodType = zodType.describe(prop.description)
-        break
-      case 'array':
-        zodType = z.array(z.any())
-        if (prop.description) zodType = zodType.describe(prop.description)
-        break
-      case 'object':
-        zodType = z.record(z.string(), z.any())
-        if (prop.description) zodType = zodType.describe(prop.description)
-        break
-      default:
-        zodType = z.any()
+      } else {
+        switch (propType[0]) {
+        case 'string':
+          zodType = z.string()
+          if (prop.description) zodType = zodType.describe(prop.description)
+          if (prop.enum) zodType = z.enum(prop.enum)
+          break
+        case 'number':
+          zodType = z.number()
+          if (prop.description) zodType = zodType.describe(prop.description)
+          break
+        case 'boolean':
+          zodType = z.boolean()
+          if (prop.description) zodType = zodType.describe(prop.description)
+          break
+        case 'array':
+          zodType = z.array(z.any())
+          if (prop.description) zodType = zodType.describe(prop.description)
+          break
+        case 'object':
+          zodType = z.record(z.string(), z.any())
+          if (prop.description) zodType = zodType.describe(prop.description)
+          break
+        default:
+          zodType = z.any()
+        }
       }
 
       // Make optional if not required
@@ -169,6 +178,10 @@ export class ToolApprovalGate {
           proposedContent = args.content || args.data
 
         }
+      } else if (toolName === 'update_dapp') {
+        // For DApp updates, show a human-readable summary
+        const desc = typeof args.description === 'string' ? args.description : JSON.stringify(args.description)
+        proposedContent = `Update DApp: ${args.workspaceName || 'unknown'}\n\nModification request:\n${desc}`
       } else {
         // Non-file tools — just use content/data if present
         proposedContent = args.content || args.data
@@ -184,6 +197,27 @@ export class ToolApprovalGate {
         proposedContent,
         filePath,
         timestamp: Date.now()
+      }
+
+      // For DApp updates, open the target DApp for user review
+      if (toolName === 'update_dapp' && args.workspaceName) {
+        try {
+          console.log('[QuickDapp] Opening DApp for confirmation:', args.workspaceName)
+
+          // Activate plugin and open DApp detail page
+          await this.plugin.call('filePanel' as any, 'switchToWorkspace', {
+            name: args.workspaceName,
+            isLocalhost: false,
+          })
+          await this.plugin.call('manager' as any, 'activatePlugin', 'quick-dapp-v2')
+          await this.plugin.call('quick-dapp-v2' as any, 'openDapp', args.workspaceName)
+          await new Promise(r => setTimeout(r, 500))
+          await this.plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
+
+          console.log('[QuickDapp] DApp detail page opened for:', args.workspaceName)
+        } catch (e: any) {
+          console.warn('[QuickDapp] Failed to open DApp for confirmation (non-critical):', e?.message)
+        }
       }
 
       // Wait for user decision
@@ -255,6 +289,8 @@ export class RemixToolAdapter {
   private plugin: Plugin
   private toolRegistry: ToolRegistry
   private approvalGate?: ToolApprovalGate
+  /** Tracks whether list_dapps was called in this session. update_dapp is blocked until this is true. */
+  private listDappsCalled = false
 
   constructor(plugin: Plugin, toolRegistry: ToolRegistry, approvalGate?: ToolApprovalGate) {
     this.plugin = plugin
@@ -366,6 +402,9 @@ export class RemixToolAdapter {
 
     let func = async (input: Record<string, any>): Promise<string> => {
       try {
+        if (toolDef.name === 'list_dapps') {
+          this.listDappsCalled = true
+        }
         const result = await toolDef.handler.execute(input, this.plugin)
         return mcpResultToString(result)
       } catch (error) {
@@ -375,6 +414,18 @@ export class RemixToolAdapter {
 
     if (this.approvalGate) {
       func = this.approvalGate.wrap(toolDef.name, func)
+    }
+
+    // Guard runs BEFORE approval gate — blocks without showing modal
+    if (toolDef.name === 'update_dapp') {
+      const innerFunc = func
+      func = async (input: Record<string, any>): Promise<string> => {
+        if (!this.listDappsCalled) {
+          console.warn('[RemixToolAdapter] BLOCKED update_dapp — list_dapps not called yet')
+          return 'ERROR: You MUST call list_dapps first and present the numbered workspace list to the user. The user must explicitly choose which DApp to update. Call list_dapps now and show the results as a numbered list.'
+        }
+        return innerFunc(input)
+      }
     }
 
     return new DynamicStructuredTool({
@@ -483,13 +534,13 @@ export async function createRemixTools(
 ): Promise<DynamicStructuredTool[]> {
   const adapter = new RemixToolAdapter(plugin, toolRegistry, approvalGate)
 
-  // Get Solidity-specific tools from internal Remix MCP server
-  const solidityTools = adapter.getSolidityTools()
-  console.log('solidity tools:', solidityTools)
+  // Get ALL internal Remix MCP tools (generate_dapp, update_dapp, compile, deploy, etc.)
+  const internalTools = adapter.getAllTools()
+  console.log(`[RemixToolAdapter] Internal Remix MCP tools (${internalTools.length}):`, internalTools.map(t => t.name))
 
-  // Get helper tools
+  // Get helper tools (get_current_file, get_opened_files, etc.)
   const helperTools = RemixToolAdapter.createSolidityHelperTools(plugin)
-  console.log('helper tools:', helperTools)
+  console.log(`[RemixToolAdapter] Helper tools (${helperTools.length}):`, helperTools.map(t => t.name))
 
   // Get all external MCP client tools if mcpInferencer is provided
   let externalTools: DynamicStructuredTool[] = []
@@ -497,13 +548,13 @@ export async function createRemixTools(
     try {
       const allMCPTools = await mcpInferencer.getAvailableToolsForLLM()
       externalTools = adapter.convertExternalMCPTools(allMCPTools, mcpInferencer)
-      console.log(`[RemixToolAdapter] all tools  from MCPInferencer:`, externalTools)
-      console.log(`[RemixToolAdapter] Added ${externalTools.length} tools from external MCP clients`)
+      console.log(`[RemixToolAdapter] External MCP tools (${externalTools.length}):`, externalTools.map(t => t.name))
     } catch (error) {
       console.warn('[RemixToolAdapter] Failed to get external MCP tools:', error)
     }
   }
 
-  return [...externalTools]
-  // return [...solidityTools, ...helperTools, ...externalTools]
+  const allTools = [...internalTools, ...helperTools, ...externalTools]
+  console.log(`[RemixToolAdapter] Total tools registered: ${allTools.length}`)
+  return allTools
 }

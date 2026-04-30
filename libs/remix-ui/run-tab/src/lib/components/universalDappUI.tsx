@@ -18,7 +18,7 @@ import { UdappEvent } from '@remix-api'
 import { trackMatomoEvent } from '@remix-api'
 
 const txHelper = remixLib.execution.txHelper
-import { AIRequestForm } from './shared/AIRequestForm'
+
 
 export function UniversalDappUI(props: UdappProps) {
   const intl = useIntl()
@@ -312,106 +312,43 @@ export function UniversalDappUI(props: UdappProps) {
                     className="fas fa-sparkles"
                     onClick={async () => {
                       try {
-                        const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', props.instance.name)
+                        console.log('[QuickDapp] Sparkle button clicked', { name: props.instance.name, address, timestamp: Date.now() });
 
-                        const descriptionObj: any = await new Promise((resolve, reject) => {
+                        // [QuickDapp] Open AI Assistant with contract details + conversational request.
+                        // The AI will ask 3 design questions first, then call generate_dapp with all args.
+                        const abi = props.instance.abi || props.instance.contractData?.abi || []
+                        const abiJson = JSON.stringify(abi)
 
-                          let getFormData: () => Promise<any>;
+                        const prompt = `I want to create a DApp frontend for my deployed contract. Here are the contract details you'll need when calling generate_dapp:
 
-                          const modalContent = {
-                            id: 'generate-website-ai',
-                            title: intl.formatMessage({ id: 'udapp.generateDappModalTitle' }),
-                            message: <AIRequestForm onMount={(fn) => { getFormData = fn; }} />,
-                            modalType: 'custom',
-                            okLabel: intl.formatMessage({ id: 'udapp.generateDappOkLabel' }),
-                            cancelLabel: intl.formatMessage({ id: 'udapp.cancel' }),
+contractName: ${props.instance.name}
+contractAddress: ${address}
+chainId: ${props.plugin.REACT_API.chainId}
+contractAbi: ${abiJson}
 
-                            okFn: async () => {
-                              if (getFormData) {
-                                const formData = await getFormData();
-                                resolve(formData);
-                              } else {
-                                reject(new Error("Form data not initialized"));
-                              }
-                            },
-                            cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
-                            hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
-                          }
+Before generating, please ask me about my design preferences first.`
 
-                          // @ts-ignore
-                          props.plugin.call('notification', 'modal', modalContent)
-                        })
-
-                        if (isGenerating.current) {
-                          await props.plugin.call('notification', 'toast', intl.formatMessage({ id: 'udapp.aiGenerationInProgress' }))
-                          return
-                        }
-                        // @ts-ignore
-                        if (!selectedProvider.toLowerCase().startsWith('injected')) {
-                          const confirmed = await new Promise<boolean>((resolve) => {
-                            props.plugin.call('notification', 'modal', {
-                              id: 'remix-vm-warning',
-                              title: intl.formatMessage({ id: 'udapp.nonInjectedProviderWarningTitle' }),
-                              message: intl.formatMessage({ id: 'udapp.nonInjectedProviderWarningMessage' }),
-                              modalType: 'confirm',
-                              okLabel: intl.formatMessage({ id: 'udapp.continueAnyway' }),
-                              cancelLabel: intl.formatMessage({ id: 'udapp.cancel' }),
-                              okFn: () => resolve(true),
-                              cancelFn: () => resolve(false),
-                            })
-                          })
-
-                          if (!confirmed) {
-                            return
-                          }
-                        }
-
-                        isGenerating.current = true
-
-                        await props.plugin.call('ai-dapp-generator', 'resetDapp', address)
-
-                        const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
-                        const providerName = providerObject?.name || 'vm-unknown'
-                        const isVM = providerName.startsWith('vm')
-
-                        let chainId: string
-                        if (isVM) {
-                          chainId = providerName
-                        } else {
-                          const network = await props.plugin.call('network', 'detectNetwork')
-                          chainId = network?.id?.toString() || providerName
-                        }
-
+                        // Activate and focus AI Assistant
                         try {
-                          await props.plugin.call('quick-dapp-v2', 'createDapp', {
-                            description: descriptionObj.text,
-                            contractName: props.instance.name,
-                            address: address,
-                            abi: props.instance.abi || props.instance.contractData.abi,
-                            chainId: chainId,
+                          await props.plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
+                        } catch (e) { /* may already be active */ }
 
-                            compilerData: data,
-                            isBaseMiniApp: descriptionObj.isBaseMiniApp,
-                            image: descriptionObj.image,
-                            figmaUrl: descriptionObj.figmaUrl,
-                            figmaToken: descriptionObj.figmaToken,
-                            sourceFilePath: props.instance.filePath || props.instance.contractData?.contract?.file || ''
+                        // Open the right side panel (AI Assistant)
+                        try {
+                          await props.plugin.call('rightSidePanel', 'focusPanel')
+                        } catch (e) { /* best-effort */ }
 
-                          })
+                        // Send prompt to AI Assistant
+                        console.log('[QuickDapp] calling chatPipe from sparkle...');
+                        await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+                        console.log('[QuickDapp] chatPipe returned from sparkle');
 
-                          await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
-
-                        } catch (e) {
-                          console.error("Quick Dapp V2 call failed:", e);
-                          await props.plugin.call('notification', 'toast', 'Failed to call Quick Dapp V2 plugin.')
-                        }
+                        trackMatomoEvent({ category: 'udapp', action: 'sendTransaction-from-gui', name: 'create_dapp_sparkle', isClick: true })
                       } catch (error) {
                         if (error.message !== 'Canceled' && error.message !== 'Hide') {
-                          console.error('Error generating DApp:', error)
+                          console.error('[QuickDapp] Error:', error)
                           await props.plugin.call('terminal', 'log', { type: 'error', value: error.message })
                         }
-                      } finally {
-                        isGenerating.current = false
                       }
                     }}
                   ></i>
@@ -534,77 +471,5 @@ export function UniversalDappUI(props: UdappProps) {
   )
 }
 
-const generateAIDappWithPlugin = async (description: string, address: string, contractData: any, props: UdappProps) => {
-  try {
-    trackMatomoEvent(this, {
-      category: 'quick-dapp-v2',
-      action: 'generate',
-      name: 'start',
-      isClick: false
-    })
-    const pages: Record<string, string> = await props.plugin.call('ai-dapp-generator', 'generateDapp', {
-      description,
-      address,
-      abi: props.instance.abi || props.instance.contractData.abi,
-      chainId: props.plugin.REACT_API.chainId,
-      contractName: props.instance.name
-    })
+// [QuickDapp] Legacy generateAIDappWithPlugin removed — DApp creation now handled via AI Assistant chatPipe → generate_dapp MCP tool
 
-    try {
-      await props.plugin.call('fileManager', 'remove', 'dapp')
-    } catch (e) {
-    }
-    await props.plugin.call('fileManager', 'mkdir', 'dapp')
-
-    for (const [rawFilename, content] of Object.entries(pages)) {
-      const safeParts = rawFilename.replace(/\\/g, '/')
-        .split('/')
-        .filter(part => part !== '..' && part !== '.' && part !== '');
-
-      if (safeParts.length === 0) {
-        continue;
-      }
-      const safeFilename = safeParts.join('/');
-      const fullPath = 'dapp/' + safeFilename;
-
-      if (safeParts.length > 1) {
-        const subFolders = safeParts.slice(0, -1);
-        let currentPath = 'dapp';
-        for (const folder of subFolders) {
-          currentPath = `${currentPath}/${folder}`;
-          try {
-            await props.plugin.call('fileManager', 'mkdir', currentPath);
-          } catch (e) { }
-        }
-      }
-      await props.plugin.call('fileManager', 'writeFile', fullPath, content)
-    }
-
-    props.editInstance(
-      address,
-      props.instance.abi,
-      props.instance.name,
-      contractData.artefact.devdoc,
-      contractData.artefact.metadata,
-      pages
-    )
-
-    trackMatomoEvent(this, {
-      category: 'quick-dapp-v2',
-      action: 'generate',
-      name: 'success',
-      isClick: false
-    })
-
-  } catch (error) {
-    trackMatomoEvent(this, {
-      category: 'quick-dapp-v2',
-      action: 'error',
-      name: 'generation_failed',
-      value: error.message,
-      isClick: false
-    })
-    console.error('Error generating DApp:', error)
-    await props.plugin.call('terminal', 'log', { type: 'error', value: error.message })
-  }
-}

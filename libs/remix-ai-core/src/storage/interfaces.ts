@@ -35,6 +35,22 @@ export interface ChatMessage {
   currentTodoIndex?: number
   isSubagentStreaming?: boolean
   streamingSubagentName?: string
+  /** Post-update review data for DApp updates */
+  dappUpdateReview?: DAppUpdateReview
+}
+
+/**
+ * Data for reviewing DApp file changes after update.
+ * Files are already written; user can accept or revert.
+ */
+export interface DAppUpdateReview {
+  workspaceName: string
+  /** Updated file contents (new versions, already written to disk) */
+  files: Record<string, string>
+  /** Original file contents before update (for revert) */
+  backups: Record<string, string>
+  /** Review status */
+  status: 'pending' | 'accepted' | 'reverted'
 }
 
 /**

@@ -64,7 +64,7 @@ const SAFE_TOOLS = new Set([
   'get_foundry_hardhat_info',
 
   // --- DApp (read-only) ---
-  'dapp_list', 'dapp_get_status', 'dapp_open', 'dapp_navigate',
+  'list_dapps', 'dapp_list', 'dapp_get_status', 'dapp_open', 'dapp_navigate',
 
   // --- Skills (deepagents built-in, read-only) ---
   'get_skill', 'list_skills',
@@ -78,6 +78,9 @@ const SAFE_TOOLS = new Set([
 
   // --- AMP (read-only queries) ---
   'amp_query', 'amp_dataset_manifest',
+
+  // --- DApp generation (new creation is safe; update requires confirmation) ---
+  'generate_dapp',
 ])
 
 /**
@@ -105,6 +108,9 @@ const TOOL_METADATA: Record<string, { category: ToolCategory; risk: ToolRisk }> 
   send_transaction: { category: 'transaction', risk: 'high' },
   dapp_create:      { category: 'dapp', risk: 'medium' },
   dapp_update:      { category: 'dapp', risk: 'medium' },
+  // Actual MCP tool names used by DAppGeneratorHandler
+  generate_dapp:    { category: 'dapp', risk: 'low' },
+  update_dapp:      { category: 'dapp', risk: 'medium' },
 }
 
 export function isSafeTool(toolName: string): boolean {

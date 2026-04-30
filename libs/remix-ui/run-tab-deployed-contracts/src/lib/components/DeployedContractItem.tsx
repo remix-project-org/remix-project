@@ -10,7 +10,7 @@ import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
 import { runTransactions } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
-import { AIRequestForm } from '@remix-ui/run-tab'
+
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import BN from 'bn.js'
 import { TrackingContext } from '@remix-ide/tracking'
@@ -378,94 +378,57 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
     }
 
     try {
-      let compilerData = null
+      console.log('[QuickDapp] handleCreateDapp START', { name: contract.name, address: contract.address, timestamp: Date.now() });
 
-      try {
-        compilerData = await plugin.call('compilerArtefacts', 'getArtefactsByContractName', contract.name)
-      } catch (e) {
-        console.warn('[DeployedContractItem] Could not get compiler artefacts:', e)
-      }
-      const descriptionObj: any = await new Promise((resolve, reject) => {
-        let getFormData: () => Promise<any>
-
-        const modalContent = {
-          id: 'generate-website-ai',
-          title: intl.formatMessage({ id: 'udapp.generateDappModalTitle' }),
-          message: <AIRequestForm onMount={(fn) => { getFormData = fn }} />,
-          modalType: 'custom',
-          okLabel: intl.formatMessage({ id: 'udapp.generateDappOkLabel' }),
-          cancelLabel: intl.formatMessage({ id: 'udapp.cancel' }),
-          okFn: async () => {
-            if (getFormData) {
-              const formData = await getFormData()
-              resolve(formData)
-            } else {
-              reject(new Error('Form data not initialized'))
-            }
-          },
-          cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
-          hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
-        }
-
-        // @ts-ignore
-        plugin.call('notification', 'modal', modalContent)
-      })
-
-      if (isGenerating.current) {
-        await plugin.call('notification', 'toast', intl.formatMessage({ id: 'udapp.aiGenerationInProgress' }))
-        return
-      }
-
-      isGenerating.current = true
-
-      await plugin.call('ai-dapp-generator', 'resetDapp', contract.address)
-
-      const providerObject = await plugin.call('blockchain', 'getProviderObject')
-      const providerName = providerObject?.name || 'vm-unknown'
-      const isVM = providerName.startsWith('vm')
+      // Send contract details to AI Assistant for DApp generation
+      const abi = contract.abi || contract.contractData?.abi || []
+      const abiJson = JSON.stringify(abi)
 
       let chainId: string
-      if (isVM) {
-        chainId = providerName
-      } else {
-        const network = await plugin.call('network', 'detectNetwork')
-        chainId = network?.id?.toString() || providerName
-      }
-
-      let compilerFilePath = ''
-      if (compilerData?.fullyQualifiedName) {
-        const fqn = compilerData.fullyQualifiedName
-        compilerFilePath = fqn.includes(':') ? fqn.split(':')[0] : fqn
-      }
-
-      const resolvedFilePath = contract.filePath
-        || compilerFilePath
-        || contract.contractData?.contract?.file
-        || ''
-
       try {
-        await plugin.call('quick-dapp-v2', 'createDapp', {
-          description: descriptionObj.text,
-          contractName: contract.name,
-          address: contract.address,
-          abi: contract.abi || contract.contractData?.abi,
-          chainId: chainId,
-          compilerData: compilerData,
-          isBaseMiniApp: descriptionObj.isBaseMiniApp,
-          image: descriptionObj.image,
-          figmaUrl: descriptionObj.figmaUrl,
-          figmaToken: descriptionObj.figmaToken,
-          sourceFilePath: resolvedFilePath
-        })
-
-        await plugin.call('tabs', 'focus', 'quick-dapp-v2')
+        const providerObject = await plugin.call('blockchain', 'getProviderObject')
+        const providerName = providerObject?.name || 'vm-unknown'
+        if (providerName.startsWith('vm')) {
+          chainId = providerName
+        } else {
+          const network = await plugin.call('network', 'detectNetwork')
+          chainId = network?.id?.toString() || providerName
+        }
       } catch (e) {
-        console.error('[DeployedContractItem] Quick Dapp V2 call failed:', e)
-        await plugin.call('notification', 'toast', 'Failed to call Quick Dapp V2 plugin.')
+        chainId = 'unknown'
       }
+      console.log('[QuickDapp] chainId resolved:', chainId);
+
+      const prompt = `I want to create a DApp frontend for my deployed contract. Here are the contract details you'll need when calling generate_dapp:
+
+contractName: ${contract.name}
+contractAddress: ${contract.address}
+chainId: ${chainId}
+contractAbi: ${abiJson}
+
+Before generating, please ask me about my design preferences first.`
+
+      console.log('[QuickDapp] prompt assembled, length:', prompt.length);
+
+      // Activate and focus AI Assistant
+      try {
+        await plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
+      } catch (e) { /* may already be active */ }
+
+      // Open the right side panel (AI Assistant)
+      try {
+        await plugin.call('rightSidePanel', 'focusPanel')
+      } catch (e) { /* best-effort */ }
+
+      // Send prompt to AI Assistant
+      console.log('[QuickDapp] calling chatPipe...');
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+      console.log('[QuickDapp] chatPipe returned');
+
+      trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'create_dapp_via_ai', isClick: true })
     } catch (error) {
       if (error.message !== 'Canceled' && error.message !== 'Hide') {
-        console.error('[DeployedContractItem] Error creating dapp:', error)
+        console.error('[QuickDapp] Error creating dapp:', error)
         await plugin.call('terminal', 'log', { type: 'error', value: error.message })
       }
     } finally {

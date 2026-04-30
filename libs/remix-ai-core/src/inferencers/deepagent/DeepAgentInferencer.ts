@@ -218,11 +218,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         tool.name === 'get_tool_schema' || tool.name === 'call_tool'
       )
 
-      this.createAgentWithTools(metaTools)
-      console.log('[DeepAgentInferencer] Agent created successfully')
-      console.log('[DeepAgentInferencer] DeepAgent instance created successfully', this.agent)
+      console.log('[DeepAgentInferencer] Agent direct tools:', metaTools.map(t => t.name))
+      console.log('[DeepAgentInferencer] All available tools via call_tool:', this.tools.map(t => t.name))
 
-      console.log('[DeepAgentInferencer] Initialized successfully', this.agent)
+      this.createAgentWithTools(metaTools)
+      console.log('[DeepAgentInferencer] Initialized: agent tools =', metaTools.map(t => t.name), ', available via call_tool =', this.tools.map(t => t.name))
     } catch (error: any) {
       console.error('[DeepAgentInferencer] Initialization failed:', error)
       throw new DeepAgentError(
@@ -537,8 +537,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         )
       }
 
-
-      // Create a dedicated model with higher token limit for DApp code generation
+      // Create a dedicated model with higher token limit for code generation
       // (the default agent model uses 4096 which truncates multi-file output)
       const DAPP_MAX_TOKENS = 16384
       const dappModel = this.createModelInstance(DAPP_MAX_TOKENS)
@@ -567,9 +566,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         langchainMessages = [new HumanMessage(fullPrompt)]
       }
 
-      // Invoke the model directly — DApp generation is pure code output,
-      // no agent tools needed. This avoids the agent's 4096 token ceiling.
-      // 60s timeout ensures fast fallback to external API if proxy is unreachable.
+      // 60s timeout for fallback
       const timeoutMs = 60_000
       const timeoutSignal = AbortSignal.timeout(timeoutMs)
       const combinedController = this.currentAbortController!
@@ -589,17 +586,15 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           .join('')
       }
 
-
       this.event.emit('onInferenceDone')
       return result
     } catch (error: any) {
       this.event.emit('onInferenceDone')
       if (error?.name === 'AbortError' || this.currentAbortController?.signal.aborted) {
-        console.log('[QuickDapp] DApp generation request cancelled')
+        console.log('[DeepAgent] Request cancelled')
         return ''
       }
-      console.error('[QuickDapp] answerWithCustomSystemPrompt error:', error)
-      // Re-throw so callDeepAgent can fall back to external API
+      console.error('[DeepAgent] answerWithCustomSystemPrompt error:', error?.message || error)
       throw error
     } finally {
       this.currentAbortController = null

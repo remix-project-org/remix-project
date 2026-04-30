@@ -14,6 +14,7 @@ import {
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
 import { QueryParams } from '@remix-project/remix-lib'
 import { AiChatButtons } from './aichatButtons'
+import { DAppUpdateReviewCard } from './DAppUpdateReviewCard'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -26,6 +27,10 @@ export interface ChatHistoryComponentProps {
   plugin?: any
   handleGenerateWorkspace: () => void
   allowedMcps: string[]
+  /** DApp update review handlers */
+  onDappReviewAcceptAll?: (msgId: string) => void
+  onDappReviewRevertAll?: (msgId: string) => void
+  onDappReviewViewDiff?: (filePath: string, newContent: string, oldContent: string) => void
 }
 
 interface AiChatIntroProps {
@@ -68,7 +73,10 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   theme,
   plugin,
   handleGenerateWorkspace,
-  allowedMcps
+  allowedMcps,
+  onDappReviewAcceptAll,
+  onDappReviewRevertAll,
+  onDappReviewViewDiff,
 }) => {
   return (
     <div
@@ -208,6 +216,22 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                       })}
                     </ul>
                   </div>
+                )}
+
+
+                {/* DApp Update Review Card */}
+                {msg.role === 'assistant' && msg.dappUpdateReview && (
+                  <DAppUpdateReviewCard
+                    workspaceName={msg.dappUpdateReview.workspaceName}
+                    files={msg.dappUpdateReview.files}
+                    backups={msg.dappUpdateReview.backups}
+                    status={msg.dappUpdateReview.status}
+                    onAcceptAll={() => onDappReviewAcceptAll?.(msg.id)}
+                    onRevertAll={() => onDappReviewRevertAll?.(msg.id)}
+                    onViewDiff={(filePath, newContent, oldContent) =>
+                      onDappReviewViewDiff?.(filePath, newContent, oldContent)
+                    }
+                  />
                 )}
 
                 {/* Feedback buttons */}
