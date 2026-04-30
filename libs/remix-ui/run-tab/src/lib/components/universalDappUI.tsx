@@ -23,7 +23,7 @@ export function UniversalDappUI(props: UdappProps) {
   const intl = useIntl()
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends UdappEvent = UdappEvent>(event: T) => baseTrackEvent?.<T>(event)
-  const [toggleExpander, setToggleExpander] = useState<boolean>(false)
+  const [toggleExpander, setToggleExpander] = useState<boolean>(true)
   const [contractABI, setContractABI] = useState<FuncABI[]>(null)
   const [address, setAddress] = useState<string>('')
   const [expandPath, setExpandPath] = useState<string[]>([])
