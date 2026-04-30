@@ -283,6 +283,7 @@ export class NudgePlugin extends Plugin {
     /* ─── Unauthenticated nudges ─── */
 
     // Sign up prompt — shown to unauthenticated users when registration is open
+    /*
     this.engine_.addRule({
       id: 'nudge-sign-up',
       condition: all('user:not_logged_in', 'config:registration_open', 'config:login_enabled'),
@@ -317,6 +318,7 @@ export class NudgePlugin extends Plugin {
       showOnce: true,
       priority: 11
     })
+    */
 
     /* ─── Authenticated — contextual feature discovery ─── */
 
