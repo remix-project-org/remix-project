@@ -299,7 +299,7 @@ export class NudgePlugin extends Plugin {
       },
       showOnce: true,
       priority: 12
-    })*/
+    })
 
     // Beta invite prompt — shown when registration is invite-only
     this.engine_.addRule({
@@ -318,6 +318,7 @@ export class NudgePlugin extends Plugin {
       showOnce: true,
       priority: 11
     })
+    */
 
     /* ─── Authenticated — contextual feature discovery ─── */
 
