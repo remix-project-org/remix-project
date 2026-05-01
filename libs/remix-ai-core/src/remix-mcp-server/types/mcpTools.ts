@@ -25,7 +25,8 @@ export enum ToolCategory {
   ANALYSIS = 'analysis',
   WORKSPACE = 'workspace',
   TESTING = 'testing',
-  GIT = 'git'
+  GIT = 'git',
+  X402 = 'x402'
 }
 
 export interface AccountInfo {

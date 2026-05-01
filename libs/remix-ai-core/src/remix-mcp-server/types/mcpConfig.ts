@@ -67,6 +67,35 @@ export interface MCPResourceConfig {
   };
 }
 
+export interface X402WalletConfig {
+  evmPrivateKey?: string;
+  svmPrivateKey?: string;
+  evmRpcUrl?: string;
+  enablePayments?: boolean;
+  supportedNetworks?: string[];
+}
+
+export interface X402EndpointConfig {
+  id: string;
+  title: string;
+  description: string;
+  endpoint: string;
+  parameters?: {
+    [key: string]: {
+      type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+      description: string;
+      required?: boolean;
+      default?: any;
+      enum?: any[];
+      pattern?: string;
+    };
+  };
+  permissions?: string[];
+  enabled?: boolean;
+  requiresPayment?: boolean;
+  paymentMethods?: string[];
+}
+
 export interface MCPConfig {
   version: string;
   security: MCPSecurityConfig;
@@ -85,6 +114,8 @@ export interface MCPConfig {
     console: boolean;
     logFile?: string;
   };
+  x402Endpoints?: X402EndpointConfig[];
+  x402Wallet?: X402WalletConfig;
 }
 
 export const defaultMCPConfig: MCPConfig = {

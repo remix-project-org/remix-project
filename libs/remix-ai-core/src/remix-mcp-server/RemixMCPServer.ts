@@ -51,6 +51,7 @@ import { createTutorialsTools } from './handlers/TutorialsHandler';
 import { createAmpTools } from './handlers/AmpHandler';
 import { createMathUtilsTools } from './handlers/MathUtilsHandler';
 import { createFoundryHardhatTools } from './handlers/FoundryHardhatHandler';
+import { X402EndpointManager } from './handlers/X402EndpointHandler';
 
 // Import resource providers
 import { ProjectResourceProvider } from './providers/ProjectResourceProvider';
@@ -86,6 +87,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   private _validationMiddleware: ValidationMiddleware;
   private _filePermissionMiddleware: FilePermissionMiddleware;
   private _configManager: MCPConfigManager;
+  private _x402Manager: X402EndpointManager;
   private _isInitialized: boolean = false;
 
   constructor(plugin, config: RemixMCPServerConfig) {
@@ -108,6 +110,9 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
     // Initialize config manager
     this._configManager = new MCPConfigManager(this._plugin);
+    
+    // Initialize X402 endpoint manager
+    this._x402Manager = new X402EndpointManager();
 
     // Initialize middleware with tool registry (will be updated after config is loaded)
     this._securityMiddleware = new SecurityMiddleware(
@@ -187,6 +192,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       }
 
       await this.initializeDefaultTools();
+      await this.initializeX402Tools();
       await this.initializeDefaultResourceProviders();
 
       this.setupCleanupIntervals();
@@ -768,11 +774,42 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   async reloadConfig(): Promise<void> {
     try {
       const mcpConfig = await this._configManager.reloadConfig();
+      
+      await this.reloadX402Tools();
+      
       this.emit('config-reloaded', mcpConfig);
     } catch (error) {
       console.log(`[RemixMCPServer] Failed to reload config: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Reload X402 endpoint tools based on updated configuration
+   */
+  private async reloadX402Tools(): Promise<void> {
+    try {
+      const currentX402Tools = this._tools.list().filter(tool => tool.name.startsWith('x402_'));
+      
+      for (const tool of currentX402Tools) {
+        this._tools.unregister(tool.name);
+      }
+      
+      this._x402Manager.clearHandlers();
+      
+      await this.initializeX402Tools();
+      
+      console.log(`[RemixMCPServer] X402 tools reloaded successfully`);
+    } catch (error) {
+      console.log(`[RemixMCPServer] Failed to reload X402 tools: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get X402 endpoint manager
+   */
+  get x402Manager(): X402EndpointManager {
+    return this._x402Manager;
   }
 
   getMCPConfig() {
@@ -861,6 +898,30 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
     } catch (error) {
       console.log(`Failed to initialize default tools: ${error.message}`, 'error');
       throw error;
+    }
+  }
+
+  /**
+   * Initialize X402 endpoint tools from configuration
+   */
+  private async initializeX402Tools(): Promise<void> {
+    try {
+      const config = this._configManager.getConfig();
+      
+      if (config.x402Endpoints && config.x402Endpoints.length > 0) {
+        console.log(`[RemixMCPServer] Registering ${config.x402Endpoints.length} X402 endpoint tools`);
+        
+        // Pass wallet configuration to x402 manager
+        const x402Tools = this._x402Manager.createX402Tools(config.x402Endpoints, config.x402Wallet);
+        this._tools.registerBatch(x402Tools);
+        
+        console.log(`[RemixMCPServer] Successfully registered ${x402Tools.length} X402 tools with automatic payment handling`);
+      } else {
+        console.log('[RemixMCPServer] No X402 endpoints configured');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(`[RemixMCPServer] Failed to initialize X402 tools: ${errorMessage}`);
     }
   }
 

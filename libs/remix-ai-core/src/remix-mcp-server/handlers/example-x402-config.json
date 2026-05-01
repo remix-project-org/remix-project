@@ -1,0 +1,113 @@
+{
+  "mcp": {
+    "version": "1.0.0",
+    "security": {
+      "allowedFileTypes": ["sol", "js", "ts", "json"],
+      "permissions": {
+        "requirePermissions": true,
+        "defaultPermissions": ["*"]
+      }
+    },
+    "validation": {
+      "strictMode": false
+    },
+    "x402Wallet": {
+      "enablePayments": true,
+      "evmPrivateKey": "0x1234567890abcdef...",
+      "svmPrivateKey": "base58-encoded-solana-private-key...",
+      "evmRpcUrl": "https://base-sepolia.g.alchemy.com/v2/your-api-key",
+      "supportedNetworks": ["eip155:8453", "eip155:84532", "solana:mainnet", "solana:devnet"]
+    },
+    "x402Endpoints": [
+      {
+        "id": "ai_code_analyzer",
+        "title": "AI Code Analyzer",
+        "description": "Analyze Solidity code for potential issues using AI",
+        "endpoint": "https://api.example.com/x402/analyze-code",
+        "parameters": {
+          "sourceCode": {
+            "type": "string",
+            "description": "The Solidity source code to analyze",
+            "required": true
+          },
+          "analysisType": {
+            "type": "string",
+            "description": "Type of analysis to perform",
+            "required": false,
+            "default": "full",
+            "enum": ["quick", "full", "security-only"]
+          },
+          "includeOptimizations": {
+            "type": "boolean",
+            "description": "Include optimization suggestions",
+            "required": false,
+            "default": true
+          }
+        },
+        "permissions": ["analysis:ai", "code:read"],
+        "enabled": true,
+        "requiresPayment": false,
+        "paymentMethods": ["crypto"]
+      },
+      {
+        "id": "smart_contract_deployer",
+        "title": "Smart Contract Deployer",
+        "description": "Deploy smart contracts with advanced configuration",
+        "endpoint": "https://api.example.com/x402/deploy-contract",
+        "parameters": {
+          "contractName": {
+            "type": "string",
+            "description": "Name of the contract to deploy",
+            "required": true
+          },
+          "network": {
+            "type": "string",
+            "description": "Target network for deployment",
+            "required": true,
+            "enum": ["mainnet", "sepolia", "goerli", "polygon", "arbitrum"]
+          },
+          "gasPrice": {
+            "type": "string",
+            "description": "Gas price in wei",
+            "required": false,
+            "pattern": "^[0-9]+$"
+          },
+          "constructorArgs": {
+            "type": "array",
+            "description": "Constructor arguments",
+            "required": false
+          }
+        },
+        "permissions": ["deploy:contract", "network:access"],
+        "enabled": true,
+        "requiresPayment": true,
+        "paymentMethods": ["crypto", "usdc"]
+      },
+      {
+        "id": "audit_reporter",
+        "title": "Security Audit Reporter",
+        "description": "Generate comprehensive security audit reports",
+        "endpoint": "https://api.example.com/x402/audit-report",
+        "parameters": {
+          "contractAddress": {
+            "type": "string",
+            "description": "Contract address to audit",
+            "required": true,
+            "pattern": "^0x[a-fA-F0-9]{40}$"
+          },
+          "depth": {
+            "type": "string",
+            "description": "Audit depth level",
+            "required": false,
+            "default": "standard",
+            "enum": ["basic", "standard", "comprehensive"]
+          }
+        },
+        "permissions": ["audit:read"],
+        "enabled": false,
+        "requiresPayment": true,
+        "paymentMethods": ["crypto", "usdc", "eth"]
+      }
+    ]
+  }
+}
