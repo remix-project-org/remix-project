@@ -898,9 +898,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       if (this.config.enableSubagents) {
-        const toolInventoryPrompt = this.toolSelector ?
-          this.toolSelector.generateToolInventoryPrompt(this.tools) : ""
-
         const etherscanTools = this.toolSelector ?
           this.toolSelector.getEtherscanTools() : []
         const theGraphTools = this.toolSelector ?
@@ -914,42 +911,42 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         agentConfig.subagents = [
           {
             name: 'Security Auditor',
-            systemPrompt: SECURITY_AUDITOR_SUBAGENT_PROMPT + toolInventoryPrompt,
+            systemPrompt: SECURITY_AUDITOR_SUBAGENT_PROMPT,
             model: this.model,
             tools: generalTools,
             backend: this.filesystemBackend
           },
           {
             name: 'Code Reviewer',
-            systemPrompt: CODE_REVIEWER_SUBAGENT_PROMPT + toolInventoryPrompt,
+            systemPrompt: CODE_REVIEWER_SUBAGENT_PROMPT,
             model: this.model,
             tools: generalTools,
             backend: this.filesystemBackend
           },
           {
             name: 'Frontend Specialist',
-            systemPrompt: FRONTEND_SPECIALIST_SUBAGENT_PROMPT + toolInventoryPrompt,
+            systemPrompt: FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
             model: this.model,
             tools: generalTools,
             backend: this.filesystemBackend
           },
           {
             name: 'Etherscan Specialist',
-            systemPrompt: ETHERSCAN_SUBAGENT_PROMPT + toolInventoryPrompt,
+            systemPrompt: ETHERSCAN_SUBAGENT_PROMPT,
             model: this.model,
             tools: etherscanTools,
             backend: this.filesystemBackend
           },
           {
             name: 'TheGraph Specialist',
-            systemPrompt: THEGRAPH_SUBAGENT_PROMPT + toolInventoryPrompt,
+            systemPrompt: THEGRAPH_SUBAGENT_PROMPT,
             model: this.model,
             tools: theGraphTools,
             backend: this.filesystemBackend
           },
           {
             name: 'Alchemy Specialist',
-            systemPrompt: ALCHEMY_SUBAGENT_PROMPT + toolInventoryPrompt,
+            systemPrompt: ALCHEMY_SUBAGENT_PROMPT,
             model: this.model,
             tools: alchemyTools,
             backend: this.filesystemBackend
@@ -965,8 +962,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       let enhancedSystemPrompt = REMIX_DEEPAGENT_SYSTEM_PROMPT
       if (this.toolSelector) {
-        const toolInventoryPrompt = this.toolSelector.generateToolInventoryPrompt(selectedTools)
-        enhancedSystemPrompt += toolInventoryPrompt
+        // Save input token
+        // const toolInventoryPrompt = this.toolSelector.generateToolInventoryPrompt(selectedTools)
+        // enhancedSystemPrompt += toolInventoryPrompt
       }
       agentConfig.systemPrompt = enhancedSystemPrompt
 
