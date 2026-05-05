@@ -61,7 +61,10 @@ export function EnvironmentUI(props: EnvironmentProps) {
 
     const provider = props.providers.providerList.find((exEnv) => exEnv.name === env)
     const context = provider.name
-    props.setExecutionContext({ context })
+    const confirmed = window.confirm("Switching environment may reset deployed contracts. Continue?")
+    if (confirmed) {
+      props.setExecutionContext({ context })
+    }
   }
 
   const currentProvider = props.providers.providerList.find((exEnv) => exEnv.name === props.selectedEnv)
