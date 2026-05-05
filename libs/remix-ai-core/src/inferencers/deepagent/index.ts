@@ -11,4 +11,4 @@ export {
   SOLIDITY_CODE_GENERATION_PROMPT,
   SECURITY_ANALYSIS_PROMPT,
   CODE_EXPLANATION_PROMPT
-} from './DeepAgentPrompts'
+} from './LightDeepAgentPrompts'

@@ -148,7 +148,7 @@ const defaultUrls: EndpointUrls = {
   ccipRead: 'https://quickdapp-ccip.api.remix.live',
   learneth: 'https://learneth.api.remix.live',
   rss: 'https://rss.api.remix.live',
-  langchain: 'https://langchain.api.remix.live',
+  langchain: 'http://localhost:4000' // 'https://langchain.api.remix.live',
 };
 
 // --- Resolution ---

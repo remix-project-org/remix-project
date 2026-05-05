@@ -20,7 +20,7 @@ import {
   ETHERSCAN_SUBAGENT_PROMPT,
   THEGRAPH_SUBAGENT_PROMPT,
   ALCHEMY_SUBAGENT_PROMPT
-} from './DeepAgentPrompts'
+} from './LightDeepAgentPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, DeepAgentError, DeepAgentErrorType } from '../../types/deepagent'
 import { ToolRegistry } from '../../remix-mcp-server/types/mcpTools'
