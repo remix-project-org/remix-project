@@ -294,9 +294,8 @@ export class ToolSelector {
 
     for (const [category, tools] of Object.entries(toolCategories)) {
       if (tools.length > 0) {
-        prompt += `### ${category.charAt(0).toUpperCase() + category.slice(1)} Tools:\n`
         for (const tool of tools) {
-          prompt += `- **${tool.name}**: ${tool.description}\n`
+          prompt += `- ${tool.name}**\n`
         }
         prompt += "\n"
       }
