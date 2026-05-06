@@ -23,7 +23,9 @@ import {
   GAS_OPTIMIZER_SUBAGENT_PROMPT,
   COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
   WEB3_EDUCATOR_SUBAGENT_PROMPT,
-  DEBUG_SPECIALIST_SUBAGENT_PROMPT
+  DEBUG_SPECIALIST_SUBAGENT_PROMPT,
+  SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
+  WEB_SEARCH_SUBAGENT_PROMPT
 } from './DeepAgentSuperLightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, IAutoModelConfig, DeepAgentError, DeepAgentErrorType } from '../../types/deepagent'
@@ -38,7 +40,7 @@ import { HumanMessage, AIMessage } from '@langchain/core/messages'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
-import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, selectOptimalModel, filterOutSpecialistTools } from './helpers'
+import { getSolidityToolsForSolidityEngineer, getWebSearchToolsForWebSearchSpecialist, getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, selectOptimalModel, filterOutSpecialistTools } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import { endpointUrls } from "@remix-endpoints-helper"
 import type { DeepAgent } from 'deepagents'
@@ -905,6 +907,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     try {
       const { createDeepAgent } = await import('deepagents')
 
+      console.log(selectedTools)
       const checkpointer = new IndexedDBCheckpointSaver()
       // Create agent configuration with selected tools
       const agentConfig: any = {
@@ -926,11 +929,27 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         const coordinationTools = getCoordinationToolsForComprehensiveAuditor(this.tools)
         const educationTools = getEducationToolsForWeb3Educator(this.tools)
         const debugTools = getDebugToolsForDebugSpecialist(this.tools)
+        const solidityTools = getSolidityToolsForSolidityEngineer(this.tools)
+        const webSearchTools = getWebSearchToolsForWebSearchSpecialist(this.tools)
 
         const generalTools = this.toolSelector ?
           filterOutSpecialistTools(this.tools) : this.tools
 
         agentConfig.subagents = [
+          {
+            name: 'Solidity Engineer',
+            systemPrompt: SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: solidityTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Web Search Specialist',
+            systemPrompt: WEB_SEARCH_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: webSearchTools,
+            backend: this.filesystemBackend
+          },
           {
             name: 'Security Auditor',
             systemPrompt: SECURITY_AUDITOR_SUBAGENT_PROMPT,

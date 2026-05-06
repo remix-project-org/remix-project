@@ -287,6 +287,8 @@ export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): Dynami
   const alchemyToolNames = new Set(getAlchemyToolsForAlchemySpecialist(tools).map(t => t.name))
   const educationToolNames = new Set(getEducationToolsForWeb3Educator(tools).map(t => t.name))
   const debugToolNames = new Set(getDebugToolsForDebugSpecialist(tools).map(t => t.name))
+  const solidityToolNames = new Set(getSolidityToolsForSolidityEngineer(tools).map(t => t.name))
+  const webSearchToolNames = new Set(getWebSearchToolsForWebSearchSpecialist(tools).map(t => t.name))
 
   const filteredTools = tools.filter(tool =>
     !securityToolNames.has(tool.name) &&
@@ -294,9 +296,42 @@ export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): Dynami
     !theGraphToolNames.has(tool.name) &&
     !alchemyToolNames.has(tool.name) &&
     !educationToolNames.has(tool.name) &&
-    !debugToolNames.has(tool.name)
+    !debugToolNames.has(tool.name) &&
+    !solidityToolNames.has(tool.name) &&
+    !webSearchToolNames.has(tool.name)
   )
   return filteredTools
+}
+
+/**
+   * Get Solidity tools for Solidity Engineer (tools starting with "solidity")
+   */
+export function getSolidityToolsForSolidityEngineer(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const solidityTools = tools.filter(tool => {
+    // Check if tool name starts with "solidity"
+    return tool.name.toLowerCase().startsWith('solidity')
+  })
+
+  console.log(`[HelperTools] Found ${solidityTools.length} Solidity tools`)
+  return solidityTools
+}
+
+/**
+   * Get Web Search tools for Web Search Specialist
+   */
+export function getWebSearchToolsForWebSearchSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const webSearchToolNames = [
+    'full_web_search',
+    'get_web_search_summaries', 
+    'get_single_web_page_content'
+  ]
+
+  const webSearchTools = tools.filter(tool =>
+    webSearchToolNames.includes(tool.name)
+  )
+
+  console.log(`[HelperTools] Found ${webSearchTools.length} Web Search tools`)
+  return webSearchTools
 }
 
 /**
