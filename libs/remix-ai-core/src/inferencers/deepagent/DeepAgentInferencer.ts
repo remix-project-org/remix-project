@@ -160,8 +160,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         tool.name === 'get_tool_schema' || tool.name === 'call_tool'
       )
 
-      await this.createAgentWithTools(metaTools)
-      console.log('[DeepAgentInferencer] Initialized: agent tools =', metaTools.map(t => t.name), ', available via call_tool =', this.tools.map(t => t.name))
+      await this.createAgentWithTools(this.tools)
+      console.log('[DeepAgentInferencer] Agent created successfully')
+      console.log('[DeepAgentInferencer] DeepAgent instance created successfully', this.agent)
+
+      console.log('[DeepAgentInferencer] Initialized successfully')
     } catch (error: any) {
       console.error('[DeepAgentInferencer] Initialization failed:', error)
       throw new DeepAgentError(
@@ -672,7 +675,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       const { createDeepAgent } = await import('deepagents')
 
       const checkpointer = new IndexedDBCheckpointSaver()
-
       // Create agent configuration with selected tools
       const agentConfig: any = {
         backend: this.filesystemBackend,
@@ -722,12 +724,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     // Create new model instance
     this.model = createModelInstance(selectedModel)
 
-    // Recreate agent with new model
-    
-    const metaTools = this.tools.filter(tool =>
-      tool.name === 'get_tool_schema' || tool.name === 'call_tool'
-    )
-    if (!this.agent) await this.createAgentWithTools(metaTools)
+    if (!this.agent) await this.createAgentWithTools(this.tools)
     else {
       this.agent.options.model = this.model
     }
