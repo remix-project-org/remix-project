@@ -218,7 +218,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         tool.name === 'get_tool_schema' || tool.name === 'call_tool'
       )
 
-      this.createAgentWithTools(metaTools)
+      this.createAgentWithTools(filterOutSpecialistTools(this.tools))
       console.log('[DeepAgentInferencer] Agent created successfully')
       console.log('[DeepAgentInferencer] DeepAgent instance created successfully', this.agent)
 
@@ -906,7 +906,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       const { createDeepAgent } = await import('deepagents')
 
       const checkpointer = new IndexedDBCheckpointSaver()
-
       // Create agent configuration with selected tools
       const agentConfig: any = {
         backend: this.filesystemBackend,
@@ -1035,13 +1034,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     // Create new model instance
     this.model = this.createModelInstance(DAPP_MAX_TOKENS, selectedModel)
     
-    // Recreate agent with new model
-    
-    const metaTools = this.tools.filter(tool =>
-      tool.name === 'get_tool_schema' || tool.name === 'call_tool'
-    )
-    if (!this.agent) await this.createAgentWithTools(metaTools)
-    else {
+    if (!this.agent) {
+      const generalTools = filterOutSpecialistTools(this.tools)
+      await this.createAgentWithTools(generalTools)
+    } else {
       this.agent.options.model = this.model
     }
   }
