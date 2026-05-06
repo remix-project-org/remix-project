@@ -2,7 +2,7 @@
  * Reduced system prompts for DeepAgent in Remix IDE
  */
 
-export const REMIX_DEEPAGENT_SYSTEM_PROMPT = `Expert Solidity assistant in Remix IDE.
+export const REMIX_DEEPAGENT_SYSTEM_PROMPT = `Expert Web3 assistant in Remix IDE.
 
 # Tools Available
 - read_file, write_file, edit_file, ls, cwd: File operations
