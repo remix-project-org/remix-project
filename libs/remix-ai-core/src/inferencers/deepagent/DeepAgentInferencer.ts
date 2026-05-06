@@ -3,7 +3,6 @@
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
-import { anthropicPromptCachingMiddleware } from "langchain";
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
@@ -15,19 +14,6 @@ import {
   SOLIDITY_CODE_GENERATION_PROMPT,
   SECURITY_ANALYSIS_PROMPT,
   CODE_EXPLANATION_PROMPT,
-  SECURITY_AUDITOR_SUBAGENT_PROMPT,
-  CODE_REVIEWER_SUBAGENT_PROMPT,
-  FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
-  ETHERSCAN_SUBAGENT_PROMPT,
-  THEGRAPH_SUBAGENT_PROMPT,
-  ALCHEMY_SUBAGENT_PROMPT,
-  GAS_OPTIMIZER_SUBAGENT_PROMPT,
-  COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
-  WEB3_EDUCATOR_SUBAGENT_PROMPT,
-  DEBUG_SPECIALIST_SUBAGENT_PROMPT,
-  SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
-  WEB_SEARCH_SUBAGENT_PROMPT,
-  CONVERSION_UTILITIES_SUBAGENT_PROMPT
 } from './DeepAgentSuperLightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, DeepAgentError, DeepAgentErrorType, ModelSelection } from '../../types/deepagent'
@@ -37,9 +23,7 @@ import { HumanMessage, AIMessage } from '@langchain/core/messages'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { selectOptimalModel } from './helpers/modelSelection'
-import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
-import { getSolidityToolsForSolidityEngineer, getWebSearchToolsForWebSearchSpecialist, getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, filterOutSpecialistTools } from './helpers'
-import { getConversionToolsForConversionSpecialist, filterOutFileOperationTools } from './helpers'
+import { filterOutFileOperationTools, filterOutSpecialistTools } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 
@@ -232,52 +216,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     console.log('[DeepAgentInferencer] Emitted error to todos:', errorMessage)
   }
 
-<<<<<<< HEAD
-=======
-
-  /**
-   * Create the appropriate model instance based on provider selection
-   */
-  private createModelInstance(maxTokens: number=DAPP_MAX_TOKENS, modelSelection?: ModelSelection): BaseChatModel {
-    const { provider, modelId } = modelSelection || this.modelSelection
-
-    switch (provider) {
-    case 'mistralai': {
-      console.log(`[DeepAgentInferencer] Creating MistralAI model: ${modelId}`)
-      return new ChatMistralAI({
-        apiKey: 'proxy-handled',
-        model: modelId,
-        temperature: 0.7,
-        maxTokens: maxTokens,
-        streaming: true,
-        serverURL: `${endpointUrls.langchain}/mistral`
-      })
-    }
-
-    case 'anthropic':
-    default: {
-      console.log(`[DeepAgentInferencer] Creating Anthropic model: ${modelId}`)
-      return new ChatAnthropic({
-        apiKey: 'proxy-handled',
-        model: modelId,
-        temperature: 0.7,
-        maxTokens: maxTokens,
-        streaming: true,
-        middleware: [
-          anthropicPromptCachingMiddleware()
-        ],
-        clientOptions: {
-          baseURL: endpointUrls.langchain
-        }
-      })
-    }
-    }
-  }
-
-  /**
-   * Main code generation method
-   */
->>>>>>> fbdfd16868 (use filterOutSpecialistTools from inside createAgentWithTools && Anthropic caching && fix solidity tool)
   async code_generation(prompt: string, params: IParams): Promise<string> {
     this.event.emit('onInference')
 
@@ -733,7 +671,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         checkpointer
       }
 
-<<<<<<< HEAD
       if (this.config.enableSubagents && this.model) {
         agentConfig.subagents = buildSubagentConfigs(
           this.tools,
@@ -741,114 +678,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           this.model,
           this.filesystemBackend
         )
-=======
-      if (this.config.enableSubagents) {
-        const etherscanTools = getEtherscanToolsForEtherscanSpecialist(this.tools)
-        const theGraphTools = getTheGraphToolsForTheGraphSpecialist(this.tools)
-        const alchemyTools = getAlchemyToolsForAlchemySpecialist(this.tools)
-        const conversionTools = getConversionToolsForConversionSpecialist(this.tools)
-
-        const basicMcpTools = getBasicMcpToolsForSecurityAuditor(this.tools)
-        const basicFileTools = getBasicFileToolsForGasOptimizer(this.tools)
-        const coordinationTools = getCoordinationToolsForComprehensiveAuditor(this.tools)
-        const educationTools = getEducationToolsForWeb3Educator(this.tools)
-        const debugTools = getDebugToolsForDebugSpecialist(this.tools)
-        const solidityTools = getSolidityToolsForSolidityEngineer(this.tools)
-        const webSearchTools = getWebSearchToolsForWebSearchSpecialist(this.tools)
-        agentConfig.subagents = [
-          {
-            name: 'Solidity Engineer',
-            systemPrompt: SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: solidityTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Web Search Specialist',
-            systemPrompt: WEB_SEARCH_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: webSearchTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Security Auditor',
-            systemPrompt: SECURITY_AUDITOR_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: basicMcpTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Gas Optimizer',
-            systemPrompt: GAS_OPTIMIZER_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: basicFileTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Code Reviewer',
-            systemPrompt: CODE_REVIEWER_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: [],
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Comprehensive Auditor',
-            systemPrompt: COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: coordinationTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Web3 Educator',
-            systemPrompt: WEB3_EDUCATOR_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: educationTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Frontend Specialist',
-            systemPrompt: FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: generalTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Etherscan Specialist',
-            systemPrompt: ETHERSCAN_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: etherscanTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'TheGraph Specialist',
-            systemPrompt: THEGRAPH_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: theGraphTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Alchemy Specialist',
-            systemPrompt: ALCHEMY_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: alchemyTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Debug Specialist',
-            systemPrompt: DEBUG_SPECIALIST_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: debugTools,
-            backend: this.filesystemBackend
-          },
-          {
-            name: 'Conversion Utilities Specialist',
-            systemPrompt: CONVERSION_UTILITIES_SUBAGENT_PROMPT,
-            model: this.model,
-            tools: conversionTools,
-            backend: this.filesystemBackend
-          }
-        ]
->>>>>>> cd93f4e977 (fiter out file op tools)
       }
 
       if (this.memoryBackend) {
@@ -879,18 +708,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.modelSelection = selectedModel
 
     // Create new model instance
-<<<<<<< HEAD
     this.model = createModelInstance(selectedModel)
 
     if (!this.agent) await this.createAgentWithTools(this.tools)
     else {
-=======
-    this.model = this.createModelInstance(DAPP_MAX_TOKENS, selectedModel)
-    
-    if (!this.agent) {
-      await this.createAgentWithTools(this.tools)
-    } else {
->>>>>>> fbdfd16868 (use filterOutSpecialistTools from inside createAgentWithTools && Anthropic caching && fix solidity tool)
       this.agent.options.model = this.model
     }
   }
