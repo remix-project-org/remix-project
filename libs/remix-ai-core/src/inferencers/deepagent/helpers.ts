@@ -25,6 +25,22 @@ export function getBasicMcpToolsForSecurityAuditor(tools: DynamicStructuredTool[
 }
 
 /**
+   * Get Security tools for Security Auditor
+   */
+export function getSecurityToolsForSecurityAuditor(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const securityTools = tools.filter(tool => {
+    // Check if tool comes from Security Auditor MCP server
+    const description = tool.description.toLowerCase()
+    return description.includes('[security]') ||
+           tool.name.toLowerCase().includes('slither_scan') ||
+           description.includes('security')
+  })
+
+  console.log(`[HelperTools] Found ${securityTools.length} Security tools`)
+  return securityTools
+}
+
+/**
   * Get basic file tools for Gas Optimizer
   */
 export function getBasicFileToolsForGasOptimizer(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
@@ -102,6 +118,58 @@ export function getDebugToolsForDebugSpecialist(tools: DynamicStructuredTool[]):
 }
 
 /**
+   * Get Etherscan tools for Etherscan Specialist
+   */
+export function getEtherscanToolsForEtherscanSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const etherscanTools = tools.filter(tool => {
+    // Check if tool comes from Etherscan MCP server
+    const description = tool.description.toLowerCase()
+    return description.includes('[etherscan]') ||
+           tool.name.toLowerCase().includes('etherscan') ||
+           description.includes('etherscan')
+  })
+
+  console.log(`[HelperTools] Found ${etherscanTools.length} Etherscan tools`)
+  return etherscanTools
+}
+
+/**
+   * Get TheGraph tools for TheGraph Specialist
+   */
+export function getTheGraphToolsForTheGraphSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const theGraphTools = tools.filter(tool => {
+    // Check if tool comes from TheGraph MCP server
+    const description = tool.description.toLowerCase()
+    return description.includes('[the graph api]') ||
+           description.includes('[thegraph]') ||
+           tool.name.toLowerCase().includes('thegraph') ||
+           tool.name.toLowerCase().includes('graph') ||
+           description.includes('thegraph') ||
+           description.includes('subgraph') ||
+           description.includes('graphql')
+  })
+
+  console.log(`[HelperTools] Found ${theGraphTools.length} TheGraph tools`)
+  return theGraphTools
+}
+
+/**
+   * Get Alchemy tools for Alchemy Specialist
+   */
+export function getAlchemyToolsForAlchemySpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const alchemyTools = tools.filter(tool => {
+    // Check if tool comes from Alchemy MCP server
+    const description = tool.description.toLowerCase()
+    return description.includes('[alchemy]') ||
+           tool.name.toLowerCase().includes('alchemy') ||
+           description.includes('alchemy')
+  })
+
+  console.log(`[HelperTools] Found ${alchemyTools.length} Alchemy tools`)
+  return alchemyTools
+}
+
+/**
  * Analyze prompt complexity and content to determine optimal model
  */
 export function analyzePromptForAutoSelection(prompt: string): 'simple' | 'complex' {
@@ -141,6 +209,94 @@ export function analyzePromptForAutoSelection(prompt: string): 'simple' | 'compl
   }
   
   return 'simple'
+}
+
+/**
+   * Filter out Security tools from a tool list
+   */
+export function filterOutSecurityTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const securityToolNames = new Set(getSecurityToolsForSecurityAuditor(tools).map(t => t.name))
+  const filteredTools = tools.filter(tool => !securityToolNames.has(tool.name))
+
+  console.log(`[HelperTools] Filtered out ${tools.length - filteredTools.length} Security tools from main agent`)
+  return filteredTools
+}
+
+/**
+   * Filter out Etherscan tools from a tool list
+   */
+export function filterOutEtherscanTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const etherscanToolNames = new Set(getEtherscanToolsForEtherscanSpecialist(tools).map(t => t.name))
+  const filteredTools = tools.filter(tool => !etherscanToolNames.has(tool.name))
+
+  console.log(`[HelperTools] Filtered out ${tools.length - filteredTools.length} Etherscan tools from main agent`)
+  return filteredTools
+}
+
+/**
+   * Filter out TheGraph tools from a tool list
+   */
+export function filterOutTheGraphTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const theGraphToolNames = new Set(getTheGraphToolsForTheGraphSpecialist(tools).map(t => t.name))
+  const filteredTools = tools.filter(tool => !theGraphToolNames.has(tool.name))
+
+  console.log(`[HelperTools] Filtered out ${tools.length - filteredTools.length} TheGraph tools from main agent`)
+  return filteredTools
+}
+
+/**
+   * Filter out Alchemy tools from a tool list
+   */
+export function filterOutAlchemyTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const alchemyToolNames = new Set(getAlchemyToolsForAlchemySpecialist(tools).map(t => t.name))
+  const filteredTools = tools.filter(tool => !alchemyToolNames.has(tool.name))
+
+  console.log(`[HelperTools] Filtered out ${tools.length - filteredTools.length} Alchemy tools from main agent`)
+  return filteredTools
+}
+
+/**
+   * Filter out Education tools from a tool list
+   */
+export function filterOutEducationTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const educationToolNames = new Set(getEducationToolsForWeb3Educator(tools).map(t => t.name))
+  const filteredTools = tools.filter(tool => !educationToolNames.has(tool.name))
+
+  console.log(`[HelperTools] Filtered out ${tools.length - filteredTools.length} Education tools from main agent`)
+  return filteredTools
+}
+
+/**
+   * Filter out Debug tools from a tool list
+   */
+export function filterOutDebugTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const debugToolNames = new Set(getDebugToolsForDebugSpecialist(tools).map(t => t.name))
+  const filteredTools = tools.filter(tool => !debugToolNames.has(tool.name))
+
+  console.log(`[HelperTools] Filtered out ${tools.length - filteredTools.length} Debug tools from main agent`)
+  return filteredTools
+}
+
+/**
+   * Filter out all specialist tools (Security, Etherscan, TheGraph, Alchemy, Education, Debug) from a tool list
+   */
+export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const securityToolNames = new Set(getSecurityToolsForSecurityAuditor(tools).map(t => t.name))
+  const etherscanToolNames = new Set(getEtherscanToolsForEtherscanSpecialist(tools).map(t => t.name))
+  const theGraphToolNames = new Set(getTheGraphToolsForTheGraphSpecialist(tools).map(t => t.name))
+  const alchemyToolNames = new Set(getAlchemyToolsForAlchemySpecialist(tools).map(t => t.name))
+  const educationToolNames = new Set(getEducationToolsForWeb3Educator(tools).map(t => t.name))
+  const debugToolNames = new Set(getDebugToolsForDebugSpecialist(tools).map(t => t.name))
+
+  const filteredTools = tools.filter(tool =>
+    !securityToolNames.has(tool.name) &&
+    !etherscanToolNames.has(tool.name) &&
+    !theGraphToolNames.has(tool.name) &&
+    !alchemyToolNames.has(tool.name) &&
+    !educationToolNames.has(tool.name) &&
+    !debugToolNames.has(tool.name)
+  )
+  return filteredTools
 }
 
 /**

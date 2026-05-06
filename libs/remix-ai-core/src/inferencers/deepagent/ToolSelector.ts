@@ -6,6 +6,21 @@
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { Document } from '@langchain/core/documents'
 import { z } from 'zod'
+import { 
+  getSecurityToolsForSecurityAuditor,
+  getEtherscanToolsForEtherscanSpecialist, 
+  getTheGraphToolsForTheGraphSpecialist,
+  getAlchemyToolsForAlchemySpecialist,
+  getEducationToolsForWeb3Educator,
+  getDebugToolsForDebugSpecialist,
+  filterOutSecurityTools as helperFilterOutSecurityTools,
+  filterOutEtherscanTools as helperFilterOutEtherscanTools,
+  filterOutTheGraphTools as helperFilterOutTheGraphTools,
+  filterOutAlchemyTools as helperFilterOutAlchemyTools,
+  filterOutEducationTools as helperFilterOutEducationTools,
+  filterOutDebugTools as helperFilterOutDebugTools,
+  filterOutSpecialistTools as helperFilterOutSpecialistTools
+} from './helpers'
 
 // Fallback type definitions for optional embeddings
 interface EmbeddingsInterface {
@@ -126,229 +141,6 @@ export class ToolSelector {
   }
 
   /**
-   * Get Security-related tools for the Security Auditor subagent
-   */
-  getSecurityTools(): DynamicStructuredTool[] {
-    const securityTools = this.toolDocuments
-      .filter(td => {
-        // Check if tool comes from Security Auditor MCP server
-        const description = td.tool.description.toLowerCase()
-        return description.includes('[security]') ||
-               td.tool.name.toLowerCase().includes('slither_scan') ||
-               description.includes('security')
-      })
-      .map(td => td.tool)
-
-    console.log(`[ToolSelector] Found ${securityTools.length} Security tools`)
-    return securityTools
-  }
-
-  /**
-   * Get Etherscan-specific tools for the Etherscan subagent
-   */
-  getEtherscanTools(): DynamicStructuredTool[] {
-    const etherscanTools = this.toolDocuments
-      .filter(td => {
-        // Check if tool comes from Etherscan MCP server
-        const description = td.tool.description.toLowerCase()
-        return description.includes('[etherscan]') ||
-               td.tool.name.toLowerCase().includes('etherscan') ||
-               description.includes('etherscan')
-      })
-      .map(td => td.tool)
-
-    console.log(`[ToolSelector] Found ${etherscanTools.length} Etherscan tools`)
-    return etherscanTools
-  }
-
-  /**
-   * Get TheGraph-specific tools for the TheGraph subagent
-   */
-  getTheGraphTools(): DynamicStructuredTool[] {
-    const theGraphTools = this.toolDocuments
-      .filter(td => {
-        // Check if tool comes from TheGraph MCP server
-        const description = td.tool.description.toLowerCase()
-        return description.includes('[the graph api]') ||
-               description.includes('[thegraph]') ||
-               td.tool.name.toLowerCase().includes('thegraph') ||
-               td.tool.name.toLowerCase().includes('graph') ||
-               description.includes('thegraph') ||
-               description.includes('subgraph') ||
-               description.includes('graphql')
-      })
-      .map(td => td.tool)
-
-    console.log(`[ToolSelector] Found ${theGraphTools.length} TheGraph tools`)
-    return theGraphTools
-  }
-
-  /**
-   * Get Alchemy-specific tools for the Alchemy subagent
-   */
-  getAlchemyTools(): DynamicStructuredTool[] {
-    const alchemyTools = this.toolDocuments
-      .filter(td => {
-        // Check if tool comes from Alchemy MCP server
-        const description = td.tool.description.toLowerCase()
-        return description.includes('[alchemy]') ||
-               td.tool.name.toLowerCase().includes('alchemy') ||
-               description.includes('alchemy')
-      })
-      .map(td => td.tool)
-
-    console.log(`[ToolSelector] Found ${alchemyTools.length} Alchemy tools`)
-    return alchemyTools
-  }
-
-  /**
-   * Get Education/Tutorial-specific tools for the Web3 Educator subagent
-   */
-  getEducationTools(): DynamicStructuredTool[] {
-    const educationTools = this.toolDocuments
-      .filter(td => {
-        // Check if tool is tutorial/education related
-        const toolName = td.tool.name.toLowerCase()
-        const description = td.tool.description.toLowerCase()
-        return toolName === 'start_tutorial' ||
-               toolName === 'tutorials_list' ||
-               toolName.includes('tutorial') ||
-               toolName.includes('learn') ||
-               description.includes('tutorial') ||
-               description.includes('learn') ||
-               description.includes('education')
-      })
-      .map(td => td.tool)
-
-    console.log(`[ToolSelector] Found ${educationTools.length} Education tools`)
-    return educationTools
-  }
-
-  /**
-   * Get Debug-specific tools for the Debug Specialist subagent
-   */
-  getDebugTools(): DynamicStructuredTool[] {
-    const debugTools = this.toolDocuments
-      .filter(td => {
-        // Check if tool is debug/transaction analysis related
-        const toolName = td.tool.name.toLowerCase()
-        const description = td.tool.description.toLowerCase()
-        return toolName === 'start_debug_session' ||
-               toolName === 'decode_local_variable' ||
-               toolName === 'decode_state_variable' ||
-               toolName === 'extract_locals_at' ||
-               toolName === 'decode_locals_at' ||
-               toolName === 'extract_state_at' ||
-               toolName === 'decode_state_at' ||
-               toolName === 'storage_view_at' ||
-               toolName === 'jump_to' ||
-               toolName === 'get_stack_at' ||
-               toolName === 'get_scopes_with_root' ||
-               toolName === 'get_valid_source_location_from_vm_trace_index' ||
-               toolName.includes('debug') ||
-               toolName.includes('trace') ||
-               toolName.includes('decode') ||
-               toolName.includes('stack') ||
-               toolName.includes('scope') ||
-               description.includes('debug') ||
-               description.includes('trace') ||
-               description.includes('decode') ||
-               description.includes('execution') ||
-               description.includes('variable')
-      })
-      .map(td => td.tool)
-
-    console.log(`[ToolSelector] Found ${debugTools.length} Debug tools`)
-    return debugTools
-  }
-
-   /**
-   * Filter out Security tools from a tool list
-   */
-  filterOutSecurityTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
-    const securityToolNames = new Set(this.getSecurityTools().map(t => t.name))
-    const filteredTools = tools.filter(tool => !securityToolNames.has(tool.name))
-
-    console.log(`[ToolSelector] Filtered out ${tools.length - filteredTools.length} Security tools from main agent`)
-    return filteredTools
-  }
-
-  /**
-   * Filter out Etherscan tools from a tool list
-   */
-  filterOutEtherscanTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
-    const etherscanToolNames = new Set(this.getEtherscanTools().map(t => t.name))
-    const filteredTools = tools.filter(tool => !etherscanToolNames.has(tool.name))
-
-    console.log(`[ToolSelector] Filtered out ${tools.length - filteredTools.length} Etherscan tools from main agent`)
-    return filteredTools
-  }
-
-  /**
-   * Filter out TheGraph tools from a tool list
-   */
-  filterOutTheGraphTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
-    const theGraphToolNames = new Set(this.getTheGraphTools().map(t => t.name))
-    const filteredTools = tools.filter(tool => !theGraphToolNames.has(tool.name))
-
-    console.log(`[ToolSelector] Filtered out ${tools.length - filteredTools.length} TheGraph tools from main agent`)
-    return filteredTools
-  }
-
-  /**
-   * Filter out Alchemy tools from a tool list
-   */
-  filterOutAlchemyTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
-    const alchemyToolNames = new Set(this.getAlchemyTools().map(t => t.name))
-    const filteredTools = tools.filter(tool => !alchemyToolNames.has(tool.name))
-
-    console.log(`[ToolSelector] Filtered out ${tools.length - filteredTools.length} Alchemy tools from main agent`)
-    return filteredTools
-  }
-
-  /**
-   * Filter out Education tools from a tool list
-   */
-  filterOutEducationTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
-    const educationToolNames = new Set(this.getEducationTools().map(t => t.name))
-    const filteredTools = tools.filter(tool => !educationToolNames.has(tool.name))
-
-    console.log(`[ToolSelector] Filtered out ${tools.length - filteredTools.length} Education tools from main agent`)
-    return filteredTools
-  }
-
-  /**
-   * Filter out Debug tools from a tool list
-   */
-  filterOutDebugTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
-    const debugToolNames = new Set(this.getDebugTools().map(t => t.name))
-    const filteredTools = tools.filter(tool => !debugToolNames.has(tool.name))
-
-    console.log(`[ToolSelector] Filtered out ${tools.length - filteredTools.length} Debug tools from main agent`)
-    return filteredTools
-  }
-
-  /**
-   * Filter out all specialist tools (Etherscan, TheGraph, Alchemy, Education, Debug) from a tool list
-   */
-  filterOutSpecialistTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
-    const etherscanToolNames = new Set(this.getEtherscanTools().map(t => t.name))
-    const theGraphToolNames = new Set(this.getTheGraphTools().map(t => t.name))
-    const alchemyToolNames = new Set(this.getAlchemyTools().map(t => t.name))
-    const educationToolNames = new Set(this.getEducationTools().map(t => t.name))
-    const debugToolNames = new Set(this.getDebugTools().map(t => t.name))
-
-    const filteredTools = tools.filter(tool =>
-      !etherscanToolNames.has(tool.name) &&
-      !theGraphToolNames.has(tool.name) &&
-      !alchemyToolNames.has(tool.name) &&
-      !educationToolNames.has(tool.name) &&
-      !debugToolNames.has(tool.name)
-    )
-    return filteredTools
-  }
-
-  /**
    * Categorize tool based on name patterns
    */
   private categorizeToolFromName(toolName: string): string {
@@ -368,12 +160,13 @@ export class ToolSelector {
    */
   generateToolInventoryPrompt(selectedTools: DynamicStructuredTool[]): string {
     const selectedToolNames = new Set(selectedTools.map(t => t.name))
-    const securityToolNames = new Set(this.getSecurityTools().map(t => t.name))
-    const etherscanToolNames = new Set(this.getEtherscanTools().map(t => t.name))
-    const theGraphToolNames = new Set(this.getTheGraphTools().map(t => t.name))
-    const alchemyToolNames = new Set(this.getAlchemyTools().map(t => t.name))
-    const educationToolNames = new Set(this.getEducationTools().map(t => t.name))
-    const debugToolNames = new Set(this.getDebugTools().map(t => t.name))
+    const allTools = this.getAllTools()
+    const securityToolNames = new Set(getSecurityToolsForSecurityAuditor(allTools).map(t => t.name))
+    const etherscanToolNames = new Set(getEtherscanToolsForEtherscanSpecialist(allTools).map(t => t.name))
+    const theGraphToolNames = new Set(getTheGraphToolsForTheGraphSpecialist(allTools).map(t => t.name))
+    const alchemyToolNames = new Set(getAlchemyToolsForAlchemySpecialist(allTools).map(t => t.name))
+    const educationToolNames = new Set(getEducationToolsForWeb3Educator(allTools).map(t => t.name))
+    const debugToolNames = new Set(getDebugToolsForDebugSpecialist(allTools).map(t => t.name))
 
     const nonSelectedTools = this.toolDocuments
       .filter(td =>

@@ -38,7 +38,7 @@ import { HumanMessage, AIMessage } from '@langchain/core/messages'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
-import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, analyzePromptForAutoSelection, selectOptimalModel } from './helpers'
+import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, selectOptimalModel, filterOutSpecialistTools } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import { endpointUrls } from "@remix-endpoints-helper"
 import type { DeepAgent } from 'deepagents'
@@ -918,12 +918,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       if (this.config.enableSubagents) {
-        const etherscanTools = this.toolSelector ?
-          this.toolSelector.getEtherscanTools() : []
-        const theGraphTools = this.toolSelector ?
-          this.toolSelector.getTheGraphTools() : []
-        const alchemyTools = this.toolSelector ?
-          this.toolSelector.getAlchemyTools() : []
+        const etherscanTools = getEtherscanToolsForEtherscanSpecialist(this.tools)
+        const theGraphTools = getTheGraphToolsForTheGraphSpecialist(this.tools)
+        const alchemyTools = getAlchemyToolsForAlchemySpecialist(this.tools)
 
         const basicMcpTools = getBasicMcpToolsForSecurityAuditor(this.tools)
         const basicFileTools = getBasicFileToolsForGasOptimizer(this.tools)
@@ -932,7 +929,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         const debugTools = getDebugToolsForDebugSpecialist(this.tools)
 
         const generalTools = this.toolSelector ?
-          this.toolSelector.filterOutSpecialistTools(this.tools) : this.tools
+          filterOutSpecialistTools(this.tools) : this.tools
 
         agentConfig.subagents = [
           {
