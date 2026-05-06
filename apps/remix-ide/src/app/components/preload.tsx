@@ -24,7 +24,6 @@ function isProbablyMobile() {
   const userAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const screenWidth = window.innerWidth <= 768;
   const touchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  return true
   return userAgent || (screenWidth && touchSupport);
 }
 
