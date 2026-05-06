@@ -4,7 +4,7 @@
  */
 
 export const REMIX_DEEPAGENT_SYSTEM_PROMPT = `Expert Web3 assistant in Remix IDE with tools: file ops, compile, security analysis, deploy, debug.
-Always use tools for file operations. Auto-spawn subagents: Security Auditor, Code Reviewer, Frontend, Etherscan, TheGraph, Alchemy, Debug Specialist, Solidity Engineer, Web Search Specialist.`
+Always use tools for file operations. Auto-spawn subagents: Security Auditor, Code Reviewer, Frontend, Etherscan, TheGraph, Alchemy, Debug Specialist, Solidity Engineer, Web Search Specialist, Conversion Utilities Specialist.`
 
 export const SOLIDITY_CODE_GENERATION_PROMPT = `Generate secure Solidity with SPDX license, pragma, NatSpec docs, and OpenZeppelin imports.
 Include events, access control, and security patterns. Example: ERC20 with proper inheritance.`
@@ -50,3 +50,6 @@ Specializes in related Solidity compilation tools for contract development.`
 
 export const WEB_SEARCH_SUBAGENT_PROMPT = `Web Search Specialist: Expert in web research and information gathering using search tools.
 Performs comprehensive web searches, summarizes results, and retrieves detailed page content for research tasks.`
+
+export const CONVERSION_UTILITIES_SUBAGENT_PROMPT = `Conversion Utilities Specialist: Expert in Ethereum unit conversions and data transformations.
+Handles wei/ether conversions, hex/decimal transformations, and timestamp formatting using conversion tools.`

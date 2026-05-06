@@ -25,7 +25,8 @@ import {
   WEB3_EDUCATOR_SUBAGENT_PROMPT,
   DEBUG_SPECIALIST_SUBAGENT_PROMPT,
   SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
-  WEB_SEARCH_SUBAGENT_PROMPT
+  WEB_SEARCH_SUBAGENT_PROMPT,
+  CONVERSION_UTILITIES_SUBAGENT_PROMPT
 } from './DeepAgentSuperLightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, DeepAgentError, DeepAgentErrorType, ModelSelection } from '../../types/deepagent'
@@ -37,6 +38,7 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { selectOptimalModel } from './helpers/modelSelection'
 import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
 import { getSolidityToolsForSolidityEngineer, getWebSearchToolsForWebSearchSpecialist, getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, filterOutSpecialistTools } from './helpers'
+import { getConversionToolsForConversionSpecialist, filterOutFileOperationTools } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 

@@ -16,8 +16,12 @@ import { SECURITY_AUDITOR_SUBAGENT_PROMPT,
   GAS_OPTIMIZER_SUBAGENT_PROMPT,
   COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
   WEB3_EDUCATOR_SUBAGENT_PROMPT,
-  DEBUG_SPECIALIST_SUBAGENT_PROMPT } from './DeepAgentLightPrompts'
-import { getDebugToolsForDebugSpecialist } from './helpers'
+  DEBUG_SPECIALIST_SUBAGENT_PROMPT, 
+  SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
+  WEB_SEARCH_SUBAGENT_PROMPT} from './DeepAgentLightPrompts'
+import { getConversionToolsForConversionSpecialist, getDebugToolsForDebugSpecialist, getSolidityToolsForSolidityEngineer, getWebSearchToolsForWebSearchSpecialist } from './helpers'
+import { get } from 'http'
+import { CONVERSION_UTILITIES_SUBAGENT_PROMPT } from './DeepAgentSuperLightPrompts'
 
 export interface SubagentConfigItem {
   name: string
@@ -42,12 +46,29 @@ export function buildSubagentConfigs(
   const coordinationTools = getCoordinationToolsForComprehensiveAuditor(tools)
   const educationTools = getEducationToolsForWeb3Educator(tools)
   const debugTools = getDebugToolsForDebugSpecialist(tools)
+  const solidityTools = getSolidityToolsForSolidityEngineer(tools)
+  const webSearchTools = getWebSearchToolsForWebSearchSpecialist(tools)
+  const conversionTools = getConversionToolsForConversionSpecialist(tools)
 
   const generalTools = toolSelector
     ? toolSelector.filterOutSpecialistTools(tools)
     : tools
 
   return [
+    {
+      name: 'Solidity Engineer',
+      systemPrompt: SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
+      model: model,
+      tools: solidityTools,
+      backend: filesystemBackend
+    },
+    {
+      name: 'Web Search Specialist',
+      systemPrompt: WEB_SEARCH_SUBAGENT_PROMPT,
+      model: model,
+      tools: webSearchTools,
+      backend: filesystemBackend
+    },
     {
       name: 'Security Auditor',
       systemPrompt: SECURITY_AUDITOR_SUBAGENT_PROMPT,
@@ -116,6 +137,13 @@ export function buildSubagentConfigs(
       systemPrompt: DEBUG_SPECIALIST_SUBAGENT_PROMPT,
       model: model,
       tools: debugTools,
+      backend: filesystemBackend
+    },
+    {
+      name: 'Conversion Utilities Specialist',
+      systemPrompt: CONVERSION_UTILITIES_SUBAGENT_PROMPT,
+      model: model,
+      tools: conversionTools,
       backend: filesystemBackend
     }
   ]
