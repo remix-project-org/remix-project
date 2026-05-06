@@ -3,6 +3,7 @@
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
+import { anthropicPromptCachingMiddleware } from "langchain";
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
@@ -231,6 +232,52 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     console.log('[DeepAgentInferencer] Emitted error to todos:', errorMessage)
   }
 
+<<<<<<< HEAD
+=======
+
+  /**
+   * Create the appropriate model instance based on provider selection
+   */
+  private createModelInstance(maxTokens: number=DAPP_MAX_TOKENS, modelSelection?: ModelSelection): BaseChatModel {
+    const { provider, modelId } = modelSelection || this.modelSelection
+
+    switch (provider) {
+    case 'mistralai': {
+      console.log(`[DeepAgentInferencer] Creating MistralAI model: ${modelId}`)
+      return new ChatMistralAI({
+        apiKey: 'proxy-handled',
+        model: modelId,
+        temperature: 0.7,
+        maxTokens: maxTokens,
+        streaming: true,
+        serverURL: `${endpointUrls.langchain}/mistral`
+      })
+    }
+
+    case 'anthropic':
+    default: {
+      console.log(`[DeepAgentInferencer] Creating Anthropic model: ${modelId}`)
+      return new ChatAnthropic({
+        apiKey: 'proxy-handled',
+        model: modelId,
+        temperature: 0.7,
+        maxTokens: maxTokens,
+        streaming: true,
+        middleware: [
+          anthropicPromptCachingMiddleware()
+        ],
+        clientOptions: {
+          baseURL: endpointUrls.langchain
+        }
+      })
+    }
+    }
+  }
+
+  /**
+   * Main code generation method
+   */
+>>>>>>> fbdfd16868 (use filterOutSpecialistTools from inside createAgentWithTools && Anthropic caching && fix solidity tool)
   async code_generation(prompt: string, params: IParams): Promise<string> {
     this.event.emit('onInference')
 
@@ -832,10 +879,18 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.modelSelection = selectedModel
 
     // Create new model instance
+<<<<<<< HEAD
     this.model = createModelInstance(selectedModel)
 
     if (!this.agent) await this.createAgentWithTools(this.tools)
     else {
+=======
+    this.model = this.createModelInstance(DAPP_MAX_TOKENS, selectedModel)
+    
+    if (!this.agent) {
+      await this.createAgentWithTools(this.tools)
+    } else {
+>>>>>>> fbdfd16868 (use filterOutSpecialistTools from inside createAgentWithTools && Anthropic caching && fix solidity tool)
       this.agent.options.model = this.model
     }
   }
