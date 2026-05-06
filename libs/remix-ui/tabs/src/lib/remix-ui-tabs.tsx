@@ -750,65 +750,6 @@ export const TabsUI = (props: TabsUIProps) => {
     }
   }
 
-  // ── [LEGACY] sendContractToAIChat ──
-  // Previously used by handleQuickDappStartNow's modal-based flow to send a single
-  // pre-resolved contract instance to AI chat. Now handleQuickDappStartNow handles
-  // all cases directly with context-aware chatPipe prompts (no modals).
-  // Kept commented for reference — may be useful for future direct-send scenarios.
-  //
-  // const sendContractToAIChat = async (instance: any) => {
-  //   try {
-  //     console.log('[QuickDapp] Start Now → sendContractToAIChat', { name: instance.name, address: instance.address })
-  //
-  //     const abi = instance.abi || instance.contractData?.abi || []
-  //     const abiJson = JSON.stringify(abi)
-  //
-  //     // Resolve chainId
-  //     let chainId: string
-  //     try {
-  //       const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
-  //       const providerName = providerObject?.name || 'vm-unknown'
-  //       if (providerName.startsWith('vm')) {
-  //         chainId = providerName
-  //       } else {
-  //         const network = await props.plugin.call('network', 'detectNetwork')
-  //         chainId = network?.id?.toString() || providerName
-  //       }
-  //     } catch (e) {
-  //       chainId = 'unknown'
-  //     }
-  //
-  //     const prompt = `I want to create a DApp frontend for my deployed contract. Here are the contract details you'll need when calling generate_dapp:
-  //
-  // contractName: ${instance.name}
-  // contractAddress: ${instance.address}
-  // chainId: ${chainId}
-  // contractAbi: ${abiJson}
-  //
-  // Before generating, please ask me about my design preferences first.`
-  //
-  //     // Activate and focus AI Assistant
-  //     try {
-  //       await props.plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
-  //     } catch (e) { /* may already be active */ }
-  //
-  //     try {
-  //       await props.plugin.call('rightSidePanel', 'focusPanel')
-  //     } catch (e) { /* best-effort */ }
-  //
-  //     // Send prompt to AI Assistant
-  //     console.log('[QuickDapp] chatPipe: sending contract prompt, length:', prompt.length)
-  //     await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
-  //     console.log('[QuickDapp] chatPipe returned')
-  //
-  //   } catch (error) {
-  //     if (error.message !== 'Canceled' && error.message !== 'Hide') {
-  //       console.error('[QuickDapp] sendContractToAIChat error:', error)
-  //       props.plugin.call('notification', 'toast', 'Error opening AI Assistant')
-  //     }
-  //   }
-  // }
-
   useEffect(() => {
     setBannerVisible(true)
   }, [tabsState.selectedIndex])

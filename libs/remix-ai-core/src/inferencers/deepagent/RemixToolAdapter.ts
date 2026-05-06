@@ -146,7 +146,9 @@ export class ToolApprovalGate {
 
       const meta = getToolMetadata(toolName)
       const requestId = `approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-      const filePath = args.path || args.filePath
+
+      const isFileCategory = meta.category === 'file_write' || meta.category === 'file_delete'
+      const filePath = isFileCategory ? (args.path || args.filePath) : undefined
 
       // === Compute existingContent and proposedContent for the approval modal ===
       let existingContent: string | undefined

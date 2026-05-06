@@ -249,7 +249,10 @@ export class RemixAIPlugin extends Plugin {
         this.deepAgentEnabled = true
 
         // Set up DeepAgent event listeners for streaming (once only)
-        this.setupDeepAgentEventListeners()
+        this.setupDeepAgentEventListeners();
+
+        // Push allowed models directly to avoid re-entrant deadlock
+        ;(this.deepAgentInferencer as any).setAllowedModels(this.allowedModels || [])
 
         console.log('[RemixAI Plugin] DeepAgent initialized successfully')
 

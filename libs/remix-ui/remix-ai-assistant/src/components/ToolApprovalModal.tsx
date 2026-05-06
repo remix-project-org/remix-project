@@ -100,16 +100,30 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
         )}
       </div>
 
-      {/* File path */}
-      {request.filePath && (
+      {/* Deployment / transaction label */}
+      {request.category === 'deployment' && (
+        <div style={{ fontSize: '12px', color: '#e67e22', marginBottom: '8px' }}>
+          🚀 Deploy contract: <code>{request.toolArgs?.contractName || request.toolArgs?.name || 'unknown'}</code>
+          {request.toolArgs?.environment && <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text-muted, #999)' }}>({request.toolArgs.environment})</span>}
+        </div>
+      )}
+      {request.category === 'transaction' && (
+        <div style={{ fontSize: '12px', color: '#e74c3c', marginBottom: '8px' }}>
+          💸 Send transaction: <code>{request.toolArgs?.to || 'unknown'}</code>
+          {request.toolArgs?.value && <span style={{ marginLeft: '6px', fontSize: '11px' }}>({request.toolArgs.value})</span>}
+        </div>
+      )}
+
+      {/* File path (file_write / file_delete only) */}
+      {request.filePath && request.category !== 'deployment' && request.category !== 'transaction' && (
         <div style={{ fontSize: '12px', color: 'var(--text-muted, #aaa)', marginBottom: '8px' }}>
           {request.category === 'file_delete' ? 'Delete' : isExistingFile ? 'Edit' : 'Create'}: <code>{request.filePath}</code>
           {!isExistingFile && <span style={{ color: '#27ae60', marginLeft: '6px', fontSize: '11px' }}>(new file)</span>}
         </div>
       )}
 
-      {/* Args summary (non-file tools only) */}
-      {!request.filePath && (
+      {/* Args summary (non-file, non-deployment, non-transaction tools) */}
+      {!request.filePath && request.category !== 'deployment' && request.category !== 'transaction' && (
         <div style={{ fontSize: '12px', marginBottom: '8px', maxHeight: '60px', overflow: 'auto' }}>
           <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text, #ccc)' }}>
             {JSON.stringify(request.toolArgs, null, 2)}

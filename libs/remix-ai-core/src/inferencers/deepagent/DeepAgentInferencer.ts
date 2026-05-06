@@ -116,6 +116,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private model: BaseChatModel | null = null
   private modelSelection: ModelSelection
   private mcpInferencer: any = null
+  private allowedModels: string[] = []
   private sessionThreadId: string = DeepAgentInferencer.generateThreadId()
 
   private static generateThreadId(): string {
@@ -138,6 +139,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   /** Get the current session thread_id */
   getSessionThreadId(): string {
     return this.sessionThreadId
+  }
+
+  setAllowedModels(models: string[]): void {
+    this.allowedModels = models
   }
 
   constructor(
@@ -406,14 +411,14 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
     try {
       if (!this.agent) {
+        console.error('[DeepAgent] answer() FAILED: agent is null/undefined!')
         throw new DeepAgentError(
           'DeepAgent not initialized',
           DeepAgentErrorType.INITIALIZATION_FAILED
         )
       }
 
-      // Auto model selection based on prompt and context
-      const allowedModels = await this.plugin.call('remixAI', 'getAllowedModels') || []
+      const allowedModels = this.allowedModels || []
       const optimalModel = selectOptimalModel(prompt, context, this.config.autoMode, this.modelSelection, allowedModels)
       await this.updateAgentModel(optimalModel)
 
@@ -517,8 +522,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   /**
    * Answer with a custom system prompt - used for specialized generation like DApps.
    * Creates a dedicated model instance with higher token limit (16384) to avoid
-   * truncation in large code generation tasks. Invokes the model directly (no agent
-   * tools needed — DApp generation is pure text output).
+   * truncation in large code generation tasks. Streams the response so the user
+   * gets real-time feedback during generation. Returns the full concatenated result
+   * for the caller to parse.
    */
   async answerWithCustomSystemPrompt(
     prompt: string,
@@ -566,24 +572,32 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         langchainMessages = [new HumanMessage(fullPrompt)]
       }
 
-      // 60s timeout for fallback
-      const timeoutMs = 60_000
+      const timeoutMs = 120_000
       const timeoutSignal = AbortSignal.timeout(timeoutMs)
       const combinedController = this.currentAbortController!
       timeoutSignal.addEventListener('abort', () => combinedController.abort(), { once: true })
 
-      const response = await dappModel.invoke(langchainMessages, {
+      const stream = await dappModel.stream(langchainMessages, {
         signal: combinedController.signal
       })
 
-      // Extract text from response
       let result = ''
-      if (typeof response.content === 'string') {
-        result = response.content
-      } else if (Array.isArray(response.content)) {
-        result = response.content
-          .map((c: any) => (typeof c === 'string' ? c : c.text || ''))
-          .join('')
+      for await (const chunk of stream) {
+        if (combinedController.signal.aborted) break
+
+        let delta = ''
+        if (typeof chunk.content === 'string') {
+          delta = chunk.content
+        } else if (Array.isArray(chunk.content)) {
+          delta = chunk.content
+            .map((c: any) => (typeof c === 'string' ? c : c.text || ''))
+            .join('')
+        }
+
+        if (delta) {
+          result += delta
+          this.event.emit('onStreamResult', delta)
+        }
       }
 
       this.event.emit('onInferenceDone')
@@ -591,119 +605,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     } catch (error: any) {
       this.event.emit('onInferenceDone')
       if (error?.name === 'AbortError' || this.currentAbortController?.signal.aborted) {
-        console.log('[DeepAgent] Request cancelled')
         return ''
       }
       console.error('[DeepAgent] answerWithCustomSystemPrompt error:', error?.message || error)
-      throw error
-    } finally {
-      this.currentAbortController = null
-    }
-  }
-
-  /**
-   * Run agent synchronously (non-streaming) for full response
-   * Used by DApp generation where we need the complete response
-   */
-  private async runAgentSync(messages: any[], systemPrompt: any): Promise<string> {
-    this.currentAbortController = new AbortController()
-    let fullResponse = ''
-
-    try {
-      // Convert messages to LangChain format with multimodal support
-      const langchainMessages = messages.map(msg => {
-        if (msg.role === 'user') {
-          // Handle multimodal content (images)
-          if (Array.isArray(msg.content)) {
-            return new HumanMessage({
-              content: msg.content.map((part: any) => {
-                if (part.type === 'image_url') {
-                  return {
-                    type: 'image_url',
-                    image_url: part.image_url
-                  }
-                }
-                return { type: 'text', text: part.text || part }
-              })
-            })
-          }
-          return new HumanMessage(msg.content)
-        }
-        if (msg.role === 'assistant') return new AIMessage(msg.content)
-        return new HumanMessage(msg.content)
-      })
-
-      // Stream events but collect full response
-      const eventStream = this.agent.streamEvents(
-        { messages: langchainMessages },
-        {
-          version: 'v2',
-          configurable: {
-            thread_id: `remix-dapp-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-          },
-          signal: this.currentAbortController?.signal,
-          runtime: {
-            context: { ctx: systemPrompt }
-          }
-        }
-      )
-
-      let finalMessageFromChain = ''
-      for await (const event of eventStream) {
-        if (this.currentAbortController?.signal.aborted) {
-          break
-        }
-
-        const eventType = event.event
-
-        if (eventType === 'on_chat_model_stream') {
-          const chunk = event.data?.chunk
-          if (chunk?.content) {
-            let deltaContent = ''
-            if (typeof chunk.content === 'string') {
-              deltaContent = chunk.content
-            } else if (Array.isArray(chunk.content) && chunk.content.length > 0) {
-              if (chunk.content[0]?.text) {
-                deltaContent = chunk.content[0].text
-              } else if (typeof chunk.content[0] === 'string') {
-                deltaContent = chunk.content[0]
-              }
-            }
-            if (deltaContent) {
-              fullResponse += deltaContent
-            }
-          }
-        } else if (eventType === 'on_chain_end') {
-          const output = event.data?.output
-          if (output?.messages && output.messages.length > 0) {
-            const lastMessage = output.messages[output.messages.length - 1]
-            if (lastMessage.content && typeof lastMessage.content === 'string') {
-              finalMessageFromChain = lastMessage.content
-            }
-          }
-        } else if (eventType === 'on_tool_start') {
-          const toolName = event.name
-          const toolInput = event.data?.input || {}
-          console.log('[DeepAgentInferencer] DApp Tool call started:', toolName)
-          this.event.emit('onToolCall', { toolName, toolInput, status: 'start' })
-        } else if (eventType === 'on_tool_end') {
-          const toolName = event.name
-          console.log('[DeepAgentInferencer] DApp Tool call ended:', toolName)
-        }
-      }
-
-      // Use chain final message if more complete
-      if (finalMessageFromChain && finalMessageFromChain.length > fullResponse.length) {
-        fullResponse = finalMessageFromChain
-      }
-
-      console.log('[DeepAgentInferencer] DApp generation complete, response length:', fullResponse.length)
-      return fullResponse
-    } catch (error: any) {
-      if (error?.name === 'AbortError' || this.currentAbortController?.signal.aborted) {
-        console.log('[DeepAgentInferencer] DApp request cancelled')
-        return fullResponse
-      }
       throw error
     } finally {
       this.currentAbortController = null

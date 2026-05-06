@@ -357,7 +357,7 @@ export class AIDappGenerator extends Plugin {
   async updateDapp(address: string, description: string | any[], currentFiles: any, hasImage: boolean, slug: string, abi?: any[], chainId?: string | number): Promise<void> {
 
     this.processUpdate(address, description, currentFiles, hasImage, slug, abi || [], chainId || 1).catch(err => {
-      console.error("[DEBUG-AI] ❌ Background update crashed:", err);
+      console.error("[QuickDapp] Background update crashed:", err);
       this.call('terminal', 'log', { type: 'error', value: err.message });
     });
 
@@ -746,7 +746,6 @@ ${figmaResult.rawJson || ''}
 
   private async callLLMAPI(messages: any[], systemPrompt: string, hasImage: boolean = false, isUpdate: boolean = false): Promise<string> {
     const BACKEND_URL = "https://quickdapp-ai.api.remix.live/generate"
-    // const BACKEND_URL = "http://localhost:4000/dapp-generator/generate"
 
     try {
       console.log('[QuickDapp] Calling LLM API', { isUpdate, hasImage, messageCount: messages.length + systemPrompt.length });
