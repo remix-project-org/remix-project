@@ -224,6 +224,44 @@ export class ToolSelector {
     return educationTools
   }
 
+  /**
+   * Get Debug-specific tools for the Debug Specialist subagent
+   */
+  getDebugTools(): DynamicStructuredTool[] {
+    const debugTools = this.toolDocuments
+      .filter(td => {
+        // Check if tool is debug/transaction analysis related
+        const toolName = td.tool.name.toLowerCase()
+        const description = td.tool.description.toLowerCase()
+        return toolName === 'start_debug_session' ||
+               toolName === 'decode_local_variable' ||
+               toolName === 'decode_state_variable' ||
+               toolName === 'extract_locals_at' ||
+               toolName === 'decode_locals_at' ||
+               toolName === 'extract_state_at' ||
+               toolName === 'decode_state_at' ||
+               toolName === 'storage_view_at' ||
+               toolName === 'jump_to' ||
+               toolName === 'get_stack_at' ||
+               toolName === 'get_scopes_with_root' ||
+               toolName === 'get_valid_source_location_from_vm_trace_index' ||
+               toolName.includes('debug') ||
+               toolName.includes('trace') ||
+               toolName.includes('decode') ||
+               toolName.includes('stack') ||
+               toolName.includes('scope') ||
+               description.includes('debug') ||
+               description.includes('trace') ||
+               description.includes('decode') ||
+               description.includes('execution') ||
+               description.includes('variable')
+      })
+      .map(td => td.tool)
+
+    console.log(`[ToolSelector] Found ${debugTools.length} Debug tools`)
+    return debugTools
+  }
+
    /**
    * Filter out Security tools from a tool list
    */
@@ -280,19 +318,32 @@ export class ToolSelector {
   }
 
   /**
-   * Filter out all specialist tools (Etherscan, TheGraph, Alchemy, Education) from a tool list
+   * Filter out Debug tools from a tool list
+   */
+  filterOutDebugTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+    const debugToolNames = new Set(this.getDebugTools().map(t => t.name))
+    const filteredTools = tools.filter(tool => !debugToolNames.has(tool.name))
+
+    console.log(`[ToolSelector] Filtered out ${tools.length - filteredTools.length} Debug tools from main agent`)
+    return filteredTools
+  }
+
+  /**
+   * Filter out all specialist tools (Etherscan, TheGraph, Alchemy, Education, Debug) from a tool list
    */
   filterOutSpecialistTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
     const etherscanToolNames = new Set(this.getEtherscanTools().map(t => t.name))
     const theGraphToolNames = new Set(this.getTheGraphTools().map(t => t.name))
     const alchemyToolNames = new Set(this.getAlchemyTools().map(t => t.name))
     const educationToolNames = new Set(this.getEducationTools().map(t => t.name))
+    const debugToolNames = new Set(this.getDebugTools().map(t => t.name))
 
     const filteredTools = tools.filter(tool =>
       !etherscanToolNames.has(tool.name) &&
       !theGraphToolNames.has(tool.name) &&
       !alchemyToolNames.has(tool.name) &&
-      !educationToolNames.has(tool.name)
+      !educationToolNames.has(tool.name) &&
+      !debugToolNames.has(tool.name)
     )
     return filteredTools
   }
@@ -322,6 +373,7 @@ export class ToolSelector {
     const theGraphToolNames = new Set(this.getTheGraphTools().map(t => t.name))
     const alchemyToolNames = new Set(this.getAlchemyTools().map(t => t.name))
     const educationToolNames = new Set(this.getEducationTools().map(t => t.name))
+    const debugToolNames = new Set(this.getDebugTools().map(t => t.name))
 
     const nonSelectedTools = this.toolDocuments
       .filter(td =>
@@ -330,7 +382,8 @@ export class ToolSelector {
         !etherscanToolNames.has(td.tool.name) && // Exclude Etherscan tools
         !theGraphToolNames.has(td.tool.name) && // Exclude TheGraph tools
         !alchemyToolNames.has(td.tool.name) && // Exclude Alchemy tools
-        !educationToolNames.has(td.tool.name) // Exclude Education tools
+        !educationToolNames.has(td.tool.name) && // Exclude Education tools
+        !debugToolNames.has(td.tool.name) // Exclude Debug tools
       )
       .map(td => td.tool)
 

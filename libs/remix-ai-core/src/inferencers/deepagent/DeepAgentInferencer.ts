@@ -13,8 +13,18 @@ import {
   REMIX_DEEPAGENT_SYSTEM_PROMPT,
   SOLIDITY_CODE_GENERATION_PROMPT,
   SECURITY_ANALYSIS_PROMPT,
-  CODE_EXPLANATION_PROMPT
-} from './prompts'
+  CODE_EXPLANATION_PROMPT,
+  SECURITY_AUDITOR_SUBAGENT_PROMPT,
+  CODE_REVIEWER_SUBAGENT_PROMPT,
+  FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
+  ETHERSCAN_SUBAGENT_PROMPT,
+  THEGRAPH_SUBAGENT_PROMPT,
+  ALCHEMY_SUBAGENT_PROMPT,
+  GAS_OPTIMIZER_SUBAGENT_PROMPT,
+  COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
+  WEB3_EDUCATOR_SUBAGENT_PROMPT,
+  DEBUG_SPECIALIST_SUBAGENT_PROMPT
+} from './DeepAgentLightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, DeepAgentError, DeepAgentErrorType, ModelSelection } from '../../types/deepagent'
 import { ToolRegistry } from '../../remix-mcp-server/types/mcpTools'
@@ -23,6 +33,8 @@ import { HumanMessage, AIMessage } from '@langchain/core/messages'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { selectOptimalModel } from './helpers/modelSelection'
+import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
+import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, analyzePromptForAutoSelection } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 
