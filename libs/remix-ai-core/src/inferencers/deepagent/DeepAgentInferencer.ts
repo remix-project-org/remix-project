@@ -211,15 +211,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         await this.memoryBackend.init()
       }
 
-      this.tools.push(...this.toolSelector?.getEssentialTools() || [])
-
       if (this.toolSelector && this.tools.length > 0) {
         await this.toolSelector.buildToolIndex(this.tools)
       }
-
-      const metaTools = this.tools.filter(tool =>
-        tool.name === 'get_tool_schema' || tool.name === 'call_tool'
-      )
 
       this.createAgentWithTools(filterOutSpecialistTools(this.tools))
       console.log('[DeepAgentInferencer] Agent created successfully')
@@ -908,12 +902,14 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     try {
       const { createDeepAgent } = await import('deepagents')
 
-      console.log(selectedTools)
+      const generalTools = this.toolSelector ?
+          filterOutFileOperationTools(filterOutSpecialistTools(this.tools)) : this.tools
+      console.log(generalTools)
       const checkpointer = new IndexedDBCheckpointSaver()
       // Create agent configuration with selected tools
       const agentConfig: any = {
         backend: this.filesystemBackend,
-        tools: selectedTools,
+        tools: generalTools,
         model: this.model,
         systemPrompt: REMIX_DEEPAGENT_SYSTEM_PROMPT,
         skills: ["skills/"],
@@ -933,10 +929,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         const debugTools = getDebugToolsForDebugSpecialist(this.tools)
         const solidityTools = getSolidityToolsForSolidityEngineer(this.tools)
         const webSearchTools = getWebSearchToolsForWebSearchSpecialist(this.tools)
-
-        const generalTools = this.toolSelector ?
-          filterOutFileOperationTools(filterOutSpecialistTools(this.tools)) : this.tools
-
         agentConfig.subagents = [
           {
             name: 'Solidity Engineer',
@@ -970,7 +962,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
             name: 'Code Reviewer',
             systemPrompt: CODE_REVIEWER_SUBAGENT_PROMPT,
             model: this.model,
-            tools: generalTools,
+            tools: [],
             backend: this.filesystemBackend
           },
           {
