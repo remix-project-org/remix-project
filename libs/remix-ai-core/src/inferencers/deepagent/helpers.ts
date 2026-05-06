@@ -71,6 +71,37 @@ export function getEducationToolsForWeb3Educator(tools: DynamicStructuredTool[])
 }
 
 /**
+   * Get debug tools for Debug Specialist
+   */
+export function getDebugToolsForDebugSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const debugToolNames = [
+    // Debug session management
+    'start_debug_session',
+    // Variable decoding
+    'decode_local_variable',
+    'decode_state_variable',
+    // Variable extraction
+    'extract_locals_at',
+    'decode_locals_at',
+    'extract_state_at',
+    'decode_state_at',
+    // Storage and stack inspection
+    'storage_view_at',
+    'get_stack_at',
+    // Navigation and scope analysis
+    'jump_to',
+    'get_scopes_with_root',
+    // Source mapping
+    'get_valid_source_location_from_vm_trace_index'
+  ]
+
+  const debugTools = tools.filter(tool =>
+    debugToolNames.includes(tool.name)
+  )
+  return debugTools
+}
+
+/**
  * Analyze prompt complexity and content to determine optimal model
  */
 export function analyzePromptForAutoSelection(prompt: string): 'simple' | 'complex' {

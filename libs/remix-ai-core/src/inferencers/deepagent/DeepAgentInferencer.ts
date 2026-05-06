@@ -22,7 +22,8 @@ import {
   ALCHEMY_SUBAGENT_PROMPT,
   GAS_OPTIMIZER_SUBAGENT_PROMPT,
   COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
-  WEB3_EDUCATOR_SUBAGENT_PROMPT
+  WEB3_EDUCATOR_SUBAGENT_PROMPT,
+  DEBUG_SPECIALIST_SUBAGENT_PROMPT
 } from './DeepAgentLightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, IAutoModelConfig, DeepAgentError, DeepAgentErrorType } from '../../types/deepagent'
@@ -37,7 +38,7 @@ import { HumanMessage, AIMessage } from '@langchain/core/messages'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
-import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, analyzePromptForAutoSelection, selectOptimalModel } from './helpers'
+import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, analyzePromptForAutoSelection, selectOptimalModel } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import { endpointUrls } from "@remix-endpoints-helper"
 import type { DeepAgent } from 'deepagents'
@@ -928,6 +929,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         const basicFileTools = getBasicFileToolsForGasOptimizer(this.tools)
         const coordinationTools = getCoordinationToolsForComprehensiveAuditor(this.tools)
         const educationTools = getEducationToolsForWeb3Educator(this.tools)
+        const debugTools = getDebugToolsForDebugSpecialist(this.tools)
 
         const generalTools = this.toolSelector ?
           this.toolSelector.filterOutSpecialistTools(this.tools) : this.tools
@@ -994,6 +996,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
             systemPrompt: ALCHEMY_SUBAGENT_PROMPT,
             model: this.model,
             tools: alchemyTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Debug Specialist',
+            systemPrompt: DEBUG_SPECIALIST_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: debugTools,
             backend: this.filesystemBackend
           }
         ]
