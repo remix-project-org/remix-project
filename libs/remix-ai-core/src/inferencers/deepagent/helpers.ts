@@ -342,7 +342,7 @@ export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): Dynami
 export function getSolidityToolsForSolidityEngineer(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const solidityTools = tools.filter(tool => {
     // Check if tool name starts with "solidity"
-    return tool.name.toLowerCase().startsWith('solidity')
+    return tool.name.toLowerCase().startsWith('solidity') && tool.name.toLowerCase() !== 'solidity_compile' // Exclude general compiler tool if it exists
   })
 
   console.log(`[HelperTools] Found ${solidityTools.length} Solidity tools`)

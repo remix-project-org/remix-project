@@ -3,6 +3,7 @@
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
+import { anthropicPromptCachingMiddleware } from "langchain";
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
@@ -215,7 +216,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         await this.toolSelector.buildToolIndex(this.tools)
       }
 
-      this.createAgentWithTools(filterOutSpecialistTools(this.tools))
+      this.createAgentWithTools(this.tools)
       console.log('[DeepAgentInferencer] Agent created successfully')
       console.log('[DeepAgentInferencer] DeepAgent instance created successfully', this.agent)
 
@@ -318,6 +319,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         temperature: 0.7,
         maxTokens: maxTokens,
         streaming: true,
+        middleware: [
+          anthropicPromptCachingMiddleware()
+        ],
         clientOptions: {
           baseURL: endpointUrls.langchain
         }
@@ -1055,8 +1059,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.model = this.createModelInstance(DAPP_MAX_TOKENS, selectedModel)
     
     if (!this.agent) {
-      const generalTools = filterOutSpecialistTools(this.tools)
-      await this.createAgentWithTools(generalTools)
+      await this.createAgentWithTools(this.tools)
     } else {
       this.agent.options.model = this.model
     }
