@@ -20,6 +20,14 @@ interface PreloadProps {
   trackingFunction: TrackingFunction;
 }
 
+function isProbablyMobile() {
+  const userAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const screenWidth = window.innerWidth <= 768;
+  const touchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  
+  return userAgent || (screenWidth && touchSupport);
+}
+    
 export const Preload = (props: PreloadProps) => {
   const { trackMatomoEvent } = useTracking()
   const [tip, setTip] = useState<string>('')
@@ -42,6 +50,18 @@ export const Preload = (props: PreloadProps) => {
   )
 
   function loadAppComponent() {
+    try {
+      const noMobileRedirect = window.location &&
+        ((window.location.search && window.location.search.indexOf('nomobileredirect') !== -1) || (window.location.hash && window.location.hash.indexOf('nomobileredirect') !== -1))
+      if (!noMobileRedirect && isProbablyMobile()) {
+        trackMatomoEvent?.({ category: 'App', action: 'MobileRedirect', name: '', isClick: false })
+        window.location.replace("https://mobile.remix.live")
+        return
+      }
+    } catch (e) {
+      console.error('Error detecting mobile device:', e)
+    }
+
     initEndpoints().then(() => import('../../app'))
       .then((AppComponent) => {
         const appComponent = new AppComponent.default()

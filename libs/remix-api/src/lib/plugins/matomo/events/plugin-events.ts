@@ -49,7 +49,8 @@ export interface AppEvent extends MatomoEventBase {
     | 'loaded'
     | 'error'
     | 'PreloadError'
-    | 'queryParams-calls';
+    | 'queryParams-calls'
+    | 'MobileRedirect';
 }
 
 export interface MigrateEvent extends MatomoEventBase {
