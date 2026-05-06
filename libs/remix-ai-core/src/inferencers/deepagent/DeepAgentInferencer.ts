@@ -3,7 +3,6 @@
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
-import { anthropicPromptCachingMiddleware } from "langchain";
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
@@ -319,9 +318,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         temperature: 0.7,
         maxTokens: maxTokens,
         streaming: true,
-        middleware: [
-          anthropicPromptCachingMiddleware()
-        ],
         clientOptions: {
           baseURL: endpointUrls.langchain
         }
