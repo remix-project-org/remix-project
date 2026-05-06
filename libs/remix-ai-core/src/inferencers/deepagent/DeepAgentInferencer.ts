@@ -34,7 +34,7 @@ import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { selectOptimalModel } from './helpers/modelSelection'
 import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
-import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, analyzePromptForAutoSelection } from './helpers'
+import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, filterOutSpecialistTools } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 
