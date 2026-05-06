@@ -6,7 +6,7 @@ const profile = {
   name: 'ai-dapp-generator',
   displayName: 'AI DApp Generator',
   description: 'AI-powered DApp frontend generator',
-  methods: ['generateDapp', 'updateDapp', 'resetDapp', 'getContext', 'getLastGeneratedDapp', 'consumePendingResult', 'getAllPendingSlugs'],
+  methods: ['generateDapp', 'updateDapp', 'resetDapp', 'getContext', 'consumePendingResult', 'getAllPendingSlugs'],
   events: ['dappGenerated', 'dappUpdated', 'generationProgress'],
   version: '1.0.0'
 }
@@ -494,22 +494,6 @@ export class AIDappGenerator extends Plugin {
     const context: DappGenerationContext = { address, messages }
     this.contexts.set(address, context)
     return context
-  }
-
-  async getLastGeneratedDapp(address: string): Promise<Pages | null> {
-    const context = await this.getContext(address)
-    let currentPages: Pages = {}
-    if (context) {
-      for (const message of context.messages) {
-        if (message.role === 'assistant') {
-          const newPages = parsePages(message.content)
-          if (Object.keys(newPages).length > 0) {
-            currentPages = newPages
-          }
-        }
-      }
-    }
-    return currentPages
   }
 
   private saveContext(address: string, context: DappGenerationContext): void {
