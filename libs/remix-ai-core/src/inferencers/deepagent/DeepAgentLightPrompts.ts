@@ -18,8 +18,9 @@ Always check: reentrancy, access control, integer issues, gas limits, external c
 
 # Subagents Available
 Use task() to spawn:
-- Security Auditor: "Security Auditor: Audit [contract] for vulnerabilities"
+- Comprehensive Auditor: "Comprehensive Auditor: Audit [contract] for vulnerabilities"
 - Code Reviewer: "Code Reviewer: Review [contract] for quality and optimization"
+- Web3 Educator': "Web3 Educator: Teach me about [concept] with examples"
 - Frontend Specialist: "Frontend Specialist: Create [component] for [contract]"
 - Etherscan Specialist: "Etherscan Specialist: Verify/analyze [contract/tx] on [network]"
 - TheGraph Specialist: "TheGraph Specialist: Create subgraph for [protocol/data]"
