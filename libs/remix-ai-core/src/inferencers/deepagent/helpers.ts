@@ -278,7 +278,38 @@ export function filterOutDebugTools(tools: DynamicStructuredTool[]): DynamicStru
 }
 
 /**
-   * Filter out all specialist tools (Security, Etherscan, TheGraph, Alchemy, Education, Debug) from a tool list
+   * Filter out Conversion tools from a tool list
+   */
+export function filterOutConversionTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const conversionToolNames = new Set(getConversionToolsForConversionSpecialist(tools).map(t => t.name))
+  const filteredTools = tools.filter(tool => !conversionToolNames.has(tool.name))
+
+  console.log(`[HelperTools] Filtered out ${tools.length - filteredTools.length} Conversion tools from main agent`)
+  return filteredTools
+}
+
+/**
+   * Filter out file operation tools from a tool list
+   */
+export function filterOutFileOperationTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const fileOperationToolNames = [
+    'directory_list',
+    'read_file_chunk', 
+    'grep_file'
+  ]
+
+  // Filter tools that start with 'file_' or are in the specific list
+  const filteredTools = tools.filter(tool => 
+    !tool.name.startsWith('file_') && 
+    !fileOperationToolNames.includes(tool.name)
+  )
+
+  console.log(`[HelperTools] Filtered out ${tools.length - filteredTools.length} file operation tools from main agent`)
+  return filteredTools
+}
+
+/**
+   * Filter out all specialist tools (Security, Etherscan, TheGraph, Alchemy, Education, Debug, Solidity, WebSearch, Conversion) from a tool list
    */
 export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const securityToolNames = new Set(getSecurityToolsForSecurityAuditor(tools).map(t => t.name))
@@ -289,6 +320,7 @@ export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): Dynami
   const debugToolNames = new Set(getDebugToolsForDebugSpecialist(tools).map(t => t.name))
   const solidityToolNames = new Set(getSolidityToolsForSolidityEngineer(tools).map(t => t.name))
   const webSearchToolNames = new Set(getWebSearchToolsForWebSearchSpecialist(tools).map(t => t.name))
+  const conversionToolNames = new Set(getConversionToolsForConversionSpecialist(tools).map(t => t.name))
 
   const filteredTools = tools.filter(tool =>
     !securityToolNames.has(tool.name) &&
@@ -298,7 +330,8 @@ export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): Dynami
     !educationToolNames.has(tool.name) &&
     !debugToolNames.has(tool.name) &&
     !solidityToolNames.has(tool.name) &&
-    !webSearchToolNames.has(tool.name)
+    !webSearchToolNames.has(tool.name) &&
+    !conversionToolNames.has(tool.name)
   )
   return filteredTools
 }
@@ -332,6 +365,26 @@ export function getWebSearchToolsForWebSearchSpecialist(tools: DynamicStructured
 
   console.log(`[HelperTools] Found ${webSearchTools.length} Web Search tools`)
   return webSearchTools
+}
+
+/**
+   * Get Conversion tools for Conversion Utilities Specialist
+   */
+export function getConversionToolsForConversionSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const conversionToolNames = [
+    'wei_to_ether',
+    'ether_to_wei',
+    'decimal_to_hex',
+    'hex_to_decimal',
+    'timestamp_to_date'
+  ]
+
+  const conversionTools = tools.filter(tool =>
+    conversionToolNames.includes(tool.name)
+  )
+
+  console.log(`[HelperTools] Found ${conversionTools.length} Conversion tools`)
+  return conversionTools
 }
 
 /**

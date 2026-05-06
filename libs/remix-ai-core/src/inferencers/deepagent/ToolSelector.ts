@@ -13,12 +13,14 @@ import {
   getAlchemyToolsForAlchemySpecialist,
   getEducationToolsForWeb3Educator,
   getDebugToolsForDebugSpecialist,
+  getConversionToolsForConversionSpecialist,
   filterOutSecurityTools as helperFilterOutSecurityTools,
   filterOutEtherscanTools as helperFilterOutEtherscanTools,
   filterOutTheGraphTools as helperFilterOutTheGraphTools,
   filterOutAlchemyTools as helperFilterOutAlchemyTools,
   filterOutEducationTools as helperFilterOutEducationTools,
   filterOutDebugTools as helperFilterOutDebugTools,
+  filterOutConversionTools as helperFilterOutConversionTools,
   filterOutSpecialistTools as helperFilterOutSpecialistTools
 } from './helpers'
 
@@ -151,6 +153,7 @@ export class ToolSelector {
     if (name.includes('deploy') || name.includes('network')) return 'deployment'
     if (name.includes('analyze') || name.includes('security') || name.includes('audit')) return 'analysis'
     if (name.includes('file') || name.includes('read') || name.includes('write')) return 'file'
+    if (name.includes('wei_to_') || name.includes('ether_to_') || name.includes('_to_hex') || name.includes('hex_to_') || name.includes('timestamp_to_')) return 'conversion'
 
     return 'general'
   }
@@ -167,6 +170,7 @@ export class ToolSelector {
     const alchemyToolNames = new Set(getAlchemyToolsForAlchemySpecialist(allTools).map(t => t.name))
     const educationToolNames = new Set(getEducationToolsForWeb3Educator(allTools).map(t => t.name))
     const debugToolNames = new Set(getDebugToolsForDebugSpecialist(allTools).map(t => t.name))
+    const conversionToolNames = new Set(getConversionToolsForConversionSpecialist(allTools).map(t => t.name))
 
     const nonSelectedTools = this.toolDocuments
       .filter(td =>
@@ -176,7 +180,8 @@ export class ToolSelector {
         !theGraphToolNames.has(td.tool.name) && // Exclude TheGraph tools
         !alchemyToolNames.has(td.tool.name) && // Exclude Alchemy tools
         !educationToolNames.has(td.tool.name) && // Exclude Education tools
-        !debugToolNames.has(td.tool.name) // Exclude Debug tools
+        !debugToolNames.has(td.tool.name) && // Exclude Debug tools
+        !conversionToolNames.has(td.tool.name) // Exclude Conversion tools
       )
       .map(td => td.tool)
 

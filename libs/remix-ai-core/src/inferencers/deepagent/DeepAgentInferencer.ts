@@ -25,7 +25,8 @@ import {
   WEB3_EDUCATOR_SUBAGENT_PROMPT,
   DEBUG_SPECIALIST_SUBAGENT_PROMPT,
   SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
-  WEB_SEARCH_SUBAGENT_PROMPT
+  WEB_SEARCH_SUBAGENT_PROMPT,
+  CONVERSION_UTILITIES_SUBAGENT_PROMPT
 } from './DeepAgentSuperLightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, IAutoModelConfig, DeepAgentError, DeepAgentErrorType } from '../../types/deepagent'
@@ -40,7 +41,7 @@ import { HumanMessage, AIMessage } from '@langchain/core/messages'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
-import { getSolidityToolsForSolidityEngineer, getWebSearchToolsForWebSearchSpecialist, getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, selectOptimalModel, filterOutSpecialistTools } from './helpers'
+import { getSolidityToolsForSolidityEngineer, getWebSearchToolsForWebSearchSpecialist, getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, getConversionToolsForConversionSpecialist, analyzePromptForAutoSelection, selectOptimalModel, filterOutSpecialistTools, filterOutFileOperationTools } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import { endpointUrls } from "@remix-endpoints-helper"
 import type { DeepAgent } from 'deepagents'
@@ -923,6 +924,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         const etherscanTools = getEtherscanToolsForEtherscanSpecialist(this.tools)
         const theGraphTools = getTheGraphToolsForTheGraphSpecialist(this.tools)
         const alchemyTools = getAlchemyToolsForAlchemySpecialist(this.tools)
+        const conversionTools = getConversionToolsForConversionSpecialist(this.tools)
 
         const basicMcpTools = getBasicMcpToolsForSecurityAuditor(this.tools)
         const basicFileTools = getBasicFileToolsForGasOptimizer(this.tools)
@@ -933,7 +935,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         const webSearchTools = getWebSearchToolsForWebSearchSpecialist(this.tools)
 
         const generalTools = this.toolSelector ?
-          filterOutSpecialistTools(this.tools) : this.tools
+          filterOutFileOperationTools(filterOutSpecialistTools(this.tools)) : this.tools
 
         agentConfig.subagents = [
           {
@@ -1018,6 +1020,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
             systemPrompt: DEBUG_SPECIALIST_SUBAGENT_PROMPT,
             model: this.model,
             tools: debugTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Conversion Utilities Specialist',
+            systemPrompt: CONVERSION_UTILITIES_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: conversionTools,
             backend: this.filesystemBackend
           }
         ]
