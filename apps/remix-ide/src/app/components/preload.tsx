@@ -24,10 +24,84 @@ function isProbablyMobile() {
   const userAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const screenWidth = window.innerWidth <= 768;
   const touchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  
+  return true
   return userAgent || (screenWidth && touchSupport);
 }
-    
+
+const NO_MOBILE_REDIRECT_KEY = 'remix.nomobileredirect'
+
+/**
+ * Check whether the user has opted out of the mobile redirect.
+ *
+ * When the `nomobileredirect` flag is found in the URL (search or hash),
+ * persist that decision to localStorage and strip the flag from the URL so
+ * subsequent reloads stay clean. On later visits we just read the persisted
+ * value instead of relying on the URL.
+ *
+ * Returns the source of the opt-out so the caller can track it:
+ *  - 'url'      : flag came from the current URL (first time / explicit override)
+ *  - 'storage'  : flag was persisted from a previous visit
+ *  - 'none'     : no opt-out, mobile redirect should run
+ */
+function checkAndPersistNoMobileRedirect(): 'url' | 'storage' | 'none' {
+  try {
+    if (!window.location) return 'none'
+
+    const FLAG = 'nomobileredirect'
+    const search = window.location.search || ''
+    const hash = window.location.hash || ''
+    const inSearch = search.indexOf(FLAG) !== -1
+    const inHash = hash.indexOf(FLAG) !== -1
+
+    if (inSearch || inHash) {
+      try { window.localStorage.setItem(NO_MOBILE_REDIRECT_KEY, 'true') } catch (_) { /* storage may be blocked */ }
+
+      // Strip the flag from the URL without reloading the page.
+      try {
+        const stripFromQuery = (q: string) => {
+          if (!q) return q
+          const prefix = q.startsWith('?') ? '?' : ''
+          const params = new URLSearchParams(prefix ? q.slice(1) : q)
+          params.delete(FLAG)
+          const next = params.toString()
+          return next ? `${prefix}${next}` : ''
+        }
+        const stripFromHash = (h: string) => {
+          if (!h) return h
+          // Hash may contain a query-like segment ("#/path?foo=1") or just "#foo=1".
+          const hashBody = h.startsWith('#') ? h.slice(1) : h
+          const qIdx = hashBody.indexOf('?')
+          if (qIdx !== -1) {
+            const path = hashBody.slice(0, qIdx)
+            const query = stripFromQuery(hashBody.slice(qIdx))
+            return `#${path}${query}`
+          }
+          // Treat the whole hash body as an &-separated key list.
+          const parts = hashBody.split('&').filter(p => p && p !== FLAG && !p.startsWith(`${FLAG}=`))
+          return parts.length ? `#${parts.join('&')}` : ''
+        }
+
+        const newSearch = stripFromQuery(search)
+        const newHash = stripFromHash(hash)
+        if (newSearch !== search || newHash !== hash) {
+          const newUrl = window.location.pathname + newSearch + newHash
+          window.history.replaceState(null, '', newUrl)
+        }
+      } catch (_) { /* history API may not be available */ }
+
+      return 'url'
+    }
+
+    try {
+      return window.localStorage.getItem(NO_MOBILE_REDIRECT_KEY) === 'true' ? 'storage' : 'none'
+    } catch (_) {
+      return 'none'
+    }
+  } catch (_) {
+    return 'none'
+  }
+}
+
 export const Preload = (props: PreloadProps) => {
   const { trackMatomoEvent } = useTracking()
   const [tip, setTip] = useState<string>('')
@@ -51,11 +125,45 @@ export const Preload = (props: PreloadProps) => {
 
   function loadAppComponent() {
     try {
-      const noMobileRedirect = window.location &&
-        ((window.location.search && window.location.search.indexOf('nomobileredirect') !== -1) || (window.location.hash && window.location.hash.indexOf('nomobileredirect') !== -1))
+      const noMobileRedirectSource = checkAndPersistNoMobileRedirect()
+      const noMobileRedirect = noMobileRedirectSource !== 'none'
+      if (noMobileRedirect && isProbablyMobile()) {
+        // Track that the redirect was overridden so we can tell the difference
+        // between an explicit URL override ('url') and a persisted opt-out
+        // from a previous visit ('storage').
+        trackMatomoEvent?.({ category: 'App', action: 'MobileRedirectOverride', name: noMobileRedirectSource, isClick: false })
+      }
       if (!noMobileRedirect && isProbablyMobile()) {
+        // Make sure the tracking beacon actually leaves the page before we
+        // navigate away. Matomo's trackEvent only enqueues the request on
+        // window._paq; the HTTP request would otherwise be cancelled by the
+        // immediate window.location.replace below.
+        const paq = (window as any)._paq
+        const useBeacon = Array.isArray(paq)
+        if (useBeacon) {
+          // Ensure the request survives the navigation.
+          paq.push(['alwaysUseSendBeacon'])
+        }
         trackMatomoEvent?.({ category: 'App', action: 'MobileRedirect', name: '', isClick: false })
-        window.location.replace("https://mobile.remix.live")
+
+        const doRedirect = (() => {
+          let done = false
+          return () => {
+            if (done) return
+            done = true
+            window.location.replace('https://mobile.remix.live')
+          }
+        })()
+
+        if (useBeacon) {
+          // Matomo runs functions pushed to _paq after the preceding tracking
+          // commands have been dispatched, so this fires once the beacon is on
+          // its way. We still cap the wait so a failing tracker can't block.
+          paq.push([doRedirect])
+        }
+        // Safety timeout in case the tracker never processes the queue
+        // (blocked, not loaded, opted out, etc.).
+        setTimeout(doRedirect, 600)
         return
       }
     } catch (e) {
