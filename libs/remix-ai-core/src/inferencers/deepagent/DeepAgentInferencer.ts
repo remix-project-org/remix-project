@@ -696,13 +696,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         agentConfig.store = this.memoryBackend
       }
 
-      let enhancedSystemPrompt = REMIX_DEEPAGENT_SYSTEM_PROMPT
-      if (this.toolSelector) {
-        const toolInventoryPrompt = this.toolSelector.generateToolInventoryPrompt(selectedTools)
-        enhancedSystemPrompt += toolInventoryPrompt
-      }
-      agentConfig.systemPrompt = enhancedSystemPrompt
-
       this.agent = await createDeepAgent(agentConfig)
 
       console.log(`[DeepAgentInferencer] Recreated agent with ${selectedTools.length} selected tools`)
@@ -730,6 +723,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.model = createModelInstance(selectedModel)
 
     // Recreate agent with new model
+    
     const metaTools = this.tools.filter(tool =>
       tool.name === 'get_tool_schema' || tool.name === 'call_tool'
     )
