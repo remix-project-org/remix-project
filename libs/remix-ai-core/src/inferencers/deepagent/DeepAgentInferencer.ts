@@ -154,15 +154,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         await this.memoryBackend.init()
       }
 
-      this.tools.push(...this.toolSelector?.getEssentialTools() || [])
-
       if (this.toolSelector && this.tools.length > 0) {
         await this.toolSelector.buildToolIndex(this.tools)
       }
-
-      const metaTools = this.tools.filter(tool =>
-        tool.name === 'get_tool_schema' || tool.name === 'call_tool'
-      )
 
       await this.createAgentWithTools(this.tools)
       console.log('[DeepAgentInferencer] Agent created successfully')
@@ -678,18 +672,21 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     try {
       const { createDeepAgent } = await import('deepagents')
 
-      console.log(selectedTools)
+      const generalTools = this.toolSelector ?
+          filterOutFileOperationTools(filterOutSpecialistTools(this.tools)) : this.tools
+      console.log(generalTools)
       const checkpointer = new IndexedDBCheckpointSaver()
       // Create agent configuration with selected tools
       const agentConfig: any = {
         backend: this.filesystemBackend,
-        tools: selectedTools,
+        tools: generalTools,
         model: this.model,
         systemPrompt: REMIX_DEEPAGENT_SYSTEM_PROMPT,
         skills: ["skills/"],
         checkpointer
       }
 
+<<<<<<< HEAD
       if (this.config.enableSubagents && this.model) {
         agentConfig.subagents = buildSubagentConfigs(
           this.tools,
@@ -697,6 +694,114 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           this.model,
           this.filesystemBackend
         )
+=======
+      if (this.config.enableSubagents) {
+        const etherscanTools = getEtherscanToolsForEtherscanSpecialist(this.tools)
+        const theGraphTools = getTheGraphToolsForTheGraphSpecialist(this.tools)
+        const alchemyTools = getAlchemyToolsForAlchemySpecialist(this.tools)
+        const conversionTools = getConversionToolsForConversionSpecialist(this.tools)
+
+        const basicMcpTools = getBasicMcpToolsForSecurityAuditor(this.tools)
+        const basicFileTools = getBasicFileToolsForGasOptimizer(this.tools)
+        const coordinationTools = getCoordinationToolsForComprehensiveAuditor(this.tools)
+        const educationTools = getEducationToolsForWeb3Educator(this.tools)
+        const debugTools = getDebugToolsForDebugSpecialist(this.tools)
+        const solidityTools = getSolidityToolsForSolidityEngineer(this.tools)
+        const webSearchTools = getWebSearchToolsForWebSearchSpecialist(this.tools)
+        agentConfig.subagents = [
+          {
+            name: 'Solidity Engineer',
+            systemPrompt: SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: solidityTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Web Search Specialist',
+            systemPrompt: WEB_SEARCH_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: webSearchTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Security Auditor',
+            systemPrompt: SECURITY_AUDITOR_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: basicMcpTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Gas Optimizer',
+            systemPrompt: GAS_OPTIMIZER_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: basicFileTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Code Reviewer',
+            systemPrompt: CODE_REVIEWER_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: [],
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Comprehensive Auditor',
+            systemPrompt: COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: coordinationTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Web3 Educator',
+            systemPrompt: WEB3_EDUCATOR_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: educationTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Frontend Specialist',
+            systemPrompt: FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: generalTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Etherscan Specialist',
+            systemPrompt: ETHERSCAN_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: etherscanTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'TheGraph Specialist',
+            systemPrompt: THEGRAPH_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: theGraphTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Alchemy Specialist',
+            systemPrompt: ALCHEMY_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: alchemyTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Debug Specialist',
+            systemPrompt: DEBUG_SPECIALIST_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: debugTools,
+            backend: this.filesystemBackend
+          },
+          {
+            name: 'Conversion Utilities Specialist',
+            systemPrompt: CONVERSION_UTILITIES_SUBAGENT_PROMPT,
+            model: this.model,
+            tools: conversionTools,
+            backend: this.filesystemBackend
+          }
+        ]
+>>>>>>> cd93f4e977 (fiter out file op tools)
       }
 
       if (this.memoryBackend) {
