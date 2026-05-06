@@ -23,7 +23,9 @@ import {
   GAS_OPTIMIZER_SUBAGENT_PROMPT,
   COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
   WEB3_EDUCATOR_SUBAGENT_PROMPT,
-  DEBUG_SPECIALIST_SUBAGENT_PROMPT
+  DEBUG_SPECIALIST_SUBAGENT_PROMPT,
+  SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
+  WEB_SEARCH_SUBAGENT_PROMPT
 } from './DeepAgentSuperLightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, DeepAgentError, DeepAgentErrorType, ModelSelection } from '../../types/deepagent'
@@ -34,7 +36,7 @@ import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { selectOptimalModel } from './helpers/modelSelection'
 import { AsyncLocalStorageProviderSingleton } from '@langchain/core/singletons'
-import { getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, filterOutSpecialistTools } from './helpers'
+import { getSolidityToolsForSolidityEngineer, getWebSearchToolsForWebSearchSpecialist, getBasicFileToolsForGasOptimizer, getBasicMcpToolsForSecurityAuditor, getCoordinationToolsForComprehensiveAuditor, getEducationToolsForWeb3Educator, getDebugToolsForDebugSpecialist, getEtherscanToolsForEtherscanSpecialist, getTheGraphToolsForTheGraphSpecialist, getAlchemyToolsForAlchemySpecialist, analyzePromptForAutoSelection, filterOutSpecialistTools } from './helpers'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 
@@ -674,6 +676,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     try {
       const { createDeepAgent } = await import('deepagents')
 
+      console.log(selectedTools)
       const checkpointer = new IndexedDBCheckpointSaver()
       // Create agent configuration with selected tools
       const agentConfig: any = {
