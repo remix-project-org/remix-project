@@ -17,9 +17,11 @@ import { SmartAccountPrompt } from '../components/smartAccountPrompt'
 import { DelegationAuthorizationPrompt } from '../components/delegationAuthorizationPrompt'
 import { SignMessagePrompt, SignedMessagePrompt } from '../components/signMessagePrompt'
 import { CopyToClipboard } from '@remix-ui/clipboard'
+//import { DeployedContractsAppContext } from '../../../../run-tab-deployed-contracts/src/lib/contexts'
 
 function EnvironmentPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EnvAppContext)
+  //const deployContext = useContext(DeployedContractsAppContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = UdappEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
@@ -50,11 +52,17 @@ function EnvironmentPortraitView() {
   const handleProviderSelection = (provider: Provider) => {
     trackMatomoEvent({ category: 'udapp', action: 'environmentSelected', name: provider.category || provider.displayName, isClick: true })
     if (provider.category && selectedProvider?.category === provider.category) return
-    if (provider.category === 'Dev' || provider.category === 'Browser Extension') {
-      // select category to show sub-categories
-      dispatch({ type: 'SET_CURRENT_PROVIDER', payload: provider.name })
+    //const deployCount = deployContext.widgetState.deployedContracts.length
+    const confirm = window.confirm(`You have unpinned contracts that will be lost on environment change. Continue?`)
+    if(confirm) {
+      if (provider.category === 'Dev' || provider.category === 'Browser Extension') {
+        // select category to show sub-categories
+        dispatch({ type: 'SET_CURRENT_PROVIDER', payload: provider.name })
+      } else {
+        setExecutionContext(provider, plugin, dispatch)
+      }
     } else {
-      setExecutionContext(provider, plugin, dispatch)
+      return
     }
   }
 
