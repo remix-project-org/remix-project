@@ -78,7 +78,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [showOllamaModelSelector, setShowOllamaModelSelector] = useState(false)
   const [selectedOllamaModel, setSelectedOllamaModel] = useState<string | null>(null)
   const [selectedModelId, setSelectedModelId] = useState<string>(getDefaultModel().id)
-  const [isMaximized, setIsMaximized] = useState(false)
   const mcpEnabled = true
 
   const [mcpEnhanced, setMcpEnhanced] = useState(mcpEnabled)
@@ -994,27 +993,56 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     await props.plugin.call('layout', 'maximiseRightSidePanel')
   }
 
+  const recalcModelOpt = useCallback(() => {
+    const modelBtn: any = modelBtnRef.current
+    const menu = menuRef.current
+    const container = aiChatRef.current
+    if (!modelBtn || !menu || !container) return
+
+    const btnRect = modelBtn.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    const menuWidth = menu.offsetWidth // replace hardcoded 180
+    const menuHeight = menu.offsetHeight
+    const GAP = 8
+
+    // Prefer above the button; if no room, drop below it
+    let top = btnRect.top - menuHeight - GAP
+    if (top < containerRect.top) top = btnRect.bottom + GAP
+
+    // Right-align with the button, then clamp to side panel
+    let left = btnRect.right - menuWidth
+    if (left < containerRect.left) left = containerRect.left
+    if (left + menuWidth > containerRect.right) left = containerRect.right - menuWidth
+
+    setModelOpt({ top, left })
+  }, [])
   useEffect(() => {
-    if (showModelSelector && modelBtnRef.current && menuRef.current) {
-      // Use requestAnimationFrame to ensure menu is rendered and has dimensions
-      requestAnimationFrame(() => {
-        const modelBtn = modelBtnRef.current as any
-        const menu = menuRef.current
-
-        if (modelBtn && menu) {
-          const modelBtnRect = modelBtn.getBoundingClientRect()
-          const menuHeight = menu.offsetHeight
-
-          // Position menu above the button using fixed positioning (viewport coordinates)
-          // Align menu's right edge with button's right edge
-          setModelOpt({
-            top: modelBtnRect.top - menuHeight - 8,
-            left: modelBtnRect.right - 180 // Small gap from the right edge
-          })
-        }
-      })
+    if (showModelSelector) {
+      requestAnimationFrame(recalcModelOpt)
     }
-  }, [showModelSelector])
+  }, [showModelSelector, recalcModelOpt])
+
+  // useEffect(() => {
+  //   if (showModelSelector && modelBtnRef.current && menuRef.current) {
+  //     // Use requestAnimationFrame to ensure menu is rendered and has dimensions
+  //     requestAnimationFrame(() => {
+  //       const modelBtn = modelBtnRef.current as any
+  //       const menu = menuRef.current
+
+  //       if (modelBtn && menu) {
+  //         const modelBtnRect = modelBtn.getBoundingClientRect()
+  //         const menuHeight = menu.offsetHeight
+
+  //         // Position menu above the button using fixed positioning (viewport coordinates)
+  //         // Align menu's right edge with button's right edge
+  //         setModelOpt({
+  //           top: modelBtnRect.top - menuHeight - 8,
+  //           left: modelBtnRect.right - 180 // Small gap from the right edge
+  //         })
+  //       }
+  //     })
+  //   }
+  // }, [showModelSelector])
   const [aiChatIsMaximized, setAiChatIsMaximized] = useState(false);
 
   useEffect(() => {
