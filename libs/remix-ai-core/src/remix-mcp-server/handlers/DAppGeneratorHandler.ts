@@ -6,6 +6,7 @@
  */
 
 import { IMCPToolResult } from '../../types/mcp'
+import { endpointUrls } from '@remix-endpoints-helper'
 import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
 import { Plugin } from '@remixproject/engine'
@@ -305,7 +306,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
     // DIRECT LLM CALL — bypasses plugin.call('remixAI', ...) to avoid
     // re-entrant plugin call blocking. The handler runs inside a DeepAgent tool,
     // which is inside remixAI.answer(). Calling remixAI again would deadlock.
-    const PROXY_URL = 'http://localhost:4000'
+    const PROXY_URL = endpointUrls.langchain
     const DAPP_MODEL = 'claude-sonnet-4-5'
     const DAPP_MAX_TOKENS = 16384
 
@@ -393,7 +394,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       const msg = error?.message || String(error)
       console.error('[GenerateDApp] callAIModel failed:', msg)
       if (msg.includes('fetch') || msg.includes('ECONNREFUSED') || msg.includes('Failed to fetch')) {
-        throw new Error(`Cannot connect to proxy server (localhost:4000). Make sure remix-langchain-proxyserver is running.`)
+        throw new Error(`Cannot connect to AI proxy server. Please check network connectivity.`)
       }
       throw new Error(`DApp AI generation failed: ${msg}`)
     }
@@ -417,8 +418,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
       const retryPrompt = `The following required files were missing from your response: ${missing.join(', ')}. Please generate ONLY these missing files using the START_TITLE format. Do not regenerate files that were already provided.`
 
       // Direct Anthropic API call (same approach as callAIModel — no plugin.call)
-      const PROXY_URL = 'http://localhost:4000'
-      const response = await fetch(`${PROXY_URL}/v1/messages`, {
+      const retryProxyUrl = endpointUrls.langchain
+      const response = await fetch(`${retryProxyUrl}/v1/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -868,7 +869,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
     userMessage: string | any[],
     hasImage: boolean
   ): Promise<string> {
-    const PROXY_URL = 'http://localhost:4000'
+    const PROXY_URL = endpointUrls.langchain
     const DAPP_MODEL = 'claude-sonnet-4-5'
     const DAPP_MAX_TOKENS = 16384
     const TIMEOUT_MS = 120_000 // 2 minute timeout
