@@ -865,8 +865,11 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       */
 
       // Register Skill Management tools
+      // skills can be added from the UI and can be dynamic.
+      /*
       const skillTools = createSkillTools();
       this._tools.registerBatch(skillTools);
+      */
 
       // Register DApp Generator tools
       const dappGeneratorTools = createDAppGeneratorTools();

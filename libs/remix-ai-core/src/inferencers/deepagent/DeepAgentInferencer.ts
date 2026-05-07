@@ -22,9 +22,8 @@ import {
   ALCHEMY_SUBAGENT_PROMPT,
   GAS_OPTIMIZER_SUBAGENT_PROMPT,
   COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
-  WEB3_EDUCATOR_SUBAGENT_PROMPT,
-  DAPP_GENERATOR_SUBAGENT_PROMPT
-} from './DeepAgentPrompts'
+  WEB3_EDUCATOR_SUBAGENT_PROMPT
+} from './DeepAgentLightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
 import { IDeepAgentConfig, IAutoModelConfig, DeepAgentError, DeepAgentErrorType } from '../../types/deepagent'
 import { ToolRegistry } from '../../remix-mcp-server/types/mcpTools'
@@ -418,9 +417,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         )
       }
 
-      const allowedModels = this.allowedModels || []
-      const optimalModel = selectOptimalModel(prompt, context, this.config.autoMode, this.modelSelection, allowedModels)
-      await this.updateAgentModel(optimalModel)
+      if (this.config.autoMode?.enabled) {
+        const optimalModel = selectOptimalModel(prompt, context, this.config.autoMode, this.modelSelection, (this.plugin as any).getAllowedModels())
+        await this.updateAgentModel(optimalModel)
+      }
 
       const mcpContext = await this.gatherMCPResourcesContext(prompt)
       const enrichedContext = mcpContext

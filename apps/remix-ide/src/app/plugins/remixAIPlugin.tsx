@@ -31,7 +31,7 @@ const profile = {
     'respondToToolApproval',
     'setAutoMode', 'getAutoModeStatus',
     'clearCaches', 'cancelRequest',
-    'getAllowedModels',
+    'getAllowedModels', 'setModelAccess',
     'generateDAppContent', 'fetchFigmaDesign', 'generateDAppFromFigma'
   ],
   events: [
@@ -60,7 +60,7 @@ export class RemixAIPlugin extends Plugin {
   securityAgent: SecurityAgent
   contractor: ContractAgent
   workspaceAgent: workspaceAgent
-  allowedModels: string[] = []
+  modelAccess: any
   selectedModel: AIModel = getDefaultModel() // default model
   selectedModelId: string = getDefaultModel().id
   assistantThreadId: string = ''
@@ -168,7 +168,14 @@ export class RemixAIPlugin extends Plugin {
   }
 
   public getAllowedModels(): string[] {
-    return this.allowedModels
+    if (this.modelAccess) {
+      return this.modelAccess.allowedModels
+    }
+    return []
+  }
+
+  public setModelAccess(modelAccess: any): void {
+    this.modelAccess = modelAccess
   }
 
   async onActivation(): Promise<void> {
@@ -559,14 +566,12 @@ export class RemixAIPlugin extends Plugin {
     await this.setModel(modelId)
   }
 
-  async setModel(modelId: string, allowedModels: string[] = []) {
+  async setModel(modelId: string) {
     let model = getModelById(modelId)
     if (!model) {
       model = getDefaultModel()
       modelId = model.id
-    }
-
-    this.allowedModels = allowedModels
+    }   
 
     // Store previous model for comparison
     const previousModelId = this.selectedModelId

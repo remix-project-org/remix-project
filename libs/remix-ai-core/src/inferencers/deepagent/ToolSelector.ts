@@ -126,6 +126,24 @@ export class ToolSelector {
   }
 
   /**
+   * Get Security-related tools for the Security Auditor subagent
+   */
+  getSecurityTools(): DynamicStructuredTool[] {
+    const securityTools = this.toolDocuments
+      .filter(td => {
+        // Check if tool comes from Security Auditor MCP server
+        const description = td.tool.description.toLowerCase()
+        return description.includes('[security]') ||
+               td.tool.name.toLowerCase().includes('slither_scan') ||
+               description.includes('security')
+      })
+      .map(td => td.tool)
+
+    console.log(`[ToolSelector] Found ${securityTools.length} Security tools`)
+    return securityTools
+  }
+
+  /**
    * Get Etherscan-specific tools for the Etherscan subagent
    */
   getEtherscanTools(): DynamicStructuredTool[] {
@@ -204,6 +222,17 @@ export class ToolSelector {
 
     console.log(`[ToolSelector] Found ${educationTools.length} Education tools`)
     return educationTools
+  }
+
+   /**
+   * Filter out Security tools from a tool list
+   */
+  filterOutSecurityTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+    const securityToolNames = new Set(this.getSecurityTools().map(t => t.name))
+    const filteredTools = tools.filter(tool => !securityToolNames.has(tool.name))
+
+    console.log(`[ToolSelector] Filtered out ${tools.length - filteredTools.length} Security tools from main agent`)
+    return filteredTools
   }
 
   /**
@@ -288,6 +317,7 @@ export class ToolSelector {
    */
   generateToolInventoryPrompt(selectedTools: DynamicStructuredTool[]): string {
     const selectedToolNames = new Set(selectedTools.map(t => t.name))
+    const securityToolNames = new Set(this.getSecurityTools().map(t => t.name))
     const etherscanToolNames = new Set(this.getEtherscanTools().map(t => t.name))
     const theGraphToolNames = new Set(this.getTheGraphTools().map(t => t.name))
     const alchemyToolNames = new Set(this.getAlchemyTools().map(t => t.name))
@@ -296,6 +326,7 @@ export class ToolSelector {
     const nonSelectedTools = this.toolDocuments
       .filter(td =>
         !selectedToolNames.has(td.tool.name) &&
+        !securityToolNames.has(td.tool.name) && // Exclude Security tools
         !etherscanToolNames.has(td.tool.name) && // Exclude Etherscan tools
         !theGraphToolNames.has(td.tool.name) && // Exclude TheGraph tools
         !alchemyToolNames.has(td.tool.name) && // Exclude Alchemy tools
@@ -328,9 +359,8 @@ export class ToolSelector {
 
     for (const [category, tools] of Object.entries(toolCategories)) {
       if (tools.length > 0) {
-        prompt += `### ${category.charAt(0).toUpperCase() + category.slice(1)} Tools:\n`
         for (const tool of tools) {
-          prompt += `- **${tool.name}**: ${tool.description}\n`
+          prompt += `- ${tool.name}**\n`
         }
         prompt += "\n"
       }
@@ -339,6 +369,8 @@ export class ToolSelector {
     prompt += "Examples:\n"
     prompt += "- To understand a tool: get_tool_schema({\"toolName\": \"tool_name_here\"})\n"
     prompt += "- To call a tool directly: call_tool({\"toolName\": \"tool_name_here\", \"arguments\": {\"param1\": \"value1\"}})\n"
+
+    console.log(prompt)
     return prompt
   }
 

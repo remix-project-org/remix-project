@@ -11,7 +11,7 @@ export {
   SOLIDITY_CODE_GENERATION_PROMPT,
   SECURITY_ANALYSIS_PROMPT,
   CODE_EXPLANATION_PROMPT
-} from './DeepAgentPrompts'
+} from './DeepAgentLightPrompts'
 
 // DApp Generator exports
 export {
@@ -28,3 +28,4 @@ export {
   type DAppContractInfo,
   type DAppUserMessageOptions
 } from './DAppGeneratorPrompts'
+

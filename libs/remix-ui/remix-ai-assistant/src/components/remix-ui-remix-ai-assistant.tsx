@@ -214,7 +214,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'ollama_model_selected', value: `${modelName}|from:${previousModel || 'none'}`, isClick: true })
     // Update the model in the backend
     try {
-      await props.plugin.call('remixAI', 'setModel', modelName, modelAccess.allowedModels)
+      await props.plugin.call('remixAI', 'setModel', modelName)
       trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'ollama_model_set_backend_success', value: modelName, isClick: false })
     } catch (error: any) {
       console.warn('Failed to set model:', error)
@@ -247,6 +247,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           setSelectedModel(model)
           setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
         }
+        await props.plugin.call('remixAI', 'setModelAccess', modelAccess)
       } catch (error) {
         console.warn('[RemixAI Assistant UI] Failed to get initial model from plugin:', error)
       }
@@ -294,7 +295,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           setSelectedModel(defaultModel)
           setAssistantChoice(defaultModel.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
           try {
-            await props.plugin.call('remixAI', 'setModel', defaultModel.id, modelAccess.allowedModels)
+            await props.plugin.call('remixAI', 'setModel', defaultModel.id)
           } catch (error) {
             console.warn('Failed to set default model on logout:', error)
           }
@@ -1430,7 +1431,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'ollama_default_model_selected', value: `${defaultModel}|codestral|total:${models.length}`, isClick: false })
                 // Sync the default model with the backend
                 try {
-                  await props.plugin.call('remixAI', 'setModel', defaultModel, modelAccess.allowedModels)
+                  await props.plugin.call('remixAI', 'setModel', defaultModel)
                   setAssistantChoice(selectedModel.provider)
                   setMessages(prev => [...prev, {
                     id: crypto.randomUUID(),
@@ -1549,7 +1550,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     } else {
       try {
-        await props.plugin.call('remixAI', 'setModel', modelId, modelAccess.allowedModels)
+        await props.plugin.call('remixAI', 'setModel', modelId)
         trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'model_selected', value: modelId, isClick: true })
       } catch (error) {
         console.warn('Failed to set model:', error)
