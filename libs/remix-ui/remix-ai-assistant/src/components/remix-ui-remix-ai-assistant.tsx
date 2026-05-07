@@ -207,6 +207,41 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.initialMessages])
 
+  // When switching conversations, clean up any in-flight streaming / pending approvals.
+  const prevConversationIdRef = useRef(props.currentConversationId)
+  useEffect(() => {
+    if (prevConversationIdRef.current === props.currentConversationId) return
+    prevConversationIdRef.current = props.currentConversationId
+
+    // 1. Reject all pending approvals so DeepAgent's approvalGate unblocks
+    setPendingApprovals(prev => {
+      for (const approval of prev) {
+        props.plugin.call('remixAI', 'respondToToolApproval', {
+          requestId: approval.requestId,
+          approved: false
+        }).catch(() => { /* best-effort */ })
+      }
+      return []
+    })
+    setReviewingApprovals(new Set())
+
+    // 2. Cancel the backend request and abort the frontend stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    props.plugin.call('remixAI', 'cancelRequest').catch(() => { /* best-effort */ })
+
+    // 3. Stop the spinner so the new conversation starts clean
+    setIsStreaming(false)
+    streamingAssistantIdRef.current = null
+    if (clearToolTimeoutRef.current) {
+      clearTimeout(clearToolTimeoutRef.current)
+      clearToolTimeoutRef.current = null
+    }
+    uiToolCallbackRef.current = null
+  }, [props.currentConversationId, props.plugin])
+
   const handleOllamaModelSelection = useCallback(async (modelName: string) => {
     const previousModel = selectedOllamaModel
     setSelectedOllamaModel(modelName)
@@ -565,7 +600,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     // Human-in-the-loop: listen for tool approval requests (batch processing)
     const handleToolApproval = (request: ToolApprovalRequest) => {
-      // Add the new approval to pending approvals to show all at once
       setPendingApprovals(prev => [...prev, request])
     }
     props.plugin.on('remixAI', 'onToolApprovalRequired', handleToolApproval)
@@ -842,7 +876,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         approved: true
       })
     }
-    // Clear all approvals
     setPendingApprovals([])
     setReviewingApprovals(new Set())
   }, [pendingApprovals, props.plugin, reviewingApprovals])
@@ -868,7 +901,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         approved: false
       })
     }
-    // Clear all approvals
     setPendingApprovals([])
     setReviewingApprovals(new Set())
   }, [pendingApprovals, props.plugin, reviewingApprovals])
@@ -1034,6 +1066,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
       // Cancel the backend fetch so the server stops generating
       props.plugin.call('remixAI', 'cancelRequest').catch(() => { /* best-effort */ })
+
+      // Clear all pending HITL approval modals from the aborted request
+      setPendingApprovals([])
+      setReviewingApprovals(new Set())
 
       trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'StopRequest', isClick: true })
     }

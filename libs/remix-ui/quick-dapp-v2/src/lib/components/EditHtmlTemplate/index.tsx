@@ -425,6 +425,18 @@ window.addEventListener('unhandledrejection', function(e) {
     if (!activeDapp || !plugin) return;
     console.log('[QuickDapp] Opening AI Assistant for DApp update:', activeDapp.slug);
 
+    // Check if AI is currently busy (streaming)
+    const streamingEl = document.querySelector('[data-id="remix-ai-streaming"]');
+    if (streamingEl?.getAttribute('data-streaming') === 'true') {
+      setNotificationModal({
+        show: true,
+        title: 'AI Assistant Busy',
+        message: 'The AI Assistant is currently processing a request. Please wait for it to finish, then try again.',
+        variant: 'warning'
+      });
+      return;
+    }
+
     // Gather current DApp file list for context
     let fileList: string[] = [];
     try {
@@ -667,7 +679,7 @@ window.addEventListener('unhandledrejection', function(e) {
               data-id="update-with-ai-btn"
             >
               <i className="fas fa-robot me-1"></i>
-              Update with AI
+              Ask AI to Update
             </Button>
             <Button
               variant="primary"
@@ -704,7 +716,7 @@ window.addEventListener('unhandledrejection', function(e) {
                       <ul className="mb-0 ps-3">
                         <li>AI code might not be perfect. If the preview is broken:</li>
                         <li><strong>Option 1:</strong> Edit code manually in the <strong>File Explorer</strong> (left panel), then click <strong>Refresh Preview</strong>.</li>
-                        <li><strong>Option 2:</strong> Click the <strong>Update with AI</strong> button to ask the AI Assistant to fix it.</li>
+                        <li><strong>Option 2:</strong> Click the <strong>Ask AI to Update</strong> button to ask the AI Assistant to fix it.</li>
                       </ul>
                     </div>
                   )}

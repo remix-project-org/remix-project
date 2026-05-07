@@ -142,11 +142,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
   async execute(args: GenerateDAppArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       const hasImage = !!args.imageBase64
-      console.log('[QuickDapp] generate_dapp called', { contractName: args.contractName, address: args.contractAddress, chainId: args.chainId })
-      console.log('[QuickDapp] plugin:', (plugin as any).name || 'unknown')
 
       // Create DApp workspace
-      console.log('[QuickDapp] Creating workspace...Creating workspace...')
       let workspaceSlug: string
 
       try {
@@ -158,9 +155,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
           isBaseMiniApp: args.isBaseMiniApp
         })
         workspaceSlug = wsResult.workspaceName
-        console.log('[QuickDapp] Workspace created: Workspace created:', workspaceSlug)
       } catch (wsErr: any) {
-        console.error('[QuickDapp] Workspace creation failed: createDappWorkspace FAILED:', wsErr?.message || wsErr)
+        console.error('[QuickDapp] createDappWorkspace failed:', wsErr?.message || wsErr)
         return this.createErrorResult(`Failed to create DApp workspace: ${wsErr.message}`)
       }
 
@@ -688,7 +684,6 @@ export class UpdateDAppHandler extends BaseToolHandler {
       }
 
       // Switch to target workspace
-      console.log('[QuickDapp] Creating workspace...Ensuring correct workspace:', targetWorkspace)
       try {
         const currentWs = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
         console.log('[QuickDapp] Current workspace:', currentWs?.name)
@@ -699,12 +694,10 @@ export class UpdateDAppHandler extends BaseToolHandler {
             isLocalhost: false,
           })
           await new Promise(r => setTimeout(r, 500))
-          console.log('[QuickDapp] Workspace created: Switched to', targetWorkspace)
         } else {
-          console.log('[QuickDapp] Workspace created: Already on correct workspace')
         }
       } catch (e: any) {
-        console.error('[QuickDapp] Workspace creation failed: Failed to switch workspace:', e?.message)
+        console.error('[QuickDapp] Failed to switch workspace:', e?.message)
         return this.createErrorResult(`Failed to switch to workspace ${targetWorkspace}: ${e.message}`)
       }
 
@@ -766,7 +759,6 @@ export class UpdateDAppHandler extends BaseToolHandler {
       // Emit dappUpdateStart so React UI shows processing indicator
       plugin.emit('dappUpdateStart', { slug: targetWorkspace })
 
-      console.log('[QuickDapp] Calling LLM...r update (direct fetch)...')
       plugin.emit('generationProgress', { status: 'preparing', contractAddress: contractResolved.address, slug: targetWorkspace })
       plugin.emit('generationProgress', { status: 'calling_llm', contractAddress: contractResolved.address, slug: targetWorkspace })
 

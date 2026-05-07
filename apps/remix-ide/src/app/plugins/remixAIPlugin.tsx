@@ -259,7 +259,7 @@ export class RemixAIPlugin extends Plugin {
         this.setupDeepAgentEventListeners();
 
         // Push allowed models directly to avoid re-entrant deadlock
-        ;(this.deepAgentInferencer as any).setAllowedModels(this.allowedModels || [])
+        ;(this.deepAgentInferencer as any).setAllowedModels(this.getAllowedModels() || [])
 
         console.log('[RemixAI Plugin] DeepAgent initialized successfully')
 
@@ -1043,9 +1043,9 @@ export class RemixAIPlugin extends Plugin {
 
   /**
    * Generate DApp frontend content using DeepAgent.
-   * Called by ai-dapp-generator plugin for DApp generation workflow.
-   * Accepts messages and systemPrompt directly (matching external API interface).
-   * Returns the raw content string for compatibility with existing flow.
+   * Called by DAppGeneratorHandler (MCP) for DApp generation workflow.
+   * Accepts messages and systemPrompt directly.
+   * Returns the raw content string.
    */
   async generateDAppContent(params: {
     messages: any[];
@@ -1113,13 +1113,13 @@ export class RemixAIPlugin extends Plugin {
 
     } catch (error: any) {
       console.error('[QuickDapp] generateDAppContent error:', error)
-      throw error // Re-throw to trigger fallback in ai-dapp-generator
+      throw error // Re-throw so callers can handle the error
     }
   }
 
   /**
    * Fetch and process a Figma design file for DApp generation.
-   * Returns data in a flat structure for compatibility with ai-dapp-generator.
+   * Returns data in a flat structure for use by DApp generation handlers.
    */
   async fetchFigmaDesign(params: {
     figmaUrl: string;
@@ -1234,7 +1234,7 @@ export class RemixAIPlugin extends Plugin {
   /**
    * Generate a DApp directly from a Figma design.
    * Combines Figma fetching with DApp generation.
-   * This is a convenience method - ai-dapp-generator typically calls
+   * This is a convenience method - callers can also invoke
    * fetchFigmaDesign and generateDAppContent separately.
    */
   async generateDAppFromFigma(params: {

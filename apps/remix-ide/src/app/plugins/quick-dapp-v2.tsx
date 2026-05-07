@@ -17,7 +17,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: [],
-  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'openDapp', 'updateDapp', 'consumePendingCreateDapp', 'listDapps']
+  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'openDapp', 'consumePendingCreateDapp', 'listDapps']
 }
 
 export class QuickDappV2 extends ViewPlugin {
@@ -414,23 +414,4 @@ export class QuickDappV2 extends ViewPlugin {
     }
   }
 
-  async updateDapp(
-    slug: string,
-    address: string,
-    prompt: string | any[],
-    files: any,
-    image: string | null,
-    abi: any[] = [],
-    chainId: string | number = 1
-  ): Promise<void> {
-    try {
-      console.log('[QuickDapp] updateDapp called', { slug, address })
-      this.event.emit('dappUpdateStart', { slug })
-      console.log('[QuickDapp] Emitting dappUpdateRequested')
-      this.emit('dappUpdateRequested' as any, { slug, address, prompt, files, image, abi, chainId })
-    } catch (e: any) {
-      console.error('[QuickDapp] updateDapp failed:', e)
-      this.event.emit('dappGenerationError', { slug, error: e.message })
-    }
-  }
 }

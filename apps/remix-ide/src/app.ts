@@ -79,7 +79,6 @@ import { Matomo } from './app/plugins/matomo'
 import { DesktopClient } from './app/plugins/desktop-client'
 import { DesktopHost } from './app/plugins/electron/desktopHostPlugin'
 import { WalletConnect } from './app/plugins/walletconnect'
-import { AIDappGenerator } from './app/plugins/ai-dapp-generator'
 import { IndexedDbCachePlugin } from './app/plugins/IndexedDbCache'
 import { NotificationCenterPlugin } from './app/plugins/notification-center'
 import { FeedbackPlugin } from './app/plugins/feedback'
@@ -382,8 +381,6 @@ class AppComponent {
     //---- matomo
     const matomo = new Matomo()
 
-    //---- AI DApp Generator
-    const aiDappGenerator = new AIDappGenerator()
 
     //---------------- Solidity UML Generator -------------------------
     const solidityumlgen = new SolidityUmlGen(appManager)
@@ -564,7 +561,6 @@ class AppComponent {
       git,
       pluginStateLogger,
       matomo,
-      aiDappGenerator,
       templateSelection,
       scriptRunnerUI,
       remixAI,
@@ -742,7 +738,6 @@ class AppComponent {
       'offsetToLineColumnConverter',
       'pluginStateLogger',
       'matomo',
-      'ai-dapp-generator',
       'indexedDbCache'
     ])
 

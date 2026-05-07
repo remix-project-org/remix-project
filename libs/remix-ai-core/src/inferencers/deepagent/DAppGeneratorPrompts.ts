@@ -4,7 +4,7 @@
  * This module provides prompts for the DApp Generator subagent, which creates
  * React-based DApp frontends that interact with deployed smart contracts.
  *
- * Architecture: 5-layer priority system (ported from prompt-blocks.ts)
+ * Architecture: 5-layer priority system
  *   Layer 0 - INVARIANTS: Build-critical rules (never overridden)
  *   Layer 1 - BLOCKCHAIN CORE: ethers.js, wallet, contract integration
  *   Layer 2 - PLATFORM: Conditional extensions (Base Mini App, Figma)
