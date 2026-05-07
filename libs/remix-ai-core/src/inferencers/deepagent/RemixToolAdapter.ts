@@ -342,9 +342,10 @@ export class RemixToolAdapter {
           func = this.approvalGate.wrap(tool.name, func)
         }
 
+        const description = serverName.toLowerCase().includes('remix') ? tool.description : `[${serverName}] ${tool.description}` // Prefix description with server name for non-Remix tools to provide context to the LLM.
         const langChainTool = new DynamicStructuredTool({
           name: tool.name,
-          description: `[${serverName}] ${tool.description}`,
+          description: description,
           schema: zodSchema,
           func
         })

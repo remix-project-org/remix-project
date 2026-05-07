@@ -86,10 +86,6 @@ export class ProjectResourceProvider extends BaseResourceProvider {
       return this.getProjectDependencies(plugin);
     }
 
-    if (uri.startsWith('file://')) {
-      return this.getFileContent(uri, plugin);
-    }
-
     throw new Error(`Unsupported resource URI: ${uri}`);
   }
 
@@ -322,7 +318,6 @@ export class ProjectResourceProvider extends BaseResourceProvider {
           name,
           type: 'file',
           path,
-          extension,
           size: await this.getFileSize(plugin, path)
         };
       }

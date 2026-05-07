@@ -2,7 +2,7 @@
  * DeepAgent Inferencer for Remix IDE
  * Integrates LangChain DeepAgent with Remix's AI system
  */
-
+import { createDeepAgent, CreateDeepAgentParams } from 'deepagents'
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
@@ -45,6 +45,7 @@ import { getSolidityToolsForSolidityEngineer, getWebSearchToolsForWebSearchSpeci
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import { endpointUrls } from "@remix-endpoints-helper"
 import type { DeepAgent } from 'deepagents'
+import { RemixDeepAgentMiddleware } from './deepAgentMiddlewares'
 
 // Model provider types
 type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'ollama'
@@ -900,20 +901,25 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
    */
   private async createAgentWithTools(selectedTools: DynamicStructuredTool[]): Promise<void> {
     try {
-      const { createDeepAgent } = await import('deepagents')
-
+      if (!this.model) {
+        throw new DeepAgentError(
+          'Model not initialized',
+          DeepAgentErrorType.INITIALIZATION_FAILED
+        )
+      }
       const generalTools = this.toolSelector ?
           filterOutFileOperationTools(filterOutSpecialistTools(this.tools)) : this.tools
       console.log(generalTools)
       const checkpointer = new IndexedDBCheckpointSaver()
       // Create agent configuration with selected tools
-      const agentConfig: any = {
-        backend: this.filesystemBackend,
+      const agentConfig: CreateDeepAgentParams = {
+        backend: this.filesystemBackend as any,
         tools: generalTools,
         model: this.model,
         systemPrompt: REMIX_DEEPAGENT_SYSTEM_PROMPT,
         skills: ["skills/"],
-        checkpointer
+        checkpointer,
+        middleware: [new RemixDeepAgentMiddleware()]
       }
 
       if (this.config.enableSubagents) {
@@ -935,100 +941,100 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
             systemPrompt: SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
             model: this.model,
             tools: solidityTools,
-            backend: this.filesystemBackend
+            description: 'Expert in Solidity development, code generation, and smart contract architecture. Can write, explain, and optimize Solidity code.'
           },
           {
             name: 'Web Search Specialist',
             systemPrompt: WEB_SEARCH_SUBAGENT_PROMPT,
             model: this.model,
             tools: webSearchTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in searching and retrieving information from web sources.'
           },
           {
             name: 'Security Auditor',
             systemPrompt: SECURITY_AUDITOR_SUBAGENT_PROMPT,
             model: this.model,
             tools: basicMcpTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in auditing and reviewing code for security vulnerabilities.'
           },
           {
             name: 'Gas Optimizer',
             systemPrompt: GAS_OPTIMIZER_SUBAGENT_PROMPT,
             model: this.model,
             tools: basicFileTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in optimizing gas usage in smart contracts.'
           },
           {
             name: 'Code Reviewer',
             systemPrompt: CODE_REVIEWER_SUBAGENT_PROMPT,
             model: this.model,
             tools: [],
-            backend: this.filesystemBackend
+            description: 'Specializes in reviewing and providing feedback on code quality and best practices.'
           },
           {
             name: 'Comprehensive Auditor',
             systemPrompt: COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
             model: this.model,
             tools: coordinationTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in comprehensive auditing and analysis of smart contracts.'
           },
           {
             name: 'Web3 Educator',
             systemPrompt: WEB3_EDUCATOR_SUBAGENT_PROMPT,
             model: this.model,
             tools: educationTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in teaching and explaining Web3 concepts and technologies.'
           },
           {
             name: 'Frontend Specialist',
             systemPrompt: FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
             model: this.model,
             tools: generalTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in frontend development and user interface design.'
           },
           {
             name: 'Etherscan Specialist',
             systemPrompt: ETHERSCAN_SUBAGENT_PROMPT,
             model: this.model,
             tools: etherscanTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in analyzing and retrieving data from the Etherscan blockchain explorer.'
           },
           {
             name: 'TheGraph Specialist',
             systemPrompt: THEGRAPH_SUBAGENT_PROMPT,
             model: this.model,
             tools: theGraphTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in analyzing and retrieving data from TheGraph decentralized query protocol.'
           },
           {
             name: 'Alchemy Specialist',
             systemPrompt: ALCHEMY_SUBAGENT_PROMPT,
             model: this.model,
             tools: alchemyTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in analyzing and retrieving data from the Alchemy blockchain infrastructure.'
           },
           {
             name: 'Debug Specialist',
             systemPrompt: DEBUG_SPECIALIST_SUBAGENT_PROMPT,
             model: this.model,
             tools: debugTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in debugging and troubleshooting smart contract issues.'
           },
           {
             name: 'Conversion Utilities Specialist',
             systemPrompt: CONVERSION_UTILITIES_SUBAGENT_PROMPT,
             model: this.model,
             tools: conversionTools,
-            backend: this.filesystemBackend
+            description: 'Specializes in providing conversion utilities for various data formats.'
           }
         ]
       }
 
       if (this.memoryBackend) {
-        agentConfig.store = this.memoryBackend
+        agentConfig.store = this.memoryBackend as any
       }
 
-      this.agent = createDeepAgent(agentConfig)
+      this.agent = createDeepAgent(agentConfig as any)
 
       console.log(`[DeepAgentInferencer] Recreated agent with ${selectedTools.length} selected tools`)
     } catch (error) {

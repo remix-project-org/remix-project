@@ -212,7 +212,7 @@ export class ContextResourceProvider extends BaseResourceProvider {
 
         return { type: 'directory', children };
       } else {
-        return { type: 'file', extension: path.split('.').pop() };
+        return {};
       }
     } catch (error) {
       return { error: error.message };
