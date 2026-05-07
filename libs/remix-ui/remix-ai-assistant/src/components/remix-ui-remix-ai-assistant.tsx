@@ -1022,27 +1022,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [showModelSelector, recalcModelOpt])
 
-  // useEffect(() => {
-  //   if (showModelSelector && modelBtnRef.current && menuRef.current) {
-  //     // Use requestAnimationFrame to ensure menu is rendered and has dimensions
-  //     requestAnimationFrame(() => {
-  //       const modelBtn = modelBtnRef.current as any
-  //       const menu = menuRef.current
+  useEffect(() => {
+    if (!showModelSelector) return
 
-  //       if (modelBtn && menu) {
-  //         const modelBtnRect = modelBtn.getBoundingClientRect()
-  //         const menuHeight = menu.offsetHeight
+    let frame: number | null = null
+    const onResize = () => {
+      if (frame) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(recalcModelOpt)
+    }
 
-  //         // Position menu above the button using fixed positioning (viewport coordinates)
-  //         // Align menu's right edge with button's right edge
-  //         setModelOpt({
-  //           top: modelBtnRect.top - menuHeight - 8,
-  //           left: modelBtnRect.right - 180 // Small gap from the right edge
-  //         })
-  //       }
-  //     })
-  //   }
-  // }, [showModelSelector])
+    window.addEventListener('resize', onResize)
+    // Also catches side-panel splitter drags (window resize won't fire then)
+    const ro = new ResizeObserver(onResize)
+    if (aiChatRef.current) ro.observe(aiChatRef.current)
+
+    return () => {
+      window.removeEventListener('resize', onResize)
+      ro.disconnect()
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [showModelSelector, recalcModelOpt])
+
   const [aiChatIsMaximized, setAiChatIsMaximized] = useState(false);
 
   useEffect(() => {
