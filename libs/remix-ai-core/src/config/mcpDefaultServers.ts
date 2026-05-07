@@ -70,7 +70,6 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       enabled: true,
       timeout: 30000
     },
-    /*
     {
       name: 'Circle',
       description: 'Circle API for code generation',
@@ -80,6 +79,7 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       enabled: true,
       timeout: 30000
     },
+    /*
     {
       name: 'OpenZeppelin Contracts Cairo',
       description: 'OpenZeppelin smart contract library and security tools',
