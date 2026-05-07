@@ -22,7 +22,13 @@ export const EnvCategoryUI: React.FC<EnvCategoryUIProps> = ({ isOpen, onToggle }
 
   const handleCategorySelection = async (provider: Provider) => {
     trackMatomoEvent?.({ category: 'udapp', action: 'categorySelected', name: provider.displayName, isClick: true })
-    const confirm = window.confirm(`You have unpinned contracts that will be lost on environment change. Continue?`)
+    if(provider.name && selectedOption === provider.name) return
+    const deployCount = widgetState.deployedContractsCount
+    if(deployCount > 0){
+      const confirm = window.confirm(`You may lose unpinned contracts on environment change. Continue?`)
+    } else {
+      const confirm = true
+    }
     if(confirm) {
       dispatch({ type: 'CLEAR_ALL_ACCOUNTS', payload: null })
       await setExecutionContext(provider, plugin, dispatch)
