@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react'
+import React, { useMemo, useState, useRef, useEffect } from 'react'
 import { AddressToggle, CustomMenu, CustomTooltip, EnvironmentToggle, shortenAddress, SmartAccountPromptTitle } from "@remix-ui/helper"
 import { Dropdown } from "react-bootstrap"
 import { useIntl } from 'react-intl'
@@ -17,6 +17,7 @@ import { SmartAccountPrompt } from '../components/smartAccountPrompt'
 import { DelegationAuthorizationPrompt } from '../components/delegationAuthorizationPrompt'
 import { SignMessagePrompt, SignedMessagePrompt } from '../components/signMessagePrompt'
 import { CopyToClipboard } from '@remix-ui/clipboard'
+import { DeployedContract } from '../../../../run-tab-deployed-contracts/src/lib/types'
 
 function EnvironmentPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EnvAppContext)
@@ -36,6 +37,7 @@ function EnvironmentPortraitView() {
   const messageRef = useRef<string>('')
   const editingInputRef = useRef<HTMLInputElement>(null)
   const aaSupportedChainIds = ["11155111", "100"] // AA01: Add chain id here to show 'Create Smart Account' button in Udapp
+  const [deployedContracts, setDeployedContracts] = useState(0)
 
   const handleResetClick = () => {
     trackMatomoEvent({ category: 'udapp', action: 'deleteState', name: 'deleteState clicked', isClick: true })
@@ -51,9 +53,8 @@ function EnvironmentPortraitView() {
     trackMatomoEvent({ category: 'udapp', action: 'environmentSelected', name: provider.category || provider.displayName, isClick: true })
     if (provider.category && selectedProvider?.category === provider.category) return
     if (provider.name && selectedProvider?.name === provider.name) return
-
     const deployCount = widgetState.deployedContractsCount
-    if(deployCount > 0){
+    if(deployCount > deployedContracts){
       const confirm = window.confirm(`You may lose unpinned contracts on environment change. Continue?`)
     }
     else{
@@ -428,6 +429,9 @@ function EnvironmentPortraitView() {
         {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
           <div className="d-flex p-3 pt-0">
             <Dropdown className="w-100" show={isEnvironmentDropdownOpen} onToggle={(isOpen) => {
+              plugin.call('udappDeployedContracts', 'getDeployedContracts').then(val => {
+              setDeployedContracts(val.filter((c) => c.isPinned).length);
+              })
               if (isOpen) {
                 trackMatomoEvent({ category: 'udapp', action: 'environmentDropdownOpen', name: selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' })
               }
