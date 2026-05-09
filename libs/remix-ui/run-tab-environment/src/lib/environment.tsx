@@ -9,6 +9,7 @@ import { formatBalance } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { EnvironmentPlugin } from 'apps/remix-ide/src/app/udapp/udappEnv'
 import { Plugin } from '@remixproject/engine'
+import { Provider } from '@remix-ui/run-tab-environment'
 
 function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
   const widgetInitializer = plugin.getWidgetState ? plugin.getWidgetState() : null
@@ -170,10 +171,36 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
 
     plugin.on('filePanel', 'setWorkspace', async () => {
       try {
-        await plugin.changeExecutionContext({ context: 'vm-osaka' })
+        let config: any = {}
+        try {
+          const configContent = await plugin.call('fileManager', 'readFile', 'remix.config.json')
+          config = JSON.parse(configContent)
+        } catch(e) {
+
+        }
+
+        if (config.editor && config.editor.environment){
+          await plugin.changeExecutionContext({ context: config.editor.environment })
+        } else {
+          await plugin.changeExecutionContext({ context: 'vm-osaka' })
+        }
       } catch (e) {
         console.error(e)
       }
+    })
+
+    plugin.on('udappEnv', 'providersChanged', async (provider: Provider) => {
+      let config: any = {}
+      try {
+        const configContent = await plugin.call('fileManager', 'readFile', 'remix.config.json')
+        config = JSON.parse(configContent)
+      } catch (e) {
+        // File doesn't exist, create new config
+      }
+
+      config.editor = config.editor || {}
+      config.editor.environment = provider.name
+      await plugin.call('fileManager', 'writeFile', 'remix.config.json', JSON.stringify(config, null, 2))
     })
 
     // Cleanup function to remove event listeners when component unmounts
@@ -189,6 +216,7 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
       })
       plugin.off('manager', 'pluginActivated')
       plugin.off('filePanel', 'setWorkspace')
+      plugin.off('udappEnv', 'providersChanged')
     }
   }, [])
 
