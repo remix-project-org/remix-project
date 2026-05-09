@@ -19,6 +19,26 @@ import { SignMessagePrompt, SignedMessagePrompt } from '../components/signMessag
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { DeployedContract } from '../../../../run-tab-deployed-contracts/src/lib/types'
 
+export const getUnpinnedContractCount = (
+  deployedContractsCount: number,
+  pinnedContractsCount: number
+): number => {
+  return Math.max(deployedContractsCount - pinnedContractsCount, 0)
+}
+
+const runUnpinnedContractDebugChecks = () => {
+  console.assert(getUnpinnedContractCount(1, 0) === 1, 'Expected 1 unpinned contract')
+  console.assert(getUnpinnedContractCount(2, 1) === 1, 'Expected 1 unpinned contract')
+  console.assert(getUnpinnedContractCount(1, 1) === 0, 'Expected 0 unpinned contracts')
+  console.assert(getUnpinnedContractCount(0, 0) === 0, 'Expected 0 unpinned contracts')
+  console.assert(getUnpinnedContractCount(1, 2) === 0, 'Expected count to never go below 0')
+  console.log('Unpinned contract debug checks finished for envPortraitView.tsx')
+}
+
+if (process.env.NODE_ENV === 'development') {
+  runUnpinnedContractDebugChecks()
+}
+
 function EnvironmentPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EnvAppContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
