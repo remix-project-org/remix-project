@@ -19,17 +19,22 @@ export const EnvCategoryUI: React.FC<EnvCategoryUIProps> = ({ isOpen, onToggle }
   const [provider, setProvider] = useState<Provider | null>(null)
   const [enforceSelect, setEnforceSelect] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string>(null)
+  const [deployedContracts, setDeployedContracts] = useState(0)
 
   const handleCategorySelection = async (provider: Provider) => {
     trackMatomoEvent?.({ category: 'udapp', action: 'categorySelected', name: provider.displayName, isClick: true })
     if(provider.name && selectedOption === provider.name) return
     const deployCount = widgetState.deployedContractsCount
-    if(deployCount > 0){
-      const confirm = window.confirm(`You may lose unpinned contracts on environment change. Continue?`)
-    } else {
-      const confirm = true
+    var confirmEnv
+    if(deployCount > deployedContracts){
+      const count = deployCount - deployedContracts
+      confirmEnv = window.confirm(`You have ${count} unpinned contract(s) that may be lost on environment change. Continue?`)
     }
-    if(confirm) {
+    else{
+      confirmEnv = true
+    }
+
+    if(confirmEnv) {
       dispatch({ type: 'CLEAR_ALL_ACCOUNTS', payload: null })
       await setExecutionContext(provider, plugin, dispatch)
       setEnforceSelect(false)
@@ -60,6 +65,9 @@ export const EnvCategoryUI: React.FC<EnvCategoryUIProps> = ({ isOpen, onToggle }
     <Dropdown
       show={isOpen}
       onToggle={(willOpen) => {
+        plugin.call('udappDeployedContracts', 'getDeployedContracts').then(val => {
+              setDeployedContracts(val.filter((c) => c.isPinned).length);
+              })
         if (willOpen) {
           trackMatomoEvent?.({ category: 'udapp', action: 'categoryDropdownOpen', name: provider?.category || 'category' })
         }
