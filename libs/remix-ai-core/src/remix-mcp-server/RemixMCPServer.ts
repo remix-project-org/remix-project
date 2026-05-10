@@ -46,6 +46,7 @@ import { createFileManagementTools } from './handlers/FileManagementHandler';
 import { createDeploymentTools } from './handlers/DeploymentHandler';
 import { createDebuggingTools } from './handlers/DebuggingHandler';
 import { createCodeAnalysisTools } from './handlers/CodeAnalysisHandler';
+import { createAuditorAnalysisTools } from './handlers/AuditorAnalyserHandler';
 import { createChartJsTools } from './handlers/ChartJsHandler';
 import { createTutorialsTools } from './handlers/TutorialsHandler';
 import { createAmpTools } from './handlers/AmpHandler';
@@ -831,9 +832,13 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       const debuggingTools = createDebuggingTools();
       this._tools.registerBatch(debuggingTools);
 
-      // Register debugging tools
+      // Register code analyser tools
       const codeAnalysisTools = createCodeAnalysisTools();
       this._tools.registerBatch(codeAnalysisTools);
+
+      // Register code auditor tools
+      const codeAuditorTools = createAuditorAnalysisTools();
+      this._tools.registerBatch(codeAuditorTools);
 
       // Register tutorial tools
       const tutorialTools = createTutorialsTools();

@@ -61,7 +61,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   showOllamaModelSelector,
   selectedOllamaModel,
   modelSelectorBtnRef,
-  autoModeEnabled
+  autoModeEnabled,
   handleLoadSkills
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)

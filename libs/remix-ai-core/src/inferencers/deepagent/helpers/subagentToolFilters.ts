@@ -22,6 +22,8 @@ export function getBasicFileToolsForGasOptimizer(tools: DynamicStructuredTool[])
 
 export function getCoordinationToolsForComprehensiveAuditor(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const coordinationToolNames: string[] = [
+    'auditor_analyse',
+    'slither_scan',
   ]
 
   const coordinationTools = tools.filter(tool =>
@@ -201,6 +203,22 @@ export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): Dynami
     !conversionToolNames.has(tool.name)
   )
   return filteredTools
+}
+
+export function getFileOperationTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const fileOperationToolNames = [
+    'directory_list',
+    'read_file_chunk', 
+    'grep_file'
+  ]
+
+  // Return tools that start with 'file_' or are in the specific list
+  const fileOperationTools = tools.filter(tool => 
+    tool.name.startsWith('file_') || 
+    fileOperationToolNames.includes(tool.name)
+  )
+
+  return fileOperationTools
 }
 
 export function filterOutFileOperationTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {

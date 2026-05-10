@@ -29,7 +29,8 @@ import {
   getEtherscanToolsForEtherscanSpecialist,
   getAlchemyToolsForAlchemySpecialist,
   getTheGraphToolsForTheGraphSpecialist,
-  getCircleToolsForCircleSpecialist
+  getCircleToolsForCircleSpecialist,
+  getFileOperationTools
 } from './helpers/subagentToolFilters'
 
 export interface SubagentConfigItem {
@@ -52,7 +53,9 @@ export function buildSubagentConfigs(
   const circleTools = getCircleToolsForCircleSpecialist(tools)
   const basicMcpTools = getBasicMcpToolsForSecurityAuditor(tools)
   const basicFileTools = getBasicFileToolsForGasOptimizer(tools)
-  const coordinationTools = getCoordinationToolsForComprehensiveAuditor(tools)
+  const baseCoordinationTools = getCoordinationToolsForComprehensiveAuditor(tools)
+  const fileOperationTools = getFileOperationTools(tools)
+  const coordinationTools = [...baseCoordinationTools, ...fileOperationTools]
   const educationTools = getEducationToolsForWeb3Educator(tools)
   const debugTools = getDebugToolsForDebugSpecialist(tools)
   const solidityTools = getSolidityToolsForSolidityEngineer(tools)
