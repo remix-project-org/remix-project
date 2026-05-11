@@ -2,7 +2,6 @@ import { SubAgent, CompiledSubAgent } from 'deepagents'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import {
-  SECURITY_AUDITOR_SUBAGENT_PROMPT,
   CODE_REVIEWER_SUBAGENT_PROMPT,
   FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
   ETHERSCAN_SUBAGENT_PROMPT,
@@ -15,7 +14,8 @@ import {
   DEBUG_SPECIALIST_SUBAGENT_PROMPT,
   SOLIDITY_ENGINEER_SUBAGENT_PROMPT,
   WEB_SEARCH_SUBAGENT_PROMPT,
-  CIRCLE_SUBAGENT_PROMPT
+  CIRCLE_SUBAGENT_PROMPT,
+  SECURITY_ANALYSIS_PROMPT
 } from './prompts/system/lightPrompts'
 import {
   getBasicMcpToolsForSecurityAuditor,
@@ -78,11 +78,11 @@ export function buildSubagentConfigs(
       description: 'Specializes in searching and retrieving information from web sources.'
     },
     {
-      name: 'Security Auditor',
-      systemPrompt: SECURITY_AUDITOR_SUBAGENT_PROMPT,
+      name: 'Security Analyst',
+      systemPrompt: SECURITY_ANALYSIS_PROMPT,
       model,
       tools: basicMcpTools,
-      description: 'Specializes in auditing and reviewing code for security vulnerabilities.'
+      description: 'Specializes reviewing code for security vulnerabilities.'
     },
     {
       name: 'Gas Optimizer',

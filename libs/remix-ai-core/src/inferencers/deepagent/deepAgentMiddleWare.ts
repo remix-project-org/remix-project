@@ -92,7 +92,7 @@ const shortTaskDescription = `Launch ephemeral subagents for complex, isolated, 
 ## Agent Types
 - general-purpose — all tools; research, multi-step tasks, broad searches
 - Solidity Engineer — write/optimize Solidity
-- Security Auditor — vulnerability review
+- Security Analysis — vulnerability review
 - Gas Optimizer — gas usage tuning
 - Code Reviewer — code quality feedback
 - Comprehensive Auditor — full contract audits
