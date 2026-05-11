@@ -116,13 +116,13 @@ export class SidePanel extends AbstractPanel {
     this.on('menuicons', 'showContent', (name) => {
       if (!this.plugins[name]) return
 
-      // Read the saved state from localStorage to check if panel should stay hidden
       const panelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
       const savedIsHidden = panelStates.leftSidePanel?.isHidden
+      const savedPluginName = panelStates.leftSidePanel?.pluginProfile?.name
 
-      // If panel is currently hidden AND it was intentionally hidden (saved in localStorage),
-      // just load content without showing the panel (this happens during initialization)
-      if (this.isHidden && savedIsHidden === true) {
+      // Only respect hidden state if trying to open the SAME plugin that was active when panel was closed
+      // This allows opening panel with a DIFFERENT plugin (like clicking "Learn More" to open helpPlugin)
+      if (this.isHidden && savedIsHidden === true && savedPluginName === name) {
         this.showContent(name)
         return
       }
@@ -130,6 +130,10 @@ export class SidePanel extends AbstractPanel {
       // Otherwise, force show the panel if it's hidden
       if (this.isHidden) {
         this.isHidden = false
+
+        // Immediately remove d-none class for instant visual feedback
+        const sidePanel = document.querySelector('#side-panel')
+        sidePanel?.classList.remove('d-none')
 
         // Update localStorage
         if (!panelStates.leftSidePanel) panelStates.leftSidePanel = {}
