@@ -1,9 +1,7 @@
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 
 export function getBasicMcpToolsForSecurityAuditor(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
-  const basicToolNames = [
-    'slither_scan'
-  ]
+  const basicToolNames = []
 
   const basicTools = tools.filter(tool =>
     basicToolNames.includes(tool.name)
