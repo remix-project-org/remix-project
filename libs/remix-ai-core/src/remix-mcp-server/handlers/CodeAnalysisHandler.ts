@@ -60,7 +60,7 @@ export class SlitherHandler extends BaseToolHandler {
 
       const compilationResult: CompilerAbstract = await plugin.call('compilerArtefacts' as any, 'getCompilerAbstract', args.filePath)
       if (!compilationResult || !compilationResult.source || !compilationResult.source.sources) {
-        return this.createErrorResult('No compilation result available for the specified file path');
+        return this.createErrorResult('No compilation result available for the specified file path. Please compile the contract first.');
       }
 
       const compilerConfig = await plugin.call('solidity' as any , 'getCurrentCompilerConfig');
