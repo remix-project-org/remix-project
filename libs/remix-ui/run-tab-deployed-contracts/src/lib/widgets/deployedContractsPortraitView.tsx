@@ -299,11 +299,11 @@ export default function DeployedContractsPortraitView() {
               <FormattedMessage id="udapp.cancel" defaultMessage="Cancel" />
             </button>
             <button
-              className="btn btn-sm btn-danger text-light flex-fill"
+              className="btn btn-sm btn-danger flex-fill"
               onClick={handleConfirmClearAll}
               data-id="confirmClearAll"
             >
-              <FormattedMessage id="udapp.yesClearAll" defaultMessage="Yes clear all" />
+              <FormattedMessage id="udapp.yesClearAll" defaultMessage="Yes, Clear All" />
             </button>
           </div>
         </div>
