@@ -1,4 +1,4 @@
-import { DeepAgentInferencer } from '@remix/remix-ai-core'
+import { CONVERSATION_THREAD_PREFIX, DeepAgentInferencer } from '@remix/remix-ai-core'
 import type { IRemixAIPlugin, ToolApprovalResponse } from './types'
 import type { DeepAgentEventBridge } from './DeepAgentEventBridge'
 import type { MCPServerManager } from './MCPServerManager'
@@ -135,7 +135,7 @@ export class DeepAgentManager {
    */
   setThread(conversationId: string): void {
     const plugin = this.deps.plugin
-    const threadId = `remix-conv-${conversationId}`
+    const threadId = `${CONVERSATION_THREAD_PREFIX}${conversationId}`
 
     if (plugin.deepAgentInferencer) {
       plugin.deepAgentInferencer.setSessionThreadId(threadId)

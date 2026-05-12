@@ -33,6 +33,7 @@ import { createModelInstance } from './ModelFactory'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
 import { langSmithTracing } from './LangSmithTracing'
+import { CONVERSATION_THREAD_PREFIX } from '@remix/remix-ai-core'
 
 export class DeepAgentInferencer implements ICompletions, IGeneration {
   private plugin: Plugin
@@ -53,7 +54,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private streamEventHandler: StreamEventHandler
 
   private static generateThreadId(): string {
-    return `remix-session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+    return CONVERSATION_THREAD_PREFIX + `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
   }
 
   private resetSessionThread(): void {
