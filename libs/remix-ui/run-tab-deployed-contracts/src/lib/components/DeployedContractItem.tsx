@@ -674,21 +674,21 @@ Before generating, please ask me about my design preferences first.`
                             className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between"
                             style={{
                               backgroundColor: 'var(--custom-onsurface-layer-3)',
-                              border: '1px solid var(--custom-onsurface-layer-4)',
+                              border: '1px solid var(--bs-border-color)',
                               color: 'var(--dark/text-secondary, #d5d7e3)',
                               padding: '8px 12px'
                             }}
                             icon="fas fa-caret-down"
                             useDefaultIcon={false}
                           >
-                            <div className="d-flex align-items-center gap-1 flex-fill text-start">
-                              <span style={{ color: 'var(--text-tertiary, #a2a3bd)' }}>Select a function to interact with...</span>
+                            <div className="d-flex align-items-center gap-1" style={{ flex: '1', minWidth: 0 }}>
+                              <span style={{ color: 'var(--text-tertiary, #a2a3bd)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Select a function to interact with...</span>
                             </div>
                           </Dropdown.Toggle>
                           <Dropdown.Menu
                             style={{
                               backgroundColor: 'var(--custom-onsurface-layer-2)',
-                              border: '1px solid var(--custom-onsurface-layer-4)',
+                              border: '1px solid var(--bs-border-color)',
                               maxHeight: '240px',
                               overflowY: 'auto',
                               width: '100%',
@@ -697,7 +697,7 @@ Before generating, please ask me about my design preferences first.`
                           >
                             <div style={{
                               padding: '8px',
-                              borderBottom: '1px solid var(--custom-onsurface-layer-4)',
+                              borderBottom: '1px solid var(--bs-border-color)',
                               backgroundColor: 'var(--custom-onsurface-layer-2)'
                             }}>
                               <input
@@ -712,7 +712,7 @@ Before generating, please ask me about my design preferences first.`
                                 onClick={(e) => e.stopPropagation()}
                                 style={{
                                   backgroundColor: 'var(--custom-onsurface-layer-3)',
-                                  border: '1px solid var(--custom-onsurface-layer-4)',
+                                  border: '1px solid var(--bs-border-color)',
                                   color: 'var(--dark/text-secondary, #d5d7e3)',
                                   fontSize: '11px'
                                 }}
