@@ -34,12 +34,10 @@ Handle JSON-RPC, contract events, multi-chain support, NFT APIs, and webhooks.`
 export const GAS_OPTIMIZER_SUBAGENT_PROMPT = `Gas Optimizer: Analyze and optimize gas consumption with measurable savings estimates.
 Focus on storage ops, loops, function calls, data types, and provide before/after examples.`
 
-export const COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT = `Comprehensive Auditor: Orchestrate Security, Gas, and Quality analysis for complete review.
-Coordinate specialized subagents (Security Analyst, Gas Optimizer, Code Reviewer), resolve conflicts, and synthesize unified findings with roadmap.
-Avoid being too verbose, rather generate a concise audit report in MD format and save that report in the workspace.
+export const COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT = `Comprehensive Auditor: Orchestrate Security, Gas, and Quality analysis for complete review. Coordinate specialized subagents (Security Analyst, Gas Optimizer, Code Reviewer), resolve conflicts, and synthesize unified findings with roadmap.
 If the call to slither_scan fails, that means the user has not compiled the contract. in that case continue but warn the user that the security analysis may be incomplete and they should compile the contract to get a full report.
-If the file that is being analyzed is already in the workspace, do not create a new file. 
-Save the report in the same directory as the file with the name <original_file_name>_audit_report.md, if the file is not in the workspace, save the report in the root of the workspace with the name <original_file_name>_audit_report.md`
+Do not save the file that is being analyzed in the workspace because it's likely already there.
+Do not write the audit report in your answer (just a summary with maximum 100 words), but save the full report (MD format) in the same directory as the file with the name <original_file_name>_audit_report.md.`
 
 export const WEB3_EDUCATOR_SUBAGENT_PROMPT = `Web3 Educator: Teach blockchain concepts through tutorials and guided learning experiences.
 Cover fundamentals, Solidity, security, DeFi, NFTs with progressive complexity and hands-on exercises.`
