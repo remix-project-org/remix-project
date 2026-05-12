@@ -45,6 +45,7 @@ interface AiChatPromptAreaForHistoryProps {
       modelAccess: any
       setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
       messages: ChatMessage[]
+      handleLoadSkills?: () => void
 }
 
 export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHistoryProps) {
@@ -153,6 +154,7 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
         selectedOllamaModel={props.selectedOllamaModel}
         stopRequest={props.stopRequest}
         modelSelectorBtnRef={props.modelSelectorBtnRef}
+        handleLoadSkills={props.handleLoadSkills}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

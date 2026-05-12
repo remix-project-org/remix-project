@@ -74,6 +74,7 @@
   "home.gistTooltip": "Open Gist repo",
   "home.newFileTooltip": "Add a new file to a Workspace",
   "home.createNewWorkspace": "Create a new Workspace",
+  "home.loadSkills": "Choose AI Skills",
   "home.startLearning": "Start Learning",
   "home.exploreAllPlugins": "Explore all plugins",
   "home.maintainedByRemix": "Maintained by Remix",
@@ -101,5 +102,6 @@
   "home.templateNFTTitle": "NFT / ERC721",
   "home.templateNFTDesc": "Create a new ERC721 token using this template.",
   "home.templateMultiSigTitle": "MultiSig",
-  "home.templateMultiSigDesc": "Create a new MultiSig wallet using this template."
+  "home.templateMultiSigDesc": "Create a new MultiSig wallet using this template.",
+  "home.loadSkills": "Load Skills"
 }

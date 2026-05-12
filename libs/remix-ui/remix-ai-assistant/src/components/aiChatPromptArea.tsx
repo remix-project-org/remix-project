@@ -45,6 +45,7 @@ interface AiChatPromptAreaProps {
     modelAccess: any
     setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
     messages: ChatMessage[]
+    handleLoadSkills?: () => void
 }
 
 export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
@@ -155,6 +156,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         selectedOllamaModel={props.selectedOllamaModel}
         modelSelectorBtnRef={props.modelSelectorBtnRef}
         stopRequest={props.stopRequest}
+        handleLoadSkills={props.handleLoadSkills}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

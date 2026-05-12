@@ -6,6 +6,7 @@ import { ChatMessage, RemixUiRemixAiAssistant, RemixUiRemixAiAssistantHandle, Co
 import { EventEmitter } from 'events'
 import { trackMatomoEvent } from '@remix-api'
 import { ChatHistory, ChatHistoryStorageManager, IndexedDBChatHistoryBackend } from '@remix/remix-ai-core'
+import { appActionTypes, AppAction } from '@remix-ui/app'
 
 const profile = {
   name: 'remixaiassistant',
@@ -25,6 +26,7 @@ const profile = {
 export class RemixAIAssistant extends ViewPlugin {
   element: HTMLDivElement
   dispatch: React.Dispatch<any> = () => { }
+  appStateDispatch: React.Dispatch<AppAction> = () => { }
   queuedMessage: { text: string, timestamp: number } | null = null
   event: any
   chatRef: React.RefObject<RemixUiRemixAiAssistantHandle>
@@ -368,6 +370,10 @@ export class RemixAIAssistant extends ViewPlugin {
     }
   }
 
+  setAppStateDispatch(appStateDispatch: React.Dispatch<AppAction>) {
+    this.appStateDispatch = appStateDispatch
+  }
+
   setDispatch(dispatch: React.Dispatch<any>) {
     this.dispatch = dispatch
     // Safety: if React wired up but initializeStorage was never called
@@ -457,6 +463,7 @@ export class RemixAIAssistant extends ViewPlugin {
         onActivity={this.handleActivity.bind(this)}
         ref={this.chatRef}
         plugin={this}
+        onOpenSkillsModal={() => this.appStateDispatch({ type: appActionTypes.showSkillsModal, payload: true })}
         isInitializing={state.isInitializing}
         initialMessages={this.history}
         onMessagesChange={(msgs) => { this.history = msgs }}

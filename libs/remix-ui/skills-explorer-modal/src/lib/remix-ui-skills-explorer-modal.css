@@ -1,0 +1,364 @@
+.skills-explorer-modal-background {
+  position: fixed;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.skills-explorer-modal-container {
+  border-radius: 10px;
+  display: flex;
+  box-shadow: 0 0 5px 5px rgba(0, 0, 0, 0.1);
+  flex-direction: column;
+  width: 70%;
+  max-width: 1000px;
+  min-width: 600px;
+  max-height: 90vh;
+}
+
+.skills-explorer-modal-close-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.skills-explorer-modal-close-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+}
+
+.skills-explorer-modal-close-button:hover,
+.skills-explorer-modal-close-button:focus,
+.skills-explorer-modal-close-button:active,
+.skills-explorer-modal-close-button:disabled,
+.skills-explorer-modal-close-button:focus-visible {
+  background-color: transparent;
+}
+
+.skills-explorer-modal-search-input {
+  background-image: url('search-icon.svg');
+  background-position: 10px 8px;
+  background-repeat: no-repeat;
+  color: var(--bs-light);
+}
+
+.skills-explorer-container {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.category-title {
+  color: #667;
+  padding-bottom: 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.category-description {
+  color: #667;
+  font-size: 0.9rem;
+}
+
+.skill-card {
+  width: calc(50% - 12px);
+  min-width: 280px;
+  max-width: 400px;
+  height: auto;
+  min-height: 120px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.skill-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  border-color: #667 !important;
+}
+
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.card-description {
+  font-size: 0.8rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.card-body {
+  flex: 1;
+}
+
+/* ========== Responsive Media Queries ========== */
+
+/* Responsive modal sizing */
+@media (max-width: 768px) {
+  .skills-explorer-modal-container {
+    min-width: 600px;
+    width: 95%;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .skills-explorer-modal-container {
+    width: 80%;
+    max-width: 800px;
+  }
+}
+
+@media (min-width: 1025px) {
+  .skills-explorer-modal-container {
+    width: 80%;
+    max-width: 1000px;
+  }
+}
+
+/* Skill cards: 1→2→3 column progression */
+@media (max-width: 768px) {
+  .skill-card {
+    width: 100%;
+    min-width: 250px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .skill-card {
+    width: calc(50% - 12px);
+    min-width: 280px;
+  }
+}
+
+@media (min-width: 1025px) {
+  .skill-card {
+    width: calc(33.333% - 16px);
+    min-width: 300px;
+    max-width: 400px;
+  }
+}
+
+/* Skills container responsive height */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .skills-explorer-container {
+    max-height: 500px;
+  }
+}
+
+@media (min-width: 1025px) {
+  .skills-explorer-container {
+    max-height: 550px;
+  }
+}
+
+/* Step-specific sizing */
+.confirm-skill-step,
+.downloading-skill-step {
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skills-explorer-modal-container:has(.confirm-skill-step),
+.skills-explorer-modal-container:has(.downloading-skill-step) {
+  height: 500px;
+  max-height: 500px;
+}
+/* ========== Fixed footer for Load Selected button ========== */
+
+.skills-explorer-modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-dark);
+}
+
+/* Make the modal use flex column so footer sticks to bottom */
+.skills-explorer-modal-container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== Card description ellipsis ========== */
+
+.skill-card {
+  height: 130px;
+  overflow: hidden;
+}
+
+.card-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ========== Tab Navigation ========== */
+
+.skills-explorer-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.skills-explorer-tab {
+  background: transparent;
+  border: none;
+  color: #667;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.2s ease;
+}
+
+.skills-explorer-tab:hover {
+  color: var(--bs-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.skills-explorer-tab.active {
+  color: var(--bs-primary);
+  border-bottom: 2px solid var(--bs-primary);
+  margin-bottom: -1px;
+}
+
+/* ========== Upload Dropzone ========== */
+
+.upload-skill-step {
+  padding: 1rem 0;
+}
+
+.upload-dropzone {
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.upload-dropzone:hover {
+  border-color: var(--bs-primary);
+  background: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.upload-dropzone.drag-over {
+  border-color: var(--bs-primary);
+  background: rgba(var(--bs-primary-rgb), 0.1);
+  transform: scale(1.01);
+}
+
+.upload-dropzone-text {
+  font-size: 1rem;
+  color: var(--bs-dark);
+}
+
+.upload-dropzone-hint {
+  color: #667;
+}
+
+/* ========== Upload Requirements ========== */
+
+.upload-requirements {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.requirements-title {
+  font-weight: 500;
+}
+
+.requirements-list {
+  margin-bottom: 0;
+  padding-left: 1.25rem;
+}
+
+.requirements-list li {
+  margin-bottom: 0.5rem;
+}
+
+.requirements-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* ========== Upload Preview ========== */
+
+.upload-preview-step {
+  padding: 1rem 0;
+}
+
+.upload-preview-details {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 1rem;
+  max-width: 500px;
+}
+
+.preview-item {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.preview-files {
+  padding-top: 0.5rem;
+}
+
+.files-list {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.files-list li {
+  padding: 0.25rem 0;
+  color: var(--bs-light);
+}
+
+.files-list code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
+/* ========== Uploading Step ========== */
+
+.uploading-skill-step {
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skills-explorer-modal-container:has(.uploading-skill-step) {
+  height: 500px;
+  max-height: 500px;
+}
+
+.skills-explorer-modal-container:has(.upload-preview-step) {
+  min-height: 500px;
+}
