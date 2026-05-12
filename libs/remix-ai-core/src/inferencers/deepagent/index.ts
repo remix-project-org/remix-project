@@ -103,3 +103,5 @@ export { buildSubagentConfigs, type SubagentConfigItem } from './SubagentConfig'
 export { StreamEventHandler, type TokenUsageState, type StreamProcessingResult } from './StreamEventHandler'
 
 export { InactivityTimeoutManager } from './InactivityTimeoutManager'
+
+export { LangSmithTracingManager, langSmithTracing } from './LangSmithTracing'
