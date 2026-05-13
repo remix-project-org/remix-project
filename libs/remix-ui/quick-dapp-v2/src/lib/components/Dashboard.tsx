@@ -29,7 +29,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [sortOrder, setSortOrder] = useState<string>('newest');
 
   const validDapps = useMemo(() => {
-    return dapps.filter((dapp: any) => dapp.config?.status !== 'creating');
+    // Show all dapps — 'creating'/'updating' ones will display with a processing overlay
+    return dapps;
   }, [dapps]);
 
   const availableNetworks = useMemo(() => {

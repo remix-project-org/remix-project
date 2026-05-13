@@ -21,6 +21,7 @@ interface AiChatPromptAreaForHistoryProps {
       setMcpEnhanced: React.Dispatch<React.SetStateAction<boolean>>
       availableModels: any[]
       selectedModel: any
+      autoModeEnabled: boolean
       handleModelSelection: (modelName: string) => void
       onLockedModelClick?: (modelId: string, modelName: string) => void
       input: string
@@ -45,11 +46,21 @@ interface AiChatPromptAreaForHistoryProps {
       modelAccess: any
       setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
       messages: ChatMessage[]
+      handleLoadSkills?: () => void
 }
 
 export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHistoryProps) {
   const modelList = useMemo(() => {
-    return props.availableModels.map(model => {
+    const autoModeOption = {
+      label: 'Auto Mode',
+      bodyText: 'Automatically select the best model based on your prompt',
+      icon: 'fa-solid fa-magic-wand-sparkles' as const,
+      stateValue: 'auto',
+      dataId: 'ai-model-auto',
+      isLocked: false
+    }
+
+    const modelOptions = props.availableModels.map(model => {
       const hasAccess = props.modelAccess.checkAccess(model.id)
       return {
         label: model.name,
@@ -60,6 +71,8 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
         isLocked: !hasAccess
       }
     })
+
+    return [autoModeOption, ...modelOptions]
   }, [props.availableModels, props.modelAccess.allowedModels])
 
   const handleLockedItemClick = (item: groupListType) => {
@@ -82,7 +95,7 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
           <GroupListMenu
             setChoice={props.handleModelSelection}
             setShowOptions={props.setShowModelSelector}
-            choice={props.selectedModelId}
+            choice={props.autoModeEnabled ? 'auto' : props.selectedModelId}
             groupList={modelList}
             onLockedItemClick={handleLockedItemClick}
           />
@@ -151,8 +164,10 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
         handleOllamaModelSelection={props.handleOllamaModelSelection}
         ollamaModels={props.ollamaModels}
         selectedOllamaModel={props.selectedOllamaModel}
+        autoModeEnabled={props.autoModeEnabled}
         stopRequest={props.stopRequest}
         modelSelectorBtnRef={props.modelSelectorBtnRef}
+        handleLoadSkills={props.handleLoadSkills}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

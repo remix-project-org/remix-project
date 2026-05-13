@@ -80,7 +80,6 @@ import { Matomo } from './app/plugins/matomo'
 import { DesktopClient } from './app/plugins/desktop-client'
 import { DesktopHost } from './app/plugins/electron/desktopHostPlugin'
 import { WalletConnect } from './app/plugins/walletconnect'
-import { AIDappGenerator } from './app/plugins/ai-dapp-generator'
 import { IndexedDbCachePlugin } from './app/plugins/IndexedDbCache'
 import { NotificationCenterPlugin } from './app/plugins/notification-center'
 import { FeedbackPlugin } from './app/plugins/feedback'
@@ -128,6 +127,7 @@ import Terminal from './app/panels/terminal'
 import TabProxy from './app/panels/tab-proxy.js'
 import BottomBarPanel from './app/components/bottom-bar-panel'
 import { TemplateExplorerModalPlugin } from './app/plugins/template-explorer-modal'
+import { SkillsExplorerModalPlugin } from './app/plugins/skills-explorer-modal'
 import { TxRunnerPlugin } from './app/plugins/txRunnerPlugin'
 
 // Tracking now handled by this.track() method using MatomoManager
@@ -177,6 +177,7 @@ class AppComponent {
   statusBar: StatusBar
   topBar: Topbar
   templateExplorerModal: TemplateExplorerModalPlugin
+  skillExplorerModal: SkillsExplorerModalPlugin
   remixAiAssistant: RemixAIAssistant
   settings: SettingsTab
   authPlugin: AuthPlugin
@@ -326,6 +327,7 @@ class AppComponent {
     }
 
     this.templateExplorerModal = new TemplateExplorerModalPlugin()
+    this.skillExplorerModal = new SkillsExplorerModalPlugin()
     // SERVICES
     // ----------------- gist service ---------------------------------
     this.gistHandler = new GistHandler()
@@ -382,9 +384,6 @@ class AppComponent {
 
     //---- matomo
     const matomo = new Matomo()
-
-    //---- AI DApp Generator
-    const aiDappGenerator = new AIDappGenerator()
 
     //---------------- Solidity UML Generator -------------------------
     const solidityumlgen = new SolidityUmlGen(appManager)
@@ -495,6 +494,7 @@ class AppComponent {
     const templateSelection = new TemplatesSelectionPlugin()
 
     const templateExplorerModal = this.templateExplorerModal
+    const skillExplorerModal = this.skillExplorerModal
 
     const walletConnect = new WalletConnect()
 
@@ -565,7 +565,6 @@ class AppComponent {
       git,
       pluginStateLogger,
       matomo,
-      aiDappGenerator,
       templateSelection,
       scriptRunnerUI,
       remixAI,
@@ -700,7 +699,7 @@ class AppComponent {
       this.accountPlugin,
       feedbackPlugin
     ])
-    this.engine.register([templateExplorerModal, this.topBar])
+    this.engine.register([templateExplorerModal, skillExplorerModal, this.topBar])
 
     this.layout.panels = {
       tabs: { plugin: tabProxy, active: true },
@@ -745,12 +744,11 @@ class AppComponent {
       'offsetToLineColumnConverter',
       'pluginStateLogger',
       'matomo',
-      'ai-dapp-generator',
       'indexedDbCache'
     ])
 
     await this.appManager.activatePlugin(['mainPanel', 'menuicons', 'tabs'])
-    await this.appManager.activatePlugin(['topbar', 'templateexplorermodal'])
+    await this.appManager.activatePlugin(['topbar', 'templateexplorermodal', 'skillsexplorermodal'])
     await this.appManager.activatePlugin(['statusBar'])
     // await this.appManager.activatePlugin(['remix-template-explorer-modal'])
     await this.appManager.activatePlugin(['bottomBar'])

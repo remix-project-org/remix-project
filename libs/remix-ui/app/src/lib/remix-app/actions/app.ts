@@ -24,7 +24,8 @@ export const enum appActionTypes {
   closeGenericModal = 'CLOSE_GENERIC_MODAL',
   showAiChatHistorySidebar = 'SHOW_AI_CHATHISTORY_SIDEBAR',
   toggleIsAiChatMaximized = 'TOGGLE_IS_AI_CHAT_MAXIMIZED',
-  closeAiChatHistorySidebar = 'CLOSE_AI_CHATHISTORY_SIDEBAR'
+  closeAiChatHistorySidebar = 'CLOSE_AI_CHATHISTORY_SIDEBAR',
+  showSkillsModal = 'SHOW_SKILLS_MODAL'
 }
 
 type AppPayload = {
@@ -36,10 +37,12 @@ type AppPayload = {
   [appActionTypes.setShowOverlayPanel]: boolean,
   [appActionTypes.setConnectedToDesktop]: desktopConnection,
   [appActionTypes.showGenericModal]: boolean,
+  [appActionTypes.showSkillsModal]: boolean,
   [appActionTypes.closeGenericModal]: boolean,
   [appActionTypes.showAiChatHistorySidebar]: boolean,
   [appActionTypes.toggleIsAiChatMaximized]: boolean,
-  [appActionTypes.closeAiChatHistorySidebar]: boolean
+  [appActionTypes.closeAiChatHistorySidebar]: boolean,
+  [appActionTypes.showSkillsModal]: boolean
 }
 
 export type AppAction = ActionMap<AppPayload>[keyof ActionMap<

@@ -90,7 +90,7 @@ export interface MCPConfig {
 export const defaultMCPConfig: MCPConfig = {
   version: '1.0.0',
   security: {
-    allowedFileTypes: ['sol', 'js', 'ts', 'json', 'md', 'txt', 'toml', 'yaml', 'yml', 'sql', 'jsx', 'tsx', 'abi'],
+    allowedFileTypes: ['sol', 'js', 'ts', 'json', 'md', 'txt', 'toml', 'yaml', 'yml', 'sql', 'jsx', 'tsx', 'abi', 'css', 'html', 'go', 'py', 'java', 'rb', 'php', 'rs', 'cpp', 'c', 'h', 'hpp'],
     blockedPaths: ['.env', '.git', 'node_modules', '.ssh', 'private', 'secret'],
     allowedPaths: [],
     maxExecutionTime: 30000,
@@ -119,7 +119,7 @@ export const defaultMCPConfig: MCPConfig = {
     toolValidation: {},
     fileOperations: {
       maxFileSize: 10 * 1024 * 1024, // 10MB
-      allowedExtensions: ['sol', 'js', 'ts', 'json', 'md', 'txt', 'toml', 'yaml', 'yml', 'sql', 'jsx', 'tsx', 'abi'],
+      allowedExtensions: ['sol', 'js', 'ts', 'json', 'md', 'txt', 'toml', 'yaml', 'yml', 'sql', 'jsx', 'tsx', 'abi', 'css', 'html', 'go', 'py', 'java', 'rb', 'php', 'rs', 'cpp', 'c', 'h', 'hpp'],
       blockedPatterns: ['**/node_modules/**', '**/.git/**']
     },
     networkOperations: {

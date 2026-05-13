@@ -51,6 +51,10 @@ import { createTutorialsTools } from './handlers/TutorialsHandler';
 import { createAmpTools } from './handlers/AmpHandler';
 import { createMathUtilsTools } from './handlers/MathUtilsHandler';
 import { createFoundryHardhatTools } from './handlers/FoundryHardhatHandler';
+import { createCoordinationTools } from './handlers/CoordinationHandler';
+import { createSkillTools } from './handlers/SkillLoaderHandler';
+import { createDAppGeneratorTools } from './handlers/DAppGeneratorHandler';
+import { createFigmaTools } from './handlers/FigmaHandler';
 
 // Import resource providers
 import { ProjectResourceProvider } from './providers/ProjectResourceProvider';
@@ -845,6 +849,9 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       const mathUtilsTools = createMathUtilsTools();
       this._tools.registerBatch(mathUtilsTools);
 
+      const coordinationTools = createCoordinationTools();
+      this._tools.registerBatch(coordinationTools);
+
       // Register Foundry and Hardhat tools
       if (isElectron()) {
         const foundryHardhatTools = createFoundryHardhatTools();
@@ -856,6 +863,22 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       const chartJsTools = createChartJsTools();
       this._tools.registerBatch(chartJsTools);
       */
+
+      // Register Skill Management tools
+      // skills can be added from the UI and can be dynamic.
+      /*
+      const skillTools = createSkillTools();
+      this._tools.registerBatch(skillTools);
+      */
+
+      // Register DApp Generator tools
+      const dappGeneratorTools = createDAppGeneratorTools();
+      this._tools.registerBatch(dappGeneratorTools);
+
+      // Register Figma tools
+      const figmaTools = createFigmaTools();
+      this._tools.registerBatch(figmaTools);
+
       const totalTools = this._tools.list().length;
 
     } catch (error) {

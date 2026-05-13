@@ -207,6 +207,27 @@ const settingsSections: SettingsSection[] = [
           type: 'custom' as const,
           customComponent: 'mcpServerManager'
         }]
+      },
+      {
+        title: 'settings.deepAgentSection',
+        options: [{
+          name: 'deepagent-config',
+          label: 'settings.deepAgentTitle',
+          description: 'settings.deepAgentDescription',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'langchain-api-key',
+            type: 'password'
+          }, {
+            name: 'deepagent-memory-backend',
+            type: 'text'
+          }],
+          footnote: {
+            text: 'settings.learnMoreDeepAgent',
+            link: 'https://docs.langchain.com/oss/javascript/deepagents/overview',
+            styleClass: 'text-primary'
+          }
+        }]
       }]
   },
   {

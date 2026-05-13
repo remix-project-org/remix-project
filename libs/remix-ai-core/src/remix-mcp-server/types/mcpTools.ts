@@ -25,7 +25,8 @@ export enum ToolCategory {
   ANALYSIS = 'analysis',
   WORKSPACE = 'workspace',
   TESTING = 'testing',
-  GIT = 'git'
+  GIT = 'git',
+  COORDINATION = 'coordination'
 }
 
 export interface AccountInfo {
@@ -262,6 +263,17 @@ export interface ImportProjectArgs {
 }
 
 /**
+ * Skill loader argument types
+ */
+export interface LoadSkillArgs {
+  skill_id: string;
+}
+
+export interface ListSkillsArgs {
+  // No parameters needed
+}
+
+/**
  * Tool result types
  */
 export interface FileOperationResult {
@@ -386,6 +398,26 @@ export interface AmpQueryResult<T = any> {
   rowCount: number;
   query: string;
   error?: string;
+}
+
+export interface LoadSkillResult extends FileOperationResult {
+  skill_id: string;
+  skill_name: string;
+  skill_description: string;
+  files_created: string[];
+  total_files: number;
+}
+
+export interface SkillInfo {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface ListSkillsResult {
+  success: boolean;
+  skills: SkillInfo[];
+  total_skills: number;
 }
 
 export interface RemixToolDefinition extends IMCPTool {

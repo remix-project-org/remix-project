@@ -20,6 +20,16 @@ export const AVAILABLE_MODELS: AIModel[] = [
     provider: 'mistralai',
     description: 'Fast and efficient for basic tasks',
     requiresAuth: false,
+    isDefault: false,
+    category: 'general',
+    capabilities: ['chat', 'code']
+  },
+  {
+    id: 'mistral-small-latest',
+    name: 'Mistral Small (Free)',
+    provider: 'mistralai',
+    description: 'Fast and efficient for basic tasks',
+    requiresAuth: false,
     isDefault: true,
     category: 'general',
     capabilities: ['chat', 'code']

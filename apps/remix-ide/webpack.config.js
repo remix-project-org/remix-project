@@ -105,7 +105,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     http: require.resolve('stream-http'),
     https: require.resolve('https-browserify'),
     constants: require.resolve('constants-browserify'),
-    os: false, //require.resolve("os-browserify/browser"),
+    os: require.resolve('os-browserify/browser'),
     timers: false, // require.resolve("timers-browserify"),
     zlib: require.resolve('browserify-zlib'),
     'assert/strict': require.resolve('assert/'),
@@ -126,6 +126,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     solc: 'solc',
     // Do not bundle Monaco: it's copied as static assets and loaded by @monaco-editor/react
     'monaco-editor': 'monaco'
+    // NOTE: @langchain packages (including @langchain/anthropic) MUST be bundled, not externalized
   }
 
   // uncomment this to enable react profiling
@@ -155,6 +156,8 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     'async-limiter': false,
     '@so-ric/colorspace': false,
     // 'rust-verkle-wasm$': path.resolve(__dirname, '../../node_modules/rust-verkle-wasm/web/run_verkle_wasm.js')
+    // Explicitly alias os to os-browserify for DeepAgent
+    'os': path.resolve(__dirname, '../../node_modules/os-browserify/browser.js')
   }
 
 
@@ -207,12 +210,97 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
   config.plugins.push(
     new webpack.DefinePlugin({
       WALLET_CONNECT_PROJECT_ID: JSON.stringify(process.env.WALLET_CONNECT_PROJECT_ID),
-      'process.env.NX_ENDPOINTS_URL': JSON.stringify(process.env.NX_ENDPOINTS_URL)
+      'process.env.NX_ENDPOINTS_URL': JSON.stringify(process.env.NX_ENDPOINTS_URL),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+      'process.version': JSON.stringify('v18.0.0'),
+      'process.versions': JSON.stringify({ node: '18.0.0' })
     })
   )
 
+  // Ignore node: prefix imports and provide fallbacks
   config.plugins.push(
-    new webpack.IgnorePlugin({ resourceRegExp: /^node:/ })
+    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+      const module = resource.request.replace(/^node:/, '')
+
+      // Map node: prefixed modules to their polyfills or empty modules
+      const replacements = {
+        'fs': 'fs-mock',
+        'fs/promises': 'fs-mock',
+        'child_process': 'child-process-mock',
+        'worker_threads': 'worker-threads-mock',
+        'perf_hooks': 'perf-hooks-mock',
+        'async_hooks': 'async-hooks-mock',
+        'path': 'path-browserify',
+        'os': 'os-browserify/browser',
+        'crypto': 'crypto-browserify',
+        'stream': 'stream-browserify',
+        'util': 'util/',
+        'buffer': 'buffer/',
+      }
+
+      if (replacements[module] === 'fs-mock') {
+        // Comprehensive fs mock with constants
+        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+          export const constants = {
+            O_RDONLY: 0,
+            O_WRONLY: 1,
+            O_RDWR: 2,
+            O_CREAT: 64,
+            O_EXCL: 128,
+            O_NOCTTY: 256,
+            O_TRUNC: 512,
+            O_APPEND: 1024,
+            O_DIRECTORY: 65536,
+            O_NOATIME: 262144,
+            O_NOFOLLOW: 131072,
+            O_SYNC: 1052672,
+            O_SYMLINK: 2097152,
+            O_DIRECT: 16384,
+            O_NONBLOCK: 2048,
+            F_OK: 0,
+            R_OK: 4,
+            W_OK: 2,
+            X_OK: 1
+          };
+          export const promises = {
+            readFile: async () => { throw new Error('fs not available in browser'); },
+            writeFile: async () => { throw new Error('fs not available in browser'); },
+            readdir: async () => { throw new Error('fs not available in browser'); },
+            stat: async () => { throw new Error('fs not available in browser'); },
+            mkdir: async () => { throw new Error('fs not available in browser'); },
+            rm: async () => { throw new Error('fs not available in browser'); },
+            unlink: async () => { throw new Error('fs not available in browser'); }
+          };
+          export default { constants, promises };
+        `)
+      } else if (replacements[module] === 'child-process-mock') {
+        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+          export const spawn = () => { throw new Error('child_process not available in browser'); };
+          export const fork = () => { throw new Error('child_process not available in browser'); };
+          export const exec = () => { throw new Error('child_process not available in browser'); };
+          export default { spawn, fork, exec };
+        `)
+      } else if (replacements[module] === 'worker-threads-mock') {
+        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+          export const Worker = class {};
+          export default { Worker };
+        `)
+      } else if (replacements[module] === 'perf-hooks-mock') {
+        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+          export const performance = { now: () => Date.now() };
+          export default { performance };
+        `)
+      } else if (replacements[module] === 'async-hooks-mock') {
+        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+          export class AsyncLocalStorage { constructor() {} run(store, callback, ...args) { return callback(...args); } getStore() { return undefined; } }
+          export const executionAsyncId = () => 0;
+          export const executionAsyncResource = () => ({});
+          export default { AsyncLocalStorage, executionAsyncId, executionAsyncResource };
+        `)
+      } else if (replacements[module]) {
+        resource.request = replacements[module]
+      }
+    })
   )
 
   // source-map loader

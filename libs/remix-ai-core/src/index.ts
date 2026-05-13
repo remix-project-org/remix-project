@@ -8,6 +8,7 @@ import { buildChatPrompt } from './prompts/promptBuilder'
 import { RemoteInferencer } from './inferencers/remote/remoteInference'
 import { OllamaInferencer } from './inferencers/local/ollamaInferencer'
 import { MCPInferencer } from './inferencers/mcp/mcpInferencer'
+import { DeepAgentInferencer } from './inferencers/deepagent/DeepAgentInferencer'
 import { RemixMCPServer, createRemixMCPServer } from './remix-mcp-server'
 import { isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost, resetOllamaHostOnSettingsChange } from './inferencers/local/ollama'
 import { FIMModelManager, FIMModelConfig, FIM_MODEL_CONFIGS } from './inferencers/local/fimModelConfig'
@@ -20,7 +21,7 @@ import { WeightedToolSelector, IChatMessage } from './services/weightedToolSelec
 export {
   ChatCommandParser,
   ModelType, ICompletions, IParams, IRemoteModel, buildChatPrompt,
-  RemoteInferencer, OllamaInferencer, MCPInferencer, RemixMCPServer, isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost,
+  RemoteInferencer, OllamaInferencer, MCPInferencer, DeepAgentInferencer, RemixMCPServer, isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost,
   FIMModelManager, FIMModelConfig, FIM_MODEL_CONFIGS, createRemixMCPServer,
   InsertionParams, CompletionParams, GenerationParams, AssistantParams,
   ChatEntry, AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,
@@ -39,3 +40,6 @@ export * from './agents/securityAgent'
 export * from './agents/contractAgent'
 export * from './agents/workspaceAgent'
 export * from './storage'
+export * from './inferencers/deepagent'
+export * from './types/deepagent'
+export * from './types/humanInTheLoop'

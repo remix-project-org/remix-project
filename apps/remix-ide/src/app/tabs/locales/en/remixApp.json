@@ -59,6 +59,7 @@
   "remixApp.aiChatPrompt.thegraph": "Give me a brief introduction to The Graph and how it can be used with RemixAI. Give me some examples prompts and if applicable show me how I could write prompts which could leverage The Graph with other mcp tools (like Etherscan, Alchemy, etc...). Do not write a wall of text, let me ask questions. Propose me a few directions moving forward.",
   "remixApp.aiChatPrompt.alchemy": "Give me a brief introduction to Alchemy and how I can use it with RemixAI. Give me some examples prompts and if applicable show me how I could write prompts which could leverage Alchemy with other mcp tools (like TheGraph, Etherscan, etc...). Do not write a wall of text, let me ask questions. Propose me a few directions moving forward.",
   "remixApp.aiChatPrompt.ethernews": "Fetch https://ethereal.news and sum it up. Propose me to detail a specific area.",
+  "remixApp.aiChatPrompt.createDapp": "I want to create a DApp frontend for a deployed smart contract. Please check what contracts are currently deployed using get_deployed_contracts, then help me generate a DApp using the generate_dapp tool.",
 
   "remixApp.ai.status.performingWorkspaceRequest": "Performing workspace request...",
   "remixApp.ai.status.fetchingRAGContext": "Fetching RAG context...",

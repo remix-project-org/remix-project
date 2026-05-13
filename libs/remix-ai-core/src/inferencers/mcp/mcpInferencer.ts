@@ -231,7 +231,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
     return this.legacyResourceSelection(enhancedParams);
   }
 
-  private async intelligentResourceSelection(prompt: string, mcpParams: IEnhancedMCPProviderParams): Promise<string> {
+  public async intelligentResourceSelection(prompt: string, mcpParams: IEnhancedMCPProviderParams): Promise<string> {
     try {
       // Analyze user intent
       const intent = await this.intentAnalyzer.analyzeIntent(prompt);

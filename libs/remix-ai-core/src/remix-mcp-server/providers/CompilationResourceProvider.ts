@@ -267,7 +267,7 @@ export class CompilationResourceProvider extends BaseResourceProvider {
         return this.createTextContent('compilation://errors', `Error getting compilation errors`);
       }
 
-      const errors = compilationResult.data.errors || []
+      const errors = compilationResult.data?.errors || []
       return this.createJsonContent('compilation://errors', errors);
     } catch (error) {
       return this.createTextContent('compilation://errors', `Error getting compilation errors: ${error.message}`);

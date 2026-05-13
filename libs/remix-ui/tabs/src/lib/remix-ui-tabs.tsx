@@ -7,7 +7,7 @@ import { FormattedMessage } from 'react-intl'
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs'
 import './remix-ui-tabs.css'
 import { QuickDappBanner } from './components/QuickDappBanner'
-import { AIRequestForm } from '@remix-ui/run-tab'
+// AIRequestForm import removed — DApp creation now goes through AI Assistant chatPipe
 import { values } from 'lodash'
 import { AppContext } from '@remix-ui/app'
 import { useAuth } from '@remix-ui/app'
@@ -619,169 +619,134 @@ export const TabsUI = (props: TabsUIProps) => {
 
   const handleQuickDappStartNow = async () => {
     const currentFile = tabsState.name
+    const currentFileName = currentFile?.split('/').pop() || ''
 
+    // Guard: Block DApp creation from within a DApp workspace
     try {
-      const instances = await props.plugin.call('udappDeployedContracts', 'getDeployedContracts') || []
+      const currentWs = await props.plugin.call('filePanel', 'getCurrentWorkspace')
+      if (currentWs?.name?.startsWith('dapp-')) {
+        props.plugin.call('notification', 'toast',
+          'DApp generation is not available from a DApp workspace. Please switch to your contract workspace first.'
+        )
+        return
+      }
+    } catch (e) { /* proceed if check fails */ }
 
-      const currentFileName = currentFile.split('/').pop()
+    // Build the richest context we can — silently, no modals
+    let contextParts: string[] = []
+    let instances: any[] = []
 
-      let matchingInstances = instances.filter((inst: any) => {
+    // 1. Gather deployed contracts silently
+    try {
+      instances = await props.plugin.call('udappDeployedContracts', 'getDeployedContracts') || []
+    } catch (e) {
+      console.warn('[QuickDapp] Could not fetch deployed contracts:', e)
+    }
+
+    // 2. Try to match contracts to the current file
+    let matchingInstances: any[] = []
+    if (currentFileName && instances.length > 0) {
+      matchingInstances = instances.filter((inst: any) => {
         const instFile = inst.contractData?.contract?.file || inst.filePath || ''
         return instFile && instFile.endsWith(currentFileName)
       })
-
       if (matchingInstances.length === 0) {
         const baseName = currentFileName.replace('.sol', '')
         matchingInstances = instances.filter((inst: any) =>
           baseName.toLowerCase().includes(inst.name?.toLowerCase())
         )
       }
-
-      if (matchingInstances.length === 0 && instances.length > 0) {
-        matchingInstances = instances
-      }
-
-      if (matchingInstances.length === 0) {
-        props.plugin.call('notification', 'modal', {
-          id: 'quick-dapp-no-instance',
-          title: 'No Deployed Contracts',
-          message: `No deployed contracts found for "${currentFileName}".\n\nWe'll compile your contract and take you to the Deploy & Run tab.\n\nPlease deploy to your desired network, then click "Start now" again.`,
-          modalType: 'confirm',
-          okLabel: 'Compile & Continue',
-          cancelLabel: 'Cancel',
-          okFn: async () => {
-            try {
-              const filePath = currentFile.indexOf('/') !== -1
-                ? currentFile.substr(currentFile.indexOf('/') + 1)
-                : currentFile
-              await props.plugin.call('solidity', 'compile', filePath)
-              await props.plugin.call('menuicons', 'select', 'udapp')
-            } catch (e) {
-              console.error('Compile error:', e)
-              props.plugin.call('notification', 'toast', 'Compilation failed. Please check your contract.')
-            }
-          },
-          cancelFn: () => {}
-        })
-      } else if (matchingInstances.length === 1) {
-        const inst = matchingInstances[0]
-        props.plugin.call('notification', 'modal', {
-          id: 'quick-dapp-confirm-instance',
-          title: 'Create DApp',
-          message: `Deployed contract found:\n\n• ${inst.name} at ${inst.address}\n\nCreate a DApp with this contract?`,
-          modalType: 'confirm',
-          okLabel: 'Create DApp',
-          cancelLabel: 'Cancel',
-          okFn: async () => {
-            await openSparkleModal(inst)
-          },
-          cancelFn: () => {}
-        })
-      } else {
-        let selectedIndex = 0
-
-        const InstanceSelector = () => (
-          <div>
-            <div className="mb-3">Deployed contracts from "{currentFileName}":</div>
-            <select
-              className="form-select"
-              defaultValue="0"
-              onChange={(e) => { selectedIndex = parseInt(e.target.value) }}
-            >
-              {matchingInstances.map((inst: any, idx: number) => (
-                <option key={idx} value={idx}>
-                  {inst.name} at {inst.address.slice(0, 10)}...{inst.address.slice(-8)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )
-
-        props.plugin.call('notification', 'modal', {
-          id: 'quick-dapp-select-instance',
-          title: 'Select Contract Instance',
-          message: <InstanceSelector />,
-          modalType: 'custom',
-          okLabel: 'Create DApp',
-          cancelLabel: 'Cancel',
-          okFn: async () => {
-            await openSparkleModal(matchingInstances[selectedIndex])
-          },
-          cancelFn: () => {}
-        })
-      }
-    } catch (error) {
-      console.error('Quick DApp error:', error)
-      props.plugin.call('notification', 'toast', 'Error checking deployed contracts')
     }
-  }
 
-  const openSparkleModal = async (instance: any) => {
-    try {
-      const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', instance.name)
-
-      const descriptionObj: any = await new Promise((resolve, reject) => {
-        let getFormData: () => Promise<any>
-
-        const modalContent = {
-          id: 'generate-website-ai-banner',
-          title: 'Generate a DApp UI with AI',
-          message: <AIRequestForm onMount={(fn) => { getFormData = fn }} />,
-          modalType: 'custom',
-          okLabel: 'Generate',
-          cancelLabel: 'Cancel',
-          okFn: async () => {
-            if (getFormData) {
-              try {
-                const formData = await getFormData()
-                resolve(formData)
-              } catch (e) {
-                reject(e)
-              }
-            } else {
-              reject(new Error('Form data not initialized'))
-            }
-          },
-          cancelFn: () => reject(new Error('Canceled')),
-          hideFn: () => reject(new Error('Hide'))
-        }
-        props.plugin.call('notification', 'modal', modalContent)
-      })
-
-      const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
-      const providerName = providerObject?.name || 'vm-unknown'
-      const isVM = providerName.startsWith('vm')
-
+    // 3. Build context-aware prompt
+    if (matchingInstances.length === 1) {
+      // Best case: exactly one matching deployed contract
+      const inst = matchingInstances[0]
+      const abi = inst.abi || inst.contractData?.abi || []
       let chainId: string
-      if (isVM) {
-        chainId = providerName
-      } else {
-        const network = await props.plugin.call('network', 'detectNetwork')
-        chainId = network?.id?.toString() || providerName
+      try {
+        const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+        const providerName = providerObject?.name || 'vm-unknown'
+        if (providerName.startsWith('vm')) {
+          chainId = providerName
+        } else {
+          const network = await props.plugin.call('network', 'detectNetwork')
+          chainId = network?.id?.toString() || providerName
+        }
+      } catch (e) {
+        chainId = 'unknown'
       }
 
-      await props.plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
-      await props.plugin.call('quick-dapp-v2', 'createDapp', {
-        description: descriptionObj.text,
-        contractName: instance.name,
-        address: instance.address,
-        abi: instance.abi || instance.contractData?.abi,
-        chainId: chainId,
-        compilerData: data,
-        isBaseMiniApp: descriptionObj.isBaseMiniApp,
-        image: descriptionObj.image,
-        figmaUrl: descriptionObj.figmaUrl,
-        figmaToken: descriptionObj.figmaToken,
-        sourceFilePath: tabsState.name
-      })
+      contextParts.push(
+        `I want to create a DApp frontend for my deployed contract. Here are the contract details you'll need when calling generate_dapp:`,
+        ``,
+        `contractName: ${inst.name}`,
+        `contractAddress: ${inst.address}`,
+        `chainId: ${chainId}`,
+        `contractAbi: ${JSON.stringify(abi)}`,
+        ``,
+        `Before generating, please ask me about my design preferences first.`
+      )
+    } else if (matchingInstances.length > 1) {
+      // Multiple matching contracts — let AI ask the user to choose
+      const contractList = matchingInstances.map((inst: any, i: number) =>
+        `${i + 1}) ${inst.name} at ${inst.address}`
+      ).join('\n')
+      contextParts.push(
+        `I want to create a DApp frontend. I have multiple deployed contracts from "${currentFileName}":`,
+        ``,
+        contractList,
+        ``,
+        `Please ask me which contract I'd like to use, then proceed with the DApp generation workflow.`
+      )
+    } else if (instances.length > 0) {
+      // No match for current file but other contracts exist
+      const contractList = instances.map((inst: any, i: number) =>
+        `${i + 1}) ${inst.name} at ${inst.address}`
+      ).join('\n')
+      contextParts.push(
+        `I want to create a DApp frontend. I have "${currentFileName}" open but no deployed contracts matching it.`,
+        `However, I have these other deployed contracts:`,
+        ``,
+        contractList,
+        ``,
+        `Please ask me which contract to use, or if I'd like to compile and deploy "${currentFileName}" first.`
+      )
+    } else {
+      // No deployed contracts at all — AI will guide compile→deploy→generate
+      const filePath = currentFile?.indexOf('/') !== -1
+        ? currentFile.substr(currentFile.indexOf('/') + 1)
+        : currentFile
+      contextParts.push(
+        `I want to create a DApp frontend for my Solidity contract.`,
+        `I currently have "${currentFileName}" open at path "${filePath}", but no contracts are deployed yet.`,
+        ``,
+        `Please help me through the full process:`,
+        `1. Compile "${filePath}"`,
+        `2. Deploy the compiled contract`,
+        `3. Then generate a DApp frontend for it`,
+        ``,
+        `Start by compiling the contract.`
+      )
+    }
 
-      await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+    const prompt = contextParts.join('\n')
 
+    // 4. Activate AI Assistant and send
+    try {
+      await props.plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
+    } catch (e) { /* may already be active */ }
+    try {
+      await props.plugin.call('rightSidePanel', 'focusPanel')
+    } catch (e) { /* best-effort */ }
+
+    console.log('[QuickDapp] Start Now → chatPipe (no modal), prompt length:', prompt.length)
+    try {
+      await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+      console.log('[QuickDapp] chatPipe returned')
     } catch (error) {
-      if (error.message !== 'Canceled' && error.message !== 'Hide') {
-        console.error('Error generating DApp:', error)
-        props.plugin.call('notification', 'toast', 'Error generating DApp')
-      }
+      console.error('[QuickDapp] chatPipe error:', error)
+      props.plugin.call('notification', 'toast', 'Error opening AI Assistant. Please try again.')
     }
   }
 

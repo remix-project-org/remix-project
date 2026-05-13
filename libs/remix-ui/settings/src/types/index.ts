@@ -124,6 +124,9 @@ export interface SettingsState {
   'billing-section': ConfigState,
   'ollama-config': ConfigState,
   'ollama-endpoint': ConfigState,
+  'deepagent-config': ConfigState,
+  'langchain-api-key': ConfigState,
+  'deepagent-memory-backend': ConfigState,
   toaster: ConfigState
 }
 export interface SettingsActionPayloadTypes {

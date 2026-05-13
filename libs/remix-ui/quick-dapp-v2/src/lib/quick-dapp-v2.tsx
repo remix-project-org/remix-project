@@ -64,6 +64,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
         return
       }
       try {
+        console.log('[QuickDapp] handleCreateDapp called', { contractName: payload.contractName || payload.name });
         const contractData = {
           address: payload.address,
           name: payload.contractName || payload.name || 'Untitled',
@@ -84,21 +85,11 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
         dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: newDapp.slug, isProcessing: true } });
         dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
 
-        await plugin.call('ai-dapp-generator', 'generateDapp', {
-          description: payload.description,
-          address: payload.address,
-          abi: payload.abi,
-          chainId: payload.chainId,
-          contractName: contractData.name,
-          isBaseMiniApp: payload.isBaseMiniApp || false,
-          image: payload.image,
-          slug: newDapp.slug,
-          figmaUrl: payload.figmaUrl,
-          figmaToken: payload.figmaToken
-        });
+        console.log('[QuickDapp] handleCreateDapp done, workspace:', newDapp.slug);
+        // DApp generation is handled by AI Assistant via DAppGeneratorHandler MCP tool
 
       } catch (error: any) {
-        console.error('[QuickDapp] Failed to create dapp:', error);
+        console.error('[QuickDapp] handleCreateDapp failed:', error);
         plugin.call('notification', 'toast', `Failed to create DApp: ${error.message}`);
       }
     };
@@ -116,43 +107,53 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     };
 
     const handleDappGenerated = async (data: any) => {
-      if (!data.slug || !data.content) return;
+      console.log('[QuickDapp] handleDappGenerated', { slug: data?.slug, isUpdate: data?.isUpdate });
+      if (!data.slug) {
+        console.log('[QuickDapp] handleDappGenerated: missing slug');
+        return;
+      }
 
       const workspaceName = data.slug;
 
       try {
-        plugin.call('ai-dapp-generator', 'consumePendingResult', workspaceName).catch(() => {})
-        await dappManager.saveGeneratedFiles(workspaceName, data.content);
+        console.log('[QuickDapp] Refreshing dashboard for:', workspaceName);
 
-        if (data.isUpdate) {
-          const updatedConfig = await dappManager.updateDappConfig(workspaceName, { status: 'created' });
-          if (updatedConfig) {
-            const updatedDappsList = dappsRef.current.map((d: DappConfig) =>
-              d.slug === updatedConfig.slug ? updatedConfig : d
-            );
-            dispatch({ type: 'SET_DAPPS', payload: updatedDappsList });
-          }
-          dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: workspaceName, isProcessing: false } });
-          plugin.call('notification', 'toast', 'DApp code updated successfully.');
+        // Files already saved by handler — refresh dashboard state
+        const freshDapps = await dappManagerRef.current.getDapps();
+        console.log('[QuickDapp] Fetched', freshDapps.length, 'dapps from disk');
+        dispatch({ type: 'SET_DAPPS', payload: freshDapps });
+
+        const thisDapp = freshDapps.find((d: DappConfig) => d.slug === workspaceName || d.workspaceName === workspaceName);
+        if (thisDapp) {
+          console.log('[QuickDapp] Found matching dapp:', thisDapp.name, thisDapp.slug);
+          dispatch({ type: 'SET_ACTIVE_DAPP', payload: thisDapp });
         } else {
-          const updatedConfig = await dappManager.updateDappConfig(workspaceName, { status: 'created' });
-          if (updatedConfig) {
-            const updatedDappsList = dappsRef.current.map((d: DappConfig) =>
-              d.slug === updatedConfig.slug ? updatedConfig : d
-            );
-            const isExist = dappsRef.current.find((d: DappConfig) => d.slug === updatedConfig.slug);
-            if (!isExist) {
-              updatedDappsList.unshift(updatedConfig);
-            }
-            dispatch({ type: 'SET_DAPPS', payload: updatedDappsList });
-          }
-          dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: workspaceName, isProcessing: false } });
-          dispatch({ type: 'SET_AI_LOADING', payload: false });
-          dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
-          plugin.call('notification', 'toast', `DApp '${updatedConfig?.name || workspaceName}' created successfully!`);
+          console.log('[QuickDapp] No matching dapp found for workspace:', workspaceName);
         }
+
+        dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: workspaceName, isProcessing: false } });
+        dispatch({ type: 'SET_AI_LOADING', payload: false });
+        dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
+
+        // Reset status from 'creating'/'updating' → 'created'
+        console.log('[QuickDapp] Resetting config status to created for:', workspaceName);
+        try {
+          await dappManagerRef.current.updateDappConfig(workspaceName, {
+            status: 'created',
+            processingStartedAt: null
+          });
+        } catch (e) {
+          console.warn('[QuickDapp] Failed to reset config status:', e);
+        }
+
+        if (!data.isUpdate) {
+          plugin.call('notification', 'toast', `DApp '${thisDapp?.name || workspaceName}' created successfully!`);
+        } else {
+          plugin.call('notification', 'toast', 'DApp code updated successfully.');
+        }
+        console.log('[QuickDapp] handleDappGenerated done');
       } catch (e: any) {
-        console.error('[QuickDapp] Error handling dappGenerated:', e);
+        console.error('[QuickDapp] Error in handleDappGenerated:', e);
         dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: workspaceName, isProcessing: false } });
       }
     };
@@ -191,7 +192,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     const generatedFilesRef: string[] = [];
     let currentSlugRef = '';
     let currentWritingFile = '';
-    const handleGenerationProgress = (data: any) => {
+    const handleGenerationProgress = async (data: any) => {
       // Preserve slug from preparation across all subsequent events
       if (data.slug) {
         currentSlugRef = data.slug;
@@ -202,6 +203,19 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
         generatedFilesRef.length = 0;
         currentWritingFile = '';
         dispatch({ type: 'SET_GENERATION_PROGRESS', payload: enrichedData });
+        // Also set processing state so the DappCard shows the spinner overlay
+        if (enrichedData.slug) {
+          console.log('[QuickDapp] generationProgress preparing — refreshing dapps and setting processing=true for:', enrichedData.slug);
+          // Refresh dapp list from disk so the new card appears in dashboard
+          try {
+            const freshDapps = await dappManagerRef.current.getDapps();
+            dispatch({ type: 'SET_DAPPS', payload: freshDapps });
+          } catch (e) {
+            console.warn('[QuickDapp] Failed to refresh dapps on preparing:', e);
+          }
+          dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: enrichedData.slug, isProcessing: true } });
+          dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
+        }
       } else if (data.status === 'generating_file' && data.filename) {
         // Previous file is now done — move it to generatedFiles
         if (currentWritingFile && !generatedFilesRef.includes(currentWritingFile)) {
@@ -289,18 +303,8 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           const elapsed = now - processingStartedAt;
 
           if (status === 'creating' || status === 'updating') {
-            // Try to recover buffered results from ai-dapp-generator
-            try {
-              const pendingResult = await plugin.call('ai-dapp-generator', 'consumePendingResult', dapp.slug)
-              if (pendingResult) {
-                await dappManager.saveGeneratedFiles(dapp.slug, pendingResult.content)
-                await dappManager.updateDappConfig(dapp.slug, { status: 'created', processingStartedAt: null })
-                plugin.call('notification', 'toast', `DApp recovered: files saved for '${dapp.name}'`)
-                continue
-              }
-            } catch (e) {
-              console.warn('[QuickDapp] Could not check pending results:', e)
-            }
+            // Skip stale entries — MCP handler manages file writes
+            console.log('[QuickDapp] Dapp', dapp.slug, 'is in', status, 'state, elapsed:', (elapsed/1000).toFixed(0), 's')
 
             if (elapsed < FIVE_MINUTES) {
               dispatch({
@@ -308,6 +312,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
                 payload: { slug: dapp.slug, isProcessing: true }
               });
             } else {
+              console.log('[QuickDapp] Dapp', dapp.slug, 'timed out — resetting to created')
               await dappManager.updateDappConfig(dapp.slug, {
                 status: 'created',
                 processingStartedAt: null

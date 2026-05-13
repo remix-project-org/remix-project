@@ -179,15 +179,16 @@ export default function DeployedContractsPortraitView() {
   return (
     <div className="deployed-contracts-container card mx-2 my-2" data-id="deployedContractsContainer" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', position: 'relative' } as React.CSSProperties}>
       <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }}>
-        <div className='d-flex align-items-center gap-2'>
+        <div className='d-flex align-items-center gap-2 text-nowrap'>
           <h6 className="my-auto" style={{ color: themeQuality === 'dark' ? 'white' : 'black', margin: 0 }}>
             <FormattedMessage id="udapp.deployedContracts" defaultMessage="Deployed Contracts" />
           </h6>
           <span className="text-secondary" data-id="deployedContractsBadge">{deployedContracts.length}</span>
         </div>
-        <div>
-          <button className='btn btn-primary btn-sm small' style={{ fontSize: '0.7rem' }} onClick={handleAddClick} data-id="addDeployedContract">
-            <i className='fa-solid fa-plus'></i> Add Contract
+        <div className="ms-1 me-1 d-flex">
+          <button className="btn btn-primary btn-sm small d-flex align-items-center justify-content-between flex-nowrap" style={{ fontSize: '0.7rem' }} onClick={handleAddClick} data-id="addDeployedContract">
+            <i className="fa-solid fa-plus me-1"></i>
+            <span className="text-nowrap">Add Contract</span>
           </button>
           {deployedContracts.length > 0 && (
             <button

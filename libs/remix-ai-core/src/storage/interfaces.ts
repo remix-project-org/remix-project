@@ -6,6 +6,16 @@
 /**
  * Chat message structure
  */
+/**
+ * Todo item from DeepAgent's write_todos tool
+ */
+export interface TodoItem {
+  id?: string
+  content?: string // DeepAgents uses 'content' field
+  task?: string // Alternative field name for compatibility
+  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -15,6 +25,32 @@ export interface ChatMessage {
   isExecutingTools?: boolean
   executingToolName?: string
   executingToolArgs?: Record<string, any>
+  executingToolUIString?: string
+  currentTask?: string
+  taskStatus?: 'running' | 'completed'
+  activeSubagent?: string
+  subagentTask?: string
+  isIntermediateContent?: boolean
+  todos?: TodoItem[]
+  currentTodoIndex?: number
+  isSubagentStreaming?: boolean
+  streamingSubagentName?: string
+  /** Post-update review data for DApp updates */
+  dappUpdateReview?: DAppUpdateReview
+}
+
+/**
+ * Data for reviewing DApp file changes after update.
+ * Files are already written; user can accept or revert.
+ */
+export interface DAppUpdateReview {
+  workspaceName: string
+  /** Updated file contents (new versions, already written to disk) */
+  files: Record<string, string>
+  /** Original file contents before update (for revert) */
+  backups: Record<string, string>
+  /** Review status */
+  status: 'pending' | 'accepted' | 'reverted'
 }
 
 /**

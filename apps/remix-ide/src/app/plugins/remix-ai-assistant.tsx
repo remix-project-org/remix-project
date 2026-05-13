@@ -6,6 +6,7 @@ import { ChatMessage, RemixUiRemixAiAssistant, RemixUiRemixAiAssistantHandle, Co
 import { EventEmitter } from 'events'
 import { trackMatomoEvent } from '@remix-api'
 import { ChatHistory, ChatHistoryStorageManager, IndexedDBChatHistoryBackend } from '@remix/remix-ai-core'
+import { appActionTypes, AppAction } from '@remix-ui/app'
 
 const profile = {
   name: 'remixaiassistant',
@@ -25,6 +26,7 @@ const profile = {
 export class RemixAIAssistant extends ViewPlugin {
   element: HTMLDivElement
   dispatch: React.Dispatch<any> = () => { }
+  appStateDispatch: React.Dispatch<AppAction> = () => { }
   queuedMessage: { text: string, timestamp: number } | null = null
   event: any
   chatRef: React.RefObject<RemixUiRemixAiAssistantHandle>
@@ -171,19 +173,31 @@ export class RemixAIAssistant extends ViewPlugin {
         c => c.title === 'New Conversation' && c.messageCount === 0
       )
       if (emptyExisting) {
+        console.log('[DeepAgent-Thread] newConversation → reusing empty conversation:', emptyExisting.id)
         this.currentConversationId = emptyExisting.id
         this.history = []
         ChatHistory.setCurrentConversation(emptyExisting.id)
         ChatHistory.clearHistory()
+
+        // Set DeepAgent thread to this conversation's ID — ensures thread_id matches
+        // when loadConversation() is called later with the same conversation ID
+        try { await this.call('remixAI', 'setDeepAgentThread', emptyExisting.id) } catch (e) {}
+
         this.renderComponent()
         return
       }
 
       const workspace = 'default'
       this.currentConversationId = await ChatHistory.startNewConversation(workspace)
+      console.log('[DeepAgent-Thread] newConversation → created new conversation:', this.currentConversationId)
       this.history = []
       await this.loadConversations()
       trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'create_new_conversation', isClick: true })
+
+      // Set DeepAgent thread to this conversation's ID — ensures thread_id matches
+      // when loadConversation() is called later with the same conversation ID
+      try { await this.call('remixAI', 'setDeepAgentThread', this.currentConversationId) } catch (e) {}
+
       this.renderComponent()
     } catch (error) {
       console.error('Failed to create new conversation:', error)
@@ -196,11 +210,16 @@ export class RemixAIAssistant extends ViewPlugin {
     try {
       // Load messages from storage
       const messages = await this.storageManager.getMessages(id)
+      console.log('[DeepAgent-Thread] loadConversation:', id, '| messages loaded:', messages.length)
       this.history = messages
       this.currentConversationId = id
 
       // Update ChatHistory context
       await ChatHistory.loadConversation(id)
+
+      // Switch DeepAgent thread to this conversation's context
+      try { await this.call('remixAI', 'setDeepAgentThread', id) } catch (e) {}
+
       trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'load_conversation', isClick: true })
       this.renderComponent()
     } catch (error) {
@@ -368,6 +387,10 @@ export class RemixAIAssistant extends ViewPlugin {
     }
   }
 
+  setAppStateDispatch(appStateDispatch: React.Dispatch<AppAction>) {
+    this.appStateDispatch = appStateDispatch
+  }
+
   setDispatch(dispatch: React.Dispatch<any>) {
     this.dispatch = dispatch
     // Safety: if React wired up but initializeStorage was never called
@@ -390,6 +413,7 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   chatPipe = (message: string) => {
+    console.log('[QuickDapp] chatPipe received, length:', message?.length)
     // Show right side panel if it's hidden
     this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
       if (isPanelHidden) {
@@ -457,6 +481,7 @@ export class RemixAIAssistant extends ViewPlugin {
         onActivity={this.handleActivity.bind(this)}
         ref={this.chatRef}
         plugin={this}
+        onOpenSkillsModal={() => this.appStateDispatch({ type: appActionTypes.showSkillsModal, payload: true })}
         isInitializing={state.isInitializing}
         initialMessages={this.history}
         onMessagesChange={(msgs) => { this.history = msgs }}

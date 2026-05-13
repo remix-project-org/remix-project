@@ -702,6 +702,9 @@ export class ValidationMiddleware extends BaseMiddleware {
       if (fileOpsConfig?.allowedExtensions && args.path) {
         // If wildcard '*' is in the list, allow all extensions
         const allowAllExtensions = fileOpsConfig.allowedExtensions.includes('*');
+        const is_dir = args?.type === 'directory';
+        if (is_dir) return;
+
         if (!allowAllExtensions) {
           const extension = args.path.split('.').pop()?.toLowerCase();
           if (extension && !fileOpsConfig.allowedExtensions.includes(extension)) {
