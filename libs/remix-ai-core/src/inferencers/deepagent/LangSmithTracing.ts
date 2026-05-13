@@ -37,13 +37,15 @@ export class LangSmithTracingManager {
         ? window.localStorage?.getItem('remix_access_token')
         : undefined
 
-      const fetchOptions: RequestInit | undefined = authToken ? {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      } : undefined
+      const fetchOptions: RequestInit = {
+        headers: authToken
+          ? { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }
+          : { 'Content-Type': 'application/json' }
+      }
 
       this.client = new Client({
         apiKey: 'proxy-handled',
-        apiUrl: `${endpointUrls.langchain}/langsmith`,
+        apiUrl: `${endpointUrls.langsmith}`,
         fetchOptions,
         // Disable features that cause browser compatibility issues
         autoBatchTracing: false,
