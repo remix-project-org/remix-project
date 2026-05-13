@@ -108,7 +108,7 @@ export const TabsUI = (props: TabsUIProps) => {
 
   const isVegaVisualization = tabsState.name && tabsState.name.indexOf('amp/vega-specs/') !== -1 && tabsState.currentExt === 'json'
 
-  useEffect(() => {
+  useEffect(() => { 
     if (props.tabs[tabsState.selectedIndex] && props.tabs[tabsState.selectedIndex].show) {
       tabsRef.current[tabsState.selectedIndex].scrollIntoView({
         behavior: 'smooth',
@@ -116,6 +116,26 @@ export const TabsUI = (props: TabsUIProps) => {
       })
     }
   }, [tabsState.selectedIndex])
+
+  useEffect(() => {
+    const update = async () => {
+      let config: any = {}
+        try {
+          const configContent = await props.plugin.call('fileManager', 'readFile', 'remix.config.json')
+          config = JSON.parse(configContent)
+        } catch (e) {
+          // File doesn't exist, create new config
+        }
+
+        config.editor = config.editor || {}
+        const trimmedList = props.tabs.filter((tab: any) => {
+          if(tab.show) return tab
+        })
+        config.editor.tabs =trimmedList.map((tab) => tab.name)
+        await props.plugin.call('fileManager', 'writeFile', 'remix.config.json', JSON.stringify(config, null, 2))
+    }
+    update()
+  }, [tabsState])
 
   useEffect(() => {
     // Removed pluginIsClosed listener as the event is no longer emitted
