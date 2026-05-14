@@ -17,6 +17,36 @@ import { CompileDropdown, RunScriptDropdown, EmptyDropdown, AmpSqlDropdown } fro
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import TabProxy from 'apps/remix-ide/src/app/panels/tab-proxy'
 
+export const getSavedOpenTabs = (config: any): string[] => {
+  return Array.isArray(config?.editor?.tabs) ? config.editor.tabs : []
+}
+
+export const updateConfigOpenTabs = (config: any, tabs: any[]) => {
+  return {
+    ...config,
+    editor: {
+      ...(config?.editor || {}),
+      tabs: tabs.filter((tab) => tab?.name).map((tab) => tab.name)
+    }
+  }
+}
+
+const runTabPersistenceDebugChecks = () => {
+  console.assert(getSavedOpenTabs({ editor: { tabs: ['A.sol', 'B.sol'] } }).length === 2, 'Should restore saved open tabs')
+  console.assert(getSavedOpenTabs({}).length === 0, 'Should return empty tabs when none are saved')
+
+  const updatedConfig = updateConfigOpenTabs({ editor: { environment: 'injected' } }, [{ name: 'A.sol' }, { name: 'B.sol' }])
+
+  console.assert(updatedConfig.editor.tabs.length === 2, 'Should save open tabs')
+  console.assert(updatedConfig.editor.environment === 'injected', 'Should preserve saved environment')
+
+  console.log('Tab persistence debug checks finished')
+}
+
+if (process.env.NODE_ENV === 'development') {
+  runTabPersistenceDebugChecks()
+}
+
 /* eslint-disable-next-line */
 export interface TabsUIProps {
   tabs: Array<Tab>

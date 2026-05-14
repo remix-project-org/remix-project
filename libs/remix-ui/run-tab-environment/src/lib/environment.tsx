@@ -11,6 +11,36 @@ import { EnvironmentPlugin } from 'apps/remix-ide/src/app/udapp/udappEnv'
 import { Plugin } from '@remixproject/engine'
 import { Provider } from '@remix-ui/run-tab-environment'
 
+export const getSavedEnvironmentOrDefault = (config: any, defaultEnvironment = 'vm-osaka') => {
+  return config?.editor?.environment || defaultEnvironment
+}
+
+export const updateConfigEnvironment = (config: any, providerName: string) => {
+  return {
+    ...config,
+    editor: {
+      ...(config?.editor || {}),
+      environment: providerName
+    }
+  }
+}
+
+const runEnvironmentPersistenceDebugChecks = () => {
+  console.assert(getSavedEnvironmentOrDefault({ editor: { environment: 'injected' } }) === 'injected', 'Should restore saved environment')
+  console.assert(getSavedEnvironmentOrDefault({}) === 'vm-osaka', 'Should use default environment when none is saved')
+
+  const updatedConfig = updateConfigEnvironment({ editor: { tabs: ['contract1.sol'] } }, 'vm-prague')
+
+  console.assert(updatedConfig.editor.environment === 'vm-prague', 'Should save selected environment')
+  console.assert(updatedConfig.editor.tabs.length === 1, 'Should preserve existing editor config')
+
+  console.log('Environment persistence debug checks finished')
+}
+
+if (process.env.NODE_ENV === 'development') {
+  runEnvironmentPersistenceDebugChecks()
+}
+
 function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
   const widgetInitializer = plugin.getWidgetState ? plugin.getWidgetState() : null
   const [widgetState, dispatch] = useReducer(widgetReducer, widgetInitializer || widgetInitialState)
