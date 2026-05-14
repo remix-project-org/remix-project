@@ -99,6 +99,7 @@ export const TabsUI = (props: TabsUIProps) => {
   const { features } = useAuth()
   const { trackMatomoEvent } = useContext(TrackingContext)
   const canRunScenario = props.canRunScenario
+  const [tabsInit, setTabsInit] = useState<boolean>(false)
 
   const compileSeq = useRef(0)
   const compileWatchdog = useRef<number | null>(null)
@@ -128,10 +129,28 @@ export const TabsUI = (props: TabsUIProps) => {
         }
 
         config.editor = config.editor || {}
+        config.editor.tabs = config.editor.tabs || {}
+
+        if(config.editor.tabs.length > 0 && config.editor.tabs[0] !== "home"){
+          const openTabs = props.tabs.map((tab) => tab.name)
+          if(openTabs.length == 2 && openTabs[0] === "home" && openTabs[1] === "settings" && tabsInit === false){
+            config.editor.tabs.map((file: any) => props.plugin.call('fileManager', 'open', file))
+            setTabsInit(true)
+          }
+        }
+
+        try {
+          const configContent = await props.plugin.call('fileManager', 'readFile', 'remix.config.json')
+          config = JSON.parse(configContent)
+        } catch (e) {
+          // File doesn't exist, create new config
+        }
+        config.editor = config.editor || {}
+        config.editor.tabs = config.editor.tabs || {}
         const trimmedList = props.tabs.filter((tab: any) => {
-          if(tab.show) return tab
+          if(tab.show && tab.name !== "home") return tab
         })
-        config.editor.tabs =trimmedList.map((tab) => tab.name)
+        config.editor.tabs = trimmedList.map((tab) => tab.name.replace(/^.*?\//, ""))
         await props.plugin.call('fileManager', 'writeFile', 'remix.config.json', JSON.stringify(config, null, 2))
     }
     update()
