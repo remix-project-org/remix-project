@@ -6,10 +6,10 @@
 import { IMCPToolResult } from '../../types/mcp';
 import { BaseToolHandler } from '../registry/RemixToolRegistry';
 import { Plugin } from '@remixproject/engine';
-import { 
-  ContractSkeletonExtractor, 
-  ContractClassifier, 
-  ContractClassification 
+import {
+  ContractSkeletonExtractor,
+  ContractClassifier,
+  ContractClassification
 } from './helpers/ContractClassifier';
 
 export interface ContractClassificationResult {
@@ -116,8 +116,8 @@ export class ContractClassifierHandler extends BaseToolHandler {
    */
   private heuristicClassification(sourceCode: string, skeleton: any): ContractClassification {
     const code = sourceCode.toLowerCase();
-    const allText = skeleton.inheritance.join(' ') + ' ' + 
-                   skeleton.stateVariables.join(' ') + ' ' + 
+    const allText = skeleton.inheritance.join(' ') + ' ' +
+                   skeleton.stateVariables.join(' ') + ' ' +
                    skeleton.functionSignatures.join(' ');
     const textLower = allText.toLowerCase();
 
@@ -144,7 +144,7 @@ export class ContractClassifierHandler extends BaseToolHandler {
       has_create_opcode: code.includes('create2') || code.includes('new ') || textLower.includes('deploy'),
       has_cross_chain: textLower.includes('bridge') || textLower.includes('crosschain') || textLower.includes('multichain') || textLower.includes('layer'),
       has_staking: textLower.includes('stake') || textLower.includes('unstake') || textLower.includes('delegate') || textLower.includes('reward'),
-      
+
       // Security & Low-level patterns
       has_signatures: textLower.includes('ecrecover') || textLower.includes('ecdsa') || textLower.includes('permit') || textLower.includes('signature'),
       has_low_level: code.includes('assembly') || textLower.includes('delegatecall') || textLower.includes('call(') || textLower.includes('staticcall'),
@@ -152,18 +152,18 @@ export class ContractClassifierHandler extends BaseToolHandler {
       has_timelock: textLower.includes('timelock') || textLower.includes('delay') || textLower.includes('timelocked'),
       has_centralized_control: textLower.includes('onlyowner') || textLower.includes('admin') || textLower.includes('owner') || textLower.includes('authority'),
       has_external_calls: textLower.includes('call(') || textLower.includes('interface') && textLower.includes('external'),
-      
-      // Integration patterns  
+
+      // Integration patterns
       has_flashloan: textLower.includes('flashloan') || textLower.includes('flash') && textLower.includes('borrow'),
       has_chainlink: textLower.includes('chainlink') || textLower.includes('aggregator') || textLower.includes('vrf'),
       has_uniswap: textLower.includes('uniswap') || textLower.includes('router') || textLower.includes('v2') || textLower.includes('v3'),
       has_aave_compound: textLower.includes('aave') || textLower.includes('compound') || textLower.includes('atoken') || textLower.includes('ctoken'),
       has_balancer: textLower.includes('balancer') || textLower.includes('vault') || textLower.includes('weighted'),
       has_gnosis_safe: textLower.includes('gnosis') || textLower.includes('safe') || textLower.includes('multisig'),
-      
+
       // Complexity assessment
       complexity_level: featureCount >= 3 ? 'high' : featureCount >= 1 ? 'medium' : 'low',
-      
+
       // Version information
       solidity_version: this.extractSolidityVersion(skeleton.pragma),
       oz_version: this.extractOZVersion(skeleton.imports)

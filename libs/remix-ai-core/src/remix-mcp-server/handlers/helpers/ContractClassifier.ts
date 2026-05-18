@@ -18,7 +18,7 @@ export const ContractClassificationSchema = z.object({
   has_create_opcode: z.boolean().describe("Contract uses CREATE or CREATE2 opcodes for dynamic deployment"),
   has_cross_chain: z.boolean().describe("Contract implements cross-chain or bridge functionality"),
   has_staking: z.boolean().describe("Contract implements staking/delegation mechanisms"),
-  
+
   // Security & Low-level patterns
   has_signatures: z.boolean().describe("Contract uses signature validation (ECRecover, ECDSA, permit functions)"),
   has_low_level: z.boolean().describe("Contract uses low-level calls (assembly, delegatecall, call)"),
@@ -26,18 +26,18 @@ export const ContractClassificationSchema = z.object({
   has_timelock: z.boolean().describe("Contract implements timelock or delay mechanisms"),
   has_centralized_control: z.boolean().describe("Contract has centralized admin controls or single points of failure"),
   has_external_calls: z.boolean().describe("Contract makes external calls to other contracts"),
-  
-  // Complexity & Integration patterns  
+
+  // Complexity & Integration patterns
   has_flashloan: z.boolean().describe("Contract implements or integrates with flash loan functionality"),
   has_chainlink: z.boolean().describe("Contract integrates with Chainlink price feeds or VRF"),
   has_uniswap: z.boolean().describe("Contract integrates with Uniswap V2/V3 protocol"),
   has_aave_compound: z.boolean().describe("Contract integrates with AAVE or Compound protocols"),
   has_balancer: z.boolean().describe("Contract integrates with Balancer protocol"),
   has_gnosis_safe: z.boolean().describe("Contract integrates with Gnosis Safe multisig"),
-  
+
   // Technical complexity indicators
   complexity_level: z.enum(['low', 'medium', 'high']).describe("Overall contract complexity based on features and patterns"),
-  
+
   // Version information
   solidity_version: z.string().describe("Solidity version (x.x.x format)"),
   oz_version: z.string().describe("OpenZeppelin version detected or 'unknown'")
@@ -60,7 +60,7 @@ export interface ContractSkeleton {
  * for efficient classification without sending full implementation
  */
 export class ContractSkeletonExtractor {
-  
+
   /**
    * Extract contract skeleton from Solidity source code
    */
@@ -77,13 +77,13 @@ export class ContractSkeletonExtractor {
     };
 
     let inContract = false;
-    let contractName = '';
+    const contractName = '';
     let braceDepth = 0;
     let inFunction = false;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       // Skip empty lines and comments
       if (!line || line.startsWith('//') || line.startsWith('*') || line.startsWith('/*')) {
         continue;
@@ -131,14 +131,14 @@ export class ContractSkeletonExtractor {
       if (line.includes('function ') && !inFunction) {
         // Extract just the signature, not the body
         let signature = line;
-        
+
         // Handle multi-line function declarations
         let j = i;
         while (!signature.includes('{') && !signature.includes(';') && j < lines.length - 1) {
           j++;
           signature += ' ' + lines[j].trim();
         }
-        
+
         // Clean up the signature - remove body part
         if (signature.includes('{')) {
           signature = signature.substring(0, signature.indexOf('{')).trim();
@@ -146,9 +146,9 @@ export class ContractSkeletonExtractor {
         if (signature.endsWith(';')) {
           signature = signature.slice(0, -1);
         }
-        
+
         skeleton.functionSignatures.push(signature);
-        
+
         if (line.includes('{')) {
           inFunction = true;
         }
@@ -175,11 +175,11 @@ export class ContractSkeletonExtractor {
   private static isStateVariableDeclaration(line: string): boolean {
     // Basic heuristics for state variable detection
     const trimmed = line.trim();
-    
+
     // Skip function calls, returns, requires, etc.
-    if (trimmed.includes('(') || 
-        trimmed.startsWith('require') || 
-        trimmed.startsWith('assert') || 
+    if (trimmed.includes('(') ||
+        trimmed.startsWith('require') ||
+        trimmed.startsWith('assert') ||
         trimmed.startsWith('emit') ||
         trimmed.startsWith('return') ||
         trimmed.startsWith('if') ||
@@ -194,13 +194,13 @@ export class ContractSkeletonExtractor {
       'uint', 'int', 'bool', 'address', 'bytes', 'string',
       'mapping', 'array', 'struct', 'enum'
     ];
-    
+
     const visibilityModifiers = ['public', 'private', 'internal', 'external'];
-    
+
     const hasType = commonTypes.some(type => trimmed.includes(type));
     const hasVisibility = visibilityModifiers.some(vis => trimmed.includes(vis));
     const endsWithSemicolon = trimmed.endsWith(';');
-    
+
     return (hasType || hasVisibility) && endsWithSemicolon;
   }
 
@@ -212,7 +212,7 @@ export class ContractSkeletonExtractor {
       '// === PRAGMA ===',
       ...skeleton.pragma,
       '',
-      '// === IMPORTS ===', 
+      '// === IMPORTS ===',
       ...skeleton.imports,
       '',
       '// === CONTRACT DECLARATION & INHERITANCE ===',
@@ -230,7 +230,7 @@ export class ContractSkeletonExtractor {
       '// === FUNCTION SIGNATURES ===',
       ...skeleton.functionSignatures
     ];
-    
+
     return parts.join('\n');
   }
 }
@@ -239,7 +239,7 @@ export class ContractSkeletonExtractor {
  * Contract classifier using LLM with structured output
  */
 export class ContractClassifier {
-  
+
   /**
    * Classify contract features from skeleton
    */
@@ -247,9 +247,9 @@ export class ContractClassifier {
     skeleton: ContractSkeleton,
     llmCall: (prompt: string, schema: any) => Promise<any>
   ): Promise<ContractClassification> {
-    
+
     const skeletonString = ContractSkeletonExtractor.skeletonToString(skeleton);
-    
+
     const prompt = `Analyze this smart contract skeleton and classify its features.
 
 Contract Skeleton:

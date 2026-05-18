@@ -8,9 +8,9 @@ import { BaseToolHandler } from '../registry/RemixToolRegistry';
 import { Plugin } from '@remixproject/engine';
 import { SlitherHandler } from './CodeAnalysisHandler';
 import { ContractClassifierHandler, ContractClassificationResult } from './ContractClassifierHandler';
-import { 
-  ChecklistFilterOrchestrator, 
-  FilteredChecklistResult 
+import {
+  ChecklistFilterOrchestrator,
+  FilteredChecklistResult
 } from './helpers/ChecklistFilter';
 
 // Slither-related types (copied from AuditorAnalyserHandler since we're switching handlers)
@@ -139,11 +139,11 @@ export class EnhancedAuditHandler extends BaseToolHandler {
       // Step 1: Contract Classification
       const classifierHandler = new ContractClassifierHandler();
       const classificationResult = await classifierHandler.execute({ filePath: args.filePath }, plugin);
-      
+
       if (classificationResult.isError) {
         return classificationResult
       }
-      
+
       // Parse the classification result from MCP tool result
       let classification: ContractClassificationResult;
       try {
@@ -159,7 +159,7 @@ export class EnhancedAuditHandler extends BaseToolHandler {
         return this.createErrorResult(`Failed to parse classification result: ${error.message}`);
       }
 
-      // Step 2: Run Slither analysis using CodeAnalysisHandler      
+      // Step 2: Run Slither analysis using CodeAnalysisHandler
       const slitherResult = await this.runSlitherAnalysisWithCodeHandler(args, plugin);
 
       // Step 3: Apply intelligent checklist filtering
@@ -215,13 +215,13 @@ export class EnhancedAuditHandler extends BaseToolHandler {
    * Run Slither analysis using CodeAnalysisHandler (SlitherHandler)
    */
   private async runSlitherAnalysisWithCodeHandler(
-    args: { filePath: string; includeOptimizations?: boolean; minSeverity?: string }, 
+    args: { filePath: string; includeOptimizations?: boolean; minSeverity?: string },
     plugin: Plugin
   ): Promise<SlitherScanResult | null> {
     try {
       // Use the SlitherHandler from CodeAnalysisHandler
       const slitherHandler = new SlitherHandler();
-      
+
       // Map our args to the slither handler's expected format
       const slitherArgs = {
         filePath: args.filePath
@@ -272,7 +272,7 @@ export class EnhancedAuditHandler extends BaseToolHandler {
 
     try {
       // Parse the analysis_result which should contain the Slither JSON output
-      const analysisData = typeof slitherResult.analysis_result === 'string' 
+      const analysisData = typeof slitherResult.analysis_result === 'string'
         ? JSON.parse(slitherResult.analysis_result)
         : slitherResult.analysis_result;
 
@@ -297,7 +297,7 @@ export class EnhancedAuditHandler extends BaseToolHandler {
     filteredChecklist: FilteredChecklistResult
   ) {
     const slitherFindings = this.extractSlitherDetectors(slitherResult);
-    
+
     // Count findings by severity
     const severityCounts = {
       High: slitherFindings.filter(f => f.impact === 'High').length,
@@ -311,41 +311,41 @@ export class EnhancedAuditHandler extends BaseToolHandler {
     const complexityIndicators: string[] = [];
     const riskFactors: string[] = [];
     const optimizationOpportunities: string[] = [];
-    
+
     const features = classification.classification;
-    
+
     if (features.has_proxy) {
       complexityIndicators.push('Proxy pattern implementation');
       riskFactors.push('Upgrade mechanism security');
     }
-    
+
     if (features.has_erc20 || features.has_erc721) {
       complexityIndicators.push('Token standard implementation');
       optimizationOpportunities.push('Token transfer optimizations');
     }
-    
+
     if (features.has_amm_swap || features.has_lending) {
       complexityIndicators.push('DeFi protocol complexity');
       riskFactors.push('Economic attack vectors');
       riskFactors.push('Price manipulation risks');
     }
-    
+
     if (features.has_oracle) {
       riskFactors.push('Oracle dependency risks');
       riskFactors.push('Price feed reliability');
     }
-    
+
     if (features.has_governance) {
       complexityIndicators.push('Governance mechanisms');
       riskFactors.push('Centralization risks');
       riskFactors.push('Vote manipulation possibilities');
     }
-    
+
     if (features.has_cross_chain) {
       complexityIndicators.push('Cross-chain functionality');
       riskFactors.push('Bridge security concerns');
     }
-    
+
     if (features.has_staking) {
       complexityIndicators.push('Staking mechanisms');
       riskFactors.push('Reward calculation accuracy');
