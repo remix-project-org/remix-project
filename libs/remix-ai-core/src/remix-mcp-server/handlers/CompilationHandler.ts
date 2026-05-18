@@ -21,27 +21,27 @@ import { fetchContractFromEtherscan, Network } from '@remix-project/core-plugin'
  */
 export class SolidityCompileHandler extends BaseToolHandler {
   name = 'solidity_compile';
-  description = 'Compile Solidity smart contracts';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       file: {
         type: 'string',
-        description: 'Specific file to compile (optional, compiles all if not specified)'
+        description: ''
       },
       version: {
         type: 'string',
-        description: 'Solidity compiler version (e.g., 0.8.30)',
+        description: 'e.g. 0.8.30',
         default: 'latest'
       },
       optimize: {
         type: 'boolean',
-        description: 'Enable optimization',
+        description: '',
         default: true
       },
       runs: {
         type: 'number',
-        description: 'Number of optimization runs',
+        description: '',
         default: 200
       },
       evmVersion: {
@@ -163,7 +163,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
  */
 export class GetCompilationResultHandler extends BaseToolHandler {
   name = 'get_compilation_result';
-  description = 'Get the latest compilation result';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -218,13 +218,13 @@ export class GetCompilationResultHandler extends BaseToolHandler {
  */
 export class GetCompilationResultByFilePathHandler extends BaseToolHandler {
   name = 'get_compilation_result_sources_by_file_path';
-  description = 'Get the compilation result sources for a specific file path';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       filePath: {
         type: 'string',
-        description: 'File Path of the contract to get compilation result from'
+        description: ''
       }
     },
     required: ['filePath']
@@ -261,29 +261,29 @@ export class GetCompilationResultByFilePathHandler extends BaseToolHandler {
  */
 export class SetCompilerConfigHandler extends BaseToolHandler {
   name = 'set_compiler_config';
-  description = 'Set Solidity compiler configuration';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       version: {
         type: 'string',
-        description: 'Compiler version'
+        description: ''
       },
       optimize: {
         type: 'boolean',
-        description: 'Enable optimization'
+        description: ''
       },
       runs: {
         type: 'number',
-        description: 'Number of optimization runs'
+        description: ''
       },
       evmVersion: {
         type: 'string',
-        description: 'EVM version target. Default Osaka'
+        description: 'Default Osaka'
       },
       language: {
         type: 'string',
-        description: 'Programming language',
+        description: '',
         default: 'Solidity'
       }
     },
@@ -369,7 +369,7 @@ export class SetCompilerConfigHandler extends BaseToolHandler {
  */
 export class GetCompilerConfigHandler extends BaseToolHandler {
   name = 'get_compiler_config';
-  description = 'Get current Solidity compiler configuration';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -407,7 +407,7 @@ export class GetCompilerConfigHandler extends BaseToolHandler {
  */
 export class CompileWithHardhatHandler extends BaseToolHandler {
   name = 'compile_with_hardhat';
-  description = 'Compile using Hardhat framework';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
@@ -458,7 +458,7 @@ export class CompileWithHardhatHandler extends BaseToolHandler {
  */
 export class CompileWithFoundryHandler extends BaseToolHandler {
   name = 'compile_with_foundry';
-  description = 'Compile using Foundry framework';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
@@ -509,7 +509,7 @@ export class CompileWithFoundryHandler extends BaseToolHandler {
  */
 export class CompileWithTruffleHandler extends BaseToolHandler {
   name = 'compile_with_truffle';
-  description = 'Compile using Truffle framework';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
@@ -560,7 +560,7 @@ export class CompileWithTruffleHandler extends BaseToolHandler {
  */
 export class GetCompilerVersionsHandler extends BaseToolHandler {
   name = 'get_compiler_versions';
-  description = 'Get list of available Solidity compiler versions';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -593,7 +593,7 @@ export class GetCompilerVersionsHandler extends BaseToolHandler {
  */
 export class GetVerifiedContractFromEtherscanHandler extends BaseToolHandler {
   name = 'get_verified_contract_from_etherscan';
-  description = 'Fetch a verified contract from Etherscan and import it into the workspace';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
@@ -717,7 +717,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
   const tools = [
     {
       name: 'solidity_compile',
-      description: 'Compile Solidity smart contracts',
+      description: '',
       inputSchema: new SolidityCompileHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:solidity'],
@@ -725,7 +725,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
     },
     {
       name: 'get_compilation_result',
-      description: 'Get the latest compilation result',
+      description: '',
       inputSchema: new GetCompilationResultHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:read'],
@@ -733,7 +733,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
     },
     {
       name: 'get_compilation_result_sources_by_file_path',
-      description: 'Get the compilation result for a specific file path',
+      description: '',
       inputSchema: new GetCompilationResultByFilePathHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:read'],
@@ -741,7 +741,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
     },
     {
       name: 'set_compiler_config',
-      description: 'Set Solidity compiler configuration',
+      description: '',
       inputSchema: new SetCompilerConfigHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:config'],
@@ -749,7 +749,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
     },
     {
       name: 'get_compiler_config',
-      description: 'Get current Solidity compiler configuration',
+      description: '',
       inputSchema: new GetCompilerConfigHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:read'],
@@ -757,7 +757,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
     },
     {
       name: 'get_compiler_versions',
-      description: 'Get list of available Solidity compiler versions',
+      description: '',
       inputSchema: new GetCompilerVersionsHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:read'],
@@ -765,7 +765,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
     },
     {
       name: 'get_verified_contract_from_etherscan',
-      description: 'Fetch a verified contract from Etherscan and import it into the workspace',
+      description: '',
       inputSchema: new GetVerifiedContractFromEtherscanHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['file:write', 'etherscan:read'],
@@ -775,7 +775,8 @@ export function createCompilationTools(): RemixToolDefinition[] {
   if (isElectron()) {
     tools.push({
       name: 'compile_with_hardhat',
-      description: 'Compile using Hardhat framework',
+      description: '',
+
       inputSchema: new CompileWithHardhatHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:hardhat'],
@@ -783,7 +784,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
     })
     tools.push({
       name: 'compile_with_foundry',
-      description: 'Compile using Foundry framework',
+      description: '',
       inputSchema: new CompileWithFoundryHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:foundry'],
@@ -791,7 +792,7 @@ export function createCompilationTools(): RemixToolDefinition[] {
     })
     tools.push({
       name: 'compile_with_truffle',
-      description: 'Compile using Truffle framework',
+      description: '',
       inputSchema: new CompileWithTruffleHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['compile:truffle'],

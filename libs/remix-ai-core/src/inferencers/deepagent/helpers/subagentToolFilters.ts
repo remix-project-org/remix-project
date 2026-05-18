@@ -47,7 +47,8 @@ export function getSecurityToolsForSecurityAuditor(tools: DynamicStructuredTool[
     const description = tool.description.toLowerCase()
     return description.includes('[security]') ||
            tool.name.toLowerCase().includes('slither_scan') ||
-           description.includes('security')
+           description.includes('security') ||
+           tool.name.toLowerCase() === 'classify_contract' 
   })
 
   return securityTools
@@ -187,6 +188,22 @@ export function getCircleToolsForCircleSpecialist(tools: DynamicStructuredTool[]
   return circleTools
 }
 
+export function getFrontendToolsForFrontendSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const frontendToolNames = [
+    'list_dapps',
+    'generate_dapp',
+    'update_dapp',
+    'fetch_figma_design',
+    'generate_dapp_from_figma'
+  ]
+
+  const frontendTools = tools.filter(tool =>
+    frontendToolNames.includes(tool.name)
+  )
+
+  return frontendTools
+}
+
 export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const etherscanToolNames = new Set(getEtherscanToolsForEtherscanSpecialist(tools).map(t => t.name))
   const theGraphToolNames = new Set(getTheGraphToolsForTheGraphSpecialist(tools).map(t => t.name))
@@ -197,6 +214,7 @@ export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): Dynami
   const debugToolNames = new Set(getDebugToolsForDebugSpecialist(tools).map(t => t.name))
   const solidityToolNames = new Set(getSolidityToolsForSolidityEngineer(tools).map(t => t.name))
   const webSearchToolNames = new Set(getWebSearchToolsForWebSearchSpecialist(tools).map(t => t.name))
+  const frontendToolNames = new Set(getFrontendToolsForFrontendSpecialist(tools).map(t => t.name))
   const conversionToolNames = new Set(getConversionToolsForConversionSpecialist(tools).map(t => t.name))
 
   const filteredTools = tools.filter(tool =>
@@ -209,7 +227,8 @@ export function filterOutSpecialistTools(tools: DynamicStructuredTool[]): Dynami
     !debugToolNames.has(tool.name) &&
     !solidityToolNames.has(tool.name) &&
     !webSearchToolNames.has(tool.name) &&
-    !conversionToolNames.has(tool.name)
+    !conversionToolNames.has(tool.name) &&
+    !frontendToolNames.has(tool.name)
   )
   return filteredTools
 }

@@ -34,37 +34,37 @@ const { txFormat, txHelper: { makeFullTypeDefinition } } = execution;
  */
 export class DeployContractHandler extends BaseToolHandler {
   name = 'deploy_contract';
-  description = 'Deploy a smart contract';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       contractName: {
         type: 'string',
-        description: 'Name of the contract to deploy'
+        description: ''
       },
       constructorArgs: {
         type: 'array',
-        description: 'Constructor arguments',
+        description: '',
         items: {},
         default: []
       },
       gasLimit: {
         type: 'number',
-        description: 'Gas limit for deployment',
+        description: '',
         minimum: 21000
       },
       gasPrice: {
         type: 'string',
-        description: 'Gas price in wei'
+        description: 'in wei'
       },
       value: {
         type: 'string',
-        description: 'ETH value to send with deployment',
+        description: 'ETH value to send',
         default: '0'
       },
       account: {
         type: 'string',
-        description: 'Account to deploy from (address or index)'
+        description: 'address or index'
       },
     },
     required: ['contractName']
@@ -146,33 +146,33 @@ export class DeployContractHandler extends BaseToolHandler {
  */
 export class CallContractHandler extends BaseToolHandler {
   name = 'call_contract';
-  description = 'Call a smart contract method';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       contractName: {
         type: 'string',
-        description: 'Contract name',
+        description: '',
       },
       address: {
         type: 'string',
-        description: 'Contract address',
+        description: '',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       abi: {
         type: 'array',
-        description: 'Contract ABI',
+        description: '',
         items: {
           type: 'object'
         }
       },
       methodName: {
         type: 'string',
-        description: 'Method name to call'
+        description: ''
       },
       args: {
         type: 'array',
-        description: 'Method arguments',
+        description: '',
         items: {
           type: 'string'
         },
@@ -180,12 +180,12 @@ export class CallContractHandler extends BaseToolHandler {
       },
       gasLimit: {
         type: 'number',
-        description: 'Gas limit for transaction',
+        description: '',
         minimum: 21000
       },
       gasPrice: {
         type: 'string',
-        description: 'Gas price in wei'
+        description: ''
       },
       value: {
         type: 'string',
@@ -286,13 +286,13 @@ export class CallContractHandler extends BaseToolHandler {
  */
 export class RunScriptHandler extends BaseToolHandler {
   name = 'run_script';
-  description = 'Run a script in the current environment';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       file: {
         type: 'string',
-        description: 'path to the file'
+        description: ''
       }
     },
     required: ['file']
@@ -329,13 +329,13 @@ export class RunScriptHandler extends BaseToolHandler {
  */
 export class SendTransactionHandler extends BaseToolHandler {
   name = 'send_transaction';
-  description = 'Send a raw transaction';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       to: {
         type: 'string',
-        description: 'Recipient address',
+        description: '',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       value: {
@@ -350,16 +350,16 @@ export class SendTransactionHandler extends BaseToolHandler {
       },
       gasLimit: {
         type: 'number',
-        description: 'Gas limit',
+        description: '',
         minimum: 21000
       },
       gasPrice: {
         type: 'string',
-        description: 'Gas price in wei'
+        description: 'in wei'
       },
       from: {
         type: 'string',
-        description: 'Account to send from'
+        description: ''
       }
     },
     required: ['to']
@@ -438,7 +438,7 @@ export class SendTransactionHandler extends BaseToolHandler {
  */
 export class GetDeployedContractsHandler extends BaseToolHandler {
   name = 'get_deployed_contracts';
-  description = 'Get list of deployed contracts for the current environment';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -474,19 +474,19 @@ export class GetDeployedContractsHandler extends BaseToolHandler {
  */
 export class SetExecutionEnvironmentHandler extends BaseToolHandler {
   name = 'set_execution_environment';
-  description = 'Set the execution environment for deployments';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       environment: {
         type: 'string',
         enum: ['vm-osaka', 'vm-prague', 'vm-cancun', 'vm-shanghai', 'vm-paris', 'vm-london', 'vm-berlin', 'vm-mainnet-fork', 'vm-sepolia-fork', 'vm-custom-fork', 'walletconnect', 'basic-http-provider', 'hardhat-provider', 'ganache-provider', 'foundry-provider', 'injected-Rabby Wallet', 'injected-MetaMask', 'injected-metamask-optimism', 'injected-metamask-arbitrum', 'injected-metamask-sepolia', 'injected-metamask-ephemery', 'injected-metamask-gnosis', 'injected-metamask-chiado', 'injected-metamask-linea'],
-        description: 'Execution environment',
+        description: '',
         default: 'vm-osaka'
       },
       networkUrl: {
         type: 'string',
-        description: 'Network URL (for web3 environment)'
+        description: ''
       }
     },
     required: ['environment']
@@ -528,13 +528,13 @@ export class SetExecutionEnvironmentHandler extends BaseToolHandler {
  */
 export class GetAccountBalanceHandler extends BaseToolHandler {
   name = 'get_account_balance';
-  description = 'Get account balance';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       account: {
         type: 'string',
-        description: 'Account address',
+        description: '',
         pattern: '^0x[a-fA-F0-9]{40}$'
       }
     },
@@ -577,13 +577,13 @@ export class GetAccountBalanceHandler extends BaseToolHandler {
  */
 export class GetUserAccountsHandler extends BaseToolHandler {
   name = 'get_user_accounts';
-  description = 'Get user accounts from the current execution environment';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       includeBalances: {
         type: 'boolean',
-        description: 'Whether to include account balances',
+        description: '',
         default: true
       }
     }
@@ -655,13 +655,13 @@ export class GetUserAccountsHandler extends BaseToolHandler {
  */
 export class SetSelectedAccountHandler extends BaseToolHandler {
   name = 'set_selected_account';
-  description = 'Set the currently selected account in the execution environment';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       address: {
         type: 'string',
-        description: 'The account address to select'
+        description: ''
       }
     },
     required: ['address']
@@ -717,7 +717,7 @@ export class SetSelectedAccountHandler extends BaseToolHandler {
  */
 export class GetCurrentEnvironmentHandler extends BaseToolHandler {
   name = 'get_current_environment';
-  description = 'Get information about the current execution environment';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -759,48 +759,48 @@ export class GetCurrentEnvironmentHandler extends BaseToolHandler {
  */
 export class SimulateTransactionHandler extends BaseToolHandler {
   name = 'simulate_transaction';
-  description = 'Simulate a transaction using eth_simulateV1 RPC endpoint';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       from: {
         type: 'string',
-        description: 'From address',
+        description: '',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       to: {
         type: 'string',
-        description: 'To address (optional for contract creation)',
+        description: 'optional for contract creation',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       value: {
         type: 'string',
-        description: 'Value in wei in decimal value (optional)',
+        description: 'in wei in decimal value (optional)',
         default: '0'
       },
       maxFeePerGas: {
         type: 'string',
-        description: 'maxFeePerGas in wei in decimal value (optional)',
+        description: 'in wei in decimal value (optional)',
         default: '0'
       },
       data: {
         type: 'string',
-        description: 'Transaction data (hex)',
+        description: '',
         pattern: '^0x[a-fA-F0-9]*$'
       },
       validation: {
         type: 'boolean',
-        description: 'Enable validation',
+        description: '',
         default: true
       },
       traceTransfers: {
         type: 'boolean',
-        description: 'Enable trace transfers',
+        description: '',
         default: true
       },
       shouldDecodeLogs: {
         type: 'boolean',
-        description: 'Whether to decode logs',
+        description: '',
         default: true
       }
     },
@@ -882,29 +882,29 @@ export class SimulateTransactionHandler extends BaseToolHandler {
  */
 export class AddInstanceHandler extends BaseToolHandler {
   name = 'add_instance';
-  description = 'Add a new contract instance to the deployed contracts list';
+  description = 'to the deployed contracts list';
   inputSchema = {
     type: 'object',
     properties: {
       contractAddress: {
         type: 'string',
-        description: 'Contract address',
+        description: '',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       abi: {
         type: 'array',
-        description: 'Contract ABI',
+        description: '',
         items: {
           type: 'object'
         }
       },
       contractName: {
         type: 'string',
-        description: 'Contract name'
+        description: ''
       },
       contractData: {
         type: 'object',
-        description: 'Additional contract data (optional)'
+        description: ''
       }
     },
     required: ['contractAddress', 'abi', 'contractName']

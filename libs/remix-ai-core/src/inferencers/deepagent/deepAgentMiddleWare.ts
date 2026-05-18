@@ -79,10 +79,36 @@ const removePeviousContextFromMessages = (request: ModelRequest) => {
 const shortenToolDescription = (request: ModelRequest) => {
   request.tools.find((tool) => {
     if (tool.name === 'write_todos') {
-      tool.description = shortWriteTodosDescription
+      tool.description = '';
+      (tool as any).lc_kwargs.description = ''
+    }
+    if (tool.name === 'ls') {
+      tool.description = '';
+      (tool as any).lc_kwargs.description = ''
+    }
+    if (tool.name === 'read_file') {
+      tool.description = '';
+      (tool as any).lc_kwargs.description = ''
+    }
+    if (tool.name === 'write_file') {
+      tool.description = '';
+      (tool as any).lc_kwargs.description = ''
+    }
+    if (tool.name === 'edit_file') {
+      tool.description = '';
+      (tool as any).lc_kwargs.description = ''
+    }
+    if (tool.name === 'glob') {
+      tool.description = '';
+      (tool as any).lc_kwargs.description = ''
+    }
+    if (tool.name === 'grep') {
+      tool.description = '';
+      (tool as any).lc_kwargs.description = ''
     }
     if (tool.name === 'task') {
-      tool.description = shortTaskDescription
+      tool.description = '';
+      (tool as any).lc_kwargs.description = ''
     }
   });
 
