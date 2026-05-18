@@ -79,6 +79,7 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       enabled: true,
       timeout: 30000
     },
+    /*
     {
       name: 'OpenZeppelin Contracts Cairo',
       description: 'OpenZeppelin smart contract library and security tools',
@@ -105,16 +106,7 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       autoStart: true,
       enabled: true,
       timeout: 30000
-    },
-    {
-      name: 'ethskills',
-      description: 'ethereum dev skills',
-      transport: 'http',
-      url: endpointUrls.mcpCorsProxy + '/ethskills/mcp',
-      autoStart: true,
-      enabled: true,
-      timeout: 30000
-    },
+    },*/
     {
       name: 'Web Search',
       description: 'Web search capabilities',

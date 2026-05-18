@@ -86,10 +86,6 @@ export class ProjectResourceProvider extends BaseResourceProvider {
       return this.getProjectDependencies(plugin);
     }
 
-    if (uri.startsWith('file://')) {
-      return this.getFileContent(uri, plugin);
-    }
-
     throw new Error(`Unsupported resource URI: ${uri}`);
   }
 
@@ -150,7 +146,6 @@ export class ProjectResourceProvider extends BaseResourceProvider {
               {
                 category,
                 tags: this.getTagsForFile(path, fileExtension),
-                fileExtension,
                 size: await this.getFileSize(plugin, path),
                 lastModified: new Date().toISOString()
               }
@@ -317,12 +312,10 @@ export class ProjectResourceProvider extends BaseResourceProvider {
           })
         };
       } else {
-        const extension = path.split('.').pop()?.toLowerCase() || '';
         return {
           name,
           type: 'file',
           path,
-          extension,
           size: await this.getFileSize(plugin, path)
         };
       }

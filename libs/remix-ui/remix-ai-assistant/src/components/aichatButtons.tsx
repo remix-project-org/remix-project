@@ -165,8 +165,8 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
       color: '',
       action: async () => {
-        await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
-        plugin.call('tabs', 'focus', 'quick-dapp-v2')
+        console.log('[QuickDapp] Create DApp button clicked')
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.createDapp' }))
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'create_dapp', isClick: true })
       }
     }

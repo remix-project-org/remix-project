@@ -12,9 +12,9 @@ import {
   type ConversationStarter
 } from '../lib/conversationStarters'
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
-import { getToolExecutionMessage } from '../lib/toolDescriptions'
 import { QueryParams } from '@remix-project/remix-lib'
 import { AiChatButtons } from './aichatButtons'
+import { DAppUpdateReviewCard } from './DAppUpdateReviewCard'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -28,6 +28,10 @@ export interface ChatHistoryComponentProps {
   handleGenerateWorkspace: () => void
   handleLoadSkills: () => void
   allowedMcps: string[]
+  /** DApp update review handlers */
+  onDappReviewAcceptAll?: (msgId: string) => void
+  onDappReviewRevertAll?: (msgId: string) => void
+  onDappReviewViewDiff?: (filePath: string, newContent: string, oldContent: string) => void
 }
 
 interface AiChatIntroProps {
@@ -71,8 +75,11 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   theme,
   plugin,
   handleGenerateWorkspace,
-  handleLoadSkills,
-  allowedMcps
+  allowedMcps,
+  onDappReviewAcceptAll,
+  onDappReviewRevertAll,
+  onDappReviewViewDiff,
+  handleLoadSkills
 }) => {
   return (
     <div
@@ -113,7 +120,13 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                       </small>
                     )}
 
-                    <div className="aiMarkup lh-base text-wrap">
+                    <div className={`aiMarkup lh-base text-wrap ${msg.isIntermediateContent ? 'text-muted' : ''} ${msg.isSubagentStreaming ? 'subagent-content' : ''}`}
+                      style={msg.isSubagentStreaming ? {
+                        borderLeft: '3px solid rgba(23, 162, 184, 0.5)',
+                        paddingLeft: '8px',
+                        marginLeft: '4px'
+                      } : undefined}
+                    >
                       {msg.role === 'assistant' ? (
                         RemixMarkdownViewer(theme, msg.content ?? '')
                       ) : (
@@ -145,14 +158,83 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                   <div className="tool-execution-indicator text-muted">
                     <i className="fa fa-spinner fa-spin me-2"></i>
                     <span>
-                      {msg.executingToolName
-                        ? getToolExecutionMessage({
-                          toolName: msg.executingToolName,
-                          arguments: msg.executingToolArgs
-                        })
-                        : 'Executing tools...'}
+                      {msg.executingToolUIString || msg.executingToolName || 'Executing tools...'}
                     </span>
                   </div>
+                )}
+
+                {/* Subagent Activity Indicator - shows when subagent is active */}
+                {msg.role === 'assistant' && (msg.activeSubagent || msg.isSubagentStreaming) && (
+                  <div className="subagent-indicator small mb-2 p-2 rounded" style={{
+                    backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(23, 162, 184, 0.15)' : 'rgba(23, 162, 184, 0.1)',
+                    border: '1px solid rgba(23, 162, 184, 0.3)'
+                  }}>
+                    <div className="d-flex align-items-center">
+                      <i className={`fa fa-robot me-2 text-info ${msg.isSubagentStreaming ? 'fa-beat' : 'fa-spin'}`}></i>
+                      <span className="text-info">
+                        <strong>{msg.streamingSubagentName || msg.activeSubagent || 'Subagent'}</strong>
+                        {msg.isSubagentStreaming ? ' is responding...' : `: ${msg.subagentTask || 'Processing...'}`}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Task Activity Indicator */}
+                {msg.role === 'assistant' && msg.currentTask && msg.taskStatus === 'running' && (
+                  <div className="task-indicator text-secondary small mb-2">
+                    <i className="fa fa-tasks fa-pulse me-2"></i>
+                    <span>{msg.currentTask}</span>
+                  </div>
+                )}
+
+                {/* Todo List Display */}
+                {msg.role === 'assistant' && msg.todos && msg.todos.length > 0 && (
+                  <div className="todo-list-container mt-2 mb-2 p-2 rounded" style={{
+                    backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                    border: '1px solid var(--bs-border-color)'
+                  }}>
+                    <div className="todo-list-header d-flex align-items-center mb-2">
+                      <i className="fa fa-list-check me-2 text-primary"></i>
+                      <strong className="small">Task Plan</strong>
+                      <span className="ms-2 badge bg-secondary small">
+                        {msg.todos.filter(t => t.status === 'completed').length}/{msg.todos.length}
+                      </span>
+                    </div>
+                    <ul className="todo-list list-unstyled mb-0 small">
+                      {msg.todos.map((todo, idx) => {
+                        const isCurrentTodo = msg.currentTodoIndex === idx
+                        return (
+                          <li key={todo.id || idx} className={`todo-item d-flex align-items-start mb-1 ${isCurrentTodo ? 'fw-bold' : ''}`}>
+                            <span className="todo-status me-2" style={{ width: '16px' }}>
+                              {todo.status === 'completed' && <i className="fa fa-check-circle text-success"></i>}
+                              {todo.status === 'in_progress' && <i className="fa fa-spinner fa-spin text-primary"></i>}
+                              {todo.status === 'pending' && <i className="fa fa-circle text-muted" style={{ opacity: 0.4 }}></i>}
+                              {todo.status === 'failed' && <i className="fa fa-times-circle text-danger"></i>}
+                            </span>
+                            <span className={`todo-task ${todo.status === 'completed' ? 'text-success' : ''} ${isCurrentTodo && todo.status !== 'completed' ? 'text-primary' : ''}`}>
+                              {todo.content || todo.task}
+                            </span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+
+                {/* DApp Update Review Card */}
+                {msg.role === 'assistant' && msg.dappUpdateReview && (
+                  <DAppUpdateReviewCard
+                    workspaceName={msg.dappUpdateReview.workspaceName}
+                    files={msg.dappUpdateReview.files}
+                    backups={msg.dappUpdateReview.backups}
+                    status={msg.dappUpdateReview.status}
+                    onAcceptAll={() => onDappReviewAcceptAll?.(msg.id)}
+                    onRevertAll={() => onDappReviewRevertAll?.(msg.id)}
+                    onViewDiff={(filePath, newContent, oldContent) =>
+                      onDappReviewViewDiff?.(filePath, newContent, oldContent)
+                    }
+                  />
                 )}
 
                 {/* Feedback buttons */}

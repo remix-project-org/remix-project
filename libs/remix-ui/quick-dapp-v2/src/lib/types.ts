@@ -72,14 +72,5 @@ export interface QuickDappV2PluginApi {
     on: (event: string, callback: (...args: any[]) => void) => void;
     off: (event: string, callback: (...args: any[]) => void) => void;
   };
-  updateDapp: (
-    slug: string,
-    address: string,
-    prompt: string | any[],
-    files: any,
-    image: string | null,
-    abi?: any[],
-    chainId?: string | number
-  ) => Promise<void>;
   consumePendingCreateDapp?: () => any;
 }

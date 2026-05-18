@@ -19,6 +19,9 @@ const etherscanAccessToken = config.get('settings/etherscan-access-token') || ''
 const mcpServersEnable = config.get('settings/mcp/servers/enable') || false
 const mcpServerManagement = config.get('settings/mcp-server-management') || false
 const ollamaEndpoint = config.get('settings/ollama-endpoint') || 'http://localhost:11434'
+const deepagentConfig = config.get('settings/deepagent-config') || false
+const langchainApiKey = localStorage.getItem('langchain_api_key') || ''
+const deepagentMemoryBackend = localStorage.getItem('deepagent_memory_backend') || 'store'
 
 let githubConfig = config.get('settings/github-config') || false
 let ipfsConfig = config.get('settings/ipfs-config') || false
@@ -230,6 +233,18 @@ export const initialState: SettingsState = {
     value: ollamaEndpoint,
     isLoading: false
   },
+  'deepagent-config': {
+    value: deepagentConfig,
+    isLoading: false
+  },
+  'langchain-api-key': {
+    value: langchainApiKey,
+    isLoading: false
+  },
+  'deepagent-memory-backend': {
+    value: deepagentMemoryBackend,
+    isLoading: false
+  },
   toaster: {
     value: '',
     isLoading: false
@@ -247,6 +262,17 @@ export const settingReducer = (state: SettingsState, action: SettingsActions): S
       } catch (error) {
         // Ignore errors - Ollama functionality is optional
       }
+    }
+
+    // Handle DeepAgent settings - store in localStorage for sensitive data
+    if (action.payload.name === 'langchain-api-key') {
+      localStorage.setItem('langchain_api_key', String(action.payload.value))
+    }
+    if (action.payload.name === 'deepagent-memory-backend') {
+      localStorage.setItem('deepagent_memory_backend', String(action.payload.value))
+    }
+    if (action.payload.name === 'deepagent-config') {
+      localStorage.setItem('deepagent_enabled', action.payload.value ? 'true' : 'false')
     }
 
     return { ...state, [action.payload.name]: { ...state[action.payload.name], value: action.payload.value, isLoading: false } }

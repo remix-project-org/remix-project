@@ -128,6 +128,16 @@ export type PluginType = {
   call: (plugin: string, method: string, arg1?: any, arg2?: any, arg3?: any, arg4?: any) => any
 }
 
+export type DiffSession = {
+  id: string
+  originalPath: string
+  modifiedPath: string
+  originalContent: string
+  modifiedContent: string
+  filePath: string
+  createdAt: number
+}
+
 export type EditorAPIType = {
   findMatches: (uri: string, value: string) => any
   getFontSize: () => number
@@ -143,6 +153,11 @@ export type EditorAPIType = {
   showCustomDiff: (file: string, content: string) => Promise<void>
   clearAllBreakpoints: () => void
   hasUnacceptedChanges: () => boolean
+  acceptDiff: () => Promise<boolean>
+  discardDiff: () => Promise<boolean>
+  getDiffSessions: () => Promise<DiffSession[]>
+  setActiveDiff: (diffId: string) => Promise<boolean>
+  closeDiffSession: (diffId: string) => Promise<boolean>
 }
 
 /* eslint-disable-next-line */
@@ -180,6 +195,8 @@ export const EditorUI = (props: EditorUIProps) => {
   const [currentDiffFile, setCurrentDiffFile] = useState(props.currentDiffFile || '')
   const [decoratorListCollection, setDecoratorListCollection] = useState<Record<string, monacoTypes.editor.IEditorDecorationsCollection>>({})
   const [disposedWidgets, setDisposedWidgets] = useState<Record<string, Record<string, monacoTypes.IRange[]>>>({})
+  const [diffSessions, setDiffSessions] = useState<DiffSession[]>([])
+  const [activeDiffId, setActiveDiffId] = useState<string | null>(null)
   const defaultEditorValue = `
   \t\t\t\t\t\t\t ____    _____   __  __   ___  __  __   ___   ____    _____
   \t\t\t\t\t\t\t|  _ \\  | ____| |  \\/  | |_ _| \\ \\/ /  |_ _| |  _ \\  | ____|
@@ -410,15 +427,16 @@ export const EditorUI = (props: EditorUIProps) => {
    * currentFileRef.current is the previous file, props.currentFile is the new file.
    */
   useEffect(() => {
+    // Process pending diffs for the new file (works even on first file open when currentFileRef is undefined)
+    if (props.currentFile && pendingCustomDiff.current[props.currentFile]) {
+      const pendingDiff = pendingCustomDiff.current[props.currentFile]
+
+      showCustomDiff(pendingDiff, props.currentFile, editorRef.current, monacoRef.current, addDecoratorCollection, addAcceptDeclineWidget, setDecoratorListCollection, acceptHandler, rejectHandler, acceptAllHandler, rejectAllHandler, setCurrentDiffFile, changedTypeMap.current)
+      delete pendingCustomDiff.current[props.currentFile]
+    }
+
     if (currentFileRef.current) {
       if (props.currentFile !== currentFileRef.current) {
-
-        // add the widgets that are still pending to be applied
-        const pendingDiff = pendingCustomDiff.current[props.currentFile]
-        if (pendingDiff) {
-          showCustomDiff(pendingDiff, props.currentFile, editorRef.current, monacoRef.current, addDecoratorCollection, addAcceptDeclineWidget, setDecoratorListCollection, acceptHandler, rejectHandler, acceptAllHandler, rejectAllHandler, setCurrentDiffFile, changedTypeMap.current)
-          delete pendingCustomDiff.current[props.currentFile]
-        }
         // restore the widgets if they exist to the new file and were already applied
         const restoredWidgets = disposedWidgets[props.currentFile]
         if (restoredWidgets) {
@@ -485,6 +503,58 @@ export const EditorUI = (props: EditorUIProps) => {
       monacoRef.current.editor.setModelLanguage(file.model, 'markdown')
     }
   }, [props.currentFile, props.isDiff])
+
+  // Load and sync diff sessions
+  useEffect(() => {
+    if (props.isDiff) {
+      const loadDiffSessions = async () => {
+        try {
+          const sessions = await props.editorAPI.getDiffSessions()
+          setDiffSessions(sessions)
+          if (sessions.length > 0) {
+            // Set the first session as active if no active session is set
+            if (!activeDiffId) {
+              setActiveDiffId(sessions[0].id)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load diff sessions:', error)
+        }
+      }
+      loadDiffSessions()
+    }
+  }, [props.isDiff])
+
+  const handleTabSwitch = async (diffId: string) => {
+    try {
+      const success = await props.editorAPI.setActiveDiff(diffId)
+      if (success) {
+        setActiveDiffId(diffId)
+      }
+    } catch (error) {
+      console.error('Failed to switch diff tab:', error)
+    }
+  }
+
+  const handleCloseDiff = async (diffId: string, event: React.MouseEvent) => {
+    event.stopPropagation()
+    try {
+      const success = await props.editorAPI.closeDiffSession(diffId)
+      if (success) {
+        const updatedSessions = diffSessions.filter(session => session.id !== diffId)
+        setDiffSessions(updatedSessions)
+        if (activeDiffId === diffId) {
+          if (updatedSessions.length > 0) {
+            setActiveDiffId(updatedSessions[0].id)
+          } else {
+            setActiveDiffId(null)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to close diff session:', error)
+    }
+  }
 
   const convertToMonacoDecoration = (decoration: lineText | sourceAnnotation | sourceMarker, typeOfDecoration: string) => {
     if (typeOfDecoration === 'sourceAnnotationsPerFile') {
@@ -571,6 +641,8 @@ export const EditorUI = (props: EditorUIProps) => {
   }
 
   props.editorAPI.hasUnacceptedChanges = () => {
+    return false
+    /* keeping the previous logic, the current logic shows a diff editor and doesn't pollute the editor content.
     let found = false
     if (disposedWidgets && Object.keys(disposedWidgets).length > 0) {
       found = !!Object.keys(disposedWidgets).find(file => {
@@ -581,6 +653,7 @@ export const EditorUI = (props: EditorUIProps) => {
       })
     }
     return !!found
+    */
   }
 
   props.editorAPI.keepDecorationsFor = (filePath: string, plugin: string, typeOfDecoration: string, registeredDecorations: any, currentDecorations: any) => {
@@ -804,11 +877,39 @@ export const EditorUI = (props: EditorUIProps) => {
     const currentContent = await props.plugin.call('fileManager', 'readFile', file)
     const diff = diffLines(currentContent, content)
     const changes: ChangeType[] = extractLineNumberRangesWithText(diff)
-    if (props.currentFile === file) {
+
+    // Use fileManager.getCurrentFile() instead of props.currentFile (React prop lags behind)
+    let activeFile: string | undefined
+    try {
+      activeFile = await props.plugin.call('fileManager', 'getCurrentFile')
+    } catch (e) { /* ignore */ }
+
+
+    if (activeFile === file) {
       showCustomDiff(changes, file, editorRef.current, monacoRef.current, addDecoratorCollection, addAcceptDeclineWidget, setDecoratorListCollection, acceptHandler, rejectHandler, acceptAllHandler, rejectAllHandler, setCurrentDiffFile, changedTypeMap.current)
     } else {
       pendingCustomDiff.current[file] = changes
     }
+  }
+
+  props.editorAPI.acceptDiff = async (): Promise<boolean> => {
+    return await props.plugin.call('editor', 'acceptDiff')
+  }
+
+  props.editorAPI.discardDiff = async (): Promise<boolean> => {
+    return await props.plugin.call('editor', 'discardDiff')
+  }
+
+  props.editorAPI.getDiffSessions = async (): Promise<DiffSession[]> => {
+    return await props.plugin.call('editor', 'getDiffSessions')
+  }
+
+  props.editorAPI.setActiveDiff = async (diffId: string): Promise<boolean> => {
+    return await props.plugin.call('editor', 'setActiveDiff', diffId)
+  }
+
+  props.editorAPI.closeDiffSession = async (diffId: string): Promise<boolean> => {
+    return await props.plugin.call('editor', 'closeDiffSession', diffId)
   }
 
   function removeAllWidgets() {
@@ -1533,6 +1634,11 @@ export const EditorUI = (props: EditorUIProps) => {
     decoratorList.clear()
     setDecoratorListCollection(decoratorListCollection => {
       const { [widgetId]: _, ...rest } = decoratorListCollection
+      // If all widgets processed individually, emit accepted event
+      if (Object.keys(rest).length === 0) {
+
+        ;(props.plugin as any).emit('customDiffAccepted', currentDiffFile)
+      }
       return rest
     })
   }
@@ -1572,6 +1678,11 @@ export const EditorUI = (props: EditorUIProps) => {
     decoratorList.clear()
     setDecoratorListCollection(decoratorListCollection => {
       const { [widgetId]: _, ...rest } = decoratorListCollection
+      // If all widgets processed individually, emit rejected event
+      if (Object.keys(rest).length === 0) {
+
+        ;(props.plugin as any).emit('customDiffRejected', currentDiffFile)
+      }
       return rest
     })
   }
@@ -1587,6 +1698,9 @@ export const EditorUI = (props: EditorUIProps) => {
         getId: () => widgetId
       })
     })
+
+    // Notify HITL that all changes were accepted (no-op if nobody listens)
+    ;(props.plugin as any).emit('customDiffAccepted', currentDiffFile)
   }
 
   function rejectAllHandler() {
@@ -1600,6 +1714,10 @@ export const EditorUI = (props: EditorUIProps) => {
         getId: () => widgetId
       })
     })
+
+    // Notify HITL that all changes were rejected (no-op if nobody listens)
+
+    ;(props.plugin as any).emit('customDiffRejected', currentDiffFile)
   }
 
   function addDecoratorCollection (widgetId: string, ranges: monacoTypes.IRange[]): monacoTypes.editor.IEditorDecorationsCollection {
@@ -1665,6 +1783,49 @@ export const EditorUI = (props: EditorUIProps) => {
 
   return (
     <div className="w-100 h-100 d-flex flex-column-reverse">
+      {props.isDiff && (
+        <>
+          {/* Action Buttons */}
+          <div className="d-flex justify-content-center gap-2 p-2 border-bottom">
+            <button 
+              className="btn btn-success btn-sm" 
+              onClick={async () => {
+                const result = await props.editorAPI.acceptDiff()
+                if (result) {
+                  // Refresh diff sessions after accepting
+                  const sessions = await props.editorAPI.getDiffSessions()
+                  setDiffSessions(sessions)
+                  if (sessions.length === 0) {
+                    setActiveDiffId(null)
+                  }
+                }
+              }}
+              title="Accept all changes and close diff view"
+              disabled={diffSessions.length === 0}
+            >
+              Accept All Changes
+            </button>
+            <button 
+              className="btn btn-secondary btn-sm" 
+              onClick={async () => {
+                const result = await props.editorAPI.discardDiff()
+                if (result) {
+                  // Refresh diff sessions after discarding
+                  const sessions = await props.editorAPI.getDiffSessions()
+                  setDiffSessions(sessions)
+                  if (sessions.length === 0) {
+                    setActiveDiffId(null)
+                  }
+                }
+              }}
+              title="Discard all changes and close diff view"
+              disabled={diffSessions.length === 0}
+            >
+              Discard Changes
+            </button>
+          </div>
+        </>
+      )}
       <DiffEditor
         originalLanguage={'remix-solidity'}
         modifiedLanguage={'remix-solidity'}

@@ -91,6 +91,16 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       if (name === 'copilot/suggest/activate') plugin.emit('copilotChoiceUpdated', newValue)
       if (name === 'matomo-perf-analytics') plugin.call('settings', 'updateMatomoPerfAnalyticsChoice', newValue)
       if (name === 'text-wrap') plugin.emit('textWrapChoiceUpdated', newValue)
+      if (name === 'deepagent-config') {
+        // Handle DeepAgent enable/disable
+        if (!newValue) {
+          // Only disable when turning off
+          plugin.call('remixAI', 'disableDeepAgent').catch((error) => {
+            console.error('Failed to disable DeepAgent:', error)
+          })
+        }
+        // When turning on, just show the input fields - actual enablement happens on save
+      }
     } else {
       console.error('Setting does not exist: ', name)
     }
@@ -111,6 +121,17 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       dispatch({ type: 'SET_VALUE', payload: { name: key, value: formUIData[optionName][key] } })
     })
     dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: intl.formatMessage({ id: 'settings.credentialsUpdated' }) } })
+
+    // Handle DeepAgent enablement
+    if (optionName === 'deepagent-config' && state['deepagent-config'].value) {
+      const apiKey = formUIData[optionName]['langchain-api-key']
+      if (apiKey) {
+        plugin.call('remixAI', 'enableDeepAgent', apiKey).catch((error) => {
+          console.error('Failed to enable DeepAgent:', error)
+          dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: 'Failed to enable DeepAgent: ' + error.message } })
+        })
+      }
+    }
   }
 
   return (

@@ -21,6 +21,7 @@ interface AiChatPromptAreaProps {
     setMcpEnhanced: React.Dispatch<React.SetStateAction<boolean>>
     availableModels: any[]
     selectedModel: any
+    autoModeEnabled: boolean
     handleModelSelection: (modelName: string) => void
     onLockedModelClick?: (modelId: string, modelName: string) => void
     input: string
@@ -50,7 +51,16 @@ interface AiChatPromptAreaProps {
 
 export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
   const modelList = useMemo(() => {
-    return props.availableModels.map(model => {
+    const autoModeOption = {
+      label: 'Auto Mode',
+      bodyText: 'Automatically select the best model based on your prompt',
+      icon: 'fa-solid fa-magic-wand-sparkles' as const,
+      stateValue: 'auto',
+      dataId: 'ai-model-auto',
+      isLocked: false
+    }
+
+    const modelOptions = props.availableModels.map(model => {
       const hasAccess = props.modelAccess.checkAccess(model.id)
       return {
         label: model.name,
@@ -61,6 +71,8 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         isLocked: !hasAccess
       }
     })
+
+    return [autoModeOption, ...modelOptions]
   }, [props.availableModels, props.modelAccess.allowedModels])
 
   const handleLockedItemClick = (item: groupListType) => {
@@ -85,7 +97,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
           <GroupListMenu
             setChoice={props.handleModelSelection}
             setShowOptions={props.setShowModelSelector}
-            choice={props.selectedModelId}
+            choice={props.autoModeEnabled ? 'auto' : props.selectedModelId}
             groupList={modelList}
             onLockedItemClick={handleLockedItemClick}
           />
@@ -155,6 +167,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         ollamaModels={props.ollamaModels}
         selectedOllamaModel={props.selectedOllamaModel}
         modelSelectorBtnRef={props.modelSelectorBtnRef}
+        autoModeEnabled={props.autoModeEnabled}
         stopRequest={props.stopRequest}
         handleLoadSkills={props.handleLoadSkills}
       />

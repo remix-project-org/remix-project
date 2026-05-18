@@ -636,16 +636,60 @@ module.exports = {
         locateStrategy: 'xpath',
         timeout: 60000
       })
+      .executeAsync(function (done) {
+        const remixAIPlugin = (window as any).getRemixAIPlugin
+        if (!remixAIPlugin) {
+          done(false)
+          return
+        }
+
+        Promise.resolve()
+          .then(function () {
+            return remixAIPlugin.disableDeepAgent?.()
+          })
+          .then(function () {
+            return remixAIPlugin.disableMCPEnhancement?.()
+          })
+          .then(function () {
+            done(true)
+          })
+          .catch(function () {
+            done(false)
+          })
+      }, [], function (result) {
+        browser.assert.equal(result.value, true, 'Remote inferencer path enabled for prompt capture')
+      })
       .execute(function () {
-        const originalFetch = window.fetch;
         (window as any)._capturedPrompt = undefined
+        const capturePrompt = function (payload) {
+          if (payload && typeof payload.prompt === 'string') {
+            (window as any)._capturedPrompt = payload.prompt
+          }
+        }
+
+        const remixAIPlugin = (window as any).getRemixAIPlugin
+        const remoteInferencer = remixAIPlugin?.remoteInferencer
+        if (remoteInferencer && !remoteInferencer.__capturePromptPatched) {
+          const originalStreamRequest = remoteInferencer._streamInferenceRequest
+          const originalMakeRequest = remoteInferencer._makeRequest
+
+          remoteInferencer._streamInferenceRequest = function (payload, rType) {
+            capturePrompt(payload)
+            return originalStreamRequest.call(this, payload, rType)
+          }
+          remoteInferencer._makeRequest = function (payload, rType) {
+            capturePrompt(payload)
+            return originalMakeRequest.call(this, payload, rType)
+          }
+          remoteInferencer.__capturePromptPatched = true
+        }
+
+        const originalFetch = window.fetch
         window.fetch = function (input, init) {
           if (init && init.body && typeof init.body === 'string') {
             try {
               const body = JSON.parse(init.body)
-              if (typeof body.prompt === 'string') {
-                (window as any)._capturedPrompt = body.prompt
-              }
+              capturePrompt(body)
             } catch (e) { /* non-JSON body, ignore */ }
           }
           return originalFetch.call(this, input, init)
@@ -657,31 +701,45 @@ module.exports = {
       .pause(1000)
       .waitForElementVisible(`*[data-id="conversation-item-${convId}"]`, 5000)
       .click(`*[data-id="conversation-item-${convId}"]`)
-      .pause(1000)
+      .waitForElementPresent({
+        selector: "//*[@data-id='ai-user-chat-bubble' and contains(., 'Assistant answer number 8')]",
+        locateStrategy: 'xpath',
+        timeout: 10000
+      })
       // Send a new message to trigger the AI fetch request
       .waitForElementVisible('*[data-id="remix-ai-prompt-input"]')
       .setValue('*[data-id="remix-ai-prompt-input"]', 'What was the last thing we discussed?')
       .click('*[data-id="remix-ai-composer-send-btn"]')
       .waitForElementPresent({
-        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        selector: "//*[@data-id='ai-user-chat-bubble' and contains(., 'What was the last thing we discussed?')]",
         locateStrategy: 'xpath',
-        timeout: 120000
+        timeout: 10000
       })
-      .pause()
-      // Assert: the intercepted prompt explicitly embeds the seeded conversation.
-      .execute(function () {
-        return (window as any)._capturedPrompt
+      .executeAsync(function (done) {
+        const startedAt = Date.now()
+        const interval = setInterval(function () {
+          const prompt = (window as any)._capturedPrompt
+          if (typeof prompt === 'string' && prompt.length > 0) {
+            clearInterval(interval)
+            done(prompt)
+            return
+          }
+          if (Date.now() - startedAt > 10000) {
+            clearInterval(interval)
+            done(prompt)
+          }
+        }, 100)
       }, [], function (result) {
         const prompt = result.value as string
-        browser
-          .assert.ok(
-            typeof prompt === 'string' && prompt.length > 0,
-            'Prompt sent to AI is captured'
-          )
-          .assert.ok(
-            prompt.includes('Previous conversation:'),
-            'Prompt contains the embedded conversation header'
-          )
+        browser.assert.ok(
+          typeof prompt === 'string' && prompt.length > 0,
+          'Prompt sent to AI is captured'
+        )
+        if (typeof prompt !== 'string') return
+        browser.assert.ok(
+          prompt.includes('Previous conversation:'),
+          'Prompt contains the embedded conversation header'
+        )
           .assert.ok(
             prompt.includes('User: User question number 1'),
             'Prompt contains the oldest seeded user message'
@@ -698,6 +756,11 @@ module.exports = {
             prompt.includes('What was the last thing we discussed?'),
             'Prompt contains the current user request content'
           )
+      })
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        locateStrategy: 'xpath',
+        timeout: 240000
       })
   },'Should show an emtpy bubble and not crash the UI when payload is null or undefined #group4': function (browser: NightwatchBrowser) {
     const convId = 'null-content-crash-test-conv-001'

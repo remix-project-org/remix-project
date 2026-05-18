@@ -1,18 +1,15 @@
 import * as packageJson from '../../../../../package.json'
 import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent } from '@remix-api'
-import { RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer, isOllamaAvailable, getBestAvailableModel, listModels } from '@remix/remix-ai-core';
+import { RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig } from '@remix/remix-ai-core';
-import { MCPInferencer } from '@remix/remix-ai-core';
+import { MCPInferencer, DeepAgentInferencer } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
 import { AIModel, getDefaultModel, getModelById } from '@remix/remix-ai-core';
 import axios from 'axios';
 import { endpointUrls } from "@remix-endpoints-helper"
-
-type chatRequestBufferT<T> = {
-  [key in keyof T]: T[key]
-}
+import { DeepAgentEventBridge, MCPServerManager, PermissionChecker, ModelManager, DeepAgentManager, DAppGenerationManager, ChatRequestBuffer } from './remixAI'
 
 const profile = {
   name: 'remixAI',
@@ -26,7 +23,13 @@ const profile = {
     'getSelectedModel', 'getModelAccess', 'getOllamaModels',
     'addMCPServer', 'removeMCPServer', 'getMCPConnectionStatus', 'getMCPResources', 'getMCPTools', 'executeMCPTool',
     'enableMCPEnhancement', 'disableMCPEnhancement', 'isMCPEnabled', 'getIMCPServers',
-    'clearCaches', 'cancelRequest'
+    'enableDeepAgent', 'disableDeepAgent', 'isDeepAgentEnabled',
+    'setDeepAgentThread',
+    'respondToToolApproval',
+    'setAutoMode', 'getAutoModeStatus',
+    'clearCaches', 'cancelRequest',
+    'getAllowedModels', 'setModelAccess',
+    'generateDAppContent', 'fetchFigmaDesign', 'generateDAppFromFigma'
   ],
   events: [
     'modelChanged',
@@ -49,23 +52,64 @@ export class RemixAIPlugin extends Plugin {
   aiIsActivated:boolean = false
   remoteInferencer:RemoteInferencer | OllamaInferencer | MCPInferencer = null
   isInferencing: boolean = false
-  chatRequestBuffer: chatRequestBufferT<any> = null
-  codeExpAgent: CodeExplainAgent
-  securityAgent: SecurityAgent
-  contractor: ContractAgent
-  workspaceAgent: workspaceAgent
+  chatRequestBuffer: ChatRequestBuffer<any> = null
+  codeExpAgent: CodeExplainAgent | null = null
+  securityAgent: SecurityAgent | null = null
+  contractor: ContractAgent | null = null
+  workspaceAgent: workspaceAgent | null = null
+  modelAccess: any
   selectedModel: AIModel = getDefaultModel() // default model
   selectedModelId: string = getDefaultModel().id
   assistantThreadId: string = ''
   useRemoteInferencer:boolean = true
-  completionAgent: CodeCompletionAgent
+  completionAgent: CodeCompletionAgent | null = null
   mcpServers: IMCPServer[] = []
   mcpInferencer: MCPInferencer | null = null
   mcpEnabled: boolean = false
   remixMCPServer: RemixMCPServer | null = null
+  deepAgentInferencer: DeepAgentInferencer | null = null
+  deepAgentEnabled: boolean = false
+  private pendingDeepAgentThreadId: string | null = null
+
+  // Extracted helper modules
+  private eventBridge: DeepAgentEventBridge
+  private mcpManager: MCPServerManager
+  private permissionChecker: PermissionChecker
+  private modelManager: ModelManager
+  private deepAgentManager: DeepAgentManager
+  private dappManager: DAppGenerationManager
 
   constructor() {
     super(profile)
+    this.eventBridge = new DeepAgentEventBridge()
+    this.mcpManager = new MCPServerManager(this as any)
+    this.permissionChecker = new PermissionChecker()
+    this.deepAgentEnabled = true
+
+    this.modelManager = new ModelManager({
+      plugin: this as any,
+      eventBridge: this.eventBridge,
+      setupDeepAgentEventListeners: () => this.setupDeepAgentEventListeners()
+    })
+    this.deepAgentManager = new DeepAgentManager({
+      plugin: this as any,
+      eventBridge: this.eventBridge,
+      mcpManager: this.mcpManager,
+      setupDeepAgentEventListeners: () => this.setupDeepAgentEventListeners()
+    })
+    this.dappManager = new DAppGenerationManager({ plugin: this as any })
+    // Set up MCP manager deps after all managers are created
+    this.mcpManager.setDeps({
+      plugin: this as any,
+      permissionChecker: this.permissionChecker,
+      setModel: (modelId: string) => this.modelManager.setModel(modelId),
+      reinitializeDeepAgent: () => this.deepAgentManager.reinitialize()
+    })
+  }
+
+  private setupDeepAgentEventListeners() {
+    if (!this.deepAgentInferencer) return
+    this.eventBridge.setupListeners(this.deepAgentInferencer, this as any)
   }
 
   private async getLocalizedMessage(key: string): Promise<string> {
@@ -78,12 +122,34 @@ export class RemixAIPlugin extends Plugin {
     }
   }
 
+  public getAllowedModels(): string[] {
+    if (this.modelAccess) {
+      return this.modelAccess.allowedModels
+    }
+    return []
+  }
+
+  public setModelAccess(modelAccess: any): void {
+    this.modelAccess = modelAccess
+  }
+
   async onActivation(): Promise<void> {
-    // check access
     const { hasBasicMcp, isBetaUser } = await this.checkMCPAccess()
 
-    // IMPORTANT: Must await initialize() before loading MCP servers
-    // to ensure remixMCPServer is created first (race condition fix)
+    if (isBetaUser) {
+      console.log('[RemixAI Plugin] Beta user detected at startup, using claude-sonnet-4-6')
+      const betaModel = getModelById('claude-sonnet-4-6')
+      if (betaModel) {
+        this.selectedModelId = 'claude-sonnet-4-6'
+        this.selectedModel = betaModel
+      }
+    } else {
+      console.log('[RemixAI Plugin] Non-beta user at startup, using default model')
+      const defaultModel = getDefaultModel()
+      this.selectedModelId = defaultModel.id
+      this.selectedModel = defaultModel
+    }
+
     await this.initialize()
     this.completionAgent = new CodeCompletionAgent(this)
     this.securityAgent = new SecurityAgent(this)
@@ -91,13 +157,6 @@ export class RemixAIPlugin extends Plugin {
     this.contractor = ContractAgent.getInstance(this)
     this.workspaceAgent = workspaceAgent.getInstance(this)
 
-    // Switch to claude-sonnet-4-6 for beta users
-    if (isBetaUser) {
-      console.log('[RemixAI Plugin] Beta user detected, switching to claude-sonnet-4-6')
-      await this.setModel('claude-sonnet-4-6')
-    }
-
-    // Initialize MCP servers with defaults (after initialize() completes)
     this.mcpServers = [...mcpDefaultServersConfig.defaultServers, ...(hasBasicMcp ? mcpBasicServersConfig.defaultServers : [])]
 
     // Initialize MCP inferencer if we have servers and remixMCPServer exists
@@ -113,7 +172,13 @@ export class RemixAIPlugin extends Plugin {
       // Connect to enabled servers for status tracking
       const enabledServers = this.mcpServers.filter((s: IMCPServer) => s.enabled);
       if (enabledServers.length > 0) {
+        const waitPromise = this.waitForMCPServersReady();
         await this.mcpInferencer.connectAllServers();
+        console.log('[RemixAI Plugin] connectAllServers() completed, now waiting for all servers to fully connect...');
+
+        // Wait for all connection events to be received
+        await waitPromise;
+        console.log('[RemixAI Plugin] All MCP servers fully connected');
         this.emit('mcpServersLoaded');
       }
     }
@@ -122,6 +187,46 @@ export class RemixAIPlugin extends Plugin {
     this.on('auth', 'authStateChanged', async (authState: any) => {
       await this.refreshMCPServersOnAuthChange(authState);
     });
+
+    const allTools = await this.mcpInferencer?.getAllTools();
+    console.log('[RemixAI Plugin] MCP tools available after wait:', allTools);
+
+    if (this.deepAgentEnabled && this.remixMCPServer) {
+      try {
+        console.log('[RemixAI Plugin] Initializing DeepAgent with mcpInferencer:', !!this.mcpInferencer);
+        console.log('[RemixAI Plugin] Using model for DeepAgent:', this.selectedModel.provider, this.selectedModelId);
+        this.deepAgentInferencer = new DeepAgentInferencer(
+          this,
+          this.remixMCPServer.tools,
+          {
+            memoryBackend: (localStorage.getItem('deepagent_memory_backend') as 'state' | 'store') || 'store',
+            enableSubagents: true,
+            enablePlanning: true
+          },
+          this.remoteInferencer,
+          this.mcpInferencer, // Pass MCPInferencer to gather external MCP client tools
+          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai', modelId: this.selectedModelId } // Pass selected model
+        )
+        await this.deepAgentInferencer.initialize()
+        // Set up DeepAgent event listeners for streaming (once only)
+        this.setupDeepAgentEventListeners();
+
+        // Push allowed models directly to avoid re-entrant deadlock
+        ;(this.deepAgentInferencer as any).setAllowedModels(this.getAllowedModels() || [])
+
+        console.log('[RemixAI Plugin] DeepAgent initialized successfully')
+
+        // Apply pending thread_id if setDeepAgentThread was called before init completed
+        if (this.pendingDeepAgentThreadId) {
+          this.deepAgentInferencer.setSessionThreadId(this.pendingDeepAgentThreadId)
+          this.pendingDeepAgentThreadId = null
+        }
+      } catch (error) {
+        console.error('[RemixAI Plugin] Failed to initialize DeepAgent:', error)
+        this.deepAgentEnabled = false
+        this.deepAgentInferencer = null
+      }
+    }
   }
 
   async initialize(remoteModel?:IRemoteModel){
@@ -133,7 +238,6 @@ export class RemixAIPlugin extends Plugin {
       this.isInferencing = false
     })
 
-    // Always initialize with default model on page reload
     await this.setModel(this.selectedModelId)
 
     this.aiIsActivated = true
@@ -162,7 +266,9 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async code_generation(prompt: string, params: IParams=CompletionParams): Promise<any> {
-    if (this.mcpEnabled && this.mcpInferencer){
+    if (this.deepAgentEnabled && this.deepAgentInferencer) {
+      return this.deepAgentInferencer.code_generation(prompt, params)
+    } else if (this.mcpEnabled && this.mcpInferencer){
       return this.mcpInferencer.code_generation(prompt, params)
     } else {
       return await this.remoteInferencer.code_generation(prompt, params)
@@ -184,7 +290,9 @@ export class RemixAIPlugin extends Plugin {
     // add workspace context
     newPrompt = !this.workspaceAgent.ctxFiles ? newPrompt : "Using the following context: ```\n" + this.workspaceAgent.ctxFiles + "```\n\n" + newPrompt
     let result
-    if (this.mcpEnabled && this.mcpInferencer){
+    if (this.deepAgentEnabled && this.deepAgentInferencer) {
+      result = await this.deepAgentInferencer.answer(newPrompt, params, this.workspaceAgent.ctxFiles || '')
+    } else if (this.mcpEnabled && this.mcpInferencer){
       return this.mcpInferencer.answer(prompt, params)
     } else {
       result = await this.remoteInferencer.answer(newPrompt, params)
@@ -196,7 +304,9 @@ export class RemixAIPlugin extends Plugin {
   async code_explaining(prompt: string, context: string, params: IParams=GenerationParams): Promise<any> {
     this.emit('codeExplainRequested')
     let result
-    if (this.mcpEnabled && this.mcpInferencer){
+    if (this.deepAgentEnabled && this.deepAgentInferencer) {
+      result = await this.deepAgentInferencer.code_explaining(prompt, context, params)
+    } else if (this.mcpEnabled && this.mcpInferencer){
       return this.mcpInferencer.code_explaining(prompt, context, params)
     } else {
       result = await this.remoteInferencer.code_explaining(prompt, context, params)
@@ -398,175 +508,26 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async setAssistantProvider(provider: string) {
-    const providerToModelMap: Record<string, string> = {
-      'openai': 'gpt-4-turbo',
-      'mistralai': 'mistral-medium-latest',
-      'anthropic': 'claude-sonnet-4-5',
-      'ollama': 'ollama'
-    }
-    const modelId = providerToModelMap[provider] || getDefaultModel().id
-    await this.setModel(modelId)
+    return this.modelManager.setAssistantProvider(provider)
   }
 
-  async setModel(modelId: string) {
-    let model = getModelById(modelId)
-    if (!model) {
-      model = getDefaultModel()
-      modelId = model.id
-    }
-
-    // Store previous model for comparison
-    const previousModelId = this.selectedModelId
-
-    this.selectedModelId = modelId
-    this.selectedModel = model
-
-    // Update inference parameters
-    GenerationParams.provider = model.provider
-    GenerationParams.model = modelId
-    CompletionParams.provider = model.provider
-    CompletionParams.model = modelId
-    AssistantParams.provider = model.provider
-    AssistantParams.model = modelId
-
-    // Clear thread IDs when switching models
-    if (previousModelId !== modelId) {
-      this.assistantThreadId = ''
-      GenerationParams.threadId = ''
-      CompletionParams.threadId = ''
-      AssistantParams.threadId = ''
-    }
-
-    // Switch inferencer based on provider
-    if (model.provider === 'ollama') {
-      // Ollama requires sub-model selection, use best available for now
-      const isAvailable = await isOllamaAvailable();
-      if (!isAvailable) {
-        console.error('Ollama is not available. Please ensure Ollama is running. Falling back to default model.')
-        const defaultModel = getDefaultModel()
-        model = defaultModel
-        modelId = defaultModel.id
-        this.selectedModelId = modelId
-        this.selectedModel = model
-        GenerationParams.provider = model.provider
-        GenerationParams.model = modelId
-        CompletionParams.provider = model.provider
-        CompletionParams.model = modelId
-        AssistantParams.provider = model.provider
-        AssistantParams.model = modelId
-      } else {
-        const bestModel = await getBestAvailableModel();
-        if (!bestModel) {
-          console.error('No Ollama models available. Falling back to default model.')
-          // Fall back to default model
-          const defaultModel = getDefaultModel()
-          model = defaultModel
-          modelId = defaultModel.id
-          this.selectedModelId = modelId
-          this.selectedModel = model
-          GenerationParams.provider = model.provider
-          GenerationParams.model = modelId
-          CompletionParams.provider = model.provider
-          CompletionParams.model = modelId
-          AssistantParams.provider = model.provider
-          AssistantParams.model = modelId
-        } else {
-          // Switch to Ollama inferencer
-          this.remoteInferencer = new OllamaInferencer(bestModel);
-          this.remoteInferencer.event.on('onInference', () => {
-            this.isInferencing = true
-          })
-          this.remoteInferencer.event.on('onInferenceDone', () => {
-            this.isInferencing = false
-          })
-        }
-      }
-    }
-
-    // Update MCP inferencer if enabled
-    if (this.mcpEnabled) {
-      this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer, this.remoteInferencer);
-      this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
-        // Handle server connected
-      })
-      this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
-        // Handle server error
-      })
-      this.mcpInferencer.event.on('onInference', () => {
-        this.isInferencing = true
-      })
-      this.mcpInferencer.event.on('onInferenceDone', () => {
-        this.isInferencing = false
-      })
-      await this.mcpInferencer.connectAllServers();
-    }
-
-    // Emit event for UI updates
-    this.emit('modelChanged', modelId)
+  async setModel(modelId: string, allowedModels: string[] = []) {
+    return this.modelManager.setModel(modelId, allowedModels)
   }
 
   async setOllamaModel(ollamaModelName: string) {
-    // Special method for selecting specific Ollama model after "Ollama" is selected
-    if (this.selectedModel.provider !== 'ollama') {
-      console.warn('setOllamaModel should only be called when Ollama provider is selected')
-      return
-    }
-
-    const isAvailable = await isOllamaAvailable();
-    if (!isAvailable) {
-      console.error('Ollama is not available. Please ensure Ollama is running.')
-      return
-    }
-
-    this.remoteInferencer = new OllamaInferencer(ollamaModelName);
-    this.remoteInferencer.event.on('onInference', () => {
-      this.isInferencing = true
-    })
-    this.remoteInferencer.event.on('onInferenceDone', () => {
-      this.isInferencing = false
-    })
-
-    // Update MCP if enabled
-    if (this.mcpEnabled && this.mcpInferencer) {
-      this.mcpInferencer = new MCPInferencer(this.mcpServers, undefined, undefined, this.remixMCPServer, this.remoteInferencer);
-      await this.mcpInferencer.connectAllServers();
-    }
+    return this.modelManager.setOllamaModel(ollamaModelName)
   }
 
   async getModelAccess(): Promise<string[]> {
-    try {
-      const token = localStorage.getItem('remix_access_token')
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
-
-      const response = await fetch(`${endpointUrls.sso}/accounts`, {
-        credentials: 'include',
-        headers
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        return data.allowed_models || []
-      }
-    } catch (err) {
-      console.error('Failed to fetch model access:', err)
-    }
-
+    const models = await this.permissionChecker.getModelAccess()
+    if (models.length > 0) return models
     // Fallback: default model + ollama
     return [getDefaultModel().id, 'ollama']
   }
 
   async getOllamaModels(): Promise<string[]> {
-    if (this.selectedModel.provider !== 'ollama') {
-      throw new Error('Ollama is not the selected provider')
-    }
-
-    const available = await isOllamaAvailable()
-    if (!available) {
-      throw new Error('Ollama is not running')
-    }
-
-    const models = await listModels()
-    return models
+    return this.modelManager.getOllamaModels()
   }
 
   isChatRequestPending(){
@@ -577,75 +538,29 @@ export class RemixAIPlugin extends Plugin {
     this.chatRequestBuffer = null
   }
 
-  // MCP Server Management Methods
+  // MCP Server Management Methods (delegated to MCPServerManager)
   async addMCPServer(server: IMCPServer): Promise<void> {
-    try {
-      this.mcpServers.push(server);
-
-      // If MCP inferencer is active, add the server dynamically
-      if (this.mcpInferencer) {
-        await this.mcpInferencer.addMCPServer(server);
-      }
-    } catch (error) {
-      console.error(`[RemixAI Plugin] Failed to add MCP server ${server.name}:`, error);
-      throw error;
-    }
+    return this.mcpManager.addServer(server)
   }
 
   async removeMCPServer(serverName: string): Promise<void> {
-    try {
-      const serverToRemove = this.mcpServers.find(s => s.name === serverName);
-      if (serverToRemove?.isBuiltIn) {
-        throw new Error(`Cannot remove built-in server: ${serverName}`);
-      }
-      this.mcpServers = this.mcpServers.filter(s => s.name !== serverName);
-
-      // If MCP inferencer is active, remove the server dynamically
-      if (this.mcpInferencer) {
-        await this.mcpInferencer.removeMCPServer(serverName);
-      }
-    } catch (error) {
-      console.error(`[RemixAI Plugin] Failed to remove MCP server ${serverName}:`, error);
-      throw error;
-    }
+    return this.mcpManager.removeServer(serverName)
   }
 
   getMCPConnectionStatus(): IMCPConnectionStatus[] {
-    if (this.mcpInferencer) {
-      const statuses = this.mcpInferencer.getConnectionStatuses();
-      return statuses;
-    }
-
-    const defaultStatuses = this.mcpServers.map(server => ({
-      serverName: server.name,
-      status: 'disconnected' as const,
-      lastAttempt: Date.now()
-    }));
-    return defaultStatuses;
+    return this.mcpManager.getConnectionStatus()
   }
 
   async getMCPResources(): Promise<Record<string, any[]>> {
-    if (this.mcpInferencer) {
-      const resources = await this.mcpInferencer.getAllResources();
-      return resources;
-    }
-    return {};
+    return this.mcpManager.getResources()
   }
 
   async getMCPTools(): Promise<Record<string, any[]>> {
-    if (this.mcpInferencer) {
-      const tools = await this.mcpInferencer.getAllTools();
-      return tools;
-    }
-    return {};
+    return this.mcpManager.getTools()
   }
 
   async executeMCPTool(serverName: string, toolName: string, arguments_: Record<string, any>): Promise<any> {
-    if (this.mcpInferencer) {
-      const result = await this.mcpInferencer.executeTool(serverName, { name: toolName, arguments: arguments_ });
-      return result;
-    }
-    throw new Error('MCP provider not active');
+    return this.mcpManager.executeTool(serverName, toolName, arguments_)
   }
 
   async enableMCPEnhancement(): Promise<void> {
@@ -686,6 +601,34 @@ export class RemixAIPlugin extends Plugin {
     return this.mcpServers;
   }
 
+  async enableDeepAgent(): Promise<void> {
+    return this.deepAgentManager.enable()
+  }
+
+  async disableDeepAgent(): Promise<void> {
+    return this.deepAgentManager.disable()
+  }
+
+  isDeepAgentEnabled(): boolean {
+    return this.deepAgentManager.isEnabled()
+  }
+
+  async setAutoMode(enabled: boolean): Promise<void> {
+    return this.deepAgentManager.setAutoMode(enabled)
+  }
+
+  getAutoModeStatus(): boolean {
+    return this.deepAgentManager.getAutoModeStatus()
+  }
+
+  setDeepAgentThread(conversationId: string): void {
+    this.deepAgentManager.setThread(conversationId)
+  }
+
+  respondToToolApproval(response: { requestId: string; approved: boolean; modifiedArgs?: Record<string, any> }): void {
+    this.deepAgentManager.respondToToolApproval(response)
+  }
+
   clearCaches(){
     if (this.mcpInferencer){
       this.mcpInferencer.resetResourceCache()
@@ -693,140 +636,55 @@ export class RemixAIPlugin extends Plugin {
   }
 
   cancelRequest(): void {
-    if (this.mcpEnabled && this.mcpInferencer) {
+    if (this.deepAgentEnabled && this.deepAgentInferencer) {
+      this.deepAgentManager.cancelRequest()
+    } else if (this.mcpEnabled && this.mcpInferencer) {
       this.mcpInferencer.cancelRequest()
     } else if (this.remoteInferencer) {
       (this.remoteInferencer as RemoteInferencer).cancelRequest()
     }
   }
 
+  async generateDAppContent(params: {
+    messages: any[];
+    systemPrompt: string;
+    hasImage?: boolean;
+    isUpdate?: boolean;
+    hasFigma?: boolean;
+  }): Promise<string> {
+    return this.dappManager.generateDAppContent(params)
+  }
+
+  async fetchFigmaDesign(params: {
+    figmaUrl: string;
+    figmaToken: string;
+  }): Promise<{ success: boolean; fileName?: string; rawJson?: string; fileKey?: string; message?: string }> {
+    return this.dappManager.fetchFigmaDesign(params)
+  }
+
+  async generateDAppFromFigma(params: {
+    figmaUrl: string;
+    figmaToken: string;
+    description?: string;
+    systemPrompt: string;
+    isBaseMiniApp?: boolean;
+  }): Promise<string> {
+    return this.dappManager.generateDAppFromFigma(params)
+  }
+
   private async refreshMCPServersOnAuthChange(authState: any): Promise<void> {
-    try {
-      const isAuthenticated = authState?.isAuthenticated || false;
-
-      if (!isAuthenticated) { // logged out or no user
-        console.log('[RemixAI Plugin] User logged out, resetting to default model and MCP servers');
-        const defaultModel = getDefaultModel();
-        await this.setModel(defaultModel.id);
-        await this.resetMCPServersToDefault();
-        return;
-      }
-
-      const { hasBasicMcp, isBetaUser } = await this.checkMCPAccess();
-
-      // Switch to claude-sonnet-4-6 for beta users
-      if (isBetaUser) {
-        console.log('[RemixAI Plugin] Beta user logged in, switching to claude-sonnet-4-6');
-        await this.setModel('claude-sonnet-4-6');
-      } else {
-        const defaultModel = getDefaultModel();
-        console.log(`[RemixAI Plugin] Non-beta user logged in, using default model: ${defaultModel.id}`);
-        await this.setModel(defaultModel.id);
-      }
-
-      const newServerList = [
-        ...mcpDefaultServersConfig.defaultServers,
-        ...(hasBasicMcp ? mcpBasicServersConfig.defaultServers : [])
-      ];
-      const currentServerNames = this.mcpServers.map(s => s.name).sort().join(',');
-      const newServerNames = newServerList.map(s => s.name).sort().join(',');
-
-      if (currentServerNames !== newServerNames) {
-        this.mcpServers = newServerList;
-
-        if (this.remixMCPServer) {
-          if (this.mcpInferencer) {
-            for (const server of this.mcpServers) {
-              try {
-                await this.mcpInferencer.removeMCPServer(server.name);
-              } catch (err) {
-              }
-            }
-          }
-
-          this.mcpInferencer = new MCPInferencer(
-            this.mcpServers,
-            undefined,
-            undefined,
-            this.remixMCPServer,
-            this.remoteInferencer
-          );
-
-          this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
-            console.log(`[RemixAI Plugin] MCP server connected: ${serverName}`);
-          });
-          this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
-            console.error(`[RemixAI Plugin] MCP server error (${serverName}):`, error);
-          });
-
-          const enabledServers = this.mcpServers.filter((s: IMCPServer) => s.enabled);
-          if (enabledServers.length > 0) {
-            await this.mcpInferencer.connectAllServers();
-            this.emit('mcpServersLoaded');
-            console.log('[RemixAI Plugin] MCP servers refreshed and connected');
-          }
-        }
-      } else {
-      }
-    } catch (error) {
-      console.error('[RemixAI Plugin] Failed to refresh MCP servers on auth change:', error);
-    }
+    return this.mcpManager.refreshOnAuthChange(authState)
   }
 
   private async checkMCPAccess(): Promise<{ hasBasicMcp: boolean; isBetaUser: boolean }> {
-    try {
-      const token = localStorage.getItem('remix_access_token');
-      if (!token) return { hasBasicMcp: false, isBetaUser: false };
+    return this.permissionChecker.checkMCPAccess()
+  }
 
-      const headers = { 'Authorization': `Bearer ${token}` };
-      const response = await fetch(`${endpointUrls.permissions}`, {
-        credentials: 'include',
-        headers
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        const hasBasicMcp = data.features?.['mcp:basicExternal']?.is_enabled || false;
-        const isBetaUser = data.feature_groups?.some((group: any) => group.name === 'beta') || false;
-
-        return { hasBasicMcp, isBetaUser };
-      }
-      return { hasBasicMcp: false, isBetaUser: false };
-    } catch (error) {
-      console.error('[RemixAI Plugin] Failed to check MCP access:', error);
-      return { hasBasicMcp: false, isBetaUser: false };
-    }
+  private waitForMCPServersReady(timeout: number = 30000): Promise<void> {
+    return this.mcpManager.waitForServersReady(timeout)
   }
 
   private async resetMCPServersToDefault(): Promise<void> {
-    try {
-      this.mcpServers = [...mcpDefaultServersConfig.defaultServers];
-
-      if (this.remixMCPServer) {
-        this.mcpInferencer = new MCPInferencer(
-          this.mcpServers,
-          undefined,
-          undefined,
-          this.remixMCPServer,
-          this.remoteInferencer
-        );
-
-        this.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
-          console.log(`[RemixAI Plugin] MCP server connected: ${serverName}`);
-        });
-        this.mcpInferencer.event.on('mcpServerError', (serverName: string, error: Error) => {
-          console.error(`[RemixAI Plugin] MCP server error (${serverName}):`, error);
-        });
-
-        const enabledServers = this.mcpServers.filter((s: IMCPServer) => s.enabled);
-        if (enabledServers.length > 0) {
-          await this.mcpInferencer.connectAllServers();
-          this.emit('mcpServersLoaded');
-        }
-      }
-    } catch (error) {
-      console.error('[RemixAI Plugin] Failed to reset MCP servers to default:', error);
-    }
+    return this.mcpManager.resetToDefaultWithReinit()
   }
 }

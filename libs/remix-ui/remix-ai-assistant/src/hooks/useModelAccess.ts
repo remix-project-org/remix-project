@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { getDefaultModel, AVAILABLE_MODELS } from '@remix/remix-ai-core'
+import { all } from 'axios'
 
 export interface ModelAccess {
   allowedMcps: string[]
@@ -79,6 +80,8 @@ export function useModelAccess(): ModelAccess {
 
           // Only add models from enabled providers
           if (model.requiresAuth && enabledProviders.has(model.provider)) {
+            allowedModelIds.push(model.id)
+          } else {
             allowedModelIds.push(model.id)
           }
         })

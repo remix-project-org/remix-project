@@ -4,7 +4,6 @@ import { Button, Row, Col, Card, Modal } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { toPng } from 'html-to-image';
 import { AppContext } from '../../contexts';
-import ChatBox from '../ChatBox';
 import DeployPanel from '../DeployPanel';
 // remixClient removed - using plugin from context instead
 import { InBrowserVite } from '../../InBrowserVite';
@@ -64,7 +63,7 @@ function EditHtmlTemplate(): JSX.Element {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const [showVmTips, setShowVmTips] = useState(false);
-  const [showChatBox, setShowChatBox] = useState(false);
+
 
   useEffect(() => {
     if (!plugin) return;
@@ -421,45 +420,68 @@ window.addEventListener('unhandledrejection', function(e) {
     setIsBuilding(false);
   }
 
-  const handleChatMessage = async (message: string, imageBase64?: string) => {
+
+  const handleOpenAIAssistant = async () => {
     if (!activeDapp || !plugin) return;
+    console.log('[QuickDapp] Opening AI Assistant for DApp update:', activeDapp.slug);
 
-    dispatch({
-      type: 'SET_DAPP_PROCESSING',
-      payload: { slug: activeDapp.slug, isProcessing: true }
-    });
+    // Check if AI is currently busy (streaming)
+    const streamingEl = document.querySelector('[data-id="remix-ai-streaming"]');
+    if (streamingEl?.getAttribute('data-streaming') === 'true') {
+      setNotificationModal({
+        show: true,
+        title: 'AI Assistant Busy',
+        message: 'The AI Assistant is currently processing a request. Please wait for it to finish, then try again.',
+        variant: 'warning'
+      });
+      return;
+    }
 
+    // Gather current DApp file list for context
+    let fileList: string[] = [];
     try {
-      const mapFiles = new Map<string, string>();
-      const dappRootPath = '/';
-      await readDappFiles(plugin, dappRootPath, mapFiles, 0);
-
-      const currentFilesObject: Pages = {};
-      for (const [path, content] of mapFiles.entries()) {
-        if (!path.match(/\.(png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/i)) {
-          currentFilesObject[path] = content;
-        }
+      const srcFiles = await plugin.call('fileManager', 'readdir', 'src');
+      if (srcFiles) {
+        fileList = Object.keys(srcFiles).map(f => f.replace(/^src\//, 'src/'));
       }
+    } catch (e) {
+      console.warn('[QuickDapp] Could not read DApp files:', e);
+    }
 
-      let userPrompt: any = message;
-      if (imageBase64) {
-        userPrompt = [{ type: 'text', text: message }, { type: 'image_url', image_url: { url: imageBase64 } }];
-      }
+    // Build rich context prompt
+    const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
+    const contractInfo = activeDapp.contract;
+    const promptParts = [
+      `I have an existing DApp called "${dappName}" in workspace "${activeDapp.workspaceName}".`,
+      ``,
+      `Contract: ${contractInfo?.name || 'Unknown'} at ${contractInfo?.address || 'unknown'}`,
+      `Chain: ${contractInfo?.chainId || 'unknown'}`,
+    ];
 
-      // Call updateDapp through plugin API
-      await plugin.updateDapp(
-        activeDapp.slug,
-        activeDapp.contract.address,
-        userPrompt,
-        currentFilesObject,
-        imageBase64 || null,
-        activeDapp.contract.abi,
-        activeDapp.contract.chainId
-      );
+    if (fileList.length > 0) {
+      promptParts.push(``, `Current DApp files:`, ...fileList.map(f => `- ${f}`));
+    }
 
-    } catch (error: any) {
-      console.error('Update setup failed:', error);
-      dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: activeDapp.slug, isProcessing: false } });
+    promptParts.push(
+      ``,
+      `I want to update this DApp. Please list my DApp workspaces, confirm this is the right one, and then ask me what changes I'd like to make.`
+    );
+
+    const prompt = promptParts.join('\n');
+
+    // Activate and focus AI Assistant
+    try {
+      await plugin.call('manager', 'activatePlugin', 'remix-ai-assistant');
+    } catch (e) { /* may already be active */ }
+    try {
+      await plugin.call('rightSidePanel', 'focusPanel');
+    } catch (e) { /* best-effort */ }
+
+    // Send prompt to AI
+    try {
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt);
+    } catch (e) {
+      console.warn('[QuickDapp] Could not send prompt to AI Assistant:', e);
     }
   };
 
@@ -497,12 +519,7 @@ window.addEventListener('unhandledrejection', function(e) {
     }
   }, [isBuilderReady, isAiUpdating, activeDapp?.slug, isCurrentProviderVM]);
 
-  // Show ChatBox when AI starts updating
-  useEffect(() => {
-    if (isAiUpdating) {
-      setShowChatBox(true);
-    }
-  }, [isAiUpdating]);
+
 
   // Detect when blockchain VM is ready via contextChanged event (debounced).
   // Uses plugin.on (passive event) instead of plugin.call (blocked by engine queue).
@@ -655,14 +672,14 @@ window.addEventListener('unhandledrejection', function(e) {
               </button>
             )}
             <Button
-              variant={showChatBox ? "outline-secondary" : "success"}
+              variant="success"
               size="sm"
-              onClick={() => setShowChatBox(!showChatBox)}
+              onClick={handleOpenAIAssistant}
               disabled={isAiUpdating}
               data-id="update-with-ai-btn"
             >
               <i className="fas fa-robot me-1"></i>
-              {showChatBox ? 'Hide AI Chat' : 'Update with AI'}
+              Ask AI to Update
             </Button>
             <Button
               variant="primary"
@@ -692,18 +709,14 @@ window.addEventListener('unhandledrejection', function(e) {
             <Col xs={12} lg={8} className="pe-lg-3 d-flex flex-column qd-main-col">
               <Row className="flex-grow-1 mb-3">
                 <Col xs={12} className="d-flex flex-column h-100">
-                  {showChatBox && (
-                    <div className="flex-grow-1 mb-3 fade-in" style={{ minHeight: '30px' }}>
-                      <ChatBox onSendMessage={handleChatMessage} isLoading={isAiUpdating}/>
-                    </div>
-                  )}
+
                   {showTips && (
                     <div className="alert alert-info py-2 px-3 mb-2 small shadow-sm fade-in border-info bg-opacity-10">
                       <div className="fw-bold mb-1"><i className="fas fa-robot me-1"></i>AI Code Generation Tips</div>
                       <ul className="mb-0 ps-3">
                         <li>AI code might not be perfect. If the preview is broken:</li>
                         <li><strong>Option 1:</strong> Edit code manually in the <strong>File Explorer</strong> (left panel), then click <strong>Refresh Preview</strong>.</li>
-                        <li><strong>Option 2:</strong> Ask the AI to fix it in the <strong>Chat Box</strong> above.</li>
+                        <li><strong>Option 2:</strong> Click the <strong>Ask AI to Update</strong> button to ask the AI Assistant to fix it.</li>
                       </ul>
                     </div>
                   )}

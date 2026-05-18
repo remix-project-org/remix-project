@@ -47,6 +47,8 @@ export type EndpointUrls = {
   ccipRead: string;
   learneth: string;
   rss: string;
+  langchain: string;
+  langsmith: string;
 };
 
 /** Service key → path segment mapping (no leading slash) */
@@ -84,6 +86,9 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   ccipRead: 'ccip-read',
   learneth: 'learneth',
   rss: 'rss',
+  langchain: 'langchain',
+  langsmith: 'langsmith',
+
 };
 
 /** Build all endpoint URLs from a single base URL */
@@ -145,6 +150,9 @@ const defaultUrls: EndpointUrls = {
   ccipRead: 'https://quickdapp-ccip.api.remix.live',
   learneth: 'https://learneth.api.remix.live',
   rss: 'https://rss.api.remix.live',
+  langchain: 'https://langchain.api.remix.live',
+  langsmith: 'http://localhost:3000/langsmith',
+  // langsmith: 'https://langchain.api.remix.live/langsmith',
 };
 
 // --- Resolution ---

@@ -154,87 +154,88 @@ export class FileReplacerHandler extends BaseToolHandler {
 /**
  * File Write Tool Handler
  */
-export class FileWriteHandler extends BaseToolHandler {
-  name = 'file_write';
-  description = `Write content to a file.
-  Always wrap string with a backquote to avoid issues with special characters in the content and to ensure multiline content is properly handled.`
-  inputSchema = {
-    type: 'object',
-    properties: {
-      path: {
-        type: 'string',
-        description: 'File path to write'
-      },
-      content: {
-        type: 'string',
-        description: 'Content to write to the file'
-      },
-      encoding: {
-        type: 'string',
-        description: 'File encoding (default: utf8)',
-        default: 'utf8'
-      }
-    },
-    required: ['path', 'content']
-  };
+// export class FileWriteHandler extends BaseToolHandler {
+//   name = 'file_write';
+//   description = `Write content to a file.
+//   Always wrap string with a backquote to avoid issues with special characters in the content and to ensure multiline content is properly handled.`
+//   inputSchema = {
+//     type: 'object',
+//     properties: {
+//       path: {
+//         type: 'string',
+//         description: 'File path to write'
+//       },
+//       content: {
+//         type: 'string',
+//         description: 'Content to write to the file'
+//       },
+//       encoding: {
+//         type: 'string',
+//         description: 'File encoding (default: utf8)',
+//         default: 'utf8'
+//       }
+//     },
+//     required: ['path', 'content']
+//   };
 
-  getPermissions(): string[] {
-    return ['file:write'];
-  }
+//   getPermissions(): string[] {
+//     return ['file:write'];
+//   }
 
-  validate(args: FileWriteArgs): boolean | string {
-    const required = this.validateRequired(args, ['path', 'content']);
-    if (required !== true) return required;
+//   validate(args: FileWriteArgs): boolean | string {
+//     const required = this.validateRequired(args, ['path', 'content']);
+//     if (required !== true) return required;
 
-    const types = this.validateTypes(args, {
-      path: 'string',
-      content: 'string',
-      encoding: 'string'
-    });
-    if (types !== true) return types;
+//     const types = this.validateTypes(args, {
+//       path: 'string',
+//       content: 'string',
+//       encoding: 'string'
+//     });
+//     if (types !== true) return types;
 
-    return true;
-  }
+//     return true;
+//   }
 
-  async execute(args: FileWriteArgs, plugin: Plugin): Promise<IMCPToolResult> {
-    try {
-      const exists = await plugin.call('fileManager', 'exists', args.path)
-      if (exists) {
-        const hasUnacceptedChanges = await plugin.call('editor', 'hasUnacceptedChanges')
-        console.log(`[FileWriteHandler] - File ${args.path} already exists. Checking for unaccepted changes: ${hasUnacceptedChanges}`);
-        if (hasUnacceptedChanges) {
-          return this.createErrorResult(`Project has unaccepted changes. Please review and accept/reject changes before overwriting.`);
-        }
-      }
-      try {
-        if (!exists) {await plugin.call('fileManager', 'writeFile', args.path, "")}
-        await plugin.call('fileManager', 'open', args.path)
-      } catch (openError) {
-        console.warn(`Failed to open file in editor: ${openError.message}`);
-      }
-      await new Promise(resolve => setTimeout(resolve, 300))
+//   async execute(args: FileWriteArgs, plugin: Plugin): Promise<IMCPToolResult> {
+//     try {
+//       // const exists = await plugin.call('fileManager', 'exists', args.path)
+//       // if (exists) {
+//       //   const hasUnacceptedChanges = await plugin.call('editor', 'hasUnacceptedChanges')
+//       //   console.log(`[FileWriteHandler] - File ${args.path} already exists. Checking for unaccepted changes: ${hasUnacceptedChanges}`);
+//       //   if (hasUnacceptedChanges) {
+//       //     return this.createErrorResult(`Project has unaccepted changes. Please review and accept/reject changes before overwriting.`);
+//       //   }
+//       // }
+//       // try {
+//       //   if (!exists) {await plugin.call('fileManager', 'writeFile', args.path, "")}
+//       //   await plugin.call('fileManager', 'open', args.path)
+//       // } catch (openError) {
+//       //   console.warn(`Failed to open file in editor: ${openError.message}`);
+//       // }
+//       // await new Promise(resolve => setTimeout(resolve, 300))
 
-      // make sure the LLM has actually updated the content if that is intended.
-      const currentContent = await plugin.call('fileManager', 'readFile', args.path)
-      const cleanContent = typeof args.content === 'string' ? args.content : String(args.content)
-      if (cleanContent === currentContent && currentContent !== '') {
-        return this.createErrorResult(`File content is the same as the current content. No changes made to: ${args.path} . Is that intended? If not, makre sure the content you are passing is different from the existing content.`);
-      }
-      await plugin.call('editor', 'showCustomDiff', args.path, cleanContent)
+//       // // make sure the LLM has actually updated the content if that is intended.
+//       // const currentContent = await plugin.call('fileManager', 'readFile', args.path)
+//       // const cleanContent = typeof args.content === 'string' ? args.content : String(args.content)
+//       // if (cleanContent === currentContent && currentContent !== '') {
+//       //   return this.createErrorResult(`File content is the same as the current content. No changes made to: ${args.path} . Is that intended? If not, makre sure the content you are passing is different from the existing content.`);
+//       // }
+//       // await plugin.call('editor', 'showCustomDiff', args.path, cleanContent)
+//       await plugin.call('fileManager', 'writeFile', args.path, args.content)
 
-      const result: FileOperationResult = {
-        success: true,
-        path: args.path,
-        message: 'File written successfully',
-        lastModified: new Date().toISOString()
-      };
+//       const result: FileOperationResult = {
+//         success: true,
+//         path: args.path,
+//         message: 'File written successfully',
+//         lastModified: new Date().toISOString()
+//       };
 
-      return this.createSuccessResult(result);
-    } catch (error) {
-      return this.createErrorResult(`Failed to write file: ${error.message}`);
-    }
-  }
-}
+//       return this.createSuccessResult(result);
+//     } catch (error) {
+//       return this.createErrorResult(`Failed to write file: ${error.message}`);
+//     }
+//   }
+// }
 
 /**
  * File Create Tool Handler
@@ -301,7 +302,8 @@ export class FileCreateHandler extends BaseToolHandler {
         await new Promise(resolve => setTimeout(resolve, 300))
 
         const cleanContent = typeof args.content === 'string' ? args.content : String(args.content || '')
-        await plugin.call('editor', 'showCustomDiff', args.path, cleanContent)
+        // await plugin.call('editor', 'showCustomDiff', args.path, cleanContent)
+        await plugin.call('fileManager', 'writeFile', args.path, cleanContent)
       }
 
       const result: FileOperationResult = {
@@ -541,7 +543,11 @@ export class DirectoryListHandler extends BaseToolHandler {
       const fileList = [];
 
       for (const file in files) {
-        const fullPath = `${args.path}/${file}`;
+        // Remix readdir may return keys that already include the parent path
+        // e.g. readdir('contracts') → { "contracts/1_Storage.sol": ... }
+        const fullPath = file.startsWith(args.path + '/') || file.startsWith(args.path + '\\')
+          ? file
+          : `${args.path}/${file}`;
         try {
           const isDir = await plugin.call('fileManager', 'isDirectory', fullPath);
           let size = 0;
@@ -901,7 +907,7 @@ export class FileExistsHandler extends BaseToolHandler {
  */
 export function createFileManagementTools(): RemixToolDefinition[] {
   const fileReadHandler = new FileReadHandler();
-  const fileWriteHandler = new FileWriteHandler();
+  // const fileWriteHandler = new FileWriteHandler();
   const fileCreateHandler = new FileCreateHandler();
   const fileDeleteHandler = new FileDeleteHandler();
   const fileMoveHandler = new FileMoveHandler();
@@ -921,14 +927,14 @@ export function createFileManagementTools(): RemixToolDefinition[] {
       permissions: fileReadHandler.getPermissions(),
       handler: fileReadHandler
     },
-    {
-      name: fileWriteHandler.name,
-      description: fileWriteHandler.description,
-      inputSchema: fileWriteHandler.inputSchema,
-      category: ToolCategory.FILE_MANAGEMENT,
-      permissions: fileWriteHandler.getPermissions(),
-      handler: fileWriteHandler
-    },
+    // {
+    //   name: fileWriteHandler.name,
+    //   description: fileWriteHandler.description,
+    //   inputSchema: fileWriteHandler.inputSchema,
+    //   category: ToolCategory.FILE_MANAGEMENT,
+    //   permissions: fileWriteHandler.getPermissions(),
+    //   handler: fileWriteHandler
+    // },
     {
       name: fileCreateHandler.name,
       description: fileCreateHandler.description,
