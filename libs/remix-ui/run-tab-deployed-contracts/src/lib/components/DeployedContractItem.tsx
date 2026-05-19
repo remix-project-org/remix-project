@@ -1044,7 +1044,7 @@ Before generating, please ask me about my design preferences first.`
                           style={{
                             position: 'absolute',
                             left: '0.35rem',
-                            top: '50%',
+                            top: '35%',
                             transform: 'translateY(-50%)',
                             backgroundColor: '#64C4FF14',
                             color: '#64c4ff',
@@ -1081,6 +1081,7 @@ Before generating, please ask me about my design preferences first.`
                             }}
                             disabled={gasLimit === 0}
                             style={{
+                              backgroundColor: themeQuality === 'dark' ? 'var(--custom-onsurface-layer-4)' : 'var(--bs-body-bg)',
                               color: 'var(--dark/text-quaternary, #959bad)',
                               flex: 1,
                               paddingLeft: '4rem',

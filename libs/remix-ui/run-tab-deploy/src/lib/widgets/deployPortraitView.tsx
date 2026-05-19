@@ -777,7 +777,7 @@ function DeployPortraitView() {
                     tooltipText={widgetState.gasLimit === 0 ? intl.formatMessage({ id: 'udapp.gasLimitBadgeAutoTooltip', defaultMessage: 'Click to set custom gas limit' }) : intl.formatMessage({ id: 'udapp.gasLimitBadgeCustomTooltip', defaultMessage: 'Click to use auto estimated gas' })}
                   >
                     <span
-                      className="p-1 pt-0 rounded"
+                      className="p-1 rounded"
                       style={{
                         position: 'absolute',
                         left: '0.5rem',
