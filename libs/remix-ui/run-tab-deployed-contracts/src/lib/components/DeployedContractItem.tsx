@@ -916,7 +916,7 @@ Before generating, please ask me about my design preferences first.`
                         getContent={() => getEncodedCall(selectedFunctionIndex)}
                       >
                         <button
-                          className="btn btn-sm flex-fill border-0"
+                          className="btn btn-sm flex-fill"
                           style={{ minWidth: '100px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}
                           data-id={`copyCalldata-${selectedFunctionIndex}`}
                         >
@@ -933,7 +933,7 @@ Before generating, please ask me about my design preferences first.`
                         getContent={() => getEncodedParams(selectedFunctionIndex)}
                       >
                         <button
-                          className="btn btn-sm flex-fill border-0"
+                          className="btn btn-sm flex-fill"
                           style={{ minWidth: '100px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}
                           data-id={`copyParameters-${selectedFunctionIndex}`}
                         >

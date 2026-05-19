@@ -142,3 +142,9 @@
   background-color: var(--bs-dropdown-link-hover-bg) !important;
   color: var(--bs-dropdown-link-hover-color) !important;
 }
+
+/* Add border to copy buttons */
+button[data-id^="copyCalldata"],
+button[data-id^="copyParameters"] {
+  border: 1px solid var(--bs-border-color) !important;
+}
