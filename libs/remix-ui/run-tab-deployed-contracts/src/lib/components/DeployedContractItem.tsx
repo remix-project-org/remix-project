@@ -1034,51 +1034,87 @@ Before generating, please ask me about my design preferences first.`
                       <FormattedMessage id="udapp.gasLimitLabel" />
                     </label>
                     <div className="position-relative flex-fill">
-                      <span
-                        className="badge font-sm"
-                        style={{
-                          position: 'absolute',
-                          left: '0.35rem',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          backgroundColor: '#64C4FF14',
-                          color: '#64c4ff',
-                          cursor: 'pointer',
-                          zIndex: 1
-                        }}
-                        onClick={() => {
-                          const newMode = gasLimit === 0 ? 'custom' : 'auto'
-                          trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractGasLimitToggle', name: newMode, isClick: true })
-                          if (gasLimit === 0) {
-                            setGasLimit(3000000)
-                          } else {
-                            setGasLimit(0)
-                          }
-                        }}
+                      <CustomTooltip
+                        placement="top"
+                        tooltipId="deployedContractGasLimitBadgeTooltip"
+                        tooltipText={gasLimit === 0 ? intl.formatMessage({ id: 'udapp.gasLimitBadgeAutoTooltip', defaultMessage: 'Click to set custom gas limit' }) : intl.formatMessage({ id: 'udapp.gasLimitBadgeCustomTooltip', defaultMessage: 'Click to use auto estimated gas' })}
                       >
-                        {gasLimit === 0 ? 'auto' : 'custom'}
-                      </span>
-                      <input
-                        type="number"
-                        className="form-control form-control-sm border-0"
-                        placeholder="3000000"
-                        value={gasLimit}
-                        onChange={(e) => {
-                          trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractGasLimitInput', name: e.target.value })
-                          setGasLimit(parseInt(e.target.value))
-                        }}
-                        disabled={gasLimit === 0}
-                        style={{
-                          color: 'var(--dark/text-quaternary, #959bad)',
-                          flex: 1,
-                          paddingLeft: '4rem',
-                          textAlign: 'right',
-                          opacity: gasLimit === 0 ? 0.6 : 1,
-                          cursor: gasLimit === 0 ? 'not-allowed' : 'text',
-                          fontSize: '0.7rem',
-                          minHeight: '30px'
-                        }}
-                      />
+                        <span
+                          className="badge font-sm"
+                          style={{
+                            position: 'absolute',
+                            left: '0.35rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            backgroundColor: '#64C4FF14',
+                            color: '#64c4ff',
+                            cursor: 'pointer',
+                            zIndex: 1
+                          }}
+                          onClick={() => {
+                            const newMode = gasLimit === 0 ? 'custom' : 'auto'
+                            trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractGasLimitToggle', name: newMode, isClick: true })
+                            if (gasLimit === 0) {
+                              setGasLimit(3000000)
+                            } else {
+                              setGasLimit(0)
+                            }
+                          }}
+                        >
+                          {gasLimit === 0 ? 'auto' : 'custom'}
+                        </span>
+                      </CustomTooltip>
+                      {gasLimit === 0 ? (
+                        <CustomTooltip
+                          placement="top"
+                          tooltipId="deployedContractGasLimitInputTooltip"
+                          tooltipText={intl.formatMessage({ id: 'udapp.gasLimitAutoTooltip', defaultMessage: 'Currently using auto estimated gas. Click on auto to set custom gas limit' })}
+                        >
+                          <input
+                            type="number"
+                            className="form-control form-control-sm border-0"
+                            placeholder="3000000"
+                            value={gasLimit}
+                            onChange={(e) => {
+                              trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractGasLimitInput', name: e.target.value })
+                              setGasLimit(parseInt(e.target.value))
+                            }}
+                            disabled={gasLimit === 0}
+                            style={{
+                              color: 'var(--dark/text-quaternary, #959bad)',
+                              flex: 1,
+                              paddingLeft: '4rem',
+                              textAlign: 'right',
+                              opacity: gasLimit === 0 ? 0.6 : 1,
+                              cursor: gasLimit === 0 ? 'not-allowed' : 'text',
+                              fontSize: '0.7rem',
+                              minHeight: '30px'
+                            }}
+                          />
+                        </CustomTooltip>
+                      ) : (
+                        <input
+                          type="number"
+                          className="form-control form-control-sm border-0"
+                          placeholder="3000000"
+                          value={gasLimit}
+                          onChange={(e) => {
+                            trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractGasLimitInput', name: e.target.value })
+                            setGasLimit(parseInt(e.target.value))
+                          }}
+                          disabled={gasLimit === 0}
+                          style={{
+                            color: 'var(--dark/text-quaternary, #959bad)',
+                            flex: 1,
+                            paddingLeft: '4rem',
+                            textAlign: 'right',
+                            opacity: gasLimit === 0 ? 0.6 : 1,
+                            cursor: gasLimit === 0 ? 'not-allowed' : 'text',
+                            fontSize: '0.7rem',
+                            minHeight: '30px'
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>

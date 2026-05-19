@@ -5,6 +5,9 @@
   "udapp.gasLimit": "Gas limit",
   "udapp.gasLimitAuto": "Estimated Gas",
   "udapp.gasLimitManual": "Custom",
+  "udapp.gasLimitAutoTooltip": "Currently using auto estimated gas. Click on auto to set custom gas limit",
+  "udapp.gasLimitBadgeAutoTooltip": "Click to set custom gas limit",
+  "udapp.gasLimitBadgeCustomTooltip": "Click to use auto estimated gas",
   "udapp.tooltipText4": "Enter custom Gas Limit.",
 
   "udapp._comment_value.tsx": "libs/remix-ui/run-tab/src/lib/components/value.tsx",
