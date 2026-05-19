@@ -263,7 +263,11 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
             X_OK: 1
           };
           export const promises = {
-            readFile: async () => { throw new Error('fs not available in browser'); },
+            readFile: async (url) => {
+              const response = await fetch(url);
+              if (!response.ok) throw new Error('Failed to fetch: ' + url);
+              return new Uint8Array(await response.arrayBuffer());
+            },
             writeFile: async () => { throw new Error('fs not available in browser'); },
             readdir: async () => { throw new Error('fs not available in browser'); },
             stat: async () => { throw new Error('fs not available in browser'); },
