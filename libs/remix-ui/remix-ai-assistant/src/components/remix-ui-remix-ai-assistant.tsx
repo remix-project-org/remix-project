@@ -391,6 +391,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.plugin])
 
+  useEffect(() => {
+    if (!modelAccess.isLoading) {
+      props.plugin.call('remixAI', 'setModelAccess', modelAccess).catch((error: any) => {
+        console.warn('[RemixAI Assistant UI] Failed to sync model access to plugin:', error)
+      })
+    }
+  }, [modelAccess.allowedModels, modelAccess.isLoading, props.plugin])
+
   // Listen for streaming chunks from DeepAgent
   useEffect(() => {
     // Handle stream chunks - supports both legacy string format and new object format
