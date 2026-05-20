@@ -21,6 +21,7 @@ function DeployPanel(): JSX.Element {
   const { appState, dispatch, dappManager, plugin } = useContext(AppContext);
   const { activeDapp } = appState;
   const { title, details, logo } = appState.instance;
+  const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
 
   const [deployResult, setDeployResult] = useState({
     cid: activeDapp?.deployment?.ipfsCid || '',
@@ -322,9 +323,15 @@ function DeployPanel(): JSX.Element {
         </Card.Header>
         <Collapse in={isPublishOpen}>
           <Card.Body>
-            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying} data-id="deploy-ipfs-btn">
+            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying || isVM} data-id="deploy-ipfs-btn">
               {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
             </Button>
+            {isVM && (
+              <Alert variant="warning" className="mt-2 small mb-0">
+                <i className="fas fa-exclamation-triangle me-1"></i>
+                IPFS deployment is not available for Remix VM contracts. Deploy your contract to a public network first.
+              </Alert>
+            )}
             {displayCid && (
               <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
                 <div className="fw-bold">Deployed Successfully!</div>
@@ -340,7 +347,7 @@ function DeployPanel(): JSX.Element {
       {displayCid && (
         <Card className="mb-2">
           <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0" data-id="ens-section-header">
-            Register ENS (Arbitrum) <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+            Register ENS Name <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
           <Collapse in={isEnsOpen}>
             <Card.Body>

@@ -7,7 +7,7 @@ import { EventEmitter } from 'events'
 
 const profile = {
   name: 'quick-dapp-v2',
-  displayName: 'Quick Dapp V2',
+  displayName: 'QuickDApp',
   icon: 'assets/img/quickdappv2.webp',
   description: 'Edit & deploy a Dapp',
   kind: 'quick-dapp-v2',
