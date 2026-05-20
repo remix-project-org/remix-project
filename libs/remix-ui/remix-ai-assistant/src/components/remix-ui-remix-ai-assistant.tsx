@@ -23,6 +23,7 @@ import AiChatPromptAreaForHistory from './aiChatPromptAreaForHistory'
 import AiChatPromptArea from './aiChatPromptArea'
 import { useModelAccess } from '../hooks/useModelAccess'
 import { ToolApprovalModal } from './ToolApprovalModal'
+import { LoginModal, startSignInFlow } from '@remix-ui/login'
 
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
@@ -75,6 +76,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     'mistralai'
   )
   const [showArchivedConversations, setShowArchivedConversations] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const [showButton, setShowButton] = useState(true);
   const [isAiChatMaximized, setIsAiChatMaximized] = useState(false)
   const [showOllamaModelSelector, setShowOllamaModelSelector] = useState(false)
@@ -1860,6 +1862,37 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           <div className="ai-assistant-startup__subtitle">Loading chat history...</div>
           <div data-id="remix-ai-assistant-loading"></div>
         </div>
+      </div>
+    ) : modelAccess.requiresLogin ? (
+      <div
+        className="d-flex flex-column w-100 h-100 ai-assistant-startup"
+        ref={aiChatRef}
+        data-theme={themeTracker && themeTracker?.name.toLowerCase()}
+      >
+        <div className="ai-assistant-startup__body">
+          <div className="ai-assistant-startup__logo">
+            <i className="fa-solid fa-user-lock fa-2x" aria-hidden="true"></i>
+          </div>
+          <div className="ai-assistant-startup__title">Login Required</div>
+          <div className="ai-assistant-startup__subtitle">Please log in to access Remix AI Assistant</div>
+          <button
+            className="btn btn-primary mt-3"
+            onClick={() => startSignInFlow(props.plugin, () => setShowLoginModal(true), 'AI Assistant Login')}
+            data-id="remix-ai-login-prompt"
+          >
+            <i className="fa-solid fa-right-to-bracket me-2"></i>
+            Log In
+          </button>
+        </div>
+        {showLoginModal && (
+          <LoginModal
+            onClose={() => {
+              setShowLoginModal(false)
+              modelAccess.refreshAccess()
+            }}
+            plugin={props.plugin}
+          />
+        )}
       </div>
     ) : (
       <div

@@ -8,18 +8,17 @@ export interface ModelAccess {
   allowedModels: string[]
   isLoading: boolean
   error: string | null
+  requiresLogin: boolean
   checkAccess: (modelId: string) => boolean
   refreshAccess: () => Promise<void>
 }
 
 export function useModelAccess(): ModelAccess {
-  const [allowedModels, setAllowedModels] = useState<string[]>(() => {
-    const defaultModel = getDefaultModel()
-    return [defaultModel.id, 'ollama']
-  })
+  const [allowedModels, setAllowedModels] = useState<string[]>([])
   const [allowedMcps, setAllowedMcps] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [requiresLogin, setRequiresLogin] = useState(false)
 
   const fetchModelAccess = async () => {
     setIsLoading(true)
@@ -28,12 +27,13 @@ export function useModelAccess(): ModelAccess {
     try {
       const token = localStorage.getItem('remix_access_token')
       if (!token) {
-        // Fallback to default model and ollama only
-        const defaultModel = getDefaultModel()
-        setAllowedModels([defaultModel.id, 'ollama'])
+        // User must be logged in to access AI
+        setAllowedModels([])
         setAllowedMcps([])
+        setRequiresLogin(true)
         return
       }
+      setRequiresLogin(false)
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       const response = await fetch(`${endpointUrls.permissions}`, {
@@ -57,6 +57,9 @@ export function useModelAccess(): ModelAccess {
           if (data.features['ai:Mistral']?.is_enabled) {
             enabledProviders.add('mistralai')
           }
+          if (data.features['ai:Moonshot']?.is_enabled) {
+            enabledProviders.add('moonshot')
+          }
         }
 
         const allowedMcpsFea = []
@@ -71,17 +74,21 @@ export function useModelAccess(): ModelAccess {
         const defaultModel = getDefaultModel()
         const allowedModelIds: string[] = [defaultModel.id, 'ollama']
 
-        // Add models from API-enabled providers
+        // Add models based on access rights
         AVAILABLE_MODELS.forEach(model => {
           // Skip if already added (default or ollama)
           if (allowedModelIds.includes(model.id)) {
             return
           }
 
-          // Only add models from enabled providers
-          if (model.requiresAuth && enabledProviders.has(model.provider)) {
+          // Free models (requiresAuth: false) - always add for logged-in users
+          if (!model.requiresAuth) {
             allowedModelIds.push(model.id)
-          } else {
+            return
+          }
+
+          // Premium models (requiresAuth: true) - only add if provider is enabled
+          if (enabledProviders.has(model.provider)) {
             allowedModelIds.push(model.id)
           }
         })
@@ -89,16 +96,16 @@ export function useModelAccess(): ModelAccess {
         setAllowedModels(allowedModelIds)
         setAllowedMcps(allowedMcpsFea)
       } else {
-        // Fallback to default model and ollama only
-        const defaultModel = getDefaultModel()
-        setAllowedModels([defaultModel.id, 'ollama'])
+        // API request failed - require login
+        setAllowedModels([])
         setAllowedMcps([])
+        setRequiresLogin(true)
       }
     } catch (err) {
       console.error('Failed to fetch model access:', err)
-      const defaultModel = getDefaultModel()
-      setAllowedModels([defaultModel.id, 'ollama'])
+      setAllowedModels([])
       setAllowedMcps([])
+      setRequiresLogin(true)
       setError('Failed to load model access')
     } finally {
       setIsLoading(false)
@@ -118,6 +125,7 @@ export function useModelAccess(): ModelAccess {
     allowedModels,
     isLoading,
     error,
+    requiresLogin,
     checkAccess,
     refreshAccess: fetchModelAccess
   }

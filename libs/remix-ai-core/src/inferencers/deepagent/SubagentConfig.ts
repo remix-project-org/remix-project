@@ -66,7 +66,20 @@ export function buildSubagentConfigs(
   const conversionTools = getConversionToolsForConversionSpecialist(tools)
   const classifierTools = getToolForClassifierSpecialist(tools)
   const quickDappTools = getQuickDappToolsForQuickDappSpecialist(tools)
-
+  console.log('quickDappTools: Generated tool subsets for subagents', quickDappTools)
+  console.log('classifierTools: Generated tool subsets for subagents', classifierTools)
+  console.log('coordinationTools: Generated tool subsets for subagents', coordinationTools)
+  console.log('basicMcpTools: Generated tool subsets for subagents', basicMcpTools)
+  console.log('basicFileTools: Generated tool subsets for subagents', basicFileTools)
+  console.log('educationTools: Generated tool subsets for subagents', educationTools)
+  console.log('debugTools: Generated tool subsets for subagents', debugTools)
+  console.log('solidityTools: Generated tool subsets for subagents', solidityTools)
+  console.log('webSearchTools: Generated tool subsets for subagents', webSearchTools)
+  console.log('conversionTools: Generated tool subsets for subagents', conversionTools)
+  console.log('etherscanTools: Generated tool subsets for subagents', etherscanTools)
+  console.log('theGraphTools: Generated tool subsets for subagents', theGraphTools)
+  console.log('alchemyTools: Generated tool subsets for subagents', alchemyTools)
+  console.log('circleTools: Generated tool subsets for subagents', circleTools)
   const comprehensiveAuditor = createDeepAgent({
     systemPrompt: COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
     tools: coordinationTools,
