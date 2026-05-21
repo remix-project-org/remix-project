@@ -6,57 +6,40 @@
  */
 
 import { IMCPToolResult } from '../../types/mcp'
-import { endpointUrls } from '@remix-endpoints-helper'
-import { getRemixAuthHeader } from '../../inferencers/auth'
 import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
 import { Plugin } from '@remixproject/engine'
-import {
-  DAppPromptContext,
-  DAppContractInfo,
-  DAppUserMessageOptions,
-  buildDAppSystemPrompt,
-  buildDAppUserMessage,
-  parsePages,
-  findMissingImports,
-  isLocalVMChainId,
-  REQUIRED_DAPP_FILES
-} from '../../inferencers/deepagent/DAppGeneratorPrompts'
 
-// ──────────────────────────────────────────────
-// Backend-driven task resolvers
-// ──────────────────────────────────────────────
-// All AI model choices are sourced from /permissions via the assistantState
-// plugin. NO literal model ids in this file. If the backend hasn't advertised
-// a task assignment we throw loud — the regression must be visible.
-
-async function resolveTaskModel(plugin: Plugin, taskId: string): Promise<string> {
-  let modelId: string | null = null
-  try {
-    modelId = await plugin.call('assistantState' as any, 'getModelForTask', taskId)
-  } catch (e) {
-    throw new Error(`[DAppGenerator] assistantState.getModelForTask("${taskId}") failed: ${(e as Error)?.message ?? e}. The assistantState plugin must be active and /permissions must include task_models.${taskId}.`)
-  }
-  if (!modelId) {
-    throw new Error(`[DAppGenerator] No model advertised for task "${taskId}". Backend must include /permissions.task_models.${taskId} \u2014 there are no client-side model defaults.`)
-  }
-  return modelId
+const isLocalVMChainId = (chainId: number | string): boolean => {
+  const n = Number(chainId)
+  return Number.isNaN(n) || n === 0 || n === 1337 || n === 31337 || n === 5777
 }
 
-async function resolveTaskParam<T extends number | string | boolean>(
-  plugin: Plugin,
-  taskId: string,
-  key: string,
-  fallback: T
-): Promise<T> {
-  try {
-    const v = await plugin.call('assistantState' as any, 'getTaskParam', taskId, key)
-    if (v !== null && v !== undefined) return v as T
-  } catch (e) {
-    console.warn(`[DAppGenerator] assistantState.getTaskParam(${taskId}, ${key}) failed, using documented fallback ${String(fallback)}:`, e)
-  }
-  return fallback
-}
+// Common build rules injected into every QuickDapp delegation message
+const QUICKDAPP_BUILD_RULES =
+  `IMPORT RULES (CRITICAL - violations crash the build):\n` +
+  `- Use BARE SPECIFIERS: import React from 'react'; import { ethers } from 'ethers'. The index.html import map resolves these.\n` +
+  `- NEVER use full URLs in imports (e.g. import React from 'https://esm.sh/react@18'). This crashes the bundler.\n` +
+  `- ALWAYS include .jsx extension in local imports: import App from './App.jsx' (not './App')\n` +
+  `- NEVER repeat src/ in relative paths inside src/: import App from './App.jsx' NOT './src/App.jsx'\n` +
+  `- EVERY .jsx file using JSX MUST import React from 'react' at the top.\n` +
+  `- EVERY file using ethers MUST have its own import { ethers } from 'ethers' at the top.\n` +
+  `- Do NOT use react-router-dom. Use hash-based routing: useState(window.location.hash).\n\n` +
+  `FILE STRUCTURE (minimum required):\n` +
+  `- index.html: import map (react, react-dom/client, ethers via esm.sh), Tailwind CDN, window.__QUICK_DAPP_CONFIG__ init, <script type="module" src="./src/main.jsx">\n` +
+  `- src/main.jsx: React entry with ReactDOM.createRoot\n` +
+  `- src/App.jsx: Main component with contract integration\n` +
+  `- src/index.css: Custom styles\n\n` +
+  `INDEX.HTML IMPORT MAP (must include):\n` +
+  `<script type="importmap">{ "imports": { "react": "https://esm.sh/react@18.2.0", "react-dom/client": "https://esm.sh/react-dom@18.2.0/client", "ethers": "https://esm.sh/ethers@6.11.1" } }</script>\n\n` +
+  `ETHERS.JS RULES:\n` +
+  `- MUST use ethers.BrowserProvider with wallet provider for both reading and writing.\n` +
+  `- NEVER use JsonRpcProvider, InfuraProvider, AlchemyProvider, or any RPC URL.\n` +
+  `- NEVER generate placeholders like 'YOUR_INFURA_KEY'.\n` +
+  `- Write functions need a signer: const signer = await provider.getSigner(); const contract = new ethers.Contract(addr, abi, signer);\n\n` +
+  `DYNAMIC CONTENT:\n` +
+  `- Use window.__QUICK_DAPP_CONFIG__ for title/logo/details. Do NOT hardcode app names or logos.\n` +
+  `- Fallback: config.title || 'My DApp'\n`
 
 // ──────────────────────────────────────────────
 // Types
@@ -99,7 +82,7 @@ export interface DAppGenerationResult {
 
 export class GenerateDAppHandler extends BaseToolHandler {
   name = 'generate_dapp'
-  description = 'Create a new DApp frontend from a deployed smart contract. IMPORTANT: Do NOT call this tool immediately. First, ask the user these 3 questions one at a time: 1) Describe the DApp design you want (free text). 2) Do you have a Figma design URL? (optional). 3) Should it be a Base Mini App? (optional). After collecting answers, call this tool with ALL parameters including the contract details from the user prompt.'
+  description = 'Create a new DApp frontend from a deployed smart contract. IMPORTANT: Do NOT call this tool immediately. First, ask the user ALL 3 of these questions together in a single message: 1) Describe the DApp design you want (free text). 2) Do you have a Figma design URL? (optional). 3) Should it be a Base Mini App? (optional). You MUST ask these questions BEFORE calling this tool, UNLESS the user has explicitly indicated they want to skip preferences (e.g., "just make it", "use defaults", "quickly"). After collecting answers, call this tool with ALL parameters including the contract details from the user prompt.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -180,7 +163,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
     try {
       const hasImage = !!args.imageBase64
 
-      // Create DApp workspace
+      // ── Workspace Setup ──
       let workspaceSlug: string
 
       try {
@@ -197,10 +180,9 @@ export class GenerateDAppHandler extends BaseToolHandler {
         return this.createErrorResult(`Failed to create DApp workspace: ${wsErr.message}`)
       }
 
-      // Open dashboard
+      // Open dashboard so React UI is mounted and event listeners are ready
       try {
         console.log('[QuickDapp] Opening dashboard...')
-        // activatePlugin is needed so React mounts and event listeners are ready
         await plugin.call('manager' as any, 'activatePlugin', 'quick-dapp-v2')
         await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
         await new Promise(r => setTimeout(r, 300))
@@ -209,113 +191,73 @@ export class GenerateDAppHandler extends BaseToolHandler {
         console.warn('[QuickDapp] Dashboard focus failed (non-critical):', e?.message)
       }
 
-      // Notify React UI that a new DApp is being created (sets processing state on card)
+      // Notify React UI that a new DApp is being created (sets processing spinner on card)
       plugin.emit('generationProgress', { status: 'preparing', contractAddress: args.contractAddress, slug: workspaceSlug })
 
-      // Build prompt context
-      const contractInfo: DAppContractInfo = {
-        address: args.contractAddress,
-        abi: args.contractAbi,
-        chainId: args.chainId,
-        name: args.contractName
-      }
+      // Return concise context to the agent for file generation.
+      // Do NOT include the full system prompt or file dumps — they cause tool result overflow.
+      // The agent/subagent already knows DApp frontend patterns.
 
-      const ctx: DAppPromptContext = {
-        contract: contractInfo,
-        isBaseMiniApp: args.isBaseMiniApp,
-        hasImage,
-        isLocalVM: isLocalVMChainId(args.chainId)
-      }
+      // Extract contract ABI summary for concise context
+      const abiSummary = args.contractAbi
+        .filter((item: any) => item.type === 'function')
+        .map((item: any) => `${item.name}(${(item.inputs || []).map((i: any) => `${i.type} ${i.name}`).join(', ')}) → ${(item.outputs || []).map((o: any) => o.type).join(', ') || 'void'} [${item.stateMutability}]`)
+        .join('\n')
 
-      const systemPrompt = buildDAppSystemPrompt(ctx)
-      const msgOptions: DAppUserMessageOptions = {
-        description: args.description,
-        image: args.imageBase64
-      }
-      const userMessage = buildDAppUserMessage(ctx, msgOptions)
+      const isLocalVM = isLocalVMChainId(args.chainId)
+      // Build optional Figma context line for subagent
+      const figmaLine = (args.figmaUrl && args.figmaToken)
+        ? `\nFIGMA: Use fetch_figma_design tool with figmaUrl="${args.figmaUrl}" and figmaToken="${args.figmaToken}" to get the design data before generating files.\n`
+        : ''
 
-      // Call LLM
-      console.log('[QuickDapp] Calling LLM...')
-      plugin.emit('generationProgress', { status: 'calling_llm', contractAddress: args.contractAddress, slug: workspaceSlug })
-
-      let response: string
-      try {
-        response = await this.callAIModel(plugin, systemPrompt, userMessage, hasImage)
-        console.log('[QuickDapp] LLM response received, length:', response?.length)
-      } catch (llmErr: any) {
-        console.error('[QuickDapp] LLM call failed:', llmErr?.message || llmErr)
-        return this.createErrorResult(`LLM call failed: ${llmErr.message}`)
-      }
-
-      // Parse response
-      plugin.emit('generationProgress', { status: 'parsing', contractAddress: args.contractAddress, slug: workspaceSlug })
-      let pages = parsePages(response)
-      const parsedFileCount = Object.keys(pages).length
-
-      if (parsedFileCount === 0) {
-        console.error('[GenerateDApp] parsePages returned 0 files. First 300 chars:', response?.substring(0, 300))
-        return this.createErrorResult('AI failed to generate valid file structure. Please try again.')
-      }
-      console.log('[GenerateDApp] Parsed', parsedFileCount, 'files:', Object.keys(pages).join(', '))
-
-      // Validate required files and retry if needed
-      plugin.emit('generationProgress', { status: 'validating', contractAddress: args.contractAddress, slug: workspaceSlug })
-      pages = await this.validateAndRetryMissingFiles(plugin, pages, response, systemPrompt, userMessage, hasImage)
-
-      // Write files
-      console.log('[QuickDapp] Writing files...')
-      const fileNames = Object.keys(pages)
-      try {
-        await this.writeFilesToWorkspace(plugin, workspaceSlug, pages)
-        console.log('[QuickDapp] Files written:', fileNames.join(', '))
-      } catch (writeErr: any) {
-        console.error('[QuickDapp] File write failed:', writeErr?.message || writeErr)
-        return this.createErrorResult(`Failed to write files to workspace: ${writeErr.message}`)
-      }
-
-      // Update config status
-      console.log('[QuickDapp] Updating config...')
-      try {
-        const configContent = await plugin.call('fileManager', 'readFile', 'dapp.config.json')
-        if (configContent) {
-          const config = JSON.parse(configContent)
-          config.status = 'created'
-          config.processingStartedAt = null
-          config.updatedAt = Date.now()
-          await plugin.call('fileManager', 'writeFile', 'dapp.config.json', JSON.stringify(config, null, 2))
-          console.log('[QuickDapp] Config updated')
-        }
-      } catch (configErr) {
-        console.warn('[QuickDapp] Config update failed (non-critical):', configErr)
-      }
-
-      // Emit event and open DApp
-      console.log('[QuickDapp] Emitting dappGenerated (plugin:', (plugin as any).name, ')...')
-      plugin.emit('dappGenerated', {
-        address: args.contractAddress,
-        slug: workspaceSlug,
-        isUpdate: false
-      })
-      console.log('[QuickDapp] dappGenerated emitted')
-
-      try {
-        console.log('[QuickDapp] Opening DApp detail page...')
-        await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
-        await plugin.call('quick-dapp-v2' as any, 'openDapp', workspaceSlug)
-        await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
-        console.log('[QuickDapp] Auto-open complete')
-      } catch (e: any) {
-        console.warn('[QuickDapp] Auto-open failed (non-critical):', e?.message)
-      }
-
-      console.log('[QuickDapp] GenerateDAppHandler.execute() DONE — slug:', workspaceSlug, ', files:', fileNames.length)
       return this.createSuccessResult({
         success: true,
-        fileNames,
-        fileCount: fileNames.length,
         slug: workspaceSlug,
         contractAddress: args.contractAddress,
-        message: `✅ DApp "${args.contractName}" created successfully in workspace "${workspaceSlug}". ${fileNames.length} files generated: ${fileNames.join(', ')}. The DApp is now open in the QuickDapp tab. Do NOT write any additional files — everything is already saved.`
+        contractName: args.contractName,
+        workspaceReady: true,
+        message: `DApp workspace "${workspaceSlug}" created successfully.\n\n` +
+          `Now proceed to generate the DApp files directly using file_write.\n\n` +
+          `---\n` +
+          `TASK: Generate a new DApp frontend\n` +
+          `CONTRACT: ${args.contractName} at ${args.contractAddress} on chain ${args.chainId}${isLocalVM ? ' (Remix VM)' : ''}\n` +
+          `FUNCTIONS:\n${abiSummary}\n\n` +
+          `USER DESIGN REQUEST: ${typeof args.description === 'string' ? args.description : JSON.stringify(args.description)}\n` +
+          (args.isBaseMiniApp
+            ? `\nBASE APP RULES:\n` +
+            `- Do NOT import @farcaster/miniapp-sdk (deprecated). Do NOT include fc:frame or fc:miniapp meta tags.\n` +
+            `- Use standard wallet pattern (window.__qdapp_getProvider or window.ethereum).\n` +
+            `- Default to Base Mainnet (8453) or Base Sepolia (84532).\n`
+            : '') +
+          `${figmaLine}` +
+          (args.figmaUrl
+            ? `\nFIGMA DESIGN RULES:\n` +
+            `- Use max-w-7xl mx-auto px-4 instead of fixed widths. Use flex-wrap for mobile responsiveness.\n` +
+            `- Avoid position: absolute. Create separate component files for distinct sections.\n` +
+            `- Adapt Figma dimensions to fluid/responsive code.\n`
+            : '') +
+          `\n${QUICKDAPP_BUILD_RULES}\n` +
+          `CRITICAL PATH RULES:\n` +
+          `- All file paths are relative to workspace root. Use /index.html, /src/App.jsx etc.\n` +
+          `- NEVER include workspace name "${workspaceSlug}" in paths. Wrong: ${workspaceSlug}/src/App.jsx. Correct: /src/App.jsx\n\n` +
+          `STEPS:\n` +
+          `1. Write files using file_write: /index.html, /src/main.jsx, /src/App.jsx, /src/index.css, /src/components/*.jsx\n` +
+          `2. Use ethers.js v6 (BrowserProvider, Contract). Embed full ABI and contract address in code.\n` +
+          (isLocalVM
+            ? `\nREMIX VM RULES (LOCAL DEV MODE - CRITICAL):\n` +
+            `- Use window.ethereum directly: new ethers.BrowserProvider(window.ethereum). The Remix IDE preview provides it automatically.\n` +
+            `- Do NOT use window.__qdapp_getProvider(). Do NOT call wallet_switchEthereumChain or wallet_addEthereumChain.\n` +
+            `- Do NOT show "Install MetaMask", "Wrong Network" warnings, or chain ID checks. The provider is always available and on the correct network.\n` +
+            `- Simply connect: const provider = new ethers.BrowserProvider(window.ethereum); await provider.send("eth_requestAccounts", []); const signer = await provider.getSigner();\n` +
+            `- MUST listen for window.ethereum accountsChanged and immediately update the visible connected account, signer, and contract instance when Deploy & Run account changes. Do not require a preview refresh.\n`
+            : `\nREAL NETWORK WALLET RULES (CRITICAL - use EXACT values below):\n` +
+            `- The contract is deployed on chain ${args.chainId}. Set TARGET_CHAIN_ID = ${args.chainId} in the generated code.\n` +
+            `- For wallet_switchEthereumChain, use chainId: '0x${Number(args.chainId).toString(16)}'. Do NOT use '0x1' or any other chain.\n` +
+            `- Use window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum for wallet discovery (EIP-6963).\n` +
+            `- Store raw provider in a React ref for reuse in network switching.\n` +
+            `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`) +
+          `3. After ALL files written, call finalize_dapp_generation with workspaceName="${workspaceSlug}" and contractAddress="${args.contractAddress}"\n` +
+          `---`
       })
 
     } catch (error: any) {
@@ -326,230 +268,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
       })
       return this.createErrorResult(
         `DApp generation failed: ${error.message}\n\n` +
-        `IMPORTANT: Do NOT try to create DApp files manually using write_file. ` +
-        `The generate_dapp tool handles all file creation. ` +
-        `Tell the user the error and suggest they check that the proxy server is running (npm start in remix-langchain-proxyserver).`
+        `Tell the user the error and suggest they try again.`
       )
-    }
-  }
-
-  private async callAIModel(
-    plugin: Plugin,
-    systemPrompt: string,
-    userMessage: string | any[],
-    hasImage: boolean
-  ): Promise<string> {
-    // DIRECT LLM CALL — bypasses plugin.call('remixAI', ...) to avoid
-    // re-entrant plugin call blocking. The handler runs inside a DeepAgent tool,
-    // which is inside remixAI.answer(). Calling remixAI again would deadlock.
-    const PROXY_URL = endpointUrls.langchain
-    // Backend-driven: model + max_tokens come from /permissions.task_models
-    // and /permissions.task_params. NO literal fallback — throw loud if the
-    // backend hasn't advertised them, so the regression is visible.
-    const DAPP_MODEL = await resolveTaskModel(plugin, 'dapp_generator')
-    const DAPP_MAX_TOKENS = await resolveTaskParam<number>(plugin, 'dapp_generator', 'max_tokens', 16384)
-
-    console.log(`[GenerateDApp] callAIModel → ${PROXY_URL}/v1/messages (model: ${DAPP_MODEL}, max_tokens: ${DAPP_MAX_TOKENS})`)
-
-    try {
-      // Build the user content (text or multimodal with image)
-      let userContent: any
-      if (typeof userMessage === 'string') {
-        userContent = userMessage
-      } else if (Array.isArray(userMessage)) {
-        // Multimodal content array
-        userContent = userMessage
-      } else {
-        userContent = String(userMessage)
-      }
-
-      const requestBody = {
-        model: DAPP_MODEL,
-        max_tokens: DAPP_MAX_TOKENS,
-        temperature: 0.7,
-        system: systemPrompt,
-        messages: [
-          { role: 'user', content: userContent }
-        ]
-      }
-
-      // Add timeout to prevent hanging indefinitely
-      const TIMEOUT_MS = 120_000
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
-
-      let response: Response
-      try {
-        response = await fetch(`${PROXY_URL}/v1/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'anthropic-version': '2023-06-01',
-            ...getRemixAuthHeader()
-          },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal
-        })
-      } catch (fetchErr: any) {
-        clearTimeout(timeoutId)
-        if (fetchErr.name === 'AbortError') {
-          throw new Error(`DApp generation LLM call timed out after ${TIMEOUT_MS / 1000}s.`)
-        }
-        throw fetchErr
-      } finally {
-        clearTimeout(timeoutId)
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error(`[GenerateDApp] Anthropic API error ${response.status}:`, errorText.substring(0, 500))
-        throw new Error(`Anthropic API error ${response.status}: ${errorText.substring(0, 200)}`)
-      }
-
-      const data = await response.json()
-
-      // Extract text from response content blocks
-      let result = ''
-      if (data.content && Array.isArray(data.content)) {
-        result = data.content
-          .filter((block: any) => block.type === 'text')
-          .map((block: any) => block.text)
-          .join('')
-      }
-
-      console.log(`[GenerateDApp] Anthropic response: stop_reason=${data.stop_reason}, content_length=${result.length}`)
-
-      if (!result || result.length === 0) {
-        throw new Error('Anthropic returned empty response for DApp generation')
-      }
-
-      // Safety check: detect corrupted output
-      if (/^(undefined|null){5,}/.test(result)) {
-        throw new Error('LLM returned corrupted output (repeated undefined/null). Please try again.')
-      }
-
-      return result
-
-    } catch (error: any) {
-      const msg = error?.message || String(error)
-      console.error('[GenerateDApp] callAIModel failed:', msg)
-      if (msg.includes('fetch') || msg.includes('ECONNREFUSED') || msg.includes('Failed to fetch')) {
-        throw new Error(`Cannot connect to AI proxy server. Please check network connectivity.`)
-      }
-      throw new Error(`DApp AI generation failed: ${msg}`)
-    }
-  }
-
-  private async validateAndRetryMissingFiles(
-    plugin: Plugin,
-    pages: Record<string, string>,
-    originalResponse: string,
-    systemPrompt: string,
-    userMessage: string | any[],
-    hasImage: boolean
-  ): Promise<Record<string, string>> {
-    const missing = REQUIRED_DAPP_FILES.filter(f => !pages[f])
-
-    if (missing.length === 0) return pages
-
-    console.warn(`[DAppGenerator] Missing required files: ${missing.join(', ')}. Requesting retry...`)
-
-    try {
-      const retryPrompt = `The following required files were missing from your response: ${missing.join(', ')}. Please generate ONLY these missing files using the START_TITLE format. Do not regenerate files that were already provided.`
-
-      // Direct Anthropic API call (same approach as callAIModel — no plugin.call)
-      const retryProxyUrl = endpointUrls.langchain
-      const retryModel = await resolveTaskModel(plugin, 'dapp_generator')
-      const retryMaxTokens = await resolveTaskParam<number>(plugin, 'dapp_generator', 'retry_max_tokens', 8192)
-      const response = await fetch(`${retryProxyUrl}/v1/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01',
-          ...getRemixAuthHeader()
-        },
-        body: JSON.stringify({
-          model: retryModel,
-          max_tokens: retryMaxTokens,
-          temperature: 0.7,
-          system: systemPrompt,
-          messages: [
-            { role: 'user', content: typeof userMessage === 'string' ? userMessage : JSON.stringify(userMessage) },
-            { role: 'assistant', content: originalResponse },
-            { role: 'user', content: retryPrompt }
-          ]
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const retryText = (data.content || [])
-          .filter((b: any) => b.type === 'text')
-          .map((b: any) => b.text)
-          .join('')
-
-        const additionalPages = parsePages(retryText)
-        if (Object.keys(additionalPages).length > 0) {
-          console.log('[GenerateDApp] Retry produced files:', Object.keys(additionalPages).join(', '))
-          Object.assign(pages, additionalPages)
-        }
-      }
-    } catch (retryErr: any) {
-      console.warn('[DAppGenerator] Retry for missing files failed:', retryErr.message)
-    }
-
-    return pages
-  }
-
-  private async writeFilesToWorkspace(
-    plugin: Plugin,
-    workspaceName: string,
-    pages: Record<string, string>
-  ): Promise<void> {
-    // ── CRITICAL: Verify we're in the correct workspace before writing ──
-    // During LLM calls (~30s), the workspace can drift due to user actions
-    // or other plugin events. Writing to the wrong workspace = data loss.
-    const currentWs = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
-    if (currentWs?.name !== workspaceName) {
-      console.warn(`[QuickDapp] WORKSPACE DRIFT DETECTED! Current: ${currentWs?.name}, Expected: ${workspaceName}. Switching...`)
-      await plugin.call('filePanel' as any, 'switchToWorkspace', {
-        name: workspaceName,
-        isLocalhost: false,
-      })
-      await new Promise(r => setTimeout(r, 500))
-
-      // Double-check after switch
-      const verifyWs = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
-      if (verifyWs?.name !== workspaceName) {
-        throw new Error(`SAFETY ABORT: Could not switch to workspace ${workspaceName}. Current workspace is ${verifyWs?.name}. Refusing to write files to prevent data loss.`)
-      }
-      console.log(`[QuickDapp] Workspace corrected to: ${workspaceName}`)
-    } else {
-      console.log(`[QuickDapp] Workspace verified: ${workspaceName}`)
-    }
-
-    for (const [filename, content] of Object.entries(pages)) {
-      const normalizedPath = filename.startsWith('/') ? filename : `/${filename}`
-      try {
-        // Ensure directory exists
-        const dirPath = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'))
-        if (dirPath && dirPath !== '/') {
-          try {
-            await plugin.call('fileManager', 'mkdir', dirPath)
-          } catch (e) {
-            // Directory may already exist
-          }
-        }
-        await plugin.call('fileManager', 'writeFile', normalizedPath, content)
-      } catch (error: any) {
-        console.error(`[GenerateDApp] Failed to write file ${normalizedPath}:`, error.message)
-      }
-    }
-
-    // ── Post-write safety check ──
-    const postWriteWs = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
-    if (postWriteWs?.name !== workspaceName) {
-      console.error(`[QuickDapp] WORKSPACE DRIFTED DURING WRITE! Some files may have been written to ${postWriteWs?.name} instead of ${workspaceName}. This is a critical issue.`)
     }
   }
 }
@@ -745,258 +465,192 @@ export class UpdateDAppHandler extends BaseToolHandler {
         return this.createErrorResult(`Failed to switch to workspace ${targetWorkspace}: ${e.message}`)
       }
 
-      // Read current files
-      let currentFiles = args.currentFiles || {}
-      if (Object.keys(currentFiles).length === 0) {
-        console.log('[QuickDapp] Reading workspace files...')
+      // Get workspace file list (names only — subagent reads content in its own context)
+      let fileNames: string[] = []
+      try {
+        const currentFiles: Record<string, string> = {}
         await this.readWorkspaceFiles(plugin, '/', currentFiles)
-        console.log(`[QuickDapp] Read ${Object.keys(currentFiles).length} files from workspace`)
+        fileNames = Object.keys(currentFiles)
+        console.log(`[QuickDapp] Found ${fileNames.length} files in workspace`)
+      } catch (e: any) {
+        console.warn('[QuickDapp] Failed to list files:', e?.message)
       }
 
-      if (Object.keys(currentFiles).length === 0) {
+      if (fileNames.length === 0) {
         return this.createErrorResult('No files found in workspace. Please ensure the DApp workspace is active.')
       }
-
-      // Backup original files before writing updates (for revert)
-      const backupFiles: Record<string, string> = { ...currentFiles }
 
       // Auto-resolve contract info from config
       const contractResolved = await this.resolveContractInfo(plugin, targetWorkspace, args)
 
-      // Build prompt and call LLM
-      const contractInfo: DAppContractInfo = {
-        address: contractResolved.address,
-        abi: contractResolved.abi,
-        chainId: contractResolved.chainId
-      }
-
-      const ctx: DAppPromptContext = {
-        contract: contractInfo,
-        isUpdate: true,
-        hasImage,
-        // Use resolved chainId (never undefined) instead of raw args.chainId
-        isLocalVM: isLocalVMChainId(contractResolved.chainId)
-      }
-
-      const systemPrompt = buildDAppSystemPrompt(ctx)
-      const msgOptions: DAppUserMessageOptions = {
-        description: args.description,
-        currentFiles
-      }
-      const userMessage = buildDAppUserMessage(ctx, msgOptions)
-
-      // Mark DApp as updating
-      console.log('[QuickDapp] Setting status=updating for', targetWorkspace)
-      try {
-        // Update config on disk
-        const configContent = await plugin.call('fileManager' as any, 'readFile', 'dapp.config.json')
-        if (configContent) {
-          const config = JSON.parse(configContent)
-          config.status = 'updating'
-          config.processingStartedAt = Date.now()
-          await plugin.call('fileManager' as any, 'writeFile', 'dapp.config.json', JSON.stringify(config, null, 2))
-          console.log('[QuickDapp] Config set to updating')
-        }
-      } catch (e: any) {
-        console.warn('[QuickDapp] Config update failed (non-critical):', e?.message)
-      }
-      // Emit dappUpdateStart so React UI shows processing indicator
+      // Emit UI events
       plugin.emit('dappUpdateStart', { slug: targetWorkspace })
-
       plugin.emit('generationProgress', { status: 'preparing', contractAddress: contractResolved.address, slug: targetWorkspace })
-      plugin.emit('generationProgress', { status: 'calling_llm', contractAddress: contractResolved.address, slug: targetWorkspace })
 
-      const response = await this.callAIModelDirect(plugin, systemPrompt, userMessage, hasImage)
-      console.log('[QuickDapp] LLM response received, length:', response?.length || 0)
+      // Build a concise file list (names only — no content in the main agent's context).
+      // The subagent will read file contents in its own isolated context via file_read,
+      // avoiding the context accumulation that causes "request entity too large" errors.
+      const fileList = fileNames.join('\n')
+      const description = typeof args.description === 'string' ? args.description : JSON.stringify(args.description)
 
-      // Parse and write files
-      plugin.emit('generationProgress', { status: 'parsing', contractAddress: contractResolved.address, slug: targetWorkspace })
-      const patchedPages = parsePages(response)
-      console.log('[QuickDapp] Parsed', Object.keys(patchedPages).length, 'files from update response')
+      const isLocalVM = isLocalVMChainId(contractResolved.chainId)
 
-      if (Object.keys(patchedPages).length === 0) {
-        console.warn('[QuickDapp] No files parsed from update response')
-        return this.createErrorResult('LLM returned no parseable files for update. The response may have been truncated or malformed.')
-      }
-
-      // Verify we're still on the right workspace before writing
-      const wsCheck = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
-      if (wsCheck?.name !== targetWorkspace) {
-        console.log(`[QuickDapp] Workspace drifted to ${wsCheck?.name}, switching back to ${targetWorkspace}`)
-        await plugin.call('filePanel' as any, 'switchToWorkspace', {
-          name: targetWorkspace,
-          isLocalhost: false,
-        })
-        await new Promise(r => setTimeout(r, 300))
-      }
-
-      plugin.emit('generationProgress', { status: 'validating', contractAddress: contractResolved.address, slug: targetWorkspace })
-      const writtenFiles: string[] = []
-      for (const [filename, content] of Object.entries(patchedPages)) {
-        const normalizedPath = filename.startsWith('/') ? filename : `/${filename}`
-        try {
-          const dirPath = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'))
-          if (dirPath && dirPath !== '/') {
-            try {
-              await plugin.call('fileManager' as any, 'mkdir', dirPath)
-            } catch (e) { /* directory may exist */ }
-          }
-          await plugin.call('fileManager' as any, 'writeFile', normalizedPath, content)
-          writtenFiles.push(normalizedPath)
-          console.log(`[QuickDapp] Updated file: ${normalizedPath}`)
-        } catch (error: any) {
-          console.error(`[QuickDapp] Failed to write file ${normalizedPath}:`, error.message)
-        }
-      }
-      console.log(`[QuickDapp] Wrote ${writtenFiles.length}/${Object.keys(patchedPages).length} files to ${targetWorkspace}`)
-
-      // Emit completion event
-      const result: DAppGenerationResult = {
+      return this.createSuccessResult({
         success: true,
-        files: patchedPages,
-        fileCount: Object.keys(patchedPages).length,
+        slug: targetWorkspace,
         contractAddress: contractResolved.address,
-        message: `Updated ${writtenFiles.length} DApp files in workspace ${targetWorkspace}`
-      }
-
-      console.log('[QuickDapp] Emitting dappGenerated for update (plugin:', (plugin as any).name, ', slug:', targetWorkspace, ')')
-      plugin.emit('dappGenerated', {
-        address: contractResolved.address,
-        slug: targetWorkspace,
-        content: patchedPages,
-        isUpdate: true
+        workspaceReady: true,
+        message: `DApp workspace "${targetWorkspace}" is ready for update.\n\n` +
+          `Now proceed to update the DApp files directly.\n\n` +
+          `---\n` +
+          `TASK: Modify the DApp in workspace "${targetWorkspace}"\n` +
+          `USER REQUEST: ${description}\n` +
+          `CONTRACT ADDRESS: ${contractResolved.address} on chain ${contractResolved.chainId}${isLocalVM ? ' (Remix VM)' : ''}\n` +
+          `FILES IN WORKSPACE:\n${fileList}\n\n` +
+          `${QUICKDAPP_BUILD_RULES}\n` +
+          `CRITICAL PATH RULES:\n` +
+          `- All file paths are relative to workspace root. Use /src/App.jsx, NOT ${targetWorkspace}/src/App.jsx\n` +
+          `- NEVER include workspace name in paths.\n\n` +
+          `LOGIC PRESERVATION (MANDATORY):\n` +
+          `- NEVER remove existing ethers.js contract integrations, useState, useEffect, or ABI calls.\n` +
+          `- NEVER remove wallet connection code or window.__QUICK_DAPP_CONFIG__ integration.\n` +
+          `- You MAY restructure JSX layout, change CSS classes, and add new features.\n` +
+          `- When returning a file, return the COMPLETE file content — not just the changed portion.\n\n` +
+          `STEPS:\n` +
+          `1. Use file_read to read the files you need to modify\n` +
+          `2. Modify only the relevant files using file_write\n` +
+          (isLocalVM
+            ? `\nREMIX VM RULES (LOCAL DEV MODE - CRITICAL):\n` +
+            `- Use window.ethereum directly: new ethers.BrowserProvider(window.ethereum). The Remix IDE preview provides it automatically.\n` +
+            `- Do NOT use window.__qdapp_getProvider(). Do NOT call wallet_switchEthereumChain or wallet_addEthereumChain.\n` +
+            `- Do NOT show "Install MetaMask", "Wrong Network" warnings, or chain ID checks.\n` +
+            `- MUST listen for window.ethereum accountsChanged and immediately update the visible connected account, signer, and contract instance when Deploy & Run account changes. Do not require a preview refresh.\n`
+            : `\nREAL NETWORK WALLET RULES (CRITICAL - use EXACT values below):\n` +
+            `- The contract is deployed on chain ${contractResolved.chainId}. Set TARGET_CHAIN_ID = ${contractResolved.chainId} in the generated code.\n` +
+            `- For wallet_switchEthereumChain, use chainId: '0x${Number(contractResolved.chainId).toString(16)}'. Do NOT use '0x1' or any other chain.\n` +
+            `- Use window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum for wallet discovery (EIP-6963).\n` +
+            `- Store raw provider in a React ref for reuse in network switching.\n` +
+            `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`) +
+          `3. Call finalize_dapp_generation with workspaceName="${targetWorkspace}", contractAddress="${contractResolved.address}", isUpdate=true\n` +
+          `---`
       })
-
-      // Emit review event for chat UI
-      // Only include backup entries for files that were actually changed
-      const reviewBackups: Record<string, string> = {}
-      for (const filename of Object.keys(patchedPages)) {
-        const normalizedKey = filename.startsWith('/') ? filename : '/' + filename
-        // Check both with and without leading slash
-        if (backupFiles[normalizedKey] !== undefined) {
-          reviewBackups[normalizedKey] = backupFiles[normalizedKey]
-        } else if (backupFiles[filename] !== undefined) {
-          reviewBackups[filename] = backupFiles[filename]
-        } else {
-          // New file (no backup) — store empty string so revert can delete it
-          reviewBackups[normalizedKey] = ''
-        }
-      }
-      plugin.emit('onDappUpdateCompleted', {
-        slug: targetWorkspace,
-        files: patchedPages,
-        backups: reviewBackups,
-        writtenFiles,
-        contractAddress: contractResolved.address
-      })
-
-      console.log('[QuickDapp] UpdateDAppHandler.execute() DONE —', writtenFiles.length, 'files written to', targetWorkspace)
-      return this.createSuccessResult(result)
 
     } catch (error: any) {
       console.error('[QuickDapp] UpdateDAppHandler FAILED:', error)
       plugin.emit('dappGenerationError', {
-        address: args.contractAddress || args.workspaceName,
+        slug: args.workspaceName,
         error: error.message
       })
       return this.createErrorResult(`DApp update failed: ${error.message}`)
     }
   }
 
-  /**
-   * Direct LLM call for update — avoids re-entrant plugin deadlock.
-   * Same pattern as GenerateDAppHandler.callAIModel().
-   */
-  private async callAIModelDirect(
-    plugin: Plugin,
-    systemPrompt: string,
-    userMessage: string | any[],
-    hasImage: boolean
-  ): Promise<string> {
-    const PROXY_URL = endpointUrls.langchain
-    // Backend-driven \u2014 see GenerateDAppHandler.callAIModel for rationale.
-    const DAPP_MODEL = await resolveTaskModel(plugin, 'dapp_generator')
-    const DAPP_MAX_TOKENS = await resolveTaskParam<number>(plugin, 'dapp_generator', 'max_tokens', 16384)
-    const TIMEOUT_MS = 120_000 // 2 minute timeout
+}
 
-    // Sanitize userContent — prevent undefined from propagating
-    let userContent: string | any[]
-    if (typeof userMessage === 'string') {
-      userContent = userMessage || 'Update the DApp as requested.'
-    } else if (Array.isArray(userMessage)) {
-      userContent = userMessage.filter(part => part !== null && part !== undefined)
-      if (userContent.length === 0) {
-        throw new Error('User message is empty after sanitization')
+// ──────────────────────────────────────────────
+// Finalize DApp Generation Tool Handler
+// Called AFTER the agent writes all DApp files via file_write.
+// Handles config update, dappGenerated event, and auto-open.
+// ──────────────────────────────────────────────
+
+export class FinalizeDAppGenerationHandler extends BaseToolHandler {
+  name = 'finalize_dapp_generation'
+  description = 'Finalize a DApp after ALL files have been written using file_write. This updates the config, notifies the UI, and opens the DApp preview. MUST be called after generate_dapp + file_write sequence is complete.'
+  inputSchema = {
+    type: 'object',
+    properties: {
+      workspaceName: {
+        type: 'string',
+        description: 'The DApp workspace name (slug) returned by generate_dapp'
+      },
+      contractAddress: {
+        type: 'string',
+        description: 'The contract address for the DApp'
+      },
+      isUpdate: {
+        type: 'boolean',
+        description: 'Set to true if this is an update (not a new generation)',
+        default: false
       }
-    } else {
-      userContent = String(userMessage || 'Update the DApp as requested.')
-    }
+    },
+    required: ['workspaceName']
+  }
 
-    const requestBody = {
-      model: DAPP_MODEL,
-      max_tokens: DAPP_MAX_TOKENS,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userContent }]
-    }
+  getPermissions(): string[] {
+    return ['dapp:generate', 'file:write']
+  }
 
-    // Add timeout to prevent hanging indefinitely
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  validate(args: any): boolean | string {
+    if (!args.workspaceName) return 'Missing required argument: workspaceName'
+    return true
+  }
 
-    let response: Response
+  async execute(args: any, plugin: Plugin): Promise<IMCPToolResult> {
+    const { workspaceName, contractAddress, isUpdate } = args
+
     try {
-      response = await fetch(`${PROXY_URL}/v1/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01',
-          ...getRemixAuthHeader()
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
+      console.log(`[QuickDapp] FinalizeDAppGeneration: slug=${workspaceName}, isUpdate=${!!isUpdate}`)
+
+      // Ensure we're in the correct workspace
+      const currentWs = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
+      if (currentWs?.name !== workspaceName) {
+        console.warn(`[QuickDapp] Workspace drift: ${currentWs?.name} → ${workspaceName}. Switching...`)
+        await plugin.call('filePanel' as any, 'switchToWorkspace', {
+          name: workspaceName,
+          isLocalhost: false,
+        })
+        await new Promise(r => setTimeout(r, 500))
+      }
+
+      // Update config status
+      try {
+        const configContent = await plugin.call('fileManager', 'readFile', 'dapp.config.json')
+        if (configContent) {
+          const config = JSON.parse(configContent)
+          config.status = 'created'
+          config.processingStartedAt = null
+          config.updatedAt = Date.now()
+          await plugin.call('fileManager', 'writeFile', 'dapp.config.json', JSON.stringify(config, null, 2))
+          console.log('[QuickDapp] Config updated to created')
+        }
+      } catch (configErr) {
+        console.warn('[QuickDapp] Config update failed (non-critical):', configErr)
+      }
+
+      // Emit dappGenerated event — triggers UI refresh
+      plugin.emit('dappGenerated', {
+        address: contractAddress || '',
+        slug: workspaceName,
+        isUpdate: !!isUpdate
       })
-    } catch (fetchErr: any) {
-      clearTimeout(timeoutId)
-      if (fetchErr.name === 'AbortError') {
-        throw new Error(`DApp update LLM call timed out after ${TIMEOUT_MS / 1000}s. The proxy server may be down or the request was too large.`)
+      console.log('[QuickDapp] dappGenerated emitted')
+
+      // Note: In agent-driven flow, file writes are already approved via HITL.
+      // No separate review card (onDappUpdateCompleted) is needed.
+
+      // Auto-open the DApp detail page
+      try {
+        await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
+        await plugin.call('quick-dapp-v2' as any, 'openDapp', workspaceName)
+        await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
+        console.log('[QuickDapp] Auto-open complete')
+      } catch (e: any) {
+        console.warn('[QuickDapp] Auto-open failed (non-critical):', e?.message)
       }
-      throw new Error(`DApp update LLM call failed: ${fetchErr.message}. Is the proxy server running at ${PROXY_URL}?`)
-    } finally {
-      clearTimeout(timeoutId)
-    }
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unable to read error body')
-      throw new Error(`Anthropic API error ${response.status}: ${errorText.substring(0, 200)}`)
+      return this.createSuccessResult({
+        success: true,
+        slug: workspaceName,
+        message: `✅ DApp "${workspaceName}" finalized. Config updated, dashboard refreshed, and DApp preview opened.`
+      })
+    } catch (error: any) {
+      console.error('[QuickDapp] finalize_dapp_generation failed:', error)
+      plugin.emit('dappGenerationError', {
+        slug: workspaceName,
+        error: error.message
+      })
+      return this.createErrorResult(`Failed to finalize DApp: ${error.message}`)
     }
-
-    let data: any
-    try {
-      data = await response.json()
-    } catch (jsonErr) {
-      throw new Error('Failed to parse LLM response as JSON — response may be corrupted')
-    }
-
-    let result = ''
-    if (data.content && Array.isArray(data.content)) {
-      result = data.content
-        .filter((block: any) => block.type === 'text' && typeof block.text === 'string')
-        .map((block: any) => block.text)
-        .join('')
-    }
-
-    if (!result || result.length === 0) {
-      throw new Error('Anthropic returned empty response for DApp update')
-    }
-
-    // Safety check: detect obviously corrupted output (e.g. "undefinedundefined...")
-    if (/^(undefined|null){5,}/.test(result) || result.length < 50) {
-      console.error('[QuickDapp] LLM returned suspicious output:', result.substring(0, 100))
-      throw new Error('LLM returned corrupted output (repeated undefined/null). Please try again.')
-    }
-
-    return result
   }
 }
 
@@ -1097,6 +751,135 @@ export class ListDAppsHandler extends BaseToolHandler {
 }
 
 // ──────────────────────────────────────────────
+// Fetch Figma Design Tool Handler
+// Called by the QuickDapp Specialist subagent to retrieve Figma design data.
+// ──────────────────────────────────────────────
+
+export class FetchFigmaDesignHandler extends BaseToolHandler {
+  name = 'fetch_figma_design'
+  description = 'Fetch a Figma design file and return simplified design data (layout, colors, text). Use this when the user provides a Figma URL and token to reference a design for DApp generation.'
+  inputSchema = {
+    type: 'object',
+    properties: {
+      figmaUrl: {
+        type: 'string',
+        description: 'Figma file URL (e.g., https://www.figma.com/design/XXXX/...)'
+      },
+      figmaToken: {
+        type: 'string',
+        description: 'Figma Personal Access Token for API authentication'
+      }
+    },
+    required: ['figmaUrl', 'figmaToken']
+  }
+
+  validate(args: any): boolean | string {
+    if (!args.figmaUrl) return 'Missing required argument: figmaUrl'
+    if (!args.figmaToken) return 'Missing required argument: figmaToken'
+    return true
+  }
+
+  async execute(args: any, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      console.log('[QuickDapp] fetch_figma_design called:', args.figmaUrl)
+
+      // Parse Figma URL to extract file key
+      const patterns = [
+        /figma\.com\/(?:file|design)\/([a-zA-Z0-9]+)/,
+        /figma\.com\/proto\/([a-zA-Z0-9]+)/
+      ]
+
+      let fileKey: string | null = null
+      for (const pattern of patterns) {
+        const match = args.figmaUrl.match(pattern)
+        if (match) {
+          fileKey = match[1]
+          break
+        }
+      }
+
+      if (!fileKey) {
+        return this.createErrorResult('Invalid Figma URL format. Expected: https://www.figma.com/design/XXXX/...')
+      }
+
+      // Fetch from Figma API
+      const response = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
+        headers: { 'X-Figma-Token': args.figmaToken }
+      })
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          return this.createErrorResult('Figma API access denied. Please check the Personal Access Token.')
+        }
+        if (response.status === 404) {
+          return this.createErrorResult('Figma file not found. Please check the URL.')
+        }
+        return this.createErrorResult(`Figma API error: ${response.statusText}`)
+      }
+
+      const figmaData = await response.json()
+
+      // Simplify the document tree for LLM consumption
+      const simplifyNode = (node: any, depth = 0): any => {
+        if (depth > 5) return null
+        const simplified: any = { name: node.name, type: node.type }
+
+        if (node.absoluteBoundingBox) {
+          simplified.bounds = {
+            w: Math.round(node.absoluteBoundingBox.width),
+            h: Math.round(node.absoluteBoundingBox.height)
+          }
+        }
+
+        if (node.fills && node.fills.length > 0) {
+          const solidFill = node.fills.find((f: any) => f.type === 'SOLID' && f.visible !== false)
+          if (solidFill?.color) {
+            const r = Math.round((solidFill.color.r || 0) * 255)
+            const g = Math.round((solidFill.color.g || 0) * 255)
+            const b = Math.round((solidFill.color.b || 0) * 255)
+            simplified.fill = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+          }
+        }
+
+        if (node.type === 'TEXT' && node.characters) {
+          simplified.text = node.characters.substring(0, 100)
+        }
+
+        if (node.children && Array.isArray(node.children)) {
+          const ch = node.children.map((child: any) => simplifyNode(child, depth + 1)).filter(Boolean)
+          if (ch.length > 0) simplified.children = ch
+        }
+
+        return simplified
+      }
+
+      const simplifiedDocument = simplifyNode(figmaData.document)
+      const rawJson = JSON.stringify(simplifiedDocument, null, 2)
+
+      // Truncate if too large for LLM context (keep under 30KB to avoid
+      // LangGraph's large-tool-result file-save mechanism)
+      const maxJsonLength = 30000
+      const truncatedJson = rawJson.length > maxJsonLength
+        ? rawJson.substring(0, maxJsonLength) + '\n... [truncated for token limit]'
+        : rawJson
+
+      console.log(`[QuickDapp] Figma design fetched: ${figmaData.name}, size: ${rawJson.length}`)
+
+      return this.createSuccessResult({
+        success: true,
+        fileName: figmaData.name || 'Untitled',
+        fileKey,
+        designData: truncatedJson,
+        message: `Figma design "${figmaData.name}" loaded successfully. Use the design data above to match the layout, colors, and typography when generating DApp files.`
+      })
+    } catch (error: any) {
+      console.error('[QuickDapp] fetch_figma_design failed:', error)
+      return this.createErrorResult(`Failed to fetch Figma design: ${error.message}`)
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
 // Tool Definition Factory
 // ──────────────────────────────────────────────
 
@@ -1112,11 +895,19 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
     },
     {
       name: 'generate_dapp',
-      description: 'Generate a new DApp frontend from a description and smart contract ABI. Creates a multi-file React application with ethers.js integration.',
+      description: 'Set up a new DApp workspace from a deployed smart contract. Returns generation instructions — you MUST then write each DApp file using file_write, then call finalize_dapp_generation.',
       inputSchema: new GenerateDAppHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:generate', 'file:write'],
       handler: new GenerateDAppHandler()
+    },
+    {
+      name: 'finalize_dapp_generation',
+      description: 'Finalize a DApp after ALL files have been written using file_write. Updates config, refreshes dashboard, and opens DApp preview. MUST be called after generate_dapp + file_write sequence.',
+      inputSchema: new FinalizeDAppGenerationHandler().inputSchema,
+      category: ToolCategory.WORKSPACE,
+      permissions: ['dapp:generate', 'file:write'],
+      handler: new FinalizeDAppGenerationHandler()
     },
     {
       name: 'update_dapp',
@@ -1125,6 +916,14 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:update', 'file:write'],
       handler: new UpdateDAppHandler()
+    },
+    {
+      name: 'fetch_figma_design',
+      description: 'Fetch and simplify a Figma design file for use as visual reference during DApp generation. Returns layout structure, colors, and text content.',
+      inputSchema: new FetchFigmaDesignHandler().inputSchema,
+      category: ToolCategory.WORKSPACE,
+      permissions: ['dapp:read'],
+      handler: new FetchFigmaDesignHandler()
     }
   ]
 }
