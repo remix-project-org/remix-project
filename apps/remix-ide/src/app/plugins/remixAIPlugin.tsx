@@ -141,6 +141,17 @@ export class RemixAIPlugin extends Plugin {
     this.modelAccess = modelAccess
   }
 
+  private async requireAuth(): Promise<void> {
+    const token = localStorage.getItem('remix_access_token')
+    if (!token) {
+      throw new Error('Authentication required. Please log in to use AI features.')
+    }
+  }
+
+  private isAuthenticated(): boolean {
+    return !!localStorage.getItem('remix_access_token')
+  }
+
   async onActivation(): Promise<void> {
     const { hasBasicMcp, isBetaUser } = await this.checkMCPAccess()
 
@@ -275,6 +286,9 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async basic_prompt(prompt: string) {
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     const option = { ...GenerationParams }
     option.stream = false
     option.stream_result = false
@@ -283,6 +297,9 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async code_generation(prompt: string, params: IParams=CompletionParams): Promise<any> {
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     if (this.deepAgentEnabled && this.deepAgentInferencer) {
       return this.deepAgentInferencer.code_generation(prompt, params)
     } else if (this.mcpEnabled && this.mcpInferencer){
@@ -293,6 +310,10 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async code_completion(prompt: string, promptAfter: string, params:IParams=CompletionParams): Promise<any> {
+    // Note: InlineCompletionProvider already checks auth, but this adds defense-in-depth
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     this.emit('codeCompletionUsed')
     if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
     params.provider = 'mistralai' // default provider for code completion
@@ -302,6 +323,9 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async answer(prompt: string, params: IParams=GenerationParams): Promise<any> {
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     this.emit('chatMessageSent')
     let newPrompt = await this.codeExpAgent.chatCommand(prompt)
     // add workspace context
@@ -319,6 +343,10 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async code_explaining(prompt: string, context: string, params: IParams=GenerationParams): Promise<any> {
+    // Skip auth check for Ollama (local) since it doesn't require login
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     this.emit('codeExplainRequested')
     let result
     if (this.deepAgentEnabled && this.deepAgentInferencer) {
@@ -333,6 +361,9 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async error_explaining(prompt: string, params: IParams=GenerationParams): Promise<any> {
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     this.emit('errorExplainRequested')
     let localFilesImports = ""
 
@@ -350,6 +381,9 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async vulnerability_check(prompt: string, params: IParams=GenerationParams): Promise<any> {
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     this.emit('vulnerabilityCheckRequested')
     const result = await this.remoteInferencer.vulnerability_check(prompt, params)
     if (result && params.terminal_output) this.call('terminal', 'log', { type: 'aitypewriterwarning', value: result })
@@ -365,6 +399,7 @@ export class RemixAIPlugin extends Plugin {
    * - If `useRag` is `true`, the function fetches additional context from a RAG API and prepends it to the user prompt.
    */
   async generate(prompt: string, params: IParams=AssistantParams, newThreadID:string="", useRag:boolean=false, statusCallback?: (status: string) => Promise<void>): Promise<any> {
+    await this.requireAuth() // Always requires auth (uses Anthropic)
     params.stream_result = false // enforce no stream result
     params.threadId = newThreadID
     params.provider = 'anthropic' // enforce all generation to be only on anthropic
@@ -411,6 +446,9 @@ export class RemixAIPlugin extends Plugin {
    *
    */
   async generateWorkspace (userPrompt: string, params: IParams=AssistantParams, newThreadID:string="", useRag:boolean=false, statusCallback?: (status: string) => Promise<void>): Promise<any> {
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     params.stream_result = false // enforce no stream result
     params.threadId = newThreadID
     params.provider = this.selectedModel.provider
@@ -456,6 +494,10 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async code_insertion(msg_pfx: string, msg_sfx: string, params:IParams=CompletionParams): Promise<any> {
+    // Note: InlineCompletionProvider already checks auth, but this adds defense-in-depth
+    if (this.selectedModel.provider !== 'ollama') {
+      await this.requireAuth()
+    }
     if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
 
     params.provider = 'mistralai' // default provider for code completion
