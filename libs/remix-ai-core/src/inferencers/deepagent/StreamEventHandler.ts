@@ -3,6 +3,7 @@ import { InactivityTimeoutManager } from './InactivityTimeoutManager'
 import { INACTIVITY_TIMEOUT_MS } from './constants'
 import { resolveToolUIString } from './tools/toolUIStrings'
 import { ModelSelection } from '../../types/deepagent'
+import { MODEL_PRICING } from '../../types/models'
 
 interface SubagentInfo {
   name: string
@@ -38,39 +39,24 @@ function calculateTokenCost(
   if (!modelSelection) return 0
 
   const { provider, modelId } = modelSelection
-  
-  // Pricing per 1M tokens in USD (as of January 2025)
-  // Only includes models that are available in the system (from models.ts)
-  const pricing: Record<string, Record<string, { input: number; output: number; cacheRead?: number; cacheCreation?: number }>> = {
-    anthropic: {
-      'claude-opus-4-6': { input: 15.00, output: 75.00, cacheRead: 1.50, cacheCreation: 18.75 }, // Estimated pricing for Opus 4.6
-      'claude-sonnet-4-6': { input: 3.00, output: 15.00, cacheRead: 0.30, cacheCreation: 3.75 } // Estimated pricing for Sonnet 4.6
-    },
-    openai: {
-      'gpt-5.4': { input: 5.00, output: 20.00 }, // Estimated pricing for GPT-5.4
-      'gpt-5.4-mini': { input: 0.25, output: 1.00 } // Estimated pricing for GPT-5.4 Mini
-    },
-    mistralai: {
-      'mistral-medium-latest': { input: 2.70, output: 8.10 },
-      'mistral-small-latest': { input: 1.00, output: 3.00 },
-      'codestral-latest': { input: 1.00, output: 3.00 } // Specialized code model pricing
-    },
-    moonshot: {
-      'moonshot-v1-128k': { input: 5.33, output: 5.33 },
-      'kimi-k2.6': { input: 3.00, output: 3.00 } // Estimated pricing for Kimi K2.6
-    }
-  }
 
-  const modelPricing = pricing[provider]?.[modelId]
-  if (!modelPricing) {
+  // Find pricing data from pricingNew2 structure
+  const pricingTable = MODEL_PRICING.find(item => item.type === 'table' && item.name === 'ai_model_pricing')
+  if (!pricingTable?.data) return 0
+
+  const modelRecord = pricingTable.data.find((record: any) =>
+    record.provider === provider && record.model === modelId
+  )
+
+  if (!modelRecord) {
     // Fallback pricing if model not found
     return 0
   }
 
-  const inputCost = (inputTokens - cacheReadTokens - cacheCreationTokens) * modelPricing.input / 1_000_000
-  const outputCost = outputTokens * modelPricing.output / 1_000_000
-  const cacheReadCost = (modelPricing.cacheRead || 0) * cacheReadTokens / 1_000_000
-  const cacheCreationCost = (modelPricing.cacheCreation || 0) * cacheCreationTokens / 1_000_000
+  const inputCost = (inputTokens - cacheReadTokens - cacheCreationTokens) * parseFloat(modelRecord.input_cost_per_1m_usd) / 1_000_000
+  const outputCost = outputTokens * parseFloat(modelRecord.output_cost_per_1m_usd) / 1_000_000
+  const cacheReadCost = parseFloat(modelRecord.cache_read_cost_per_1m_usd || '0') * cacheReadTokens / 1_000_000
+  const cacheCreationCost = parseFloat(modelRecord.cache_creation_cost_per_1m_usd || '0') * cacheCreationTokens / 1_000_000
 
   return inputCost + outputCost + cacheReadCost + cacheCreationCost
 }
@@ -82,7 +68,7 @@ export class StreamEventHandler {
   private previousRunId: string | null = null
   private isIntermediatePhase = true
   private modelSelection?: ModelSelection
-  private showCost: boolean = false
+  private showCost: boolean = true
   private tokenUsage: TokenUsageState = {
     totalInputTokens: 0,
     totalOutputTokens: 0,
