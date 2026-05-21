@@ -861,6 +861,65 @@ export function selectQuotas(snap: PlanManagerSnapshot): QuotaEntry[] {
   return raw.filter(q => q && typeof q.amount === 'number' && q.amount > 0)
 }
 
+/**
+ * Permission lookup against the loaded /permissions response.
+ *
+ * Tolerates both shapes the backend may ship `features` as:
+ *   - `Permission[]`  — `[{ feature_name, allowed, ... }]`
+ *   - `Record<string, boolean | { allowed: boolean, ... }>`
+ *
+ * Default-deny: absent / malformed / `allowed:false` all return false. This
+ * matches the onboarding UX intent — a freshly-signed-in user without any
+ * `ui:show-*` features set should see a clean "logged in" view rather than
+ * the full plans/credits/quotas surface.
+ */
+export function hasFeature(permissions: PermissionsResponse | null | undefined, name: string): boolean {
+  if (!permissions) return false
+  const f: any = (permissions as any).features
+  if (Array.isArray(f)) {
+    const hit = f.find((p: any) => p?.feature_name === name)
+    return !!hit?.allowed
+  }
+  if (f && typeof f === 'object') {
+    const v = f[name]
+    if (typeof v === 'boolean') return v
+    if (v && typeof v === 'object') return !!v.allowed
+  }
+  return false
+}
+
+export interface UiVisibility {
+  showCredits: boolean
+  showPlans: boolean
+  showQuotas: boolean
+  showTopUps: boolean
+  showUsage: boolean
+  anyVisible: boolean
+}
+
+/**
+ * Drives section-level visibility in the Plan Manager overlay. Each flag
+ * mirrors a `ui:show-*` feature on /permissions. When the user has none
+ * of these granted, the overlay collapses to a minimal "Signed in as
+ * <plan>" identity card.
+ */
+export function selectUiVisibility(snap: PlanManagerSnapshot): UiVisibility {
+  const p = snap.permissions
+  const showCredits = hasFeature(p, 'ui:show-credits')
+  const showPlans   = hasFeature(p, 'ui:show-plans')
+  const showQuotas  = hasFeature(p, 'ui:show-quotas')
+  const showTopUps  = hasFeature(p, 'ui:show-top-ups')
+  const showUsage   = hasFeature(p, 'ui:show-usage')
+  return {
+    showCredits,
+    showPlans,
+    showQuotas,
+    showTopUps,
+    showUsage,
+    anyVisible: showCredits || showPlans || showQuotas || showTopUps || showUsage
+  }
+}
+
 export type { CheckoutIntentRecord }
 
 // ─── Facade ─────────────────────────────────────────────────────────

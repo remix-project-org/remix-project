@@ -50,7 +50,9 @@ import {
   selectCanUpgrade,
   selectCheckoutResult,
   selectPurchasingProductId,
-  type QuotaEntry
+  selectUiVisibility,
+  type QuotaEntry,
+  type UiVisibility
 } from './plan-manager-machine'
 import { LoginModal, startSignInFlow, OtpDigitInput, OtpDigitInputHandle } from '@remix-ui/login'
 
@@ -1106,6 +1108,20 @@ const PlanManagerOverlay: React.FC<{
   const checkoutResult = selectCheckoutResult(snap)
   const purchasingProductId = selectPurchasingProductId(snap)
 
+  // Section visibility — driven by `ui:show-*` features on /permissions.
+  // When all are absent we collapse to a minimal "Signed in as <plan>"
+  // identity card (PlanIdentityCard) below. See selectUiVisibility for
+  // default-deny rationale.
+  const ui: UiVisibility = useMemo(() => selectUiVisibility(snap), [snap])
+  // Keep `activeSection` honest with permissions: if the user (or an
+  // intent) selected a tab the backend has since hidden, drop the
+  // selection so we don't render a section without its nav entry.
+  useEffect(() => {
+    if (activeSection === 'plans' && !ui.showPlans) setActiveSection(null)
+    else if (activeSection === 'topup' && !ui.showTopUps) setActiveSection(null)
+    else if (activeSection === 'usage' && !ui.showUsage) setActiveSection(null)
+  }, [activeSection, ui.showPlans, ui.showTopUps, ui.showUsage])
+
   const refreshDate = formatDate(status.refreshDate)
 
   return (
@@ -1181,7 +1197,19 @@ const PlanManagerOverlay: React.FC<{
           && (!snap.permissions
             || (snap.permissions.has_email !== false && snap.permissions.email_verified !== false)) && <>
 
-          {activeAlert === 'beta-transition' && (
+          {/*
+            When the user has no `ui:show-*` features granted we collapse
+            the overlay to a minimal identity card. Onboarding flows use
+            this to confirm sign-in without exposing the (currently
+            irrelevant) plans/credits/quotas surface.
+          */}
+          {!ui.anyVisible && (
+            <PlanIdentityCard planCtx={planCtx} />
+          )}
+
+          {/* Alerts are credit/plan-oriented — only meaningful when
+              at least one of those surfaces is visible. */}
+          {ui.anyVisible && activeAlert === 'beta-transition' && (
             <BetaTransitionAlert
               planCtx={planCtx}
               onUpgrade={() => setActiveSection('plans')}
@@ -1189,7 +1217,7 @@ const PlanManagerOverlay: React.FC<{
             />
           )}
 
-          {activeAlert === 'plan-lifecycle' && (
+          {ui.anyVisible && activeAlert === 'plan-lifecycle' && (
             <PlanLifecycleAlert
               planCtx={planCtx}
               onRenew={() => setActiveSection('plans')}
@@ -1197,7 +1225,7 @@ const PlanManagerOverlay: React.FC<{
             />
           )}
 
-          {activeAlert === 'credit' && (
+          {ui.showCredits && activeAlert === 'credit' && (
             <CreditAlert
               status={status}
               refreshDate={refreshDate}
@@ -1207,59 +1235,66 @@ const PlanManagerOverlay: React.FC<{
             />
           )}
 
-          <Hero
-            status={status}
-            refreshDate={refreshDate}
-            planCtx={planCtx}
-            heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
-            onTopUp={() => setActiveSection('topup')}
-          />
+          {ui.showCredits && (
+            <Hero
+              status={status}
+              refreshDate={refreshDate}
+              planCtx={planCtx}
+              heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
+              onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
+            />
+          )}
 
           {/*
             Upgrade promo. Surfaced when the user has headroom in the
             catalog (free / starter-tier paid / etc.) and no higher-priority
             alert is showing — alerts already drive their own CTA, no
             point doubling up. Sits above the quotas so it gets attention
-            before the user dives into per-model details.
+            before the user dives into per-model details. Requires the
+            Plans surface — there's nowhere to send the user otherwise.
           */}
-          {!activeAlert && canUpgrade && (
+          {ui.showPlans && !activeAlert && canUpgrade && (
             <UpgradePromoBanner
               planCtx={planCtx}
               onUpgrade={() => setActiveSection(s => s === 'plans' ? null : 'plans')}
             />
           )}
 
-          <QuotasPanel
-            quotas={quotas}
-            aiModels={snap.permissions?.ai_models}
-            planLabel={planCtx.planName}
-            paidCredits={snap.credits?.paid_credits ?? 0}
-            canUpgrade={canUpgrade}
-            onUpgrade={() => setActiveSection('plans')}
-            onTopUp={() => setActiveSection('topup')}
-          />
+          {ui.showQuotas && (
+            <QuotasPanel
+              quotas={quotas}
+              aiModels={snap.permissions?.ai_models}
+              planLabel={planCtx.planName}
+              paidCredits={snap.credits?.paid_credits ?? 0}
+              canUpgrade={canUpgrade && ui.showPlans}
+              onUpgrade={() => setActiveSection('plans')}
+              onTopUp={() => setActiveSection('topup')}
+            />
+          )}
 
-          <nav className="pm-nav">
-            {([
-              { id: 'plans', label: 'Plans', icon: 'fas fa-layer-group' },
-              { id: 'topup', label: 'Top up', icon: 'fas fa-bolt' },
-              { id: 'usage', label: 'Usage breakdown', icon: 'fas fa-chart-bar' }
-            ] as const).map(s => (
-              <button
-                key={s.id}
-                className={`pm-nav__item ${activeSection === s.id ? 'is-active' : ''}`}
-                // Click on the active tab collapses it — we want a calm
-                // landing view, so re-clicking the same tab returns to it.
-                onClick={() => setActiveSection(prev => prev === s.id ? null : s.id)}
-              >
-                <i className={s.icon}></i>
-                <span>{s.label}</span>
-              </button>
-            ))}
-          </nav>
+          {(ui.showPlans || ui.showTopUps || ui.showUsage) && (
+            <nav className="pm-nav">
+              {([
+                { id: 'plans', label: 'Plans', icon: 'fas fa-layer-group', visible: ui.showPlans },
+                { id: 'topup', label: 'Top up', icon: 'fas fa-bolt', visible: ui.showTopUps },
+                { id: 'usage', label: 'Usage breakdown', icon: 'fas fa-chart-bar', visible: ui.showUsage }
+              ] as const).filter(s => s.visible).map(s => (
+                <button
+                  key={s.id}
+                  className={`pm-nav__item ${activeSection === s.id ? 'is-active' : ''}`}
+                  // Click on the active tab collapses it — we want a calm
+                  // landing view, so re-clicking the same tab returns to it.
+                  onClick={() => setActiveSection(prev => prev === s.id ? null : s.id)}
+                >
+                  <i className={s.icon}></i>
+                  <span>{s.label}</span>
+                </button>
+              ))}
+            </nav>
+          )}
 
           <main className="pm-main">
-            {activeSection === 'plans' && (
+            {ui.showPlans && activeSection === 'plans' && (
               <PlansSection
                 plans={visiblePlans}
                 currentPlanId={planCtx.planId}
@@ -1272,14 +1307,14 @@ const PlanManagerOverlay: React.FC<{
                 cancelledNotice={planCtx.kind === 'paid' && planCtx.isCancelled ? { expiresOn: planCtx.expiresOn } : null}
               />
             )}
-            {activeSection === 'topup' && (
+            {ui.showTopUps && activeSection === 'topup' && (
               <TopUpSection
                 packages={visiblePackages}
                 purchasingId={purchasingProductId}
                 onPurchase={(packageId) => plugin.purchaseCredits(packageId)}
               />
             )}
-            {activeSection === 'usage' && <UsageSection plugin={plugin} />}
+            {ui.showUsage && activeSection === 'usage' && <UsageSection plugin={plugin} />}
           </main>
 
         </>}
@@ -1602,7 +1637,8 @@ const Hero: React.FC<{
   refreshDate: string | null
   planCtx: ReturnType<typeof selectPlanState>
   heroCompact: boolean
-  onTopUp: () => void
+  /** Omit to hide the Top up CTA — used when `ui:show-top-ups` is off. */
+  onTopUp?: () => void
 }> = ({ status, refreshDate, planCtx, heroCompact, onTopUp }) => {
   const { remaining, total, state } = status
 
@@ -1648,9 +1684,39 @@ const Hero: React.FC<{
       </div>
 
       <div className="pm-hero__right">
-        <button className="pm-cta" onClick={onTopUp}>
-          <i className="fas fa-bolt"></i> Top&nbsp;up
-        </button>
+        {onTopUp && (
+          <button className="pm-cta" onClick={onTopUp}>
+            <i className="fas fa-bolt"></i> Top&nbsp;up
+          </button>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PlanIdentityCard — minimal "signed in as <plan>" view.
+
+   Rendered when the user has none of the `ui:show-*` features granted, so
+   none of the credits/plans/quotas/top-ups/usage panels should appear. We
+   still want to confirm the sign-in and surface the plan label so the
+   account-menu badge ("Free", "Pro", "Beta") has a corresponding view.
+   ───────────────────────────────────────────────────────────────────────── */
+
+const PlanIdentityCard: React.FC<{
+  planCtx: ReturnType<typeof selectPlanState>
+}> = ({ planCtx }) => {
+  return (
+    <section className="pm-hero pm-hero--healthy pm-hero--compact">
+      <div className="pm-hero__left">
+        <div className="pm-hero__eyebrow">Signed in</div>
+        <div className="pm-hero__amount">
+          <span className="pm-hero__num">{planCtx.planName}</span>
+          <span className="pm-hero__unit">plan</span>
+        </div>
+        <div className="pm-hero__meta">
+          <>You're all set.</>
+        </div>
       </div>
     </section>
   )
