@@ -142,8 +142,8 @@ export function getEtherscanToolsForEtherscanSpecialist(tools: DynamicStructured
     // Check if tool comes from Etherscan MCP server
     const description = tool.description.toLowerCase()
     return description.includes('[etherscan]') ||
-           tool.name.toLowerCase().includes('etherscan') ||
-           description.includes('etherscan')
+      tool.name.toLowerCase().includes('etherscan') ||
+      description.includes('etherscan')
   })
 
   return etherscanTools
@@ -154,12 +154,12 @@ export function getTheGraphToolsForTheGraphSpecialist(tools: DynamicStructuredTo
     // Check if tool comes from TheGraph MCP server
     const description = tool.description.toLowerCase()
     return description.includes('[the graph api]') ||
-           description.includes('[thegraph]') ||
-           tool.name.toLowerCase().includes('thegraph') ||
-           tool.name.toLowerCase().includes('graph') ||
-           description.includes('thegraph') ||
-           description.includes('subgraph') ||
-           description.includes('graphql')
+      description.includes('[thegraph]') ||
+      tool.name.toLowerCase().includes('thegraph') ||
+      tool.name.toLowerCase().includes('graph') ||
+      description.includes('thegraph') ||
+      description.includes('subgraph') ||
+      description.includes('graphql')
   })
 
   return theGraphTools
@@ -170,8 +170,8 @@ export function getAlchemyToolsForAlchemySpecialist(tools: DynamicStructuredTool
     // Check if tool comes from Alchemy MCP server
     const description = tool.description.toLowerCase()
     return description.includes('[alchemy]') ||
-           tool.name.toLowerCase().includes('alchemy') ||
-           description.includes('alchemy')
+      tool.name.toLowerCase().includes('alchemy') ||
+      description.includes('alchemy')
   })
 
   return alchemyTools
@@ -259,6 +259,9 @@ export function filterOutFileOperationTools(tools: DynamicStructuredTool[]): Dyn
 
 export function getQuickDappToolsForQuickDappSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const quickDappToolNames = [
+    'generate_dapp',
+    'update_dapp',
+    'list_dapps',
     'finalize_dapp_generation',
     'fetch_figma_design'
   ]

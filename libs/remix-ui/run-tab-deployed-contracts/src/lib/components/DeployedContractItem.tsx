@@ -14,6 +14,7 @@ import { ContractKebabMenu } from './ContractKebabMenu'
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import BN from 'bn.js'
 import { TrackingContext } from '@remix-ide/tracking'
+import { useAuth } from '@remix-ui/app'
 
 const txHelper = remixLib.execution.txHelper
 const txFormat = remixLib.execution.txFormat
@@ -31,6 +32,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const { dispatch, plugin, themeQuality } = useContext(DeployedContractsAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
   const intl = useIntl()
+  const { features } = useAuth()
+  const hasQuickdappAccess = features?.['dapp:quickdapp']?.is_enabled
   const [networkName, setNetworkName] = useState<string>('')
   const [isExpanded, setIsExpanded] = useState<boolean>(false)
   const [contractABI, setContractABI] = useState(null)
@@ -378,6 +381,13 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
     }
 
     try {
+      // Permission gate: non-beta users see the QuickDapp lock screen
+      if (!hasQuickdappAccess) {
+        await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
+        await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
+        return
+      }
+
       console.log('[QuickDapp] handleCreateDapp START', { name: contract.name, address: contract.address, timestamp: Date.now() });
 
       // Send contract details to AI Assistant for DApp generation
