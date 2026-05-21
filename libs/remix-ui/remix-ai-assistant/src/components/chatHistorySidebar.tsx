@@ -9,9 +9,9 @@ interface ChatHistorySidebarProps {
   currentConversationId: string | null
   showArchived: boolean
   onNewConversation: () => void
-  onLoadConversation: (id: string) => void
-  onArchiveConversation: (id: string) => void
-  onDeleteConversation: (id: string) => void
+  onLoadConversation: (id: string) => Promise<void>
+  onArchiveConversation: (id: string) => Promise<void>
+  onDeleteConversation: (id: string) => Promise<void>
   onDeleteAllConversations?: () => void
   onToggleArchived: () => void
   onClose: () => void
@@ -178,21 +178,21 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
               conversation={conv}
               theme={theme}
               active={conv.id === currentConversationId}
-              onClick={() => {
+              onClick={async () => {
                 // Automatically unarchive if the conversation is archived
                 if (conv.archived) {
-                  onArchiveConversation(conv.id)
+                  await onArchiveConversation(conv.id)
                 }
-                onLoadConversation(conv.id)
+                await onLoadConversation(conv.id)
               }}
-              onArchive={(e) => {
+              onArchive={async (e) => {
                 e.stopPropagation()
-                onArchiveConversation(conv.id)
+                await onArchiveConversation(conv.id)
               }}
-              onDelete={(e) => {
+              onDelete={async (e) => {
                 e.stopPropagation()
                 if (confirm(`Delete conversation "${conv.title}"?`)) {
-                  onDeleteConversation(conv.id)
+                  await onDeleteConversation(conv.id)
                 }
               }}
             />

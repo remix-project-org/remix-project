@@ -77,9 +77,7 @@ export {
 } from './constants'
 
 export {
-  getBasicMcpToolsForSecurityAuditor,
   getBasicFileToolsForGasOptimizer,
-  getCoordinationToolsForComprehensiveAuditor,
   getEducationToolsForWeb3Educator
 } from './helpers/subagentToolFilters'
 
@@ -102,3 +100,5 @@ export { buildSubagentConfigs, type SubagentConfigItem } from './SubagentConfig'
 export { StreamEventHandler, type TokenUsageState, type StreamProcessingResult } from './StreamEventHandler'
 
 export { InactivityTimeoutManager } from './InactivityTimeoutManager'
+
+export { LangSmithTracingManager, langSmithTracing } from './LangSmithTracing'

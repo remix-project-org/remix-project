@@ -639,7 +639,7 @@ module.exports = {
     browser
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemsrc"]', 30000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemfoundry.toml"]', 10000)
-      .pause()
+      .pause(2000)
   },
 
   // ── Git-init workspace + .git cloud sync + S3 restore ──

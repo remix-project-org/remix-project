@@ -110,7 +110,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     zlib: require.resolve('browserify-zlib'),
     'assert/strict': require.resolve('assert/'),
     async_hooks: false,
-    fs: false,
+    fs: path.resolve(__dirname, 'src/fs-shim.js'),
     module: false,
     tls: false,
     net: false,
@@ -239,40 +239,8 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
       }
 
       if (replacements[module] === 'fs-mock') {
-        // Comprehensive fs mock with constants
-        resource.request = 'data:text/javascript,' + encodeURIComponent(`
-          export const constants = {
-            O_RDONLY: 0,
-            O_WRONLY: 1,
-            O_RDWR: 2,
-            O_CREAT: 64,
-            O_EXCL: 128,
-            O_NOCTTY: 256,
-            O_TRUNC: 512,
-            O_APPEND: 1024,
-            O_DIRECTORY: 65536,
-            O_NOATIME: 262144,
-            O_NOFOLLOW: 131072,
-            O_SYNC: 1052672,
-            O_SYMLINK: 2097152,
-            O_DIRECT: 16384,
-            O_NONBLOCK: 2048,
-            F_OK: 0,
-            R_OK: 4,
-            W_OK: 2,
-            X_OK: 1
-          };
-          export const promises = {
-            readFile: async () => { throw new Error('fs not available in browser'); },
-            writeFile: async () => { throw new Error('fs not available in browser'); },
-            readdir: async () => { throw new Error('fs not available in browser'); },
-            stat: async () => { throw new Error('fs not available in browser'); },
-            mkdir: async () => { throw new Error('fs not available in browser'); },
-            rm: async () => { throw new Error('fs not available in browser'); },
-            unlink: async () => { throw new Error('fs not available in browser'); }
-          };
-          export default { constants, promises };
-        `)
+        // Use the fs-shim.js file which provides readFile via fetch for WASM loading
+        resource.request = path.resolve(__dirname, 'src/fs-shim.js')
       } else if (replacements[module] === 'child-process-mock') {
         resource.request = 'data:text/javascript,' + encodeURIComponent(`
           export const spawn = () => { throw new Error('child_process not available in browser'); };

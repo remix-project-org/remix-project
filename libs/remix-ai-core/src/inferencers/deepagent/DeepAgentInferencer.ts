@@ -3,20 +3,20 @@
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
+import { createDeepAgent, CreateDeepAgentParams } from 'deepagents'
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
 import { RemixFilesystemBackend } from './RemixFilesystemBackend'
 import { createRemixTools, ToolApprovalGate } from './tools'
-import { ToolSelector } from './ToolSelector'
 import {
   REMIX_DEEPAGENT_SYSTEM_PROMPT,
   SOLIDITY_CODE_GENERATION_PROMPT,
   SECURITY_ANALYSIS_PROMPT,
   CODE_EXPLANATION_PROMPT
-} from './prompts'
+} from '../deepagent/prompts/system/lightPrompts'
 import { DeepAgentMemoryBackend } from '../../storage/deepAgentMemoryBackend'
-import { IDeepAgentConfig, DeepAgentError, DeepAgentErrorType, ModelSelection } from '../../types/deepagent'
+import { IDeepAgentConfig, DeepAgentError, DeepAgentErrorType, ModelSelection, IUserApiKeyConfig, ApiKeyErrorEvent } from '../../types/deepagent'
 import { ToolRegistry } from '../../remix-mcp-server/types/mcpTools'
 import { classifyApiError, getErrorMessage } from './ApiErrorHandler'
 import { aiErrorFromException } from '../../state/ai-error'
@@ -25,12 +25,16 @@ import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { selectOptimalModel } from './helpers/modelSelection'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
+import { filterOutSpecialistTools, filterOutFileOperationTools } from './helpers/subagentToolFilters'
 import type { DeepAgent } from 'deepagents'
+import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
 
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
+import { langSmithTracing } from './LangSmithTracing'
+import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
 
 export class DeepAgentInferencer implements ICompletions, IGeneration {
   private plugin: Plugin
@@ -41,7 +45,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private memoryBackend: DeepAgentMemoryBackend | null = null
   private tools: DynamicStructuredTool[] = []
   private approvalGate: ToolApprovalGate | undefined
-  private toolSelector: ToolSelector | null = null
   private currentAbortController: AbortController | null = null
   private fallbackInferencer: any = null
   private model: BaseChatModel | null = null
@@ -50,9 +53,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private allowedModels: string[] = []
   private sessionThreadId: string = DeepAgentInferencer.generateThreadId()
   private streamEventHandler: StreamEventHandler
+  private userApiKeys?: IUserApiKeyConfig
 
   private static generateThreadId(): string {
-    return `remix-session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+    return CONVERSATION_THREAD_PREFIX + `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
   }
 
   private resetSessionThread(): void {
@@ -104,6 +108,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.config = {
       enabled: true,
       apiKey: 'proxy-handled', // Proxy server handles the API key
+      userApiKeys: config?.userApiKeys,
       memoryBackend: config?.memoryBackend || 'store',
       maxToolExecutions: config?.maxToolExecutions || 10,
       timeout: config?.timeout || 300000, // 5 minutes
@@ -115,6 +120,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       autoMode: config?.autoMode || { enabled: false }
     }
 
+    // Store user API keys for model creation
+    this.userApiKeys = config?.userApiKeys
+
     // Initialize filesystem backend with shared EventEmitter for approval
     this.filesystemBackend = new RemixFilesystemBackend(plugin, this.event) as any
 
@@ -124,8 +132,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     // Initialize tools with approval gate
     this.approvalGate = new ToolApprovalGate(plugin, this.event, 'ask_risky')
     this.initializeTools(toolRegistry, mcpInferencer)
-
-    this.toolSelector = new ToolSelector()
   }
 
   async initialize(): Promise<void> {
@@ -134,7 +140,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       console.log('[DeepAgentInferencer] Initializing DeepAgent with config:', this.config)
       console.log('[DeepAgentInferencer] Model selection:', this.modelSelection)
 
-      this.model = createModelInstance(this.modelSelection)
+      this.model = createModelInstance(this.modelSelection, DAPP_MAX_TOKENS, this.userApiKeys)
 
       console.log(`[DeepAgentInferencer] Created ${this.modelSelection.provider} model: ${this.modelSelection.modelId}`)
 
@@ -143,18 +149,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         await this.memoryBackend.init()
       }
 
-      this.tools.push(...this.toolSelector?.getEssentialTools() || [])
-
-      if (this.toolSelector && this.tools.length > 0) {
-        await this.toolSelector.buildToolIndex(this.tools)
-      }
-
-      const metaTools = this.tools.filter(tool =>
-        tool.name === 'get_tool_schema' || tool.name === 'call_tool'
-      )
-
-      await this.createAgentWithTools(metaTools)
-      console.log('[DeepAgentInferencer] Initialized: agent tools =', metaTools.map(t => t.name), ', available via call_tool =', this.tools.map(t => t.name))
+      await this.createAgentWithTools(this.tools)
+      await langSmithTracing.initialize('Remix-IDE')
     } catch (error: any) {
       console.error('[DeepAgentInferencer] Initialization failed:', error)
       throw new DeepAgentError(
@@ -221,6 +217,42 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     })
 
     console.log('[DeepAgentInferencer] Emitted error to todos:', errorMessage)
+  }
+
+  private emitApiKeyError(errorType: DeepAgentErrorType, error: any): void {
+    if (!this.userApiKeys?.useOwnKeys) {
+      return
+    }
+
+    let apiKeyErrorType: ApiKeyErrorEvent['errorType'] = 'invalid'
+    switch (errorType) {
+    case DeepAgentErrorType.AUTHENTICATION_FAILED:
+      apiKeyErrorType = 'authentication_failed'
+      break
+    case DeepAgentErrorType.API_KEY_INVALID:
+      apiKeyErrorType = 'invalid'
+      break
+    case DeepAgentErrorType.QUOTA_EXCEEDED:
+      apiKeyErrorType = 'quota_exceeded'
+      break
+    case DeepAgentErrorType.RATE_LIMIT_EXCEEDED:
+      apiKeyErrorType = 'rate_limited'
+      break
+    default:
+      return // Don't emit for non-API key errors
+    }
+
+    const apiKeyError: ApiKeyErrorEvent = {
+      provider: this.modelSelection.provider,
+      errorType: apiKeyErrorType,
+      message: getErrorMessage(errorType, error),
+      canFallbackToProxy: true,
+      originalError: error?.message,
+      timestamp: Date.now()
+    }
+
+    console.log('[DeepAgentInferencer] Emitting API key error:', apiKeyError)
+    this.event.emit('onApiKeyError', apiKeyError)
   }
 
   async code_generation(prompt: string, params: IParams): Promise<string> {
@@ -360,7 +392,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         }
       }
 
-      const mcpContext = undefined //await this.gatherMCPResourcesContext(prompt)
+      const mcpContext = await this.gatherMCPResourcesContext(prompt)
       const enrichedContext = mcpContext
         ? (context ? `${mcpContext}\n\n${context}` : mcpContext)
         : context
@@ -470,95 +502,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   }
 
   /**
-   * Answer with a custom system prompt - used for specialized generation like DApps.
-   * Creates a dedicated model instance with higher token limit (16384) to avoid
-   * truncation in large code generation tasks. Streams the response so the user
-   * gets real-time feedback during generation. Returns the full concatenated result
-   * for the caller to parse.
-   */
-  async answerWithCustomSystemPrompt(
-    prompt: string,
-    systemPrompt: string,
-    params: IParams,
-    imageBase64?: string
-  ): Promise<string> {
-    this.event.emit('onInference')
-    this.currentAbortController = new AbortController()
-
-    try {
-      if (!this.model) {
-        throw new DeepAgentError(
-          'DeepAgent not initialized',
-          DeepAgentErrorType.INITIALIZATION_FAILED
-        )
-      }
-
-      const dappModel = createModelInstance(this.modelSelection)
-      const fullPrompt = `${systemPrompt}\n\n---\n\nUser Request:\n${prompt}`
-
-      let langchainMessages: any[]
-
-      if (imageBase64) {
-        langchainMessages = [
-          new HumanMessage({
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/png;base64,${imageBase64}`
-                }
-              },
-              { type: 'text', text: fullPrompt }
-            ]
-          })
-        ]
-      } else {
-        langchainMessages = [new HumanMessage(fullPrompt)]
-      }
-
-      const timeoutMs = 120_000
-      const timeoutSignal = AbortSignal.timeout(timeoutMs)
-      const combinedController = this.currentAbortController!
-      timeoutSignal.addEventListener('abort', () => combinedController.abort(), { once: true })
-
-      const stream = await dappModel.stream(langchainMessages, {
-        signal: combinedController.signal
-      })
-
-      let result = ''
-      for await (const chunk of stream) {
-        if (combinedController.signal.aborted) break
-
-        let delta = ''
-        if (typeof chunk.content === 'string') {
-          delta = chunk.content
-        } else if (Array.isArray(chunk.content)) {
-          delta = chunk.content
-            .map((c: any) => (typeof c === 'string' ? c : c.text || ''))
-            .join('')
-        }
-
-        if (delta) {
-          result += delta
-          this.event.emit('onStreamResult', delta)
-        }
-      }
-
-      this.event.emit('onInferenceDone')
-      return result
-    } catch (error: any) {
-      this.event.emit('onInferenceDone')
-      if (error?.name === 'AbortError' || this.currentAbortController?.signal.aborted) {
-        return ''
-      }
-      console.error('[DeepAgent] answerWithCustomSystemPrompt error:', error?.message || error)
-      throw error
-    } finally {
-      this.currentAbortController = null
-    }
-  }
-
-  /**
    * Code completion method (not supported by DeepAgent, falls back)
    */
   async code_completion(prompt: string, context: string, ctxFiles: any, fileName: string, params: IParams): Promise<any> {
@@ -605,6 +548,12 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         )
       }
 
+      // Get LangSmith tracing callbacks if enabled
+      const tracingCallbacks = langSmithTracing.getCallbacks()
+      if (tracingCallbacks.length > 0) {
+        console.log('[DeepAgent] LangSmith tracing enabled, adding callbacks')
+      }
+
       const eventStream = this.agent.streamEvents(
         {
           messages: langchainMessages
@@ -615,7 +564,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
             thread_id: this.sessionThreadId
           },
           subgraphs: true,
-          signal: this.currentAbortController?.signal
+          signal: this.currentAbortController?.signal,
+          callbacks: tracingCallbacks
         }
       )
 
@@ -681,7 +631,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
               version: 'v2',
               configurable: { thread_id: this.sessionThreadId },
               subgraphs: true,
-              signal: this.currentAbortController?.signal
+              signal: this.currentAbortController?.signal,
+              callbacks: langSmithTracing.getCallbacks()
             }
           )
           for await (const event of retryStream) {
@@ -728,6 +679,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       const userMessage = getErrorMessage(errorType, error, retryAfter)
 
       console.error(`[DeepAgentInferencer] Error during agent execution: ${errorType}`, error)
+      console.error('[DeepAgentInferencer] Original error message:', error)
 
       // Emit API error event for UI handling
       this.event.emit('onApiError', {
@@ -738,6 +690,14 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         originalError: error?.message,
         timestamp: Date.now()
       })
+
+      // Emit API key specific error for UI handling
+      if (errorType === DeepAgentErrorType.AUTHENTICATION_FAILED ||
+          errorType === DeepAgentErrorType.API_KEY_INVALID ||
+          errorType === DeepAgentErrorType.QUOTA_EXCEEDED ||
+          errorType === DeepAgentErrorType.RATE_LIMIT_EXCEEDED) {
+        this.emitApiKeyError(errorType, error)
+      }
 
       // For recoverable errors, emit a friendly stream message and return
       if (errorType === DeepAgentErrorType.RATE_LIMIT_EXCEEDED ||
@@ -763,41 +723,41 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
   private async createAgentWithTools(selectedTools: DynamicStructuredTool[]): Promise<void> {
     try {
-      const { createDeepAgent } = await import('deepagents')
+      if (!this.model) {
+        throw new DeepAgentError(
+          'Model not initialized',
+          DeepAgentErrorType.INITIALIZATION_FAILED
+        )
+      }
 
       const checkpointer = new IndexedDBCheckpointSaver()
-
+      const hasSkillsPermission = await this.plugin.call('auth', 'hasPermission', 'ai:skills')
       // Create agent configuration with selected tools
-      const agentConfig: any = {
-        backend: this.filesystemBackend,
-        tools: selectedTools,
+      // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents
+      const agentConfig: CreateDeepAgentParams = {
+        backend: this.filesystemBackend as any,
+        tools: [],
         model: this.model,
         systemPrompt: REMIX_DEEPAGENT_SYSTEM_PROMPT,
-        skills: ["skills/"],
-        checkpointer
+        skills: hasSkillsPermission ? ["skills/"] : [],
+        checkpointer,
+        middleware: [new RemixDeepAgentMiddleware(this.plugin)]
       }
 
       if (this.config.enableSubagents && this.model) {
-        agentConfig.subagents = buildSubagentConfigs(
+        agentConfig.subagents = await buildSubagentConfigs(
           this.tools,
-          this.toolSelector,
           this.model,
           this.filesystemBackend
         )
       }
 
       if (this.memoryBackend) {
-        agentConfig.store = this.memoryBackend
+        agentConfig.store = this.memoryBackend as any
       }
 
-      let enhancedSystemPrompt = REMIX_DEEPAGENT_SYSTEM_PROMPT
-      if (this.toolSelector) {
-        const toolInventoryPrompt = this.toolSelector.generateToolInventoryPrompt(selectedTools)
-        enhancedSystemPrompt += toolInventoryPrompt
-      }
-      agentConfig.systemPrompt = enhancedSystemPrompt
-
-      this.agent = await createDeepAgent(agentConfig)
+      // Cast result to any to handle @langchain/core version mismatch between root and deepagents
+      this.agent = await createDeepAgent(agentConfig as any) as any
 
       console.log(`[DeepAgentInferencer] Recreated agent with ${selectedTools.length} selected tools`)
     } catch (error) {
@@ -821,13 +781,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.modelSelection = selectedModel
 
     // Create new model instance
-    this.model = createModelInstance(selectedModel)
+    this.model = createModelInstance(selectedModel, DAPP_MAX_TOKENS, this.userApiKeys)
 
-    // Recreate agent with new model
-    const metaTools = this.tools.filter(tool =>
-      tool.name === 'get_tool_schema' || tool.name === 'call_tool'
-    )
-    if (!this.agent) await this.createAgentWithTools(metaTools)
+    if (!this.agent) await this.createAgentWithTools(this.tools)
     else {
       this.agent.options.model = this.model
     }
@@ -880,6 +836,14 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       originalError: error?.message,
       timestamp: Date.now()
     })
+
+    // Emit API key specific error for UI handling
+    if (errorType === DeepAgentErrorType.AUTHENTICATION_FAILED ||
+        errorType === DeepAgentErrorType.API_KEY_INVALID ||
+        errorType === DeepAgentErrorType.QUOTA_EXCEEDED ||
+        errorType === DeepAgentErrorType.RATE_LIMIT_EXCEEDED) {
+      this.emitApiKeyError(errorType, error)
+    }
 
     if (errorType === DeepAgentErrorType.RATE_LIMIT_EXCEEDED ||
         errorType === DeepAgentErrorType.QUOTA_EXCEEDED) {
@@ -937,6 +901,16 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       this.currentAbortController.abort()
       this.currentAbortController = null
       this.event.emit('onInferenceDone')
+
+      // Reset QuickDapp dashboard processing state on cancellation.
+      // Without this, cancelling mid-generation leaves the dashboard spinner stuck.
+      try {
+        this.plugin.emit('generationProgress', null)
+        this.plugin.emit('dappGenerationError', {
+          slug: undefined,
+          error: 'Generation cancelled by user'
+        })
+      } catch (_) { /* best-effort cleanup */ }
     }
   }
 
@@ -950,7 +924,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     }
     this.agent = null
     this.model = null
-    this.toolSelector = null
   }
 
   getEventEmitter(): EventEmitter {

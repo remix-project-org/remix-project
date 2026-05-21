@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { Dropdown } from 'react-bootstrap'
-import { AddressToggle, CustomMenu, CustomToggle, extractNameFromKey, getMultiValsString, ProxyAddressToggle, ProxyDropdownMenu, shortenDate, shortenProxyAddress } from '@remix-ui/helper'
+import { AddressToggle, CustomMenu, CustomToggle, CustomTooltip, extractNameFromKey, getMultiValsString, ProxyAddressToggle, ProxyDropdownMenu, shortenDate, shortenProxyAddress } from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { DeployAppContext } from '../contexts'
 import { Provider } from '@remix-ui/run-tab-environment'
@@ -771,51 +771,85 @@ function DeployPortraitView() {
                   <FormattedMessage id="udapp.gasLimit" defaultMessage="Gas limit" />
                 </label>
                 <div className="position-relative flex-fill">
-                  <span
-                    className="p-1 pt-0 rounded"
-                    style={{
-                      position: 'absolute',
-                      left: '0.5rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      backgroundColor: 'var(--custom-onsurface-layer-2)',
-                      color: 'var(--bs-primary)',
-                      cursor: 'pointer',
-                      zIndex: 1
-                    }}
-                    onClick={() => {
-                      const newMode = widgetState.gasLimit === 0 ? 'custom' : 'auto'
-                      trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitToggle', name: newMode, isClick: true })
-                      if (widgetState.gasLimit === 0) {
-                        // Switch from auto to custom - set a default value
-                        dispatch({ type: 'SET_GAS_LIMIT', payload: 3000000 })
-                      } else {
-                        // Switch from custom to auto - set to 0
-                        dispatch({ type: 'SET_GAS_LIMIT', payload: 0 })
-                      }
-                    }}
+                  <CustomTooltip
+                    placement="top"
+                    tooltipId="gasLimitBadgeTooltip"
+                    tooltipText={widgetState.gasLimit === 0 ? intl.formatMessage({ id: 'udapp.gasLimitBadgeAutoTooltip', defaultMessage: 'Click to set custom gas limit' }) : intl.formatMessage({ id: 'udapp.gasLimitBadgeCustomTooltip', defaultMessage: 'Click to use auto estimated gas' })}
                   >
-                    {widgetState.gasLimit === 0 ? 'auto' : 'custom'}
-                  </span>
-                  <input
-                    type="number"
-                    className="form-control form-control-sm border-0"
-                    placeholder="0000000"
-                    value={widgetState.gasLimit}
-                    onChange={(e) => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitInput', name: e.target.value })
-                      dispatch({ type: 'SET_GAS_LIMIT', payload: parseInt(e.target.value) })
-                    }}
-                    disabled={widgetState.gasLimit === 0}
-                    style={{
-                      backgroundColor: 'var(--bs-body-bg)',
-                      color: themeQuality === 'dark' ? 'white' : 'black',
-                      flex: 1,
-                      paddingLeft: '4rem',
-                      opacity: widgetState.gasLimit === 0 ? 0.6 : 1,
-                      cursor: widgetState.gasLimit === 0 ? 'not-allowed' : 'text'
-                    }}
-                  />
+                    <span
+                      className="p-1 rounded"
+                      style={{
+                        position: 'absolute',
+                        left: '0.5rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        backgroundColor: 'var(--custom-onsurface-layer-2)',
+                        color: 'var(--bs-primary)',
+                        cursor: 'pointer',
+                        zIndex: 1
+                      }}
+                      onClick={() => {
+                        const newMode = widgetState.gasLimit === 0 ? 'custom' : 'auto'
+                        trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitToggle', name: newMode, isClick: true })
+                        if (widgetState.gasLimit === 0) {
+                          // Switch from auto to custom - set a default value
+                          dispatch({ type: 'SET_GAS_LIMIT', payload: 3000000 })
+                        } else {
+                          // Switch from custom to auto - set to 0
+                          dispatch({ type: 'SET_GAS_LIMIT', payload: 0 })
+                        }
+                      }}
+                    >
+                      {widgetState.gasLimit === 0 ? 'auto' : 'custom'}
+                    </span>
+                  </CustomTooltip>
+                  {widgetState.gasLimit === 0 ? (
+                    <CustomTooltip
+                      placement="top"
+                      tooltipId="gasLimitInputTooltip"
+                      tooltipText={intl.formatMessage({ id: 'udapp.gasLimitAutoTooltip', defaultMessage: 'Currently using auto estimated gas. Click on auto to set custom gas limit' })}
+                    >
+                      <input
+                        type="number"
+                        className="form-control form-control-sm border-0"
+                        placeholder="0000000"
+                        value={widgetState.gasLimit}
+                        onChange={(e) => {
+                          trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitInput', name: e.target.value })
+                          dispatch({ type: 'SET_GAS_LIMIT', payload: parseInt(e.target.value) })
+                        }}
+                        disabled={widgetState.gasLimit === 0}
+                        style={{
+                          backgroundColor: 'var(--bs-body-bg)',
+                          color: themeQuality === 'dark' ? 'white' : 'black',
+                          flex: 1,
+                          paddingLeft: '4rem',
+                          opacity: widgetState.gasLimit === 0 ? 0.6 : 1,
+                          cursor: widgetState.gasLimit === 0 ? 'not-allowed' : 'text'
+                        }}
+                      />
+                    </CustomTooltip>
+                  ) : (
+                    <input
+                      type="number"
+                      className="form-control form-control-sm border-0"
+                      placeholder="0000000"
+                      value={widgetState.gasLimit}
+                      onChange={(e) => {
+                        trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitInput', name: e.target.value })
+                        dispatch({ type: 'SET_GAS_LIMIT', payload: parseInt(e.target.value) })
+                      }}
+                      disabled={widgetState.gasLimit === 0}
+                      style={{
+                        backgroundColor: 'var(--bs-body-bg)',
+                        color: themeQuality === 'dark' ? 'white' : 'black',
+                        flex: 1,
+                        paddingLeft: '4rem',
+                        opacity: widgetState.gasLimit === 0 ? 0.6 : 1,
+                        cursor: widgetState.gasLimit === 0 ? 'not-allowed' : 'text'
+                      }}
+                    />
+                  )}
                 </div>
               </div>
 

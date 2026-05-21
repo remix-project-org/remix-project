@@ -14,6 +14,7 @@ import {
 import type { AIModel } from '@remix/remix-ai-core'
 import type { IRemixAIPlugin } from './types'
 import type { DeepAgentEventBridge } from './DeepAgentEventBridge'
+import { ApiKeySettingsHelper } from './ApiKeySettingsHelper'
 
 export interface ModelManagerDeps {
   plugin: IRemixAIPlugin
@@ -23,9 +24,11 @@ export interface ModelManagerDeps {
 
 export class ModelManager {
   private deps: ModelManagerDeps
+  private apiKeyHelper: ApiKeySettingsHelper
 
   constructor(deps: ModelManagerDeps) {
     this.deps = deps
+    this.apiKeyHelper = new ApiKeySettingsHelper(deps.plugin)
   }
 
   async setModel(modelId: string, allowedModels: string[] = []): Promise<void> {
@@ -151,14 +154,20 @@ export class ModelManager {
     })
   }
 
-  private async reinitializeDeepAgentForModelChange(model: AIModel, modelId: string): Promise<void> {
+  private async reinitializeDeepAgentForModelChange(_model: AIModel, _modelId: string): Promise<void> {
     const plugin = this.deps.plugin
-    console.log('[RemixAI Plugin] Model changed, reinitializing DeepAgent with new model:', model.provider, modelId)
+    console.log('[RemixAI Plugin] Model changed, reinitializing DeepAgent with new model:', _model.provider, _modelId)
 
     try {
       // Clean up old instance
       this.deps.eventBridge.teardownListeners(plugin.deepAgentInferencer!)
       await plugin.deepAgentInferencer!.close()
+
+      // Get user API keys config
+      const userApiKeys = await this.apiKeyHelper.getUserApiKeysConfig()
+      if (userApiKeys?.useOwnKeys) {
+        console.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent (model change)')
+      }
 
       // Create new instance with updated model
       plugin.deepAgentInferencer = new DeepAgentInferencer(
@@ -167,11 +176,12 @@ export class ModelManager {
         {
           memoryBackend: (localStorage.getItem('deepagent_memory_backend') as 'state' | 'store') || 'store',
           enableSubagents: true,
-          enablePlanning: true
+          enablePlanning: true,
+          userApiKeys
         },
         plugin.remoteInferencer,
         plugin.mcpInferencer,
-        { provider: model.provider as 'anthropic' | 'mistralai' | 'moonshot', modelId: modelId }
+        { provider: _model.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot', modelId: _modelId }
       )
       await plugin.deepAgentInferencer.initialize()
 

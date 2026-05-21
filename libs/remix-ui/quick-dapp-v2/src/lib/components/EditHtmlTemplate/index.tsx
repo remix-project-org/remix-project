@@ -64,7 +64,6 @@ function EditHtmlTemplate(): JSX.Element {
   const [showTips, setShowTips] = useState(false);
   const [showVmTips, setShowVmTips] = useState(false);
 
-
   useEffect(() => {
     if (!plugin) return;
 
@@ -420,7 +419,6 @@ window.addEventListener('unhandledrejection', function(e) {
     setIsBuilding(false);
   }
 
-
   const handleOpenAIAssistant = async () => {
     if (!activeDapp || !plugin) return;
     console.log('[QuickDapp] Opening AI Assistant for DApp update:', activeDapp.slug);
@@ -518,8 +516,6 @@ window.addEventListener('unhandledrejection', function(e) {
       setTimeout(() => runBuild(false), 100);
     }
   }, [isBuilderReady, isAiUpdating, activeDapp?.slug, isCurrentProviderVM]);
-
-
 
   // Detect when blockchain VM is ready via contextChanged event (debounced).
   // Uses plugin.on (passive event) instead of plugin.call (blocked by engine queue).

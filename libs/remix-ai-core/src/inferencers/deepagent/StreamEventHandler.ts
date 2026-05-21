@@ -240,7 +240,8 @@ export class StreamEventHandler {
     this.tokenUsage.turnCount++
 
     console.log(`[DeepAgent-Tokens]   Turn ${this.tokenUsage.turnCount} completed | run_id: ${event.run_id}`)
-    console.log(`[DeepAgent-Tokens]   Input:  ${inputTokens} tokens`)
+    console.log(`[DeepAgent-Tokens]   Input (cache + no cache):  ${inputTokens} tokens `)
+    console.log(`[DeepAgent-Tokens]   Input (no cache):  ${inputTokens - cacheReadInputTokens} tokens`)
     console.log(`[DeepAgent-Tokens]   Output: ${outputTokens} tokens`)
     console.log(`[DeepAgent-Tokens]   Cache Read: ${cacheReadInputTokens} tokens`)
     console.log(`[DeepAgent-Tokens]   Cache Creation: ${cacheCreationInputTokens} tokens`)
@@ -321,7 +322,8 @@ export class StreamEventHandler {
       console.log(`[DeepAgent-Tokens] ═══════════════════════════════════════`)
       console.log(`[DeepAgent-Tokens]   Request Complete - Token Summary`)
       console.log(`[DeepAgent-Tokens]   Total Turns:   ${this.tokenUsage.turnCount}`)
-      console.log(`[DeepAgent-Tokens]   Total Input:   ${this.tokenUsage.totalInputTokens} tokens`)
+      console.log(`[DeepAgent-Tokens]   Total Input (cache + no cache):   ${this.tokenUsage.totalInputTokens} tokens`)
+      console.log(`[DeepAgent-Tokens]   Total Input (no cache):   ${this.tokenUsage.totalInputTokens - this.tokenUsage.totalCacheReadTokens} tokens`)
       console.log(`[DeepAgent-Tokens]   Total Output:  ${this.tokenUsage.totalOutputTokens} tokens`)
       console.log(`[DeepAgent-Tokens]   Cache Read:    ${this.tokenUsage.totalCacheReadTokens} tokens`)
       console.log(`[DeepAgent-Tokens]   Cache Creation: ${this.tokenUsage.totalCacheCreationTokens} tokens`)

@@ -49,6 +49,7 @@ export type EndpointUrls = {
   learneth: string;
   rss: string;
   langchain: string;
+  langsmith: string;
 };
 
 /** Service key → path segment mapping (no leading slash) */
@@ -88,6 +89,7 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   learneth: 'learneth',
   rss: 'rss',
   langchain: 'langchain',
+  langsmith: 'langsmith',
 
 };
 
@@ -152,6 +154,7 @@ const defaultUrls: EndpointUrls = {
   learneth: 'https://learneth.api.remix.live',
   rss: 'https://rss.api.remix.live',
   langchain: 'https://langchain.api.remix.live',
+  langsmith: 'https://langsmith.api.remix.live',
 };
 
 // --- Resolution ---

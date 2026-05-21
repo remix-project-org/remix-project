@@ -6,7 +6,8 @@ import init from '../helpers/init'
  * Tests server lifecycle, MCP protocol compliance, capabilities, statistics, and error handling
  */
 
-module.exports = {
+module.exports = {}
+const tests = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
     init(browser, done)

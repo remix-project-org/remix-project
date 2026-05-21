@@ -135,3 +135,16 @@
   animation: none;
   box-shadow: 0 6px 16px rgba(100, 196, 255, 0.8) !important;
 }
+
+/* Fix hover for function dropdown items */
+.dropdown-item[data-id*="deployedContractItem"][data-id*="function"]:hover,
+.dropdown-item[data-id*="deployedContractItem"][data-id*="function"]:focus {
+  background-color: var(--bs-dropdown-link-hover-bg) !important;
+  color: var(--bs-dropdown-link-hover-color) !important;
+}
+
+/* Add border to copy buttons */
+button[data-id^="copyCalldata"],
+button[data-id^="copyParameters"] {
+  border: 1px solid var(--bs-border-color) !important;
+}

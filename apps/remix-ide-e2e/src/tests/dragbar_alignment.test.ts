@@ -63,7 +63,7 @@ function assertRightDragbarAligned(browser: NightwatchBrowser, message: string) 
     const value = result.value
     console.log('Right dragbar alignment check:', value)
     browser
-      .pause()
+      .pause(2000)
       .assert.ok(
         value.ok,
         `${message}. delta=${value?.delta}, panelEdge=${value?.panelEdge}, dragbarCenter=${value?.dragbarCenter}`

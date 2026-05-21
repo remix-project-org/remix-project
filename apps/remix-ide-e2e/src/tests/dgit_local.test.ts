@@ -320,7 +320,7 @@ module.exports = {
         locateStrategy: 'xpath',
       })
   },
-  'switch back to master #group2': function (browser: NightwatchBrowser) {
+  'switch back to master #group2': '' + function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible({
         selector: "//*[@data-id='branches-panel-content']//*[@data-id='branches-toggle-branch-master']",
@@ -343,7 +343,7 @@ module.exports = {
         timeout: 60000
       })
   },
-  'check if test file is gone #group2': function (browser: NightwatchBrowser) {
+  'check if test file is gone #group2': '' + function (browser: NightwatchBrowser) {
     browser
       .pause(2000)
       .clickLaunchIcon('filePanel')

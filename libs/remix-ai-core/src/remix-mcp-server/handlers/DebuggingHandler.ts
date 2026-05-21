@@ -19,13 +19,13 @@ import { processScopes } from '../../helpers/scopeProcessor';
  */
 export class StartDebugSessionHandler extends BaseToolHandler {
   name = 'start_debug_session';
-  description = 'Start a debugging session for a smart contract';
+  description = '';
   inputSchema = {
     type: 'object',
     properties: {
       transactionHash: {
         type: 'string',
-        description: 'Transaction hash to debug (optional)',
+        description: '',
         pattern: '^0x[a-fA-F0-9]{64}$'
       },
       /*

@@ -248,23 +248,25 @@ function TransactionsPortraitView() {
           {/* Clear All Confirmation Dialog */}
           {showClearAllDialog && (
             <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-              <div className="d-flex justify-content-between align-items-center mb-2 text-theme-contrast">
-                <p className="mb-0" style={{ fontSize: '0.9rem' }}>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <p className="mb-0 text-danger text-theme-contrast" style={{ fontSize: '0.9rem' }}>
                   <FormattedMessage
                     id="udapp.clearAllTransactionsTitle"
                     defaultMessage="Clear all transactions"
                   />
                 </p>
                 <button
-                  className="btn btn-sm text-theme-contrast"
+                  className="btn btn-sm"
                   onClick={() => {
                     trackMatomoEvent?.({ category: 'udapp', action: 'transactionsClearAllDialogClose', name: 'close_button', isClick: true })
                     handleCancelClearAll()
                   }}
                   style={{
-                    background: 'none',
+                    background: 'transparent',
                     border: 'none',
-                    fontSize: '1.2rem',
+                    color: 'var(--bs-quaternary)',
+                    fontSize: '1.5rem',
+                    lineHeight: 1,
                     padding: 0
                   }}
                 > × </button>
@@ -285,11 +287,11 @@ function TransactionsPortraitView() {
                   <FormattedMessage id="udapp.cancel" defaultMessage="Cancel" />
                 </button>
                 <button
-                  className={`btn btn-sm btn-danger text-theme-contrast flex-fill`}
+                  className="btn btn-sm btn-danger flex-fill"
                   onClick={handleConfirmClearAll}
                   data-id="confirmClearAllTransactions"
                 >
-                  <FormattedMessage id="udapp.yesClearAllTransactions" defaultMessage="Yes clear all" />
+                  <FormattedMessage id="udapp.yesClearAllTransactions" defaultMessage="Yes, Clear All" />
                 </button>
               </div>
             </div>

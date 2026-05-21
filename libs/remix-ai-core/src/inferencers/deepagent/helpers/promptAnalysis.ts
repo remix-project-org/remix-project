@@ -6,7 +6,6 @@ import {
 
 export type PromptComplexity = 'simple' | 'complex'
 
-
 export function analyzePromptForAutoSelection(prompt: string): PromptComplexity {
   const lowerPrompt = prompt.toLowerCase()
 

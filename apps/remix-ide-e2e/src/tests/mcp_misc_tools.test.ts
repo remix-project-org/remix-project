@@ -33,7 +33,8 @@ contract VulnerabilityTest {
 }
 `;
 
-module.exports = {
+module.exports = {}
+const tests = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
     init(browser, done)

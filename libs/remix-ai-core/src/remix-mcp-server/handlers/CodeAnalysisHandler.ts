@@ -49,18 +49,14 @@ export class SlitherHandler extends BaseToolHandler {
   async execute(args: { filePath: string }, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       // Check if file exists
-      const workspace = await plugin.call('filePanel', 'getCurrentWorkspace');
-      const fileName = `${workspace.name}/${args.filePath}`;
-      const filePath = `.workspaces/${fileName}`;
-
-      const exists = await plugin.call('fileManager', 'exists', filePath);
+      const exists = await plugin.call('fileManager', 'exists', args.filePath);
       if (!exists) {
         return this.createErrorResult(`File not found: ${args.filePath}`);
       }
 
       const compilationResult: CompilerAbstract = await plugin.call('compilerArtefacts' as any, 'getCompilerAbstract', args.filePath)
       if (!compilationResult || !compilationResult.source || !compilationResult.source.sources) {
-        return this.createErrorResult('No compilation result available for the specified file path');
+        return this.createErrorResult('No compilation result available for the specified file path. Please compile the contract first.');
       }
 
       const compilerConfig = await plugin.call('solidity' as any , 'getCurrentCompilerConfig');
@@ -84,12 +80,12 @@ export class SlitherHandler extends BaseToolHandler {
       }
 
       const scanReport = await response.json();
-
+      const parsedScanReport = JSON.parse(scanReport.analysis);
       const result = {
         success: true,
-        fileName,
+        fileName: args.filePath,
         scanCompletedAt: new Date().toISOString(),
-        analysis_result: scanReport
+        analysis_result: parsedScanReport
       };
       return this.createSuccessResult(result);
 

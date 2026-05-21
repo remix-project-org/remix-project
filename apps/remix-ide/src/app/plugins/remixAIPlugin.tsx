@@ -3,14 +3,15 @@ import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent } from '@remix-api'
 import { RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig } from '@remix/remix-ai-core';
-import { MCPInferencer, DeepAgentInferencer } from '@remix/remix-ai-core';
+import { MCPInferencer, DeepAgentInferencer, onApiKeysChange } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
 import { AIModel } from '@remix/remix-ai-core';
 import { aiErrorFromException, parseAIErrorEnvelope } from '@remix/remix-ai-core';
 import axios from 'axios';
 import { endpointUrls } from "@remix-endpoints-helper"
-import { DeepAgentEventBridge, MCPServerManager, PermissionChecker, ModelManager, DeepAgentManager, DAppGenerationManager, ChatRequestBuffer } from './remixAI'
+import { Registry } from '@remix-project/remix-lib'
+import { DeepAgentEventBridge, MCPServerManager, PermissionChecker, ModelManager, DeepAgentManager, ChatRequestBuffer, ApiKeySettingsHelper } from './remixAI'
 
 const profile = {
   name: 'remixAI',
@@ -30,14 +31,15 @@ const profile = {
     'setAutoMode', 'getAutoModeStatus',
     'clearCaches', 'cancelRequest',
     'getAllowedModels', 'setModelAccess',
-    'generateDAppContent', 'fetchFigmaDesign', 'generateDAppFromFigma'
+    'isUsingOwnApiKey', 'getApiKeyStatus', 'fallbackToProxy'
   ],
   events: [
     'modelChanged',
     'chatMessageSent', 'chatPipeRequested',
     'codeExplainRequested', 'errorExplainRequested', 'vulnerabilityCheckRequested',
     'codeCompletionUsed', 'workspaceGenerated',
-    'mcpEnabled', 'mcpDisabled'
+    'mcpEnabled', 'mcpDisabled',
+    'apiKeyModeChanged', 'onApiKeyError'
   ],
   icon: 'assets/img/remix-logo-blue.png',
   description: 'RemixAI provides AI services to Remix IDE.',
@@ -97,7 +99,6 @@ export class RemixAIPlugin extends Plugin {
   private permissionChecker: PermissionChecker
   private modelManager: ModelManager
   private deepAgentManager: DeepAgentManager
-  private dappManager: DAppGenerationManager
 
   constructor() {
     super(profile)
@@ -117,13 +118,20 @@ export class RemixAIPlugin extends Plugin {
       mcpManager: this.mcpManager,
       setupDeepAgentEventListeners: () => this.setupDeepAgentEventListeners()
     })
-    this.dappManager = new DAppGenerationManager({ plugin: this as any })
     // Set up MCP manager deps after all managers are created
     this.mcpManager.setDeps({
       plugin: this as any,
       permissionChecker: this.permissionChecker,
       setModel: (modelId: string) => this.modelManager.setModel(modelId),
       reinitializeDeepAgent: () => this.deepAgentManager.reinitialize()
+    })
+
+    // Listen for API key settings changes and reinitialize DeepAgent
+    onApiKeysChange(() => {
+      console.log('[RemixAI Plugin] API keys changed, reinitializing DeepAgent...')
+      if (this.deepAgentEnabled) {
+        this.deepAgentManager.reinitialize()
+      }
     })
   }
 
@@ -261,17 +269,26 @@ export class RemixAIPlugin extends Plugin {
       try {
         console.log('[RemixAI Plugin] Initializing DeepAgent with mcpInferencer:', !!this.mcpInferencer);
         console.log('[RemixAI Plugin] Using model for DeepAgent:', this.selectedModel.provider, this.selectedModelId);
+
+        // Read user API keys from settings using helper
+        const apiKeyHelper = new ApiKeySettingsHelper(this)
+        const userApiKeys = await apiKeyHelper.getUserApiKeysConfig()
+        if (userApiKeys?.useOwnKeys) {
+          console.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent')
+        }
+
         this.deepAgentInferencer = new DeepAgentInferencer(
           this,
           this.remixMCPServer.tools,
           {
             memoryBackend: (localStorage.getItem('deepagent_memory_backend') as 'state' | 'store') || 'store',
             enableSubagents: true,
-            enablePlanning: true
+            enablePlanning: true,
+            userApiKeys
           },
           this.remoteInferencer,
           this.mcpInferencer, // Pass MCPInferencer to gather external MCP client tools
-          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'moonshot', modelId: this.selectedModelId } // Pass selected model
+          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot', modelId: this.selectedModelId } // Pass selected model
         )
         await this.deepAgentInferencer.initialize()
         // Set up DeepAgent event listeners for streaming (once only)
@@ -864,33 +881,6 @@ export class RemixAIPlugin extends Plugin {
     }
   }
 
-  async generateDAppContent(params: {
-    messages: any[];
-    systemPrompt: string;
-    hasImage?: boolean;
-    isUpdate?: boolean;
-    hasFigma?: boolean;
-  }): Promise<string> {
-    return this.dappManager.generateDAppContent(params)
-  }
-
-  async fetchFigmaDesign(params: {
-    figmaUrl: string;
-    figmaToken: string;
-  }): Promise<{ success: boolean; fileName?: string; rawJson?: string; fileKey?: string; message?: string }> {
-    return this.dappManager.fetchFigmaDesign(params)
-  }
-
-  async generateDAppFromFigma(params: {
-    figmaUrl: string;
-    figmaToken: string;
-    description?: string;
-    systemPrompt: string;
-    isBaseMiniApp?: boolean;
-  }): Promise<string> {
-    return this.dappManager.generateDAppFromFigma(params)
-  }
-
   private async refreshMCPServersOnAuthChange(authState: any): Promise<void> {
     return this.mcpManager.refreshOnAuthChange(authState)
   }
@@ -905,5 +895,21 @@ export class RemixAIPlugin extends Plugin {
 
   private async resetMCPServersToDefault(): Promise<void> {
     return this.mcpManager.resetToDefaultWithReinit()
+  }
+
+  async isUsingOwnApiKey(): Promise<boolean> {
+    return this.deepAgentManager.isUsingOwnApiKey()
+  }
+
+  async getApiKeyStatus(): Promise<{ provider: string; usingOwnKey: boolean }> {
+    const usingOwnKey = await this.deepAgentManager.isUsingOwnApiKey()
+    return {
+      provider: this.selectedModel.provider,
+      usingOwnKey
+    }
+  }
+
+  async fallbackToProxy(): Promise<void> {
+    return this.deepAgentManager.fallbackToProxy()
   }
 }

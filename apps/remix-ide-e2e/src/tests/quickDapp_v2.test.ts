@@ -7,7 +7,215 @@ require('dotenv').config()
 
 const poolApiKey = process.env.E2E_POOL_API_KEY || ''
 
-module.exports = {
+type QuickDappFlowState = {
+  streaming: string
+  assistantText: string
+  workspaceName: string
+  hasDashboard: boolean
+  hasEditor: boolean
+  hasCard: boolean
+  hasProcessingOverlay: boolean
+  statusText: string
+  approvalCount: number
+  hasApproveAll: boolean
+  hasAutoAcceptBanner: boolean
+}
+
+type QuickDappFlowResult = {
+  sawProcessing: boolean
+  sawApproval: boolean
+  sawAutoAccept: boolean
+  finalState: QuickDappFlowState
+}
+
+const DESIGN_ANSWER = [
+  'Create the simplest possible standard React DApp for this Storage contract.',
+  'Use one plain page only: show the stored value, one number input, a Store button, and a Retrieve button.',
+  'Use minimal default styling. No animations, no extra pages, no extra components, no logo, no images, and no custom design system.',
+  'No Figma design URL or token. Do not make it a Base Mini App.',
+  'Please generate the minimal DApp now.'
+].join(' ')
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+function execInBrowser<T> (
+  browser: NightwatchBrowser,
+  fn: (...args: any[]) => T,
+  args: any[] = []
+): Promise<T> {
+  return new Promise((resolve) => {
+    browser.execute(fn, args, (result: any) => resolve(result?.value as T))
+  })
+}
+
+async function sendAssistantMessage (browser: NightwatchBrowser, message: string): Promise<void> {
+  const sent = await execInBrowser<boolean>(browser, function (prompt: string) {
+    const chat = (window as any).remixAIChat?.current
+    if (!chat) return false
+    chat.sendChat(prompt)
+    return true
+  }, [message])
+  browser.assert.ok(sent, 'AI assistant chat ref is available')
+}
+
+async function getQuickDappFlowState (browser: NightwatchBrowser): Promise<QuickDappFlowState> {
+  return execInBrowser<QuickDappFlowState>(browser, function () {
+    const textOf = (selector: string) => {
+      const el = document.querySelector(selector)
+      return el?.textContent?.trim() || ''
+    }
+    const textOfAll = (selector: string) => Array.from(document.querySelectorAll(selector))
+      .map((el) => el.textContent?.trim() || '')
+      .join(' ')
+    const assistantText = Array.from(document.querySelectorAll('.chat-bubble.bubble-assistant'))
+      .map((el) => el.textContent || '')
+      .join('\n')
+
+    return {
+      streaming: document.querySelector('[data-id="remix-ai-streaming"]')?.getAttribute('data-streaming') || 'missing',
+      assistantText,
+      workspaceName: textOf('[data-id="editor-workspace-name"]'),
+      hasDashboard: !!document.querySelector('[data-id="quick-dapp-dashboard"]'),
+      hasEditor: !!document.querySelector('[data-id="back-to-dashboard-btn"]'),
+      hasCard: !!document.querySelector('div.card[data-id^="dapp-card-"]'),
+      hasProcessingOverlay: !!document.querySelector('.qd-progress-overlay--card, [data-id="ai-updating-overlay"]'),
+      statusText: textOfAll('[data-id^="dapp-status-"]').toLowerCase(),
+      approvalCount: document.querySelectorAll('.tool-approval-card').length,
+      hasApproveAll: !!document.querySelector('[data-id="approve-all-changes"]'),
+      hasAutoAcceptBanner: !!document.querySelector('[data-id="hitl-auto-accept-banner"]')
+    }
+  })
+}
+
+async function approvePendingHitl (browser: NightwatchBrowser, enableAutoAccept: boolean): Promise<'none' | 'single' | 'all'> {
+  return execInBrowser<'none' | 'single' | 'all'>(browser, function (shouldEnableAutoAccept: boolean) {
+    const approveAll = document.querySelector('[data-id="approve-all-changes"]') as HTMLButtonElement | null
+    if (approveAll) {
+      approveAll.click()
+      return 'all'
+    }
+
+    const card = document.querySelector('.tool-approval-card') as HTMLElement | null
+    if (!card) return 'none'
+
+    const checkbox = card.querySelector('[data-id="hitl-auto-accept-checkbox"]') as HTMLInputElement | null
+    if (shouldEnableAutoAccept && checkbox && !checkbox.checked) {
+      checkbox.click()
+    }
+
+    const approveButton = Array.from(card.querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === 'Approve') as HTMLButtonElement | undefined
+    if (!approveButton) return 'none'
+
+    approveButton.click()
+    return 'single'
+  }, [enableAutoAccept])
+}
+
+async function waitForAssistantIdle (browser: NightwatchBrowser, timeout = 120000): Promise<void> {
+  const start = Date.now()
+  while (Date.now() - start < timeout) {
+    const state = await getQuickDappFlowState(browser)
+    if (state.streaming === 'false') return
+    await delay(1000)
+  }
+  browser.assert.fail('AI assistant did not become idle before timeout')
+}
+
+async function driveQuickDappGeneration (browser: NightwatchBrowser): Promise<QuickDappFlowResult> {
+  await waitForAssistantIdle(browser)
+  const firstQuestion = await getQuickDappFlowState(browser)
+  const firstQuestionText = firstQuestion.assistantText.toLowerCase()
+  await sendAssistantMessage(browser, DESIGN_ANSWER)
+
+  let sawProcessing = false
+  let sawApproval = false
+  let sawAutoAccept = false
+  let answeredFigma = firstQuestionText.includes('figma')
+  let answeredBase = firstQuestionText.includes('base mini')
+  let answeredProceed = false
+  let finalState = await getQuickDappFlowState(browser)
+  const start = Date.now()
+  const timeout = 8 * 60 * 1000
+
+  while (Date.now() - start < timeout) {
+    const state = await getQuickDappFlowState(browser)
+    finalState = state
+
+    if (state.hasCard && (state.hasProcessingOverlay || state.statusText.includes('creating'))) {
+      sawProcessing = true
+    }
+    if (state.hasAutoAcceptBanner) {
+      sawAutoAccept = true
+    }
+
+    if (state.approvalCount > 0 || state.hasApproveAll) {
+      const approved = await approvePendingHitl(browser, !sawAutoAccept)
+      if (approved === 'all') {
+        sawApproval = true
+      } else if (approved === 'single') {
+        sawApproval = true
+        sawAutoAccept = true
+      }
+      await delay(1500)
+      continue
+    }
+
+    if (state.streaming === 'false') {
+      const lowerAssistantText = state.assistantText.toLowerCase()
+      const generationStarted =
+        state.hasCard ||
+        state.hasProcessingOverlay ||
+        state.statusText.includes('creating') ||
+        lowerAssistantText.includes('generate_dapp') ||
+        lowerAssistantText.includes('finalize_dapp_generation')
+
+      if (!generationStarted && !answeredFigma && lowerAssistantText.includes('figma')) {
+        answeredFigma = true
+        await sendAssistantMessage(browser, 'No Figma design URL or token. Continue with the simplest possible DApp.')
+        await delay(1000)
+        continue
+      }
+      if (!generationStarted && !answeredBase && lowerAssistantText.includes('base mini')) {
+        answeredBase = true
+        await sendAssistantMessage(browser, 'No. Create a standard minimal React DApp.')
+        await delay(1000)
+        continue
+      }
+      if (
+        !generationStarted &&
+        !answeredProceed &&
+        (lowerAssistantText.includes('shall i') ||
+          lowerAssistantText.includes('should i') ||
+          lowerAssistantText.includes('proceed') ||
+          lowerAssistantText.includes('confirm'))
+      ) {
+        answeredProceed = true
+        await sendAssistantMessage(browser, 'Yes. Generate the simplest possible DApp now.')
+        await delay(1000)
+        continue
+      }
+    }
+
+    if (state.hasEditor && state.streaming === 'false' && state.approvalCount === 0 && !state.hasProcessingOverlay) {
+      return {
+        sawProcessing,
+        sawApproval,
+        sawAutoAccept,
+        finalState: state
+      }
+    }
+
+    await delay(2000)
+  }
+
+  browser.assert.fail(`QuickDapp generation did not finish. Last state: ${JSON.stringify(finalState)}`)
+  return { sawProcessing, sawApproval, sawAutoAccept, finalState }
+}
+
+module.exports = {}
+
+const tests = {
   '@disabled': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
     if (!poolApiKey) {
@@ -41,13 +249,12 @@ module.exports = {
     return sources
   },
 
-  // ──────────────────────────────────
-  // Test 1: Compile+deploy contract and trigger QuickDapp V2 via sparkle button
-  // ──────────────────────────────────
-  'Should compile and deploy Storage contract #group1': function (browser: NightwatchBrowser) {
+  'Should login, compile, deploy, and prepare AI assistant #group1': function (browser: NightwatchBrowser) {
     browser
-      // ── Pool Login Flow ──
-      .execute(function () { localStorage.setItem('enableLogin', 'true') })
+      .execute(function () {
+        localStorage.setItem('enableLogin', 'true')
+        localStorage.removeItem('remix_hitl_auto_accept')
+      })
       .refreshPage()
       .pause(5000)
       .waitForElementVisible('*[data-id="login-button"]', 15000)
@@ -63,7 +270,6 @@ module.exports = {
         locateStrategy: 'xpath'
       })
       .pause(5000)
-      // ── End Pool Login Flow ──
       .waitForElementPresent('*[data-id="remixIdeSidePanel"]')
       .clickLaunchIcon('filePanel')
       .addFile('Storage.sol', sources[0]['Storage.sol'])
@@ -71,630 +277,120 @@ module.exports = {
       .waitForElementVisible('*[data-id="compilerContainerCompileBtn"]')
       .click('*[data-id="compilerContainerCompileBtn"]')
       .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
+      .clickLaunchIcon('remixaiassistant')
+      .assistantWaitForReady()
+      .assistantSetProvider('anthropic')
+      .assistantClearChat()
       .clickLaunchIcon('udapp')
       .waitForElementVisible('*[data-id="deployButton"]', 45000)
       .click('*[data-id="deployButton"]')
-      .pause(3000)
-      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
+      .waitForElementPresent('[data-id="deployedContractItem-0"]', 60000)
   },
 
-  // ──────────────────────────────────
-  // Test 2: Click kebab menu → Create a dapp, verify AI modal, enter description, and generate
-  // ──────────────────────────────────
-  'Should open AI modal and submit DApp generation request #group1': function (browser: NightwatchBrowser) {
+  'Should request a DApp through AI, answer design questions, and approve HITL writes #group1': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="contractKebabIcon-0"]')
-      .pause(500)
-      .waitForElementVisible('*[data-id="createDapp"]', 5000)
+      .waitForElementVisible('*[data-id="createDapp"]', 10000)
       .click('*[data-id="createDapp"]')
-      .pause(2000)
-      .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 10000)
-      .assert.textContains('*[data-id="generate-website-aiModalDialogModalTitle-react"]', 'Generate a DApp UI with AI')
-      .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
-      .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 5000)
-      .pause(500)
-      .execute(function () {
-        const textarea = document.querySelector('[data-id="generate-website-aiModalDialogModalBody-react"] textarea') as HTMLTextAreaElement
-        if (textarea) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-          nativeInputValueSetter.call(textarea, 'Create a simple Storage DApp with a dark theme. Include store and retrieve buttons.')
-          textarea.dispatchEvent(new Event('input', { bubbles: true }))
-        }
+      .assistantWaitForReady()
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble") and contains(@class,"bubble-assistant") and (contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"design") or contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"look") or contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"theme") or contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"figma"))]',
+        timeout: 120000
       })
-      .pause(500)
-      .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
-      .pause(3000)
-      .waitForElementVisible('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]', 30000)
-      .click('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]')
-      .pause(1000)
+      .perform(async (done) => {
+        const result = await driveQuickDappGeneration(browser)
+        browser.assert.ok(result.sawProcessing, 'QuickDapp card entered creating/processing state')
+        browser.assert.ok(result.sawApproval || result.sawAutoAccept, 'HITL approval path was handled')
+        browser.assert.ok(result.finalState.hasEditor, 'QuickDapp editor opened after finalization')
+        done()
+      })
   },
 
-  // ──────────────────────────────────
-  // Test 3: Wait for DApp generation and verify QuickDapp V2 main panel opens with dashboard
-  // ──────────────────────────────────
-  'Should wait for DApp generation and display dashboard #group1': function (browser: NightwatchBrowser) {
+  'Should show generated DApp editor and created status #group1': function (browser: NightwatchBrowser) {
     browser
-      .pause(10000)
-      .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
-      .pause(2000)
-      .waitForElementVisible('*[data-id="dapp-count-badge"]', 10000)
-      .assert.not.textEquals('*[data-id="dapp-count-badge"]', '0')
-      .waitForElementVisible('[data-id^="dapp-card-"]', 30000)
+      .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 300000)
+      .waitForElementVisible('*[data-id="editor-dapp-title"]', 30000)
+      .waitForElementVisible('*[data-id="editor-workspace-name"]', 30000)
+      .waitForElementVisible('*[data-id="dapp-preview-iframe"]', 120000)
+      .execute(function () {
+        const workspaceName = document.querySelector('[data-id="editor-workspace-name"]')?.textContent?.trim() || ''
+        ;(window as any).__quickDappV2E2EWorkspaceName = workspaceName
+        return workspaceName
+      }, [], function (result: any) {
+        browser.assert.ok(!!result.value, 'Generated DApp workspace name is visible in the editor')
+      })
+      .waitForElementNotPresent('*[data-id="ai-updating-overlay"]', 60000)
+      .executeAsync(function (done) {
+        const workspaceName = ((window as any).__quickDappV2E2EWorkspaceName || '').trim()
+        const aiPlugin = (window as any).getRemixAIPlugin
+
+        if (!workspaceName || !aiPlugin) {
+          done({ error: 'Missing generated workspace name or AI plugin' })
+          return
+        }
+
+        aiPlugin.call('filePanel', 'readFileFromWorkspace', workspaceName, 'dapp.config.json')
+          .then(function (content: string) {
+            const config = JSON.parse(content)
+            done({
+              status: config.status,
+              workspaceName
+            })
+          })
+          .catch(function (error: any) {
+            done({ error: error?.message || String(error) })
+          })
+      }, [], function (result: any) {
+        const data = result.value || {}
+        browser.assert.ok(!data.error, `dapp.config.json was read${data.error ? `: ${data.error}` : ''}`)
+        browser.assert.equal(data.status, 'created', 'dapp.config.json status is created')
+      })
   },
 
-  // ──────────────────────────────────
-  // Test 5: Verify dashboard has correct UI elements
-  // ──────────────────────────────────
-  'Should display dashboard with all expected UI elements #group1': function (browser: NightwatchBrowser) {
+  'Should verify generated workspace files exist #group1': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="create-new-dapp-btn"]', 5000)
-      .waitForElementVisible('*[data-id="delete-all-dapps-btn"]', 5000)
-      .waitForElementVisible('*[data-id="network-filter-select"]', 5000)
-      .waitForElementVisible('*[data-id="sort-order-select"]', 5000)
-      .waitForElementVisible('[data-id^="dapp-card-name-"]', 5000)
-      .waitForElementVisible('[data-id^="dapp-status-"]', 5000)
-      .waitForElementVisible('[data-id^="dapp-network-"]', 5000)
-  },
-
-  // ──────────────────────────────────
-  // Test 6: Wait for any processing spinner to finish, then open DApp editor
-  // ──────────────────────────────────
-  'Should open DApp editor by clicking on DApp card #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementNotPresent('.spinner-border', 90000)
-      .pause(1000)
-      .click('[data-id^="dapp-card-"]')
-      .pause(5000)
       .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 30000)
-      .waitForElementVisible('*[data-id="editor-dapp-title"]', 10000)
-      .waitForElementVisible('*[data-id="editor-workspace-name"]', 10000)
-  },
+      .executeAsync(function (done) {
+        const workspaceName = ((window as any).__quickDappV2E2EWorkspaceName || '').trim()
+        const aiPlugin = (window as any).getRemixAIPlugin
+        const expectedFiles = [
+          'dapp.config.json',
+          'index.html',
+          'src/main.jsx',
+          'src/App.jsx',
+          'src/index.css'
+        ]
 
-  // ──────────────────────────────────
-  // Test 7: Verify editor has all expected UI elements (ChatBox, Preview, DeployPanel)
-  // ──────────────────────────────────
-  'Should display all editor UI elements #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="update-with-ai-btn"]', 10000)
-      .click('*[data-id="update-with-ai-btn"]')
-      .waitForElementVisible('*[data-id="chat-input"]', 10000)
-      .waitForElementVisible('*[data-id="chat-send-btn"]', 10000)
-      .waitForElementVisible('*[data-id="chat-attach-btn"]', 10000)
-      .waitForElementVisible('*[data-id="refresh-preview-btn"]', 10000)
-      .waitForElementVisible('*[data-id="dapp-preview-iframe"]', 10000)
-      .waitForElementVisible('*[data-id="delete-dapp-editor-btn"]', 10000)
-      .waitForElementVisible('*[data-id="deploy-panel"]', 10000)
-      .waitForElementVisible('*[data-id="deploy-ipfs-btn"]', 10000)
-  },
-
-  // ──────────────────────────────────
-  // Test 8: Verify VM warning banner is displayed
-  // ──────────────────────────────────
-  'Should display VM warning banner in editor #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="vm-deployment-btn"]', 10000)
-      .click('*[data-id="vm-deployment-btn"]')
-      .waitForElementVisible('*[data-id="vm-warning-banner"]', 30000)
-      .assert.textContains('*[data-id="vm-warning-banner"]', 'Remix VM')
-      .assert.textContains('*[data-id="vm-warning-banner"]', 'Local Only')
-  },
-
-  // ──────────────────────────────────
-  // Test 9: Click Refresh Preview and verify build completes
-  // ──────────────────────────────────
-  'Should refresh preview successfully #group1': function (browser: NightwatchBrowser) {
-    browser
-      .pause(3000)
-      .execute(function () {
-        const closeBtn = document.querySelector('[data-id="notification-modal-close-btn"]') as HTMLElement
-        if (closeBtn) closeBtn.click()
-      })
-      .pause(1000)
-      .waitForElementVisible('*[data-id="refresh-preview-btn"]', 10000)
-      .click('*[data-id="refresh-preview-btn"]')
-      .pause(10000)
-      .waitForElementVisible('*[data-id="dapp-preview-iframe"]', 30000)
-      .pause(3000)
-      .execute(function () {
-        const closeBtn = document.querySelector('[data-id="notification-modal-close-btn"]') as HTMLElement
-        if (closeBtn) closeBtn.click()
-      })
-      .pause(500)
-  },
-
-  // ──────────────────────────────────
-  // Test 10: Send a chat message (AI update) and verify processing state
-  // ──────────────────────────────────
-  'Should send a chat message for AI update #group1': function (browser: NightwatchBrowser) {
-    browser
-      .execute(function () {
-        const closeBtn = document.querySelector('[data-id="notification-modal-close-btn"]') as HTMLElement
-        if (closeBtn) closeBtn.click()
-      })
-      .pause(1000)
-      .waitForElementVisible('*[data-id="chat-input"]', 10000)
-      .execute(function () {
-        const textarea = document.querySelector('[data-id="chat-input"]') as HTMLTextAreaElement
-        if (textarea) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-          nativeInputValueSetter.call(textarea, 'Add a title that says Storage DApp at the top of the page.')
-          textarea.dispatchEvent(new Event('input', { bubbles: true }))
-          textarea.dispatchEvent(new Event('change', { bubbles: true }))
+        if (!workspaceName || !aiPlugin) {
+          done({ error: 'Missing generated workspace name or AI plugin' })
+          return
         }
-      })
-      .pause(500)
-      .click('*[data-id="chat-send-btn"]')
-      .pause(2000)
-      .waitForElementVisible('*[data-id="ai-updating-overlay"]', 30000)
-      .waitForElementNotPresent('*[data-id="ai-updating-overlay"]', 180000)
-      .pause(5000)
-      .waitForElementVisible('*[data-id="notification-modal-close-btn"]', 60000)
-      .click('*[data-id="notification-modal-close-btn"]')
-      .pause(500)
-  },
 
-  // ──────────────────────────────────
-  // Test 11: Deploy to IPFS and verify success
-  // ──────────────────────────────────
-  'Should deploy DApp to IPFS successfully #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="deploy-ipfs-btn"]', 10000)
-      .click('*[data-id="deploy-ipfs-btn"]')
-      .waitForElementVisible('*[data-id="deploy-ipfs-success"]', 120000)
-      .assert.textContains('*[data-id="deploy-ipfs-success"]', 'Deployed Successfully')
-  },
-
-  // ──────────────────────────────────
-  // Test 12: Verify ENS section appears after IPFS deployment
-  // ──────────────────────────────────
-  'Should show ENS section after IPFS deploy #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="ens-section-header"]', 10000)
-      .assert.textContains('*[data-id="ens-section-header"]', 'Register ENS')
-  },
-
-  // ──────────────────────────────────
-  // Test 13: Navigate back to dashboard from editor
-  // ──────────────────────────────────
-  'Should navigate back to dashboard using back button #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 10000)
-      .click('*[data-id="back-to-dashboard-btn"]')
-      .pause(3000)
-      .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 10000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 10000)
-  },
-
-  // ──────────────────────────────────
-  // Test 14: Open editor again and delete DApp from editor
-  // ──────────────────────────────────
-  'Should delete DApp from editor and return to empty state #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementNotPresent('.spinner-border', 90000)
-      .pause(1000)
-      .click('[data-id^="dapp-card-"]')
-      .pause(5000)
-      .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 30000)
-      .waitForElementVisible('*[data-id="delete-dapp-editor-btn"]', 10000)
-      .click('*[data-id="delete-dapp-editor-btn"]')
-      .pause(1000)
-      .waitForElementVisible('*[data-id="confirm-delete-dapp-btn"]', 5000)
-      .click('*[data-id="confirm-delete-dapp-btn"]')
-      .pause(3000)
-      .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 30000)
-      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
-  },
-
-  // ──────────────────────────────────
-  // Test 15: Create another DApp, verify dashboard, then delete from dashboard
-  // ──────────────────────────────────
-  'Should create a second DApp and delete from dashboard #group1': function (browser: NightwatchBrowser) {
-    browser
-      .clickLaunchIcon('filePanel')
-      .switchWorkspace('default_workspace')
-      .pause(3000)
-      .openFile('Storage.sol')
-      .pause(3000)
-      .useXpath()
-      .waitForElementPresent('//*[@data-id="tab-active" and contains(@data-path, "Storage.sol")]', 10000)
-      .useCss()
-      .clickLaunchIcon('solidity')
-      .pause(5000)
-      .execute(function () {
-        const btn = document.querySelector('[data-id="compilerContainerCompileBtn"]') as HTMLButtonElement
-        if (btn) {
-          btn.removeAttribute('disabled')
-          btn.click()
-        }
+        Promise.all(expectedFiles.map(function (path) {
+          return aiPlugin.call('filePanel', 'existsInWorkspace', workspaceName, path)
+            .then(function (exists: boolean) {
+              return { path, exists }
+            })
+        }))
+          .then(function (results: Array<{ path: string, exists: boolean }>) {
+            done({
+              workspaceName,
+              missingFiles: results.filter(function (result) { return !result.exists }).map(function (result) { return result.path })
+            })
+          })
+          .catch(function (error: any) {
+            done({ error: error?.message || String(error) })
+          })
+      }, [], function (result: any) {
+        const data = result.value || {}
+        browser.assert.ok(!!data.workspaceName, 'Generated workspace name is stored for file checks')
+        browser.assert.ok(!data.error, `Generated files were checked${data.error ? `: ${data.error}` : ''}`)
+        browser.assert.ok(
+          Array.isArray(data.missingFiles) && data.missingFiles.length === 0,
+          `Generated workspace ${data.workspaceName} contains expected files`
+        )
       })
-      .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
-      .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="deployButton"]', 45000)
-      .click('*[data-id="deployButton"]')
-      .pause(3000)
-      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
-      .click('*[data-id="contractKebabIcon-0"]')
-      .pause(500)
-      .waitForElementVisible('*[data-id="createDapp"]', 5000)
-      .click('*[data-id="createDapp"]')
-      .pause(2000)
-      .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
-      .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
-      .pause(500)
-      .execute(function () {
-        const textarea = document.querySelector('[data-id="generate-website-aiModalDialogModalBody-react"] textarea') as HTMLTextAreaElement
-        if (textarea) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-          nativeInputValueSetter.call(textarea, 'Create a minimal Storage DApp with a light theme')
-          textarea.dispatchEvent(new Event('input', { bubbles: true }))
-        }
-      })
-      .pause(500)
-      .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
-      .pause(3000)
-      .waitForElementVisible('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]', 30000)
-      .click('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]')
-      .pause(1000)
-      .pause(10000)
-      .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 30000)
-      .waitForElementNotPresent('.spinner-border', 90000)
-      .pause(1000)
-      .click('[data-id^="delete-dapp-btn-"]')
-      .pause(1000)
-      .waitForElementVisible('*[data-id="confirm-delete-one-btn"]', 5000)
-      .click('*[data-id="confirm-delete-one-btn"]')
-      .pause(5000)
-      .execute(function () {
-        const tab = document.querySelector('[data-path="quick-dapp-v2"]') as HTMLElement
-        if (tab) tab.click()
-      })
-      .pause(2000)
-      .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 30000)
-      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
-  },
-
-  // ══════════════════════════════════
-  // GROUP 2: Dashboard Interactions (Sort, Filter, Delete All, Create New)
-  // ══════════════════════════════════
-
-  // ──────────────────────────────────
-  // Test G2-1: Setup — compile + deploy contract + create DApp (same as group1)
-  // ──────────────────────────────────
-  'Should setup contract and create DApp for group2 tests #group2': function (browser: NightwatchBrowser) {
-    browser
-      // ── Pool Login Flow ──
-      .execute(function () { localStorage.setItem('enableLogin', 'true') })
-      .refreshPage()
-      .pause(5000)
-      .waitForElementVisible('*[data-id="login-button"]', 15000)
-      .click('*[data-id="login-button"]')
-      .pause(3000)
-      .waitForElementVisible({
-        selector: '//button[contains(., "E2E Test Pool")]',
-        locateStrategy: 'xpath',
-        timeout: 15000
-      })
-      .click({
-        selector: '//button[contains(., "E2E Test Pool")]',
-        locateStrategy: 'xpath'
-      })
-      .pause(5000)
-      // ── End Pool Login Flow ──
-      .waitForElementPresent('*[data-id="remixIdeSidePanel"]')
-      .clickLaunchIcon('filePanel')
-      .addFile('Storage.sol', sources[0]['Storage.sol'])
-      .clickLaunchIcon('solidity')
-      .waitForElementVisible('*[data-id="compilerContainerCompileBtn"]')
-      .click('*[data-id="compilerContainerCompileBtn"]')
-      .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
-      .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="deployButton"]', 45000)
-      .click('*[data-id="deployButton"]')
-      .pause(3000)
-      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
-      .click('*[data-id="contractKebabIcon-0"]')
-      .pause(500)
-      .waitForElementVisible('*[data-id="createDapp"]', 5000)
-      .click('*[data-id="createDapp"]')
-      .pause(2000)
-      .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
-      .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
-      .pause(500)
-      .execute(function () {
-        const textarea = document.querySelector('[data-id="generate-website-aiModalDialogModalBody-react"] textarea') as HTMLTextAreaElement
-        if (textarea) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-          nativeInputValueSetter.call(textarea, 'Create a simple Storage DApp for testing dashboard features')
-          textarea.dispatchEvent(new Event('input', { bubbles: true }))
-        }
-      })
-      .pause(500)
-      .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
-      .pause(3000)
-      .waitForElementVisible('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]', 30000)
-      .click('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]')
-      .pause(10000)
-      .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 30000)
-      .waitForElementNotPresent('.spinner-border', 180000)
-  },
-
-  // ──────────────────────────────────
-  // Test G2-2: Sort Order — toggle between Newest/Oldest and verify no crash
-  // ──────────────────────────────────
-  'Should toggle sort order without errors #group2': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="sort-order-select"]', 5000)
-      .click('*[data-id="sort-order-select"]')
-      .execute(function () {
-        const select = document.querySelector('[data-id="sort-order-select"]') as HTMLSelectElement
-        if (select) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set
-          nativeInputValueSetter.call(select, 'oldest')
-          select.dispatchEvent(new Event('change', { bubbles: true }))
-        }
-      })
-      .pause(1000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
-      .execute(function () {
-        const select = document.querySelector('[data-id="sort-order-select"]') as HTMLSelectElement
-        if (select) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set
-          nativeInputValueSetter.call(select, 'newest')
-          select.dispatchEvent(new Event('change', { bubbles: true }))
-        }
-      })
-      .pause(1000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
-  },
-
-  // ──────────────────────────────────
-  // Test G2-3: Network Filter — select a network and verify filtering works
-  // ──────────────────────────────────
-  'Should filter DApps by network #group2': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="network-filter-select"]', 5000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
-      .waitForElementVisible('*[data-id="dapp-count-badge"]', 5000)
-      .execute(function () {
-        const select = document.querySelector('[data-id="network-filter-select"]') as HTMLSelectElement
-        if (select) {
-          const option = document.createElement('option')
-          option.value = 'Fake Network'
-          option.text = 'Fake Network'
-          select.add(option)
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set
-          nativeInputValueSetter.call(select, 'Fake Network')
-          select.dispatchEvent(new Event('change', { bubbles: true }))
-        }
-      })
-      .pause(1000)
-      .assert.textEquals('*[data-id="dapp-count-badge"]', '0')
-      .execute(function () {
-        const select = document.querySelector('[data-id="network-filter-select"]') as HTMLSelectElement
-        if (select) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set
-          nativeInputValueSetter.call(select, 'All Chains')
-          select.dispatchEvent(new Event('change', { bubbles: true }))
-        }
-      })
-      .pause(1000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 5000)
-      .assert.not.textEquals('*[data-id="dapp-count-badge"]', '0')
-  },
-
-  // ──────────────────────────────────
-  // Test G2-4: Create a second DApp and verify multiple DApps coexist
-  // ──────────────────────────────────
-  'Should create a second DApp and show multiple cards #group2': function (browser: NightwatchBrowser) {
-    browser
-      .clickLaunchIcon('filePanel')
-      .switchWorkspace('default_workspace')
-      .pause(3000)
-      .openFile('Storage.sol')
-      .pause(3000)
-      .useXpath()
-      .waitForElementPresent('//*[@data-id="tab-active" and contains(@data-path, "Storage.sol")]', 10000)
-      .useCss()
-      .clickLaunchIcon('solidity')
-      .pause(5000)
-      .execute(function () {
-        const btn = document.querySelector('[data-id="compilerContainerCompileBtn"]') as HTMLButtonElement
-        if (btn) {
-          btn.removeAttribute('disabled')
-          btn.click()
-        }
-      })
-      .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
-      .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="deployButton"]', 45000)
-      .click('*[data-id="deployButton"]')
-      .pause(3000)
-      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
-      .click('*[data-id="contractKebabIcon-0"]')
-      .pause(500)
-      .waitForElementVisible('*[data-id="createDapp"]', 5000)
-      .click('*[data-id="createDapp"]')
-      .pause(2000)
-      .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
-      .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
-      .pause(500)
-      .execute(function () {
-        const textarea = document.querySelector('[data-id="generate-website-aiModalDialogModalBody-react"] textarea') as HTMLTextAreaElement
-        if (textarea) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-          nativeInputValueSetter.call(textarea, 'Create a minimal Storage DApp with blue theme')
-          textarea.dispatchEvent(new Event('input', { bubbles: true }))
-        }
-      })
-      .pause(500)
-      .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
-      .pause(3000)
-      .waitForElementVisible('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]', 30000)
-      .click('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]')
-      .pause(10000)
-      .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
-      .waitForElementNotPresent('.spinner-border', 180000)
-      .pause(2000)
-      .waitForElementVisible('*[data-id="dapp-count-badge"]', 10000)
-      .assert.not.textEquals('*[data-id="dapp-count-badge"]', '0')
-      .assert.not.textEquals('*[data-id="dapp-count-badge"]', '1')
-  },
-
-  // ──────────────────────────────────
-  // Test G2-5: Delete All DApps — click "Delete All" and confirm
-  // ──────────────────────────────────
-  'Should delete all DApps and show empty state #group2': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="delete-all-dapps-btn"]', 5000)
-      .click('*[data-id="delete-all-dapps-btn"]')
-      .pause(1000)
-      .waitForElementVisible('*[data-id="confirm-delete-all-btn"]', 5000)
-      .click('*[data-id="confirm-delete-all-btn"]')
-      .pause(5000)
-      .execute(function () {
-        const tab = document.querySelector('[data-path="quick-dapp-v2"]') as HTMLElement
-        if (tab) tab.click()
-      })
-      .pause(2000)
-      .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 30000)
-      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
-  },
-
-  // ──────────────────────────────────
-  // Test G2-6: Verify Getting Started screen shows correct guidance after delete all
-  // ──────────────────────────────────
-  'Should display Getting Started guidance with two options #group2': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 10000)
-      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
-      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Option 1: Start Now Banner')
-      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Option 2: Create a DApp')
-  },
-
-  // ══════════════════════════════════
-  // GROUP 3: Base Mini App (create with checkbox, verify wizard UI)
-  // ══════════════════════════════════
-
-  // ──────────────────────────────────
-  // Test G3-1: Setup — compile + deploy + create DApp with Base Mini App checkbox
-  // ──────────────────────────────────
-  'Should create a Base Mini App DApp #group3': function (browser: NightwatchBrowser) {
-    browser
-      // ── Pool Login Flow ──
-      .execute(function () { localStorage.setItem('enableLogin', 'true') })
-      .refreshPage()
-      .pause(5000)
-      .waitForElementVisible('*[data-id="login-button"]', 15000)
-      .click('*[data-id="login-button"]')
-      .pause(3000)
-      .waitForElementVisible({
-        selector: '//button[contains(., "E2E Test Pool")]',
-        locateStrategy: 'xpath',
-        timeout: 15000
-      })
-      .click({
-        selector: '//button[contains(., "E2E Test Pool")]',
-        locateStrategy: 'xpath'
-      })
-      .pause(5000)
-      // ── End Pool Login Flow ──
-      .waitForElementPresent('*[data-id="remixIdeSidePanel"]')
-      .clickLaunchIcon('filePanel')
-      .addFile('Storage.sol', sources[0]['Storage.sol'])
-      .clickLaunchIcon('solidity')
-      .waitForElementVisible('*[data-id="compilerContainerCompileBtn"]')
-      .click('*[data-id="compilerContainerCompileBtn"]')
-      .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
-      .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-id="deployButton"]', 45000)
-      .click('*[data-id="deployButton"]')
-      .pause(3000)
-      .waitForElementPresent('[data-id="deployedContractItem-0"]', 30000)
-      .click('*[data-id="contractKebabIcon-0"]')
-      .pause(500)
-      .waitForElementVisible('*[data-id="createDapp"]', 5000)
-      .click('*[data-id="createDapp"]')
-      .pause(2000)
-      .waitForElementVisible('*[data-id="generate-website-ai-modal-footer-ok-react"]', 10000)
-      .waitForElementVisible('*[data-id="generate-website-aiModalDialogModalBody-react"] textarea', 5000)
-      .pause(500)
-      .execute(function () {
-        const checkbox = document.getElementById('base-miniapp-checkbox') as HTMLInputElement
-        if (checkbox && !checkbox.checked) {
-          checkbox.click()
-        }
-      })
-      .pause(500)
-      .execute(function () {
-        const textarea = document.querySelector('[data-id="generate-website-aiModalDialogModalBody-react"] textarea') as HTMLTextAreaElement
-        if (textarea) {
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-          nativeInputValueSetter.call(textarea, 'Create a simple Storage DApp as Base Mini App')
-          textarea.dispatchEvent(new Event('input', { bubbles: true }))
-        }
-      })
-      .pause(500)
-      .click('*[data-id="generate-website-ai-modal-footer-ok-react"]')
-      .pause(3000)
-      .waitForElementVisible('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]', 30000)
-      .click('*[data-id="quick-dapp-workspace-created-modal-footer-ok-react"]')
-      .pause(10000)
-      .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 180000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 30000)
-      .waitForElementNotPresent('.spinner-border', 180000)
-  },
-
-  // ──────────────────────────────────
-  // Test G3-2: Verify BaseAppWizard UI appears when entering the DApp editor
-  // ──────────────────────────────────
-  'Should show BaseAppWizard with Setup Wizard when editing Base Mini App DApp #group3': function (browser: NightwatchBrowser) {
-    browser
-      .click('[data-id^="dapp-card-"]')
-      .pause(3000)
-      .waitForElementVisible('*[data-id="base-app-wizard"]', 10000)
-      .waitForElementVisible('*[data-id="base-wizard-card"]', 5000)
-      .assert.textContains('*[data-id="base-wizard-card"]', 'Setup Wizard')
-      .waitForElementVisible('*[data-id="wizard-step-1-config"]', 5000)
-      .assert.textContains('*[data-id="wizard-step-1-config"]', 'Step 1: App Registration')
-      .waitForElementVisible('*[data-id="wizard-step1-next-btn"]', 5000)
-      .assert.not.elementPresent('*[data-id="deploy-ipfs-btn"]')
-      .assert.not.elementPresent('*[data-id="ens-section-header"]')
-  },
-
-  // ──────────────────────────────────
-  // Test G3-3: Go back to dashboard and verify dapp card exists
-  // ──────────────────────────────────
-  'Should navigate back and verify Base Mini App card on dashboard #group3': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('*[data-id="back-to-dashboard-btn"]', 5000)
-      .click('*[data-id="back-to-dashboard-btn"]')
-      .pause(2000)
-      .waitForElementVisible('*[data-id="quick-dapp-dashboard"]', 10000)
-      .waitForElementVisible('[data-id^="dapp-card-"]', 10000)
-      .waitForElementVisible('*[data-id="dapp-count-badge"]', 5000)
-      .assert.not.textEquals('*[data-id="dapp-count-badge"]', '0')
-  },
-
-  // ──────────────────────────────────
-  // Test G3-4: Delete the Base Mini App DApp and verify empty state
-  // ──────────────────────────────────
-  'Should delete Base Mini App DApp and return to empty state #group3': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible('[data-id^="delete-dapp-btn-"]', 5000)
-      .click('[data-id^="delete-dapp-btn-"]')
-      .pause(1000)
-      .waitForElementVisible('*[data-id="confirm-delete-one-btn"]', 5000)
-      .click('*[data-id="confirm-delete-one-btn"]')
-      .pause(5000)
-      .execute(function () {
-        const tab = document.querySelector('[data-path="quick-dapp-v2"]') as HTMLElement
-        if (tab) tab.click()
-      })
-      .pause(2000)
-      .waitForElementVisible('*[data-id="quickdapp-getting-started"]', 30000)
-      .assert.textContains('*[data-id="quickdapp-getting-started"]', 'Getting Started')
   }
 }
 

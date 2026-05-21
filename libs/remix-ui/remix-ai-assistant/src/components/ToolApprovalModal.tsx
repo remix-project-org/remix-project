@@ -3,7 +3,7 @@ import { ToolApprovalRequest } from '@remix/remix-ai-core'
 
 interface ToolApprovalModalProps {
   request: ToolApprovalRequest
-  onApprove: (modifiedArgs?: Record<string, any>) => void
+  onApprove: (options?: { enableAutoAccept?: boolean; modifiedArgs?: Record<string, any> }) => void
   onReject: () => void
   onTimeout: () => void
   /** Triggers showCustomDiff in the editor for line-by-line review */
@@ -14,6 +14,7 @@ interface ToolApprovalModalProps {
 
 export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, onApprove, onReject, onTimeout, onReviewChanges, isReviewing }) => {
   const [timeLeft, setTimeLeft] = useState(60)
+  const [autoAcceptChecked, setAutoAcceptChecked] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const dismissedRef = useRef(false)
 
@@ -28,6 +29,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
   useEffect(() => {
 
     dismissedRef.current = false
+    setAutoAcceptChecked(false)
     stopTimer()
 
     timerRef.current = setInterval(() => {
@@ -60,7 +62,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
 
     stopTimer()
     dismissedRef.current = true
-    onApprove()
+    onApprove({ enableAutoAccept: autoAcceptChecked })
   }
 
   const handleReject = () => {
@@ -82,19 +84,12 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
   const canReview = isFileOperation && hasProposedContent && onReviewChanges
 
   return (
-    <div style={{
-      background: 'var(--secondary, #2d2d2d)',
-      border: '1px solid var(--bs-border-color, #444)',
-      borderRadius: '8px',
-      padding: '12px',
-      marginTop: '8px',
-      marginBottom: '8px',
-    }}>
+    <div className="tool-approval-card">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <span style={{ fontWeight: 600, fontSize: '13px' }}>Tool: {request.toolName}</span>
+      <div className="tool-approval-card__header">
+        <span className="tool-approval-card__tool-name">Tool: {request.toolName}</span>
         {!isReviewing && (
-          <span style={{ fontSize: '11px', color: 'var(--text-muted, #999)' }}>
+          <span className="tool-approval-card__timer">
             {timeLeft}s
           </span>
         )}
@@ -102,30 +97,30 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
 
       {/* Deployment / transaction label */}
       {request.category === 'deployment' && (
-        <div style={{ fontSize: '12px', color: '#e67e22', marginBottom: '8px' }}>
+        <div className="tool-approval-card__deploy-info">
           🚀 Deploy contract: <code>{request.toolArgs?.contractName || request.toolArgs?.name || 'unknown'}</code>
-          {request.toolArgs?.environment && <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text-muted, #999)' }}>({request.toolArgs.environment})</span>}
+          {request.toolArgs?.environment && <span className="tool-approval-card__meta-label">({request.toolArgs.environment})</span>}
         </div>
       )}
       {request.category === 'transaction' && (
-        <div style={{ fontSize: '12px', color: '#e74c3c', marginBottom: '8px' }}>
+        <div className="tool-approval-card__tx-info">
           💸 Send transaction: <code>{request.toolArgs?.to || 'unknown'}</code>
-          {request.toolArgs?.value && <span style={{ marginLeft: '6px', fontSize: '11px' }}>({request.toolArgs.value})</span>}
+          {request.toolArgs?.value && <span className="tool-approval-card__meta-label">({request.toolArgs.value})</span>}
         </div>
       )}
 
       {/* File path (file_write / file_delete only) */}
       {request.filePath && request.category !== 'deployment' && request.category !== 'transaction' && (
-        <div style={{ fontSize: '12px', color: 'var(--text-muted, #aaa)', marginBottom: '8px' }}>
+        <div className="tool-approval-card__file-info">
           {request.category === 'file_delete' ? 'Delete' : isExistingFile ? 'Edit' : 'Create'}: <code>{request.filePath}</code>
-          {!isExistingFile && <span style={{ color: '#27ae60', marginLeft: '6px', fontSize: '11px' }}>(new file)</span>}
+          {!isExistingFile && <span className="tool-approval-card__new-file">(new file)</span>}
         </div>
       )}
 
       {/* Args summary (non-file, non-deployment, non-transaction tools) */}
       {!request.filePath && request.category !== 'deployment' && request.category !== 'transaction' && (
-        <div style={{ fontSize: '12px', marginBottom: '8px', maxHeight: '60px', overflow: 'auto' }}>
-          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text, #ccc)' }}>
+        <div className="tool-approval-card__args-summary">
+          <pre className="tool-approval-card__args-pre">
             {JSON.stringify(request.toolArgs, null, 2)}
           </pre>
         </div>
@@ -133,54 +128,45 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
 
       {/* Reviewing in Editor indicator */}
       {isReviewing && (
-        <div style={{
-          fontSize: '12px',
-          color: '#3498db',
-          marginBottom: '8px',
-          padding: '6px 8px',
-          borderRadius: '4px',
-          background: '#3498db11',
-          border: '1px solid #3498db33',
-          textAlign: 'center'
-        }}>
+        <div className="tool-approval-card__reviewing">
           Reviewing in Editor — Use <strong>Accept All</strong> or <strong>Reject All</strong> in the editor to finalize
         </div>
       )}
 
+      {/* Auto-accept checkbox */}
+      <label className="tool-approval-card__auto-accept-label">
+        <input
+          type="checkbox"
+          checked={autoAcceptChecked}
+          onChange={(e) => setAutoAcceptChecked(e.target.checked)}
+          data-id="hitl-auto-accept-checkbox"
+        />
+        Auto-accept all changes
+      </label>
+
       {/* Action buttons */}
-      {(
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+      <div className="tool-approval-card__actions">
+        <button
+          onClick={handleReject}
+          className="tool-approval-card__btn tool-approval-card__btn--reject"
+        >
+          Reject
+        </button>
+        <button
+          onClick={handleApprove}
+          className="tool-approval-card__btn tool-approval-card__btn--approve"
+        >
+          Approve
+        </button>
+        {canReview && (
           <button
-            onClick={handleReject}
-            style={{
-              padding: '5px 14px', borderRadius: '4px', border: 'none',
-              background: '#e74c3c', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
-            }}
+            onClick={handleReviewChanges}
+            className="tool-approval-card__btn tool-approval-card__btn--review"
           >
-            Reject
+            Review Changes
           </button>
-          <button
-            onClick={handleApprove}
-            style={{
-              padding: '5px 14px', borderRadius: '4px', border: 'none',
-              background: '#27ae60', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
-            }}
-          >
-            Approve
-          </button>
-          {canReview && (
-            <button
-              onClick={handleReviewChanges}
-              style={{
-                padding: '5px 14px', borderRadius: '4px', border: 'none',
-                background: '#3498db', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 500
-              }}
-            >
-              Review Changes
-            </button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

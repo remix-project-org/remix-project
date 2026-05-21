@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, M
 import '../css/remix-ai-assistant.css'
 
 import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, listModels, isOllamaAvailable, AIModel, ANONYMOUS_FALLBACK_MODELS, aiErrorFromException } from '@remix/remix-ai-core'
-import { ToolApprovalRequest } from '@remix/remix-ai-core'
+import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
 import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
 import '../css/color.css'
@@ -40,12 +40,13 @@ export interface RemixUiRemixAiAssistantProps {
   showHistorySidebar?: boolean
   isMaximized?: boolean
   onNewConversation?: () => void
-  onLoadConversation?: (id: string) => void
-  onArchiveConversation?: (id: string) => void
-  onDeleteConversation?: (id: string) => void
+  onLoadConversation?: (id: string) => Promise<void>
+  onArchiveConversation?: (id: string) => Promise<void>
+  onDeleteConversation?: (id: string) => Promise<void>
   onDeleteAllConversations?: () => void
   onToggleHistorySidebar?: () => void
   onSearch?: (query: string) => Promise<ConversationMetadata[]>
+  onOpenSkillsModal?: () => void
 }
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
@@ -93,6 +94,20 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // Tracks which approval requests are currently being reviewed in the editor via showCustomDiff
   const [reviewingApprovals, setReviewingApprovals] = useState<Set<string>>(new Set())
   const pendingDiffApprovalRef = useRef<{ requestId: string; filePath: string } | null>(null)
+
+  // HITL auto-accept state
+  const HITL_AUTO_ACCEPT_KEY = 'remix_hitl_auto_accept'
+  const [hitlAutoAccept, setHitlAutoAccept] = useState(() => localStorage.getItem('remix_hitl_auto_accept') === 'true')
+  const hitlAutoAcceptRef = useRef(hitlAutoAccept)
+  useEffect(() => { hitlAutoAcceptRef.current = hitlAutoAccept }, [hitlAutoAccept])
+  const toggleHitlAutoAccept = useCallback(() => {
+    setHitlAutoAccept(prev => {
+      const next = !prev
+      localStorage.setItem(HITL_AUTO_ACCEPT_KEY, String(next))
+      console.log('[HITL] Auto-accept toggled:', next)
+      return next
+    })
+  }, [])
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = AIEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
@@ -118,6 +133,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
   const [isOllamaFailureFallback, setIsOllamaFailureFallback] = useState(false)
   const [autoModeEnabled, setAutoModeEnabled] = useState(false)
+  const [usingOwnApiKey, setUsingOwnApiKey] = useState(false)
+  const [apiKeyError, setApiKeyError] = useState<ApiKeyErrorEvent | null>(null)
   const [themeTracker, setThemeTracker] = useState<{ name: string } | null>(() => ({ name: getSystemThemeFallback() }))
   const historyRef = useRef<HTMLDivElement | null>(null)
   const modelBtnRef = useRef(null)
@@ -362,8 +379,31 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     props.plugin.on('remixAI', 'modelChanged', handleModelChanged)
 
+    const checkApiKeyStatus = async () => {
+      try {
+        const isUsingOwn = await props.plugin.call('remixAI', 'isUsingOwnApiKey')
+        setUsingOwnApiKey(!!isUsingOwn)
+      } catch (error) {
+        console.warn('[RemixAI Assistant] Failed to check API key status:', error)
+      }
+    }
+    checkApiKeyStatus()
+
+    const handleApiKeyModeChanged = (data: { usingOwnKey: boolean }) => {
+      setUsingOwnApiKey(data.usingOwnKey)
+    }
+    props.plugin.on('remixAI', 'apiKeyModeChanged', handleApiKeyModeChanged)
+
+    const handleApiKeyError = (error: ApiKeyErrorEvent) => {
+      console.error('[RemixAI Assistant] API key error:', error)
+      setApiKeyError(error)
+    }
+    props.plugin.on('remixAI', 'onApiKeyError', handleApiKeyError)
+
     return () => {
       props.plugin.off('remixAI', 'modelChanged')
+      props.plugin.off('remixAI', 'apiKeyModeChanged')
+      props.plugin.off('remixAI', 'onApiKeyError')
     }
   }, [props.plugin, availableModels])
 
@@ -815,6 +855,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     // Human-in-the-loop: listen for tool approval requests (batch processing)
     const handleToolApproval = (request: ToolApprovalRequest) => {
       console.log('[Assistant UI] approval requested', request.toolName, request.requestId)
+      if (hitlAutoAcceptRef.current) {
+        props.plugin.call('remixAI', 'respondToToolApproval', {
+          requestId: request.requestId,
+          approved: true
+        }).catch((err: any) => console.error('[HITL][AutoAccept] Failed to auto-approve:', err))
+        return
+      }
       setPendingApprovals(prev => [...prev, request])
     }
     props.plugin.on('remixAI', 'onToolApprovalRequired', handleToolApproval)
@@ -1037,7 +1084,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.plugin, removeApproval])
 
-  const handleApproveToolAction = useCallback(async (approval: ToolApprovalRequest, modifiedArgs?: Record<string, any>) => {
+  const handleApproveToolAction = useCallback(async (approval: ToolApprovalRequest, options?: { modifiedArgs?: Record<string, any>; enableAutoAccept?: boolean }) => {
     if (!approval) return
     console.log('[Assistant UI] handleApproveToolAction', approval.toolName, approval.requestId)
 
@@ -1053,11 +1100,18 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     }
 
+    // Enable auto-accept if the user checked the checkbox in the modal
+    if (options?.enableAutoAccept && !hitlAutoAcceptRef.current) {
+      setHitlAutoAccept(true)
+      localStorage.setItem(HITL_AUTO_ACCEPT_KEY, 'true')
+      console.log('[HITL] Auto-accept ENABLED from approval modal')
+    }
+
     try {
       ;(props.plugin as any).respondToToolApproval({
         requestId: approval.requestId,
         approved: true,
-        modifiedArgs
+        modifiedArgs: options?.modifiedArgs
       })
       console.log('[Assistant UI] respondToToolApproval emitted', approval.requestId)
     } catch (err) {
@@ -2018,6 +2072,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [toggleRecording, isRecording])
 
+  const handleLoadSkills = useCallback(() => {
+    if (props.onOpenSkillsModal) {
+      props.onOpenSkillsModal()
+    }
+  }, [props.onOpenSkillsModal])
+
   const handleGenerateWorkspace = useCallback(async () => {
     dispatchActivity('button', 'generateWorkspace')
     try {
@@ -2085,27 +2145,56 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     await props.plugin.call('layout', 'maximiseRightSidePanel')
   }
 
+  const recalcModelOpt = useCallback(() => {
+    const modelBtn: any = modelBtnRef.current
+    const menu = menuRef.current
+    const container = aiChatRef.current
+    if (!modelBtn || !menu || !container) return
+
+    const btnRect = modelBtn.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    const menuWidth = menu.offsetWidth // replace hardcoded 180
+    const menuHeight = menu.offsetHeight
+    const GAP = 8
+
+    // Prefer above the button; if no room, drop below it
+    let top = btnRect.top - menuHeight - GAP
+    if (top < containerRect.top) top = btnRect.bottom + GAP
+
+    // Right-align with the button, then clamp to side panel
+    let left = btnRect.right - menuWidth
+    if (left < containerRect.left) left = containerRect.left
+    if (left + menuWidth > containerRect.right) left = containerRect.right - menuWidth
+
+    setModelOpt({ top, left })
+  }, [])
   useEffect(() => {
-    if (showModelSelector && modelBtnRef.current && menuRef.current) {
-      // Use requestAnimationFrame to ensure menu is rendered and has dimensions
-      requestAnimationFrame(() => {
-        const modelBtn = modelBtnRef.current as any
-        const menu = menuRef.current
-
-        if (modelBtn && menu) {
-          const modelBtnRect = modelBtn.getBoundingClientRect()
-          const menuHeight = menu.offsetHeight
-
-          // Position menu above the button using fixed positioning (viewport coordinates)
-          // Align menu's right edge with button's right edge
-          setModelOpt({
-            top: modelBtnRect.top - menuHeight - 8,
-            left: modelBtnRect.right - 180 // Small gap from the right edge
-          })
-        }
-      })
+    if (showModelSelector) {
+      requestAnimationFrame(recalcModelOpt)
     }
-  }, [showModelSelector])
+  }, [showModelSelector, recalcModelOpt])
+
+  useEffect(() => {
+    if (!showModelSelector) return
+
+    let frame: number | null = null
+    const onResize = () => {
+      if (frame) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(recalcModelOpt)
+    }
+
+    window.addEventListener('resize', onResize)
+    // Also catches side-panel splitter drags (window resize won't fire then)
+    const ro = new ResizeObserver(onResize)
+    if (aiChatRef.current) ro.observe(aiChatRef.current)
+
+    return () => {
+      window.removeEventListener('resize', onResize)
+      ro.disconnect()
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [showModelSelector, recalcModelOpt])
+
   const [aiChatIsMaximized, setAiChatIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -2123,6 +2212,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('rightSidePanel', 'rightSidePanelRestored');
     }
   }, [])
+
+  const autoAcceptBannerEl = hitlAutoAccept && pendingApprovals.length === 0 && (
+    <div
+      className="hitl-auto-accept-banner"
+      data-id="hitl-auto-accept-banner"
+    >
+      <span className="hitl-auto-accept-banner__text">Auto-accepting all tool changes</span>
+      <button
+        onClick={toggleHitlAutoAccept}
+        className="hitl-auto-accept-banner__btn"
+        data-id="hitl-auto-accept-disable"
+      >
+        Disable
+      </button>
+    </div>
+  )
 
   return (
     props.isInitializing ? (
@@ -2157,9 +2262,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               currentConversationId={props.currentConversationId || null}
               showArchived={showArchivedConversations}
               onNewConversation={props.onNewConversation || (() => {})}
-              onLoadConversation={props.onLoadConversation || (() => {})}
-              onArchiveConversation={props.onArchiveConversation || (() => {})}
-              onDeleteConversation={props.onDeleteConversation || (() => {})}
+              onLoadConversation={props.onLoadConversation || (async (id: string) => {})}
+              onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
+              onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
               onDeleteAllConversations={props.onDeleteAllConversations}
               onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
               onClose={props.onToggleHistorySidebar || (() => {})}
@@ -2172,7 +2277,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
           {/* Maximized Mode: Always show chat area */}
           {props.isMaximized ? (
-            <div className={`d-flex flex-column flex-grow-1 always-show ${messages.length === 0 ? 'ai-assistant-bg' : ''}`} style={{ overflow: 'hidden', minHeight: 0, backgroundColor: messages.length > 0 ? (themeTracker?.name.toLowerCase() === 'dark' ? '#222336' : '#eff1f5') : undefined }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+            <div className={`d-flex flex-column flex-grow-1 always-show ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
               <ChatHistoryHeading
                 onNewChat={props.onNewConversation || (() => {})}
                 onToggleHistory={props.onToggleHistorySidebar || (() => {})}
@@ -2203,13 +2308,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   theme={themeTracker?.name}
                   plugin={props.plugin}
                   handleGenerateWorkspace={handleGenerateWorkspace}
+                  handleLoadSkills={handleLoadSkills}
                   allowedMcps={modelAccess.allowedMcps}
                   onDappReviewAcceptAll={handleDappReviewAcceptAll}
                   onDappReviewRevertAll={handleDappReviewRevertAll}
                   onDappReviewViewDiff={handleDappReviewViewDiff}
                 />
                 {pendingApprovals.length > 1 && (
-                  <div style={{ padding: '12px', borderBottom: '1px solid #ccc', marginBottom: '8px' }}>
+                  <div className="hitl-pending-summary">
                     <div className="d-flex justify-content-between align-items-center">
                       <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
                       <div className="d-flex gap-2">
@@ -2235,7 +2341,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
                     <ToolApprovalModal
                       request={approval}
-                      onApprove={(modifiedArgs) => handleApproveToolAction(approval, modifiedArgs)}
+                      onApprove={(options) => handleApproveToolAction(approval, options)}
                       onReject={() => handleRejectToolAction(approval)}
                       onTimeout={() => handleTimeoutToolAction(approval)}
                       onReviewChanges={() => handleReviewChanges(approval)}
@@ -2244,15 +2350,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   </div>
                 ))}
               </section>
+              {autoAcceptBannerEl}
             </div>
           ) : (
           /* Non-Maximized Mode: Toggle between history view and chat view */
             props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
-              <div className="d-flex flex-column flex-grow-1 ai-assistant-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+              <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
                 {/* Back button header */}
                 <div
                   className="p-2 border-bottom"
-                  style={{ backgroundColor: themeTracker?.name.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}
                 >
                   <button
                     className={`btn btn-sm ${themeTracker?.name.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'}`}
@@ -2270,13 +2376,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     currentConversationId={props.currentConversationId || null}
                     showArchived={showArchivedConversations}
                     onNewConversation={props.onNewConversation || (() => {})}
-                    onLoadConversation={(id) => {
-                      props.onLoadConversation?.(id)
+                    onLoadConversation={async (id) => {
+                      await props.onLoadConversation?.(id)
                       // Close sidebar after loading conversation in non-maximized mode
-                      props.onToggleHistorySidebar?.()
+                      await props.onToggleHistorySidebar?.()
                     }}
-                    onArchiveConversation={props.onArchiveConversation || (() => {})}
-                    onDeleteConversation={props.onDeleteConversation || (() => {})}
+                    onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
+                    onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
                     onDeleteAllConversations={props.onDeleteAllConversations}
                     onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
                     onClose={props.onToggleHistorySidebar || (() => {})}
@@ -2286,10 +2392,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     theme={themeTracker?.name}
                   />
                 </div>
+                {autoAcceptBannerEl}
               </div>
             ) : (
             /* Show chat area when sidebar is closed */
-              <div className={`d-flex flex-column flex-grow-1 sideBarIsClosed ${messages.length === 0 ? 'ai-assistant-bg' : ''}`} style={{ overflow: 'hidden', minHeight: 0, backgroundColor: messages.length > 0 ? (themeTracker?.name.toLowerCase() === 'dark' ? '#222336' : '#eff1f5') : undefined }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+              <div className={`d-flex flex-column flex-grow-1 sideBarIsClosed ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
                 <ChatHistoryHeading
                   onNewChat={props.onNewConversation || (() => {})}
                   onToggleHistory={props.onToggleHistorySidebar || (() => {})}
@@ -2320,13 +2427,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     theme={themeTracker?.name}
                     plugin={props.plugin}
                     handleGenerateWorkspace={handleGenerateWorkspace}
+                    handleLoadSkills={handleLoadSkills}
                     allowedMcps={modelAccess.allowedMcps}
                     onDappReviewAcceptAll={handleDappReviewAcceptAll}
                     onDappReviewRevertAll={handleDappReviewRevertAll}
                     onDappReviewViewDiff={handleDappReviewViewDiff}
                   />
                   {pendingApprovals.length > 1 && (
-                    <div style={{ padding: '12px', borderBottom: '1px solid #ccc', marginBottom: '8px' }}>
+                    <div className="hitl-pending-summary">
                       <div className="d-flex justify-content-between align-items-center">
                         <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
                         <div className="d-flex gap-2">
@@ -2352,7 +2460,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
                       <ToolApprovalModal
                         request={approval}
-                        onApprove={(modifiedArgs) => handleApproveToolAction(approval, modifiedArgs)}
+                        onApprove={(options) => handleApproveToolAction(approval, options)}
                         onReject={() => handleRejectToolAction(approval)}
                         onTimeout={() => handleTimeoutToolAction(approval)}
                         onReviewChanges={() => handleReviewChanges(approval)}
@@ -2361,6 +2469,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     </div>
                   ))}
                 </section>
+                {autoAcceptBannerEl}
               </div>
             )
           )}
@@ -2426,6 +2535,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               selectedOllamaModel={selectedOllamaModel}
               ollamaModels={ollamaModels}
               messages={messages}
+              handleLoadSkills={handleLoadSkills}
+              usingOwnApiKey={usingOwnApiKey}
             />
           ) : (
             <AiChatPromptArea
@@ -2470,9 +2581,50 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               selectedOllamaModel={selectedOllamaModel}
               ollamaModels={ollamaModels}
               messages={messages}
+              handleLoadSkills={handleLoadSkills}
+              usingOwnApiKey={usingOwnApiKey}
             />
           )
         }
+
+        {/* API Key Error Toast */}
+        {apiKeyError && (
+          <div
+            className="position-fixed bottom-0 start-50 translate-middle-x mb-5 p-3 bg-danger text-white rounded shadow"
+            style={{ zIndex: 9999, maxWidth: '400px' }}
+          >
+            <div className="d-flex align-items-start">
+              <i className="fas fa-exclamation-triangle me-2 mt-1"></i>
+              <div className="flex-grow-1">
+                <strong>{apiKeyError.errorType === 'authentication_failed' ? 'API Key Authentication Failed' : 'API Key Error'}</strong>
+                <p className="mb-2 small">{apiKeyError.message}</p>
+                {apiKeyError.canFallbackToProxy && (
+                  <button
+                    className="btn btn-sm btn-light me-2"
+                    onClick={async () => {
+                      try {
+                        await props.plugin.call('remixAI', 'fallbackToProxy')
+                        setApiKeyError(null)
+                        setUsingOwnApiKey(false)
+                      } catch (error) {
+                        console.error('Failed to fallback to proxy:', error)
+                      }
+                    }}
+                  >
+                    <i className="fas fa-server me-1"></i>
+                    Switch to Proxy
+                  </button>
+                )}
+                <button
+                  className="btn btn-sm btn-outline-light"
+                  onClick={() => setApiKeyError(null)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   )

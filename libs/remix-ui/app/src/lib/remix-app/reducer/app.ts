@@ -77,5 +77,22 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
       aiChatHistoryState: { ...state.aiChatHistoryState, closeAiChatHistory: action.payload }
     }
   }
+
+  case appActionTypes.showSkillsModal: {
+    return {
+      ...state,
+      showSkillsModal: action.payload
+    }
+  }
+
+  case appActionTypes.showChecklistModal: {
+    return {
+      ...state,
+      showChecklistModal: action.payload
+    }
+  }
+
+  default:
+    return state
   }
 }

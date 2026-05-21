@@ -1,9 +1,10 @@
 import { ViewPlugin } from '@remixproject/engine-web'
-import React, { useState, useReducer, useEffect, useContext } from 'react' // eslint-disable-line
+import React, { useState, useReducer, useEffect, useContext, useMemo } from 'react' // eslint-disable-line
 import Fuse from 'fuse.js'
 import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription } from '@remix-ui/helper'
-import { AppConfig } from '@remix-api'
+import { AppConfig, FeatureGroup } from '@remix-api'
 import { AppContext } from '@remix-ui/app'
+import { API_KEYS_ALLOWED_PLANS } from '@remix/remix-ai-core'
 
 import { initialState, settingReducer } from './settingsReducer'
 import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
@@ -199,24 +200,25 @@ const settingsSections: SettingsSection[] = [
         }]
       },
       {
-        title: 'settings.deepAgentSection',
+        title: 'settings.deepAgentApiKeysSection',
         options: [{
-          name: 'deepagent-config',
-          label: 'settings.deepAgentTitle',
-          description: 'settings.deepAgentDescription',
-          type: 'toggle',
+          name: 'deepagent-api-keys-config' as keyof typeof initialState,
+          label: 'settings.useOwnApiKeys',
+          description: 'settings.useOwnApiKeysDescription',
+          type: 'toggle' as const,
           toggleUIOptions: [{
-            name: 'langchain-api-key',
+            name: 'deepagent-anthropic-api-key' as keyof typeof initialState,
             type: 'password'
           }, {
-            name: 'deepagent-memory-backend',
-            type: 'text'
-          }],
-          footnote: {
-            text: 'settings.learnMoreDeepAgent',
-            link: 'https://docs.langchain.com/oss/javascript/deepagents/overview',
-            styleClass: 'text-primary'
-          }
+            name: 'deepagent-mistral-api-key' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-openai-api-key' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-moonshot-api-key' as keyof typeof initialState,
+            type: 'password'
+          }]
         }]
       }]
   },
@@ -307,27 +309,78 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
     themeQuality: themes.light
   })
   const [visibleSections, setVisibleSections] = useState<SettingsSection[]>(settingsSections)
+  const [featureGroups, setFeatureGroups] = useState<FeatureGroup[]>([])
 
-  // Derive visible sections based on app config
-  const computeVisibleSections = (config: AppConfig): SettingsSection[] => {
-    return settingsSections.filter(section => {
-      if (section.key === 'account' && config['settings.account_management'] === false) {
-        return false
+  // Check if user can use their own API keys based on their plan
+  const canUseOwnApiKeys = useMemo(() => {
+    return featureGroups.some(fg => API_KEYS_ALLOWED_PLANS.includes(fg.name))
+  }, [featureGroups])
+
+  // Fetch user's feature groups on mount
+  useEffect(() => {
+    const fetchFeatureGroups = async () => {
+      try {
+        const permissions = await props.plugin.call('auth', 'getAllPermissions')
+        if (permissions?.feature_groups) {
+          setFeatureGroups(permissions.feature_groups)
+        } else {
+          setFeatureGroups([])
+        }
+      } catch (error) {
+        console.warn('[Settings] Failed to fetch feature groups:', error)
+        setFeatureGroups([])
       }
-      return true
-    })
+    }
+    fetchFeatureGroups()
+
+    // Listen for auth changes to update feature groups
+    const handleAuthChange = async () => {
+      await fetchFeatureGroups()
+    }
+    props.plugin.on('auth', 'authStateChanged', handleAuthChange)
+
+    return () => {
+      try {
+        props.plugin.off('auth', 'authStateChanged')
+      } catch (e) {
+        console.log(e)
+      }
+    }
+  }, [props.plugin])
+
+  // Derive visible sections based on app config and user permissions
+  const computeVisibleSections = (config: AppConfig, canUseApiKeys: boolean): SettingsSection[] => {
+    return settingsSections
+      .filter(section => {
+        if (section.key === 'account' && config['settings.account_management'] === false) {
+          return false
+        }
+        return true
+      })
+      .map(section => {
+        // For AI section, filter out the deepagent-api-keys subsection if user can't use own API keys
+        if (section.key === 'ai' && !canUseApiKeys) {
+          return {
+            ...section,
+            subSections: section.subSections.filter(
+              subSection => subSection.title !== 'settings.deepAgentApiKeysSection'
+            )
+          }
+        }
+        return section
+      })
   }
 
-  // Recompute visible sections when shared app config changes
+  // Recompute visible sections when shared app config or permissions change
   useEffect(() => {
-    const sections = computeVisibleSections(appConfig)
+    const sections = computeVisibleSections(appConfig, canUseOwnApiKeys)
     setVisibleSections(sections)
     setFilteredSections(sections)
     if (!sections.find(s => s.key === selected)) {
       setSelected(sections[0]?.key)
       setFilteredSection(sections[0])
     }
-  }, [appConfig])
+  }, [appConfig, canUseOwnApiKeys])
 
   useEffect(() => {
     props.plugin.call('theme', 'currentTheme').then((theme) => {

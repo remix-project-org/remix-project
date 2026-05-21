@@ -193,6 +193,19 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     let currentSlugRef = '';
     let currentWritingFile = '';
     const handleGenerationProgress = async (data: any) => {
+      // Handle cancellation: null data resets all progress state
+      if (!data) {
+        dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
+        dispatch({ type: 'SET_AI_LOADING', payload: false });
+        if (currentSlugRef) {
+          dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: currentSlugRef, isProcessing: false } });
+        }
+        currentSlugRef = '';
+        currentWritingFile = '';
+        generatedFilesRef.length = 0;
+        return;
+      }
+
       // Preserve slug from preparation across all subsequent events
       if (data.slug) {
         currentSlugRef = data.slug;

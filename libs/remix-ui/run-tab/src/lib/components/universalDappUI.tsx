@@ -19,7 +19,6 @@ import { trackMatomoEvent } from '@remix-api'
 
 const txHelper = remixLib.execution.txHelper
 
-
 export function UniversalDappUI(props: UdappProps) {
   const intl = useIntl()
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)

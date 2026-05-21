@@ -447,7 +447,7 @@ module.exports = {
             .waitForElementVisible('*[data-id="treeViewDivDraggableItem.deps/npm"]', 60000)
             .waitForElementVisible('*[data-id="treeViewLitreeViewItem.deps/npm/.resolution-index.json"]', 60000)
             .openFile('.deps/npm/.resolution-index.json')
-            .pause()
+            .pause(2000)
             .getEditorValue((content) => {
                 try {
                     const idx = JSON.parse(content)

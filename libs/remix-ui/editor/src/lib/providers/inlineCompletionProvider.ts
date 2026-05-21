@@ -85,11 +85,19 @@ export class RemixInLineCompletionProvider implements monacoTypes.languages.Inli
       return { items: []};
     }
 
-    const currentTime = Date.now();
-
     // Check rate limiting (bypass for Ollama since it runs locally)
+    const currentTime = Date.now();
     const assistantProvider = await this.props.plugin.call('remixAI', 'getAssistantProvider')
     if (assistantProvider !== 'ollama' && !this.rateLimiter.shouldAllowRequest(currentTime)) {
+      return { items: []};
+    }
+
+    try {
+      const user = await this.props.plugin.call('auth', 'getUser')
+      if (assistantProvider !== 'ollama' && !user) {
+        return { items: []};
+      }
+    } catch (e) {
       return { items: []};
     }
 

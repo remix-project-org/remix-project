@@ -6,7 +6,8 @@ import init from '../helpers/init'
  * Tests all three main resource providers: Project, Compilation, and Deployment
  */
 
-module.exports = {
+module.exports = {}
+const tests = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
     init(browser, done)

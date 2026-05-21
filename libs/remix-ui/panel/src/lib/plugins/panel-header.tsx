@@ -1,6 +1,7 @@
 import React, {useEffect, useState, useContext} from 'react' // eslint-disable-line
 import { FormattedMessage, useIntl } from 'react-intl'
 import { PluginRecord } from '../types'
+//@ts-ignore
 import './panel.css'
 import { CustomTooltip, RenderIf, RenderIfNot } from '@remix-ui/helper'
 import { TrackingContext } from '@remix-ide/tracking'
@@ -39,13 +40,13 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
   }
 
   const pinPlugin = () => {
-    props.pinView && props.pinView(plugin.profile, plugin.view)
-    trackMatomoEvent?.({ category: 'pluginPanel', action: 'pinToRight', name: plugin.profile.name })
+    props.pinView && props.pinView((plugin as PluginRecord).profile, (plugin as PluginRecord).view)
+    trackMatomoEvent?.({ category: 'pluginPanel', action: 'pinToRight', name: (plugin as PluginRecord).profile.name })
   }
 
   const unPinPlugin = () => {
-    props.unPinView && props.unPinView(plugin.profile)
-    trackMatomoEvent?.({ category: 'pluginPanel', action: 'pinToLeft', name: plugin.profile.name })
+    props.unPinView && props.unPinView((plugin as PluginRecord).profile)
+    trackMatomoEvent?.({ category: 'pluginPanel', action: 'pinToLeft', name: (plugin as PluginRecord).profile.name })
   }
 
   const togglePanelHandler = () => {
@@ -91,7 +92,7 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
   useEffect(() => {
     function handleMaximize() {
       if (plugin?.profile.name.toLowerCase() === 'remixaiassistant') {
-        setTrackMaximize(props.isMaximized);
+        setTrackMaximize(props.isMaximized as boolean);
         dispatchEvent(new CustomEvent('rightSidePanelMaximized', { detail: { isMaximized: props.isMaximized } }));
       }
     }

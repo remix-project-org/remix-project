@@ -4,7 +4,7 @@ import { ChatOpenAI } from '@langchain/openai'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { HTTPClient } from '@mistralai/mistralai/lib/http.js'
 import { endpointUrls } from '@remix-endpoints-helper'
-import { ModelSelection } from '../../types/deepagent'
+import { ModelSelection, IUserApiKeyConfig } from '../../types/deepagent'
 import { DAPP_MAX_TOKENS } from './constants'
 import { getRemixAuthHeader } from '../auth'
 
@@ -302,15 +302,17 @@ function wrapModelForDebug<T extends BaseChatModel>(model: T, label: string): T 
 
 export function createModelInstance(
   modelSelection: ModelSelection,
-  maxTokens: number = DAPP_MAX_TOKENS
+  maxTokens: number = DAPP_MAX_TOKENS,
+  userApiKeys?: IUserApiKeyConfig
 ): BaseChatModel {
   const { provider, modelId } = modelSelection
 
   switch (provider) {
   case 'mistralai': {
-    console.log(`[ModelFactory] Creating mistralai model: ${modelId}`)
+    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.mistralApiKey)
+    console.log(`[ModelFactory] Creating mistralai model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
     return wrapModelForDebug(new ChatMistralAI({
-      apiKey: 'proxy-handled',
+      apiKey: useDirectApi ? userApiKeys!.mistralApiKey! : 'proxy-handled',
       model: modelId,
       temperature: 0.7,
       maxTokens: maxTokens,
@@ -321,19 +323,54 @@ export function createModelInstance(
       // want the FIRST envelope error to surface immediately so
       // assistantState can gate the next attempt.
       maxRetries: 0,
-      serverURL: `${endpointUrls.langchain}/mistral`,
-      httpClient: createAuthedMistralHttpClient()
+      // With a user-provided key the call goes direct to Mistral — no proxy
+      // routing, no Remix-bearer-token injection.
+      ...(useDirectApi
+        ? {}
+        : {
+          serverURL: `${endpointUrls.langchain}/mistral`,
+          httpClient: createAuthedMistralHttpClient()
+        })
     }), `mistralai/${modelId}`)
   }
 
-  case 'moonshot': {
-    console.log(`[ModelFactory] Creating moonshot model: ${modelId}`)
-    // Moonshot (Kimi) speaks the OpenAI Chat Completions wire format, so we
-    // use ChatOpenAI rather than the Mistral shim. The backend proxy is
-    // mounted at `${endpointUrls.langchain}/moonshot`; the OpenAI SDK
-    // appends `/chat/completions`, so the baseURL must include `/v1`.
+  case 'openai': {
+    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.openaiApiKey)
+    console.log(`[ModelFactory] Creating OpenAI model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
     return wrapModelForDebug(new ChatOpenAI({
-      apiKey: 'proxy-handled',
+      apiKey: useDirectApi ? userApiKeys!.openaiApiKey! : 'proxy-handled',
+      model: modelId,
+      temperature: 0.7,
+      maxTokens: maxTokens,
+      streaming: true,
+      maxRetries: 0,
+      ...(useDirectApi
+        ? {}
+        : {
+          configuration: {
+            baseURL: `${endpointUrls.langchain}/openai`,
+            fetch: authedFetch
+          }
+        })
+    }), `openai/${modelId}`)
+  }
+
+  case 'moonshot': {
+    // Moonshot (Kimi) speaks the OpenAI Chat Completions wire format, so we
+    // use ChatOpenAI rather than the Mistral shim.
+    //
+    // Two routing modes:
+    //   1. User-supplied Moonshot key → call goes direct to Moonshot's API.
+    //      Thinking mode is disabled to avoid the reasoning_content round-trip
+    //      that requires our streaming shim.
+    //   2. Default → routed through the Remix proxy at
+    //      `${endpointUrls.langchain}/moonshot/v1`. The reasoning-content
+    //      shim re-emits captured `reasoning_content` on follow-up tool_call
+    //      assistant messages so kimi-k2-thinking doesn't 400.
+    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.moonshotApiKey)
+    console.log(`[ModelFactory] Creating moonshot model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
+    return wrapModelForDebug(new ChatOpenAI({
+      apiKey: useDirectApi ? userApiKeys!.moonshotApiKey! : 'proxy-handled',
       model: modelId,
       // Moonshot recommends temperature=1 and currently enforces top_p=0.95.
       temperature: 1,
@@ -341,22 +378,32 @@ export function createModelInstance(
       maxTokens: maxTokens,
       streaming: true,
       maxRetries: 0,
-      configuration: {
-        baseURL: `${endpointUrls.langchain}/moonshot/v1`,
-        // moonshotFetch wraps authedFetch and additionally
-        //  1) captures reasoning_content from streamed assistant turns, and
-        //  2) re-injects it onto outbound assistant tool_call messages —
-        // required by Moonshot's thinking-enabled models (e.g. kimi-k2-thinking).
-        fetch: moonshotFetch
-      }
+      ...(useDirectApi
+        ? {
+          configuration: { baseURL: 'https://api.moonshot.ai/v1' },
+          // Direct path: drop thinking mode so we don't have to re-emit
+          // reasoning_content for tool calls without the proxy shim.
+          modelKwargs: { thinking: { type: 'disabled' } }
+        }
+        : {
+          configuration: {
+            baseURL: `${endpointUrls.langchain}/moonshot/v1`,
+            // moonshotFetch wraps authedFetch and additionally
+            //  1) captures reasoning_content from streamed assistant turns, and
+            //  2) re-injects it onto outbound assistant tool_call messages —
+            // required by Moonshot's thinking-enabled models (e.g. kimi-k2-thinking).
+            fetch: moonshotFetch
+          }
+        })
     }), `moonshot/${modelId}`)
   }
 
   case 'anthropic':
   default: {
-    console.log(`[ModelFactory] Creating Anthropic model: ${modelId}`)
+    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.anthropicApiKey)
+    console.log(`[ModelFactory] Creating Anthropic model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
     return wrapModelForDebug(new ChatAnthropic({
-      apiKey: 'proxy-handled',
+      apiKey: useDirectApi ? userApiKeys!.anthropicApiKey! : 'proxy-handled',
       model: modelId,
       temperature: 0.7,
       maxTokens: maxTokens,
@@ -365,10 +412,14 @@ export function createModelInstance(
       // 429s behind exponential backoff and produces a cluster of
       // red requests in DevTools before the user sees anything.
       maxRetries: 0,
-      clientOptions: {
-        baseURL: endpointUrls.langchain,
-        fetch: authedFetch
-      }
+      ...(useDirectApi
+        ? {}
+        : {
+          clientOptions: {
+            baseURL: endpointUrls.langchain,
+            fetch: authedFetch
+          }
+        })
     }), `anthropic/${modelId}`)
   }
   }

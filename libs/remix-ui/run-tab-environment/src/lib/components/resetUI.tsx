@@ -56,25 +56,20 @@ export function ResetUI() {
         </div>
         <div className="d-flex justify-content-between align-items-center gap-3">
           <button
-            className="btn btn-sm btn-secondary rounded"
+            className="btn btn-sm btn-secondary flex-fill"
             onClick={() => {
               trackMatomoEvent?.({ category: 'udapp', action: 'resetCancel', name: 'cancelled', isClick: true })
               dispatch({ type: 'HIDE_RESET_UI', payload: undefined })
             }}
             disabled={widgetState.fork.isRequesting}
-            style={{ color: themeQuality === 'dark' ? 'white' : 'black', flex: 1 }}
           >
             {intl.formatMessage({ id: 'udapp.cancelReset' })}
           </button>
           <button
             data-id="btnResetState"
-            className="btn btn-sm btn-danger rounded text-light"
+            className="btn btn-sm btn-danger flex-fill"
             onClick={handleSubmit}
             disabled={widgetState.fork.isRequesting}
-            style={{
-              border: 'none',
-              flex: 1
-            }}
           >
             {widgetState.fork.isRequesting ? <Spinner animation="border" size="sm" /> : intl.formatMessage({ id: 'udapp.yesReset' })}
           </button>

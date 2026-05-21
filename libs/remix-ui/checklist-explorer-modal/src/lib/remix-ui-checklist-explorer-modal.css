@@ -1,0 +1,271 @@
+.checklist-explorer-modal-background {
+  position: fixed;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.checklist-explorer-modal-container {
+  border-radius: 10px;
+  display: flex;
+  box-shadow: 0 0 5px 5px rgba(0, 0, 0, 0.1);
+  flex-direction: column;
+  width: 80%;
+  max-width: 1200px;
+  min-width: 700px;
+  max-height: 90vh;
+}
+
+.checklist-explorer-modal-close-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.checklist-explorer-modal-close-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+}
+
+.checklist-explorer-modal-close-button:hover,
+.checklist-explorer-modal-close-button:focus,
+.checklist-explorer-modal-close-button:active,
+.checklist-explorer-modal-close-button:disabled,
+.checklist-explorer-modal-close-button:focus-visible {
+  background-color: transparent;
+}
+
+.checklist-explorer-modal-search-input {
+  color: var(--bs-light);
+}
+
+.checklist-explorer-container {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.category-title {
+  color: #667;
+  padding-bottom: 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.category-description {
+  color: #667;
+  font-size: 0.9rem;
+}
+
+/* ========== Checklist Categories ========== */
+
+.checklist-categories {
+  margin-bottom: 1rem;
+}
+
+.main-category {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.main-category-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sub-categories {
+  background: var(--bs-light);
+}
+
+.sub-category {
+  transition: all 0.2s ease;
+}
+
+.sub-category:last-child {
+  border-bottom: none !important;
+}
+
+.sub-category-header {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.sub-category-header:hover {
+  background-color: var(--bs-gray-100) !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.category-items {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.item-preview {
+  transition: background-color 0.2s ease;
+}
+
+.item-preview:hover {
+  background-color: var(--bs-gray-50) !important;
+}
+
+/* ========== Responsive Media Queries ========== */
+
+/* Responsive modal sizing */
+@media (max-width: 768px) {
+  .checklist-explorer-modal-container {
+    min-width: 600px;
+    width: 95%;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .checklist-explorer-modal-container {
+    width: 85%;
+    max-width: 900px;
+  }
+}
+
+@media (min-width: 1025px) {
+  .checklist-explorer-modal-container {
+    width: 80%;
+    max-width: 1200px;
+  }
+}
+
+/* Checklist container responsive height */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .checklist-explorer-container {
+    max-height: 500px;
+  }
+}
+
+@media (min-width: 1025px) {
+  .checklist-explorer-container {
+    max-height: 600px;
+  }
+}
+
+/* Step-specific sizing */
+.confirm-checklist-step,
+.saving-checklist-step {
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checklist-explorer-modal-container:has(.confirm-checklist-step),
+.checklist-explorer-modal-container:has(.saving-checklist-step) {
+  height: 500px;
+  max-height: 500px;
+}
+
+/* ========== Fixed footer for Generate button ========== */
+
+.checklist-explorer-modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-dark);
+}
+
+/* Make the modal use flex column so footer sticks to bottom */
+.checklist-explorer-modal-container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== Selected categories display ========== */
+
+.selected-categories {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin: 0.5rem 0;
+}
+
+.checklist-details {
+  max-width: 500px;
+}
+
+/* ========== Badge styling ========== */
+
+.badge {
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+}
+
+/* ========== Item preview styling ========== */
+
+.item-preview {
+  border-left: 3px solid var(--bs-primary);
+  margin-bottom: 0.5rem !important;
+}
+
+.item-preview .fw-bold {
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.item-preview .text-muted {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* ========== Expand/collapse animation ========== */
+
+.category-items {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+/* ========== Selection state styling ========== */
+
+.sub-category-header[style*="box-shadow"] {
+  background-color: var(--bs-primary-bg-subtle) !important;
+  border-left: 4px solid var(--bs-primary);
+}
+
+/* ========== Search result highlighting ========== */
+
+.text-highlight {
+  background: rgba(var(--bs-warning-rgb), 0.3);
+  padding: 0.1rem 0.2rem;
+  border-radius: 2px;
+}
+
+/* ========== Loading and error states ========== */
+
+.spinner-border.fa-3x {
+  width: 3rem;
+  height: 3rem;
+}
+
+.alert code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}

@@ -11,9 +11,10 @@ import { HomeTabEvent, MatomoEvent } from '@remix-api'
 import { TrackingContext } from '@remix-ide/tracking'
 import { HomeTabFileElectron } from './components/homeTabFileElectron'
 import HomeTabUpdates from './components/homeTabUpdates'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 // import { desktopConnectionType } from '@remix-api'
 import { desktopConnectionType } from '@remix-api'
+import { CustomTooltip } from '@remix-ui/helper'
 
 export interface RemixUiHomeTabProps {
   plugin: any
@@ -21,6 +22,7 @@ export interface RemixUiHomeTabProps {
 
 // --- Main Layout ---
 export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
+  const intl = useIntl()
   const platform = useContext(platformContext)
   const appContext = useContext(AppContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
@@ -38,6 +40,8 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
   })
 
   const [isTerminalHidden, setIsTerminalHidden] = useState<boolean>(false)
+  const [hasAuditorPermission, setHasAuditorPermission] = useState<boolean>(true)
+  const [hasSkillsPermission, setHasSkillsPermission] = useState<boolean>(true)
 
   useEffect(() => {
     plugin.call('theme', 'currentTheme').then((theme) => {
@@ -68,6 +72,19 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
     })
     plugin.on('terminal', 'terminalPanelHidden', () => {
       setIsTerminalHidden(true)
+    })
+
+    // Check permissions for AI features
+    plugin.call('auth', 'hasPermission', 'ai:auditor').then((hasPermission) => {
+      setHasAuditorPermission(hasPermission)
+    }).catch(() => {
+      setHasAuditorPermission(false)
+    })
+
+    plugin.call('auth', 'hasPermission', 'ai:skills').then((hasPermission) => {
+      setHasSkillsPermission(hasPermission)
+    }).catch(() => {
+      setHasSkillsPermission(false)
     })
   }, [])
 
@@ -100,6 +117,57 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
     })
   }
 
+  const openSkillsSelection = async () => {
+    appContext.appStateDispatch({
+      type: appActionTypes.showSkillsModal,
+      payload: true
+    })
+    trackMatomoEvent({
+      category: 'hometab',
+      action: 'header',
+      name: 'Explore Skills',
+      isClick: true
+    })
+  }
+
+  const openAuditsSelection = async () => {
+    appContext.appStateDispatch({
+      type: appActionTypes.showChecklistModal,
+      payload: true
+    })
+    trackMatomoEvent({
+      category: 'hometab',
+      action: 'header',
+      name: 'Explore Audits',
+      isClick: true
+    })
+  }
+
+  const startAudit = async () => {
+    await plugin.call('manager', 'activatePlugin', 'remixaiassistant')
+    await plugin.call('menuicons', 'select', 'remixaiassistant')
+    await plugin.call('remixaiassistant', 'newConversation')
+    setTimeout(() => {
+      plugin.call('remixaiassistant', 'chatPipe', `Start an audit of the contract. I am going to give you the actual file name.`)
+    }, 200)
+  }
+
+  const startGasOptimization = async () => {
+    await plugin.call('manager', 'activatePlugin', 'remixaiassistant')
+    await plugin.call('menuicons', 'select', 'remixaiassistant')
+    await plugin.call('remixaiassistant', 'newConversation')
+    try {
+      await plugin.call('notification', 'toast', 'Loading Gas optimization techniques skills')
+      await plugin.call('skillsexplorermodal', 'loadSkill', 'coding-solidity-gas-optimization')
+      plugin.call('notification', 'toast', 'Gas optimization techniques skills loaded')
+    } catch (e: any) {
+      plugin.call('notification', 'toast', `Error loading Gas optimization skills ${e.message}`)
+    }
+    setTimeout(() => {
+      plugin.call('remixaiassistant', 'chatPipe', `Start gas optimization checks. I am going to give you the actual file name.`)
+    })
+  }
+
   // if (appContext.appState.connectedToDesktop != desktopConnectionType.disabled) {
   //   return (<></>)
   // }
@@ -110,8 +178,28 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
         <div className="container-fluid">
           <div className="row">
             <div className="d-flex w-100 m-3 justify-content-end">
-              <button className="btn btn-secondary btn-md me-3" onClick={startLearnEth}><i className="fa-solid fa-book me-1"></i><FormattedMessage id="home.startLearning" /></button>
-              <button data-id="landingPageImportFromTemplate" className="btn btn-primary btn-md me-2" onClick={openTemplateSelection}><i className="fa-solid fa-plus me-1"></i><FormattedMessage id="home.createNewWorkspace" /></button>
+              <CustomTooltip tooltipText="Start Learning">
+                <button className="btn btn-secondary btn-md me-3" onClick={startLearnEth}><i className="fa-solid fa-book me-1"></i><FormattedMessage id="home.startLearning" /></button>
+              </CustomTooltip>
+              <CustomTooltip tooltipText="Create New Workspace">
+                <button data-id="landingPageImportFromTemplate" className="btn btn-primary btn-md me-2" onClick={openTemplateSelection}><i className="fa-solid fa-plus me-1"></i><FormattedMessage id="home.createNewWorkspace" /></button>
+              </CustomTooltip>
+              <CustomTooltip tooltipText={hasSkillsPermission ? "Load Skills" : "Available in Starter plan"}>
+                <div>
+                  <button data-id="landingPageLoadSkills" className="btn btn-primary btn-md me-2" disabled={!hasSkillsPermission} onClick={openSkillsSelection}><i className="fa-solid fa-cube me-1"></i><FormattedMessage id="home.loadSkills" /></button>
+                </div>
+              </CustomTooltip>
+              <CustomTooltip tooltipText={hasAuditorPermission ? intl.formatMessage({ id: 'home.selectCheckListAndStart' }) : intl.formatMessage({ id: 'home.availableInProPlan' })}>
+                <div className="btn-group me-2" role="group">
+                  <button data-id="landingPageLoadAudits" className="btn btn-primary btn-md" disabled={!hasAuditorPermission} onClick={openAuditsSelection}><i className="fa-solid fa-cube me-1"></i><FormattedMessage id="home.loadAudits" /></button>
+                  <button data-id="landingPageLoadAuditsPlay" className="btn btn-primary btn-md" disabled={!hasAuditorPermission} style={{ borderLeft: '1px solid var(--bs-border-color, var(--bs-secondary))' }} onClick={startAudit}><i className="fa-solid fa-play me-1"></i></button>
+                </div>
+              </CustomTooltip>
+              <CustomTooltip tooltipText={hasAuditorPermission ? intl.formatMessage({ id: 'home.startGasOptimization' }) : intl.formatMessage({ id: 'home.availableInProPlan' }) }>
+                <div>
+                  <button data-id="landingPageGasOptimization" className="btn btn-primary btn-md me-2" disabled={!hasAuditorPermission} onClick={startGasOptimization}><i className="fa-solid fa-cube me-1"></i><FormattedMessage id="home.startGasOptimizationBtn" /></button>
+                </div>
+              </CustomTooltip>
             </div>
             <div className="col-lg-8 col-xl-5 col-sm-12 mb-4">
               <HomeTabTitle />

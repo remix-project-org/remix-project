@@ -633,7 +633,7 @@ export const TabsUI = (props: TabsUIProps) => {
     } catch (e) { /* proceed if check fails */ }
 
     // Build the richest context we can — silently, no modals
-    let contextParts: string[] = []
+    const contextParts: string[] = []
     let instances: any[] = []
 
     // 1. Gather deployed contracts silently

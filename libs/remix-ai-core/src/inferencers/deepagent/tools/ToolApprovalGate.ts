@@ -138,6 +138,13 @@ export class ToolApprovalGate {
       // This bypasses the handler's execute() which would call showCustomDiff and
       // create a double-approval situation.
       if (DIRECT_WRITE_TOOLS.has(toolName) && filePath) {
+        // Detect workspace name in path (folder duplication bug)
+        try {
+          const currentWs = await this.plugin.call('filePanel' as any, 'getCurrentWorkspace')
+          if (currentWs?.name && filePath.startsWith(currentWs.name + '/')) {
+            console.warn(`[QuickDapp] MCP ${toolName}: workspace name in path detected: "${filePath}" (ws: "${currentWs.name}")`)
+          }
+        } catch (_) {}
 
         try {
           if (toolName === 'file_replace') {

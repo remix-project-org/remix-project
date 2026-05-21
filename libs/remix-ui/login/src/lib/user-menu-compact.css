@@ -134,8 +134,10 @@
   transition: background-color 0.2s;
 }
 
-.user-menu-item:hover {
-  background-color: var(--bs-body-bg, #222336);
+.user-menu-items-container .dropdown-item.user-menu-item:hover,
+.user-menu-items-container .dropdown-item.user-menu-item:focus {
+  background-color: var(--bs-dropdown-link-hover-bg);
+  color: var(--bs-dropdown-link-hover-color);
 }
 
 .user-menu-item-icon {
@@ -155,8 +157,10 @@
   transition: background-color 0.2s;
 }
 
-.user-menu-credits-item:hover {
-  background-color: var(--bs-body-bg, #222336);
+.user-menu-items-container .dropdown-item.user-menu-credits-item:hover,
+.user-menu-items-container .dropdown-item.user-menu-credits-item:focus {
+  background-color: var(--bs-dropdown-link-hover-bg);
+  color: var(--bs-dropdown-link-hover-color);
 }
 
 .user-menu-credits-icon {
@@ -189,8 +193,10 @@
   font-weight: 500;
 }
 
-.user-menu-item-danger:hover {
-  background-color: var(--bs-body-bg, #222336);
+.user-menu-items-container .dropdown-item.user-menu-item-danger:hover,
+.user-menu-items-container .dropdown-item.user-menu-item-danger:focus {
+  background-color: var(--bs-dropdown-link-hover-bg);
+  color: var(--bs-dropdown-link-hover-color);
 }
 
 .user-menu-theme-toggle {

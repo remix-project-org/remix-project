@@ -47,6 +47,12 @@ module.exports = composePlugins(withNx(), (config) => {
   config.output.filename = `[name].plugin-contract-verification.[contenthash].js`
   config.output.chunkFilename = `[name].plugin-contract-verification.[contenthash].js`
 
+  // polyfill global for browser (needed by stream-browserify etc.)
+  config.node = {
+    ...config.node,
+    global: true,
+  }
+
   // add copy & provide plugin
   config.plugins.push(
     new webpack.ProvidePlugin({

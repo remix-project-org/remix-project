@@ -96,6 +96,8 @@ let requiredModules = [
   'remixaiassistant',
   'topbar',
   'templateexplorermodal',
+  'skillsexplorermodal',
+  'checklistexplorermodal',
   'githubAuthHandler',
   'desktopClient',
   'auth',
@@ -188,6 +190,7 @@ export function isNative(name) {
     'noir-compiler',
     'remixaiassistant',
     'templateexplorermodal',
+    'skillsexplorermodal',
     'amp',
     'vega',
     'chartjs',
@@ -197,7 +200,8 @@ export function isNative(name) {
     'udappDeployedContracts',
     'udappTransactions',
     'txRunner',
-    'lifecycle'
+    'lifecycle',
+    'skillsexplorermodal'
   ]
   return nativePlugins.includes(name) || requiredModules.includes(name) || isInjectedProvider(name) || isVM(name) || isScriptRunner(name)
 }

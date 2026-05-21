@@ -131,8 +131,13 @@ export function getErrorMessage(errorType: DeepAgentErrorType, error: any, retry
   case DeepAgentErrorType.SERVER_ERROR:
     return 'Server error occurred. Please try again.'
 
-  case DeepAgentErrorType.AUTHENTICATION_FAILED:
+  case DeepAgentErrorType.AUTHENTICATION_FAILED: {
+    const originalMsg = error?.message || ''
+    if (originalMsg.toLowerCase().includes('moonshot') || originalMsg.includes('api.moonshot.cn')) {
+      return 'Moonshot authentication failed. Please verify your Moonshot/Kimi API key is valid and has not expired.'
+    }
     return 'Authentication failed. Please check your API key configuration.'
+  }
 
   case DeepAgentErrorType.API_KEY_INVALID:
     return 'Invalid or expired API key. Please update your credentials.'

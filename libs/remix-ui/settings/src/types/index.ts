@@ -123,9 +123,11 @@ export interface SettingsState {
   'connected-accounts': ConfigState,
   'ollama-config': ConfigState,
   'ollama-endpoint': ConfigState,
-  'deepagent-config': ConfigState,
-  'langchain-api-key': ConfigState,
-  'deepagent-memory-backend': ConfigState,
+  'deepagent-api-keys-config': ConfigState,
+  'deepagent-anthropic-api-key': ConfigState,
+  'deepagent-mistral-api-key': ConfigState,
+  'deepagent-openai-api-key': ConfigState,
+  'deepagent-moonshot-api-key': ConfigState,
   toaster: ConfigState
 }
 export interface SettingsActionPayloadTypes {

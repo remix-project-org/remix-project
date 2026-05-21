@@ -1,7 +1,5 @@
 export {
-  getBasicMcpToolsForSecurityAuditor,
   getBasicFileToolsForGasOptimizer,
-  getCoordinationToolsForComprehensiveAuditor,
   getEducationToolsForWeb3Educator
 } from './subagentToolFilters'
 

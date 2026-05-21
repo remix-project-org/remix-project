@@ -101,5 +101,12 @@
   "home.templateNFTTitle": "NFT / ERC721",
   "home.templateNFTDesc": "Create a new ERC721 token using this template.",
   "home.templateMultiSigTitle": "MultiSig",
-  "home.templateMultiSigDesc": "Create a new MultiSig wallet using this template."
+  "home.templateMultiSigDesc": "Create a new MultiSig wallet using this template.",
+  "home.loadSkills": "Load Skills",
+  "home.loadAudits": "Load Audit Checklist",
+  "home.startGasOptimization": "Start Gas Optimisation Audit",
+  "home.startGasOptimizationBtn": "Gas Optimisation Audit",
+  "home.availableInStarterPlan": "Available in Starter plan",
+  "home.availableInProPlan": "Available in Starter and Pro plan",
+  "home.selectCheckListAndStart": "Select checklist and start an audit"
 }

@@ -1504,3 +1504,230 @@ body.light .message-copy-btn:hover {
   font-size: 0.9rem;
   color: var(--bs-secondary-color);
 }
+
+/* --------------------------------------------------------
+   HITL Auto-Accept Banner
+   Fixed above the prompt area, never scrolls with chat.
+   -------------------------------------------------------- */
+
+.hitl-auto-accept-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  margin: 0 12px 4px;
+  border-radius: 6px;
+  font-size: 12px;
+  flex-shrink: 0;
+  color: var(--bs-body-color);
+  background: color-mix(in srgb, var(--bs-warning) 12%, var(--bs-body-bg));
+  border: 1px solid color-mix(in srgb, var(--bs-warning) 25%, var(--bs-body-bg));
+}
+
+.hitl-auto-accept-banner__text {
+  opacity: 0.85;
+}
+
+.hitl-auto-accept-banner__btn {
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--bs-body-color) 30%, transparent);
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: var(--bs-body-color);
+  cursor: pointer;
+}
+
+.hitl-auto-accept-banner__btn:hover {
+  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+}
+
+/* --------------------------------------------------------
+   HITL Pending Approvals Summary Bar
+   -------------------------------------------------------- */
+
+.hitl-pending-summary {
+  padding: 12px;
+  border-bottom: 1px solid var(--bs-border-color);
+  margin-bottom: 8px;
+}
+
+/* --------------------------------------------------------
+   Tool Approval Card (ToolApprovalModal)
+   -------------------------------------------------------- */
+
+.tool-approval-card {
+  background: var(--custom-onsurface-layer-1, var(--bs-secondary-bg));
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.tool-approval-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tool-approval-card__tool-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.tool-approval-card__timer {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.tool-approval-card__file-info {
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+  margin-bottom: 8px;
+}
+
+.tool-approval-card__new-file {
+  color: var(--bs-success);
+  margin-left: 6px;
+  font-size: 11px;
+}
+
+.tool-approval-card__deploy-info {
+  font-size: 12px;
+  color: var(--bs-warning);
+  margin-bottom: 8px;
+}
+
+.tool-approval-card__tx-info {
+  font-size: 12px;
+  color: var(--bs-danger);
+  margin-bottom: 8px;
+}
+
+.tool-approval-card__meta-label {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.tool-approval-card__args-summary {
+  font-size: 12px;
+  margin-bottom: 8px;
+  max-height: 60px;
+  overflow: auto;
+}
+
+.tool-approval-card__args-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--bs-body-color);
+}
+
+.tool-approval-card__reviewing {
+  font-size: 12px;
+  color: var(--bs-info);
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bs-info) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bs-info) 20%, transparent);
+  text-align: center;
+}
+
+.tool-approval-card__auto-accept-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  user-select: none;
+  margin: 0 0 8px 0;
+}
+
+.tool-approval-card__auto-accept-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.tool-approval-card__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tool-approval-card__btn {
+  padding: 5px 14px;
+  border-radius: 4px;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tool-approval-card__btn--reject {
+  background: var(--bs-danger);
+}
+
+.tool-approval-card__btn--reject:hover {
+  opacity: 0.85;
+}
+
+.tool-approval-card__btn--approve {
+  background: var(--bs-success);
+}
+
+.tool-approval-card__btn--approve:hover {
+  opacity: 0.85;
+}
+
+.tool-approval-card__btn--review {
+  background: var(--bs-info);
+}
+
+.tool-approval-card__btn--review:hover {
+  opacity: 0.85;
+}
+
+/* --------------------------------------------------------
+   Chat Area Background Normalization
+   When messages exist (chat mode), use the flat body bg
+   instead of the gradient. This prevents the ::before
+   gradient from leaking through when switching views.
+   -------------------------------------------------------- */
+
+.ai-chat-area-flat {
+  background-color: var(--bs-body-bg);
+}
+
+/* Non-maximized history view: suppress the gradient overlay.
+   The old bug was that .ai-assistant-bg::before painted
+   the gradient behind the history list + prompt area. */
+.ai-history-view-bg {
+  background-color: var(--bs-body-bg);
+  position: relative;
+}
+
+.ai-history-view-bg::before {
+  display: none !important;
+}
+
+/* --------------------------------------------------------
+   Prompt area flat background
+   When messages exist, the prompt area should NOT show
+   the gradient ::before pseudo — just flat body bg.
+   -------------------------------------------------------- */
+
+.ai-assistant-prompt-flat {
+  position: relative;
+  flex-shrink: 0;
+  min-height: 110px;
+  background-color: var(--bs-body-bg);
+}
+
+.ai-assistant-prompt-flat::before {
+  display: none !important;
+}

@@ -453,6 +453,7 @@
     "webpack-manifest-plugin": "^5.0.0"
   },
   "resolutions": {
+    "@langchain/core": "^1.1.42",
     "@metamask/eth-sig-util/@ethereumjs/util": "^8.1.0",
     "@types/react": "^18.2.0",
     "@ethereumjs/blockchain": "^10.1.1",

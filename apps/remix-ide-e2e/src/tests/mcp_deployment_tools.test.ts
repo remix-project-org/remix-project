@@ -39,7 +39,8 @@ contract DeploymentTest {
 }
 `;
 
-module.exports = {
+module.exports = {}
+const tests = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
     init(browser, done, 'http://127.0.0.1:8080/#experimental=true', true, undefined, true, true)

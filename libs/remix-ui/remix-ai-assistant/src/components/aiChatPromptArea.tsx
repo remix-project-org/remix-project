@@ -46,6 +46,8 @@ interface AiChatPromptAreaProps {
     showModelSelector: boolean
     setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
     messages: ChatMessage[]
+    handleLoadSkills?: () => void
+    usingOwnApiKey?: boolean
 }
 
 export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
@@ -81,8 +83,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
   return (
     <section
       id="remix-ai-prompt-area"
-      className="ai-assistant-prompt-bg"
-      style={{ flexShrink: 0, minHeight: '110px', backgroundColor: props.messages.length > 0 && (props.themeTracker?.name.toLowerCase() === 'dark' ? '#222336' : '#eff1f5') as any }}
+      className={props.messages.length === 0 && !props.showHistorySidebar ? 'ai-assistant-prompt-bg' : 'ai-assistant-prompt-flat'}
       data-theme={props.themeTracker && props.themeTracker?.name.toLowerCase()}
     >
       {props.showModelSelector && (
@@ -119,6 +120,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
               </div>
             </div>
           )}
+
         </div>
       )}
       {props.showOllamaModelSelector && props.selectedModel?.provider === 'ollama' && (
@@ -167,6 +169,8 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         modelSelectorBtnRef={props.modelSelectorBtnRef}
         autoModeEnabled={props.autoModeEnabled}
         stopRequest={props.stopRequest}
+        handleLoadSkills={props.handleLoadSkills}
+        usingOwnApiKey={props.usingOwnApiKey}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

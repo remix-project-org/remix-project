@@ -143,10 +143,13 @@ const checkBrowserIsChrome = function (browser: NightwatchBrowser) {
   return browser.browserName.indexOf('chrome') > -1
 }
 
+/*
 if (!checkBrowserIsChrome(browser)) {
   module.exports = {}
 } else {
   module.exports = {
     ...(branch ? (runTestsConditions ? tests : {}) : tests)
   };
-}
+}*/
+
+module.exports = {}

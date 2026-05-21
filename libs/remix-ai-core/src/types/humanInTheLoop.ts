@@ -81,6 +81,7 @@ const SAFE_TOOLS = new Set([
 
   // --- DApp generation (new creation is safe; update requires confirmation) ---
   'generate_dapp',
+  'fetch_figma_design',
 ])
 
 /**

@@ -197,7 +197,17 @@ export class RemixFilesystemBackend {
     await this.flushAllPendingBatches()
 
     try {
-      const normalizedPath = path
+      // Defensive: strip workspace name prefix if the agent accidentally includes it
+      // e.g. "dapp-storage-abc/src/App.jsx" → "/src/App.jsx"
+      let normalizedPath = path
+      try {
+        const currentWs = await this.plugin.call('filePanel' as any, 'getCurrentWorkspace')
+        if (currentWs?.name && normalizedPath.startsWith(currentWs.name + '/')) {
+          console.warn(`[QuickDapp] Stripping workspace prefix from path: ${normalizedPath}`)
+          normalizedPath = normalizedPath.substring(currentWs.name.length)
+        }
+      } catch (e) { /* ignore workspace check failure */ }
+      if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath
       const exists = await this.plugin.call('fileManager', 'exists', normalizedPath)
 
       let oldContent = ''
@@ -345,12 +355,18 @@ export class RemixFilesystemBackend {
       const targetPath = path ? this.normalizePath(path) : await this.cwd()
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
       if (!exists) {
-        throw new Error(`Path not found: ${targetPath}`)
+        return []
       }
 
       const isDir = await this.plugin.call('fileManager', 'isDirectory', targetPath)
       if (!isDir) {
-        throw new Error(`Not a directory: ${targetPath}`)
+        // Not a directory — return the file itself if it matches the pattern
+        const name = targetPath.split('/').pop() || targetPath
+        const regex = new RegExp(pattern.replace(/\*/g, '.*'))
+        if (regex.test(name)) {
+          return [{ name, path: targetPath, is_dir: false }]
+        }
+        return []
       }
 
       const files = await this.plugin.call('fileManager', 'readdir', targetPath)
@@ -364,7 +380,7 @@ export class RemixFilesystemBackend {
           is_dir: files[name].isDirectory
         }))
     } catch (error) {
-      throw new Error(`Failed to glob directory ${path || 'cwd'} with pattern "${pattern}": ${error.message}`)
+      return []
     }
   }
 
@@ -373,12 +389,23 @@ export class RemixFilesystemBackend {
       const targetPath = path ? this.normalizePath(path) : await this.cwd()
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
       if (!exists) {
-        throw new Error(`Path not found: ${targetPath}`)
+        return [{ file: targetPath, line: 0, text: `[Error] Path not found: ${targetPath}` }]
       }
 
       const isDir = await this.plugin.call('fileManager', 'isDirectory', targetPath)
+
+      // If a file path was given, search just that single file
       if (!isDir) {
-        throw new Error(`Not a directory: ${targetPath}`)
+        const content = await this.plugin.call('fileManager', 'readFile', targetPath)
+        const regex = new RegExp(pattern)
+        const results: { file: string, line: number, text: string }[] = []
+        const lines = content.split('\n')
+        lines.forEach((line: string, index: number) => {
+          if (regex.test(line)) {
+            results.push({ file: targetPath, line: index + 1, text: line })
+          }
+        })
+        return results
       }
 
       const files = await this.plugin.call('fileManager', 'readdir', targetPath)
@@ -391,7 +418,7 @@ export class RemixFilesystemBackend {
           // Remix readdir returns full paths as keys (Ref: Yann PR #7080)
           const content = await this.plugin.call('fileManager', 'readFile', name)
           const lines = content.split('\n')
-          lines.forEach((line, index) => {
+          lines.forEach((line: string, index: number) => {
             if (regex.test(line)) {
               results.push({ file: name, line: index + 1, text: line })
             }
@@ -400,7 +427,8 @@ export class RemixFilesystemBackend {
       }
       return results
     } catch (error) {
-      throw new Error(`Failed to grep directory ${path || 'cwd'} with pattern "${pattern}": ${error.message}`)
+      // Return error as result instead of throwing — prevents fatal agent crash
+      return [{ file: path || 'unknown', line: 0, text: `[Error] grep failed: ${error.message}` }]
     }
   }
 

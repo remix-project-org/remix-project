@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * DeepAgent Memory Backend using IndexedDB
  * Implements LangGraph MemoryStore interface for persistent memory storage

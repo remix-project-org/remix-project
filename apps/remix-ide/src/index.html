@@ -128,60 +128,6 @@
 		}
 		@keyframes pre-splash-spin { to { transform: rotate(360deg); } }
 	</style>
-	<script>
-		(function () {
-			try {
-				var loc = window.location;
-				if (!loc) return;
-
-				var MOBILE_URL = 'https://mobile.remix.live';
-				var STORAGE_KEY = 'remix.mobileRedirect.dismissed';
-				var OPT_OUT_TOKEN = 'nomobileredirect';
-				var OPT_IN_TOKEN = 'forcemobileredirect';
-
-				// Never redirect away from mobile.remix.live (avoid loops if hosted there).
-				if (loc.hostname && loc.hostname.indexOf('mobile.remix.live') !== -1) return;
-
-				var search = loc.search || '';
-				var hash = loc.hash || '';
-				var hay = (search + ' ' + hash).toLowerCase();
-
-				// Explicit user intent via URL wins over everything else.
-				var forceOptIn = hay.indexOf(OPT_IN_TOKEN) !== -1;
-				var forceOptOut = hay.indexOf(OPT_OUT_TOKEN) !== -1;
-
-				// Persist dismissal so a returning user isn't bounced again.
-				var dismissed = false;
-				try {
-					dismissed = window.localStorage && window.localStorage.getItem(STORAGE_KEY) === '1';
-				} catch (_) { /* storage may be blocked; ignore */ }
-
-				if (forceOptOut) {
-					try { window.localStorage && window.localStorage.setItem(STORAGE_KEY, '1'); } catch (_) {}
-					return;
-				}
-
-				function isProbablyMobile() {
-					var ua = (navigator.userAgent || '').toLowerCase();
-					var uaData = navigator.userAgentData;
-					if (uaData && typeof uaData.mobile === 'boolean') return uaData.mobile;
-
-					var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-					var narrow = window.matchMedia && window.matchMedia('(max-width: 820px)').matches;
-					var hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
-					var uaMobile = /iphone|ipod|android.*mobile|windows phone|blackberry|bb10|mini|mobi/.test(ua);
-
-					return uaMobile || (narrow && (coarse || hasTouch));
-				}
-
-				if (forceOptIn || (!dismissed && isProbablyMobile())) {
-					// Preserve the user's deep link (path + query + hash) when bouncing.
-					var target = MOBILE_URL + (loc.pathname && loc.pathname !== '/' ? loc.pathname : '') + search + hash;
-					loc.replace(target);
-				}
-			} catch (_) { /* never block app boot on a redirect helper */ }
-		})();
-	</script>
 </head>
 
 <body>

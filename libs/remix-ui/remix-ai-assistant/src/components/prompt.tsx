@@ -38,6 +38,8 @@ export interface PromptAreaProps {
   themeTracker: any
   stopRequest: () => void
   autoModeEnabled?: boolean
+  handleLoadSkills?: () => void
+  usingOwnApiKey?: boolean
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -60,7 +62,9 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   showOllamaModelSelector,
   selectedOllamaModel,
   modelSelectorBtnRef,
-  autoModeEnabled
+  autoModeEnabled,
+  handleLoadSkills,
+  usingOwnApiKey
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
 
@@ -133,6 +137,18 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                   <span className="text-nowrap">
                     {autoModeEnabled ? 'Auto Mode' : (selectedModel?.displayName || 'Select Model')}
                   </span>
+                  {usingOwnApiKey && (
+                    <CustomTooltip tooltipText="Using your own API key">
+                      <span
+                        className="badge bg-success ms-2"
+                        style={{ fontSize: '0.6rem', padding: '2px 4px' }}
+                        data-id="own-api-key-badge"
+                      >
+                        <i className="fas fa-key me-1" style={{ fontSize: '0.5rem' }}></i>
+                        Own Key
+                      </span>
+                    </CustomTooltip>
+                  )}
                   <span className={showModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
                 </div>
               </button>

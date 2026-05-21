@@ -29,7 +29,6 @@ function setAssistant(browser: NightwatchBrowser, provider: string, done: VoidFu
       locateStrategy: 'xpath',
       selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
     })
-    //.pause()
     .perform(() => done())
 }
 

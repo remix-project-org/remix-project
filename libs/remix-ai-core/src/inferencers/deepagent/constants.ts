@@ -11,7 +11,6 @@ export const DEFAULT_TIMEOUT_MS = 300000
 /** Maximum tool executions per request */
 export const MAX_TOOL_EXECUTIONS = 10
 
-
 /** Supported model providers */
 export const SUPPORTED_PROVIDERS = ['anthropic', 'mistralai', 'ollama'] as const
 
@@ -65,7 +64,6 @@ export const MAX_CODE_IMPROVEMENTS_PER_FILE = 8
 
 /** Minimum confidence threshold for findings */
 export const MIN_CONFIDENCE_THRESHOLD = 60
-
 
 export const LOCAL_STORAGE_KEYS = {
   // DeepAgent enabled/auto-mode are NOT persisted in localStorage — they

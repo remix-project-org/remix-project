@@ -884,7 +884,6 @@ export const EditorUI = (props: EditorUIProps) => {
       activeFile = await props.plugin.call('fileManager', 'getCurrentFile')
     } catch (e) { /* ignore */ }
 
-
     if (activeFile === file) {
       showCustomDiff(changes, file, editorRef.current, monacoRef.current, addDecoratorCollection, addAcceptDeclineWidget, setDecoratorListCollection, acceptHandler, rejectHandler, acceptAllHandler, rejectAllHandler, setCurrentDiffFile, changedTypeMap.current)
     } else {
@@ -1787,8 +1786,8 @@ export const EditorUI = (props: EditorUIProps) => {
         <>
           {/* Action Buttons */}
           <div className="d-flex justify-content-center gap-2 p-2 border-bottom">
-            <button 
-              className="btn btn-success btn-sm" 
+            <button
+              className="btn btn-success btn-sm"
               onClick={async () => {
                 const result = await props.editorAPI.acceptDiff()
                 if (result) {
@@ -1805,8 +1804,8 @@ export const EditorUI = (props: EditorUIProps) => {
             >
               Accept All Changes
             </button>
-            <button 
-              className="btn btn-secondary btn-sm" 
+            <button
+              className="btn btn-secondary btn-sm"
               onClick={async () => {
                 const result = await props.editorAPI.discardDiff()
                 if (result) {

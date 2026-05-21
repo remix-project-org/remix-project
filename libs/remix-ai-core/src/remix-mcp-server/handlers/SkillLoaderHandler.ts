@@ -33,9 +33,9 @@ interface SkillData {
  */
 export class SkillLoaderHandler extends BaseToolHandler {
   name = 'load_skill';
-  description = `Load a skill and its resources to the file manager under .skills folder.
-  - .skills/{skill_id}/SKILL.md (main skill documentation)
-  - .skills/{skill_id}/resources/{filename} (for each resource file)
+  description = `Load a skill and its resources to the file manager under skills folder.
+  - skills/{skill_id}/SKILL.md (main skill documentation)
+  - skills/{skill_id}/resources/{filename} (for each resource file)
   
   Returns information about the loaded skill and created files.`;
 
@@ -81,7 +81,7 @@ export class SkillLoaderHandler extends BaseToolHandler {
       const skillData = await this.fetchSkillData(skillUrl);
 
       // Create skill directory
-      const skillDir = `.skills/${args.skill_id}`;
+      const skillDir = `skills/${args.skill_id}`;
       await this.ensureDirectoryExists(skillDir, plugin);
 
       const createdFiles: string[] = [];
