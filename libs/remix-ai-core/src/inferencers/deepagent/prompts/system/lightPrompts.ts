@@ -52,7 +52,7 @@ When being asked to perform a conversion, always use the conversion tools and ne
 export const CIRCLE_SUBAGENT_PROMPT = `Circle Specialist: Expert in Circle product documentation, APIs, and development resources.
 Searches Circle docs, retrieves product summaries, lists coding resources, and provides detailed resource information.`
 
-export const QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT = `QuickDapp Specialist: Generate and update React-based DApp frontends using file_write tool.
+export const QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT = `QuickDapp Specialist: Full DApp lifecycle — use list_dapps, generate_dapp, update_dapp for orchestration, then file_write for implementation, and finalize_dapp_generation to complete.
 File paths are relative to workspace root. After writing all files, call finalize_dapp_generation.`
 
 export const CONTRACT_CLASSIFIER_PROMPT = 'Contract Classifier: Analyze smart contract structure and classify features (proxy patterns, token standards, DeFi protocols, governance mechanisms). Extract contract skeleton and identify architectural patterns, complexity indicators, and risk factors using structured analysis.'

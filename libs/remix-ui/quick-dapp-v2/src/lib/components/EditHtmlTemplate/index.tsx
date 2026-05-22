@@ -325,18 +325,38 @@ window.addEventListener('unhandledrejection', function(e) {
 (function() {
   if (parent.__remixVMBridge) {
     var _listeners = {};
+    function emit(event, payload) {
+      (_listeners[event] || []).slice().forEach(function(cb) {
+        try { cb(payload); } catch (e) { setTimeout(function() { throw e; }, 0); }
+      });
+    }
+    function setAccounts(accounts, emitChange) {
+      window.ethereum.selectedAddress = accounts && accounts[0] ? accounts[0] : null;
+      if (emitChange) {
+        emit('accountsChanged', accounts || []);
+      }
+      return accounts;
+    }
+    function syncSelectedAddress(method, result) {
+      if (method === 'eth_accounts' || method === 'eth_requestAccounts') {
+        return setAccounts(result, false);
+      }
+      return result;
+    }
     window.ethereum = {
       isMetaMask: false,
       isRemixVM: true,
       _events: {},
       request: function(args) {
-        return parent.__remixVMBridge.request(args);
+        return parent.__remixVMBridge.request(args).then(function(result) {
+          return syncSelectedAddress(args && args.method, result);
+        });
       },
       send: function(method, params) {
-        if (typeof method === 'object') {
-          return parent.__remixVMBridge.request(method);
-        }
-        return parent.__remixVMBridge.request({ method: method, params: params || [] });
+        var requestArgs = typeof method === 'object' ? method : { method: method, params: params || [] };
+        return parent.__remixVMBridge.request(requestArgs).then(function(result) {
+          return syncSelectedAddress(requestArgs && requestArgs.method, result);
+        });
       },
       on: function(event, cb) {
         if (!_listeners[event]) _listeners[event] = [];
@@ -353,6 +373,9 @@ window.addEventListener('unhandledrejection', function(e) {
     };
     window.ethereum.chainId = '0x539';
     window.ethereum.selectedAddress = null;
+    window.__remixVMUpdateAccounts = function(accounts) {
+      return setAccounts(accounts, true);
+    };
   } else if (parent.window && parent.window.ethereum) {
     window.ethereum = parent.window.ethereum;
   }
@@ -583,6 +606,24 @@ window.addEventListener('unhandledrejection', function(e) {
       return;
     }
 
+    const getSelectedVMAccount = async (): Promise<string | null> => {
+      const selected = await plugin.call('udappEnv', 'getSelectedAccount').catch(() => null);
+      return typeof selected === 'string' ? selected : null;
+    };
+
+    const orderAccountsBySelected = (accounts: string[], selected: string | null) => {
+      if (!selected) return accounts;
+      const selectedLower = selected.toLowerCase();
+      const match = accounts.find((account) => account.toLowerCase() === selectedLower);
+      if (!match) return accounts;
+      return [match, ...accounts.filter((account) => account.toLowerCase() !== selectedLower)];
+    };
+
+    const getOrderedVMAccounts = async (web3: any, method = 'eth_accounts', params: any[] = []) => {
+      const accounts: string[] = await web3.send(method, params);
+      return orderAccountsBySelected(accounts, await getSelectedVMAccount());
+    };
+
     const bridge = {
       request: async ({ method, params }: { method: string; params?: any[] }) => {
         if (method === 'wallet_switchEthereumChain' || method === 'wallet_addEthereumChain') {
@@ -595,7 +636,21 @@ window.addEventListener('unhandledrejection', function(e) {
           throw new Error('VM not ready');
         }
         try {
-          const result = await web3.send(method, params || []);
+          if (method === 'eth_accounts' || method === 'eth_requestAccounts') {
+            const accounts = await getOrderedVMAccounts(web3, method, params || []);
+            if (!isMounted) return;
+            return accounts;
+          }
+
+          const nextParams = Array.isArray(params) ? [...params] : [];
+          if ((method === 'eth_sendTransaction' || method === 'eth_call') && nextParams[0] && !nextParams[0].from) {
+            const selected = await getSelectedVMAccount();
+            if (selected) {
+              nextParams[0] = { ...nextParams[0], from: selected };
+            }
+          }
+
+          const result = await web3.send(method, nextParams);
           if (!isMounted) return;
           if (method === 'eth_sendTransaction') {
             // dumpState is non-critical, fire-and-forget
@@ -612,8 +667,58 @@ window.addEventListener('unhandledrejection', function(e) {
 
     (window as any).__remixVMBridge = bridge;
 
+    let selectedAccount: string | null = null;
+    let isCheckingAccount = false;
+    let pendingAccountsChanged: string[] | null = null;
+
+    const emitIframeAccountsChanged = (accounts: string[]) => {
+      const updateAccounts = (iframeRef.current?.contentWindow as any)?.__remixVMUpdateAccounts;
+      if (typeof updateAccounts === 'function') {
+        updateAccounts(accounts);
+        pendingAccountsChanged = null;
+        return;
+      }
+      pendingAccountsChanged = accounts;
+    };
+
+    const checkSelectedAccount = async () => {
+      if (!isMounted || isCheckingAccount) return;
+      isCheckingAccount = true;
+      try {
+        if (pendingAccountsChanged) {
+          emitIframeAccountsChanged(pendingAccountsChanged);
+        }
+
+        const nextSelectedAccount = await getSelectedVMAccount();
+        if (!nextSelectedAccount) return;
+
+        if (selectedAccount === null) {
+          selectedAccount = nextSelectedAccount;
+          return;
+        }
+
+        if (selectedAccount.toLowerCase() === nextSelectedAccount.toLowerCase()) return;
+
+        const web3 = (window as any).__remixVM_web3;
+        if (!web3) return;
+
+        selectedAccount = nextSelectedAccount;
+        const accounts = await getOrderedVMAccounts(web3);
+        if (!isMounted) return;
+        emitIframeAccountsChanged(accounts);
+      } catch (e) {
+        // Account-change propagation is best-effort; RPC calls still read the latest selected account.
+      } finally {
+        isCheckingAccount = false;
+      }
+    };
+
+    checkSelectedAccount();
+    const accountCheckInterval = window.setInterval(checkSelectedAccount, 1000);
+
     return () => {
       isMounted = false;
+      window.clearInterval(accountCheckInterval);
       delete (window as any).__remixVMBridge;
     };
   }, [isVM, isCurrentProviderVM, plugin]);

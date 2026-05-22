@@ -31,7 +31,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   const activeDappRef = useRef(appState.activeDapp);
 
   // Permission gating
-  const hasAccess = features?.['dapp:quickdapp']
+  const hasAccess = features?.['dapp:quickdapp']?.is_enabled
   const quickdappEnabled = remixAppContext?.appConfig?.['quickdapp.enabled']
   const quickdappEnabledRef = useRef(quickdappEnabled)
   quickdappEnabledRef.current = quickdappEnabled

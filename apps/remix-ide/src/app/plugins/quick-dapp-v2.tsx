@@ -2,12 +2,12 @@ import React from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
 import * as packageJson from '../../../../../package.json'
 import { PluginViewWrapper } from '@remix-ui/helper'
-import { RemixUiQuickDappV2 } from '@remix-ui/quick-dapp-v2'
+import { RemixUiQuickDappV2, getNetworkName  } from '@remix-ui/quick-dapp-v2'
 import { EventEmitter } from 'events'
 
 const profile = {
   name: 'quick-dapp-v2',
-  displayName: 'Quick Dapp V2',
+  displayName: 'QuickDApp',
   icon: 'assets/img/quickdappv2.webp',
   description: 'Edit & deploy a Dapp',
   kind: 'quick-dapp-v2',
@@ -294,7 +294,7 @@ export class QuickDappV2 extends ViewPlugin {
         name: payload.contractName,
         abi: payload.abi,
         chainId: payload.chainId,
-        networkName: payload.networkName || 'Unknown Network'
+        networkName: payload.networkName || getNetworkName(payload.chainId)|| 'Unknown Network'
       },
       sourceWorkspace: {
         name: sourceWorkspaceName,

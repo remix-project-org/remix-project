@@ -585,6 +585,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       if (!assistantId) return
 
       if (data.status === 'start') {
+        if (clearToolTimeoutRef.current) {
+          clearTimeout(clearToolTimeoutRef.current)
+          clearToolTimeoutRef.current = null
+        }
         setMessages(prev =>
           prev.map(m => (m.id === assistantId ? {
             ...m,
@@ -595,15 +599,23 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           } : m))
         )
       } else {
-        setMessages(prev =>
-          prev.map(m => (m.id === assistantId ? {
-            ...m,
-            isExecutingTools: false,
-            executingToolName: undefined,
-            executingToolArgs: undefined,
-            executingToolUIString: undefined
-          } : m))
-        )
+        if (clearToolTimeoutRef.current) {
+          clearTimeout(clearToolTimeoutRef.current)
+          clearToolTimeoutRef.current = null
+        }
+        const targetId = assistantId
+        clearToolTimeoutRef.current = setTimeout(() => {
+          setMessages(prev =>
+            prev.map(m => (m.id === targetId ? {
+              ...m,
+              isExecutingTools: false,
+              executingToolName: undefined,
+              executingToolArgs: undefined,
+              executingToolUIString: undefined
+            } : m))
+          )
+          clearToolTimeoutRef.current = null
+        }, 3000)
       }
     }
 

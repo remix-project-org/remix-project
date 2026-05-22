@@ -59,6 +59,7 @@ export async function buildSubagentConfigs(
   const hasWebSearchPermission = await plugin.call('auth', 'hasPermission', 'mcp:web-search')
   const hasCirclePermission = await plugin.call('auth', 'hasPermission', 'mcp:circle')
   const hasOZpermission = await plugin.call('auth', 'hasPermission', 'mcp:openzeppelin')
+  const hasQuickdappPermission = await plugin.call('auth', 'hasPermission', 'dapp:quickdapp')
 
   const etherscanTools = getEtherscanToolsForEtherscanSpecialist(tools)
   const theGraphTools = getTheGraphToolsForTheGraphSpecialist(tools)
@@ -93,13 +94,7 @@ export async function buildSubagentConfigs(
       tools: deployerTools,
       description: CONTRACT_RUNNER_PROMPT
     },
-    {
-      name: 'QuickDapp Specialist',
-      systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
-      model: modelAny,
-      tools: quickDappTools,
-      description: 'Specializes in generating and updating React-based DApp frontends using file_write tools.'
-    },
+
     {
       name: 'Debug Specialist',
       systemPrompt: DEBUG_SPECIALIST_SUBAGENT_PROMPT,
@@ -115,6 +110,17 @@ export async function buildSubagentConfigs(
       description: 'Specializes in providing conversion utilities for various data formats.'
     }
   ]
+
+  // dapp:quickdapp permission required
+  if (hasQuickdappPermission) {
+    agents.push({
+      name: 'QuickDapp Specialist',
+      systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
+      model: modelAny,
+      tools: quickDappTools,
+      description: 'Specializes in generating and updating React-based DApp frontends using file_write tools.'
+    })
+  }
 
   // ai:auditor permission required
   if (hasAuditorPermission) {

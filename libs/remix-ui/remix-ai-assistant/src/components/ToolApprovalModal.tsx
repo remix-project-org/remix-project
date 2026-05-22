@@ -149,12 +149,14 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
         <button
           onClick={handleReject}
           className="tool-approval-card__btn tool-approval-card__btn--reject"
+          data-id="tool-approval-reject-button"
         >
           Reject
         </button>
         <button
           onClick={handleApprove}
           className="tool-approval-card__btn tool-approval-card__btn--approve"
+          data-id="tool-approval-approve-button"
         >
           Approve
         </button>
@@ -162,6 +164,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
           <button
             onClick={handleReviewChanges}
             className="tool-approval-card__btn tool-approval-card__btn--review"
+            data-id="tool-approval-review-button"
           >
             Review Changes
           </button>

@@ -132,7 +132,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
         sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.exploreCapabilities' }))
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'explore_capabilities', isClick: true })
       }
-    },
+    },/*
     {
       label: <FormattedMessage id="remixApp.aiChatButton.loadSkills" />,
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
@@ -141,7 +141,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
         handleLoadSkills()
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'load_skills', isClick: true })
       }
-    },
+    },*/
     {
       label: <FormattedMessage id="remixApp.aiChatButton.startLearning" />,
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-graduation-cap`,
