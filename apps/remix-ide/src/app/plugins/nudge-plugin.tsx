@@ -283,12 +283,54 @@ export class NudgePlugin extends Plugin {
       const permissions = await this.call('auth' as any, 'getAllPermissions')
       if (this.debug)console.log('User permissions:', permissions)
       const groups = permissions?.feature_groups || []
-      if (groups.some((g: any) => g.name === 'beta')) {
+      const betaGroup = groups.find((g: any) => g.name === 'beta')
+      if (betaGroup) {
         this.engine_.fire('user:logged_in_beta')
+        // Surface the farewell modal if their beta is wrapping up.
+        // Fire-and-forget — failures (helpPlugin not ready, storage
+        // blocked, etc.) shouldn't break the nudge flow.
+        this._maybeShowBetaFarewell(betaGroup).catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check
     }
+  }
+
+  /**
+   * Auto-open the farewell modal when a beta tester is within the
+   * configured threshold of their `expires_at`. Honours per-expiry
+   * localStorage dismissal ("Remind me later" timestamp / "never").
+   */
+  private async _maybeShowBetaFarewell(betaGroup: { expires_at?: string | null }): Promise<void> {
+    const expiresAt = betaGroup?.expires_at
+    if (!expiresAt) return
+    const expiresMs = Date.parse(expiresAt)
+    if (Number.isNaN(expiresMs)) return
+
+    const THRESHOLD_DAYS = 14
+    const msUntilExpiry = expiresMs - Date.now()
+    const daysUntilExpiry = msUntilExpiry / (1000 * 60 * 60 * 24)
+
+    // Window: from THRESHOLD_DAYS before expiry up to 30 days after.
+    // Past-expiry users keep seeing it for a while so they can still
+    // claim their reward; we cap the trailing window so the prompt
+    // doesn't haunt them indefinitely.
+    if (daysUntilExpiry > THRESHOLD_DAYS) return
+    if (daysUntilExpiry < -30) return
+
+    try {
+      const key = `remix:beta-farewell:${expiresAt}`
+      const stored = localStorage.getItem(key)
+      if (stored === 'never') return
+      if (stored) {
+        const remindAt = Date.parse(stored)
+        if (!Number.isNaN(remindAt) && remindAt > Date.now()) return
+      }
+    } catch { /* storage unavailable \u2014 fall through and show */ }
+
+    try {
+      await this.call('helpPlugin' as any, 'showModal', 'beta-farewell')
+    } catch { /* helpPlugin not registered \u2014 nothing to do */ }
   }
 
   /* ─── Built-in rules ─── */

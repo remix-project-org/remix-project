@@ -5,7 +5,31 @@ import { useAuth } from '@remix-ui/app'
 import { trackMatomoEvent as baseTrackMatomoEvent, HelpEvent, MatomoEvent } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 
-export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp'
+export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell'
+
+/**
+ * Survey users complete to unlock their 50% off Pro reward. Kept here
+ * (not in the modal component) so the help-plugin and any auto-open
+ * caller can reference the same URL.
+ */
+export const BETA_FAREWELL_SURVEY_URL = 'https://docs.google.com/forms/d/1Iw-ggilEQfDAXvGR_pIdgKhPemDle4NTC5gGNZRWEB0/viewform'
+
+/**
+ * Days before `expires_at` at which we start auto-prompting the
+ * farewell modal. Past that window the user has plenty of warning;
+ * inside it we surface the survey at most once per session unless
+ * the user dismissed it with "Don't show again".
+ */
+export const BETA_FAREWELL_THRESHOLD_DAYS = 14
+
+/**
+ * localStorage key for farewell dismissal state. Keyed on the beta
+ * expiry date so a renewed beta grant gets a fresh prompt.
+ * Values: 'never' — permanently dismissed; ISO timestamp — remind
+ * after that time; missing — not yet seen.
+ */
+export const betaFarewellStorageKey = (expiresAt: string) =>
+  `remix:beta-farewell:${expiresAt}`
 
 const HELP_ICON = 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a2a3bd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`)
 
@@ -168,6 +192,17 @@ const TOPICS: TopicDef[] = [
     icon: 'fas fa-flask',
     color: '#f0a030',
   },
+  {
+    // Always available so users can revisit the survey/discount link
+    // after dismissing the auto-popup. The card itself doesn't reveal
+    // expiry timing — the modal does.
+    id: 'beta-farewell',
+    title: 'Beta is wrapping up',
+    description: 'Thank you! Take a short survey to claim 50% off your first 3 months of Remix Pro.',
+    icon: 'fas fa-heart',
+    color: '#e86baf',
+    tag: 'Reward'
+  },
 ]
 
 /* ─── Side-panel React UI ─── */
@@ -265,19 +300,45 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
 
 import BetaFeatureReel from './beta-feature-reel'
 import BetaWelcomeModal from './beta-welcome-modal'
+import BetaFarewellModal, { FarewellDismissKind } from './beta-farewell-modal'
 import McpHelpModal from './mcp-help-modal'
 import CloudHelpModal from './cloud-help-modal'
 import QuickDAppHelpModal from './quickdapp-help-modal'
+
+/** Snooze duration when the user picks "Remind me later" on the farewell modal. */
+const BETA_FAREWELL_REMIND_DELAY_MS = 24 * 60 * 60 * 1000 // 1 day
 
 const HelpModalOverlay: React.FC<{
   topic: HelpTopic
   plugin: HelpPlugin
   onClose: () => void
 }> = ({ topic, plugin, onClose }) => {
+  const { featureGroups } = useAuth()
+  const betaGroup = featureGroups?.find(fg => fg.name === 'beta')
 
   // Type-safe tracker defaulting to HelpEvent
   const trackMatomoEvent = <T extends MatomoEvent = HelpEvent>(event: T) => {
     baseTrackMatomoEvent(plugin, event)
+  }
+
+  /**
+   * Persist the user's choice when they actively dismiss the farewell
+   * popup. Keyed on the current expiry timestamp so a refreshed beta
+   * grant re-opens the conversation. Silently no-ops if localStorage is
+   * unavailable (private mode, quota, etc.) — the modal still closes.
+   */
+  const persistFarewellDismiss = (kind: FarewellDismissKind) => {
+    const expiresAt = betaGroup?.expires_at
+    if (!expiresAt) return
+    try {
+      const key = betaFarewellStorageKey(expiresAt)
+      if (kind === 'never') {
+        localStorage.setItem(key, 'never')
+      } else {
+        const remindAt = new Date(Date.now() + BETA_FAREWELL_REMIND_DELAY_MS).toISOString()
+        localStorage.setItem(key, remindAt)
+      }
+    } catch { /* storage unavailable — best-effort */ }
   }
 
   const renderContent = () => {
@@ -332,6 +393,30 @@ const HelpModalOverlay: React.FC<{
       return <CloudHelpModal open onClose={onClose} onShowReel={showReel} />
     case 'quickdapp':
       return <QuickDAppHelpModal open onClose={onClose} onShowReel={showReel} />
+    case 'beta-farewell':
+      return (
+        <BetaFarewellModal
+          open
+          expiresAt={betaGroup?.expires_at ?? null}
+          surveyUrl={BETA_FAREWELL_SURVEY_URL}
+          onTakeSurvey={() => {
+            trackMatomoEvent({ category: 'help', action: 'betaFarewellSurveyOpened', isClick: true })
+            // Opening the survey is implicit acceptance — don't badger
+            // them again for this expiry window.
+            persistFarewellDismiss('never')
+            onClose()
+          }}
+          onDismiss={(kind) => {
+            trackMatomoEvent({ category: 'help', action: 'betaFarewellDismissed', name: kind, isClick: true })
+            persistFarewellDismiss(kind)
+            onClose()
+          }}
+          onClose={() => {
+            trackMatomoEvent({ category: 'help', action: 'betaFarewellClosed', isClick: true })
+            onClose()
+          }}
+        />
+      )
     default:
       return null
     }
