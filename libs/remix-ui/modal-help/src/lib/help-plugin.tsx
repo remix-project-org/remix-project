@@ -20,7 +20,7 @@ export const BETA_FAREWELL_SURVEY_URL = 'https://docs.google.com/forms/d/1Iw-ggi
  * inside it we surface the survey at most once per session unless
  * the user dismissed it with "Don't show again".
  */
-export const BETA_FAREWELL_THRESHOLD_DAYS = 14
+export const BETA_FAREWELL_THRESHOLD_DAYS = 7
 
 /**
  * localStorage key for farewell dismissal state. Keyed on the beta

@@ -215,6 +215,7 @@ export class AuthPlugin extends Plugin {
    * @returns Full permissions response including feature_groups
    */
   async getAllPermissions(): Promise<any> {
+    this.log('[AuthPlugin] Fetching all permissions for user')
     try {
       const response = await this.permissionsApi.getPermissions()
       if (response.ok && response.data) {

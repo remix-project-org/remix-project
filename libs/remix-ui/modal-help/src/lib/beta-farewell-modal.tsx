@@ -167,8 +167,8 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 /**
  * Farewell modal shown to beta testers as their access window closes.
  *
- * Surfaces the thank-you message, a survey CTA (which unlocks a 50% off
- * Pro reward), and reassures the user they'll transition to Free plan
+ * Surfaces the thank-you message, a survey CTA (which unlocks an exclusive
+ * Remix Pro discount code), and reassures the user they'll transition to Free plan
  * automatically. Dismissal options ("Remind me later" / "Don't show again")
  * are handled by the parent via {@link onDismiss}.
  */
@@ -328,7 +328,7 @@ const BetaFarewellModal: React.FC<BetaFarewellModalProps> = ({
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: c.tx, marginBottom: 4 }}>
-                    50% off your first 3 months of Remix&nbsp;Pro
+                    An exclusive discount code
                   </div>
                   <div style={{ fontSize: 12, color: c.tm, lineHeight: 1.45 }}>
                     Your detailed feedback is incredibly important as we make the substantial refinements before full release. Completing the survey is required to unlock your reward.
@@ -363,7 +363,7 @@ const BetaFarewellModal: React.FC<BetaFarewellModalProps> = ({
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 8l4 4 6-8" />
                 </svg>
-                Take the survey &amp; claim 50% off
+                Take the survey &amp; claim your discount
               </PrimaryButton>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
