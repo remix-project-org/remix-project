@@ -88,13 +88,14 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.plugin = plugin
     this.event = new EventEmitter()
     this.fallbackInferencer = fallbackInferencer
-    this.streamEventHandler = new StreamEventHandler(this.event)
 
     // Store model selection (default to mistral-medium-latest which is the system default)
     this.modelSelection = modelSelection || {
       provider: 'mistralai',
       modelId: 'mistral-medium-latest'
     }
+
+    this.streamEventHandler = new StreamEventHandler(this.event, this.modelSelection)
 
     // Default configuration (API key handled by proxy)
     this.config = {
@@ -673,6 +674,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
     // Update current model selection
     this.modelSelection = selectedModel
+
+    // Update stream event handler with new model selection
+    this.streamEventHandler.setModelSelection(selectedModel)
 
     // Create new model instance
     this.model = createModelInstance(selectedModel, DAPP_MAX_TOKENS, this.userApiKeys)

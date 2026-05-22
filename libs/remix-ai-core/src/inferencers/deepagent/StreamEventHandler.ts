@@ -2,6 +2,8 @@ import EventEmitter from 'events'
 import { InactivityTimeoutManager } from './InactivityTimeoutManager'
 import { INACTIVITY_TIMEOUT_MS } from './constants'
 import { resolveToolUIString } from './tools/toolUIStrings'
+import { ModelSelection } from '../../types/deepagent'
+import { MODEL_PRICING } from '../../types/models'
 
 interface SubagentInfo {
   name: string
@@ -14,6 +16,7 @@ export interface TokenUsageState {
   totalCacheReadTokens: number
   totalCacheCreationTokens: number
   turnCount: number
+  totalCostUSD?: number
 }
 
 export interface StreamProcessingResult {
@@ -22,22 +25,62 @@ export interface StreamProcessingResult {
   tokenUsage: TokenUsageState
 }
 
+/**
+ * Calculate cost in USD for token usage based on model and provider
+ * Pricing as of January 2025
+ */
+function calculateTokenCost(
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens: number,
+  cacheCreationTokens: number,
+  modelSelection?: ModelSelection
+): number {
+  if (!modelSelection) return 0
+
+  const { provider, modelId } = modelSelection
+
+  // Find pricing data from pricingNew2 structure
+  const pricingTable = MODEL_PRICING.find(item => item.type === 'table' && item.name === 'ai_model_pricing')
+  if (!pricingTable?.data) return 0
+
+  const modelRecord = pricingTable.data.find((record: any) =>
+    record.provider === provider && record.model === modelId
+  )
+
+  if (!modelRecord) {
+    // Fallback pricing if model not found
+    return 0
+  }
+
+  const inputCost = (inputTokens - cacheReadTokens - cacheCreationTokens) * parseFloat(modelRecord.input_cost_per_1m_usd) / 1_000_000
+  const outputCost = outputTokens * parseFloat(modelRecord.output_cost_per_1m_usd) / 1_000_000
+  const cacheReadCost = parseFloat(modelRecord.cache_read_cost_per_1m_usd || '0') * cacheReadTokens / 1_000_000
+  const cacheCreationCost = parseFloat(modelRecord.cache_creation_cost_per_1m_usd || '0') * cacheCreationTokens / 1_000_000
+
+  return inputCost + outputCost + cacheReadCost + cacheCreationCost
+}
+
 export class StreamEventHandler {
   private event: EventEmitter
   private inactivityTimeout: InactivityTimeoutManager
   private activeSubagents: Map<string, SubagentInfo> = new Map()
   private previousRunId: string | null = null
   private isIntermediatePhase = true
+  private modelSelection?: ModelSelection
+  private showCost: boolean = true
   private tokenUsage: TokenUsageState = {
     totalInputTokens: 0,
     totalOutputTokens: 0,
     totalCacheReadTokens: 0,
     totalCacheCreationTokens: 0,
-    turnCount: 0
+    turnCount: 0,
+    totalCostUSD: 0
   }
 
-  constructor(eventEmitter: EventEmitter) {
+  constructor(eventEmitter: EventEmitter, modelSelection?: ModelSelection) {
     this.event = eventEmitter
+    this.modelSelection = modelSelection
     this.inactivityTimeout = new InactivityTimeoutManager(INACTIVITY_TIMEOUT_MS, () => {
       console.warn('[DeepAgent] No activity for 10 seconds, handling timeout...')
       this.event.emit('onInactivityTimeout', {
@@ -55,6 +98,10 @@ export class StreamEventHandler {
     this.inactivityTimeout.clear()
   }
 
+  setModelSelection(modelSelection: ModelSelection): void {
+    this.modelSelection = modelSelection
+  }
+
   reset(): void {
     this.activeSubagents.clear()
     this.previousRunId = null
@@ -64,7 +111,8 @@ export class StreamEventHandler {
       totalOutputTokens: 0,
       totalCacheReadTokens: 0,
       totalCacheCreationTokens: 0,
-      turnCount: 0
+      turnCount: 0,
+      totalCostUSD: 0
     }
     this.inactivityTimeout.clear()
   }
@@ -232,11 +280,21 @@ export class StreamEventHandler {
     let cacheCreationInputTokens = usageMetadata.cache_creation_input_tokens || 0
     cacheCreationInputTokens = cacheCreationInputTokens === 0 ? usageMetadata.input_token_details?.cache_creation || 0 : cacheCreationInputTokens
 
+    // Calculate cost for this turn
+    const turnCost = calculateTokenCost(
+      inputTokens,
+      outputTokens,
+      cacheReadInputTokens,
+      cacheCreationInputTokens,
+      this.modelSelection
+    )
+
     // Update cumulative counts
     this.tokenUsage.totalInputTokens += inputTokens
     this.tokenUsage.totalOutputTokens += outputTokens
     this.tokenUsage.totalCacheReadTokens += cacheReadInputTokens
     this.tokenUsage.totalCacheCreationTokens += cacheCreationInputTokens
+    this.tokenUsage.totalCostUSD = (this.tokenUsage.totalCostUSD || 0) + turnCost
     this.tokenUsage.turnCount++
 
     console.log(`[DeepAgent-Tokens]   Turn ${this.tokenUsage.turnCount} completed | run_id: ${event.run_id}`)
@@ -246,7 +304,10 @@ export class StreamEventHandler {
     console.log(`[DeepAgent-Tokens]   Cache Read: ${cacheReadInputTokens} tokens`)
     console.log(`[DeepAgent-Tokens]   Cache Creation: ${cacheCreationInputTokens} tokens`)
     console.log(`[DeepAgent-Tokens]   Total:  ${totalTokens} tokens`)
-    console.log(`[DeepAgent-Tokens]   Cumulative: ${this.tokenUsage.totalInputTokens} in / ${this.tokenUsage.totalOutputTokens} out / ${this.tokenUsage.totalCacheReadTokens} cache-read / ${this.tokenUsage.totalCacheCreationTokens} cache-creation`)
+    if (turnCost > 0) {
+      console.log(`[DeepAgent-Tokens]   Turn Cost: $${turnCost.toFixed(6)} USD`)
+    }
+    console.log(`[DeepAgent-Tokens]   Cumulative: ${this.tokenUsage.totalInputTokens} in / ${this.tokenUsage.totalOutputTokens} out / ${this.tokenUsage.totalCacheReadTokens} cache-read / ${this.tokenUsage.totalCacheCreationTokens} cache-creation${this.tokenUsage.totalCostUSD ? ` / $${this.tokenUsage.totalCostUSD.toFixed(6)} USD` : ''}`)
 
     // Emit token usage event for UI tracking
     this.event.emit('onTokenUsage', {
@@ -256,14 +317,18 @@ export class StreamEventHandler {
       totalTokens,
       cacheReadInputTokens,
       cacheCreationInputTokens,
+      turnCost,
       cumulativeInputTokens: this.tokenUsage.totalInputTokens,
       cumulativeOutputTokens: this.tokenUsage.totalOutputTokens,
       cumulativeCacheReadTokens: this.tokenUsage.totalCacheReadTokens,
       cumulativeCacheCreationTokens: this.tokenUsage.totalCacheCreationTokens,
+      cumulativeCostUSD: this.tokenUsage.totalCostUSD,
       turnCount: this.tokenUsage.turnCount,
       timestamp: Date.now(),
       agentName: agent_name || 'main',
-      isSubagent: is_subagent
+      isSubagent: is_subagent,
+      modelProvider: this.modelSelection?.provider,
+      modelId: this.modelSelection?.modelId
     })
 
     return ''
@@ -321,6 +386,9 @@ export class StreamEventHandler {
     if (this.tokenUsage.turnCount > 0) {
       console.log(`[DeepAgent-Tokens] ═══════════════════════════════════════`)
       console.log(`[DeepAgent-Tokens]   Request Complete - Token Summary`)
+      if (this.modelSelection) {
+        console.log(`[DeepAgent-Tokens]   Model: ${this.modelSelection.provider}/${this.modelSelection.modelId}`)
+      }
       console.log(`[DeepAgent-Tokens]   Total Turns:   ${this.tokenUsage.turnCount}`)
       console.log(`[DeepAgent-Tokens]   Total Input (cache + no cache):   ${this.tokenUsage.totalInputTokens} tokens`)
       console.log(`[DeepAgent-Tokens]   Total Input (no cache):   ${this.tokenUsage.totalInputTokens - this.tokenUsage.totalCacheReadTokens} tokens`)
@@ -328,6 +396,9 @@ export class StreamEventHandler {
       console.log(`[DeepAgent-Tokens]   Cache Read:    ${this.tokenUsage.totalCacheReadTokens} tokens`)
       console.log(`[DeepAgent-Tokens]   Cache Creation: ${this.tokenUsage.totalCacheCreationTokens} tokens`)
       console.log(`[DeepAgent-Tokens]   Grand Total:   ${this.tokenUsage.totalInputTokens + this.tokenUsage.totalOutputTokens} tokens`)
+      if (this.showCost && this.tokenUsage.totalCostUSD && this.tokenUsage.totalCostUSD > 0) {
+        console.log(`[DeepAgent-Tokens]   Total Cost:    $${this.tokenUsage.totalCostUSD.toFixed(6)} USD`)
+      }
       console.log(`[DeepAgent-Tokens] ═══════════════════════════════════════`)
     }
   }
