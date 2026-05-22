@@ -40,20 +40,12 @@ export class DeepAgentManager {
         await this.deps.mcpManager.waitForServersReady()
       }
 
-      // Auto Mode is sourced from /permissions (`ai:auto`). No localStorage.
-      let autoModeEnabled = false
-      try {
-        autoModeEnabled = !!(await plugin.call('assistantState' as any, 'isAutoModeEnabled'))
-      } catch (e) {
-        console.warn('[DeepAgentManager] assistantState.isAutoModeEnabled failed', e)
-      }
-
       // Create or reinitialize DeepAgentInferencer
       const userApiKeys = await this.apiKeyHelper.getUserApiKeysConfig()
       if (userApiKeys?.useOwnKeys) {
         console.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent')
       }
-      console.log('[RemixAI Plugin] Using model for DeepAgent:', plugin.selectedModel.provider, plugin.selectedModelId, 'autoMode:', autoModeEnabled)
+      console.log('[RemixAI Plugin] Using model for DeepAgent:', plugin.selectedModel.provider, plugin.selectedModelId)
       plugin.deepAgentInferencer = new DeepAgentInferencer(
         plugin as any, // Cast to Plugin type
         plugin.remixMCPServer.tools,
@@ -61,8 +53,7 @@ export class DeepAgentManager {
           memoryBackend: (localStorage.getItem('deepagent_memory_backend') as 'state' | 'store') || 'store',
           enableSubagents: true,
           enablePlanning: true,
-          userApiKeys,
-          autoMode: { enabled: autoModeEnabled }
+          userApiKeys
         },
         plugin.remoteInferencer,
         plugin.mcpInferencer,
@@ -111,26 +102,12 @@ export class DeepAgentManager {
     return this.deps.plugin.deepAgentEnabled
   }
 
-  async setAutoMode(enabled: boolean): Promise<void> {
-    const plugin = this.deps.plugin
-    console.log(`[RemixAI Plugin] ${enabled ? 'Enabling' : 'Disabling'} auto mode for DeepAgent`)
-
-    if (plugin.deepAgentInferencer) {
-      plugin.deepAgentInferencer.setAutoMode(enabled)
-      console.log(`[RemixAI Plugin] Auto mode ${enabled ? 'enabled' : 'disabled'} for existing DeepAgent instance`)
-    } else {
-      console.warn('[RemixAI Plugin] DeepAgent not initialized, auto mode setting will apply when initialized')
-    }
-    // No localStorage — the source of truth is `assistantState.isAutoModeEnabled()`
-    // (derived from /permissions `ai:auto`). This setter is only the
-    // in-memory toggle for the current DeepAgent instance.
+  async setAutoMode(_enabled: boolean): Promise<void> {
+    // Auto mode is disabled — it can block with no answer.
+    console.log('[RemixAI Plugin] Auto mode is disabled')
   }
 
   getAutoModeStatus(): boolean {
-    const plugin = this.deps.plugin
-    if (plugin.deepAgentInferencer) {
-      return plugin.deepAgentInferencer.isAutoModeEnabled()
-    }
     return false
   }
 

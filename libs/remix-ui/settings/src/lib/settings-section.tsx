@@ -173,6 +173,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       if (name === 'copilot/suggest/activate') plugin.emit('copilotChoiceUpdated', newValue)
       if (name === 'matomo-perf-analytics') plugin.call('settings', 'updateMatomoPerfAnalyticsChoice', newValue)
       if (name === 'text-wrap') plugin.emit('textWrapChoiceUpdated', newValue)
+      if (name === 'mcp/servers/enable') plugin.call('remixAI', newValue ? 'enableMCPEnhancement' : 'disableMCPEnhancement')
     } else {
       console.error('Setting does not exist: ', name)
     }

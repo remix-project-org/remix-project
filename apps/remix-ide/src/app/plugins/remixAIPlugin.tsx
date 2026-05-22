@@ -822,11 +822,30 @@ export class RemixAIPlugin extends Plugin {
 
       await this.mcpInferencer.connectAllServers();
     }
+
+    if (this.deepAgentEnabled && this.remixMCPServer) {
+      await this.deepAgentManager.reinitialize()
+    }
   }
 
   async disableMCPEnhancement(): Promise<void> {
     this.mcpEnabled = false;
     this.emit('mcpDisabled')
+
+    if (this.mcpInferencer) {
+      for (const server of this.mcpServers) {
+        try {
+          await this.mcpInferencer.removeMCPServer(server.name)
+        } catch (err) {
+        }
+      }
+      this.mcpInferencer = null
+    }
+
+    // Reinitialize DeepAgent without MCP inferencer
+    if (this.deepAgentEnabled && this.remixMCPServer) {
+      await this.deepAgentManager.reinitialize()
+    }
   }
 
   isMCPEnabled(): boolean {

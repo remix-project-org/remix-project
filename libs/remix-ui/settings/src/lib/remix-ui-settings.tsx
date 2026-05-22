@@ -167,16 +167,18 @@ const settingsSections: SettingsSection[] = [
             link: 'https://remix-ide.readthedocs.io/en/latest/ai.html'
           }
         },
-        {
-          name: 'ollama-config',
-          label: 'settings.ollamaConfig',
-          description: 'settings.ollamaConfigDescription',
-          type: 'toggle',
-          toggleUIOptions: [{
-            name: 'ollama-endpoint',
-            type: 'text'
-          }]
-        }]
+        // Ollama configuration is temporarily disabled - will be enabled later
+        // {
+        //   name: 'ollama-config',
+        //   label: 'settings.ollamaConfig',
+        //   description: 'settings.ollamaConfigDescription',
+        //   type: 'toggle',
+        //   toggleUIOptions: [{
+        //     name: 'ollama-endpoint',
+        //     type: 'text'
+        //   }]
+        // }
+        ]
       },
       {
         title: 'settings.mcpServersSection',

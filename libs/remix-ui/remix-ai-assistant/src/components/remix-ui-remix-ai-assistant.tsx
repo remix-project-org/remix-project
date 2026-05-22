@@ -1959,47 +1959,26 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [])
 
   const handleModelSelection = useCallback(async (modelId: string) => {
-    // Handle auto mode selection
-    if (modelId === 'auto') {
-      setAutoModeEnabled(true)
-      try {
-        await props.plugin.call('remixAI', 'setAutoMode', true)
-        trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'auto_mode_enabled', isClick: true })
-      } catch (error) {
-        console.warn('Failed to enable auto mode:', error)
-      }
-      // When the user toggles back to Auto after explicitly picking a
-      // model (e.g. Opus → Auto), reset the underlying selection to the
-      // backend-advertised default. Otherwise the inferencer keeps the
-      // last static pick and `selectOptimalModel` (which only swaps in
-      // *Sonnet* when allowed) silently keeps Opus, defeating Auto Mode.
-      try {
-        const def: AIModel | null = await props.plugin.call('assistantState' as any, 'getDefaultModel')
-        if (def && def.id && def.available !== false) {
-          setSelectedModelId(def.id)
-          setSelectedModel(def)
-          setAssistantChoice(def.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
-          try {
-            await props.plugin.call('remixAI', 'setModel', def.id)
-          } catch (e) {
-            console.warn('[remix-ai-assistant] setModel(default) failed when entering Auto Mode', e)
-          }
-        } else {
-          console.warn('[remix-ai-assistant] Auto Mode requested but /permissions has no usable default model yet', def)
-        }
-      } catch (e) {
-        console.warn('[remix-ai-assistant] assistantState.getDefaultModel failed when entering Auto Mode', e)
-      }
-      setShowModelSelector(false)
-      return
-    } else {
-      setAutoModeEnabled(false)
-      try {
-        await props.plugin.call('remixAI', 'setAutoMode', false)
-      } catch (error) {
-        console.warn('Failed to disable auto mode:', error)
-      }
-    }
+    // Auto mode is disabled - it can block with no answer
+    // if (modelId === 'auto') {
+    //   setAutoModeEnabled(true)
+    //   try {
+    //     await props.plugin.call('remixAI', 'setAutoMode', true)
+    //     trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'auto_mode_enabled', isClick: true })
+    //   } catch (error) {
+    //     console.warn('Failed to enable auto mode:', error)
+    //   }
+    //   setShowModelSelector(false)
+    //   return
+    // } else {
+    //   setAutoModeEnabled(false)
+    //   try {
+    //     await props.plugin.call('remixAI', 'setAutoMode', false)
+    //   } catch (error) {
+    //     console.warn('Failed to disable auto mode:', error)
+    //   }
+    // }
+    setAutoModeEnabled(false)
 
     const model = availableModels.find(m => m.id === modelId)
     if (!model) return
