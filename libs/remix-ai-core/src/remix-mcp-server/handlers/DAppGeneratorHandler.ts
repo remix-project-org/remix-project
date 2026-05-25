@@ -9,11 +9,84 @@ import { IMCPToolResult } from '../../types/mcp'
 import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
 import { Plugin } from '@remixproject/engine'
+import { getSupabaseSchema } from '../../helpers/supabase'
 
 const isLocalVMChainId = (chainId: number | string): boolean => {
   const n = Number(chainId)
   return Number.isNaN(n) || n === 0 || n === 1337 || n === 31337 || n === 5777
 }
+
+let supabaseTables: any[] | null = null
+
+const SUPABASE = `
+## Supabase initialization
+
+Always initialize the Supabase client once, in a shared file (e.g. lib/supabase.ts), never inline per-component:
+
+import { createClient } from '@supabase/supabase-js'
+
+export const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,      // Next.js: process.env.NEXT_PUBLIC_SUPABASE_URL
+  import.meta.env.VITE_SUPABASE_ANON_KEY  // Next.js: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
+
+Never hardcode URLs or keys. Never use the service role key in any client-side code.
+
+## Authentication
+
+- Always use supabase.auth for login, signup, logout, and session management
+- Always listen for session changes with supabase.auth.onAuthStateChange()
+- Clean up the listener on component unmount
+- Protect authenticated routes by checking session before rendering
+- Never store tokens manually — supabase-js handles this automatically
+
+## Database
+
+- Use supabase.from('table_name').select() / .insert() / .update() / .delete() for all data operations
+- Always handle the { data, error } destructure — never ignore error
+- Always assume Row Level Security (RLS) is enabled on every table
+- Never bypass RLS by using the service role key client-side
+- Use .eq('user_id', session.user.id) to scope queries to the logged-in user
+
+## Realtime (when required)
+
+- Subscribe using supabase.channel('name').on('postgres_changes', ...).subscribe()
+- Always unsubscribe on component unmount to prevent memory leaks:
+  useEffect(() => {
+    const channel = supabase.channel(...)
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
+## Storage (when required)
+
+- Use supabase.storage.from('bucket').upload() for file uploads
+- Always generate public URLs with .getPublicUrl() after upload
+- Handle upload errors and show progress feedback to the user
+
+## Edge Functions (when required)
+
+- Call via supabase.functions.invoke('function-name', { body: payload })
+- Use Edge Functions for any logic that requires the service role key or secret API keys
+- Never put secret keys anywhere in client-side code
+
+## Error handling & UX
+
+- Every Supabase call must have loading, error, and success states
+- Show user-friendly error messages — never expose raw Supabase error objects to the UI
+- Use try/catch or check the error field from every response
+
+## TypeScript
+
+- Type all Supabase responses explicitly
+- Import the Database type from the generated types file: import type { Database } from '@/types/supabase'
+- Use Database['public']['Tables']['table_name']['Row'] for row types
+
+## What never to do
+
+- Never call the Anthropic or any third-party secret API directly from the browser
+- Never use the service role key in client code
+- Never skip error handling on any Supabase call
+- Never create a new supabase client instance inside a component`
 
 // Common build rules injected into every QuickDapp delegation message
 const QUICKDAPP_BUILD_RULES =
@@ -161,6 +234,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
   async execute(args: GenerateDAppArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
+      const useSupabase = true
       const hasImage = !!args.imageBase64
 
       // ── Workspace Setup ──
@@ -257,7 +331,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
             `- Store raw provider in a React ref for reuse in network switching.\n` +
             `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`) +
           `3. After ALL files written, call finalize_dapp_generation with workspaceName="${workspaceSlug}" and contractAddress="${args.contractAddress}"\n` +
-          `---`
+          `---` +
+          (useSupabase ? SUPABASE : '')
       })
 
     } catch (error: any) {
@@ -433,6 +508,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
   async execute(args: UpdateDAppArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
+      const useSupabase = true
       console.log('[QuickDapp] UpdateDAppHandler.execute() START', {
         address: args.contractAddress,
         workspace: args.workspaceName,
@@ -532,7 +608,8 @@ export class UpdateDAppHandler extends BaseToolHandler {
             `- Store raw provider in a React ref for reuse in network switching.\n` +
             `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`) +
           `3. Call finalize_dapp_generation with workspaceName="${targetWorkspace}", contractAddress="${contractResolved.address}", isUpdate=true\n` +
-          `---`
+          `---` +
+          (useSupabase ? SUPABASE : '')
       })
 
     } catch (error: any) {
@@ -883,7 +960,15 @@ export class FetchFigmaDesignHandler extends BaseToolHandler {
 // Tool Definition Factory
 // ──────────────────────────────────────────────
 
-export function createDAppGeneratorTools(): RemixToolDefinition[] {
+export async function createDAppGeneratorTools(): Promise<RemixToolDefinition[]> {
+  if (!supabaseTables) {
+    try {
+      supabaseTables = await getSupabaseSchema('https://vmpcdbpmchpmknkxqblg.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtcGNkYnBtY2hwbWtua3hxYmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTMyMjEsImV4cCI6MjA5NTI4OTIyMX0.z-6gXrIkJuHzhZ86SpYzyY4onkh1TZbgeS-fdkisa1Y')
+      console.log('[QuickDapp] Supabase schema fetched with', supabaseTables.length, 'tables')
+    } catch (e) {
+      console.warn('[QuickDapp] Failed to fetch Supabase schema:', e)
+    }
+  }
   return [
     {
       name: 'list_dapps',
