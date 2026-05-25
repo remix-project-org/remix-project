@@ -1,12 +1,12 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { Plugin } from '@remixproject/engine'
 
 let supabaseClient: SupabaseClient | null = null
 
-export function getSupabaseClient(supabaseUrl?: string, serviceRoleKey?: string): SupabaseClient {
+export async  function getSupabaseClient(plugin: Plugin): Promise<SupabaseClient> {
   if (!supabaseClient) {
-    const url = supabaseUrl || process.env.SUPABASE_URL
-    const key = serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY
-
+    const url = await plugin.call('config' as any, 'getAppParameter' as any, 'settings/supabase-project-url')
+    const key = await plugin.call('config' as any, 'getAppParameter' as any, 'settings/supabase-api-key')
     if (!url || !key) {
       throw new Error('Missing Supabase URL or Service Role Key. Please provide via environment variables or parameters.')
     }

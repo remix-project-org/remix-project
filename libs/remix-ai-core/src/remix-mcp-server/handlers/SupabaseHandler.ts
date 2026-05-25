@@ -46,7 +46,7 @@ export class ListTablesHandler extends BaseToolHandler {
 
   async execute(_args: any, _plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       const sql = buildListTablesSQL();
       const data = await executeSQLWithSupabase(client, sql);
       
@@ -93,7 +93,7 @@ export class GetTableSchemaHandler extends BaseToolHandler {
 
   async execute(args: { table_name: string }, _plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       const sql = buildGetTableSchemaSQL(args.table_name);
       const data = await executeSQLWithSupabase(client, sql);
       
@@ -166,7 +166,7 @@ export class CreateTableHandler extends BaseToolHandler {
   async execute(args: { table_name: string; columns: ColumnDefinition[] }, _plugin: Plugin): Promise<IMCPToolResult> {
     try {
       const sql = buildCreateTableSQL(args.table_name, args.columns);
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       await executeSQLWithSupabase(client, sql);
       
       return this.createSuccessResult({
@@ -216,7 +216,7 @@ export class DropTableHandler extends BaseToolHandler {
   async execute(args: { table_name: string; confirm: boolean }, _plugin: Plugin): Promise<IMCPToolResult> {
     try {
       const sql = buildDropTableSQL(args.table_name);
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       await executeSQLWithSupabase(client, sql);
       
       return this.createSuccessResult({
@@ -294,7 +294,7 @@ export class QueryRowsHandler extends BaseToolHandler {
 
   async execute(args: any, _plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       let query = client.from(args.table_name).select(
         args.select && args.select.length > 0 ? args.select.join(', ') : '*'
       );
@@ -376,7 +376,7 @@ export class InsertRowsHandler extends BaseToolHandler {
         return sanitized;
       });
 
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       const { data, error } = await client
         .from(args.table_name)
         .insert(sanitizedRows)
@@ -430,7 +430,7 @@ export class EnableRLSHandler extends BaseToolHandler {
   async execute(args: { table_name: string }, _plugin: Plugin): Promise<IMCPToolResult> {
     try {
       const sql = buildEnableRLSSQL(args.table_name);
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       await executeSQLWithSupabase(client, sql);
       
       return this.createSuccessResult({
@@ -462,7 +462,7 @@ export class ListBucketsHandler extends BaseToolHandler {
 
   async execute(_args: any, _plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       const { data, error } = await client.storage.listBuckets();
 
       if (error) {
@@ -511,7 +511,7 @@ export class CreateBucketHandler extends BaseToolHandler {
 
   async execute(args: { bucket_name: string; public?: boolean }, _plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient(_plugin);
       const { data, error } = await client.storage.createBucket(args.bucket_name, {
         public: args.public || false
       });

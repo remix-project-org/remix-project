@@ -301,6 +301,17 @@ const settingsSections: SettingsSection[] = [
             name: 'etherscan-access-token',
             type: 'password'
           }]
+        }, {
+          name: 'supabase-config',
+          label: 'settings.supabaseConfigTitle',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'supabase-project-url',
+            type: 'text'
+          }, {
+            name: 'supabase-api-key',
+            type: 'password'
+          }]
         }]
       }]
   }

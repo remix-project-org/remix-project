@@ -5,6 +5,8 @@
  * that integrate with deployed smart contracts using the DeepAgent workflow.
  */
 
+import { getSupabaseClient } from '../../helpers/supabase'
+import { executeSQLWithSupabase, buildListTablesSQL } from '../../helpers/supabase-sql'
 import { IMCPToolResult } from '../../types/mcp'
 import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
@@ -283,6 +285,12 @@ export class GenerateDAppHandler extends BaseToolHandler {
         ? `\nFIGMA: Use fetch_figma_design tool with figmaUrl="${args.figmaUrl}" and figmaToken="${args.figmaToken}" to get the design data before generating files.\n`
         : ''
 
+      // Add Supabase tables information
+      const supabaseTablesInfo = supabaseTables && supabaseTables.length > 0 
+        ? `\n\nSUPABASE TABLES AVAILABLE:\n${supabaseTables.map((table: any) => `- ${table.table_name || table.name}`).join('\n')}\n` +
+          `Use these existing tables in your DApp or create new ones as needed.\n`
+        : ''
+
       return this.createSuccessResult({
         success: true,
         slug: workspaceSlug,
@@ -331,7 +339,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
             `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`) +
           `3. After ALL files written, call finalize_dapp_generation with workspaceName="${workspaceSlug}" and contractAddress="${args.contractAddress}"\n` +
           `---` +
-          (useSupabase ? SUPABASE : '')
+          (useSupabase ? SUPABASE + supabaseTablesInfo : '')
       })
 
     } catch (error: any) {
@@ -570,6 +578,12 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
       const isLocalVM = isLocalVMChainId(contractResolved.chainId)
 
+      // Add Supabase tables information
+      const supabaseTablesInfo = supabaseTables && supabaseTables.length > 0 
+        ? `\n\nSUPABASE TABLES AVAILABLE:\n${supabaseTables.map((table: any) => `- ${table.table_name || table.name}`).join('\n')}\n` +
+          `Use these existing tables in your DApp or create new ones as needed.\n`
+        : ''
+
       return this.createSuccessResult({
         success: true,
         slug: targetWorkspace,
@@ -608,7 +622,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
             `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`) +
           `3. Call finalize_dapp_generation with workspaceName="${targetWorkspace}", contractAddress="${contractResolved.address}", isUpdate=true\n` +
           `---` +
-          (useSupabase ? SUPABASE : '')
+          (useSupabase ? SUPABASE + supabaseTablesInfo : '')
       })
 
     } catch (error: any) {
@@ -959,7 +973,17 @@ export class FetchFigmaDesignHandler extends BaseToolHandler {
 // Tool Definition Factory
 // ──────────────────────────────────────────────
 
-export async function createDAppGeneratorTools(): Promise<RemixToolDefinition[]> {
+export async function createDAppGeneratorTools(plugin: Plugin): Promise<RemixToolDefinition[]> {
+  if (!supabaseTables) {
+    try {
+      const client = await getSupabaseClient(plugin);
+      const sql = buildListTablesSQL();
+      supabaseTables = await executeSQLWithSupabase(client, sql);
+      console.log('[QuickDapp] Supabase tables fetched:', supabaseTables?.map((t: any) => t.table_name).join(',') || 0)
+    } catch (e) {
+      console.warn('[QuickDapp] Supabase connection failed, skipping tables info:', e instanceof Error ? e.message : e)
+    }    
+  }
   return [
     {
       name: 'list_dapps',

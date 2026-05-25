@@ -883,7 +883,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       */
 
       // Register DApp Generator tools
-      const dappGeneratorTools = await createDAppGeneratorTools();
+      const dappGeneratorTools = await createDAppGeneratorTools(this._plugin);
       this._tools.registerBatch(dappGeneratorTools);
 
       // Register Supabase tools

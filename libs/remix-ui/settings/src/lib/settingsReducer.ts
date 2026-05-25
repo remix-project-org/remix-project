@@ -27,6 +27,10 @@ const deepagentMistralApiKey = config.get('settings/deepagent-mistral-api-key') 
 const deepagentOpenaiApiKey = config.get('settings/deepagent-openai-api-key') || ''
 const deepagentMoonshotApiKey = config.get('settings/deepagent-moonshot-api-key') || ''
 
+const supabaseConfig = config.get('settings/supabase-config') || false
+const supabaseProjectUrl = config.get('settings/supabase-project-url') || ''
+const supabaseApiKey = config.get('settings/supabase-api-key') || ''
+
 let githubConfig = config.get('settings/github-config') || false
 let ipfsConfig = config.get('settings/ipfs-config') || false
 let swarmConfig = config.get('settings/swarm-config') || false
@@ -264,6 +268,18 @@ export const initialState: SettingsState = {
   },
   'deepagent-moonshot-api-key': {
     value: deepagentMoonshotApiKey,
+    isLoading: false
+  },
+  'supabase-config': {
+    value: supabaseConfig,
+    isLoading: false
+  },
+  'supabase-project-url': {
+    value: supabaseProjectUrl,
+    isLoading: false
+  },
+  'supabase-api-key': {
+    value: supabaseApiKey,
     isLoading: false
   },
   toaster: {
