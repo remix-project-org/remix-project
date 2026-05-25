@@ -16,7 +16,8 @@ import {
   CONTRACT_RUNNER_PROMPT,
   CONTRACT_COMPILER_PROMPT,
   CONTRACT_CLASSIFIER_PROMPT,
-  SOLIDITY_CODE_GENERATION_PROMPT
+  SOLIDITY_CODE_GENERATION_PROMPT,
+  SUPABASE_SUBAGENT_PROMPT
 } from './prompts/system/lightPrompts'
 import {
   getBasicFileToolsForGasOptimizer,
@@ -31,6 +32,7 @@ import {
   getFileOperationTools,
   getToolForClassifierSpecialist,
   getQuickDappToolsForQuickDappSpecialist,
+  getSupabaseToolsForQuickDappSpecialist,
   getToolForSolidityCompiler,
   getToolsForDeployer,
   getSecurityToolsForSecurityAuditor
@@ -74,6 +76,7 @@ export async function buildSubagentConfigs(
   const conversionTools = getConversionToolsForConversionSpecialist(tools)
   const classifierTools = getToolForClassifierSpecialist(tools)
   const quickDappTools = getQuickDappToolsForQuickDappSpecialist(tools)
+  const supabaseTools = getSupabaseToolsForQuickDappSpecialist(tools)
   const solidityCompilerTools = getToolForSolidityCompiler(tools)
   const deployerTools = getToolsForDeployer(tools)
 
@@ -108,6 +111,13 @@ export async function buildSubagentConfigs(
       model: modelAny,
       tools: conversionTools,
       description: 'Specializes in providing conversion utilities for various data formats.'
+    },
+    {
+      name: 'Supabase Specialist',
+      systemPrompt: SUPABASE_SUBAGENT_PROMPT,
+      model: modelAny,
+      tools: supabaseTools,
+      description: 'Specializes in working with Supabase database and storage functionalities.'
     }
   ]
 

@@ -1,3 +1,27 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
+
+let supabaseClient: SupabaseClient | null = null
+
+export function getSupabaseClient(supabaseUrl?: string, serviceRoleKey?: string): SupabaseClient {
+  if (!supabaseClient) {
+    const url = supabaseUrl || process.env.SUPABASE_URL
+    const key = serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!url || !key) {
+      throw new Error('Missing Supabase URL or Service Role Key. Please provide via environment variables or parameters.')
+    }
+    
+    supabaseClient = createClient(url, key, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  }
+  
+  return supabaseClient
+}
+
 export async function getSupabaseSchema(projectUrl: string, serviceRoleKey: string) {
   const res = await fetch(`${projectUrl}/rest/v1/`, {
     headers: {

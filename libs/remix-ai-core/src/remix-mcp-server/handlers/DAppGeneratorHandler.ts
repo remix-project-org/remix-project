@@ -9,7 +9,6 @@ import { IMCPToolResult } from '../../types/mcp'
 import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
 import { Plugin } from '@remixproject/engine'
-import { getSupabaseSchema } from '../../helpers/supabase'
 
 const isLocalVMChainId = (chainId: number | string): boolean => {
   const n = Number(chainId)
@@ -961,14 +960,6 @@ export class FetchFigmaDesignHandler extends BaseToolHandler {
 // ──────────────────────────────────────────────
 
 export async function createDAppGeneratorTools(): Promise<RemixToolDefinition[]> {
-  if (!supabaseTables) {
-    try {
-      supabaseTables = await getSupabaseSchema('https://vmpcdbpmchpmknkxqblg.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtcGNkYnBtY2hwbWtua3hxYmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTMyMjEsImV4cCI6MjA5NTI4OTIyMX0.z-6gXrIkJuHzhZ86SpYzyY4onkh1TZbgeS-fdkisa1Y')
-      console.log('[QuickDapp] Supabase schema fetched with', supabaseTables.length, 'tables')
-    } catch (e) {
-      console.warn('[QuickDapp] Failed to fetch Supabase schema:', e)
-    }
-  }
   return [
     {
       name: 'list_dapps',

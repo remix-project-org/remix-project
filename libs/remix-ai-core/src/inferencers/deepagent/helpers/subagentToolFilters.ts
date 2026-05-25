@@ -269,3 +269,18 @@ export function getQuickDappToolsForQuickDappSpecialist(tools: DynamicStructured
   ]
   return tools.filter(tool => quickDappToolNames.includes(tool.name))
 }
+
+export function getSupabaseToolsForQuickDappSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const supabaseToolNames = [
+    'supabase_list_tables',
+    'supabase_get_table_schema',
+    'supabase_create_table',
+    'supabase_drop_table',
+    'supabase_query_rows',
+    'supabase_insert_rows',
+    'supabase_enable_rls',
+    'supabase_list_buckets',
+    'supabase_create_bucket'
+  ]
+  return tools.filter(tool => supabaseToolNames.includes(tool.name))
+}
