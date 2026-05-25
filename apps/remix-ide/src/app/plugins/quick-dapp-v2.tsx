@@ -2,7 +2,7 @@ import React from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
 import * as packageJson from '../../../../../package.json'
 import { PluginViewWrapper } from '@remix-ui/helper'
-import { RemixUiQuickDappV2, getNetworkName  } from '@remix-ui/quick-dapp-v2'
+import { RemixUiQuickDappV2, getNetworkName } from '@remix-ui/quick-dapp-v2'
 import { EventEmitter } from 'events'
 
 const profile = {
