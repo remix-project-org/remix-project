@@ -13,11 +13,17 @@ class ClickInstance extends EventEmitter {
         selector,
         timeout: 80000
       }).waitForElementContainsText(selector, '', 80000)
-      .isVisible(expandedContentSelector, (result) => {
-        // Only click to expand if the contract is currently collapsed
-        if (!result.value) {
-          this.api.scrollAndClick(selector)
-        }
+      .perform((done) => {
+        this.api.isVisible(expandedContentSelector, (result) => {
+          // Only click to expand if the contract is currently collapsed
+          if (!result.value) {
+            this.api.scrollAndClick(selector)
+              .waitForElementVisible(expandedContentSelector, 10000)
+              .perform(() => done())
+          } else {
+            done()
+          }
+        })
       })
       .perform(() => { this.emit('complete') })
     return this
