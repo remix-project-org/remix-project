@@ -1,7 +1,7 @@
 import React, { Dispatch, useMemo } from 'react'
 import GroupListMenu from './contextOptMenu'
 import { PromptArea } from './prompt'
-import { ChatMessage } from '@remix/remix-ai-core'
+import { ChatMessage, AIModel } from '@remix/remix-ai-core'
 import { groupListType } from '../types/componentTypes'
 
 interface AiChatPromptAreaForHistoryProps {
@@ -19,9 +19,10 @@ interface AiChatPromptAreaForHistoryProps {
       mcpEnabled: boolean
       mcpEnhanced: boolean
       setMcpEnhanced: React.Dispatch<React.SetStateAction<boolean>>
-      availableModels: any[]
+      availableModels: AIModel[]
       selectedModel: any
       autoModeEnabled: boolean
+      autoModeAvailable: boolean
       handleModelSelection: (modelName: string) => void
       onLockedModelClick?: (modelId: string, modelName: string) => void
       input: string
@@ -43,7 +44,6 @@ interface AiChatPromptAreaForHistoryProps {
       setShowOllamaModelSelector: React.Dispatch<React.SetStateAction<boolean>>
       showOllamaModelSelector: boolean
       showModelSelector: boolean
-      modelAccess: any
       setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
       messages: ChatMessage[]
       handleLoadSkills?: () => void
@@ -63,21 +63,20 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
     // }
 
     const modelOptions = props.availableModels.map(model => {
-      const hasAccess = props.modelAccess.checkAccess(model.id)
       return {
-        label: model.name,
+        label: model.displayName,
         bodyText: model.description,
         icon: 'fa-solid fa-check' as const,
         stateValue: model.id,
         dataId: `ai-model-${model.id.replace(/[^a-zA-Z0-9]/g, '-')}`,
-        isLocked: !hasAccess
+        isLocked: !model.available
       }
     })
 
     // Auto mode is disabled - it can block with no answer
     // return [autoModeOption, ...modelOptions]
     return modelOptions
-  }, [props.availableModels, props.modelAccess.allowedModels])
+  }, [props.availableModels])
 
   const handleLockedItemClick = (item: groupListType) => {
     props.onLockedModelClick?.(item.stateValue, item.label)

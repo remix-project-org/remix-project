@@ -32,11 +32,11 @@ export default function GroupListMenu(props: GroupListMenuProps) {
               <span className="form-check-label fw-bold">{item.label}</span>
               {item.isLocked && (
                 <span
-                  className="badge bg-info ms-2 text-white"
+                  className="badge bg-primary ms-2 text-white"
                   style={{ fontSize: '0.65rem', padding: '2px 6px' }}
                 >
-                  <i className="fas fa-flask me-1" style={{ fontSize: '0.6rem' }}></i>
-                  Beta
+                  <i className="fas fa-arrow-up me-1" style={{ fontSize: '0.6rem' }}></i>
+                  Upgrade plan
                 </span>
               )}
             </div>

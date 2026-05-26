@@ -24,6 +24,7 @@ export class ToolApprovalGate {
     this.eventEmitter.on('onToolApprovalResponse', (response: ToolApprovalResponse) => {
 
       const pending = this.pendingApprovals.get(response.requestId)
+      console.log('[ToolApprovalGate] onToolApprovalResponse', response.requestId, 'approved=', response.approved, 'pendingFound=', !!pending, 'pendingKeys=', Array.from(this.pendingApprovals.keys()))
       if (pending) {
         pending.resolve(response.approved, response.modifiedArgs)
         this.pendingApprovals.delete(response.requestId)
@@ -121,9 +122,11 @@ export class ToolApprovalGate {
           this.pendingApprovals.set(requestId, {
             resolve: (approved, modified) => resolve({ approved, modifiedArgs: modified })
           })
+          console.log('[ToolApprovalGate] awaiting approval', toolName, requestId, 'listeners(onToolApprovalResponse)=', this.eventEmitter.listenerCount('onToolApprovalResponse'))
           this.eventEmitter.emit('onToolApprovalRequired', request)
         }
       )
+      console.log('[ToolApprovalGate] approval resolved', toolName, requestId, 'approved=', approved)
 
       if (!approved) {
         return JSON.stringify({ cancelled: true, reason: `REJECTED: The user explicitly rejected this ${toolName} operation. Do NOT retry this operation or use alternative tools/methods. Inform the user and move on.` })

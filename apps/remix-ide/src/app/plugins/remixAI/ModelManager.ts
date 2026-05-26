@@ -9,7 +9,6 @@ import {
   isOllamaAvailable,
   getBestAvailableModel,
   listModels,
-  getDefaultModel,
   getModelById
 } from '@remix/remix-ai-core'
 import type { AIModel } from '@remix/remix-ai-core'
@@ -34,10 +33,26 @@ export class ModelManager {
 
   async setModel(modelId: string, allowedModels: string[] = []): Promise<void> {
     const plugin = this.deps.plugin
-    let model = getModelById(modelId)
+    // The static `getModelById` only knows the anonymous fallback list
+    // (placeholder + ollama). Real model metadata lives in the
+    // assistantState plugin, fed by /permissions.ai_models. Look it up
+    // there first; only fall back to the static helper for the bootstrap
+    // / ollama cases.
+    let model: AIModel | undefined
+    try {
+      const dynamic: AIModel[] = await plugin.call('assistantState', 'getAvailableModels')
+      if (Array.isArray(dynamic)) {
+        model = dynamic.find(m => m.id === modelId)
+      }
+    } catch (e) {
+      console.warn('[ModelManager] assistantState.getAvailableModels failed', e)
+    }
+    if (!model) model = getModelById(modelId)
     if (!model) {
-      model = getDefaultModel()
-      modelId = model.id
+      // No silent fallback. The picker is fed by /permissions — if a
+      // caller asks for a model id that isn't in any catalogue we have a
+      // bug, not a recoverable situation. Throw loud.
+      throw new Error(`[ModelManager.setModel] Model id "${modelId}" not found in /permissions ai_models nor in the anonymous fallback catalogue. Cannot continue without an API-resolved model.`)
     }
 
     plugin.allowedModels = allowedModels
@@ -76,7 +91,8 @@ export class ModelManager {
         undefined,
         undefined,
         plugin.remixMCPServer,
-        plugin.remoteInferencer
+        plugin.remoteInferencer,
+        plugin.getMcpAuthToken
       )
       plugin.mcpInferencer.event.on('mcpServerConnected', (_serverName: string) => {
         // Handle server connected
@@ -109,18 +125,14 @@ export class ModelManager {
     const isAvailable = await isOllamaAvailable()
 
     if (!isAvailable) {
-      console.error('Ollama is not available. Please ensure Ollama is running. Falling back to default model.')
-      const defaultModel = getDefaultModel()
-      this.applyFallbackModel(defaultModel)
-      return
+      // Loud failure: no silent fallback to a hardcoded default. The UI
+      // catches this and shows the Ollama-setup help message.
+      throw new Error('[ModelManager.handleOllamaProvider] Ollama is not available. Start `ollama serve` or pick a different model.')
     }
 
     const bestModel = await getBestAvailableModel()
     if (!bestModel) {
-      console.error('No Ollama models available. Falling back to default model.')
-      const defaultModel = getDefaultModel()
-      this.applyFallbackModel(defaultModel)
-      return
+      throw new Error('[ModelManager.handleOllamaProvider] No Ollama models installed locally. Run `ollama pull codestral:latest` (or another model) and try again.')
     }
 
     // Switch to Ollama inferencer
@@ -128,17 +140,9 @@ export class ModelManager {
     this.setupInferencerEvents(plugin.remoteInferencer)
   }
 
-  private applyFallbackModel(defaultModel: AIModel): void {
-    const plugin = this.deps.plugin
-    plugin.selectedModelId = defaultModel.id
-    plugin.selectedModel = defaultModel
-    GenerationParams.provider = defaultModel.provider
-    GenerationParams.model = defaultModel.id
-    CompletionParams.provider = defaultModel.provider
-    CompletionParams.model = defaultModel.id
-    AssistantParams.provider = defaultModel.provider
-    AssistantParams.model = defaultModel.id
-  }
+  // applyFallbackModel removed — there is no client-side fallback model.
+  // If selection fails, throw and let the caller decide (the UI surfaces
+  // a help message and the user picks a different model).
 
   private setupInferencerEvents(inferencer: RemoteInferencer | OllamaInferencer): void {
     const plugin = this.deps.plugin
@@ -223,21 +227,30 @@ export class ModelManager {
         undefined,
         undefined,
         plugin.remixMCPServer,
-        plugin.remoteInferencer
+        plugin.remoteInferencer,
+        plugin.getMcpAuthToken
       )
       await plugin.mcpInferencer.connectAllServers()
     }
   }
 
   async setAssistantProvider(provider: string): Promise<void> {
-    const providerToModelMap: Record<string, string> = {
-      'openai': 'gpt-4-turbo',
-      'mistralai': 'mistral-medium-latest',
-      'anthropic': 'claude-sonnet-4-6',
-      'ollama': 'ollama'
+    const plugin = this.deps.plugin
+    // Resolve the provider to a concrete model via /permissions instead
+    // of a hardcoded provider→model literal map. We pick the first available
+    // model whose provider matches — preferring the one flagged is_default.
+    let catalogue: AIModel[] = []
+    try {
+      catalogue = await plugin.call('assistantState' as any, 'getAvailableModels')
+    } catch (e) {
+      throw new Error(`[ModelManager.setAssistantProvider] Cannot resolve provider "${provider}" — assistantState.getAvailableModels failed: ${(e as Error)?.message ?? e}`)
     }
-    const modelId = providerToModelMap[provider] || getDefaultModel().id
-    await this.setModel(modelId)
+    const candidates = (Array.isArray(catalogue) ? catalogue : []).filter(m => m.provider === provider && m.available)
+    if (candidates.length === 0) {
+      throw new Error(`[ModelManager.setAssistantProvider] No available model for provider "${provider}" in /permissions ai_models. Backend must advertise at least one row for this provider.`)
+    }
+    const chosen = candidates.find(m => m.isDefault) ?? candidates[0]
+    await this.setModel(chosen.id)
   }
 
   async getOllamaModels(): Promise<string[]> {

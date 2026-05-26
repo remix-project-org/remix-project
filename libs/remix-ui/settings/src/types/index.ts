@@ -121,7 +121,6 @@ export interface SettingsState {
   'profile-section': ConfigState,
   'credits-balance': ConfigState,
   'connected-accounts': ConfigState,
-  'billing-section': ConfigState,
   // Ollama configuration is temporarily disabled - will be enabled later
   // 'ollama-config': ConfigState,
   // 'ollama-endpoint': ConfigState,

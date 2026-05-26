@@ -39,11 +39,16 @@ export function classifyApiError(error: any): ApiErrorClassification {
   }
 
   if (status === 401 || message.includes('unauthorized') || message.includes('invalid api key') ||
-      message.includes('authentication') || message.includes('invalid_api_key')) {
+      message.includes('invalid_api_key')) {
     return { type: DeepAgentErrorType.AUTHENTICATION_FAILED, retryable: false }
   }
 
-  if (status === 403 || message.includes('forbidden') || message.includes('permission denied')) {
+  // 403 alone is not enough to claim the API key is invalid — the
+  // remix-api backend uses 403 for FEATURE_DENIED / EMAIL_NOT_VERIFIED /
+  // PROVIDER_DENIED, none of which are credential problems. Only flag
+  // it as such when the message text actually says so.
+  if (message.includes('forbidden') || message.includes('permission denied') ||
+      message.includes('invalid api key') || message.includes('expired api key')) {
     return { type: DeepAgentErrorType.API_KEY_INVALID, retryable: false }
   }
 
@@ -97,6 +102,17 @@ export function extractRetryAfter(error: any): number {
 }
 
 export function getErrorMessage(errorType: DeepAgentErrorType, error: any, retryAfter?: number): string {
+  // Prefer a structured envelope message when one is available — the
+  // backend's text is always more accurate than our generic strings.
+  console.log('[Classified error:]', { errorType, error, retryAfter })
+  const envelopeMessage: string | undefined =
+    error?.aiError?.message ??
+    error?.response?.data?.error?.message ??
+    error?.data?.error?.message
+  if (typeof envelopeMessage === 'string' && envelopeMessage.length > 0) {
+    return envelopeMessage
+  }
+
   switch (errorType) {
   case DeepAgentErrorType.RATE_LIMIT_EXCEEDED:
     return retryAfter
@@ -140,6 +156,9 @@ export function getErrorMessage(errorType: DeepAgentErrorType, error: any, retry
 
   case DeepAgentErrorType.NETWORK_ERROR:
     return 'Network error. Please check your connection and try again.'
+
+  case DeepAgentErrorType.INSUFFICIENT_CREDITS:
+    return 'Insufficient credits. Please check your billing details or add more credits to continue.'
 
   default:
     return error?.message || 'An unexpected error occurred.'

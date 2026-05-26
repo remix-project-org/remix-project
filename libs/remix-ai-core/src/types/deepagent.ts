@@ -1,5 +1,6 @@
-export type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama'
+export type ModelProvider = 'anthropic' | 'mistralai' | 'moonshot' | 'openai' | 'ollama'
 
+/** Plans where the user is allowed to bring their own API keys for direct provider calls. */
 export const API_KEYS_ALLOWED_PLANS = ['starter', 'pro', 'beta']
 
 export interface ModelSelection {
@@ -153,6 +154,7 @@ export enum DeepAgentErrorType {
   AUTHENTICATION_FAILED = 'authentication_failed',
   QUOTA_EXCEEDED = 'quota_exceeded',
   MODEL_OVERLOADED = 'model_overloaded',
+  INSUFFICIENT_CREDITS = 'insufficient_credits',
   UNKNOWN = 'unknown'
 }
 

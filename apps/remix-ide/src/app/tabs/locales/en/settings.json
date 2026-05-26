@@ -83,8 +83,6 @@
   "settings.creditsBalanceSection": "Credits Balance",
   "settings.connectedAccountsSection": "Connected Accounts",
   "settings.connectedAccountsDescription": "Link multiple authentication providers to access your account from anywhere. All linked accounts share the same credits and subscriptions.",
-  "settings.billingSubscriptionsSection": "Billing & Subscriptions",
-  "settings.billingSubscriptionsDescription": "Purchase credit packages or subscribe to get more AI credits.",
   "settings.manageCookiePreferences": "Manage Cookie Preferences",
   "settings.learnMoreAiCopilot": "Learn more about AI Copilot",
   "settings.mcpServersSection": "MCP Servers",

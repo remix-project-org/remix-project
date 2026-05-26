@@ -233,10 +233,6 @@ export const initialState: SettingsState = {
     value: '',
     isLoading: false
   },
-  'billing-section': {
-    value: '',
-    isLoading: false
-  },
   // Ollama configuration is temporarily disabled - will be enabled later
   // 'ollama-config': {
   //   value: ollamaConfig,
@@ -286,7 +282,20 @@ export const settingReducer = (state: SettingsState, action: SettingsActions): S
     //   }
     // }
 
-    // Reinitialize DeepAgent when API key settings change
+    // Handle DeepAgent settings - store in localStorage for sensitive data
+    if (action.payload.name === 'langchain-api-key') {
+      localStorage.setItem('langchain_api_key', String(action.payload.value))
+    }
+    if (action.payload.name === 'deepagent-memory-backend') {
+      localStorage.setItem('deepagent_memory_backend', String(action.payload.value))
+    }
+    // `deepagent-config` (DeepAgent enabled flag) is no longer persisted in
+    // localStorage — it is derived from /permissions (`ai:solcoder`). The
+    // setting toggle, if reintroduced, must call assistantState/remixAI
+    // directly rather than write a flag here.
+
+    // Reinitialize DeepAgent when API key settings change so the model
+    // factory picks up new keys without a reload.
     if (action.payload.name === 'deepagent-api-keys-config' ||
         action.payload.name === 'deepagent-anthropic-api-key' ||
         action.payload.name === 'deepagent-mistral-api-key' ||

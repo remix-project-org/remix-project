@@ -1,9 +1,18 @@
 import { IAutoModelConfig, ModelSelection } from '../../../types/deepagent'
 import { analyzePromptForAutoSelection } from './promptAnalysis'
-import { DEFAULT_MODEL_PROVIDER, DEFAULT_MODEL_ID } from '../constants'
 
 /**
- * Select the optimal model based on prompt complexity and configuration
+ * Select the optimal model for a DeepAgent run.
+ *
+ * NO literal model fallbacks: if Auto Mode is off, the caller's current
+ * selection wins. If Auto Mode is on, we prefer Claude Sonnet whenever
+ * the user is permitted to use it (deepagents middleware injects
+ * Anthropic-flavored content blocks the Mistral adapter rejects on
+ * turn one). When no Sonnet is allowed, we keep the caller's selection
+ * and let the safety net in DeepAgentInferencer.answer() decide.
+ *
+ * Throws if both currentModelSelection and allowedModels are empty \u2014
+ * that means /permissions hasn't loaded yet and we have nothing to run.
  */
 export function selectOptimalModel(
   prompt: string,
@@ -12,12 +21,11 @@ export function selectOptimalModel(
   currentModelSelection?: ModelSelection,
   allowedModels: string[] = []
 ): ModelSelection {
-  // If auto mode is disabled, use current selection
-  if (!autoModeConfig?.enabled || !currentModelSelection) {
-    return currentModelSelection || {
-      provider: DEFAULT_MODEL_PROVIDER,
-      modelId: DEFAULT_MODEL_ID
+  if (!autoModeConfig?.enabled) {
+    if (!currentModelSelection) {
+      throw new Error('[selectOptimalModel] Auto Mode disabled but no currentModelSelection \u2014 caller must wait for /permissions before invoking the agent')
     }
+    return currentModelSelection
   }
 
   const fullPrompt = context ? `${context}\n\n${prompt}` : prompt
@@ -25,45 +33,30 @@ export function selectOptimalModel(
   const securityKeywords = autoModeConfig.securityKeywords || [
     'security', 'audit', 'vulnerability', 'exploit', 'attack'
   ]
-
   const hasSecurityKeywords = securityKeywords.some(keyword =>
     fullPrompt.toLowerCase().includes(keyword)
   )
 
-  console.log(`[DeepAgentInferencer] Auto selection analysis:`, {
+  console.log('[DeepAgentInferencer] Auto selection analysis:', {
     complexity,
     hasSecurityKeywords,
     promptLength: fullPrompt.length
   })
 
-  // Decision logic: complex tasks or security-related → Claude, simple → Mistral
-  if (complexity === 'complex' || hasSecurityKeywords) {
-    console.log('[DeepAgentInferencer] Selected Anthropic Claude for complex/security task')
-    const modelId = allowedModels.find(model => model.includes('sonnet'))
-    if (modelId) {
-      return {
-        provider: 'anthropic',
-        modelId
-      }
-    } else {
-      console.warn('[DeepAgentInferencer] Preferred Claude model not available, falling back to Mistral')
-      return {
-        provider: 'mistralai',
-        modelId: allowedModels.find(model => model.includes('mistral-medium')) || DEFAULT_MODEL_ID
-      }
-    }
-  } else {
-    console.log('[DeepAgentInferencer] Selected Mistral for simple task')
-    return {
-      provider: 'mistralai',
-      modelId: allowedModels.find(model => model.includes('mistral-medium')) || DEFAULT_MODEL_ID
-    }
+  // Prefer Sonnet whenever it's allowed \u2014 deepagents middleware is
+  // structurally Anthropic-shaped (see DeepAgentInferencer.answer safety net).
+  const sonnetModelId = allowedModels.find(model => model.includes('sonnet'))
+  if (sonnetModelId) {
+    console.log(`[DeepAgentInferencer] Auto: chose Anthropic Sonnet (${complexity}, security=${hasSecurityKeywords})`)
+    return { provider: 'anthropic', modelId: sonnetModelId }
   }
-}
 
-export function getDefaultModelSelection(): ModelSelection {
-  return {
-    provider: DEFAULT_MODEL_PROVIDER,
-    modelId: DEFAULT_MODEL_ID
+  // No Sonnet \u2014 keep the caller's current selection. Don't substitute
+  // a literal Mistral id: the safety net in answer() handles structural
+  // incompatibility, and the caller's selection comes from /permissions.
+  if (!currentModelSelection) {
+    throw new Error('[selectOptimalModel] Auto Mode on, no Sonnet allowed, and no currentModelSelection \u2014 nothing to run')
   }
+  console.log('[DeepAgentInferencer] Auto: no Sonnet allowed, keeping caller selection', currentModelSelection)
+  return currentModelSelection
 }

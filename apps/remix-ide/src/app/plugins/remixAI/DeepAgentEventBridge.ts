@@ -104,6 +104,7 @@ export class DeepAgentEventBridge {
 
     // Human-in-the-loop: relay approval requests to UI
     eventEmitter.on('onToolApprovalRequired', (request: ToolApprovalRequest) => {
+      console.log('[Bridge] onToolApprovalRequired', request.toolName, request.requestId)
       plugin.emit('onToolApprovalRequired', request)
     })
 

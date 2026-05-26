@@ -4,13 +4,46 @@
   padding: 8px 12px;
 }
 
+.feature-badges-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
 .feature-badges-label {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--bs-secondary-color, #888);
-  margin-bottom: 6px;
   font-weight: 600;
+}
+
+.feature-badges-manage {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #2fbfb1;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease, gap 0.15s ease;
+}
+
+.feature-badges-manage:hover {
+  color: #5fd9c9;
+  background: rgba(47, 191, 177, 0.1);
+  gap: 8px;
+}
+
+.feature-badges-manage i {
+  font-size: 0.55rem;
+  opacity: 0.8;
 }
 
 .feature-badges-list {

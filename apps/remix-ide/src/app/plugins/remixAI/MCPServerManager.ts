@@ -1,4 +1,4 @@
-import { MCPInferencer, mcpDefaultServersConfig, mcpBasicServersConfig, getDefaultModel } from '@remix/remix-ai-core'
+import { MCPInferencer, mcpDefaultServersConfig, mcpBasicServersConfig } from '@remix/remix-ai-core'
 import type { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core'
 import type { IRemixAIPlugin } from './types'
 import type { PermissionChecker } from './PermissionChecker'
@@ -113,11 +113,30 @@ export class MCPServerManager {
     const serversToWaitFor = enabledServers.filter(s => s.name !== 'Remix IDE Server')
     if (serversToWaitFor.length === 0) return Promise.resolve()
 
-    console.log(`[RemixAI Plugin] Waiting for ${serversToWaitFor.length} external MCP servers to connect:`, serversToWaitFor.map(s => s.name))
+    // Seed with already-resolved servers. Connection events may have fired
+    // before this listener was attached (e.g. when called after a prior
+    // connectAllServers() has completed — happens on the post-login
+    // refreshMCPServersOnAuthChange → applyDefaultFromState → enable()
+    // sequence). Without this, the listeners hang for the full timeout.
+    const statuses = mcpInferencer.getConnectionStatuses?.() ?? []
+    const statusByName = new Map(statuses.map(s => [s.serverName, s.status]))
+    const preConnected = new Set<string>()
+    const preErrored = new Set<string>()
+    for (const s of serversToWaitFor) {
+      const st = statusByName.get(s.name)
+      if (st === 'connected') preConnected.add(s.name)
+      else if (st === 'error') preErrored.add(s.name)
+    }
+    if (preConnected.size + preErrored.size >= serversToWaitFor.length) {
+      console.log(`[RemixAI Plugin] waitForServersReady: all ${serversToWaitFor.length} servers already resolved (connected=${preConnected.size}, errored=${preErrored.size}), skipping wait`)
+      return Promise.resolve()
+    }
+
+    console.log(`[RemixAI Plugin] Waiting for ${serversToWaitFor.length} external MCP servers to connect:`, serversToWaitFor.map(s => s.name), `(already resolved: ${preConnected.size + preErrored.size})`)
 
     return new Promise<void>((resolve) => {
-      const connectedServers = new Set<string>()
-      const erroredServers = new Set<string>()
+      const connectedServers = new Set<string>(preConnected)
+      const erroredServers = new Set<string>(preErrored)
 
       const checkComplete = () => {
         const totalResolved = connectedServers.size + erroredServers.size
@@ -173,7 +192,8 @@ export class MCPServerManager {
       undefined,
       undefined,
       remixMCPServer,
-      remoteInferencer
+      remoteInferencer,
+      this.plugin.getMcpAuthToken
     )
 
     mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {
@@ -216,10 +236,12 @@ export class MCPServerManager {
       const isAuthenticated = authState?.isAuthenticated || false
 
       if (!isAuthenticated) {
-        // User logged out - reset to defaults
-        console.log('[RemixAI Plugin] User logged out, resetting to default model and MCP servers')
-        const defaultModel = getDefaultModel()
-        await this.deps.setModel(defaultModel.id)
+        // User logged out — clear the in-memory model selection and reset
+        // MCP servers. The next /permissions response (after re-login) will
+        // re-populate selectedModel via assistantState. No literal default.
+        console.log('[RemixAI Plugin] User logged out, clearing model selection and resetting MCP servers')
+        this.plugin.selectedModel = null
+        this.plugin.selectedModelId = ''
         await this.resetToDefaultWithReinit()
         return
       }
@@ -275,7 +297,8 @@ export class MCPServerManager {
       undefined,
       undefined,
       this.plugin.remixMCPServer,
-      this.plugin.remoteInferencer
+      this.plugin.remoteInferencer,
+      this.plugin.getMcpAuthToken
     )
 
     this.plugin.mcpInferencer.event.on('mcpServerConnected', (serverName: string) => {

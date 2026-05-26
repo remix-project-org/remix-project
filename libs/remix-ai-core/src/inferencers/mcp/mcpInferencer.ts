@@ -52,12 +52,17 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
   private MAX_TOOL_EXECUTIONS = 10;
   private baseInferencer: RemoteInferencer; // The actual inferencer to use (could be Ollama or Remote)
   private toolSelector: WeightedToolSelector = new WeightedToolSelector();
+  // Optional bearer-token provider passed by the host plugin. Forwarded
+  // verbatim to every MCPClient we create so external HTTP/SSE MCP
+  // servers see the user's JWT.
+  private getAuthToken?: () => Promise<string | null>;
   MAXTOOLS = 25
 
-  constructor(servers: IMCPServer[] = [], apiUrl?: string, completionUrl?: string, remixMCPServer?: any, baseInferencer?: RemoteInferencer) {
+  constructor(servers: IMCPServer[] = [], apiUrl?: string, completionUrl?: string, remixMCPServer?: any, baseInferencer?: RemoteInferencer, getAuthToken?: () => Promise<string | null>) {
     super(apiUrl, completionUrl);
     this.remixMCPServer = remixMCPServer;
     this.baseInferencer = baseInferencer;
+    this.getAuthToken = getAuthToken;
     this.initializeMCPServers(servers);
   }
 
@@ -66,7 +71,8 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
       if (server.enabled !== false) {
         const client = new MCPClient(
           server,
-          server.transport === 'internal' ? this.remixMCPServer : undefined
+          server.transport === 'internal' ? this.remixMCPServer : undefined,
+          server.transport === 'internal' ? undefined : this.getAuthToken
         );
         this.mcpClients.set(server.name, client);
         this.connectionStatuses.set(server.name, {
@@ -149,7 +155,8 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
     const client = new MCPClient(
       server,
-      server.transport === 'internal' ? this.remixMCPServer : undefined
+      server.transport === 'internal' ? this.remixMCPServer : undefined,
+      server.transport === 'internal' ? undefined : this.getAuthToken
     );
     this.mcpClients.set(server.name, client);
     this.connectionStatuses.set(server.name, {

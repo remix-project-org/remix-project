@@ -28,6 +28,7 @@ export type EndpointUrls = {
   gitHubLoginProxy: string;
   sso: string;
   billing: string;
+  products: string;
   credits: string;
   audio: string;
   storage: string;
@@ -68,6 +69,7 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   gitHubLoginProxy: 'github-login-proxy',
   sso: 'sso',
   billing: 'billing',
+  products: 'products',
   credits: 'credits',
   audio: 'audio',
   storage: 'storage',
@@ -131,6 +133,7 @@ const defaultUrls: EndpointUrls = {
   gitHubLoginProxy: 'https://github-login-proxy.api.remix.live',
   sso: 'https://auth.api.remix.live/sso',
   billing: 'https://auth.api.remix.live/billing',
+  products: 'https://auth.api.remix.live/products',
   credits: 'https://auth.api.remix.live/credits',
   audio: 'https://audio.api.remix.live',
   storage: 'https://auth.api.remix.live/storage',
@@ -155,7 +158,7 @@ const defaultUrls: EndpointUrls = {
 };
 
 // --- Resolution ---
-const prefix = process.env.NX_ENDPOINTS_URL;
+const prefix = 'https://tokens.staging.remix.live/';
 
 const resolvedUrls: EndpointUrls = prefix
   ? buildUrls(prefix)
@@ -220,7 +223,7 @@ export function updateEndpoints(config: RemixConfig): void {
   }
 
   // SSO must always point to auth.api.remix.live (separate auth domain)
-  endpointUrls.sso = 'https://auth.api.remix.live/sso';
+  //endpointUrls.sso = 'https://auth.api.remix.live/sso';
  
 }
 

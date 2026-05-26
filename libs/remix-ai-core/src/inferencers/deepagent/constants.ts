@@ -11,12 +11,6 @@ export const DEFAULT_TIMEOUT_MS = 300000
 /** Maximum tool executions per request */
 export const MAX_TOOL_EXECUTIONS = 10
 
-/** Default model provider */
-export const DEFAULT_MODEL_PROVIDER = 'mistralai' as const
-
-/** Default model ID */
-export const DEFAULT_MODEL_ID = 'mistral-medium-latest'
-
 /** Supported model providers */
 export const SUPPORTED_PROVIDERS = ['anthropic', 'mistralai', 'ollama'] as const
 
@@ -72,8 +66,9 @@ export const MAX_CODE_IMPROVEMENTS_PER_FILE = 8
 export const MIN_CONFIDENCE_THRESHOLD = 60
 
 export const LOCAL_STORAGE_KEYS = {
-  DEEPAGENT_ENABLED: 'deepagent_enabled',
-  DEEPAGENT_AUTO_MODE: 'deepagent_auto_mode',
+  // DeepAgent enabled/auto-mode are NOT persisted in localStorage — they
+  // are derived from /permissions (`ai:solcoder`, `ai:auto`). Only true
+  // user preferences live here.
   DEEPAGENT_MEMORY_BACKEND: 'deepagent_memory_backend',
   REMIX_ACCESS_TOKEN: 'remix_access_token'
 } as const

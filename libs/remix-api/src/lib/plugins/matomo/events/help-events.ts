@@ -18,5 +18,8 @@ export interface HelpEvent extends MatomoEventBase {
     | 'reelDismissed'
     | 'betaFeatureClicked'
     | 'betaFeedbackClicked'
-    | 'betaLinkClicked';
+    | 'betaLinkClicked'
+    | 'betaFarewellClosed'
+    | 'betaFarewellSurveyOpened'
+    | 'betaFarewellDismissed';
 }

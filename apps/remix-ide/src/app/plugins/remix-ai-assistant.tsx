@@ -19,8 +19,8 @@ const profile = {
   version: packageJson.version,
   maintainedBy: 'Remix',
   permission: true,
-  events: [],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation']
+  events: ['toolApprovalResponse'],
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval']
 }
 
 export class RemixAIAssistant extends ViewPlugin {
@@ -331,6 +331,16 @@ export class RemixAIAssistant extends ViewPlugin {
   setMaximized(maximized: boolean) {
     this.isMaximized = maximized
     this.renderComponent()
+  }
+
+  /**
+   * Forward a tool-approval response from the chat UI to the RemixAIPlugin
+   * via an engine event. Done as an event (not a `call`) because the remixAI
+   * plugin's incoming-request queue is busy with the in-flight `answer()`
+   * call that is itself awaiting this approval — using `call` here deadlocks.
+   */
+  respondToToolApproval(response: { requestId: string; approved: boolean; modifiedArgs?: Record<string, any>; timedOut?: boolean }): void {
+    this.emit('toolApprovalResponse', response)
   }
 
   async autoArchiveCheck() {

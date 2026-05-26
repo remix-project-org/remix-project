@@ -113,6 +113,9 @@ export interface IRemixAIPlugin {
   allowedModels: string[]
   assistantThreadId: string
   pendingDeepAgentThreadId: string | null
+  // Bearer-token provider forwarded to MCPInferencer/MCPClient so external
+  // HTTP MCP servers receive the user's JWT. Returns null when anonymous.
+  getMcpAuthToken: () => Promise<string | null>
 }
 
 // Re-export commonly used types

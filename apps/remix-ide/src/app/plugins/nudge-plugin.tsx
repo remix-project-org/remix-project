@@ -221,15 +221,30 @@ export class NudgePlugin extends Plugin {
 
   private async _fetchConfigEvents(): Promise<void> {
     try {
-      const regMode = await this.call('auth' as any, 'getRegistrationMode')
-      if (regMode === 'open') {
+      const appConfig = await this.call('auth' as any, 'getAppConfig')
+      console.log('[NudgePlugin] App config:', appConfig)
+
+      const getConfigValue = (key: string): any => {
+        if (Array.isArray(appConfig)) {
+          const item = appConfig.find((entry: any) => entry?.key === key)
+          return item?.value
+        }
+        return appConfig?.[key]
+      }
+
+      // Prefer unified access policy from app config, with legacy fallback support.
+      let accessPolicy = getConfigValue('auth.access_policy')
+      if (!accessPolicy) accessPolicy = getConfigValue('auth.registration_mode')
+      if (!accessPolicy) accessPolicy = await this.call('auth' as any, 'getRegistrationMode')
+
+      console.log('[NudgePlugin] Access policy:', accessPolicy)
+      if (accessPolicy === 'open') {
         this.engine_.fire('config:registration_open')
-      } else if (regMode === 'invite_required' || regMode === 'invite_only') {
+      } else if (accessPolicy === 'invite_required' || accessPolicy === 'invite_only') {
         this.engine_.fire('config:invite_only')
       }
 
-      const appConfig = await this.call('auth' as any, 'getAppConfig')
-      if (appConfig?.['auth.sign_in_button_mode'] !== 'hidden') {
+      if (getConfigValue('auth.sign_in_button_mode') !== 'hidden') {
         this.engine_.fire('config:login_enabled')
       }
     } catch {
@@ -268,12 +283,54 @@ export class NudgePlugin extends Plugin {
       const permissions = await this.call('auth' as any, 'getAllPermissions')
       if (this.debug)console.log('User permissions:', permissions)
       const groups = permissions?.feature_groups || []
-      if (groups.some((g: any) => g.name === 'beta')) {
+      const betaGroup = groups.find((g: any) => g.name === 'beta')
+      if (betaGroup) {
         this.engine_.fire('user:logged_in_beta')
+        // Surface the farewell modal if their beta is wrapping up.
+        // Fire-and-forget — failures (helpPlugin not ready, storage
+        // blocked, etc.) shouldn't break the nudge flow.
+        this._maybeShowBetaFarewell(betaGroup).catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check
     }
+  }
+
+  /**
+   * Auto-open the farewell modal when a beta tester is within the
+   * configured threshold of their `expires_at`. Honours per-expiry
+   * localStorage dismissal ("Remind me later" timestamp / "never").
+   */
+  private async _maybeShowBetaFarewell(betaGroup: { expires_at?: string | null }): Promise<void> {
+    const expiresAt = betaGroup?.expires_at
+    if (!expiresAt) return
+    const expiresMs = Date.parse(expiresAt)
+    if (Number.isNaN(expiresMs)) return
+
+    const THRESHOLD_DAYS = 14
+    const msUntilExpiry = expiresMs - Date.now()
+    const daysUntilExpiry = msUntilExpiry / (1000 * 60 * 60 * 24)
+
+    // Window: from THRESHOLD_DAYS before expiry up to 30 days after.
+    // Past-expiry users keep seeing it for a while so they can still
+    // claim their reward; we cap the trailing window so the prompt
+    // doesn't haunt them indefinitely.
+    if (daysUntilExpiry > THRESHOLD_DAYS) return
+    if (daysUntilExpiry < -30) return
+
+    try {
+      const key = `remix:beta-farewell:${expiresAt}`
+      const stored = localStorage.getItem(key)
+      if (stored === 'never') return
+      if (stored) {
+        const remindAt = Date.parse(stored)
+        if (!Number.isNaN(remindAt) && remindAt > Date.now()) return
+      }
+    } catch { /* storage unavailable \u2014 fall through and show */ }
+
+    try {
+      await this.call('helpPlugin' as any, 'showModal', 'beta-farewell')
+    } catch { /* helpPlugin not registered \u2014 nothing to do */ }
   }
 
   /* ─── Built-in rules ─── */

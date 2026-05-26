@@ -8,10 +8,42 @@ import { NotificationItem } from './notification-center-api'
 
 // ==================== Credits ====================
 
+/**
+ * Per-(provider, model) usage cap entitled by an active feature group.
+ * Returned by `GET /credits/balance?include=quotas`. Sorted by `amount ASC`
+ * so the tightest cap (which is also drained first) appears first.
+ *
+ * Wildcards: `provider === '*'` and/or `model === '*'` means the cap applies
+ * across the whole provider catalog or to any model. Render as
+ * "All providers" / "All models".
+ *
+ * Special amounts:
+ *   - `amount >= 1e15` → treat as unlimited (∞ badge)
+ *   - `amount === 0`   → quota is effectively disabled; hide the row
+ */
+export interface QuotaEntry {
+  /** Stable backend slug, e.g. `q:free:mistral-small:day`. Never show to end users. */
+  slug: string
+  provider: string  // 'mistralai', 'anthropic', '*', …
+  model: string     // 'mistral-small-latest', '*', …
+  period: 'day' | 'week' | 'month'
+  amount: number    // cap in credits
+  used: number      // credits drained this period
+  remaining: number // max(0, amount - used)
+  periodStart: string    // 'YYYY-MM-DD'
+  periodResetAt: string  // ISO datetime when the bucket resets
+}
+
 export interface Credits {
   balance: number
   free_credits: number
   paid_credits: number
+  /**
+   * Active per-(provider, model) quotas for this user. Only present when
+   * the balance call was made with `?include=quotas`. Empty array when the
+   * user has no active entitlements.
+   */
+  quotas?: QuotaEntry[]
 }
 
 export interface CreditTransaction {
@@ -387,6 +419,66 @@ export interface PermissionsResponse {
   is_admin?: boolean
   feature_groups?: FeatureGroup[]
   features: Permission[] | Record<string, any>
+  /** True when the user has a confirmed email address on file. */
+  email_verified?: boolean
+  /** ISO timestamp of when the email was verified, or null if never verified. */
+  email_verified_date?: string | null
+  /** True when the user has any email address on file (verified or not). */
+  has_email?: boolean
+  /** Per-user AI model catalogue with availability + locking metadata. */
+  ai_models?: Array<{
+    id: string
+    provider: string
+    display_name: string
+    description?: string
+    category?: string
+    capabilities?: string[]
+    is_default?: boolean
+    requires_auth?: boolean
+    required_feature?: string | null
+    available?: boolean
+    reason?: string
+    sort_order?: number
+  }>
+  /**
+   * Per-task model assignments. The backend tells the client which model to
+   * use for each named task — there are NO client-side defaults. Examples:
+   *   { dapp_generator: 'claude-sonnet-4-5', dapp_generator_max_tokens: 16384 }
+   * Numeric task hints (max_tokens, temperature) live in `task_params`.
+   * Callers must throw if the requested task is missing — never fall back
+   * to a hardcoded model id.
+   */
+  task_models?: Record<string, string>
+  /** Per-task numeric/boolean parameter overrides (max_tokens, temperature, …). */
+  task_params?: Record<string, Record<string, number | string | boolean>>
+}
+
+/** Request body for POST /sso/email/send-verification. Omit `email` to verify the on-file address. */
+export interface SendEmailVerificationRequest {
+  email?: string
+}
+
+/** Response from POST /sso/email/send-verification. */
+export interface SendEmailVerificationResponse {
+  success: true
+  /** Code TTL in seconds (typically 600). Absent when `already_verified` is true. */
+  expires_in?: number
+  /** Returned when the supplied email is already verified for this account \u2014 no code was sent. */
+  already_verified?: true
+}
+
+/** Request body for POST /sso/email/verify-verification. */
+export interface VerifyEmailVerificationRequest {
+  code: string
+  email?: string
+}
+
+/** Response from POST /sso/email/verify-verification on success. */
+export interface VerifyEmailVerificationResponse {
+  success: true
+  email_verified: true
+  email_verified_date: string
+  email: string
 }
 
 export interface FeatureCheckRequest {
@@ -441,6 +533,298 @@ export interface CreditPackage {
   providers: ProductProvider[]  // Available payment providers
   paddlePriceId?: string | null // Legacy: prefer providers array
   source?: 'database' | 'config' | 'provider'
+  /**
+   * All billable prices for this package. Today credit packages are
+   * single-price, but the unified API may surface alternates (e.g.
+   * promo SKUs); kept optional for forward-compat.
+   */
+  prices?: AvailableProductPrice[]
+}
+
+/**
+ * Feature group associated with an available product (from /api/products/available)
+ */
+export interface AvailableProductFeatureGroup {
+  id: number
+  name: string
+  display_name: string
+  description: string
+}
+
+/**
+ * Per-provider linkage for a single price (e.g. one Paddle price ID per
+ * billing interval). Returned inside `AvailableProductPrice.providers`
+ * and mirrored at the product level under `AvailableProduct.providers`.
+ */
+export interface AvailableProductPriceProvider {
+  slug: string
+  external_product_id: string | null
+  external_price_id: string | null
+  is_active: boolean
+  sync_status: 'pending' | 'synced' | 'error' | string
+}
+
+/**
+ * A single billable price for an `AvailableProduct`. Subscription plans
+ * may expose multiple prices (e.g. monthly + yearly); credit packages
+ * usually expose a single default price.
+ */
+export interface AvailableProductPrice {
+  id: number
+  billing_interval: 'month' | 'year' | 'one_time' | string
+  price_cents: number
+  currency: string
+  description?: string | null
+  is_default: boolean
+  is_active: boolean
+  providers: AvailableProductPriceProvider[]
+}
+
+/**
+ * A product returned by /api/products/available (subscription plans and
+ * credit packages unified under one endpoint).
+ */
+export interface AvailableProduct {
+  id: number
+  product_code: string
+  name: string
+  slug: string
+  description: string
+  product_type: 'subscription_plan' | 'credit_package' | string
+  price_cents: number
+  currency: string
+  provider_slug: string | null
+  external_product_id: string | null
+  external_price_id: string | null
+  /** All available prices for this product (multi-cadence support). */
+  prices?: AvailableProductPrice[]
+  /** Top-level provider linkage (mirrors the default price's providers). */
+  providers?: AvailableProductPriceProvider[]
+  feature_group: AvailableProductFeatureGroup | null
+  credits_per_month: number
+  billing_interval: 'month' | 'year'
+  features: string[]
+}
+
+export interface AvailableProductsMeta {
+  user_id: number | null
+  provider_filter: string | null
+  type_filter: string | null
+  total: number
+}
+
+export interface AvailableProductsResponse {
+  data: AvailableProduct[]
+  meta: AvailableProductsMeta
+}
+
+/**
+ * Request body for POST /products/purchase — the unified purchase
+ * endpoint for plans, packages, and free-tier grants.
+ */
+export interface PurchaseProductRequest {
+  /** Either slug, product_id, or product_code (one of). */
+  slug?: string
+  product_id?: number
+  product_code?: string
+  /**
+   * Optional internal price id (`prices[].id`) — required for products
+   * exposing multiple cadences (e.g. monthly vs yearly subscription).
+   * Omit to fall back to the product's default price.
+   */
+  price_id?: number
+  /** "paddle" (default) or "crypto". */
+  provider?: 'paddle' | 'crypto'
+  returnUrl?: string
+}
+
+/** Successful checkout-redirect response (paid plans / packages). */
+export interface PurchaseProductCheckoutResponse {
+  checkoutUrl: string
+  transactionId: string
+  provider?: string
+}
+
+/** Immediate-grant response (free plans — no checkout needed). */
+export interface PurchaseProductImmediateResponse {
+  ok: true
+  immediate: true
+  plan: string
+  productId: number
+  membershipId: number
+  isExtension?: boolean
+  message?: string
+}
+
+/** 409 ALREADY_SUBSCRIBED response (must use PATCH instead). */
+export interface PurchaseProductAlreadySubscribedResponse {
+  error: 'ALREADY_SUBSCRIBED'
+  message: string
+  existingSubscription: {
+    id: number
+    providerSlug: string
+    providerSubscriptionId: string
+    status: string
+    currentPeriodEnd: string
+  }
+  hint?: string
+}
+
+export type PurchaseProductResponse =
+  | PurchaseProductCheckoutResponse
+  | PurchaseProductImmediateResponse
+  | PurchaseProductAlreadySubscribedResponse
+
+// ===== Plan change / cancel (POST /billing/subscription/preview-change,
+//        PATCH /billing/subscription, POST /billing/subscription/cancel) =====
+
+export type ProrationBillingMode =
+  | 'prorated_immediately'
+  | 'prorated_next_billing_period'
+  | 'full_immediately'
+  | 'full_next_billing_period'
+  | 'do_not_bill'
+
+export type OnPaymentFailure = 'prevent_change' | 'apply_change'
+
+export interface PreviewSubscriptionChangeRequest {
+  /** One of these three is required. */
+  planSlug?: string
+  productCode?: string
+  priceId?: string
+  prorationBillingMode?: ProrationBillingMode
+}
+
+export interface PreviewSubscriptionChangeResponse {
+  ok: true
+  prorationBillingMode: ProrationBillingMode
+  targetPriceId: string
+  items: any[]
+  /** Provider-specific proration breakdown (Paddle preview payload). */
+  preview: any
+}
+
+export interface ChangeSubscriptionRequest {
+  planSlug?: string
+  productCode?: string
+  priceId?: string
+  prorationBillingMode?: ProrationBillingMode
+  onPaymentFailure?: OnPaymentFailure
+}
+
+export interface ChangeSubscriptionResponse {
+  ok: true
+  prorationBillingMode: ProrationBillingMode
+  subscription: {
+    id: string
+    status: string
+    nextBilledAt: string | null
+    scheduledChange: any | null
+    items: any[]
+    currencyCode: string
+  }
+}
+
+export interface CancelSubscriptionRequest {
+  /** Defaults to 'next_billing_period' if omitted. */
+  effectiveFrom?: 'next_billing_period' | 'immediately'
+}
+
+export interface CancelSubscriptionResponse {
+  ok: true
+  effectiveFrom: 'next_billing_period' | 'immediately'
+  subscription: {
+    id: string
+    status: string
+    scheduledChange: any | null
+    nextBilledAt: string | null
+  }
+}
+
+// ===== Transaction polling (GET /billing/transaction/:providerTransactionId) ====
+
+/**
+ * Terminal states stop polling. `pending` is the only non-terminal state —
+ * it's surfaced as HTTP 404 + body with this shape.
+ */
+export type TransactionStatus =
+  | 'pending'
+  | 'completed'
+  | 'failed'
+  | 'canceled'
+  | 'refunded'
+  | 'disputed'
+
+/** 404 response body — "webhook hasn't fired yet, keep polling". */
+export interface TransactionPendingResponse {
+  status: 'pending'
+  provider: string
+  providerTransactionId: string
+  message?: string
+}
+
+/** 200 response body — webhook has been processed. */
+export interface TransactionCompletedResponse {
+  status: Exclude<TransactionStatus, 'pending'>
+  provider: string
+  providerTransactionId: string
+  providerSubscriptionId?: string | null
+  transactionType?: string
+  productType?: string
+  productId?: number
+  productSlug?: string
+  productName?: string
+  currency?: string
+  amountGross?: number
+  amountNet?: number
+  creditsDelivered?: number
+  completedAt?: string
+  createdAt?: string
+}
+
+export type TransactionStatusResponse = TransactionPendingResponse | TransactionCompletedResponse
+
+// ===== Usage reporting (GET /billing/credits/usage) ==========================
+
+export type UsageGroupByDimension = 'day' | 'service' | 'provider' | 'model' | 'user'
+
+export interface CreditsUsageQuery {
+  from?: string
+  to?: string
+  groupBy?: UsageGroupByDimension[]
+  service?: string
+  provider?: string
+  limit?: number
+}
+
+export interface UsageTotals {
+  calls: number
+  prompt_tokens: number
+  completion_tokens: number
+  cache_creation_tokens: number
+  cache_creation_1h_tokens: number
+  cache_read_tokens: number
+  total_tokens: number
+  cost_usd: number
+  credits: number
+}
+
+export interface UsageRow extends UsageTotals {
+  day?: string
+  service?: string
+  provider?: string
+  model?: string
+  user_id?: number
+}
+
+export interface UsageReport {
+  range: {
+    from: string
+    to: string
+  }
+  group_by: UsageGroupByDimension[]
+  rows: UsageRow[]
+  totals: UsageTotals
 }
 
 /**
@@ -457,9 +841,24 @@ export interface SubscriptionPlan {
   billingInterval: 'month' | 'year'
   features: string[]
   popular?: boolean
+  /** Feature group name this plan grants — from /api/products/available. */
+  featureGroupName?: string | null
+  /** Length of the free trial. 0 / null → plan has no trial. */
+  trialPeriodDays?: number | null
+  trialPeriodFrequency?: number | null
+  trialPeriodInterval?: 'day' | 'week' | 'month' | 'year' | null
+  /** Credits granted up-front for the trial. */
+  trialCredits?: number | null
+  defaultProrationBillingMode?: string
   providers: ProductProvider[]  // Available payment providers
   paddlePriceId?: string | null // Legacy: prefer providers array
   source?: 'database' | 'config' | 'provider'
+  /**
+   * All billable prices for this plan, e.g. monthly + yearly. The UI
+   * uses this to render the cadence toggle and pass the user's chosen
+   * `price_id` through to `/products/purchase`.
+   */
+  prices?: AvailableProductPrice[]
 }
 
 /**
@@ -492,8 +891,8 @@ export interface SubscriptionItem {
 export interface UserSubscription {
   id: string
   status: 'active' | 'paused' | 'canceled' | 'past_due' | 'trialing'
-  customerId: string
-  currentBillingPeriod: {
+  customerId?: string
+  currentBillingPeriod?: {
     startsAt: string
     endsAt: string
   }
@@ -501,21 +900,37 @@ export interface UserSubscription {
     action: string
     effectiveAt: string
   } | null
-  items: SubscriptionItem[]
+  items?: SubscriptionItem[]
   nextBilledAt: string | null
   createdAt: string
-  updatedAt: string
-  firstBilledAt: string
-  discount: unknown | null
-  collectionMode: string
-  billingDetails: unknown | null
-  currencyCode: string
+  updatedAt?: string
+  firstBilledAt?: string
+  discount?: unknown | null
+  collectionMode?: string
+  billingDetails?: unknown | null
+  currencyCode?: string
+  // Backend-flattened fields (from /billing/subscription)
+  productId?: number
+  planSlug?: string
+  planName?: string
+  priceCents?: number
+  currency?: string
+  billingInterval?: 'month' | 'year'
+  creditsPerPeriod?: number
+  startedAt?: string
+  pausedAt?: string | null
+  // Trial fields
+  trialStart?: string | null
+  trialEnd?: string | null
+  isInTrial?: boolean
+  trialDaysRemaining?: number | null
+  trialTotalDays?: number | null
   // Legacy fields for backwards compatibility
   planId?: string
   creditsPerMonth?: number
   currentPeriodStart?: string
   currentPeriodEnd?: string
-  cancelAtPeriodEnd?: boolean
+  cancelAtPeriodEnd?: boolean | 0 | 1
 }
 
 /**
@@ -539,6 +954,8 @@ export interface UserSubscriptionResponse {
   userId: number
   hasActiveSubscription: boolean
   subscription: UserSubscription | null
+  /** True when the user has never used a free trial and is eligible for one. */
+  isTrialEligible?: boolean
 }
 
 /**

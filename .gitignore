@@ -89,3 +89,10 @@ apps/remix-ide-e2e/tmp/
 PR_MESSAGE.md
 apps/remix-ide-e2e/tmp/
 .playwright-mcp/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

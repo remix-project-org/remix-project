@@ -122,6 +122,8 @@ export const Preload = (props: PreloadProps) => {
     window.location.hash.includes('e2e_testblock_storage=true') && window.location.host === '127.0.0.1:8080' && window.location.protocol === 'http:'
   )
 
+  const STAGING_URL = 'https://tokens.staging.remix.live'
+
   function loadAppComponent() {
     try {
       const noMobileRedirectSource = checkAndPersistNoMobileRedirect()
@@ -169,7 +171,9 @@ export const Preload = (props: PreloadProps) => {
       console.error('Error detecting mobile device:', e)
     }
 
-    initEndpoints().then(() => import('../../app'))
+    // Pass STAGING_URL so the endpoints helper points at the staging stack
+    // (auth, langchain proxy, billing, etc.) for this branch's beta builds.
+    initEndpoints(STAGING_URL).then(() => import('../../app'))
       .then((AppComponent) => {
         const appComponent = new AppComponent.default()
         appComponent.run().then(() => {

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, M
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, listModels, isOllamaAvailable, AVAILABLE_MODELS, getDefaultModel, getModelById, AIModel } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, listModels, isOllamaAvailable, AIModel, ANONYMOUS_FALLBACK_MODELS, aiErrorFromException } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
 import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
@@ -21,6 +21,8 @@ import ChatHistoryHeading from './chatHistoryHeading'
 import { ChatHistorySidebar } from './chatHistorySidebar'
 import AiChatPromptAreaForHistory from './aiChatPromptAreaForHistory'
 import AiChatPromptArea from './aiChatPromptArea'
+import { CooldownBanner } from './cooldownBanner'
+import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
 import { useModelAccess } from '../hooks/useModelAccess'
 import { ToolApprovalModal } from './ToolApprovalModal'
 
@@ -79,10 +81,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [isAiChatMaximized, setIsAiChatMaximized] = useState(false)
   const [showOllamaModelSelector, setShowOllamaModelSelector] = useState(false)
   const [selectedOllamaModel, setSelectedOllamaModel] = useState<string | null>(null)
-  const [selectedModelId, setSelectedModelId] = useState<string>(getDefaultModel().id)
-  const mcpEnabled = true
+  const [selectedModelId, setSelectedModelId] = useState<string>('')
+  const [isMaximized, setIsMaximized] = useState(false)
+  // MCP Enhancement is gated by the `mcp:basicExternal` feature flag.
+  // Anonymous users have no permissions, so the section stays hidden.
+  // Refreshed in the same `refreshFeatures` block as `ai:auto`.
+  const [mcpEnabled, setMcpEnabled] = useState(false)
 
-  const [mcpEnhanced, setMcpEnhanced] = useState(mcpEnabled)
+  const [mcpEnhanced, setMcpEnhanced] = useState(false)
   const [pendingApprovals, setPendingApprovals] = useState<ToolApprovalRequest[]>([])
   const approvalQueueRef = useRef<ToolApprovalRequest[]>([])
   // Tracks which approval requests are currently being reviewed in the editor via showCustomDiff
@@ -107,10 +113,24 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     baseTrackEvent?.<T>(event)
   }
   const modelAccess = useModelAccess()
+  // Live AI model catalogue, sourced from the assistantState plugin (which
+  // owns the /permissions response). Picker `isLocked` is derived from
+  // each entry's `available` flag — we no longer cross-check provider
+  // features here. Anonymous users see ANONYMOUS_FALLBACK_MODELS until
+  // assistantState reports otherwise.
+  const [availableModels, setAvailableModels] = useState<AIModel[]>(ANONYMOUS_FALLBACK_MODELS)
+  // ai:auto feature flag — gates the Auto Mode option in the model picker.
+  // Sourced from assistantState.hasFeature('ai:auto') and refreshed on
+  // every stateChanged event. Anonymous users get false.
+  const [autoModeAvailable, setAutoModeAvailable] = useState(false)
+  // Tracks whether we've applied the "auto is the default for logged-in
+  // users" rule in the current session. Reset when ai:auto flips back to
+  // false (logout) so the next login re-applies the default.
+  const autoDefaultAppliedRef = useRef(false)
   const [modelOpt, setModelOpt] = useState({ top: 0, left: 0 })
   const menuRef = useRef<any>()
   const [ollamaModels, setOllamaModels] = useState<string[]>([])
-  const [selectedModel, setSelectedModel] = useState<AIModel>(getDefaultModel())
+  const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
   const [isOllamaFailureFallback, setIsOllamaFailureFallback] = useState(false)
   const [autoModeEnabled, setAutoModeEnabled] = useState(false)
   const [usingOwnApiKey, setUsingOwnApiKey] = useState(false)
@@ -128,7 +148,46 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const uiToolCallbackRef = useRef<((isExecuting: boolean, toolName?: string, toolArgs?: Record<string, any>) => void) | null>(null)
   const wasInitializingRef = useRef(props.isInitializing)
   const streamingAssistantIdRef = useRef<string | null>(null)
+  // Active subagent bubble. When a chunk arrives with `isSubagent: true`,
+  // we render it into a SEPARATE bubble (keyed by subagent name) so the
+  // Comprehensive Auditor / Planner / etc. doesn't append into the main
+  // agent's growing message and push the Task Plan off-screen. Reset on
+  // onSubagentComplete and at the end of every turn.
+  const streamingSubagentBubbleRef = useRef<{ id: string; name: string } | null>(null)
+  // Set true the moment a stream chunk lazily creates a bubble, or when
+  // onStreamComplete fires. Tells the post-`await answer()` branch below
+  // that the response was already painted by the streaming pipeline, so
+  // we must NOT create a second bubble with the full text.
+  const streamConsumedThisTurnRef = useRef<boolean>(false)
   if (props.isInitializing) wasInitializingRef.current = true
+
+  // Cooldown UI state — driven by the assistantState plugin's `stateChanged`
+  // event. When non-null, we render a banner above the prompt area. The
+  // banner is informational only and the user can dismiss it; we remember
+  // the dismissed key (code+expiresAt) in a ref so re-emits don't bring it
+  // back until a new cooldown starts.
+  const [cooldownDisplay, setCooldownDisplay] = useState<any | null>(null)
+  const dismissedCooldownKeyRef = useRef<string | null>(null)
+  // Chat-notice state — covers every AIError that ISN'T a cooldown and
+  // ISN'T a plan-manager hand-off (PROVIDER_DENIED, server errors,
+  // validation, unknown codes). Non-blocking: input stays editable.
+  const [chatNotice, setChatNotice] = useState<ChatNoticeDisplay | null>(null)
+
+  const dismissChatNotice = useCallback(() => {
+    setChatNotice(null)
+    try { void props.plugin.call('assistantState' as any, 'dismissChatNotice') } catch { /* noop */ }
+  }, [props.plugin])
+
+  const handleChatNoticeAction = useCallback(async (action: ChatNoticeActionDisplay) => {
+    if (!action?.plugin || !action?.method) return
+    try {
+      const args = Array.isArray(action.args) ? action.args : []
+      await props.plugin.call(action.plugin as any, action.method as any, ...args)
+      if (action.dismissOnClick) dismissChatNotice()
+    } catch (e) {
+      console.warn('[remix-ai-assistant] chat notice action failed', action, e)
+    }
+  }, [dismissChatNotice, props.plugin])
 
   // Audio transcription hook
   const {
@@ -232,10 +291,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     // 1. Reject all pending approvals so DeepAgent's approvalGate unblocks
     setPendingApprovals(prev => {
       for (const approval of prev) {
-        props.plugin.call('remixAI', 'respondToToolApproval', {
-          requestId: approval.requestId,
-          approved: false
-        }).catch(() => { /* best-effort */ })
+        try {
+          ;(props.plugin as any).respondToToolApproval({
+            requestId: approval.requestId,
+            approved: false
+          })
+        } catch { /* best-effort */ }
       }
       return []
     })
@@ -292,7 +353,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const initializeModel = async () => {
       try {
         const currentModelId = await props.plugin.call('remixAI', 'getSelectedModel')
-        const model = getModelById(currentModelId)
+        const model = availableModels.find(m => m.id === currentModelId)
         if (model) {
           setSelectedModelId(currentModelId)
           setSelectedModel(model)
@@ -308,7 +369,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     const handleModelChanged = async (modelId: string) => {
       console.log('[RemixAI Assistant UI] Model changed to:', modelId)
-      const model = getModelById(modelId)
+      const model = availableModels.find(m => m.id === modelId)
       if (model) {
         setSelectedModelId(modelId)
         setSelectedModel(model)
@@ -344,7 +405,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'apiKeyModeChanged')
       props.plugin.off('remixAI', 'onApiKeyError')
     }
-  }, [props.plugin])
+  }, [props.plugin, availableModels])
 
   useEffect(() => {
     let refreshTimeout: NodeJS.Timeout | null = null
@@ -362,17 +423,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (authState.isAuthenticated) {
           console.log('Auth state changed to authenticated, refreshing model access...')
         } else {
-          console.log('Auth state changed to logged out, refreshing model access and switching to default model...')
-          // Switch back to default model on logout
-          const defaultModel = getDefaultModel()
-          setSelectedModelId(defaultModel.id)
-          setSelectedModel(defaultModel)
-          setAssistantChoice(defaultModel.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
-          try {
-            await props.plugin.call('remixAI', 'setModel', defaultModel.id)
-          } catch (error) {
-            console.warn('Failed to set default model on logout:', error)
-          }
+          console.log('Auth state changed to logged out, refreshing model access. Model selection will clear until /permissions resolves.')
+          // No literal default to switch to — clear the selection. The
+          // picker shows ANONYMOUS_FALLBACK_MODELS while logged out.
+          setSelectedModelId('')
+          setSelectedModel(null)
+          setAssistantChoice('mistralai')
         }
         await modelAccess.refreshAccess()
         isRefreshing = false
@@ -395,27 +451,96 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const handleStreamChunk = (data: string | { content: string; isIntermediate?: boolean; source?: string; isSubagent?: boolean; subagentName?: string }) => {
       const chunk = typeof data === 'string' ? data : data.content
       const isIntermediate = typeof data === 'object' ? data.isIntermediate : false
-      const isSubagent = typeof data === 'object' ? data.isSubagent : false
-      const subagentName = typeof data === 'object' ? data.subagentName : undefined
+      const isSubagent = typeof data === 'object' ? !!data.isSubagent : false
+      const subagentName = typeof data === 'object' ? (data.subagentName || '') : ''
 
-      if (streamingAssistantIdRef.current) {
+      streamConsumedThisTurnRef.current = true
+      if (!isStreaming) setIsStreaming(true)
+
+      // ── SUBAGENT CHUNK ──────────────────────────────────────────────
+      // Each subagent gets its OWN bubble. Otherwise its prose appends
+      // into the main agent's message and pushes the Task Plan offscreen.
+      // A new bubble is created on first subagent chunk OR when the
+      // subagent name changes (Auditor → Gas Optimizer, etc.).
+      if (isSubagent) {
+        const current = streamingSubagentBubbleRef.current
+        if (!current || current.name !== subagentName) {
+          const subId = crypto.randomUUID()
+          streamingSubagentBubbleRef.current = { id: subId, name: subagentName }
+          setMessages(prev => [
+            ...prev,
+            {
+              id: subId,
+              role: 'assistant',
+              content: chunk,
+              timestamp: Date.now(),
+              sentiment: 'none',
+              isIntermediateContent: isIntermediate,
+              isSubagentStreaming: true,
+              streamingSubagentName: subagentName
+            }
+          ])
+          return
+        }
         setMessages(prev =>
           prev.map(m =>
-            m.id === streamingAssistantIdRef.current
+            m.id === current.id
               ? {
                 ...m,
                 content: m.content + chunk,
                 isIntermediateContent: isIntermediate,
-                isSubagentStreaming: isSubagent,
+                isSubagentStreaming: true,
                 streamingSubagentName: subagentName
               }
               : m
           )
         )
+        return
       }
+
+      // ── MAIN AGENT CHUNK ────────────────────────────────────────────
+      // Lazy-create the main bubble on first chunk (DeepAgent's `answer()`
+      // is now awaited so we can't rely on its empty-string return as the
+      // "create bubble" trigger).
+      if (!streamingAssistantIdRef.current) {
+        const assistantId = crypto.randomUUID()
+        streamingAssistantIdRef.current = assistantId
+        setMessages(prev => [
+          ...prev,
+          {
+            id: assistantId,
+            role: 'assistant',
+            content: chunk,
+            timestamp: Date.now(),
+            sentiment: 'none',
+            isIntermediateContent: isIntermediate,
+            isSubagentStreaming: false,
+            streamingSubagentName: undefined
+          }
+        ])
+        return
+      }
+
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === streamingAssistantIdRef.current
+            ? {
+              ...m,
+              content: m.content + chunk,
+              isIntermediateContent: isIntermediate,
+              isSubagentStreaming: false,
+              streamingSubagentName: undefined
+            }
+            : m
+        )
+      )
     }
 
     const handleStreamComplete = (finalText: string) => {
+      // Mark consumed even if there was no streaming bubble (e.g. an empty
+      // turn that finished before the first chunk) so the post-await
+      // branch in sendPrompt doesn't paint the full text again.
+      streamConsumedThisTurnRef.current = true
       // Save to chat history when streaming completes
       if (streamingAssistantIdRef.current) {
         const assistantId = streamingAssistantIdRef.current
@@ -447,6 +572,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
       setIsStreaming(false)
       streamingAssistantIdRef.current = null
+      // Subagent bubble (if any) is finalized in handleSubagentComplete,
+      // but clear the ref defensively in case the stream ended without a
+      // matching complete event.
+      streamingSubagentBubbleRef.current = null
     }
 
     // Handle tool call events from DeepAgent
@@ -507,6 +636,25 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     // Handle subagent complete events
     const handleSubagentComplete = (data: { id: string; name: string; status: string; duration: number }) => {
       console.log('[RemixAI Assistant] Subagent completed:', data)
+      // Finalize the subagent's own bubble: clear streaming flags so the
+      // "Comprehensive Auditor is responding…" indicator goes away.
+      const sub = streamingSubagentBubbleRef.current
+      if (sub) {
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === sub.id
+              ? {
+                ...m,
+                isSubagentStreaming: false,
+                streamingSubagentName: undefined,
+                isIntermediateContent: false
+              }
+              : m
+          )
+        )
+        streamingSubagentBubbleRef.current = null
+      }
+      // Also clear any subagent annotations stamped on the main bubble.
       if (streamingAssistantIdRef.current) {
         setMessages(prev =>
           prev.map(m =>
@@ -514,9 +662,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               ? {
                 ...m,
                 activeSubagent: undefined,
-                subagentTask: undefined,
-                isSubagentStreaming: false,
-                streamingSubagentName: undefined
+                subagentTask: undefined
               }
               : m
           )
@@ -649,8 +795,78 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     props.plugin.on('remixAI', 'onAgentError', handleAgentError)
     props.plugin.on('remixAI', 'onApiError', handleApiError)
 
+    // Subscribe to the assistant-state machine so the cooldown banner
+    // can render a live countdown when the AI service rate-limits us.
+    const refreshCooldown = async () => {
+      try {
+        const display = await props.plugin.call('assistantState' as any, 'getCooldownDisplay')
+        if (display) {
+          const key = `${display.code}:${display.expiresAt ?? ''}`
+          if (dismissedCooldownKeyRef.current === key) {
+            return // user dismissed this exact cooldown — don't bring it back
+          }
+        } else {
+          dismissedCooldownKeyRef.current = null
+        }
+        setCooldownDisplay(display)
+      } catch { /* assistantState not active — ignore */ }
+    }
+    // Same pattern as cooldown: ask the plugin for the typed notice for
+    // any pending error that's NOT already covered by the cooldown banner
+    // or plan-manager hand-off. Re-ran on every stateChanged.
+    const refreshChatNotice = async () => {
+      try {
+        const notice = await props.plugin.call('assistantState' as any, 'getChatNotice')
+        setChatNotice(notice ?? null)
+      } catch { /* assistantState not active — ignore */ }
+    }
+    // Refresh the model catalogue from the assistantState plugin. Same
+    // pattern as the cooldown display — the plugin re-emits stateChanged
+    // whenever permissions land or auth flips, so the picker stays in sync.
+    const refreshModels = async () => {
+      try {
+        const models = await props.plugin.call('assistantState' as any, 'getAvailableModels')
+        console.log('[remix-ai-assistant] getAvailableModels →',
+          Array.isArray(models) ? models.map((m: any) => `${m.id}(${m.available ? 'on' : 'off'})`).join(', ') : models)
+        if (Array.isArray(models) && models.length > 0) setAvailableModels(models)
+      } catch (e) { console.warn('[remix-ai-assistant] getAvailableModels failed', e) }
+    }
+    const refreshFeatures = async () => {
+      try {
+        const auto = await props.plugin.call('assistantState' as any, 'hasFeature', 'ai:auto')
+        setAutoModeAvailable(!!auto)
+        const mcp = await props.plugin.call('assistantState' as any, 'hasFeature', 'mcp:basicExternal')
+        setMcpEnabled(!!mcp)
+        // When the section gets hidden, also collapse the inner toggle so
+        // we don't leave MCP enhancement "on" for a user who can no longer
+        // see or control it.
+        if (!mcp) setMcpEnhanced(false)
+      } catch { /* assistantState not active — ignore */ }
+    }
+    const onAssistantStateChange = (snap: any) => {
+      console.log('[remix-ai-assistant] stateChanged event received', {
+        availability: snap?.availability,
+        permissionsState: snap?.permissionsState,
+        isAuthenticated: snap?.isAuthenticated,
+        cooldown: snap?.cooldown,
+        ai_models_len: Array.isArray(snap?.permissions?.ai_models) ? snap.permissions.ai_models.length : 'absent'
+      })
+      void refreshCooldown()
+      void refreshModels()
+      void refreshFeatures()
+      void refreshChatNotice()
+    }
+    props.plugin.on('assistantState' as any, 'stateChanged', onAssistantStateChange)
+    // Initial probe — covers the case where the panel mounts after
+    // permissions have already loaded.
+    void refreshCooldown()
+    void refreshModels()
+    void refreshFeatures()
+    void refreshChatNotice()
+
     // Human-in-the-loop: listen for tool approval requests (batch processing)
     const handleToolApproval = (request: ToolApprovalRequest) => {
+      console.log('[Assistant UI] approval requested', request.toolName, request.requestId)
       if (hitlAutoAcceptRef.current) {
         props.plugin.call('remixAI', 'respondToToolApproval', {
           requestId: request.requestId,
@@ -702,6 +918,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onApiError')
       props.plugin.off('remixAI', 'onToolApprovalRequired')
       props.plugin.off('remixAI', 'onDappUpdateCompleted')
+      try { props.plugin.off('assistantState' as any, 'stateChanged') } catch { /* noop */ }
     }
   }, [props.plugin])
 
@@ -709,6 +926,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   useEffect(() => {
     props.onMessagesChange?.(messages)
   }, [messages, props.onMessagesChange])
+
+  // Auto Mode is the default for every logged-in user. Once `ai:auto`
+  // becomes available (after /permissions resolves), enable it. When it
+  // flips back off (logout), reset both the toggle and the
+  // "already-applied" guard so the next login re-applies the default.
+  useEffect(() => {
+    if (autoModeAvailable) {
+      if (!autoDefaultAppliedRef.current) {
+        autoDefaultAppliedRef.current = true
+        setAutoModeEnabled(true)
+        void props.plugin.call('remixAI', 'setAutoMode', true).catch(() => { /* noop */ })
+      }
+    } else {
+      autoDefaultAppliedRef.current = false
+      if (autoModeEnabled) {
+        setAutoModeEnabled(false)
+        void props.plugin.call('remixAI', 'setAutoMode', false).catch(() => { /* noop */ })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoModeAvailable])
 
   // Smart auto-scroll: only scroll to bottom if:
   useEffect(() => {
@@ -828,7 +1066,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
       // Send approval with the final content as modifiedArgs
       const modifiedArgs = finalContent ? { content: finalContent } : undefined
-      props.plugin.call('remixAI', 'respondToToolApproval', {
+      ;(props.plugin as any).respondToToolApproval({
         requestId: pending.requestId,
         approved: true,
         modifiedArgs
@@ -841,7 +1079,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const pending = pendingDiffApprovalRef.current
       if (!pending) return
 
-      props.plugin.call('remixAI', 'respondToToolApproval', {
+      ;(props.plugin as any).respondToToolApproval({
         requestId: pending.requestId,
         approved: false
       })
@@ -860,6 +1098,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   const handleApproveToolAction = useCallback(async (approval: ToolApprovalRequest, options?: { modifiedArgs?: Record<string, any>; enableAutoAccept?: boolean }) => {
     if (!approval) return
+    console.log('[Assistant UI] handleApproveToolAction', approval.toolName, approval.requestId)
 
     // Close DiffEditor tab if the user had opened a Review
     if (reviewingApprovals.has(approval.requestId)) {
@@ -880,11 +1119,16 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       console.log('[HITL] Auto-accept ENABLED from approval modal')
     }
 
-    props.plugin.call('remixAI', 'respondToToolApproval', {
-      requestId: approval.requestId,
-      approved: true,
-      modifiedArgs: options?.modifiedArgs
-    })
+    try {
+      ;(props.plugin as any).respondToToolApproval({
+        requestId: approval.requestId,
+        approved: true,
+        modifiedArgs: options?.modifiedArgs
+      })
+      console.log('[Assistant UI] respondToToolApproval emitted', approval.requestId)
+    } catch (err) {
+      console.error('[Assistant UI] respondToToolApproval threw', approval.requestId, err)
+    }
     removeApproval(approval.requestId)
   }, [props.plugin, removeApproval, reviewingApprovals])
 
@@ -903,7 +1147,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     }
 
-    props.plugin.call('remixAI', 'respondToToolApproval', {
+    ;(props.plugin as any).respondToToolApproval({
       requestId: approval.requestId,
       approved: false
     })
@@ -912,7 +1156,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   const handleTimeoutToolAction = useCallback(async (approval: ToolApprovalRequest) => {
     if (!approval) return
-    props.plugin.call('remixAI', 'respondToToolApproval', {
+    ;(props.plugin as any).respondToToolApproval({
       requestId: approval.requestId,
       approved: false,
       timedOut: true
@@ -936,7 +1180,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     const approvals = [...pendingApprovals]
     for (const approval of approvals) {
-      props.plugin.call('remixAI', 'respondToToolApproval', {
+      ;(props.plugin as any).respondToToolApproval({
         requestId: approval.requestId,
         approved: true
       })
@@ -961,7 +1205,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     const approvals = [...pendingApprovals]
     for (const approval of approvals) {
-      props.plugin.call('remixAI', 'respondToToolApproval', {
+      ;(props.plugin as any).respondToToolApproval({
         requestId: approval.requestId,
         approved: false
       })
@@ -1146,7 +1390,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const trimmed = prompt.trim()
       if (!trimmed || isStreaming) return
 
+      // Gate via assistantState — if the user is anonymous, unverified or
+      // feature-blocked this opens planManager with the right reason and
+      // returns false so we never show an orphan user bubble + null error.
+      try {
+        const ready = await props.plugin.call('assistantState' as any, 'requireReady', { feature: 'ai:solcoder' })
+        if (!ready) return
+      } catch { /* assistantState not active — fall through to legacy behaviour */ }
+
       dispatchActivity('promptSend', trimmed)
+
+      // Reset the per-turn "stream consumed" flag — it gates the
+      // post-await duplicate-bubble guard further down.
+      streamConsumedThisTurnRef.current = false
+      // Clear any leftover subagent bubble ref from a previous turn so
+      // the next subagent chunk creates a fresh bubble.
+      streamingSubagentBubbleRef.current = null
 
       // optimistic user message
       const userMsg: ChatMessage = {
@@ -1237,6 +1496,19 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
         // Handle langchain/deepagent mode: response is plain text
         if (typeof response === 'string') {
+          // The DeepAgent path now awaits runAgent (so withAssistantGate
+          // can see envelope errors). That means by the time `answer()`
+          // returns, the entire stream has already played out via
+          // onStreamResult/onStreamComplete and the bubble is fully
+          // painted. Skip the legacy create-bubble-from-final-text branch
+          // — otherwise we paint the response a second time below the
+          // streaming bubble.
+          if (streamConsumedThisTurnRef.current) {
+            setIsStreaming(false)
+            streamingAssistantIdRef.current = null
+            return
+          }
+
           const assistantId = crypto.randomUUID()
 
           // If response is empty, this is a streaming response
@@ -1458,13 +1730,75 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           return
         }
 
-        // Add error message to chat history
+        // Pull the structured AIError envelope (HTTP body, SSE error frame,
+        // or stamped by withAssistantGate / DeepAgent.handleError). The
+        // assistant-state plugin has already routed it to the cooldown
+        // banner / plan-manager / chat-notice strip as appropriate.
+        let envelope = error?.aiError ?? error?.response?.data?.error ?? error?.data?.error
+        // Last-ditch: re-parse the error here. Different SDKs throw
+        // different shapes (Anthropic gives clean .message; Mistral SDK
+        // throws "API error occurred: Status 429 ... Body: {json}";
+        // langchain wraps as "<status> {json}"). aiErrorFromException
+        // knows about all of them — running it locally guarantees we
+        // never dump raw JSON in the chat bubble even if upstream
+        // stamping was lost (frozen error object, missed code path…).
+        if (!envelope?.code) {
+          try {
+            const parsed = aiErrorFromException(error)
+            if (parsed && parsed.code && parsed.code !== 'INTERNAL_ERROR') {
+              envelope = parsed
+            } else if (parsed && parsed.code === 'INTERNAL_ERROR' && parsed.message && parsed.message !== (error?.message ?? '')) {
+              // Scanner extracted a JSON body's `message` field but no
+              // recognised code — still a cleaner message than the raw
+              // SDK string, so use it.
+              envelope = parsed
+            }
+          } catch { /* ignore */ }
+        }
+        const envelopeCode: string | undefined = envelope?.code
+        const envelopeMsg: string | undefined = envelope?.message
+
+        // The streaming bubble may contain pollution: model SSE error
+        // frames, raw HTTP bodies that langchain emits as `on_chat_model_stream`
+        // events, or partial output that was invalidated by the error.
+        // If we have a structured envelope, replace the bubble's content
+        // with a single-line trace so the user knows WHICH prompt failed
+        // without seeing the raw JSON. If there's no envelope, we keep
+        // whatever partial content was streamed (it's the only signal).
+        const streamingId = streamingAssistantIdRef.current
+        if (streamingId && envelopeCode) {
+          setMessages(prev => prev.map(m =>
+            m.id === streamingId
+              ? { ...m, content: `${envelopeCode}: ${envelopeMsg ?? 'AI service error'}`, isExecutingTools: false, executingToolName: undefined, executingToolArgs: undefined, executingToolUIString: undefined }
+              : m
+          ))
+          streamingAssistantIdRef.current = null
+          return
+        }
+
+        // No envelope — likely a network failure, abort, or unknown shape.
+        // The notice strip won't render (assistantState classifies it as
+        // INTERNAL_ERROR but the strip suppresses generic messages without
+        // a real backend code). Surface a single chat bubble so the user
+        // never sees a silent failure.
+        const fallbackText = `Error: ${error?.message ?? 'Something went wrong'}`
+        if (streamingId) {
+          setMessages(prev => prev.map(m =>
+            m.id === streamingId
+              ? (m.content && m.content.trim().length > 0
+                ? { ...m, content: m.content + `\n\n${fallbackText}`, isExecutingTools: false, executingToolName: undefined, executingToolArgs: undefined, executingToolUIString: undefined }
+                : { ...m, content: fallbackText, isExecutingTools: false, executingToolName: undefined, executingToolArgs: undefined, executingToolUIString: undefined })
+              : m
+          ))
+          streamingAssistantIdRef.current = null
+          return
+        }
         setMessages(prev => [
           ...prev,
           {
             id: crypto.randomUUID(),
             role: 'assistant',
-            content: `Error: ${error.message}`,
+            content: fallbackText,
             timestamp: Date.now(),
             sentiment: 'none'
           }
@@ -1475,6 +1809,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   )
 
   const handleSend = useCallback(async () => {
+    // We do NOT hard-gate on cooldownDisplay — the banner is informational
+    // only. If the user wants to retry while rate-limited, that's their
+    // call; the backend will reject it and we surface the error normally.
     await sendPrompt(input)
     setInput('')
   }, [input, sendPrompt])
@@ -1510,7 +1847,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // Fetch available Ollama models when Ollama model is selected
   useEffect(() => {
     const fetchOllamaModels = async () => {
-      if (selectedModel.provider === 'ollama') {
+      if (selectedModel?.provider === 'ollama') {
         try {
           const available = await isOllamaAvailable()
           if (available) {
@@ -1533,7 +1870,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 // Sync the default model with the backend
                 try {
                   await props.plugin.call('remixAI', 'setModel', defaultModel)
-                  setAssistantChoice(selectedModel.provider)
+                  setAssistantChoice(selectedModel?.provider ?? 'ollama')
                   setMessages(prev => [...prev, {
                     id: crypto.randomUUID(),
                     role: 'assistant',
@@ -1560,10 +1897,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'ollama_unavailable', value: 'switching_to_default', isClick: false })
             // Set failure flag before switching back to prevent success message
             setIsOllamaFailureFallback(true)
-            // Automatically switch back to default model
-            const defaultModel = getDefaultModel()
-            setSelectedModelId(defaultModel.id)
-            setSelectedModel(defaultModel)
+            // Fall back to the API-resolved chat default (no literal id).
+            try {
+              const def: AIModel | null = await props.plugin.call('assistantState' as any, 'getDefaultModel')
+              if (def && def.id) {
+                setSelectedModelId(def.id)
+                setSelectedModel(def)
+              } else {
+                console.warn('[RemixAI Assistant UI] Ollama unavailable and no API default model yet — leaving picker empty')
+                setSelectedModelId('')
+                setSelectedModel(null)
+              }
+            } catch (e) {
+              console.warn('[RemixAI Assistant UI] assistantState.getDefaultModel failed during Ollama fallback', e)
+              setSelectedModelId('')
+              setSelectedModel(null)
+            }
           }
         } catch (error: any) {
           console.warn('Failed to fetch Ollama models:', error)
@@ -1579,10 +1928,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'ollama_connection_error', value: `${error.message || 'unknown'}|switching_to_default`, isClick: false })
           // Set failure flag before switching back to prevent success message
           setIsOllamaFailureFallback(true)
-          // Switch back to default model on error
-          const defaultModel = getDefaultModel()
-          setSelectedModelId(defaultModel.id)
-          setSelectedModel(defaultModel)
+          // Fall back to the API-resolved chat default (no literal id).
+          try {
+            const def: AIModel | null = await props.plugin.call('assistantState' as any, 'getDefaultModel')
+            if (def && def.id) {
+              setSelectedModelId(def.id)
+              setSelectedModel(def)
+            } else {
+              console.warn('[RemixAI Assistant UI] Ollama errored and no API default model yet — leaving picker empty')
+              setSelectedModelId('')
+              setSelectedModel(null)
+            }
+          } catch (e) {
+            console.warn('[RemixAI Assistant UI] assistantState.getDefaultModel failed during Ollama error fallback', e)
+            setSelectedModelId('')
+            setSelectedModel(null)
+          }
         }
       } else {
         setOllamaModels([])
@@ -1590,7 +1951,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     }
     fetchOllamaModels()
-  }, [selectedModel.provider, selectedOllamaModel])
+  }, [selectedModel?.provider, selectedOllamaModel])
 
   const handleSetModel = useCallback(() => {
     dispatchActivity('button', 'setModel')
@@ -1619,19 +1980,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     // }
     setAutoModeEnabled(false)
 
-    const model = AVAILABLE_MODELS.find(m => m.id === modelId)
+    const model = availableModels.find(m => m.id === modelId)
     if (!model) return
 
-    // Check access
-    if (!modelAccess.checkAccess(modelId)) {
-      // Show login/upgrade prompt
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `**Authentication Required**\n\nThe model "${model.name}" requires authentication. Please sign in to access premium models.`,
-        timestamp: Date.now(),
-        sentiment: 'none'
-      }])
+    // Check access — backend's `available` flag is the source of truth.
+    if (!model.available) {
+      handleLockedModelClick(model.id, model.displayName)
       return
     }
 
@@ -1663,17 +2017,25 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [props.plugin, modelAccess])
 
   const handleLockedModelClick = useCallback((modelId: string, modelName: string) => {
-    setMessages(prev => [...prev, {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: `**Join the Beta Program for ${modelName}**\n\nThis model is currently in beta and requires special access.\n\n**How to get access:**\nUse the *Sign in BETA* or *Join Remix Beta* buttons to join Beta Program\nYou'll directly have access to all beta models\n\n*Beta models include the latest AI capabilities for smart contract development, including advanced code analysis, MCP integrations and generation features.*`,
-      timestamp: Date.now(),
-      sentiment: 'none'
-    }])
-    props.plugin.call('betaCornerWidget', 'show').catch(() => {
+    // The model entry carries `requiredFeature` and a `reason` string
+    // (e.g. 'auth_required', 'feature_required'). We translate those
+    // into one of the four plan-manager hand-off reasons — see the
+    // assistant-machine docs for the full table.
+    const model = availableModels.find(m => m.id === modelId)
+    let reason: 'auth-required' | 'email-unverified' | 'feature-required' | 'quota-exhausted' = 'feature-required'
+    let requiredFeature: string | null = null
+    if (model?.reason === 'auth_required' || modelId === '__signin__') {
+      reason = 'auth-required'
+    } else if (model?.requiredFeature) {
+      reason = 'feature-required'
+      requiredFeature = model.requiredFeature
+    }
+    props.plugin.call('planManager' as any, 'open', { reason, requiredFeature }).catch(() => {
+      // planManager not active (e.g. tests) — fall back to legacy beta widget
+      props.plugin.call('betaCornerWidget', 'show').catch(() => { /* noop */ })
     })
-    trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'beta_model_click', value: modelId, isClick: true })
-  }, [props.plugin])
+    trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'locked_model_click', value: modelId, isClick: true })
+  }, [props.plugin, availableModels])
 
   const modalMessage = () => {
     return (
@@ -2104,6 +2466,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           )}
         </div>
 
+        {cooldownDisplay && (
+          <CooldownBanner
+            display={cooldownDisplay}
+            onDismiss={() => {
+              dismissedCooldownKeyRef.current = `${cooldownDisplay.code}:${cooldownDisplay.expiresAt ?? ''}`
+              setCooldownDisplay(null)
+            }}
+          />
+        )}
+        {chatNotice && (
+          <ChatNoticeStrip
+            notice={chatNotice}
+            onAction={(action) => { void handleChatNoticeAction(action) }}
+            onDismiss={dismissChatNotice}
+          />
+        )}
         {
           messages.length > 0 ? (
             <AiChatPromptAreaForHistory
@@ -2117,9 +2495,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               mcpEnabled={mcpEnabled}
               mcpEnhanced={mcpEnhanced}
               setMcpEnhanced={setMcpEnhanced}
-              availableModels={AVAILABLE_MODELS}
+              availableModels={availableModels}
               selectedModel={selectedModel}
               autoModeEnabled={autoModeEnabled}
+              autoModeAvailable={autoModeAvailable}
               handleModelSelection={handleModelSelection}
               onLockedModelClick={handleLockedModelClick}
               input={input}
@@ -2142,7 +2521,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               showOllamaModelSelector={showOllamaModelSelector}
               showModelSelector={showModelSelector}
               setShowModelSelector={setShowModelSelector}
-              modelAccess={modelAccess}
               selectedModelId={selectedModelId}
               handleOllamaModelSelection={handleModelSelection}
               selectedOllamaModel={selectedOllamaModel}
@@ -2163,9 +2541,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               mcpEnabled={mcpEnabled}
               mcpEnhanced={mcpEnhanced}
               setMcpEnhanced={setMcpEnhanced}
-              availableModels={AVAILABLE_MODELS}
+              availableModels={availableModels}
               selectedModel={selectedModel}
               autoModeEnabled={autoModeEnabled}
+              autoModeAvailable={autoModeAvailable}
               handleModelSelection={handleModelSelection}
               onLockedModelClick={handleLockedModelClick}
               input={input}
@@ -2188,7 +2567,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               showOllamaModelSelector={showOllamaModelSelector}
               showModelSelector={showModelSelector}
               setShowModelSelector={setShowModelSelector}
-              modelAccess={modelAccess}
               selectedModelId={selectedModelId}
               handleOllamaModelSelection={handleModelSelection}
               selectedOllamaModel={selectedOllamaModel}

@@ -4,6 +4,7 @@ import { useAuth } from '../../../../app/src/lib/remix-app/context/auth-context'
 import { AppContext } from '../../../../app/src/lib/remix-app/context/context'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { Registry } from '@remix-project/remix-lib'
+import { OtpDigitInput, OtpDigitInputHandle } from '../otp-digit-input'
 import './login-modal.css'
 
 interface LoginModalProps {
@@ -81,7 +82,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
   const [codeExpiresIn, setCodeExpiresIn] = useState(0)
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null)
 
-  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const otpRef = useRef<OtpDigitInputHandle>(null)
   const emailInputRef = useRef<HTMLInputElement>(null)
   const verifyingRef = useRef(false)
 
@@ -352,7 +353,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
       setSendCooldown(60)
       setOtpDigits(['', '', '', '', '', ''])
       setEmailError(null)
-      setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
+      setTimeout(() => otpRef.current?.focus(), 100)
     } catch (err: any) {
       setEmailError(err.message || 'Failed to send verification code')
     } finally {
@@ -430,7 +431,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
           setEmailError(data.error || 'Invalid verification code')
         }
         setOtpDigits(['', '', '', '', '', ''])
-        setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
+        setTimeout(() => otpRef.current?.focus(), 100)
         return
       }
 
@@ -472,51 +473,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
     } finally {
       verifyingRef.current = false
       setOtpVerifying(false)
-    }
-  }
-
-  // --- OTP digit input handlers ---
-  const handleOtpDigitChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return
-
-    const newDigits = [...otpDigits]
-    newDigits[index] = value.slice(-1)
-    setOtpDigits(newDigits)
-
-    // Auto-advance to next input
-    if (value && index < 5) {
-      otpInputRefs.current[index + 1]?.focus()
-    }
-
-    // Auto-submit when all 6 digits filled
-    const fullCode = newDigits.join('')
-    if (fullCode.length === 6) {
-      handleVerifyCode(fullCode)
-    }
-  }
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus()
-    }
-    if (e.key === 'Enter') {
-      handleVerifyCode()
-    }
-  }
-
-  const handleOtpPaste = (e: React.ClipboardEvent) => {
-    e.preventDefault()
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-    if (!pasted) return
-
-    const newDigits = Array(6).fill('').map((_, i) => pasted[i] || '')
-    setOtpDigits(newDigits)
-
-    const focusIdx = Math.min(pasted.length, 5)
-    otpInputRefs.current[focusIdx]?.focus()
-
-    if (pasted.length === 6) {
-      handleVerifyCode(pasted)
     }
   }
 
@@ -728,25 +684,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                   )}
 
                   {/* 6-digit OTP inputs */}
-                  <div className="d-flex gap-2 mb-3 login-modal-otp-group" onPaste={handleOtpPaste}>
-                    {otpDigits.map((digit, i) => (
-                      <input
-                        key={i}
-                        ref={(el) => { otpInputRefs.current[i] = el }}
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        className={`login-modal-otp-digit ${digit ? 'has-value' : ''}`}
-                        maxLength={1}
-                        value={digit}
-                        onChange={(e) => handleOtpDigitChange(i, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                        onFocus={(e) => e.target.select()}
-                        autoFocus={i === 0}
-                        disabled={otpVerifying}
-                      />
-                    ))}
-                  </div>
+                  <OtpDigitInput
+                    ref={otpRef}
+                    value={otpDigits}
+                    onChange={setOtpDigits}
+                    onComplete={(code) => handleVerifyCode(code)}
+                    onSubmit={() => handleVerifyCode()}
+                    disabled={otpVerifying}
+                    className="mb-3"
+                  />
 
                   {/* Code expiry timer */}
                   {codeExpiresIn > 0 && (

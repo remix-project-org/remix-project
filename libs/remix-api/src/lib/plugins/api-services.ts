@@ -42,6 +42,18 @@ import {
   ProductProvider,
   CreditPackagesResponse,
   SubscriptionPlansResponse,
+  AvailableProductsResponse,
+  PurchaseProductRequest,
+  PurchaseProductResponse,
+  PreviewSubscriptionChangeRequest,
+  PreviewSubscriptionChangeResponse,
+  ChangeSubscriptionRequest,
+  ChangeSubscriptionResponse,
+  CancelSubscriptionRequest,
+  CancelSubscriptionResponse,
+  TransactionStatusResponse,
+  CreditsUsageQuery,
+  UsageReport,
   UserSubscriptionResponse,
   PurchaseCreditsRequest,
   PurchaseCreditsResponse,
@@ -63,7 +75,11 @@ import {
   PoolReleaseResponse,
   PoolStatusResponse,
   PoolAccountsResponse,
-  PoolReleaseAllResponse
+  PoolReleaseAllResponse,
+  SendEmailVerificationRequest,
+  SendEmailVerificationResponse,
+  VerifyEmailVerificationRequest,
+  VerifyEmailVerificationResponse
 } from './api-types'
 
 /**
@@ -195,6 +211,49 @@ export class SSOApiService {
   async linkSiwe(request: SiweVerifyRequest): Promise<ApiResponse<SiweVerifyResponse>> {
     return this.apiClient.post<SiweVerifyResponse>('/siwe/link', request)
   }
+
+  // ==================== Email Verification ====================
+  // These endpoints gate access to features (e.g. Remix AI) by requiring a
+  // confirmed email address on the account. Distinct from /email/send-code +
+  // /email/verify-code which are the OTP-login flow on /sso/email/.
+  //
+  // Server constants: 6-digit numeric code, 10-min TTL, 60s resend cooldown,
+  // 5 max wrong attempts (then code is invalidated and user must request new).
+  // After a successful verify, the caller MUST refetch /permissions/ \u2014 the
+  // JWT is not refreshed.
+
+  /**
+   * Send a verification code to the user's email.
+   *  \u2022 Omit `email` to verify the on-file address (SSO users).
+   *  \u2022 Provide `email` to add a new address (SIWE users) or change the existing one.
+   *
+   * Possible non-2xx responses:
+   *  \u2022 400 Invalid email format / NO_EMAIL_ON_FILE
+   *  \u2022 409 EMAIL_IN_USE
+   *  \u2022 429 cooldown active \u2014 inspect `retry_after` (seconds)
+   */
+  async sendEmailVerification(
+    request: SendEmailVerificationRequest = {}
+  ): Promise<ApiResponse<SendEmailVerificationResponse>> {
+    return this.apiClient.post<SendEmailVerificationResponse>('/email/send-verification', request)
+  }
+
+  /**
+   * Confirm the verification code emailed to the user.
+   *
+   * Possible non-2xx responses:
+   *  \u2022 400 Invalid code (response includes `attempts_remaining`) or expired
+   *  \u2022 409 EMAIL_IN_USE (race condition with another account)
+   *  \u2022 429 too many wrong attempts \u2014 code invalidated, user must request a new one
+   *
+   * On success, the caller should call PermissionsApiService.getPermissions()
+   * to refresh `email_verified` / `email_verified_date` / `has_email`.
+   */
+  async verifyEmailVerification(
+    request: VerifyEmailVerificationRequest
+  ): Promise<ApiResponse<VerifyEmailVerificationResponse>> {
+    return this.apiClient.post<VerifyEmailVerificationResponse>('/email/verify-verification', request)
+  }
 }
 
 /**
@@ -211,10 +270,14 @@ export class CreditsApiService {
   }
   
   /**
-   * Get current credit balance
+   * Get current credit balance.
+   * @param options.includeQuotas When true, the response also contains a
+   *   `quotas` array (per-model entitlements). The endpoint stays
+   *   backwards-compatible — old callers see no payload change.
    */
-  async getBalance(): Promise<ApiResponse<Credits>> {
-    return this.apiClient.get<Credits>('/balance')
+  async getBalance(options?: { includeQuotas?: boolean }): Promise<ApiResponse<Credits>> {
+    const qs = options?.includeQuotas ? '?include=quotas' : ''
+    return this.apiClient.get<Credits>(`/balance${qs}`)
   }
   
   /**
@@ -227,6 +290,23 @@ export class CreditsApiService {
     
     const query = params.toString()
     return this.apiClient.get(`/transactions${query ? '?' + query : ''}`)
+  }
+
+  /**
+   * Get aggregated AI usage for the authenticated user.
+   * Endpoint is served by the credits service under /credits/usage.
+   */
+  async getUsageReport(query: CreditsUsageQuery = {}): Promise<ApiResponse<UsageReport>> {
+    const params = new URLSearchParams()
+    if (query.from) params.set('from', query.from)
+    if (query.to) params.set('to', query.to)
+    if (query.groupBy && query.groupBy.length > 0) params.set('group_by', query.groupBy.join(','))
+    if (query.service) params.set('service', query.service)
+    if (query.provider) params.set('provider', query.provider)
+    if (query.limit !== undefined) params.set('limit', query.limit.toString())
+
+    const qs = params.toString()
+    return this.apiClient.get<UsageReport>(`/usage${qs ? '?' + qs : ''}`)
   }
 }
 
@@ -323,6 +403,76 @@ export class StorageApiService {
 /**
  * Permissions API Service - Query user feature permissions
  */
+// TEMP: hardcoded ai_models catalogue. Backend doesn't currently surface
+// this for all users on /permissions; remove once it does.
+const HARDCODED_AI_MODELS: NonNullable<PermissionsResponse['ai_models']> = [
+  {
+    id: 'mistral-small-latest',
+    provider: 'mistralai',
+    display_name: 'Mistral Small',
+    description: 'Fast and efficient for basic tasks',
+    category: 'general',
+    capabilities: ['chat', 'code'],
+    is_default: true,
+    requires_auth: true,
+    required_feature: 'ai:mistral-small',
+    available: true,
+    sort_order: 10
+  },
+  {
+    id: 'mistral-medium-latest',
+    provider: 'mistralai',
+    display_name: 'Mistral Medium',
+    description: 'Fast and efficient for basic tasks',
+    category: 'general',
+    capabilities: ['chat', 'code'],
+    is_default: false,
+    requires_auth: true,
+    required_feature: 'ai:mistral-medium',
+    available: true,
+    sort_order: 20
+  },
+  {
+    id: 'codestral-latest',
+    provider: 'mistralai',
+    display_name: 'Codestral',
+    description: 'Specialized for code generation',
+    category: 'coding',
+    capabilities: ['code', 'completion'],
+    is_default: false,
+    requires_auth: true,
+    required_feature: 'ai:codestral',
+    available: true,
+    sort_order: 30
+  },
+  {
+    id: 'claude-sonnet-4-6',
+    provider: 'anthropic',
+    display_name: 'Claude Sonnet 4.6',
+    description: 'Balanced performance and speed',
+    category: 'coding',
+    capabilities: ['chat', 'code', 'completion'],
+    is_default: false,
+    requires_auth: true,
+    required_feature: 'ai:sonnet-4.6',
+    available: true,
+    sort_order: 40
+  },
+  {
+    id: 'claude-opus-4-6',
+    provider: 'anthropic',
+    display_name: 'Claude Opus 4.6',
+    description: 'Best for complex web3 contracts',
+    category: 'coding',
+    capabilities: ['chat', 'code', 'completion'],
+    is_default: false,
+    requires_auth: true,
+    required_feature: 'ai:opus-4.6',
+    available: true,
+    sort_order: 50
+  }
+]
+
 export class PermissionsApiService {
   constructor(private apiClient: IApiClient) {}
 
@@ -344,7 +494,20 @@ export class PermissionsApiService {
    * Get all permissions for the current user
    */
   async getPermissions(): Promise<ApiResponse<PermissionsResponse>> {
-    return this.apiClient.get<PermissionsResponse>('/')
+    const res = await this.apiClient.get<PermissionsResponse>('/')
+    // TEMP: backfill ai_models from the hardcoded catalogue ONLY when the
+    // backend hasn't shipped one yet for this user. Once /permissions returns
+    // a non-empty array we honour it verbatim so new server-side rows
+    // (additional providers, model swaps, etc.) show up without a client
+    // release. Remove the hardcoded list entirely once every tier returns
+    // ai_models server-side.
+    if (res?.ok && res.data) {
+      const existing = res.data.ai_models
+      if (!Array.isArray(existing) || existing.length === 0) {
+        res.data.ai_models = HARDCODED_AI_MODELS
+      }
+    }
+    return res
   }
   
   /**
@@ -493,6 +656,70 @@ export class BillingApiService {
     return this.apiClient.post<SubscribeResponse>('/subscribe', body)
   }
 
+  /**
+   * Preview proration for a plan change BEFORE committing it.
+   * POST /billing/subscription/preview-change
+   *
+   * Use the returned `preview` object to show "you'll be charged $X.XX now
+   * (prorated)" or "you'll receive a $Y.YY credit" before the user confirms.
+   * Returns 404 `no_active_subscription` if the user has no paid sub — in
+   * that case fall back to POST /products/purchase.
+   */
+  async previewSubscriptionChange(
+    request: PreviewSubscriptionChangeRequest
+  ): Promise<ApiResponse<PreviewSubscriptionChangeResponse>> {
+    return this.apiClient.post<PreviewSubscriptionChangeResponse>('/subscription/preview-change', request)
+  }
+
+  /**
+   * Commit a plan change (upgrade or downgrade between paid plans).
+   * PATCH /billing/subscription
+   *
+   * Backend revokes the old feature-group membership and grants the new one.
+   * The PATCH response already reflects the new state — safe to update the UI
+   * optimistically. Not for switching to free; use cancel() instead.
+   */
+  async changeSubscription(
+    request: ChangeSubscriptionRequest
+  ): Promise<ApiResponse<ChangeSubscriptionResponse>> {
+    return this.apiClient.request<ChangeSubscriptionResponse>('/subscription', { method: 'PATCH', body: request })
+  }
+
+  /**
+   * Cancel the active subscription.
+   * POST /billing/subscription/cancel
+   *
+   * 'next_billing_period' (default) keeps access until period end.
+   * 'immediately' cancels now — webhook auto-grants the free plan as a fallback.
+   */
+  async cancelSubscription(
+    request: CancelSubscriptionRequest = {}
+  ): Promise<ApiResponse<CancelSubscriptionResponse>> {
+    return this.apiClient.post<CancelSubscriptionResponse>('/subscription/cancel', request)
+  }
+
+  /**
+   * Poll a specific checkout's status.
+   * GET /billing/transaction/:providerTransactionId
+   *
+   * Use after `POST /products/purchase` returns a `transactionId` — most
+   * importantly for credit packages, which never appear in /billing/subscription.
+   *
+   * Note: while the webhook hasn't fired the backend returns HTTP 404 with a
+   * body of `{ status: 'pending', … }`. The ApiClient surfaces this as
+   * `{ ok: false, status: 404, data: { status: 'pending' } }` — callers should
+   * treat "404 + status:'pending'" as "keep polling", not as an error.
+   *
+   * Terminal statuses to stop on: completed | failed | canceled | refunded | disputed.
+   */
+  async getTransactionStatus(
+    providerTransactionId: string,
+    provider?: string
+  ): Promise<ApiResponse<TransactionStatusResponse>> {
+    const qs = provider ? `?provider=${encodeURIComponent(provider)}` : ''
+    return this.apiClient.get<TransactionStatusResponse>(`/transaction/${encodeURIComponent(providerTransactionId)}${qs}`)
+  }
+
   // ==================== Helper Methods ====================
 
   /**
@@ -635,6 +862,60 @@ export class BillingApiService {
 /**
  * Invite API Service - Invite token endpoints with full TypeScript typing
  */
+/**
+ * Products API Service — served from the /products base URL
+ */
+export class ProductsApiService {
+  constructor(private apiClient: IApiClient) {}
+
+  setToken(token: string): void {
+    this.apiClient.setToken(token)
+  }
+
+  /**
+   * List products of any type from the unified catalog.
+   * GET /products/available?type=&provider=
+   *
+   * Replaces the legacy `getAvailableSubscriptions()` / billing
+   * `getCreditPackages()` helpers — both `subscription_plan` and
+   * `credit_package` products come from the same endpoint, and each
+   * item carries the full multi-cadence `prices` array.
+   */
+  async getAvailableProducts(filters: {
+    type?: 'subscription_plan' | 'credit_package' | string
+    provider?: 'paddle' | 'crypto' | string
+  } = {}): Promise<ApiResponse<AvailableProductsResponse>> {
+    const params = new URLSearchParams()
+    if (filters.type) params.set('type', filters.type)
+    if (filters.provider) params.set('provider', filters.provider)
+    const qs = params.toString()
+    return this.apiClient.get<AvailableProductsResponse>(`/available${qs ? '?' + qs : ''}`)
+  }
+
+  /**
+   * List subscription plans the user can purchase.
+   * GET /products/available/subscriptions
+   *
+   * @deprecated Use `getAvailableProducts({ type: 'subscription_plan' })`.
+   *   The unified `/products/available` endpoint returns the full
+   *   multi-price catalog and is the path forward.
+   */
+  async getAvailableSubscriptions(): Promise<ApiResponse<AvailableProductsResponse>> {
+    return this.apiClient.get<AvailableProductsResponse>('/available/subscriptions')
+  }
+
+  /**
+   * Unified purchase endpoint — buys a plan or package (free or paid).
+   * Returns either a checkout URL (paid) or an immediate-grant payload (free).
+   * On 409 ALREADY_SUBSCRIBED the response.data carries the existing
+   * subscription and the caller must route to PATCH /billing/subscription.
+   * POST /products/purchase
+   */
+  async purchaseProduct(request: PurchaseProductRequest): Promise<ApiResponse<PurchaseProductResponse>> {
+    return this.apiClient.post<PurchaseProductResponse>('/purchase', request)
+  }
+}
+
 export class InviteApiService {
   constructor(private apiClient: IApiClient) {}
 

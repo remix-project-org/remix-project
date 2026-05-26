@@ -7,6 +7,29 @@ import axios from 'axios';
 import { endpointUrls } from "@remix-endpoints-helper"
 
 const defaultErrorMessage = `Unable to get a response from AI server`
+
+/**
+ * Build an Error whose shape matches what `parseAIErrorEnvelope` expects on
+ * the upstream side (`e.response.data.error.{code,message,status,...}`).
+ * Used for non-2xx responses from the streaming endpoint, where `fetch`
+ * does not throw on its own.
+ */
+async function buildAIErrorFromResponse(response: Response): Promise<Error> {
+  let body: any = null
+  try {
+    const text = await response.text()
+    try { body = JSON.parse(text) } catch { body = text }
+  } catch { /* unreadable body */ }
+  const inner = body && typeof body === 'object' ? body.error : null
+  const message =
+    (inner && typeof inner.message === 'string' && inner.message) ||
+    (typeof body === 'string' && body) ||
+    `AI request failed with HTTP ${response.status}`
+  const err: any = new Error(message)
+  err.status = response.status
+  err.response = { status: response.status, data: body }
+  return err
+}
 export class RemoteInferencer implements ICompletions, IGeneration {
   api_url: string
   completion_url: string
@@ -129,7 +152,12 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     } catch (e) {
       ChatHistory.clearHistory()
       console.error('Error making request to Inference server:', e.message)
-      return ""
+      // Always propagate so withAssistantGate can parse the AIError
+      // envelope and report it to assistantState (cooldown banner,
+      // plan-manager hand-off, notice strip). Completion callers (the
+      // editor's inline-completion provider) already swallow errors
+      // silently — they only ever cared about the resolved string.
+      throw e
     }
     finally {
       this.event.emit("onInferenceDone")
@@ -167,6 +195,12 @@ export class RemoteInferencer implements ICompletions, IGeneration {
         signal: this.currentAbortController.signal,
       });
 
+      // fetch() does not throw on 4xx/5xx — surface those as structured
+      // errors so the assistant-state gate can react (cooldown, upgrade…).
+      if (!response.ok) {
+        throw await buildAIErrorFromResponse(response)
+      }
+
       if (payload.return_stream_response) {
         return response
       }
@@ -201,6 +235,9 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     } catch (error) {
       ChatHistory.clearHistory()
       console.error('Error making stream request to Inference server:', error.message);
+      // Propagate so withAssistantGate / chat UI can react. Aborts (user
+      // cancelled) are still recognised by name === 'AbortError' downstream.
+      throw error
     }
     finally {
       this.event.emit('onInferenceDone')

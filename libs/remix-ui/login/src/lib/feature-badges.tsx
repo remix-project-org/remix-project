@@ -36,7 +36,22 @@ export const FeatureBadges: React.FC<FeatureBadgesProps> = ({ plugin, onClose })
   return (
     <>
       <div className="feature-badges-section">
-        <div className="feature-badges-label">Your Plan</div>
+        <div className="feature-badges-header">
+          <div className="feature-badges-label">Your Plan</div>
+          {plugin && (
+            <button
+              type="button"
+              className="feature-badges-manage"
+              onClick={(e) => {
+                e.stopPropagation()
+                onClose?.()
+                try { plugin.call('planManager', 'open') } catch { /* plugin not ready */ }
+              }}
+            >
+              Manage <i className="fas fa-arrow-right"></i>
+            </button>
+          )}
+        </div>
         <div className="feature-badges-list">
           {featureGroups.map((group) => {
             const config = BADGE_CONFIG[group.name] || getDefaultBadgeConfig(group.name)

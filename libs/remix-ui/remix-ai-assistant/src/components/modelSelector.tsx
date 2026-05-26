@@ -1,11 +1,9 @@
 import React from 'react'
 import { AIModel } from '@remix/remix-ai-core'
-import { ModelAccess } from '../hooks/useModelAccess'
 
 interface ModelSelectorProps {
   models: AIModel[]
   selectedModelId: string
-  modelAccess: ModelAccess
   onSelect: (modelId: string) => void
   onClose: () => void
   position: { top: number; left: number }
@@ -14,13 +12,12 @@ interface ModelSelectorProps {
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
   models,
   selectedModelId,
-  modelAccess,
   onSelect,
   onClose,
   position
 }) => {
-  // Filter models to only show those the user has access to
-  const accessibleModels = models.filter(model => modelAccess.checkAccess(model.id))
+  // Filter models to only show those marked available by the backend.
+  const accessibleModels = models.filter(model => model.available)
 
   // Group accessible models by category
   const groupedModels = accessibleModels.reduce((acc, model) => {
@@ -61,7 +58,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 >
                   <div className="flex-grow-1">
                     <div className="d-flex align-items-center">
-                      <span className="fw-bold">{model.name}</span>
+                      <span className="fw-bold">{model.displayName}</span>
                       {isSelected && (
                         <i className="fa fa-check ms-2 text-success" />
                       )}

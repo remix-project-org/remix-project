@@ -54,7 +54,7 @@ import { MembershipRequestPlugin } from './app/plugins/membership-request-plugin
 import { BetaCornerWidgetPlugin } from './app/plugins/beta-corner-widget-plugin'
 import { NudgePlugin } from './app/plugins/nudge-plugin'
 import { HelpPlugin } from '@remix-ui/modal-help'
-import { AccountPlugin } from './app/plugins/account-plugin'
+import { PlanManagerPlugin } from '@remix-ui/plan-manager'
 import { RemixGuidePlugin } from './app/plugins/remixGuide'
 import { TemplatesPlugin } from './app/plugins/remix-templates'
 import { fsPlugin } from './app/plugins/electron/fsPlugin'
@@ -66,6 +66,7 @@ import { ripgrepPlugin } from './app/plugins/electron/ripgrepPlugin'
 import { compilerLoaderPlugin, compilerLoaderPluginDesktop } from './app/plugins/electron/compilerLoaderPlugin'
 import { appUpdaterPlugin } from './app/plugins/electron/appUpdaterPlugin'
 import { RemixAIPlugin } from './app/plugins/remixAIPlugin'
+import { AssistantStatePlugin } from './app/plugins/assistant-state-plugin'
 import { SlitherHandleDesktop } from './app/plugins/electron/slitherPlugin'
 import { SlitherHandle } from './app/files/slither-handle'
 import { FoundryHandle } from './app/files/foundry-handle'
@@ -188,7 +189,7 @@ class AppComponent {
   betaCornerWidget: BetaCornerWidgetPlugin
   nudgePlugin: NudgePlugin
   helpPlugin: HelpPlugin
-  accountPlugin: AccountPlugin
+  planManager: PlanManagerPlugin
   lifecycle: AppLifecycle
   lifecyclePlugin: LifecyclePlugin
   params: any
@@ -403,6 +404,7 @@ class AppComponent {
 
     // ----------------- AI --------------------------------------
     const remixAI = new RemixAIPlugin()
+    const assistantState = new AssistantStatePlugin()
     const quickDappV2 = new QuickDappV2()
     this.remixAiAssistant = new RemixAIAssistant()
 
@@ -572,6 +574,7 @@ class AppComponent {
       templateSelection,
       scriptRunnerUI,
       remixAI,
+      assistantState,
       quickDappV2,
       walletConnect,
       amp,
@@ -649,7 +652,6 @@ class AppComponent {
     this.topBar = new Topbar(filePanel, git, this.desktopClientMode)
     const landingPage = new LandingPage(appManager, this.menuicons, fileManager, filePanel, contentImport)
     this.settings = new SettingsTab(Registry.getInstance().get('config').api, editor)//, appManager)
-    this.accountPlugin = new AccountPlugin()
 
     const bottomBarPanel = new BottomBarPanel()
 
@@ -679,8 +681,9 @@ class AppComponent {
     this.invitationManager = new InvitationManagerPlugin()
     this.membershipRequest = new MembershipRequestPlugin()
     this.betaCornerWidget = new BetaCornerWidgetPlugin()
-    this.nudgePlugin = new NudgePlugin({ debug: false })
+    this.nudgePlugin = new NudgePlugin({ debug: true })
     this.helpPlugin = new HelpPlugin()
+    this.planManager = new PlanManagerPlugin()
     const feedbackPlugin = new FeedbackPlugin()
 
     this.engine.register([
@@ -700,7 +703,7 @@ class AppComponent {
       this.betaCornerWidget,
       this.nudgePlugin,
       this.helpPlugin,
-      this.accountPlugin,
+      this.planManager,
       feedbackPlugin
     ])
     this.engine.register([templateExplorerModal, skillExplorerModal, checklistExplorerModal, this.topBar])
@@ -775,6 +778,7 @@ class AppComponent {
       'contentImport',
       'gistHandler',
       'compilerloader',
+      'assistantState',
       'remixAI',
       'remixaiassistant'
     ])
@@ -784,12 +788,11 @@ class AppComponent {
     await this.appManager.activatePlugin(['membershipRequest'])
     await this.appManager.activatePlugin(['betaCornerWidget'])
     await this.appManager.activatePlugin(['nudgePlugin'])
-    await this.appManager.activatePlugin(['account'])
     await this.appManager.activatePlugin(['notificationCenter'])
     await this.appManager.activatePlugin(['feedback'])
     await this.appManager.activatePlugin(['settings'])
 
-    await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin'])
+    await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
     if (isElectron()) {

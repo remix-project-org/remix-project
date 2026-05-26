@@ -149,40 +149,11 @@
 
 /* ──────────────────────────────────────
    Email OTP — OTP digit inputs
-   ────────────────────────────────────── */
-
-.login-modal-otp-group {
-  justify-content: center;
-}
-
-.login-modal-otp-digit {
-  width: 46px;
-  height: 54px;
-  text-align: center;
-  font-size: 1.4rem;
-  font-weight: 600;
-  border: 2px solid #dee2e6;
-  border-radius: 10px;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  background: #fff;
-  caret-color: var(--bs-primary, #0d6efd);
-}
-
-.login-modal-otp-digit:focus {
-  border-color: var(--bs-primary, #0d6efd);
-  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
-}
-
-.login-modal-otp-digit.has-value {
-  border-color: var(--bs-primary, #0d6efd);
-  background: #f0f6ff;
-}
-
-.login-modal-otp-digit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+   ──────────────────────────────────────
+   The .login-modal-otp-group / .login-modal-otp-digit rules now live in
+   libs/remix-ui/login/src/lib/otp-digit-input.css and are loaded by the
+   shared <OtpDigitInput /> component itself. Kept here as a reminder so
+   future readers don't go looking for them. */
 
 /* ──────────────────────────────────────
    Email OTP — Envelope icon
