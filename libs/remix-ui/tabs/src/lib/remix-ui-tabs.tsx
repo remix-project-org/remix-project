@@ -17,6 +17,36 @@ import { CompileDropdown, RunScriptDropdown, EmptyDropdown, AmpSqlDropdown } fro
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import TabProxy from 'apps/remix-ide/src/app/panels/tab-proxy'
 
+export const getSavedOpenTabs = (config: any): string[] => {
+  return Array.isArray(config?.editor?.tabs) ? config.editor.tabs : []
+}
+
+export const updateConfigOpenTabs = (config: any, tabs: any[]) => {
+  return {
+    ...config,
+    editor: {
+      ...(config?.editor || {}),
+      tabs: tabs.filter((tab) => tab?.name).map((tab) => tab.name)
+    }
+  }
+}
+
+const runTabPersistenceDebugChecks = () => {
+  console.assert(getSavedOpenTabs({ editor: { tabs: ['A.sol', 'B.sol'] } }).length === 2, 'Should restore saved open tabs')
+  console.assert(getSavedOpenTabs({}).length === 0, 'Should return empty tabs when none are saved')
+
+  const updatedConfig = updateConfigOpenTabs({ editor: { environment: 'injected' } }, [{ name: 'A.sol' }, { name: 'B.sol' }])
+
+  console.assert(updatedConfig.editor.tabs.length === 2, 'Should save open tabs')
+  console.assert(updatedConfig.editor.environment === 'injected', 'Should preserve saved environment')
+
+  console.log('Tab persistence debug checks finished')
+}
+
+if (process.env.NODE_ENV === 'development') {
+  runTabPersistenceDebugChecks()
+}
+
 /* eslint-disable-next-line */
 export interface TabsUIProps {
   tabs: Array<Tab>
@@ -99,6 +129,7 @@ export const TabsUI = (props: TabsUIProps) => {
   const { features } = useAuth()
   const { trackMatomoEvent } = useContext(TrackingContext)
   const canRunScenario = props.canRunScenario
+  const [tabsInit, setTabsInit] = useState<boolean>(false)
 
   const compileSeq = useRef(0)
   const compileWatchdog = useRef<number | null>(null)
@@ -108,7 +139,7 @@ export const TabsUI = (props: TabsUIProps) => {
 
   const isVegaVisualization = tabsState.name && tabsState.name.indexOf('amp/vega-specs/') !== -1 && tabsState.currentExt === 'json'
 
-  useEffect(() => {
+  useEffect(() => { 
     if (props.tabs[tabsState.selectedIndex] && props.tabs[tabsState.selectedIndex].show) {
       tabsRef.current[tabsState.selectedIndex].scrollIntoView({
         behavior: 'smooth',
@@ -116,6 +147,44 @@ export const TabsUI = (props: TabsUIProps) => {
       })
     }
   }, [tabsState.selectedIndex])
+
+  useEffect(() => {
+    const update = async () => {
+      let config: any = {}
+        try {
+          const configContent = await props.plugin.call('fileManager', 'readFile', 'remix.config.json')
+          config = JSON.parse(configContent)
+        } catch (e) {
+          // File doesn't exist, create new config
+        }
+
+        config.editor = config.editor || {}
+        config.editor.tabs = config.editor.tabs || {}
+
+        if(config.editor.tabs.length > 0 && config.editor.tabs[0] !== "home"){
+          const openTabs = props.tabs.map((tab) => tab.name)
+          if(openTabs.length == 2 && openTabs[0] === "home" && openTabs[1] === "settings" && tabsInit === false){
+            config.editor.tabs.map((file: any) => props.plugin.call('fileManager', 'open', file))
+            setTabsInit(true)
+          }
+        }
+
+        try {
+          const configContent = await props.plugin.call('fileManager', 'readFile', 'remix.config.json')
+          config = JSON.parse(configContent)
+        } catch (e) {
+          // File doesn't exist, create new config
+        }
+        config.editor = config.editor || {}
+        config.editor.tabs = config.editor.tabs || {}
+        const trimmedList = props.tabs.filter((tab: any) => {
+          if(tab.show && tab.name !== "home") return tab
+        })
+        config.editor.tabs = trimmedList.map((tab) => tab.name.replace(/^.*?\//, ""))
+        await props.plugin.call('fileManager', 'writeFile', 'remix.config.json', JSON.stringify(config, null, 2))
+    }
+    update()
+  }, [tabsState])
 
   useEffect(() => {
     // Removed pluginIsClosed listener as the event is no longer emitted
