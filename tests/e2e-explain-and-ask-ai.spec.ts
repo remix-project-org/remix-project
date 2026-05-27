@@ -100,6 +100,7 @@ contract Storage {
   await expect(page.locator('[data-id="ai-route-status"]'))
     .toHaveAttribute('data-route', /agent|tools|chat/, { timeout: 30000 })
 
+  await page.waitForTimeout(5000); // extra wait to ensure all async state updates have settled and the "Ask RemixAI" button is interactable before we click it
   // --- 7. Click "Ask RemixAI" on the error card -----------------------------
   await askAiBtn.click();
 
