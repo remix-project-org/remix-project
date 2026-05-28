@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PluginClient } from '@remixproject/plugin';
-import { DappConfig } from '../types/dapp';
+import { DappConfig, DappAppConfig } from '../types/dapp';
 
 const DAPP_WORKSPACE_PREFIX = 'dapp-';
 const CONFIG_FILENAME = 'dapp.config.json';
@@ -202,7 +202,7 @@ export class DappManager {
                   config.thumbnailPath = previewContent;
                 }
               }
-            } catch (e) {}
+            } catch (e) { }
 
             configs.push(this.sanitizeConfig(config));
 
@@ -387,9 +387,9 @@ export class DappManager {
     if (vmStateSnapshot && vmProviderName) {
       const foldersToWrite = [vmProviderName];
       try {
-        try { await this.plugin.call('fileManager', 'mkdir', '.states'); } catch (_) {}
+        try { await this.plugin.call('fileManager', 'mkdir', '.states'); } catch (_) { }
         for (const folder of foldersToWrite) {
-          try { await this.plugin.call('fileManager', 'mkdir', `.states/${folder}`); } catch (_) {}
+          try { await this.plugin.call('fileManager', 'mkdir', `.states/${folder}`); } catch (_) { }
           await (this.plugin as any).call(
             'fileManager', 'writeFile',
             `.states/${folder}/state.json`,
@@ -416,9 +416,9 @@ export class DappManager {
       const pinnedChainId = contractData.chainId;
       const pinnedPath = `.deploys/pinned-contracts/${pinnedChainId}/${contractData.address}.json`;
 
-      try { await this.plugin.call('fileManager', 'mkdir', '.deploys'); } catch (_) {}
-      try { await this.plugin.call('fileManager', 'mkdir', '.deploys/pinned-contracts'); } catch (_) {}
-      try { await this.plugin.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${pinnedChainId}`); } catch (_) {}
+      try { await this.plugin.call('fileManager', 'mkdir', '.deploys'); } catch (_) { }
+      try { await this.plugin.call('fileManager', 'mkdir', '.deploys/pinned-contracts'); } catch (_) { }
+      try { await this.plugin.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${pinnedChainId}`); } catch (_) { }
 
       await (this.plugin as any).call(
         'fileManager', 'writeFile',
@@ -571,7 +571,7 @@ export class DappManager {
           currentPath = currentPath ? `${currentPath}/${folder}` : folder;
           try {
             await this.plugin.call('fileManager', 'mkdir', currentPath);
-          } catch (e) {}
+          } catch (e) { }
         }
       }
 
@@ -611,14 +611,14 @@ export class DappManager {
     try {
       await this.switchToWorkspace(sourceWs);
     } catch (e) {
-      try { await this.switchToWorkspace('default_workspace'); } catch {}
+      try { await this.switchToWorkspace('default_workspace'); } catch { }
     }
 
     if (dappConfig?.sourceWorkspace?.name && dappConfig?.contract?.address) {
       const mappingPath = `.deploys/dapp-mappings/${dappConfig.contract.address}_${workspaceName}.json`;
       try {
         await (this.plugin as any).call('fileManager', 'remove', mappingPath);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     await this.focusPlugin();
@@ -719,7 +719,7 @@ export class DappManager {
           if (previewContent) {
             config.thumbnailPath = previewContent;
           }
-        } catch (e) {}
+        } catch (e) { }
 
         if (currentWorkspace.name !== workspaceName) {
           await this.switchToWorkspace(currentWorkspace.name);
@@ -740,7 +740,7 @@ export class DappManager {
         try {
           await this.switchToWorkspace(currentWorkspace.name);
           await this.focusPlugin();
-        } catch (switchErr) {}
+        } catch (switchErr) { }
       }
     }
     return null;
@@ -797,7 +797,7 @@ export class DappManager {
         try {
           await this.switchToWorkspace(currentWorkspace.name);
           await this.focusPlugin();
-        } catch (switchErr) {}
+        } catch (switchErr) { }
       }
       return null;
     }
@@ -806,5 +806,163 @@ export class DappManager {
   async openDappWorkspace(workspaceName: string): Promise<void> {
     await this.switchToWorkspace(workspaceName);
     await this.focusPlugin();
+  }
+
+  // ──────────────────────────────────────────────
+  // New folder-based DApp methods
+  // All operate within the current workspace.
+  // No workspace switching required.
+  // ──────────────────────────────────────────────
+
+  private static readonly QUICKDAPP_META_DIR = '.quickdapp/apps';
+
+  /**
+   * List all folder-based DApps in the current workspace.
+   * Reads .quickdapp/apps/*.json — no workspace scanning, no switching.
+   */
+  async getDappApps(): Promise<DappAppConfig[]> {
+    try {
+      const metaDir = DappManager.QUICKDAPP_META_DIR;
+      const exists = await (this.plugin as any).call('fileManager', 'exists', metaDir);
+      if (!exists) return [];
+
+      const files = await this.plugin.call('fileManager', 'readdir', metaDir);
+      const configs: DappAppConfig[] = [];
+
+      for (const filePath of Object.keys(files || {})) {
+        if (!filePath.endsWith('.json')) continue;
+        try {
+          const content = await this.plugin.call('fileManager', 'readFile', filePath);
+          if (content) {
+            const config: DappAppConfig = JSON.parse(content);
+
+            // Load preview thumbnail if available
+            try {
+              const previewPath = `.quickdapp/previews/${config.id}.png`;
+              const previewExists = await (this.plugin as any).call('fileManager', 'exists', previewPath);
+              if (previewExists) {
+                const previewContent = await this.plugin.call('fileManager', 'readFile', previewPath);
+                if (previewContent) {
+                  (config as any).thumbnailPath = previewContent;
+                }
+              }
+            } catch (_) { }
+
+            configs.push(config);
+          }
+        } catch (e) {
+          console.warn('[DappManager] Failed to read app config:', filePath, e);
+        }
+      }
+
+      return configs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (e) {
+      console.error('[DappManager] getDappApps failed:', e);
+      return [];
+    }
+  }
+
+  /**
+   * Update a folder-based DApp's config.
+   * Reads and merges updates into .quickdapp/apps/<appId>.json.
+   * No workspace switching.
+   */
+  async updateDappAppConfig(appId: string, updates: Partial<DappAppConfig>): Promise<DappAppConfig | null> {
+    const configPath = `${DappManager.QUICKDAPP_META_DIR}/${appId}.json`;
+    try {
+      const content = await this.plugin.call('fileManager', 'readFile', configPath);
+      if (!content) throw new Error('Config file not found');
+
+      const current: DappAppConfig = JSON.parse(content);
+      const updated: DappAppConfig = {
+        ...current,
+        ...updates,
+        // Deep merge config and deployment
+        config: {
+          ...current.config,
+          ...(updates.config || {}),
+        },
+        deployment: {
+          ...current.deployment,
+          ...(updates.deployment || {}),
+        },
+        // Preserve contracts unless explicitly overridden
+        contracts: updates.contracts || current.contracts,
+        updatedAt: Date.now(),
+      };
+
+      const sanitized = this.sanitizeAppConfig(updated);
+      await (this.plugin as any).call(
+        'fileManager', 'writeFile',
+        configPath, JSON.stringify(sanitized, null, 2),
+        { silent: true }
+      );
+
+      return sanitized;
+    } catch (e) {
+      console.error('[DappManager] updateDappAppConfig failed:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Delete a folder-based DApp.
+   * Removes both the frontend folder and the metadata file.
+   * No workspace deletion or switching.
+   */
+  async deleteDappApp(appId: string): Promise<void> {
+    const configPath = `${DappManager.QUICKDAPP_META_DIR}/${appId}.json`;
+    try {
+      // Read config to get frontendDir
+      const content = await this.plugin.call('fileManager', 'readFile', configPath);
+      if (content) {
+        const config: DappAppConfig = JSON.parse(content);
+
+        // Delete frontend folder
+        try {
+          await (this.plugin as any).call('fileManager', 'remove', config.frontendDir);
+        } catch (e) {
+          console.warn('[DappManager] deleteDappApp: failed to remove frontendDir:', config.frontendDir, e);
+        }
+      }
+
+      // Delete metadata
+      try {
+        await (this.plugin as any).call('fileManager', 'remove', configPath);
+      } catch (e) {
+        console.warn('[DappManager] deleteDappApp: failed to remove config:', configPath, e);
+      }
+
+      // Delete preview
+      try {
+        await (this.plugin as any).call('fileManager', 'remove', `.quickdapp/previews/${appId}.png`);
+      } catch (_) { }
+
+    } catch (e) {
+      console.error('[DappManager] deleteDappApp failed:', e);
+    }
+  }
+
+  /**
+   * Get a single folder-based DApp config by appId.
+   * No workspace switching.
+   */
+  async getDappAppConfig(appId: string): Promise<DappAppConfig | null> {
+    const configPath = `${DappManager.QUICKDAPP_META_DIR}/${appId}.json`;
+    try {
+      const content = await this.plugin.call('fileManager', 'readFile', configPath);
+      if (!content) return null;
+      return JSON.parse(content);
+    } catch (e) {
+      console.warn('[DappManager] getDappAppConfig failed for', appId, e);
+      return null;
+    }
+  }
+
+  private sanitizeAppConfig(config: DappAppConfig): DappAppConfig {
+    if (config.config && config.config.logo) {
+      config.config.logo = this.normalizeLogo(config.config.logo) as string | undefined;
+    }
+    return config;
   }
 }

@@ -5,6 +5,7 @@ import { PluginViewWrapper } from '@remix-ui/helper'
 import { RemixUiQuickDappV2, getNetworkName } from '@remix-ui/quick-dapp-v2'
 import { EventEmitter } from 'events'
 import { remixAILogger } from '@remix/remix-ai-core'
+import { DappAppConfig } from '@remix-ui/quick-dapp-v2'
 
 const profile = {
   name: 'quick-dapp-v2',
@@ -18,12 +19,12 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: [],
-  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'openDapp', 'consumePendingCreateDapp', 'listDapps']
+  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'createDappApp', 'openDapp', 'consumePendingCreateDapp', 'listDapps', 'listDappApps']
 }
 
 export class QuickDappV2 extends ViewPlugin {
   element: HTMLDivElement
-  dispatch: React.Dispatch<any> = () => {}
+  dispatch: React.Dispatch<any> = () => { }
   event: any
   private listenersRegistered: boolean = false
   private pendingCreateDapp: any = null
@@ -178,7 +179,7 @@ export class QuickDappV2 extends ViewPlugin {
       let resolved: string | null = null;
       try {
         resolved = await this.call('blockchain' as any, 'getProvider');
-      } catch (_) {}
+      } catch (_) { }
       remixAILogger.warn(`[QuickDapp] chainId invalid ("${payload.chainId}"), resolved from provider: "${resolved}"`);
       payload.chainId = resolved || 'vm-osaka';
     }
@@ -216,9 +217,9 @@ export class QuickDappV2 extends ViewPlugin {
 
       // Pin contract in source workspace
       const pinPath = `.deploys/pinned-contracts/${payload.chainId}/${payload.address}.json`;
-      try { await this.call('fileManager', 'mkdir', '.deploys'); } catch (_) {}
-      try { await this.call('fileManager', 'mkdir', '.deploys/pinned-contracts'); } catch (_) {}
-      try { await this.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${payload.chainId}`); } catch (_) {}
+      try { await this.call('fileManager', 'mkdir', '.deploys'); } catch (_) { }
+      try { await this.call('fileManager', 'mkdir', '.deploys/pinned-contracts'); } catch (_) { }
+      try { await this.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${payload.chainId}`); } catch (_) { }
       await this.call('fileManager', 'writeFile', pinPath, JSON.stringify(pinnedData, null, 2));
       remixAILogger.log('[QuickDapp] Contract pinned in source workspace:', pinPath);
 
@@ -231,7 +232,7 @@ export class QuickDappV2 extends ViewPlugin {
         chainId: payload.chainId,
         createdAt: timestamp
       };
-      try { await this.call('fileManager', 'mkdir', '.deploys/dapp-mappings'); } catch (_) {}
+      try { await this.call('fileManager', 'mkdir', '.deploys/dapp-mappings'); } catch (_) { }
       await this.call('fileManager', 'writeFile', dappMappingPath, JSON.stringify(dappMapping, null, 2));
       remixAILogger.log('[QuickDapp] Dapp mapping saved:', dappMappingPath);
     } catch (e) {
@@ -246,7 +247,7 @@ export class QuickDappV2 extends ViewPlugin {
     let actualProvider: string | null = null;
     try {
       actualProvider = await this.call('blockchain' as any, 'getProvider');
-    } catch (_) {}
+    } catch (_) { }
     if (vmProviderName) {
       try {
         try {
@@ -254,7 +255,7 @@ export class QuickDappV2 extends ViewPlugin {
             this.call('blockchain' as any, 'dumpState'),
             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
           ]);
-        } catch (_) {}
+        } catch (_) { }
         await new Promise(r => setTimeout(r, 100));
         const statePath = `.states/${vmProviderName}/state.json`;
         const stateExists = await this.call('fileManager', 'exists', statePath);
@@ -295,7 +296,7 @@ export class QuickDappV2 extends ViewPlugin {
         name: payload.contractName,
         abi: payload.abi,
         chainId: payload.chainId,
-        networkName: payload.networkName || getNetworkName(payload.chainId)|| 'Unknown Network'
+        networkName: payload.networkName || getNetworkName(payload.chainId) || 'Unknown Network'
       },
       sourceWorkspace: {
         name: sourceWorkspaceName,
@@ -313,12 +314,12 @@ export class QuickDappV2 extends ViewPlugin {
     };
 
     await this.call('fileManager', 'writeFile', 'dapp.config.json', JSON.stringify(initialConfig, null, 2));
-    try { await this.call('fileManager', 'mkdir', 'src'); } catch (_) {}
+    try { await this.call('fileManager', 'mkdir', 'src'); } catch (_) { }
 
     if (vmStateSnapshot && vmProviderName) {
       try {
-        try { await this.call('fileManager', 'mkdir', '.states'); } catch (_) {}
-        try { await this.call('fileManager', 'mkdir', `.states/${vmProviderName}`); } catch (_) {}
+        try { await this.call('fileManager', 'mkdir', '.states'); } catch (_) { }
+        try { await this.call('fileManager', 'mkdir', `.states/${vmProviderName}`); } catch (_) { }
         await this.call('fileManager', 'writeFile', `.states/${vmProviderName}/state.json`, vmStateSnapshot);
 
         // Explicitly reload VM state into memory.
@@ -335,9 +336,9 @@ export class QuickDappV2 extends ViewPlugin {
     // Pin contract in dapp workspace
     try {
       const pinnedPath = `.deploys/pinned-contracts/${payload.chainId}/${payload.address}.json`;
-      try { await this.call('fileManager', 'mkdir', '.deploys'); } catch (_) {}
-      try { await this.call('fileManager', 'mkdir', '.deploys/pinned-contracts'); } catch (_) {}
-      try { await this.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${payload.chainId}`); } catch (_) {}
+      try { await this.call('fileManager', 'mkdir', '.deploys'); } catch (_) { }
+      try { await this.call('fileManager', 'mkdir', '.deploys/pinned-contracts'); } catch (_) { }
+      try { await this.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${payload.chainId}`); } catch (_) { }
       const pinnedData = {
         name: payload.contractName,
         address: payload.address,
@@ -437,6 +438,132 @@ export class QuickDappV2 extends ViewPlugin {
     } catch (e) {
       remixAILogger.error('[QuickDapp] listDapps failed:', e)
       return []
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // New folder-based DApp methods
+  // DApp lives inside current workspace as apps/<slug>/
+  // No workspace switching required.
+  // ──────────────────────────────────────────────
+
+  /**
+   * Create a DApp as a subfolder inside the current workspace.
+   * No new workspace is created; no workspace switching occurs.
+   * Metadata is stored in .quickdapp/apps/<slug>.json.
+   */
+  async createDappApp(payload: {
+    contractName: string;
+    address: string;
+    abi: any[];
+    chainId: string | number;
+    networkName?: string;
+    sourceFilePath?: string;
+    isBaseMiniApp?: boolean;
+  }): Promise<{ appId: string; frontendDir: string }> {
+    // ── Payload validation ──
+    if (!payload.address || typeof payload.address !== 'string' || !payload.address.startsWith('0x')) {
+      throw new Error(`createDappApp: Invalid contract address: ${payload.address}`);
+    }
+    if (!Array.isArray(payload.abi) || payload.abi.length === 0) {
+      throw new Error(`createDappApp: ABI must be a non-empty array`);
+    }
+    if (!payload.chainId || payload.chainId === '-' || String(payload.chainId) === 'undefined') {
+      let resolved: string | null = null;
+      try {
+        resolved = await this.call('blockchain' as any, 'getProvider');
+      } catch (_) { }
+      remixAILogger.warn(`[QuickDapp] chainId invalid ("${payload.chainId}"), resolved from provider: "${resolved}"`);
+      payload.chainId = resolved || 'vm-osaka';
+    }
+
+    const name = payload.contractName || 'Untitled';
+    const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${id.slice(0, 6)}`;
+    const frontendDir = `apps/${slug}`;
+    const timestamp = Date.now();
+    const networkName = payload.networkName || getNetworkName(payload.chainId) || 'Unknown Network';
+
+    // Create folder structure — no workspace creation or switching!
+    const dirsToCreate = [
+      'apps',
+      frontendDir,
+      `${frontendDir}/src`,
+      '.quickdapp',
+      '.quickdapp/apps',
+      '.quickdapp/previews',
+    ];
+    for (const dir of dirsToCreate) {
+      try { await this.call('fileManager', 'mkdir', dir); } catch (_) { }
+    }
+
+    const appConfig: DappAppConfig = {
+      id,
+      name,
+      frontendDir,
+      status: 'creating',
+      processingStartedAt: timestamp,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      contracts: [{
+        id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: payload.contractName,
+        sourceFilePath: payload.sourceFilePath || '',
+        abi: payload.abi,
+        deployments: [{
+          address: payload.address,
+          chainId: payload.chainId,
+          networkName,
+          deployedAt: timestamp,
+        }],
+        activeDeploymentIndex: 0,
+      }],
+      config: {
+        title: name,
+        details: 'Generated by AI',
+        isBaseMiniApp: payload.isBaseMiniApp || false,
+      },
+    };
+
+    await this.call(
+      'fileManager', 'writeFile',
+      `.quickdapp/apps/${slug}.json`,
+      JSON.stringify(appConfig, null, 2)
+    );
+
+    remixAILogger.log('[QuickDapp] createDappApp done (folder-based)', { appId: slug, frontendDir });
+    return { appId: slug, frontendDir };
+  }
+
+  /**
+   * List all folder-based DApps in the current workspace.
+   * Reads .quickdapp/apps/*.json — no workspace scanning needed.
+   */
+  async listDappApps(): Promise<DappAppConfig[]> {
+    remixAILogger.log('[QuickDapp] listDappApps called')
+    try {
+      const metaDir = '.quickdapp/apps';
+      const exists = await this.call('fileManager', 'exists', metaDir);
+      if (!exists) return [];
+
+      const files = await this.call('fileManager', 'readdir', metaDir);
+      const configs: DappAppConfig[] = [];
+
+      for (const filePath of Object.keys(files || {})) {
+        if (!filePath.endsWith('.json')) continue;
+        try {
+          const content = await this.call('fileManager', 'readFile', filePath);
+          if (content) configs.push(JSON.parse(content));
+        } catch (e) {
+          remixAILogger.warn('[QuickDapp] Failed to read app config:', filePath, e);
+        }
+      }
+
+      remixAILogger.log('[QuickDapp] listDappApps returned', configs.length, 'apps');
+      return configs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (e) {
+      remixAILogger.error('[QuickDapp] listDappApps failed:', e);
+      return [];
     }
   }
 

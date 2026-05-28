@@ -42,12 +42,14 @@ export interface DappConfig {
   thumbnailPath?: string;
 }
 
+export { DappAppConfig, DappContractBinding, DappContractDeployment } from './types/dapp';
+
 export interface AppState {
   loading: { screen: boolean };
   isAiLoading: boolean;
   view: 'loading' | 'dashboard' | 'editor' | 'create';
-  dapps: DappConfig[];
-  activeDapp: DappConfig | null;
+  dapps: (DappConfig | any)[];
+  activeDapp: (DappConfig | any) | null;
   instance: any;
   dappProcessing: Record<string, boolean>;
   generationProgress: GenerationProgress | null;
