@@ -339,7 +339,7 @@ Before generating, please ask me about my design preferences first.`
 
                         // Send prompt to AI Assistant
                         console.log('[QuickDapp] calling chatPipe from sparkle...');
-                        await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+                        await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt, { source: 'sparkle', presetId: 'create_dapp_sparkle' })
                         console.log('[QuickDapp] chatPipe returned from sparkle');
 
                         trackMatomoEvent({ category: 'udapp', action: 'sendTransaction-from-gui', name: 'create_dapp_sparkle', isClick: true })

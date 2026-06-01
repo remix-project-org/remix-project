@@ -106,6 +106,14 @@ export interface AIEvent extends MatomoEventBase {
     | 'aiassistant_create_new_conversation'
     | 'aiassistant_search_conversations'
     | 'aiassistant_unarchive_conversation'
+    // Split prompt tracking: distinguishes user-typed chat from preset buttons
+    | 'prompt_typed'
+    | 'prompt_preset'
+    // Per-conversation quality metrics emitted on stream completion / load
+    | 'conversation_size'
+    | 'conversation_count'
+    | 'stream_start'
+    | 'stream_end'
 }
 
 /**

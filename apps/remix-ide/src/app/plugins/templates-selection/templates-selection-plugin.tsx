@@ -73,7 +73,7 @@ export class TemplatesSelectionPlugin extends ViewPlugin {
   async aiWorkspaceGenerate () {
     const generateAIWorkspace = async () => {
       const okAction = async () => {
-        this.call('remixaiassistant', 'chatPipe', '/generate ' + this.aiState.prompt)
+        this.call('remixaiassistant', 'chatPipe', '/generate ' + this.aiState.prompt, { source: 'template', presetId: 'templates_ai_generate' })
       }
       const aiTemplateModal: AppModal = {
         id: 'TemplatesSelection',

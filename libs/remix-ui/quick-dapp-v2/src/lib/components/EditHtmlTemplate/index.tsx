@@ -517,7 +517,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
     // Send prompt to AI
     try {
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt);
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, { source: 'quickDapp', presetId: 'edit_html_template' });
     } catch (e) {
       console.warn('[QuickDapp] Could not send prompt to AI Assistant:', e);
     }

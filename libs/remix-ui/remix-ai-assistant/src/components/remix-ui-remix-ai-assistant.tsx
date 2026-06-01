@@ -13,7 +13,7 @@ import { MatomoEvent, AIEvent } from '@remix-api'
 //@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
 import { ChatHistoryComponent } from './chat'
-import { ActivityType, ChatMessage, ConversationMetadata } from '../lib/types'
+import { ActivityType, ChatMessage, ConversationMetadata, PromptMeta } from '../lib/types'
 import { useOnClickOutside } from './onClickOutsideHook'
 import { RemixAIAssistant } from 'apps/remix-ide/src/app/plugins/remix-ai-assistant'
 import { useAudioTranscription } from '../hooks/useAudioTranscription'
@@ -29,7 +29,7 @@ import { ToolApprovalModal } from './ToolApprovalModal'
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
   isInitializing?: boolean
-  queuedMessage: { text: string; timestamp: number } | null
+  queuedMessage: { text: string; timestamp: number; meta?: PromptMeta } | null
   initialMessages?: ChatMessage[]
   onMessagesChange?: (msgs: ChatMessage[]) => void
   /** optional callback whenever the user or AI does something */
@@ -50,7 +50,7 @@ export interface RemixUiRemixAiAssistantProps {
 }
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
-  sendChat: (prompt: string) => Promise<void>
+  sendChat: (prompt: string, meta?: PromptMeta) => Promise<void>
   /** Clears local chat history (parent receives onMessagesChange([])) */
   clearChat: () => void
   /** Returns current chat history array */
@@ -620,6 +620,16 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           if (userMsg && userMsg.role === 'user' && finalText) {
             Promise.resolve(ChatHistory.pushHistory(userMsg.content, finalText)).then(() => props.plugin.loadConversations())
           }
+          // Chat-quality metric: emit the conversation size at the moment a
+          // turn completes. messageCount counts every bubble (user + assistant)
+          // currently in view; totalChars sums their text length. Dispatched
+          // here (inside the state callback) so we read the post-update list.
+          const totalChars = prev.reduce((acc, m) => acc + (m.content?.length ?? 0), 0)
+          dispatchActivity('conversationSize', {
+            messageCount: prev.length,
+            totalChars,
+            finalAssistantChars: finalText?.length ?? 0
+          })
           // Clear streaming states but preserve subagent name for persistent styling
           return prev.map(m =>
             m.id === assistantId
@@ -641,6 +651,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           )
         })
       }
+      dispatchActivity('streamEnd')
       setIsStreaming(false)
       streamingAssistantIdRef.current = null
       streamingSubagentBubbleRef.current = null
@@ -1530,7 +1541,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   // reusable sender (used by both UI button and imperative ref)
   const sendPrompt = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, meta?: PromptMeta) => {
       const trimmed = prompt.trim()
       if (!trimmed || isStreaming) return
 
@@ -1542,7 +1553,23 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (!ready) return
       } catch { /* assistantState not active — fall through to legacy behaviour */ }
 
-      dispatchActivity('promptSend', trimmed)
+      // Split tracking: authentically typed chat vs preset/programmatic prompts.
+      // Typed: include length + a 100-char preview so analytics can read shape
+      //        without storing the full payload (chat history DB has the rest).
+      // Preset: include source + presetId so dashboards can group / filter
+      //        button traffic out of "real" chat metrics.
+      if (meta && meta.source !== 'typed') {
+        dispatchActivity('presetSend', {
+          source: meta.source,
+          presetId: meta.presetId,
+          length: trimmed.length
+        })
+      } else {
+        dispatchActivity('promptSend', {
+          length: trimmed.length,
+          preview: trimmed.slice(0, 100)
+        })
+      }
 
       // Reset the per-turn "stream consumed" flag — it gates the
       // post-await duplicate-bubble guard further down.
@@ -1590,6 +1617,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         isStoppedRef.current = false
         abortControllerRef.current = new AbortController()
         setIsStreaming(true)
+        dispatchActivity('streamStart')
 
         // Add temporary assistant message for parsing status
         const parsingId = crypto.randomUUID()
@@ -1669,11 +1697,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           }
 
           // If response has content, it's the final non-streamed response
-          setMessages(prev => [
-            ...prev,
-            { id: assistantId, role: 'assistant', content: response, timestamp: Date.now(), sentiment: 'none' }
-          ])
+          setMessages(prev => {
+            const next = [
+              ...prev,
+              { id: assistantId, role: 'assistant' as const, content: response, timestamp: Date.now(), sentiment: 'none' as const }
+            ]
+            // Non-streaming completion still needs the chat-quality metric.
+            const totalChars = next.reduce((acc, m) => acc + (m.content?.length ?? 0), 0)
+            dispatchActivity('conversationSize', {
+              messageCount: next.length,
+              totalChars,
+              finalAssistantChars: response.length
+            })
+            return next
+          })
           Promise.resolve(ChatHistory.pushHistory(trimmed, response)).then(() => props.plugin.loadConversations())
+          dispatchActivity('streamEnd')
           setIsStreaming(false)
           streamingAssistantIdRef.current = null
           return
@@ -2300,8 +2339,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   useImperativeHandle(
     ref,
     () => ({
-      sendChat: async (prompt: string) => {
-        await sendPrompt(prompt)
+      sendChat: async (prompt: string, meta?: PromptMeta) => {
+        await sendPrompt(prompt, meta)
       },
       clearChat: () => {
         setMessages([])

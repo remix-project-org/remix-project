@@ -432,7 +432,7 @@ Before generating, please ask me about my design preferences first.`
 
       // Send prompt to AI Assistant
       console.log('[QuickDapp] calling chatPipe...');
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, { source: 'deployedContract', presetId: 'create_dapp_from_deployed' })
       console.log('[QuickDapp] chatPipe returned');
 
       trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'create_dapp_via_ai', isClick: true })

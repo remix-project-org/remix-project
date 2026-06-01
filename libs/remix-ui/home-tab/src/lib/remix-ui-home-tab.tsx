@@ -136,7 +136,7 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
     await plugin.call('menuicons', 'select', 'remixaiassistant')
     await plugin.call('remixaiassistant', 'newConversation')
     setTimeout(() => {
-      plugin.call('remixaiassistant', 'chatPipe', `Start an audit of the contract. I am going to give you the actual file name.`)
+      plugin.call('remixaiassistant', 'chatPipe', `Start an audit of the contract. I am going to give you the actual file name.`, { source: 'homeTab', presetId: 'audit_contract' })
     }, 200)
   }
 
@@ -152,7 +152,7 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
       plugin.call('notification', 'toast', `Error loading Gas optimization skills ${e.message}`)
     }
     setTimeout(() => {
-      plugin.call('remixaiassistant', 'chatPipe', `Start gas optimization checks. I am going to give you the actual file name.`)
+      plugin.call('remixaiassistant', 'chatPipe', `Start gas optimization checks. I am going to give you the actual file name.`, { source: 'homeTab', presetId: 'gas_optimization' })
     })
   }
 

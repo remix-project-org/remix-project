@@ -752,7 +752,7 @@ export const TabsUI = (props: TabsUIProps) => {
 
     console.log('[QuickDapp] Start Now → chatPipe (no modal), prompt length:', prompt.length)
     try {
-      await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+      await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt, { source: 'quickDapp', presetId: 'quickdapp_start_now' })
       console.log('[QuickDapp] chatPipe returned')
     } catch (error) {
       console.error('[QuickDapp] chatPipe error:', error)
@@ -866,7 +866,7 @@ export const TabsUI = (props: TabsUIProps) => {
       // Wait a bit for the panel to open and then send the debugging prompt
       setTimeout(async () => {
         const message = 'Give me more info about current debugging session'
-        await props.plugin.call('remixaiassistant', 'chatPipe', message)
+        await props.plugin.call('remixaiassistant', 'chatPipe', message, { source: 'tabsAi', presetId: 'debug_session_info' })
       }, 500)
     } catch (err) {
       console.error('Failed to open RemixAI:', err)
