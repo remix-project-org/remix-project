@@ -1,17 +1,39 @@
-export function isMobile() {
-  const userAgentInfo = navigator.userAgent;
+export function isMobile(): boolean {
+  const userAgentInfo = navigator.userAgent.toLowerCase();
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+
   const mobileAgents = [
-    'Android',
-    'iPhone',
-    'SymbianOS',
-    'Windows Phone',
-    'iPad',
-    'iPod',
+    'android',
+    'iphone',
+    'symbianos',
+    'windows phone',
+    'ipad',
+    'ipod',
   ];
-  for (let v = 0; v < mobileAgents.length; v++) {
-    if (userAgentInfo.indexOf(mobileAgents[v]) > 0) {
-      return true;
-    }
+  const isMobileUA = mobileAgents.some((agent) => userAgentInfo.includes(agent));
+
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  const isLargeScreen = screenWidth >= 1024;
+  const isSmallScreen = screenWidth <= 767;
+  const isNarrowHeight = screenHeight <= 600;
+
+  if (isLargeScreen) {
+    return false;
   }
+
+  if (isSmallScreen) {
+    return isMobileUA || isTouchDevice;
+  }
+
+  if (isNarrowHeight && isMobileUA) {
+    return true;
+  }
+
+  if (isMobileUA && isTouchDevice) {
+    return true;
+  }
+
   return false;
 }
