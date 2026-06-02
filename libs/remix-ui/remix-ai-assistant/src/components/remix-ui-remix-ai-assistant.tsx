@@ -1517,7 +1517,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           subagentTask: undefined,
           currentTask: undefined,
           taskStatus: undefined,
-          isIntermediateContent: undefined
+          isIntermediateContent: undefined,
+          // Mark any in_progress todos as stopped so spinner stops
+          todos: m.todos?.map(todo =>
+            todo.status === 'in_progress'
+              ? { ...todo, status: 'stopped' as const }
+              : todo
+          ),
+          currentTodoIndex: undefined
         }))
 
       return [

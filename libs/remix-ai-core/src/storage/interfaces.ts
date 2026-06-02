@@ -13,7 +13,7 @@ export interface TodoItem {
   id?: string
   content?: string // DeepAgents uses 'content' field
   task?: string // Alternative field name for compatibility
-  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'stopped'
 }
 
 export interface ChatMessage {
