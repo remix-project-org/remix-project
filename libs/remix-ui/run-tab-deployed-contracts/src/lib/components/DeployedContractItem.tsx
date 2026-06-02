@@ -10,6 +10,7 @@ import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
 import { runTransactions } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
+import { EnsNaming } from './EnsNaming'
 
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import BN from 'bn.js'
@@ -52,6 +53,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const [funcInputs, setFuncInputs] = useState<{[funcIndex: number]: {[paramIndex: number]: string}}>({})
   const [expandPath, setExpandPath] = useState<string[]>([])
   const [functionSearchTerm, setFunctionSearchTerm] = useState<string>('')
+  const [showEnsNaming, setShowEnsNaming] = useState<boolean>(false)
 
   useEffect(() => {
     plugin.call('udappEnv', 'getNetwork').then((net) => {
@@ -501,6 +503,14 @@ Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers
     handleRemove({ stopPropagation: () => {} } as React.MouseEvent)
   }
 
+  const handleNameContract = async () => {
+    if (onKebabMenuToggle) {
+      onKebabMenuToggle(false)
+    }
+    setShowEnsNaming(true)
+    if (!isExpanded) setIsExpanded(true)
+  }
+
   const getStateMutabilityBadge = (funcABI: FuncABI) => {
     if (funcABI.stateMutability === 'view' || funcABI.stateMutability === 'pure') {
       return (
@@ -646,6 +656,7 @@ Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers
             }}
             contract={contract}
             onCreateDapp={handleCreateDapp}
+            onNameContract={handleNameContract}
             onCopyABI={handleCopyABI}
             onCopyBytecode={handleCopyBytecode}
             onOpenInExplorer={handleOpenInExplorer}
@@ -655,6 +666,11 @@ Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers
             <div className="p-3 pt-0" onClick={(e) => e.stopPropagation()}>
               {/* Divider */}
               <div className="border-top mb-3"></div>
+
+              {/* ENS Naming */}
+              {showEnsNaming && (
+                <EnsNaming contract={contract} onClose={() => setShowEnsNaming(false)} />
+              )}
 
               {/* High level interaction section */}
               <div className="mb-3">
