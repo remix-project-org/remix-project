@@ -925,17 +925,15 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       this.currentAbortController.abort()
       this.currentAbortController = null
       this.event.emit('onInferenceDone')
-
-      // Reset QuickDapp dashboard processing state on cancellation.
-      // Without this, cancelling mid-generation leaves the dashboard spinner stuck.
-      try {
-        this.plugin.emit('generationProgress', null)
-        this.plugin.emit('dappGenerationError', {
-          slug: undefined,
-          error: 'Generation cancelled by user'
-        })
-      } catch (_) { /* best-effort cleanup */ }
     }
+
+    try {
+      this.plugin.emit('generationProgress', null)
+      this.plugin.emit('dappGenerationError', {
+        slug: undefined,
+        error: 'Generation cancelled by user'
+      })
+    } catch (_) { /* best-effort cleanup */ }
   }
 
   async close(): Promise<void> {

@@ -158,16 +158,25 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       }
     };
 
+    const generatedFilesRef: string[] = [];
+    let currentSlugRef = '';
+    let currentWritingFile = '';
+
     const handleDappGenerationError = (data: any) => {
       console.error('[QuickDapp] Received dappGenerationError event:', data);
       dispatch({ type: 'SET_AI_LOADING', payload: false });
       dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
 
-      const slug = data?.slug;
+      const slug = data?.slug || currentSlugRef;
       if (slug) {
         dappManager.updateDappConfig(slug, { status: 'created', processingStartedAt: null });
         dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug, isProcessing: false } });
       }
+
+      // Clear the in-flight tracker so subsequent generations start clean.
+      currentSlugRef = '';
+      currentWritingFile = '';
+      generatedFilesRef.length = 0;
 
       plugin.call('notification', 'toast', `Generation Failed: ${data?.error || 'Unknown error'}`);
     };
@@ -188,10 +197,6 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       const filtered = dappsRef.current.filter((d: any) => d.workspaceName !== workspaceName);
       dispatch({ type: 'SET_DAPPS', payload: filtered });
     };
-
-    const generatedFilesRef: string[] = [];
-    let currentSlugRef = '';
-    let currentWritingFile = '';
     const handleGenerationProgress = async (data: any) => {
       // Handle cancellation: null data resets all progress state
       if (!data) {
