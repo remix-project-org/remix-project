@@ -1507,11 +1507,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
 
     uiToolCallbackRef.current = null
-
-    // Persist the partial streamed assistant text to ChatHistory so it
-    // survives reloads. handleStreamComplete early-returns on stop, so
-    // without this the bubble would still be visible in the current
-    // session but vanish after refresh / conversation switch.
     if (streamingAssistantIdRef.current) {
       const streamedId = streamingAssistantIdRef.current
       const idx = messages.findIndex(m => m.id === streamedId)

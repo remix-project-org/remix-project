@@ -201,31 +201,6 @@ export class DeepAgentManager {
 
     if (plugin.deepAgentEnabled && plugin.deepAgentInferencer) {
       plugin.deepAgentInferencer.cancelRequest()
-
-      // After cancelling, the underlying LangGraph stream and checkpointer
-      // can still have in-flight events queued in the pipe (the abort
-      // signal only stops the next iteration of the for-await loop — any
-      // events already produced by subgraphs/tools will continue to be
-      // emitted on the inferencer's EventEmitter). Those stale events
-      // would otherwise leak into the NEXT user request and alter its
-      // output. Rebuilding the inferencer drops the old EventEmitter,
-      // tears down the old checkpointer-bound agent, and gives the next
-      // turn a clean pipe. Fire-and-forget so the UI stop button stays
-      // instantaneous.
-      //
-      // The caller may pass the current user/assistant chat history so
-      // that the freshly-built graph still has the prior conversation as
-      // context (otherwise the user would lose all memory the moment they
-      // click Stop). We seed it on the NEW inferencer instance once the
-      // async reinit completes.
-      // Track the in-flight reinit on `reinitPromise` so awaitReady()
-      // (called by answer() dispatch in the plugin) blocks the NEXT turn
-      // until the new inferencer is fully built. Do NOT await locally —
-      // the plugin engine serializes calls to this plugin, so awaiting
-      // here would block follow-up actions (model picker, etc.) behind
-      // the full rebuild. We want the Stop button to be instant AND
-      // leave the user free to switch models while the rebuild happens
-      // in the background.
       const pending = this.reinitialize()
         .then(() => {
           remixAILogger.log('[DeepAgentManager] reinitialize after cancel completed successfully')
