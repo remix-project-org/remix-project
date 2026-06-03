@@ -2,7 +2,6 @@ import { remixAILogger,
   RemoteInferencer,
   OllamaInferencer,
   MCPInferencer,
-  DeepAgentInferencer,
   GenerationParams,
   CompletionParams,
   AssistantParams,
@@ -14,7 +13,6 @@ import { remixAILogger,
 import type { AIModel } from '@remix/remix-ai-core'
 import type { IRemixAIPlugin } from './types'
 import type { DeepAgentEventBridge } from './DeepAgentEventBridge'
-import { ApiKeySettingsHelper } from './ApiKeySettingsHelper'
 
 export interface ModelManagerDeps {
   plugin: IRemixAIPlugin
@@ -24,11 +22,9 @@ export interface ModelManagerDeps {
 
 export class ModelManager {
   private deps: ModelManagerDeps
-  private apiKeyHelper: ApiKeySettingsHelper
 
   constructor(deps: ModelManagerDeps) {
     this.deps = deps
-    this.apiKeyHelper = new ApiKeySettingsHelper(deps.plugin)
   }
 
   async setModel(modelId: string, allowedModels: string[] = []): Promise<void> {
@@ -109,11 +105,9 @@ export class ModelManager {
       await plugin.mcpInferencer.connectAllServers()
     }
 
-    // Reinitialize DeepAgent if enabled and model changed
-    remixAILogger.log(`[ModelManager] Model set to ${modelId} (provider: ${model.provider}). Previous model was ${previousModelId}. Reinitializing DeepAgent if needed.`)
     if (plugin.deepAgentEnabled && plugin.deepAgentInferencer && plugin.remixMCPServer && previousModelId !== modelId) {
       remixAILogger.log('[ModelManager] Reinitializing DeepAgent due to model change...')
-      await this.reinitializeDeepAgentForModelChange(model, modelId)
+      await (plugin as any).deepAgentManager.reinitialize()
     }
 
     // Emit event for UI updates
@@ -153,66 +147,6 @@ export class ModelManager {
     inferencer.event.on('onInferenceDone', () => {
       plugin.isInferencing = false
     })
-  }
-
-  private async reinitializeDeepAgentForModelChange(_model: AIModel, _modelId: string): Promise<void> {
-    const plugin = this.deps.plugin
-    remixAILogger.log('[RemixAI Plugin] Model changed, reinitializing DeepAgent with new model:', _model.provider, _modelId)
-    ;(plugin as any).traceDeepAgentLifecycle?.('modelManager.reinit:enter', 'model change → DeepAgent reinit', {
-      newProvider: _model.provider,
-      newModelId: _modelId
-    })
-
-    try {
-      // Clean up old instance
-      this.deps.eventBridge.teardownListeners(plugin.deepAgentInferencer!)
-      await plugin.deepAgentInferencer!.close()
-
-      // Get user API keys config
-      const userApiKeys = await this.apiKeyHelper.getUserApiKeysConfig()
-      if (userApiKeys?.useOwnKeys) {
-        remixAILogger.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent (model change)')
-      }
-
-      // Create new instance with updated model
-      plugin.deepAgentInferencer = new DeepAgentInferencer(
-        plugin as any, // Cast to Plugin type
-        plugin.remixMCPServer.tools,
-        {
-          memoryBackend: (localStorage.getItem('deepagent_memory_backend') as 'state' | 'store') || 'store',
-          enableSubagents: true,
-          enablePlanning: true,
-          userApiKeys
-        },
-        plugin.remoteInferencer,
-        plugin.mcpInferencer,
-        { provider: _model.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot', modelId: _modelId }
-      )
-      await plugin.deepAgentInferencer.initialize()
-
-      // Reset and set up event listeners
-      this.deps.eventBridge.resetSetup()
-      this.deps.setupDeepAgentEventListeners()
-
-      remixAILogger.log('[RemixAI Plugin] DeepAgent reinitialized with new model successfully')
-      ;(plugin as any).traceDeepAgentLifecycle?.('modelManager.reinit:success', 'DeepAgent reinitialized after model change', {
-        provider: _model.provider,
-        modelId: _modelId
-      })
-
-      // Apply pending thread_id after model switch reinitialization
-      if (plugin.pendingDeepAgentThreadId) {
-        plugin.deepAgentInferencer.setSessionThreadId(plugin.pendingDeepAgentThreadId)
-        plugin.pendingDeepAgentThreadId = null
-      }
-    } catch (error) {
-      remixAILogger.error('[RemixAI Plugin] Failed to reinitialize DeepAgent on model change:', error)
-      ;(plugin as any).traceDeepAgentLifecycle?.('modelManager.reinit:failed', 'caught error inside reinitializeDeepAgentForModelChange()', {
-        errorMessage: (error as any)?.message,
-        errorStack: ((error as any)?.stack || '').split('\n').slice(0, 8).join('\n')
-      })
-      // Keep DeepAgent enabled but log the error
-    }
   }
 
   async setOllamaModel(ollamaModelName: string): Promise<void> {

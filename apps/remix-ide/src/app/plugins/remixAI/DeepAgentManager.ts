@@ -18,6 +18,7 @@ export class DeepAgentManager {
   // dispatch can await the rebuilt inferencer instead of racing the
   // about-to-be-replaced one.
   private reinitPromise: Promise<void> | null = null
+  private pendingHistoryMessages: Array<{ role: 'user' | 'assistant'; content: string }> | null = null
 
   constructor(deps: DeepAgentManagerDeps) {
     this.deps = deps
@@ -201,21 +202,10 @@ export class DeepAgentManager {
 
     if (plugin.deepAgentEnabled && plugin.deepAgentInferencer) {
       plugin.deepAgentInferencer.cancelRequest()
-      const pending = this.reinitialize()
-        .then(() => {
-          remixAILogger.log('[DeepAgentManager] reinitialize after cancel completed successfully')
-          if (historyMessages && historyMessages.length > 0 && plugin.deepAgentInferencer) {
-            plugin.deepAgentInferencer.setPendingHistoryMessages(historyMessages)
-            remixAILogger.log('[DeepAgentManager] cancelRequest: pending history messages set on new inferencer after reinit', historyMessages.length)
-          }
-        })
-        .catch((err) => {
-          remixAILogger.warn('[DeepAgentManager] reinitialize after cancel failed:', err)
-        })
-        .finally(() => {
-          if (this.reinitPromise === pending) this.reinitPromise = null
-        })
-      this.reinitPromise = pending
+      // Stash history on the manager so doReinitialize() seeds it onto the
+      // final inferencer regardless of how many rebuilds queue behind us.
+      this.pendingHistoryMessages = historyMessages && historyMessages.length > 0 ? historyMessages : null
+      await this.reinitialize()
     }
   }
 
@@ -249,10 +239,19 @@ export class DeepAgentManager {
 
   /**
    * Reinitialize DeepAgent with current settings.
-   * Used when MCP servers are refreshed, reset, or API key settings change.
    */
   async reinitialize(): Promise<void> {
-    console.log('[DeepAgentManager] reinitialize() called')
+    const run = (this.reinitPromise ?? Promise.resolve())
+      .catch(() => {}) // never let a prior failure break the chain
+      .then(() => this.doReinitialize())
+    this.reinitPromise = run.finally(() => {
+      if (this.reinitPromise === run) this.reinitPromise = null
+    })
+    return this.reinitPromise
+  }
+
+  private async doReinitialize(): Promise<void> {
+    console.log('[DeepAgentManager] doReinitialize() called')
     const plugin = this.deps.plugin
     // Use actual plugin state - default is enabled, localStorage is only set when explicitly changed
     const deepAgentEnabled = plugin.deepAgentEnabled || plugin.deepAgentInferencer !== null
@@ -309,6 +308,18 @@ export class DeepAgentManager {
         // Set up event listeners (reset flag first)
         this.deps.eventBridge.resetSetup()
         this.deps.setupDeepAgentEventListeners()
+
+        if (plugin.pendingDeepAgentThreadId) {
+          plugin.deepAgentInferencer.setSessionThreadId(plugin.pendingDeepAgentThreadId)
+          plugin.pendingDeepAgentThreadId = null
+        }
+
+        // Seed any history stashed by cancelRequest onto the final inferencer.
+        if (this.pendingHistoryMessages && this.pendingHistoryMessages.length > 0) {
+          plugin.deepAgentInferencer.setPendingHistoryMessages(this.pendingHistoryMessages)
+          remixAILogger.log('[DeepAgentManager] doReinitialize: seeded pending history messages on new inferencer', this.pendingHistoryMessages.length)
+          this.pendingHistoryMessages = null
+        }
 
         remixAILogger.log('[RemixAI Plugin] DeepAgent reinitialized successfully')
       } catch (error) {

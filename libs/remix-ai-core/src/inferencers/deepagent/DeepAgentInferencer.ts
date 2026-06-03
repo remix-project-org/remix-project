@@ -919,13 +919,18 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   }
 
   cancelRequest(): void {
+    remixAILogger.log('[DeepAgentInferencer] Cancelling request...')
+    // Abort the in-flight LangGraph stream if one is running so it stops
+    // before the manager builds a replacement instance.
     if (this.currentAbortController) {
-      remixAILogger.log('[DeepAgentInferencer] Cancelling request...')
-      this.resetSessionThread()
       this.currentAbortController.abort()
       this.currentAbortController = null
-      this.event.emit('onInferenceDone')
     }
+    // Always emit so plugin.isInferencing can never get stuck, even when no
+    // controller was set (e.g. cancel arrived between turns). The manager
+    // builds a brand-new instance with a fresh thread, so there is no need to
+    // resetSessionThread() on this about-to-be-discarded instance.
+    this.event.emit('onInferenceDone')
 
     try {
       this.plugin.emit('generationProgress', null)
