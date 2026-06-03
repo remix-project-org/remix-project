@@ -2,7 +2,7 @@ import React, { useEffect, useRef, createRef } from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
 import * as packageJson from '../../../../../package.json'
 import { PluginViewWrapper } from '@remix-ui/helper'
-import { ChatMessage, RemixUiRemixAiAssistant, RemixUiRemixAiAssistantHandle, ConversationMetadata } from '@remix-ui/remix-ai-assistant'
+import { ChatMessage, RemixUiRemixAiAssistant, RemixUiRemixAiAssistantHandle, ConversationMetadata, PromptMeta } from '@remix-ui/remix-ai-assistant'
 import { EventEmitter } from 'events'
 import { trackMatomoEvent } from '@remix-api'
 import { ChatHistory, ChatHistoryStorageManager, IndexedDBChatHistoryBackend, remixAILogger } from '@remix/remix-ai-core'
@@ -27,7 +27,7 @@ export class RemixAIAssistant extends ViewPlugin {
   element: HTMLDivElement
   dispatch: React.Dispatch<any> = () => { }
   appStateDispatch: React.Dispatch<AppAction> = () => { }
-  queuedMessage: { text: string, timestamp: number } | null = null
+  queuedMessage: { text: string, timestamp: number, meta?: PromptMeta } | null = null
   event: any
   chatRef: React.RefObject<RemixUiRemixAiAssistantHandle>
   history: ChatMessage[] = []
@@ -150,6 +150,10 @@ export class RemixAIAssistant extends ViewPlugin {
         ...(emptyNewConversations.length > 0 ? [emptyNewConversations[0]] : [])
       ]
       trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'load_conversation', isClick: false })
+      // Total-history size metric: tracks how many chats the user has in
+      // history so analytics can correlate chat count with usage patterns
+      // (engaged users vs one-shot sessions).
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'conversation_count', value: this.conversations.length, isClick: false })
       this.renderComponent()
     } catch (error) {
       remixAILogger.error('Failed to load conversations:', error)
@@ -416,8 +420,8 @@ export class RemixAIAssistant extends ViewPlugin {
     })
   }
 
-  chatPipe = (message: string) => {
-    remixAILogger.log('[QuickDapp] chatPipe received, length:', message?.length)
+  chatPipe = (message: string, meta?: PromptMeta) => {
+    remixAILogger.log('[QuickDapp] chatPipe received, length:', message?.length, 'source:', meta?.source)
     // Show right side panel if it's hidden
     this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
       if (isPanelHidden) {
@@ -434,14 +438,15 @@ export class RemixAIAssistant extends ViewPlugin {
 
     // If the inner component is mounted, call it directly
     if (this.chatRef?.current) {
-      this.chatRef.current.sendChat(message)
+      this.chatRef.current.sendChat(message, meta)
       return
     }
 
     // Otherwise queue it for first render
     this.queuedMessage = {
       text: message,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      meta
     }
     this.renderComponent()
   }
@@ -466,15 +471,67 @@ export class RemixAIAssistant extends ViewPlugin {
     )
   }
 
+  /**
+   * Activity router for the chat UI. Each activity type maps to a dedicated
+   * Matomo event name so dashboards can filter typed chat vs preset prompts
+   * and read per-conversation quality metrics without having to parse a
+   * payload-blob baked into the event name.
+   */
   async handleActivity(type: string, payload: any) {
-    // Never log user prompts - only track the activity type
-    const eventName = type === 'promptSend' ? 'remixai-assistant-promptSend' : `remixai-assistant-${type}-${payload}`;
-    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: `chatting${type}-${payload}`, isClick: true })
+    switch (type) {
+    case 'promptSend': {
+      // Authentically typed user input. We persist the length as `value`
+      // (numeric, queryable) plus a 100-char preview as `name` for sampling.
+      const preview = typeof payload === 'string'
+        ? payload.slice(0, 100)
+        : (payload?.preview ?? '')
+      const length = typeof payload === 'string'
+        ? payload.length
+        : (payload?.length ?? 0)
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'prompt_typed', value: preview, isClick: true })
+      // Second event with numeric length so Matomo can aggregate.
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'prompt_typed', value: String(length), isClick: false })
+      break
+    }
+    case 'presetSend': {
+      // Programmatic / button-triggered prompt. presetId identifies the
+      // specific preset (e.g. `review_file`); source identifies where it
+      // was triggered from (`button`, `sparkle`, `homeTab`, ...).
+      const presetId = payload?.presetId ?? 'unknown'
+      const source = payload?.source ?? 'unknown'
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'prompt_preset', value: `${source}:${presetId}`, isClick: true })
+      break
+    }
+    case 'conversationSize': {
+      // Fires once per completed assistant turn. messageCount = total bubbles
+      // in the conversation; totalChars = sum of their text length.
+      const messageCount = payload?.messageCount ?? 0
+      const totalChars = payload?.totalChars ?? 0
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'conversation_size', value: `${messageCount}msgs/${totalChars}chars`, isClick: false })
+      break
+    }
+    case 'streamStart':
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'stream_start', isClick: false })
+      break
+    case 'streamEnd':
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'stream_end', isClick: false })
+      break
+    case 'button': {
+      // Generic UI button (e.g. setModel, generateWorkspace) — payload is
+      // the button id; not a prompt so no prompt_* tagging.
+      const buttonId = typeof payload === 'string' ? payload : String(payload ?? '')
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'chatting', value: `button:${buttonId}`, isClick: true })
+      break
+    }
+    default:
+      // Unknown activity — log lightly without payload to avoid PII leakage.
+      trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'chatting', value: type, isClick: false })
+    }
   }
 
   updateComponent(state: {
     isInitializing: boolean
-    queuedMessage: { text: string, timestamp: number } | null
+    queuedMessage: { text: string, timestamp: number, meta?: PromptMeta } | null
     conversations: ConversationMetadata[]
     currentConversationId: string | null
     showHistorySidebar: boolean

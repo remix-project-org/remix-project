@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { trackMatomoEvent } from '@remix-api'
 import { remixAILogger } from '@remix/remix-ai-core'
+import { PromptMeta } from '../lib/types'
 
 interface AiChatButtonsProps {
   theme: string
   plugin?: any
-  sendPrompt: (s: string) => void
+  sendPrompt: (s: string, meta?: PromptMeta) => void
   handleGenerateWorkspace: () => void
   handleLoadSkills: () => void
   allowedMcps: string[]
@@ -84,7 +85,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
   const handleReviewFile = () => {
     if (currentFile) {
       const fileName = currentFile.split('/').pop() || currentFile
-      sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.reviewFile' }, { fileName }))
+      sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.reviewFile' }, { fileName }), { source: 'button', presetId: 'review_file' })
       trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'review_file', value: fileName, isClick: true })
     }
   }
@@ -113,7 +114,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
         icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-rocket`,
         color: '',
         action: () => {
-          sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.deployContract' }, { contractName: contract }))
+          sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.deployContract' }, { contractName: contract }), { source: 'button', presetId: 'deploy_contract' })
           trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'deploy_contract', value: contract, isClick: true })
         }
       })
@@ -137,7 +138,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} far fa-copy`,
       color: '',
       action: () => {
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.createFile' }))
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.createFile' }), { source: 'button', presetId: 'create_file' })
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'create_file', isClick: true })
       }
     },
@@ -156,7 +157,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       color: '',
       action: () => {
         handleActionClick()
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.exploreCapabilities' }))
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.exploreCapabilities' }), { source: 'button', presetId: 'explore_capabilities' })
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'explore_capabilities', isClick: true })
       }
     },/*
@@ -174,7 +175,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-graduation-cap`,
       color: '',
       action: () => {
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.startLearning' }))
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.startLearning' }), { source: 'button', presetId: 'start_learning' })
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'start_learning', isClick: true })
       }
     },{
@@ -183,7 +184,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       color: '',
       action: () => {
         handleActionClick()
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.ethernews' }))
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.ethernews' }), { source: 'button', presetId: 'ether_news' })
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'ether_news', isClick: true })
       }
     },
@@ -193,7 +194,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       color: '',
       action: async () => {
         remixAILogger.log('[QuickDapp] Create DApp button clicked')
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.createDapp' }))
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.createDapp' }), { source: 'button', presetId: 'create_dapp' })
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'create_dapp', isClick: true })
       }
     }
@@ -205,7 +206,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
       color: '',
       action: async () => {
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.etherscan' }))
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.etherscan' }), { source: 'button', presetId: 'etherscan' })
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'etherscan', isClick: true })
       }
     })
@@ -214,7 +215,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
       color: '',
       action: async () => {
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.thegraph' }))
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.thegraph' }), { source: 'button', presetId: 'thegraph' })
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'thegraph', isClick: true })
       }
     })
@@ -223,7 +224,7 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       icon: `${theme?.toLowerCase() === 'dark' ? 'text-remix-ai' : 'text-remix-ai-light'} fas fa-cube`,
       color: '',
       action: async () => {
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.alchemy' }))
+        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.alchemy' }), { source: 'button', presetId: 'alchemy' })
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'alchemy', isClick: true })
       }
     })

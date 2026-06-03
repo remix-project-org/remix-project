@@ -920,12 +920,16 @@ export class RemixAIPlugin extends Plugin {
         context: context
       }
 
-      if (pipeMessage) this.call('remixaiassistant', 'chatPipe', pipeMessage)
+      // `chatPipe` here is called from various editor / error flows
+      // (vulnerability check, error_explaining, code_explaining, …). They
+      // are all preset / programmatic prompts — tag them so the split
+      // tracking can filter them out of authentically typed chat.
+      if (pipeMessage) this.call('remixaiassistant', 'chatPipe', pipeMessage, { source: 'errorExplain', presetId: `remixai_${fn}` })
       else {
-        if (fn === "code_explaining") this.call('remixaiassistant', 'chatPipe',"Explain the current code")
-        else if (fn === "error_explaining") this.call('remixaiassistant', 'chatPipe', "Explain the error")
-        else if (fn === "answer") this.call('remixaiassistant', 'chatPipe', "Answer the following question")
-        else if (fn === "vulnerability_check") this.call('remixaiassistant', 'chatPipe',"Is there any vulnerability in the pasted code?")
+        if (fn === "code_explaining") this.call('remixaiassistant', 'chatPipe', "Explain the current code", { source: 'errorExplain', presetId: 'remixai_code_explaining' })
+        else if (fn === "error_explaining") this.call('remixaiassistant', 'chatPipe', "Explain the error", { source: 'errorExplain', presetId: 'remixai_error_explaining' })
+        else if (fn === "answer") this.call('remixaiassistant', 'chatPipe', "Answer the following question", { source: 'errorExplain', presetId: 'remixai_answer' })
+        else if (fn === "vulnerability_check") this.call('remixaiassistant', 'chatPipe', "Is there any vulnerability in the pasted code?", { source: 'errorExplain', presetId: 'remixai_vulnerability_check' })
         else remixAILogger.log("chatRequestBuffer function name not recognized.")
       }
     }

@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
 import copy from 'copy-to-clipboard'
-import { ChatMessage, assistantAvatar, assitantAvatarLight } from '../lib/types'
+import { ChatMessage, assistantAvatar, assitantAvatarLight, PromptMeta } from '../lib/types'
 import React, { useState, useEffect } from 'react'
 import { CustomTooltip } from '@remix-ui/helper'
 import {
@@ -20,7 +20,7 @@ import { DAppUpdateReviewCard } from './DAppUpdateReviewCard'
 export interface ChatHistoryComponentProps {
   messages: ChatMessage[]
   isStreaming: boolean
-  sendPrompt: (prompt: string) => void
+  sendPrompt: (prompt: string, meta?: PromptMeta) => void
   recordFeedback: (msgId: string, next: 'like' | 'dislike' | 'none') => void
   historyRef: React.RefObject<HTMLDivElement>
   theme: any
@@ -35,7 +35,7 @@ export interface ChatHistoryComponentProps {
 }
 
 interface AiChatIntroProps {
-  sendPrompt: (prompt: string) => void
+  sendPrompt: (prompt: string, meta?: PromptMeta) => void
   theme: string
   plugin?: any
   handleGenerateWorkspace: () => void

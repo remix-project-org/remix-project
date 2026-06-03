@@ -4,7 +4,7 @@ import { Profile, StatusEvents } from '@remixproject/plugin-utils'
 export interface IRemixAiAssistantApi {
   events: {} & StatusEvents
   methods: {
-    chatPipe(message: string): void
+    chatPipe(message: string, meta?: { source: string; presetId?: string }): void
     handleExternalMessage(message: string): void
     deleteConversation(id: string): Promise<void>
     loadConversations(): Promise<void>

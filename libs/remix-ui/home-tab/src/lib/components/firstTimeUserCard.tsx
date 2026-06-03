@@ -29,7 +29,7 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
     await plugin.call('menuicons', 'select', 'remixaiassistant')
     await plugin.call('remixaiassistant', 'newConversation')
     setTimeout(() => {
-      plugin.call('remixaiassistant', 'chatPipe', `Why Ethereum and decentralized applications are important for the future of technology and society. Give me a concise and clear explanation. Provide use cases. Propose some areas of discussion, then stop and let me ask you more questions about it.`)
+      plugin.call('remixaiassistant', 'chatPipe', `Why Ethereum and decentralized applications are important for the future of technology and society. Give me a concise and clear explanation. Provide use cases. Propose some areas of discussion, then stop and let me ask you more questions about it.`, { source: 'firstTimeUser', presetId: 'explain_ethereum' })
     }, 200)
   }
 
@@ -57,7 +57,7 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
       plugin.call('notification', 'toast', 'Creating a new workspace and start building...')
       await new Promise((res) => setTimeout(() => res({}), 500)) // wait for the workspace to actually be created
       await plugin.call('fileManager', 'open', 'contracts/MyToken.sol')
-      plugin.call('remixaiassistant', 'chatPipe', `an ERC20 token workspace has been created. Compile and Deploy MyToken. Then give precise details for interacting with that contract in Remix. Propose some next steps for me to learn more about it and experiment with it. Then stop and let me ask you more questions.`)
+      plugin.call('remixaiassistant', 'chatPipe', `an ERC20 token workspace has been created. Compile and Deploy MyToken. Then give precise details for interacting with that contract in Remix. Propose some next steps for me to learn more about it and experiment with it. Then stop and let me ask you more questions.`, { source: 'firstTimeUser', presetId: 'erc20_walkthrough' })
     }, 200)
   }
 

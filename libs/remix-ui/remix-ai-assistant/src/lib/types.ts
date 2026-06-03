@@ -8,8 +8,35 @@ export type ActivityType =
   | 'typing'
   | 'button'
   | 'promptSend'
+  | 'presetSend'
   | 'streamStart'
   | 'streamEnd'
+  | 'conversationSize'
+
+/**
+ * Identifies where a prompt originated. `typed` means the user authored it in
+ * the chat textarea; every other value is a preset / programmatic prompt that
+ * we want to be able to filter out of "real" chat metrics.
+ */
+export type PromptSource =
+  | 'typed'
+  | 'button'
+  | 'sparkle'
+  | 'errorExplain'
+  | 'homeTab'
+  | 'quickDapp'
+  | 'template'
+  | 'tabsAi'
+  | 'ampSql'
+  | 'firstTimeUser'
+  | 'deployedContract'
+  | 'external'
+
+export interface PromptMeta {
+  source: PromptSource
+  /** Stable identifier for the specific preset (e.g. `review_file`, `audit_contract`). */
+  presetId?: string
+}
 
 /**
  * Sync status for cloud sync
