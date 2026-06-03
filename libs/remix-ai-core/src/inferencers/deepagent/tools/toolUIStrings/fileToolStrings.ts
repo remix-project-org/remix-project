@@ -2,22 +2,22 @@ import { ToolUIStringRegistry, getFileName } from './types'
 
 export const fileToolStrings: ToolUIStringRegistry = {
   file_read: (args) =>
-    args.path ? `Reading file ${getFileName(args.path)}` : 'Reading file...',
+    args.filePath ? `Reading file ${getFileName(args.filePath)}` : 'Reading file...',
 
   read_file: (args) =>
-    args.path ? `Reading file ${getFileName(args.path)}` : 'Reading file...',
+    args.filePath ? `Reading file ${getFileName(args.filePath)}` : 'Reading file...',
 
   file_write: (args) =>
-    args.path ? `Writing file ${getFileName(args.path)}` : 'Writing file...',
+    args.filePath ? `Writing file ${getFileName(args.filePath)}` : 'Writing file...',
 
   write_file: (args) =>
-    args.path ? `Writing file ${getFileName(args.path)}` : 'Writing file...',
+    args.filePath ? `Writing file ${getFileName(args.filePath)}` : 'Writing file...',
 
   file_create: (args) =>
-    args.path ? `Creating ${args.type || 'file'} ${getFileName(args.path)}` : 'Creating file...',
+    args.filePath ? `Creating ${args.type || 'file'} ${getFileName(args.filePath)}` : 'Creating file...',
 
   file_delete: (args) =>
-    args.path ? `Deleting file ${getFileName(args.path)}` : 'Deleting file...',
+    args.filePath ? `Deleting file ${getFileName(args.filePath)}` : 'Deleting file...',
 
   file_move: (args) =>
     args.sourcePath ? `Moving file ${getFileName(args.sourcePath)}` : 'Moving file...',
@@ -26,28 +26,28 @@ export const fileToolStrings: ToolUIStringRegistry = {
     args.sourcePath ? `Copying file ${getFileName(args.sourcePath)}` : 'Copying file...',
 
   file_replace: (args) =>
-    args.path ? `Replacing content in ${getFileName(args.path)}` : 'Replacing content in file...',
+    args.filePath ? `Replacing content in ${getFileName(args.filePath)}` : 'Replacing content in file...',
 
   edit_file: (args) =>
-    args.path ? `Editing file ${getFileName(args.path)}` : 'Editing file...',
+    args.filePath ? `Editing file ${getFileName(args.filePath)}` : 'Editing file...',
 
   file_exists: (args) =>
-    args.path ? `Checking if ${getFileName(args.path)} exists` : 'Checking if file exists...',
+    args.filePath ? `Checking if ${getFileName(args.filePath)} exists` : 'Checking if file exists...',
 
   read_file_chunk: (args) =>
-    args.path ? `Reading chunk from ${getFileName(args.path)}` : 'Reading file chunk...',
+    args.filePath ? `Reading chunk from ${getFileName(args.filePath)}` : 'Reading file chunk...',
 
   grep_file: (args) =>
     args.pattern ? `Searching for "${args.pattern}"` : 'Searching in files...',
 
   directory_list: (args) =>
-    args.path ? `Listing directory ${getFileName(args.path)}` : 'Listing directory contents...',
+    args.filePath ? `Listing directory ${getFileName(args.filePath)}` : 'Listing directory contents...',
 
   list_directory: (args) =>
-    args.path ? `Listing directory ${getFileName(args.path)}` : 'Listing directory contents...',
+    args.filePath ? `Listing directory ${getFileName(args.filePath)}` : 'Listing directory contents...',
 
   ls: (args) =>
-    args.path ? `Listing ${getFileName(args.path)}` : 'Listing files...',
+    args.filePath ? `Listing ${getFileName(args.filePath)}` : 'Listing files...',
 
   get_current_file: () =>
     'Getting current file...',
@@ -56,7 +56,7 @@ export const fileToolStrings: ToolUIStringRegistry = {
     'Getting opened files...',
 
   open_file: (args) =>
-    args.path ? `Opening file ${getFileName(args.path)}` : 'Opening file...',
+    args.filePath ? `Opening file ${getFileName(args.filePath)}` : 'Opening file...',
 
   file_search: (args) =>
     args.query ? `Searching files: ${args.query}` : 'Searching files...'

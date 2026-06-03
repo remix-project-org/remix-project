@@ -1507,6 +1507,23 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
 
     uiToolCallbackRef.current = null
+
+    // Persist the partial streamed assistant text to ChatHistory so it
+    // survives reloads. handleStreamComplete early-returns on stop, so
+    // without this the bubble would still be visible in the current
+    // session but vanish after refresh / conversation switch.
+    if (streamingAssistantIdRef.current) {
+      const streamedId = streamingAssistantIdRef.current
+      const idx = messages.findIndex(m => m.id === streamedId)
+      const streamedContent = (idx >= 0 ? messages[idx].content || '' : '').trim()
+      const userMsg = idx > 0 ? messages[idx - 1] : null
+      if (userMsg && userMsg.role === 'user' && streamedContent) {
+        Promise.resolve(ChatHistory.pushHistory(userMsg.content, streamedContent))
+          .then(() => props.plugin.loadConversations())
+          .catch((err) => remixAILogger.warn('[RemixAI Assistant] failed to persist stopped stream:', err))
+      }
+    }
+
     streamingAssistantIdRef.current = null
     streamingSubagentBubbleRef.current = null
 

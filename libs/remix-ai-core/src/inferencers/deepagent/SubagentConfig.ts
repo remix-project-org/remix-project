@@ -132,7 +132,7 @@ export async function buildSubagentConfigs(
       systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
       model: fallbackModel,
       tools: quickDappTools,
-      description: 'Specializes in generating and updating React-based DApp frontends using write_file tools.'
+      description: 'Used whenever you are tasked with generating and updating DApp frontends. Start by finding out the deployed contract, use generate_dapp to create a first version of the DApp, then update it iteratively using update_dapp. Use write_file to implement the DApp and finalize_dapp_generation when the DApp is ready to be used.'
     })
   }
 

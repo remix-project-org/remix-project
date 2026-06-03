@@ -219,9 +219,13 @@ export class DeepAgentManager {
       // click Stop). We seed it on the NEW inferencer instance once the
       // async reinit completes.
       // Track the in-flight reinit on `reinitPromise` so awaitReady()
-      // (called by answer() dispatch in the plugin) blocks the next turn
-      // until the new inferencer is fully built. We still await locally
-      // so this method's own promise also resolves only after reinit.
+      // (called by answer() dispatch in the plugin) blocks the NEXT turn
+      // until the new inferencer is fully built. Do NOT await locally —
+      // the plugin engine serializes calls to this plugin, so awaiting
+      // here would block follow-up actions (model picker, etc.) behind
+      // the full rebuild. We want the Stop button to be instant AND
+      // leave the user free to switch models while the rebuild happens
+      // in the background.
       const pending = this.reinitialize()
         .then(() => {
           remixAILogger.log('[DeepAgentManager] reinitialize after cancel completed successfully')
@@ -233,12 +237,10 @@ export class DeepAgentManager {
         .catch((err) => {
           remixAILogger.warn('[DeepAgentManager] reinitialize after cancel failed:', err)
         })
+        .finally(() => {
+          if (this.reinitPromise === pending) this.reinitPromise = null
+        })
       this.reinitPromise = pending
-      try {
-        await pending
-      } finally {
-        if (this.reinitPromise === pending) this.reinitPromise = null
-      }
     }
   }
 
