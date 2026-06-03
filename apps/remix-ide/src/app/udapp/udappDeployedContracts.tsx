@@ -32,7 +32,15 @@ export class DeployedContractsPlugin extends Plugin {
   async addInstance(address, abi, name, contractData?, pinnedAt?, timestamp = Date.now()) {
     address = (address.slice(0, 2) === '0x' ? '' : '0x') + address.toString('hex')
     address = ethJSUtil.toChecksumAddress(address)
-    const instance = { address, abi, name, contractData, decodedResponse: {}, isPinned: !!pinnedAt, pinnedAt, timestamp }
+
+    let balance = '0'
+    try {
+      balance = await this.call('blockchain', 'getBalanceInEther', address)
+    } catch (e) {
+      console.error(`Failed to fetch initial balance for ${address}:`, e)
+    }
+
+    const instance = { address, abi, name, contractData, decodedResponse: {}, isPinned: !!pinnedAt, pinnedAt, timestamp, balance }
     const duplicateContract = this.getWidgetState()?.deployedContracts?.find(contract => contract.address === address)
 
     if (!duplicateContract) {
