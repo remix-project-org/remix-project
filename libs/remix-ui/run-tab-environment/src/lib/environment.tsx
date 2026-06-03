@@ -125,14 +125,9 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
       dispatch({ type: 'SET_TRANSACTION_RECORDER_COUNT', payload: transactions.length })
     })
 
-    plugin.on('blockchain', 'transactionExecuted', async (error, address: string) => {
+    plugin.on('blockchain', 'transactionExecuted', async (error) => {
       if (error) return
-
-      if (address) {
-        const balance = await plugin.call('blockchain', 'getBalanceInEther', address)
-
-        if (balance) dispatch({ type: 'SET_ACCOUNT_BALANCE', payload: { address, balance: formatBalance(balance, 3) } })
-      }
+      await refreshAccountBalances(plugin, dispatch)
     })
 
     const registerInjectedPluginListener = (pluginName: string) => {

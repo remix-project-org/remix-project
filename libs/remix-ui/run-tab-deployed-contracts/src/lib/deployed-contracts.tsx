@@ -5,7 +5,7 @@ import DeployedContractsPortraitView from './widgets/deployedContractsPortraitVi
 import './css/index.css'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
-import { loadPinnedContracts } from './actions'
+import { loadPinnedContracts, refreshDeployedContractBalances } from './actions'
 
 interface DeployedContractsWidgetProps {
   plugin: DeployedContractsPlugin
@@ -76,14 +76,9 @@ function DeployedContractsWidget({ plugin }: DeployedContractsWidgetProps) {
       }
     })
 
-    plugin.on('blockchain', 'transactionExecuted', async (error, _, to, __, ___, txResult) => {
+    plugin.on('blockchain', 'transactionExecuted', async (error) => {
       if (error) return
-      if (to || txResult?.receipt?.contractAddress) {
-        const address = to || txResult?.receipt?.contractAddress
-        const balance = await plugin.call('blockchain', 'getBalanceInEther', address)
-
-        if (balance) dispatch({ type: 'UPDATE_CONTRACT_BALANCE', payload: { address: address, balance } })
-      }
+      await refreshDeployedContractBalances(plugin, dispatch)
     })
 
     // Cleanup function to remove event listeners when component unmounts

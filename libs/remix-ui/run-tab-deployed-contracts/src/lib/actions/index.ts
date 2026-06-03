@@ -94,6 +94,23 @@ export async function loadPinnedContracts (plugin: DeployedContractsPlugin, disp
   }
 }
 
+export async function refreshDeployedContractBalances (plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>) {
+  const deployedContracts = plugin.getWidgetState?.()?.deployedContracts || []
+
+  for (const contract of deployedContracts) {
+    if (!contract.address) continue
+    try {
+      const balance = await plugin.call('blockchain', 'getBalanceInEther', contract.address)
+
+      if (balance !== undefined && balance !== null) {
+        dispatch({ type: 'UPDATE_CONTRACT_BALANCE', payload: { address: contract.address, balance } })
+      }
+    } catch (e) {
+      console.error(`Failed to update balance for ${contract.address}:`, e)
+    }
+  }
+}
+
 export async function runTransactions (
   plugin: DeployedContractsPlugin,
   dispatch: React.Dispatch<Actions>,
