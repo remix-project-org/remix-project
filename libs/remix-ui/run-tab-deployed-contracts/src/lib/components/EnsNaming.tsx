@@ -1,143 +1,27 @@
-import React, { useState, useContext } from 'react'
+import React, { useState, useEffect, useRef, useContext, useCallback } from 'react'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { createWalletClient, createPublicClient, custom, namehash, keccak256, toBytes, type Hex } from 'viem'
-import { mainnet } from 'viem/chains'
-
-// ENS v1 Ethereum Mainnet contract addresses used by Enscribe.
-const ENS_CONTRACTS = {
-  registry: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as Hex,
-  nameWrapper: '0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401' as Hex,
-  publicResolver: '0xF29100983E058B709F3D539b0c765937B804AC15' as Hex,
-  reverseRegistrar: '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb' as Hex,
-}
-
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex
-
-const ENS_EXPLORER_BASE = 'https://app.ens.domains'
-const ETHERSCAN_BASE = 'https://etherscan.io'
+import { endpointUrls } from '@remix-endpoints-helper'
+import { createWalletClient, createPublicClient, custom, type Hex } from 'viem'
 
 const PARENT_NAME = 'remixcontract.eth'
+const ETHERSCAN_BASE = 'https://etherscan.io'
+const ENS_APP_BASE = 'https://app.ens.domains'
+const POLL_INTERVAL = 2000
+const DEBOUNCE_MS = 600
 
-type NameStatus = 'idle' | 'checking' | 'available' | 'reusable' | 'current' | 'taken' | 'error'
+const ENS_REVERSE_REGISTRAR_L1 = '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb' as Hex
+const ENS_REVERSE_REGISTRAR_L2 = '0x0000000000D8e504002cC26E3Ec46D81971C1664' as Hex
+const ENS_PUBLIC_RESOLVER_L1 = '0xF29100983E058B709F3D539b0c765937B804AC15' as Hex
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex
 
-type NameCheck = {
-  status: Exclude<NameStatus, 'checking'>
-  resolver?: Hex
-  resolvedAddress?: Hex
-  error?: string
+const getReverseRegistrar = (cid: number): Hex => {
+  if (cid === 1) return ENS_REVERSE_REGISTRAR_L1
+  return ENS_REVERSE_REGISTRAR_L2
 }
 
-const sanitizeLabel = (value: string) => {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-}
-
-const getDefaultLabel = (contract: DeployedContract) => {
-  const contractName = sanitizeLabel(contract.name || contract.contractData?.contract?.name || '')
-  if (contractName) return contractName
-  return `contract-${contract.address.slice(2, 8).toLowerCase()}`
-}
-
-const addressesEqual = (a?: string | null, b?: string | null) => {
-  return !!a && !!b && a.toLowerCase() === b.toLowerCase()
-}
-
-// --- ABIs ---
-
-const ENS_REGISTRY_ABI = [
-  {
-    name: 'owner',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    outputs: [{ name: '', type: 'address' }],
-  },
-  {
-    name: 'resolver',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    outputs: [{ name: '', type: 'address' }],
-  },
-  {
-    name: 'recordExists',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-  {
-    name: 'setSubnodeRecord',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'label', type: 'bytes32' },
-      { name: 'owner', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'ttl', type: 'uint64' },
-    ],
-    outputs: [],
-  },
-] as const
-
-const NAME_WRAPPER_ABI = [
-  {
-    name: 'setSubnodeRecord',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'parentNode', type: 'bytes32' },
-      { name: 'label', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'ttl', type: 'uint64' },
-      { name: 'fuses', type: 'uint32' },
-      { name: 'expiry', type: 'uint64' },
-    ],
-    outputs: [{ name: '', type: 'bytes32' }],
-  },
-  {
-    name: 'isWrapped',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-  {
-    name: 'ownerOf',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'id', type: 'uint256' }],
-    outputs: [{ name: '', type: 'address' }],
-  },
-] as const
-
-const PUBLIC_RESOLVER_ABI = [
-  {
-    name: 'setAddr',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'a', type: 'address' },
-    ],
-    outputs: [],
-  },
-  {
-    name: 'addr',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    outputs: [{ name: '', type: 'address' }],
-  },
-] as const
-
-const REVERSE_REGISTRAR_ABI = [
+// L1: setNameForAddr(address addr, address owner, address resolver, string name)
+const REVERSE_REGISTRAR_ABI_L1 = [
   {
     name: 'setNameForAddr',
     type: 'function',
@@ -152,6 +36,20 @@ const REVERSE_REGISTRAR_ABI = [
   },
 ] as const
 
+// L2: setNameForAddr(address addr, string name)
+const REVERSE_REGISTRAR_ABI_L2 = [
+  {
+    name: 'setNameForAddr',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'addr', type: 'address' },
+      { name: 'name', type: 'string' },
+    ],
+    outputs: [],
+  },
+] as const
+
 const OWNABLE_ABI = [
   {
     name: 'owner',
@@ -162,30 +60,148 @@ const OWNABLE_ABI = [
   },
 ] as const
 
+// Supported chains (must match backend)
+const SUPPORTED_CHAINS = new Map<number, string>([
+  [1, 'Ethereum Mainnet'],
+  [8453, 'Base'],
+  [42161, 'Arbitrum One'],
+  [10, 'OP Mainnet'],
+  [59144, 'Linea'],
+  [534352, 'Scroll'],
+])
+
+type PreflightStatus =
+  | 'idle' | 'checking' | 'available' | 'available_for_chain'
+  | 'current' | 'taken' | 'unsupported_chain' | 'parent_not_owned'
+  | 'name_not_controlled' | 'project_not_controlled' | 'error'
+
+type JobStep = 'pending' | 'checking' | 'creating_project' | 'creating_label' | 'setting_forward' | 'completed' | 'failed'
+type ViewStep = 'input' | 'registering' | 'reverse' | 'done' | 'error'
+
+interface PreflightResult {
+  fullName: string
+  targetCoinType: number
+  status: PreflightStatus
+  currentAddress?: string
+  parentOwned: boolean
+  estimatedTxCount: number
+  steps: string[]
+}
+
+interface JobTransaction {
+  type: string
+  hash?: string
+  gasUsed?: string
+  gasCostWei?: string
+}
+
+interface JobResult {
+  id: string
+  status: JobStep
+  fullName: string
+  transactions: JobTransaction[]
+  totalGasUsed?: string
+  totalCostWei?: string
+  error?: string
+  completedAt?: number
+}
+
+// ── Helpers ──
+
+function apiBase(): string {
+  // TODO: remove localhost override before production
+  return 'http://localhost:4000/contract-ens'
+}
+
+const sanitizeLabel = (v: string) =>
+  v.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+
+const getDefaultLabel = (contract: DeployedContract) => {
+  const name = sanitizeLabel(contract.name || contract.contractData?.contract?.name || '')
+  return name || `contract-${contract.address.slice(2, 8).toLowerCase()}`
+}
+
+const formatGwei = (wei: string) => {
+  const gwei = Number(wei) / 1e9
+  return gwei < 0.01 ? '<0.01' : gwei.toFixed(2)
+}
+
+const formatEth = (wei: string) => {
+  const eth = Number(wei) / 1e18
+  return eth < 0.000001 ? '<0.000001' : eth.toFixed(6)
+}
+
+const JOB_STEP_LABELS: Record<string, string> = {
+  pending: 'Queued...',
+  checking: 'Checking name availability...',
+  creating_project: 'Creating project subname...',
+  creating_label: 'Creating label subname...',
+  setting_forward: 'Setting forward record...',
+  completed: 'Registration complete!',
+  failed: 'Registration failed',
+}
+
+// ── Component ──
+
 interface EnsNamingProps {
   contract: DeployedContract
   onClose: () => void
 }
 
-type EnsStep = 'input' | 'progress' | 'reverse' | 'done' | 'error'
-
 export function EnsNaming({ contract, onClose }: EnsNamingProps) {
   const { plugin, themeQuality } = useContext(DeployedContractsAppContext)
 
+  // State
   const [label, setLabel] = useState(getDefaultLabel(contract))
-  const [step, setStep] = useState<EnsStep>('input')
-  const [statusMsg, setStatusMsg] = useState('')
-  const [errorMsg, setErrorMsg] = useState('')
-  const [reverseDone, setReverseDone] = useState(false)
+  const [project, setProject] = useState('default')
+  const [chainId, setChainId] = useState<number | null>(null)
+  const [viewStep, setViewStep] = useState<ViewStep>('input')
+
+  // Preflight
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null)
+  const [preflightStatus, setPreflightStatus] = useState<PreflightStatus>('idle')
+  const [preflightError, setPreflightError] = useState('')
+
+  // Job
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [jobStatus, setJobStatus] = useState<JobStep>('pending')
+  const [jobResult, setJobResult] = useState<JobResult | null>(null)
+  const [jobError, setJobError] = useState('')
+
+  // Reverse
   const [hasOwnable, setHasOwnable] = useState(false)
-  const [nameStatus, setNameStatus] = useState<NameStatus>('idle')
-  const [nameStatusMsg, setNameStatusMsg] = useState('')
-  const [resolvedAddress, setResolvedAddress] = useState<Hex | null>(null)
+  const [reverseDone, setReverseDone] = useState(false)
+  const [isReverseInProgress, setIsReverseInProgress] = useState(false)
+  const [reverseStatusMsg, setReverseStatusMsg] = useState('')
 
-  const fullName = `${label}.${PARENT_NAME}`
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Check if the contract has owner() function (Ownable)
-  React.useEffect(() => {
+  const textColor = themeQuality === 'dark' ? 'white' : 'black'
+  const subtextColor = 'var(--text-tertiary, #a2a3bd)'
+  const fullName = label && project ? `${label}.${project}.${PARENT_NAME}` : ''
+
+  // Detect chain on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const network = await plugin.call('udappEnv', 'getNetwork')
+        const id = Number(network?.chainId)
+        if (SUPPORTED_CHAINS.has(id)) {
+          setChainId(id)
+        } else {
+          setChainId(null)
+          setPreflightStatus('unsupported_chain')
+          setPreflightError(`Chain ${network?.name || id} is not supported for ENS contract naming.`)
+        }
+      } catch {
+        setPreflightStatus('error')
+        setPreflightError('Could not detect network.')
+      }
+    })();
+  }, [])
+
+  // Detect Ownable
+  useEffect(() => {
     const abi = contract.abi || contract.contractData?.abi || []
     const hasOwner = abi.some((item: any) =>
       item.type === 'function' && item.name === 'owner' && item.inputs?.length === 0
@@ -193,314 +209,267 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     setHasOwnable(hasOwner)
   }, [contract])
 
-  const getProvider = () => {
-    const provider = (window as any).ethereum
-    if (!provider) throw new Error('No wallet provider found. Please install MetaMask.')
-    return provider
-  }
-
-  const getPublicClient = async () => {
-    const publicClient = createPublicClient({
-      chain: mainnet,
-      transport: custom(getProvider()),
-    })
-
-    const chainId = await publicClient.getChainId()
-    if (chainId !== 1) {
-      throw new Error(`Please switch MetaMask to Ethereum Mainnet (chain ID 1). Current: ${chainId}`)
-    }
-
-    return publicClient
-  }
-
-  const getClients = async () => {
-    const provider = getProvider()
-
-    const walletClient = createWalletClient({
-      chain: mainnet,
-      transport: custom(provider),
-    })
-
-    const publicClient = createPublicClient({
-      chain: mainnet,
-      transport: custom(provider),
-    })
-
-    const [account] = await walletClient.requestAddresses()
-    await getPublicClient()
-
-    return { walletClient, publicClient, account }
-  }
-
-  const checkName = async (publicClient: any): Promise<NameCheck> => {
-    if (!label) {
-      return { status: 'idle' }
-    }
-
-    const fullNode = namehash(fullName)
-    const exists = await publicClient.readContract({
-      address: ENS_CONTRACTS.registry,
-      abi: ENS_REGISTRY_ABI,
-      functionName: 'recordExists',
-      args: [fullNode],
-    })
-
-    if (!exists) {
-      return { status: 'available' }
-    }
-
-    const resolver = await publicClient.readContract({
-      address: ENS_CONTRACTS.registry,
-      abi: ENS_REGISTRY_ABI,
-      functionName: 'resolver',
-      args: [fullNode],
-    }) as Hex
-
-    if (resolver === ZERO_ADDRESS) {
-      return { status: 'taken', resolver }
-    }
-
-    let currentAddr: Hex | null = null
-    try {
-      currentAddr = await publicClient.readContract({
-        address: resolver,
-        abi: PUBLIC_RESOLVER_ABI,
-        functionName: 'addr',
-        args: [fullNode],
-      }) as Hex
-    } catch (e: any) {
-      return { status: 'taken', resolver, error: e.shortMessage || e.message }
-    }
-
-    if (addressesEqual(currentAddr, contract.address)) {
-      return { status: 'current', resolver, resolvedAddress: currentAddr }
-    }
-
-    if (resolver.toLowerCase() === ENS_CONTRACTS.publicResolver.toLowerCase() && currentAddr === ZERO_ADDRESS) {
-      return { status: 'reusable', resolver, resolvedAddress: currentAddr }
-    }
-
-    return { status: 'taken', resolver, resolvedAddress: currentAddr }
-  }
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    if (!label) {
-      setNameStatus('idle')
-      setNameStatusMsg('Enter a label to check availability.')
-      setResolvedAddress(null)
-      return
-    }
-
-    setNameStatus('checking')
-    setNameStatusMsg('Checking ENS name...')
-    setResolvedAddress(null)
-
-    const timeout = setTimeout(async () => {
-      try {
-        const publicClient = await getPublicClient()
-        const result = await checkName(publicClient)
-        if (cancelled) return
-
-        setNameStatus(result.status)
-        setResolvedAddress(result.resolvedAddress || null)
-
-        if (result.status === 'available') {
-          setNameStatusMsg(`${fullName} is available.`)
-        } else if (result.status === 'reusable') {
-          setNameStatusMsg(`${fullName} already exists but has no address record. Forward can be set.`)
-        } else if (result.status === 'current') {
-          setNameStatusMsg(`${fullName} already points to this contract.`)
-        } else if (result.status === 'taken') {
-          setNameStatusMsg(`${fullName} already exists. Choose another label for a clean demo.`)
-        } else if (result.status === 'error') {
-          setNameStatusMsg(result.error || 'Failed to check ENS name.')
-        }
-      } catch (e: any) {
-        if (cancelled) return
-        setNameStatus('error')
-        setNameStatusMsg(e.shortMessage || e.message)
-      }
-    }, 500)
-
+  // Cleanup polling on unmount
+  useEffect(() => {
     return () => {
-      cancelled = true
-      clearTimeout(timeout)
+      if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [label, fullName, contract.address])
+  }, [])
 
-  const handleForward = async () => {
-    try {
-      setStep('progress')
-      setStatusMsg('Connecting...')
-      setErrorMsg('')
+  // Debounced preflight check
+  useEffect(() => {
+    if (!label || !project || !chainId) return
 
-      const { walletClient, publicClient, account } = await getClients()
-      const parentNode = namehash(PARENT_NAME)
-      const fullNode = namehash(fullName)
-      const labelHash = keccak256(toBytes(label))
-      const nameCheck = await checkName(publicClient)
+    setPreflightStatus('checking')
+    setPreflightError('')
+    setPreflight(null)
 
-      if (nameCheck.status === 'taken') {
-        throw new Error(`${fullName} already exists${nameCheck.resolvedAddress ? ` and points to ${nameCheck.resolvedAddress}` : ''}. Choose another label for this demo.`)
-      }
-
-      // Verify ownership via NameWrapper or ENS Registry, depending on whether the parent is wrapped.
-      setStatusMsg('Verifying ownership...')
-      const isWrapped = await publicClient.readContract({
-        address: ENS_CONTRACTS.nameWrapper,
-        abi: NAME_WRAPPER_ABI,
-        functionName: 'isWrapped',
-        args: [parentNode],
-      })
-
-      const parentOwner = isWrapped
-        ? await publicClient.readContract({
-          address: ENS_CONTRACTS.nameWrapper,
-          abi: NAME_WRAPPER_ABI,
-          functionName: 'ownerOf',
-          args: [BigInt(parentNode)],
-        }) as string
-        : await publicClient.readContract({
-          address: ENS_CONTRACTS.registry,
-          abi: ENS_REGISTRY_ABI,
-          functionName: 'owner',
-          args: [parentNode],
-        }) as string
-
-      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS] Owner of ${PARENT_NAME}: ${parentOwner}` })
-
-      if (!addressesEqual(parentOwner, account)) {
-        throw new Error(`You don't own ${PARENT_NAME}.\nOwner: ${parentOwner}\nYour address: ${account}`)
-      }
-
-      if (nameCheck.status === 'available') {
-        setStatusMsg(`Creating: ${fullName}...`)
-        await plugin.call('terminal', 'log', { type: 'info', value: `[ENS] Creating subname: ${fullName}` })
-
-        const subnameTx = isWrapped
-          ? await walletClient.writeContract({
-            chain: mainnet,
-            address: ENS_CONTRACTS.nameWrapper,
-            abi: NAME_WRAPPER_ABI,
-            functionName: 'setSubnodeRecord',
-            args: [parentNode, label, account, ENS_CONTRACTS.publicResolver, BigInt(0), 0, BigInt(0)],
-            account,
-          })
-          : await walletClient.writeContract({
-            chain: mainnet,
-            address: ENS_CONTRACTS.registry,
-            abi: ENS_REGISTRY_ABI,
-            functionName: 'setSubnodeRecord',
-            args: [parentNode, labelHash, account, ENS_CONTRACTS.publicResolver, BigInt(0)],
-            account,
-          })
-
-        await publicClient.waitForTransactionReceipt({ hash: subnameTx })
-        await plugin.call('terminal', 'log', { type: 'info', value: `✅ Subname created (tx: ${subnameTx})` })
-      }
-
-      if (nameCheck.status !== 'current') {
-        setStatusMsg(`Setting: ${fullName} -> ${contract.address}...`)
-        const forwardTx = await walletClient.writeContract({
-          chain: mainnet,
-          address: ENS_CONTRACTS.publicResolver,
-          abi: PUBLIC_RESOLVER_ABI,
-          functionName: 'setAddr',
-          args: [fullNode, contract.address as Hex],
-          account,
-        })
-        await publicClient.waitForTransactionReceipt({ hash: forwardTx })
-        await plugin.call('terminal', 'log', { type: 'info', value: `✅ Forward: ${fullName} -> ${contract.address} (tx: ${forwardTx})` })
-      } else {
-        await plugin.call('terminal', 'log', { type: 'info', value: `✅ Forward already set: ${fullName} -> ${contract.address}` })
-      }
-
-      // Verify
-      setStatusMsg('Verifying...')
+    const timer = setTimeout(async () => {
       try {
-        const resolved = await publicClient.readContract({
-          address: ENS_CONTRACTS.publicResolver,
-          abi: PUBLIC_RESOLVER_ABI,
-          functionName: 'addr',
-          args: [fullNode],
+        const res = await fetch(`${apiBase()}/preflight`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label, project, chainId, contractAddress: contract.address }),
         })
-        await plugin.call('terminal', 'log', { type: 'info', value: `[Verify] ${fullName} -> ${resolved}` })
+        const data = await res.json()
+
+        if (!res.ok) {
+          setPreflightStatus('error')
+          setPreflightError(data.error || data.details?.[0]?.message || `Server error (${res.status})`)
+          return
+        }
+
+        setPreflight(data)
+        setPreflightStatus(data.status)
       } catch (e: any) {
-        await plugin.call('terminal', 'log', { type: 'warn', value: `[Verify] Failed: ${e.shortMessage || e.message}` })
+        setPreflightStatus('error')
+        setPreflightError('Could not reach the ENS naming service. Please try again later.')
+      }
+    }, DEBOUNCE_MS)
+
+    return () => clearTimeout(timer)
+  }, [label, project, chainId, contract.address])
+
+  // Start registration
+  const handleRegister = useCallback(async () => {
+    if (!chainId) return
+
+    setViewStep('registering')
+    setJobError('')
+    setJobStatus('pending')
+    setJobResult(null)
+
+    try {
+      const res = await fetch(`${apiBase()}/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, project, chainId, contractAddress: contract.address }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || `Job creation failed (${res.status})`)
       }
 
-      if (hasOwnable) {
-        setStep('reverse')
-        setStatusMsg('Forward complete! Set reverse for explorer display?')
-      } else {
-        setStep('done')
-        setStatusMsg(`Forward complete!\n${fullName} -> ${contract.address}`)
+      if (data.status === 'current') {
+        // Already registered — no job needed
+        setViewStep('done')
+        setJobResult({ id: '', status: 'completed', fullName: data.fullName || fullName, transactions: [], totalGasUsed: '0', totalCostWei: '0' } as any)
+        return
       }
+
+      setJobId(data.jobId)
+
+      // Start polling
+      pollRef.current = setInterval(async () => {
+        try {
+          const pollRes = await fetch(`${apiBase()}/jobs/${data.jobId}`)
+          if (!pollRes.ok) return
+
+          const job: JobResult = await pollRes.json()
+          setJobStatus(job.status)
+          setJobResult(job)
+
+          if (job.status === 'completed') {
+            clearInterval(pollRef.current!)
+            pollRef.current = null
+            setViewStep('done')
+            await plugin.call('terminal', 'log', { type: 'info', value: `✅ ENS registered: ${job.fullName}` })
+            // Reverse available on both L1 and L2 (both check Ownable.owner())
+            if (hasOwnable) {
+              setViewStep('reverse')
+            } else {
+              setViewStep('done')
+            }
+          } else if (job.status === 'failed') {
+            clearInterval(pollRef.current!)
+            pollRef.current = null
+            setJobError(job.error || 'Registration failed.')
+            setViewStep('error')
+          }
+        } catch { /* polling error — retry on next interval */ }
+      }, POLL_INTERVAL)
 
     } catch (e: any) {
-      setStep('error')
-      setErrorMsg(e.shortMessage || e.message)
-      await plugin.call('terminal', 'log', { type: 'error', value: `ENS Forward Error: ${e.message}` })
+      setJobError(e.message)
+      setViewStep('error')
     }
-  }
+  }, [label, project, chainId, contract.address, fullName, hasOwnable])
 
-  const handleReverse = async () => {
+  // Reverse handler — user signs on the deployment chain
+  const handleReverse = useCallback(async () => {
+    if (!chainId) return
     try {
-      setStep('progress')
-      setStatusMsg('Setting reverse record...')
-      setErrorMsg('')
+      setViewStep('registering')
+      setIsReverseInProgress(true)
+      setReverseStatusMsg('Connecting wallet...')
+      setJobError('')
 
-      const { walletClient, publicClient, account } = await getClients()
+      const provider = (window as any).ethereum
+      if (!provider) throw new Error('No wallet provider found. Please install MetaMask.')
+
+      const walletClient = createWalletClient({ transport: custom(provider) })
+      const publicClient = createPublicClient({ transport: custom(provider) })
+
+      const currentChainId = await publicClient.getChainId()
+      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Chain: ${currentChainId}, expected: ${chainId}` })
+      if (currentChainId !== chainId) {
+        throw new Error(`Please switch your wallet to ${SUPPORTED_CHAINS.get(chainId)} (chain ID ${chainId}). Current: ${currentChainId}`)
+      }
+
+      const [account] = await walletClient.requestAddresses()
+      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Account: ${account}` })
+
+      // Verify ownership
+      setReverseStatusMsg('Verifying contract ownership...')
       const owner = await publicClient.readContract({
         address: contract.address as Hex,
         abi: OWNABLE_ABI,
         functionName: 'owner',
         args: [],
       })
+      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Contract owner: ${owner}, account: ${account}` })
 
-      if (!addressesEqual(owner, account)) {
+      if ((owner as string).toLowerCase() !== account.toLowerCase()) {
         throw new Error(`Reverse can only be set by the contract owner.\nowner(): ${owner}\nYour address: ${account}`)
       }
 
-      const tx = await walletClient.writeContract({
-        chain: mainnet,
-        address: ENS_CONTRACTS.reverseRegistrar,
-        abi: REVERSE_REGISTRAR_ABI,
-        functionName: 'setNameForAddr',
-        args: [
-          contract.address as Hex,
+      const registrar = getReverseRegistrar(chainId)
+      const isL1 = chainId === 1
+      const abi = isL1 ? REVERSE_REGISTRAR_ABI_L1 : REVERSE_REGISTRAR_ABI_L2
+      const args = isL1
+        ? [contract.address as Hex, account, ENS_PUBLIC_RESOLVER_L1, fullName]
+        : [contract.address as Hex, fullName]
+
+      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Registrar: ${registrar}, L1: ${isL1}` })
+      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Args: ${JSON.stringify(args)}` })
+
+      // Simulate first to catch revert reason
+      setReverseStatusMsg('Simulating transaction...')
+      try {
+        await publicClient.simulateContract({
+          address: registrar,
+          abi,
+          functionName: 'setNameForAddr',
+          args: args as any,
           account,
-          ENS_CONTRACTS.publicResolver,
-          fullName,
-        ],
+        })
+        await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Simulation passed ✓` })
+      } catch (simErr: any) {
+        const reason = simErr.shortMessage || simErr.message
+        await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] Simulation FAILED: ${reason}` })
+        if (simErr.data) {
+          await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] Revert data: ${JSON.stringify(simErr.data)}` })
+        }
+        throw new Error(`Transaction would fail: ${reason}`)
+      }
+
+      setReverseStatusMsg('Confirm the transaction in your wallet...')
+      const tx = await walletClient.writeContract({
+        chain: null,
+        address: registrar,
+        abi,
+        functionName: 'setNameForAddr',
+        args: args as any,
         account,
         gas: BigInt(200000),
       })
-      await publicClient.waitForTransactionReceipt({ hash: tx })
-      await plugin.call('terminal', 'log', { type: 'info', value: `✅ Reverse: ${contract.address} -> ${fullName}` })
+      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Tx submitted: ${tx}` })
 
+      setReverseStatusMsg('Waiting for transaction confirmation...')
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx, timeout: 120_000 })
+      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Tx confirmed. Status: ${receipt.status}, block: ${receipt.blockNumber}, gas: ${receipt.gasUsed}` })
+
+      if (receipt.status === 'reverted') {
+        throw new Error(`Transaction reverted on-chain (tx: ${tx})`)
+      }
+
+      await plugin.call('terminal', 'log', { type: 'info', value: `✅ Reverse: ${contract.address} → ${fullName} (on ${SUPPORTED_CHAINS.get(chainId)})` })
+
+      setIsReverseInProgress(false)
       setReverseDone(true)
-      setStep('done')
-      setStatusMsg(`Complete!\nForward: ${fullName} -> ${contract.address}\nReverse: ${contract.address} -> ${fullName}`)
-
+      setViewStep('done')
     } catch (e: any) {
-      setStep('error')
-      setErrorMsg(e.shortMessage || e.message)
-      await plugin.call('terminal', 'log', { type: 'error', value: `ENS Reverse Error: ${e.message}` })
+      setJobError(e.shortMessage || e.message)
+      setIsReverseInProgress(false)
+      setViewStep('error')
+      await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] ERROR: ${e.message}` })
+      if (e.cause) await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] Cause: ${JSON.stringify(e.cause)}` })
+    }
+  }, [contract.address, fullName, chainId])
+
+  // ── Status helpers ──
+
+  const getStatusIcon = () => {
+    switch (preflightStatus) {
+      case 'checking': return 'fas fa-spinner fa-spin'
+      case 'available': case 'available_for_chain': return 'fas fa-check-circle text-success'
+      case 'current': return 'fas fa-check-circle text-info'
+      case 'taken': case 'name_not_controlled': case 'project_not_controlled': return 'fas fa-times-circle text-danger'
+      case 'unsupported_chain': case 'parent_not_owned': return 'fas fa-exclamation-triangle text-warning'
+      case 'error': return 'fas fa-exclamation-circle text-danger'
+      default: return 'fas fa-info-circle'
     }
   }
 
-  const textColor = themeQuality === 'dark' ? 'white' : 'black'
-  const subtextColor = 'var(--text-tertiary, #a2a3bd)'
+  const getStatusMessage = (): string => {
+    switch (preflightStatus) {
+      case 'checking': return 'Checking availability...'
+      case 'available': return `${fullName} is available. ${preflight?.estimatedTxCount || 0} L1 transaction(s) needed.`
+      case 'available_for_chain': return `${fullName} exists but this chain record is not set.`
+      case 'current': return `${fullName} already points to this contract.`
+      case 'taken': return `${fullName} is already taken${preflight?.currentAddress ? ` by ${preflight.currentAddress.slice(0, 10)}...` : ''}.`
+      case 'name_not_controlled': return 'This name exists but is not controlled by the Remix server.'
+      case 'project_not_controlled': return 'This project exists but is not controlled by the Remix server.'
+      case 'parent_not_owned': return 'The ENS naming service is not available (parent not owned).'
+      case 'unsupported_chain': return preflightError
+      case 'error': return preflightError || 'An error occurred.'
+      default: return 'Enter a label to check availability.'
+    }
+  }
+
+  const canRegister =
+    preflightStatus === 'available' ||
+    preflightStatus === 'available_for_chain'
+
+  const getProgressSteps = (): { label: string; done: boolean; active: boolean }[] => {
+    const ordered: JobStep[] = ['checking', 'creating_project', 'creating_label', 'setting_forward', 'completed']
+    const currentIdx = ordered.indexOf(jobStatus)
+    return ordered.map((s, i) => ({
+      label: JOB_STEP_LABELS[s] || s,
+      done: i < currentIdx || jobStatus === 'completed',
+      active: i === currentIdx,
+    }))
+  }
+
+  // ── Render ──
 
   return (
     <div className="p-3 rounded mb-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', border: '1px solid var(--bs-border-color)' }}>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-2">
         <span style={{ color: textColor, fontWeight: 600, fontSize: '0.85rem' }}>
-          <i className="fas fa-link me-1" /> ENS Naming (Mainnet PoC)
+          <i className="fas fa-link me-1" /> ENS Contract Naming
         </span>
         <button
           className="btn btn-sm"
@@ -509,13 +478,20 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
         >×</button>
       </div>
 
-      {/* Input step */}
-      {step === 'input' && (
+      {/* ── INPUT STEP ── */}
+      {viewStep === 'input' && (
         <>
-          <div className="mb-2 p-2 rounded" style={{ backgroundColor: 'rgba(255, 183, 77, 0.1)', fontSize: '0.7rem', color: '#ffb74d' }}>
-            <i className="fas fa-exclamation-triangle me-1" />
-            <strong>Mainnet</strong> - Transactions cost real ETH. Forward can send up to 2 transactions.
-          </div>
+          {/* Chain info */}
+          {chainId && (
+            <div className="mb-2 p-2 rounded d-flex align-items-center gap-2" style={{ backgroundColor: 'rgba(100, 196, 255, 0.05)', fontSize: '0.75rem' }}>
+              <i className="fas fa-link" style={{ color: '#64c4ff' }} />
+              <span style={{ color: subtextColor }}>
+                Deployed on <strong style={{ color: textColor }}>{SUPPORTED_CHAINS.get(chainId)}</strong> — server registers ENS on L1 (no gas cost to you)
+              </span>
+            </div>
+          )}
+
+          {/* Label input */}
           <div className="mb-2">
             <label className="small mb-1 d-block" style={{ color: subtextColor }}>Label</label>
             <input
@@ -523,109 +499,202 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
               value={label}
               onChange={(e) => setLabel(sanitizeLabel(e.target.value))}
               className="form-control form-control-sm"
-              placeholder="storage"
+              placeholder="my-token"
               style={{ backgroundColor: 'var(--bs-body-bg)', color: textColor, fontSize: '0.8rem' }}
+              disabled={!chainId}
             />
           </div>
-          <div className="mb-2 p-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.75rem' }}>
-            <div style={{ color: subtextColor }}>Preview:</div>
-            <div style={{ color: '#64c4ff', fontFamily: 'monospace', wordBreak: 'break-all' }}>
-              {fullName}
-            </div>
-            <div style={{ color: subtextColor, marginTop: '4px' }}>
-              -&gt; {contract.address}
-            </div>
+
+          {/* Project input */}
+          <div className="mb-2">
+            <label className="small mb-1 d-block" style={{ color: subtextColor }}>Project</label>
+            <input
+              type="text"
+              value={project}
+              onChange={(e) => setProject(sanitizeLabel(e.target.value))}
+              className="form-control form-control-sm"
+              placeholder="my-project"
+              style={{ backgroundColor: 'var(--bs-body-bg)', color: textColor, fontSize: '0.8rem' }}
+              disabled={!chainId}
+            />
           </div>
+
+          {/* Preview */}
+          {fullName && (
+            <div className="mb-2 p-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.75rem' }}>
+              <div style={{ color: subtextColor }}>Preview:</div>
+              <div style={{ color: '#64c4ff', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                {fullName}
+              </div>
+              <div style={{ color: subtextColor, marginTop: '4px' }}>
+                &rarr; {contract.address}
+              </div>
+            </div>
+          )}
+
+          {/* Status */}
           <div
             className="mb-2 p-2 rounded"
             style={{
-              backgroundColor: nameStatus === 'taken' || nameStatus === 'error' ? 'rgba(255, 119, 119, 0.1)' : 'rgba(100, 196, 255, 0.05)',
+              backgroundColor: preflightStatus === 'taken' || preflightStatus === 'error'
+                ? 'rgba(255, 119, 119, 0.1)'
+                : canRegister ? 'rgba(100, 255, 100, 0.05)' : 'rgba(100, 196, 255, 0.05)',
               fontSize: '0.7rem',
-              color: nameStatus === 'taken' || nameStatus === 'error' ? '#ff7777' : subtextColor,
+              color: preflightStatus === 'taken' || preflightStatus === 'error' ? '#ff7777'
+                : canRegister ? '#81c784' : subtextColor,
             }}
           >
-            <i className={`${nameStatus === 'available' || nameStatus === 'current' ? 'fas fa-check-circle' : nameStatus === 'checking' ? 'fas fa-spinner fa-spin' : 'fas fa-info-circle'} me-1`} />
-            {nameStatusMsg}
-            {resolvedAddress && nameStatus === 'taken' && (
-              <div style={{ marginTop: '4px', wordBreak: 'break-all' }}>
-                Current: {resolvedAddress}
-              </div>
-            )}
+            <i className={`${getStatusIcon()} me-1`} />
+            {getStatusMessage()}
           </div>
-          {!hasOwnable && (
-            <div className="mb-2 p-2 rounded" style={{ backgroundColor: 'rgba(255, 183, 77, 0.1)', fontSize: '0.7rem', color: '#ffb74d' }}>
-              <i className="fas fa-info-circle me-1" />
-              This contract does not implement Ownable. Only Forward (name -&gt; address) will be available.
-            </div>
-          )}
-          <div className="mb-2 p-2 rounded" style={{ backgroundColor: 'rgba(100, 196, 255, 0.05)', fontSize: '0.7rem', color: subtextColor }}>
-            <i className="fas fa-info-circle me-1" style={{ color: '#64c4ff' }} />
-            Naming uses <strong style={{ color: textColor }}>{PARENT_NAME}</strong>. Reverse is available only for Ownable contracts.
-          </div>
+
+          {/* Register button */}
           <button
             className="btn btn-primary btn-sm w-100"
-            onClick={handleForward}
-            disabled={!label || nameStatus === 'checking' || nameStatus === 'taken' || nameStatus === 'error'}
+            onClick={handleRegister}
+            disabled={!canRegister}
           >
             <i className="fas fa-arrow-right me-1" />
-            {nameStatus === 'current' ? 'Forward Already Set' : 'Set Forward Name'}
+            {preflightStatus === 'current' ? 'Already Registered' : 'Register ENS Name'}
           </button>
         </>
       )}
 
-      {/* Progress */}
-      {step === 'progress' && (
-        <div className="text-center py-2">
-          <div className="spinner-border spinner-border-sm text-primary mb-2" />
-          <div style={{ color: subtextColor, fontSize: '0.8rem' }}>{statusMsg}</div>
-          <div className="mt-2" style={{ fontSize: '0.7rem', color: subtextColor }}>
-            Confirm the transaction in MetaMask.
+      {/* ── REGISTERING STEP ── */}
+      {viewStep === 'registering' && (
+        <div className="py-2">
+          <div className="text-center mb-3">
+            <div className="spinner-border spinner-border-sm text-primary mb-2" />
+            <div style={{ color: textColor, fontSize: '0.85rem', fontWeight: 600 }}>
+              {isReverseInProgress ? 'Setting Reverse Record' : `Registering ${fullName}`}
+            </div>
+            <div style={{ color: subtextColor, fontSize: '0.7rem' }}>
+              {isReverseInProgress ? reverseStatusMsg : 'Server is processing L1 transactions...'}
+            </div>
           </div>
+
+          {/* Progress steps */}
+          <div className="mb-2">
+            {getProgressSteps().map((s, i) => (
+              <div key={i} className="d-flex align-items-center gap-2 py-1" style={{ fontSize: '0.7rem' }}>
+                {s.done ? (
+                  <i className="fas fa-check-circle" style={{ color: '#81c784', width: 14 }} />
+                ) : s.active ? (
+                  <i className="fas fa-spinner fa-spin" style={{ color: '#64c4ff', width: 14 }} />
+                ) : (
+                  <i className="far fa-circle" style={{ color: subtextColor, width: 14 }} />
+                )}
+                <span style={{ color: s.active ? textColor : s.done ? '#81c784' : subtextColor }}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Live tx info */}
+          {jobResult?.transactions && jobResult.transactions.length > 0 && (
+            <div className="p-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.65rem' }}>
+              {jobResult.transactions.map((tx, i) => (
+                <div key={i} className="d-flex justify-content-between" style={{ color: subtextColor }}>
+                  <span>{tx.type}</span>
+                  {tx.hash && (
+                    <a
+                      href={`${ETHERSCAN_BASE}/tx/${tx.hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#64c4ff' }}
+                    >
+                      {tx.hash.slice(0, 10)}...
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Reverse step */}
-      {step === 'reverse' && (
+      {/* ── REVERSE STEP ── */}
+      {viewStep === 'reverse' && (
         <div>
-          <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(100, 196, 255, 0.1)', fontSize: '0.75rem', color: '#64c4ff' }}>
-            <i className="fas fa-check-circle me-1" />
-            Forward record set! {fullName} -&gt; {contract.address}
+          <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(100, 255, 100, 0.08)', fontSize: '0.75rem' }}>
+            <div style={{ color: '#81c784' }}>
+              <i className="fas fa-check-circle me-1" />
+              Forward: {fullName} &rarr; {contract.address}
+            </div>
           </div>
           <div className="mb-2" style={{ fontSize: '0.75rem', color: subtextColor }}>
             <strong style={{ color: textColor }}>Set Reverse Name?</strong>
             <br />
-            Allows Etherscan and wallets to display the ENS name for this contract address.
-            Requires one additional Mainnet transaction.
+            Allows block explorers and wallets to display the ENS name for this contract address.
+            Requires one transaction on <strong style={{ color: textColor }}>{SUPPORTED_CHAINS.get(chainId!) || 'the deployment chain'}</strong> signed by the contract owner.
           </div>
           <div className="d-flex gap-2">
             <button className="btn btn-primary btn-sm flex-fill" onClick={handleReverse}>
               <i className="fas fa-exchange-alt me-1" />
               Set Reverse
             </button>
-            <button className="btn btn-outline-secondary btn-sm flex-fill" onClick={() => {
-              setStep('done')
-              setStatusMsg(`Forward complete!\n${fullName} -> ${contract.address}`)
-            }}>
+            <button
+              className="btn btn-outline-secondary btn-sm flex-fill"
+              onClick={() => setViewStep('done')}
+            >
               Skip
             </button>
           </div>
         </div>
       )}
 
-      {/* Done */}
-      {step === 'done' && (
+      {/* ── DONE STEP ── */}
+      {viewStep === 'done' && (
         <div>
-          <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(100, 196, 255, 0.1)', fontSize: '0.75rem' }}>
-            <div style={{ color: '#64c4ff' }}>
-              <i className="fas fa-check-circle me-1" /> Forward: {fullName} -&gt; {contract.address}
+          <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(100, 255, 100, 0.08)', fontSize: '0.75rem' }}>
+            <div style={{ color: '#81c784' }}>
+              <i className="fas fa-check-circle me-1" />
+              Forward: {fullName} &rarr; {contract.address}
             </div>
             {reverseDone && (
               <div style={{ color: '#81c784', marginTop: '4px' }}>
-                <i className="fas fa-check-circle me-1" /> Reverse: Etherscan will display the ENS name
+                <i className="fas fa-check-circle me-1" />
+                Reverse: Etherscan will display the ENS name
+              </div>
+            )}
+            {chainId && chainId !== 1 && (
+              <div style={{ color: subtextColor, marginTop: '4px', fontSize: '0.65rem' }}>
+                Chain: {SUPPORTED_CHAINS.get(chainId)} (coinType record on L1)
               </div>
             )}
           </div>
-          <div className="d-flex gap-2">
+
+          {/* Gas cost summary */}
+          {jobResult?.totalCostWei && jobResult.totalCostWei !== '0' && (
+            <div className="p-2 rounded mb-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.65rem' }}>
+              <div className="d-flex justify-content-between" style={{ color: subtextColor }}>
+                <span>Total gas used</span>
+                <span style={{ color: textColor }}>{jobResult.totalGasUsed}</span>
+              </div>
+              <div className="d-flex justify-content-between" style={{ color: subtextColor }}>
+                <span>Total cost (paid by Remix)</span>
+                <span style={{ color: textColor }}>{formatEth(jobResult.totalCostWei)} ETH</span>
+              </div>
+            </div>
+          )}
+
+          {/* Transaction hashes */}
+          {jobResult?.transactions && jobResult.transactions.length > 0 && (
+            <div className="p-2 rounded mb-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.65rem' }}>
+              {jobResult.transactions.map((tx, i) => (
+                <div key={i} className="d-flex justify-content-between py-1" style={{ color: subtextColor }}>
+                  <span>{tx.type}</span>
+                  {tx.hash && (
+                    <a href={`${ETHERSCAN_BASE}/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" style={{ color: '#64c4ff' }}>
+                      {tx.hash.slice(0, 14)}...
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Links */}
+          <div className="d-flex gap-2 mb-2">
             <a
               href={`${ETHERSCAN_BASE}/address/${contract.address}`}
               target="_blank"
@@ -636,7 +705,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
               <i className="fas fa-external-link-alt me-1" /> Etherscan
             </a>
             <a
-              href={`${ENS_EXPLORER_BASE}/${fullName}`}
+              href={`${ENS_APP_BASE}/${fullName}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-outline-primary btn-sm flex-fill"
@@ -645,24 +714,29 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
               <i className="fas fa-external-link-alt me-1" /> ENS App
             </a>
           </div>
-          <button className="btn btn-sm w-100 mt-2" onClick={onClose} style={{ color: subtextColor, fontSize: '0.75rem' }}>
+
+          <button className="btn btn-sm w-100" onClick={onClose} style={{ color: subtextColor, fontSize: '0.75rem' }}>
             Close
           </button>
         </div>
       )}
 
-      {/* Error */}
-      {step === 'error' && (
+      {/* ── ERROR STEP ── */}
+      {viewStep === 'error' && (
         <div>
           <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(255, 119, 119, 0.1)', fontSize: '0.75rem', color: '#ff7777' }}>
             <i className="fas fa-exclamation-triangle me-1" />
-            {errorMsg}
+            {jobError}
           </div>
           <div className="d-flex gap-2">
-            <button className="btn btn-outline-primary btn-sm flex-fill" onClick={() => {
-              setStep('input')
-              setErrorMsg('')
-            }}>
+            <button
+              className="btn btn-outline-primary btn-sm flex-fill"
+              onClick={() => {
+                setViewStep('input')
+                setJobError('')
+                setJobId(null)
+              }}
+            >
               Retry
             </button>
             <button className="btn btn-outline-secondary btn-sm flex-fill" onClick={onClose}>

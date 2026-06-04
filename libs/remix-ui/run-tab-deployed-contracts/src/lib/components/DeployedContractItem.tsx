@@ -656,7 +656,7 @@ Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers
             }}
             contract={contract}
             onCreateDapp={handleCreateDapp}
-            onNameContract={handleNameContract}
+            onNameContract={networkName !== 'Remix VM' ? handleNameContract : undefined}
             onCopyABI={handleCopyABI}
             onCopyBytecode={handleCopyBytecode}
             onOpenInExplorer={handleOpenInExplorer}
