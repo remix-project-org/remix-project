@@ -18,6 +18,15 @@ const isLocalVMChainId = (chainId: number | string): boolean => {
   return Number.isNaN(n) || n === 0 || n === 1337 || n === 31337 || n === 5777
 }
 
+// Returns true when the AI request driving this tool call has been cancelled
+// (the user clicked Stop). cancelRequest() flips plugin.isInferencing to false
+// synchronously, but an already-running tool promise keeps executing — so we
+// check here before emitting the 'preparing' progress event, which would
+// otherwise re-show a spinner for a request that no longer exists.
+const isRequestCancelled = (plugin: Plugin): boolean => {
+  return (plugin as any).isInferencing === false
+}
+
 // Common build rules injected into every QuickDapp delegation message
 const QUICKDAPP_BUILD_RULES =
   `IMPORT RULES (CRITICAL - violations crash the build):\n` +
@@ -222,6 +231,14 @@ export class GenerateDAppHandler extends BaseToolHandler {
         remixAILogger.log('[QuickDapp] Dashboard opened')
       } catch (e: any) {
         remixAILogger.warn('[QuickDapp] Dashboard focus failed (non-critical):', e?.message)
+      }
+
+      // If the user stopped the request while the workspace was being set up,
+      // don't re-show the spinner. Reset the freshly created workspace so the
+      // dashboard clears and a reload doesn't re-read the stale 'creating' status.
+      if (isRequestCancelled(plugin)) {
+        plugin.emit('dappGenerationError', { slug: workspaceSlug, error: 'Generation cancelled by user' })
+        return this.createErrorResult('DApp generation cancelled by user.')
       }
 
       // Notify React UI that a new DApp is being created (sets processing spinner on card)
@@ -517,6 +534,13 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
       // Auto-resolve contract info from config
       const contractResolved = await this.resolveContractInfo(plugin, targetWorkspace, args)
+
+      // If the user stopped the request while we were resolving the workspace,
+      // don't start the update spinner for a request that no longer exists.
+      if (isRequestCancelled(plugin)) {
+        plugin.emit('dappGenerationError', { slug: targetWorkspace, error: 'Generation cancelled by user' })
+        return this.createErrorResult('DApp update cancelled by user.')
+      }
 
       // Emit UI events
       plugin.emit('dappUpdateStart', { slug: targetWorkspace })

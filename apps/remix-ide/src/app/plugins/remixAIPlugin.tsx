@@ -1126,13 +1126,12 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async cancelRequest(historyMessages?: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<void> {
+    this.isInferencing = false
+    try {
+      this.emit('generationProgress', null)
+    } catch (_) { }
+
     if (this.deepAgentEnabled && this.deepAgentInferencer) {
-      // Forward the current chat history so the post-reinit DeepAgent
-      // thread can be seeded with the prior turns instead of starting
-      // amnesiac. We AWAIT here so that any subsequent answer() dispatch
-      // from the UI (e.g. user immediately retypes a new prompt) lands
-      // on the rebuilt inferencer rather than racing the old one.
-      // See DeepAgentManager.cancelRequest() for details.
       await this.deepAgentManager.cancelRequest(historyMessages)
     } else if (this.mcpEnabled && this.mcpInferencer) {
       this.mcpInferencer.cancelRequest()

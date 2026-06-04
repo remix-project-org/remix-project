@@ -162,23 +162,43 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     let currentSlugRef = '';
     let currentWritingFile = '';
 
+    const clearInFlightProcessing = (explicitSlug?: string) => {
+      // Authoritatively clear every spinner. The card overlay is driven solely
+      // by dappProcessing[slug], and after a Stop nothing is in flight — so we
+      // wipe the whole map instead of trying to identify the exact slug, which
+      // is fragile across remounts and stale dapp lists.
+      dispatch({ type: 'CLEAR_ALL_PROCESSING' });
+
+      // Reset the on-disk status for any workspace that was mid-generation so a
+      // reload doesn't re-read a stale 'creating'/'updating' status and re-spin.
+      const slugs = new Set<string>();
+      if (explicitSlug) slugs.add(explicitSlug);
+      if (currentSlugRef) slugs.add(currentSlugRef);
+      for (const d of (dappsRef.current as DappConfig[])) {
+        if (d?.slug && (d.status === 'creating' || d.status === 'updating')) slugs.add(d.slug);
+      }
+      slugs.forEach((slug) => {
+        dappManagerRef.current.updateDappConfig(slug, { status: 'created', processingStartedAt: null })
+          .catch((e: any) => console.warn('[QuickDapp] Failed to reset dapp config on cancel:', e));
+      });
+      currentSlugRef = '';
+      currentWritingFile = '';
+      generatedFilesRef.length = 0;
+    };
+
     const handleDappGenerationError = (data: any) => {
       console.error('[QuickDapp] Received dappGenerationError event:', data);
       dispatch({ type: 'SET_AI_LOADING', payload: false });
       dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
 
-      const slug = data?.slug || currentSlugRef;
-      if (slug) {
-        dappManager.updateDappConfig(slug, { status: 'created', processingStartedAt: null });
-        dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug, isProcessing: false } });
+      clearInFlightProcessing(data?.slug);
+
+      // User-initiated stops aren't failures — the chat already shows
+      // "Request stopped by user!", so skip the misleading "Generation Failed" toast.
+      const isCancellation = typeof data?.error === 'string' && /cancel/i.test(data.error);
+      if (!isCancellation) {
+        plugin.call('notification', 'toast', `Generation Failed: ${data?.error || 'Unknown error'}`);
       }
-
-      // Clear the in-flight tracker so subsequent generations start clean.
-      currentSlugRef = '';
-      currentWritingFile = '';
-      generatedFilesRef.length = 0;
-
-      plugin.call('notification', 'toast', `Generation Failed: ${data?.error || 'Unknown error'}`);
     };
 
     const handleDappUpdateStart = async (data: any) => {
@@ -202,12 +222,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       if (!data) {
         dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
         dispatch({ type: 'SET_AI_LOADING', payload: false });
-        if (currentSlugRef) {
-          dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: currentSlugRef, isProcessing: false } });
-        }
-        currentSlugRef = '';
-        currentWritingFile = '';
-        generatedFilesRef.length = 0;
+        clearInFlightProcessing();
         return;
       }
 

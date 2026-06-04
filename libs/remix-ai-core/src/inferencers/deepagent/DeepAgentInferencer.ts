@@ -934,10 +934,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
     try {
       this.plugin.emit('generationProgress', null)
-      this.plugin.emit('dappGenerationError', {
-        slug: undefined,
-        error: 'Generation cancelled by user'
-      })
     } catch (_) { /* best-effort cleanup */ }
   }
 
