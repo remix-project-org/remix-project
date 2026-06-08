@@ -70,6 +70,18 @@ const SUPPORTED_CHAINS = new Map<number, string>([
   [534352, 'Scroll'],
 ])
 
+const CHAIN_EXPLORERS: Record<number, { url: string; name: string }> = {
+  1: { url: 'https://etherscan.io', name: 'Etherscan' },
+  8453: { url: 'https://basescan.org', name: 'Basescan' },
+  42161: { url: 'https://arbiscan.io', name: 'Arbiscan' },
+  10: { url: 'https://optimistic.etherscan.io', name: 'Etherscan (OP)' },
+  59144: { url: 'https://lineascan.build', name: 'Lineascan' },
+  534352: { url: 'https://scrollscan.com', name: 'Scrollscan' },
+}
+
+const getChainExplorer = (cid: number | null): { url: string; name: string } =>
+  (cid && CHAIN_EXPLORERS[cid]) || { url: 'https://etherscan.io', name: 'Etherscan' }
+
 type PreflightStatus =
   | 'idle' | 'checking' | 'available' | 'available_for_chain'
   | 'current' | 'taken' | 'unsupported_chain' | 'parent_not_owned'
@@ -141,6 +153,31 @@ const JOB_STEP_LABELS: Record<string, string> = {
   failed: 'Registration failed',
 }
 
+const friendlyError = (raw: string): string => {
+  if (!raw) return 'An unknown error occurred.'
+  if (raw.includes('User rejected') || raw.includes('user rejected') || raw.includes('denied'))
+    return 'Transaction was rejected in your wallet.'
+  if (raw.includes('name_not_controlled'))
+    return 'This name exists but is not controlled by the Remix server.'
+  if (raw.includes('taken'))
+    return 'This name is already taken by a different address.'
+  if (raw.includes('parent_not_owned'))
+    return 'The ENS naming service is not available (parent not owned).'
+  if (raw.includes('contract owner'))
+    return 'Only the contract owner can set the reverse name.'
+  if (raw.includes('switch your wallet'))
+    return raw
+  if (raw.includes('No wallet provider'))
+    return raw
+  if (raw.includes('Internal error') || raw.includes('SERVER_ERROR'))
+    return 'Server transaction failed. Please try again later.'
+  if (raw.includes('503') || raw.includes('not available'))
+    return 'The ENS naming service is currently unavailable. Please try again later.'
+  if (raw.includes('insufficient funds'))
+    return 'Insufficient funds for the transaction.'
+  return raw
+}
+
 // ── Component ──
 
 interface EnsNamingProps {
@@ -173,6 +210,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
   const [reverseDone, setReverseDone] = useState(false)
   const [isReverseInProgress, setIsReverseInProgress] = useState(false)
   const [reverseStatusMsg, setReverseStatusMsg] = useState('')
+  const [errorContext, setErrorContext] = useState<'forward' | 'reverse'>('forward')
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -305,6 +343,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             clearInterval(pollRef.current!)
             pollRef.current = null
             setJobError(job.error || 'Registration failed.')
+            setErrorContext('forward')
             setViewStep('error')
           }
         } catch { /* polling error — retry on next interval */ }
@@ -312,6 +351,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
 
     } catch (e: any) {
       setJobError(e.message)
+      setErrorContext('forward')
       setViewStep('error')
     }
   }, [label, project, chainId, contract.address, fullName, hasOwnable])
@@ -411,6 +451,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       setViewStep('done')
     } catch (e: any) {
       setJobError(e.shortMessage || e.message)
+      setErrorContext('reverse')
       setIsReverseInProgress(false)
       setViewStep('error')
       await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] ERROR: ${e.message}` })
@@ -653,7 +694,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             {reverseDone && (
               <div style={{ color: '#81c784', marginTop: '4px' }}>
                 <i className="fas fa-check-circle me-1" />
-                Reverse: Etherscan will display the ENS name
+                Reverse record set. Explorer display may take time to update.
               </div>
             )}
             {chainId && chainId !== 1 && (
@@ -696,13 +737,13 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
           {/* Links */}
           <div className="d-flex gap-2 mb-2">
             <a
-              href={`${ETHERSCAN_BASE}/address/${contract.address}`}
+              href={`${getChainExplorer(chainId).url}/address/${contract.address}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-outline-primary btn-sm flex-fill"
               style={{ fontSize: '0.7rem' }}
             >
-              <i className="fas fa-external-link-alt me-1" /> Etherscan
+              <i className="fas fa-external-link-alt me-1" /> {getChainExplorer(chainId).name}
             </a>
             <a
               href={`${ENS_APP_BASE}/${fullName}`}
@@ -724,23 +765,52 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       {/* ── ERROR STEP ── */}
       {viewStep === 'error' && (
         <div>
+          {/* Show forward completion status if error happened during reverse */}
+          {errorContext === 'reverse' && (
+            <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(100, 255, 100, 0.08)', fontSize: '0.75rem' }}>
+              <div style={{ color: '#81c784' }}>
+                <i className="fas fa-check-circle me-1" />
+                Forward: {fullName} &rarr; {contract.address}
+              </div>
+            </div>
+          )}
           <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(255, 119, 119, 0.1)', fontSize: '0.75rem', color: '#ff7777' }}>
             <i className="fas fa-exclamation-triangle me-1" />
-            {jobError}
+            {friendlyError(jobError)}
           </div>
           <div className="d-flex gap-2">
-            <button
-              className="btn btn-outline-primary btn-sm flex-fill"
-              onClick={() => {
-                setViewStep('input')
+            {errorContext === 'reverse' ? (
+              <button
+                className="btn btn-outline-primary btn-sm flex-fill"
+                onClick={() => {
+                  setJobError('')
+                  setViewStep('reverse')
+                }}
+              >
+                <i className="fas fa-redo me-1" />
+                Retry Reverse
+              </button>
+            ) : (
+              <button
+                className="btn btn-outline-primary btn-sm flex-fill"
+                onClick={() => {
+                  setViewStep('input')
+                  setJobError('')
+                  setJobId(null)
+                }}
+              >
+                Retry
+              </button>
+            )}
+            <button className="btn btn-outline-secondary btn-sm flex-fill" onClick={() => {
+              if (errorContext === 'reverse') {
                 setJobError('')
-                setJobId(null)
-              }}
-            >
-              Retry
-            </button>
-            <button className="btn btn-outline-secondary btn-sm flex-fill" onClick={onClose}>
-              Close
+                setViewStep('done')
+              } else {
+                onClose()
+              }
+            }}>
+              {errorContext === 'reverse' ? 'Skip Reverse' : 'Close'}
             </button>
           </div>
         </div>
