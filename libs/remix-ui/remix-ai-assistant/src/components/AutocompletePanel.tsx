@@ -5,6 +5,7 @@ export interface Command {
   description: string
   shortcut?: string
   category?: string
+  action?: () => void
 }
 
 interface AutocompletePanelProps {
@@ -15,6 +16,7 @@ interface AutocompletePanelProps {
   themeTracker?: any
   selectedIndex: number
   onSelectedIndexChange: (index: number) => void
+  extraCommands?: Command[]
 }
 
 // Available commands - this could be moved to a config file or fetched dynamically
@@ -61,7 +63,8 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
   position,
   themeTracker,
   selectedIndex,
-  onSelectedIndexChange
+  onSelectedIndexChange,
+  extraCommands = []
 }) => {
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([])
   const panelRef = useRef<HTMLDivElement>(null)
@@ -73,12 +76,13 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
       return
     }
 
+    const allCommands = [...AVAILABLE_COMMANDS, ...extraCommands]
     const search = searchTerm.toLowerCase().slice(1) // Remove the '/' prefix
 
     // If search is empty (just '/'), show all commands
     const filtered = search.length === 0
-      ? AVAILABLE_COMMANDS
-      : AVAILABLE_COMMANDS.filter(cmd =>
+      ? allCommands
+      : allCommands.filter(cmd =>
         cmd.name.toLowerCase().includes(search.toLowerCase()) ||
           cmd.shortcut?.toLowerCase().includes(search.toLowerCase()) ||
           cmd.description.toLowerCase().includes(search.toLowerCase())
@@ -87,10 +91,10 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
     // Sort by relevance only if there's a search term
     if (search.length > 0) {
       filtered.sort((a, b) => {
-        const aName = a.name.toLowerCase().slice(1)
-        const bName = b.name.toLowerCase().slice(1)
-        const aShortcut = a.shortcut?.toLowerCase().slice(1) || ''
-        const bShortcut = b.shortcut?.toLowerCase().slice(1) || ''
+        const aName = a.name.toLowerCase()
+        const bName = b.name.toLowerCase()
+        const aShortcut = a.shortcut?.toLowerCase() || ''
+        const bShortcut = b.shortcut?.toLowerCase() || ''
 
         // Exact match
         if (aName === search || aShortcut === search) return -1
@@ -106,7 +110,7 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
     }
 
     setFilteredCommands(filtered)
-  }, [searchTerm])
+  }, [searchTerm, extraCommands])
 
   useEffect(() => {
     // Ensure selected item is visible

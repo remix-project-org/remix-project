@@ -1,5 +1,5 @@
 import { ActivityType } from "../lib/types"
-import React, { MutableRefObject, Ref, useContext, useEffect, useRef, useState, useCallback } from 'react'
+import React, { MutableRefObject, Ref, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import GroupListMenu from "./contextOptMenu"
 import { AiAssistantType, AiContextType, groupListType } from '../types/componentTypes'
 import { AIEvent, MatomoEvent, trackMatomoEvent } from '@remix-api';
@@ -86,6 +86,9 @@ export interface PromptAreaProps {
   isAuthenticated?: boolean
   onSignIn?: () => void
   isNewChat?: boolean
+  handleOpenSettings?: () => void
+  handleLoadAuditChecklist?: () => void
+  handleGasOptimisationAudit?: () => void
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -110,7 +113,11 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   aiRouteReady = true,
   isAuthenticated = true,
   onSignIn,
-  isNewChat = false
+  isNewChat = false,
+  handleLoadSkills,
+  handleOpenSettings,
+  handleLoadAuditChecklist,
+  handleGasOptimisationAudit
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const [showAutocomplete, setShowAutocomplete] = useState(false)
@@ -137,8 +144,25 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     if (input.length > 0) setActiveShortcut(null)
   }, [input, isStreaming])
 
+  const actionCommands: Command[] = useMemo(() => {
+    const cmds: Command[] = [
+      { name: 'model', description: 'Switch AI model', category: 'Settings', action: handleSetModel },
+    ]
+    if (handleOpenSettings) cmds.push({ name: 'settings', description: 'Open RemixAI settings', category: 'Settings', action: handleOpenSettings })
+    if (handleLoadSkills) cmds.push({ name: 'skills', description: 'Load skills', category: 'Tools', action: handleLoadSkills })
+    if (handleLoadAuditChecklist) cmds.push({ name: 'audit', description: 'Load audit checklist', category: 'Tools', action: handleLoadAuditChecklist })
+    if (handleGasOptimisationAudit) cmds.push({ name: 'gas-audit', description: 'Gas optimisation audit', category: 'Tools', action: handleGasOptimisationAudit })
+    return cmds
+  }, [handleSetModel, handleOpenSettings, handleLoadSkills, handleLoadAuditChecklist, handleGasOptimisationAudit])
+
   // Handle command selection
   const handleCommandSelect = useCallback((command: Command) => {
+    if (command.action) {
+      setShowAutocomplete(false)
+      setTimeout(() => command.action!(), 0)
+      return
+    }
+
     const formattedCommand = '/' + command.name
 
     // If user has already typed something after the initial "/", preserve it
@@ -319,6 +343,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             themeTracker={themeTracker}
             selectedIndex={selectedCommandIndex}
             onSelectedIndexChange={setSelectedCommandIndex}
+            extraCommands={actionCommands}
           />
         )}
         <div className="ai-chat-input d-flex flex-column">

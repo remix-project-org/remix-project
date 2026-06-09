@@ -486,6 +486,7 @@ export class RemixAIAssistant extends ViewPlugin {
         ref={this.chatRef}
         plugin={this}
         onOpenSkillsModal={() => this.appStateDispatch({ type: appActionTypes.showSkillsModal, payload: true })}
+        onOpenChecklistModal={() => this.appStateDispatch({ type: appActionTypes.showChecklistModal, payload: true })}
         isInitializing={state.isInitializing}
         initialMessages={this.history}
         onMessagesChange={(msgs) => { this.history = msgs }}

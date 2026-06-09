@@ -46,6 +46,7 @@ export interface RemixUiRemixAiAssistantProps {
   onToggleHistorySidebar?: () => void
   onSearch?: (query: string) => Promise<ConversationMetadata[]>
   onOpenSkillsModal?: () => void
+  onOpenChecklistModal?: () => void
 }
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
@@ -2239,6 +2240,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.onOpenSkillsModal])
 
+  const handleOpenSettings = useCallback(async () => {
+    const isActive = await props.plugin.call('manager', 'isActive', 'settings')
+    if (!isActive) await props.plugin.call('manager', 'activatePlugin', 'settings')
+    await props.plugin.call('tabs', 'focus', 'settings')
+    props.plugin.call('settings', 'showSection', 'ai')
+  }, [props.plugin])
+
+  const handleLoadAuditChecklist = useCallback(() => {
+    if (props.onOpenChecklistModal) props.onOpenChecklistModal()
+  }, [props.onOpenChecklistModal])
+
+  const handleGasOptimisationAudit = useCallback(async () => {
+    await props.plugin.newConversation()
+    try {
+      await props.plugin.call('skillsexplorermodal', 'loadSkill', 'coding-solidity-gas-optimization')
+    } catch (e) {
+      console.warn('[RemixAI] Gas optimisation skill could not be loaded, proceeding without it', e)
+    }
+    props.plugin.chatPipe('Start gas optimization checks on the active contract.')
+  }, [props.plugin])
+
   const handleGenerateWorkspace = useCallback(async () => {
     dispatchActivity('button', 'generateWorkspace')
     try {
@@ -2696,6 +2718,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               ollamaModels={ollamaModels}
               messages={messages}
               handleLoadSkills={handleLoadSkills}
+              handleOpenSettings={handleOpenSettings}
+              handleLoadAuditChecklist={handleLoadAuditChecklist}
+              handleGasOptimisationAudit={handleGasOptimisationAudit}
               usingOwnApiKey={usingOwnApiKey}
               aiRoute={aiRouteStatus.route}
               aiRouteReady={aiRouteStatus.ready}
@@ -2745,6 +2770,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               ollamaModels={ollamaModels}
               messages={messages}
               handleLoadSkills={handleLoadSkills}
+              handleOpenSettings={handleOpenSettings}
+              handleLoadAuditChecklist={handleLoadAuditChecklist}
+              handleGasOptimisationAudit={handleGasOptimisationAudit}
               usingOwnApiKey={usingOwnApiKey}
               aiRoute={aiRouteStatus.route}
               aiRouteReady={aiRouteStatus.ready}

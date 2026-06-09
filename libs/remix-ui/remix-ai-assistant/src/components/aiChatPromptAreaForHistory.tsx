@@ -49,6 +49,9 @@ interface AiChatPromptAreaForHistoryProps {
       setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
       messages: ChatMessage[]
       handleLoadSkills?: () => void
+      handleOpenSettings?: () => void
+      handleLoadAuditChecklist?: () => void
+      handleGasOptimisationAudit?: () => void
       usingOwnApiKey?: boolean
       aiRoute?: 'initializing' | 'agent' | 'tools' | 'chat'
       aiRouteReady?: boolean
@@ -185,6 +188,9 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
         isAuthenticated={props.isAuthenticated}
         onSignIn={props.onSignIn}
         isNewChat={props.messages.length === 0}
+        handleOpenSettings={props.handleOpenSettings}
+        handleLoadAuditChecklist={props.handleLoadAuditChecklist}
+        handleGasOptimisationAudit={props.handleGasOptimisationAudit}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>
