@@ -13,12 +13,21 @@ const DEBOUNCE_MS = 600
 const ENS_REVERSE_REGISTRAR_L1 = '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb' as Hex
 const ENS_REVERSE_REGISTRAR_L2 = '0x0000000000D8e504002cC26E3Ec46D81971C1664' as Hex
 const ENS_PUBLIC_RESOLVER_L1 = '0xF29100983E058B709F3D539b0c765937B804AC15' as Hex
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex
 
 const getReverseRegistrar = (cid: number): Hex => {
   if (cid === 1) return ENS_REVERSE_REGISTRAR_L1
   return ENS_REVERSE_REGISTRAR_L2
 }
+
+const REVERSE_REGISTRAR_READ_ABI = [
+  {
+    name: 'nameForAddr',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'addr', type: 'address' }],
+    outputs: [{ name: '', type: 'string' }],
+  },
+] as const
 
 // L1: setNameForAddr(address addr, address owner, address resolver, string name)
 const REVERSE_REGISTRAR_ABI_L1 = [
@@ -89,6 +98,7 @@ type PreflightStatus =
 
 type JobStep = 'pending' | 'checking' | 'creating_project' | 'creating_label' | 'setting_forward' | 'completed' | 'failed'
 type ViewStep = 'input' | 'registering' | 'reverse' | 'done' | 'error'
+type ReverseStatus = 'idle' | 'checking' | 'set' | 'not_set' | 'wrong_chain' | 'unavailable'
 
 interface PreflightResult {
   fullName: string
@@ -121,7 +131,6 @@ interface JobResult {
 // ── Helpers ──
 
 function apiBase(): string {
-  // TODO: remove localhost override before production
   return 'http://localhost:4000/contract-ens'
 }
 
@@ -131,11 +140,6 @@ const sanitizeLabel = (v: string) =>
 const getDefaultLabel = (contract: DeployedContract) => {
   const name = sanitizeLabel(contract.name || contract.contractData?.contract?.name || '')
   return name || `contract-${contract.address.slice(2, 8).toLowerCase()}`
-}
-
-const formatGwei = (wei: string) => {
-  const gwei = Number(wei) / 1e9
-  return gwei < 0.01 ? '<0.01' : gwei.toFixed(2)
 }
 
 const formatEth = (wei: string) => {
@@ -200,14 +204,15 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
   const [preflightError, setPreflightError] = useState('')
 
   // Job
-  const [jobId, setJobId] = useState<string | null>(null)
   const [jobStatus, setJobStatus] = useState<JobStep>('pending')
   const [jobResult, setJobResult] = useState<JobResult | null>(null)
   const [jobError, setJobError] = useState('')
 
   // Reverse
-  const [hasOwnable, setHasOwnable] = useState(false)
   const [reverseDone, setReverseDone] = useState(false)
+  const [reverseStatus, setReverseStatus] = useState<ReverseStatus>('idle')
+  const [reverseName, setReverseName] = useState('')
+  const [reverseCheckMessage, setReverseCheckMessage] = useState('')
   const [isReverseInProgress, setIsReverseInProgress] = useState(false)
   const [reverseStatusMsg, setReverseStatusMsg] = useState('')
   const [errorContext, setErrorContext] = useState<'forward' | 'reverse'>('forward')
@@ -238,15 +243,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     })();
   }, [])
 
-  // Detect Ownable
-  useEffect(() => {
-    const abi = contract.abi || contract.contractData?.abi || []
-    const hasOwner = abi.some((item: any) =>
-      item.type === 'function' && item.name === 'owner' && item.inputs?.length === 0
-    )
-    setHasOwnable(hasOwner)
-  }, [contract])
-
   // Cleanup polling on unmount
   useEffect(() => {
     return () => {
@@ -261,6 +257,10 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     setPreflightStatus('checking')
     setPreflightError('')
     setPreflight(null)
+    setReverseDone(false)
+    setReverseStatus('idle')
+    setReverseName('')
+    setReverseCheckMessage('')
 
     const timer = setTimeout(async () => {
       try {
@@ -288,6 +288,69 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     return () => clearTimeout(timer)
   }, [label, project, chainId, contract.address])
 
+  const checkReverseStatus = useCallback(async (): Promise<ReverseStatus> => {
+    if (!chainId || !fullName) return 'idle'
+
+    setReverseStatus('checking')
+    setReverseName('')
+    setReverseCheckMessage('Checking reverse record...')
+
+    const provider = (window as any).ethereum
+    if (!provider) {
+      setReverseStatus('unavailable')
+      setReverseCheckMessage('Connect a wallet to check the reverse record.')
+      return 'unavailable'
+    }
+
+    try {
+      const publicClient = createPublicClient({ transport: custom(provider) })
+      const currentChainId = await publicClient.getChainId()
+
+      if (currentChainId !== chainId) {
+        setReverseStatus('wrong_chain')
+        setReverseCheckMessage(`Switch your wallet to ${SUPPORTED_CHAINS.get(chainId)} to check the reverse record.`)
+        return 'wrong_chain'
+      }
+
+      const name = await publicClient.readContract({
+        address: getReverseRegistrar(chainId),
+        abi: REVERSE_REGISTRAR_READ_ABI,
+        functionName: 'nameForAddr',
+        args: [contract.address as Hex],
+      })
+      const currentName = typeof name === 'string' ? name : ''
+
+      setReverseName(currentName)
+      if (currentName.toLowerCase() === fullName.toLowerCase()) {
+        setReverseDone(true)
+        setReverseStatus('set')
+        setReverseCheckMessage('Reverse record is already set.')
+        return 'set'
+      }
+
+      setReverseDone(false)
+      setReverseStatus('not_set')
+      setReverseCheckMessage(currentName ? `Reverse currently points to ${currentName}.` : 'Reverse is not set yet.')
+      return 'not_set'
+    } catch {
+      setReverseStatus('unavailable')
+      setReverseCheckMessage('Reverse status could not be checked from the current wallet.')
+      return 'unavailable'
+    }
+  }, [chainId, contract.address, fullName])
+
+  useEffect(() => {
+    if (preflightStatus === 'current') {
+      checkReverseStatus()
+    }
+  }, [preflightStatus, checkReverseStatus])
+
+  const openReverseStep = useCallback(async () => {
+    setJobResult({ id: '', status: 'completed', fullName, transactions: [], totalGasUsed: '0', totalCostWei: '0' })
+    const status = await checkReverseStatus()
+    setViewStep(status === 'set' ? 'done' : 'reverse')
+  }, [checkReverseStatus, fullName])
+
   // Start registration
   const handleRegister = useCallback(async () => {
     if (!chainId) return
@@ -311,12 +374,11 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
 
       if (data.status === 'current') {
         // Already registered — no job needed
-        setViewStep('done')
         setJobResult({ id: '', status: 'completed', fullName: data.fullName || fullName, transactions: [], totalGasUsed: '0', totalCostWei: '0' } as any)
+        const reverse = await checkReverseStatus()
+        setViewStep(reverse === 'set' ? 'done' : 'reverse')
         return
       }
-
-      setJobId(data.jobId)
 
       // Start polling
       pollRef.current = setInterval(async () => {
@@ -331,14 +393,9 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
           if (job.status === 'completed') {
             clearInterval(pollRef.current!)
             pollRef.current = null
-            setViewStep('done')
             await plugin.call('terminal', 'log', { type: 'info', value: `✅ ENS registered: ${job.fullName}` })
-            // Reverse available on both L1 and L2 (both check Ownable.owner())
-            if (hasOwnable) {
-              setViewStep('reverse')
-            } else {
-              setViewStep('done')
-            }
+            const reverse = await checkReverseStatus()
+            setViewStep(reverse === 'set' ? 'done' : 'reverse')
           } else if (job.status === 'failed') {
             clearInterval(pollRef.current!)
             pollRef.current = null
@@ -354,7 +411,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       setErrorContext('forward')
       setViewStep('error')
     }
-  }, [label, project, chainId, contract.address, fullName, hasOwnable])
+  }, [label, project, chainId, contract.address, fullName, checkReverseStatus, plugin])
 
   // Reverse handler — user signs on the deployment chain
   const handleReverse = useCallback(async () => {
@@ -382,15 +439,20 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
 
       // Verify ownership
       setReverseStatusMsg('Verifying contract ownership...')
-      const owner = await publicClient.readContract({
-        address: contract.address as Hex,
-        abi: OWNABLE_ABI,
-        functionName: 'owner',
-        args: [],
-      })
+      let owner: string
+      try {
+        owner = await publicClient.readContract({
+          address: contract.address as Hex,
+          abi: OWNABLE_ABI,
+          functionName: 'owner',
+          args: [],
+        }) as string
+      } catch {
+        throw new Error('Only the contract owner can set the reverse name. This contract may not expose owner().')
+      }
       await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Contract owner: ${owner}, account: ${account}` })
 
-      if ((owner as string).toLowerCase() !== account.toLowerCase()) {
+      if (owner.toLowerCase() !== account.toLowerCase()) {
         throw new Error(`Reverse can only be set by the contract owner.\nowner(): ${owner}\nYour address: ${account}`)
       }
 
@@ -448,6 +510,9 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
 
       setIsReverseInProgress(false)
       setReverseDone(true)
+      setReverseStatus('set')
+      setReverseName(fullName)
+      setReverseCheckMessage('Reverse record set.')
       setViewStep('done')
     } catch (e: any) {
       setJobError(e.shortMessage || e.message)
@@ -457,7 +522,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] ERROR: ${e.message}` })
       if (e.cause) await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] Cause: ${JSON.stringify(e.cause)}` })
     }
-  }, [contract.address, fullName, chainId])
+  }, [contract.address, fullName, chainId, plugin])
 
   // ── Status helpers ──
 
@@ -478,7 +543,12 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       case 'checking': return 'Checking availability...'
       case 'available': return `${fullName} is available. ${preflight?.estimatedTxCount || 0} L1 transaction(s) needed.`
       case 'available_for_chain': return `${fullName} exists but this chain record is not set.`
-      case 'current': return `${fullName} already points to this contract.`
+      case 'current':
+        if (reverseStatus === 'checking') return `${fullName} already points to this contract. Checking reverse...`
+        if (reverseStatus === 'set') return `${fullName} already has forward and reverse records set.`
+        if (reverseStatus === 'not_set') return `${fullName} already points to this contract. Reverse is not set yet.`
+        if (reverseStatus === 'wrong_chain' || reverseStatus === 'unavailable') return `${fullName} already points to this contract. ${reverseCheckMessage}`
+        return `${fullName} already points to this contract.`
       case 'taken': return `${fullName} is already taken${preflight?.currentAddress ? ` by ${preflight.currentAddress.slice(0, 10)}...` : ''}.`
       case 'name_not_controlled': return 'This name exists but is not controlled by the Remix server.'
       case 'project_not_controlled': return 'This project exists but is not controlled by the Remix server.'
@@ -492,6 +562,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
   const canRegister =
     preflightStatus === 'available' ||
     preflightStatus === 'available_for_chain'
+  const canOpenReverse = preflightStatus === 'current'
 
   const getProgressSteps = (): { label: string; done: boolean; active: boolean }[] => {
     const ordered: JobStep[] = ['checking', 'creating_project', 'creating_label', 'setting_forward', 'completed']
@@ -592,11 +663,11 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
           {/* Register button */}
           <button
             className="btn btn-primary btn-sm w-100"
-            onClick={handleRegister}
-            disabled={!canRegister}
+            onClick={canOpenReverse ? openReverseStep : handleRegister}
+            disabled={!canRegister && !canOpenReverse}
           >
-            <i className="fas fa-arrow-right me-1" />
-            {preflightStatus === 'current' ? 'Already Registered' : 'Register ENS Name'}
+            <i className={`fas ${canOpenReverse ? 'fa-exchange-alt' : 'fa-arrow-right'} me-1`} />
+            {canOpenReverse ? (reverseStatus === 'set' ? 'View ENS Status' : 'Set Reverse Record') : 'Register ENS Name'}
           </button>
         </>
       )}
@@ -615,40 +686,44 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
           </div>
 
           {/* Progress steps */}
-          <div className="mb-2">
-            {getProgressSteps().map((s, i) => (
-              <div key={i} className="d-flex align-items-center gap-2 py-1" style={{ fontSize: '0.7rem' }}>
-                {s.done ? (
-                  <i className="fas fa-check-circle" style={{ color: '#81c784', width: 14 }} />
-                ) : s.active ? (
-                  <i className="fas fa-spinner fa-spin" style={{ color: '#64c4ff', width: 14 }} />
-                ) : (
-                  <i className="far fa-circle" style={{ color: subtextColor, width: 14 }} />
-                )}
-                <span style={{ color: s.active ? textColor : s.done ? '#81c784' : subtextColor }}>{s.label}</span>
+          {!isReverseInProgress && (
+            <>
+              <div className="mb-2">
+                {getProgressSteps().map((s, i) => (
+                  <div key={i} className="d-flex align-items-center gap-2 py-1" style={{ fontSize: '0.7rem' }}>
+                    {s.done ? (
+                      <i className="fas fa-check-circle" style={{ color: '#81c784', width: 14 }} />
+                    ) : s.active ? (
+                      <i className="fas fa-spinner fa-spin" style={{ color: '#64c4ff', width: 14 }} />
+                    ) : (
+                      <i className="far fa-circle" style={{ color: subtextColor, width: 14 }} />
+                    )}
+                    <span style={{ color: s.active ? textColor : s.done ? '#81c784' : subtextColor }}>{s.label}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Live tx info */}
-          {jobResult?.transactions && jobResult.transactions.length > 0 && (
-            <div className="p-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.65rem' }}>
-              {jobResult.transactions.map((tx, i) => (
-                <div key={i} className="d-flex justify-content-between" style={{ color: subtextColor }}>
-                  <span>{tx.type}</span>
-                  {tx.hash && (
-                    <a
-                      href={`${ETHERSCAN_BASE}/tx/${tx.hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: '#64c4ff' }}
-                    >
-                      {tx.hash.slice(0, 10)}...
-                    </a>
-                  )}
+              {/* Live tx info */}
+              {jobResult?.transactions && jobResult.transactions.length > 0 && (
+                <div className="p-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.65rem' }}>
+                  {jobResult.transactions.map((tx, i) => (
+                    <div key={i} className="d-flex justify-content-between" style={{ color: subtextColor }}>
+                      <span>{tx.type}</span>
+                      {tx.hash && (
+                        <a
+                          href={`${ETHERSCAN_BASE}/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#64c4ff' }}
+                        >
+                          {tx.hash.slice(0, 10)}...
+                        </a>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -662,6 +737,19 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
               Forward: {fullName} &rarr; {contract.address}
             </div>
           </div>
+          {reverseCheckMessage && (
+            <div
+              className="p-2 rounded mb-2"
+              style={{
+                backgroundColor: reverseStatus === 'set' ? 'rgba(100, 255, 100, 0.08)' : 'rgba(255, 207, 92, 0.08)',
+                color: reverseStatus === 'set' ? '#81c784' : '#ffcf5c',
+                fontSize: '0.7rem',
+              }}
+            >
+              <i className={`fas ${reverseStatus === 'set' ? 'fa-check-circle' : 'fa-info-circle'} me-1`} />
+              {reverseCheckMessage}
+            </div>
+          )}
           <div className="mb-2" style={{ fontSize: '0.75rem', color: subtextColor }}>
             <strong style={{ color: textColor }}>Set Reverse Name?</strong>
             <br />
@@ -694,7 +782,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             {reverseDone && (
               <div style={{ color: '#81c784', marginTop: '4px' }}>
                 <i className="fas fa-check-circle me-1" />
-                Reverse record set. Explorer display may take time to update.
+                Reverse: {contract.address} &rarr; {reverseName || fullName}. Explorer display may take time to update.
               </div>
             )}
             {chainId && chainId !== 1 && (
@@ -796,7 +884,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
                 onClick={() => {
                   setViewStep('input')
                   setJobError('')
-                  setJobId(null)
                 }}
               >
                 Retry
