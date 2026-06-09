@@ -1,11 +1,13 @@
 import { ActivityType } from "../lib/types"
-import React, { MutableRefObject, Ref, useContext, useEffect, useRef, useState } from 'react'
+import React, { MutableRefObject, Ref, useContext, useEffect, useRef, useState, useCallback } from 'react'
+import GroupListMenu from "./contextOptMenu"
 import { AiAssistantType, AiContextType, groupListType } from '../types/componentTypes'
-import { AIEvent, MatomoEvent, trackMatomoEvent } from '@remix-api';
+import { MatomoEvent } from '@remix-api';
 import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip } from '@remix-ui/helper'
 import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
+import { AutocompletePanel, Command } from './AutocompletePanel'
 
 // PromptArea component
 export interface PromptAreaProps {
@@ -70,6 +72,12 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   onSignIn
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const trackMatomoEvent = <T extends MatomoEvent = MatomoEvent>(event: T) => {
+    baseTrackEvent?.<T>(event)
+  }
+  const [showAutocomplete, setShowAutocomplete] = useState(false)
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
+  const promptAreaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (textareaRef?.current) {
@@ -77,6 +85,94 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
     }
   }, [input])
+
+  // Handle autocomplete visibility
+  useEffect(() => {
+    if (input.startsWith('/') && input.length > 0 && !isStreaming) {
+      // Check if this is the new format with space after /
+      setShowAutocomplete(true)
+    } else {
+      setShowAutocomplete(false)
+    }
+  }, [input, isStreaming])
+
+  // Handle command selection
+  const handleCommandSelect = useCallback((command: Command) => {
+    const formattedCommand = '/' + command.name
+
+    // Track command selection with Matomo
+    trackMatomoEvent({
+      category: 'ai',
+      action: 'remixAI',
+      value: `command_selected_${command.name}`,
+      isClick: true
+    })
+
+    // If user has already typed something after the initial "/", preserve it
+    const spaceIndex = input.indexOf(' ')
+    const existingArgs = spaceIndex > -1 ? input.substring(spaceIndex).trim() : ''
+
+    setInput(existingArgs ? formattedCommand + existingArgs + ': ': formattedCommand + ': ')
+    setShowAutocomplete(false)
+    // Focus back on textarea
+    textareaRef?.current?.focus()
+  }, [input, setInput])
+
+  // Handle keyboard navigation for autocomplete
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Handle Shift+Enter for new line
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault()
+      setInput(prev => prev + '\n')
+      return
+    }
+
+    // Handle autocomplete navigation if panel is visible
+    if (showAutocomplete && e.key !== 'Enter') {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedCommandIndex(prev => prev + 1)
+        return
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedCommandIndex(prev => Math.max(0, prev - 1))
+        return
+      } else if (e.key === 'Tab') {
+        e.preventDefault()
+        // Find the selected button and click it programmatically
+        const buttons = document.querySelectorAll('[data-id^="autocomplete-item-"]')
+        if (buttons[selectedCommandIndex]) {
+          (buttons[selectedCommandIndex] as HTMLButtonElement).click()
+        }
+        return
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowAutocomplete(false)
+        return
+      }
+    }
+
+    // Handle Enter key
+    if (e.key === 'Enter' && !e.shiftKey && !isStreaming && aiRouteReady) {
+      // Check if input has content after the slash command format (e.g., "/command: content")
+      const hasCommandContent = input.includes(':') && input.split(':')[1]?.trim().length > 0
+
+      if (showAutocomplete && !hasCommandContent) {
+        // If autocomplete is showing and no command content yet, select the highlighted command
+        e.preventDefault()
+        const buttons = document.querySelectorAll('[data-id^="autocomplete-item-"]')
+        if (buttons[selectedCommandIndex]) {
+          (buttons[selectedCommandIndex] as HTMLButtonElement).click()
+        }
+      } else {
+        // Send the message if:
+        // 1. Autocomplete is not showing, OR
+        // 2. User has already typed command content after the colon
+        e.preventDefault()
+        handleSend()
+      }
+    }
+  }, [showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, handleSend, setInput])
 
   // The composer has three resting states:
   //   1. ready              → normal send/stop affordance
@@ -88,16 +184,28 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   const placeholderText = needsSignIn
     ? 'Sign in to chat with RemixAI…'
     : aiRouteReady
-      ? 'Ask me anything about your code or generate new contracts...'
+      ? 'Type "/" for more options or ask me anything about your code, generate new contracts, edit contracts, deploy...'
       : 'Initialising agents…'
 
   return (
     <>
       <div
-        className="prompt-area d-flex flex-column mx-2 p-1 rounded-3 border border-text"
+        ref={promptAreaRef}
+        className="prompt-area d-flex flex-column mx-2 p-1 rounded-3 border border-text position-relative"
         style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336' }}
         data-id="remix-ai-prompt-area"
       >
+        {showAutocomplete && (
+          <AutocompletePanel
+            isVisible={showAutocomplete}
+            searchTerm={input}
+            onSelect={handleCommandSelect}
+            position={undefined}
+            themeTracker={themeTracker}
+            selectedIndex={selectedCommandIndex}
+            onSelectedIndexChange={setSelectedCommandIndex}
+          />
+        )}
         <div className="ai-chat-input d-flex flex-column">
           <div
             className="d-flex flex-column rounded-3"
@@ -132,13 +240,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               onChange={e => {
                 setInput(e.target.value)
               }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && e.shiftKey) {
-                  e.preventDefault()
-                  setInput(prev => prev + '\n')
-                } else
-                if (e.key === 'Enter' && !isStreaming && aiRouteReady) handleSend()
-              }}
+              onKeyDown={handleKeyDown}
               placeholder={placeholderText}
             />
             <div className="d-flex flex-row align-items-center">

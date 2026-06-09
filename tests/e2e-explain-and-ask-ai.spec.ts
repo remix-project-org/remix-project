@@ -20,11 +20,11 @@ test('explain contract with AI', async ({ page }) => {
   await page.goto(url);
 
   // --- 1. Sign in via topbar -------------------------------------------------
-  await page.getByRole('button', { name: 'Sign In BETA' }).click();
-  await page.getByRole('button', { name: /E2E Test Pool/i }).click();
+  await page.locator('[data-id="topbarSignInButton"]').click();
+  await page.locator('[data-id="loginModalE2EPoolButton"]').click();
 
   // Confirm we're signed in (topbar user menu shows pool label)
-  await expect(page.getByRole('button', { name: /E2E Pool/i }).first()).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 });
 
   // --- 2. Open contracts/1_Storage.sol via file explorer --------------------
   // (file panel is open by default — clicking the icon again would just close it)
@@ -79,9 +79,9 @@ test('ask AI about a compile error', async ({ page }) => {
   await page.goto(url);
 
   // --- 1. Sign in via topbar -------------------------------------------------
-  await page.getByRole('button', { name: 'Sign In BETA' }).click();
-  await page.getByRole('button', { name: /E2E Test Pool/i }).click();
-  await expect(page.getByRole('button', { name: /E2E Pool/i }).first()).toBeVisible({ timeout: 30000 });
+  await page.locator('[data-id="topbarSignInButton"]').click();
+  await page.locator('[data-id="loginModalE2EPoolButton"]').click();
+  await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 });
 
   // --- 2. Open contracts/1_Storage.sol via file explorer --------------------
   await page.locator('li[data-id="treeViewLitreeViewItemcontracts"]').click();
@@ -157,7 +157,7 @@ test('anonymous user is prompted by plan-manager when triggering AI actions', as
   await page.goto(url);
 
   // Make sure we're really signed out — topbar should show Sign In
-  await expect(page.getByRole('button', { name: 'Sign In BETA' })).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('[data-id="topbarSignInButton"]')).toBeVisible({ timeout: 30000 });
 
   // --- Open contracts/1_Storage.sol ----------------------------------------
   await page.locator('li[data-id="treeViewLitreeViewItemcontracts"]').click();
@@ -169,7 +169,7 @@ test('anonymous user is prompted by plan-manager when triggering AI actions', as
   await expect(page.locator('[data-id="planManagerSignIn"]')).toBeVisible({ timeout: 15000 });
 
   // Close the plan-manager so we can interact with the rest of the IDE
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.locator('[data-id="planManagerCloseButton"]').click();
   await expect(page.locator('.pm-backdrop')).toBeHidden({ timeout: 10000 });
 
   // --- Replace the file with a faulty contract ------------------------------

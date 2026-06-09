@@ -27,9 +27,9 @@ test('reinitialize() with null selectedModel is a no-op and leaves DeepAgent ena
   await page.goto(url)
 
   // Sign in so /permissions resolves and DeepAgent actually initializes.
-  await page.getByRole('button', { name: 'Sign In BETA' }).click()
-  await page.getByRole('button', { name: /E2E Test Pool/i }).click()
-  await expect(page.getByRole('button', { name: /E2E Pool/i }).first()).toBeVisible({ timeout: 30000 })
+  await page.locator('[data-id="topbarSignInButton"]').click()
+  await page.locator('[data-id="loginModalE2EPoolButton"]').click()
+  await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 })
 
   // Open the AI panel so the plugin is fully activated.
   await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()

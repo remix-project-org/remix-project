@@ -41,6 +41,7 @@ export const FeatureBadges: React.FC<FeatureBadgesProps> = ({ plugin, onClose })
           {plugin && (
             <button
               type="button"
+              data-id="userMenuManagePlanButton"
               className="feature-badges-manage"
               onClick={(e) => {
                 e.stopPropagation()

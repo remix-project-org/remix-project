@@ -960,6 +960,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                     {/* Test Account Pool button - only shown when pool is available */}
                     {testAccountsAvailable && (
                       <button
+                        data-id="loginModalE2EPoolButton"
                         className="btn btn-outline-warning w-100 d-flex align-items-center justify-content-center py-2 no-hover-effect"
                         onClick={() => handleLogin('test')}
                         disabled={loading}

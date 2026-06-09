@@ -883,6 +883,7 @@ export function RemixUiTopbar() {
                 plugin={plugin}
                 variant="compact"
                 showCredits={true}
+                signInDataId="topbarSignInButton"
                 className="ms-3 text-nowrap"
                 cloneGitRepository={showCloneModal}
                 publishToGist={publishToGist}

@@ -1054,7 +1054,11 @@ const PlanManagerStub: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) =>
     </div>
     <h5>Plan & Credits</h5>
     <p>Compare plans, top up credits, and track your AI usage in one place.</p>
-    <button className="plan-manager-stub-btn" onClick={() => plugin.open()}>
+    <button
+      data-id="planManagerStubOpenButton"
+      className="plan-manager-stub-btn"
+      onClick={() => plugin.open()}
+    >
       Manage Plan & Credits
     </button>
   </div>
@@ -1150,7 +1154,12 @@ const PlanManagerOverlay: React.FC<{
 
           <DevSwitchers plugin={plugin} snap={snap} debug={plugin.debugUI} />
 
-          <button className="pm-close" onClick={() => plugin.close()} aria-label="Close">
+          <button
+            data-id="planManagerCloseButton"
+            className="pm-close"
+            onClick={() => plugin.close()}
+            aria-label="Close"
+          >
             <i className="fas fa-times"></i>
           </button>
         </header>
@@ -1284,6 +1293,7 @@ const PlanManagerOverlay: React.FC<{
               ] as const).filter(s => s.visible).map(s => (
                 <button
                   key={s.id}
+                  data-id={`planManagerNav-${s.id}`}
                   className={`pm-nav__item ${activeSection === s.id ? 'is-active' : ''}`}
                   // Click on the active tab collapses it — we want a calm
                   // landing view, so re-clicking the same tab returns to it.

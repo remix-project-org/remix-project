@@ -13,7 +13,7 @@ test('test', async ({ page }) => {
 
   // Sanity-check that the topbar Sign In button is rendered (we do NOT click it
   // here — we want to sign in through the plan-manager hand-off instead).
-  await expect(page.getByRole('button', { name: 'Sign In BETA' })).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('[data-id="topbarSignInButton"]')).toBeVisible({ timeout: 30000 });
 
   // Activate the AI assistant side panel.
   await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click();
@@ -35,17 +35,17 @@ test('test', async ({ page }) => {
 
   // Sign in through the plan-manager button instead of the topbar.
   await planManagerSignIn.click();
-  await page.getByRole('button', { name: /E2E Test Pool/i }).click();
+  await page.locator('[data-id="loginModalE2EPoolButton"]').click();
 
   // After successful sign-in the LoginModal auto-closes; the plan-manager
   // re-renders with the (empty) account view behind its backdrop. Close it so
   // we can interact with the topbar.
-  await page.getByRole('button', { name: 'Close' }).click();
+  await page.locator('[data-id="planManagerCloseButton"]').click();
 
   // Verify the topbar reflects the loaded tier: the Sign In button is gone,
   // the user-menu-compact (titled with the pool account name) is visible, and
   // opening it shows the expected feature badge for the free tier ("AI BASIC").
-  await expect(page.getByRole('button', { name: 'Sign In BETA' })).toHaveCount(0);
+  await expect(page.locator('[data-id="topbarSignInButton"]')).toHaveCount(0);
   const userMenu = page.locator('[data-id="user-menu-compact"]')
   await expect(userMenu).toBeVisible();
   await expect(userMenu).toHaveAttribute('title', /E2E Pool/i);
@@ -55,25 +55,25 @@ test('test', async ({ page }) => {
   await expect(page.locator('[data-id^="feature-badge-name-"]').first()).toBeVisible();
   await expect(page.locator('[data-id^="feature-badge-name-"]').filter({ hasText: '[e2e]-free-tier' })).toBeVisible();
 
-  await expect(page.getByRole('button', { name: /Manage/i }).first()).toBeVisible();
+  await expect(page.locator('[data-id="userMenuManagePlanButton"]')).toBeVisible();
   await expect(page.getByText('Your Plan')).toBeVisible();
-  await page.getByRole('button', { name: /Manage/i }).first().click();
+  await page.locator('[data-id="userMenuManagePlanButton"]').click();
   await expect(page.getByText('You\'ve used all your credits')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Plans/i })).toBeVisible();
-  await page.getByRole('button', { name: /Plans/i }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
-  await page.getByRole('textbox', { name: 'Ask me anything about your' }).click();
-  await page.getByRole('textbox', { name: 'Ask me anything about your' }).fill('hi');
+  await expect(page.locator('[data-id="planManagerNav-plans"]')).toBeVisible();
+  await page.locator('[data-id="planManagerNav-plans"]').click();
+  await page.locator('[data-id="planManagerCloseButton"]').click();
+  await page.locator('[data-id="remix-ai-prompt-input"]').click();
+  await page.locator('[data-id="remix-ai-prompt-input"]').fill('hi');
   await page.locator('[data-id="remix-ai-composer-send-btn"]').click();
   await page.getByText('Insufficient credits').click();
   await page.getByText('Insufficient credits').click();
   await expect(page.getByText('Insufficient credits')).toBeVisible();
-  await page.getByRole('button', { name: 'Top up credits' }).click();
+  await page.locator('[data-id="ai-chat-notice-action-topup-credits"]').click();
   await page.getByText('No top-up packages available').click();
   await expect(page.getByText('No top-up packages available')).toBeVisible();
 
   // Close the plan manager before interacting with the composer model picker.
-  await page.getByRole('button', { name: 'Close' }).click();
+  await page.locator('[data-id="planManagerCloseButton"]').click();
 
   // Locked model gating: free tier should NOT have access to Codestral.
   // Open the model picker and assert the Codestral entry is locked.

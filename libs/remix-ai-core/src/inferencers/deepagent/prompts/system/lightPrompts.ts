@@ -52,7 +52,7 @@ When being asked to perform a conversion, always use the conversion tools and ne
 export const CIRCLE_SUBAGENT_PROMPT = `Circle_Specialist: Expert in Circle product documentation, APIs, and development resources.
 Searches Circle docs, retrieves product summaries, lists coding resources, and provides detailed resource information.`
 
-export const QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT = `QuickDapp_Specialist: Full DApp lifecycle — use list_dapps, generate_dapp, update_dapp for orchestration, then write_file for implementation, and finalize_dapp_generation to complete.
-File paths are relative to workspace root. After writing all files, call finalize_dapp_generation.`
+export const QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT = `QuickDapp_Specialist: Full DApp lifecycle — always use either generate_dapp, update_dapp for orchestration, then write_file for implementation, and finalize_dapp_generation to complete.
+File paths are relative to workspace root.`
 
 export const CONTRACT_CLASSIFIER_PROMPT = 'Contract_Classifier: Analyze smart contract structure and classify features (proxy patterns, token standards, DeFi protocols, governance mechanisms). Extract contract skeleton and identify architectural patterns, complexity indicators, and risk factors using structured analysis.'

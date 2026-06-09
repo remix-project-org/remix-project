@@ -13,6 +13,7 @@ interface LoginButtonProps {
   className?: string
   showCredits?: boolean
   variant?: 'button' | 'badge' | 'compact'
+  signInDataId?: string
   plugin?: any
   cloneGitRepository?: () => void
   publishToGist?: () => void
@@ -22,6 +23,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   className = '',
   showCredits = true,
   variant = 'button',
+  signInDataId = 'login-button',
   plugin,
   cloneGitRepository,
   publishToGist
@@ -145,7 +147,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
           className={`btn btn-sm btn-primary ${className}`}
           style={{ whiteSpace: 'nowrap' }}
           onClick={handleSignIn}
-          data-id="login-button"
+          data-id={signInDataId}
         >
           <span className="d-inline-flex align-items-center">
             <span className="me-1">Sign In</span>

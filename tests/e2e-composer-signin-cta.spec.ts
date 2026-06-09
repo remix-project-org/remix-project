@@ -20,7 +20,7 @@ test('composer shows a Sign in CTA when anonymous and reverts to send after sign
   await page.goto(url)
 
   // Topbar Sign In button proves we loaded as an anonymous user.
-  await expect(page.getByRole('button', { name: 'Sign In BETA' })).toBeVisible({ timeout: 30000 })
+  await expect(page.locator('[data-id="topbarSignInButton"]')).toBeVisible({ timeout: 30000 })
 
   // Open the AI assistant side panel.
   await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()
@@ -36,7 +36,7 @@ test('composer shows a Sign in CTA when anonymous and reverts to send after sign
   await expect(page.locator('[data-id="remix-ai-composer-send-btn"]')).toHaveCount(0)
 
   // Placeholder copy switched to the sign-in invitation.
-  const composerTextarea = page.getByRole('textbox', { name: /Sign in to chat with RemixAI/i })
+  const composerTextarea = page.locator('[data-id="remix-ai-prompt-input"]')
   await expect(composerTextarea).toBeVisible()
 
   // --- Plan-manager hand-off ---
@@ -45,10 +45,10 @@ test('composer shows a Sign in CTA when anonymous and reverts to send after sign
   await expect(planManagerSignIn).toBeVisible()
 
   await planManagerSignIn.click()
-  await page.getByRole('button', { name: /E2E Test Pool/i }).click()
+  await page.locator('[data-id="loginModalE2EPoolButton"]').click()
 
   // Plan-manager backdrop re-renders after login — dismiss it.
-  await page.getByRole('button', { name: 'Close' }).click()
+  await page.locator('[data-id="planManagerCloseButton"]').click()
 
   // --- Authenticated composer ---
   // Sign-in CTA must be gone and the regular send button back.
@@ -56,9 +56,9 @@ test('composer shows a Sign in CTA when anonymous and reverts to send after sign
   await expect(page.locator('[data-id="remix-ai-composer-send-btn"]')).toBeVisible()
 
   // Placeholder reverts to the normal "Ask me anything…" copy.
-  await expect(page.getByRole('textbox', { name: /Ask me anything about your/i })).toBeVisible()
+  await expect(page.locator('[data-id="remix-ai-prompt-input"]')).toBeVisible()
 
   // Sanity: the topbar reflects the authenticated state.
-  await expect(page.getByRole('button', { name: 'Sign In BETA' })).toHaveCount(0)
+  await expect(page.locator('[data-id="topbarSignInButton"]')).toHaveCount(0)
   await expect(page.locator('[data-id="user-menu-compact"]')).toBeVisible()
 })

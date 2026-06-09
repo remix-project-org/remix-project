@@ -33,9 +33,9 @@ test('Sonnet identifies the QuickDapp Specialist subagent', async ({ page }) => 
   await page.goto(url)
 
   // --- 1. Sign in via topbar -----------------------------------------------
-  await page.getByRole('button', { name: 'Sign In BETA' }).click()
-  await page.getByRole('button', { name: /E2E Test Pool/i }).click()
-  await expect(page.getByRole('button', { name: /E2E Pool/i }).first()).toBeVisible({ timeout: 30000 })
+  await page.locator('[data-id="topbarSignInButton"]').click()
+  await page.locator('[data-id="loginModalE2EPoolButton"]').click()
+  await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 })
 
   // --- 2. Open the AI panel and switch to Claude Sonnet 4.6 ----------------
   await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()

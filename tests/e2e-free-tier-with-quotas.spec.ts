@@ -10,29 +10,30 @@ test('test', async ({ page }) => {
 
   const url = `http://localhost:8080/?#e2e_feature_groups=e2e-free-with-quotas&e2e_pool_key=${encodeURIComponent(poolApiKey)}&lang=en&optimize&runs=200&evmVersion&version=soljson-v0.8.34+commit.80d5c536.js`
   await page.goto(url);
-  await page.getByRole('button', { name: 'Sign In BETA' }).click();
-  await page.getByRole('button', { name: /E2E Test Pool/i }).click();
-  await page.getByRole('button', { name: /E2E Pool/i }).first().click();
+  await page.locator('[data-id="topbarSignInButton"]').click();
+  await page.locator('[data-id="loginModalE2EPoolButton"]').click();
+  await page.locator('[data-id="user-menu-compact"]').first().click();
   await expect(page.getByText('[e2e]-free-with-quotas')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Manage/i }).first()).toBeVisible();
+  await expect(page.locator('[data-id="userMenuManagePlanButton"]')).toBeVisible();
   await expect(page.getByText('Your Plan')).toBeVisible();
-  await page.getByRole('button', { name: /Manage/i }).first().click();
-  await expect(page.getByText('You\'ve used all your credits')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Plans/i })).toBeVisible();
-  await page.getByRole('button', { name: /Plans/i }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
+  await page.locator('[data-id="userMenuManagePlanButton"]').click();
+  await page.pause();
+  await expect(page.getByText('Unlock more credits')).toBeVisible();
+  await expect(page.locator('[data-id="planManagerNav-plans"]')).toBeVisible();
+  await page.locator('[data-id="planManagerNav-plans"]').click();
+  await page.locator('[data-id="planManagerCloseButton"]').click();
 
   // Switch to Mistral Medium for faster runs
   await page.locator('[data-id="ai-model-selector-btn"]').click();
   await page.locator('[data-id="ai-model-mistral-medium-latest"]').click();
 
-  await page.getByRole('textbox', { name: 'Ask me anything about your' }).click();
-  await page.getByRole('textbox', { name: 'Ask me anything about your' }).fill('what contracts do I have');
+  await page.locator('[data-id="remix-ai-prompt-input"]').click();
+  await page.locator('[data-id="remix-ai-prompt-input"]').fill('what contracts do I have');
   await page.locator('[data-id="remix-ai-composer-send-btn"]').click();
 
   await page.waitForTimeout(5000);
-    await page.getByRole('button', { name: 'E2E Pool' }).click();
-  await page.getByRole('button', { name: 'Manage ' }).click();
+    await page.locator('[data-id="user-menu-compact"]').click();
+  await page.locator('[data-id="userMenuManagePlanButton"]').click();
 
   const mistralQuota = page.locator('[data-quota-model="mistral-medium-latest"]')
   await expect(mistralQuota).toBeVisible({ timeout: 60000 })
