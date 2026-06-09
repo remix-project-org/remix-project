@@ -5,15 +5,10 @@ import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
 import copy from 'copy-to-clipboard'
 import { ChatMessage, assistantAvatar, assitantAvatarLight } from '../lib/types'
-import React, { useState, useEffect, SetStateAction, Dispatch } from 'react'
+import React, { useState, SetStateAction, Dispatch } from 'react'
 import { CustomTooltip } from '@remix-ui/helper'
-import {
-  sampleConversationStarters,
-  type ConversationStarter
-} from '../lib/conversationStarters'
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
 import { QueryParams } from '@remix-project/remix-lib'
-import { AiChatButtons } from './aichatButtons'
 import { DAppUpdateReviewCard } from './DAppUpdateReviewCard'
 
 // ChatHistory component
@@ -35,33 +30,18 @@ export interface ChatHistoryComponentProps {
 }
 
 interface AiChatIntroProps {
-  sendPrompt: (prompt: string) => void
   theme: string
-  plugin?: any
-  handleGenerateWorkspace: () => void
-  handleLoadSkills: () => void
-  allowedMcps: string[]
 }
 
-const AiChatIntro: React.FC<AiChatIntroProps> = ({ sendPrompt, theme, plugin, handleGenerateWorkspace, handleLoadSkills, allowedMcps }) => {
-  const [conversationStarters, setConversationStarters] = useState<ConversationStarter[]>([])
-
-  useEffect(() => {
-    // Sample new conversation starters when component mounts
-    // Use MCP starters only if experimental flag is set
-    const starters = sampleConversationStarters(true)
-    setConversationStarters(starters)
-  }, [])
-
+const AiChatIntro: React.FC<AiChatIntroProps> = ({ theme }) => {
   return (
-    <div className="assistant-landing d-flex flex-column mx-1 align-items-center justify-content-center text-center h-100 w-100" data-id="ai-assistant-landing">
-      <div className="d-flex align-items-center justify-content-center rounded-circle border mb-3" style={{ width: '120px', height: '120px', borderWidth: '2px', borderColor: 'var(--bs-border-color)' }}>
-        <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '60px', height: '60px' }} className="container-img" />
+    <div className="assistant-landing d-flex flex-column gap-1 mx-1 align-items-center justify-content-center text-center h-100 w-100" data-id="ai-assistant-landing">
+      <div className="d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px'}}>
+        <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '48px', height: '48px' }} className="container-img" />
       </div>
       <p className="mb-4" style={{ fontSize: '0.9rem' }}>
         What do you want to build today?
       </p>
-      <AiChatButtons theme={theme} plugin={plugin} sendPrompt={sendPrompt} handleGenerateWorkspace={handleGenerateWorkspace} handleLoadSkills={handleLoadSkills} allowedMcps={allowedMcps} />
     </div>
   )
 }
@@ -85,10 +65,10 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   return (
     <div
       ref={historyRef}
-      className="d-flex flex-column overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
+      className="h-100 d-flex flex-column overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
     >
       {messages.length === 0 ? (
-        <AiChatIntro sendPrompt={sendPrompt} theme={theme} plugin={plugin} handleGenerateWorkspace={handleGenerateWorkspace} handleLoadSkills={handleLoadSkills} allowedMcps={allowedMcps} />
+        <AiChatIntro theme={theme} />
       ) : (
         messages.map(msg => {
           const bubbleClass =

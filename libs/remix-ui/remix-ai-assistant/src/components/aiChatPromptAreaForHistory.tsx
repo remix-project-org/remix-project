@@ -184,6 +184,7 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
         aiRouteReady={props.aiRouteReady}
         isAuthenticated={props.isAuthenticated}
         onSignIn={props.onSignIn}
+        isNewChat={props.messages.length === 0}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

@@ -174,7 +174,7 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
         color: secondaryTextColor,
         fontSize: '0.85rem'
       }}>
-        <span style={{ opacity: 0.9 }}>💡 Choose an action and complete with your prompt</span>
+        <span style={{ opacity: 0.9 }}>Choose an action and complete with your prompt</span>
       </div>
       <div className="overflow-auto" style={{ maxHeight: '300px' }}>
         {Object.entries(groupedCommands).map(([category, commands]) => {
@@ -187,7 +187,6 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
                   fontSize: '0.7rem',
                   letterSpacing: '0.05em',
                   backgroundColor: 'var(--bs-body-bg)',
-                  // borderBottom: `1px solid ${borderColor}`
                 }}
               >
                 {category === 'Build'}

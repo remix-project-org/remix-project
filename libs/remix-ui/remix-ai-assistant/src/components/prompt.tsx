@@ -9,6 +9,45 @@ import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
 import { AutocompletePanel, Command } from './AutocompletePanel'
 
+const SHORTCUT_CATEGORIES = [
+  {
+    id: 'code',
+    label: 'Code',
+    prompts: [
+      'Write a Solidity ERC20 token with mint and burn functions',
+      'Add an ownable access control to this contract',
+      '/compile: fix any errors in the active file',
+    ],
+  },
+  {
+    id: 'explain',
+    label: 'Explain',
+    prompts: [
+      'Explain what this contract does line by line',
+      'What are the security risks in this code?',
+      'What does this function return and when does it revert?',
+    ],
+  },
+  {
+    id: 'learn',
+    label: 'Learn',
+    prompts: [
+      'What is a smart contract?',
+      'How does gas work in Ethereum?',
+      'What is the difference between memory and storage in Solidity?',
+    ],
+  },
+  {
+    id: 'deploy',
+    label: 'Deploy',
+    prompts: [
+      '/deploy: deploy this contract to Sepolia testnet',
+      'How do I verify my contract on Etherscan?',
+      'What network should I use for testing?',
+    ],
+  },
+]
+
 // PromptArea component
 export interface PromptAreaProps {
   input: any
@@ -46,6 +85,7 @@ export interface PromptAreaProps {
   // never become ready until they authenticate.
   isAuthenticated?: boolean
   onSignIn?: () => void
+  isNewChat?: boolean
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -69,12 +109,15 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   aiRoute = 'chat',
   aiRouteReady = true,
   isAuthenticated = true,
-  onSignIn
+  onSignIn,
+  isNewChat = false
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const [showAutocomplete, setShowAutocomplete] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
   const promptAreaRef = useRef<HTMLDivElement>(null)
+  const shortcutsRef = useRef<HTMLDivElement>(null)
+  const [activeShortcut, setActiveShortcut] = useState<string | null>(null)
 
   useEffect(() => {
     if (textareaRef?.current) {
@@ -91,6 +134,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     } else {
       setShowAutocomplete(false)
     }
+    if (input.length > 0) setActiveShortcut(null)
   }, [input, isStreaming])
 
   // Handle command selection
@@ -106,6 +150,12 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     // Focus back on textarea
     textareaRef?.current?.focus()
   }, [input, setInput])
+
+  const handleShortcutSelect = useCallback((prompt: string) => {
+    setInput(prompt)
+    setActiveShortcut(null)
+    textareaRef?.current?.focus()
+  }, [setInput])
 
   // Handle keyboard navigation for autocomplete
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -163,12 +213,25 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     }
   }, [showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, handleSend, setInput])
 
+  useEffect(() => {
+    if (!activeShortcut) return
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (shortcutsRef.current && !shortcutsRef.current.contains(e.target as Node)) {
+        setActiveShortcut(null)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [activeShortcut])
+
   // The composer has three resting states:
   //   1. ready              → normal send/stop affordance
   //   2. !ready & authed    → disabled send (agents still booting)
   //   3. !ready & anonymous → sign-in CTA (no amount of waiting fixes it)
   // We split state 3 out so the user doesn't sit there waiting on a
   // route that can never become ready until they authenticate.
+  const activeCategory = activeShortcut ? (SHORTCUT_CATEGORIES.find(c => c.id === activeShortcut) ?? null) : null
+
   const needsSignIn = !aiRouteReady && !isAuthenticated && !!onSignIn
   const placeholderText = needsSignIn
     ? 'Sign in to chat with RemixAI…'
@@ -178,6 +241,69 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   return (
     <>
+      {isNewChat && <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
+        <div className="d-flex flex-row" style={{ gap: '4px' }}>
+          {SHORTCUT_CATEGORIES.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveShortcut(prev => prev === cat.id ? null : cat.id)}
+              className="btn btn-sm rounded-pill"
+              style={{
+                fontSize: '0.72rem',
+                padding: '2px 10px',
+                border: `1px solid ${activeShortcut === cat.id ? 'var(--custom-ai-color)' : 'var(--bs-border-color)'}`,
+                color: activeShortcut === cat.id ? 'var(--custom-ai-color)' : 'var(--bs-secondary-color)',
+                backgroundColor: activeShortcut === cat.id ? 'var(--custom-onsurface-layer-1)' : 'var(--bs-body-bg)',
+                transition: 'all 0.15s ease',
+              }}
+              data-id={`shortcut-btn-${cat.id}`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+        {activeShortcut && activeCategory && (
+          <div
+            className="position-absolute rounded-3 shadow-lg overflow-hidden"
+            style={{
+              bottom: 'calc(100% + 4px)',
+              left: 0,
+              right: 0,
+              backgroundColor: 'var(--bs-body-bg)',
+              border: '1px solid var(--bs-border-color)',
+              zIndex: 1000,
+            }}
+            data-id="shortcut-popover"
+          >
+            {activeCategory.prompts.map((prompt, i) => (
+              <button
+                key={i}
+                onClick={() => handleShortcutSelect(prompt)}
+                className="d-block w-100 text-start px-3 py-2 border-0"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'var(--bs-body-color)',
+                  fontSize: '0.8rem',
+                  borderBottom: i < activeCategory.prompts.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                data-id={`shortcut-prompt-${i}`}
+              >
+                {prompt.startsWith('/') ? (
+                  <span>
+                    <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>
+                      {prompt.substring(0, prompt.indexOf(':') + 1)}
+                    </span>
+                    {prompt.substring(prompt.indexOf(':') + 1)}
+                  </span>
+                ) : prompt}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>}
       <div
         ref={promptAreaRef}
         className="prompt-area d-flex flex-column mx-2 p-1 rounded-3 border border-text position-relative"
@@ -212,7 +338,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 outline: 'none',
                 resize: 'none',
                 font: 'inherit',
-                fontSize: '0.9rem',
+                fontSize: '0.875rem',
                 color: 'inherit',
                 backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
                 boxShadow: 'none',
