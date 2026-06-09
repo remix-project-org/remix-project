@@ -236,7 +236,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   const placeholderText = needsSignIn
     ? 'Sign in to chat with RemixAI…'
     : aiRouteReady
-      ? 'Type "/" for more options or ask me anything about your code, generate new contracts, edit contracts, deploy...'
+      ? 'Type "/" for more options or ask me anything...'
       : 'Initialising agents…'
 
   return (
@@ -339,7 +339,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 resize: 'none',
                 font: 'inherit',
                 fontSize: '0.875rem',
-                color: 'inherit',
+                color: '#A2A3BD',
                 backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
                 boxShadow: 'none',
                 paddingRight: isStreaming ? '50px' : '10px',
