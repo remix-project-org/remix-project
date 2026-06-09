@@ -74,8 +74,11 @@ export class AuthPlugin extends Plugin {
     const inviteClient = new ApiClient(endpointUrls.invite)
     this.inviteApi = new InviteApiService(inviteClient)
 
-    // Eth Skills API (served via the MCP CORS proxy, authenticated)
-    const ethSkillsClient = new ApiClient(endpointUrls.ethskills)
+    // Eth Skills API (served via the MCP base, authenticated).
+    // `ethskills` is not part of the discovery doc — derive it from the
+    // `mcp` base so it always tracks the resolved MCP URL.
+    const ethSkillsBaseUrl = `${endpointUrls.mcp.replace(/\/$/, '')}/ethskills`
+    const ethSkillsClient = new ApiClient(ethSkillsBaseUrl)
     this.ethSkillsApi = new EthSkillsApiService(ethSkillsClient)
 
     // Set up token refresh callback for auto-renewal

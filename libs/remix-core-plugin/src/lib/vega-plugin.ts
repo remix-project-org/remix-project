@@ -1,4 +1,5 @@
 import { Plugin } from '@remixproject/engine'
+import { endpointUrls } from '@remix-endpoints-helper'
 
 const profile = {
   name: 'vega',
@@ -211,7 +212,8 @@ async function checkAvailability(url: string): Promise<void> {
 }
 
 async function postIpfs(content) {
-  const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live';
+  const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
+  console.log('[endpoints] vega postIpfs:', `${REMIX_ENDPOINT_IPFS}/upload`);
   const responseIpfs = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, {
     method: 'POST',
     body: content

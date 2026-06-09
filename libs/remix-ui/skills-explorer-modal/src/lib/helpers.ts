@@ -29,20 +29,25 @@ export function getFileType(filename: string): 'md' | 'zip' | null {
   return null
 }
 
-// Resolve the skills endpoint — works in both local dev and production
+// Resolve the skills endpoint — works in both local dev and production.
+// There is no dedicated `ethskills` service in the discovery document; it
+// is always derived from the `mcp` base + '/ethskills'.
 export function getSkillsBaseUrl(): string {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { endpointUrls } = require('@remix-endpoints-helper')
+    console.log('Resolved endpointUrls in getSkillsBaseUrl:', endpointUrls)
+    const mcp = endpointUrls?.mcp
+    if (mcp && String(mcp).startsWith('http')) {
+      return `${String(mcp).replace(/\/$/, '')}/ethskills`
+    }
     const proxy = endpointUrls?.mcpCorsProxy
-    // In local dev, mcpCorsProxy is 'mcp' (relative), which won't work for
-    // an external skills server. Fall back to the direct endpoint.
-    if (proxy && proxy.startsWith('http')) {
-      return proxy + '/ethskills'
+    if (proxy && String(proxy).startsWith('http')) {
+      return `${String(proxy).replace(/\/$/, '')}/ethskills`
     }
   } catch (_) { /* ignore */ }
   // Fallback: direct ethskills server
-  return 'https://mcp.api.remix.live/ethskills'
+  return 'https://api.remix.live/mcp/ethskills'
 }
 
 export const fetchSkillData = async (url: string): Promise<SkillData> => {

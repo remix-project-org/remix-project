@@ -9,9 +9,8 @@ import { generateWalletSelectionScript } from '../../utils/wallet-selection-scri
 import { validateEnsName } from '../../utils/ens-utils';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
+import { endpointUrls } from '@remix-endpoints-helper';
 import EnsRegistrationModal from './EnsRegistrationModal';
-
-const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live';
 
 interface DeploymentRecord {
   id: string;
@@ -264,7 +263,8 @@ const BaseAppWizard: React.FC = () => {
           const ssHeaders: Record<string, string> = {};
           const ssToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
           if (ssToken) ssHeaders['Authorization'] = `Bearer ${ssToken}`;
-          const ssResponse = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: ssFormData, headers: ssHeaders });
+          console.log('[endpoints] quickdapp IPFS upload (screenshot):', `${endpointUrls.quickdappIpfs}/upload`);
+          const ssResponse = await fetch(`${endpointUrls.quickdappIpfs}/upload`, { method: 'POST', body: ssFormData, headers: ssHeaders });
           if (ssResponse.ok) {
             const ssData = await ssResponse.json();
             screenshotIpfsUrl = `https://ipfs.io/ipfs/${ssData.ipfsHash}/screenshot.png`;
@@ -311,7 +311,8 @@ const BaseAppWizard: React.FC = () => {
       const uploadHeaders: Record<string, string> = {};
       const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
       if (authToken) uploadHeaders['Authorization'] = `Bearer ${authToken}`;
-      const response = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, { method: 'POST', body: formData, headers: uploadHeaders });
+      console.log('[endpoints] quickdapp IPFS upload (final):', `${endpointUrls.quickdappIpfs}/upload`);
+      const response = await fetch(`${endpointUrls.quickdappIpfs}/upload`, { method: 'POST', body: formData, headers: uploadHeaders });
       if (!response.ok) throw new Error(await response.text());
 
       const data = await response.json();

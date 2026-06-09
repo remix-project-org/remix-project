@@ -1,4 +1,5 @@
 import { Plugin } from '@remixproject/engine'
+import { endpointUrls } from '@remix-endpoints-helper'
 
 const profile = {
   name: 'chartjs',
@@ -178,7 +179,8 @@ ${description}
   }
 
   async postIpfs(content: FormData) {
-    const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live'
+    const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs
+    console.log('[endpoints] chartjs postIpfs:', `${REMIX_ENDPOINT_IPFS}/upload`)
     const responseIpfs = await fetch(`${REMIX_ENDPOINT_IPFS}/upload`, {
       method: 'POST',
       body: content

@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Button, Alert, Spinner } from 'react-bootstrap';
 import { ethers } from 'ethers';
 import { parseEnsRegistrationError } from '../../utils/ens-utils';
-
-const REMIX_ENDPOINT_ENS = 'https://quickdapp-ens.api.remix.live';
+import { endpointUrls } from '@remix-endpoints-helper';
 
 interface EnsRegistrationModalProps {
   show: boolean;
@@ -43,7 +42,8 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
         ? localStorage.getItem('remix_access_token')
         : null;
 
-      const response = await fetch(`${REMIX_ENDPOINT_ENS}/register`, {
+      console.log('[endpoints] quickdapp ENS register:', `${endpointUrls.ensService}/register`);
+      const response = await fetch(`${endpointUrls.ensService}/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
