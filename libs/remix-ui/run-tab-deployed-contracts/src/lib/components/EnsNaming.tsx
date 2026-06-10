@@ -99,6 +99,7 @@ type PreflightStatus =
 type JobStep = 'pending' | 'checking' | 'creating_project' | 'creating_label' | 'setting_forward' | 'completed' | 'failed'
 type ViewStep = 'input' | 'registering' | 'reverse' | 'done' | 'error'
 type ReverseStatus = 'idle' | 'checking' | 'set' | 'not_set' | 'wrong_chain' | 'unavailable'
+type PrimaryEnsStatus = 'idle' | 'checking' | 'verified' | 'unverified' | 'unavailable'
 
 interface PreflightResult {
   fullName: string
@@ -126,6 +127,14 @@ interface JobResult {
   totalCostWei?: string
   error?: string
   completedAt?: number
+}
+
+interface PrimaryEnsLookupResult {
+  name: string
+  targetCoinType: number
+  verified: boolean
+  status: 'verified' | 'mismatch' | 'unsupported_chain' | 'no_resolver' | 'unresolved' | 'invalid_name'
+  resolvedAddress?: string
 }
 
 // ── Helpers ──
@@ -216,6 +225,11 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
   const [isReverseInProgress, setIsReverseInProgress] = useState(false)
   const [reverseStatusMsg, setReverseStatusMsg] = useState('')
   const [errorContext, setErrorContext] = useState<'forward' | 'reverse'>('forward')
+
+  // Existing primary ENS
+  const [primaryEnsStatus, setPrimaryEnsStatus] = useState<PrimaryEnsStatus>('idle')
+  const [primaryEnsName, setPrimaryEnsName] = useState('')
+  const [primaryEnsMessage, setPrimaryEnsMessage] = useState('')
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -344,6 +358,72 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       checkReverseStatus()
     }
   }, [preflightStatus, checkReverseStatus])
+
+  const checkPrimaryEnsName = useCallback(async () => {
+    if (!chainId) return
+
+    setPrimaryEnsStatus('checking')
+    setPrimaryEnsName('')
+    setPrimaryEnsMessage('')
+
+    const provider = (window as any).ethereum
+    if (!provider) {
+      setPrimaryEnsStatus('unavailable')
+      return
+    }
+
+    try {
+      const publicClient = createPublicClient({ transport: custom(provider) })
+      const currentChainId = await publicClient.getChainId()
+
+      if (currentChainId !== chainId) {
+        setPrimaryEnsStatus('unavailable')
+        return
+      }
+
+      const name = await publicClient.readContract({
+        address: getReverseRegistrar(chainId),
+        abi: REVERSE_REGISTRAR_READ_ABI,
+        functionName: 'nameForAddr',
+        args: [contract.address as Hex],
+      })
+      const candidate = typeof name === 'string' ? name.trim() : ''
+
+      if (!candidate) {
+        setPrimaryEnsStatus('unverified')
+        return
+      }
+
+      const res = await fetch(`${apiBase()}/lookup-primary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: candidate, chainId, contractAddress: contract.address }),
+      })
+
+      if (!res.ok) {
+        setPrimaryEnsStatus('unavailable')
+        return
+      }
+
+      const lookup: PrimaryEnsLookupResult = await res.json()
+      if (lookup.verified) {
+        setPrimaryEnsStatus('verified')
+        setPrimaryEnsName(lookup.name)
+        setPrimaryEnsMessage('Primary ENS verified by reverse and forward records.')
+        return
+      }
+
+      setPrimaryEnsStatus('unverified')
+      setPrimaryEnsName(candidate)
+      setPrimaryEnsMessage('Reverse name found, but its forward record does not point to this address.')
+    } catch {
+      setPrimaryEnsStatus('unavailable')
+    }
+  }, [chainId, contract.address])
+
+  useEffect(() => {
+    checkPrimaryEnsName()
+  }, [checkPrimaryEnsName])
 
   const openReverseStep = useCallback(async () => {
     setJobResult({ id: '', status: 'completed', fullName, transactions: [], totalGasUsed: '0', totalCostWei: '0' })
@@ -600,6 +680,38 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
               <span style={{ color: subtextColor }}>
                 Deployed on <strong style={{ color: textColor }}>{SUPPORTED_CHAINS.get(chainId)}</strong> — server registers ENS on L1 (no gas cost to you)
               </span>
+            </div>
+          )}
+
+          {(primaryEnsStatus === 'checking' || primaryEnsStatus === 'verified' || primaryEnsMessage) && (
+            <div
+              className="mb-2 p-2 rounded"
+              style={{
+                backgroundColor: primaryEnsStatus === 'unverified' ? 'rgba(255, 207, 92, 0.08)' : 'rgba(100, 196, 255, 0.05)',
+                fontSize: '0.72rem',
+                color: primaryEnsStatus === 'unverified' ? '#ffcf5c' : subtextColor,
+              }}
+            >
+              <i className={`fas ${primaryEnsStatus === 'checking' ? 'fa-spinner fa-spin' : primaryEnsStatus === 'verified' ? 'fa-check-circle' : 'fa-info-circle'} me-1`} />
+              {primaryEnsStatus === 'checking' ? (
+                'Checking primary ENS...'
+              ) : primaryEnsStatus === 'verified' ? (
+                <>
+                  Primary ENS:{' '}
+                  <strong style={{ color: '#64c4ff', wordBreak: 'break-all' }}>{primaryEnsName}</strong>
+                </>
+              ) : (
+                <>
+                  {primaryEnsName && (
+                    <>
+                      Reverse ENS:{' '}
+                      <strong style={{ color: '#ffcf5c', wordBreak: 'break-all' }}>{primaryEnsName}</strong>
+                      <br />
+                    </>
+                  )}
+                  {primaryEnsMessage}
+                </>
+              )}
             </div>
           )}
 
