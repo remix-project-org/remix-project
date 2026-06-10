@@ -400,7 +400,7 @@
 /* Inline Code */
 .ai-inline-code {
   background: rgba(110, 118, 129, 0.4);
-  color: var(--bs-body-color);
+  color: var(--custom-ai-color);
   padding: 0.2em 0.4em;
   border-radius: 3px;
   font-size: 0.75em;
