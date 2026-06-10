@@ -2255,8 +2255,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     await props.plugin.newConversation()
     try {
       await props.plugin.call('skillsexplorermodal', 'loadSkill', 'coding-solidity-gas-optimization')
-    } catch (e) {
-      console.warn('[RemixAI] Gas optimisation skill could not be loaded, proceeding without it', e)
+    } catch {
+      // skill endpoint unavailable — proceed without it
     }
     props.plugin.chatPipe('Start gas optimization checks on the active contract.')
   }, [props.plugin])
