@@ -471,13 +471,13 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
           setJobResult(job)
 
           if (job.status === 'completed') {
-            clearInterval(pollRef.current!)
+            if (pollRef.current) clearInterval(pollRef.current)
             pollRef.current = null
             await plugin.call('terminal', 'log', { type: 'info', value: `✅ ENS registered: ${job.fullName}` })
             const reverse = await checkReverseStatus()
             setViewStep(reverse === 'set' ? 'done' : 'reverse')
           } else if (job.status === 'failed') {
-            clearInterval(pollRef.current!)
+            if (pollRef.current) clearInterval(pollRef.current)
             pollRef.current = null
             setJobError(job.error || 'Registration failed.')
             setErrorContext('forward')
@@ -608,34 +608,34 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
 
   const getStatusIcon = () => {
     switch (preflightStatus) {
-      case 'checking': return 'fas fa-spinner fa-spin'
-      case 'available': case 'available_for_chain': return 'fas fa-check-circle text-success'
-      case 'current': return 'fas fa-check-circle text-info'
-      case 'taken': case 'name_not_controlled': case 'project_not_controlled': return 'fas fa-times-circle text-danger'
-      case 'unsupported_chain': case 'parent_not_owned': return 'fas fa-exclamation-triangle text-warning'
-      case 'error': return 'fas fa-exclamation-circle text-danger'
-      default: return 'fas fa-info-circle'
+    case 'checking': return 'fas fa-spinner fa-spin'
+    case 'available': case 'available_for_chain': return 'fas fa-check-circle text-success'
+    case 'current': return 'fas fa-check-circle text-info'
+    case 'taken': case 'name_not_controlled': case 'project_not_controlled': return 'fas fa-times-circle text-danger'
+    case 'unsupported_chain': case 'parent_not_owned': return 'fas fa-exclamation-triangle text-warning'
+    case 'error': return 'fas fa-exclamation-circle text-danger'
+    default: return 'fas fa-info-circle'
     }
   }
 
   const getStatusMessage = (): string => {
     switch (preflightStatus) {
-      case 'checking': return 'Checking availability...'
-      case 'available': return `${fullName} is available. ${preflight?.estimatedTxCount || 0} L1 transaction(s) needed.`
-      case 'available_for_chain': return `${fullName} exists but this chain record is not set.`
-      case 'current':
-        if (reverseStatus === 'checking') return `${fullName} already points to this contract. Checking reverse...`
-        if (reverseStatus === 'set') return `${fullName} already has forward and reverse records set.`
-        if (reverseStatus === 'not_set') return `${fullName} already points to this contract. Reverse is not set yet.`
-        if (reverseStatus === 'wrong_chain' || reverseStatus === 'unavailable') return `${fullName} already points to this contract. ${reverseCheckMessage}`
-        return `${fullName} already points to this contract.`
-      case 'taken': return `${fullName} is already taken${preflight?.currentAddress ? ` by ${preflight.currentAddress.slice(0, 10)}...` : ''}.`
-      case 'name_not_controlled': return 'This name exists but is not controlled by the Remix server.'
-      case 'project_not_controlled': return 'This project exists but is not controlled by the Remix server.'
-      case 'parent_not_owned': return 'The ENS naming service is not available (parent not owned).'
-      case 'unsupported_chain': return preflightError
-      case 'error': return preflightError || 'An error occurred.'
-      default: return 'Enter a label to check availability.'
+    case 'checking': return 'Checking availability...'
+    case 'available': return `${fullName} is available. ${preflight?.estimatedTxCount || 0} L1 transaction(s) needed.`
+    case 'available_for_chain': return `${fullName} exists but this chain record is not set.`
+    case 'current':
+      if (reverseStatus === 'checking') return `${fullName} already points to this contract. Checking reverse...`
+      if (reverseStatus === 'set') return `${fullName} already has forward and reverse records set.`
+      if (reverseStatus === 'not_set') return `${fullName} already points to this contract. Reverse is not set yet.`
+      if (reverseStatus === 'wrong_chain' || reverseStatus === 'unavailable') return `${fullName} already points to this contract. ${reverseCheckMessage}`
+      return `${fullName} already points to this contract.`
+    case 'taken': return `${fullName} is already taken${preflight?.currentAddress ? ` by ${preflight.currentAddress.slice(0, 10)}...` : ''}.`
+    case 'name_not_controlled': return 'This name exists but is not controlled by the Remix server.'
+    case 'project_not_controlled': return 'This project exists but is not controlled by the Remix server.'
+    case 'parent_not_owned': return 'The ENS naming service is not available (parent not owned).'
+    case 'unsupported_chain': return preflightError
+    case 'error': return preflightError || 'An error occurred.'
+    default: return 'Enter a label to check availability.'
     }
   }
 
@@ -866,7 +866,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             <strong style={{ color: textColor }}>Set Reverse Name?</strong>
             <br />
             Allows block explorers and wallets to display the ENS name for this contract address.
-            Requires one transaction on <strong style={{ color: textColor }}>{SUPPORTED_CHAINS.get(chainId!) || 'the deployment chain'}</strong> signed by the contract owner.
+            Requires one transaction on <strong style={{ color: textColor }}>{(chainId && SUPPORTED_CHAINS.get(chainId)) || 'the deployment chain'}</strong> signed by the contract owner.
           </div>
           <div className="d-flex gap-2">
             <button className="btn btn-primary btn-sm flex-fill" onClick={handleReverse}>
