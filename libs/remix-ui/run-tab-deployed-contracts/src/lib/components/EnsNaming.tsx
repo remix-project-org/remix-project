@@ -140,7 +140,7 @@ interface PrimaryEnsLookupResult {
 // ── Helpers ──
 
 function apiBase(): string {
-  return 'http://localhost:4000/contract-ens'
+  return endpointUrls.ensContractNames
 }
 
 const sanitizeLabel = (v: string) =>

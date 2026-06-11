@@ -114,7 +114,6 @@
     "@effect/platform-node": "^0.103.0",
     "@effect/printer": "^0.47.0",
     "@effect/printer-ansi": "^0.47.0",
-    "@enscribe/enscribe": "^0.1.2",
     "@erebos/bzz-node": "^0.13.0",
     "@ethereumjs/block": "^10.1.1",
     "@ethereumjs/blockchain": "^10.1.1",
