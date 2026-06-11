@@ -142,7 +142,7 @@ export async function buildSubagentConfigs(
       {
         name: 'Gas_Optimizer',
         systemPrompt: GAS_OPTIMIZER_SUBAGENT_PROMPT,
-        model,
+        model: fallbackModel,
         tools: basicFileTools,
         description: 'Specializes in optimizing gas usage in smart contracts.',
         skills: ['/skills/solidity-gas-optimization']
@@ -156,6 +156,7 @@ export async function buildSubagentConfigs(
       },
       {
         systemPrompt: COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
+        model: fallbackModel,
         tools: securityTools,
         name: 'Comprehensive_Auditor',
         description: 'Specializes in comprehensive auditing and analysis of smart contracts.',
@@ -225,7 +226,7 @@ export async function buildSubagentConfigs(
       {
         name: 'Advanced_Solidity_Developer',
         systemPrompt: SOLIDITY_CODE_GENERATION_PROMPT,
-        model,
+        model: fallbackModel,
         tools: solidityTools,
         description: 'Specializes in writting solidity code using openzeppelin libraries'
       }

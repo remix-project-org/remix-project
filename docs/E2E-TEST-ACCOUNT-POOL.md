@@ -53,7 +53,7 @@ The test account pool provides **exclusive, pre-provisioned user accounts** for 
 | Item | Description |
 |---|---|
 | `E2E_POOL_API_KEY` | A `rmx_...` API key with `test-account-access` scope. Store in `.env` at the project root or export as an env var. |
-| `REMIX_API_URL` | *(Optional)* SSO base URL. Defaults to `https://auth.api.remix.live`. |
+| `REMIX_API_URL` | *(Optional)* SSO base URL. Defaults to `https://api.remix.live`. |
 
 ### Local Development
 

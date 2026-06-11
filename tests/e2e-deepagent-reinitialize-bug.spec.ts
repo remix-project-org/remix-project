@@ -27,7 +27,7 @@ test('reinitialize() with null selectedModel is a no-op and leaves DeepAgent ena
   await page.goto(url)
 
   // Sign in so /permissions resolves and DeepAgent actually initializes.
-  await page.locator('[data-id="topbarSignInButton"]').click()
+  await page.locator('[data-id="login-button"]').click()
   await page.locator('[data-id="loginModalE2EPoolButton"]').click()
   await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 })
 

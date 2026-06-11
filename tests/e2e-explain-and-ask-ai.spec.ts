@@ -20,7 +20,7 @@ test('explain contract with AI', async ({ page }) => {
   await page.goto(url);
 
   // --- 1. Sign in via topbar -------------------------------------------------
-  await page.locator('[data-id="topbarSignInButton"]').click();
+  await page.locator('[data-id="login-button"]').click();
   await page.locator('[data-id="loginModalE2EPoolButton"]').click();
 
   // Confirm we're signed in (topbar user menu shows pool label)
@@ -51,11 +51,11 @@ test('explain contract with AI', async ({ page }) => {
   // the first message is added, and an assistant bubble (.me-3) eventually appears.
   await expect(page.locator('[data-id="ai-assistant-landing"]')).toBeHidden({ timeout: 15000 });
   await expect(
-    page.locator('[data-id="ai-response-chat-bubble-section"].me-3').first()
+    page.locator('[data-id="ai-response-chat-bubble-section"] [data-id="ai-user-chat-bubble"]').first()
   ).toBeVisible({ timeout: 90000 });
   // Sanity: the assistant bubble should actually contain text
   await expect.poll(
-    async () => (await page.locator('[data-id="ai-response-chat-bubble-section"].me-3').first().innerText()).trim().length,
+    async () => (await page.locator('[data-id="ai-response-chat-bubble-section"] [data-id="ai-user-chat-bubble"]').first().innerText()).trim().length,
     { timeout: 90000, intervals: [1000, 2000, 3000] }
   ).toBeGreaterThan(20)
 });
@@ -79,7 +79,7 @@ test('ask AI about a compile error', async ({ page }) => {
   await page.goto(url);
 
   // --- 1. Sign in via topbar -------------------------------------------------
-  await page.locator('[data-id="topbarSignInButton"]').click();
+  await page.locator('[data-id="login-button"]').click();
   await page.locator('[data-id="loginModalE2EPoolButton"]').click();
   await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 });
 
@@ -132,7 +132,7 @@ contract Storage {
   // --- 6. Click "Ask RemixAI" on the error card -----------------------------
   await askAiBtn.click();
 
-  const assistantBubbles = page.locator('[data-id="ai-response-chat-bubble-section"].me-3')
+  const assistantBubbles = page.locator('[data-id="ai-response-chat-bubble-section"] [data-id="ai-user-chat-bubble"]')
   await expect(assistantBubbles.first()).toBeVisible({ timeout: 90000 })
   await expect.poll(
     async () => (await assistantBubbles.last().innerText()).trim().length,
@@ -157,7 +157,7 @@ test('anonymous user is prompted by plan-manager when triggering AI actions', as
   await page.goto(url);
 
   // Make sure we're really signed out — topbar should show Sign In
-  await expect(page.locator('[data-id="topbarSignInButton"]')).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('[data-id="login-button"]')).toBeVisible({ timeout: 30000 });
 
   // --- Open contracts/1_Storage.sol ----------------------------------------
   await page.locator('li[data-id="treeViewLitreeViewItemcontracts"]').click();

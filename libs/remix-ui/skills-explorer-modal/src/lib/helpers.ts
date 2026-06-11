@@ -34,15 +34,17 @@ export function getSkillsBaseUrl(): string {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { endpointUrls } = require('@remix-endpoints-helper')
+    if (endpointUrls?.ethskills && endpointUrls.ethskills.startsWith('http')) {
+      return endpointUrls.ethskills
+    }
     const proxy = endpointUrls?.mcpCorsProxy
-    // In local dev, mcpCorsProxy is 'mcp' (relative), which won't work for
-    // an external skills server. Fall back to the direct endpoint.
+    // In local dev, mcpCorsProxy may be relative ('mcp'); only use when absolute.
     if (proxy && proxy.startsWith('http')) {
       return proxy + '/ethskills'
     }
   } catch (_) { /* ignore */ }
-  // Fallback: direct ethskills server
-  return 'https://mcp.api.remix.live/ethskills'
+  // Fallback: direct ethskills server (production manifest path)
+  return 'https://api.remix.live/mcp/ethskills'
 }
 
 export const fetchSkillData = async (url: string): Promise<SkillData> => {

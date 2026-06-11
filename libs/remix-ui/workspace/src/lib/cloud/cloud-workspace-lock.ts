@@ -18,7 +18,7 @@ const LOCK_TTL = 60 // seconds
 const HEARTBEAT_INTERVAL = 20_000 // 20s
 
 const lockBase = () => endpointUrls.workspaceLock
-// e.g. "https://auth.api.remix.live/workspace-lock"
+// e.g. "https://api.remix.live/workspace-lock"
 
 // ── Device ID ──────────────────────────────────────────────
 

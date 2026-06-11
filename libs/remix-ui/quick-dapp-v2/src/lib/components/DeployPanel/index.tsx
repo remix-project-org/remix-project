@@ -10,11 +10,12 @@ import { generateWalletSelectionScript } from '../../utils/wallet-selection-scri
 import { validateEnsName } from '../../utils/ens-utils';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
+import { endpointUrls } from '@remix-endpoints-helper';
 
 import BaseAppWizard from './BaseAppWizard';
 import EnsRegistrationModal from './EnsRegistrationModal';
 
-const REMIX_ENDPOINT_IPFS = 'https://quickdapp-ipfs.api.remix.live';
+const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
 
 function DeployPanel(): JSX.Element {
   const intl = useIntl();

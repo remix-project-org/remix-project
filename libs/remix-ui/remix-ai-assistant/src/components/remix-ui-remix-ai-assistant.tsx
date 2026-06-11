@@ -46,6 +46,7 @@ export interface RemixUiRemixAiAssistantProps {
   onToggleHistorySidebar?: () => void
   onSearch?: (query: string) => Promise<ConversationMetadata[]>
   onOpenSkillsModal?: () => void
+  onOpenChecklistModal?: () => void
 }
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
@@ -111,6 +112,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     upgrade: 'hidden',
     buyCredits: 'hidden'
   })
+
+  // Permission state for specific features
+  const [hasAuditorPermission, setHasAuditorPermission] = useState(false)
+  const [hasSkillsPermission, setHasSkillsPermission] = useState(false)
 
   const [mcpEnhanced, setMcpEnhanced] = useState(false)
   const [pendingApprovals, setPendingApprovals] = useState<ToolApprovalRequest[]>([])
@@ -892,6 +897,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         return entry?.is_enabled !== false && entry?.allowed !== false
       }
       const comingSoon = isOn('ai:modes_coming_soon')
+
+      // Check specific feature permissions
+      setHasAuditorPermission(isOn('ai:auditor'))
+      setHasSkillsPermission(isOn('ai:skills'))
+
       const nextPillStates = {
         upgrade: comingSoon ? 'coming_soon' : isOn('ai:upgrade_available') ? 'available' : 'hidden',
         buyCredits: comingSoon ? 'hidden' : isOn('ai:buy_credits') ? 'available' : 'hidden'
@@ -2239,6 +2249,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.onOpenSkillsModal])
 
+  const handleOpenSettings = useCallback(async () => {
+    const isActive = await props.plugin.call('manager', 'isActive', 'settings')
+    if (!isActive) await props.plugin.call('manager', 'activatePlugin', 'settings')
+    await props.plugin.call('tabs', 'focus', 'settings')
+    props.plugin.call('settings', 'showSection', 'ai')
+  }, [props.plugin])
+
+  const handleLoadAuditChecklist = useCallback(() => {
+    if (props.onOpenChecklistModal) props.onOpenChecklistModal()
+  }, [props.onOpenChecklistModal])
+
+  const handleGasOptimisationAudit = useCallback(async () => {
+    await props.plugin.newConversation()
+    try {
+      await props.plugin.call('skillsexplorermodal', 'loadSkill', 'coding-solidity-gas-optimization')
+    } catch {
+      // skill endpoint unavailable — proceed without it
+    }
+    props.plugin.chatPipe('Start gas optimization checks on the active contract.')
+  }, [props.plugin])
+
   const handleGenerateWorkspace = useCallback(async () => {
     dispatchActivity('button', 'generateWorkspace')
     try {
@@ -2696,11 +2727,16 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               ollamaModels={ollamaModels}
               messages={messages}
               handleLoadSkills={handleLoadSkills}
+              handleOpenSettings={handleOpenSettings}
+              handleLoadAuditChecklist={handleLoadAuditChecklist}
+              handleGasOptimisationAudit={handleGasOptimisationAudit}
               usingOwnApiKey={usingOwnApiKey}
               aiRoute={aiRouteStatus.route}
               aiRouteReady={aiRouteStatus.ready}
               isAuthenticated={isAuthenticated}
               onSignIn={handleSignIn}
+              hasAuditorPermission={hasAuditorPermission}
+              hasSkillsPermission={hasSkillsPermission}
             />
           ) : (
             <AiChatPromptArea
@@ -2745,11 +2781,16 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               ollamaModels={ollamaModels}
               messages={messages}
               handleLoadSkills={handleLoadSkills}
+              handleOpenSettings={handleOpenSettings}
+              handleLoadAuditChecklist={handleLoadAuditChecklist}
+              handleGasOptimisationAudit={handleGasOptimisationAudit}
               usingOwnApiKey={usingOwnApiKey}
               aiRoute={aiRouteStatus.route}
               aiRouteReady={aiRouteStatus.ready}
               isAuthenticated={isAuthenticated}
               onSignIn={handleSignIn}
+              hasAuditorPermission={hasAuditorPermission}
+              hasSkillsPermission={hasSkillsPermission}
             />
           )
         }

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Modal, Button, Alert, Spinner } from 'react-bootstrap';
 import { ethers } from 'ethers';
 import { parseEnsRegistrationError } from '../../utils/ens-utils';
+import { endpointUrls } from '@remix-endpoints-helper';
 
-const REMIX_ENDPOINT_ENS = 'https://quickdapp-ens.api.remix.live';
+const REMIX_ENDPOINT_ENS = endpointUrls.ensService;
 
 interface EnsRegistrationModalProps {
   show: boolean;

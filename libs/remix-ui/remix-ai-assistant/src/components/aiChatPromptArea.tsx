@@ -49,11 +49,16 @@ interface AiChatPromptAreaProps {
     setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
     messages: ChatMessage[]
     handleLoadSkills?: () => void
+    handleOpenSettings?: () => void
+    handleLoadAuditChecklist?: () => void
+    handleGasOptimisationAudit?: () => void
     usingOwnApiKey?: boolean
     aiRoute?: 'initializing' | 'agent' | 'tools' | 'chat'
     aiRouteReady?: boolean
     isAuthenticated?: boolean
     onSignIn?: () => void
+    hasAuditorPermission?: boolean
+    hasSkillsPermission?: boolean
 }
 
 export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
@@ -186,6 +191,12 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         aiRouteReady={props.aiRouteReady}
         isAuthenticated={props.isAuthenticated}
         onSignIn={props.onSignIn}
+        isNewChat={props.messages.length === 0}
+        handleOpenSettings={props.handleOpenSettings}
+        handleLoadAuditChecklist={props.handleLoadAuditChecklist}
+        handleGasOptimisationAudit={props.handleGasOptimisationAudit}
+        hasAuditorPermission={props.hasAuditorPermission}
+        hasSkillsPermission={props.hasSkillsPermission}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

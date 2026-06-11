@@ -12,8 +12,8 @@ const defaultUrls: EndpointUrls = {
 };
 
 const endpointPathMap: Record<keyof EndpointUrls, string> = {
-  ipfsGateway: 'jqgt',
-  ghfolderpull: 'ghfolderpull',
+  ipfsGateway: 'endpoints/jqgt',
+  ghfolderpull: 'endpoints/ghfolderpull',
 };
 
 const prefix = null;

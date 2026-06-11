@@ -13,7 +13,7 @@ export const aaSupportedNetworks = {
 }
 
 export const getPimlicoBundlerURL = (chainId) => {
-  return `https://pimlico.api.remix.live/api/proxy/${chainId}`
+  return `https://api.remix.live/endpoints/pimlico/api/proxy/${chainId}`
 }
 
 export const aaLocalStorageKey = 'smartAccounts'

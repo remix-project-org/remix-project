@@ -5,10 +5,11 @@ import pick from 'lodash/pick'
 import { type ModelType } from '../store'
 import { router } from '../../App'
 import { trackMatomoEvent } from '@remix-api'
+import { endpointUrls } from '@remix-endpoints-helper'
 import remixClient from '../../remix-client'
 
 // const apiUrl = 'http://localhost:3001';
-const apiUrl = 'https://learneth.api.remix.live'
+const apiUrl = endpointUrls.learneth
 
 export const repoMap = {
   en: {

@@ -5,6 +5,8 @@ export interface Command {
   description: string
   shortcut?: string
   category?: string
+  action?: () => void
+  disabled?: boolean
 }
 
 interface AutocompletePanelProps {
@@ -15,6 +17,7 @@ interface AutocompletePanelProps {
   themeTracker?: any
   selectedIndex: number
   onSelectedIndexChange: (index: number) => void
+  extraCommands?: Command[]
 }
 
 // Available commands - this could be moved to a config file or fetched dynamically
@@ -61,7 +64,8 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
   position,
   themeTracker,
   selectedIndex,
-  onSelectedIndexChange
+  onSelectedIndexChange,
+  extraCommands = []
 }) => {
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([])
   const panelRef = useRef<HTMLDivElement>(null)
@@ -73,12 +77,13 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
       return
     }
 
+    const allCommands = [...AVAILABLE_COMMANDS, ...extraCommands]
     const search = searchTerm.toLowerCase().slice(1) // Remove the '/' prefix
 
     // If search is empty (just '/'), show all commands
     const filtered = search.length === 0
-      ? AVAILABLE_COMMANDS
-      : AVAILABLE_COMMANDS.filter(cmd =>
+      ? allCommands
+      : allCommands.filter(cmd =>
         cmd.name.toLowerCase().includes(search.toLowerCase()) ||
           cmd.shortcut?.toLowerCase().includes(search.toLowerCase()) ||
           cmd.description.toLowerCase().includes(search.toLowerCase())
@@ -87,10 +92,10 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
     // Sort by relevance only if there's a search term
     if (search.length > 0) {
       filtered.sort((a, b) => {
-        const aName = a.name.toLowerCase().slice(1)
-        const bName = b.name.toLowerCase().slice(1)
-        const aShortcut = a.shortcut?.toLowerCase().slice(1) || ''
-        const bShortcut = b.shortcut?.toLowerCase().slice(1) || ''
+        const aName = a.name.toLowerCase()
+        const bName = b.name.toLowerCase()
+        const aShortcut = a.shortcut?.toLowerCase() || ''
+        const bShortcut = b.shortcut?.toLowerCase() || ''
 
         // Exact match
         if (aName === search || aShortcut === search) return -1
@@ -106,7 +111,7 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
     }
 
     setFilteredCommands(filtered)
-  }, [searchTerm])
+  }, [searchTerm, extraCommands])
 
   useEffect(() => {
     // Ensure selected item is visible
@@ -130,13 +135,13 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
   }
 
   const isDarkTheme = themeTracker?.name?.toLowerCase() === 'dark'
-  const backgroundColor = isDarkTheme ? '#2d2d3d' : '#ffffff'
-  const borderColor = isDarkTheme ? '#3d3d4d' : '#d1d5db'
-  const hoverColor = isDarkTheme ? '#3d3d4d' : '#f3f4f6'
-  const selectedColor = isDarkTheme ? '#4d4d5d' : '#e5e7eb'
-  const textColor = isDarkTheme ? '#e0e0e0' : '#1f2937'
-  const secondaryTextColor = isDarkTheme ? '#9ca3af' : '#6b7280'
-  const categoryColor = isDarkTheme ? '#6b7280' : '#9ca3af'
+  const backgroundColor = 'var(--bs-body-bg)'
+  const borderColor = 'var(--bs-border-color)'
+  const hoverColor = 'var(--custom-onsurface-layer-1)'
+  const selectedColor = 'var(--custom-onsurface-layer-1)'
+  const textColor = 'var(--bs-emphasis-color)'
+  const secondaryTextColor = 'var(--bs-body-color)'
+  const categoryColor = 'var(--bs-gray)'
 
   // Group commands by category
   const groupedCommands = filteredCommands.reduce((acc, cmd) => {
@@ -157,7 +162,7 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
         bottom: '100%',
         left: 0,
         right: 0,
-        marginBottom: '12px',
+        marginBottom: '8px',
         maxHeight: '350px',
         backgroundColor,
         border: `1px solid ${borderColor}`,
@@ -168,26 +173,25 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
       }}
       data-id="autocomplete-panel"
     >
-      <div className="px-3 py-2 border-bottom d-flex align-items-center" style={{
-        backgroundColor: isDarkTheme ? '#252535' : '#f8f9fa',
+      <div className="px-2 py-2 border-bottom d-flex align-items-center" style={{
+        backgroundColor: 'var(--custom-onsurface-layer-1)',
         borderColor,
         color: secondaryTextColor,
         fontSize: '0.85rem'
       }}>
-        <span style={{ opacity: 0.9 }}>💡 Choose an action and complete with your prompt</span>
+        <span style={{ opacity: 0.9 }}>Choose an action and complete with your prompt</span>
       </div>
       <div className="overflow-auto" style={{ maxHeight: '300px' }}>
         {Object.entries(groupedCommands).map(([category, commands]) => {
           return (
-            <div key={category}>
+            <div className='py-1 px-1 border-bottom border-[#3F4455]' key={category}>
               <div
-                className="px-3 py-2 small font-weight-bold text-uppercase"
+                className="px-2 py-1 small font-weight-bold text-uppercase"
                 style={{
                   color: categoryColor,
                   fontSize: '0.7rem',
                   letterSpacing: '0.05em',
-                  backgroundColor: isDarkTheme ? '#1f1f2f' : '#fafbfc',
-                  borderBottom: `1px solid ${borderColor}`
+                  backgroundColor: 'var(--bs-body-bg)',
                 }}
               >
                 {category === 'Build'}
@@ -206,35 +210,41 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
                   <button
                     key={cmd.name}
                     ref={(el) => itemRefs.current[index] = el}
-                    className="d-flex align-items-center justify-content-between w-100 px-3 py-2 border-0 text-left"
+                    className="d-flex align-items-center justify-content-between w-100 px-2 py-1 border-0 rounded-1 text-left"
                     style={{
-                      backgroundColor: isSelected ? selectedColor : 'transparent',
-                      color: textColor,
-                      cursor: 'pointer',
+                      backgroundColor: isSelected ? selectedColor : 'var(--bs-body-bg)',
+                      color: cmd.disabled ? 'var(--bs-secondary-color)' : textColor,
+                      cursor: cmd.disabled ? 'not-allowed' : 'pointer',
                       transition: 'all 0.15s ease',
-                      borderLeft: isSelected ? `3px solid ${isDarkTheme ? '#4f93ff' : '#007bff'}` : '3px solid transparent'
+                      borderLeft: isSelected ? '3px solid var(--custom-ai-color)' : '3px solid transparent',
+                      opacity: cmd.disabled ? 0.6 : 1
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = isSelected ? selectedColor : hoverColor
-                      onSelectedIndexChange(index)
+                      if (!cmd.disabled) {
+                        e.currentTarget.style.backgroundColor = isSelected ? selectedColor : hoverColor
+                        onSelectedIndexChange(index)
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = isSelected ? selectedColor : 'transparent'
+                      if (!cmd.disabled) {
+                        e.currentTarget.style.backgroundColor = isSelected ? selectedColor : 'var(--bs-body-bg)'
+                      }
                     }}
-                    onClick={() => onSelect(cmd)}
+                    onClick={() => !cmd.disabled && onSelect(cmd)}
                     data-id={`autocomplete-item-${cmd.name}`}
+                    disabled={cmd.disabled}
                   >
                     <div className="d-flex flex-column">
                       <div className="d-flex align-items-center">
-                        <span className="font-weight-medium" style={{ fontSize: '0.9rem' }}>
+                        <span className="font-weight-medium" style={{ fontSize: '0.78rem', opacity: cmd.disabled ? 0.6 : 1 }}>
                       /{cmd.name}
                         </span>
                         {cmd.shortcut && (
                           <span
                             className="ms-2 px-2 py-1 rounded-pill small"
                             style={{
-                              backgroundColor: isDarkTheme ? '#1d1d2d' : '#e9ecef',
-                              color: isDarkTheme ? '#4f93ff' : '#007bff',
+                              backgroundColor: 'var(--bs-body-bg)',
+                              color: 'var(--custom-ai-color)',
                               fontSize: '0.7rem',
                               fontWeight: 500
                             }}
@@ -246,21 +256,23 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
                       <span
                         className="small"
                         style={{
-                          color: secondaryTextColor,
+                          color: cmd.disabled ? 'var(--bs-warning)' : secondaryTextColor,
                           fontSize: '0.78rem',
                           marginTop: '2px',
-                          opacity: 0.85
+                          opacity: cmd.disabled ? 1 : 0.85,
+                          textAlign: 'left',
+                          fontStyle: cmd.disabled ? 'italic' : 'normal'
                         }}
                       >
                         {cmd.description}
                       </span>
                     </div>
-                    {isSelected && (
+                    {isSelected && !cmd.disabled && (
                       <span
                         className="badge rounded-pill ms-2"
                         style={{
-                          backgroundColor: isDarkTheme ? '#4f93ff' : '#007bff',
-                          color: '#ffffff',
+                          backgroundColor: 'var(--custom-primary)',
+                          color: 'var(--bs-body-bg)',
                           fontSize: '0.65rem',
                           padding: '3px 8px',
                           fontWeight: 'normal'

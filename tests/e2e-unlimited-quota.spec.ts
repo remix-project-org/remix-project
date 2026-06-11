@@ -24,7 +24,7 @@ test('Unlimited Mistral Small works, Mistral Medium shows insufficient credits',
   await page.goto(url)
 
   // --- 1. Sign in via topbar ----------------------------------------------
-  await page.locator('[data-id="topbarSignInButton"]').click()
+  await page.locator('[data-id="login-button"]').click()
   await page.locator('[data-id="loginModalE2EPoolButton"]').click()
   await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 })
 
@@ -45,7 +45,7 @@ test('Unlimited Mistral Small works, Mistral Medium shows insufficient credits',
   await page.locator('[data-id="remix-ai-composer-send-btn"]').click()
 
   await expect(page.locator('[data-id="ai-assistant-landing"]')).toBeHidden({ timeout: 15000 })
-  const firstBubble = page.locator('[data-id="ai-response-chat-bubble-section"].me-3').first()
+  const firstBubble = page.locator('[data-id="ai-response-chat-bubble-section"] [data-id="ai-user-chat-bubble"]').first()
   await expect(firstBubble).toBeVisible({ timeout: 60000 })
   await expect.poll(
     async () => (await firstBubble.innerText()).trim().length,

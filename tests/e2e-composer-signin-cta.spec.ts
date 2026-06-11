@@ -20,7 +20,7 @@ test('composer shows a Sign in CTA when anonymous and reverts to send after sign
   await page.goto(url)
 
   // Topbar Sign In button proves we loaded as an anonymous user.
-  await expect(page.locator('[data-id="topbarSignInButton"]')).toBeVisible({ timeout: 30000 })
+  await expect(page.locator('[data-id="login-button"]')).toBeVisible({ timeout: 30000 })
 
   // Open the AI assistant side panel.
   await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()
@@ -59,6 +59,6 @@ test('composer shows a Sign in CTA when anonymous and reverts to send after sign
   await expect(page.locator('[data-id="remix-ai-prompt-input"]')).toBeVisible()
 
   // Sanity: the topbar reflects the authenticated state.
-  await expect(page.locator('[data-id="topbarSignInButton"]')).toHaveCount(0)
+  await expect(page.locator('[data-id="login-button"]')).toHaveCount(0)
   await expect(page.locator('[data-id="user-menu-compact"]')).toBeVisible()
 })

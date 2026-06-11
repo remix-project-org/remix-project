@@ -13,7 +13,7 @@ test('test', async ({ page }) => {
 
   // Sanity-check that the topbar Sign In button is rendered (we do NOT click it
   // here — we want to sign in through the plan-manager hand-off instead).
-  await expect(page.locator('[data-id="topbarSignInButton"]')).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('[data-id="login-button"]')).toBeVisible({ timeout: 30000 });
 
   // Activate the AI assistant side panel.
   await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click();
@@ -45,7 +45,7 @@ test('test', async ({ page }) => {
   // Verify the topbar reflects the loaded tier: the Sign In button is gone,
   // the user-menu-compact (titled with the pool account name) is visible, and
   // opening it shows the expected feature badge for the free tier ("AI BASIC").
-  await expect(page.locator('[data-id="topbarSignInButton"]')).toHaveCount(0);
+  await expect(page.locator('[data-id="login-button"]')).toHaveCount(0);
   const userMenu = page.locator('[data-id="user-menu-compact"]')
   await expect(userMenu).toBeVisible();
   await expect(userMenu).toHaveAttribute('title', /E2E Pool/i);

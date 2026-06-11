@@ -1,6 +1,7 @@
 /* global fetch */
 'use strict'
 import { Plugin } from '@remixproject/engine'
+import { endpointUrls } from '@remix-endpoints-helper'
 
 const profile = {
   name: 'amp',
@@ -28,7 +29,7 @@ export class AmpPlugin extends Plugin {
   }
 
   async listDatasets () {
-    const url = `https://common-corsproxy.api.remix.live/api/trpc/datasets.list?proxy=https://playground.amp.thegraph.com`;
+    const url = `${endpointUrls.commonCorsProxy}/api/trpc/datasets.list?proxy=https://playground.amp.thegraph.com`;
     return await fetch(url);
   }
 }
