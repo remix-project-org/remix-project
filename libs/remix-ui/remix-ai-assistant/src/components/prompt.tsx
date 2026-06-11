@@ -256,6 +256,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   // route that can never become ready until they authenticate.
   const activeCategory = activeShortcut ? (SHORTCUT_CATEGORIES.find(c => c.id === activeShortcut) ?? null) : null
 
+  const toolCommands = actionCommands.filter(cmd => cmd.category === 'Tools')
+
   const needsSignIn = !aiRouteReady && !isAuthenticated && !!onSignIn
   const placeholderText = needsSignIn
     ? 'Sign in to chat with RemixAI…'
@@ -267,7 +269,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     <>
       {isNewChat && <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
         <div className="d-flex flex-row" style={{ gap: '4px' }}>
-          {SHORTCUT_CATEGORIES.map(cat => (
+          {[...SHORTCUT_CATEGORIES, ...(toolCommands.length > 0 ? [{ id: 'tools', label: 'Tools' }] : [])].map(cat => (
             <button
               key={cat.id}
               onClick={() => setActiveShortcut(prev => prev === cat.id ? null : cat.id)}
@@ -280,6 +282,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 backgroundColor: activeShortcut === cat.id ? 'var(--custom-onsurface-layer-1)' : 'var(--bs-body-bg)',
                 transition: 'all 0.15s ease',
               }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = activeShortcut === cat.id ? 'var(--custom-onsurface-layer-1)' : 'var(--bs-body-bg)' }}
               data-id={`shortcut-btn-${cat.id}`}
             >
               {cat.label}
@@ -323,6 +327,44 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                     {prompt.substring(prompt.indexOf(':') + 1)}
                   </span>
                 ) : prompt}
+              </button>
+            ))}
+          </div>
+        )}
+        {activeShortcut === 'tools' && (
+          <div
+            className="position-absolute rounded-3 shadow-lg overflow-hidden"
+            style={{
+              bottom: 'calc(100% + 4px)',
+              left: 0,
+              right: 0,
+              backgroundColor: 'var(--bs-body-bg)',
+              border: '1px solid var(--bs-border-color)',
+              zIndex: 1000,
+            }}
+            data-id="shortcut-popover-tools"
+          >
+            {toolCommands.map((cmd, i) => (
+              <button
+                key={cmd.name}
+                onClick={() => {
+                  setActiveShortcut(null)
+                  cmd.action?.()
+                }}
+                className="d-block w-100 text-start px-3 py-2 border-0"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'var(--bs-body-color)',
+                  fontSize: '0.8rem',
+                  borderBottom: i < toolCommands.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                data-id={`shortcut-tool-${cmd.name}`}
+              >
+                <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>/{cmd.name}</span>
+                <span className="ms-2" style={{ color: 'var(--bs-secondary-color)', fontSize: '0.75rem' }}>{cmd.description}</span>
               </button>
             ))}
           </div>
