@@ -1551,6 +1551,10 @@ body.light .message-copy-btn:hover {
    Tool Approval Card (ToolApprovalModal)
    -------------------------------------------------------- */
 
+code {
+  color: var(--bs-emphasis-color);
+}
+
 .tool-approval-card {
   background: var(--custom-onsurface-layer-1, var(--bs-secondary-bg));
   border: 1px solid var(--bs-border-color);
@@ -1570,6 +1574,7 @@ body.light .message-copy-btn:hover {
 .tool-approval-card__tool-name {
   font-weight: 600;
   font-size: 12px;
+  color: var(--custom-ai-color);
 }
 
 .tool-approval-card__timer {
@@ -1583,6 +1588,10 @@ body.light .message-copy-btn:hover {
   margin-bottom: 8px;
 }
 
+/* .tool-approval-card__file-info code {
+  color: var(--bs-secondary-color);
+} */
+
 .tool-approval-card__new-file {
   color: var(--bs-success);
   margin-left: 6px;
@@ -1591,7 +1600,7 @@ body.light .message-copy-btn:hover {
 
 .tool-approval-card__deploy-info {
   font-size: 12px;
-  color: var(--bs-warning);
+  color: var(--bs-secondary-color);
   margin-bottom: 8px;
 }
 
@@ -1622,30 +1631,14 @@ body.light .message-copy-btn:hover {
 
 .tool-approval-card__reviewing {
   font-size: 12px;
-  color: var(--bs-info);
+  color: var(--custom-ai-color);
   margin-bottom: 8px;
   padding: 6px 8px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--bs-info) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bs-info) 20%, transparent);
-  text-align: center;
+  background: color-mix(in srgb, var(--custom-ai-color) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--custom-ai-color) 20%, transparent);
 }
 
-.tool-approval-card__auto-accept-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-  cursor: pointer;
-  user-select: none;
-  margin: 0 0 8px 0;
-}
-
-.tool-approval-card__auto-accept-label input[type="checkbox"] {
-  margin: 0;
-  cursor: pointer;
-}
 
 .tool-approval-card__actions {
   display: flex;
@@ -1664,7 +1657,7 @@ body.light .message-copy-btn:hover {
 }
 
 .tool-approval-card__btn--reject {
-  background: var(--bs-danger);
+  background: var(--custom-onsurface-layer-4);
 }
 
 .tool-approval-card__btn--reject:hover {
@@ -1672,7 +1665,8 @@ body.light .message-copy-btn:hover {
 }
 
 .tool-approval-card__btn--approve {
-  background: var(--bs-success);
+  background: var(--custom-ai-color);
+  color: var(--bs-body-bg);
 }
 
 .tool-approval-card__btn--approve:hover {
@@ -1680,7 +1674,7 @@ body.light .message-copy-btn:hover {
 }
 
 .tool-approval-card__btn--review {
-  background: var(--bs-info);
+  background: var(--custom-onsurface-layer-1);
 }
 
 .tool-approval-card__btn--review:hover {

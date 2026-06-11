@@ -87,7 +87,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
     <div className="tool-approval-card">
       {/* Header */}
       <div className="tool-approval-card__header">
-        <span className="tool-approval-card__tool-name">Tool: {request.toolName}</span>
+        <span className="tool-approval-card__tool-name">{request.toolName}</span>
         {!isReviewing && (
           <span className="tool-approval-card__timer">
             {timeLeft}s
@@ -98,13 +98,13 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
       {/* Deployment / transaction label */}
       {request.category === 'deployment' && (
         <div className="tool-approval-card__deploy-info">
-          🚀 Deploy contract: <code>{request.toolArgs?.contractName || request.toolArgs?.name || 'unknown'}</code>
+          Deploy contract: <code>{request.toolArgs?.contractName || request.toolArgs?.name || 'unknown'}</code>
           {request.toolArgs?.environment && <span className="tool-approval-card__meta-label">({request.toolArgs.environment})</span>}
         </div>
       )}
       {request.category === 'transaction' && (
         <div className="tool-approval-card__tx-info">
-          💸 Send transaction: <code>{request.toolArgs?.to || 'unknown'}</code>
+          Send transaction: <code>{request.toolArgs?.to || 'unknown'}</code>
           {request.toolArgs?.value && <span className="tool-approval-card__meta-label">({request.toolArgs.value})</span>}
         </div>
       )}
@@ -134,18 +134,31 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
       )}
 
       {/* Auto-accept checkbox */}
-      <label className="tool-approval-card__auto-accept-label">
+      <div className="form-check mb-2">
         <input
+          className="form-check-input"
           type="checkbox"
+          id="hitlAutoAccept"
           checked={autoAcceptChecked}
           onChange={(e) => setAutoAcceptChecked(e.target.checked)}
           data-id="hitl-auto-accept-checkbox"
         />
-        Auto-accept all changes
-      </label>
+        <label className="form-check-label" htmlFor="hitlAutoAccept">
+          Auto-accept all changes
+        </label>
+      </div>
 
       {/* Action buttons */}
       <div className="tool-approval-card__actions">
+        {canReview && (
+          <button
+            onClick={handleReviewChanges}
+            className="tool-approval-card__btn tool-approval-card__btn--review"
+            data-id="tool-approval-review-button"
+          >
+            Review Changes
+          </button>
+        )}
         <button
           onClick={handleReject}
           className="tool-approval-card__btn tool-approval-card__btn--reject"
@@ -160,15 +173,6 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
         >
           Approve
         </button>
-        {canReview && (
-          <button
-            onClick={handleReviewChanges}
-            className="tool-approval-card__btn tool-approval-card__btn--review"
-            data-id="tool-approval-review-button"
-          >
-            Review Changes
-          </button>
-        )}
       </div>
     </div>
   )
