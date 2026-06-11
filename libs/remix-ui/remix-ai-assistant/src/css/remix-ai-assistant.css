@@ -814,7 +814,8 @@ mark,
 }
 
 /* Light theme gradient override */
-[data-theme="light"] .ai-assistant-bg::before {
+[data-theme="light"] .ai-assistant-bg::before,
+.ai-assistant-bg[data-theme="light"]::before {
   background: linear-gradient(
     360deg,
     #d8e8f0 0%,
@@ -875,6 +876,15 @@ mark,
     #b8d5e5 60%,
     #a0c8dc 100%
   ) !important;
+}
+
+/* When inside new chat screen, let parent gradient flow through prompt area */
+.ai-assistant-bg .ai-assistant-prompt-bg {
+  background: transparent !important;
+}
+
+.ai-assistant-bg .ai-assistant-prompt-bg::before {
+  display: none;
 }
 
 /* Fix for remix-ai-assistant container to prevent scrollbar */

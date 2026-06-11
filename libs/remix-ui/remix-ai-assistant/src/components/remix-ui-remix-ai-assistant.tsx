@@ -2430,7 +2430,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       </div>
     ) : (
       <div
-        className="d-flex flex-column w-100 h-100"
+        className={`d-flex flex-column w-100 h-100${messages.length === 0 ? ' ai-assistant-bg' : ''}`}
         ref={aiChatRef}
         style={{ overflow: 'hidden' }}
         data-theme={themeTracker && themeTracker?.name.toLowerCase()}
@@ -2460,7 +2460,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
           {/* Maximized Mode: Always show chat area */}
           {props.isMaximized ? (
-            <div className={`d-flex flex-column flex-grow-1 always-show ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+            <div className={`d-flex flex-column flex-grow-1 always-show${messages.length > 0 ? ' ai-chat-area-flat' : ''}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
               <ChatHistoryHeading
                 onNewChat={props.onNewConversation || (() => {})}
                 onToggleHistory={props.onToggleHistorySidebar || (() => {})}
@@ -2579,7 +2579,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               </div>
             ) : (
             /* Show chat area when sidebar is closed */
-              <div className={`d-flex flex-column flex-grow-1 sideBarIsClosed ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+              <div className={`d-flex flex-column flex-grow-1 sideBarIsClosed${messages.length > 0 ? ' ai-chat-area-flat' : ''}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
                 <ChatHistoryHeading
                   onNewChat={props.onNewConversation || (() => {})}
                   onToggleHistory={props.onToggleHistorySidebar || (() => {})}
