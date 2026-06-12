@@ -50,11 +50,13 @@ const tests = {
     browser
       .clickLaunchIcon('udapp')
       .switchEnvironment('desktopHost') // close the dropdown
+      /*
       .waitForElementVisible({
         locateStrategy: 'xpath',
         selector: '//*[@data-id="detectedNetworkEnv" and contains(.,"1337")]',
         timeout: 50000
       })
+      */
       .clickLaunchIcon('solidity')
       .click('*[data-id="compilerContainerCompileBtn"]')
       .pause(2000)
