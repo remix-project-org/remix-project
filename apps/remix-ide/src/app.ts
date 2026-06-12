@@ -55,7 +55,6 @@ import { BetaCornerWidgetPlugin } from './app/plugins/beta-corner-widget-plugin'
 import { NudgePlugin } from './app/plugins/nudge-plugin'
 import { HelpPlugin } from '@remix-ui/modal-help'
 import { PlanManagerPlugin } from '@remix-ui/plan-manager'
-import { RemixGuidePlugin } from './app/plugins/remixGuide'
 import { TemplatesPlugin } from './app/plugins/remix-templates'
 import { fsPlugin } from './app/plugins/electron/fsPlugin'
 import { isoGitPlugin } from './app/plugins/electron/isoGitPlugin'
@@ -119,9 +118,7 @@ import { PluginManagerComponent } from './app/components/plugin-manager-componen
 
 import CompileTab from './app/tabs/compile-tab'
 import SettingsTab from './app/tabs/settings-tab'
-import AnalysisTab from './app/tabs/analysis-tab'
 import DebuggerTab from './app/tabs/debugger-tab'
-import TestTab from './app/tabs/test-tab'
 import Filepanel from './app/panels/file-panel'
 import Editor from './app/editor/editor'
 import Terminal from './app/panels/terminal'
@@ -396,9 +393,6 @@ class AppComponent {
     const compilationDetails = new CompilationDetailsPlugin(appManager)
     const vyperCompilationDetails = new VyperCompilationDetailsPlugin(appManager)
 
-    // ----------------- Remix Guide ----------------------------
-    const remixGuide = new RemixGuidePlugin(appManager)
-
     // ----------------- ContractFlattener ----------------------------
     const contractFlattener = new ContractFlattener()
 
@@ -564,7 +558,6 @@ class AppComponent {
       solidityumlgen,
       compilationDetails,
       vyperCompilationDetails,
-      remixGuide,
       contractFlattener,
       solidityScript,
       templates,
@@ -666,16 +659,7 @@ class AppComponent {
       blockchain,
       this.engine
     )
-    const analysis = new AnalysisTab()
     const debug = new DebuggerTab()
-    const test = new TestTab(
-      Registry.getInstance().get('filemanager').api,
-      Registry.getInstance().get('offsettolinecolumnconverter').api,
-      filePanel,
-      compileTab,
-      appManager,
-      contentImport
-    )
 
     this.authPlugin = new AuthPlugin()
     this.invitationManager = new InvitationManagerPlugin()
@@ -690,8 +674,6 @@ class AppComponent {
       compileTab as any,
       run,
       debug as any,
-      analysis,
-      test,
       filePanel.remixdHandle,
       filePanel.truffleHandle,
       linkLibraries,

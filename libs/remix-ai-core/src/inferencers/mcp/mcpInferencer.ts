@@ -214,7 +214,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
     }
   }
 
-  private async enrichContextWithMCPResources(params: IParams, prompt?: string): Promise<string> {
+  public async enrichContextWithMCPResources(params: IParams, prompt?: string): Promise<string> {
     const connectedServers = this.getConnectedServers();
     if (!connectedServers.length) {
       return "";

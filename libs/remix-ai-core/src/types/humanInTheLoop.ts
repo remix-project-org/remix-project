@@ -24,7 +24,7 @@ export interface ToolApprovalResponse {
 
 export type ToolCategory = 'file_write' | 'file_delete' | 'deployment' | 'transaction' | 'dapp' | 'other'
 export type ToolRisk = 'low' | 'medium' | 'high'
-export type ToolApprovalPolicy = 'always_ask' | 'ask_risky' | 'auto_approve'
+export type ToolApprovalPolicy = 'always_ask' | 'ask_risky' | 'deployment_only' | 'auto_approve'
 
 export interface ToolPolicyConfig {
   defaultPolicy: ToolApprovalPolicy
@@ -126,6 +126,13 @@ export function shouldRequireApproval(toolName: string, policy: ToolApprovalPoli
   if (isSafeTool(toolName)) return false
   if (policy === 'auto_approve') return false
   if (policy === 'always_ask') return true
+  // 'deployment_only': auto-approve everything except on-chain actions
+  // (contract deployment and fund-spending transactions), which still need
+  // explicit user sign-off.
+  if (policy === 'deployment_only') {
+    const meta = getToolMetadata(toolName)
+    return meta.category === 'deployment' || meta.category === 'transaction'
+  }
   // 'ask_risky': only ask for medium+ risk
   const meta = getToolMetadata(toolName)
   return meta.risk === 'medium' || meta.risk === 'high'

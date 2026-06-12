@@ -156,8 +156,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     // Store MCP inferencer for resource access
     this.mcpInferencer = mcpInferencer
 
-    // Initialize tools with approval gate
-    this.approvalGate = new ToolApprovalGate(plugin, this.event, 'ask_risky')
+    // Initialize tools with approval gate. AI-first mode: only on-chain actions
+    // (contract deployment / fund-spending transactions) require user approval;
+    // everything else (file writes, compilation, DApp generation) runs automatically.
+    this.approvalGate = new ToolApprovalGate(plugin, this.event, 'deployment_only')
     this.initializeTools(toolRegistry, mcpInferencer)
   }
 
@@ -392,9 +394,21 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         remixAILogger.log('[DeepAgentInferencer] answer(): seeding', seeded.length, 'history messages into new thread', this.sessionThreadId)
       }
 
+      // Prompt-aware MCP resource context: the project resource is always
+      // included as the base, plus any resources the MCP inferencer scores as
+      // relevant to this prompt. Enriches the turn without bloating the system
+      // prompt; failures degrade gracefully to no extra context.
+      let mcpContext = ''
+      try {
+        mcpContext = (await this.mcpInferencer?.enrichContextWithMCPResources(params, prompt)) || ''
+      } catch (error) {
+        remixAILogger.warn('[DeepAgentInferencer] MCP context enrichment failed:', error)
+      }
+      const combinedContext = [mcpContext, context].filter(Boolean).join('\n\n')
+
       const messages = [
         ...seeded,
-        { role: 'user', content: context ? `Context:\n${context}\n\nQuestion: ${prompt}` : prompt }
+        { role: 'user', content: combinedContext ? `Context:\n${combinedContext}\n\nQuestion: ${prompt}` : prompt }
       ]
 
       try {
@@ -706,35 +720,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     }
   }
 
-  private async getProjectStructure(): Promise<string> {
-    if (!this.mcpInferencer) {
-      return ''
-    }
-
-    try {
-      const connectedServers = this.mcpInferencer.getConnectedServers()
-      if (!connectedServers || !connectedServers.includes('Remix IDE Server')) {
-        return ''
-      }
-
-      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix IDE Server')
-      if (!mcpClient || !mcpClient.isConnected()) {
-        return ''
-      }
-
-      const content = await mcpClient.readResource('project://structure')
-      if (!content?.text) {
-        return ''
-      }
-
-      remixAILogger.log('[DeepAgentInferencer] Added project structure to system prompt')
-      return `\n\n## Current Project Structure\n${content.text}`
-    } catch (error) {
-      remixAILogger.warn('[DeepAgentInferencer] Failed to get project structure:', error)
-      return ''
-    }
-  }
-
   private async createAgentWithTools(selectedTools: DynamicStructuredTool[]): Promise<void> {
     try {
       if (!this.model) {
@@ -753,8 +738,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         }
       })()
 
-      const projectStructure = await this.getProjectStructure()
-      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT + projectStructure
+      // Ambient MCP resource context is injected per-prompt in answer() via the
+      // MCP inferencer's prompt-aware enrichment (project resource first, plus
+      // resources scored as relevant to the user's prompt), so the system prompt
+      // stays lean here.
+      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT
 
       // Create agent configuration with selected tools
       // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents

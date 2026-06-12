@@ -17,7 +17,7 @@ export class ToolApprovalGate {
   private plugin: Plugin
   private pendingApprovals = new Map<string, { resolve: (approved: boolean, modified?: Record<string, any>) => void }>()
 
-  constructor(plugin: Plugin, eventEmitter: EventEmitter, policy: ToolApprovalPolicy = 'ask_risky') {
+  constructor(plugin: Plugin, eventEmitter: EventEmitter, policy: ToolApprovalPolicy = 'deployment_only') {
     this.plugin = plugin
     this.eventEmitter = eventEmitter
     this.policy = policy
