@@ -32,17 +32,47 @@ export interface ChatHistoryComponentProps {
 
 interface AiChatIntroProps {
   theme: string
+  sendPrompt?: (prompt: string) => void
 }
 
-const AiChatIntro: React.FC<AiChatIntroProps> = ({ theme }) => {
+const SUGGESTION_CHIPS = [
+  'Create an ERC-20 token',
+  'Deploy a simple storage contract',
+  'Build an NFT collection (ERC-721)',
+  'Explain how a Solidity mapping works'
+]
+
+const AiChatIntro: React.FC<AiChatIntroProps> = ({ theme, sendPrompt }) => {
+  const isDark = theme && theme.toLowerCase() === 'dark'
   return (
     <div className="assistant-landing d-flex flex-column gap-1 mx-1 align-items-center justify-content-center text-center h-100 w-100" data-id="ai-assistant-landing">
       <div className="d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
-        <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '48px', height: '48px' }} className="container-img" />
+        <img src={isDark ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '48px', height: '48px' }} className="container-img" />
       </div>
-      <p className="mb-4" style={{ fontSize: '0.875rem' }}>
+      <p className="mb-4" style={{ fontSize: '1.25rem', fontWeight: 500 }}>
         What do you want to build today?
       </p>
+      <div className="d-flex flex-wrap gap-2 justify-content-center" style={{ maxWidth: '520px' }}>
+        {SUGGESTION_CHIPS.map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            className="btn btn-sm suggestion-chip"
+            data-id={`ai-suggestion-chip`}
+            onClick={() => sendPrompt && sendPrompt(chip)}
+            style={{
+              backgroundColor: isDark ? '#2a2a3e' : '#eef1f7',
+              color: isDark ? '#e8e8e8' : '#333',
+              border: `1px solid ${isDark ? '#3a3a52' : '#dde2ec'}`,
+              borderRadius: '16px',
+              padding: '6px 14px',
+              fontSize: '0.8125rem'
+            }}
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -70,7 +100,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       className="h-100 d-flex flex-column gap-4 overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
     >
       {messages.length === 0 ? (
-        <AiChatIntro theme={theme} />
+        <AiChatIntro theme={theme} sendPrompt={sendPrompt} />
       ) : (
         messages.map(msg => {
           const isCorrupted = msg.role === 'assistant' && (msg.content === null || msg.content === undefined)

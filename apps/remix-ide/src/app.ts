@@ -792,7 +792,9 @@ class AppComponent {
     await this.appManager.activatePlugin(['feedback'])
     await this.appManager.activatePlugin(['settings'])
 
-    await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager'])
+    // dgitApi is kept active: workspace initialization calls it (checkGit) during startup.
+    // The visible git panel ('dgit') and 'search' are intentionally not activated in AI-first mode.
+    await this.appManager.activatePlugin(['storage', 'storageMonitor', 'compileAndRun', 'dgitApi', 'helpPlugin', 'planManager'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
     if (isElectron()) {

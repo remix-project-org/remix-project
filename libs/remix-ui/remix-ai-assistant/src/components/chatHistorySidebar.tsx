@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { ConversationMetadata } from '../lib/types'
 import { CustomTooltip } from '@remix-ui/helper'
 import { ConversationItem } from './conversationItem'
+import { ContractEnvironment } from './ContractEnvironment'
 
 interface ChatHistorySidebarProps {
   conversations: ConversationMetadata[]
@@ -19,6 +20,54 @@ interface ChatHistorySidebarProps {
   isFloating?: boolean
   isMaximized?: boolean
   theme?: string
+  /** AI-first user space */
+  compiledContracts?: string[]
+  deployedContracts?: { address: string, name: string }[]
+  networkName?: string
+  walletAddress?: string
+  onInteractWithContract?: (contract: { address: string, name: string }) => void
+  providers?: { name: string, displayName: string, category?: string }[]
+  selectedProvider?: string
+  accounts?: { account: string, alias?: string }[]
+  onSelectNetwork?: (name: string) => void
+  onSelectAccount?: (account: string) => void
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+type ConversationGroup = {
+  label: string
+  items: ConversationMetadata[]
+}
+
+// Group conversations into Today / Yesterday / Last 7 days / Older buckets,
+// based on lastAccessedAt. Buckets are returned in display order, empty ones omitted.
+function groupConversationsByDate(conversations: ConversationMetadata[]): ConversationGroup[] {
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const startOfYesterday = startOfToday - DAY_MS
+  const startOf7DaysAgo = startOfToday - 7 * DAY_MS
+
+  const today: ConversationMetadata[] = []
+  const yesterday: ConversationMetadata[] = []
+  const last7Days: ConversationMetadata[] = []
+  const older: ConversationMetadata[] = []
+
+  // Already sorted descending by lastAccessedAt upstream; keep that order.
+  for (const conv of conversations) {
+    const ts = conv.lastAccessedAt || conv.updatedAt || conv.createdAt || 0
+    if (ts >= startOfToday) today.push(conv)
+    else if (ts >= startOfYesterday) yesterday.push(conv)
+    else if (ts >= startOf7DaysAgo) last7Days.push(conv)
+    else older.push(conv)
+  }
+
+  return [
+    { label: 'Today', items: today },
+    { label: 'Yesterday', items: yesterday },
+    { label: 'Last 7 days', items: last7Days },
+    { label: 'Older', items: older }
+  ].filter(group => group.items.length > 0)
 }
 
 export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
@@ -35,11 +84,23 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   onSearch,
   isFloating = false,
   isMaximized = false,
-  theme = 'dark'
+  theme = 'dark',
+  compiledContracts = [],
+  deployedContracts = [],
+  networkName,
+  walletAddress,
+  onInteractWithContract,
+  providers = [],
+  selectedProvider,
+  accounts = [],
+  onSelectNetwork,
+  onSelectAccount
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
   const [isSearching, setIsSearching] = useState(false)
+
+  const isDark = theme.toLowerCase() === 'dark'
 
   useEffect(() => {
     let cancelled = false
@@ -75,31 +136,32 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   }, [conversations, showArchived, searchQuery, onSearch])
 
   const archivedCount = conversations.filter(c => c.archived && c.messageCount > 0).length
+  const groups = groupConversationsByDate(filteredConversations)
 
   return (
     <div
       className={`chat-history-sidebar border-0 d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating ' : isMaximized ? '' : 'w-100'}`}
-      style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: theme === 'dark' ? 'var(--bs-dark)' : 'var(--bs-light)' }}
+      style={isMaximized && !isFloating ? { width: '280px', minWidth: '280px', maxWidth: '280px' } : isFloating ? { width: '280px', minWidth: '280px' } : { minWidth: '280px', backgroundColor: isDark ? 'var(--bs-dark)' : 'var(--bs-light)' }}
       data-id="chat-history-sidebar"
       data-theme={theme?.toLowerCase()}
     >
-      {/* Header */}
-      <div className="border-0 p-3" style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          {isMaximized && (
-            <CustomTooltip tooltipText="Close sidebar">
-              <button
-                className="btn btn-sm p-0 sidebar-close-btn"
-                onClick={onClose}
-                data-id="close-sidebar-btn"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </CustomTooltip>
-          )}
-        </div>
-
-        {/* Search Bar */}
+      <div className="border-0 p-3">
+        <button
+          className="btn btn-sm w-100 d-flex align-items-center gap-2 mb-3 new-chat-sidebar-btn"
+          onClick={onNewConversation}
+          data-id="sidebar-new-chat-btn"
+          style={{
+            backgroundColor: isDark ? '#3a3a52' : '#e0e5f0',
+            color: isDark ? '#e8e8e8' : '#333',
+            border: 'none',
+            padding: '8px 12px',
+            justifyContent: 'flex-start',
+            fontWeight: 500
+          }}
+        >
+          <i className="fas fa-pen-to-square"></i>
+          <span>New chat</span>
+        </button>
         <div className="search-bar mb-2 p-1">
           <i className={`fas ${isSearching ? 'fa-spinner fa-spin' : 'fa-search'} search-icon`}></i>
           <input
@@ -109,47 +171,40 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             data-id="search-conversations-input"
-            style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : '#e4e8f1', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}
+            style={{ backgroundColor: isDark ? '#333446' : '#e4e8f1', color: isDark ? '#FFF' : '#333446' }}
           />
         </div>
-
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <h6 className="mb-0 fw-normal sidebar-title" data-id="chat-history-sidebar-title">
-            {'Chat history'} <span className="ms-2 text-muted">{filteredConversations.length}</span>
-          </h6>
-          <div className="d-flex gap-2">
-            <button
-              className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`}
-              onClick={onToggleArchived}
-              data-id="toggle-archived-btn"
-            >
-              <i className="fas fa-archive me-2"></i>
-              {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
-            </button>
-            {onDeleteAllConversations && filteredConversations.length > 0 && (
-              <CustomTooltip tooltipText="Delete all conversations">
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={() => {
-                    const confirmMsg = showArchived
-                      ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.`
-                      : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
-                    if (confirm(confirmMsg)) {
-                      onDeleteAllConversations()
-                    }
-                  }}
-                  data-id="delete-all-conversations-btn"
-                >
-                  <i className="fas fa-trash-alt me-2"></i>
-                  Delete All
-                </button>
-              </CustomTooltip>
-            )}
-          </div>
+        <div className="d-flex justify-content-end align-items-center gap-2">
+          <button
+            className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`}
+            onClick={onToggleArchived}
+            data-id="toggle-archived-btn"
+            style={{ fontSize: '11px' }}
+          >
+            <i className="fas fa-archive me-1"></i>
+            {showArchived ? 'Active' : `Archived (${archivedCount})`}
+          </button>
+          {onDeleteAllConversations && filteredConversations.length > 0 && (
+            <CustomTooltip tooltipText="Delete all conversations">
+              <button
+                className="btn btn-sm btn-danger"
+                onClick={() => {
+                  const confirmMsg = showArchived
+                    ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.`
+                    : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
+                  if (confirm(confirmMsg)) {
+                    onDeleteAllConversations()
+                  }
+                }}
+                data-id="delete-all-conversations-btn"
+                style={{ fontSize: '11px' }}
+              >
+                <i className="fas fa-trash-alt"></i>
+              </button>
+            </CustomTooltip>
+          )}
         </div>
       </div>
-
-      {/* Conversation List */}
       <div className="sidebar-body flex-grow-1 overflow-y-auto p-2">
         {filteredConversations.length === 0 ? (
           <div className="text-center text-muted mt-4">
@@ -172,33 +227,56 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             )}
           </div>
         ) : (
-          filteredConversations.map(conv => (
-            <ConversationItem
-              key={conv.id}
-              conversation={conv}
-              theme={theme}
-              active={conv.id === currentConversationId}
-              onClick={async () => {
-                // Automatically unarchive if the conversation is archived
-                if (conv.archived) {
-                  await onArchiveConversation(conv.id)
-                }
-                await onLoadConversation(conv.id)
-              }}
-              onArchive={async (e) => {
-                e.stopPropagation()
-                await onArchiveConversation(conv.id)
-              }}
-              onDelete={async (e) => {
-                e.stopPropagation()
-                if (confirm(`Delete conversation "${conv.title}"?`)) {
-                  await onDeleteConversation(conv.id)
-                }
-              }}
-            />
+          groups.map(group => (
+            <div key={group.label} className="mb-2">
+              <div
+                className="px-1 py-1 fw-bold text-uppercase"
+                style={{ fontSize: '10px', opacity: 0.6, letterSpacing: '0.5px' }}
+              >
+                {group.label}
+              </div>
+              {group.items.map(conv => (
+                <ConversationItem
+                  key={conv.id}
+                  conversation={conv}
+                  theme={theme}
+                  active={conv.id === currentConversationId}
+                  onClick={async () => {
+                    // Automatically unarchive if the conversation is archived
+                    if (conv.archived) {
+                      await onArchiveConversation(conv.id)
+                    }
+                    await onLoadConversation(conv.id)
+                  }}
+                  onArchive={async (e) => {
+                    e.stopPropagation()
+                    await onArchiveConversation(conv.id)
+                  }}
+                  onDelete={async (e) => {
+                    e.stopPropagation()
+                    if (confirm(`Delete conversation "${conv.title}"?`)) {
+                      await onDeleteConversation(conv.id)
+                    }
+                  }}
+                />
+              ))}
+            </div>
           ))
         )}
       </div>
+      <ContractEnvironment
+        compiledContracts={compiledContracts}
+        deployedContracts={deployedContracts}
+        networkName={networkName}
+        walletAddress={walletAddress}
+        onDeployedContractClick={onInteractWithContract}
+        providers={providers}
+        selectedProvider={selectedProvider}
+        accounts={accounts}
+        onSelectNetwork={onSelectNetwork}
+        onSelectAccount={onSelectAccount}
+        theme={theme}
+      />
     </div>
   )
 }

@@ -113,6 +113,8 @@ export function parseAIModelsFromPermissions(permissions: any): AIModel[] | null
   if (!Array.isArray(raw)) return null
   const parsed: AIModel[] = raw
     .filter((m: any) => m && typeof m.id === 'string' && typeof m.provider === 'string')
+    // Restrict to Anthropic Sonnet and Haiku only.
+    .filter((m: any) => m.provider === 'anthropic' && /sonnet|haiku/i.test(m.id))
     .map((m: any): AIModel => ({
       id: m.id,
       provider: m.provider,

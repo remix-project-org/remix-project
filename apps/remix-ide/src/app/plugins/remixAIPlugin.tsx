@@ -10,7 +10,6 @@ import { AIModel } from '@remix/remix-ai-core';
 import { aiErrorFromException, parseAIErrorEnvelope } from '@remix/remix-ai-core';
 import axios from 'axios';
 import { endpointUrls } from "@remix-endpoints-helper"
-import { Registry } from '@remix-project/remix-lib'
 import { DeepAgentEventBridge, MCPServerManager, PermissionChecker, ModelManager, DeepAgentManager, ChatRequestBuffer, ApiKeySettingsHelper } from './remixAI'
 
 const profile = {

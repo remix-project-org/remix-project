@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, createRef } from 'react'
+import React, { createRef } from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
 import * as packageJson from '../../../../../package.json'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import { ChatMessage, RemixUiRemixAiAssistant, RemixUiRemixAiAssistantHandle, ConversationMetadata } from '@remix-ui/remix-ai-assistant'
-import { EventEmitter } from 'events'
 import { trackMatomoEvent } from '@remix-api'
 import { ChatHistory, ChatHistoryStorageManager, IndexedDBChatHistoryBackend, remixAILogger } from '@remix/remix-ai-core'
 import { appActionTypes, AppAction } from '@remix-ui/app'
@@ -28,29 +27,30 @@ export class RemixAIAssistant extends ViewPlugin {
   dispatch: React.Dispatch<any> = () => { }
   appStateDispatch: React.Dispatch<AppAction> = () => { }
   queuedMessage: { text: string, timestamp: number } | null = null
-  event: any
   chatRef: React.RefObject<RemixUiRemixAiAssistantHandle>
   history: ChatMessage[] = []
   externalMessage: string
   storageManager: ChatHistoryStorageManager | null = null
   currentConversationId: string | null = null
   conversations: ConversationMetadata[] = []
-  showHistorySidebar: boolean = false
-  isMaximized: boolean = false
+  isMaximized: boolean = true
+  // AI-first user space: compiled + deployed contracts, network & wallet
+  compiledContracts: string[] = []
+  deployedContracts: { address: string, name: string }[] = []
+  networkName: string = 'Remix VM'
+  walletAddress: string = ''
+  providers: { name: string, displayName: string, category?: string }[] = []
+  selectedProvider: string = ''
+  accounts: { account: string, alias?: string }[] = []
   private _initializing: boolean = true
   private _initStarted: boolean = false
 
   constructor() {
     super(profile)
-    this.event = new EventEmitter()
     this.element = document.createElement('div')
     this.element.setAttribute('id', 'remix-ai-assistant')
     this.chatRef = createRef<RemixUiRemixAiAssistantHandle>()
     ;(window as any).remixAIChat = this.chatRef
-
-    // Load sidebar visibility preference
-    const sidebarPref = localStorage.getItem('remix-ai-history-sidebar-visible')
-    this.showHistorySidebar = sidebarPref === 'true'
   }
 
   getProfile() {
@@ -58,28 +58,108 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async onActivation() {
-    if (!localStorage.getItem('remixaiassistant_firstload_flag')) {
-      this.call('sidePanel', 'pinView', this.profile)
-      await this.call('layout', 'maximiseSidePanel')
+    try {
+      await this.call('sidePanel', 'pinView', this.profile)
+    } catch (e) {
+      remixAILogger.error('Failed to pin RemixAI assistant to right panel:', e)
     }
-    localStorage.setItem('remixaiassistant_firstload_flag', '1')
 
-    // Listen to layout events for maximization state
-    this.on('layout', 'maximiseRightSidePanel', () => {
-      this.setMaximized(true)
-    })
-    this.on('layout', 'resetRightSidePanel', () => {
-      this.setMaximized(false)
-    })
-    this.on('layout', 'enhanceRightSidePanel', () => {
-      this.setMaximized(true)
+    this.on('layout', 'maximiseRightSidePanel', () => this.setMaximized(true))
+    this.on('layout', 'resetRightSidePanel', () => this.setMaximized(true))
+    this.on('layout', 'enhanceRightSidePanel', () => this.setMaximized(true))
+
+    this.on('solidity', 'compilationFinished', (file: string, source: any, languageVersion: string, data: any) => {
+      const names: string[] = []
+      if (data && data.contracts) {
+        Object.keys(data.contracts).forEach((fileName) => {
+          Object.keys(data.contracts[fileName]).forEach((contractName) => {
+            if (!names.includes(contractName)) names.push(contractName)
+          })
+        })
+      }
+      this.compiledContracts = names
+      this.renderComponent()
     })
 
-    // Initialize storage
+    this.on('blockchain', 'transactionExecuted', async (error: any, from: string, to: string, txData: any, useCall: boolean) => {
+      if (!useCall) await this.refreshDeployedContracts()
+    })
+    this.on('blockchain', 'newProxyDeployment', () => this.refreshDeployedContracts())
+
+    this.on('blockchain', 'networkStatus', (networkStatus: any) => {
+      this.networkName = networkStatus?.network?.name || 'Remix VM'
+      this.refreshEnvironment()
+    })
+
     try {
       await this.initializeStorage()
     } catch (error) {
       remixAILogger.error('Failed to initialize chat history storage:', error)
+    }
+
+    this.refreshDeployedContracts()
+    this.refreshNetworkName()
+    this.refreshEnvironment()
+
+    this.on('blockchain', 'contextChanged', () => this.refreshEnvironment())
+  }
+
+  async refreshDeployedContracts() {
+    try {
+      const deployed = await this.call('udappDeployedContracts', 'getDeployedContracts')
+      this.deployedContracts = (deployed || []).map((c: any) => ({ address: c.address, name: c.name }))
+      this.renderComponent()
+    } catch (e) { /* not ready yet */ }
+  }
+
+  async refreshNetworkName() {
+    try {
+      const status = await this.call('blockchain', 'getCurrentNetworkStatus')
+      this.networkName = status?.network?.name || 'Remix VM'
+      this.renderComponent()
+    } catch (e) { /* not ready yet */ }
+  }
+
+  async refreshEnvironment() {
+    try {
+      const providers = await this.call('udappEnv', 'getProviders')
+      if (Array.isArray(providers)) this.providers = providers
+    } catch (e) { /* not ready yet */ }
+    try {
+      const selected = await this.call('udappEnv', 'getSelectedProvider')
+      this.selectedProvider = typeof selected === 'string' ? selected : (selected?.name || '')
+    } catch (e) { /* not ready yet */ }
+    try {
+      const loaded = await this.call('udappEnv', 'getLoadedAccounts')
+      this.accounts = (loaded || []).map((a: any) => ({ account: a.account, alias: a.alias }))
+    } catch (e) { /* not ready yet */ }
+    try {
+      const account = await this.call('udappEnv', 'getSelectedAccount')
+      if (account) this.walletAddress = account
+    } catch (e) { /* not ready yet */ }
+    this.renderComponent()
+  }
+
+  async selectNetwork(name: string) {
+    try {
+      await this.call('udappEnv', 'changeExecutionContext', { context: name })
+      await this.refreshNetworkName()
+      await this.refreshEnvironment()
+    } catch (e) {
+      remixAILogger.error('Failed to switch network:', e)
+      if (name && name.startsWith('injected')) {
+        this.call('notification', 'toast', 'MetaMask is not available. Make sure the extension is installed and unlocked.').catch(() => {})
+      }
+    }
+  }
+
+  async selectAccount(account: string) {
+    try {
+      await this.call('udappEnv', 'setSelectedAccount', account)
+      this.walletAddress = account
+      this.renderComponent()
+    } catch (e) {
+      remixAILogger.error('Failed to switch account:', e)
     }
   }
 
@@ -316,12 +396,6 @@ export class RemixAIAssistant extends ViewPlugin {
     }
   }
 
-  toggleHistorySidebar() {
-    this.showHistorySidebar = !this.showHistorySidebar
-    localStorage.setItem('remix-ai-history-sidebar-visible', this.showHistorySidebar.toString())
-    this.renderComponent()
-  }
-
   setMaximized(maximized: boolean) {
     this.isMaximized = maximized
     this.renderComponent()
@@ -385,9 +459,7 @@ export class RemixAIAssistant extends ViewPlugin {
       isInitializing: this._initializing,
       queuedMessage: this.queuedMessage,
       conversations: this.conversations,
-      currentConversationId: this.currentConversationId,
-      showHistorySidebar: this.showHistorySidebar,
-      isMaximized: this.isMaximized
+      currentConversationId: this.currentConversationId
     }
   }
 
@@ -411,28 +483,24 @@ export class RemixAIAssistant extends ViewPlugin {
       queuedMessage: this.queuedMessage,
       conversations: this.conversations,
       currentConversationId: this.currentConversationId,
-      showHistorySidebar: this.showHistorySidebar,
-      isMaximized: this.isMaximized
+      compiledContracts: this.compiledContracts,
+      deployedContracts: this.deployedContracts,
+      networkName: this.networkName,
+      walletAddress: this.walletAddress,
+      providers: this.providers,
+      selectedProvider: this.selectedProvider,
+      accounts: this.accounts
     })
   }
 
   chatPipe = (message: string) => {
     remixAILogger.log('[QuickDapp] chatPipe received, length:', message?.length)
-    // Show right side panel if it's hidden
     this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
       if (isPanelHidden) {
         this.call('rightSidePanel', 'togglePanel')
       }
     })
 
-    // Navigate back to chat view if the history sidebar is open
-    if (this.showHistorySidebar) {
-      this.showHistorySidebar = false
-      localStorage.setItem('remix-ai-history-sidebar-visible', 'false')
-      this.renderComponent()
-    }
-
-    // If the inner component is mounted, call it directly
     if (this.chatRef?.current) {
       this.chatRef.current.sendChat(message)
       return
@@ -477,8 +545,13 @@ export class RemixAIAssistant extends ViewPlugin {
     queuedMessage: { text: string, timestamp: number } | null
     conversations: ConversationMetadata[]
     currentConversationId: string | null
-    showHistorySidebar: boolean
-    isMaximized: boolean
+    compiledContracts: string[]
+    deployedContracts: { address: string, name: string }[]
+    networkName: string
+    walletAddress: string
+    providers: { name: string, displayName: string, category?: string }[]
+    selectedProvider: string
+    accounts: { account: string, alias?: string }[]
   }) {
     return (
       <RemixUiRemixAiAssistant
@@ -493,17 +566,29 @@ export class RemixAIAssistant extends ViewPlugin {
         queuedMessage={state.queuedMessage}
         conversations={state.conversations}
         currentConversationId={state.currentConversationId}
-        showHistorySidebar={state.showHistorySidebar}
-        isMaximized={state.isMaximized}
+        compiledContracts={state.compiledContracts}
+        deployedContracts={state.deployedContracts}
+        networkName={state.networkName}
+        walletAddress={state.walletAddress}
+        providers={state.providers}
+        selectedProvider={state.selectedProvider}
+        accounts={state.accounts}
         onNewConversation={this.newConversation.bind(this)}
         onLoadConversation={this.loadConversation.bind(this)}
         onArchiveConversation={this.archiveConversation.bind(this)}
         onDeleteConversation={this.deleteConversation.bind(this)}
         onDeleteAllConversations={this.deleteAllConversations.bind(this)}
-        onToggleHistorySidebar={this.toggleHistorySidebar.bind(this)}
         onSearch={this.searchConversations.bind(this)}
+        onInteractWithContract={this.interactWithContract.bind(this)}
+        onSelectNetwork={this.selectNetwork.bind(this)}
+        onSelectAccount={this.selectAccount.bind(this)}
       />
     )
+  }
+
+  interactWithContract(contract: { address: string, name: string }) {
+    const message = `Interact with ${contract.name} deployed at ${contract.address}`
+    this.chatPipe(message)
   }
 
 }

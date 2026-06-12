@@ -15,14 +15,3 @@ export type ActivityType =
  * Sync status for cloud sync
  */
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error'
-
-/**
- * Props for conversation management callbacks
- */
-export interface ConversationCallbacks {
-  onNewConversation: () => void
-  onLoadConversation: (id: string) => void
-  onArchiveConversation: (id: string) => void
-  onDeleteConversation: (id: string) => void
-  onSearchConversations: (query: string) => void
-}

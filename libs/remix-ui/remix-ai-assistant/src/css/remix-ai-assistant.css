@@ -1204,19 +1204,22 @@ body.dark .conversation-item:hover {
   background-color: #2e2e3e !important;
 }
 
-.conversation-item-active {
-  background-color: transparent !important;
+.conversation-item-active,
+.conversation-item-active:hover {
+  background-color: var(--bs-tertiary-bg) !important;
+  border: none !important;
 }
 
-.conversation-item-active:hover {
-  background-color: transparent !important;
-  border: 1px solid !important;
-  border-color: var(--bs-border-color);
+[data-theme="dark"] .conversation-item-active,
+body.dark .conversation-item-active,
+[data-theme="dark"] .conversation-item-active:hover,
+body.dark .conversation-item-active:hover {
+  background-color: #2e2e3e !important;
 }
 
 .conversation-title {
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 400;
   color: var(--bs-body-color);
 }
 
@@ -1725,4 +1728,100 @@ body.light .message-copy-btn:hover {
 
 .ai-assistant-prompt-flat::before {
   display: none !important;
+}
+
+/* ─── Claude.com-style AI-first layout ─────────────────────────────── */
+
+/* Chat conversation and prompt area span the full width of the panel */
+.ai-chat-centered-column {
+  align-items: stretch;
+}
+
+.ai-chat-centered-column > * {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 5%;
+  padding-right: 5%;
+}
+
+/* New chat button in the history sidebar */
+.new-chat-sidebar-btn:hover {
+  filter: brightness(1.1);
+}
+
+/* Contract environment user-space panel */
+.contract-environment {
+  flex-shrink: 0;
+  max-height: 40%;
+  overflow-y: auto;
+}
+
+/* Tighten message spacing for the centered reading column */
+.ai-chat-centered-column .chat-row {
+  margin-bottom: 1.25rem !important;
+}
+
+/* Suggestion chips on the empty-state landing */
+.suggestion-chip {
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.suggestion-chip:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* ─── Smooth, seamless surface (AI-first) ──────────────────────────── */
+/* One continuous background on the assistant root; all inner sections
+   are transparent so there are no seams between chat and prompt areas. */
+.ai-assistant-root {
+  background: linear-gradient(180deg, #2b4042 0%, #243a44 45%, #1f1d33 100%);
+}
+[data-theme="light"] .ai-assistant-root {
+  background: linear-gradient(180deg, #dce9f1 0%, #cfe0ea 50%, #bcd6e6 100%);
+}
+
+/* Kill the per-section gradients/solid blocks that caused the fragmented look */
+.ai-assistant-root .ai-assistant-bg,
+.ai-assistant-root .ai-chat-area-flat,
+.ai-assistant-root .ai-assistant-prompt-bg {
+  background: transparent !important;
+}
+.ai-assistant-root .ai-assistant-bg::before,
+.ai-assistant-root .ai-assistant-prompt-bg::before {
+  display: none !important;
+}
+
+/* Sidebar: one uniform panel (Claude-style), delimited from the chat
+   space by a darker background + a subtle right divider. */
+.ai-assistant-root .chat-history-sidebar {
+  border: none !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(12, 12, 22, 0.55) !important;
+}
+[data-theme="light"] .ai-assistant-root .chat-history-sidebar {
+  border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+#right-side-panel {
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* ─── Augmented font sizes ─────────────────────────────────────────── */
+#remix-ai-chat-history .aiMarkup,
+#remix-ai-chat-history .ai-paragraph,
+#remix-ai-chat-history .chat-bubble {
+  font-size: 1.125rem;
+  line-height: 1.7;
+}
+.conversation-title {
+  font-size: 0.95rem !important;
+}
+.assistant-landing p {
+  font-size: 1.5rem !important;
+}
+.suggestion-chip {
+  font-size: 0.9rem !important;
 }

@@ -25,22 +25,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const menuPanelRef = useRef<HTMLDivElement>(null)
 
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-
-    if (diffHours < 1) return 'Just now'
-    if (diffHours < 24) return `${diffHours}h ago`
-
-    const diffDays = Math.floor(diffHours / 24)
-    if (diffDays === 1) return '1d ago'
-    if (diffDays < 7) return `${diffDays}d ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`
-    return `${Math.floor(diffDays / 30)}mo ago`
-  }
-
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -93,18 +77,15 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
   return (
     <div
-      className={`conversation-item p-3 mb-1 rounded-3 cursor-pointer position-relative ${active ? 'conversation-item-active' : ''}`}
+      className={`conversation-item px-2 py-2 mb-1 rounded cursor-pointer position-relative ${active ? 'conversation-item-active' : ''}`}
       onClick={onClick}
       data-id={`conversation-item-${conversation.id}`}
       data-theme={theme?.toLowerCase()}
     >
-      <div className="d-flex justify-content-between align-items-start">
+      <div className="d-flex justify-content-between align-items-center">
         <div className="flex-grow-1 overflow-hidden pe-2">
-          <div className="conversation-title text-truncate mb-1 text-light-emphasis" data-id="conversation-item-title">
+          <div className="conversation-title text-truncate text-light-emphasis" data-id="conversation-item-title">
             {conversation.title}
-          </div>
-          <div className="conversation-meta text-light-emphasis small" data-id="conversation-item-meta">
-            {formatDate(conversation.lastAccessedAt)} · {conversation.messageCount} message{conversation.messageCount !== 1 ? 's' : ''}
           </div>
         </div>
 

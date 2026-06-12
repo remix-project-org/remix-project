@@ -1,7 +1,7 @@
 import React, { Dispatch, useMemo } from 'react'
 import GroupListMenu from './contextOptMenu'
 import { PromptArea } from './prompt'
-import { AiAssistantType, groupListType } from '../types/componentTypes'
+import { groupListType } from '../types/componentTypes'
 import { ChatMessage, AIModel } from '@remix/remix-ai-core'
 
 interface AiChatPromptAreaProps {
@@ -12,7 +12,6 @@ interface AiChatPromptAreaProps {
     ollamaModelOpt?: { top: number, left: number }
     ollamaMenuRef?: React.RefObject<HTMLDivElement>
     themeTracker: any
-    showHistorySidebar: boolean
     isMaximized: boolean
     modelOpt: { top: number, left: number }
     menuRef: React.RefObject<HTMLDivElement>
@@ -96,12 +95,11 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
     props.onBuyCreditsClick?.(item.stateValue, item.label)
   }
 
-  {/* Prompt area - fixed at bottom */}
   return (
     <section
       id="remix-ai-prompt-area"
       className="ai-assistant-prompt-bg"
-      style={{ flexShrink: 0, minHeight: '110px', backgroundColor: props.messages.length > 0 && (props.themeTracker?.name.toLowerCase() === 'dark' ? '#222336' : '#eff1f5') as any }}
+      style={{ flexShrink: 0, minHeight: '110px' }}
       data-theme={props.themeTracker && props.themeTracker?.name.toLowerCase()}
     >
       {props.showModelSelector && (

@@ -395,7 +395,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 outline: 'none',
                 resize: 'none',
                 font: 'inherit',
-                fontSize: '0.875rem',
+                fontSize: '1rem',
                 color: '#A2A3BD',
                 backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
                 boxShadow: 'none',

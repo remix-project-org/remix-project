@@ -409,95 +409,30 @@ export class StorageApiService {
 // this for all users on /permissions; remove once it does.
 const HARDCODED_AI_MODELS: NonNullable<PermissionsResponse['ai_models']> = [
   {
-    id: 'mistral-small-latest',
-    provider: 'mistralai',
-    display_name: 'Mistral Small',
-    description: 'Fast and efficient for basic tasks',
-    category: 'general',
-    capabilities: ['chat', 'code'],
-    is_default: true,
-    requires_auth: true,
-    required_feature: 'ai:mistral-small',
-    available: true,
-    sort_order: 10
-  },
-  {
-    id: 'mistral-medium-latest',
-    provider: 'mistralai',
-    display_name: 'Mistral Medium',
-    description: 'Fast and efficient for basic tasks',
-    category: 'general',
-    capabilities: ['chat', 'code'],
-    is_default: false,
-    requires_auth: true,
-    required_feature: 'ai:mistral-medium',
-    available: true,
-    sort_order: 20
-  },
-  {
-    id: 'codestral-latest',
-    provider: 'mistralai',
-    display_name: 'Codestral',
-    description: 'Specialized for code generation',
-    category: 'coding',
-    capabilities: ['code', 'completion'],
-    is_default: false,
-    requires_auth: true,
-    required_feature: 'ai:codestral',
-    available: true,
-    sort_order: 30
-  },
-  {
     id: 'claude-sonnet-4-6',
     provider: 'anthropic',
     display_name: 'Claude Sonnet 4.6',
     description: 'Balanced performance and speed',
     category: 'coding',
     capabilities: ['chat', 'code', 'completion'],
-    is_default: false,
+    is_default: true,
     requires_auth: true,
     required_feature: 'ai:sonnet-4.6',
     available: true,
-    sort_order: 40
+    sort_order: 10
   },
   {
-    id: 'claude-opus-4-6',
+    id: 'claude-haiku-4-6',
     provider: 'anthropic',
-    display_name: 'Claude Opus 4.6',
-    description: 'Best for complex web3 contracts',
+    display_name: 'Claude Haiku 4.6',
+    description: 'Fast and efficient for everyday tasks',
     category: 'coding',
     capabilities: ['chat', 'code', 'completion'],
     is_default: false,
     requires_auth: true,
-    required_feature: 'ai:opus-4.6',
+    required_feature: 'ai:haiku-4.6',
     available: true,
-    sort_order: 50
-  },
-  {
-    id: 'ministral-3b-latest',
-    display_name: 'Mistral 3B',
-    provider: 'mistralai',
-    description: 'Lightning fast and efficient for basic tasks',
-    requires_auth: true,
-    required_feature: 'ai:mistral-small',
-    is_default: false,
-    available: true,
-    category: 'general',
-    capabilities: ['chat', 'code', 'completion'],
-    sort_order: 60
-  },
-  {
-    id: 'ministral-8b-latest',
-    display_name: 'Mistral 8B',
-    provider: 'mistralai',
-    description: 'Fast and efficient for basic tasks',
-    requires_auth: true,
-    required_feature: 'ai:mistral-small',
-    available: true,
-    is_default: false,
-    category: 'general',
-    capabilities: ['chat', 'code', 'completion'],
-    sort_order: 70
+    sort_order: 20
   }
 ]
 

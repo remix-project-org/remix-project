@@ -48,8 +48,8 @@ const normalizeAppConfig = (config: unknown): AppConfig => {
 const RemixApp = (props: IRemixAppUi) => {
   const [appReady, setAppReady] = useState<boolean>(false)
   const [showManagePreferencesDialog, setShowManagePreferencesDialog] = useState<boolean>(false)
-  const [hideSidePanel, setHideSidePanel] = useState<boolean>(false)
-  const [hidePinnedPanel, setHidePinnedPanel] = useState<boolean>(props.app.desktopClientMode || true)
+  const [hideSidePanel, setHideSidePanel] = useState<boolean>(true)
+  const [hidePinnedPanel, setHidePinnedPanel] = useState<boolean>(false)
   const [maximiseLeftTrigger, setMaximiseLeftTrigger] = useState<number>(0)
   const [enhanceLeftTrigger, setEnhanceLeftTrigger] = useState<number>(0)
   const [resetLeftTrigger, setResetLeftTrigger] = useState<number>(0)
@@ -60,6 +60,7 @@ const RemixApp = (props: IRemixAppUi) => {
   const [rightPanelCoeff, setRightPanelCoeff] = useState<number>(undefined)
   const [themeTracker, setThemeTracker] = useState<{name: string, quality: string, backgroundColor: string, fillColor: string, shapeColor: string, textColor: string, url: string}>(null);
   const [showAiChatHistory, setShowAiChatHistory] = useState<boolean>(false)
+  const [aiFirstMode, setAiFirstMode] = useState<boolean>(true)
 
   const [online, setOnline] = useState<boolean>(true)
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({
@@ -440,14 +441,14 @@ const RemixApp = (props: IRemixAppUi) => {
                       theme={themeTracker.name}
                     />
                   </div> : null}
-                  <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">
+                  <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className={`custom_icon_panel iconpanel bg-light ${aiFirstMode ? 'd-none' : ''}`}>
                     {props.app.menuicons.render()}
                   </div>
                   <div
                     ref={sidePanelRef}
                     id="side-panel"
                     data-id="remixIdeSidePanel"
-                    className={`sidepanel border-end border-start ${hideSidePanel ? 'd-none' : ''}`}
+                    className={`sidepanel border-end border-start ${hideSidePanel || aiFirstMode ? 'd-none' : ''}`}
                   >
                     {props.app.sidePanel.render()}
                   </div>
@@ -457,19 +458,19 @@ const RemixApp = (props: IRemixAppUi) => {
                     maximiseTrigger={maximiseLeftTrigger}
                     minWidth={305}
                     refObject={sidePanelRef}
-                    hidden={hideSidePanel}
+                    hidden={hideSidePanel || aiFirstMode}
                     setHideStatus={setHideSidePanel}
                     layoutPosition='left'
                     coeff={leftPanelCoeff}
                   ></DragBar>
-                  <div id="main-panel" data-id="remixIdeMainPanel" className="mainpanel d-flex">
+                  <div id="main-panel" data-id="remixIdeMainPanel" className={`mainpanel d-flex ${aiFirstMode ? 'd-none' : ''}`}>
                     <RemixUIMainPanel layout={props.app.layout}></RemixUIMainPanel>
                   </div>
-                  <div id="right-side-panel" ref={pinnedPanelRef} data-id="remixIdePinnedPanel" className={`flex-row-reverse pinnedpanel border-end border-start ${hidePinnedPanel ? 'd-none' : 'd-flex'}`}>
+                  <div id="right-side-panel" ref={pinnedPanelRef} data-id="remixIdePinnedPanel" className={`flex-row-reverse pinnedpanel border-end border-start ${(hidePinnedPanel && !aiFirstMode) ? 'd-none' : (aiFirstMode ? 'd-flex' : 'd-none')}`} style={aiFirstMode ? { flex: '1', width: '100%' } : {}}>
                     {props.app.rightSidePanel.render()}
                   </div>
                   {
-                    !hidePinnedPanel &&
+                    !hidePinnedPanel && !aiFirstMode &&
                     <DragBar
                       enhanceTrigger={enhanceRightTrigger}
                       resetTrigger={resetRightTrigger}
