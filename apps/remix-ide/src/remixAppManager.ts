@@ -57,7 +57,6 @@ let requiredModules = [
   'pluginManager',
   'tabs',
   'udapp',
-  'dgitApi',
   'solidity',
   'solidity-logic',
   'gistHandler',
@@ -93,12 +92,9 @@ let requiredModules = [
   'contractflattener',
   'solidity-script',
   'home',
-  'doc-viewer',
-  // 'doc-gen',
   'remix-templates',
   'remixAID',
   'solhint',
-  'dgit',
   'rightSidePanel',
   'pluginStateLogger',
   'environmentExplorer',
@@ -118,7 +114,6 @@ let requiredModules = [
   'desktopClient',
   'auth',
   'account',
-  'transactionSimulator',
   'amp',
   'resolutionIndex',
   'vega',
@@ -145,9 +140,9 @@ let requiredModules = [
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
 const dependentModules = ['foundry', 'hardhat', 'truffle', 'slither']
 
-const loadLocalPlugins = ['doc-gen', 'doc-viewer', 'contract-verification', 'vyper', 'solhint', 'circuit-compiler', 'learneth', 'noir-compiler']
+const loadLocalPlugins = ['contract-verification', 'vyper', 'solhint', 'circuit-compiler', 'learneth', 'noir-compiler']
 
-const partnerPlugins = ['cookbookdev']
+const partnerPlugins = []
 
 const sensitiveCalls = {
   fileManager: ['writeFile', 'copyFile', 'rename', 'copyDir'],
@@ -173,8 +168,6 @@ export function isNative(name) {
   const nativePlugins = [
     'vyper',
     'workshops',
-    'debugger',
-    'remixd',
     'menuicons',
     'solidity',
     'solidity-logic',
@@ -189,8 +182,6 @@ export function isNative(name) {
     'basic-http-provider',
     'tabs',
     'rightSidePanel',
-    'doc-gen',
-    'doc-viewer',
     'circuit-compiler',
     'compilationDetails',
     'vyperCompilationDetails',
@@ -371,7 +362,7 @@ export class RemixAppManager extends BaseRemixAppManager {
       const res = await fetch(this.pluginsDirectory)
       plugins = await res.json()
       plugins = plugins.filter((plugin) => {
-        if (plugin.name === 'dgit' || plugin.name === 'walletconnect') return false
+        if (plugin.name === 'dgit' || plugin.name === 'walletconnect' || plugin.name === 'cookbookdev') return false
         if (plugin.targets && Array.isArray(plugin.targets) && plugin.targets.length > 0) {
           return plugin.targets.includes('remix')
         }
@@ -409,7 +400,6 @@ export class RemixAppManager extends BaseRemixAppManager {
     }
 
     return plugins.map(plugin => {
-      if (plugin.name === 'dgit' && Registry.getInstance().get('platform').api.isDesktop()) { plugin.url = 'https://dgit4-76cc9.web.app/' }
       if (plugin.name === testPluginName) plugin.url = testPluginUrl
       return new IframePlugin(plugin)
     })
@@ -442,17 +432,6 @@ export class RemixAppManager extends BaseRemixAppManager {
       id: 'solidityumlgen',
       name: 'generateCustomAction',
       label: 'Generate UML',
-      type: [],
-      extension: ['.sol'],
-      path: [],
-      pattern: [],
-      sticky: true,
-      group: 7,
-    })
-    await this.call('filePanel', 'registerContextMenuItem', {
-      id: 'doc-gen',
-      name: 'generateDocsCustomAction',
-      label: 'Generate Docs',
       type: [],
       extension: ['.sol'],
       path: [],
@@ -514,7 +493,6 @@ class PluginLoader {
     const queryParams = new QueryParams()
     // some plugins should not be activated at page load.
     this.donotAutoReload = [
-      'remixd',
       'environmentExplorer',
       'templateSelection',
       'compilationDetails',
@@ -522,7 +500,6 @@ class PluginLoader {
       'walletconnect',
       'dapp-draft',
       'solidityumlgen',
-      'doc-viewer',
       'UIScriptRunner',
       'quick-dapp-v2'
     ]

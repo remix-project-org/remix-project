@@ -45,7 +45,6 @@ import { MergeVMProvider, LondonVMProvider, BerlinVMProvider, ShanghaiVMProvider
 import { MainnetForkVMProvider, SepoliaForkVMProvider, CustomForkVMProvider, HardhatProvider, GanacheProvider, FoundryProvider, ExternalHttpProvider, BaseProvider } from '@remix-ui/run-tab-environment'
 import { EnvironmentExplorer } from './app/providers/environment-explorer'
 import { FileDecorator } from './app/plugins/file-decorator'
-import { TransactionSimulator } from './app/plugins/transaction-simulator'
 import { CodeFormat } from './app/plugins/code-format'
 import { CompilationDetailsPlugin } from './app/plugins/compile-details'
 import { AuthPlugin } from './app/plugins/auth-plugin'
@@ -75,7 +74,6 @@ import { HardhatHandleDesktop } from './app/plugins/electron/hardhatPlugin'
 import { circomPlugin } from './app/plugins/electron/circomElectronPlugin'
 import { GitHubAuthHandler } from './app/plugins/electron/gitHubAuthHandler'
 import { DesktopAuthHandler as DesktopAuthHandlerPlugin } from './app/plugins/electron/desktopAuthHandler'
-import { GitPlugin } from './app/plugins/git'
 import { Matomo } from './app/plugins/matomo'
 import { DesktopClient } from './app/plugins/desktop-client'
 import { DesktopHost } from './app/plugins/electron/desktopHostPlugin'
@@ -110,7 +108,6 @@ import FileProvider from "./app/files/fileProvider"
 import { appPlatformTypes } from '@remix-ui/app'
 import { MatomoEvent } from '@remix-api'
 
-import DGitProvider from './app/files/dgitProvider'
 import WorkspaceFileProvider from './app/files/workspaceFileProvider'
 import { createWorkspaceProviderProxy } from './app/files/workspaceProviderProxy'
 
@@ -118,7 +115,6 @@ import { PluginManagerComponent } from './app/components/plugin-manager-componen
 
 import CompileTab from './app/tabs/compile-tab'
 import SettingsTab from './app/tabs/settings-tab'
-import DebuggerTab from './app/tabs/debugger-tab'
 import Filepanel from './app/panels/file-panel'
 import Editor from './app/editor/editor'
 import Terminal from './app/panels/terminal'
@@ -353,8 +349,6 @@ class AppComponent {
     // ----------------- fileManager service ----------------------------
     const fileManager = new FileManager(editor, appManager)
     Registry.getInstance().put({ api: fileManager, name: 'filemanager' })
-    // ----------------- dGit provider ---------------------------------
-    const dGitProvider = new DGitProvider()
 
     // ----------------- Storage plugin ---------------------------------
     const storagePlugin = new StoragePlugin()
@@ -365,8 +359,6 @@ class AppComponent {
     // ------- FILE DECORATOR PLUGIN ------------------
     const fileDecorator = new FileDecorator()
 
-    // ------- TRANSACTION SIMULATOR PLUGIN ------------------
-    const transactionSimulator = new TransactionSimulator()
 
     // ------- CODE FORMAT PLUGIN ------------------
     const codeFormat = new CodeFormat()
@@ -380,8 +372,6 @@ class AppComponent {
     //---- templates
     const templates = new TemplatesPlugin()
 
-    //---- git
-    const git = new GitPlugin()
 
     //---- matomo
     const matomo = new Matomo()
@@ -527,13 +517,11 @@ class AppComponent {
       offsetToLineColumnConverter,
       codeParser,
       fileDecorator,
-      transactionSimulator,
       codeFormat,
       terminal,
       web3Provider,
       compileAndRun,
       fetchAndCompile,
-      dGitProvider,
       storagePlugin,
       storageMonitor,
       vmProviderShanghai,
@@ -561,7 +549,6 @@ class AppComponent {
       contractFlattener,
       solidityScript,
       templates,
-      git,
       pluginStateLogger,
       matomo,
       templateSelection,
@@ -642,7 +629,7 @@ class AppComponent {
     const pluginManagerComponent = new PluginManagerComponent(appManager, this.engine)
     const filePanel = new Filepanel(appManager, contentImport)
     this.statusBar = new StatusBar(filePanel, this.menuicons)
-    this.topBar = new Topbar(filePanel, git, this.desktopClientMode)
+    this.topBar = new Topbar(filePanel, null, this.desktopClientMode)
     const landingPage = new LandingPage(appManager, this.menuicons, fileManager, filePanel, contentImport)
     this.settings = new SettingsTab(Registry.getInstance().get('config').api, editor)//, appManager)
 
@@ -659,7 +646,6 @@ class AppComponent {
       blockchain,
       this.engine
     )
-    const debug = new DebuggerTab()
 
     this.authPlugin = new AuthPlugin()
     this.invitationManager = new InvitationManagerPlugin()
@@ -673,7 +659,6 @@ class AppComponent {
     this.engine.register([
       compileTab as any,
       run,
-      debug as any,
       filePanel.remixdHandle,
       filePanel.truffleHandle,
       linkLibraries,
@@ -753,7 +738,6 @@ class AppComponent {
       'codeParser',
       'codeFormatter',
       'fileDecorator',
-      'transactionSimulator',
       'terminal',
       'blockchain',
       'fetchAndCompile',
@@ -774,9 +758,8 @@ class AppComponent {
     await this.appManager.activatePlugin(['feedback'])
     await this.appManager.activatePlugin(['settings'])
 
-    // dgitApi is kept active: workspace initialization calls it (checkGit) during startup.
-    // The visible git panel ('dgit') and 'search' are intentionally not activated in AI-first mode.
-    await this.appManager.activatePlugin(['storage', 'storageMonitor', 'compileAndRun', 'dgitApi', 'helpPlugin', 'planManager'])
+    // git, debugger, simulator, remixd and 'search' are removed/not activated in AI-first mode.
+    await this.appManager.activatePlugin(['storage', 'storageMonitor', 'compileAndRun', 'helpPlugin', 'planManager'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
     if (isElectron()) {

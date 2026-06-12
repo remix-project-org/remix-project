@@ -50,7 +50,6 @@ export class Layout extends Plugin {
       },
     }
     this.enhanced = {
-      'dgit': true,
       'remixaiassistant': true,
       'quick-dapp-v2': true,
       'udapp': true

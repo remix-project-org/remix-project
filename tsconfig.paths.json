@@ -49,9 +49,6 @@
             "@remix-ui/clipboard": [
               "libs/remix-ui/clipboard/src/index.ts"
             ],
-            "@remix-ui/debugger-ui": [
-              "libs/remix-ui/debugger-ui/src/index.ts"
-            ],
             "@remix-ui/drag-n-drop": [
               "libs/remix-ui/drag-n-drop/src/index.ts"
             ],
@@ -156,9 +153,6 @@
             ],
             "@remix-ui/workspace": [
               "libs/remix-ui/workspace/src/index.ts"
-            ],
-            "@remixproject/debugger-plugin": [
-              "apps/debugger/src/index.ts"
             ],
             "@remixproject/solidity-compiler-plugin": [
               "apps/solidity-compiler/src/index.ts"

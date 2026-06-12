@@ -8,11 +8,9 @@ import { PluginViewWrapper } from '@remix-ui/helper'
 import { AppAction } from 'libs/remix-ui/app/src/lib/remix-app/actions/app'
 import FilePanel from '../panels/file-panel'
 import { WorkspaceMetadata } from 'libs/remix-ui/workspace/src/lib/types'
-import { gitUIPanels } from '@remix-ui/git'
 import { HOME_TAB_NEW_UPDATES } from 'libs/remix-ui/home-tab/src/lib/components/constant'
 import axios from 'axios'
 import { UpdateInfo } from 'libs/remix-ui/home-tab/src/lib/components/types/carouselTypes'
-import { GitPlugin } from '../plugins/git'
 import { createWorkspace, deleteWorkspace, getWorkspaces, renameWorkspace, WorkspaceType } from 'libs/remix-ui/workspace/src/lib/actions'
 import { Registry } from '@remix-project/remix-lib'
 
@@ -34,7 +32,6 @@ export class Topbar extends Plugin {
   event: EventEmitter
   topbarExpandPath: string
   filePanel: FilePanel
-  git: GitPlugin
   workspaces: WorkspaceMetadata[] | WorkspaceType[]
   currentWorkspaceMetadata: WorkspaceMetadata
   registry: Registry
@@ -42,14 +39,13 @@ export class Topbar extends Plugin {
   fileManager: any
   desktopClientMode: boolean
 
-  constructor(filePanel: FilePanel, git: GitPlugin, desktopClientMode = false) {
+  constructor(filePanel: FilePanel, git: any = null, desktopClientMode = false) {
     super(TopBarProfile)
     this.filePanel = filePanel
     this.registry = Registry.getInstance()
     this.event = new EventEmitter()
     this.fileProviders = this.registry.get('fileproviders').api
     this.fileManager = this.registry.get('filemanager').api
-    this.git = git
     this.workspaces = []
     this.currentWorkspaceMetadata = null
     this.desktopClientMode = desktopClientMode
@@ -143,8 +139,7 @@ export class Topbar extends Plugin {
   }
 
   async logInGithub () {
-    await this.call('menuicons', 'select', 'dgit')
-    await this.call('dgit', 'open', gitUIPanels.GITHUB)
+    // git removed (IDE-less): no GitHub sign-in
   }
 
   async getLatestUpdates() {

@@ -88,7 +88,5 @@ export const sindriScripts = async (opts, plugin: any) => {
     writeIfNotExists('sindri.json', JSON.stringify(sindriManifest, null, 2))
   }
 
-  // Open the README file in the editor.
-  await plugin.call('doc-viewer' as any, 'viewDocs', ["scripts/sindri/README.md"])
-  plugin.call('tabs' as any, 'focus', 'doc-viewer')
+  // doc-viewer removed (IDE-less): README is written to the workspace; no preview pane.
 }

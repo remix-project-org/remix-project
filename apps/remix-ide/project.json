@@ -4,13 +4,11 @@
   "sourceRoot": "apps/remix-ide/src",
   "projectType": "application",
   "implicitDependencies": [
-    "doc-gen", 
-    "doc-viewer", 
-    "contract-verification", 
-    "vyper", 
-    "solhint", 
-    "circuit-compiler", 
-    "learneth", 
+    "contract-verification",
+    "vyper",
+    "solhint",
+    "circuit-compiler",
+    "learneth",
     "noir-compiler"
   ],
   "targets": {

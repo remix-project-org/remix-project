@@ -110,12 +110,7 @@ export default class Terminal extends Plugin {
     this._INDEX.commandsMain = {}
     if (opts.shell) this._shell = opts.shell // ???
     register(this)
-    this.event.register('debuggingRequested', async (hash: any) => {
-      // TODO should probably be in the run module
-      if (!await this._opts.appManager.isActive('debugger')) await this._opts.appManager.activatePlugin('debugger')
-      this.call('menuicons', 'select', 'debugger')
-      this.call('debugger', 'debug', hash)
-    })
+    // debugger removed (IDE-less): no debug-from-terminal action
     this.dispatch = null
 
   }

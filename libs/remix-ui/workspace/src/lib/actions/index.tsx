@@ -742,14 +742,9 @@ export const emitContextMenuEvent = async (cmd: customAction) => {
 }
 
 export const handleClickFile = async (path: string, type: 'file' | 'folder' ) => {
-  if (type === 'file' && path.endsWith('.md')) {
-    // just opening the preview
-    await plugin.call('doc-viewer' as any, 'viewDocs', [path])
-    plugin.call('tabs' as any, 'focus', 'doc-viewer')
-  } else {
-    await plugin.fileManager.open(path)
-    dispatch(focusElement([{ key: path, type }]))
-  }
+  // doc-viewer removed (IDE-less): markdown files open like any other file
+  await plugin.fileManager.open(path)
+  dispatch(focusElement([{ key: path, type }]))
 }
 
 export const handleExpandPath = (paths: string[]) => {
