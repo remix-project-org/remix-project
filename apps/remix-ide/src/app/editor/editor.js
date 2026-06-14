@@ -8,6 +8,12 @@ import { PluginViewWrapper } from '@remix-ui/helper'
 import { startTypeLoadingProcess } from './type-fetcher'
 
 const EventManager = require('../../lib/events')
+const DEFAULT_SIGNALING_SERVER_URL = 'ws://localhost:4444'
+
+function getPeerKey() {
+  const param = new URLSearchParams(window.location.search).get('peerKey')
+  return param || '0x0000000000000000000000000000000000000000000000000000000000000001'
+}
 
 const profile = {
   displayName: 'Editor',
@@ -122,6 +128,20 @@ export default class Editor extends Plugin {
       splitViewFile={state.splitViewFile}
       splitViewContent={state.splitViewContent}
       setMonaco={(monaco) => this.setMonaco(monaco)}
+      swarmDocSettings={{
+        signalingUrl: DEFAULT_SIGNALING_SERVER_URL,
+        sessionId: 'test-session',
+        swarm: {
+          user: {
+            walletPrivateKey: getPeerKey(),
+          },
+          infra: {
+            beeUrl: 'http://localhost:1633',
+            stamp: '12e097d7223fb42cfa99ad7402a3ab758e405e1a247536ecd0435342f4f011cd',
+            topic: 'a3f1c2d4-e5b6-7890-abcd-ef1234567890',
+          }
+        }
+      }}
     />
   }
 
