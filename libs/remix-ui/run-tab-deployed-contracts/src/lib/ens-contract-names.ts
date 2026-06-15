@@ -10,7 +10,29 @@ export const DEBOUNCE_MS = 600
 
 export const ENS_REVERSE_REGISTRAR_L1 = '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb' as Hex
 export const ENS_REVERSE_REGISTRAR_L2 = '0x0000000000D8e504002cC26E3Ec46D81971C1664' as Hex
+export const ENS_REGISTRY_L1 = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as Hex
 export const ENS_PUBLIC_RESOLVER_L1 = '0xF29100983E058B709F3D539b0c765937B804AC15' as Hex
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex
+
+export const ENS_REGISTRY_READ_ABI = [
+  {
+    name: 'resolver',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'node', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'address' }],
+  },
+] as const
+
+export const RESOLVER_NAME_ABI = [
+  {
+    name: 'name',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'node', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'string' }],
+  },
+] as const
 
 export const REVERSE_REGISTRAR_READ_ABI = [
   {

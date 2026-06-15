@@ -126,6 +126,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       if (!mountedRef.current || !isCurrentRequest(payload)) return
       if (payload.result) applyReverseResult(payload.result)
       setIsReverseInProgress(false)
+      setViewStep('done')
     }
 
     const onReverseFailed = (payload: any) => {
@@ -310,10 +311,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       if (!mountedRef.current) return
       setJobStatus(job.status)
       setJobResult(job)
-
-      const reverse = await checkReverseStatus()
-      if (!mountedRef.current) return
-      setViewStep(reverse === 'set' ? 'done' : 'reverse')
     } catch (error: any) {
       if (!mountedRef.current || error?.message === 'Operation canceled') return
       setJobError(error?.message || 'Registration failed.')
@@ -321,6 +318,22 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
       setViewStep('error')
     }
   }, [label, project, chainId, contract.address, checkReverseStatus, plugin])
+
+  useEffect(() => {
+    if (viewStep !== 'registering' || isReverseInProgress || jobStatus !== 'completed') return
+
+    let cancelled = false
+    ;(async () => {
+      const reverse = await checkReverseStatus()
+      if (!cancelled && mountedRef.current) {
+        setViewStep(reverse === 'set' ? 'done' : 'reverse')
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [checkReverseStatus, isReverseInProgress, jobStatus, viewStep])
 
   const handleReverse = useCallback(async () => {
     if (!chainId) return
@@ -340,8 +353,10 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
 
       if (!mountedRef.current) return
       applyReverseResult(result)
-      setIsReverseInProgress(false)
-      setViewStep('done')
+      if (result.done) {
+        setIsReverseInProgress(false)
+        setViewStep('done')
+      }
     } catch (error: any) {
       if (!mountedRef.current) return
       setJobError(error?.shortMessage || error?.message || 'Reverse registration failed.')

@@ -1,6 +1,8 @@
 import { Plugin } from '@remixproject/engine'
-import { createPublicClient, createWalletClient, custom, type Hex } from 'viem'
+import { createPublicClient, createWalletClient, custom, namehash, type Hex } from 'viem'
 import {
+  ENS_REGISTRY_L1,
+  ENS_REGISTRY_READ_ABI,
   ENS_EVENTS,
   ENS_PUBLIC_RESOLVER_L1,
   OWNABLE_ABI,
@@ -8,7 +10,9 @@ import {
   REVERSE_REGISTRAR_ABI_L1,
   REVERSE_REGISTRAR_ABI_L2,
   REVERSE_REGISTRAR_READ_ABI,
+  RESOLVER_NAME_ABI,
   SUPPORTED_CHAINS,
+  ZERO_ADDRESS,
   buildFullName,
   createEnsJob,
   fetchEnsJobStatus,
@@ -113,15 +117,43 @@ export class EnsContractNamesPlugin extends Plugin {
 
       if (!response.jobId) throw new Error(response.error || 'ENS registration job was not created.')
 
-      let job: JobResult | null = null
-      let consecutivePollFailures = 0
-      while (!job || (job.status !== 'completed' && job.status !== 'failed')) {
+      const initialJob: JobResult = {
+        id: response.jobId,
+        status: response.status as JobResult['status'],
+        fullName,
+        label,
+        project,
+        chainId,
+        contractAddress,
+        transactions: [],
+      }
+
+      this.emitForRequest(ENS_EVENTS.forwardStatus, requestId, { job: initialJob, status: initialJob.status })
+      void this.pollForwardJob(response.jobId, requestId)
+
+      return initialJob
+    } catch (error: any) {
+      if (error?.message !== 'Operation canceled') {
+        this.emitForRequest(ENS_EVENTS.forwardFailed, requestId, { error: error?.message || String(error) })
+      }
+      this.cancelledOperations.delete(requestId)
+      throw error
+    }
+  }
+
+  private async pollForwardJob(jobId: string, requestId: string) {
+    let consecutivePollFailures = 0
+    let polling = true
+
+    try {
+      while (polling) {
         this.throwIfCancelled(requestId)
         await wait(POLL_INTERVAL)
         this.throwIfCancelled(requestId)
 
+        let job: JobResult
         try {
-          job = await fetchEnsJobStatus(response.jobId)
+          job = await fetchEnsJobStatus(jobId)
           consecutivePollFailures = 0
         } catch (pollError: any) {
           consecutivePollFailures += 1
@@ -134,21 +166,20 @@ export class EnsContractNamesPlugin extends Plugin {
         this.emitForRequest(ENS_EVENTS.forwardStatus, requestId, { job, status: job.status })
 
         if (job.status === 'completed') {
+          polling = false
           await this.logTerminal('info', `ENS registered: ${job.fullName}`)
           this.emitForRequest(ENS_EVENTS.forwardCompleted, requestId, { job })
-          return job
+          return
         }
 
         if (job.status === 'failed') {
-          const error = job.error || 'Registration failed.'
-          throw new Error(error)
+          throw new Error(job.error || 'Registration failed.')
         }
       }
     } catch (error: any) {
       if (error?.message !== 'Operation canceled') {
         this.emitForRequest(ENS_EVENTS.forwardFailed, requestId, { error: error?.message || String(error) })
       }
-      throw error
     } finally {
       this.cancelledOperations.delete(requestId)
     }
@@ -181,13 +212,7 @@ export class EnsContractNamesPlugin extends Plugin {
         return result
       }
 
-      const name = await publicClient.readContract({
-        address: getReverseRegistrar(chainId),
-        abi: REVERSE_REGISTRAR_READ_ABI,
-        functionName: 'nameForAddr',
-        args: [contractAddress as Hex],
-      })
-      const candidate = typeof name === 'string' ? name.trim() : ''
+      const candidate = await this.readReverseName(publicClient, chainId, contractAddress)
 
       if (!candidate) {
         const result: PrimaryEnsCheckResult = { status: 'unverified', name: '', message: '' }
@@ -210,22 +235,39 @@ export class EnsContractNamesPlugin extends Plugin {
   }
 
   async setReverse(params: ReverseCheckParams): Promise<ReverseCheckResult> {
+    const { requestId = '' } = params
+    this.cancelledOperations.delete(requestId)
+    this.emitForRequest(ENS_EVENTS.reverseStatus, requestId, { message: 'Connecting wallet...' })
+    void this.executeSetReverse(params)
+
+    return {
+      status: 'checking',
+      name: '',
+      done: false,
+      message: 'Connecting wallet...',
+    }
+  }
+
+  private async executeSetReverse(params: ReverseCheckParams): Promise<void> {
     const { requestId = '', chainId, contractAddress, fullName } = params
     this.emitForRequest(ENS_EVENTS.reverseStatus, requestId, { message: 'Connecting wallet...' })
 
     try {
+      this.throwIfCancelled(requestId)
       const provider = this.getWalletProvider()
       if (!provider) throw new Error('No wallet provider found. Please install MetaMask.')
 
       const walletClient = createWalletClient({ transport: custom(provider) })
       const publicClient = createPublicClient({ transport: custom(provider) })
 
+      this.throwIfCancelled(requestId)
       const currentChainId = await publicClient.getChainId()
       await this.logTerminal('info', `[ENS-Reverse] Chain: ${currentChainId}, expected: ${chainId}`)
       if (currentChainId !== chainId) {
         throw new Error(`Please switch your wallet to ${SUPPORTED_CHAINS.get(chainId)} (chain ID ${chainId}). Current: ${currentChainId}`)
       }
 
+      this.throwIfCancelled(requestId)
       const [account] = await walletClient.requestAddresses()
       await this.logTerminal('info', `[ENS-Reverse] Account: ${account}`)
 
@@ -267,6 +309,7 @@ export class EnsContractNamesPlugin extends Plugin {
       }
 
       this.emitForRequest(ENS_EVENTS.reverseStatus, requestId, { message: 'Confirm the transaction in your wallet...' })
+      this.throwIfCancelled(requestId)
       const tx = await walletClient.writeContract({
         chain: null,
         address: registrar,
@@ -292,14 +335,16 @@ export class EnsContractNamesPlugin extends Plugin {
         done: true,
         message: 'Reverse record set.',
       }
+      this.throwIfCancelled(requestId)
       this.emitForRequest(ENS_EVENTS.reverseCompleted, requestId, { result })
-      return result
     } catch (error: any) {
+      if (error?.message === 'Operation canceled') return
       const message = error?.shortMessage || error?.message || String(error)
       this.emitForRequest(ENS_EVENTS.reverseFailed, requestId, { error: message })
       await this.logTerminal('error', `[ENS-Reverse] ERROR: ${message}`)
       if (error?.cause) await this.logTerminal('error', `[ENS-Reverse] Cause: ${this.safeJson(error.cause)}`)
-      throw error
+    } finally {
+      this.cancelledOperations.delete(requestId)
     }
   }
 
@@ -327,13 +372,7 @@ export class EnsContractNamesPlugin extends Plugin {
         }
       }
 
-      const name = await publicClient.readContract({
-        address: getReverseRegistrar(chainId),
-        abi: REVERSE_REGISTRAR_READ_ABI,
-        functionName: 'nameForAddr',
-        args: [contractAddress as Hex],
-      })
-      const currentName = typeof name === 'string' ? name : ''
+      const currentName = await this.readReverseName(publicClient, chainId, contractAddress)
 
       if (currentName.toLowerCase() === fullName.toLowerCase()) {
         return {
@@ -358,6 +397,36 @@ export class EnsContractNamesPlugin extends Plugin {
         message: 'Reverse status could not be checked from the current wallet.',
       }
     }
+  }
+
+  private async readReverseName(publicClient: any, chainId: number, contractAddress: string): Promise<string> {
+    if (chainId !== 1) {
+      const name = await publicClient.readContract({
+        address: getReverseRegistrar(chainId),
+        abi: REVERSE_REGISTRAR_READ_ABI,
+        functionName: 'nameForAddr',
+        args: [contractAddress as Hex],
+      })
+      return typeof name === 'string' ? name.trim() : ''
+    }
+
+    const reverseNode = namehash(`${contractAddress.slice(2).toLowerCase()}.addr.reverse`)
+    const resolver = await publicClient.readContract({
+      address: ENS_REGISTRY_L1,
+      abi: ENS_REGISTRY_READ_ABI,
+      functionName: 'resolver',
+      args: [reverseNode],
+    }) as Hex
+
+    if (!resolver || resolver.toLowerCase() === ZERO_ADDRESS.toLowerCase()) return ''
+
+    const name = await publicClient.readContract({
+      address: resolver,
+      abi: RESOLVER_NAME_ABI,
+      functionName: 'name',
+      args: [reverseNode],
+    })
+    return typeof name === 'string' ? name.trim() : ''
   }
 
   private async readOwner(publicClient: any, contractAddress: string): Promise<string> {
