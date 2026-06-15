@@ -88,9 +88,29 @@ export function getSyncIconProps(status: WorkspaceSyncStatus | undefined): {
 function formatRelativeTime(ts: number): string {
   const diff = Date.now() - ts
   if (diff < 60_000) return 'just now'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}min ago`
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
   return new Date(ts).toLocaleDateString()
+}
+
+/**
+ * Short label shown inside the cloud sync pill (next to the icon).
+ * Mirrors the states in getSyncIconProps but with terse, badge-friendly text.
+ */
+function getSyncBadgeLabel(status: WorkspaceSyncStatus | undefined): string {
+  if (!status) return 'Connected'
+  switch (status.status) {
+  case 'loading': return 'Loading…'
+  case 'syncing': return 'Syncing…'
+  case 'pushing': return 'Uploading…'
+  case 'error': return 'Error'
+  default:
+    if (status.pendingChanges > 0) {
+      return `${status.pendingChanges} pending`
+    }
+    if (status.lastSync) return formatRelativeTime(status.lastSync)
+    return 'Connected'
+  }
 }
 
 // ── Inline icon for workspace dropdown items ──────────────────────────
@@ -139,11 +159,13 @@ interface CloudToggleProps {
 }
 
 /**
- * Single topbar widget: toggle switch + reactive cloud/sync icon.
+ * Single topbar widget: a pill badge (reactive cloud/sync icon + status label)
+ * that toggles cloud storage on/off when clicked.
  *
- * - Not logged in       → cloud-slash (disabled, muted) + off toggle
- * - Logged in, cloud OFF → cloud-slash + off toggle → click enables
- * - Logged in, cloud ON  → live sync icon (green/orange/red) + on toggle
+ * - Not logged in        → grayed-out pill, cloud-slash icon, "Off"
+ * - Logged in, cloud OFF  → grayed-out pill, cloud-slash icon, "Off" → click enables
+ * - Logged in, cloud ON   → full-color pill, live sync icon (green/orange/red)
+ *                           + label (relative sync time / status) → click disables
  */
 export const CloudToggle: React.FC<CloudToggleProps> = ({
   onEnableCloud,
@@ -165,9 +187,14 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
     ? `${syncProps?.icon}${syncProps?.animate ? ' ' + syncProps?.animate : ''}`
     : `fas fa-cloud-slash${loading ? ' fa-beat-fade' : ''}`
 
-  const iconColor = isOn
-    ? syncProps?.color
-    : theme === 'dark' ? '#f9fafe' : '#222336'
+  // When cloud is OFF the whole pill is grayed out; when ON the icon/text use
+  // the live sync color (green when synced, orange/red for pending/error).
+  const mutedColor = theme === 'dark' ? '#9ba1b0' : '#8a8d99'
+  const iconColor = isOn ? syncProps?.color : mutedColor
+
+  const label = isOn ? getSyncBadgeLabel(activeWorkspaceId ? syncStatus[activeWorkspaceId] : undefined) : 'Off'
+
+  const pillBg = theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
 
   const handleClick = useCallback(() => {
     if (isDisabled) return
@@ -192,13 +219,17 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
     <CustomTooltip placement="bottom" tooltipText={tooltipText}>
       <button
         data-id="cloud-toggle"
-        className={`d-inline-flex align-items-center border-0 p-0 text-theme-contrast ${className}`}
+        className={`d-inline-flex align-items-center border-0 ${className}`}
         style={{
-          background: 'transparent',
+          backgroundColor: pillBg,
+          borderRadius: '8px',
+          padding: '4px 10px',
           cursor: isDisabled ? 'not-allowed' : 'pointer',
-          opacity: isDisabled ? 0.4 : 1,
+          // Grayed out when cloud mode is OFF (or disabled / signed out) showing toggle state
+          opacity: isOn && !isDisabled ? 1 : 0.4,
           outline: 'none',
-          gap: '6px',
+          gap: '8px',
+          transition: 'opacity 0.2s ease',
         }}
         onClick={handleClick}
         disabled={isDisabled}
@@ -214,33 +245,16 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
           }}
         />
 
-        {/* Toggle track */}
+        {/* Status label (relative sync time when active, "Off" otherwise) */}
         <span
           style={{
-            position: 'relative',
-            display: 'inline-block',
-            width: '36px',
-            height: '20px',
-            borderRadius: '10px',
-            backgroundColor: isOn ? 'var(--bs-success)' : 'var(--bs-secondary)',
-            transition: 'background-color 0.25s ease',
-            flexShrink: 0,
+            fontSize: '0.85rem',
+            lineHeight: 1,
+            color: iconColor,
+            whiteSpace: 'nowrap',
           }}
         >
-          {/* Toggle knob */}
-          <span
-            style={{
-              position: 'absolute',
-              top: '2px',
-              left: isOn ? '18px' : '2px',
-              width: '16px',
-              height: '16px',
-              borderRadius: '50%',
-              backgroundColor: '#fff',
-              transition: 'left 0.25s ease',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-            }}
-          />
+          {label}
         </span>
       </button>
     </CustomTooltip>
