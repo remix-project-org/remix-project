@@ -1,197 +1,30 @@
 import React, { useState, useEffect, useRef, useContext, useCallback } from 'react'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { endpointUrls } from '@remix-endpoints-helper'
-import { createWalletClient, createPublicClient, custom, type Hex } from 'viem'
-
-const PARENT_NAME = 'remixcontract.eth'
-const ETHERSCAN_BASE = 'https://etherscan.io'
-const ENS_APP_BASE = 'https://app.ens.domains'
-const POLL_INTERVAL = 2000
-const DEBOUNCE_MS = 600
-
-const ENS_REVERSE_REGISTRAR_L1 = '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb' as Hex
-const ENS_REVERSE_REGISTRAR_L2 = '0x0000000000D8e504002cC26E3Ec46D81971C1664' as Hex
-const ENS_PUBLIC_RESOLVER_L1 = '0xF29100983E058B709F3D539b0c765937B804AC15' as Hex
-
-const getReverseRegistrar = (cid: number): Hex => {
-  if (cid === 1) return ENS_REVERSE_REGISTRAR_L1
-  return ENS_REVERSE_REGISTRAR_L2
-}
-
-const REVERSE_REGISTRAR_READ_ABI = [
-  {
-    name: 'nameForAddr',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'addr', type: 'address' }],
-    outputs: [{ name: '', type: 'string' }],
-  },
-] as const
-
-// L1: setNameForAddr(address addr, address owner, address resolver, string name)
-const REVERSE_REGISTRAR_ABI_L1 = [
-  {
-    name: 'setNameForAddr',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'addr', type: 'address' },
-      { name: 'owner', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'name', type: 'string' },
-    ],
-    outputs: [{ name: '', type: 'bytes32' }],
-  },
-] as const
-
-// L2: setNameForAddr(address addr, string name)
-const REVERSE_REGISTRAR_ABI_L2 = [
-  {
-    name: 'setNameForAddr',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'addr', type: 'address' },
-      { name: 'name', type: 'string' },
-    ],
-    outputs: [],
-  },
-] as const
-
-const OWNABLE_ABI = [
-  {
-    name: 'owner',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'address' }],
-  },
-] as const
-
-// Supported chains (must match backend)
-const SUPPORTED_CHAINS = new Map<number, string>([
-  [1, 'Ethereum Mainnet'],
-  [8453, 'Base'],
-  [42161, 'Arbitrum One'],
-  [10, 'OP Mainnet'],
-  [59144, 'Linea'],
-  [534352, 'Scroll'],
-])
-
-const CHAIN_EXPLORERS: Record<number, { url: string; name: string }> = {
-  1: { url: 'https://etherscan.io', name: 'Etherscan' },
-  8453: { url: 'https://basescan.org', name: 'Basescan' },
-  42161: { url: 'https://arbiscan.io', name: 'Arbiscan' },
-  10: { url: 'https://optimistic.etherscan.io', name: 'Etherscan (OP)' },
-  59144: { url: 'https://lineascan.build', name: 'Lineascan' },
-  534352: { url: 'https://scrollscan.com', name: 'Scrollscan' },
-}
-
-const getChainExplorer = (cid: number | null): { url: string; name: string } =>
-  (cid && CHAIN_EXPLORERS[cid]) || { url: 'https://etherscan.io', name: 'Etherscan' }
-
-type PreflightStatus =
-  | 'idle' | 'checking' | 'available' | 'available_for_chain'
-  | 'current' | 'taken' | 'unsupported_chain' | 'parent_not_owned'
-  | 'name_not_controlled' | 'project_not_controlled' | 'error'
-
-type JobStep = 'pending' | 'checking' | 'creating_project' | 'creating_label' | 'setting_forward' | 'completed' | 'failed'
-type ViewStep = 'input' | 'registering' | 'reverse' | 'done' | 'error'
-type ReverseStatus = 'idle' | 'checking' | 'set' | 'not_set' | 'wrong_chain' | 'unavailable'
-type PrimaryEnsStatus = 'idle' | 'checking' | 'verified' | 'unverified' | 'unavailable'
-
-interface PreflightResult {
-  fullName: string
-  targetCoinType: number
-  status: PreflightStatus
-  currentAddress?: string
-  parentOwned: boolean
-  estimatedTxCount: number
-  steps: string[]
-}
-
-interface JobTransaction {
-  type: string
-  hash?: string
-  gasUsed?: string
-  gasCostWei?: string
-}
-
-interface JobResult {
-  id: string
-  status: JobStep
-  fullName: string
-  transactions: JobTransaction[]
-  totalGasUsed?: string
-  totalCostWei?: string
-  error?: string
-  completedAt?: number
-}
-
-interface PrimaryEnsLookupResult {
-  name: string
-  targetCoinType: number
-  verified: boolean
-  status: 'verified' | 'mismatch' | 'unsupported_chain' | 'no_resolver' | 'unresolved' | 'invalid_name'
-  resolvedAddress?: string
-}
-
-// ── Helpers ──
-
-function apiBase(): string {
-  return endpointUrls.ensContractNames
-}
-
-const sanitizeLabel = (v: string) =>
-  v.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-
-const getDefaultLabel = (contract: DeployedContract) => {
-  const name = sanitizeLabel(contract.name || contract.contractData?.contract?.name || '')
-  return name || `contract-${contract.address.slice(2, 8).toLowerCase()}`
-}
-
-const formatEth = (wei: string) => {
-  const eth = Number(wei) / 1e18
-  return eth < 0.000001 ? '<0.000001' : eth.toFixed(6)
-}
-
-const JOB_STEP_LABELS: Record<string, string> = {
-  pending: 'Queued...',
-  checking: 'Checking name availability...',
-  creating_project: 'Creating project subname...',
-  creating_label: 'Creating label subname...',
-  setting_forward: 'Setting forward record...',
-  completed: 'Registration complete!',
-  failed: 'Registration failed',
-}
-
-const friendlyError = (raw: string): string => {
-  if (!raw) return 'An unknown error occurred.'
-  if (raw.includes('User rejected') || raw.includes('user rejected') || raw.includes('denied'))
-    return 'Transaction was rejected in your wallet.'
-  if (raw.includes('name_not_controlled'))
-    return 'This name exists but is not controlled by the Remix server.'
-  if (raw.includes('taken'))
-    return 'This name is already taken by a different address.'
-  if (raw.includes('parent_not_owned'))
-    return 'The ENS naming service is not available (parent not owned).'
-  if (raw.includes('contract owner'))
-    return 'Only the contract owner can set the reverse name.'
-  if (raw.includes('switch your wallet'))
-    return raw
-  if (raw.includes('No wallet provider'))
-    return raw
-  if (raw.includes('Internal error') || raw.includes('SERVER_ERROR'))
-    return 'Server transaction failed. Please try again later.'
-  if (raw.includes('503') || raw.includes('not available'))
-    return 'The ENS naming service is currently unavailable. Please try again later.'
-  if (raw.includes('insufficient funds'))
-    return 'Insufficient funds for the transaction.'
-  return raw
-}
-
-// ── Component ──
+import {
+  DEBOUNCE_MS,
+  ENS_EVENTS,
+  ENS_APP_BASE,
+  ETHERSCAN_BASE,
+  JOB_STEP_LABELS,
+  SUPPORTED_CHAINS,
+  buildFullName,
+  formatEth,
+  friendlyEnsError,
+  getChainExplorer,
+  getDefaultEnsLabel,
+  getEnsEventName,
+  sanitizeLabel,
+  type JobResult,
+  type JobStep,
+  type PreflightResult,
+  type PreflightStatus,
+  type PrimaryEnsCheckResult,
+  type PrimaryEnsStatus,
+  type ReverseCheckResult,
+  type ReverseStatus,
+  type ViewStep,
+} from '../ens-contract-names'
 
 interface EnsNamingProps {
   contract: DeployedContract
@@ -201,23 +34,19 @@ interface EnsNamingProps {
 export function EnsNaming({ contract, onClose }: EnsNamingProps) {
   const { plugin, themeQuality } = useContext(DeployedContractsAppContext)
 
-  // State
-  const [label, setLabel] = useState(getDefaultLabel(contract))
+  const [label, setLabel] = useState(getDefaultEnsLabel(contract))
   const [project, setProject] = useState('default')
   const [chainId, setChainId] = useState<number | null>(null)
   const [viewStep, setViewStep] = useState<ViewStep>('input')
 
-  // Preflight
   const [preflight, setPreflight] = useState<PreflightResult | null>(null)
   const [preflightStatus, setPreflightStatus] = useState<PreflightStatus>('idle')
   const [preflightError, setPreflightError] = useState('')
 
-  // Job
   const [jobStatus, setJobStatus] = useState<JobStep>('pending')
   const [jobResult, setJobResult] = useState<JobResult | null>(null)
   const [jobError, setJobError] = useState('')
 
-  // Reverse
   const [reverseDone, setReverseDone] = useState(false)
   const [reverseStatus, setReverseStatus] = useState<ReverseStatus>('idle')
   const [reverseName, setReverseName] = useState('')
@@ -226,18 +55,121 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
   const [reverseStatusMsg, setReverseStatusMsg] = useState('')
   const [errorContext, setErrorContext] = useState<'forward' | 'reverse'>('forward')
 
-  // Existing primary ENS
   const [primaryEnsStatus, setPrimaryEnsStatus] = useState<PrimaryEnsStatus>('idle')
   const [primaryEnsName, setPrimaryEnsName] = useState('')
   const [primaryEnsMessage, setPrimaryEnsMessage] = useState('')
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const requestIdRef = useRef(`ens-${Date.now()}-${Math.random().toString(16).slice(2)}`)
+  const mountedRef = useRef(true)
 
   const textColor = themeQuality === 'dark' ? 'white' : 'black'
   const subtextColor = 'var(--text-tertiary, #a2a3bd)'
-  const fullName = label && project ? `${label}.${project}.${PARENT_NAME}` : ''
+  const fullName = label && project ? buildFullName(label, project) : ''
 
-  // Detect chain on mount
+  const applyReverseResult = useCallback((result: ReverseCheckResult) => {
+    setReverseStatus(result.status)
+    setReverseDone(result.done)
+    setReverseName(result.name)
+    setReverseCheckMessage(result.message)
+  }, [])
+
+  const applyPrimaryEnsResult = useCallback((result: PrimaryEnsCheckResult) => {
+    setPrimaryEnsStatus(result.status)
+    setPrimaryEnsName(result.name)
+    setPrimaryEnsMessage(result.message)
+  }, [])
+
+  useEffect(() => {
+    mountedRef.current = true
+    const requestId = requestIdRef.current
+
+    const isCurrentRequest = (payload: any) => payload?.requestId === requestId
+    const onEnsEvent = (eventName: string, callback: (...payload: any[]) => void) => {
+      plugin.on('ensContractNames' as any, eventName as any, callback)
+    }
+    const offEnsEvent = (eventName: string) => {
+      plugin.off('ensContractNames' as any, eventName as any)
+    }
+
+    const onForwardStatus = (payload: any) => {
+      if (!mountedRef.current || !isCurrentRequest(payload)) return
+      if (payload.job) {
+        setJobStatus(payload.job.status)
+        setJobResult(payload.job)
+      } else if (payload.status) {
+        setJobStatus(payload.status)
+      }
+    }
+
+    const onForwardCompleted = (payload: any) => {
+      if (!mountedRef.current || !isCurrentRequest(payload)) return
+      if (payload.job) {
+        setJobStatus(payload.job.status)
+        setJobResult(payload.job)
+      }
+    }
+
+    const onForwardFailed = (payload: any) => {
+      if (!mountedRef.current || !isCurrentRequest(payload)) return
+      setJobError(payload.error || 'Registration failed.')
+      setErrorContext('forward')
+      setViewStep('error')
+    }
+
+    const onReverseStatus = (payload: any) => {
+      if (!mountedRef.current || !isCurrentRequest(payload)) return
+      if (payload.result) applyReverseResult(payload.result)
+      if (payload.message) setReverseStatusMsg(payload.message)
+    }
+
+    const onReverseCompleted = (payload: any) => {
+      if (!mountedRef.current || !isCurrentRequest(payload)) return
+      if (payload.result) applyReverseResult(payload.result)
+      setIsReverseInProgress(false)
+    }
+
+    const onReverseFailed = (payload: any) => {
+      if (!mountedRef.current || !isCurrentRequest(payload)) return
+      setJobError(payload.error || 'Reverse registration failed.')
+      setErrorContext('reverse')
+      setIsReverseInProgress(false)
+      setViewStep('error')
+    }
+
+    const onPrimaryEnsStatus = (payload: any) => {
+      if (!mountedRef.current || !isCurrentRequest(payload) || !payload.result) return
+      applyPrimaryEnsResult(payload.result)
+    }
+
+    const forwardStatusEvent = getEnsEventName(ENS_EVENTS.forwardStatus, requestId)
+    const forwardCompletedEvent = getEnsEventName(ENS_EVENTS.forwardCompleted, requestId)
+    const forwardFailedEvent = getEnsEventName(ENS_EVENTS.forwardFailed, requestId)
+    const reverseStatusEvent = getEnsEventName(ENS_EVENTS.reverseStatus, requestId)
+    const reverseCompletedEvent = getEnsEventName(ENS_EVENTS.reverseCompleted, requestId)
+    const reverseFailedEvent = getEnsEventName(ENS_EVENTS.reverseFailed, requestId)
+    const primaryEnsStatusEvent = getEnsEventName(ENS_EVENTS.primaryEnsStatus, requestId)
+
+    onEnsEvent(forwardStatusEvent, onForwardStatus)
+    onEnsEvent(forwardCompletedEvent, onForwardCompleted)
+    onEnsEvent(forwardFailedEvent, onForwardFailed)
+    onEnsEvent(reverseStatusEvent, onReverseStatus)
+    onEnsEvent(reverseCompletedEvent, onReverseCompleted)
+    onEnsEvent(reverseFailedEvent, onReverseFailed)
+    onEnsEvent(primaryEnsStatusEvent, onPrimaryEnsStatus)
+
+    return () => {
+      mountedRef.current = false
+      plugin.call('ensContractNames' as any, 'cancelOperation' as any, requestId).catch(() => {})
+      offEnsEvent(forwardStatusEvent)
+      offEnsEvent(forwardCompletedEvent)
+      offEnsEvent(forwardFailedEvent)
+      offEnsEvent(reverseStatusEvent)
+      offEnsEvent(reverseCompletedEvent)
+      offEnsEvent(reverseFailedEvent)
+      offEnsEvent(primaryEnsStatusEvent)
+    }
+  }, [plugin, applyPrimaryEnsResult, applyReverseResult])
+
   useEffect(() => {
     (async () => {
       try {
@@ -254,20 +186,13 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
         setPreflightStatus('error')
         setPreflightError('Could not detect network.')
       }
-    })();
-  }, [])
+    })()
+  }, [plugin])
 
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
-    }
-  }, [])
-
-  // Debounced preflight check
   useEffect(() => {
     if (!label || !project || !chainId) return
 
+    let cancelled = false
     setPreflightStatus('checking')
     setPreflightError('')
     setPreflight(null)
@@ -278,29 +203,28 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`${apiBase()}/preflight`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ label, project, chainId, contractAddress: contract.address }),
-        })
-        const data = await res.json()
+        const result = await plugin.call('ensContractNames' as any, 'preflight' as any, {
+          label,
+          project,
+          chainId,
+          contractAddress: contract.address,
+        }) as PreflightResult
 
-        if (!res.ok) {
-          setPreflightStatus('error')
-          setPreflightError(data.error || data.details?.[0]?.message || `Server error (${res.status})`)
-          return
-        }
-
-        setPreflight(data)
-        setPreflightStatus(data.status)
-      } catch (e: any) {
+        if (cancelled) return
+        setPreflight(result)
+        setPreflightStatus(result.status)
+      } catch (error: any) {
+        if (cancelled) return
         setPreflightStatus('error')
-        setPreflightError('Could not reach the ENS naming service. Please try again later.')
+        setPreflightError(error?.message || 'Could not reach the ENS naming service. Please try again later.')
       }
     }, DEBOUNCE_MS)
 
-    return () => clearTimeout(timer)
-  }, [label, project, chainId, contract.address])
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [label, project, chainId, contract.address, plugin])
 
   const checkReverseStatus = useCallback(async (): Promise<ReverseStatus> => {
     if (!chainId || !fullName) return 'idle'
@@ -309,49 +233,27 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     setReverseName('')
     setReverseCheckMessage('Checking reverse record...')
 
-    const provider = (window as any).ethereum
-    if (!provider) {
-      setReverseStatus('unavailable')
-      setReverseCheckMessage('Connect a wallet to check the reverse record.')
-      return 'unavailable'
-    }
-
     try {
-      const publicClient = createPublicClient({ transport: custom(provider) })
-      const currentChainId = await publicClient.getChainId()
+      const result = await plugin.call('ensContractNames' as any, 'checkReverseStatus' as any, {
+        requestId: requestIdRef.current,
+        chainId,
+        contractAddress: contract.address,
+        fullName,
+      }) as ReverseCheckResult
 
-      if (currentChainId !== chainId) {
-        setReverseStatus('wrong_chain')
-        setReverseCheckMessage(`Switch your wallet to ${SUPPORTED_CHAINS.get(chainId)} to check the reverse record.`)
-        return 'wrong_chain'
-      }
-
-      const name = await publicClient.readContract({
-        address: getReverseRegistrar(chainId),
-        abi: REVERSE_REGISTRAR_READ_ABI,
-        functionName: 'nameForAddr',
-        args: [contract.address as Hex],
-      })
-      const currentName = typeof name === 'string' ? name : ''
-
-      setReverseName(currentName)
-      if (currentName.toLowerCase() === fullName.toLowerCase()) {
-        setReverseDone(true)
-        setReverseStatus('set')
-        setReverseCheckMessage('Reverse record is already set.')
-        return 'set'
-      }
-
-      setReverseDone(false)
-      setReverseStatus('not_set')
-      setReverseCheckMessage(currentName ? `Reverse currently points to ${currentName}.` : 'Reverse is not set yet.')
-      return 'not_set'
+      applyReverseResult(result)
+      return result.status
     } catch {
-      setReverseStatus('unavailable')
-      setReverseCheckMessage('Reverse status could not be checked from the current wallet.')
-      return 'unavailable'
+      const result: ReverseCheckResult = {
+        status: 'unavailable',
+        name: '',
+        done: false,
+        message: 'Reverse status could not be checked from the current wallet.',
+      }
+      applyReverseResult(result)
+      return result.status
     }
-  }, [chainId, contract.address, fullName])
+  }, [applyReverseResult, chainId, contract.address, fullName, plugin])
 
   useEffect(() => {
     if (preflightStatus === 'current') {
@@ -366,60 +268,17 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     setPrimaryEnsName('')
     setPrimaryEnsMessage('')
 
-    const provider = (window as any).ethereum
-    if (!provider) {
-      setPrimaryEnsStatus('unavailable')
-      return
-    }
-
     try {
-      const publicClient = createPublicClient({ transport: custom(provider) })
-      const currentChainId = await publicClient.getChainId()
-
-      if (currentChainId !== chainId) {
-        setPrimaryEnsStatus('unavailable')
-        return
-      }
-
-      const name = await publicClient.readContract({
-        address: getReverseRegistrar(chainId),
-        abi: REVERSE_REGISTRAR_READ_ABI,
-        functionName: 'nameForAddr',
-        args: [contract.address as Hex],
-      })
-      const candidate = typeof name === 'string' ? name.trim() : ''
-
-      if (!candidate) {
-        setPrimaryEnsStatus('unverified')
-        return
-      }
-
-      const res = await fetch(`${apiBase()}/lookup-primary`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: candidate, chainId, contractAddress: contract.address }),
-      })
-
-      if (!res.ok) {
-        setPrimaryEnsStatus('unavailable')
-        return
-      }
-
-      const lookup: PrimaryEnsLookupResult = await res.json()
-      if (lookup.verified) {
-        setPrimaryEnsStatus('verified')
-        setPrimaryEnsName(lookup.name)
-        setPrimaryEnsMessage('Primary ENS verified by reverse and forward records.')
-        return
-      }
-
-      setPrimaryEnsStatus('unverified')
-      setPrimaryEnsName(candidate)
-      setPrimaryEnsMessage('Reverse name found, but its forward record does not point to this address.')
+      const result = await plugin.call('ensContractNames' as any, 'checkPrimaryEnsName' as any, {
+        requestId: requestIdRef.current,
+        chainId,
+        contractAddress: contract.address,
+      }) as PrimaryEnsCheckResult
+      applyPrimaryEnsResult(result)
     } catch {
       setPrimaryEnsStatus('unavailable')
     }
-  }, [chainId, contract.address])
+  }, [applyPrimaryEnsResult, chainId, contract.address, plugin])
 
   useEffect(() => {
     checkPrimaryEnsName()
@@ -431,7 +290,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     setViewStep(status === 'set' ? 'done' : 'reverse')
   }, [checkReverseStatus, fullName])
 
-  // Start registration
   const handleRegister = useCallback(async () => {
     if (!chainId) return
 
@@ -441,170 +299,57 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     setJobResult(null)
 
     try {
-      const res = await fetch(`${apiBase()}/jobs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label, project, chainId, contractAddress: contract.address }),
-      })
-      const data = await res.json()
+      const job = await plugin.call('ensContractNames' as any, 'registerForward' as any, {
+        requestId: requestIdRef.current,
+        label,
+        project,
+        chainId,
+        contractAddress: contract.address,
+      }) as JobResult
 
-      if (!res.ok) {
-        throw new Error(data.error || `Job creation failed (${res.status})`)
-      }
+      if (!mountedRef.current) return
+      setJobStatus(job.status)
+      setJobResult(job)
 
-      if (data.status === 'current') {
-        // Already registered — no job needed
-        setJobResult({ id: '', status: 'completed', fullName: data.fullName || fullName, transactions: [], totalGasUsed: '0', totalCostWei: '0' } as any)
-        const reverse = await checkReverseStatus()
-        setViewStep(reverse === 'set' ? 'done' : 'reverse')
-        return
-      }
-
-      // Start polling
-      pollRef.current = setInterval(async () => {
-        try {
-          const pollRes = await fetch(`${apiBase()}/jobs/${data.jobId}`)
-          if (!pollRes.ok) return
-
-          const job: JobResult = await pollRes.json()
-          setJobStatus(job.status)
-          setJobResult(job)
-
-          if (job.status === 'completed') {
-            if (pollRef.current) clearInterval(pollRef.current)
-            pollRef.current = null
-            await plugin.call('terminal', 'log', { type: 'info', value: `✅ ENS registered: ${job.fullName}` })
-            const reverse = await checkReverseStatus()
-            setViewStep(reverse === 'set' ? 'done' : 'reverse')
-          } else if (job.status === 'failed') {
-            if (pollRef.current) clearInterval(pollRef.current)
-            pollRef.current = null
-            setJobError(job.error || 'Registration failed.')
-            setErrorContext('forward')
-            setViewStep('error')
-          }
-        } catch { /* polling error — retry on next interval */ }
-      }, POLL_INTERVAL)
-
-    } catch (e: any) {
-      setJobError(e.message)
+      const reverse = await checkReverseStatus()
+      if (!mountedRef.current) return
+      setViewStep(reverse === 'set' ? 'done' : 'reverse')
+    } catch (error: any) {
+      if (!mountedRef.current || error?.message === 'Operation canceled') return
+      setJobError(error?.message || 'Registration failed.')
       setErrorContext('forward')
       setViewStep('error')
     }
-  }, [label, project, chainId, contract.address, fullName, checkReverseStatus, plugin])
+  }, [label, project, chainId, contract.address, checkReverseStatus, plugin])
 
-  // Reverse handler — user signs on the deployment chain
   const handleReverse = useCallback(async () => {
     if (!chainId) return
+
     try {
       setViewStep('registering')
       setIsReverseInProgress(true)
       setReverseStatusMsg('Connecting wallet...')
       setJobError('')
 
-      const provider = (window as any).ethereum
-      if (!provider) throw new Error('No wallet provider found. Please install MetaMask.')
+      const result = await plugin.call('ensContractNames' as any, 'setReverse' as any, {
+        requestId: requestIdRef.current,
+        chainId,
+        contractAddress: contract.address,
+        fullName,
+      }) as ReverseCheckResult
 
-      const walletClient = createWalletClient({ transport: custom(provider) })
-      const publicClient = createPublicClient({ transport: custom(provider) })
-
-      const currentChainId = await publicClient.getChainId()
-      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Chain: ${currentChainId}, expected: ${chainId}` })
-      if (currentChainId !== chainId) {
-        throw new Error(`Please switch your wallet to ${SUPPORTED_CHAINS.get(chainId)} (chain ID ${chainId}). Current: ${currentChainId}`)
-      }
-
-      const [account] = await walletClient.requestAddresses()
-      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Account: ${account}` })
-
-      // Verify ownership
-      setReverseStatusMsg('Verifying contract ownership...')
-      let owner: string
-      try {
-        owner = await publicClient.readContract({
-          address: contract.address as Hex,
-          abi: OWNABLE_ABI,
-          functionName: 'owner',
-          args: [],
-        }) as string
-      } catch {
-        throw new Error('Only the contract owner can set the reverse name. This contract may not expose owner().')
-      }
-      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Contract owner: ${owner}, account: ${account}` })
-
-      if (owner.toLowerCase() !== account.toLowerCase()) {
-        throw new Error(`Reverse can only be set by the contract owner.\nowner(): ${owner}\nYour address: ${account}`)
-      }
-
-      const registrar = getReverseRegistrar(chainId)
-      const isL1 = chainId === 1
-      const abi = isL1 ? REVERSE_REGISTRAR_ABI_L1 : REVERSE_REGISTRAR_ABI_L2
-      const args = isL1
-        ? [contract.address as Hex, account, ENS_PUBLIC_RESOLVER_L1, fullName]
-        : [contract.address as Hex, fullName]
-
-      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Registrar: ${registrar}, L1: ${isL1}` })
-      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Args: ${JSON.stringify(args)}` })
-
-      // Simulate first to catch revert reason
-      setReverseStatusMsg('Simulating transaction...')
-      try {
-        await publicClient.simulateContract({
-          address: registrar,
-          abi,
-          functionName: 'setNameForAddr',
-          args: args as any,
-          account,
-        })
-        await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Simulation passed ✓` })
-      } catch (simErr: any) {
-        const reason = simErr.shortMessage || simErr.message
-        await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] Simulation FAILED: ${reason}` })
-        if (simErr.data) {
-          await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] Revert data: ${JSON.stringify(simErr.data)}` })
-        }
-        throw new Error(`Transaction would fail: ${reason}`)
-      }
-
-      setReverseStatusMsg('Confirm the transaction in your wallet...')
-      const tx = await walletClient.writeContract({
-        chain: null,
-        address: registrar,
-        abi,
-        functionName: 'setNameForAddr',
-        args: args as any,
-        account,
-        gas: BigInt(200000),
-      })
-      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Tx submitted: ${tx}` })
-
-      setReverseStatusMsg('Waiting for transaction confirmation...')
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx, timeout: 120_000 })
-      await plugin.call('terminal', 'log', { type: 'info', value: `[ENS-Reverse] Tx confirmed. Status: ${receipt.status}, block: ${receipt.blockNumber}, gas: ${receipt.gasUsed}` })
-
-      if (receipt.status === 'reverted') {
-        throw new Error(`Transaction reverted on-chain (tx: ${tx})`)
-      }
-
-      await plugin.call('terminal', 'log', { type: 'info', value: `✅ Reverse: ${contract.address} → ${fullName} (on ${SUPPORTED_CHAINS.get(chainId)})` })
-
+      if (!mountedRef.current) return
+      applyReverseResult(result)
       setIsReverseInProgress(false)
-      setReverseDone(true)
-      setReverseStatus('set')
-      setReverseName(fullName)
-      setReverseCheckMessage('Reverse record set.')
       setViewStep('done')
-    } catch (e: any) {
-      setJobError(e.shortMessage || e.message)
+    } catch (error: any) {
+      if (!mountedRef.current) return
+      setJobError(error?.shortMessage || error?.message || 'Reverse registration failed.')
       setErrorContext('reverse')
       setIsReverseInProgress(false)
       setViewStep('error')
-      await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] ERROR: ${e.message}` })
-      if (e.cause) await plugin.call('terminal', 'log', { type: 'error', value: `[ENS-Reverse] Cause: ${JSON.stringify(e.cause)}` })
     }
-  }, [contract.address, fullName, chainId, plugin])
-
-  // ── Status helpers ──
+  }, [applyReverseResult, contract.address, fullName, chainId, plugin])
 
   const getStatusIcon = () => {
     switch (preflightStatus) {
@@ -612,7 +357,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     case 'available': case 'available_for_chain': return 'fas fa-check-circle text-success'
     case 'current': return 'fas fa-check-circle text-info'
     case 'taken': case 'name_not_controlled': case 'project_not_controlled': return 'fas fa-times-circle text-danger'
-    case 'unsupported_chain': case 'parent_not_owned': return 'fas fa-exclamation-triangle text-warning'
+    case 'unsupported_chain': case 'parent_not_owned': case 'validation_only': return 'fas fa-exclamation-triangle text-warning'
     case 'error': return 'fas fa-exclamation-circle text-danger'
     default: return 'fas fa-info-circle'
     }
@@ -633,6 +378,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     case 'name_not_controlled': return 'This name exists but is not controlled by the Remix server.'
     case 'project_not_controlled': return 'This project exists but is not controlled by the Remix server.'
     case 'parent_not_owned': return 'The ENS naming service is not available (parent not owned).'
+    case 'validation_only': return 'ENS registration is unavailable until the server wallet is configured.'
     case 'unsupported_chain': return preflightError
     case 'error': return preflightError || 'An error occurred.'
     default: return 'Enter a label to check availability.'
@@ -654,11 +400,8 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     }))
   }
 
-  // ── Render ──
-
   return (
     <div className="p-3 rounded mb-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', border: '1px solid var(--bs-border-color)' }}>
-      {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-2">
         <span style={{ color: textColor, fontWeight: 600, fontSize: '0.85rem' }}>
           <i className="fas fa-link me-1" /> ENS Contract Naming
@@ -670,10 +413,8 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
         >×</button>
       </div>
 
-      {/* ── INPUT STEP ── */}
       {viewStep === 'input' && (
         <>
-          {/* Chain info */}
           {chainId && (
             <div className="mb-2 p-2 rounded d-flex align-items-center gap-2" style={{ backgroundColor: 'rgba(100, 196, 255, 0.05)', fontSize: '0.75rem' }}>
               <i className="fas fa-link" style={{ color: '#64c4ff' }} />
@@ -715,7 +456,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             </div>
           )}
 
-          {/* Label input */}
           <div className="mb-2">
             <label className="small mb-1 d-block" style={{ color: subtextColor }}>Label</label>
             <input
@@ -729,7 +469,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             />
           </div>
 
-          {/* Project input */}
           <div className="mb-2">
             <label className="small mb-1 d-block" style={{ color: subtextColor }}>Project</label>
             <input
@@ -743,7 +482,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             />
           </div>
 
-          {/* Preview */}
           {fullName && (
             <div className="mb-2 p-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.75rem' }}>
               <div style={{ color: subtextColor }}>Preview:</div>
@@ -756,7 +494,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             </div>
           )}
 
-          {/* Status */}
           <div
             className="mb-2 p-2 rounded"
             style={{
@@ -772,7 +509,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             {getStatusMessage()}
           </div>
 
-          {/* Register button */}
           <button
             className="btn btn-primary btn-sm w-100"
             onClick={canOpenReverse ? openReverseStep : handleRegister}
@@ -784,7 +520,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
         </>
       )}
 
-      {/* ── REGISTERING STEP ── */}
       {viewStep === 'registering' && (
         <div className="py-2">
           <div className="text-center mb-3">
@@ -797,7 +532,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             </div>
           </div>
 
-          {/* Progress steps */}
           {!isReverseInProgress && (
             <>
               <div className="mb-2">
@@ -815,7 +549,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
                 ))}
               </div>
 
-              {/* Live tx info */}
               {jobResult?.transactions && jobResult.transactions.length > 0 && (
                 <div className="p-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.65rem' }}>
                   {jobResult.transactions.map((tx, i) => (
@@ -840,7 +573,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
         </div>
       )}
 
-      {/* ── REVERSE STEP ── */}
       {viewStep === 'reverse' && (
         <div>
           <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(100, 255, 100, 0.08)', fontSize: '0.75rem' }}>
@@ -883,7 +615,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
         </div>
       )}
 
-      {/* ── DONE STEP ── */}
       {viewStep === 'done' && (
         <div>
           <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(100, 255, 100, 0.08)', fontSize: '0.75rem' }}>
@@ -904,7 +635,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             )}
           </div>
 
-          {/* Gas cost summary */}
           {jobResult?.totalCostWei && jobResult.totalCostWei !== '0' && (
             <div className="p-2 rounded mb-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.65rem' }}>
               <div className="d-flex justify-content-between" style={{ color: subtextColor }}>
@@ -918,7 +648,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             </div>
           )}
 
-          {/* Transaction hashes */}
           {jobResult?.transactions && jobResult.transactions.length > 0 && (
             <div className="p-2 rounded mb-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', fontSize: '0.65rem' }}>
               {jobResult.transactions.map((tx, i) => (
@@ -934,7 +663,6 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             </div>
           )}
 
-          {/* Links */}
           <div className="d-flex gap-2 mb-2">
             <a
               href={`${getChainExplorer(chainId).url}/address/${contract.address}`}
@@ -962,10 +690,8 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
         </div>
       )}
 
-      {/* ── ERROR STEP ── */}
       {viewStep === 'error' && (
         <div>
-          {/* Show forward completion status if error happened during reverse */}
           {errorContext === 'reverse' && (
             <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(100, 255, 100, 0.08)', fontSize: '0.75rem' }}>
               <div style={{ color: '#81c784' }}>
@@ -976,7 +702,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
           )}
           <div className="p-2 rounded mb-2" style={{ backgroundColor: 'rgba(255, 119, 119, 0.1)', fontSize: '0.75rem', color: '#ff7777' }}>
             <i className="fas fa-exclamation-triangle me-1" />
-            {friendlyError(jobError)}
+            {friendlyEnsError(jobError)}
           </div>
           <div className="d-flex gap-2">
             {errorContext === 'reverse' ? (

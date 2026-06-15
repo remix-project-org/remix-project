@@ -242,6 +242,9 @@
             "@remix-ui/run-tab-deployed-contracts": [
               "libs/remix-ui/run-tab-deployed-contracts/src/index.ts"
             ],
+            "@remix-ui/run-tab-deployed-contracts/ens-contract-names": [
+              "libs/remix-ui/run-tab-deployed-contracts/src/lib/ens-contract-names.ts"
+            ],
             "@remix-project/import-resolver": [
               "libs/remix-import-resolver/src/index.ts"
             ],

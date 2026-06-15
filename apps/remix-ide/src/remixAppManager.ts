@@ -119,6 +119,7 @@ let requiredModules = [
   'auth',
   'account',
   'transactionSimulator',
+  'ensContractNames',
   'amp',
   'resolutionIndex',
   'vega',
