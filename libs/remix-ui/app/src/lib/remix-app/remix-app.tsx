@@ -111,9 +111,6 @@ const RemixApp = (props: IRemixAppUi) => {
     if (props.app.skillExplorerModal?.setAppStateDispatch) {
       props.app.skillExplorerModal.setAppStateDispatch(appStateDispatch)
     }
-    if (props.app.checklistExplorerModal?.setAppStateDispatch) {
-      props.app.checklistExplorerModal.setAppStateDispatch(appStateDispatch)
-    }
   }, [appStateDispatch, props.app.remixAiAssistant])
 
   useEffect(() => {
@@ -494,10 +491,7 @@ const RemixApp = (props: IRemixAppUi) => {
               </div>
               <AppDialogs></AppDialogs>
               <DialogViewPlugin></DialogViewPlugin>
-              {appState.genericModalState?.showModal && props.app.templateExplorerModal.render()
-              }
               {appState.showSkillsModal && props.app.skillExplorerModal.render()}
-              {appState.showChecklistModal && props.app.checklistExplorerModal.render()}
               {props.app.invitationManager.render()}
               {props.app.membershipRequest.render()}
               {showBetaTestRegisterWidget && props.app.betaCornerWidget.render()}

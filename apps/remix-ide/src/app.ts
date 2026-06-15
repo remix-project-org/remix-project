@@ -54,7 +54,6 @@ import { BetaCornerWidgetPlugin } from './app/plugins/beta-corner-widget-plugin'
 import { NudgePlugin } from './app/plugins/nudge-plugin'
 import { HelpPlugin } from '@remix-ui/modal-help'
 import { PlanManagerPlugin } from '@remix-ui/plan-manager'
-import { TemplatesPlugin } from './app/plugins/remix-templates'
 import { fsPlugin } from './app/plugins/electron/fsPlugin'
 import { isoGitPlugin } from './app/plugins/electron/isoGitPlugin'
 import { electronConfig } from './app/plugins/electron/electronConfigPlugin'
@@ -86,7 +85,6 @@ import { DeployPlugin } from './app/udapp/udappDeploy'
 import { DeployedContractsPlugin } from './app/udapp/udappDeployedContracts'
 import { TransactionsPlugin } from './app/udapp/udappTransactions'
 
-import { TemplatesSelectionPlugin } from './app/plugins/templates-selection/templates-selection-plugin'
 
 import isElectron from 'is-electron'
 
@@ -120,9 +118,7 @@ import Editor from './app/editor/editor'
 import Terminal from './app/panels/terminal'
 import TabProxy from './app/panels/tab-proxy.js'
 import BottomBarPanel from './app/components/bottom-bar-panel'
-import { TemplateExplorerModalPlugin } from './app/plugins/template-explorer-modal'
 import { SkillsExplorerModalPlugin } from './app/plugins/skills-explorer-modal'
-import { ChecklistExplorerModalPlugin } from './app/plugins/checklist-explorer-modal'
 import { TxRunnerPlugin } from './app/plugins/txRunnerPlugin'
 
 // Tracking now handled by this.track() method using MatomoManager
@@ -171,9 +167,7 @@ class AppComponent {
   overlayPanel: OverlayPanel
   statusBar: StatusBar
   topBar: Topbar
-  templateExplorerModal: TemplateExplorerModalPlugin
   skillExplorerModal: SkillsExplorerModalPlugin
-  checklistExplorerModal: ChecklistExplorerModalPlugin
   remixAiAssistant: RemixAIAssistant
   settings: SettingsTab
   authPlugin: AuthPlugin
@@ -322,9 +316,7 @@ class AppComponent {
       }
     }
 
-    this.templateExplorerModal = new TemplateExplorerModalPlugin()
     this.skillExplorerModal = new SkillsExplorerModalPlugin()
-    this.checklistExplorerModal = new ChecklistExplorerModalPlugin()
     // SERVICES
     // ----------------- gist service ---------------------------------
     this.gistHandler = new GistHandler()
@@ -369,8 +361,6 @@ class AppComponent {
     //---------------- Script Runner UI Plugin -------------------------
     const scriptRunnerUI = new ScriptRunnerBridgePlugin(this.engine)
 
-    //---- templates
-    const templates = new TemplatesPlugin()
 
 
     //---- matomo
@@ -480,11 +470,7 @@ class AppComponent {
     // ----------------- run script after each compilation results -----------
     const pluginStateLogger = new PluginStateLogger()
 
-    const templateSelection = new TemplatesSelectionPlugin()
-
-    const templateExplorerModal = this.templateExplorerModal
     const skillExplorerModal = this.skillExplorerModal
-    const checklistExplorerModal = this.checklistExplorerModal
 
     const walletConnect = new WalletConnect()
 
@@ -548,10 +534,8 @@ class AppComponent {
       vyperCompilationDetails,
       contractFlattener,
       solidityScript,
-      templates,
       pluginStateLogger,
       matomo,
-      templateSelection,
       scriptRunnerUI,
       remixAI,
       assistantState,
@@ -673,7 +657,7 @@ class AppComponent {
       this.planManager,
       feedbackPlugin
     ])
-    this.engine.register([templateExplorerModal, skillExplorerModal, checklistExplorerModal, this.topBar])
+    this.engine.register([skillExplorerModal, this.topBar])
 
     this.layout.panels = {
       tabs: { plugin: tabProxy, active: true },
@@ -722,7 +706,7 @@ class AppComponent {
     ])
 
     await this.appManager.activatePlugin(['mainPanel', 'menuicons', 'tabs'])
-    await this.appManager.activatePlugin(['topbar', 'templateexplorermodal', 'skillsexplorermodal', 'checklistexplorermodal'])
+    await this.appManager.activatePlugin(['topbar', 'skillsexplorermodal'])
     await this.appManager.activatePlugin(['statusBar'])
     // await this.appManager.activatePlugin(['remix-template-explorer-modal'])
     await this.appManager.activatePlugin(['bottomBar'])
@@ -760,7 +744,7 @@ class AppComponent {
 
     // git, debugger, simulator, remixd and 'search' are removed/not activated in AI-first mode.
     await this.appManager.activatePlugin(['storage', 'storageMonitor', 'compileAndRun', 'helpPlugin', 'planManager'])
-    await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
+    await this.appManager.activatePlugin(['solidity-script'])
 
     if (isElectron()) {
       await this.appManager.activatePlugin(['isogit', 'electronconfig', 'electronTemplates', 'xterm', 'ripgrep', 'appUpdater', 'slither', 'foundry', 'hardhat', 'circom', 'githubAuthHandler']) // 'remixAID'
