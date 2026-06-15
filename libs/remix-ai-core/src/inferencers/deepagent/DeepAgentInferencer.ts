@@ -190,13 +190,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.userApiKeys = config?.userApiKeys
 
     // Initialize filesystem backend with shared EventEmitter for approval
-    this.filesystemBackend = new RemixFilesystemBackend(plugin, this.event, 'deployment_only') as any
+    this.filesystemBackend = new RemixFilesystemBackend(plugin, this.event) as any
 
     // Store MCP inferencer for resource access
     this.mcpInferencer = mcpInferencer
 
     // Initialize tools with approval gate
-    this.approvalGate = new ToolApprovalGate(plugin, this.event, 'deployment_only')
+    this.approvalGate = new ToolApprovalGate(plugin, this.event, 'ask_risky')
     this.initializeTools(toolRegistry, mcpInferencer)
 
     // TEMP GC PROBE — register this instance so we get a console line when
@@ -969,19 +969,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       this.currentAbortController.abort()
       this.currentAbortController = null
     }
-    // Always emit so plugin.isInferencing can never get stuck, even when no
-    // controller was set (e.g. cancel arrived between turns). The manager
-    // builds a brand-new instance with a fresh thread, so there is no need to
-    // resetSessionThread() on this about-to-be-discarded instance.
     this.event.emit('onInferenceDone')
 
-    // Clear any in-flight generation progress spinner. Do NOT emit
-    // dappGenerationError here: cancelling a chat request (new chat, button
-    // action) is not a dapp generation failure. A genuine mid-flight dapp
-    // generation that gets aborted is reported by DAppGeneratorHandler's own
-    // catch with the correct slug/workspace scope. Emitting a slug-less error
-    // here made the QuickDapp "Update Failed" modal pop on every cancel once a
-    // dapp existed (the listener treats a slug-less error as matching any dapp).
     try {
       this.plugin.emit('generationProgress', null)
     } catch (_) { /* best-effort cleanup */ }
