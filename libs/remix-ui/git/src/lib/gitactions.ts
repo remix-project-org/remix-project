@@ -63,6 +63,20 @@ export const getBranches = async () => {
 
   dispatch(setBranches(branches));
   await showCurrentBranch();
+
+  // Get the current branch and fetch differences to update sync button state
+  try {
+    const branch = await currentBranch();
+    if (branch && branch.name) {
+      const state = {
+        defaultRemote: null,
+        remotes: await plugin.call('dgitApi', 'remotes')
+      }
+      await getBranchDifferences(branch, null, state as any);
+    }
+  } catch (e) {
+    // Silently fail if unable to get branch differences
+  }
 }
 export const getRemotes = async () => {
 
@@ -314,7 +328,6 @@ export const checkoutfile = async (filename: string) => {
 export const checkout = async (cmd: checkoutInputType) => {
   trackGitEvent("CHECKOUT", undefined, true)
   await disableCallBacks();
-  await plugin.call('fileManager', 'closeAllFiles')
   try {
     await plugin.call('dgitApi', 'checkout', cmd)
   } catch (e) {
@@ -343,10 +356,10 @@ export const clone = async (input: cloneInputType) => {
 
     sendToGitLog({
       type: 'success',
-      message: `Cloned ${input.url} to ${repoNameWithTimestamp}`
+      message: `Cloned ${input.url} to ${input.dir || repoNameWithTimestamp}`
     })
 
-    plugin.call('notification', 'toast', `Cloned ${input.url} to ${repoNameWithTimestamp}`)
+    plugin.call('notification', 'toast', `Cloned ${input.url} to ${input.dir || repoNameWithTimestamp}`)
 
   } catch (e: any) {
     await parseError(e)

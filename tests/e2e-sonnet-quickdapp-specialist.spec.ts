@@ -39,6 +39,7 @@ test('Sonnet identifies the QuickDapp Specialist subagent', async ({ page }) => 
 
   // --- 2. Open the AI panel and switch to Claude Sonnet 4.6 ----------------
   await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()
+  await expect(page.locator('[data-id="ai-route-status"]')).toContainText(/Agent/i, { timeout: 10000 })
   await page.locator('[data-id="ai-model-selector-btn"]').click()
   await page.locator('[data-id="ai-model-claude-sonnet-4-6"]').click()
 

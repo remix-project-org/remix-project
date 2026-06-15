@@ -3,7 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { diffLines } from 'diff'
 import { isArray } from 'lodash'
 import Editor, { DiffEditor, loader, Monaco } from '@monaco-editor/react'
-import { AppContext, AppModal } from '@remix-ui/app'
+import { AppContext, AppModal, useAuth } from '@remix-ui/app'
 import { MatomoEvent, EditorEvent, AIEvent } from '@remix-api'
 //@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
@@ -33,6 +33,8 @@ import type { IPosition, IRange } from 'monaco-editor'
 import { GenerationParams } from '@remix/remix-ai-core';
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
 import { RemixTSCompletionProvider } from './providers/tsCompletionProvider'
+import { TooltipPopOver, openContextualTooltip } from './tooltipPopOver'
+
 const _paq = (window._paq = window._paq || []) // eslint-disable-line
 
 // Key for localStorage
@@ -187,6 +189,8 @@ export const EditorUI = (props: EditorUIProps) => {
   const trackMatomoEvent = <T extends MatomoEvent = EditorEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
   }
+  const { features } = useAuth()
+  const hasContextualEditorFeature = features['ai:contextual-editor']?.is_enabled === true
   const changedTypeMap = useRef<ChangeTypeMap>({})
   const pendingCustomDiff = useRef({})
   const currentBreakpointsRef = useRef<Record<string, Record<number, any>>>({})
@@ -228,6 +232,9 @@ export const EditorUI = (props: EditorUIProps) => {
   const currentUrlRef = useRef('')
   const currentDecoratorListCollectionRef = useRef({})
   const inlineCompletionProviderRef = useRef<RemixInLineCompletionProvider|null>(null)
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastHoverPositionRef = useRef<monacoTypes.IPosition | null>(null)
+  const [tooltipData, setTooltipData] = useState<{keyword: string, position: {x: number, y: number}, contextLines?: string, isSelectedText?: boolean} | null>(null)
 
   // const currentDecorations = useRef({ sourceAnnotationsPerFile: {}, markerPerFile: {} }) // decorations that are currently in use by the editor
   // const registeredDecorations = useRef({}) // registered decorations
@@ -402,6 +409,14 @@ export const EditorUI = (props: EditorUIProps) => {
       if (file + '-ai' !== currentDiffFile) {
         removeAllWidgets()
       }
+      // Clear tooltip when switching files
+      setTooltipData(null)
+      // Clear any pending hover timeouts
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current)
+        hoverTimeoutRef.current = null
+      }
+      lastHoverPositionRef.current = null
     })
   }, [])
 
@@ -467,6 +482,15 @@ export const EditorUI = (props: EditorUIProps) => {
 
   useEffect(() => {
     if (!(editorRef.current || diffEditorRef.current ) || !props.currentFile) return
+
+    // Clear tooltip when file changes
+    setTooltipData(null)
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current)
+      hoverTimeoutRef.current = null
+    }
+    lastHoverPositionRef.current = null
+
     currentFileRef.current = props.currentFile
     props.plugin.call('fileManager', 'getUrlFromPath', currentFileRef.current).then((url) => (currentUrlRef.current = url.file))
 
@@ -972,6 +996,53 @@ export const EditorUI = (props: EditorUIProps) => {
       }
     });
 
+    // Add hover detection with 3-second delay
+    editor.onMouseMove((e) => {
+      const position = e.target?.position
+      if (position) {
+        // Check if position changed
+        const positionChanged = !lastHoverPositionRef.current ||
+          lastHoverPositionRef.current.lineNumber !== position.lineNumber ||
+          lastHoverPositionRef.current.column !== position.column
+
+        if (positionChanged) {
+          if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current)
+            hoverTimeoutRef.current = null
+          }
+          lastHoverPositionRef.current = position
+
+          // Start new timeout for this position
+          hoverTimeoutRef.current = setTimeout(() => {
+            openContextualTooltip(position, editorRef, monacoRef, setTooltipData, trackMatomoEvent)
+          }, 2500) // 2.5 seconds
+        }
+      }
+    })
+
+    // Clear timeout when mouse leaves the editor (with delay to allow tooltip interaction)
+    editor.onMouseLeave(() => {
+      // Add a longer delay to allow moving mouse to tooltip
+      setTimeout(() => {
+        // Check if mouse is over tooltip before closing
+        const tooltipElement = document.querySelector('.web3-tooltip-popup')
+        const isMouseOverTooltip = tooltipElement && tooltipElement.matches(':hover')
+
+        // Check if there's currently selected text (don't close tooltip for selected text)
+        const selection = editor.getSelection()
+        const hasSelectedText = selection && !selection.isEmpty()
+
+        if (!isMouseOverTooltip && !hasSelectedText) {
+          if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current)
+            hoverTimeoutRef.current = null
+          }
+          lastHoverPositionRef.current = null
+          closeTooltip()
+        }
+      }, 300) // Longer delay to allow reaching tooltip
+    })
+
     editor.onDidPaste(async (e) => {
       const shouldShowWarning = localStorage.getItem(HIDE_PASTE_WARNING_KEY) !== 'true';
       // Only show the modal if the user hasn't opted out
@@ -1384,6 +1455,27 @@ export const EditorUI = (props: EditorUIProps) => {
     const loadedElement = document.createElement('span')
     loadedElement.setAttribute('data-id', 'editorloaded')
     document.body.appendChild(loadedElement)
+  }
+
+  const closeTooltip = () => {
+    setTooltipData(null)
+  }
+
+  const handleClearSelection = () => {
+    // Clear the selection in the editor to prevent popover from re-appearing
+    if (editorRef.current) {
+      const selection = editorRef.current.getSelection()
+      if (selection && !selection.isEmpty()) {
+        // Move cursor to end of selection and clear selection
+        const endPosition = selection.getEndPosition()
+        editorRef.current.setSelection({
+          startLineNumber: endPosition.lineNumber,
+          startColumn: endPosition.column,
+          endLineNumber: endPosition.lineNumber,
+          endColumn: endPosition.column
+        })
+      }
+    }
   }
 
   function handleEditorWillMount(monaco) {
@@ -1867,6 +1959,20 @@ export const EditorUI = (props: EditorUIProps) => {
             }}
           />
         </span>
+      )}
+
+      {/* Web3 Keyword Tooltip */}
+      {tooltipData && hasContextualEditorFeature && (
+        <TooltipPopOver
+          keyword={tooltipData.keyword}
+          position={tooltipData.position}
+          onClose={closeTooltip}
+          onClearSelection={handleClearSelection}
+          visible={true}
+          plugin={props.plugin}
+          contextLines={tooltipData.contextLines}
+          isSelectedText={tooltipData.isSelectedText}
+        />
       )}
     </div>
   )

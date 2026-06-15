@@ -29,6 +29,7 @@ export class StreamEventHandler {
   private activeSubagents: Map<string, SubagentInfo> = new Map()
   private previousRunId: string | null = null
   private isIntermediatePhase = true
+  private inThinking = false
   private tokenUsage: TokenUsageState = {
     totalInputTokens: 0,
     totalOutputTokens: 0,
@@ -63,6 +64,7 @@ export class StreamEventHandler {
     this.activeSubagents.clear()
     this.previousRunId = null
     this.isIntermediatePhase = true
+    this.inThinking = false
     this.tokenUsage = {
       totalInputTokens: 0,
       totalOutputTokens: 0,
@@ -178,18 +180,51 @@ export class StreamEventHandler {
 
   private handleChatModelStream(event: any, is_subagent: boolean, agent_name: string): string {
     const chunk = event.data?.chunk
-    if (!chunk?.content) return ''
+    const reasoningContent =
+      chunk?.additional_kwargs?.reasoning_content ??
+      chunk?.message?.additional_kwargs?.reasoning_content ??
+      chunk?.kwargs?.additional_kwargs?.reasoning_content ??
+      chunk?.thinking
 
-    // Extract delta content - handle different response formats
+    const rawContent = chunk?.content ?? chunk?.message?.content ?? chunk?.text ?? ''
+    const contentStr = typeof rawContent === 'string' ? rawContent : ''
+    const isThinkingContent = contentStr.includes('<think>') || contentStr.startsWith('<think')
+    const hasEndThinkTag = contentStr.includes('</think>')
+
+    // Detect thinking blocks in array content (Anthropic, etc.)
+    const hasThinkingBlock = Array.isArray(rawContent) && rawContent.some(
+      (item: any) => item?.type === 'thinking' || item?.type === 'reasoning'
+    )
+
+    if ((reasoningContent && reasoningContent !== '') || (isThinkingContent && !hasEndThinkTag) || hasThinkingBlock) {
+      if (!this.inThinking) {
+        this.inThinking = true
+        remixAILogger.log('[StreamEventHandler] Thinking phase detected', {
+          hasReasoningContent: !!reasoningContent,
+          isThinkingContent,
+          hasThinkingBlock,
+          contentPreview: contentStr.substring(0, 100)
+        })
+        this.event.emit('onThinking', { isThinking: true, threadId: this.getThreadId() })
+      }
+    } else if (this.inThinking && (hasEndThinkTag || (!reasoningContent && !isThinkingContent && !hasThinkingBlock && contentStr.length > 0))) {
+      this.inThinking = false
+      remixAILogger.log('[StreamEventHandler] Thinking phase ended')
+      this.event.emit('onThinking', { isThinking: false, threadId: this.getThreadId() })
+    }
+
+    // Suppress thinking text from being emitted as regular chat content.
+    if (this.inThinking) return ''
+    if (!rawContent) return ''
+
     let deltaContent = ''
-    if (typeof chunk.content === 'string') {
-      deltaContent = chunk.content
-    } else if (Array.isArray(chunk.content) && chunk.content.length > 0) {
-      // Handle array format (e.g., [{type: 'text', text: '...'}])
-      if (chunk.content[0]?.text) {
-        deltaContent = chunk.content[0].text
-      } else if (typeof chunk.content[0] === 'string') {
-        deltaContent = chunk.content[0]
+    if (typeof rawContent === 'string') {
+      deltaContent = rawContent
+    } else if (Array.isArray(rawContent) && rawContent.length > 0) {
+      if (rawContent[0]?.text) {
+        deltaContent = rawContent[0].text
+      } else if (typeof rawContent[0] === 'string') {
+        deltaContent = rawContent[0]
       }
     }
 

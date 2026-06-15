@@ -9,13 +9,32 @@ import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
 import { AutocompletePanel, Command } from './AutocompletePanel'
 
+const getSlashWord = (text: string): string | null => {
+  // Only detect slash commands at the beginning or after a space
+  const lastSpaceSlash = text.lastIndexOf(' /')
+  const slashStart = lastSpaceSlash !== -1 ? lastSpaceSlash + 1 : text.startsWith('/') ? 0 : -1
+  if (slashStart === -1) return null
+
+  const afterSlash = text.slice(slashStart)
+
+  // If there's already a colon, the command is complete
+  if (afterSlash.includes(':')) return null
+
+  // Extract the word after the slash (until space or end)
+  const nextSpace = afterSlash.indexOf(' ')
+  const word = nextSpace === -1 ? afterSlash : afterSlash.slice(0, nextSpace)
+
+  // Return the word to show autocomplete
+  return word
+}
+
 const SHORTCUT_CATEGORIES = [
   {
     id: 'code',
     label: 'Code',
     prompts: [
       'Write a Solidity ERC20 token with mint and burn functions',
-      'Add an ownable access control to this contract',
+      'Add an ownable access control to a contract',
       '/compile: fix any errors in the active file',
     ],
   },
@@ -108,6 +127,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   stopRequest,
   setShowOllamaModelSelector,
   showOllamaModelSelector,
+  selectedOllamaModel,
   modelSelectorBtnRef,
   autoModeEnabled,
   usingOwnApiKey,
@@ -142,14 +162,18 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   // Handle autocomplete visibility
   useEffect(() => {
-    if (input.startsWith('/') && input.length > 0 && !isStreaming) {
-      // Check if this is the new format with space after /
-      setShowAutocomplete(true)
-    } else {
-      setShowAutocomplete(false)
+    // Don't show autocomplete if input ends with ": " (completed command)
+    const endsWithCommandColon = input.trimEnd().endsWith(':')
+    const hasSlashWord = !!getSlashWord(input)
+    const shouldShow = hasSlashWord && !isStreaming && !endsWithCommandColon
+
+    setShowAutocomplete(shouldShow)
+    // Reset selected index when hiding or showing the panel
+    if (!shouldShow || (shouldShow && !showAutocomplete)) {
+      setSelectedCommandIndex(0)
     }
     if (input.length > 0) setActiveShortcut(null)
-  }, [input, isStreaming])
+  }, [input, isStreaming, showAutocomplete])
 
   const actionCommands: Command[] = useMemo(() => {
     const cmds: Command[] = [
@@ -167,27 +191,20 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     }
     if (handleLoadAuditChecklist) {
       cmds.push({
-        name: 'Start Security Audit',
-        description: hasAuditorPermission ? 'Load audit checklist' : 'Upgrade to a paid plan',
+        name: 'Load Security Audit checklist',
+        description: hasAuditorPermission ? 'Load audit checklist' : 'Coming soon',
         category: 'Tools',
         action: hasAuditorPermission ? handleLoadAuditChecklist : undefined,
         disabled: !hasAuditorPermission
       })
     }
-    if (handleGasOptimisationAudit) cmds.push({ name: 'Start Gas Optimisation Audit', description: hasAuditorPermission ? 'Gas optimisation audit' : 'Upgrade to a paid plan', category: 'Tools', action: handleGasOptimisationAudit, disabled: !hasAuditorPermission })
+    if (handleGasOptimisationAudit) cmds.push({ name: 'Start Gas Optimisation Audit', description: hasAuditorPermission ? 'Gas optimisation audit' : 'Coming soon', category: 'Tools', action: handleGasOptimisationAudit, disabled: !hasAuditorPermission })
     return cmds
   }, [handleSetModel, handleOpenSettings, handleLoadSkills, handleLoadAuditChecklist, handleGasOptimisationAudit, hasAuditorPermission, hasSkillsPermission])
 
   // Handle command selection
   const handleCommandSelect = useCallback((command: Command) => {
-    if (command.action) {
-      setShowAutocomplete(false)
-      setTimeout(() => command.action!(), 0)
-      return
-    }
-
-    const formattedCommand = '/' + command.name
-
+    setShowAutocomplete(false)
     // Track command selection with Matomo
     trackMatomoEvent({
       category: 'ai',
@@ -196,15 +213,16 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
       isClick: true
     })
 
-    // If user has already typed something after the initial "/", preserve it
-    const spaceIndex = input.indexOf(' ')
-    const existingArgs = spaceIndex > -1 ? input.substring(spaceIndex).trim() : ''
-
-    setInput(existingArgs ? formattedCommand + existingArgs + ': ': formattedCommand + ': ')
-    setShowAutocomplete(false)
-    // Focus back on textarea
+    if (command.action) {
+      setInput('')
+      setTimeout(() => command.action!(), 0)
+    } else {
+      const lastSpaceSlash = input.lastIndexOf(' /')
+      const slashStart = lastSpaceSlash !== -1 ? lastSpaceSlash + 1 : input.startsWith('/') ? 0 : input.length
+      setInput(input.slice(0, slashStart) + '/' + command.name + ': ')
+    }
     textareaRef?.current?.focus()
-  }, [input, setInput])
+  }, [input, setInput, setShowAutocomplete])
 
   const handleShortcutSelect = useCallback((prompt: string) => {
     setInput(prompt)
@@ -233,7 +251,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         return
       } else if (e.key === 'Tab') {
         e.preventDefault()
-        // Find the selected button and click it programmatically
+        // Tab key selects the highlighted command from autocomplete
         const buttons = document.querySelectorAll('[data-id^="autocomplete-item-"]')
         if (buttons[selectedCommandIndex]) {
           (buttons[selectedCommandIndex] as HTMLButtonElement).click()
@@ -248,25 +266,26 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
     // Handle Enter key
     if (e.key === 'Enter' && !e.shiftKey && !isStreaming && aiRouteReady) {
-      // Check if input has content after the slash command format (e.g., "/command: content")
-      const hasCommandContent = input.includes(':') && input.split(':')[1]?.trim().length > 0
+      e.preventDefault()
 
-      if (showAutocomplete && !hasCommandContent) {
-        // If autocomplete is showing and no command content yet, select the highlighted command
-        e.preventDefault()
+      // If autocomplete panel is visible, select the highlighted command
+      if (showAutocomplete) {
         const buttons = document.querySelectorAll('[data-id^="autocomplete-item-"]')
-        if (buttons[selectedCommandIndex]) {
+        if (buttons.length > 0 && buttons[selectedCommandIndex]) {
+          // Click the selected command button
           (buttons[selectedCommandIndex] as HTMLButtonElement).click()
+          // The click handler will hide the panel and update the input
+          return
         }
+        // If no commands in panel (shouldn't happen), hide panel and send
+        setShowAutocomplete(false)
+        handleSend()
       } else {
-        // Send the message if:
-        // 1. Autocomplete is not showing, OR
-        // 2. User has already typed command content after the colon
-        e.preventDefault()
+        // No autocomplete panel visible, just send the message
         handleSend()
       }
     }
-  }, [showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, handleSend, setInput])
+  }, [showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, handleSend, setInput, setShowAutocomplete])
 
   useEffect(() => {
     if (!activeShortcut) return
@@ -279,6 +298,17 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [activeShortcut])
 
+  useEffect(() => {
+    if (!showAutocomplete) return
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (promptAreaRef.current && !promptAreaRef.current.contains(e.target as Node)) {
+        setShowAutocomplete(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [showAutocomplete])
+
   // The composer has three resting states:
   //   1. ready              → normal send/stop affordance
   //   2. !ready & authed    → disabled send (agents still booting)
@@ -286,6 +316,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   // We split state 3 out so the user doesn't sit there waiting on a
   // route that can never become ready until they authenticate.
   const activeCategory = activeShortcut ? (SHORTCUT_CATEGORIES.find(c => c.id === activeShortcut) ?? null) : null
+
+  const toolCommands = actionCommands.filter(cmd => cmd.category === 'Tools')
 
   const needsSignIn = !aiRouteReady && !isAuthenticated && !!onSignIn
   const placeholderText = needsSignIn
@@ -298,7 +330,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     <>
       {isNewChat && <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
         <div className="d-flex flex-row" style={{ gap: '4px' }}>
-          {SHORTCUT_CATEGORIES.map(cat => (
+          {[...SHORTCUT_CATEGORIES, ...(toolCommands.length > 0 ? [{ id: 'tools', label: 'Tools' }] : [])].map(cat => (
             <button
               key={cat.id}
               onClick={() => setActiveShortcut(prev => prev === cat.id ? null : cat.id)}
@@ -311,6 +343,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 backgroundColor: activeShortcut === cat.id ? 'var(--custom-onsurface-layer-1)' : 'var(--bs-body-bg)',
                 transition: 'all 0.15s ease',
               }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = activeShortcut === cat.id ? 'var(--custom-onsurface-layer-1)' : 'var(--bs-body-bg)' }}
               data-id={`shortcut-btn-${cat.id}`}
             >
               {cat.label}
@@ -358,6 +392,44 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             ))}
           </div>
         )}
+        {activeShortcut === 'tools' && (
+          <div
+            className="position-absolute rounded-3 shadow-lg overflow-hidden"
+            style={{
+              bottom: 'calc(100% + 4px)',
+              left: 0,
+              right: 0,
+              backgroundColor: 'var(--bs-body-bg)',
+              border: '1px solid var(--bs-border-color)',
+              zIndex: 1000,
+            }}
+            data-id="shortcut-popover-tools"
+          >
+            {toolCommands.map((cmd, i) => (
+              <button
+                key={cmd.name}
+                onClick={() => {
+                  setActiveShortcut(null)
+                  cmd.action?.()
+                }}
+                className="d-block w-100 text-start px-3 py-2 border-0"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'var(--bs-body-color)',
+                  fontSize: '0.8rem',
+                  borderBottom: i < toolCommands.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                data-id={`shortcut-tool-${cmd.name}`}
+              >
+                <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>/{cmd.name}</span>
+                <span className="ms-2" style={{ color: 'var(--bs-secondary-color)', fontSize: '0.75rem' }}>{cmd.description}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>}
       <div
         ref={promptAreaRef}
@@ -368,7 +440,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         {showAutocomplete && (
           <AutocompletePanel
             isVisible={showAutocomplete}
-            searchTerm={input}
+            searchTerm={getSlashWord(input) ?? '/'}
             onSelect={handleCommandSelect}
             position={undefined}
             themeTracker={themeTracker}
@@ -480,12 +552,13 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 <button
                   onClick={() => setShowOllamaModelSelector(prev => !prev)}
                   className="btn btn-text btn-sm small font-weight-light text-secondary align-self-end border border-text rounded ms-2"
+                  style={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}
                   ref={modelSelectorBtnRef}
                   data-id="ollama-model-selector"
                   data-assist-btn="assistant-selector-btn"
                 >
                   <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
-                    <span>{selectedModel?.displayName || 'Select Model'}</span>
+                    <span style={{ whiteSpace: 'nowrap' }}>{selectedOllamaModel || 'Select Ollama Model'}</span>
                     <span className={showOllamaModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
                   </div>
                 </button>

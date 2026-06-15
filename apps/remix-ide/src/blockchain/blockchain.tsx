@@ -1,7 +1,8 @@
 import React from 'react' // eslint-disable-line
 import { Plugin } from '@remixproject/engine'
 import { trackMatomoEvent } from '@remix-api'
-import { toBytes, addHexPrefix } from '@ethereumjs/util'
+import { toBytes, addHexPrefix, privateToAddress, bytesToHex, isValidPrivate } from '@ethereumjs/util'
+import * as crypto from 'crypto'
 import { EventEmitter } from 'events'
 import { format } from 'util'
 import { ExecutionContext } from './execution-context'
@@ -24,7 +25,7 @@ const profile = {
   name: 'blockchain',
   displayName: 'Blockchain',
   description: 'Blockchain - Logic',
-  methods: ['dumpState', 'loadContext', 'getCode', 'getTransactionReceipt', 'addProvider', 'removeProvider', 'getCurrentFork', 'isSmartAccount', 'getAccounts', 'web3VM', 'web3', 'sendRpc', 'getProvider', 'getCurrentProvider', 'getCurrentNetworkStatus', 'getCurrentNetworkCurrency', 'getAllProviders', 'getPinnedProviders', 'changeExecutionContext', 'getProviderObject', 'runTx', 'getBalanceInEther', 'getCurrentProvider', 'deployContractAndLibraries', 'runOrCallContractMethod', 'getStateDetails', 'resetAndInit', 'detectNetwork', 'isVM', 'getWeb3', 'fromWei', 'toWei', 'deployContractWithLibrary', 'newAccount', 'signMessage', 'determineGasPrice'],
+  methods: ['dumpState', 'loadContext', 'getCode', 'getTransactionReceipt', 'addProvider', 'removeProvider', 'getCurrentFork', 'isSmartAccount', 'getAccounts', 'web3VM', 'web3', 'sendRpc', 'getProvider', 'getCurrentProvider', 'getCurrentNetworkStatus', 'getCurrentNetworkCurrency', 'getAllProviders', 'getPinnedProviders', 'changeExecutionContext', 'getProviderObject', 'runTx', 'getBalanceInEther', 'getCurrentProvider', 'deployContractAndLibraries', 'runOrCallContractMethod', 'getStateDetails', 'resetAndInit', 'detectNetwork', 'isVM', 'getWeb3', 'fromWei', 'toWei', 'deployContractWithLibrary', 'newAccount', 'generatePrivateKey', 'signMessage', 'determineGasPrice'],
   version: packageJson.version
 }
 
@@ -824,6 +825,16 @@ export class Blockchain extends Plugin {
         return resolve(address)
       })
     })
+  }
+
+  async generatePrivateKey() {
+    let privateKey: Uint8Array
+    do {
+      privateKey = new Uint8Array(crypto.randomBytes(32))
+    } while (!isValidPrivate(privateKey))
+    const address = bytesToHex(privateToAddress(privateKey))
+    const privateKeyHex = bytesToHex(privateKey)
+    return { address, privateKey: privateKeyHex }
   }
 
   /** Get the balance of an address, and convert wei to ether */

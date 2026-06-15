@@ -1,4 +1,4 @@
-import { remixAILogger, CONVERSATION_THREAD_PREFIX, DeepAgentInferencer } from '@remix/remix-ai-core'
+import { remixAILogger, CONVERSATION_THREAD_PREFIX, DeepAgentInferencer, getBestAvailableModel } from '@remix/remix-ai-core'
 import type { IRemixAIPlugin, ToolApprovalResponse } from './types'
 import type { DeepAgentEventBridge } from './DeepAgentEventBridge'
 import type { MCPServerManager } from './MCPServerManager'
@@ -43,6 +43,29 @@ export class DeepAgentManager {
     }
   }
 
+  /**
+   * For the Ollama provider, the DeepAgent picker only stores the generic
+   * 'ollama' id.
+   */
+  private async resolveOllamaModelId(provider: string, modelId: string): Promise<string> {
+    if (provider !== 'ollama') return modelId
+    if (modelId && modelId !== 'ollama') return modelId
+    const plugin = this.deps.plugin
+    // Prefer the user's explicit Ollama sub-selector pick (or a previously
+    // resolved one) over re-running auto-discovery on every reinit.
+    const cached = (plugin as any).discoveredOllamaModel
+    if (typeof cached === 'string' && cached.length > 0) {
+      plugin.emit('ollamaModelDiscovered', cached)
+      return cached
+    }
+    const best = await getBestAvailableModel()
+    if (!best) return modelId
+    ;(plugin as any).discoveredOllamaModel = best
+    plugin.emit('ollamaModelDiscovered', best)
+    remixAILogger.log(`[DeepAgentManager] Resolved Ollama model: ${best}`)
+    return best
+  }
+
   async enable(): Promise<void> {
     const plugin = this.deps.plugin
 
@@ -64,6 +87,9 @@ export class DeepAgentManager {
       if (userApiKeys?.useOwnKeys) {
         remixAILogger.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent')
       }
+      const resolvedModelId = await this.resolveOllamaModelId(plugin.selectedModel.provider, plugin.selectedModelId)
+      // Don't use remote fallback for Ollama - user explicitly chose local models
+      const fallbackInferencer = plugin.selectedModel.provider === 'ollama' ? null : plugin.remoteInferencer
       plugin.deepAgentInferencer = new DeepAgentInferencer(
         plugin as any, // Cast to Plugin type
         plugin.remixMCPServer.tools,
@@ -73,9 +99,9 @@ export class DeepAgentManager {
           enablePlanning: true,
           userApiKeys
         },
-        plugin.remoteInferencer,
+        fallbackInferencer,
         plugin.mcpInferencer,
-        { provider: plugin.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot', modelId: plugin.selectedModelId }
+        { provider: plugin.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama', modelId: resolvedModelId }
       )
 
       await plugin.deepAgentInferencer.initialize()
@@ -200,7 +226,7 @@ export class DeepAgentManager {
   async cancelRequest(historyMessages?: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<void> {
     const plugin = this.deps.plugin
 
-    if (plugin.deepAgentEnabled && plugin.deepAgentInferencer) {
+    if (plugin.deepAgentInferencer) {
       plugin.deepAgentInferencer.cancelRequest()
       // Stash history on the manager so doReinitialize() seeds it onto the
       // final inferencer regardless of how many rebuilds queue behind us.
@@ -251,24 +277,16 @@ export class DeepAgentManager {
   }
 
   private async doReinitialize(): Promise<void> {
-    console.log('[DeepAgentManager] doReinitialize() called')
     const plugin = this.deps.plugin
-    // Use actual plugin state - default is enabled, localStorage is only set when explicitly changed
-    const deepAgentEnabled = plugin.deepAgentEnabled || plugin.deepAgentInferencer !== null
-    // Guard against a transient null selectedModel (e.g. auth-state change racing
-    // with the model picker). Without this, the unguarded `plugin.selectedModel.provider`
-    // reads below throw a TypeError that the catch block converts into a permanent
-    // `deepAgentEnabled = false`, breaking DeepAgent until the page is reloaded.
     const hasSelectedModel = !!(plugin.selectedModel && plugin.selectedModelId)
 
     ;(plugin as any).traceDeepAgentLifecycle?.('manager.reinitialize:enter', 'reinitialize() entered — evaluating prereqs', {
-      computedDeepAgentEnabled: deepAgentEnabled,
       hasRemixMCPServer: !!plugin.remixMCPServer,
       hasSelectedModel,
-      willProceed: !!(deepAgentEnabled && plugin.remixMCPServer && hasSelectedModel)
+      willProceed: !!(plugin.remixMCPServer && hasSelectedModel)
     })
 
-    if (deepAgentEnabled && plugin.remixMCPServer && hasSelectedModel) {
+    if (plugin.remixMCPServer && hasSelectedModel) {
       try {
         remixAILogger.log('[RemixAI Plugin] Reinitializing DeepAgent after MCP server reset...')
 
@@ -283,6 +301,9 @@ export class DeepAgentManager {
         if (userApiKeys?.useOwnKeys) {
           remixAILogger.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent (reinitialize)')
         }
+        const resolvedModelId = await this.resolveOllamaModelId(plugin.selectedModel.provider, plugin.selectedModelId)
+        // Don't use remote fallback for Ollama - user explicitly chose local models
+        const fallbackInferencer = plugin.selectedModel.provider === 'ollama' ? null : plugin.remoteInferencer
         plugin.deepAgentInferencer = new DeepAgentInferencer(
           plugin as any, // Cast to Plugin type
           plugin.remixMCPServer.tools,
@@ -292,9 +313,9 @@ export class DeepAgentManager {
             enablePlanning: true,
             userApiKeys
           },
-          plugin.remoteInferencer,
+          fallbackInferencer,
           plugin.mcpInferencer,
-          { provider: plugin.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot', modelId: plugin.selectedModelId }
+          { provider: plugin.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama', modelId: resolvedModelId }
         )
         await plugin.deepAgentInferencer.initialize()
         plugin.deepAgentEnabled = true

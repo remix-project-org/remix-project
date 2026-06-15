@@ -67,6 +67,7 @@ const tests = {
             .setValue('*[data-id="githubEmail"]', 'git@example.com')
             .pause(1000)
             .click('*[data-id="saveGitHubCredentials"]')
+            .modalFooterOKClick('github-credentials-error')
             .pause(1000)
 
     },

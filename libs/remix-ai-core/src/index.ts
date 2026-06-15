@@ -10,7 +10,7 @@ import { OllamaInferencer } from './inferencers/local/ollamaInferencer'
 import { MCPInferencer } from './inferencers/mcp/mcpInferencer'
 import { DeepAgentInferencer } from './inferencers/deepagent/DeepAgentInferencer'
 import { RemixMCPServer, createRemixMCPServer } from './remix-mcp-server'
-import { isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost, resetOllamaHostOnSettingsChange } from './inferencers/local/ollama'
+import { isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost, resetOllamaHostOnSettingsChange, getModelCapabilities, modelSupportsTools, modelSupportsThinking, listToolCapableModels } from './inferencers/local/ollama'
 import { FIMModelManager, FIMModelConfig, FIM_MODEL_CONFIGS } from './inferencers/local/fimModelConfig'
 import { ChatHistory } from './prompts/chat'
 import { ChatCommandParser } from './helpers/chatCommandParser'
@@ -23,6 +23,7 @@ export {
   ChatCommandParser,
   ModelType, ICompletions, IParams, IRemoteModel, buildChatPrompt,
   RemoteInferencer, OllamaInferencer, MCPInferencer, DeepAgentInferencer, RemixMCPServer, isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost,
+  getModelCapabilities, modelSupportsTools, modelSupportsThinking, listToolCapableModels,
   FIMModelManager, FIMModelConfig, FIM_MODEL_CONFIGS, createRemixMCPServer,
   InsertionParams, CompletionParams, GenerationParams, AssistantParams,
   ChatEntry, AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,

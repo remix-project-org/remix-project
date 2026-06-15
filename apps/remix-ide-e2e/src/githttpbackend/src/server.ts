@@ -31,18 +31,43 @@ const server = http.createServer((req, res) => {
     console.log(dir);
     const reqStream = req.headers['content-encoding'] === 'gzip' ? req.pipe(zlib.createGunzip()) : req;
     
-    reqStream.pipe(backend(req.url || '', (err, service) => {
-        if (err) return res.end(err + '\n');
-        
-        res.setHeader('content-type', service.type);
-        console.log(service.action, repo, service.fields);
-        
-        const ps = spawn(service.cmd, [...service.args, dir]);
-        ps.stdout.pipe(service.createStream()).pipe(ps.stdin);
-        
-    })).pipe(res);
+  reqStream.pipe(backend(req.url || '', (err, service) => {
+    if (err) {
+      console.error('Backend error:', err);
+      return res.end(err + '\n');
+    }
+
+    res.setHeader('content-type', service.type);
+    console.log(service.action, repo, service.fields, 'dir:', dir);
+
+    const ps = spawn(service.cmd, [...service.args, dir]);
+
+    ps.on('error', (error) => {
+      console.error('Git process error:', error);
+    });
+
+    ps.stderr.on('data', (data) => {
+      console.error('Git stderr:', data.toString());
+    });
+
+    ps.on('exit', (code, signal) => {
+      if (code !== 0) {
+        console.error(`Git process exited with code ${code}, signal ${signal}`);
+      }
+    });
+
+    ps.stdout.pipe(service.createStream()).pipe(ps.stdin);
+
+  })).pipe(res);
+});
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error('Server is already running on port 6868');
+  }
+  process.exit(1);
 });
 
 server.listen(6868, () => {
-    console.log('Server is listening on port 6868');
+  console.log('Server is listening on port 6868');
 });

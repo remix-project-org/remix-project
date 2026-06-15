@@ -9,6 +9,8 @@ interface AiChatPromptAreaProps {
     handleOllamaModelSelection: Dispatch<any>
     selectedOllamaModel: unknown
     ollamaModels: any
+    ollamaModelOpt?: { top: number, left: number }
+    ollamaMenuRef?: React.RefObject<HTMLDivElement>
     themeTracker: any
     showHistorySidebar: boolean
     isMaximized: boolean
@@ -143,21 +145,28 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
       )}
       {props.showOllamaModelSelector && props.selectedModel?.provider === 'ollama' && (
         <div
-          className="pt-2 mb-2 z-3 bg-light border border-text w-75 position-absolute"
-          style={{ borderRadius: '8px' }}
+          className="pt-2 mb-2 z-3 bg-light border border-text position-fixed"
+          style={{ borderRadius: '8px', top: props.ollamaModelOpt?.top, left: props.ollamaModelOpt?.left, zIndex: 2000, minWidth: '280px', maxWidth: '400px' }}
+          ref={props.ollamaMenuRef}
         >
-          <div className="text-uppercase ml-2 mb-2 small">Ollama Model</div>
+          <div className="text-uppercase ms-2 mb-2 small">Ollama Model</div>
           <GroupListMenu
             setChoice={props.handleOllamaModelSelection}
             setShowOptions={props.setShowOllamaModelSelector}
             choice={props.selectedOllamaModel}
-            groupList={props.ollamaModels.map((model: any) => ({
-              label: model,
-              bodyText: `Use ${model} model`,
-              icon: 'fa-solid fa-check',
-              stateValue: model,
-              dataId: `ollama-model-${model.replace(/[^a-zA-Z0-9]/g, '-')}`
-            }))}
+            groupList={props.ollamaModels.map((model: any) => {
+              const name = typeof model === 'string' ? model : model.name
+              const supported = typeof model === 'string' ? true : model.supported
+              return {
+                label: name,
+                bodyText: '',
+                icon: 'fa-solid fa-check',
+                stateValue: name,
+                dataId: `ollama-model-${name.replace(/[^a-zA-Z0-9]/g, '-')}`,
+                disabled: !supported,
+                disabledReason: 'No tool support'
+              }
+            })}
           />
         </div>
       )}

@@ -39,9 +39,15 @@ const profile = {
     'chatMessageSent', 'chatPipeRequested',
     'codeExplainRequested', 'errorExplainRequested', 'vulnerabilityCheckRequested',
     'codeCompletionUsed', 'workspaceGenerated',
-    'mcpEnabled', 'mcpDisabled',
+    'mcpEnabled', 'mcpDisabled', 'mcpServersLoaded',
     'apiKeyModeChanged', 'onApiKeyError',
-    'routeStatusChanged'
+    'routeStatusChanged',
+    // DeepAgent streaming events
+    'onStreamResult', 'onStreamComplete', 'onThinking',
+    'onToolCall', 'onSubagentStart', 'onSubagentComplete',
+    'onTaskStart', 'onTaskComplete', 'onTodoUpdate',
+    'onTodoError', 'onAgentError', 'onApiError',
+    'onToolApprovalRequired', 'ollamaModelDiscovered'
   ],
   icon: 'assets/img/remix-logo-blue.png',
   description: 'RemixAI provides AI services to Remix IDE.',
@@ -405,6 +411,18 @@ export class RemixAIPlugin extends Plugin {
       this.deepAgentManager.respondToToolApproval(response)
     })
 
+    // Listen for Stop requests forwarded by the assistant UI as engine events.
+    // Same reason as toolApprovalResponse above: the UI cannot use plugin.call()
+    // because remixAI's request queue is busy with the in-flight answer() call.
+    // We deliberately do NOT await cancelRequest() here — the synchronous abort
+    // inside it (currentAbortController.abort()) runs immediately during event
+    // dispatch, which lets the queued answer() unwind and drain the queue; the
+    // subsequent reinitialize() runs detached and the next turn gates on
+    // DeepAgentManager.awaitReady().
+    this.on('remixaiassistant' as any, 'stopRequested', (historyMessages?: Array<{ role: 'user' | 'assistant'; content: string }>) => {
+      void this.cancelRequest(historyMessages)
+    })
+
     await this.initialize()
     this.completionAgent = new CodeCompletionAgent(this)
     this.securityAgent = new SecurityAgent(this)
@@ -474,6 +492,8 @@ export class RemixAIPlugin extends Plugin {
           remixAILogger.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent')
         }
 
+        // Don't use remote fallback for Ollama - user explicitly chose local models
+        const fallbackInferencer = this.selectedModel.provider === 'ollama' ? null : this.remoteInferencer
         this.deepAgentInferencer = new DeepAgentInferencer(
           this,
           this.remixMCPServer.tools,
@@ -483,9 +503,9 @@ export class RemixAIPlugin extends Plugin {
             enablePlanning: true,
             userApiKeys
           },
-          this.remoteInferencer,
+          fallbackInferencer,
           this.mcpInferencer, // Pass MCPInferencer to gather external MCP client tools
-          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot', modelId: this.selectedModelId } // Pass selected model
+          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama', modelId: this.selectedModelId } // Pass selected model
         )
         await this.deepAgentInferencer.initialize()
         // Set up DeepAgent event listeners for streaming (once only)
@@ -995,7 +1015,7 @@ export class RemixAIPlugin extends Plugin {
     return []
   }
 
-  async getOllamaModels(): Promise<string[]> {
+  async getOllamaModels(): Promise<{ name: string; supported: boolean }[]> {
     return this.modelManager.getOllamaModels()
   }
 

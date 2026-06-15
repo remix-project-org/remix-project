@@ -42,7 +42,7 @@ const tests = {
             .selectContract('Token')
             .createContract('')
             .clickInstance(0)
-            .clickFunction('balanceOf - call', { types: 'address account', values: '0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c' })
+            .clickFunction(0, 0, ['0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c'])
             .getAddressAtPosition(0, (address) => {
                 addressRef = address
             })

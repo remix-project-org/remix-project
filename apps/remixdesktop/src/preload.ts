@@ -24,6 +24,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('manager:activatePlugin', name)
   },
 
+  // CRE Desktop Bridge — listen for project imports from Scaffold CRE
+  onCREProjectImported: (cb: (payload: { projectName: string; projectDir: string; switchWorkspace: boolean }) => void) => {
+    ipcRenderer.on('cre:project-imported', (_event, payload) => cb(payload))
+  },
+
   plugins: exposedPLugins.map(name => {
     return {
       name,

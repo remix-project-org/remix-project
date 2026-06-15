@@ -1,11 +1,12 @@
 export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
+export type DappMode = 'workspace' | 'inline';
 
 export interface DappConfig {
-  _warning: string;
-  id: string;
+  _warning?: string;
   slug: string;
   name: string;
   workspaceName: string;
+  mode?: DappMode;
 
   contract: {
     address: string;

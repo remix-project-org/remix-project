@@ -11,6 +11,7 @@ interface AccountKebabMenuProps {
   menuIndex?: string | number
   onRenameAccount?: (account: Account) => void
   onNewAccount?: () => void
+  onGeneratePrivateKey?: () => void
   onCreateSmartAccount?: (account: Account) => void
   onAuthorizeDelegation?: (account: Account) => void
   onSignUsingAccount?: (account: Account) => void
@@ -44,6 +45,7 @@ export const AccountKebabMenu: React.FC<AccountKebabMenuProps> = ({
   menuIndex = 'default',
   onRenameAccount,
   onNewAccount,
+  onGeneratePrivateKey,
   onCreateSmartAccount,
   onAuthorizeDelegation,
   onSignUsingAccount,
@@ -64,6 +66,13 @@ export const AccountKebabMenu: React.FC<AccountKebabMenuProps> = ({
       icon: 'fas fa-plus',
       color: 'var(--bs-body-color)',
       onClick: () => onNewAccount()
+    },
+    onGeneratePrivateKey && {
+      id: 'generatePrivateKey',
+      label: intl.formatMessage({ id: 'udapp.generatePrivateKeyMenuItem' }),
+      icon: 'fas fa-key',
+      color: 'var(--bs-body-color)',
+      onClick: () => onGeneratePrivateKey()
     },
     onCreateSmartAccount && {
       id: 'createSmartAccount',

@@ -185,6 +185,21 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
           const pinnedDir = '.deploys/pinned-contracts'
           const pinnedDirExists = await global.plugin.call('fileManager', 'exists', pinnedDir)
 
+          try {
+            const configContent = await global.plugin.call('fileManager', 'readFile', 'dapp.config.json')
+            const config = JSON.parse(configContent)
+
+            if (config.mode === 'inline') {
+              validMappings.push({
+                address: config.contract.address,
+                dappWorkspace: currentWorkspace,
+                sourceWorkspace: config.workspaceName || '',
+                chainId: config.contract.chainId.toString(),
+                createdAt: config.createdAt
+              })
+            }
+          } catch (e) {}
+
           for (const filePath of Object.keys(files)) {
             try {
               const fileName = filePath.split('/').pop()

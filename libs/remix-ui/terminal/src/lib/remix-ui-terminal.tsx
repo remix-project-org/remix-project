@@ -24,8 +24,9 @@ import RenderUnKnownTransactions from './components/RenderUnknownTransactions' /
 import RenderCall from './components/RenderCall' // eslint-disable-line
 import RenderKnownTransactions from './components/RenderKnownTransactions' // eslint-disable-line
 import DebuggerCallStack from './components/DebuggerCallStack' // eslint-disable-line
+import { showCopyableValues } from './components/CopyableValues' // eslint-disable-line
 import parse from 'html-react-parser'
-import { EMPTY_BLOCK, KNOWN_TRANSACTION, RemixUiTerminalProps, SET_ISVM, SET_OPEN, UNKNOWN_TRANSACTION } from './types/terminalTypes'
+import { EMPTY_BLOCK, KNOWN_TRANSACTION, RemixUiTerminalProps, SET_ISVM, SET_OPEN, UNKNOWN_TRANSACTION, COPYABLE_VALUES } from './types/terminalTypes'
 import { wrapScript } from './utils/wrapScript'
 import { TerminalContext } from './context'
 
@@ -185,6 +186,15 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
           type: 'html',
           payload: {
             message: [html ? (html.innerText ? html.innerText : html) : null],
+          },
+        })
+      },
+
+      logCopyableValues: (data) => {
+        scriptRunnerDispatch({
+          type: 'copyableValues',
+          payload: {
+            message: [data],
           },
         })
       },
@@ -751,6 +761,15 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
                               provider={x.provider}
                             />
                           )}
+                        </div>
+                      )
+                    })
+                } else if (x.name === 'copyableValues') {
+                  return x.message
+                    .map((data, i) => {
+                      return (
+                        <div className={classNameBlock} data-id="block_copyableValues" key={index}>
+                          {showCopyableValues(data)}
                         </div>
                       )
                     })

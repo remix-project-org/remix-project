@@ -19,15 +19,15 @@ const profile = {
   version: packageJson.version,
   maintainedBy: 'Remix',
   permission: true,
-  events: ['toolApprovalResponse'],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval']
+  events: ['toolApprovalResponse', 'stopRequested'],
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest']
 }
 
 export class RemixAIAssistant extends ViewPlugin {
   element: HTMLDivElement
   dispatch: React.Dispatch<any> = () => { }
   appStateDispatch: React.Dispatch<AppAction> = () => { }
-  queuedMessage: { text: string, timestamp: number } | null = null
+  queuedMessage: { text: string, isEditorCodeAnalysis?: boolean, timestamp: number } | null = null
   event: any
   chatRef: React.RefObject<RemixUiRemixAiAssistantHandle>
   history: ChatMessage[] = []
@@ -337,6 +337,19 @@ export class RemixAIAssistant extends ViewPlugin {
     this.emit('toolApprovalResponse', response)
   }
 
+  /**
+   * Forward a Stop request from the chat UI to the RemixAIPlugin via an engine
+   * event. Done as an event (not a `call`) because the remixAI plugin's
+   * incoming-request queue is busy with the still-running `answer()` call that
+   * we are trying to cancel — issuing `call('remixAI', 'cancelRequest')` here
+   * would queue behind that answer() and never run, since answer() only
+   * finishes once this very cancel aborts its stream (circular wait → deadlock).
+   * Engine events bypass the per-plugin request queue and run synchronously.
+   */
+  stopRequest(historyMessages?: Array<{ role: 'user' | 'assistant'; content: string }>): void {
+    this.emit('stopRequested', historyMessages)
+  }
+
   async autoArchiveCheck() {
     if (!this.storageManager) return
 
@@ -416,7 +429,7 @@ export class RemixAIAssistant extends ViewPlugin {
     })
   }
 
-  chatPipe = (message: string) => {
+  chatPipe = (message: string, isEditorCodeAnalysis: boolean = false) => {
     remixAILogger.log('[QuickDapp] chatPipe received, length:', message?.length)
     // Show right side panel if it's hidden
     this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
@@ -434,13 +447,14 @@ export class RemixAIAssistant extends ViewPlugin {
 
     // If the inner component is mounted, call it directly
     if (this.chatRef?.current) {
-      this.chatRef.current.sendChat(message)
+      this.chatRef.current.sendChat(message, isEditorCodeAnalysis)
       return
     }
 
     // Otherwise queue it for first render
     this.queuedMessage = {
       text: message,
+      isEditorCodeAnalysis: isEditorCodeAnalysis,
       timestamp: Date.now()
     }
     this.renderComponent()
@@ -474,7 +488,7 @@ export class RemixAIAssistant extends ViewPlugin {
 
   updateComponent(state: {
     isInitializing: boolean
-    queuedMessage: { text: string, timestamp: number } | null
+    queuedMessage: { text: string, isEditorCodeAnalysis?: boolean, timestamp: number } | null
     conversations: ConversationMetadata[]
     currentConversationId: string | null
     showHistorySidebar: boolean

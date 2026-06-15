@@ -14,4 +14,6 @@ export type groupListType = {
   dataId: string
   stateValue: AiContextType | string | any
   isLocked?: boolean
+  disabled?: boolean
+  disabledReason?: string
 }

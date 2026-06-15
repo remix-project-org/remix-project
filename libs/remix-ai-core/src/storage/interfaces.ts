@@ -18,7 +18,7 @@ export interface TodoItem {
 
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'editor_code_analysis'
   content: string
   timestamp: number
   sentiment?: 'none' | 'like' | 'dislike'

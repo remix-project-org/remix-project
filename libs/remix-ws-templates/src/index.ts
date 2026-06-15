@@ -14,6 +14,7 @@ export { default as hashchecker } from './templates/hashchecker'
 export { default as rln } from './templates/rln'
 export { default as multNr } from './templates/multiplierNoir'
 export { default as stealthDropNr } from './templates/stealthdropNoir'
+export { default as crePredictionMarket } from './templates/crePredictionMarket'
 
 export { contractDeployerScripts } from './script-templates/contract-deployer'
 export { etherscanScripts } from './script-templates/etherscan'

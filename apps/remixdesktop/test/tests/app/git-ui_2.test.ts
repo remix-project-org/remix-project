@@ -66,7 +66,7 @@ const tests = {
             .setValue('*[data-id="githubEmail"]', 'git@example.com')
             .pause(1000)
             .click('*[data-id="saveGitHubCredentials"]')
-
+            .modalFooterOKClick('github-credentials-error')
 
     },
 
@@ -120,6 +120,17 @@ const tests = {
                 selector: "//*[@data-status='added-staged' and @data-file='/test.txt']",
                 locateStrategy: 'xpath'
             })
+            .waitForElementVisible({
+                selector: "//*[@data-status='new-untracked' and @data-file='/remix.config.json']",
+                locateStrategy: 'xpath'
+            })
+            .waitForElementVisible('*[data-id="addToGitChangesremix.config.json"]')
+            .pause(1000)
+            .click('*[data-id="addToGitChangesremix.config.json"]')
+            .waitForElementVisible({
+                selector: "//*[@data-status='added-staged' and @data-file='/remix.config.json']",
+                locateStrategy: 'xpath'
+            })
             .setValue('*[data-id="commitMessage"]', 'testcommit')
             .waitForElementPresent({
                 selector: '//*[@data-id="commitButton" and not(@disabled)]',
@@ -134,34 +145,44 @@ const tests = {
                 selector: "//*[@data-status='added-staged' and @data-file='/test.txt']",
                 locateStrategy: 'xpath'
             })
+            .waitForElementNotPresent({
+                selector: "//*[@data-status='added-staged' and @data-file='/remix.config.json']",
+                locateStrategy: 'xpath'
+            })
     },
     'check if the commit is ahead in the branches list #group2': function (browser: NightwatchBrowser) {
         browser
             .waitForElementVisible('*[data-id="branches-panel"]')
             .click('*[data-id="branches-panel"]')
             .waitForElementVisible('*[data-id="branches-current-branch-testbranch"]')
+            .pause(1000)
             .click({
                 selector: "//*[@data-id='branches-panel-content']//*[@data-id='branches-current-branch-testbranch']",
                 locateStrategy: 'xpath',
                 suppressNotFoundErrors: true
             })
+            .pause(1000)
             .click({
                 selector: "//*[@data-id='branches-panel-content']//*[@data-id='commits-panel-ahead']",
                 locateStrategy: 'xpath',
                 suppressNotFoundErrors: true
             })
+            .pause(1000)
             .click({
                 selector: "//*[@data-id='branches-panel-content']//*[@data-id='branchdifference-commits-testbranch-ahead']//*[@data-id='commit-summary-testcommit-ahead']",
                 locateStrategy: 'xpath',
             })
+            .pause(1000)
             .click({
                 selector: "//*[@data-id='branches-panel-content']//*[@data-id='branchdifference-commits-testbranch-ahead']//*[@data-id='commit-change-added-test.txt']",
                 locateStrategy: 'xpath',
             })
+            .pause(1000)
             .click({
                 selector: "//*[@data-id='branches-panel-content']//*[@data-id='local-branch-commits-testbranch']//*[@data-id='commit-summary-testcommit-ahead']",
                 locateStrategy: 'xpath',
             })
+            .pause(1000)
             .waitForElementVisible({
                 selector: "//*[@data-id='branches-panel-content']//*[@data-id='local-branch-commits-testbranch']//*[@data-id='commit-change-added-test.txt']",
                 locateStrategy: 'xpath',

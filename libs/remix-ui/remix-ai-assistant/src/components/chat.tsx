@@ -15,6 +15,7 @@ import { DAppUpdateReviewCard } from './DAppUpdateReviewCard'
 export interface ChatHistoryComponentProps {
   messages: ChatMessage[]
   isStreaming: boolean
+  isThinking?: boolean
   sendPrompt: (prompt: string) => void
   recordFeedback: (msgId: string, next: 'like' | 'dislike' | 'none') => void
   historyRef: React.RefObject<HTMLDivElement>
@@ -49,6 +50,7 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ theme }) => {
 export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   messages,
   isStreaming,
+  isThinking,
   sendPrompt,
   recordFeedback,
   historyRef,
@@ -119,7 +121,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                         marginLeft: '4px'
                       } : undefined}
                     >
-                      {msg.role === 'assistant' ? (
+                      {msg.role === 'assistant' || msg.role === 'editor_code_analysis' ? (
                         RemixMarkdownViewer(theme, msg.content, btnColor, setBtnColor)
                       ) : (
                         <div className="ai-paragraph pb-0">
@@ -278,6 +280,19 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
             </div>
           )
         }) //end of messages renderconsole.log(content)
+      )}
+      {isThinking && (
+        <div className="thinking-indicator small mb-2 p-2 rounded mx-3" style={{
+          backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(255, 193, 7, 0.15)' : 'rgba(255, 193, 7, 0.1)',
+          border: '1px solid rgba(255, 193, 7, 0.3)'
+        }}>
+          <div className="d-flex align-items-center">
+            <i className="fa fa-spinner fa-spin me-2 text-warning"></i>
+            <span className="text-warning">
+              <strong>Thinking</strong>
+            </span>
+          </div>
+        </div>
       )}
       {isStreaming && (
         <div className="text-center my-2">

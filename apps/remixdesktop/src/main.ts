@@ -4,6 +4,7 @@ import "./utils/log"
 import os from 'os';
 import fs from 'fs';
 import { exec } from 'child_process';
+import { startCREBridge } from './lib/creDesktopBridge';
 
 export let isPackaged = false;
 export const version = app.getVersion();
@@ -110,6 +111,7 @@ app.on('ready', async () => {
   trackEvent('App', 'OS', process.platform, 1);
   if (!isE2E) registerLinuxProtocolHandler();
   require('./engine')
+  startCREBridge()
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

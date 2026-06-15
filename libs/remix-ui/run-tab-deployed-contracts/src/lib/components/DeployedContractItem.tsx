@@ -409,13 +409,29 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
       }
       console.log('[QuickDapp] chainId resolved:', chainId);
 
-      const prompt = `I want to create a DApp frontend for my deployed contract. Here are the contract details you'll need when calling generate_dapp:
+      const prompt = `I want to create a DApp frontend. Follow these steps exactly:
 
-contractName: ${contract.name}
-contractAddress: ${contract.address}
-chainId: ${chainId}
+STEP 1 - ASK FOR LOCATION CHOICE:
+Ask me: "Where should I create your DApp?"
+- Inline: In /frontend folder of current workspace
+- Workspace: In a new dedicated workspace
 
-Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers.js. Generate the DApp directly without asking additional questions.`
+STEP 2 - IF I CHOOSE INLINE:
+Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"
+
+STEP 3 - CALL THE TOOL:
+After I answer, you MUST call generate_dapp with these parameters:
+
+generate_dapp({
+  description: "Modern dark mode single-page DApp using React and Ethers.js",
+  contractName: "${contract.name}",
+  contractAddress: "${contract.address}",
+  chainId: "${chainId}",
+  frontendMode: "inline" or "workspace",  // based on my choice
+  confirmOverwrite: true  // only if I chose inline AND confirmed overwrite
+})
+
+IMPORTANT: After I make my choice, your next action MUST be calling generate_dapp. Do not just say "Understood" or "Proceeding" - actually call the tool.`
 
       console.log('[QuickDapp] prompt assembled, length:', prompt.length);
 

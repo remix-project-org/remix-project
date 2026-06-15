@@ -15,6 +15,12 @@ const versionData = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development'
 }
 
+const minifierParallel = (() => {
+  const configuredParallel = Number(process.env.MINIFIER_PARALLEL)
+  if (Number.isInteger(configuredParallel) && configuredParallel > 0) return configuredParallel
+  return process.env.CI ? 2 : true
+})()
+
 // Emit the soljson.js compiler into the output without touching source files
 class EmitSoljsonPlugin {
   apply(compiler) {
@@ -34,7 +40,7 @@ class EmitSoljsonPlugin {
             const url = `https://binaries.soliditylang.org/bin/${defaultVersion}`
             const data = await new Promise((resolve, reject) => {
               const https = require('https')
-              https
+              const request = https
                 .get(url, (res) => {
                   if (res.statusCode !== 200) {
                     reject(new Error(`Failed to download soljson.js (${res.statusCode})`))
@@ -45,6 +51,9 @@ class EmitSoljsonPlugin {
                   res.on('end', () => resolve(Buffer.concat(chunks)))
                 })
                 .on('error', reject)
+              request.setTimeout(15000, () => {
+                request.destroy(new Error(`Timed out downloading soljson.js from ${url}`))
+              })
             })
             if (RawSource) {
               // Match previous public path: assets/js/soljson.js
@@ -283,7 +292,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
   // set minimizer
   config.optimization.minimizer = [
     new TerserPlugin({
-      parallel: true,
+      parallel: minifierParallel,
       terserOptions: {
         ecma: 2015,
         compress: false,
@@ -294,7 +303,9 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
       },
       extractComments: false
     }),
-    new CssMinimizerPlugin()
+    new CssMinimizerPlugin({
+      parallel: minifierParallel
+    })
   ]
 
   // minify code

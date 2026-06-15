@@ -15,6 +15,12 @@ export interface StreamResultData {
   subagentName?: string
 }
 
+// Thinking event data from DeepAgent (Ollama reasoning)
+export interface ThinkingData {
+  isThinking: boolean
+  threadId?: string
+}
+
 // Tool call event data
 export interface ToolCallData {
   toolName: string

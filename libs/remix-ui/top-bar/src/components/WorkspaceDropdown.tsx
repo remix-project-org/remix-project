@@ -633,11 +633,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                   setShowMain(false)
                   setOpenSub(null)
                 }}>
-                  <span className="pl-2 text-white" onClick={() => {
-                    deleteAllWorkspaces()
-                    setShowMain(false)
-                    setOpenSub(null)
-                  }}>
+                  <span className="pl-2 text-white">
                     <i className="fas fa-trash-can me-2"></i>
                     Delete all Workspaces
                   </span>

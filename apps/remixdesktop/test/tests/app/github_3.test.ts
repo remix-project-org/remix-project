@@ -7,7 +7,7 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
     .click('*[data-id="workspacecreate"]')
     .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
     .waitForElementVisible('*[data-id="template-explorer-template-container"]')
-    .click('*[data-id="template-explorer-template-container"]')
+    .scrollInto('*[data-id="template-explorer-template-container"]')
     .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
     .click('*[data-id="template-card-remixDefault-0"]')
     .waitForElementVisible('*[data-id="workspace-details-section"]')
@@ -109,6 +109,7 @@ const tests = {
           .waitForElementVisible('*[data-id="treeViewLitreeViewItem.git"]')
       })
   },
+
   'Update settings for git #group3': function (browser: NightwatchBrowser) {
     browser.
       clickLaunchIcon('dgit')
@@ -124,6 +125,7 @@ const tests = {
       .pause(1000)
       .click('*[data-id="saveGitHubCredentials"]')
       .pause(1000)
+      .modalFooterOKClick('github-credentials-error')
   },
   'check the commits panel for pagination #group3': function (browser: NightwatchBrowser) {
     browser

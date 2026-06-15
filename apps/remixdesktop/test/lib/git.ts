@@ -1,4 +1,5 @@
 import { spawn, ChildProcess } from "child_process"
+import * as path from "path"
 
 export async function getBranches(path: string): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -168,28 +169,48 @@ export async function createCommitOnLocalServer(path: string, message: string) {
 }
 
 
-export async function spawnGitServer(path: string): Promise<ChildProcess> {
-    console.log(process.cwd())
-    try {
-        const server = spawn('yarn && sh setup.sh && yarn start:server', [`${path}`], { cwd: process.cwd() + '/../remix-ide-e2e/src/githttpbackend/', shell: true, detached: true })
-        console.log('spawned', server.stdout.closed, server.stderr.closed)
-        return new Promise((resolve, reject) => {
-            server.stdout.on('data', function (data) {
-                console.log(data.toString())
-                if (
-                    data.toString().includes('is listening')
-                    || data.toString().includes('address already in use')
-                ) {
-                    console.log('resolving')
-                    resolve(server)
-                }
-            })
-            server.stderr.on('err', function (data) {
-                console.log(data.toString())
-                reject(data.toString())
-            })
-        })
-    } catch (e) {
-        console.log(e)
-    }
+export async function spawnGitServer(targetPath: string): Promise<ChildProcess> {
+  console.log(process.cwd())
+  try {
+    // Kill any existing server on port 6868 first
+    const killProcess = spawn('sh', ['-c', 'lsof -ti:6868 | xargs kill -9 2>/dev/null || true'])
+    await new Promise((resolve) => {
+      killProcess.on('exit', () => resolve(undefined))
+      setTimeout(() => resolve(undefined), 2000)
+    })
+
+    // Wait for port to be released
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Resolve the git backend directory relative to this file's location
+    const gitBackendDir = path.resolve(__dirname, '../../../../../remix-ide-e2e/src/githttpbackend/')
+    console.log('Git backend directory:', gitBackendDir)
+    const server = spawn(`sh setup.sh && node ./dist/server.js "${targetPath}"`, [], { cwd: gitBackendDir, shell: true, detached: true })
+    console.log('spawned', server.stdout.closed, server.stderr.closed)
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Git server setup timeout'))
+      }, 60000)
+
+      server.stdout.on('data', function (data) {
+        console.log('Git server stdout:', data.toString())
+        if (data.toString().includes('is listening')) {
+          console.log('Git server is ready')
+          clearTimeout(timeout)
+          resolve(server)
+        }
+      })
+      server.stderr.on('data', function (data) {
+        console.log('Git server stderr:', data.toString())
+      })
+      server.on('error', function(err) {
+        console.error('Git server spawn error:', err)
+        clearTimeout(timeout)
+        reject(err)
+      })
+    })
+  } catch (e) {
+    console.log(e)
+    throw e
+  }
 }

@@ -2,12 +2,14 @@ import { remixAILogger } from '../../helpers/logger'
 import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatMistralAI } from '@langchain/mistralai'
 import { ChatOpenAI } from '@langchain/openai'
+import { ChatOllama } from '@langchain/ollama'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { HTTPClient } from '@mistralai/mistralai/lib/http.js'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { ModelSelection, IUserApiKeyConfig } from '../../types/deepagent'
 import { DAPP_MAX_TOKENS } from './constants'
 import { getRemixAuthHeader } from '../auth'
+import { discoverOllamaHost, getBestAvailableModel, getModelCapabilities } from '../local/ollama'
 
 const AI_DEBUG = (() => {
   try { return typeof window !== 'undefined' && window.localStorage?.getItem('AI_DEBUG') === 'true' } catch { return false }
@@ -22,29 +24,11 @@ const authedFetch: typeof fetch = (input, init = {}) => {
   const headers = new Headers(init.headers || {})
   const auth = getRemixAuthHeader()
   if (auth.Authorization) {
-    // Always overwrite: the langchain client may have stamped a placeholder
-    // 'Authorization: Bearer proxy-handled' from the dummy apiKey we pass in.
     headers.set('Authorization', auth.Authorization)
   }
   return fetch(input as any, { ...init, headers })
 }
 
-/**
- * Moonshot (Kimi) thinking models require that every assistant message
- * containing `tool_calls` in the request history also carries the original
- * `reasoning_content` returned by the model. LangChain's ChatOpenAI captures
- * `reasoning_content` from streamed deltas into `additional_kwargs`, but its
- * outbound serializer (convertMessagesToCompletionsMessageParams) does NOT
- * re-emit it. Without this, the second turn fails with:
- *   "thinking is enabled but reasoning_content is missing in assistant tool
- *    call message at index N"
- *
- * Workaround: a fetch wrapper that
- *  - tees the streamed SSE response, accumulates `reasoning_content` per
- *    assistant turn, and caches it keyed by the resulting tool_call ids;
- *  - on outbound requests, walks `body.messages` and stamps the cached
- *    `reasoning_content` onto matching assistant tool_call messages.
- */
 const moonshotReasoningByToolCallKey = new Map<string, string>()
 const MOONSHOT_REASONING_CACHE_MAX = 200
 
@@ -301,14 +285,44 @@ function wrapModelForDebug<T extends BaseChatModel>(model: T, label: string): T 
   return model
 }
 
-export function createModelInstance(
+export async function createModelInstance(
   modelSelection: ModelSelection,
   maxTokens: number = DAPP_MAX_TOKENS,
   userApiKeys?: IUserApiKeyConfig
-): BaseChatModel {
+): Promise<BaseChatModel> {
   const { provider, modelId } = modelSelection
 
   switch (provider) {
+  case 'ollama': {
+    const host = await discoverOllamaHost()
+    console.log('Discovered Ollama host:', host)
+    if (!host) {
+      throw new Error('[ModelFactory] Ollama is not running or unreachable')
+    }
+
+    const chosenModel = (modelId && modelId !== 'ollama')
+      ? modelId
+      : await getBestAvailableModel()
+    console.log('Chosen Ollama model:', chosenModel)
+    if (!chosenModel) {
+      throw new Error('[ModelFactory] No tool-capable Ollama model is installed. The Remix agent requires a model that supports tool calling — install one (e.g. `ollama pull qwen2.5-coder`) and try again.')
+    }
+
+    const caps = await getModelCapabilities(chosenModel)
+    if (!caps.tools) {
+      throw new Error(`[ModelFactory] Ollama model "${chosenModel}" does not support tool calling, which the Remix agent requires. Choose a tool-capable model (e.g. qwen2.5-coder, llama3.1, mistral-nemo).`)
+    }
+    remixAILogger.log(`[ModelFactory] Creating Ollama model: ${chosenModel} @ ${host} (thinking: ${caps.thinking})`)
+    return wrapModelForDebug(new ChatOllama({
+      baseUrl: host,
+      model: chosenModel,
+      temperature: 0.7,
+      numPredict: maxTokens,
+      streaming: true,
+      ...(caps.thinking ? { think: true } : {})
+    }), `ollama/${chosenModel}`)
+  }
+
   case 'mistralai': {
     const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.mistralApiKey)
     remixAILogger.log(`[ModelFactory] Creating MistralAI model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
@@ -318,15 +332,7 @@ export function createModelInstance(
       temperature: 0.7,
       maxTokens: maxTokens,
       streaming: true,
-      // Disable langchain's automatic retry. Otherwise a single user
-      // turn produces 5-6 silent retries on 429 (or any 5xx), each
-      // doubling the delay before the cooldown banner can show. We
-      // want the FIRST envelope error to surface immediately so
-      // assistantState can gate the next attempt.
       maxRetries: 0,
-      // Proxy path needs the Remix bearer injected per-request via the
-      // custom HTTPClient. Direct path uses the user's own key and goes
-      // straight to Mistral, so no auth hook is needed.
       ...(useDirectApi
         ? {}
         : {
@@ -358,16 +364,6 @@ export function createModelInstance(
   }
 
   case 'moonshot': {
-    // Moonshot (Kimi) speaks the OpenAI Chat Completions wire format, so we
-    // use ChatOpenAI rather than the Mistral shim.
-    //  - Direct API path: user supplied their own Moonshot key → call
-    //    api.moonshot.ai directly, disable thinking mode to avoid the
-    //    reasoning_content round-trip requirement.
-    //  - Proxy path: route through `${endpointUrls.langchain}/moonshot/v1`
-    //    with `moonshotFetch`, which injects the Remix bearer AND tees
-    //    SSE streams to capture+re-inject `reasoning_content` so the
-    //    thinking-enabled models (e.g. kimi-k2-thinking) don't reject
-    //    follow-up assistant tool_call messages.
     const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.moonshotApiKey)
     remixAILogger.log(`[ModelFactory] Creating Moonshot model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
     if (useDirectApi) {
@@ -388,7 +384,6 @@ export function createModelInstance(
     return wrapModelForDebug(new ChatOpenAI({
       apiKey: 'proxy-handled',
       model: modelId,
-      // Moonshot recommends temperature=1 and currently enforces top_p=0.95.
       temperature: 1,
       topP: 0.95,
       maxTokens: maxTokens,
@@ -411,9 +406,6 @@ export function createModelInstance(
       temperature: 0.7,
       maxTokens: maxTokens,
       streaming: true,
-      // See note in mistralai branch — langchain auto-retry hides
-      // 429s behind exponential backoff and produces a cluster of
-      // red requests in DevTools before the user sees anything.
       maxRetries: 0,
       ...(useDirectApi
         ? {}

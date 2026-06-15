@@ -1,11 +1,11 @@
 export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
 
 export interface DappConfig {
-  _warning: string;
-  id: string;
+  _warning?: string;
   slug: string;
   name: string;
   workspaceName: string;
+  mode?: DappMode;
 
   contract: {
     address: string;
@@ -39,8 +39,11 @@ export interface DappConfig {
     isBaseMiniApp?: boolean;
   };
 
+  inlineMode?: boolean;
   thumbnailPath?: string;
 }
+
+export type DappMode = 'workspace' | 'inline';
 
 export interface AppState {
   loading: { screen: boolean };
@@ -56,6 +59,7 @@ export interface AppState {
 export interface GenerationProgress {
   status: 'preparing' | 'calling_llm' | 'generating_file' | 'parsing' | 'validating' | 'complete';
   slug?: string;
+  workspaceName?: string;
   address?: string;
   filename?: string;
   fileCount?: number;

@@ -48,6 +48,9 @@ export class IndexedDbCachePlugin extends Plugin {
 
   constructor() {
     super(profile)
+  }
+
+  onActivation() {
     this.initializeDatabase()
   }
 

@@ -79,6 +79,24 @@ function EnvironmentPortraitView() {
     setOpenKebabMenuId(null)
   }
 
+  const handleGeneratePrivateKey = async () => {
+    trackMatomoEvent({ category: 'udapp', action: 'newAccount', name: 'generatePrivateKey', isClick: true })
+    try {
+      const result = await plugin.call('blockchain', 'generatePrivateKey')
+
+      plugin.call('terminal', 'logCopyableValues', {
+        rows: [
+          { label: 'Generated Address', value: result.address, labelColor: 'var(--success)' },
+          { label: 'Private Key', value: result.privateKey, labelColor: 'var(--warning)' }
+        ]
+      })
+      plugin.call('notification', 'toast', 'Private key generated successfully in Remix terminal.')
+    } catch (error) {
+      plugin.call('terminal', 'log', { type: 'error', value: `Error generating private key: ${error.message}` })
+    }
+    setOpenKebabMenuId(null)
+  }
+
   const handleCreateSmartAccount = (_account: Account) => {
     trackMatomoEvent({ category: 'udapp', action: 'createSmartAccount', name: shortenAddress(_account.account), isClick: true })
     plugin.call('notification', 'modal', {
@@ -550,6 +568,7 @@ function EnvironmentPortraitView() {
                 menuIndex="selected"
                 onRenameAccount={handleRenameAccount}
                 onNewAccount={handleNewAccount}
+                onGeneratePrivateKey={handleGeneratePrivateKey}
                 onCreateSmartAccount={isSmartAccountSupported ? handleCreateSmartAccount : undefined}
                 onAuthorizeDelegation={enableDelegationAuthorization && !delegationAddress ? handleAuthorizeDelegation : undefined}
                 onSignUsingAccount={handleSignUsingAccount}
@@ -631,6 +650,7 @@ function EnvironmentPortraitView() {
                           account={accountData}
                           menuIndex={index}
                           onRenameAccount={handleRenameAccount}
+                          onGeneratePrivateKey={handleGeneratePrivateKey}
                           onDeleteAccount={isSmartAccount ? undefined : handleDeleteAccount}
                         />
                       </div>

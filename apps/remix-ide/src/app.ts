@@ -935,6 +935,21 @@ class AppComponent {
 
     if (isElectron()) {
       this.appManager.activatePlugin(['desktopHost'])
+      // CRE Desktop Bridge — handle incoming project imports from Scaffold CRE.
+      // The main process shows the native dialog; if the user chose "Switch Workspace"
+      // it sends cre:project-imported with switchWorkspace:true via the preload.
+      const electronAPI = (window as any).electronAPI
+      if (electronAPI?.onCREProjectImported) {
+        electronAPI.onCREProjectImported(async (payload: { projectName: string; projectDir: string; switchWorkspace: boolean }) => {
+          if (payload.switchWorkspace) {
+            try {
+              await this.appManager.call('fs', 'openFolderInSameWindow', payload.projectDir)
+            } catch (err) {
+              console.error('[CRE Bridge] Failed to switch workspace:', err)
+            }
+          }
+        })
+      }
     }
     // await this.appManager.activatePlugin(['compilerArtefacts'])
     await this.appManager.activatePlugin(['udappEnv'])

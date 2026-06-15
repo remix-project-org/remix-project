@@ -121,6 +121,7 @@ export interface TemplateItem {
     permit?: boolean
   }
   templateType?: TemplateType
+  requiresCustomization?: boolean // If true, show customization UI in Files mode instead of immediately adding artifacts
 }
 
 export type TemplateType = {

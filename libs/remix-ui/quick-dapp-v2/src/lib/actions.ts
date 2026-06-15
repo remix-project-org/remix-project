@@ -248,14 +248,14 @@ export const setAiLoading = async (isLoading: boolean) => {
   });
 };
 
-export const openDapp = async (slug: string) => {
+export const openDapp = async (identifier: string) => {
   if (!dispatch || !state) {
     console.error('[QuickDapp] dispatch or state not initialized');
     return false;
   }
 
   const dapps = state.dapps || [];
-  const targetDapp = dapps.find((d: any) => d.slug === slug || d.workspaceName === slug);
+  const targetDapp = dapps.find((d: any) => d.slug === identifier || d.workspaceName === identifier);
 
   if (targetDapp) {
     await dispatch({ type: 'SET_ACTIVE_DAPP', payload: targetDapp });

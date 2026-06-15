@@ -67,7 +67,7 @@ const BaseAppWizard: React.FC = () => {
         setViewStep(1);
       }
     }
-  }, [activeDapp?.id]);
+  }, [activeDapp?.slug]);
 
   const isAppLive = savedWizardState.currentStep >= 4;
 
@@ -213,11 +213,13 @@ const BaseAppWizard: React.FC = () => {
     try {
       builder = new InBrowserVite();
       await builder.initialize();
-      const dappRootPath = '/';
+      const isInlineMode = activeDapp?.mode === 'inline';
+      const dappRootPath = isInlineMode ? '/frontend' : '/';
+      const rootPathLength = isInlineMode ? '/frontend'.length : 0;
       const filesMap = new Map<string, string>();
-      await readDappFiles(plugin, dappRootPath, filesMap, 0);
+      await readDappFiles(plugin, dappRootPath, filesMap, rootPathLength);
 
-      if (filesMap.size === 0) throw new Error("No DApp files found");
+      if (filesMap.size === 0) throw new Error(`No DApp files found in ${isInlineMode ? '/frontend folder' : 'workspace root'}`);
 
       const jsResult = await builder.build(filesMap, '/src/main.jsx');
       if (!jsResult.success) throw new Error(`Build failed: ${jsResult.error}`);

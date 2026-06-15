@@ -126,7 +126,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
           <div>
             <h6 className="card-title fw-bold mb-1 text-truncate text-body" data-id={`dapp-card-name-${dapp.slug}`}>{dapp.name}</h6>
             <small className="text-muted d-block text-truncate" style={{ fontSize: '0.8rem' }}>
-              {dapp.id}
+              {dapp.slug}
             </small>
             {dapp.workspaceName && (
               <small className="text-info d-block text-truncate mb-2" style={{ fontSize: '0.75rem' }}>

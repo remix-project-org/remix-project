@@ -282,6 +282,7 @@
   "udapp._comment_accountKebab": "keys for accountKebabMenu.tsx",
   "udapp.renameAccountMenuItem": "Rename",
   "udapp.newAccountMenuItem": "New account",
+  "udapp.generatePrivateKeyMenuItem": "Generate private key",
   "udapp.createSmartAccountMenuItem": "Create smart account",
   "udapp.authorizeDelegationMenuItem": "Authorize delegation",
   "udapp.signUsingAccountMenuItem": "Sign using this account",

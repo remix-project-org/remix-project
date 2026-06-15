@@ -102,28 +102,42 @@ export default function GroupListMenu(props: GroupListMenuProps) {
         return (
           <button
             key={`${item.label}-${index}`}
-            className={`btn btn-light border-0 ${item.isLocked ? 'opacity-75' : ''}`}
+            className={`btn btn-light border-0 ${item.isLocked ? 'opacity-75' : ''} ${item.disabled ? 'opacity-50' : ''}`}
             data-id={item.dataId}
             data-locked={item.isLocked ? 'true' : 'false'}
+            data-disabled={item.disabled ? 'true' : 'false'}
+            title={item.disabled ? (item.disabledReason || 'This model is not supported') : undefined}
             onClick={() => {
               props.setShowOptions(false)
               if (item.isLocked) {
                 props.onLockedItemClick?.(item)
               } else {
+                // Disabled rows (e.g. unsupported models) still route through
+                // setChoice so the caller can surface a message and fall back.
                 props.setChoice(item.stateValue)
               }
             }}
           >
             <div className="d-flex flex-column small text-start">
-              <div className="d-flex align-items-center mb-1">
-                <span className="form-check-label fw-bold">{item.label}</span>
-                {upgradePill}
-                {buyCreditsPill}
+              <div className="d-flex align-items-center justify-content-between mb-1">
+                <div className="d-flex align-items-center">
+                  <span className="form-check-label fw-bold">{item.label}</span>
+                  {item.disabled && (
+                    <span className="badge bg-secondary ms-2" style={{ fontSize: '0.6rem' }}>
+                      {item.disabledReason || 'Unsupported'}
+                    </span>
+                  )}
+                  {upgradePill}
+                  {buyCreditsPill}
+                </div>
+                {!item.bodyText && props.choice === item.stateValue && !item.isLocked && <span className={item.icon}></span>}
               </div>
-              <div className="d-flex justify-content-between">
-                <span className="form-check-label me-2 text-wrap">{item.bodyText}</span>
-                {props.choice === item.stateValue && !item.isLocked && <span className={item.icon}></span>}
-              </div>
+              {item.bodyText && (
+                <div className="d-flex justify-content-between">
+                  <span className="form-check-label me-2 text-wrap">{item.bodyText}</span>
+                  {props.choice === item.stateValue && !item.isLocked && <span className={item.icon}></span>}
+                </div>
+              )}
             </div>
           </button>
         )

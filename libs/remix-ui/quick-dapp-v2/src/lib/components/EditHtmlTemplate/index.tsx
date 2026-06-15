@@ -72,12 +72,11 @@ function EditHtmlTemplate(): JSX.Element {
     const onDappUpdated = (data: any) => {
       const isMatchingDapp = activeDapp && (
         data.slug === activeDapp.slug ||
-        data.slug === activeDapp.workspaceName ||
         data.workspaceName === activeDapp.workspaceName
       );
 
       if (isMatchingDapp) {
-        console.log('[EditHtmlTemplate] dappGenerated received for current dapp:', data.slug);
+        console.log('[EditHtmlTemplate] dappGenerated received for current dapp:', data.slug || data.workspaceName);
         dispatch({
           type: 'SET_DAPP_PROCESSING',
           payload: { slug: activeDapp.slug, isProcessing: false }
@@ -118,7 +117,7 @@ function EditHtmlTemplate(): JSX.Element {
       const isMatchingError = activeDapp && (
         !errorSlug ||
         errorSlug === activeDapp.slug ||
-        errorSlug === activeDapp.workspaceName
+        errorData?.workspaceName === activeDapp.workspaceName
       );
 
       if (isMatchingError) {
@@ -189,7 +188,7 @@ function EditHtmlTemplate(): JSX.Element {
 
     if (dappManager && activeDapp) {
       try {
-        const updatedConfig = await dappManager.getDappConfig(activeDapp.workspaceName);
+        const updatedConfig = await dappManager.getDappConfig(activeDapp.slug);
         if (updatedConfig) {
           const updatedDapps = appState.dapps.map((d: any) =>
             d.slug === activeDapp.slug ? updatedConfig : d
@@ -238,7 +237,8 @@ function EditHtmlTemplate(): JSX.Element {
         }
       });
 
-      const previewPath = 'preview.png';
+      const isInlineMode = activeDapp.mode === 'inline';
+      const previewPath = isInlineMode ? 'frontend/preview.png' : 'preview.png';
       await plugin.call('fileManager', 'writeFile', previewPath, dataUrl);
     } catch (error) {
       console.error('[Capture] Failed:', error);
@@ -284,12 +284,15 @@ function EditHtmlTemplate(): JSX.Element {
     let indexHtmlContent = '';
 
     try {
-      const dappRootPath = '/';
-      await readDappFiles(plugin, dappRootPath, mapFiles, 0);
-      console.log('[QuickDapp][runBuild] Files read:', mapFiles.size);
+      const isInlineMode = activeDapp.mode === 'inline';
+      const dappRootPath = isInlineMode ? '/frontend' : '/';
+      const rootPathLength = isInlineMode ? '/frontend'.length : 0;
+      await readDappFiles(plugin, dappRootPath, mapFiles, rootPathLength);
+      console.log('[QuickDapp][runBuild] Files read:', mapFiles.size, isInlineMode ? '(inline mode)' : '(workspace mode)');
 
       if (mapFiles.size === 0) {
-        setIframeError(`No files found in workspace root. Make sure you are in the DApp workspace "${activeDapp.workspaceName}".`);
+        const pathHint = isInlineMode ? '/frontend folder' : 'workspace root';
+        setIframeError(`No files found in ${pathHint}. Make sure you are in the workspace "${activeDapp.workspaceName}".`);
         setIsBuilding(false);
         return;
       }

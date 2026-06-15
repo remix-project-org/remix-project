@@ -699,7 +699,7 @@ jobs:
             - node_modules
       - run:
           name: Build remix-ide for production
-          command: yarn build:production
+          command: NX_NO_CLOUD=true NX_DAEMON=false NX_PARALLEL=2 MINIFIER_PARALLEL=2 yarn build:production
           no_output_timeout: 30m
       - run: "./apps/remix-ide/ci/deploy_remix-<< parameters.script >>.sh"
 

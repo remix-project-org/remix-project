@@ -3,6 +3,7 @@ import type { DeepAgentInferencer } from '@remix/remix-ai-core'
 import type {
   IRemixAIPlugin,
   StreamResultData,
+  ThinkingData,
   ToolCallData,
   SubagentStartData,
   SubagentCompleteData,
@@ -22,6 +23,7 @@ export class DeepAgentEventBridge {
     'onInferenceDone',
     'onStreamResult',
     'onStreamComplete',
+    'onThinking',
     'onToolCall',
     'onSubagentStart',
     'onSubagentComplete',
@@ -63,6 +65,10 @@ export class DeepAgentEventBridge {
 
     eventEmitter.on('onStreamComplete', (data: string | { content: string; threadId?: string }) => {
       plugin.emit('onStreamComplete', data)
+    })
+
+    eventEmitter.on('onThinking', (data: ThinkingData) => {
+      plugin.emit('onThinking', data)
     })
 
     eventEmitter.on('onToolCall', (data: ToolCallData) => {

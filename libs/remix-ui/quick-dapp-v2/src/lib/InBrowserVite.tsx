@@ -116,9 +116,10 @@ export class InBrowserVite {
    * Build the entry point with the given virtual filesystem
    * @param files Map of file paths to their contents
    * @param entry Entry point path (default: auto-detect)
+   * @param basePath Base path to prepend when looking for files (e.g., '/frontend' for inline mode)
    * @returns BuildResult with js output or error
    */
-  async build(files: Map<string, string>, entry?: string): Promise<BuildResult> {
+  async build(files: Map<string, string>, entry?: string, basePath?: string): Promise<BuildResult> {
     if (!this.isReady()) {
       try {
         await this.initialize();
@@ -135,7 +136,7 @@ export class InBrowserVite {
       // Auto-detect entry point if not provided or if it's an HTML file
       let actualEntry = entry;
       if (!actualEntry || !this.isBuildableEntry(actualEntry)) {
-        actualEntry = this.findEntryPoint(files);
+        actualEntry = this.findEntryPoint(files, basePath);
         if (!actualEntry) {
           return {
             js: '',
@@ -145,7 +146,7 @@ export class InBrowserVite {
         }
       }
 
-      const plugin = this.makePlugin(files);
+      const plugin = this.makePlugin(files, basePath);
       const result = await this.esbuild.build({
         entryPoints: [actualEntry],
         bundle: true,
@@ -178,22 +179,26 @@ export class InBrowserVite {
 
   /**
    * Find a valid entry point from the files map
+   * @param files Map of file paths to their contents
+   * @param basePath Optional base path to prepend to patterns (e.g., '/frontend')
    */
-  private findEntryPoint(files: Map<string, string>): string | null {
+  private findEntryPoint(files: Map<string, string>, basePath?: string): string | null {
+    const prefix = basePath || '';
+
     // Common entry point patterns in order of preference
     const patterns = [
-      '/src/main.jsx',
-      '/src/main.js',
-      '/src/index.jsx',
-      '/src/index.js',
-      '/main.jsx',
-      '/main.js',
-      '/index.jsx',
-      '/index.js',
-      '/src/App.jsx',
-      '/src/App.js',
-      '/App.jsx',
-      '/App.js',
+      `${prefix}/src/main.jsx`,
+      `${prefix}/src/main.js`,
+      `${prefix}/src/index.jsx`,
+      `${prefix}/src/index.js`,
+      `${prefix}/main.jsx`,
+      `${prefix}/main.js`,
+      `${prefix}/index.jsx`,
+      `${prefix}/index.js`,
+      `${prefix}/src/App.jsx`,
+      `${prefix}/src/App.js`,
+      `${prefix}/App.jsx`,
+      `${prefix}/App.js`,
     ];
 
     // Check common patterns first
@@ -203,7 +208,16 @@ export class InBrowserVite {
       }
     }
 
-    // Find any buildable file
+    // Find any buildable file (prioritize files with basePath if provided)
+    if (basePath) {
+      for (const [path] of files) {
+        if (path.startsWith(basePath) && this.isBuildableEntry(path)) {
+          return path;
+        }
+      }
+    }
+
+    // Fallback: find any buildable file
     for (const [path] of files) {
       if (this.isBuildableEntry(path)) {
         return path;
@@ -215,8 +229,12 @@ export class InBrowserVite {
 
   /**
    * Create esbuild plugin that resolves bare imports to esm.sh and loads files from in-memory map
+   * @param map Map of file paths to their contents
+   * @param basePath Optional base path for file resolution (e.g., '/frontend')
    */
-  private makePlugin(map: Map<string, string>) {
+  private makePlugin(map: Map<string, string>, basePath?: string) {
+    const prefix = basePath || '';
+
     return {
       name: 'virtual-fs-and-cdn',
       setup: (build: any) => {
@@ -246,10 +264,12 @@ export class InBrowserVite {
           }
 
           // Check if this bare specifier exists as a local file
-          // Try common locations (with and without leading slash)
+          // Try common locations (with and without leading slash, and with basePath)
           const possiblePaths = [
             args.path, // bare: app.jsx
             `/${args.path}`, // absolute: /app.jsx
+            `${prefix}/src/${args.path}`, // with basePath: /frontend/src/app.jsx
+            `${prefix}/${args.path}`, // with basePath: /frontend/app.jsx
             `/src/${args.path}`, // src directory: /src/app.jsx
             `src/${args.path}`, // src directory (no leading slash)
             args.importer ? `${args.importer.substring(0, args.importer.lastIndexOf('/'))}/${args.path}` : null,

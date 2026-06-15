@@ -66,6 +66,7 @@ const tests = {
             .setValue('*[data-id="githubEmail"]', 'git@example.com')
             .pause(1000)
             .click('*[data-id="saveGitHubCredentials"]')
+            .modalFooterOKClick('github-credentials-error')
 
     },
 
@@ -88,6 +89,12 @@ const tests = {
                 selector: "//*[@data-status='added-staged' and @data-file='/test.txt']",
                 locateStrategy: 'xpath'
             })
+            .waitForElementVisible('*[data-id="addToGitChangesremix.config.json"]')
+            .click('*[data-id="addToGitChangesremix.config.json"]')
+            .waitForElementVisible({
+                selector: "//*[@data-status='added-staged' and @data-file='/remix.config.json']",
+                locateStrategy: 'xpath'
+            })
             .setValue('*[data-id="commitMessage"]', 'testcommit')
             .waitForElementPresent({
                 selector: '//*[@data-id="commitButton" and not(@disabled)]',
@@ -100,6 +107,10 @@ const tests = {
             })
             .waitForElementNotPresent({
                 selector: "//*[@data-status='added-staged' and @data-file='/test.txt']",
+                locateStrategy: 'xpath'
+            })
+            .waitForElementNotPresent({
+                selector: "//*[@data-status='added-staged' and @data-file='/remix.config.json']",
                 locateStrategy: 'xpath'
             })
     },

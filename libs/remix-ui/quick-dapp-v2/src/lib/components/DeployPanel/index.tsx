@@ -66,7 +66,7 @@ function DeployPanel(): JSX.Element {
         }));
       }
     }
-  }, [activeDapp?.id, activeDapp?.deployment]);
+  }, [activeDapp?.slug, activeDapp?.deployment]);
 
   if (activeDapp?.config?.isBaseMiniApp) {
     return <BaseAppWizard />;
@@ -133,11 +133,13 @@ function DeployPanel(): JSX.Element {
     try {
       builder = new InBrowserVite();
       await builder.initialize();
-      const dappRootPath = '/';
+      const isInlineMode = activeDapp?.mode === 'inline';
+      const dappRootPath = isInlineMode ? '/frontend' : '/';
+      const rootPathLength = isInlineMode ? '/frontend'.length : 0;
       const filesMap = new Map<string, string>();
-      await readDappFiles(plugin, dappRootPath, filesMap, 0);
+      await readDappFiles(plugin, dappRootPath, filesMap, rootPathLength);
 
-      if (filesMap.size === 0) throw new Error("No DApp files found");
+      if (filesMap.size === 0) throw new Error(`No DApp files found in ${isInlineMode ? '/frontend folder' : 'workspace root'}`);
 
       const jsResult = await builder.build(filesMap, '/src/main.jsx');
       if (!jsResult.success) throw new Error(`Build failed: ${jsResult.error}`);

@@ -399,3 +399,22 @@ export const formatBalance = (balance: string | number, decimals: number = 3): s
 
   return integerPart + '.' + paddedDecimal
 }
+
+export const addFrontendPrefix = (
+  filename: string,
+  dapps: Record<string, any>[],
+  currentSlug: string
+): string => {
+  if (!filename) return filename;
+
+  // Check if this is an inline/Chainlink CRE dapp
+  const dappConfig = dapps.find((d: Record<string, any>) => d.slug === currentSlug);
+  const isInline = (dappConfig as any)?.inlineMode === true;
+
+  if (isInline && !filename.startsWith('frontend/')) {
+    return `frontend/${filename}`;
+  }
+
+  return filename;
+};
+

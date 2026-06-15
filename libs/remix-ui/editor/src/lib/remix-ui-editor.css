@@ -44,3 +44,116 @@ div.monaco-list-row > span.title {
     filter: opacity(0.1);
     font-weight: bolder;
 }
+
+/* Web3 Keyword Tooltip Styles */
+.web3-tooltip-popup {
+    width: 300px;
+    max-width: 90vw;
+    animation: fadeInUp 0.15s ease-out;
+}
+
+.web3-tooltip-inner {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.web3-tooltip-title {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 0.82rem;
+    color: var(--bs-info);
+    background: transparent;
+    padding: 0;
+    font-weight: 600;
+}
+
+.web3-tooltip-body {
+    font-size: 0.78rem;
+    color: var(--bs-body-color);
+    line-height: 1.55;
+    margin: 0;
+    opacity: 0.9;
+}
+
+.web3-tooltip-link {
+    font-size: 0.72rem;
+    color: var(--bs-primary);
+    text-decoration: none;
+}
+
+.web3-tooltip-link:hover {
+    text-decoration: underline;
+    color: var(--bs-primary);
+}
+
+/* Web3 keyword highlighting in editor */
+.web3-keyword-highlight {
+    background: rgba(13, 110, 253, 0.1);
+    border: 1px solid rgba(13, 110, 253, 0.3);
+    border-radius: 3px;
+    padding: 1px 3px;
+    cursor: help;
+    transition: all 0.15s ease;
+    text-decoration: underline dotted rgba(13, 110, 253, 0.4);
+    text-underline-offset: 2px;
+}
+
+.web3-keyword-highlight:hover {
+    background: rgba(13, 110, 253, 0.2);
+    border-color: rgba(13, 110, 253, 0.5);
+}
+
+/* Open in RemixAI button styles */
+.web3-tooltip-popup .btn-link {
+    border: none !important;
+    box-shadow: none !important;
+    transition: all 0.15s ease;
+}
+
+.web3-tooltip-popup .btn-link:hover {
+    text-decoration: underline !important;
+    opacity: 1 !important;
+    transform: translateX(2px);
+}
+
+.web3-tooltip-popup .btn-link:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Close button for popover */
+.web3-tooltip-close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--bs-secondary-bg);
+    border: none;
+    color: var(--bs-body-color);
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+    font-size: 0.7rem;
+    opacity: 0.7;
+    transition: all 0.2s;
+    border-radius: 4px;
+}
+
+.web3-tooltip-close:hover {
+    opacity: 1;
+    background: var(--bs-secondary);
+    color: var(--bs-white);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

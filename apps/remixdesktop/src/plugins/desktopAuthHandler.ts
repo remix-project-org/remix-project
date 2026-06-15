@@ -2,7 +2,7 @@ import { Profile } from "@remixproject/plugin-utils";
 import { ElectronBasePlugin, ElectronBasePluginClient } from "@remixproject/plugin-electron";
 import { shell } from "electron";
 import crypto from "crypto";
-import { isE2ELocal } from "src/main";
+import { isE2ELocal } from "../main";
 
 const profile: Profile = {
   name: 'desktopAuthHandler',

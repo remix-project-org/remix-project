@@ -1,6 +1,4 @@
 import { remixAILogger,
-  RemoteInferencer,
-  OllamaInferencer,
   MCPInferencer,
   GenerationParams,
   CompletionParams,
@@ -8,6 +6,7 @@ import { remixAILogger,
   isOllamaAvailable,
   getBestAvailableModel,
   listModels,
+  modelSupportsTools,
   getModelById
 } from '@remix/remix-ai-core'
 import type { AIModel } from '@remix/remix-ai-core'
@@ -115,7 +114,7 @@ export class ModelManager {
     ;(plugin as any).publishRouteStatus?.()
   }
 
-  private async handleOllamaProvider(model: AIModel, modelId: string): Promise<void> {
+  private async handleOllamaProvider(_model: AIModel, _modelId: string): Promise<void> {
     const plugin = this.deps.plugin
     const isAvailable = await isOllamaAvailable()
 
@@ -127,26 +126,13 @@ export class ModelManager {
 
     const bestModel = await getBestAvailableModel()
     if (!bestModel) {
-      throw new Error('[ModelManager.handleOllamaProvider] No Ollama models installed locally. Run `ollama pull codestral:latest` (or another model) and try again.')
+      throw new Error('[ModelManager.handleOllamaProvider] No tool-capable Ollama model is installed. The agent needs a model that supports tool calling — run `ollama pull qwen2.5-coder` (or another tool-capable model) and try again.')
     }
 
-    // Switch to Ollama inferencer
-    plugin.remoteInferencer = new OllamaInferencer(bestModel)
-    this.setupInferencerEvents(plugin.remoteInferencer)
-  }
+    (plugin as any).discoveredOllamaModel = bestModel
+    remixAILogger.log(`[ModelManager] Ollama provider selected, discovered model: ${bestModel}`)
 
-  // applyFallbackModel removed — there is no client-side fallback model.
-  // If selection fails, throw and let the caller decide (the UI surfaces
-  // a help message and the user picks a different model).
-
-  private setupInferencerEvents(inferencer: RemoteInferencer | OllamaInferencer): void {
-    const plugin = this.deps.plugin
-    inferencer.event.on('onInference', () => {
-      plugin.isInferencing = true
-    })
-    inferencer.event.on('onInferenceDone', () => {
-      plugin.isInferencing = false
-    })
+    plugin.emit('ollamaModelDiscovered', bestModel)
   }
 
   async setOllamaModel(ollamaModelName: string): Promise<void> {
@@ -164,20 +150,17 @@ export class ModelManager {
       return
     }
 
-    plugin.remoteInferencer = new OllamaInferencer(ollamaModelName)
-    this.setupInferencerEvents(plugin.remoteInferencer)
+    // Block models without tool support — the agent depends on tool calling.
+    if (!(await modelSupportsTools(ollamaModelName))) {
+      throw new Error(`Ollama model "${ollamaModelName}" does not support tool calling and can't be used with the Remix agent. Pick a tool-capable model (e.g. qwen2.5-coder, llama3.1).`)
+    }
 
-    // Update MCP if enabled
-    if (plugin.mcpEnabled && plugin.mcpInferencer) {
-      plugin.mcpInferencer = new MCPInferencer(
-        plugin.mcpServers,
-        undefined,
-        undefined,
-        plugin.remixMCPServer,
-        plugin.remoteInferencer,
-        plugin.getMcpAuthToken
-      )
-      await plugin.mcpInferencer.connectAllServers()
+    (plugin as any).discoveredOllamaModel = ollamaModelName
+    remixAILogger.log(`[ModelManager] Ollama model selected: ${ollamaModelName}`)
+
+    if (plugin.deepAgentEnabled && plugin.deepAgentInferencer && plugin.remixMCPServer) {
+      remixAILogger.log(`[ModelManager] Reinitializing DeepAgent for Ollama model: ${ollamaModelName}`)
+      await (plugin as any).deepAgentManager.reinitialize()
     }
   }
 
@@ -200,7 +183,7 @@ export class ModelManager {
     await this.setModel(chosen.id)
   }
 
-  async getOllamaModels(): Promise<string[]> {
+  async getOllamaModels(): Promise<{ name: string; supported: boolean }[]> {
     const plugin = this.deps.plugin
 
     if (plugin.selectedModel.provider !== 'ollama') {
@@ -212,7 +195,10 @@ export class ModelManager {
       throw new Error('Ollama is not running')
     }
 
-    const models = await listModels()
-    return models
+    // Return ALL installed models, flagged by tool support, so the UI can show
+    // unsupported models grayed out rather than hiding them. `supported` means
+    // the model can call tools — the hard requirement for the agent.
+    const all = await listModels()
+    return Promise.all(all.map(async (name) => ({ name, supported: await modelSupportsTools(name) })))
   }
 }
