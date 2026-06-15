@@ -1,10 +1,11 @@
 import { remixAILogger } from '../../helpers/logger'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
-import { ToolApprovalRequest, ToolApprovalResponse } from '../../types/humanInTheLoop'
+import { ToolApprovalRequest, ToolApprovalResponse, ToolApprovalPolicy, shouldRequireApproval } from '../../types/humanInTheLoop'
 
 // File size limit for auto-summarization (100KB)
 const MAX_FILE_SIZE = 100 * 1024
+const FS_APPROVAL_TIMEOUT_MS = 180000
 
 interface EditInstruction {
   oldText: string
@@ -15,6 +16,7 @@ export class RemixFilesystemBackend {
   private plugin: Plugin
   private workspaceRoot: string = '/'
   private eventEmitter: EventEmitter | null = null
+  private policy: ToolApprovalPolicy
   private pendingApprovals = new Map<string, (result: { approved: boolean; modifiedContent?: string; timedOut?: boolean }) => void>()
 
   private editBatches = new Map<string, {
@@ -23,8 +25,9 @@ export class RemixFilesystemBackend {
     totalEdits: number
   }>()
 
-  constructor(plugin: Plugin, eventEmitter?: EventEmitter) {
+  constructor(plugin: Plugin, eventEmitter?: EventEmitter, policy: ToolApprovalPolicy = 'deployment_only') {
     this.plugin = plugin
+    this.policy = policy
 
     if (eventEmitter) {
       this.eventEmitter = eventEmitter
@@ -544,6 +547,10 @@ export class RemixFilesystemBackend {
       return { approved: true }
     }
 
+    if (!shouldRequireApproval(toolName, this.policy)) {
+      return { approved: true }
+    }
+
     const requestId = `fs_approval_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
     const request: ToolApprovalRequest = {
@@ -559,7 +566,16 @@ export class RemixFilesystemBackend {
     }
 
     return new Promise<{ approved: boolean; modifiedContent?: string; timedOut?: boolean }>((resolve) => {
-      this.pendingApprovals.set(requestId, resolve)
+      const timer = setTimeout(() => {
+        if (this.pendingApprovals.delete(requestId)) {
+          remixAILogger.warn('[HITL][Backend] approval timed out — auto-rejecting to unblock stream', toolName, requestId)
+          resolve({ approved: false, timedOut: true })
+        }
+      }, FS_APPROVAL_TIMEOUT_MS)
+      this.pendingApprovals.set(requestId, (result) => {
+        clearTimeout(timer)
+        resolve(result)
+      })
       this.eventEmitter.emit('onToolApprovalRequired', request)
     })
   }

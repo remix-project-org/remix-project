@@ -11,11 +11,15 @@ import {
   DIRECT_WRITE_TOOLS
 } from '../../../types/humanInTheLoop'
 
+// Hard upper bound on how long a single tool approval may block the agent stream
+const APPROVAL_TIMEOUT_MS = 180000
+
 export class ToolApprovalGate {
   private eventEmitter: EventEmitter
   private policy: ToolApprovalPolicy
   private plugin: Plugin
-  private pendingApprovals = new Map<string, { resolve: (approved: boolean, modified?: Record<string, any>) => void }>()
+  private disposed = false
+  private pendingApprovals = new Map<string, { resolve: (approved: boolean, modified?: Record<string, any>) => void; timer?: ReturnType<typeof setTimeout> }>()
 
   constructor(plugin: Plugin, eventEmitter: EventEmitter, policy: ToolApprovalPolicy = 'ask_risky') {
     this.plugin = plugin
@@ -27,8 +31,9 @@ export class ToolApprovalGate {
       const pending = this.pendingApprovals.get(response.requestId)
       remixAILogger.log('[ToolApprovalGate] onToolApprovalResponse', response.requestId, 'approved=', response.approved, 'pendingFound=', !!pending, 'pendingKeys=', Array.from(this.pendingApprovals.keys()))
       if (pending) {
-        pending.resolve(response.approved, response.modifiedArgs)
+        if (pending.timer) clearTimeout(pending.timer)
         this.pendingApprovals.delete(response.requestId)
+        pending.resolve(response.approved, response.modifiedArgs)
       }
     })
   }
@@ -63,6 +68,10 @@ export class ToolApprovalGate {
       if (!shouldRequireApproval(toolName, this.policy)) {
 
         return originalFunc(args)
+      }
+
+      if (this.disposed) {
+        return JSON.stringify({ cancelled: true, reason: `Agent was reset before this ${toolName} operation could be approved.` })
       }
 
       const meta = getToolMetadata(toolName)
@@ -115,11 +124,18 @@ export class ToolApprovalGate {
         timestamp: Date.now()
       }
 
-      // Wait for user decision
+      // Wait for user decision — with a timeout backstop so a lost response
       const { approved, modifiedArgs } = await new Promise<{ approved: boolean; modifiedArgs?: Record<string, any> }>(
         (resolve) => {
+          const timer = setTimeout(() => {
+            if (this.pendingApprovals.delete(requestId)) {
+              remixAILogger.warn('[ToolApprovalGate] approval timed out — rejecting to unblock stream', toolName, requestId)
+              resolve({ approved: false })
+            }
+          }, APPROVAL_TIMEOUT_MS)
           this.pendingApprovals.set(requestId, {
-            resolve: (approved, modified) => resolve({ approved, modifiedArgs: modified })
+            resolve: (approved, modified) => resolve({ approved, modifiedArgs: modified }),
+            timer
           })
           remixAILogger.log('[ToolApprovalGate] awaiting approval', toolName, requestId, 'listeners(onToolApprovalResponse)=', this.eventEmitter.listenerCount('onToolApprovalResponse'))
           this.eventEmitter.emit('onToolApprovalRequired', request)
@@ -181,10 +197,17 @@ export class ToolApprovalGate {
   }
 
   /**
-   * Clean up resources
+   * Clean up resources. CRITICAL: resolve every still-pending approval as
+   * rejected before clearing — otherwise the awaiting tool promise is orphaned
    */
   dispose() {
+    this.disposed = true
     this.eventEmitter.removeAllListeners('onToolApprovalResponse')
+    const pending = Array.from(this.pendingApprovals.values())
     this.pendingApprovals.clear()
+    for (const p of pending) {
+      if (p.timer) clearTimeout(p.timer)
+      try { p.resolve(false) } catch { /* best-effort */ }
+    }
   }
 }

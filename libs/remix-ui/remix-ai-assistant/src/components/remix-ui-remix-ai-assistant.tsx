@@ -284,15 +284,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     })
     setReviewingApprovals(new Set())
 
-    // 2. Cancel the backend request and abort the frontend stream
+    const wasInFlight = !!abortControllerRef.current || !!streamingAssistantIdRef.current
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
     }
-    // Use the assistant plugin's stopRequest (engine event) rather than
-    // call('remixAI', 'cancelRequest') so it bypasses remixAI's busy request
-    // queue and aborts the in-flight answer() synchronously.
-    ;(props.plugin as any).stopRequest()
+    if (wasInFlight) {
+      ;(props.plugin as any).stopRequest()
+    }
 
     // 3. Stop the spinner so the new conversation starts clean
     setIsStreaming(false)
@@ -623,7 +622,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 executingToolUIString: undefined,
                 currentTask: undefined,
                 taskStatus: undefined,
-                isIntermediateContent: false
+                isIntermediateContent: false,
+                // The turn finished — any todo still marked in_progress would
+                // otherwise keep spinning forever. Mark it completed.
+                todos: m.todos?.map(todo =>
+                  todo.status === 'in_progress'
+                    ? { ...todo, status: 'completed' as const }
+                    : todo
+                ),
+                currentTodoIndex: undefined
               }
               : m
           )
@@ -997,8 +1004,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     // Human-in-the-loop: listen for tool approval requests (batch processing)
     const handleToolApproval = (request: ToolApprovalRequest) => {
-      // Don't show new approval dialogs if the request has been stopped
-      if (isStoppedRef.current) return
+      if (isStoppedRef.current) {
+        try {
+          ;(props.plugin as any).respondToToolApproval({ requestId: request.requestId, approved: false })
+        } catch { /* best-effort */ }
+        return
+      }
       remixAILogger.log('[Assistant UI] approval requested', request.toolName, request.requestId)
       if (hitlAutoAcceptRef.current) {
         try {
