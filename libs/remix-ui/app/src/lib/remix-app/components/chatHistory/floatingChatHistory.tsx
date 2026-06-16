@@ -118,7 +118,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
               color: rgba(51, 52, 70, 0.5) !important;
             }
           `}</style>
-          <i className={`fas ${isSearching ? 'fa-spinner fa-spin' : 'fa-search'} position-absolute`} style={{ left: '20px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, pointerEvents: 'none', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}></i>
+          <i className={`fas ${isSearching ? 'fa-spinner fa-spin' : 'fa-search'} position-absolute`} style={{ left: '20px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, pointerEvents: 'none', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446', padding: '4px' }}></i>
           <input
             type="text"
             className={`form-control ps-5 ${theme.toLowerCase() === 'dark' ? 'search-input-dark' : 'search-input-light'}`}

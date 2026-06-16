@@ -263,7 +263,7 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
                       <span
                         className="badge rounded-pill ms-2"
                         style={{
-                          backgroundColor: 'var(--custom-primary)',
+                          backgroundColor: 'var(--custom-ai-color)',
                           color: 'var(--bs-body-bg)',
                           fontSize: '0.65rem',
                           padding: '3px 8px',

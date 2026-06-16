@@ -276,17 +276,17 @@ body.light .chat-history-sidebar .sidebar-header {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.25rem 0.5rem;
   background-color: transparent;
   border: none;
   color: var(--bs-body-color);
   cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s ease;
+  font-size: .875rem;
+  transition: color 0.2s ease;
 }
 
 .chat-history-back-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--bs-emphasis-color);
 }
 
 /* Sidebar header styling */
@@ -464,7 +464,7 @@ body.dark .conversation-item:hover {
 }
 
 .conversation-title {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--bs-body-color);
 }
@@ -485,7 +485,7 @@ body.light .chat-history-sidebar .conversation-item-active .conversation-title {
 }
 
 .conversation-meta {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--bs-secondary);
 }
 

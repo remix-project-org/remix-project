@@ -413,7 +413,7 @@
 .ai-code-block-wrapper {
   position: relative;
   margin: 1em 0;
-  background: rgba(110, 118, 129, 0.15);
+  background: var(--custom-onsurface-layer-1);
   border: 1px solid var(--bs-border-color);
   border-radius: 6px;
   overflow: hidden;
@@ -426,12 +426,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0.75rem;
-  background: rgba(112, 149, 200, 0.2);
+  background: var(--custom-onsurface-layer-2);
   border-bottom: 1px solid var(--bs-border-color);
 }
 
 .ai-code-language {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1023,17 +1023,17 @@ body.light .chat-history-sidebar .sidebar-header {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.25rem 0.5rem;
   background-color: transparent;
   border: none;
   color: var(--bs-body-color);
   cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s ease;
+  font-size: .875rem;
+  transition: color 0.2s ease;
 }
 
 .chat-history-back-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--bs-emphasis-color);
 }
 
 /* Sidebar header styling */
@@ -1124,8 +1124,8 @@ body.dark .search-icon {
   /* background-color: var(--bs-tertiary-bg); */
   /* border: 1px solid var(--bs-border-color); */
   border-radius: 6px;
-  padding-top: 0.75rem !important;
-  padding-bottom: 0.75rem !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
   border: none !important;
 }
 
@@ -1225,7 +1225,7 @@ body.dark .conversation-item:hover {
 }
 
 .conversation-title {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--bs-body-color);
 }
@@ -1240,7 +1240,7 @@ body.dark .conversation-title {
 }
 
 .conversation-meta {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--bs-secondary);
 }
 
