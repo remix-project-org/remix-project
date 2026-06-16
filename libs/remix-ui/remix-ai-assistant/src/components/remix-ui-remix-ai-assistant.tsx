@@ -17,6 +17,8 @@ import { ActivityType, ChatMessage, ConversationMetadata } from '../lib/types'
 import { useOnClickOutside } from './onClickOutsideHook'
 import { RemixAIAssistant } from 'apps/remix-ide/src/app/plugins/remix-ai-assistant'
 import { ChatHistorySidebar } from './chatHistorySidebar'
+import { ContractsSummary } from './ContractsSummary'
+import { DappPreview } from '@remix-ui/quick-dapp-v2'
 import AiChatPromptArea from './aiChatPromptArea'
 import { CooldownBanner } from './cooldownBanner'
 import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
@@ -45,9 +47,13 @@ export interface RemixUiRemixAiAssistantProps {
   /** AI-first user space props */
   compiledContracts?: string[]
   deployedContracts?: { address: string, name: string }[]
+  dapps?: { workspaceName: string, name: string, contractName?: string, networkName?: string, status?: string }[]
+  activeDappWorkspace?: string | null
   networkName?: string
   walletAddress?: string
   onInteractWithContract?: (contract: { address: string, name: string }) => void
+  onOpenDapp?: (workspaceName: string) => void
+  onCloseDapp?: () => void
   providers?: { name: string, displayName: string, category?: string }[]
   selectedProvider?: string
   accounts?: { account: string, alias?: string }[]
@@ -2458,11 +2464,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               isFloating={false}
               isMaximized={true}
               theme={themeTracker?.name}
-              compiledContracts={props.compiledContracts}
-              deployedContracts={props.deployedContracts}
               networkName={props.networkName}
               walletAddress={props.walletAddress}
-              onInteractWithContract={props.onInteractWithContract}
               providers={props.providers}
               selectedProvider={props.selectedProvider}
               accounts={props.accounts}
@@ -2471,7 +2474,16 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             />
           )}
 
-          <div className={`d-flex flex-column flex-grow-1 always-show ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+          <div className={`d-flex flex-column flex-grow-1 always-show ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0, minWidth: 0, flexBasis: props.activeDappWorkspace ? '50%' : undefined }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+            <ContractsSummary
+              compiledContracts={props.compiledContracts}
+              deployedContracts={props.deployedContracts}
+              dapps={props.dapps}
+              activeDappWorkspace={props.activeDappWorkspace}
+              onDeployedContractClick={props.onInteractWithContract}
+              onOpenDapp={props.onOpenDapp}
+              theme={themeTracker?.name}
+            />
             <section id="remix-ai-chat-history" className="d-flex flex-column p-2 ai-chat-centered-column" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
               <div data-id="remix-ai-assistant-ready"></div>
               <div data-id="remix-ai-streaming" className="d-none" data-streaming={isStreaming ? 'true' : 'false'}></div>
@@ -2589,6 +2601,34 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           />
             </div>
           </div>
+          {props.activeDappWorkspace && (
+            <div
+              className="d-flex flex-column"
+              style={{ flex: '1 1 50%', minWidth: 0, borderLeft: '1px solid rgba(255,255,255,0.08)' }}
+              data-id="ai-dapp-preview-pane"
+            >
+              <div
+                className="d-flex align-items-center justify-content-between px-2 py-1 border-bottom"
+                style={{ flexShrink: 0, fontSize: '12px' }}
+              >
+                <span className="fw-bold text-truncate">
+                  {(props.dapps || []).find(d => d.workspaceName === props.activeDappWorkspace)?.name || 'DApp preview'}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-link p-0 ms-2"
+                  data-id="ai-dapp-preview-close"
+                  onClick={() => props.onCloseDapp?.()}
+                  title="Close preview"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <DappPreview plugin={props.plugin} workspaceName={props.activeDappWorkspace} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* API Key Error Toast */}

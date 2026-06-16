@@ -37,6 +37,10 @@ export class RemixAIAssistant extends ViewPlugin {
   // AI-first user space: compiled + deployed contracts, network & wallet
   compiledContracts: string[] = []
   deployedContracts: { address: string, name: string }[] = []
+  // Generated QuickDapps surfaced in the right panel
+  dapps: { workspaceName: string, name: string, contractName?: string, networkName?: string, status?: string }[] = []
+  // Workspace of the dapp currently previewed in the split view (null = chat only)
+  activeDappWorkspace: string | null = null
   networkName: string = 'Remix VM'
   walletAddress: string = ''
   providers: { name: string, displayName: string, category?: string }[] = []
@@ -69,15 +73,9 @@ export class RemixAIAssistant extends ViewPlugin {
     this.on('layout', 'enhanceRightSidePanel', () => this.setMaximized(true))
 
     this.on('solidity', 'compilationFinished', (file: string, source: any, languageVersion: string, data: any) => {
-      const names: string[] = []
-      if (data && data.contracts) {
-        Object.keys(data.contracts).forEach((fileName) => {
-          Object.keys(data.contracts[fileName]).forEach((contractName) => {
-            if (!names.includes(contractName)) names.push(contractName)
-          })
-        })
-      }
-      this.compiledContracts = names
+      const fileContracts = data?.contracts?.[file]
+      const names = fileContracts ? Object.keys(fileContracts) : []
+      this.compiledContracts = names.length > 0 ? [names[names.length - 1]] : []
       this.renderComponent()
     })
 
@@ -85,6 +83,15 @@ export class RemixAIAssistant extends ViewPlugin {
       if (!useCall) await this.refreshDeployedContracts()
     })
     this.on('blockchain', 'newProxyDeployment', () => this.refreshDeployedContracts())
+
+    // When the agent generates a dapp, QuickDapp is already activated by the
+    // generation flow; surface the new dapp in the right-panel list and open it
+    // straight into the split preview. The generation handler emits
+    // 'dappGenerated' on the 'remixAI' plugin (same source QuickDapp listens to).
+    this.on('remixAI', 'dappGenerated', async (data: any) => {
+      await this.refreshDapps()
+      if (data?.workspaceName) this.openDapp(data.workspaceName)
+    })
 
     this.on('blockchain', 'networkStatus', (networkStatus: any) => {
       this.networkName = networkStatus?.network?.name || 'Remix VM'
@@ -100,6 +107,7 @@ export class RemixAIAssistant extends ViewPlugin {
     this.refreshDeployedContracts()
     this.refreshNetworkName()
     this.refreshEnvironment()
+    this.refreshDapps()
 
     this.on('blockchain', 'contextChanged', () => this.refreshEnvironment())
   }
@@ -112,6 +120,35 @@ export class RemixAIAssistant extends ViewPlugin {
     } catch (e) { /* not ready yet */ }
   }
 
+  async refreshDapps() {
+    try {
+      const dapps = await this.call('quick-dapp-v2' as any, 'listDapps')
+      this.dapps = (dapps || []).map((d: any) => ({
+        workspaceName: d.workspaceName,
+        name: d.name || d.contractName || d.workspaceName,
+        contractName: d.contractName,
+        networkName: d.networkName,
+        status: d.status
+      }))
+      // If the previewed dapp was removed, collapse the split back to chat-only.
+      if (this.activeDappWorkspace && !this.dapps.some((d) => d.workspaceName === this.activeDappWorkspace)) {
+        this.activeDappWorkspace = null
+      }
+      this.renderComponent()
+    } catch (e) { /* quick-dapp-v2 not active / no dapps yet */ }
+  }
+
+  // Open the dapp in the in-panel split preview (right half = preview, left = chat).
+  openDapp(workspaceName: string) {
+    this.activeDappWorkspace = workspaceName
+    this.renderComponent()
+  }
+
+  closeDapp() {
+    this.activeDappWorkspace = null
+    this.renderComponent()
+  }
+
   async refreshNetworkName() {
     try {
       const status = await this.call('blockchain', 'getCurrentNetworkStatus')
@@ -120,7 +157,7 @@ export class RemixAIAssistant extends ViewPlugin {
     } catch (e) { /* not ready yet */ }
   }
 
-  async refreshEnvironment() {
+  async refreshEnvironment(retry = 0) {
     try {
       const providers = await this.call('udappEnv', 'getProviders')
       if (Array.isArray(providers)) this.providers = providers
@@ -137,6 +174,13 @@ export class RemixAIAssistant extends ViewPlugin {
       const account = await this.call('udappEnv', 'getSelectedAccount')
       if (account) this.walletAddress = account
     } catch (e) { /* not ready yet */ }
+
+    if (!this.walletAddress && this.accounts.length > 0) {
+      await this.selectAccount(this.accounts[0].account)
+    } else if (!this.walletAddress && this.accounts.length === 0 && retry < 10) {
+      setTimeout(() => this.refreshEnvironment(retry + 1), 500)
+    }
+
     this.renderComponent()
   }
 
@@ -485,6 +529,8 @@ export class RemixAIAssistant extends ViewPlugin {
       currentConversationId: this.currentConversationId,
       compiledContracts: this.compiledContracts,
       deployedContracts: this.deployedContracts,
+      dapps: this.dapps,
+      activeDappWorkspace: this.activeDappWorkspace,
       networkName: this.networkName,
       walletAddress: this.walletAddress,
       providers: this.providers,
@@ -547,6 +593,8 @@ export class RemixAIAssistant extends ViewPlugin {
     currentConversationId: string | null
     compiledContracts: string[]
     deployedContracts: { address: string, name: string }[]
+    dapps: { workspaceName: string, name: string, contractName?: string, networkName?: string, status?: string }[]
+    activeDappWorkspace: string | null
     networkName: string
     walletAddress: string
     providers: { name: string, displayName: string, category?: string }[]
@@ -567,6 +615,8 @@ export class RemixAIAssistant extends ViewPlugin {
         currentConversationId={state.currentConversationId}
         compiledContracts={state.compiledContracts}
         deployedContracts={state.deployedContracts}
+        dapps={state.dapps}
+        activeDappWorkspace={state.activeDappWorkspace}
         networkName={state.networkName}
         walletAddress={state.walletAddress}
         providers={state.providers}
@@ -579,6 +629,8 @@ export class RemixAIAssistant extends ViewPlugin {
         onDeleteAllConversations={this.deleteAllConversations.bind(this)}
         onSearch={this.searchConversations.bind(this)}
         onInteractWithContract={this.interactWithContract.bind(this)}
+        onOpenDapp={this.openDapp.bind(this)}
+        onCloseDapp={this.closeDapp.bind(this)}
         onSelectNetwork={this.selectNetwork.bind(this)}
         onSelectAccount={this.selectAccount.bind(this)}
       />

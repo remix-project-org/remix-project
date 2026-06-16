@@ -1,18 +1,9 @@
 import React from 'react'
 import { CustomTooltip } from '@remix-ui/helper'
 
-interface DeployedContract {
-  address: string
-  name: string
-}
-
 interface ContractEnvironmentProps {
-  compiledContracts: string[]
-  deployedContracts: DeployedContract[]
   networkName?: string
   walletAddress?: string
-  onContractSelect?: (contractName: string) => void
-  onDeployedContractClick?: (contract: DeployedContract) => void
   providers?: { name: string, displayName: string, category?: string }[]
   selectedProvider?: string
   accounts?: { account: string, alias?: string }[]
@@ -27,12 +18,8 @@ const truncateAddress = (address: string, length = 8) => {
 }
 
 export const ContractEnvironment: React.FC<ContractEnvironmentProps> = ({
-  compiledContracts = [],
-  deployedContracts = [],
   networkName = 'Remix VM',
   walletAddress = '',
-  onContractSelect,
-  onDeployedContractClick,
   providers = [],
   selectedProvider,
   accounts = [],
@@ -67,83 +54,7 @@ export const ContractEnvironment: React.FC<ContractEnvironmentProps> = ({
         borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
       }}
     >
-      {compiledContracts.length > 0 && (
-        <div className="mb-3">
-          <div className="fw-bold mb-2" style={{ fontSize: '11px', opacity: 0.8 }}>
-            COMPILED
-          </div>
-          <div className="d-flex flex-wrap gap-2">
-            {compiledContracts.map((contractName) => (
-              <CustomTooltip key={contractName} tooltipText={contractName}>
-                <div
-                  className="px-2 py-1 rounded"
-                  style={{
-                    backgroundColor: isDark ? '#3a3a52' : '#e0e5f0',
-                    color: textColor,
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onClick={() => onContractSelect?.(contractName)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isDark ? '#4a4a62' : '#d0d5e0'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isDark ? '#3a3a52' : '#e0e5f0'
-                  }}
-                >
-                  {contractName}
-                </div>
-              </CustomTooltip>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {deployedContracts.length > 0 && (
-        <div className="mb-3">
-          <div className="fw-bold mb-2" style={{ fontSize: '11px', opacity: 0.8 }}>
-            DEPLOYED
-          </div>
-          <div className="d-flex flex-column gap-2">
-            {deployedContracts.map((contract) => (
-              <CustomTooltip key={contract.address} tooltipText={contract.address}>
-                <div
-                  className="d-flex justify-content-between align-items-center px-2 py-2 rounded"
-                  style={{
-                    backgroundColor: isDark ? '#3a3a52' : '#e0e5f0',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onClick={() => onDeployedContractClick?.(contract)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isDark ? '#4a4a62' : '#d0d5e0'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isDark ? '#3a3a52' : '#e0e5f0'
-                  }}
-                >
-                  <div>
-                    <div className="fw-bold">{contract.name}</div>
-                    <div style={{ opacity: 0.7 }}>{truncateAddress(contract.address)}</div>
-                  </div>
-                  <div style={{ opacity: 0.6 }}>→</div>
-                </div>
-              </CustomTooltip>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div
-        className="pt-3"
-        style={{
-          borderTopWidth: '1px',
-          borderTopStyle: 'solid',
-          borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
-        }}
-      >
+      <div>
         <div className="mb-3">
           <div style={labelStyle}>NETWORK</div>
           <div className="d-flex align-items-center gap-2">

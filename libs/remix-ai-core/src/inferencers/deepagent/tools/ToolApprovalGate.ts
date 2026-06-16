@@ -47,6 +47,15 @@ export class ToolApprovalGate {
     return this.policy
   }
 
+  private async isRemixVM(): Promise<boolean> {
+    try {
+      const network = await this.plugin.call('network' as any, 'detectNetwork')
+      return network?.name === 'VM' || network?.id === '-'
+    } catch {
+      return false
+    }
+  }
+
   /**
    * Wrap a tool function with approval gate
    * @param toolName - Name of the tool
@@ -60,7 +69,16 @@ export class ToolApprovalGate {
     }
 
     return async (args: Record<string, any>): Promise<string> => {
-      if (!shouldRequireApproval(toolName, this.policy)) {
+      let needsApproval = shouldRequireApproval(toolName, this.policy)
+
+      if (needsApproval) {
+        const meta = getToolMetadata(toolName)
+        if ((meta.category === 'deployment' || meta.category === 'transaction') && await this.isRemixVM()) {
+          needsApproval = false
+        }
+      }
+
+      if (!needsApproval) {
 
         return originalFunc(args)
       }

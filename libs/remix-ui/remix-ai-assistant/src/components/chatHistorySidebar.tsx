@@ -21,11 +21,8 @@ interface ChatHistorySidebarProps {
   isMaximized?: boolean
   theme?: string
   /** AI-first user space */
-  compiledContracts?: string[]
-  deployedContracts?: { address: string, name: string }[]
   networkName?: string
   walletAddress?: string
-  onInteractWithContract?: (contract: { address: string, name: string }) => void
   providers?: { name: string, displayName: string, category?: string }[]
   selectedProvider?: string
   accounts?: { account: string, alias?: string }[]
@@ -85,11 +82,8 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   isFloating = false,
   isMaximized = false,
   theme = 'dark',
-  compiledContracts = [],
-  deployedContracts = [],
   networkName,
   walletAddress,
-  onInteractWithContract,
   providers = [],
   selectedProvider,
   accounts = [],
@@ -265,11 +259,8 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
         )}
       </div>
       <ContractEnvironment
-        compiledContracts={compiledContracts}
-        deployedContracts={deployedContracts}
         networkName={networkName}
         walletAddress={walletAddress}
-        onDeployedContractClick={onInteractWithContract}
         providers={providers}
         selectedProvider={selectedProvider}
         accounts={accounts}
