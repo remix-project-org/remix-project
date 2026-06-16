@@ -62,6 +62,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   // model loses all memory whenever the user clicks Stop.
   private pendingHistoryMessages: Array<{ role: 'user' | 'assistant'; content: string }> | null = null
   private renewWorkspaceContext = true
+  private compilerConfigStr = ''
 
   private static generateThreadId(): string {
     return CONVERSATION_THREAD_PREFIX + `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
@@ -452,10 +453,17 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       remixAILogger.log('[DeepAgentInferencer] answer(): checking renewWorkspaceContext:', this.renewWorkspaceContext)
       if (this.renewWorkspaceContext) {
+        const current = await this.plugin.call('filePanel', 'getCurrentWorkspace')
+        context += '\n\nCurrent Remix workspace: ' + (current?.name || 'unknown')
         context += await this.getProjectStructure()
         this.renewWorkspaceContext = false
       } else {
         remixAILogger.log('[DeepAgentInferencer] answer(): NOT renewing workspace context (renewWorkspaceContext is false)')
+      }
+      const compilerConfig = await this.getCompilerConfig()
+      if (!this.compilerConfigStr || this.compilerConfigStr != compilerConfig) {
+        context += "\n\nCompiler configuration: " + compilerConfig
+        this.compilerConfigStr = compilerConfig
       }
       const messages = [
         ...seeded,
@@ -853,8 +861,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         }
       })()
 
-      const getCompilerConfig = await this.getCompilerConfig()
-      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT + getCompilerConfig
+      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT
 
       // Create agent configuration with selected tools
       // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents
