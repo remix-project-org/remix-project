@@ -494,6 +494,12 @@ export class RemixAIPlugin extends Plugin {
 
         // Don't use remote fallback for Ollama - user explicitly chose local models
         const fallbackInferencer = this.selectedModel.provider === 'ollama' ? null : this.remoteInferencer
+        
+        // Clean up old instance if it exists
+        if (this.deepAgentInferencer && typeof this.deepAgentInferencer.cleanup === 'function') {
+          this.deepAgentInferencer.cleanup()
+        }
+        
         this.deepAgentInferencer = new DeepAgentInferencer(
           this,
           this.remixMCPServer.tools,

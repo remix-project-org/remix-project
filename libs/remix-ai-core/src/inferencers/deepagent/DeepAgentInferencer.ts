@@ -61,6 +61,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   // still has the prior user/assistant turns as context — otherwise the
   // model loses all memory whenever the user clicks Stop.
   private pendingHistoryMessages: Array<{ role: 'user' | 'assistant'; content: string }> | null = null
+  private renewWorkspaceContext = true
 
   private static generateThreadId(): string {
     return CONVERSATION_THREAD_PREFIX + `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
@@ -171,6 +172,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     }
     this.modelSelection = modelSelection
 
+    this.plugin.on('filePanel', 'setWorkspace', async () => {
+      this.renewWorkspaceContext = true
+    })
+
     // Default configuration (API key handled by proxy)
     this.config = {
       enabled: true,
@@ -279,6 +284,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       remixAILogger.warn('[DeepAgentInferencer] Failed to initialize tools:', error)
       this.tools = []
     }
+  }
+
+  cleanup(): void {
+    this.plugin.off('filePanel', 'setWorkspace')
   }
 
   private emitErrorToTodos(error: any): void {
@@ -441,6 +450,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         remixAILogger.log('[DeepAgentInferencer] answer(): seeding', seeded.length, 'history messages into new thread', this.sessionThreadId)
       }
 
+      remixAILogger.log('[DeepAgentInferencer] answer(): checking renewWorkspaceContext:', this.renewWorkspaceContext)
+      if (this.renewWorkspaceContext) {
+        context += await this.getProjectStructure()
+        this.renewWorkspaceContext = false
+      } else {
+        remixAILogger.log('[DeepAgentInferencer] answer(): NOT renewing workspace context (renewWorkspaceContext is false)')
+      }
       const messages = [
         ...seeded,
         { role: 'user', content: context ? `Context:\n${context}\n\nQuestion: ${prompt}` : prompt }
@@ -837,9 +853,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         }
       })()
 
-      const projectStructure = await this.getProjectStructure()
       const getCompilerConfig = await this.getCompilerConfig()
-      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT + projectStructure + getCompilerConfig
+      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT + getCompilerConfig
 
       // Create agent configuration with selected tools
       // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents
@@ -875,7 +890,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       // Cast result to any to handle @langchain/core version mismatch between root and deepagents
-      this.agent = await createDeepAgent(agentConfig as any) as any
+      this.agent = createDeepAgent(agentConfig as any) as any
 
       remixAILogger.log(`[DeepAgentInferencer] Recreated agent with ${selectedTools.length} selected tools`)
     } catch (error) {
