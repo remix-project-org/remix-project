@@ -58,6 +58,12 @@ export class DesktopHostPlugin extends ElectronBasePlugin {
         client.emit('chainChanged', context)
       }
     })
+    eventEmitter.on('accountsChanged', (context) => {
+      console.log('accountsChanged', context)
+      for (const client of this.clients) {
+        client.emit('accountsChanged', context)
+      }
+    })
   }
 
   async startServer(): Promise<void> {

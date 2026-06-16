@@ -173,7 +173,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // users" rule in the current session. Reset when ai:auto flips back to
   // false (logout) so the next login re-applies the default.
   const autoDefaultAppliedRef = useRef(false)
-  const [modelOpt, setModelOpt] = useState({ top: 0, left: 0 })
+  const [modelOpt, setModelOpt] = useState({ top: 0, left: 0, maxHeight: 0 })
   const [ollamaModelOpt, setOllamaModelOpt] = useState({ top: 0, left: 0 })
   const menuRef = useRef<any>()
   const ollamaMenuRef = useRef<any>()
@@ -2361,16 +2361,30 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const menuHeight = menu.offsetHeight
     const GAP = 8
 
-    // Prefer above the button; if no room, drop below it
-    let top = btnRect.top - menuHeight - GAP
-    if (top < containerRect.top) top = btnRect.bottom + GAP
+    // Room available on each side of the button, bounded by the chat container.
+    const spaceAbove = btnRect.top - containerRect.top - GAP
+    const spaceBelow = containerRect.bottom - btnRect.bottom - GAP
+
+    // The button sits at the bottom of the panel, so prefer opening above it.
+    // Only drop below when the menu doesn't fit above AND there's more room
+    // below. On a short viewport (e.g. a 14" screen) neither side may fully
+    // fit, so we also cap the height and let the list scroll instead of
+    // spilling out of view.
+    const openAbove = menuHeight <= spaceAbove || spaceAbove >= spaceBelow
+    const maxHeight = Math.max(120, openAbove ? spaceAbove : spaceBelow)
+
+    // When opening above, anchor the menu's bottom just above the button; if
+    // it can't fit it grows up to the container top (never past it).
+    const top = openAbove
+      ? btnRect.top - GAP - Math.min(menuHeight, spaceAbove)
+      : btnRect.bottom + GAP
 
     // Right-align with the button, then clamp to side panel
     let left = btnRect.right - menuWidth
     if (left < containerRect.left) left = containerRect.left
     if (left + menuWidth > containerRect.right) left = containerRect.right - menuWidth
 
-    setModelOpt({ top, left })
+    setModelOpt({ top, left, maxHeight })
   }, [])
   useEffect(() => {
     if (showModelSelector) {

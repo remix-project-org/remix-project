@@ -13,6 +13,7 @@ import { AppContext } from '@remix-ui/app'
 import { useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
 import { desktopConnectionType } from '@remix-api'
+import isElectron from 'is-electron'
 import { CompileDropdown, RunScriptDropdown, EmptyDropdown, AmpSqlDropdown } from '@remix-ui/tabs'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import TabProxy from 'apps/remix-ide/src/app/panels/tab-proxy'
@@ -642,6 +643,9 @@ export const TabsUI = (props: TabsUIProps) => {
       }
     } catch (e) { /* proceed if check fails */ }
 
+    // Check if running in desktop mode - dapps should be created inline
+    const isDesktop = isElectron()
+
     // Build the richest context we can — silently, no modals
     const contextParts: string[] = []
     let instances: any[] = []
@@ -686,31 +690,56 @@ export const TabsUI = (props: TabsUIProps) => {
         chainId = 'unknown'
       }
 
-      contextParts.push(
-        `I want to create a DApp frontend. Follow these steps exactly:`,
-        ``,
-        `STEP 1 - ASK FOR LOCATION CHOICE:`,
-        `Ask me: "Where should I create your DApp?"`,
-        `- Inline: In /frontend folder of current workspace`,
-        `- Workspace: In a new dedicated workspace`,
-        ``,
-        `STEP 2 - IF I CHOOSE INLINE:`,
-        `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
-        ``,
-        `STEP 3 - CALL THE TOOL:`,
-        `After I answer, you MUST call generate_dapp with these parameters:`,
-        ``,
-        `generate_dapp({`,
-        `  description: "Modern dark mode single-page DApp using React and Ethers.js",`,
-        `  contractName: "${inst.name}",`,
-        `  contractAddress: "${inst.address}",`,
-        `  chainId: "${chainId}",`,
-        `  frontendMode: "inline" or "workspace",  // based on my choice`,
-        `  confirmOverwrite: true  // only if I chose inline AND confirmed overwrite`,
-        `})`,
-        ``,
-        `IMPORTANT: After I make my choice, your next action MUST be calling generate_dapp. Do not just say "Understood" or "Proceeding" - actually call the tool.`
-      )
+      if (isDesktop) {
+        // Desktop mode: always create inline
+        contextParts.push(
+          `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:`,
+          ``,
+          `STEP 1 - CHECK FOR EXISTING CONTENT:`,
+          `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
+          ``,
+          `STEP 2 - CALL THE TOOL:`,
+          `After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate_dapp with these parameters:`,
+          ``,
+          `generate_dapp({`,
+          `  description: "Modern dark mode single-page DApp using React and Ethers.js",`,
+          `  contractName: "${inst.name}",`,
+          `  contractAddress: "${inst.address}",`,
+          `  chainId: "${chainId}",`,
+          `  frontendMode: "inline",`,
+          `  confirmOverwrite: true  // only if I confirmed overwrite`,
+          `})`,
+          ``,
+          `IMPORTANT: Your next action MUST be checking /frontend and then calling generate_dapp. Do not just say "Understood" or "Proceeding" - actually call the tool.`
+        )
+      } else {
+        // Web mode: ask for location choice
+        contextParts.push(
+          `I want to create a DApp frontend. Follow these steps exactly:`,
+          ``,
+          `STEP 1 - ASK FOR LOCATION CHOICE:`,
+          `Ask me: "Where should I create your DApp?"`,
+          `- Inline: In /frontend folder of current workspace`,
+          `- Workspace: In a new dedicated workspace`,
+          ``,
+          `STEP 2 - IF I CHOOSE INLINE:`,
+          `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
+          ``,
+          `STEP 3 - CALL THE TOOL:`,
+          `After I answer, you MUST call generate_dapp with these parameters:`,
+          ``,
+          `generate_dapp({`,
+          `  description: "Modern dark mode single-page DApp using React and Ethers.js",`,
+          `  contractName: "${inst.name}",`,
+          `  contractAddress: "${inst.address}",`,
+          `  chainId: "${chainId}",`,
+          `  frontendMode: "inline" or "workspace",  // based on my choice`,
+          `  confirmOverwrite: true  // only if I chose inline AND confirmed overwrite`,
+          `})`,
+          ``,
+          `IMPORTANT: After I make my choice, your next action MUST be calling generate_dapp. Do not just say "Understood" or "Proceeding" - actually call the tool.`
+        )
+      }
     } else if (matchingInstances.length > 1) {
       // Multiple matching contracts — let AI ask the user to choose
       const contractList = matchingInstances.map((inst: any, i: number) =>
@@ -741,17 +770,50 @@ export const TabsUI = (props: TabsUIProps) => {
       const filePath = currentFile?.indexOf('/') !== -1
         ? currentFile.substr(currentFile.indexOf('/') + 1)
         : currentFile
-      contextParts.push(
-        `I want to create a DApp frontend for my Solidity contract.`,
-        `I currently have "${currentFileName}" open at path "${filePath}", but no contracts are deployed yet.`,
-        ``,
-        `Please help me through the full process:`,
-        `1. Compile "${filePath}"`,
-        `2. Deploy the compiled contract`,
-        `3. Then generate a DApp frontend for it`,
-        ``,
-        `Start by compiling the contract.`
-      )
+      if (isDesktop) {
+        // Desktop mode: always create inline
+        contextParts.push(
+          `I want to create a DApp frontend inline in the /frontend folder of my current workspace for my Solidity contract.`,
+          `I currently have "${currentFileName}" open at path "${filePath}", but no contracts are deployed yet.`,
+          ``,
+          `Please help me through the full process:`,
+          ``,
+          `STEP 1 - COMPILE AND DEPLOY:`,
+          `Compile "${filePath}" and deploy the compiled contract.`,
+          ``,
+          `STEP 2 - CHECK FOR EXISTING CONTENT:`,
+          `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
+          ``,
+          `STEP 3 - GENERATE DAPP:`,
+          `After deployment and confirmation, call generate_dapp with the deployed contract details and frontendMode: "inline".`,
+          ``,
+          `Start by compiling and deploying the contract.`
+        )
+      } else {
+        // Web mode: ask for location choice
+        contextParts.push(
+          `I want to create a DApp frontend for my Solidity contract.`,
+          `I currently have "${currentFileName}" open at path "${filePath}", but no contracts are deployed yet.`,
+          ``,
+          `Please help me through the full process:`,
+          ``,
+          `STEP 1 - ASK FOR LOCATION CHOICE:`,
+          `Ask me: "Where should I create your DApp?"`,
+          `- Inline: In /frontend folder of current workspace`,
+          `- Workspace: In a new dedicated workspace`,
+          ``,
+          `STEP 2 - COMPILE AND DEPLOY:`,
+          `After I answer, compile "${filePath}" and deploy the compiled contract.`,
+          ``,
+          `STEP 3 - IF I CHOSE INLINE:`,
+          `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
+          ``,
+          `STEP 4 - GENERATE DAPP:`,
+          `After deployment, call generate_dapp with the deployed contract details and my location choice.`,
+          ``,
+          `Start by asking me where I want to create the DApp.`
+        )
+      }
     }
 
     const prompt = contextParts.join('\n')

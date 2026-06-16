@@ -199,7 +199,7 @@ export class DappManager {
             config = {}
           }
 
-          config.workspaceName = workspaceName;
+          config.workspaceName = config.workspaceName || workspaceName;
 
           const isInline = config.mode === 'inline';
           const previewPath = isInline ? 'frontend/preview.png' : 'preview.png';

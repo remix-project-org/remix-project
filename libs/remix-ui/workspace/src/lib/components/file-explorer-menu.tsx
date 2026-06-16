@@ -305,12 +305,16 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   const navigateToDapp = async (workspaceName: string) => {
     setIsSwitchingToDapp(true)
     try {
-      if (global.dispatchSwitchToWorkspace) {
-        await global.dispatchSwitchToWorkspace(workspaceName)
-      } else {
-        await global.plugin.call('filePanel', 'switchToWorkspace', workspaceName)
+      const currentWorkspace = global.fs.browser.currentWorkspace
+      // Only switch workspace if we're not already on it (inline dapps case)
+      if (currentWorkspace !== workspaceName) {
+        if (global.dispatchSwitchToWorkspace) {
+          await global.dispatchSwitchToWorkspace(workspaceName)
+        } else {
+          await global.plugin.call('filePanel', 'switchToWorkspace', workspaceName)
+        }
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
-      await new Promise(resolve => setTimeout(resolve, 500))
 
       await global.plugin.call('tabs', 'focus', 'quick-dapp-v2')
 
@@ -319,10 +323,12 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       } catch (e) {
         console.warn('[FileExplorerMenu] Could not open DApp detail:', e)
       }
-      // Note: Don't reset isSwitchingToDapp here - useEffect will handle it when isDappWorkspace changes
+      // Reset isSwitchingToDapp after successful navigation
+      // This handles both regular dapp workspaces and inline dapps (where workspace doesn't change)
+      setIsSwitchingToDapp(false)
     } catch (e) {
       console.error('[FileExplorerMenu] Failed to switch to DApp workspace:', e)
-      setIsSwitchingToDapp(false) // Only reset on error
+      setIsSwitchingToDapp(false)
     }
   }
 

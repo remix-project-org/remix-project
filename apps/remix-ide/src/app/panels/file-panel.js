@@ -6,6 +6,7 @@ import { FileSystemProvider } from '@remix-ui/workspace' // eslint-disable-line
 import {Registry} from '@remix-project/remix-lib'
 import { RemixdHandle } from '../plugins/remixd-handle'
 import {PluginViewWrapper} from '@remix-ui/helper'
+import isElectron from 'is-electron'
 const { TruffleHandle } = require('../files/truffle-handle.js')
 
 /*
@@ -198,6 +199,12 @@ export default class Filepanel extends ViewPlugin {
 
   async readFileFromWorkspace(workspaceName, filePath) {
     try {
+      // Handle electron filesystem - use fileManager directly which routes to the electron provider
+      if (isElectron()) {
+        const content = await this.call('fileManager', 'readFile', filePath)
+        return content
+      }
+
       if (!window.remixFileSystem) {
         throw new Error('File system not ready')
       }
@@ -220,6 +227,11 @@ export default class Filepanel extends ViewPlugin {
 
   async existsInWorkspace(workspaceName, filePath) {
     try {
+      // Handle electron filesystem - use fileManager directly which routes to the electron provider
+      if (isElectron()) {
+        return await this.call('fileManager', 'exists', filePath)
+      }
+
       if (!window.remixFileSystem) {
         return false
       }
