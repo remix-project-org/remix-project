@@ -4,54 +4,55 @@ import { v4 as uuidv4 } from 'uuid'
 import * as Y from 'yjs'
 
 import { NotificationProvider, SwarmInfraSettings } from './swarmInterfaces'
-import { SwarmManifest } from './swarmManifest'
+import { SwarmMembers } from './swarmMembers'
 import { PLACEHOLDER_STAMP, decode, encode, indexStrToBigint, remove0x, retryAwaitableAsync } from './swarmUtils'
 
 export type { SwarmInfraSettings } from './swarmInterfaces'
 
-const TAG = '[SwarmPersistence]'
+const TAG = '[SwarmDoc]'
 const DEBOUNCE_MS = 500
+const SNAPSHOT_FEED_SUFFIX = '_feed_'
+const DOC_FEED_SUFFIX = '_doc'
 
-export class SwarmPersistence {
+export class SwarmDoc {
   public readonly doc: Y.Doc
 
-  private userAddress: string // User's wallet address (identity)
-  private feedAddress: string // Derived feed address (where snapshots are stored)
-  private feedSigner: PrivateKey // Derived signer for writing to feed
+  private userAddress: string
+  private nickname: string
+  private feedAddress: string
+  private feedSigner: PrivateKey
   private ownIndex: bigint = BigInt(-1)
-  private docTopic: string // infra.topic + '_doc' (for feed identifiers)
-  private docTopicHash: string // Hashed doc topic (for notifications)
+  private docTopic: string
+  private docTopicHash: string
   private snapshotOptions: Options
-  private memberOptions: Map<string, Options> = new Map()// keyed by userAddress
-  private memberIndices: Map<string, bigint> = new Map() // keyed by userAddress
+  private memberOptions: Map<string, Options> = new Map()
   private beeApiUrl: string
   private stampId: string
-  private infraTopic: string // Original infra.topic (for feed key derivation)
-  private manifest: SwarmManifest
+  private infraTopic: string
+  private swarmMembers: SwarmMembers
   private notifProvider: NotificationProvider | null = null
 
   private pendingUpdates: Uint8Array[] = []
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
+  private memberRefreshTimer: ReturnType<typeof setInterval> | null = null
   private publishInFlight = false
   private fetchProcessRunning = false
 
   constructor(settings: SwarmInfraSettings) {
     this.doc = new Y.Doc()
-    // User's wallet for identity and message signing
     const userWallet = new PrivateKey(remove0x(settings.user.walletPrivateKey))
     this.userAddress = userWallet.publicKey().address().toString()
+    this.nickname = settings.user.nickname || this.userAddress.slice(0, 8)
 
     this.infraTopic = settings.infra.topic
     this.beeApiUrl = settings.infra.beeUrl
     this.stampId = settings.infra.stamp || PLACEHOLDER_STAMP
-    // Derive deterministic feed key for this user's snapshot feed// Pattern: hash(infraTopic + '_feed_' + userAddress) → feedPrivateKey
-    const feedKeyBytes = Topic.fromString(this.infraTopic + '_feed_' + this.userAddress)
+    const feedKeyBytes = Topic.fromString(this.infraTopic + SNAPSHOT_FEED_SUFFIX + this.userAddress)
     this.feedSigner = new PrivateKey(feedKeyBytes.toUint8Array())
     this.feedAddress = this.feedSigner.publicKey().address().toString()
 
-    this.docTopic = this.infraTopic + '_doc'
+    this.docTopic = this.infraTopic + DOC_FEED_SUFFIX
     this.docTopicHash = Topic.fromString(this.docTopic).toString()
-    // Feed identifier: topic + feedAddress (not userAddress)
     const ownIdentifier = Topic.fromString(this.docTopic + this.feedAddress).toString()
     this.snapshotOptions = {
       identifier: ownIdentifier,
@@ -61,7 +62,7 @@ export class SwarmPersistence {
       signer: this.feedSigner,
     }
 
-    this.manifest = new SwarmManifest(this.docTopic, settings.infra.beeUrl, this.stampId)
+    this.swarmMembers = new SwarmMembers(this.docTopic, settings.infra.beeUrl, this.stampId)
 
     const members = (settings.infra.members || [])
       .map(addr => remove0x(addr.toLowerCase()))
@@ -76,14 +77,19 @@ export class SwarmPersistence {
     console.log(`${TAG} topic: ${this.docTopic}`)
   }
 
-  private registerMember(userAddress: string): void {
-    if (this.memberOptions.has(userAddress)) return
-    // Derive the feed address for this user (same pattern as own feed)
-    const feedKeyBytes = Topic.fromString(this.infraTopic + '_feed_' + userAddress)
+  private registerMember(userAddress: string, username?: string): void {
+    const isNew = this.swarmMembers.register(userAddress, username || userAddress.slice(0, 8))
+    if (!isNew) return
+
+    if (this.memberRefreshTimer && this.memberOptions.size > 0) {
+      clearInterval(this.memberRefreshTimer)
+      this.memberRefreshTimer = null
+    }
+
+    const feedKeyBytes = Topic.fromString(this.infraTopic + SNAPSHOT_FEED_SUFFIX + userAddress)
     const feedAddress = new PrivateKey(feedKeyBytes.toUint8Array()).publicKey().address().toString()
 
     const identifier = Topic.fromString(this.docTopic + feedAddress).toString()
-    this.memberIndices.set(userAddress, BigInt(-1))
     this.memberOptions.set(userAddress, {
       identifier,
       address: feedAddress,
@@ -119,6 +125,10 @@ export class SwarmPersistence {
 
   stop(): void {
     if (this.debounceTimer) clearTimeout(this.debounceTimer)
+    if (this.memberRefreshTimer) {
+      clearInterval(this.memberRefreshTimer)
+      this.memberRefreshTimer = null
+    }
     this.notifProvider?.unsubscribe()
     this.fetchProcessRunning = false
     this.doc.destroy()
@@ -148,7 +158,7 @@ export class SwarmPersistence {
 
       const messageObj: MessageData = {
         id: uuidv4(),
-        username: this.userAddress,
+        username: this.nickname,
         address: this.userAddress,
         topic: this.docTopicHash,
         signature: '',
@@ -162,12 +172,10 @@ export class SwarmPersistence {
       this.ownIndex = nextIndex
       console.log(`${TAG} publishSnapshot ✓ index: ${nextIndex}`)
 
-      // Notification carries userAddress (identity), not feedAddress
       this.notifProvider?.publish({
         topic: this.docTopicHash,
         author: this.userAddress,
         feedIndex: Number(nextIndex),
-        deltaRef: '',
         delta,
       })
     } catch (err) {
@@ -199,7 +207,7 @@ export class SwarmPersistence {
       console.error(`${TAG} validateStamps failed:`, err)
       return
     }
-    await Promise.allSettled([this.initOwnIndex(), this.initManifest()])
+    await Promise.allSettled([this.initOwnIndex(), this.initMembers()])
     console.log(`${TAG} init: done — ownIndex: ${this.ownIndex}`)
   }
 
@@ -218,23 +226,40 @@ export class SwarmPersistence {
     }
   }
 
-  private async initManifest(): Promise<void> {// Manifest stores user addresses (wallet addresses), not feed addresses
-    const manifestMembers = await this.manifest.addMember(this.userAddress)
-    for (const addr of manifestMembers) {
-      if (addr !== this.userAddress) this.registerMember(addr)
+  private async initMembers(): Promise<void> {
+    const allMembers = await this.swarmMembers.add(this.userAddress, this.nickname)
+    for (const [addr, username] of allMembers) {
+      if (addr !== this.userAddress) this.registerMember(addr, username)
     }
-    // Join notification carries userAddress
+
     this.notifProvider?.publish({
       topic: this.docTopicHash,
       author: this.userAddress,
       feedIndex: -1,
-      deltaRef: '',
+      username: this.nickname,
     })
-    console.log(`${TAG} initManifest: join sent, ${this.memberOptions.size} peers`)
+    console.log(`${TAG} initMembers: join sent, ${this.memberOptions.size} peers`)
 
     await Promise.allSettled(
       [...this.memberOptions.keys()].map(addr => this.fetchLatestFromMember(addr)),
     )
+
+    if (this.memberOptions.size === 0) {
+      this.memberRefreshTimer = setInterval(() => this.refreshMembers(), 10_000)
+    }
+  }
+
+  private async refreshMembers(): Promise<void> {
+    const members = await this.swarmMembers.read()
+    if (!members) return
+    for (const [addr, username] of members) {
+      if (addr !== this.userAddress) this.registerMember(addr, username)
+    }
+    if (this.memberOptions.size > 0) {
+      await Promise.allSettled(
+        [...this.memberOptions.keys()].map(addr => this.fetchLatestFromMember(addr)),
+      )
+    }
   }
 
   private async fetchLatestFromMember(
@@ -245,11 +270,11 @@ export class SwarmPersistence {
     const options = this.memberOptions.get(userAddress)
     if (!options) return
 
-    const lastKnown = this.memberIndices.get(userAddress) ?? BigInt(-1)
+    const lastKnown = this.swarmMembers.lastIndex(userAddress)
 
     if (targetIndex !== undefined && delta !== undefined) {
       if (targetIndex <= lastKnown) return
-      this.memberIndices.set(userAddress, targetIndex)
+      this.swarmMembers.setIndex(userAddress, targetIndex)
       this.applyYjsBytes(delta, `${userAddress.slice(0, 8)} delta idx=${targetIndex}`)
       return
     }
@@ -274,7 +299,7 @@ export class SwarmPersistence {
         targetIx = parsedIx
       }
 
-      this.memberIndices.set(userAddress, targetIx)
+      this.swarmMembers.setIndex(userAddress, targetIx)
       this.applyYjsBytes(comment.message, `${userAddress.slice(0, 8)} snapshot idx=${targetIx}`)
     } catch (err) {
       console.error(`${TAG} fetchLatestFromMember(${userAddress.slice(0, 8)}) failed:`, err)
@@ -291,7 +316,7 @@ export class SwarmPersistence {
 
       if (payload.feedIndex === -1) {
         console.log(`${TAG} notification: join from ${author.slice(0, 8)}…`)
-        this.registerMember(author)
+        this.registerMember(author, payload.username)
         this.fetchLatestFromMember(author)
         return
       }

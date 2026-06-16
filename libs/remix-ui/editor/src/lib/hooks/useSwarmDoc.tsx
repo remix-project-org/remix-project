@@ -3,28 +3,27 @@ import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
 import { MonacoBinding } from 'y-monaco'
 
-import type { SwarmDocSettings } from './swarmInterfaces'
-import { SwarmPersistence } from './swarmPersistence'
-import { WebrtcNotificationProvider } from './webrtcNotificationProvider'
+import type { SwarmDocSettings } from '../swarm/swarmInterfaces'
+import { SwarmDoc } from '../swarm/swarmDoc'
+import { createNotificationProvider } from '../swarm/createNotificationProvider'
 
-export type { SwarmDocSettings, SwarmInfraSettings, NotificationTransport } from './swarmInterfaces'
+export type { SwarmDocSettings, SwarmInfraSettings, NotificationTransport } from '../swarm/swarmInterfaces'
 
 const DEFAULT_SIGNALING_SERVER_URL = 'ws://localhost:4444'
 
 interface SessionState {
   doc: Y.Doc
-  provider: WebrtcProvider
-  swarmPersistence?: SwarmPersistence
+  provider?: WebrtcProvider
+  swarmDoc?: SwarmDoc
 }
 
 const _sessions = new Map<string, SessionState>()
 
 function destroySession(id: string) {
   const session = _sessions.get(id)
-
   if (!session) return
 
-  session.swarmPersistence?.stop()
+  session.swarmDoc?.stop()
   session.provider?.destroy()
   session.doc?.destroy()
   _sessions.delete(id)
@@ -38,35 +37,39 @@ export function useSwarmDoc(settings: SwarmDocSettings | null, editor: any, curr
 
   useEffect(() => {
     if (!settings) return
-    const { sessionId, signalingUrl, swarm, notification } = settings
+    const { sessionId, signalingUrl, swarmInfra, notification } = settings
+    const transport = notification ?? 'webrtc'
 
     destroySession(sessionId)
 
-    // Persistence layer: SwarmPersistence owns the Y.Doc when swarm config is present
-    let swarmPersistence: SwarmPersistence | undefined
-    const doc = swarm ? (swarmPersistence = new SwarmPersistence(swarm)).doc : new Y.Doc()
+    let swarmDoc: SwarmDoc | undefined
+    let doc: Y.Doc
 
-    // Real-time CRDT sync — always active when a sessionId is provided
-    const prov = new WebrtcProvider(sessionId, doc, {
-      signaling: [signalingUrl ?? DEFAULT_SIGNALING_SERVER_URL],
-    })
-
-    // Notification layer: independent of persistence, controls how peers signal each
-    // other about new Swarm snapshots. Decoupled so a future 'swarm' transport can
-    // replace WebRTC here without changing the persistence layer.
-    if (swarmPersistence) {
-      const transport = notification ?? 'webrtc'
-      if (transport === 'webrtc') {
-        swarmPersistence.start(new WebrtcNotificationProvider(prov))
-      }
+    if (swarmInfra) {
+      swarmDoc = new SwarmDoc(swarmInfra)
+      doc = swarmDoc.doc
+    } else {
+      doc = new Y.Doc()
     }
 
-    _sessions.set(sessionId, { doc, provider: prov, swarmPersistence })
+    let prov: WebrtcProvider | undefined = undefined
+    if (transport !== 'swarm-rtc') {
+      prov = new WebrtcProvider(sessionId, doc, {
+        signaling: [signalingUrl ?? DEFAULT_SIGNALING_SERVER_URL],
+      })
+      prov.on('peers', ({ webrtcPeers }: any) => setPeersCount(webrtcPeers.length))
+    }
 
-    prov.on('peers', ({ webrtcPeers }: any) => setPeersCount(webrtcPeers.length))
+    if (swarmDoc) {
+      const notifProvider = createNotificationProvider(transport, swarmInfra, prov, doc)
+      notifProvider.onPeersChange = (count) => setPeersCount(count)
+      swarmDoc.start(notifProvider)
+    }
+
+    _sessions.set(sessionId, { doc, provider: prov, swarmDoc })
 
     setYdoc(doc)
-    setProvider(prov)
+    setProvider(prov ?? null)
 
     return () => {
       bindingRef.current?.destroy()
@@ -76,7 +79,7 @@ export function useSwarmDoc(settings: SwarmDocSettings | null, editor: any, curr
       setProvider(null)
       setPeersCount(0)
     }
-  }, [settings?.sessionId, settings?.signalingUrl, settings?.swarm?.infra.topic, settings?.notification])
+  }, [settings?.sessionId, settings?.signalingUrl, settings?.swarmInfra?.infra.topic, settings?.notification])
 
   useEffect(() => {
     if (!ydoc || !editor || !model || !currentFile) return
