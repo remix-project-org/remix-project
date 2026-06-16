@@ -61,7 +61,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   // still has the prior user/assistant turns as context — otherwise the
   // model loses all memory whenever the user clicks Stop.
   private pendingHistoryMessages: Array<{ role: 'user' | 'assistant'; content: string }> | null = null
-  private renewWorkspaceContext = true
+  private renewWorkspaceContext = false
   private compilerConfigStr = ''
 
   private static generateThreadId(): string {
@@ -861,7 +861,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         }
       })()
 
-      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT
+      const projectStructure = await this.getProjectStructure()
+      const compilerConfig = await this.getCompilerConfig()
+      this.compilerConfigStr = compilerConfig
+      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT + projectStructure + '\n\n' + compilerConfig
 
       // Create agent configuration with selected tools
       // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents
