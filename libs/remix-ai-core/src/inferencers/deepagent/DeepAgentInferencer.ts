@@ -34,6 +34,7 @@ import { createModelInstance } from './ModelFactory'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
+import { flattenJSON, renderTree } from './helpers/project'
 
 export const notSuitableForCodeGeneration = ['mistral-medium-latest', 'mistral-small-latest', 'ministral-3b', 'ministral-8b-latest']
 
@@ -755,6 +756,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   }
 
   private async getProjectStructure(): Promise<string> {
+    console.log('[DeepAgentInferencer] Attempting to retrieve project structure from MCP...')
     if (!this.mcpInferencer) {
       return ''
     }
@@ -771,14 +773,48 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       const content = await mcpClient.readResource('project://structure')
+      
       if (!content?.text) {
         return ''
       }
 
-      remixAILogger.log('[DeepAgentInferencer] Added project structure to system prompt')
-      return `\n\n## Current Project Structure\n${content.text}`
+      const context = JSON.parse(content.text || '{}')
+      const flatten = renderTree(context.structure)
+      const openedFiles = Object.keys(context?.currentOpenedFiles || {}).join(',')
+
+      return `\n\n## Current Project Structure\n${flatten}\n\n## Current Opened Files\n${openedFiles}`
     } catch (error) {
       remixAILogger.warn('[DeepAgentInferencer] Failed to get project structure:', error)
+      return ''
+    }
+  }
+
+  private async getCompilerConfig(): Promise<string> {
+    console.log('[DeepAgentInferencer] Attempting to retrieve compiler config from MCP...')
+    if (!this.mcpInferencer) {
+      return ''
+    }
+
+    try {
+      const connectedServers = this.mcpInferencer.getConnectedServers()
+      if (!connectedServers || !connectedServers.includes('Remix IDE Server')) {
+        return ''
+      }
+
+      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix IDE Server')
+      if (!mcpClient || !mcpClient.isConnected()) {
+        return ''
+      }
+
+      const content = await mcpClient.readResource('compilation://config')
+      
+      if (!content?.text) {
+        return ''
+      }
+
+      return `\n\n## Current Compiler Config\n${flattenJSON(JSON.parse(content.text))}`
+    } catch (error) {
+      remixAILogger.warn('[DeepAgentInferencer] Failed to get compiler config:', error)
       return ''
     }
   }
@@ -802,7 +838,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       })()
 
       const projectStructure = await this.getProjectStructure()
-      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT + projectStructure
+      const getCompilerConfig = await this.getCompilerConfig()
+      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT + projectStructure + getCompilerConfig
 
       // Create agent configuration with selected tools
       // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents
