@@ -410,51 +410,77 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
         chainId = 'unknown'
       }
       console.log('[QuickDapp] chainId resolved:', chainId);
+      console.log('[QD_SETUP] entry=deployed-contract-menu resolved', {
+        contractName: contract.name,
+        contractAddress: contract.address,
+        chainId,
+        isDesktop
+      });
 
       const prompt = isDesktop
         ? `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:
 
-STEP 1 - CHECK FOR EXISTING CONTENT:
+STEP 1 - ASK FOR SETUP OPTIONS:
+Location is fixed to Inline in /frontend for this environment. Ask me once for:
+- Base App: No (default) or Yes
+- Design: defaults, style notes, or a Figma URL
+
+Ask exactly those setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+After asking, STOP and wait for my next reply. Do not check files, call generate_dapp, or write files in the same turn as this setup question.
+In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
+
+STEP 2 - CHECK FOR EXISTING CONTENT:
 Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"
 
-STEP 2 - CALL THE TOOL:
-After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate_dapp with these parameters:
+STEP 3 - CALL THE TOOL:
+After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate_dapp with:
+- description: my design answer, or "Modern dark mode single-page DApp using React and Ethers.js" if I skipped it
+- contractName: "${contract.name}"
+- contractAddress: "${contract.address}"
+- chainId: "${chainId}"
+- frontendMode: "inline"
+- isBaseMiniApp: true only if I selected Base App Yes; otherwise false
+- figmaUrl and figmaToken only if I provided them
+- confirmOverwrite: true only if I confirmed overwrite
+- setupOptionsConfirmed: true
+- setupOptionsSummary: a short summary of my confirmed setup choices
 
-generate_dapp({
-  description: "Modern dark mode single-page DApp using React and Ethers.js",
-  contractName: "${contract.name}",
-  contractAddress: "${contract.address}",
-  chainId: "${chainId}",
-  frontendMode: "inline",
-  confirmOverwrite: true  // only if I confirmed overwrite
-})
-
-IMPORTANT: Your next action MUST be checking /frontend and then calling generate_dapp. Do not just say "Understood" or "Proceeding" - actually call the tool.`
+IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
         : `I want to create a DApp frontend. Follow these steps exactly:
 
-STEP 1 - ASK FOR LOCATION CHOICE:
-Ask me: "Where should I create your DApp?"
-- Inline: In /frontend folder of current workspace
-- Workspace: In a new dedicated workspace
+STEP 1 - ASK FOR SETUP OPTIONS:
+Ask me once: "How should I create your DApp?"
+- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)
+- Base App: No (default) or Yes
+- Design: defaults, style notes, or a Figma URL
+
+Ask exactly those three setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.
+In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
 
 STEP 2 - IF I CHOOSE INLINE:
 Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"
 
 STEP 3 - CALL THE TOOL:
-After I answer, you MUST call generate_dapp with these parameters:
+After I answer, you MUST call generate_dapp with:
+- description: my design answer, or "Modern dark mode single-page DApp using React and Ethers.js" if I skipped it
+- contractName: "${contract.name}"
+- contractAddress: "${contract.address}"
+- chainId: "${chainId}"
+- frontendMode: "inline" or "workspace" based on my Location answer
+- isBaseMiniApp: true only if I selected Base App Yes; otherwise false
+- figmaUrl and figmaToken only if I provided them
+- confirmOverwrite: true only if I chose Inline and confirmed overwrite
+- setupOptionsConfirmed: true
+- setupOptionsSummary: a short summary of my confirmed setup choices
 
-generate_dapp({
-  description: "Modern dark mode single-page DApp using React and Ethers.js",
-  contractName: "${contract.name}",
-  contractAddress: "${contract.address}",
-  chainId: "${chainId}",
-  frontendMode: "inline" or "workspace",  // based on my choice
-  confirmOverwrite: true  // only if I chose inline AND confirmed overwrite
-})
-
-IMPORTANT: After I make my choice, your next action MUST be calling generate_dapp. Do not just say "Understood" or "Proceeding" - actually call the tool.`
+IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
 
       console.log('[QuickDapp] prompt assembled, length:', prompt.length);
+      console.log('[QD_SETUP] entry=deployed-contract-menu prompt_ready', {
+        length: prompt.length,
+        asksSetupOptions: true
+      });
 
       // Activate and focus AI Assistant
       try {
@@ -468,8 +494,10 @@ IMPORTANT: After I make my choice, your next action MUST be calling generate_dap
 
       // Send prompt to AI Assistant
       console.log('[QuickDapp] calling chatPipe...');
+      console.log('[QD_SETUP] entry=deployed-contract-menu chatPipe_start');
       await plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
       console.log('[QuickDapp] chatPipe returned');
+      console.log('[QD_SETUP] entry=deployed-contract-menu chatPipe_done');
 
       trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'create_dapp_via_ai', isClick: true })
     } catch (error) {

@@ -14,6 +14,7 @@ import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
 import { Plugin } from '@remixproject/engine'
 import { DappOperations, extractNameFromKey } from '@remix-ui/helper'
 import isElectron from 'is-electron'
+import { clearQuickDappGenerationContext, markQuickDappGenerationContext } from '../../helpers/quickDappGenerationContext'
 
 const isLocalVMChainId = (chainId: number | string): boolean => {
   const n = Number(chainId)
@@ -76,6 +77,8 @@ export interface GenerateDAppArgs {
   workspaceName?: string
   frontendMode?: 'workspace' | 'inline'
   confirmOverwrite?: boolean
+  setupOptionsConfirmed?: boolean
+  setupOptionsSummary?: string
 }
 
 export interface UpdateDAppArgs {
@@ -102,7 +105,7 @@ export interface DAppGenerationResult {
 
 export class GenerateDAppHandler extends BaseToolHandler {
   name = 'generate_dapp'
-  description = 'Create a new DApp frontend from a deployed smart contract. When the user provides contract details (contractName, contractAddress, chainId, contractAbi) and says "use defaults" or "without asking questions", call this tool DIRECTLY with description="Modern dark mode single-page DApp using React and Ethers.js". Only ask design preference questions if the user explicitly requests customization or does not provide "use defaults".'
+  description = 'Create a new DApp frontend from a deployed smart contract. STRICT PREREQUISITE: first ask only Location Workspace(default)/Inline, Base App No(default)/Yes, and Design defaults/style notes/Figma URL, then stop. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call this only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -155,6 +158,15 @@ export class GenerateDAppHandler extends BaseToolHandler {
         type: 'boolean',
         description: 'Set to true to confirm overwriting existing /frontend folder (only needed if frontendMode is "inline" and folder exists)',
         default: false
+      },
+      setupOptionsConfirmed: {
+        type: 'boolean',
+        description: 'Required confirmation gate. Set true only after a user reply following the setup options question. Never set true in the same assistant turn where setup options are asked.',
+        default: false
+      },
+      setupOptionsSummary: {
+        type: 'string',
+        description: 'Required when setupOptionsConfirmed=true. Short summary of the setup choices confirmed by the user, e.g. "Location workspace, Base App no, Design defaults".'
       }
     },
     required: ['description', 'contractName', 'contractAddress', 'chainId']
@@ -196,6 +208,60 @@ export class GenerateDAppHandler extends BaseToolHandler {
     try {
       remixAILogger.log('[GenerateDApp] Received args:', args)
       const targetMode = args.frontendMode || 'workspace'
+      console.log('[QD_SETUP] generate_dapp received', {
+        contractName: args.contractName,
+        contractAddress: args.contractAddress,
+        chainId: args.chainId,
+        frontendMode: targetMode,
+        isBaseMiniApp: !!args.isBaseMiniApp,
+        hasFigmaUrl: !!args.figmaUrl,
+        hasFigmaToken: !!args.figmaToken,
+        hasContractAbi: Array.isArray(args.contractAbi),
+        setupOptionsConfirmed: args.setupOptionsConfirmed === true,
+        setupOptionsSummary: args.setupOptionsSummary
+      })
+
+      if (args.setupOptionsConfirmed !== true || !args.setupOptionsSummary?.trim()) {
+        console.log('[QD_SETUP] generate_dapp setup_required', {
+          contractName: args.contractName,
+          contractAddress: args.contractAddress,
+          frontendMode: targetMode,
+          isBaseMiniApp: !!args.isBaseMiniApp,
+          setupOptionsConfirmed: args.setupOptionsConfirmed === true,
+          hasSetupOptionsSummary: !!args.setupOptionsSummary?.trim()
+        })
+        return this.createSuccessResult({
+          success: false,
+          requiresUserInput: true,
+          reason: 'setup_options_required',
+          message: 'Before generating files, ask the user once for DApp setup options.',
+          optionsToAsk: [
+            isElectron() ? 'Location: Inline in /frontend (fixed in Remix Desktop)' : 'Location: Workspace (default) or Inline in /frontend',
+            'Base App: No (default) or Yes',
+            'Design: defaults, style notes, or a Figma URL'
+          ],
+          defaults: {
+            location: isElectron() ? 'inline' : 'workspace',
+            isBaseMiniApp: false,
+            design: 'defaults'
+          },
+          nextAction: 'Ask only those setup options and then STOP. Do not call any tools or write files in the same turn. After the user answers, call generate_dapp again with setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode, isBaseMiniApp, description, and any figmaUrl/figmaToken.'
+        })
+      }
+
+      if (args.figmaUrl && !args.figmaToken) {
+        console.log('[QD_SETUP] generate_dapp figma_token_required', {
+          contractName: args.contractName,
+          figmaUrl: args.figmaUrl
+        })
+        return this.createSuccessResult({
+          success: false,
+          requiresUserInput: true,
+          reason: 'figma_token_required',
+          message: 'Ask the user for their Figma Personal Access Token before generating files.',
+          nextAction: 'Ask only for the Figma token and then STOP. After the user provides the token, call generate_dapp again with the same setup options, setupOptionsConfirmed=true, setupOptionsSummary, figmaUrl, and figmaToken.'
+        })
+      }
 
       // ── ABI Resolution ──
       if (!args.contractAbi) {
@@ -224,6 +290,10 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
         dappOps = new DappOperations('inline', currentWs.name, plugin, args.contractName)
         remixAILogger.log('[QuickDapp] Using inline mode in workspace:', currentWs.name)
+        console.log('[QD_SETUP] generate_dapp mode_resolved', {
+          frontendMode: 'inline',
+          workspaceName: currentWs.name
+        })
 
         // Check if frontend folder exists and has files
         try {
@@ -239,9 +309,9 @@ export class GenerateDAppHandler extends BaseToolHandler {
               `**These files will be PERMANENTLY DELETED and replaced with the new DApp.**\n\n` +
               `ASK THE USER which option they prefer:\n\n` +
               `**Option 1: Overwrite existing files**\n` +
-              `- Call generate_dapp again with the SAME parameters PLUS confirmOverwrite=true\n\n` +
+              `- Call generate_dapp again with the SAME parameters PLUS confirmOverwrite=true and setupOptionsConfirmed=true\n\n` +
               `**Option 2: Create in new workspace (RECOMMENDED - safer)**\n` +
-              `- Call generate_dapp again with the SAME parameters BUT change frontendMode="workspace"\n` +
+              `- Call generate_dapp again with the SAME parameters BUT change frontendMode="workspace" and keep setupOptionsConfirmed=true\n` +
               `- This creates a separate workspace and keeps existing /frontend files intact\n\n` +
               `**Option 3: Cancel**\n` +
               `- Do not proceed with DApp generation\n\n` +
@@ -272,6 +342,11 @@ export class GenerateDAppHandler extends BaseToolHandler {
           })
           dappOps = new DappOperations('workspace', wsResult.workspaceName, plugin, args.contractName)
           remixAILogger.log('[QuickDapp] Created new workspace:', wsResult.workspaceName)
+          console.log('[QD_SETUP] generate_dapp mode_resolved', {
+            frontendMode: 'workspace',
+            workspaceName: wsResult.workspaceName,
+            isBaseMiniApp: !!args.isBaseMiniApp
+          })
         } catch (wsErr: any) {
           remixAILogger.error('[QuickDapp] createDappWorkspace failed:', wsErr?.message || wsErr)
           return this.createErrorResult(`Failed to create DApp workspace: ${wsErr.message}`)
@@ -377,6 +452,20 @@ export class GenerateDAppHandler extends BaseToolHandler {
       const fileWriteExamples = isInlineMode
         ? '/frontend/index.html, /frontend/src/main.jsx, /frontend/src/App.jsx, /frontend/src/index.css'
         : '/index.html, /src/main.jsx, /src/App.jsx, /src/index.css'
+      markQuickDappGenerationContext({
+        workspaceName: dappOps.getWorkspaceName(),
+        isInlineMode,
+        sourceRoot: dappOps.getSourceRoot(),
+        contractAddress: args.contractAddress,
+        operation: 'generate'
+      })
+      console.log('[QD_SETUP] generate_dapp returning_write_instructions', {
+        workspaceName: dappOps.getWorkspaceName(),
+        isInlineMode,
+        fileWriteExamples,
+        hasFigmaLine: !!figmaLine,
+        isBaseMiniApp: !!args.isBaseMiniApp
+      })
 
       return this.createSuccessResult({
         success: true,
@@ -657,6 +746,13 @@ export class UpdateDAppHandler extends BaseToolHandler {
       // Emit UI events
       plugin.emit('dappUpdateStart', { workspaceName: dappOps.getWorkspaceName(), slug: slugToUse })
       plugin.emit('generationProgress', { status: 'preparing', contractAddress: contractResolved.address, workspaceName: dappOps.getWorkspaceName(), slug: slugToUse })
+      markQuickDappGenerationContext({
+        workspaceName: dappOps.getWorkspaceName(),
+        isInlineMode,
+        sourceRoot: dappOps.getSourceRoot(),
+        contractAddress: contractResolved.address,
+        operation: 'update'
+      })
 
       // Build a concise file list (names only — no content in the main agent's context).
       // The subagent will read file contents in its own isolated context via read_file,
@@ -847,6 +943,7 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
       } catch (e: any) {
         remixAILogger.warn('[QuickDapp] Auto-open failed (non-critical):', e?.message)
       }
+      clearQuickDappGenerationContext(dappOps.getWorkspaceName())
 
       return this.createSuccessResult({
         success: true,
@@ -859,6 +956,7 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
         workspaceName: dappOps?.getWorkspaceName() || workspaceName,
         error: error.message
       })
+      if (dappOps?.getWorkspaceName()) clearQuickDappGenerationContext(dappOps.getWorkspaceName())
       return this.createErrorResult(`Failed to finalize DApp: ${error.message}`)
     }
   }
@@ -1109,7 +1207,7 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
     },
     {
       name: 'generate_dapp',
-      description: 'Set up a new DApp workspace from a deployed smart contract. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
+      description: 'Set up a new DApp workspace from a deployed smart contract. STRICT PREREQUISITE: never call this in the same assistant turn where setup options are asked. First ask only Location Workspace(default)/Inline, Base App No(default)/Yes, and Design defaults/style notes/Figma URL, then stop. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
       inputSchema: new GenerateDAppHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:generate', 'file:write'],

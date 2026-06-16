@@ -132,7 +132,7 @@ export async function buildSubagentConfigs(
       systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
       model: fallbackModel,
       tools: quickDappTools,
-      description: 'Used whenever you are tasked with generating and updating DApp frontends. Start by finding out the deployed contract, use generate_dapp to create a first version of the DApp, then update it iteratively using update_dapp. Use write_file to implement the DApp and finalize_dapp_generation when the DApp is ready to be used.'
+      description: 'Used whenever you are tasked with generating and updating DApp frontends. For new DApps, first ask only Location Workspace(default)/Inline, Base App No(default)/Yes, and Design defaults/style notes/Figma URL, then stop; do not ask theme/color/title/layout or call tools in that same turn. After the user replies, call generate_dapp with setupOptionsConfirmed=true and setupOptionsSummary.'
     })
   }
 
