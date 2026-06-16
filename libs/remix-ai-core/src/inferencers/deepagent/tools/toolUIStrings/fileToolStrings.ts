@@ -8,13 +8,13 @@ export const fileToolStrings: ToolUIStringRegistry = {
     args.filePath ? `Reading file ${getFileName(args.filePath)}` : 'Reading file...',
 
   file_write: (args) =>
-    args.filePath ? `Writing file ${getFileName(args.filePath)}` : 'Writing file...',
+    args.filePath ? `Generating and Writing file ${getFileName(args.filePath)}` : 'Generating and  Writing file...',
 
   write_file: (args) =>
-    args.filePath ? `Writing file ${getFileName(args.filePath)}` : 'Writing file...',
+    args.filePath ? `Generating and Writing file ${getFileName(args.filePath)}` : 'Generating and Writing file...',
 
   file_create: (args) =>
-    args.filePath ? `Creating ${args.type || 'file'} ${getFileName(args.filePath)}` : 'Creating file...',
+    args.filePath ? `Generating and Creating file ${getFileName(args.filePath)}` : 'Generating and Creating file...',
 
   file_delete: (args) =>
     args.filePath ? `Deleting file ${getFileName(args.filePath)}` : 'Deleting file...',
