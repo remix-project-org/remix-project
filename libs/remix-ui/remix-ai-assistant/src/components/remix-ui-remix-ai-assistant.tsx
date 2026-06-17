@@ -623,7 +623,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 executingToolUIString: undefined,
                 currentTask: undefined,
                 taskStatus: undefined,
-                isIntermediateContent: false
+                isIntermediateContent: false,
+                todos: m.todos?.map(todo =>
+                  todo.status === 'in_progress'
+                    ? { ...todo, status: 'completed' as const }
+                    : todo
+                ),
+                currentTodoIndex: undefined
               }
               : m
           )
@@ -843,7 +849,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 isExecutingTools: false,
                 executingToolName: undefined,
                 executingToolArgs: undefined,
-                executingToolUIString: undefined
+                executingToolUIString: undefined,
+                todos: m.todos?.map(todo =>
+                  todo.status === 'in_progress'
+                    ? { ...todo, status: 'failed' as const }
+                    : todo
+                )
               }
               : m
           )
@@ -867,7 +878,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 isExecutingTools: false,
                 executingToolName: undefined,
                 executingToolArgs: undefined,
-                executingToolUIString: undefined
+                executingToolUIString: undefined,
+                todos: m.todos?.map(todo =>
+                  todo.status === 'in_progress'
+                    ? { ...todo, status: 'failed' as const }
+                    : todo
+                )
               }
               : m
           )
