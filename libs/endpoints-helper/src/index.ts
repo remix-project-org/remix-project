@@ -47,6 +47,7 @@ export type EndpointUrls = {
   quickdappIpfs: string;
   ensService: string;
   ccipRead: string;
+  ensContractNames: string;
   learneth: string;
   rss: string;
   langchain: string
@@ -91,6 +92,7 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   quickdappIpfs: 'endpoints/quickdapp-ipfs',
   ensService: 'endpoints/ens-service',
   ccipRead: 'endpoints/ccip-read',
+  ensContractNames: 'endpoints/contract-ens',
   learneth: 'learneth',
   rss: 'endpoints/rss',
   langchain: 'ai/langchain'

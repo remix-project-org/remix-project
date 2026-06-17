@@ -800,6 +800,7 @@ const BaseAppWizard: React.FC = () => {
         }}
         ensName={savedWizardState.ensName}
         contentHash={pendingEnsData?.cid || ''}
+        plugin={plugin}
         onSuccess={handleEnsRegistrationSuccess}
       />
     </>

@@ -43,6 +43,160 @@ export const disablePopoverForSession = (): void => {
   isPopoverDisabledFlag = true
 }
 
+// ===== RESPONSE CACHING IMPLEMENTATION =====
+
+interface CacheEntry {
+  data: KeywordData
+  timestamp: number
+  accessCount: number
+  lastAccessed: number
+}
+
+interface CacheStats {
+  hits: number
+  misses: number
+  size: number
+  evictions: number
+}
+
+// In-memory cache for analysis results
+const analysisCache = new Map<string, CacheEntry>()
+
+// Cache configuration
+const CACHE_CONFIG = {
+  MAX_SIZE: 100,              // Maximum number of cached entries
+  MAX_AGE_MS: 30 * 60 * 1000, // 30 minutes cache TTL
+  CLEANUP_INTERVAL: 5 * 60 * 1000 // Clean up stale entries every 5 minutes
+}
+
+// Cache statistics
+const cacheStats: CacheStats = {
+  hits: 0,
+  misses: 0,
+  size: 0,
+  evictions: 0
+}
+
+/**
+ * Generate a unique cache key based on keyword, context, and file type
+ * Case-sensitive to distinguish between different code elements (e.g., Transfer vs transfer)
+ */
+const getCacheKey = (keyword: string, contextLines: string | undefined, fileType: string): string => {
+  const normalizedKeyword = keyword.trim()
+  const normalizedContext = contextLines?.trim() || ''
+  // Create a hash-like key to keep it concise
+  return `${fileType}::${normalizedKeyword}::${normalizedContext}`
+}
+
+/**
+ * Get cached analysis result if available and not expired
+ */
+const getCachedAnalysis = (cacheKey: string): KeywordData | null => {
+  const entry = analysisCache.get(cacheKey)
+
+  if (!entry) {
+    cacheStats.misses++
+    return null
+  }
+
+  // Check if entry has expired
+  const now = Date.now()
+  const age = now - entry.timestamp
+
+  if (age > CACHE_CONFIG.MAX_AGE_MS) {
+    // Entry expired, remove it
+    analysisCache.delete(cacheKey)
+    cacheStats.misses++
+    cacheStats.evictions++
+    cacheStats.size = analysisCache.size
+    return null
+  }
+
+  // Update access metadata
+  entry.accessCount++
+  entry.lastAccessed = now
+
+  cacheStats.hits++
+  return entry.data
+}
+
+/**
+ * Store analysis result in cache with LRU eviction if needed
+ */
+const setCachedAnalysis = (cacheKey: string, data: KeywordData): void => {
+  // Check if we need to evict entries (LRU-based)
+  if (analysisCache.size >= CACHE_CONFIG.MAX_SIZE && !analysisCache.has(cacheKey)) {
+    // Find least recently used entry
+    let lruKey: string | null = null
+    let lruTime = Infinity
+
+    for (const [key, entry] of analysisCache.entries()) {
+      if (entry.lastAccessed < lruTime) {
+        lruTime = entry.lastAccessed
+        lruKey = key
+      }
+    }
+
+    if (lruKey) {
+      analysisCache.delete(lruKey)
+      cacheStats.evictions++
+    }
+  }
+
+  // Store new entry
+  const now = Date.now()
+  analysisCache.set(cacheKey, {
+    data,
+    timestamp: now,
+    lastAccessed: now,
+    accessCount: 1
+  })
+
+  cacheStats.size = analysisCache.size
+}
+
+/**
+ * Periodic cleanup of expired cache entries
+ */
+let cleanupInterval: NodeJS.Timeout | null = null
+
+const startCacheCleanup = () => {
+  if (cleanupInterval) return // Already running
+
+  cleanupInterval = setInterval(() => {
+    const now = Date.now()
+    let removedCount = 0
+
+    for (const [key, entry] of analysisCache.entries()) {
+      const age = now - entry.timestamp
+      if (age > CACHE_CONFIG.MAX_AGE_MS) {
+        analysisCache.delete(key)
+        removedCount++
+      }
+    }
+
+    if (removedCount > 0) {
+      cacheStats.evictions += removedCount
+      cacheStats.size = analysisCache.size
+    }
+  }, CACHE_CONFIG.CLEANUP_INTERVAL)
+}
+
+// Start cleanup on module load
+startCacheCleanup()
+
+// Stop cleanup on page unload (good practice)
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (cleanupInterval) {
+      clearInterval(cleanupInterval)
+      cleanupInterval = null
+    }
+  })
+}
+
+// ===== END RESPONSE CACHING IMPLEMENTATION =====
+
 // Helper function to detect language from filename
 const getLanguageFromFilename = (filename: string): { label: string; code: string } => {
   if (!filename) return { label: 'code', code: '' }
@@ -108,14 +262,25 @@ export const openContextualTooltip = (
   const editorRect = editorElement?.getBoundingClientRect()
 
   if (editorRect && monacoRef.current) {
-    const lineHeight = editorRef.current.getOption(monacoRef.current.editor.EditorOption.lineHeight)
-    const selectionStartPos = selection.getStartPosition()
     const selectionEndPos = selection.getEndPosition()
-    const startColumn = (selectionStartPos.column + selectionEndPos.column) / 2
-    const startLine = selectionStartPos.lineNumber
 
-    const x = editorRect.left + (startColumn - 1) * 8
-    const y = editorRect.top + (startLine - 1) * lineHeight + lineHeight
+    // Use Monaco's getScrolledVisiblePosition to get accurate screen coordinates
+    // This accounts for scrolling and gives us the exact position
+    const positionToUse = {
+      lineNumber: selectionEndPos.lineNumber,
+      column: selectionEndPos.column
+    }
+
+    const coordinates = editorRef.current.getScrolledVisiblePosition(positionToUse)
+
+    // If coordinates are not available (e.g., position is scrolled out of view),
+    // don't show tooltip
+    if (!coordinates) {
+      return
+    }
+
+    const x = editorRect.left + coordinates.left
+    const y = editorRect.top + coordinates.top
 
     setTooltipData({
       keyword: selectedExpression,
@@ -154,6 +319,7 @@ export const TooltipPopOver: React.FC<TooltipPopOverProps> = ({
   const [adjustedPosition, setAdjustedPosition] = useState(position)
   const [data, setData] = useState<KeywordData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [fromCache, setFromCache] = useState(false)
   const risk = data ? RISK_CONFIG[data.risk] : null
 
   // Fetch keyword data from remixAI
@@ -166,6 +332,20 @@ export const TooltipPopOver: React.FC<TooltipPopOverProps> = ({
         const currentFile = await plugin.call('fileManager', 'getCurrentFile')
         const isSolidityFile = currentFile?.endsWith('.sol')
         const { label: fileLanguage } = getLanguageFromFilename(currentFile)
+
+        // Generate cache key
+        const cacheKey = getCacheKey(keyword, contextLines, fileLanguage)
+
+        // Check cache first
+        const cachedResult = getCachedAnalysis(cacheKey)
+        if (cachedResult) {
+          setData(cachedResult)
+          setFromCache(true)
+          setLoading(false)
+          return
+        }
+
+        setFromCache(false)
 
         // Determine if we have context (single word selection) or not (multi-word selection)
         const hasContext = contextLines && contextLines.length > 0
@@ -227,7 +407,31 @@ Return a JSON response with the following structure:
 }
 
 Focus on code quality, potential issues, and best practices for ${fileLanguage}. The body should contain max 40 words. Consider the surrounding code context.`
-        const response = await plugin.call('remixAI', 'basic_prompt', prompt)
+
+        // Wrap API call with timeout to detect if AI is busy
+        const apiCallPromise = plugin.call('remixAI', 'basic_prompt', prompt)
+        const busyTimeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('AI_BUSY')), 5000) // 5 second timeout to detect busy state
+        })
+
+        let response
+        try {
+          response = await Promise.race([apiCallPromise, busyTimeoutPromise])
+        } catch (error: any) {
+          if (error?.message === 'AI_BUSY') {
+            // API is taking too long, likely processing another request
+            setFromCache(false)
+            setData({
+              title: 'RemixAI Assistant Busy',
+              body: 'The RemixAI assistant is currently processing another request. Please try again once it becomes available.',
+              risk: 'low' as const,
+              riskLabel: 'Busy'
+            })
+            setLoading(false)
+            return
+          }
+          throw error // Re-throw other errors
+        }
 
         // Parse the JSON response
         let parsedData: KeywordData
@@ -255,6 +459,8 @@ Focus on code quality, potential issues, and best practices for ${fileLanguage}.
           }
         }
 
+        // Cache the successful result
+        setCachedAnalysis(cacheKey, parsedData)
         setData(parsedData)
       } catch (error) {
         console.error('Failed to fetch keyword info:', error)
@@ -280,7 +486,6 @@ Focus on code quality, potential issues, and best practices for ${fileLanguage}.
     const popup = popRef.current
     const rect = popup.getBoundingClientRect()
     const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
 
     let { x, y } = position
     const margin = 10
@@ -374,7 +579,7 @@ Focus on code quality, potential issues, and best practices for ${fileLanguage}.
               <i className="fas fa-times"></i>
             </button>
             <div className="mb-2" style={{ paddingRight: '16px' }}>
-              <div className="d-flex align-items-center justify-content-between">
+              <div className="d-flex align-items-center">
                 <code className="web3-tooltip-title" style={{
                   maxWidth: isSelectedText ? '200px' : 'auto',
                   overflow: 'hidden',
@@ -386,13 +591,35 @@ Focus on code quality, potential issues, and best practices for ${fileLanguage}.
                     : data.title
                   }
                 </code>
+                {fromCache && (
+                  <span
+                    title="Loaded from cache"
+                    style={{
+                      fontSize: '0.7rem',
+                      opacity: 0.6,
+                      marginLeft: '6px',
+                      color: 'var(--bs-warning)'
+                    }}
+                  >
+                    <i className="fas fa-bolt"></i>
+                  </span>
+                )}
               </div>
               {risk && data.riskLabel && (
                 <div className="mt-1">
-                  <span className={`badge bg-${risk.badge} d-flex align-items-center gap-1`}
-                    style={{ fontSize: "0.65rem", fontWeight: 600, width: 'fit-content' }}>
-                    <i className={`${risk.icon}`} style={{ fontSize: "0.6rem" }}></i>
-                    {data.riskLabel}
+                  <span className={`badge bg-${risk.badge} d-flex align-items-start gap-1`}
+                    style={{
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      width: 'fit-content',
+                      maxWidth: '100%',
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word'
+                    }}>
+                    <i className={`${risk.icon}`} style={{ fontSize: "0.6rem", flexShrink: 0, marginTop: '1px' }}></i>
+                    <span>
+                      {data.riskLabel}
+                    </span>
                   </span>
                 </div>
               )}
@@ -467,7 +694,7 @@ ${codeToAnalyze}
                 }}
               >
                 <i className="fas fa-external-link-alt me-1" style={{ fontSize: "0.65rem" }}></i>
-                  Open in RemixAI
+                  Open in RemixAI Assistant
               </button>
               <button
                 className="btn btn-link p-0 text-start"

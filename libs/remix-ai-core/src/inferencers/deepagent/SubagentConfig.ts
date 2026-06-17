@@ -228,7 +228,7 @@ export async function buildSubagentConfigs(
         systemPrompt: SOLIDITY_CODE_GENERATION_PROMPT,
         model: fallbackModel,
         tools: solidityTools,
-        description: 'Specializes in writting solidity code using openzeppelin libraries'
+        description: 'Specializes in writing solidity code using openzeppelin libraries. Always pass the current solidity configuration to this subagent. If the task involves writing solidity code, start with this subagent.'
       }
     )
   }
