@@ -2,7 +2,10 @@ import { remixAILogger } from '../../helpers/logger'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
 import { ToolApprovalRequest, ToolApprovalResponse } from '../../types/humanInTheLoop'
-import { getQuickDappGenerationContext } from '../../helpers/quickDappGenerationContext'
+import {
+  getActiveQuickDappGenerationContext,
+  getQuickDappGenerationContext
+} from '../../helpers/quickDappGenerationContext'
 
 // File size limit for auto-summarization (100KB)
 const MAX_FILE_SIZE = 100 * 1024
@@ -115,6 +118,17 @@ export class RemixFilesystemBackend {
     if (!batch) return
     this.editBatches.delete(filePath)
 
+    const normalizedPath = this.normalizePath(filePath)
+    const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, this.isQuickDappCandidatePath(normalizedPath))
+    if (workspaceMismatch) {
+      remixAILogger.warn('[QuickDapp][WorkspaceLock] blocked pending edit flush in wrong workspace', {
+        filePath,
+        normalizedPath,
+        error: workspaceMismatch.error
+      })
+      return
+    }
+
     // Request ONE approval for the combined diff
     const result = await this.requestWriteApproval(filePath, batch.originalContent, batch.virtualContent, 'edit_file')
 
@@ -156,12 +170,15 @@ export class RemixFilesystemBackend {
 
   async read_file(path: string): Promise<string | { error: string }> {
     try {
-      const batch = this.editBatches.get(path)
+      const normalizedPath = this.normalizePath(path)
+      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, this.isQuickDappCandidatePath(normalizedPath))
+      if (workspaceMismatch) return workspaceMismatch
+
+      const batch = this.editBatches.get(path) || this.editBatches.get(normalizedPath)
       if (batch) {
         return batch.virtualContent
       }
 
-      const normalizedPath = path
       const exists = await this.plugin.call('fileManager', 'exists', normalizedPath)
 
       if (!exists) {
@@ -208,21 +225,22 @@ export class RemixFilesystemBackend {
         }
       } catch (e) { /* ignore workspace check failure */ }
       if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath
-      const isQuickDappCandidatePath =
-        normalizedPath === '/index.html' ||
-        normalizedPath.startsWith('/src/') ||
-        normalizedPath.startsWith('/frontend/') ||
-        normalizedPath.startsWith('/dapp/') ||
-        /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(normalizedPath)
-      const hasWeb3DappContent =
-        typeof content === 'string' &&
-        /0x[a-fA-F0-9]{40}/.test(content) &&
-        /ethers|window\.ethereum|BrowserProvider|eth_requestAccounts|new Contract|contract ABI/i.test(content)
+      const activeQuickDappContext = getActiveQuickDappGenerationContext()
+      const activeWorkspacePrefix = activeQuickDappContext?.workspaceName ? `/${activeQuickDappContext.workspaceName}/` : ''
+      if (activeWorkspacePrefix && normalizedPath.startsWith(activeWorkspacePrefix)) {
+        remixAILogger.warn(`[QuickDapp] Stripping target workspace prefix from path: ${normalizedPath}`)
+        normalizedPath = normalizedPath.substring(activeQuickDappContext.workspaceName.length + 1)
+        if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath
+      }
+      const isQuickDappCandidatePath = this.isQuickDappCandidatePath(normalizedPath)
+      const hasWeb3DappContent = this.hasQuickDappWeb3Content(content)
       const shouldEnforceQuickDappRouting =
         hasWeb3DappContent ||
         normalizedPath.startsWith('/frontend/') ||
         normalizedPath.startsWith('/dapp/') ||
         /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(normalizedPath)
+      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, isQuickDappCandidatePath || hasWeb3DappContent)
+      if (workspaceMismatch) return workspaceMismatch
       if (isQuickDappCandidatePath || hasWeb3DappContent) {
         const activeQuickDappContext = currentWorkspaceName
           ? getQuickDappGenerationContext(currentWorkspaceName)
@@ -279,6 +297,9 @@ export class RemixFilesystemBackend {
 
     try {
       const normalizedPath = this.normalizePath(path)
+      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, this.isQuickDappCandidatePath(normalizedPath))
+      if (workspaceMismatch) return workspaceMismatch
+
       const originalContent = await this.read_file(normalizedPath)
 
       if (typeof originalContent !== 'string') {
@@ -469,6 +490,54 @@ export class RemixFilesystemBackend {
     normalized = normalized.replace(/\/\//g, '/')
 
     return normalized
+  }
+
+  private isQuickDappCandidatePath(path: string): boolean {
+    return path === '/index.html' ||
+      path.startsWith('/src/') ||
+      path.startsWith('/frontend/') ||
+      path.startsWith('/dapp/') ||
+      /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(path)
+  }
+
+  private hasQuickDappWeb3Content(content: string): boolean {
+    return typeof content === 'string' &&
+      /0x[a-fA-F0-9]{40}/.test(content) &&
+      /ethers|window\.ethereum|BrowserProvider|eth_requestAccounts|new Contract|contract ABI/i.test(content)
+  }
+
+  private async getCurrentWorkspaceName(): Promise<string> {
+    try {
+      const currentWs = await this.plugin.call('filePanel' as any, 'getCurrentWorkspace')
+      return currentWs?.name || ''
+    } catch {
+      return ''
+    }
+  }
+
+  private async getQuickDappWorkspaceMismatch(path: string, shouldCheck: boolean): Promise<{ error: string } | undefined> {
+    if (!shouldCheck) return undefined
+
+    const activeQuickDappContext = getActiveQuickDappGenerationContext()
+    if (!activeQuickDappContext) return undefined
+
+    const currentWorkspaceName = await this.getCurrentWorkspaceName()
+    if (currentWorkspaceName === activeQuickDappContext.workspaceName) return undefined
+
+    const currentWorkspaceLabel = currentWorkspaceName || 'unknown'
+    const error =
+      `QUICKDAPP_WORKSPACE_MISMATCH: QuickDapp ${activeQuickDappContext.operation} is targeting workspace ` +
+      `"${activeQuickDappContext.workspaceName}", but the current workspace is "${currentWorkspaceLabel}" while accessing "${path}". ` +
+      `Do not read, edit, or write DApp frontend files in the current workspace. Switch back to "${activeQuickDappContext.workspaceName}" or wait for the QuickDapp operation to finish.`
+
+    remixAILogger.warn('[QuickDapp][WorkspaceLock] blocked file tool in wrong workspace', {
+      operation: activeQuickDappContext.operation,
+      lockedWorkspace: activeQuickDappContext.workspaceName,
+      currentWorkspace: currentWorkspaceLabel,
+      path
+    })
+
+    return { error }
   }
 
   private summarizeFile(path: string, content: string): string {

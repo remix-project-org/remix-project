@@ -34,6 +34,8 @@ import { createModelInstance } from './ModelFactory'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
+import { clearAllQuickDappWorkspaceLocks } from '@remix-ui/helper'
+import { clearAllQuickDappGenerationContexts } from '../../helpers/quickDappGenerationContext'
 
 export const notSuitableForCodeGeneration = ['mistral-medium-latest', 'mistral-small-latest', 'ministral-3b', 'ministral-8b-latest']
 
@@ -976,6 +978,9 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.event.emit('onInferenceDone')
 
     try {
+      clearAllQuickDappWorkspaceLocks()
+      clearAllQuickDappGenerationContexts()
+      remixAILogger.log('[QuickDapp][WorkspaceLock] cleared on AI cancel')
       this.plugin.emit('generationProgress', null)
       this.plugin.emit('dappGenerationError', {
         slug: undefined,

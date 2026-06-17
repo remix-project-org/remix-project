@@ -12,7 +12,12 @@ import { IMCPToolResult } from '../../types/mcp'
 import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
 import { Plugin } from '@remixproject/engine'
-import { DappOperations, extractNameFromKey } from '@remix-ui/helper'
+import {
+  clearQuickDappWorkspaceLock,
+  DappOperations,
+  extractNameFromKey,
+  setQuickDappWorkspaceLock
+} from '@remix-ui/helper'
 import isElectron from 'is-electron'
 import { clearQuickDappGenerationContext, markQuickDappGenerationContext } from '../../helpers/quickDappGenerationContext'
 
@@ -616,6 +621,18 @@ export class GenerateDAppHandler extends BaseToolHandler {
         }
       }
 
+      setQuickDappWorkspaceLock({
+        workspaceName: dappOps.getWorkspaceName(),
+        slug: progressSlug || dappOps.getSlug(),
+        operation: 'generate',
+        reason: 'generate_dapp'
+      })
+      remixAILogger.log('[QuickDapp][WorkspaceLock] locked workspace for generation', {
+        workspaceName: dappOps.getWorkspaceName(),
+        slug: progressSlug || dappOps.getSlug(),
+        mode: targetMode
+      })
+
       // Open dashboard so React UI is mounted and event listeners are ready
       try {
         remixAILogger.log('[QuickDapp] Opening dashboard...')
@@ -788,6 +805,9 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
     } catch (error: any) {
       remixAILogger.error('[GenerateDApp] Generation failed:', error)
+      if (dappOps?.getWorkspaceName()) {
+        clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
+      }
       plugin.emit('dappGenerationError', {
         workspaceName: dappOps?.getWorkspaceName(),
         error: error.message
@@ -972,12 +992,21 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
       dappOps = DappOperations.from(targetWorkspace, plugin)
       const isInlineMode = dappOps.isInline()
+      setQuickDappWorkspaceLock({
+        workspaceName: dappOps.getWorkspaceName(),
+        operation: 'update',
+        reason: 'update_dapp'
+      })
+      remixAILogger.log('[QuickDapp][WorkspaceLock] locked workspace for update', {
+        workspaceName: dappOps.getWorkspaceName()
+      })
 
       // Switch to target workspace
       try {
         await dappOps.switchToWorkspace()
       } catch (e: any) {
         remixAILogger.error('[QuickDapp] Failed to switch workspace:', e?.message)
+        clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
         return this.createErrorResult(`Failed to switch to workspace ${targetWorkspace}: ${e.message}`)
       }
 
@@ -990,6 +1019,12 @@ export class UpdateDAppHandler extends BaseToolHandler {
         remixAILogger.warn('[QuickDapp] Could not read config for slug:', e?.message)
       }
       const slugToUse = configSlug || dappOps.getSlug()
+      setQuickDappWorkspaceLock({
+        workspaceName: dappOps.getWorkspaceName(),
+        slug: slugToUse,
+        operation: 'update',
+        reason: 'update_dapp'
+      })
 
       // Get workspace file list (names only — subagent reads content in its own context)
       let fileNames: string[] = []
@@ -1003,6 +1038,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
       }
 
       if (fileNames.length === 0) {
+        clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
         return this.createErrorResult('No files found in workspace. Please ensure the DApp workspace is active.')
       }
 
@@ -1076,6 +1112,9 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
     } catch (error: any) {
       remixAILogger.error('[QuickDapp] UpdateDAppHandler FAILED:', error)
+      if (dappOps?.getWorkspaceName()) {
+        clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
+      }
       plugin.emit('dappGenerationError', {
         workspaceName: dappOps?.getWorkspaceName() || args.workspaceName,
         error: error.message
@@ -1186,6 +1225,11 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
       }
       const slugToUse = configSlug || dappOps.getSlug()
       remixAILogger.log(`[QuickDapp][FINALIZE] Using slug for event: ${slugToUse}`)
+      clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
+      remixAILogger.log('[QuickDapp][WorkspaceLock] cleared before dappGenerated', {
+        workspaceName: dappOps.getWorkspaceName(),
+        slug: slugToUse
+      })
 
       // Emit dappGenerated event — triggers UI refresh
       plugin.emit('dappGenerated', {
@@ -1222,7 +1266,10 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
         workspaceName: dappOps?.getWorkspaceName() || workspaceName,
         error: error.message
       })
-      if (dappOps?.getWorkspaceName()) clearQuickDappGenerationContext(dappOps.getWorkspaceName())
+      if (dappOps?.getWorkspaceName()) {
+        clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
+        clearQuickDappGenerationContext(dappOps.getWorkspaceName())
+      }
       return this.createErrorResult(`Failed to finalize DApp: ${error.message}`)
     }
   }
