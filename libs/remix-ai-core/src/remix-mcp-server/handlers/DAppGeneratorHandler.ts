@@ -21,6 +21,11 @@ const isLocalVMChainId = (chainId: number | string): boolean => {
   return Number.isNaN(n) || n === 0 || n === 1337 || n === 31337 || n === 5777
 }
 
+const isInvalidQuickDappChainId = (chainId: number | string | undefined | null): boolean => {
+  const value = String(chainId ?? '').trim().toLowerCase()
+  return !value || value === '-' || value === 'undefined' || value === 'unknown' || value === 'null' || value === 'nan'
+}
+
 // Common build rules injected into every QuickDapp delegation message
 const QUICKDAPP_BUILD_RULES =
   `IMPORT RULES (CRITICAL - violations crash the build):\n` +
@@ -59,6 +64,175 @@ const QUICKDAPP_DESIGN_RULES =
   `- Make the chosen direction visible through layout, typography, spacing, color system, component shape, empty states, hover/focus states, loading states, and transaction feedback.\n` +
   `- Vary the visual direction across DApps: refined minimal, dense dashboard, editorial, playful, collectible, protocol-console, utility/admin, or other contract-appropriate approaches.\n` +
   `- If a bold visual idea would reduce readability or make wallet/transaction controls harder to operate, choose a simpler design that preserves functionality.\n`
+
+interface FigmaDesignSuccess {
+  success: true
+  fileName: string
+  fileKey: string
+  nodeId?: string
+  designData: string
+  truncated: boolean
+  rawLength: number
+}
+
+interface FigmaDesignFailure {
+  success: false
+  reason: 'invalid_figma_url' | 'figma_node_not_found' | 'figma_access_denied' | 'figma_file_not_found' | 'figma_api_error' | 'figma_fetch_error'
+  message: string
+  status?: number
+}
+
+type FigmaDesignResult = FigmaDesignSuccess | FigmaDesignFailure
+
+function isFigmaDesignFailure(result: FigmaDesignResult): result is FigmaDesignFailure {
+  return result.success === false
+}
+
+function extractFigmaFileKey(figmaUrl: string): string | null {
+  const patterns = [
+    /figma\.com\/(?:file|design)\/([a-zA-Z0-9]+)/,
+    /figma\.com\/proto\/([a-zA-Z0-9]+)/
+  ]
+
+  for (const pattern of patterns) {
+    const match = figmaUrl.match(pattern)
+    if (match) return match[1]
+  }
+
+  return null
+}
+
+function extractFigmaNodeId(figmaUrl: string): string | undefined {
+  try {
+    const url = new URL(figmaUrl)
+    const nodeId = url.searchParams.get('node-id')
+    return nodeId ? nodeId.replace(/-/g, ':') : undefined
+  } catch (_) {
+    return undefined
+  }
+}
+
+function simplifyFigmaNode(node: any, depth = 0): any {
+  if (!node || depth > 5) return null
+
+  const simplified: any = { name: node.name, type: node.type }
+
+  if (node.absoluteBoundingBox) {
+    simplified.bounds = {
+      x: Math.round(node.absoluteBoundingBox.x || 0),
+      y: Math.round(node.absoluteBoundingBox.y || 0),
+      w: Math.round(node.absoluteBoundingBox.width),
+      h: Math.round(node.absoluteBoundingBox.height)
+    }
+  }
+
+  if (node.fills && node.fills.length > 0) {
+    const solidFill = node.fills.find((f: any) => f.type === 'SOLID' && f.visible !== false)
+    if (solidFill?.color) {
+      const r = Math.round((solidFill.color.r || 0) * 255)
+      const g = Math.round((solidFill.color.g || 0) * 255)
+      const b = Math.round((solidFill.color.b || 0) * 255)
+      simplified.fill = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+    }
+  }
+
+  if (node.type === 'TEXT' && node.characters) {
+    simplified.text = node.characters.substring(0, 100)
+  }
+
+  if (node.children && Array.isArray(node.children)) {
+    const children = node.children.map((child: any) => simplifyFigmaNode(child, depth + 1)).filter(Boolean)
+    if (children.length > 0) simplified.children = children
+  }
+
+  return simplified
+}
+
+async function fetchAndSimplifyFigmaDesign(figmaUrl: string, figmaToken: string): Promise<FigmaDesignResult> {
+  const fileKey = extractFigmaFileKey(figmaUrl)
+  if (!fileKey) {
+    return {
+      success: false,
+      reason: 'invalid_figma_url',
+      message: 'Invalid Figma URL format. Expected a figma.com file/design/proto URL.'
+    }
+  }
+
+  const nodeId = extractFigmaNodeId(figmaUrl)
+  const apiUrl = nodeId
+    ? `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`
+    : `https://api.figma.com/v1/files/${fileKey}`
+
+  try {
+    const response = await fetch(apiUrl, {
+      headers: { 'X-Figma-Token': figmaToken }
+    })
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          reason: 'figma_access_denied',
+          message: 'Figma API access denied. Please check the Personal Access Token and file permissions.',
+          status: response.status
+        }
+      }
+      if (response.status === 404) {
+        return {
+          success: false,
+          reason: 'figma_file_not_found',
+          message: 'Figma file not found. Please check the URL and token access.',
+          status: response.status
+        }
+      }
+      return {
+        success: false,
+        reason: 'figma_api_error',
+        message: `Figma API error: ${response.statusText || response.status}`,
+        status: response.status
+      }
+    }
+
+    const figmaData = await response.json()
+    const documentRoot = nodeId
+      ? figmaData.nodes?.[nodeId]?.document
+      : figmaData.document
+
+    if (!documentRoot) {
+      return {
+        success: false,
+        reason: 'figma_node_not_found',
+        message: nodeId
+          ? `Figma node "${nodeId}" was not found in the file. Please check the node-id in the URL.`
+          : 'Figma document data was missing from the API response.'
+      }
+    }
+
+    const simplifiedDocument = simplifyFigmaNode(documentRoot)
+    const rawJson = JSON.stringify(simplifiedDocument, null, 2)
+    const maxJsonLength = 30000
+    const truncated = rawJson.length > maxJsonLength
+    const designData = truncated
+      ? rawJson.substring(0, maxJsonLength) + '\n... [truncated for token limit]'
+      : rawJson
+
+    return {
+      success: true,
+      fileName: figmaData.name || documentRoot.name || 'Untitled',
+      fileKey,
+      nodeId,
+      designData,
+      truncated,
+      rawLength: rawJson.length
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      reason: 'figma_fetch_error',
+      message: `Failed to fetch Figma design: ${error.message || String(error)}`
+    }
+  }
+}
 
 // ──────────────────────────────────────────────
 // Types
@@ -105,7 +279,7 @@ export interface DAppGenerationResult {
 
 export class GenerateDAppHandler extends BaseToolHandler {
   name = 'generate_dapp'
-  description = 'Create a new DApp frontend from a deployed smart contract. STRICT PREREQUISITE: first ask only Location Workspace(default)/Inline, Base App No(default)/Yes, and Design defaults/style notes/Figma URL, then stop. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call this only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary.'
+  description = 'Create a new DApp frontend from a deployed smart contract. STRICT PREREQUISITE: first ask only Location Workspace(default)/Inline, Base App No(default)/Yes, and Design defaults/style notes/Figma URL, then stop. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call this only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary. If Figma is requested, the URL/token are validated before any workspace or file generation begins.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -142,7 +316,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       },
       figmaUrl: {
         type: 'string',
-        description: 'Figma design file URL (optional, must contain ?node-id=...)'
+        description: 'Figma design file URL (optional). If node-id is present, only that node is fetched; otherwise the file is fetched.'
       },
       figmaToken: {
         type: 'string',
@@ -196,15 +370,82 @@ export class GenerateDAppHandler extends BaseToolHandler {
       }
     }
 
-    if (args.figmaUrl && !args.figmaToken) {
-      return 'Figma token is required when using a Figma URL'
+    return true
+  }
+
+  private async resolveGenerateChainId(args: GenerateDAppArgs, plugin: Plugin): Promise<{
+    chainId: number | string
+    providerName?: string
+    source: 'unchanged' | 'current_vm_provider' | 'invalid_from_provider'
+    matchedDeployedContract: boolean
+  }> {
+    const originalChainId = args.chainId
+    const invalidChainId = isInvalidQuickDappChainId(originalChainId)
+    let providerName: string | undefined
+
+    try {
+      const providerObject = await plugin.call('blockchain' as any, 'getProviderObject')
+      if (typeof providerObject?.name === 'string' && providerObject.name.trim()) {
+        providerName = providerObject.name
+      }
+    } catch (_) {
+      // Best effort only. If provider lookup fails, keep the caller's chainId.
     }
 
-    return true
+    if (!providerName) {
+      try {
+        const provider = await plugin.call('blockchain' as any, 'getProvider')
+        if (typeof provider === 'string' && provider.trim()) providerName = provider
+      } catch (_) {
+        // Best effort only.
+      }
+    }
+
+    let matchedDeployedContract = false
+    if (providerName?.startsWith('vm') || invalidChainId) {
+      try {
+        const deployedContracts = await plugin.call('udappDeployedContracts' as any, 'getDeployedContracts')
+        if (Array.isArray(deployedContracts)) {
+          matchedDeployedContract = deployedContracts.some((contract: any) =>
+            typeof contract?.address === 'string' &&
+            contract.address.toLowerCase() === args.contractAddress.toLowerCase()
+          )
+        }
+      } catch (_) {
+        // Contract matching is a safety improvement, not a hard requirement.
+      }
+    }
+
+    if (providerName?.startsWith('vm') && (matchedDeployedContract || invalidChainId)) {
+      return {
+        chainId: providerName,
+        providerName,
+        source: 'current_vm_provider',
+        matchedDeployedContract
+      }
+    }
+
+    if (invalidChainId && providerName) {
+      return {
+        chainId: providerName,
+        providerName,
+        source: 'invalid_from_provider',
+        matchedDeployedContract
+      }
+    }
+
+    return {
+      chainId: originalChainId,
+      providerName,
+      source: 'unchanged',
+      matchedDeployedContract
+    }
   }
 
   async execute(args: GenerateDAppArgs, plugin: Plugin): Promise<IMCPToolResult> {
     let dappOps: DappOperations | undefined
+    let progressSlug: string | undefined
+    let figmaDesign: FigmaDesignSuccess | undefined
     try {
       remixAILogger.log('[GenerateDApp] Received args:', args)
       const targetMode = args.frontendMode || 'workspace'
@@ -249,9 +490,24 @@ export class GenerateDAppHandler extends BaseToolHandler {
         })
       }
 
+      const originalChainId = args.chainId
+      const chainResolution = await this.resolveGenerateChainId(args, plugin)
+      args.chainId = chainResolution.chainId
+      console.log('[QD_SETUP] generate_dapp chain_resolved', {
+        contractName: args.contractName,
+        contractAddress: args.contractAddress,
+        originalChainId,
+        resolvedChainId: args.chainId,
+        providerName: chainResolution.providerName,
+        source: chainResolution.source,
+        matchedDeployedContract: chainResolution.matchedDeployedContract
+      })
+
       if (args.figmaUrl && !args.figmaToken) {
         console.log('[QD_SETUP] generate_dapp figma_token_required', {
           contractName: args.contractName,
+          contractAddress: args.contractAddress,
+          chainId: args.chainId,
           figmaUrl: args.figmaUrl
         })
         return this.createSuccessResult({
@@ -259,7 +515,82 @@ export class GenerateDAppHandler extends BaseToolHandler {
           requiresUserInput: true,
           reason: 'figma_token_required',
           message: 'Ask the user for their Figma Personal Access Token before generating files.',
-          nextAction: 'Ask only for the Figma token and then STOP. After the user provides the token, call generate_dapp again with the same setup options, setupOptionsConfirmed=true, setupOptionsSummary, figmaUrl, and figmaToken.'
+          preserveFields: ['description', 'contractName', 'contractAddress', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl'],
+          originalRequest: {
+            description: args.description,
+            contractName: args.contractName,
+            contractAddress: args.contractAddress,
+            chainId: args.chainId,
+            frontendMode: targetMode,
+            isBaseMiniApp: !!args.isBaseMiniApp,
+            setupOptionsConfirmed: true,
+            setupOptionsSummary: args.setupOptionsSummary,
+            figmaUrl: args.figmaUrl
+          },
+          nextAction: 'Ask only for the Figma token and then STOP. After the user provides the token, call generate_dapp again with the same description, contractName, contractAddress, chainId, frontendMode, isBaseMiniApp, setupOptionsConfirmed=true, setupOptionsSummary, figmaUrl, and the new figmaToken.'
+        })
+      }
+
+      if (args.figmaUrl && args.figmaToken) {
+        console.log('[QD_SETUP] generate_dapp figma_preflight_start', {
+          contractName: args.contractName,
+          contractAddress: args.contractAddress,
+          chainId: args.chainId,
+          figmaUrl: args.figmaUrl
+        })
+        const figmaResult = await fetchAndSimplifyFigmaDesign(args.figmaUrl, args.figmaToken)
+        if (isFigmaDesignFailure(figmaResult)) {
+          console.log('[QD_SETUP] generate_dapp figma_preflight_failed', {
+            contractName: args.contractName,
+            contractAddress: args.contractAddress,
+            chainId: args.chainId,
+            figmaUrl: args.figmaUrl,
+            reason: figmaResult.reason,
+            status: figmaResult.status,
+            message: figmaResult.message
+          })
+          return this.createSuccessResult({
+            success: false,
+            requiresUserInput: true,
+            reason: 'figma_fetch_failed',
+            figmaReason: figmaResult.reason,
+            message: figmaResult.message,
+            workspaceCreated: false,
+            generationContextMarked: false,
+            optionsToAsk: [
+              'Provide a corrected Figma token',
+              'Provide a corrected Figma URL',
+              'Continue with defaults/no Figma'
+            ],
+            defaults: {
+              continueWithoutFigma: false
+            },
+            preserveFields: ['description', 'contractName', 'contractAddress', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary'],
+            originalRequest: {
+              description: args.description,
+              contractName: args.contractName,
+              contractAddress: args.contractAddress,
+              chainId: args.chainId,
+              frontendMode: targetMode,
+              isBaseMiniApp: !!args.isBaseMiniApp,
+              setupOptionsConfirmed: true,
+              setupOptionsSummary: args.setupOptionsSummary,
+              figmaUrl: args.figmaUrl
+            },
+            nextAction:
+              'Tell the user the Figma fetch failed and ask for exactly one of: a corrected Figma token, a corrected Figma URL, or explicit confirmation to continue with defaults/no Figma. On the next generate_dapp call, preserve the same description, contractName, contractAddress, chainId, frontendMode, isBaseMiniApp, setupOptionsConfirmed=true, and setupOptionsSummary. If the user gives a corrected token, reuse the same figmaUrl. If the user gives a corrected URL, use that URL. If the user chooses defaults/no Figma, omit figmaUrl and figmaToken. Do NOT create a workspace, call write_file, or generate a default design unless the user explicitly chooses defaults.'
+          })
+        }
+        figmaDesign = figmaResult
+        console.log('[QD_SETUP] generate_dapp figma_preflight_success', {
+          contractName: args.contractName,
+          contractAddress: args.contractAddress,
+          chainId: args.chainId,
+          fileName: figmaDesign.fileName,
+          fileKey: figmaDesign.fileKey,
+          nodeId: figmaDesign.nodeId,
+          rawLength: figmaDesign.rawLength,
+          truncated: figmaDesign.truncated
         })
       }
 
@@ -289,6 +620,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
         }
 
         dappOps = new DappOperations('inline', currentWs.name, plugin, args.contractName)
+        progressSlug = dappOps.getSlug()
         remixAILogger.log('[QuickDapp] Using inline mode in workspace:', currentWs.name)
         console.log('[QD_SETUP] generate_dapp mode_resolved', {
           frontendMode: 'inline',
@@ -341,10 +673,12 @@ export class GenerateDAppHandler extends BaseToolHandler {
             isBaseMiniApp: args.isBaseMiniApp
           })
           dappOps = new DappOperations('workspace', wsResult.workspaceName, plugin, args.contractName)
+          progressSlug = wsResult.slug || wsResult.workspaceName
           remixAILogger.log('[QuickDapp] Created new workspace:', wsResult.workspaceName)
           console.log('[QD_SETUP] generate_dapp mode_resolved', {
             frontendMode: 'workspace',
             workspaceName: wsResult.workspaceName,
+            progressSlug,
             isBaseMiniApp: !!args.isBaseMiniApp
           })
         } catch (wsErr: any) {
@@ -407,8 +741,10 @@ export class GenerateDAppHandler extends BaseToolHandler {
             },
             config: {
               title: args.contractName,
+              details: typeof args.description === 'string' ? args.description : `DApp for ${args.contractName}`,
               description: args.description || `DApp for ${args.contractName}`,
-              template: 'custom'
+              template: 'custom',
+              isBaseMiniApp: !!args.isBaseMiniApp
             },
             status: 'creating',
             createdAt: timestamp,
@@ -424,7 +760,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       }
 
       // Notify React UI that a new DApp is being created (sets processing spinner on card)
-      plugin.emit('generationProgress', { status: 'preparing', contractAddress: args.contractAddress, workspaceName: dappOps.getWorkspaceName(), slug: dappOps.getSlug() })
+      plugin.emit('generationProgress', { status: 'preparing', contractAddress: args.contractAddress, workspaceName: dappOps.getWorkspaceName(), slug: progressSlug || dappOps.getSlug() })
 
       // Return concise context to the agent for file generation.
       // Do NOT include the full system prompt or file dumps — they cause tool result overflow.
@@ -438,8 +774,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
       const isLocalVM = isLocalVMChainId(args.chainId)
       // Build optional Figma context line for subagent
-      const figmaLine = (args.figmaUrl && args.figmaToken)
-        ? `\nFIGMA: Use fetch_figma_design tool with figmaUrl="${args.figmaUrl}" and figmaToken="${args.figmaToken}" to get the design data before generating files.\n`
+      const figmaLine = figmaDesign
+        ? `\nFIGMA: Design preflight succeeded for "${figmaDesign.fileName}"${figmaDesign.nodeId ? ` (node ${figmaDesign.nodeId})` : ''}. Use the simplified design data below as the visual reference. Do NOT call fetch_figma_design again for this URL unless the user explicitly asks.\nFIGMA DESIGN DATA:\n${figmaDesign.designData}\n`
         : ''
 
       const isInlineMode = dappOps.isInline()
@@ -473,6 +809,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
         contractAddress: args.contractAddress,
         contractName: args.contractName,
         isInlineMode,
+        figmaDesignReady: !!figmaDesign,
+        figmaFileName: figmaDesign?.fileName,
         workspaceReady: true,
         message: `DApp workspace "${dappOps.getWorkspaceName()}" created successfully.\n\n` +
           `Now proceed to generate the DApp files directly using write_file.\n\n` +
@@ -483,12 +821,18 @@ export class GenerateDAppHandler extends BaseToolHandler {
           `USER DESIGN REQUEST: ${typeof args.description === 'string' ? args.description : JSON.stringify(args.description)}\n` +
           (args.isBaseMiniApp
             ? `\nBASE APP RULES:\n` +
+            `- Base App is a QuickDapp packaging/deployment mode handled after file generation by the Base App wizard.\n` +
             `- Do NOT import @farcaster/miniapp-sdk (deprecated). Do NOT include fc:frame or fc:miniapp meta tags.\n` +
-            `- Use standard wallet pattern (window.__qdapp_getProvider or window.ethereum).\n` +
-            `- Default to Base Mainnet (8453) or Base Sepolia (84532).\n`
+            `- Do NOT add base:app_id meta tags, ENS/IPFS setup files, manifests, or deployment scripts. The wizard manages those later.\n` +
+            `- Do NOT create or modify dapp.config.json. The system already records config.isBaseMiniApp.\n` +
+            `- Use standard wallet pattern compatible with QuickDapp preview/deploy (window.__qdapp_getProvider or window.ethereum).\n` +
+            `- Do NOT change the contract chain just because Base App was selected. Use the contract chain listed above and the wallet rules below.\n` +
+            (isInlineMode
+              ? `- In inline mode, Base App source files still live only under /frontend. Do NOT write root index.html or root src files.\n`
+              : '')
             : '') +
           `${figmaLine}` +
-          (args.figmaUrl
+          (figmaDesign
             ? `\nFIGMA DESIGN RULES:\n` +
             `- Use max-w-7xl mx-auto px-4 instead of fixed widths. Use flex-wrap for mobile responsiveness.\n` +
             `- Avoid position: absolute. Create separate component files for distinct sections.\n` +
@@ -1094,95 +1438,21 @@ export class FetchFigmaDesignHandler extends BaseToolHandler {
   async execute(args: any, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       remixAILogger.log('[QuickDapp] fetch_figma_design called:', args.figmaUrl)
-
-      // Parse Figma URL to extract file key
-      const patterns = [
-        /figma\.com\/(?:file|design)\/([a-zA-Z0-9]+)/,
-        /figma\.com\/proto\/([a-zA-Z0-9]+)/
-      ]
-
-      let fileKey: string | null = null
-      for (const pattern of patterns) {
-        const match = args.figmaUrl.match(pattern)
-        if (match) {
-          fileKey = match[1]
-          break
-        }
+      const result = await fetchAndSimplifyFigmaDesign(args.figmaUrl, args.figmaToken)
+      if (isFigmaDesignFailure(result)) {
+        return this.createErrorResult(result.message)
       }
 
-      if (!fileKey) {
-        return this.createErrorResult('Invalid Figma URL format. Expected: https://www.figma.com/design/XXXX/...')
-      }
-
-      // Fetch from Figma API
-      const response = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
-        headers: { 'X-Figma-Token': args.figmaToken }
-      })
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          return this.createErrorResult('Figma API access denied. Please check the Personal Access Token.')
-        }
-        if (response.status === 404) {
-          return this.createErrorResult('Figma file not found. Please check the URL.')
-        }
-        return this.createErrorResult(`Figma API error: ${response.statusText}`)
-      }
-
-      const figmaData = await response.json()
-
-      // Simplify the document tree for LLM consumption
-      const simplifyNode = (node: any, depth = 0): any => {
-        if (depth > 5) return null
-        const simplified: any = { name: node.name, type: node.type }
-
-        if (node.absoluteBoundingBox) {
-          simplified.bounds = {
-            w: Math.round(node.absoluteBoundingBox.width),
-            h: Math.round(node.absoluteBoundingBox.height)
-          }
-        }
-
-        if (node.fills && node.fills.length > 0) {
-          const solidFill = node.fills.find((f: any) => f.type === 'SOLID' && f.visible !== false)
-          if (solidFill?.color) {
-            const r = Math.round((solidFill.color.r || 0) * 255)
-            const g = Math.round((solidFill.color.g || 0) * 255)
-            const b = Math.round((solidFill.color.b || 0) * 255)
-            simplified.fill = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-          }
-        }
-
-        if (node.type === 'TEXT' && node.characters) {
-          simplified.text = node.characters.substring(0, 100)
-        }
-
-        if (node.children && Array.isArray(node.children)) {
-          const ch = node.children.map((child: any) => simplifyNode(child, depth + 1)).filter(Boolean)
-          if (ch.length > 0) simplified.children = ch
-        }
-
-        return simplified
-      }
-
-      const simplifiedDocument = simplifyNode(figmaData.document)
-      const rawJson = JSON.stringify(simplifiedDocument, null, 2)
-
-      // Truncate if too large for LLM context (keep under 30KB to avoid
-      // LangGraph's large-tool-result file-save mechanism)
-      const maxJsonLength = 30000
-      const truncatedJson = rawJson.length > maxJsonLength
-        ? rawJson.substring(0, maxJsonLength) + '\n... [truncated for token limit]'
-        : rawJson
-
-      remixAILogger.log(`[QuickDapp] Figma design fetched: ${figmaData.name}, size: ${rawJson.length}`)
+      remixAILogger.log(`[QuickDapp] Figma design fetched: ${result.fileName}, size: ${result.rawLength}`)
 
       return this.createSuccessResult({
         success: true,
-        fileName: figmaData.name || 'Untitled',
-        fileKey,
-        designData: truncatedJson,
-        message: `Figma design "${figmaData.name}" loaded successfully. Use the design data above to match the layout, colors, and typography when generating DApp files.`
+        fileName: result.fileName,
+        fileKey: result.fileKey,
+        nodeId: result.nodeId,
+        designData: result.designData,
+        truncated: result.truncated,
+        message: `Figma design "${result.fileName}" loaded successfully. Use the design data above to match the layout, colors, and typography when generating DApp files.`
       })
     } catch (error: any) {
       remixAILogger.error('[QuickDapp] fetch_figma_design failed:', error)
