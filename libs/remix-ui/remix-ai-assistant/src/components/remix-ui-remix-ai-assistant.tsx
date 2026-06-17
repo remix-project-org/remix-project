@@ -1292,16 +1292,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     removeApproval(approval.requestId)
   }, [props.plugin, removeApproval, reviewingApprovals])
 
-  const handleTimeoutToolAction = useCallback(async (approval: ToolApprovalRequest) => {
-    if (!approval) return
-    ;(props.plugin as any).respondToToolApproval({
-      requestId: approval.requestId,
-      approved: false,
-      timedOut: true
-    })
-    removeApproval(approval.requestId)
-  }, [props.plugin, removeApproval])
-
   // Handle approving all pending approvals at once
   const handleApproveAll = useCallback(async () => {
     // Close any open DiffEditor sessions first
@@ -2598,7 +2588,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       request={approval}
                       onApprove={(options) => handleApproveToolAction(approval, options)}
                       onReject={() => handleRejectToolAction(approval)}
-                      onTimeout={() => handleTimeoutToolAction(approval)}
                       onReviewChanges={() => handleReviewChanges(approval)}
                       isReviewing={reviewingApprovals.has(approval.requestId)}
                     />
@@ -2718,7 +2707,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         request={approval}
                         onApprove={(options) => handleApproveToolAction(approval, options)}
                         onReject={() => handleRejectToolAction(approval)}
-                        onTimeout={() => handleTimeoutToolAction(approval)}
                         onReviewChanges={() => handleReviewChanges(approval)}
                         isReviewing={reviewingApprovals.has(approval.requestId)}
                       />

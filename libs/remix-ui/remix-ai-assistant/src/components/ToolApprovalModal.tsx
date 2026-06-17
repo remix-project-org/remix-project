@@ -1,80 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ToolApprovalRequest } from '@remix/remix-ai-core'
 
 interface ToolApprovalModalProps {
   request: ToolApprovalRequest
   onApprove: (options?: { enableAutoAccept?: boolean; modifiedArgs?: Record<string, any> }) => void
   onReject: () => void
-  onTimeout: () => void
   /** Triggers showCustomDiff in the editor for line-by-line review */
   onReviewChanges?: () => void
   /** Whether the user is currently reviewing changes in the editor */
   isReviewing?: boolean
 }
 
-export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, onApprove, onReject, onTimeout, onReviewChanges, isReviewing }) => {
-  const [timeLeft, setTimeLeft] = useState(60)
+export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, onApprove, onReject, onReviewChanges, isReviewing }) => {
   const [autoAcceptChecked, setAutoAcceptChecked] = useState(false)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const dismissedRef = useRef(false)
 
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-  }
-
-  // Auto-reject after 60 seconds (paused while reviewing in editor)
   useEffect(() => {
-
-    dismissedRef.current = false
     setAutoAcceptChecked(false)
-    stopTimer()
-
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          stopTimer()
-          if (!dismissedRef.current) {
-
-            dismissedRef.current = true
-            setTimeout(() => onTimeout(), 0)
-          }
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => {
-      stopTimer()
-    }
   }, [request.requestId])
 
-  // Pause timer while reviewing in editor
-  useEffect(() => {
-    if (isReviewing) {
-      stopTimer()
-    }
-  }, [isReviewing])
-
   const handleApprove = () => {
-
-    stopTimer()
-    dismissedRef.current = true
     onApprove({ enableAutoAccept: autoAcceptChecked })
   }
 
   const handleReject = () => {
-
-    stopTimer()
-    dismissedRef.current = true
     onReject()
   }
 
   const handleReviewChanges = () => {
-
-    stopTimer()
     onReviewChanges?.()
   }
 
@@ -88,11 +40,6 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
       {/* Header */}
       <div className="tool-approval-card__header">
         <span className="tool-approval-card__tool-name">{request.toolName}</span>
-        {!isReviewing && (
-          <span className="tool-approval-card__timer">
-            {timeLeft}s
-          </span>
-        )}
       </div>
 
       {/* Deployment / transaction label */}
