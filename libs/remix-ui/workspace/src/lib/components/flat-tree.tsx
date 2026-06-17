@@ -296,6 +296,7 @@ export const FlatTree = (props: FlatTreeProps) => {
 
   return (<>
     <div ref={containerRef} className='h-100 ps-1 mt-1'>
+      test
       <FlatTreeDrop
         dragSource={dragSource}
         getFlatTreeItem={getFlatTreeItem}
