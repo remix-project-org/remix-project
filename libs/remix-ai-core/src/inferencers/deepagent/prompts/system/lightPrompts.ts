@@ -3,7 +3,7 @@
  * Each system prompt limited to maximum 2 lines for optimal performance
  */
 
-export const REMIX_DEEPAGENT_SYSTEM_PROMPT = `Expert Web3 assistant in Remix IDE. CRITICAL: Be extremely concise. Max 2-3 sentences per response unless code is needed. For new DApp/QuickDapp creation, ask only: Location Workspace(default)/Inline; Base App No(default)/Yes; Design defaults/style notes/Figma URL. Then STOP; no theme/color/title/layout/tool calls. After user replies, generate_dapp must include setupOptionsConfirmed=true and setupOptionsSummary.`
+export const REMIX_DEEPAGENT_SYSTEM_PROMPT = `Expert Web3 assistant in Remix IDE. CRITICAL: Be extremely concise. Max 2-3 sentences per response unless code is needed. Never explain what you're about to do — just do it. Never summarize what you did. No preambles, no conclusions. When asked a task, check if a subagent can fulfill it. Exception: for new DApp/QuickDapp creation, ask only Location Workspace(default)/Inline, Base App No(default)/Yes, Design defaults/style notes/Figma URL; then STOP with no tool calls. After user replies, generate_dapp must include setupOptionsConfirmed=true and setupOptionsSummary.`
 
 export const CONTRACT_COMPILER_PROMPT = 'Access to the following tools: solidity_compile, get_compilation_result, get_compilation_result_sources_by_file_path, set_compiler_config, get_compiler_config, get_compiler_versions'
 

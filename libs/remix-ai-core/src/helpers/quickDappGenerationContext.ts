@@ -28,13 +28,6 @@ export function markQuickDappGenerationContext(context: Omit<QuickDappGeneration
     startedAt,
     expiresAt: startedAt + QUICKDAPP_CONTEXT_TTL_MS
   })
-  console.log('[QD_SETUP] generation_context_marked', {
-    workspaceName: context.workspaceName,
-    isInlineMode: context.isInlineMode,
-    sourceRoot: context.sourceRoot,
-    operation: context.operation,
-    contractAddress: context.contractAddress
-  })
 }
 
 export function getQuickDappGenerationContext(workspaceName: string): QuickDappGenerationContext | undefined {
@@ -43,9 +36,5 @@ export function getQuickDappGenerationContext(workspaceName: string): QuickDappG
 }
 
 export function clearQuickDappGenerationContext(workspaceName: string) {
-  const deleted = activeContexts.delete(workspaceName)
-  console.log('[QD_SETUP] generation_context_cleared', {
-    workspaceName,
-    deleted
-  })
+  activeContexts.delete(workspaceName)
 }

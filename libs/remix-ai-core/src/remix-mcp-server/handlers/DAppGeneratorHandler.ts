@@ -449,28 +449,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
     try {
       remixAILogger.log('[GenerateDApp] Received args:', args)
       const targetMode = args.frontendMode || 'workspace'
-      console.log('[QD_SETUP] generate_dapp received', {
-        contractName: args.contractName,
-        contractAddress: args.contractAddress,
-        chainId: args.chainId,
-        frontendMode: targetMode,
-        isBaseMiniApp: !!args.isBaseMiniApp,
-        hasFigmaUrl: !!args.figmaUrl,
-        hasFigmaToken: !!args.figmaToken,
-        hasContractAbi: Array.isArray(args.contractAbi),
-        setupOptionsConfirmed: args.setupOptionsConfirmed === true,
-        setupOptionsSummary: args.setupOptionsSummary
-      })
 
       if (args.setupOptionsConfirmed !== true || !args.setupOptionsSummary?.trim()) {
-        console.log('[QD_SETUP] generate_dapp setup_required', {
-          contractName: args.contractName,
-          contractAddress: args.contractAddress,
-          frontendMode: targetMode,
-          isBaseMiniApp: !!args.isBaseMiniApp,
-          setupOptionsConfirmed: args.setupOptionsConfirmed === true,
-          hasSetupOptionsSummary: !!args.setupOptionsSummary?.trim()
-        })
         return this.createSuccessResult({
           success: false,
           requiresUserInput: true,
@@ -490,26 +470,10 @@ export class GenerateDAppHandler extends BaseToolHandler {
         })
       }
 
-      const originalChainId = args.chainId
       const chainResolution = await this.resolveGenerateChainId(args, plugin)
       args.chainId = chainResolution.chainId
-      console.log('[QD_SETUP] generate_dapp chain_resolved', {
-        contractName: args.contractName,
-        contractAddress: args.contractAddress,
-        originalChainId,
-        resolvedChainId: args.chainId,
-        providerName: chainResolution.providerName,
-        source: chainResolution.source,
-        matchedDeployedContract: chainResolution.matchedDeployedContract
-      })
 
       if (args.figmaUrl && !args.figmaToken) {
-        console.log('[QD_SETUP] generate_dapp figma_token_required', {
-          contractName: args.contractName,
-          contractAddress: args.contractAddress,
-          chainId: args.chainId,
-          figmaUrl: args.figmaUrl
-        })
         return this.createSuccessResult({
           success: false,
           requiresUserInput: true,
@@ -532,23 +496,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
       }
 
       if (args.figmaUrl && args.figmaToken) {
-        console.log('[QD_SETUP] generate_dapp figma_preflight_start', {
-          contractName: args.contractName,
-          contractAddress: args.contractAddress,
-          chainId: args.chainId,
-          figmaUrl: args.figmaUrl
-        })
         const figmaResult = await fetchAndSimplifyFigmaDesign(args.figmaUrl, args.figmaToken)
         if (isFigmaDesignFailure(figmaResult)) {
-          console.log('[QD_SETUP] generate_dapp figma_preflight_failed', {
-            contractName: args.contractName,
-            contractAddress: args.contractAddress,
-            chainId: args.chainId,
-            figmaUrl: args.figmaUrl,
-            reason: figmaResult.reason,
-            status: figmaResult.status,
-            message: figmaResult.message
-          })
           return this.createSuccessResult({
             success: false,
             requiresUserInput: true,
@@ -582,16 +531,6 @@ export class GenerateDAppHandler extends BaseToolHandler {
           })
         }
         figmaDesign = figmaResult
-        console.log('[QD_SETUP] generate_dapp figma_preflight_success', {
-          contractName: args.contractName,
-          contractAddress: args.contractAddress,
-          chainId: args.chainId,
-          fileName: figmaDesign.fileName,
-          fileKey: figmaDesign.fileKey,
-          nodeId: figmaDesign.nodeId,
-          rawLength: figmaDesign.rawLength,
-          truncated: figmaDesign.truncated
-        })
       }
 
       // ── ABI Resolution ──
@@ -622,10 +561,6 @@ export class GenerateDAppHandler extends BaseToolHandler {
         dappOps = new DappOperations('inline', currentWs.name, plugin, args.contractName)
         progressSlug = dappOps.getSlug()
         remixAILogger.log('[QuickDapp] Using inline mode in workspace:', currentWs.name)
-        console.log('[QD_SETUP] generate_dapp mode_resolved', {
-          frontendMode: 'inline',
-          workspaceName: currentWs.name
-        })
 
         // Check if frontend folder exists and has files
         try {
@@ -675,12 +610,6 @@ export class GenerateDAppHandler extends BaseToolHandler {
           dappOps = new DappOperations('workspace', wsResult.workspaceName, plugin, args.contractName)
           progressSlug = wsResult.slug || wsResult.workspaceName
           remixAILogger.log('[QuickDapp] Created new workspace:', wsResult.workspaceName)
-          console.log('[QD_SETUP] generate_dapp mode_resolved', {
-            frontendMode: 'workspace',
-            workspaceName: wsResult.workspaceName,
-            progressSlug,
-            isBaseMiniApp: !!args.isBaseMiniApp
-          })
         } catch (wsErr: any) {
           remixAILogger.error('[QuickDapp] createDappWorkspace failed:', wsErr?.message || wsErr)
           return this.createErrorResult(`Failed to create DApp workspace: ${wsErr.message}`)
@@ -794,13 +723,6 @@ export class GenerateDAppHandler extends BaseToolHandler {
         sourceRoot: dappOps.getSourceRoot(),
         contractAddress: args.contractAddress,
         operation: 'generate'
-      })
-      console.log('[QD_SETUP] generate_dapp returning_write_instructions', {
-        workspaceName: dappOps.getWorkspaceName(),
-        isInlineMode,
-        fileWriteExamples,
-        hasFigmaLine: !!figmaLine,
-        isBaseMiniApp: !!args.isBaseMiniApp
       })
 
       return this.createSuccessResult({

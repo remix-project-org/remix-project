@@ -410,12 +410,6 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
         chainId = 'unknown'
       }
       console.log('[QuickDapp] chainId resolved:', chainId);
-      console.log('[QD_SETUP] entry=deployed-contract-menu resolved', {
-        contractName: contract.name,
-        contractAddress: contract.address,
-        chainId,
-        isDesktop
-      });
 
       const prompt = isDesktop
         ? `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:
@@ -477,10 +471,6 @@ After I answer, you MUST call generate_dapp with:
 IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
 
       console.log('[QuickDapp] prompt assembled, length:', prompt.length);
-      console.log('[QD_SETUP] entry=deployed-contract-menu prompt_ready', {
-        length: prompt.length,
-        asksSetupOptions: true
-      });
 
       // Activate and focus AI Assistant
       try {
@@ -494,10 +484,8 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
 
       // Send prompt to AI Assistant
       console.log('[QuickDapp] calling chatPipe...');
-      console.log('[QD_SETUP] entry=deployed-contract-menu chatPipe_start');
       await plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
       console.log('[QuickDapp] chatPipe returned');
-      console.log('[QD_SETUP] entry=deployed-contract-menu chatPipe_done');
 
       trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'create_dapp_via_ai', isClick: true })
     } catch (error) {

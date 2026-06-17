@@ -645,11 +645,6 @@ export const TabsUI = (props: TabsUIProps) => {
 
     // Check if running in desktop mode - dapps should be created inline
     const isDesktop = isElectron()
-    console.log('[QD_SETUP] entry=editor-banner start', {
-      currentFile,
-      currentFileName,
-      isDesktop
-    })
 
     // Build the richest context we can — silently, no modals
     const contextParts: string[] = []
@@ -676,11 +671,6 @@ export const TabsUI = (props: TabsUIProps) => {
         )
       }
     }
-    console.log('[QD_SETUP] entry=editor-banner contracts_resolved', {
-      deployedCount: instances.length,
-      matchingCount: matchingInstances.length,
-      currentFileName
-    })
 
     // 3. Build context-aware prompt
     if (matchingInstances.length === 1) {
@@ -853,12 +843,6 @@ export const TabsUI = (props: TabsUIProps) => {
     }
 
     const prompt = contextParts.join('\n')
-    console.log('[QD_SETUP] entry=editor-banner prompt_ready', {
-      length: prompt.length,
-      asksSetupOptions: true,
-      deployedCount: instances.length,
-      matchingCount: matchingInstances.length
-    })
 
     // 4. Activate AI Assistant and send
     try {
@@ -869,14 +853,11 @@ export const TabsUI = (props: TabsUIProps) => {
     } catch (e) { /* best-effort */ }
 
     console.log('[QuickDapp] Start Now → chatPipe (no modal), prompt length:', prompt.length)
-    console.log('[QD_SETUP] entry=editor-banner chatPipe_start')
     try {
       await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
       console.log('[QuickDapp] chatPipe returned')
-      console.log('[QD_SETUP] entry=editor-banner chatPipe_done')
     } catch (error) {
       console.error('[QuickDapp] chatPipe error:', error)
-      console.log('[QD_SETUP] entry=editor-banner chatPipe_error', error)
       props.plugin.call('notification', 'toast', 'Error opening AI Assistant. Please try again.')
     }
   }

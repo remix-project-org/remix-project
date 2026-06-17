@@ -227,25 +227,7 @@ export class RemixFilesystemBackend {
         const activeQuickDappContext = currentWorkspaceName
           ? getQuickDappGenerationContext(currentWorkspaceName)
           : undefined
-        const hasQuickDappConfig = await this.hasQuickDappConfig()
-        console.log('[QD_SETUP] write_file_dapp_candidate', {
-          workspaceName: currentWorkspaceName,
-          path: normalizedPath,
-          isQuickDappCandidatePath,
-          hasWeb3DappContent,
-          contentLength: typeof content === 'string' ? content.length : 0,
-          hasActiveQuickDappContext: !!activeQuickDappContext,
-          hasQuickDappConfig
-        })
         if (shouldEnforceQuickDappRouting && !activeQuickDappContext) {
-          console.log('[QD_SETUP] write_file_dapp_blocked', {
-            workspaceName: currentWorkspaceName,
-            path: normalizedPath,
-            isQuickDappCandidatePath,
-            hasWeb3DappContent,
-            shouldEnforceQuickDappRouting,
-            hasQuickDappConfig
-          })
           return {
             error:
               `QUICKDAPP_ROUTING_REQUIRED: This looks like a DApp frontend file, but generate_dapp/update_dapp has not prepared a QuickDapp workspace. ` +
@@ -285,24 +267,6 @@ export class RemixFilesystemBackend {
   async write(file_path: string, content: string): Promise<any> {
 
     return await this.write_file(file_path, content)
-  }
-
-  private async hasQuickDappConfig(): Promise<boolean> {
-    const configCandidates = [
-      'dapp.config.json',
-      '/dapp.config.json',
-      'frontend/dapp.config.json',
-      '/frontend/dapp.config.json'
-    ]
-
-    for (const configPath of configCandidates) {
-      try {
-        if (await this.plugin.call('fileManager', 'exists', configPath)) {
-          return true
-        }
-      } catch (e) { /* try next path */ }
-    }
-    return false
   }
 
   private async writeFileInternal(path: string, content: string): Promise<void> {
