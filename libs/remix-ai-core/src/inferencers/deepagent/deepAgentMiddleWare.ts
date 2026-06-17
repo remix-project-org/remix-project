@@ -122,13 +122,13 @@ const shortenToolDescription = async (request: ModelRequest, plugin: Plugin) => 
     }
   });
 
-  let hasSkills = true
+  let skills = null
   try {
-    const dirs = await plugin.call('fileManager', 'dirList', 'skills')
-    hasSkills = dirs && Object.keys(dirs).length > 0
+    skills = await plugin.call('fileManager', 'dirList', 'skills')
   } catch (e) {
-    remixAILogger.warn('Unable to get skills folder. hasSkills set to true', e)
+    remixAILogger.warn('Unable to get skills folder. skills set to true', e)
   }
+  const hasSkills = skills && Object.keys(skills).length > 0;
 
   (request.systemMessage.content as any[]).map((part) => {
     if (part.text.includes('## `write_todos`')) {
@@ -141,7 +141,7 @@ const shortenToolDescription = async (request: ModelRequest, plugin: Plugin) => 
       part.text = shortSystemTask
     }
     if (part.text.includes('## Skills System')) {
-      part.text = hasSkills ? shortSystemSkillsSystem : ''
+      part.text = hasSkills ? shortSystemSkillsSystem(hasSkills, skills) : ''
     }
   })
   request.systemPrompt = (request.systemMessage.content as any).map((part: any) => part.text).join('\n')
@@ -185,12 +185,17 @@ const shortSystemFilesystemTools = `## Filesystem Tools
 - \`edit_file\`: edit a file
 - \`glob\`: find files by pattern (e.g. \`\*\*/\*.py\`)
 - \`grep\`: search text within files`
-const shortSystemSkillsSystem = `## Skills System
+
+const shortSystemSkillsSystem = (hasSkills: boolean, dirs: any) => {
+  return `## Skills System
 Skills provide specialized workflows. When a task matches a skill's domain, read its \`SKILL.md\` before proceeding.
 
-**Available Skills:** *(none yet — create them in \`skills/\`)*
+**Available Skills:** ${hasSkills ? Object.values(dirs).join('\n ') : '*(none yet — create them in \`skills/\`)*'}
 
 **Usage:**
 1. Check if the task matches a skill's description
 2. Read the skill's \`SKILL.md\` via \`read_file\` (path shown in skill list)
-3. Follow its instructions; use any helper scripts with absolute paths`
+3. Follow its instructions carefully — they contain crucial guidance for successful execution
+4. If the skill has resources (e.g. data files), access them with absolute paths as needed`
+}
+
