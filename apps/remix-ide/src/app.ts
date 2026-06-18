@@ -46,6 +46,7 @@ import { MainnetForkVMProvider, SepoliaForkVMProvider, CustomForkVMProvider, Har
 import { EnvironmentExplorer } from './app/providers/environment-explorer'
 import { FileDecorator } from './app/plugins/file-decorator'
 import { TransactionSimulator } from './app/plugins/transaction-simulator'
+import { EnsContractNamesPlugin } from './app/plugins/ens-contract-names'
 import { CodeFormat } from './app/plugins/code-format'
 import { CompilationDetailsPlugin } from './app/plugins/compile-details'
 import { AuthPlugin } from './app/plugins/auth-plugin'
@@ -371,6 +372,9 @@ class AppComponent {
     // ------- TRANSACTION SIMULATOR PLUGIN ------------------
     const transactionSimulator = new TransactionSimulator()
 
+    // ------- ENS CONTRACT NAMES PLUGIN ------------------
+    const ensContractNames = new EnsContractNamesPlugin()
+
     // ------- CODE FORMAT PLUGIN ------------------
     const codeFormat = new CodeFormat()
 
@@ -534,6 +538,7 @@ class AppComponent {
       codeParser,
       fileDecorator,
       transactionSimulator,
+      ensContractNames,
       codeFormat,
       terminal,
       web3Provider,
@@ -642,7 +647,7 @@ class AppComponent {
     this.menuicons = new VerticalIcons()
     this.sidePanel = new SidePanel()
     this.hiddenPanel = new HiddenPanel()
-    this.rightSidePanel = new RightSidePanel()
+    this.rightSidePanel = new RightSidePanel(this.desktopClientMode)
     this.popupPanel = new PopupPanel()
     this.overlayPanel = new OverlayPanel()
 
@@ -772,6 +777,7 @@ class AppComponent {
       'codeFormatter',
       'fileDecorator',
       'transactionSimulator',
+      'ensContractNames',
       'terminal',
       'blockchain',
       'fetchAndCompile',

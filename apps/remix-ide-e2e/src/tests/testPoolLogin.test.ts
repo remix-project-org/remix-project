@@ -1260,6 +1260,10 @@ module.exports = {
       .pause(1000)
       .waitForElementVisible('*[data-id="user-menu-sign-out"]', 5000)
       .click('*[data-id="user-menu-sign-out"]')
+      .click({
+        selector: '[data-id="confirm-disable-cloud-modal-footer-ok-react"]',
+        suppressNotFoundErrors: true
+      })
       .pause(5000)
 
     // After logout, should see the Sign In button again

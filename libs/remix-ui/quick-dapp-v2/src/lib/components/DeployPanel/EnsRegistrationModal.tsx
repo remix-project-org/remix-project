@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Modal, Button, Alert, Spinner } from 'react-bootstrap';
 import { ethers } from 'ethers';
+import { PluginClient } from '@remixproject/plugin';
+import isElectron from 'is-electron';
 import { parseEnsRegistrationError } from '../../utils/ens-utils';
 import { endpointUrls } from '@remix-endpoints-helper';
 
@@ -12,6 +14,7 @@ interface EnsRegistrationModalProps {
   ensName: string;
   contentHash: string;
   onSuccess: (result: { txHash: string; domain: string; owner: string }) => void;
+  plugin: PluginClient;
 }
 
 const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
@@ -20,6 +23,7 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
   ensName,
   contentHash,
   onSuccess,
+  plugin,
 }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
@@ -29,17 +33,25 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
     setError('');
     setNoWallet(false);
 
-    if (typeof window.ethereum === 'undefined') {
-      setNoWallet(true);
+    let ownerAddress: string;
+
+    try {
+      const currentEnv = await (plugin as any).call('blockchain', 'getProviderObject')
+      const [account] = await currentEnv.provider.request({ method: 'eth_requestAccounts' })
+
+      if (!account || currentEnv?.name?.startsWith('vm-')) {
+        setNoWallet(true);
+        return;
+      }
+
+      ownerAddress = account;
+    } catch (e: any) {
+      setError(parseEnsRegistrationError(e));
       return;
     }
 
     setIsRegistering(true);
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum as any);
-      const accounts = await provider.send('eth_requestAccounts', []);
-      const ownerAddress = accounts[0];
-
       const authToken = typeof localStorage !== 'undefined'
         ? localStorage.getItem('remix_access_token')
         : null;
@@ -129,7 +141,9 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
             <i className="fas fa-exclamation-triangle me-2"></i>
             <strong>No Browser Wallet Detected</strong>
             <div className="mt-1">
-              ENS registration requires a browser wallet extension such as MetaMask or Coinbase Wallet.
+              {isElectron()
+                ? 'Please select "Browser Wallet" from the Environment dropdown in the Deploy & Run tab and ensure your wallet is connected.'
+                : 'ENS registration requires a browser wallet extension such as MetaMask or Coinbase Wallet.'}
             </div>
           </Alert>
         )}

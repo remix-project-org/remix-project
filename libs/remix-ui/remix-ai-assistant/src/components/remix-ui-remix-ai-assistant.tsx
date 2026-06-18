@@ -623,7 +623,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 executingToolUIString: undefined,
                 currentTask: undefined,
                 taskStatus: undefined,
-                isIntermediateContent: false
+                isIntermediateContent: false,
+                todos: m.todos?.map(todo =>
+                  todo.status === 'in_progress'
+                    ? { ...todo, status: 'completed' as const }
+                    : todo
+                ),
+                currentTodoIndex: undefined
               }
               : m
           )
@@ -843,7 +849,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 isExecutingTools: false,
                 executingToolName: undefined,
                 executingToolArgs: undefined,
-                executingToolUIString: undefined
+                executingToolUIString: undefined,
+                todos: m.todos?.map(todo =>
+                  todo.status === 'in_progress'
+                    ? { ...todo, status: 'failed' as const }
+                    : todo
+                )
               }
               : m
           )
@@ -867,7 +878,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 isExecutingTools: false,
                 executingToolName: undefined,
                 executingToolArgs: undefined,
-                executingToolUIString: undefined
+                executingToolUIString: undefined,
+                todos: m.todos?.map(todo =>
+                  todo.status === 'in_progress'
+                    ? { ...todo, status: 'failed' as const }
+                    : todo
+                )
               }
               : m
           )
@@ -1291,16 +1307,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     })
     removeApproval(approval.requestId)
   }, [props.plugin, removeApproval, reviewingApprovals])
-
-  const handleTimeoutToolAction = useCallback(async (approval: ToolApprovalRequest) => {
-    if (!approval) return
-    ;(props.plugin as any).respondToToolApproval({
-      requestId: approval.requestId,
-      approved: false,
-      timedOut: true
-    })
-    removeApproval(approval.requestId)
-  }, [props.plugin, removeApproval])
 
   // Handle approving all pending approvals at once
   const handleApproveAll = useCallback(async () => {
@@ -2612,7 +2618,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       request={approval}
                       onApprove={(options) => handleApproveToolAction(approval, options)}
                       onReject={() => handleRejectToolAction(approval)}
-                      onTimeout={() => handleTimeoutToolAction(approval)}
                       onReviewChanges={() => handleReviewChanges(approval)}
                       isReviewing={reviewingApprovals.has(approval.requestId)}
                     />
@@ -2732,7 +2737,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         request={approval}
                         onApprove={(options) => handleApproveToolAction(approval, options)}
                         onReject={() => handleRejectToolAction(approval)}
-                        onTimeout={() => handleTimeoutToolAction(approval)}
                         onReviewChanges={() => handleReviewChanges(approval)}
                         isReviewing={reviewingApprovals.has(approval.requestId)}
                       />

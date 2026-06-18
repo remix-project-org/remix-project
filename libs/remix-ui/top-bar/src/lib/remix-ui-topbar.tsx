@@ -782,6 +782,13 @@ export function RemixUiTopbar() {
           {showCloudLoginModal && <LoginModal onClose={() => setShowCloudLoginModal(false)} plugin={plugin} />}
         </div>
         <div className="m-1 d-flex align-self-center" style={{ minWidth: 0, flex: isNonMaximizedWindow ? '1.22 1 0' : '1 1 0' }}>
+          {showCloudToggle && (
+            <CloudToggle
+              className="ms-2"
+              onEnableCloud={() => enableCloud().catch(() => {/* User cancelled */})}
+              onDisableCloud={() => disableCloud().catch(() => {/* User cancelled */})}
+              theme={currentTheme?.quality}
+            />)}
           <div
             className="d-flex align-items-center flex-nowrap"
             style={{ minWidth: 0, width: '100%', justifyContent: isNonMaximizedWindow ? 'flex-start' : 'center' }}
@@ -810,13 +817,6 @@ export function RemixUiTopbar() {
               openTemplateExplorer={openTemplateExplorer}
               onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
             />
-            {showCloudToggle && (
-              <CloudToggle
-                className="ms-2"
-                onEnableCloud={() => enableCloud()}
-                onDisableCloud={() => disableCloud()}
-                theme={currentTheme?.quality}
-              />)}
             <div
               ref={panelControlRef}
               data-id="panel-control"
@@ -877,7 +877,6 @@ export function RemixUiTopbar() {
                 theme={currentTheme?.quality}
               />
             </div>
-
             {showLoginUI && (
               <LoginButton
                 plugin={plugin}

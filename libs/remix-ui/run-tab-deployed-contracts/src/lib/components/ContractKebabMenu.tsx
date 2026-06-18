@@ -11,6 +11,7 @@ interface ContractKebabMenuProps {
   onHide: () => void
   contract: DeployedContract
   onCreateDapp?: (contract: DeployedContract) => void
+  onNameContract?: (contract: DeployedContract) => void
   onCopyABI?: (contract: DeployedContract) => void
   onCopyBytecode?: (contract: DeployedContract) => void
   onOpenInExplorer?: (contract: DeployedContract) => void
@@ -42,6 +43,7 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
   onHide,
   contract,
   onCreateDapp,
+  onNameContract,
   onCopyABI,
   onCopyBytecode,
   onOpenInExplorer,
@@ -64,6 +66,14 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
       color: 'var(--bs-body-color)',
       action: 'deployedContractCreateDapp' as const,
       onClick: () => onCreateDapp(contract)
+    },
+    onNameContract && {
+      id: 'nameContract',
+      label: 'Name Contract (ENS)',
+      icon: 'fas fa-link',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractNameENS' as const,
+      onClick: () => onNameContract(contract)
     },
     onCopyABI && {
       id: 'copyABI',

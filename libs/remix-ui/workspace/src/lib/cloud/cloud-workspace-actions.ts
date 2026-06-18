@@ -183,9 +183,38 @@ export function exitCloudProvider(): void {
  * and switches to the last-active (or first) cloud workspace.
  */
 export async function enableCloud(): Promise<void> {
-  console.log('[enableCloud] called, isCloudMode=', cloudStore.isCloudMode, 'stack=', new Error().stack?.split('\n').slice(1, 4).join(' | '))
   if (!_plugin) throw new Error('Cloud plugin not initialized')
-  if (cloudStore.isCloudMode) { console.log('[enableCloud] already in cloud mode — returning early'); return }
+  if (cloudStore.isCloudMode) { return }
+
+  // Show confirmation modal before enabling cloud mode
+  return new Promise((resolve, reject) => {
+    _plugin.call('notification', 'modal', {
+      id: 'confirm-enable-cloud',
+      title: 'Enable Cloud Storage',
+      message: 'This will switch to cloud storage mode. Your local workspaces will still be available when you switch back. Do you want to continue?',
+      okLabel: 'Enable Cloud',
+      cancelLabel: 'Cancel',
+      okFn: async () => {
+        try {
+          await doEnableCloud()
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      },
+      cancelFn: () => {
+        reject(new Error('User cancelled cloud enablement'))
+      }
+    })
+  })
+}
+
+/**
+ * Internal implementation of enableCloud after modal confirmation
+ */
+async function doEnableCloud(): Promise<void> {
+  if (!_plugin) throw new Error('Cloud plugin not initialized')
+  if (cloudStore.isCloudMode) { return }
 
   // Remember the current local workspace so we can restore it on disable
   const currentLocal = localStorage.getItem('currentWorkspace')
@@ -211,7 +240,6 @@ export async function enableCloud(): Promise<void> {
     if (workspaces.length > 0) {
       const lastCloudName = localStorage.getItem(cloudLocalKey('lastCloudWorkspace'))
       const targetWs = workspaces.find(w => w.name === lastCloudName) || workspaces[0]
-      console.log('[enableCloud] switching to cloud workspace:', targetWs.name, 'uuid=', targetWs.uuid)
       try {
         await switchToCloudWorkspace(targetWs, (status) => {
           cloudStore.updateSyncStatus(targetWs.uuid, status)
@@ -244,7 +272,7 @@ export async function enableCloud(): Promise<void> {
     }
   } catch (err) {
     console.error('[enableCloud] Failed to enable cloud:', err)
-    cloudStore.setError(err.message)
+    cloudStore.setError(err instanceof Error ? err.message : String(err))
     cloudStore.setLoading(false)
     throw err
   }
@@ -258,9 +286,37 @@ export async function enableCloud(): Promise<void> {
  */
 export async function disableCloud(): Promise<void> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
-  if (!cloudStore.isCloudMode) { console.log('[disableCloud] already off, skipping'); return }
+  if (!cloudStore.isCloudMode) { return }
 
-  console.log('[disableCloud] starting...')
+  // Show confirmation modal before disabling cloud mode
+  return new Promise((resolve, reject) => {
+    _plugin.call('notification', 'modal', {
+      id: 'confirm-disable-cloud',
+      title: 'Disable Cloud Storage',
+      message: 'This will switch back to local storage mode. Do you want to continue?',
+      okLabel: 'Disable Cloud',
+      cancelLabel: 'Cancel',
+      okFn: async () => {
+        try {
+          await doDisableCloud()
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      },
+      cancelFn: () => {
+        reject(new Error('User cancelled cloud disablement'))
+      }
+    })
+  })
+}
+
+/**
+ * Internal implementation of disableCloud after modal confirmation
+ */
+async function doDisableCloud(): Promise<void> {
+  if (!_plugin) throw new Error('Cloud plugin not initialized')
+  if (!cloudStore.isCloudMode) { return }
 
   // Remember the current cloud workspace for when the user re-enables
   const activeId = cloudStore.getState().activeWorkspaceId
@@ -361,7 +417,6 @@ export async function switchToCloudWorkspace(
   cloudWorkspace: CloudWorkspace,
   onSyncStatus?: (status: WorkspaceSyncStatus) => void,
 ): Promise<void> {
-  console.log('[switchToCloudWorkspace] called for', cloudWorkspace.name, 'uuid=', cloudWorkspace.uuid, 'stack=', new Error().stack?.split('\n').slice(1, 4).join(' | '))
   if (!_plugin) throw new Error('Cloud plugin not initialized')
 
   const provider = _plugin.fileProviders.workspace
@@ -434,9 +489,9 @@ export async function switchToCloudWorkspace(
         okLabel: 'OK',
       })
       try {
-        await disableCloud()
+        await doDisableCloud()
       } catch (err) {
-        console.error('[CloudSync:lock] disableCloud after lock loss failed:', err)
+        console.error('[CloudSync:lock] doDisableCloud after lock loss failed:', err)
       }
     })
   } catch (err) {
@@ -486,15 +541,15 @@ export async function switchToCloudWorkspace(
             message: `${reasonText} The workspace has been closed to prevent conflicts. Any unsaved changes have been preserved locally.`,
             okLabel: 'OK',
           })
-          try { await disableCloud() } catch (e) { console.error('[CloudSync:lock] disableCloud after lock loss failed:', e) }
+          try { await doDisableCloud() } catch (e) { console.error('[CloudSync:lock] doDisableCloud after lock loss failed:', e) }
         }, true /* forceLock */)
         // Fall through to the pull logic below
       } else {
         // User cancelled — switch back to a legacy workspace
         try {
-          await disableCloud()
+          await doDisableCloud()
         } catch (disableErr) {
-          console.error('[CloudSync:lock] disableCloud after lock denied failed:', disableErr)
+          console.error('[CloudSync:lock] doDisableCloud after lock denied failed:', disableErr)
         }
         return
       }

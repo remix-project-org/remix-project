@@ -382,6 +382,7 @@ function DeployPanel(): JSX.Element {
                 onHide={() => setShowEnsModal(false)}
                 ensName={ensName}
                 contentHash={deployResult.cid || activeDapp?.deployment?.ipfsCid || ''}
+                plugin={plugin}
                 onSuccess={async (result) => {
                   setShowEnsModal(false);
                   setEnsResult({ success: 'Success!', error: '', txHash: result.txHash, domain: result.domain });

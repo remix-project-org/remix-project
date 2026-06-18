@@ -34,6 +34,7 @@ import { createModelInstance } from './ModelFactory'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
+import { flattenJSON, renderTree } from './helpers/project'
 
 export const notSuitableForCodeGeneration = ['mistral-medium-latest', 'mistral-small-latest', 'ministral-3b', 'ministral-8b-latest']
 
@@ -280,6 +281,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     }
   }
 
+  cleanup(): void {
+    this.plugin.off('filePanel', 'setWorkspace')
+  }
+
   private emitErrorToTodos(error: any): void {
     const errorMessage = error?.message || String(error) || 'Unknown error'
 
@@ -439,7 +444,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       if (seeded.length > 0) {
         remixAILogger.log('[DeepAgentInferencer] answer(): seeding', seeded.length, 'history messages into new thread', this.sessionThreadId)
       }
-
       const messages = [
         ...seeded,
         { role: 'user', content: context ? `Context:\n${context}\n\nQuestion: ${prompt}` : prompt }
@@ -754,7 +758,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     }
   }
 
-  private async getProjectStructure(): Promise<string> {
+  public async getProjectStructure(): Promise<string> {
+    console.log('[DeepAgentInferencer] Attempting to retrieve project structure from MCP...')
     if (!this.mcpInferencer) {
       return ''
     }
@@ -771,14 +776,48 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       const content = await mcpClient.readResource('project://structure')
+
       if (!content?.text) {
         return ''
       }
 
-      remixAILogger.log('[DeepAgentInferencer] Added project structure to system prompt')
-      return `\n\n## Current Project Structure\n${content.text}`
+      const context = JSON.parse(content.text || '{}')
+      const flatten = renderTree(context.structure)
+      const openedFiles = Object.keys(context?.currentOpenedFiles || {}).join(',')
+
+      return `\n\n## Current Project Structure\n${flatten}\n\n## Current Opened Files\n${openedFiles ? openedFiles: 'no opened files'}`
     } catch (error) {
       remixAILogger.warn('[DeepAgentInferencer] Failed to get project structure:', error)
+      return ''
+    }
+  }
+
+  public async getCompilerConfig(): Promise<string> {
+    console.log('[DeepAgentInferencer] Attempting to retrieve compiler config from MCP...')
+    if (!this.mcpInferencer) {
+      return ''
+    }
+
+    try {
+      const connectedServers = this.mcpInferencer.getConnectedServers()
+      if (!connectedServers || !connectedServers.includes('Remix IDE Server')) {
+        return ''
+      }
+
+      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix IDE Server')
+      if (!mcpClient || !mcpClient.isConnected()) {
+        return ''
+      }
+
+      const content = await mcpClient.readResource('compilation://config')
+
+      if (!content?.text) {
+        return ''
+      }
+
+      return `\n\n## Current Compiler Config\n${flattenJSON(JSON.parse(content.text))}`
+    } catch (error) {
+      remixAILogger.warn('[DeepAgentInferencer] Failed to get compiler config:', error)
       return ''
     }
   }
@@ -801,8 +840,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         }
       })()
 
-      const projectStructure = await this.getProjectStructure()
-      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT + projectStructure
+      const systemPromptWithContext = REMIX_DEEPAGENT_SYSTEM_PROMPT
 
       // Create agent configuration with selected tools
       // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents
@@ -813,7 +851,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         systemPrompt: systemPromptWithContext,
         skills: hasSkillsPermission ? ["skills/"] : [],
         checkpointer,
-        middleware: [new RemixDeepAgentMiddleware(this.plugin)]
+        middleware: [new RemixDeepAgentMiddleware(this.plugin, this)],
       }
 
       if (this.config.enableSubagents && this.model) {
@@ -831,6 +869,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           this.filesystemBackend,
           fallbackModel
         )
+        let subagentsDesc = ''
+        agentConfig.subagents.forEach(sub => {
+          subagentsDesc += `\n- ${sub.name}:${sub.description || ''}`
+        })
+        agentConfig.systemPrompt += `\n\n## The agent has access to the following subagents:${subagentsDesc}`
       }
 
       if (this.memoryBackend) {
@@ -838,7 +881,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       // Cast result to any to handle @langchain/core version mismatch between root and deepagents
-      this.agent = await createDeepAgent(agentConfig as any) as any
+      this.agent = createDeepAgent(agentConfig as any) as any
 
       remixAILogger.log(`[DeepAgentInferencer] Recreated agent with ${selectedTools.length} selected tools`)
     } catch (error) {
@@ -963,31 +1006,18 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
   cancelRequest(): void {
     remixAILogger.log('[DeepAgentInferencer] Cancelling request...')
-    // Abort the in-flight LangGraph stream if one is running so it stops
-    // before the manager builds a replacement instance.
     if (this.currentAbortController) {
       this.currentAbortController.abort()
       this.currentAbortController = null
     }
-    // Always emit so plugin.isInferencing can never get stuck, even when no
-    // controller was set (e.g. cancel arrived between turns). The manager
-    // builds a brand-new instance with a fresh thread, so there is no need to
-    // resetSessionThread() on this about-to-be-discarded instance.
     this.event.emit('onInferenceDone')
 
     try {
       this.plugin.emit('generationProgress', null)
-      this.plugin.emit('dappGenerationError', {
-        slug: undefined,
-        error: 'Generation cancelled by user'
-      })
     } catch (_) { /* best-effort cleanup */ }
   }
 
   async close(): Promise<void> {
-    // TEMP GC PROBE — mark that close() ran for this instance. If you see
-    // CLOSE but never a matching FINALIZED line (after forcing GC in
-    // DevTools), something is still retaining the instance.
     this.__closed = true
     // eslint-disable-next-line no-console
     if (DeepAgentInferencer.__gcLogging) console.log(`[DeepAgent-GC] 🛑 CLOSE #${this.__instanceId} thread=${this.sessionThreadId} | live=${DeepAgentInferencer.__liveCount}`)

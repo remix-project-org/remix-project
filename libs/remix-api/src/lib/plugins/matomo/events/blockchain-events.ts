@@ -129,6 +129,7 @@ export interface UdappEvent extends MatomoEventBase {
     | 'deployedContractGasLimitInput'
     | 'deployedContractTreeExpand'
     | 'deployedContractCreateDapp'
+    | 'deployedContractNameENS'
     | 'deployedContractCopyABI'
     | 'deployedContractCopyBytecode'
     | 'deployedContractOpenExplorer'

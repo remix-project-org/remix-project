@@ -132,7 +132,7 @@ export async function buildSubagentConfigs(
       systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
       model: fallbackModel,
       tools: quickDappTools,
-      description: 'Used whenever you are tasked with generating and updating DApp frontends. Start by finding out the deployed contract, use generate_dapp to create a first version of the DApp, then update it iteratively using update_dapp. Use write_file to implement the DApp and finalize_dapp_generation when the DApp is ready to be used.'
+      description: 'Used whenever you are tasked with generating and updating DApp frontends. When you are proposing a solution that involves writing a frontend app only mention the quickdapp specialist agent.'
     })
   }
 
@@ -228,7 +228,7 @@ export async function buildSubagentConfigs(
         systemPrompt: SOLIDITY_CODE_GENERATION_PROMPT,
         model: fallbackModel,
         tools: solidityTools,
-        description: 'Specializes in writting solidity code using openzeppelin libraries'
+        description: 'Specializes in writing solidity code using openzeppelin libraries. Always pass the current solidity configuration to this subagent. When asked to generate solidity code, always start with the Advanced_Solidity_Developer subagent.'
       }
     )
   }
