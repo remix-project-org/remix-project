@@ -54,6 +54,7 @@ export const FileExplorer = (props: FileExplorerProps) => {
   const trackMatomoEvent = <T extends FileExplorerEvent = FileExplorerEvent>(event: T) => baseTrackEvent?.<T>(event)
   const [filesSelected, setFilesSelected] = useState<string[]>([])
   const feWindow = (window as any)
+  const [workspaceDetails, setWorkspaceDetails] = useState({ name: '', isLocalhost: false, absolutePath: '' });
 
   useEffect(() => {
     if (contextMenuItems) {
@@ -576,6 +577,17 @@ export const FileExplorer = (props: FileExplorerProps) => {
 
   }
 
+  useEffect(() => {
+    const workSpaceName = async () => {
+
+      const result = await plugin.call('filePanel', 'getCurrentWorkspace')
+      if (result === undefined || result === null)
+        setWorkspaceDetails({ name: 'nothingSet', isLocalhost: true, absolutePath: '' })
+      setWorkspaceDetails(result as any)
+    }
+    workSpaceName()
+  }, [])
+
   return (
     <div className="h-100 remixui_treeview" data-id="filePanelFileExplorerTree">
       <div ref={treeRef} tabIndex={0} style={{
@@ -618,6 +630,7 @@ export const FileExplorer = (props: FileExplorerProps) => {
           editPath={props.editModeOn}
           fileTarget={feTarget}
           setTargetFiles={setFeTarget}
+          workspaceDetails={workspaceDetails}
         />
       </div>
     </div>
