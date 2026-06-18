@@ -504,12 +504,12 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
               <>
                 <div className="dropdown-divider my-1" />
                 <div
-                  className="dropdown-item d-flex align-items-center gap-2 small py-1 text-body-secondary"
-                  style={{ pointerEvents: 'none', fontSize: '0.8em' }}
+                  className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
+                  style={{ pointerEvents: 'none', fontSize: '0.75em', color: 'var(--bs-link-color)' }}
                 >
                   <i
                     className={`${sp.icon}${sp.animate ? ' ' + sp.animate : ''} fws-action-icon`}
-                    style={{ color: sp.color }}
+                    style={{ color: 'var(--bs-link-color)' }}
                   />
                   <span>
                     {activeSyncStatus.status === 'loading' && 'Loading workspace…'}
