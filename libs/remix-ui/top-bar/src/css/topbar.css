@@ -31,7 +31,7 @@
 
 .workspacesSelect {
   background-color: var(--custom-onsurface-layer-2);
-  border-radius: .25rem !important;
+  border-radius: 0 .25rem .25rem 0 !important;
   overflow: hidden;
 }
 

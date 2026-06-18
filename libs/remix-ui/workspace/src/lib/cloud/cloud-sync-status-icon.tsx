@@ -219,11 +219,13 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
     <CustomTooltip placement="bottom" tooltipText={tooltipText}>
       <button
         data-id="cloud-toggle"
-        className={`d-inline-flex align-items-center border-0 ${className}`}
+        className={`d-inline-flex align-items-center ${className}`}
         style={{
+          borderRight: '0',
           backgroundColor: pillBg,
-          borderRadius: '8px',
-          padding: '4px 10px',
+          borderRadius: '.25rem 0 0 .25rem',
+          border: '1px solid var(--bs-border-color)',
+          padding: '4px 12px',
           cursor: isDisabled ? 'not-allowed' : 'pointer',
           // Grayed out when cloud mode is OFF (or disabled / signed out) showing toggle state
           opacity: isOn && !isDisabled ? 1 : 0.4,
@@ -239,7 +241,7 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
         <i
           className={iconClass}
           style={{
-            fontSize: '1rem',
+            fontSize: '.75rem',
             color: iconColor,
             transition: 'color 0.2s',
           }}
@@ -248,7 +250,7 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
         {/* Status label (relative sync time when active, "Off" otherwise) */}
         <span
           style={{
-            fontSize: '0.85rem',
+            fontSize: '0.75rem',
             lineHeight: 1,
             color: iconColor,
             whiteSpace: 'nowrap',
