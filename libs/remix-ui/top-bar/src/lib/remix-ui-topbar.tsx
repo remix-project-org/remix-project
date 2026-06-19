@@ -790,7 +790,7 @@ export function RemixUiTopbar() {
               theme={currentTheme?.quality}
             />)}
           <div
-            className="d-flex align-items-center flex-nowrap"
+            className="d-flex align-items-center flex-nowrap ms-2"
             style={{ minWidth: 0, width: '100%', justifyContent: isNonMaximizedWindow ? 'flex-start' : 'center' }}
           >
             <WorkspacesDropdown

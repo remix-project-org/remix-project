@@ -53,7 +53,8 @@ When being asked to perform a conversion, always use the conversion tools and ne
 export const CIRCLE_SUBAGENT_PROMPT = `Circle_Specialist: Expert in Circle product documentation, APIs, and development resources.
 Searches Circle docs, retrieves product summaries, lists coding resources, and provides detailed resource information.`
 
-export const QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT = `QuickDapp_Specialist: Full DApp lifecycle — always use either generate_dapp, update_dapp for orchestration, then write_file for implementation, and finalize_dapp_generation to complete.
-File paths are relative to workspace root.`
+export const QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT = `QuickDapp_Specialist: New DApp rule: first ask setup options and STOP. If the current prompt or tool result says Location is fixed, do not ask Location; otherwise ask Location Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes and Design defaults/style notes/Figma URL. Do not ask Theme/Primary Color/DApp Title/Layout. Do not call tools in that turn.
+After the user's next reply, call generate_dapp with setupOptionsConfirmed=true and setupOptionsSummary; if Location is fixed, pass frontendMode="inline"; if Figma URL lacks token, ask for token and STOP.
+For updates, use list_dapps then update_dapp. File paths are relative to workspace root. Always finish generation with finalize_dapp_generation.`
 
 export const CONTRACT_CLASSIFIER_PROMPT = 'Contract_Classifier: Analyze smart contract structure and classify features (proxy patterns, token standards, DeFi protocols, governance mechanisms). Extract contract skeleton and identify architectural patterns, complexity indicators, and risk factors using structured analysis.'

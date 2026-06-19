@@ -464,7 +464,7 @@ export class DappManager {
 
     await this.focusPlugin();
 
-    // Farcaster manifest (.well-known/farcaster.json) removed — Base App uses standard web app model (April 2026)
+    // Farcaster manifest (.well-known/farcaster.json) removed — Base mini-app uses standard web app model (April 2026)
 
     await this.focusPlugin();
 

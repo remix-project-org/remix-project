@@ -2,6 +2,7 @@ import { remixAILogger } from '../../helpers/logger'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
 import { ToolApprovalRequest, ToolApprovalResponse } from '../../types/humanInTheLoop'
+import { getQuickDappGenerationContext } from '../../helpers/quickDappGenerationContext'
 
 // File size limit for auto-summarization (100KB)
 const MAX_FILE_SIZE = 100 * 1024
@@ -197,14 +198,44 @@ export class RemixFilesystemBackend {
       // Defensive: strip workspace name prefix if the agent accidentally includes it
       // e.g. "dapp-storage-abc/src/App.jsx" → "/src/App.jsx"
       let normalizedPath = path
+      let currentWorkspaceName = ''
       try {
         const currentWs = await this.plugin.call('filePanel' as any, 'getCurrentWorkspace')
+        currentWorkspaceName = currentWs?.name || ''
         if (currentWs?.name && normalizedPath.startsWith(currentWs.name + '/')) {
           remixAILogger.warn(`[QuickDapp] Stripping workspace prefix from path: ${normalizedPath}`)
           normalizedPath = normalizedPath.substring(currentWs.name.length)
         }
       } catch (e) { /* ignore workspace check failure */ }
       if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath
+      const isQuickDappCandidatePath =
+        normalizedPath === '/index.html' ||
+        normalizedPath.startsWith('/src/') ||
+        normalizedPath.startsWith('/frontend/') ||
+        normalizedPath.startsWith('/dapp/') ||
+        /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(normalizedPath)
+      const hasWeb3DappContent =
+        typeof content === 'string' &&
+        /0x[a-fA-F0-9]{40}/.test(content) &&
+        /ethers|window\.ethereum|BrowserProvider|eth_requestAccounts|new Contract|contract ABI/i.test(content)
+      const shouldEnforceQuickDappRouting =
+        hasWeb3DappContent ||
+        normalizedPath.startsWith('/frontend/') ||
+        normalizedPath.startsWith('/dapp/') ||
+        /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(normalizedPath)
+      if (isQuickDappCandidatePath || hasWeb3DappContent) {
+        const activeQuickDappContext = currentWorkspaceName
+          ? getQuickDappGenerationContext(currentWorkspaceName)
+          : undefined
+        if (shouldEnforceQuickDappRouting && !activeQuickDappContext) {
+          return {
+            error:
+              `QUICKDAPP_ROUTING_REQUIRED: This looks like a DApp frontend file, but generate_dapp/update_dapp has not prepared a QuickDapp workspace. ` +
+              `Do NOT write this file directly. Ask the setup options if needed, then call generate_dapp with setupOptionsConfirmed=true and setupOptionsSummary. ` +
+              `After generate_dapp returns file instructions, write only the paths it specifies.`
+          }
+        }
+      }
       const exists = await this.plugin.call('fileManager', 'exists', normalizedPath)
 
       let oldContent = ''

@@ -50,6 +50,24 @@ const BaseAppWizard: React.FC = () => {
   const [showEnsModal, setShowEnsModal] = useState(false);
   const [pendingEnsData, setPendingEnsData] = useState<{ cid: string; mode: 'initial' | 'update' } | null>(null);
 
+  const isInlineMode = activeDapp?.mode === 'inline';
+  const indexHtmlPath = isInlineMode ? 'frontend/index.html' : 'index.html';
+  const dappRootPath = isInlineMode ? '/frontend' : '/';
+  const rootPathLength = isInlineMode ? '/frontend'.length : 0;
+
+  const ensureActiveDappWorkspace = async () => {
+    if (!activeDapp?.workspaceName) return;
+
+    const currentWs = await plugin.call('filePanel', 'getCurrentWorkspace');
+    if (currentWs?.name !== activeDapp.workspaceName) {
+      await plugin.call('filePanel', 'switchToWorkspace', {
+        name: activeDapp.workspaceName,
+        isLocalhost: false
+      });
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  };
+
   useEffect(() => {
     if (activeDapp?.config?.isBaseMiniApp) {
       // @ts-ignore
@@ -148,6 +166,8 @@ const BaseAppWizard: React.FC = () => {
   };
 
   const handleStep1Config = async () => {
+    if (!activeDapp) return;
+
     if (!savedWizardState.appIdMeta) {
       // @ts-ignore
       await plugin.call('notification', 'toast', "Please enter the App ID Meta Tag.");
@@ -174,10 +194,10 @@ const BaseAppWizard: React.FC = () => {
     try {
       setBaseFlowLoading(true);
 
-      const indexHtmlPath = 'index.html';
+      await ensureActiveDappWorkspace();
       // @ts-ignore
       let content = await plugin.call('fileManager', 'readFile', indexHtmlPath);
-      if (!content) throw new Error("index.html not found");
+      if (!content) throw new Error(`${indexHtmlPath} not found`);
 
       content = content.replace(/<meta\s+[^>]*base:app_id[^>]*\/?>/gi, '');
       content = content.replace(/<meta\s+[^>]*base:app_id[^>]*/gi, '');
@@ -211,11 +231,9 @@ const BaseAppWizard: React.FC = () => {
     let builder: InBrowserVite;
 
     try {
+      await ensureActiveDappWorkspace();
       builder = new InBrowserVite();
       await builder.initialize();
-      const isInlineMode = activeDapp?.mode === 'inline';
-      const dappRootPath = isInlineMode ? '/frontend' : '/';
-      const rootPathLength = isInlineMode ? '/frontend'.length : 0;
       const filesMap = new Map<string, string>();
       await readDappFiles(plugin, dappRootPath, filesMap, rootPathLength);
 
@@ -309,7 +327,7 @@ const BaseAppWizard: React.FC = () => {
         formData.append('files', screenshotBlob, 'screenshot.png');
       }
 
-      // Farcaster manifest no longer bundled — Base App uses standard web app model (April 2026)
+      // Farcaster manifest no longer bundled — Base mini-app uses standard web app model (April 2026)
 
       const uploadHeaders: Record<string, string> = {};
       const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
@@ -548,7 +566,7 @@ const BaseAppWizard: React.FC = () => {
                       <strong>Update Code:</strong> Edit files in File Explorer, then click <strong>Publish Changes</strong> above to re-deploy to IPFS & ENS.
                     </li>
                     <li>
-                      <strong>Docs:</strong> For advanced configuration, see <a href="https://docs.base.org/mini-apps" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base Apps Documentation <i className="fas fa-external-link-alt small"></i></a>.
+                      <strong>Docs:</strong> For advanced configuration, see <a href="https://docs.base.org/mini-apps" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base mini-apps Documentation <i className="fas fa-external-link-alt small"></i></a>.
                     </li>
                   </ul>
                 </div>
@@ -665,7 +683,7 @@ const BaseAppWizard: React.FC = () => {
                     Copy the <b>App ID Meta Tag</b> from the verification screen.
                     </Alert>
                     <Form.Group className="mb-3">
-                      <Form.Label>Base App ID Meta Tag</Form.Label>
+                      <Form.Label>Base mini-app ID Meta Tag</Form.Label>
                       <Form.Control
                         as="textarea" rows={2}
                         placeholder='<meta name="base:app_id" content="..." />'
