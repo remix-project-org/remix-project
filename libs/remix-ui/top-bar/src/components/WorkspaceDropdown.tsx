@@ -262,7 +262,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
     return (
       <Dropdown
         as={ButtonGroup}
-        style={{ minWidth: '240%' }}
+        style={{ minWidth: 320, flex: '1 1 auto' }}
         className="d-flex rounded-md"
         id="workspacesSelect"
         data-id="workspacesSelect"
@@ -296,7 +296,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
       as={ButtonGroup}
       show={dropdownOpen}
       onToggle={(open) => { if (isDropdownLocked && open) return; setDropdownOpen(open) }}
-      style={{ minWidth: '240%' }}
+      style={{ minWidth: 320, flex: '1 1 auto' }}
       className="d-flex rounded-md"
       id="workspacesSelect"
       data-id="workspacesSelect"

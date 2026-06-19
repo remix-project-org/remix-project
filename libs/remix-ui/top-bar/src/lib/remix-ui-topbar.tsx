@@ -791,7 +791,7 @@ export function RemixUiTopbar() {
             />)}
           <div
             className="d-flex align-items-center flex-nowrap ms-2"
-            style={{ minWidth: 0, width: '100%' }}
+            style={{ minWidth: 0, flex: '1 1 auto' }}
           >
             <WorkspacesDropdown
               menuItems={menuItems}
