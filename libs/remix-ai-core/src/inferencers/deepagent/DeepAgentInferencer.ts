@@ -21,7 +21,7 @@ import { IDeepAgentConfig, DeepAgentError, DeepAgentErrorType, ModelSelection, I
 import { ToolRegistry } from '../../remix-mcp-server/types/mcpTools'
 import { classifyApiError, getErrorMessage } from './ApiErrorHandler'
 import { aiErrorFromException } from '../../state/ai-error'
-import { HumanMessage, AIMessage } from '@langchain/core/messages'
+import { HumanMessage, AIMessage, SystemMessage, BaseMessage } from '@langchain/core/messages'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { selectOptimalModel } from './helpers/modelSelection'
@@ -552,6 +552,29 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       return this.fallbackInferencer.code_insertion(msg_pfx, msg_sfx, ctxFiles, fileName, params)
     }
     return ''
+  }
+
+  async basic_inference(prompt: string, systemPrompt?: string): Promise<string> {
+    if (!this.model) {
+      throw new DeepAgentError(
+        'Model not initialized',
+        DeepAgentErrorType.INITIALIZATION_FAILED
+      )
+    }
+
+    const messages: BaseMessage[] = []
+    if (systemPrompt) messages.push(new SystemMessage(systemPrompt))
+    messages.push(new HumanMessage(prompt))
+
+    const response = await this.model.invoke(messages)
+    const content = response?.content
+    if (typeof content === 'string') return content
+    if (Array.isArray(content)) {
+      return content
+        .map((part: any) => (typeof part === 'string' ? part : part?.text ?? ''))
+        .join('')
+    }
+    return content == null ? '' : String(content)
   }
 
   private async runAgent(messages: any[]): Promise<string> {

@@ -938,8 +938,8 @@ export function RemixUiTopbar() {
           </span>
           <span
             className="ms-3"
-            style={{ 
-              fontSize: '1.2rem', 
+            style={{
+              fontSize: '1.2rem',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
@@ -960,8 +960,8 @@ export function RemixUiTopbar() {
             }}
             data-id="remixai-assistant-icon"
           >
-            <img 
-              src="assets/img/remixai-logoAI.webp" 
+            <img
+              src="assets/img/remixai-logoAI.webp"
               alt="remixaiassistant"
               style={{ width: '20px', height: '20px' }}
             />

@@ -67,14 +67,15 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
       action: 'deployedContractCreateDapp' as const,
       onClick: () => onCreateDapp(contract)
     },
-    onNameContract && {
-      id: 'nameContract',
-      label: 'Name Contract (ENS)',
-      icon: 'fas fa-link',
-      color: 'var(--bs-body-color)',
-      action: 'deployedContractNameENS' as const,
-      onClick: () => onNameContract(contract)
-    },
+    // Disabled: ENS contract naming feature
+    // onNameContract && {
+    //   id: 'nameContract',
+    //   label: 'Name Contract (ENS)',
+    //   icon: 'fas fa-link',
+    //   color: 'var(--bs-body-color)',
+    //   action: 'deployedContractNameENS' as const,
+    //   onClick: () => onNameContract(contract)
+    // },
     onCopyABI && {
       id: 'copyABI',
       label: intl.formatMessage({ id: 'udapp.copyABIMenuItem' }),

@@ -647,7 +647,8 @@ export class RemixAIPlugin extends Plugin {
     option.stream = false
     option.stream_result = false
     option.return_stream_response = false
-    return await this.remoteInferencer.basic_prompt(prompt, option)
+    // return await this.remoteInferencer.basic_prompt(prompt, option)
+    return this.deepAgentInferencer?.basic_inference(prompt) ?? this.remoteInferencer.basic_prompt(prompt, option)
   }
 
   async code_generation(prompt: string, params: IParams=CompletionParams): Promise<any> {

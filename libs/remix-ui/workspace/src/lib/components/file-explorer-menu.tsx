@@ -48,7 +48,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
     },
     {
       action: 'createNewFile',
-      title: 'New file using Template',
+      title: 'Import Template',
       icon: 'far fa-file',
       placement: 'top',
       platforms:[appPlatformTypes.web, appPlatformTypes.desktop]

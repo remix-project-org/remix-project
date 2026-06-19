@@ -436,24 +436,20 @@ Focus on code quality, potential issues, and best practices for ${fileLanguage}.
         // Parse the JSON response
         let parsedData: KeywordData
         try {
-          // Try to extract JSON from the response
-          const jsonMatch = response.result.match(/\{[\s\S]*\}/)
+          let jsonStr = response.result || response
+          const jsonMatch = jsonStr.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
-            parsedData = JSON.parse(jsonMatch[0])
-          } else {
-            // Fallback if no JSON found
-            parsedData = {
-              title: 'Code Analysis',
-              body: response || `Information about ${keyword}`,
-              risk: 'medium' as const,
-              riskLabel: 'Review needed'
-            }
+            jsonStr = jsonMatch[0]
+          }
+
+          parsedData = JSON.parse(jsonStr)
+          if (!parsedData.title || !parsedData.body || !parsedData.risk || !parsedData.riskLabel) {
+            throw new Error('Missing required fields in response')
           }
         } catch (parseError) {
-          // Fallback for parsing errors
           parsedData = {
             title: 'Code Analysis',
-            body: response || `Information about ${keyword}`,
+            body: `Unable to parse analysis for ${keyword}`,
             risk: 'medium' as const,
             riskLabel: 'Review needed'
           }

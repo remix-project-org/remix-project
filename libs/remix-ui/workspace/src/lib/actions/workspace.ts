@@ -426,7 +426,12 @@ export const populateWorkspace = async (
       plugin.call('notification', 'toast', 'Error adding template: ' + (e.message || e))
     }
   } else if (!isEmpty && !(isGitRepo && createCommit)) {
-    await loadWorkspacePreset(workspaceTemplateName, opts, contractContent, contractName)
+    // On desktop, use the electron file system to add template files to the current folder
+    if (plugin.registry.get('platform').api.isDesktop()) {
+      await plugin.call('remix-templates', 'addToCurrentElectronFolder', workspaceTemplateName, opts)
+    } else {
+      await loadWorkspacePreset(workspaceTemplateName, opts, contractContent, contractName)
+    }
   }
   cb && cb(null)
   if (isGitRepo) {
