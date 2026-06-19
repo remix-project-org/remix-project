@@ -410,10 +410,10 @@ function EnvironmentPortraitView() {
 
   return (
     <>
-      <div className='card mx-2 mb-2 pb-3 env-card' style={{ '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-        <div className="d-flex align-items-center justify-content-between p-3">
+      <div className='card env-card gap-2 border-0' style={{ '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
+        <div className="d-flex align-items-center justify-content-between px-2 py-1">
           <div className="d-flex align-items-center">
-            <h6 className="my-auto env-card-heading">{intl.formatMessage({ id: 'udapp.environment' })}</h6>
+            <h6 className="my-auto env-card-heading" style={{margin: '0px', fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)'}}>{intl.formatMessage({ id: 'udapp.environment' })}</h6>
           </div>
           <div className="toggle-container">
             {widgetState.providers?.selectedProvider?.startsWith('vm') && !widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
@@ -422,7 +422,7 @@ function EnvironmentPortraitView() {
               </button>
             )}
             {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
-              <button data-id="delete-state-icon" className='btn btn-outline-danger btn-sm small btn-small-text' onClick={handleResetClick}>
+              <button data-id="delete-state-icon" className='btn btn-sm small btn-small-text' style={{background: 'rgba(var(--bs-danger-rgb), 0.08)', border: '1px solid rgba(var(--bs-danger-rgb), 0.32)', color: '#f0776a'}} onClick={handleResetClick}>
                 <i className='fas fa-redo'></i> {intl.formatMessage({ id: 'udapp.reset' })}
               </button>
             )}
@@ -431,8 +431,8 @@ function EnvironmentPortraitView() {
         {widgetState.fork.isVisible.forkUI && <ForkUI />}
         {widgetState.fork.isVisible.resetUI && <ResetUI />}
         {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
-          <div className="d-flex p-3 pt-0">
-            <Dropdown className="w-100" show={isEnvironmentDropdownOpen} onToggle={(isOpen) => {
+          <div className="d-flex gap-2">
+            <Dropdown className="flex-grow-1" show={isEnvironmentDropdownOpen} onToggle={(isOpen) => {
               if (isOpen) {
                 trackMatomoEvent({ category: 'udapp', action: 'environmentDropdownOpen', name: selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' })
               }
@@ -445,27 +445,17 @@ function EnvironmentPortraitView() {
                 as={EnvironmentToggle}
                 data-id="settingsSelectEnvOptions"
                 className="w-100 d-inline-block border form-control env-toggle"
-                environmentUI={<EnvCategoryUI
-                  key={selectedProvider?.category || widgetState.providers.selectedProvider}
-                  isOpen={isSubCategoryDropdownOpen}
-                  onToggle={(isOpen: boolean) => {
-                    setIsSubCategoryDropdownOpen(isOpen)
-                    if (isOpen) setIsEnvironmentDropdownOpen(false)
-                    if (isOpen && isAccountDropdownOpen) setIsAccountDropdownOpen(false)
-                  }}
-                />}
+                environmentUI={null}
               >
                 <div className="env-toggle-content">
-                  <div className="text-truncate text-secondary">
+                  <div className="text-truncate" style={{color: 'var(--bs-heading-color)'}}>
                     <span data-id={`selected-provider-${widgetState.providers.selectedProvider}`}> { selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' }</span>
-                    <span className="pe-1">
-                      <i className="fas fa-caret-down text-secondary ms-2"></i>
-                    </span>
                   </div>
+                  <i className="fas fa-caret-down text-secondary ms-2 flex-shrink-0"></i>
                 </div>
               </Dropdown.Toggle>
 
-              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env p-0">
+              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env p-1">
                 {
                   uniqueDropdownItems.map((provider, index) => {
                     return (
@@ -476,9 +466,20 @@ function EnvironmentPortraitView() {
                 }
               </Dropdown.Menu>
             </Dropdown>
+            <div className="env-subcategory-wrapper">
+              <EnvCategoryUI
+                key={selectedProvider?.category || widgetState.providers.selectedProvider}
+                isOpen={isSubCategoryDropdownOpen}
+                onToggle={(isOpen: boolean) => {
+                  setIsSubCategoryDropdownOpen(isOpen)
+                  if (isOpen) setIsEnvironmentDropdownOpen(false)
+                  if (isOpen && isAccountDropdownOpen) setIsAccountDropdownOpen(false)
+                }}
+              />
+            </div>
           </div>)}
         {!widgetState.fork.isVisible.resetUI && (
-          <div className="d-flex px-3">
+          <div className="d-flex">
             { hierarchicalAccounts.length > 0 &&
             <Dropdown className="w-100" show={!widgetState.accounts.isRequesting && isAccountDropdownOpen} onToggle={(isOpen) => {
               if (!widgetState.accounts.isRequesting) {
@@ -495,7 +496,7 @@ function EnvironmentPortraitView() {
                   </div>
                 ) : (
                   <div className="d-flex align-items-center">
-                    <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
+                    <div className="d-flex me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
                       <div className="d-flex align-items-center justify-content-between w-100">
                         <div className='d-flex align-items-start account-info-container'>
                           {selectedAccountIsSmartAccount && (
@@ -509,7 +510,7 @@ function EnvironmentPortraitView() {
                             </CustomTooltip>
                           )}
                           <div className='d-flex flex-column align-items-start ms-1'>
-                            <div className="text-truncate text-dark d-flex align-items-center">
+                            <div className="text-truncate d-flex align-items-center" style={{color: 'var(--bs-heading-color)'}}>
                               {editingAccountId === 'selected' ? (
                                 <input
                                   ref={editingInputRef}
@@ -575,7 +576,7 @@ function EnvironmentPortraitView() {
                 onDeleteAccount={handleDeleteAccount}
               />
 
-              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env p-0">
+              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env p-1">
                 {
                   hierarchicalAccounts.map((item, index) => {
                     const { account, isSmartAccount, level } = item
@@ -608,7 +609,7 @@ function EnvironmentPortraitView() {
                               </CustomTooltip>
                             )}
                             <div className='d-flex flex-column align-items-start'>
-                              <div className="text-truncate text-dark d-flex align-items-center">
+                              <div className="text-truncate d-flex align-items-center" style={{color: 'var(--bs-heading-color)'}}>
                                 {editingAccountId === accountId ? (
                                   <input
                                     ref={editingInputRef}

@@ -21,7 +21,6 @@ function DeployPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(DeployAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
   // TODO: Move all state to reducer
-  const [isExpanded, setIsExpanded] = useState(true)
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
   const [expandedInputs, setExpandedInputs] = useState<Set<number>>(new Set())
   const [inputValues, setInputValues] = useState<{[key: number]: string}>({})
@@ -305,26 +304,21 @@ function DeployPortraitView() {
 
   return (
     <>
-      <div className="card mx-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-        <div className="p-3 d-flex align-items-center justify-content-between" onClick={() => {
-          trackMatomoEvent?.({ category: 'udapp', action: 'deployCardToggle', name: isExpanded ? 'collapsed' : 'expanded', isClick: true })
-          setIsExpanded(!isExpanded)
-        }} style={{ cursor: 'pointer' }}>
-          <div className='d-flex align-items-center gap-2' data-id="deploy-widget-header">
-            <h6 className="my-auto" style={{ color: themeQuality.trim() === 'dark' ? 'white' : 'black', margin: 0 }}>
+      <div className="card" style={{background: 'var(--custom-onsurface-layer-1)'}}>
+        <div className="p-3 d-flex align-items-center justify-content-between">
+          <div className='d-flex align-items-center gap-2 w-100' data-id="deploy-widget-header" style={{ justifyContent: 'space-between' }}>
+            <h6 className="my-auto" style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)' }}>
               <FormattedMessage id="udapp.deploy" defaultMessage="Deploy" />
             </h6>
             <CustomTooltip
               placement="top"
               tooltipText={widgetState.networkDetected}
             >
-              <span className="badge rounded-pill text-bg-info text-light text-truncate" style={{ color: themeQuality.trim() === 'dark' ? '#000' : 'white', maxWidth: '170px' }}>{ wordRemover(lastWordRemover(widgetState.networkDetected)) }</span>
+              <span className="badge rounded-pill text-bg-info text-light text-truncate" style={{ width: 'max-content', color: themeQuality.trim() === 'dark' ? '#000' : 'white', maxWidth: '170px' }}>{ wordRemover(lastWordRemover(widgetState.networkDetected)) }</span>
             </CustomTooltip>
           </div>
-          <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'}`} style={{ color: 'var(--bs-tertiary-color)' }}></i>
         </div>
-        {isExpanded && (
-          <div className="px-3 pb-3">
+        <div className="px-3 pb-3">
             {/* Contract Selection */}
             <div className="d-flex pb-3">
               <Dropdown className="w-100">
@@ -334,7 +328,7 @@ function DeployPortraitView() {
                       <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
                         <div className="d-flex align-items-center justify-content-between w-100">
                           <div className='d-flex flex-column align-items-start'>
-                            <div className="text-truncate" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                            <div className="text-truncate font-sm" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
                               <span>{ (selectedContract?.name) || 'Contract' }</span>
                             </div>
                             <div style={{ color: 'var(--bs-tertiary-color)' }}>
@@ -430,9 +424,9 @@ function DeployPortraitView() {
                 </div>
 
                 {widgetState.contracts.contractList.length > 0 && (
-                  <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: 0 } as React.CSSProperties} data-id="contractDropdownMenu">
+                  <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: '4px' } as React.CSSProperties} data-id="contractDropdownMenu">
                     {widgetState.contracts.contractList.map((contract, index) => (
-                      <Dropdown.Item key={`${contract.filePath}:${contract.name}`} className="d-flex align-items-center contract-dropdown-item-hover" onClick={() => {
+                      <Dropdown.Item key={`${contract.filePath}:${contract.name}`} className="d-flex align-items-center contract-dropdown-item-hover px-2" onClick={() => {
                         trackMatomoEvent?.({ category: 'udapp', action: 'contractSelected', name: contract.name, isClick: true })
                         dispatch({ type: 'SET_SELECTED_CONTRACT_INDEX', payload: index })
                       }} data-id={`contractDropdownItem-${contract.name}`}>
@@ -734,14 +728,14 @@ function DeployPortraitView() {
                   <div className="d-flex align-items-center justify-content-between gap-2">
                     <CopyToClipboard tip="Copy Call Data" icon="fa-clipboard" direction="bottom" getContent={getEncodedCall} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyCallData', name: 'clicked', isClick: true })}>
                       <button className="btn btn-sm flex-fill border-0" style={{ minWidth: '120px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                        <span className="text-secondary">Call data</span>
-                        <i className="far fa-copy ms-1 text-secondary"></i>
+                        <span className="text-secondary font-sm">Call data</span>
+                        <i className="far fa-copy ms-2 text-secondary font-sm"></i>
                       </button>
                     </CopyToClipboard>
                     <CopyToClipboard tip="Copy Parameters" icon="fa-clipboard" direction="bottom" getContent={getEncodedParams} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyParameters', name: 'clicked', isClick: true })}>
                       <button className="btn btn-sm flex-fill border-0" style={{ minWidth: '120px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                        <span className="text-secondary">Parameters</span>
-                        <i className="far fa-copy ms-1 text-secondary"></i>
+                        <span className="text-secondary font-sm">Parameters</span>
+                        <i className="far fa-copy ms-2 text-secondary font-sm"></i>
                       </button>
                     </CopyToClipboard>
                   </div>
@@ -752,7 +746,7 @@ function DeployPortraitView() {
             <div className='border-top pt-3'>
               {/* Value */}
               <div className="d-flex align-items-center gap-3 mb-3">
-                <label className="mb-2" style={{ fontSize: '0.9rem', minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                <label className="mb-2 font-sm" style={{ minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
                   <FormattedMessage id="udapp.value" defaultMessage="Value" />
                 </label>
                 <div className="position-relative flex-fill">
@@ -808,7 +802,7 @@ function DeployPortraitView() {
 
               {/* Gas Limit */}
               <div className="d-flex align-items-center gap-3 mb-3">
-                <label className="mb-2" style={{ fontSize: '0.9rem', minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                <label className="mb-2 font-sm" style={{ minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
                   <FormattedMessage id="udapp.gasLimit" defaultMessage="Gas limit" />
                 </label>
                 <div className="position-relative flex-fill">
@@ -900,7 +894,7 @@ function DeployPortraitView() {
                   onClick={handleDeployClick}
                   data-id="deployButton"
                   className="btn btn-primary w-100 py-2"
-                  style={{ fontSize: '1rem', fontWeight: '500', cursor: selectedContract?.contractData === null ? 'not-allowed' : 'pointer' }}
+                  style={{ fontSize: '.875rem', fontWeight: '500', cursor: selectedContract?.contractData === null ? 'not-allowed' : 'pointer' }}
                   disabled={selectedContract ? selectedContract?.contractData === null : true}
                 >
                   <FormattedMessage id="udapp.deploy" defaultMessage="Deploy" />
@@ -908,8 +902,7 @@ function DeployPortraitView() {
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
     </>
   )
 }

@@ -646,7 +646,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
 
   return (
     <div
-      className="mb-3"
+      className=""
       ref={(el) => {
         contractItemRef.current = el
         if (registerRef) registerRef(el)
@@ -716,9 +716,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
             onClear={handleClear}
           />
           {isExpanded && (
-            <div className="p-3 pt-0" onClick={(e) => e.stopPropagation()}>
-              {/* Divider */}
-              <div className="border-top mb-3"></div>
+            <div className="p-3" style={{ background: 'var(--custom-onsurface-layer-1)' }} onClick={(e) => e.stopPropagation()}>
 
               {/* ENS Naming */}
               {showEnsNaming && (
@@ -743,123 +741,169 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                 {showHighLevel && (
                   <>
                     {functionABIs && functionABIs.length > 0 ? (
-                      <div className="mb-3" data-id={`functionDropdown-${index}`}>
-                        <Dropdown>
-                          <Dropdown.Toggle
-                            as={CustomToggle}
-                            className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between"
-                            style={{
-                              backgroundColor: 'var(--custom-onsurface-layer-3)',
-                              border: '1px solid var(--bs-border-color)',
-                              color: 'var(--dark/text-secondary, #d5d7e3)',
-                              padding: '8px 12px'
-                            }}
-                            icon="fas fa-caret-down"
-                            useDefaultIcon={false}
-                          >
-                            <div className="d-flex align-items-center gap-1" style={{ flex: '1', minWidth: 0 }}>
-                              <span style={{ color: 'var(--text-tertiary, #a2a3bd)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Select a function to interact with...</span>
-                            </div>
-                          </Dropdown.Toggle>
-                          <Dropdown.Menu
-                            style={{
-                              backgroundColor: 'var(--custom-onsurface-layer-2)',
-                              border: '1px solid var(--bs-border-color)',
-                              maxHeight: '240px',
-                              overflowY: 'auto',
-                              width: '100%',
-                              padding: 0
-                            }}
-                          >
-                            <div style={{
-                              padding: '8px',
-                              borderBottom: '1px solid var(--bs-border-color)',
-                              backgroundColor: 'var(--custom-onsurface-layer-2)'
-                            }}>
-                              <input
-                                type="text"
-                                placeholder="Search functions..."
-                                className="form-control form-control-sm"
-                                value={functionSearchTerm}
-                                onChange={(e) => {
-                                  e.stopPropagation()
-                                  setFunctionSearchTerm(e.target.value)
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                style={{
-                                  backgroundColor: 'var(--custom-onsurface-layer-3)',
-                                  border: '1px solid var(--bs-border-color)',
-                                  color: 'var(--dark/text-secondary, #d5d7e3)',
-                                  fontSize: '11px'
-                                }}
-                              />
-                            </div>
-                            <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                              {filteredFunctionABIs.map((funcABI: FuncABI, filteredIndex: number) => {
-                                // Find the actual index in the original functionABIs array
-                                const actualIndex = functionABIs.findIndex(f => f === funcABI)
-                                const inputTypes = funcABI.inputs.map(input => input.type).join(', ')
-                                const isSelected = selectedFunctionIndex === actualIndex
-
-                                return (
-                                  <Dropdown.Item
-                                    key={actualIndex}
-                                    data-id={`deployedContractItem-${index}-function-${actualIndex}`}
-                                    className="d-flex align-items-center gap-1"
-                                    style={{
-                                      backgroundColor: isSelected ? 'var(--custom-onsurface-layer-3)' : 'transparent',
-                                      color: 'var(--dark/text-secondary, #d5d7e3)',
-                                      padding: '8px 12px',
-                                      border: 'none'
-                                    }}
-                                    onClick={() => handleFunctionClick(actualIndex)}
-                                  >
-                                    {getStateMutabilityBadge(funcABI)}
-                                    <div className="d-flex align-items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                                      <span
-                                        style={{
-                                          fontSize: '12px',
-                                          fontWeight: 700,
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                          whiteSpace: 'nowrap',
-                                          flexShrink: 0,
-                                          maxWidth: '100%'
-                                        }}
-                                        title={funcABI.name}
-                                      >
-                                        {funcABI.name}
+                      <>
+                        {functionABIs.length > 4 && (
+                          <div className="mb-2">
+                            <input
+                              type="text"
+                              placeholder="Search functions..."
+                              className="form-control form-control-sm"
+                              value={functionSearchTerm}
+                              onChange={(e) => setFunctionSearchTerm(e.target.value)}
+                              style={{
+                                backgroundColor: 'var(--bs-body-bg)',
+                                border: '1px solid var(--bs-border-color)',
+                                color: 'var(--dark/text-secondary, #d5d7e3)',
+                                fontSize: '11px'
+                              }}
+                            />
+                          </div>
+                        )}
+                        <div data-id={`functionList-${index}`}>
+                          {filteredFunctionABIs.map((funcABI: FuncABI, _filteredIdx: number) => {
+                            const actualIndex = functionABIs.findIndex((f: FuncABI) => f === funcABI)
+                            const isViewPure = funcABI.stateMutability === 'view' || funcABI.stateMutability === 'pure'
+                            const executeHandler = () => {
+                              if (selectedFunctionIndex !== actualIndex) {
+                                trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractFunctionSelect', name: funcABI.name || `func${actualIndex}`, isClick: true })
+                              }
+                              setSelectedFunctionIndex(actualIndex)
+                              handleExecuteTransaction(actualIndex)
+                            }
+                            const inputStyle = { background: 'var(--bs-body-bg)', color: 'var(--dark/text-quaternary, #959bad)', border: 'none', fontSize: '0.7rem', minHeight: '30px' }
+                            return (
+                              <div key={actualIndex} className="dc-fn-row py-2" style={{ borderTop: '1px solid var(--bs-border-color)' }} data-id={`deployedContractItem-${index}-function-${actualIndex}`}>
+                                {/* Header: dot · name · sig · Call button (always) · Transact button (no-input only) */}
+                                <div className="d-flex align-items-center gap-2 mb-1">
+                                  {getStateMutabilityBadge(funcABI)}
+                                  <div className="d-flex align-items-baseline gap-1" style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                                    <span style={{ fontSize: '12px', fontWeight: 700, color: themeQuality === 'dark' ? 'white' : 'black', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={funcABI.name}>
+                                      {funcABI.name}
+                                    </span>
+                                    {funcABI.inputs.length > 0 && (
+                                      <span style={{ fontSize: '10px', color: 'var(--text-tertiary, #a2a3bd)', fontFamily: 'Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>
+                                        ({funcABI.inputs.map((i: any) => i.type).join(', ')})
                                       </span>
-                                      {funcABI.inputs.length > 0 && (
-                                        <span
-                                          style={{
-                                            fontSize: '10px',
-                                            color: 'var(--text-tertiary, #a2a3bd)',
-                                            fontFamily: 'Monaco, monospace',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                            flexShrink: 1,
-                                            minWidth: 0
-                                          }}
-                                          title={inputTypes}
+                                    )}
+                                  </div>
+                                  {/* Call: always in header */}
+                                  {isViewPure && (
+                                    <button
+                                      data-id={`btnExecute-${index}-${actualIndex}`}
+                                      className="btn btn-sm flex-shrink-0"
+                                      style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', border: 'none', fontSize: '11px', fontWeight: 700, padding: '3px 10px' }}
+                                      onClick={executeHandler}
+                                    >
+                                      {intl.formatMessage({ id: 'udapp.callButton' })}
+                                    </button>
+                                  )}
+                                  {/* Transact with no inputs: in header */}
+                                  {!isViewPure && funcABI.inputs.length === 0 && (
+                                    <button
+                                      data-id={`btnExecute-${index}-${actualIndex}`}
+                                      className="btn btn-sm btn-primary flex-shrink-0"
+                                      style={{ fontSize: '11px', fontWeight: 600, padding: '3px 12px' }}
+                                      onClick={executeHandler}
+                                    >
+                                      {intl.formatMessage({ id: 'udapp.transactButton' })}
+                                    </button>
+                                  )}
+                                </div>
+                                {/* Inputs area */}
+                                {funcABI.inputs.length > 0 && (
+                                  <div className="ps-3">
+                                    {/* 1-input Transact: input-group with inline button */}
+                                    {!isViewPure && funcABI.inputs.length === 1 ? (
+                                      <div className="input-group input-group-sm mb-1">
+                                        <input
+                                          data-id={`input-${index}-${actualIndex}-0`}
+                                          type="text"
+                                          placeholder={`${funcABI.inputs[0].name || 'param0'} (${funcABI.inputs[0].type})`}
+                                          className="form-control form-control-sm"
+                                          value={funcInputs[actualIndex]?.[0] || ''}
+                                          onChange={(e) => handleFunctionInputChange(actualIndex, 0, e.target.value)}
+                                          style={inputStyle}
+                                        />
+                                        <button
+                                          data-id={`btnExecute-${index}-${actualIndex}`}
+                                          className="btn btn-primary"
+                                          style={{ fontSize: '11px', fontWeight: 600 }}
+                                          onClick={executeHandler}
                                         >
-                                          {inputTypes}
-                                        </span>
+                                          {intl.formatMessage({ id: 'udapp.transactButton' })}
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      /* All other cases: stacked inputs */
+                                      funcABI.inputs.map((input: any, inputIdx: number) => (
+                                        <input
+                                          key={inputIdx}
+                                          data-id={`input-${index}-${actualIndex}-${inputIdx}`}
+                                          type="text"
+                                          placeholder={`${input.name || `param${inputIdx}`} (${input.type})`}
+                                          className="form-control form-control-sm mb-1"
+                                          value={funcInputs[actualIndex]?.[inputIdx] || ''}
+                                          onChange={(e) => handleFunctionInputChange(actualIndex, inputIdx, e.target.value)}
+                                          style={inputStyle}
+                                        />
+                                      ))
+                                    )}
+                                    {/* Bottom row: copy buttons (left) + Transact for multi-input (right) */}
+                                    <div className="d-flex align-items-center gap-1 mt-1 mb-1">
+                                      <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyCalldata' })} icon="fa-clipboard" direction="bottom" getContent={() => getEncodedCall(actualIndex)}>
+                                        <button className="btn btn-sm border-0" style={{ fontSize: '0.65rem', padding: '2px 6px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                                          <span className="text-secondary">Calldata</span>
+                                          <i className="far fa-copy ms-1 text-secondary"></i>
+                                        </button>
+                                      </CopyToClipboard>
+                                      <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyParameters' })} icon="fa-clipboard" direction="bottom" getContent={() => getEncodedParams(actualIndex)}>
+                                        <button className="btn btn-sm border-0" style={{ fontSize: '0.65rem', padding: '2px 6px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                                          <span className="text-secondary">Params</span>
+                                          <i className="far fa-copy ms-1 text-secondary"></i>
+                                        </button>
+                                      </CopyToClipboard>
+                                      {!isViewPure && funcABI.inputs.length > 1 && (
+                                        <>
+                                          <div style={{ flex: 1 }} />
+                                          <button
+                                            data-id={`btnExecute-${index}-${actualIndex}`}
+                                            className="btn btn-sm btn-primary"
+                                            style={{ fontSize: '11px', fontWeight: 600, padding: '3px 12px' }}
+                                            onClick={executeHandler}
+                                          >
+                                            {intl.formatMessage({ id: 'udapp.transactButton' })}
+                                          </button>
+                                        </>
                                       )}
                                     </div>
-                                  </Dropdown.Item>
-                                )
-                              })}
-                              {filteredFunctionABIs.length === 0 && functionSearchTerm.trim() && (
-                                <div className="text-muted text-center py-2" style={{ fontSize: '11px' }}>
-                                No functions found matching "{functionSearchTerm}"
-                                </div>
-                              )}
+                                  </div>
+                                )}
+                                {isViewPure && selectedFunctionIndex === actualIndex && (
+                                  <div className="udapp_value ps-3" data-id="udapp_tree_value">
+                                    <TreeView id="treeView">
+                                      {Object.keys(contract.decodedResponse || {}).map((key) => {
+                                        const decoded: Record<number, any> = contract.decodedResponse || {}
+                                        const numKey = parseInt(key)
+                                        const response = decoded[numKey]
+                                        return numKey === actualIndex
+                                          ? Object.keys(response || {}).map((innerkey) =>
+                                              renderData((decoded[numKey] || {})[innerkey], response, innerkey, innerkey)
+                                            )
+                                          : null
+                                      })}
+                                    </TreeView>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                          {filteredFunctionABIs.length === 0 && functionSearchTerm.trim() && (
+                            <div className="text-muted text-center py-2" style={{ fontSize: '11px' }}>
+                              No functions found matching "{functionSearchTerm}"
                             </div>
-                          </Dropdown.Menu>
-                        </Dropdown>
-                      </div>
+                          )}
+                        </div>
+                      </>
                     ) : (
                       <div className="text-muted pt-3 text-center"><FormattedMessage id="udapp.noABIAvailableForContract" /></div>
                     )}
@@ -906,7 +950,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                         color: themeQuality === 'dark' ? 'white' : 'black',
                         border: 'none',
                         padding: '8px 12px',
-                        fontSize: '10px'
+                        fontSize: '10px',
+                        background: 'var(--bs-body-bg)'
                       }}
                     />
                     {llIError && (
@@ -917,131 +962,9 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                   </div>
                 )}
               </div>
+<div className="border-top mb-3"></div>
 
-              {selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex] && (
-                // Divider
-                <div className="border-top mb-3"></div>
-              )}
-
-              {selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex] && (
-                <div className="mb-3">
-                  <div className="d-flex align-items-center gap-1 mb-2">
-                    {getStateMutabilityBadge(functionABIs[selectedFunctionIndex])}
-                    <div className="d-flex align-items-baseline gap-1" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          color: themeQuality === 'dark' ? 'white' : 'black',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          flexShrink: 0,
-                          maxWidth: '100%'
-                        }}
-                        title={functionABIs[selectedFunctionIndex].name}
-                      >
-                        {functionABIs[selectedFunctionIndex].name}
-                      </span>
-                      {functionABIs[selectedFunctionIndex].inputs.length > 0 && (
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            color: 'var(--text-tertiary, #a2a3bd)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            flexShrink: 1,
-                            minWidth: 0
-                          }}
-                          title={functionABIs[selectedFunctionIndex].inputs.map((input: any) => input.type).join(', ')}
-                        >
-                          {functionABIs[selectedFunctionIndex].inputs.map((input: any) => input.type).join(', ')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {functionABIs[selectedFunctionIndex].inputs.length > 0 && functionABIs[selectedFunctionIndex].inputs.map((input: any, inputIdx: number) => (
-                    <div key={inputIdx} className="mb-2">
-                      <input
-                        data-id={`selectedFunction-${inputIdx}`}
-                        type="text"
-                        placeholder={`${input.name || `param${inputIdx}`} (${input.type})`}
-                        className="form-control form-control-sm"
-                        value={(funcInputs[selectedFunctionIndex]?.[inputIdx] || '')}
-                        onChange={(e) => {
-                          handleFunctionInputChange(selectedFunctionIndex, inputIdx, e.target.value)
-                        }}
-                        style={{
-                          // backgroundColor: 'var(--custom-onsurface-background, #222336)',
-                          color: 'var(--dark/text-quaternary, #959bad)',
-                          border: 'none',
-                          padding: '8px 12px',
-                          fontSize: '0.7rem',
-                          minHeight: '30px'
-                        }}
-                      />
-                    </div>
-                  ))}
-                  {functionABIs[selectedFunctionIndex].inputs.length > 0 && (
-                    <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
-                      <CopyToClipboard
-                        tip={intl.formatMessage({ id: 'udapp.copyCalldata' })}
-                        icon="fa-clipboard"
-                        direction="bottom"
-                        getContent={() => getEncodedCall(selectedFunctionIndex)}
-                      >
-                        <button
-                          className="btn btn-sm flex-fill"
-                          style={{ minWidth: '100px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}
-                          data-id={`copyCalldata-${selectedFunctionIndex}`}
-                        >
-                          <span className="text-secondary" style={{ fontSize: '0.7rem' }}>
-                            <FormattedMessage id="udapp.calldata" defaultMessage="Calldata" />
-                          </span>
-                          <i className="far fa-copy ms-1 text-secondary" style={{ fontSize: '0.7rem' }}></i>
-                        </button>
-                      </CopyToClipboard>
-                      <CopyToClipboard
-                        tip={intl.formatMessage({ id: 'udapp.copyParameters' })}
-                        icon="fa-clipboard"
-                        direction="bottom"
-                        getContent={() => getEncodedParams(selectedFunctionIndex)}
-                      >
-                        <button
-                          className="btn btn-sm flex-fill"
-                          style={{ minWidth: '100px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}
-                          data-id={`copyParameters-${selectedFunctionIndex}`}
-                        >
-                          <span className="text-secondary" style={{ fontSize: '0.7rem' }}>
-                            <FormattedMessage id="udapp.parameters" />
-                          </span>
-                          <i className="far fa-copy ms-1 text-secondary" style={{ fontSize: '0.7rem' }}></i>
-                        </button>
-                      </CopyToClipboard>
-                    </div>
-                  )}
-                  {(functionABIs[selectedFunctionIndex].stateMutability === 'view' || functionABIs[selectedFunctionIndex].stateMutability === 'pure') && (
-                    <div className="udapp_value" data-id="udapp_tree_value">
-                      <TreeView id="treeView">
-                        {Object.keys(contract.decodedResponse || {}).map((key) => {
-                          const response = contract.decodedResponse[key]
-
-                          return parseInt(key) === selectedFunctionIndex
-                            ? Object.keys(response || {}).map((innerkey) => {
-                              return renderData(contract.decodedResponse[key][innerkey], response, innerkey, innerkey)
-                            })
-                            : null
-                        })}
-                      </TreeView>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {((selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex] &&
-                functionABIs[selectedFunctionIndex].stateMutability !== 'view' &&
-                functionABIs[selectedFunctionIndex].stateMutability !== 'pure') || showLowLevel) && (
+              {(functionABIs.some((fn: FuncABI) => fn.stateMutability !== 'view' && fn.stateMutability !== 'pure') || showLowLevel) && (
                 <div className="mb-3">
                   <div className="d-flex align-items-center gap-1 mb-3">
                     <label className="mb-0" style={{ fontSize: '12px', fontWeight: 700, minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
@@ -1068,7 +991,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                           flex: 1,
                           paddingRight: '3.5rem',
                           fontSize: '0.7rem',
-                          minHeight: '30px'
+                          minHeight: '30px',
+                          background: 'var(--bs-body-bg)'
                         }}
                       />
                       <Dropdown style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
@@ -1165,7 +1089,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                               opacity: gasLimit === 0 ? 0.6 : 1,
                               cursor: gasLimit === 0 ? 'not-allowed' : 'text',
                               fontSize: '0.7rem',
-                              minHeight: '30px'
+                              minHeight: '30px',
+                              alignItems: 'center'
                             }}
                           />
                         </CustomTooltip>
@@ -1188,7 +1113,9 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                             opacity: gasLimit === 0 ? 0.6 : 1,
                             cursor: gasLimit === 0 ? 'not-allowed' : 'text',
                             fontSize: '0.7rem',
-                            minHeight: '30px'
+                            minHeight: '30px',
+                            background: 'var(--bs-body-bg)',
+                            alignItems: 'center'
                           }}
                         />
                       )}
@@ -1197,18 +1124,13 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                 </div>
               )}
 
-              {((selectedFunctionIndex !== null && functionABIs[selectedFunctionIndex]) || showLowLevel) && (
+              {showLowLevel && (
                 <button
                   data-id={`btnExecute-${index}`}
                   className="btn btn-primary w-100 mt-3"
                   onClick={() => {
-                    const actionType = showLowLevel ? 'lowLevel' : functionABIs[selectedFunctionIndex]?.name || 'function'
-                    trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractExecute', name: actionType, isClick: true })
-                    if (showLowLevel) {
-                      sendData()
-                    } else if (selectedFunctionIndex !== null) {
-                      handleExecuteTransaction(selectedFunctionIndex)
-                    }
+                    trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractExecute', name: 'lowLevel', isClick: true })
+                    sendData()
                   }}
                   style={{
                     backgroundColor: 'var(--button/primary/default, #64c4ff)',
@@ -1220,11 +1142,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                     borderRadius: '4px'
                   }}
                 >
-                  {showLowLevel
-                    ? intl.formatMessage({ id: 'udapp.transactButton' })
-                    : (functionABIs[selectedFunctionIndex].stateMutability === 'view' || functionABIs[selectedFunctionIndex].stateMutability === 'pure')
-                      ? intl.formatMessage({ id: 'udapp.callButton' })
-                      : intl.formatMessage({ id: 'udapp.transactButton' })}
+                  {intl.formatMessage({ id: 'udapp.transactButton' })}
                 </button>
               )}
 

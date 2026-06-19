@@ -1,5 +1,5 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
-import React, { createElement } from 'react' // eslint-disable-line
+import React, { createElement, useEffect, useRef, useState } from 'react' // eslint-disable-line
 import { createPortal } from 'react-dom'
 import { RunTabUI } from '@remix-ui/run-tab'
 import { trackMatomoEvent } from '@remix-api'
@@ -23,6 +23,77 @@ const profile = {
   permission: true,
   events: ['newTransaction'],
   methods: ['showPluginDetails']
+}
+
+const UDAPP_TAB_KEY = 'udapp.activeTab'
+const EV_DEPLOYED = 'udapp:deployedCountChanged'
+const EV_TX = 'udapp:txCountChanged'
+
+type UdappTab = 'deploy' | 'contracts' | 'history'
+
+function UdappBody() {
+  const [tab, setTab] = useState<UdappTab>(() => {
+    return (localStorage.getItem(UDAPP_TAB_KEY) as UdappTab) || 'deploy'
+  })
+  const [deployedCount, setDeployedCount] = useState(0)
+  const [txCount, setTxCount] = useState(0)
+  const prevDeployedRef = useRef(0)
+
+  const switchTab = (next: UdappTab) => {
+    setTab(next)
+    localStorage.setItem(UDAPP_TAB_KEY, next)
+  }
+
+  useEffect(() => {
+    const onDeployed = (e: Event) => {
+      const count = (e as CustomEvent<{ count: number }>).detail.count
+      setDeployedCount(count)
+      if (count > prevDeployedRef.current) {
+        setTab('contracts')
+        localStorage.setItem(UDAPP_TAB_KEY, 'contracts')
+      }
+      prevDeployedRef.current = count
+    }
+    const onTx = (e: Event) => {
+      setTxCount((e as CustomEvent<{ count: number }>).detail.count)
+    }
+    window.addEventListener(EV_DEPLOYED, onDeployed)
+    window.addEventListener(EV_TX, onTx)
+    return () => {
+      window.removeEventListener(EV_DEPLOYED, onDeployed)
+      window.removeEventListener(EV_TX, onTx)
+    }
+  }, [])
+
+  return (
+    <div className="udapp-body">
+      <div className="udapp-sticky-header">
+        <div id="udappEnvComponent"></div>
+        <nav className="udapp-tabs" role="tablist">
+          <button role="tab" aria-selected={tab === 'deploy'} className={`udapp-tab${tab === 'deploy' ? ' active' : ''}`} onClick={() => switchTab('deploy')}>
+            Deploy
+          </button>
+          <button role="tab" aria-selected={tab === 'contracts'} className={`udapp-tab${tab === 'contracts' ? ' active' : ''}`} onClick={() => switchTab('contracts')}>
+            Deployed contracts
+            {deployedCount > 0 && <span className="udapp-tab-badge">{deployedCount}</span>}
+          </button>
+          <button role="tab" aria-selected={tab === 'history'} className={`udapp-tab${tab === 'history' ? ' active' : ''}`} onClick={() => switchTab('history')}>
+            Transactions history
+            {txCount > 0 && <span className="udapp-tab-badge">{txCount}</span>}
+          </button>
+        </nav>
+      </div>
+      <div id="udappScrollableContent" onScroll={(e) => {
+        const target = e.currentTarget
+        const header = target.closest('.udapp-body')?.querySelector('.udapp-sticky-header') as HTMLElement
+        if (header) header.classList.toggle('scrolled', target.scrollTop > 0)
+      }}>
+        <div id="udappDeployComponent" style={{ display: tab === 'deploy' ? '' : 'none' }}></div>
+        <div id="udappDeployedContractsComponent" style={{ display: tab === 'contracts' ? '' : 'none' }}></div>
+        <div id="udappTransactionsComponent" style={{ display: tab === 'history' ? '' : 'none' }}></div>
+      </div>
+    </div>
+  )
 }
 
 export class RunTab extends ViewPlugin {
@@ -56,10 +127,16 @@ export class RunTab extends ViewPlugin {
       if (profile.name === 'udappDeployedContracts') {
         this.deployedContractsUI = await this.call('udappDeployedContracts', 'getUI')
         this.renderComponent()
+        this.on('udappDeployedContracts', 'deployedInstanceUpdated', (instances: any[]) => {
+          window.dispatchEvent(new CustomEvent(EV_DEPLOYED, { detail: { count: instances.length } }))
+        })
       }
       if (profile.name === 'udappTransactions') {
         this.transactionsUI = await this.call('udappTransactions', 'getUI')
         this.renderComponent()
+        this.on('udappTransactions', 'transactionRecorderUpdated', (txs: any[]) => {
+          window.dispatchEvent(new CustomEvent(EV_TX, { detail: { count: txs.length } }))
+        })
       }
     })
   }
@@ -94,23 +171,8 @@ export class RunTab extends ViewPlugin {
 
   render() {
     return (
-      <div id="runTabView" style={{ position: 'relative', height: '100%', overflow: 'auto' }} onScroll={(e) => {
-        const target = e.target as HTMLElement
-        const envComponent = document.getElementById('udappEnvComponent')
-        if (envComponent) {
-          if (target.scrollTop > 0) {
-            envComponent.classList.add('scrolled')
-          } else {
-            envComponent.classList.remove('scrolled')
-          }
-        }
-      }}>
-        <div id="udappEnvComponent" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--body-bg)' }}></div>
-        <div id="udappScrollableContent">
-          <div id="udappDeployComponent"></div>
-          <div id="udappDeployedContractsComponent"></div>
-          <div id="udappTransactionsComponent"></div>
-        </div>
+      <div id="runTabView" style={{ position: 'relative', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <UdappBody />
         <PluginViewWrapper plugin={this} />
       </div>
     )

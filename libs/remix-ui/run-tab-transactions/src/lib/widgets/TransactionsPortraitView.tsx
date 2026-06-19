@@ -13,9 +13,6 @@ function TransactionsPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality, context } = useContext(TransactionsAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
 
-  // Debugger: expanded by default, udapp: collapsed by default
-  const [isAccordionOpen, setIsAccordionOpen] = React.useState(context === 'debugger')
-
   const { activeTab, sortOrder, showClearAllDialog, showSaveDialog, scenarioInput } = widgetState
   const [openKebabMenuId, setOpenKebabMenuId] = React.useState<string | null>(null)
 
@@ -24,14 +21,8 @@ function TransactionsPortraitView() {
     dispatch({ type: 'SET_ACTIVE_TAB', payload: tab })
   }
 
-  const toggleAccordion = () => {
-    trackMatomoEvent?.({ category: 'udapp', action: 'transactionsAccordionToggle', name: !isAccordionOpen ? 'expanded' : 'collapsed', isClick: true })
-    setIsAccordionOpen(!isAccordionOpen)
-  }
-
   const handleClearAllClick = () => {
     trackMatomoEvent?.({ category: 'udapp', action: 'transactionsClearAllButtonClick', name: 'clicked', isClick: true })
-    setIsAccordionOpen(true) // Expand accordion to show the dialog
     dispatch({ type: 'SHOW_CLEAR_ALL_DIALOG', payload: true })
   }
 
@@ -51,7 +42,6 @@ function TransactionsPortraitView() {
       return
     }
     trackMatomoEvent?.({ category: 'udapp', action: 'transactionsSaveButtonClick', name: 'clicked', isClick: true })
-    setIsAccordionOpen(true) // Expand accordion to show the dialog
 
     // Generate non-clashing filename
     try {
@@ -161,16 +151,16 @@ function TransactionsPortraitView() {
   }, [widgetState.recorderData.journal, sortOrder])
 
   return (
-    <div className="card mx-2 my-2 text-theme-contrast" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-      <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }} onClick={toggleAccordion} data-id="transaction-recorder-accordion-toggle">
+    <div className="d-flex flex-column gap-2 text-theme-contrast">
+      <div className="d-flex align-items-center justify-content-between px-3 py-1" data-id="transaction-recorder-header">
         <div className='d-flex align-items-center gap-2'>
-          <h6 className="my-auto text-theme-contrast" style={{ margin: 0, }}>
+          <h6 className="my-auto text-theme-contrast" style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)'}}>
             <FormattedMessage id="udapp.transactionRecorderTitle" defaultMessage="Transactions recorder" /> <span className="text-secondary small">{widgetState.recorderData.journal.length}</span>
           </h6>
         </div>
         <div className='d-flex align-items-center gap-2'>
           { !showClearAllDialog && !showSaveDialog &&
-            <div onClick={(e) => e.stopPropagation()}>
+            <div>
               <button data-id="save-transactions" className='btn btn-primary btn-sm small p-1' style={{ fontSize: '0.6rem' }} onClick={handleSaveClick}>
                 <i className='fa-solid fa-floppy-disk'></i> <FormattedMessage id="udapp.saveButton" />
               </button>
@@ -184,12 +174,10 @@ function TransactionsPortraitView() {
               </button>
             </div>
           }
-          <i className={`fas ${isAccordionOpen ? 'fa-angle-down' : 'fa-angle-right'}`} aria-hidden="true"></i>
         </div>
       </div>
 
-      {isAccordionOpen && (
-        <>
+      <>
           {/* Add Contract Dialog */}
           {showSaveDialog && (
             <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
@@ -298,7 +286,7 @@ function TransactionsPortraitView() {
           )}
 
           {!showClearAllDialog && (
-            <div className="transaction-recorder-tabs p-2 pt-0">
+            <div className="d-flex flex-column gap-2 transaction-recorder-tabs p-2">
               <div className="tabs-filter-container">
                 <ul className="nav nav-tabs" role="tablist">
                   <li className="nav-item" role="presentation">
@@ -331,7 +319,7 @@ function TransactionsPortraitView() {
                     <Dropdown.Toggle
                       as={CustomToggle}
                       className="btn-sm border-0 p-1 text-secondary rounded"
-                      style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', color: themeQuality === 'dark' ? 'white' : 'black' }}
+                      style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', paddingLeft: '.5rem !important', color: themeQuality === 'dark' ? 'white' : 'black' }}
                       icon="fas fa-caret-down ms-2"
                       useDefaultIcon={false}
                     >
@@ -421,7 +409,6 @@ function TransactionsPortraitView() {
             </div>
           )}
         </>
-      )}
     </div>
   )
 }
