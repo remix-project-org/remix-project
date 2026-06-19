@@ -12,7 +12,7 @@ const profile = {
   displayName: 'Vertical Icons',
   description: 'Remix IDE vertical icons',
   version: packageJson.version,
-  methods: ['select', 'unlinkContent', 'linkContent', 'activateAndSelect'],
+  methods: ['select', 'unlinkContent', 'linkContent', 'activateAndSelect', 'getPluginState', 'toggle'],
   events: ['toggleContent', 'showContent']
 }
 
@@ -101,6 +101,10 @@ export class VerticalIcons extends Plugin {
       }
       this.renderComponent()
     })
+  }
+
+  async getPluginState (pluginName: string) {
+    return this.icons && this.icons[pluginName]
   }
 
   async linkContent(profile: Profile) {
