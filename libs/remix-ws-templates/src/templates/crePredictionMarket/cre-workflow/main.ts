@@ -145,7 +145,7 @@ const initWorkflow = (config: Config) => {
     cre.handler(
       evmClient.logTrigger({
         addresses: [config.marketAddress],
-        topics: [{ values: [settlementRequestedTopic] }],
+        topics: [{ values: [settlementRequestedTopic]}],
         confidence: "CONFIDENCE_LEVEL_FINALIZED",
       }),
       onSettlementRequested

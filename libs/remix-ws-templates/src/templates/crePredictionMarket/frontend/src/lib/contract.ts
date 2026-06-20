@@ -149,10 +149,10 @@ export const STATUS_COLOR: Record<number, string> = {
 
 export const OUTCOME_LABEL = (outcome: number, team1: string, team2: string) => {
   switch (outcome) {
-    case 1: return team1;
-    case 2: return "Draw";
-    case 3: return team2;
-    case 4: return "Cancelled";
-    default: return "—";
+  case 1: return team1;
+  case 2: return "Draw";
+  case 3: return team2;
+  case 4: return "Cancelled";
+  default: return "—";
   }
 };

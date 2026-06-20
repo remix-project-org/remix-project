@@ -41,7 +41,7 @@ function toMatchInfo(m: RawMatch): MatchInfo {
 
 export interface MatchLists {
   upcoming: MatchInfo[]; // future kickoffs — normal markets
-  recent: MatchInfo[];   // finished matches — settledAfter already in the past (settlement testing)
+  recent: MatchInfo[]; // finished matches — settledAfter already in the past (settlement testing)
 }
 
 /**
@@ -74,7 +74,7 @@ export async function fetchMatches(upcomingLimit = 5, recentLimit = 3): Promise<
 }
 
 export function useMatches(upcomingLimit = 5, recentLimit = 3) {
-  const [data, setData] = useState<MatchLists>({ upcoming: [], recent: [] });
+  const [data, setData] = useState<MatchLists>({ upcoming: [], recent: []});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
