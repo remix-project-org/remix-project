@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "workflow": {
+    "name": "World Cup Prediction Market Settlement",
+    "description": "Listens for SettlementRequested events on WorldCupPredictionMarket, fetches the match result from football-data.org, and settles the market on-chain via CRE.",
+    "created": false
+  },
+  "nodes": [
+    {
+      "id": "node-1",
+      "type": "appNode",
+      "position": { "x": 420, "y": 50 },
+      "data": {
+        "kind": "smartContract",
+        "name": "WorldCupPredictionMarket",
+        "contractName": "WorldCupPredictionMarket",
+        "events": [
+          "SettlementRequested(uint256 indexed marketId, uint256 indexed externalMatchId)"
+        ],
+        "functions": [
+          "onReport(bytes report)"
+        ]
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "appNode",
+      "position": { "x": 50, "y": 280 },
+      "data": {
+        "kind": "trigger.evmLog",
+        "name": "Settlement Requested",
+        "description": "Fires when requestSettlement() is called after the settledAfter timestamp",
+        "smartContractName": "WorldCupPredictionMarket",
+        "eventName": "SettlementRequested",
+        "contractAddress": "",
+        "chainSelector": "ethereum-testnet-sepolia",
+        "confidenceLevel": "Finalized"
+      }
+    },
+    {
+      "id": "node-3",
+      "type": "appNode",
+      "position": { "x": 420, "y": 280 },
+      "data": {
+        "kind": "cap.http.get",
+        "name": "Fetch Match Result",
+        "description": "GET match status and score.winner from football-data.org free API using externalMatchId",
+        "websiteName": "football-data.org",
+        "apiUrl": "https://api.football-data.org/v4/matches/{externalMatchId}"
+      }
+    },
+    {
+      "id": "node-4",
+      "type": "appNode",
+      "position": { "x": 800, "y": 280 },
+      "data": {
+        "kind": "cap.evmWrite",
+        "name": "Settle Market",
+        "description": "Submit encoded (marketId, outcome) to WorldCupPredictionMarket via CRE forwarder -> onReport()",
+        "smartContractName": "WorldCupPredictionMarket",
+        "functionName": "onReport",
+        "contractAddress": "",
+        "chainSelector": "ethereum-testnet-sepolia"
+      }
+    },
+    {
+      "id": "node-5",
+      "type": "appNode",
+      "position": { "x": 420, "y": 520 },
+      "data": {
+        "kind": "website",
+        "name": "football-data.org",
+        "websiteName": "football-data.org",
+        "apiUrls": [
+          "https://api.football-data.org/v4/matches/{id}",
+          "https://api.football-data.org/v4/competitions/WC/matches"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "node-2",
+      "target": "node-3",
+      "data": { "kind": "callback" }
+    },
+    {
+      "id": "edge-2",
+      "source": "node-3",
+      "target": "node-4",
+      "data": { "kind": "callback" }
+    },
+    {
+      "id": "edge-3",
+      "source": "node-2",
+      "target": "node-1",
+      "data": { "kind": "ref" }
+    },
+    {
+      "id": "edge-4",
+      "source": "node-4",
+      "target": "node-1",
+      "data": { "kind": "ref" }
+    },
+    {
+      "id": "edge-5",
+      "source": "node-3",
+      "target": "node-5",
+      "data": { "kind": "ref" }
+    }
+  ],
+  "selectedId": null,
+  "idCounter": 5
+}

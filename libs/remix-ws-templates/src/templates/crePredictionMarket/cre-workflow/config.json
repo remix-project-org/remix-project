@@ -1,0 +1,5 @@
+{
+  "chainSelectorName": "ethereum-testnet-sepolia",
+  "marketAddress": "0x37485368C56B3B05a8dCCC3d29f7A85FD1653CBC",
+  "gasLimit": 500000
+}

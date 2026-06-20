@@ -1,0 +1,13 @@
+# CRE project configuration.
+staging-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com
+      
+#     chainSelectorName: "ethereum-testnet-sepolia"
+#     forwarderAddress: "0x15fc6ae953e024d975e77382eeec56a9101f9f88"
+#     rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com"
+
+# The MockKeystoneForwarder contract, that we will use for simulations, 
+# on Ethereum Sepolia is located at: 
+# https://sepolia.etherscan.io/address/0x15fc6ae953e024d975e77382eeec56a9101f9f88#code 
