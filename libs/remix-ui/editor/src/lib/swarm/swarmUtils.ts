@@ -1,4 +1,4 @@
-export const PLACEHOLDER_STAMP = '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+export const PLACEHOLDER_STAMP = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 
 export function encode(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('base64')

@@ -13,6 +13,7 @@ import { useSwarmDoc, SwarmDocSettings } from './hooks/useSwarmDoc'
 import { SwarmCollabModal } from './SwarmCollabModal'
 import { reducerActions, reducerListener, initialState } from './actions/editor'
 import { useSwarmDoc, SwarmDocSettings } from './hooks/useSwarmDoc'
+import { SwarmCollabModal } from './SwarmCollabModal'
 import { solidityTokensProvider, solidityLanguageConfig } from './syntaxes/solidity'
 import { cairoTokensProvider, cairoLanguageConfig } from './syntaxes/cairo'
 import { zokratesTokensProvider, zokratesLanguageConfig } from './syntaxes/zokrates'
@@ -110,7 +111,10 @@ type errorMarker = {
   }
   file: string
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> a93cf853ed (fix: y-webrtc transport methond and peer connections)
 // relative path necessary for asset path resolution
 loader.config({ paths: { vs: './assets/js/monaco-editor/min/vs' } })
 
@@ -576,7 +580,7 @@ export const EditorUI = (props: EditorUIProps) => {
   const currentModel = editorModelsState[props.currentFile]?.model ?? null
 
 
-  const { peersCount, connected } = useSwarmDoc(props.swarmDocSettings, mountedEditor, props.currentFile, currentModel)
+  const { peersCount, connected, peers } = useSwarmDoc(collabSettings, mountedEditor, props.currentFile, currentModel)
 
   // Load and sync diff sessions
   useEffect(() => {

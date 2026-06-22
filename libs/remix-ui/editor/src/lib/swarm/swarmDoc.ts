@@ -32,6 +32,8 @@ export class SwarmDoc {
   private swarmMembers: SwarmMembers
   private notifProvider: NotificationProvider | null = null
 
+  onMembersChange?: (peers: { address: string; nickname: string }[]) => void
+
   private pendingUpdates: Uint8Array[] = []
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
   private memberRefreshTimer: ReturnType<typeof setInterval> | null = null
@@ -46,7 +48,7 @@ export class SwarmDoc {
 
     this.infraTopic = settings.infra.topic
     this.beeApiUrl = settings.infra.beeUrl
-    this.stampId = settings.infra.stamp || PLACEHOLDER_STAMP
+    this.stampId = settings.infra.stamp ? remove0x(settings.infra.stamp).toLocaleLowerCase() : PLACEHOLDER_STAMP
     const feedKeyBytes = Topic.fromString(this.infraTopic + SNAPSHOT_FEED_SUFFIX + this.userAddress)
     this.feedSigner = new PrivateKey(feedKeyBytes.toUint8Array())
     this.feedAddress = this.feedSigner.publicKey().address().toString()
@@ -98,9 +100,10 @@ export class SwarmDoc {
     })
     this.notifProvider?.addMember?.(userAddress)
     console.log(`${TAG} registerMember: user=${userAddress.slice(0, 8)}… feed=${feedAddress.slice(0, 8)}…`)
+    this.onMembersChange?.(this.peers)
   }
 
-  start(notifProvider: NotificationProvider): void {
+  start(notifProvider: NotificationProvider, onReady?: () => void): void {
     this.notifProvider = notifProvider
 
     for (const addr of this.memberOptions.keys()) {
@@ -108,7 +111,7 @@ export class SwarmDoc {
     }
 
     this.doc.on('update', (update: Uint8Array, origin: unknown) => {
-      if (origin === 'remote') return
+      if (origin === 'remote' || (this.notifProvider?.isRemoteOrigin?.(origin) ?? false)) return
       this.pendingUpdates.push(update)
       if (this.debounceTimer) clearTimeout(this.debounceTimer)
       this.debounceTimer = setTimeout(() => {
@@ -119,8 +122,12 @@ export class SwarmDoc {
       }, DEBOUNCE_MS)
     })
 
-    this.init()
+    this.init(onReady)
     this.startFetchProcess()
+  }
+
+  get peers(): { address: string; nickname: string }[] {
+    return Array.from(this.swarmMembers.all().entries()).map(([address, nickname]) => ({ address, nickname }))
   }
 
   stop(): void {
@@ -199,16 +206,17 @@ export class SwarmDoc {
     if (!found) throw new Error(`Stamp ${this.stampId} is not usable`)
   }
 
-  private async init(): Promise<void> {
+  private async init(onReady?: () => void): Promise<void> {
     console.log(`${TAG} init: starting`)
     try {
       await this.validateStamps()
     } catch (err) {
       console.error(`${TAG} validateStamps failed:`, err)
-      return
+      alert(`${TAG} validateStamps failed: ${err}`)
     }
     await Promise.allSettled([this.initOwnIndex(), this.initMembers()])
     console.log(`${TAG} init: done — ownIndex: ${this.ownIndex}`)
+    onReady?.()
   }
 
   private async initOwnIndex(): Promise<void> {

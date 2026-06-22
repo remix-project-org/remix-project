@@ -74,49 +74,61 @@ export class SwarmMembers {
   async add(address: string, username: string): Promise<Map<string, string>> {
     const normalized = remove0x(address.toLowerCase())
     const reader = this.bee.makeFeedReader(this.topic, this.address)
-
-    let members: Map<string, string> = new Map()
-    try {
-      const result = await reader.downloadPayload()
-      members = new Map(Object.entries(JSON.parse(result.payload.toUtf8()) as Record<string, string>))
-      this.currentIndex = result.feedIndex.toBigInt()
-    } catch (err) {
-      if (!isNotFoundError(err)) console.error(`${TAG} add read failed:`, err)
-      // 404: no feed yet — start fresh at index 0
-    }
-
-    if (members.has(normalized)) {
-      console.log(`${TAG} add: ${normalized.slice(0, 8)}… already in list`)
-      return members
-    }
-
-    members.set(normalized, username)
-    const nextIndex = this.currentIndex === BigInt(-1) ? BigInt(0) : this.currentIndex + BigInt(1)
     const writer = this.bee.makeFeedWriter(this.topic, this.signer)
+    const MAX_CONFLICT_RETRIES = 3
 
-    try {
-      await writer.uploadPayload(this.stamp, JSON.stringify(Object.fromEntries(members)), {
-        index: FeedIndex.fromBigInt(nextIndex),
-        deferred: false,
-      })
-      this.currentIndex = nextIndex
-      console.log(`${TAG} add: wrote index ${nextIndex}, total members: ${members.size}`)
-    } catch (err) {
-      console.error(`${TAG} add write failed:`, err)
-      return members
+    for (let attempt = 0; attempt < MAX_CONFLICT_RETRIES; attempt++) {
+      let members: Map<string, string> = new Map()
+      try {
+        const result = await reader.downloadPayload()
+        members = new Map(Object.entries(JSON.parse(result.payload.toUtf8()) as Record<string, string>))
+        this.currentIndex = result.feedIndex.toBigInt()
+      } catch (err) {
+        if (!isNotFoundError(err)) console.error(`${TAG} add read failed:`, err)
+        // 404: no feed yet — start fresh at index 0
+      }
+
+      if (members.has(normalized)) {
+        console.log(`${TAG} add: ${normalized.slice(0, 8)}… already in list`)
+        return members
+      }
+
+      members.set(normalized, username)
+      const nextIndex = this.currentIndex === BigInt(-1) ? BigInt(0) : this.currentIndex + BigInt(1)
+
+      try {
+        await writer.uploadPayload(this.stamp, JSON.stringify(Object.fromEntries(members)), {
+          index: FeedIndex.fromBigInt(nextIndex),
+          deferred: false,
+        })
+        this.currentIndex = nextIndex
+        console.log(`${TAG} add: wrote index ${nextIndex}, total members: ${members.size}`)
+      } catch (err) {
+        console.error(`${TAG} add write failed:`, err)
+        return members
+      }
+
+      // Verify: read back to detect last-write-wins conflicts
+      try {
+        const verified = await retryAwaitableAsync(async () => {
+          const r = await reader.downloadPayload({ index: FeedIndex.fromBigInt(nextIndex) })
+          return new Map(Object.entries(JSON.parse(r.payload.toUtf8()) as Record<string, string>))
+        }, 3, 500)
+
+        if (verified.has(normalized)) {
+          console.log(`${TAG} add: verified — ${Array.from(verified.keys()).map(a => a.slice(0, 8)).join(', ')}`)
+          return verified
+        }
+
+        // Own address was overwritten by a simultaneous write — retry with fresh read
+        console.log(`${TAG} add: conflict on attempt ${attempt + 1}, retrying`)
+      } catch {
+        console.log(`${TAG} add: verify timed out, using optimistic list`)
+        return members
+      }
     }
 
-    // Verify: read back to detect last-write-wins conflicts
-    try {
-      const verified = await retryAwaitableAsync(async () => {
-        const r = await reader.downloadPayload({ index: FeedIndex.fromBigInt(nextIndex) })
-        return new Map(Object.entries(JSON.parse(r.payload.toUtf8()) as Record<string, string>))
-      }, 3, 500)
-      console.log(`${TAG} add: verified — ${Array.from(verified.keys()).map(a => a.slice(0, 8)).join(', ')}`)
-      return verified
-    } catch {
-      console.log(`${TAG} add: verify timed out, using optimistic list`)
-      return members
-    }
+    console.log(`${TAG} add: could not confirm own address after ${MAX_CONFLICT_RETRIES} attempts`)
+    return (await this.read()) ?? new Map([[normalized, username]])
   }
 }

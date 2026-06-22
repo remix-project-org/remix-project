@@ -14,6 +14,7 @@ export interface NotificationProvider {
   unsubscribe(): void
   addMember?(address: string): void
   onPeersChange?: (count: number) => void
+  isRemoteOrigin?(origin: unknown): boolean
 }
 
 export type NotificationTransport = 'webrtc' | 'swarm-rtc'
@@ -34,6 +35,7 @@ export interface SwarmInfraSettings {
 export interface SwarmDocSettings {
   sessionId: string
   signalingUrl?: string
+  stunUrl?: string
   notification?: NotificationTransport
   swarmInfra?: SwarmInfraSettings
 }

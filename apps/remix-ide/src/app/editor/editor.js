@@ -2,39 +2,12 @@
 import React from 'react' // eslint-disable-line
 import { EditorUI } from '@remix-ui/editor' // eslint-disable-line
 import { Plugin } from '@remixproject/engine'
-import { v4 as uuidv4 } from 'uuid'
 import * as packageJson from '../../../../../package.json'
 import { PluginViewWrapper } from '@remix-ui/helper'
 
 import { startTypeLoadingProcess } from './type-fetcher'
-import { Bytes, PrivateKey, Topic } from '@ethersphere/bee-js'
 
 const EventManager = require('../../lib/events')
-const DEFAULT_SIGNALING_SERVER_URL = 'ws://localhost:4444'
-
-// TODO: user wallet integration OR wallet generation
-function getPeerKey() {
-  const param = new URLSearchParams(window.location.search).get('peerKey')
-  if (param) return param
-
-  const normalized = uuidv4().trim().toLowerCase()
-  const inputBytes = Bytes.fromUtf8(normalized)
-  const privateKeyHex = Bytes.keccak256(inputBytes).toHex()
-
-  return new PrivateKey(privateKeyHex).toString()
-}
-
-function getTopic() {
-  const param = new URLSearchParams(window.location.search).get('topic')
-  if (param) return param
-
-  const normalized = uuidv4().trim().toLowerCase()
-  const inputBytes = Bytes.fromUtf8(normalized)
-  const topicHex = Bytes.keccak256(inputBytes).toHex()
-  console.log('Session topic:', topicHex)
-
-  return new Topic(topicHex).toString()
-}
 
 const profile = {
   displayName: 'Editor',
@@ -137,7 +110,6 @@ export default class Editor extends Plugin {
     this.monaco = monaco
   }
 
-  // TODO: replace hard coded swarmDocSettings values and handle dynamic config
   updateComponent(state) {
     return <EditorUI
       editorAPI={state.api}
@@ -150,22 +122,7 @@ export default class Editor extends Plugin {
       splitViewFile={state.splitViewFile}
       splitViewContent={state.splitViewContent}
       setMonaco={(monaco) => this.setMonaco(monaco)}
-      swarmDocSettings={{
-        signalingUrl: DEFAULT_SIGNALING_SERVER_URL,
-        sessionId: 'test-session',
-        notification: 'swarm-rtc',
-        swarmInfra: {
-          user: {
-            walletPrivateKey: getPeerKey(),
-            nickname: 'user1'
-          },
-          infra: {
-            beeUrl: 'http://localhost:1633',
-            stamp: '1111111111111111111111111111111111111111111111111111111111111111',
-            topic: getTopic(),
-          }
-        }
-      }}
+      swarmDocSettings={null}
     />
   }
 

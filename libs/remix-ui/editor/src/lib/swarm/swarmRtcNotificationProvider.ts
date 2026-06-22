@@ -5,14 +5,13 @@ import * as Y from 'yjs'
 import { NotificationHandler, NotificationPayload, NotificationProvider } from './swarmInterfaces'
 import { SignalRecord, SignalType, SwarmSignal } from './swarmSignal'
 import { remove0x } from './swarmUtils'
+import { DEFAULT_STUN_URL, FALLBACK_STUN_URL } from './utils'
 
 export const SWARM_RTC_ORIGIN = 'swarm-rtc'
 const TAG = '[SwarmRtcNotificationProvider]'
 const SIGNAL_POLL_INTERVAL_MS = 5_000
 const OFFER_MAX_AGE_MS = 5 * 60 * 1_000
 const PEER_RETRY_TIMEOUT_MS = 10_000
-const DEFAULT_STUN_URL = 'stun:stun.l.google.com:19302'
-const FALLBACK_STUN_URL = 'stun:stun.cloudflare.com:3478'
 
 export class SwarmRtcNotificationProvider implements NotificationProvider {
   private readonly doc: Y.Doc
@@ -23,6 +22,7 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
   private swarmRtcPeers = new Map<string, RTCPeerConnection>()
   private pendingOfferSessions = new Map<string, string>()
   private sentAnswerKeys = new Set<string>()
+  private pendingRetries = new Set<string>()
   private signalPollTimer: ReturnType<typeof setInterval> | null = null
   private signalCheckInFlight = false
   private stopped = false
@@ -62,6 +62,10 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
     }
   }
 
+  isRemoteOrigin(origin: unknown): boolean {
+    return origin === SWARM_RTC_ORIGIN
+  }
+
   addMember(address: string): void {
     const normalized = remove0x(address.toLowerCase())
     if (normalized === this.ownAddress || this.members.has(normalized)) return
@@ -79,6 +83,7 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
     this.swarmRtcPeers.clear()
     this.openChannels.clear()
     this.members.clear()
+    this.pendingRetries.clear()
     this.handler = null
   }
 
@@ -106,15 +111,10 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
     pc.addEventListener('connectionstatechange', () => {
       console.debug(`${TAG} [initiator→${peerAddress.slice(0, 8)}] connectionState=${pc.connectionState}`)
       if (pc.connectionState === 'failed') {
+        pc.close()
         this.swarmRtcPeers.delete(peerAddress)
         this.pendingOfferSessions.delete(peerAddress)
-        setTimeout(() => {
-          if (!this.stopped && !this.swarmRtcPeers.has(peerAddress)) {
-            this.initiateConnectionTo(peerAddress).catch(err =>
-              console.error(`${TAG} initiateConnectionTo retry failed:`, err),
-            )
-          }
-        }, PEER_RETRY_TIMEOUT_MS)
+        this.scheduleReconnect(peerAddress, 'ICE failed')
       } else if (pc.connectionState === 'closed') {
         this.swarmRtcPeers.delete(peerAddress)
         this.pendingOfferSessions.delete(peerAddress)
@@ -167,6 +167,7 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
     pc.addEventListener('connectionstatechange', () => {
       console.debug(`${TAG} [answerer←${peerAddress.slice(0, 8)}] connectionState=${pc.connectionState}`)
       if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        pc.close()
         this.swarmRtcPeers.delete(peerAddress)
       }
     })
@@ -182,9 +183,20 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
     await pc.setLocalDescription(answer)
     await this.waitForIceGatheringComplete(pc)
 
+    const sdp = pc.localDescription?.sdp ?? ''
+    const candidateCount = (sdp.match(/^a=candidate:/gm) || []).length
+
     if (this.stopped) {
       pc.close()
       this.swarmRtcPeers.delete(peerAddress)
+      return
+    }
+
+    if (candidateCount === 0 || pc.connectionState === 'failed') {
+      pc.close()
+      this.swarmRtcPeers.delete(peerAddress)
+      this.sentAnswerKeys.delete(key)
+      console.debug(`${TAG} answerPeerOffer ${peerAddress.slice(0, 8)}… aborted — ICE failed before gathering`)
       return
     }
 
@@ -194,7 +206,7 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
       toAddress: peerAddress,
       sessionId: offer.sessionId,
       timestamp: Date.now(),
-      sdp: pc.localDescription?.sdp ?? '',
+      sdp,
     }
 
     await this.swarmSignal.writeRecord(record)
@@ -295,10 +307,31 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
     channel.addEventListener('close', () => {
       this.doc.off('update', forwardUpdate)
       this.openChannels.delete(peerAddress)
+      const pc = this.swarmRtcPeers.get(peerAddress)
       this.swarmRtcPeers.delete(peerAddress)
+      pc?.close()
       this.onPeersChange?.(this.openChannels.size)
       console.debug(`${TAG} channel CLOSED with ${peerAddress.slice(0, 8)}…`)
+      if (this.isInitiatorFor(peerAddress)) {
+        this.scheduleReconnect(peerAddress, 'channel closed')
+      }
     })
+  }
+
+  private scheduleReconnect(peerAddress: string, reason: string): void {
+    if (this.pendingRetries.has(peerAddress)) return
+    this.pendingRetries.add(peerAddress)
+    console.debug(
+      `${TAG} [initiator→${peerAddress.slice(0, 8)}] ${reason} — retrying in ${PEER_RETRY_TIMEOUT_MS}ms`,
+    )
+    setTimeout(() => {
+      this.pendingRetries.delete(peerAddress)
+      if (!this.stopped && !this.swarmRtcPeers.has(peerAddress)) {
+        this.initiateConnectionTo(peerAddress).catch(err =>
+          console.error(`${TAG} scheduleReconnect failed:`, err),
+        )
+      }
+    }, PEER_RETRY_TIMEOUT_MS)
   }
 
   private waitForIceGatheringComplete(pc: RTCPeerConnection, timeoutMs = 5000): Promise<void> {
@@ -307,11 +340,23 @@ export class SwarmRtcNotificationProvider implements NotificationProvider {
         resolve()
         return
       }
+
+      // eslint-disable-next-line prefer-const
+      let timer: ReturnType<typeof setTimeout>
+
       const onStateChange = () => {
-        if (pc.iceGatheringState === 'complete') resolve()
+        if (pc.iceGatheringState === 'complete') {
+          clearTimeout(timer)
+          pc.removeEventListener('icegatheringstatechange', onStateChange)
+          resolve()
+        }
       }
+
       pc.addEventListener('icegatheringstatechange', onStateChange)
-      setTimeout(resolve, timeoutMs)
+      timer = setTimeout(() => {
+        pc.removeEventListener('icegatheringstatechange', onStateChange)
+        resolve()
+      }, timeoutMs)
     })
   }
 }

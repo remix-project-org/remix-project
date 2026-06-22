@@ -6,10 +6,9 @@ import { MonacoBinding } from 'y-monaco'
 import type { SwarmDocSettings } from '../swarm/swarmInterfaces'
 import { SwarmDoc } from '../swarm/swarmDoc'
 import { createNotificationProvider } from '../swarm/createNotificationProvider'
+import { DEFAULT_SIGNALING_SERVER_URL } from '../swarm/utils'
 
 export type { SwarmDocSettings, SwarmInfraSettings, NotificationTransport } from '../swarm/swarmInterfaces'
-
-const DEFAULT_SIGNALING_SERVER_URL = 'ws://localhost:4444'
 
 interface SessionState {
   doc: Y.Doc
@@ -34,13 +33,16 @@ export function useSwarmDoc(settings: SwarmDocSettings | null, editor: any, curr
   const [provider, setProvider] = useState<WebrtcProvider | null>(null)
   const bindingRef = useRef<MonacoBinding | null>(null)
   const [peersCount, setPeersCount] = useState(0)
+  const [peers, setPeers] = useState<{ address: string; nickname: string }[]>([])
+  const [initDone, setInitDone] = useState(false)
 
   useEffect(() => {
     if (!settings) return
-    const { sessionId, signalingUrl, swarmInfra, notification } = settings
+    const { sessionId, stunUrl, signalingUrl, swarmInfra, notification } = settings
     const transport = notification ?? 'webrtc'
 
     destroySession(sessionId)
+    setInitDone(false)
 
     let swarmDoc: SwarmDoc | undefined
     let doc: Y.Doc
@@ -52,18 +54,24 @@ export function useSwarmDoc(settings: SwarmDocSettings | null, editor: any, curr
       doc = new Y.Doc()
     }
 
-    let prov: WebrtcProvider | undefined = undefined
-    if (transport !== 'swarm-rtc') {
+    let prov: WebrtcProvider | undefined
+    let discoveryUrl = stunUrl
+
+    if (transport === 'webrtc') {
+      discoveryUrl = signalingUrl
       prov = new WebrtcProvider(sessionId, doc, {
-        signaling: [signalingUrl ?? DEFAULT_SIGNALING_SERVER_URL],
+        signaling: [discoveryUrl ?? DEFAULT_SIGNALING_SERVER_URL],
       })
       prov.on('peers', ({ webrtcPeers }: any) => setPeersCount(webrtcPeers.length))
     }
 
     if (swarmDoc) {
-      const notifProvider = createNotificationProvider(transport, swarmInfra, prov, doc)
+      const notifProvider = createNotificationProvider(transport, swarmInfra, prov, doc, discoveryUrl)
       notifProvider.onPeersChange = (count) => setPeersCount(count)
-      swarmDoc.start(notifProvider)
+      swarmDoc.onMembersChange = (p) => setPeers(p)
+      swarmDoc.start(notifProvider, () => setInitDone(true))
+    } else {
+      setInitDone(true)
     }
 
     _sessions.set(sessionId, { doc, provider: prov, swarmDoc })
@@ -78,22 +86,20 @@ export function useSwarmDoc(settings: SwarmDocSettings | null, editor: any, curr
       setYdoc(null)
       setProvider(null)
       setPeersCount(0)
+      setPeers([])
+      setInitDone(false)
     }
-  }, [settings?.sessionId, settings?.signalingUrl, settings?.swarmInfra?.infra.topic, settings?.notification])
+  }, [settings?.sessionId, settings?.signalingUrl, settings?.stunUrl ,settings?.swarmInfra?.infra.topic, settings?.notification])
 
   useEffect(() => {
-    if (!ydoc || !editor || !model || !currentFile) return
+    if (!ydoc || !editor || !model || !currentFile || !initDone) return
 
     bindingRef.current?.destroy()
     bindingRef.current = null
 
     const yText = ydoc.getText(currentFile)
 
-    const otherPeers = provider
-      ? [...provider.awareness.getStates().keys()].filter(id => id !== provider.awareness.clientID)
-      : []
-
-    if (yText.length === 0 && otherPeers.length === 0) {
+    if (yText.length === 0) {
       const content = model.getValue()
       if (content) ydoc.transact(() => yText.insert(0, content))
     }
@@ -104,7 +110,7 @@ export function useSwarmDoc(settings: SwarmDocSettings | null, editor: any, curr
       bindingRef.current?.destroy()
       bindingRef.current = null
     }
-  }, [ydoc, provider, editor, currentFile, model])
+  }, [ydoc, editor, currentFile, model, initDone])
 
-  return { peersCount, connected: peersCount > 0 }
+  return { peersCount, connected: peersCount > 0, peers }
 }
