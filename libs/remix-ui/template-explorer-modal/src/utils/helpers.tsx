@@ -416,9 +416,16 @@ export const templatesRepository = [
     name: 'Chainlink CRE',
     items: [
       {
-        value: "crePredictionMarket",
-        displayName: 'Prediction Market',
+        value: "creAIPredictionMarket",
+        displayName: 'AI Prediction Market',
+        tagList: ["Solidity", "Chainlink"],
         description: 'CRE Bootcamp: Building AI-Powered Prediction Markets'
+      },
+      {
+        value: "creWorldCupPredictionMarket",
+        displayName: 'World Cup Prediction Market',
+        tagList: ["Solidity", "Chainlink"],
+        description: 'CRE Bootcamp: Building World Cup Prediction Markets'
       }
     ]
   }
