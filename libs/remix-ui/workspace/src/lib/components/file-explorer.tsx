@@ -586,7 +586,7 @@ export const FileExplorer = (props: FileExplorerProps) => {
       setWorkspaceDetails(result as any)
     }
     workSpaceName()
-  }, [])
+  }, [name])
 
   return (
     <div className="h-100 remixui_treeview" data-id="filePanelFileExplorerTree">
