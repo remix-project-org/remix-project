@@ -553,9 +553,9 @@ export const planManagerMachine = setup({
       initial: 'idle',
       on: {
         // Cart events — available in any checkout sub-state.
-        CART_ADD: { actions: ['cartAdd'] },
-        CART_REMOVE: { actions: ['cartRemove'] },
-        CART_CLEAR: { actions: ['cartClear'] }
+        CART_ADD: { actions: ['cartAdd']},
+        CART_REMOVE: { actions: ['cartRemove']},
+        CART_CLEAR: { actions: ['cartClear']}
       },
       states: {
         idle: {

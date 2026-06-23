@@ -48,36 +48,36 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     id: 'code',
     label: 'Code',
     prompts: [
-      { text: 'Write a Solidity ERC20 token with mint and burn functions', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'Add an ownable access control to a contract', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: '/compile: fix any errors in the active file', requiredFeatures: [Features.AI_SOLCODER] },
+      { text: 'Write a Solidity ERC20 token with mint and burn functions', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'Add an ownable access control to a contract', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: '/compile: fix any errors in the active file', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'explain',
     label: 'Explain',
     prompts: [
-      { text: 'Explain what this contract does line by line', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'What are the security risks in this code?', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'What does this function return and when does it revert?', requiredFeatures: [Features.AI_SOLCODER] },
+      { text: 'Explain what this contract does line by line', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What are the security risks in this code?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What does this function return and when does it revert?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'learn',
     label: 'Learn',
     prompts: [
-      { text: 'What is a smart contract?', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'How does gas work in Ethereum?', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'What is the difference between memory and storage in Solidity?', requiredFeatures: [Features.AI_SOLCODER] },
+      { text: 'What is a smart contract?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'How does gas work in Ethereum?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What is the difference between memory and storage in Solidity?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'deploy',
     label: 'Deploy',
     prompts: [
-      { text: '/deploy: deploy this contract to Sepolia testnet', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'How do I verify my contract on Etherscan?', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'What network should I use for testing?', requiredFeatures: [Features.AI_SOLCODER] },
+      { text: '/deploy: deploy this contract to Sepolia testnet', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'How do I verify my contract on Etherscan?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What network should I use for testing?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
 ]
@@ -215,9 +215,9 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   const actionCommands: Command[] = useMemo(() => {
     const cmds: Command[] = [
-      { name: 'model', description: 'Switch AI model', category: 'Settings', action: handleSetModel, requiredFeatures: [] },
+      { name: 'model', description: 'Switch AI model', category: 'Settings', action: handleSetModel, requiredFeatures: []},
     ]
-    if (handleOpenSettings) cmds.push({ name: 'settings', description: 'Open RemixAI settings', category: 'Settings', action: handleOpenSettings, requiredFeatures: [] })
+    if (handleOpenSettings) cmds.push({ name: 'settings', description: 'Open RemixAI settings', category: 'Settings', action: handleOpenSettings, requiredFeatures: []})
     if (handleLoadSkills) {
       cmds.push({
         name: 'Load Skills',
@@ -237,7 +237,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         requiredFeatures: [Features.AI_AUDITOR]
       })
     }
-    if (handleGasOptimisationAudit) cmds.push({ name: 'Start Gas Optimisation Audit', description: 'Gas optimisation audit', category: 'Tools', action: handleGasOptimisationAudit, requiredFeatures: [Features.AI_AUDITOR] })
+    if (handleGasOptimisationAudit) cmds.push({ name: 'Start Gas Optimisation Audit', description: 'Gas optimisation audit', category: 'Tools', action: handleGasOptimisationAudit, requiredFeatures: [Features.AI_AUDITOR]})
     return cmds
   }, [handleSetModel, handleOpenSettings, handleLoadSkills, handleLoadAuditChecklist, handleGasOptimisationAudit])
 
