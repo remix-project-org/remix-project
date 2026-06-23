@@ -509,6 +509,28 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
     }
   }
 
+  const handleSaveABI = async (contract: DeployedContract) => {
+    if (onKebabMenuToggle) {
+      onKebabMenuToggle(false)
+    }
+    const abi = contract.abi || contract.contractData?.abi
+    if (abi) {
+      const contractFilePath = contract.filePath || contract.contractData?.contract?.file
+
+      if (contractFilePath) {
+        const abiFilePath = contractFilePath.replace(/\.[^/.]+$/, '.abi')
+
+        await plugin.call('fileManager', 'writeFile', abiFilePath, JSON.stringify(abi, null, 2))
+        await plugin.call('notification', 'toast', `ABI saved to ${abiFilePath}`)
+      } else {
+        const abiFilePath = `${contract.name}.abi`
+
+        await plugin.call('fileManager', 'writeFile', abiFilePath, JSON.stringify(abi, null, 2))
+        await plugin.call('notification', 'toast', `ABI saved to ${abiFilePath}`)
+      }
+    }
+  }
+
   const handleCopyBytecode = async (contract: DeployedContract) => {
     if (onKebabMenuToggle) {
       onKebabMenuToggle(false)
@@ -711,6 +733,7 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
             onCreateDapp={handleCreateDapp}
             onNameContract={networkName !== 'Remix VM' ? handleNameContract : undefined}
             onCopyABI={handleCopyABI}
+            onSaveABI={handleSaveABI}
             onCopyBytecode={handleCopyBytecode}
             onOpenInExplorer={handleOpenInExplorer}
             onClear={handleClear}

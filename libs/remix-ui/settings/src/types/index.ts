@@ -114,6 +114,8 @@ export interface SettingsState {
   'swarm-postage-stamp-id': ConfigState,
   'sindri-access-token': ConfigState,
   'etherscan-access-token': ConfigState,
+  'thegraph-config': ConfigState,
+  'thegraph-access-token': ConfigState,
   'ai-privacy-policy': ConfigState,
   'mcp/servers/enable': ConfigState,
   'mcp-server-management': ConfigState,

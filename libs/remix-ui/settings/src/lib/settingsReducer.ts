@@ -17,6 +17,7 @@ const swarmPrivateBeeAddress = config.get('settings/swarm-private-bee-address') 
 const swarmPostageStampId = config.get('settings/swarm-postage-stamp-id') || ''
 const sindriAccessToken = config.get('settings/sindri-access-token') || ''
 const etherscanAccessToken = config.get('settings/etherscan-access-token') || ''
+const thegraphAccessToken = config.get('settings/thegraph-access-token') || ''
 const mcpServersEnable = config.get('settings/mcp/servers/enable') || false
 const mcpServerManagement = config.get('settings/mcp-server-management') || false
 // Ollama configuration is temporarily disabled - will be enabled later
@@ -32,6 +33,7 @@ let ipfsConfig = config.get('settings/ipfs-config') || false
 let swarmConfig = config.get('settings/swarm-config') || false
 let sindriConfig = config.get('settings/sindri-config') || false
 let etherscanConfig = config.get('settings/etherscan-config') || false
+let thegraphConfig = config.get('settings/thegraph-config') || false
 // Ollama configuration is temporarily disabled - will be enabled later
 // let ollamaConfig = config.get('settings/ollama-config') || false
 let generateContractMetadata = config.get('settings/generate-contract-metadata')
@@ -59,6 +61,10 @@ if (!sindriConfig && sindriAccessToken) {
 if (!etherscanConfig && etherscanAccessToken) {
   config.set('settings/etherscan-config', true)
   etherscanConfig = true
+}
+if (!thegraphConfig && thegraphAccessToken) {
+  config.set('settings/thegraph-config', true)
+  thegraphConfig = true
 }
 // Ollama configuration is temporarily disabled - will be enabled later
 // if (!ollamaConfig && ollamaEndpoint !== 'http://localhost:11434') {
@@ -203,6 +209,14 @@ export const initialState: SettingsState = {
   },
   'etherscan-access-token': {
     value: etherscanAccessToken,
+    isLoading: false
+  },
+  'thegraph-config': {
+    value: thegraphConfig,
+    isLoading: false
+  },
+  'thegraph-access-token': {
+    value: thegraphAccessToken,
     isLoading: false
   },
   'ai-privacy-policy': {

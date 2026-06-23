@@ -250,6 +250,9 @@
             ],
             "@remix-ui/run-tab-transactions": [
               "libs/remix-ui/run-tab-transactions/src/index.ts"
+            ],
+            "@remix-ui/thegraph": [
+              "libs/remix-ui/thegraph/src/index.ts"
             ]
         }
     }

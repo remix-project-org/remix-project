@@ -13,6 +13,7 @@ interface ContractKebabMenuProps {
   onCreateDapp?: (contract: DeployedContract) => void
   onNameContract?: (contract: DeployedContract) => void
   onCopyABI?: (contract: DeployedContract) => void
+  onSaveABI?: (contract: DeployedContract) => void
   onCopyBytecode?: (contract: DeployedContract) => void
   onOpenInExplorer?: (contract: DeployedContract) => void
   onClear?: (contract: DeployedContract) => void
@@ -45,6 +46,7 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
   onCreateDapp,
   onNameContract,
   onCopyABI,
+  onSaveABI,
   onCopyBytecode,
   onOpenInExplorer,
   onClear
@@ -67,15 +69,14 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
       action: 'deployedContractCreateDapp' as const,
       onClick: () => onCreateDapp(contract)
     },
-    // Disabled: ENS contract naming feature
-    // onNameContract && {
-    //   id: 'nameContract',
-    //   label: 'Name Contract (ENS)',
-    //   icon: 'fas fa-link',
-    //   color: 'var(--bs-body-color)',
-    //   action: 'deployedContractNameENS' as const,
-    //   onClick: () => onNameContract(contract)
-    // },
+    onNameContract && {
+      id: 'nameContract',
+      label: 'Name Contract (ENS)',
+      icon: 'fas fa-link',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractNameENS' as const,
+      onClick: () => onNameContract(contract)
+    },
     onCopyABI && {
       id: 'copyABI',
       label: intl.formatMessage({ id: 'udapp.copyABIMenuItem' }),
@@ -83,6 +84,14 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
       color: 'var(--bs-body-color)',
       action: 'deployedContractCopyABI' as const,
       onClick: () => onCopyABI(contract)
+    },
+    onSaveABI && {
+      id: 'saveABI',
+      label: intl.formatMessage({ id: 'udapp.saveABIMenuItem' }),
+      icon: 'far fa-save',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractSaveABI' as const,
+      onClick: () => onSaveABI(contract)
     },
     onCopyBytecode && {
       id: 'copyBytecode',

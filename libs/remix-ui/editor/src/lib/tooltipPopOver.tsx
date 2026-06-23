@@ -6,9 +6,12 @@ import { TrackingContext } from '@remix-ide/tracking'
 
 // Risk configuration for code analysis badges
 const RISK_CONFIG = {
-  high: { badge: "danger", icon: "fas fa-exclamation-triangle" },
-  medium: { badge: "warning", icon: "fas fa-exclamation-circle" },
-  low: { badge: "info", icon: "fas fa-info-circle" },
+  critical: { badge: "danger", icon: "fas fa-shield-virus", label: "Critical Security Issue" },
+  high: { badge: "danger", icon: "fas fa-exclamation-triangle", label: "High Risk" },
+  medium: { badge: "warning", icon: "fas fa-exclamation-circle", label: "Medium Risk" },
+  low: { badge: "info", icon: "fas fa-info-circle", label: "Low Risk" },
+  info: { badge: "secondary", icon: "fas fa-lightbulb", label: "Best Practice" },
+  performance: { badge: "primary", icon: "fas fa-bolt", label: "Performance" }
 }
 
 export interface TooltipPopOverProps {
@@ -25,7 +28,7 @@ export interface TooltipPopOverProps {
 interface KeywordData {
   title: string
   body: string
-  risk: 'high' | 'medium' | 'low'
+  risk: 'critical' | 'high' | 'medium' | 'low' | 'info' | 'performance'
   riskLabel: string
 }
 
@@ -361,9 +364,11 @@ Return a JSON response with the following structure:
 {
   "title": "Code Analysis",
   "body": "Brief explanation of what this code does and any security implications",
-  "risk": "high|medium|low",
+  "risk": "critical|high|medium|low|info|performance",
   "riskLabel": "Short risk description"
 }
+
+Choose risk level based on severity: critical for security vulnerabilities, high for dangerous patterns, medium for warnings, low for minor issues, info for best practices, performance for gas optimization.
 
 Focus on security implications and provide practical guidance for smart contract developers. The body should contain max 50 words.`
             : `Analyze this ${fileLanguage} code snippet:
@@ -374,9 +379,11 @@ Return a JSON response with the following structure:
 {
   "title": "Code Analysis",
   "body": "Brief explanation of what this code does and any potential issues or best practices",
-  "risk": "high|medium|low",
+  "risk": "critical|high|medium|low|info|performance",
   "riskLabel": "Short risk description"
 }
+
+Choose risk level based on severity: critical for major bugs/security, high for dangerous patterns, medium for warnings, low for minor issues, info for tips, performance for optimization.
 
 Focus on code quality, potential issues, and best practices for ${fileLanguage}. The body should contain max 50 words.`
           : // Single word selection - analyze with context lines
@@ -389,9 +396,11 @@ Return a JSON response with the following structure:
 {
   "title": "Code Analysis",
   "body": "Brief explanation of what "${keyword}" does and any security implications in this context",
-  "risk": "high|medium|low",
+  "risk": "critical|high|medium|low|info|performance",
   "riskLabel": "Short risk description"
 }
+
+Choose risk level based on severity: critical for security vulnerabilities, high for dangerous patterns, medium for warnings, low for minor issues, info for best practices, performance for gas optimization.
 
 Focus on security implications and provide practical guidance for smart contract developers. The body should contain max 40 words. Consider the surrounding code context.`
             : `Analyze this ${fileLanguage} code snippet focusing on the keyword "${keyword}":
@@ -402,9 +411,11 @@ Return a JSON response with the following structure:
 {
   "title": "Code Analysis",
   "body": "Brief explanation of what "${keyword}" does and any potential issues in this context",
-  "risk": "high|medium|low",
+  "risk": "critical|high|medium|low|info|performance",
   "riskLabel": "Short risk description"
 }
+
+Choose risk level based on severity: critical for major bugs/security, high for dangerous patterns, medium for warnings, low for minor issues, info for tips, performance for optimization.
 
 Focus on code quality, potential issues, and best practices for ${fileLanguage}. The body should contain max 40 words. Consider the surrounding code context.`
 
