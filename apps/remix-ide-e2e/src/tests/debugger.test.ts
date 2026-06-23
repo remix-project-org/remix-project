@@ -6,7 +6,6 @@ import { releaseAccount } from '../helpers/pool'
 const poolApiKey = process.env.E2E_POOL_API_KEY || ''
 
 module.exports = {
-  '@disabled': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
     if (!poolApiKey) {
       console.error('[Debugger] E2E_POOL_API_KEY not set — AI assistant steps will fail without it')
@@ -48,6 +47,8 @@ module.exports = {
   // Pool login — runs for every group so AI-assistant-backed steps work.
   // Mirrors the pattern used in testPoolLogin.test.ts / chatHistory.test.ts.
   // ──────────────────────────────────────────────────────────────────────
+  // DISABLED: Requires E2E_POOL_API_KEY
+  /*
   'Should enable login and show sign-in button': function (browser: NightwatchBrowser) {
     browser
       .execute(function () {
@@ -74,6 +75,7 @@ module.exports = {
       })
       .pause(5000)
   },
+  */
 
   'Should launch debugger #group1': function (browser: NightwatchBrowser) {
     browser.addFile('blah.sol', sources[0]['blah.sol'])
@@ -192,6 +194,8 @@ module.exports = {
       .waitForElementContainsText('*[data-id="txValue"]', '0 Wei')
   },
 
+  // DISABLED: Requires E2E_POOL_API_KEY for AI assistant authentication
+  /*
   'Should click Ask RemixAI while debugging and open assistant on right side #group1': function (browser: NightwatchBrowser) {
     browser
       // Step 1: Stop any existing debugger session
@@ -280,6 +284,7 @@ module.exports = {
         selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
       }, 60000) // Wait for streaming to complete
   },
+  */
 
   'Should display solidity imported code while debugging github import #group2': function (browser: NightwatchBrowser) {
     browser
