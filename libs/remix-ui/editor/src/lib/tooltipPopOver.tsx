@@ -14,6 +14,47 @@ const RISK_CONFIG = {
   performance: { badge: "primary", icon: "fas fa-bolt", label: "Performance" }
 }
 
+// Trusted documentation domains to prevent 404 errors
+const TRUSTED_DOCS = {
+  solidity: [
+    'https://docs.soliditylang.org',
+    'https://solidity.readthedocs.io',
+    'https://docs.openzeppelin.com',
+    'https://consensys.net/diligence',
+    'https://swcregistry.io',
+    'https://blog.openzeppelin.com',
+    'https://ethereum.org'
+  ],
+  general: [
+    'https://developer.mozilla.org',
+    'https://docs.python.org',
+    'https://docs.rs',
+    'https://go.dev/doc',
+    'https://docs.oracle.com/javase'
+  ]
+}
+
+// Generate trusted URL list for AI prompt
+const getTrustedUrlsForPrompt = (isSolidityFile: boolean): string => {
+  const urls = isSolidityFile ? TRUSTED_DOCS.solidity : [...TRUSTED_DOCS.solidity, ...TRUSTED_DOCS.general]
+  return urls.join(', ')
+}
+
+// Validate if URL is from a trusted domain
+const isValidDocUrl = (url: string): boolean => {
+  if (!url) return false
+  try {
+    const urlObj = new URL(url)
+    const allTrustedDomains = [...TRUSTED_DOCS.solidity, ...TRUSTED_DOCS.general]
+    return allTrustedDomains.some(trusted => {
+      const trustedDomain = new URL(trusted).hostname
+      return urlObj.hostname === trustedDomain || urlObj.hostname.endsWith(`.${trustedDomain}`)
+    })
+  } catch {
+    return false
+  }
+}
+
 export interface TooltipPopOverProps {
   keyword: string
   position: { x: number; y: number }
@@ -25,11 +66,28 @@ export interface TooltipPopOverProps {
   isSelectedText?: boolean
 }
 
+interface CodeActionSuggestion {
+  id: string
+  title: string
+  description?: string
+  newCode: string  // The complete new code to replace current selection/file
+  severity?: 'safe' | 'review'
+}
+
+interface DocumentationLink {
+  title: string
+  url: string
+  description?: string
+  category?: 'security' | 'best-practice' | 'reference' | 'tutorial'
+}
+
 interface KeywordData {
   title: string
   body: string
   risk: 'critical' | 'high' | 'medium' | 'low' | 'info' | 'performance'
   riskLabel: string
+  suggestions?: CodeActionSuggestion[]
+  relatedDocs?: DocumentationLink[]
 }
 
 // Utility function to open contextual tooltip
@@ -342,6 +400,77 @@ export const TooltipPopOver: React.FC<TooltipPopOverProps> = ({
   const [fromCache, setFromCache] = useState(false)
   const risk = data ? RISK_CONFIG[data.risk] : null
 
+  /**
+   * Apply a code action suggestion using the existing showCustomDiff mechanism
+   */
+  const applySuggestion = async (suggestion: CodeActionSuggestion) => {
+    if (!plugin) return
+
+    try {
+      // Get current file
+      const currentFile = await plugin.call('fileManager', 'getCurrentFile')
+      if (!currentFile) {
+        await plugin.call('notification', 'toast', 'No file is currently open')
+        return
+      }
+
+      // Get current content
+      const currentContent = await plugin.call('fileManager', 'readFile', currentFile)
+
+      // For single-word selection with context, we need to replace just the current line
+      // For multi-word selection, we replace the entire selection
+      let newContent: string
+
+      if (contextLines && contextLines.length > 0) {
+        // Single word selection - replace the current line
+        const lines = currentContent.split('\n')
+        const contextLineMatch = contextLines.match(/Current line: (.+)/i)
+
+        if (contextLineMatch) {
+          const currentLine = contextLineMatch[1].trim()
+          // Find the line in the file
+          const lineIndex = lines.findIndex((line: string) => line.trim() === currentLine)
+
+          if (lineIndex !== -1) {
+            // Replace the line
+            lines[lineIndex] = suggestion.newCode
+            newContent = lines.join('\n')
+          } else {
+            // Fallback: replace the keyword
+            newContent = currentContent.replace(keyword, suggestion.newCode)
+          }
+        } else {
+          // Fallback
+          newContent = currentContent.replace(keyword, suggestion.newCode)
+        }
+      } else {
+        // Multi-word selection - replace the selected text with the new code
+        newContent = currentContent.replace(keyword, suggestion.newCode)
+      }
+
+      // Use the existing showCustomDiff API to show accept/decline widgets
+      await plugin.call('editor', 'showCustomDiff', currentFile, newContent)
+
+      // Close the tooltip
+      onClose()
+      if (onClearSelection) {
+        onClearSelection()
+      }
+
+      // Track the action
+      trackMatomoEvent({
+        category: 'ai',
+        action: 'remixAI',
+        name: 'contextual_popup_apply_suggestion',
+        isClick: true,
+        value: suggestion.id
+      })
+    } catch (error: any) {
+      console.error('Failed to apply suggestion:', error)
+      await plugin.call('notification', 'toast', `Failed to apply fix: ${error?.message || 'Unknown error'}`)
+    }
+  }
+
   // Fetch keyword data from remixAI
   useEffect(() => {
     if (!visible || !plugin || !keyword) return
@@ -370,71 +499,86 @@ export const TooltipPopOver: React.FC<TooltipPopOverProps> = ({
         // Determine if we have context (single word selection) or not (multi-word selection)
         const hasContext = contextLines && contextLines.length > 0
 
+        // Get trusted documentation URLs for the prompt
+        const trustedUrls = getTrustedUrlsForPrompt(isSolidityFile)
+
         const prompt = isSelectedText && !hasContext
           ? // Multi-word/multi-line selection - analyze the code snippet directly
           isSolidityFile
-            ? `Analyze this Web3/Solidity code snippet:
+            ? `Analyze this Solidity code snippet:
 
 ${keyword}
 
-Return a JSON response with the following structure:
+Return ONLY valid JSON (no markdown, no explanation):
 {
-  "title": "Code Analysis",
-  "body": "Brief explanation of what this code does and any security implications",
+  "title": "Brief title",
+  "body": "Explanation (max 50 words)",
   "risk": "critical|high|medium|low|info|performance",
-  "riskLabel": "Short risk description"
+  "riskLabel": "Short description",
+  "suggestions": [{"id": "1", "title": "Fix description", "newCode": "Fixed code", "severity": "safe"}],
+  "relatedDocs": [{"title": "Doc name", "url": "https://...", "category": "security"}]
 }
 
-Choose risk level based on severity: critical for security vulnerabilities, high for dangerous patterns, medium for warnings, low for minor issues, info for best practices, performance for gas optimization.
-
-Focus on security implications and provide practical guidance for smart contract developers. The body should contain max 50 words.`
-            : `Analyze this ${fileLanguage} code snippet:
+Risk levels: critical=security, high=dangerous, medium=warning, low=minor, info=tip, performance=gas.
+Include "suggestions" with fixes if applicable (can be empty array).
+For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
+Use empty array if no relevant trusted docs.`
+            : `Analyze this ${fileLanguage} code:
 
 ${keyword}
 
-Return a JSON response with the following structure:
+Return ONLY valid JSON (no markdown, no explanation):
 {
-  "title": "Code Analysis",
-  "body": "Brief explanation of what this code does and any potential issues or best practices",
+  "title": "Brief title",
+  "body": "Explanation (max 50 words)",
   "risk": "critical|high|medium|low|info|performance",
-  "riskLabel": "Short risk description"
+  "riskLabel": "Short description",
+  "suggestions": [{"id": "1", "title": "Fix description", "newCode": "Fixed code", "severity": "safe"}],
+  "relatedDocs": [{"title": "Doc name", "url": "https://...", "category": "best-practice"}]
 }
 
-Choose risk level based on severity: critical for major bugs/security, high for dangerous patterns, medium for warnings, low for minor issues, info for tips, performance for optimization.
-
-Focus on code quality, potential issues, and best practices for ${fileLanguage}. The body should contain max 50 words.`
+Risk levels: critical=severe, high=dangerous, medium=warning, low=minor, info=tip, performance=optimization.
+Include "suggestions" with fixes if applicable (can be empty array).
+For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
+Use empty array if no relevant trusted docs.`
           : // Single word selection - analyze with context lines
           isSolidityFile
-            ? `Analyze this Web3/Solidity code snippet focusing on the keyword "${keyword}":
+            ? `Analyze Solidity code focusing on "${keyword}":
 
 ${contextLines}
 
-Return a JSON response with the following structure:
+Return ONLY valid JSON (no markdown):
 {
-  "title": "Code Analysis",
-  "body": "Brief explanation of what "${keyword}" does and any security implications in this context",
+  "title": "Brief title",
+  "body": "Explanation about ${keyword} (max 40 words)",
   "risk": "critical|high|medium|low|info|performance",
-  "riskLabel": "Short risk description"
+  "riskLabel": "Short description",
+  "suggestions": [{"id": "1", "title": "Fix description", "newCode": "Complete fixed line", "severity": "safe"}],
+  "relatedDocs": [{"title": "Doc name", "url": "https://...", "category": "security"}]
 }
 
-Choose risk level based on severity: critical for security vulnerabilities, high for dangerous patterns, medium for warnings, low for minor issues, info for best practices, performance for gas optimization.
-
-Focus on security implications and provide practical guidance for smart contract developers. The body should contain max 40 words. Consider the surrounding code context.`
-            : `Analyze this ${fileLanguage} code snippet focusing on the keyword "${keyword}":
+Risk: critical=security, high=dangerous, medium=warning, low=minor, info=tip, performance=gas.
+"suggestions" array can be empty if no fixes needed.
+For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
+Use empty array if no relevant trusted docs.`
+            : `Analyze ${fileLanguage} code focusing on "${keyword}":
 
 ${contextLines}
 
-Return a JSON response with the following structure:
+Return ONLY valid JSON (no markdown):
 {
-  "title": "Code Analysis",
-  "body": "Brief explanation of what "${keyword}" does and any potential issues in this context",
+  "title": "Brief title",
+  "body": "Explanation about ${keyword} (max 40 words)",
   "risk": "critical|high|medium|low|info|performance",
-  "riskLabel": "Short risk description"
+  "riskLabel": "Short description",
+  "suggestions": [{"id": "1", "title": "Fix description", "newCode": "Complete fixed line", "severity": "safe"}],
+  "relatedDocs": [{"title": "Doc name", "url": "https://...", "category": "best-practice"}]
 }
 
-Choose risk level based on severity: critical for major bugs/security, high for dangerous patterns, medium for warnings, low for minor issues, info for tips, performance for optimization.
-
-Focus on code quality, potential issues, and best practices for ${fileLanguage}. The body should contain max 40 words. Consider the surrounding code context.`
+Risk: critical=severe, high=dangerous, medium=warning, low=minor, info=tip, performance=optimization.
+"suggestions" array can be empty if no fixes needed.
+For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
+Use empty array if no relevant trusted docs.`
 
         // Wrap API call with timeout to detect if AI is busy
         const apiCallPromise = plugin.call('remixAI', 'basic_prompt', prompt)
@@ -465,35 +609,69 @@ Focus on code quality, potential issues, and best practices for ${fileLanguage}.
         let parsedData: KeywordData
         try {
           let jsonStr = response.result || response
+
+          // Log the raw response for debugging
+          console.log('[TooltipPopOver] Raw AI response:', jsonStr)
+
+          // Try to extract JSON from the response
           const jsonMatch = jsonStr.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
             jsonStr = jsonMatch[0]
           }
 
           parsedData = JSON.parse(jsonStr)
+
+          // Validate required fields
           if (!parsedData.title || !parsedData.body || !parsedData.risk || !parsedData.riskLabel) {
+            console.warn('[TooltipPopOver] Missing required fields:', parsedData)
             throw new Error('Missing required fields in response')
           }
-        } catch (parseError) {
+
+          // Validate and filter documentation URLs
+          if (parsedData.relatedDocs && Array.isArray(parsedData.relatedDocs)) {
+            const validDocs = parsedData.relatedDocs.filter(doc => {
+              const isValid = isValidDocUrl(doc.url)
+              if (!isValid) {
+                console.warn('[TooltipPopOver] Filtered out invalid/untrusted URL:', doc.url)
+              }
+              return isValid
+            })
+            parsedData.relatedDocs = validDocs
+
+            if (validDocs.length !== parsedData.relatedDocs.length) {
+              console.log('[TooltipPopOver] Filtered documentation URLs. Valid:', validDocs.length, 'Total:', parsedData.relatedDocs.length)
+            }
+          }
+
+          // Log successful parse
+          console.log('[TooltipPopOver] Successfully parsed AI response:', parsedData)
+        } catch (parseError: any) {
+          console.error('[TooltipPopOver] Failed to parse AI response:', parseError)
+          console.error('[TooltipPopOver] Raw response was:', response)
+
+          // Show more helpful error message
           parsedData = {
-            title: 'Code Analysis',
-            body: `Unable to parse analysis for ${keyword}`,
-            risk: 'medium' as const,
-            riskLabel: 'Review needed'
+            title: 'Analysis Failed',
+            body: `AI returned invalid response. This might be due to the model being overloaded or the prompt being too complex. Try selecting simpler code or try again later.`,
+            risk: 'info' as const,
+            riskLabel: 'Parse Error'
           }
         }
 
         // Cache the successful result
         setCachedAnalysis(cacheKey, parsedData)
         setData(parsedData)
-      } catch (error) {
-        console.error('Failed to fetch keyword info:', error)
-        // Fallback data
+      } catch (error: any) {
+        console.error('[TooltipPopOver] Failed to fetch keyword info:', error)
+        console.error('[TooltipPopOver] Error details:', error?.message, error?.stack)
+
+        // Show more helpful error message
+        const errorMessage = error?.message || 'Unknown error'
         setData({
-          title: 'Code Analysis',
-          body: `Unable to fetch information about ${keyword}`,
-          risk: 'medium' as const,
-          riskLabel: 'Unknown'
+          title: 'Analysis Error',
+          body: `Failed to get AI analysis: ${errorMessage}. The RemixAI service might be unavailable or experiencing issues.`,
+          risk: 'info' as const,
+          riskLabel: 'Service Error'
         })
       } finally {
         setLoading(false)
@@ -835,6 +1013,83 @@ ${fileContent}
                   Do not show analysis for this session
               </button>
             </div>
+
+            {/* Code Action Suggestions */}
+            {data.suggestions && data.suggestions.length > 0 && (
+              <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--bs-border-color)' }}>
+                <div className="mb-2" style={{ fontSize: '0.7rem', fontWeight: 600, opacity: 0.8 }}>
+                  <i className="fas fa-magic me-1" style={{ fontSize: '0.65rem' }}></i>
+                  Quick Fixes:
+                </div>
+                <div className="d-flex flex-column gap-1">
+                  {data.suggestions.map((suggestion, idx) => (
+                    <button
+                      key={suggestion.id || idx}
+                      className="btn btn-sm btn-outline-primary text-start d-flex align-items-center justify-content-between"
+                      style={{ fontSize: '0.7rem', padding: '4px 8px' }}
+                      title={suggestion.description || suggestion.title}
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        await applySuggestion(suggestion)
+                      }}
+                    >
+                      <span className="d-flex align-items-center gap-2">
+                        <i className="fas fa-code" style={{ fontSize: '0.65rem' }}></i>
+                        <span>{suggestion.title}</span>
+                      </span>
+                      {suggestion.severity === 'review' && (
+                        <span className="badge bg-warning text-dark" style={{ fontSize: '0.55rem' }}>
+                          Review
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Documentation Links */}
+            {data.relatedDocs && data.relatedDocs.length > 0 && (
+              <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--bs-border-color)' }}>
+                <div className="mb-2" style={{ fontSize: '0.7rem', fontWeight: 600, opacity: 0.8 }}>
+                  <i className="fas fa-book me-1" style={{ fontSize: '0.65rem' }}></i>
+                  Learn More:
+                </div>
+                <div className="d-flex flex-column gap-1">
+                  {data.relatedDocs.map((doc, idx) => (
+                    <a
+                      key={idx}
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-decoration-none d-flex align-items-center justify-content-between"
+                      style={{ fontSize: '0.7rem', color: 'var(--bs-primary)' }}
+                      title={doc.description || doc.title}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        trackMatomoEvent({
+                          category: 'ai',
+                          action: 'remixAI',
+                          name: 'contextual_popup_doc_link_clicked',
+                          isClick: true,
+                          value: doc.url
+                        })
+                      }}
+                    >
+                      <span>
+                        <i className="fas fa-external-link-alt me-1" style={{ fontSize: '0.6rem' }}></i>
+                        {doc.title}
+                      </span>
+                      {doc.category && (
+                        <span className="badge bg-secondary" style={{ fontSize: '0.55rem' }}>
+                          {doc.category}
+                        </span>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div style={{ fontSize: "0.8rem", color: "var(--bs-secondary)" }}>
