@@ -504,13 +504,12 @@ export function RemixUiSkillsExplorerModal(props: RemixUiSkillsExplorerModalProp
                       <div className="category-description mb-4">
                         Select one or more Ethereum development skills to add to your workspace
                       </div>
-
                       {!hasAdvancedSkills && (
-                        <div className="alert alert-info mb-3" role="alert">
+                        <div onClick={() => plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.SKILLS_ADVANCED }) } className="alert alert-info mb-3" role="alert" style={{ cursor: 'pointer' }}>
                           <i className="fa-solid fa-info-circle me-2"></i>
                           {hasBasicSkills
-                            ? "You have access to basic skills. More skills coming soon."
-                            : "Basic skills are available to all users. More skills coming soon."}
+                            ? "You have access to basic skills. Upgrade to access all skills."
+                            : "Basic skills are available to all users. Upgrade to access all skills."}
                         </div>
                       )}
 
