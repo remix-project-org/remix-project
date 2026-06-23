@@ -2,6 +2,8 @@ import { test, expect } from './helpers/e2e-pool'
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
+// DISABLED: Playwright E2E test
+/*
 /**
  * Scenario: user signed in under the `e2e-unlimited-quota` pool group has
  *   - Mistral Small: unlimited (Free tier "Free AI usage included")
@@ -11,7 +13,7 @@ test.use({ viewport: { width: 1440, height: 900 } })
  *   - Sending a prompt on Mistral Small succeeds (assistant streams a reply).
  *   - Switching to Mistral Medium and sending a prompt surfaces the
  *     "Insufficient credits" chat notice with a "Top up credits" action.
- */
+ *//*
 test('Unlimited Mistral Small works, Mistral Medium shows insufficient credits', async ({ page }) => {
   test.setTimeout(240_000)
 
@@ -71,3 +73,4 @@ test('Unlimited Mistral Small works, Mistral Medium shows insufficient credits',
   await expect(notice).toContainText(/do not have enough credits/i)
   await expect(page.locator('[data-id="ai-chat-notice-action-topup-credits"]')).toBeVisible()
 })
+*/

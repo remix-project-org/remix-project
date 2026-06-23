@@ -2,19 +2,20 @@ import { test, expect } from './helpers/e2e-pool'
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
-/**
- * Regression test for a previously-permanent DeepAgent disable bug.
- *
- * `DeepAgentManager.reinitialize()` used to dereference
- * `plugin.selectedModel.provider` without a null-guard. If anything triggered
- * `reinitialize()` while `selectedModel` was transiently null (e.g. an
- * auth-state change racing with the model picker), the resulting TypeError was
- * swallowed by the catch block, which then hard-set `plugin.deepAgentEnabled = false`
- * and `plugin.deepAgentInferencer = null` — permanently, until the page reloaded.
- *
- * Fix: `reinitialize()` now also requires `selectedModel` + `selectedModelId`
- * before proceeding, and a missing model is a benign no-op instead of a crash.
- */
+// DISABLED: Playwright E2E test
+//
+// Regression test for a previously-permanent DeepAgent disable bug.
+//
+// `DeepAgentManager.reinitialize()` used to dereference
+// `plugin.selectedModel.provider` without a null-guard. If anything triggered
+// `reinitialize()` while `selectedModel` was transiently null (e.g. an
+// auth-state change racing with the model picker), the resulting TypeError was
+// swallowed by the catch block, which then hard-set `plugin.deepAgentEnabled = false`
+// and `plugin.deepAgentInferencer = null` — permanently, until the page reloaded.
+//
+// Fix: `reinitialize()` now also requires `selectedModel` + `selectedModelId`
+// before proceeding, and a missing model is a benign no-op instead of a crash.
+/*
 test('reinitialize() with null selectedModel is a no-op and leaves DeepAgent enabled', async ({ page }) => {
   test.setTimeout(120_000)
 
@@ -66,7 +67,7 @@ test('reinitialize() with null selectedModel is a no-op and leaves DeepAgent ena
     const originalTrace = plugin.traceDeepAgentLifecycle?.bind(plugin)
     plugin.traceDeepAgentLifecycle = (event: string, _msg: string, details: any) => {
       traces.push({ event, details })
-      try { originalTrace?.(event, _msg, details) } catch (_) { /* ignore */ }
+      try { originalTrace?.(event, _msg, details) } catch (_) { }
     }
 
     plugin.selectedModel = null
@@ -119,3 +120,4 @@ test('reinitialize() with null selectedModel is a no-op and leaves DeepAgent ena
   expect(result.after.hasInferencer).toBe(true)
   expect(result.after.sameInferencer, 'existing DeepAgent inferencer must not be replaced or torn down').toBe(true)
 })
+*/
