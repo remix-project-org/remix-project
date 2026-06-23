@@ -9,7 +9,7 @@ import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse,
 //@ts-ignore
 import '../css/color.css'
 import { ModalTypes } from '@remix-ui/app'
-import { MatomoEvent, AIEvent } from '@remix-api'
+import { MatomoEvent, AIEvent, Features, PublicPlan } from '@remix-api'
 //@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
 import { ChatHistoryComponent } from './chat'
@@ -133,6 +133,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // Permission state for specific features
   const [hasAuditorPermission, setHasAuditorPermission] = useState(false)
   const [hasSkillsPermission, setHasSkillsPermission] = useState(false)
+  // Public plans catalog (feature -> plan tier), loaded once on mount.
+  // Used to label upsell CTAs with the cheapest plan granting a feature.
+  const [publicPlans, setPublicPlans] = useState<PublicPlan[]>([])
 
   const [mcpEnhanced, setMcpEnhanced] = useState(false)
   const [pendingApprovals, setPendingApprovals] = useState<ToolApprovalRequest[]>([])
@@ -452,6 +455,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     let isRefreshing = false // avoid circular calls
 
     const handleAuthStateChanged = async (authState: any) => {
+      // Mirror the auth flag immediately (no debounce) so the composer's
+      // sign-in CTA + disabled input react the instant the user logs out.
+      // The assistantState `stateChanged` event isn't guaranteed to re-fire
+      // on logout, so this is the reliable signal — same one the model
+      // selector resets from below.
+      setIsAuthenticated(!!authState?.isAuthenticated)
+
       if (isRefreshing) return
 
       if (refreshTimeout) {
@@ -973,15 +983,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (typeof entry === 'boolean') return entry
         return entry?.is_enabled !== false && entry?.allowed !== false
       }
-      const comingSoon = isOn('ai:modes_coming_soon')
+      const comingSoon = isOn(Features.AI_MODES_COMING_SOON)
 
       // Check specific feature permissions
-      setHasAuditorPermission(isOn('ai:auditor'))
-      setHasSkillsPermission(isOn('ai:skills'))
+      setHasAuditorPermission(isOn(Features.AI_AUDITOR))
+      setHasSkillsPermission(isOn(Features.AI_SKILLS))
 
       const nextPillStates = {
-        upgrade: comingSoon ? 'coming_soon' : isOn('ai:upgrade_available') ? 'available' : 'hidden',
-        buyCredits: comingSoon ? 'hidden' : isOn('ai:buy_credits') ? 'available' : 'hidden'
+        upgrade: comingSoon ? 'coming_soon' : isOn(Features.AI_UPGRADE_AVAILABLE) ? 'available' : 'hidden',
+        buyCredits: comingSoon ? 'hidden' : isOn(Features.AI_BUY_CREDITS) ? 'available' : 'hidden'
       } as const
       setPillStates(nextPillStates)
       void refreshCooldown()
@@ -1009,6 +1019,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           onAssistantStateChange(snap)
         }
       } catch { /* assistantState not active */ }
+    })()
+
+    // Load the public plans catalog once so upsell badges can name the
+    // cheapest plan that grants a locked feature (e.g. "Pro").
+    ;(async () => {
+      try {
+        const plans: PublicPlan[] = await props.plugin.call('auth' as any, 'getPublicPlans')
+        if (Array.isArray(plans) && plans.length) setPublicPlans(plans)
+      } catch { /* auth plugin not active */ }
     })()
 
     // Human-in-the-loop: listen for tool approval requests (batch processing)
@@ -2242,6 +2261,33 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'composer_sign_in_click', isClick: true })
   }, [props.plugin, trackMatomoEvent])
 
+  // Hand-off when a user picks a slash command they lack the entitlement
+  // for. Opens the plan-manager on the feature-required section with the
+  // first missing feature so the upsell is contextual. Falls back to the
+  // legacy beta widget when planManager isn't active (e.g. tests).
+  const handleFeatureUpgradeRequired = useCallback((commandName: string, missingFeature: string) => {
+    // When the user isn't signed in yet, the real gate is authentication, not
+    // a plan tier — so route to the sign-in flow (same hand-off as the locked
+    // model picker / composer CTA) and let the upsell happen post-login.
+    const reason = isAuthenticated ? 'feature-required' : 'auth-required'
+    const requiredFeature = isAuthenticated ? missingFeature : null
+    props.plugin.call('planManager' as any, 'open', { reason, requiredFeature }).catch(() => {
+      props.plugin.call('betaCornerWidget', 'show').catch(() => { /* noop */ })
+    })
+    trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'command_upgrade_required', value: commandName, isClick: true })
+  }, [props.plugin, trackMatomoEvent, isAuthenticated])
+
+  // Resolve the cheapest plan tier that grants a given feature, returning
+  // its display name (e.g. "Pro") so the UI can label the upsell badge.
+  // Picks the lowest-priority (cheapest) plan whose feature is enabled.
+  const getRequiredPlanName = useCallback((feature: string): string | null => {
+    if (!publicPlans.length) return null
+    const granting = publicPlans
+      .filter((plan) => plan.features?.some((f) => f.feature_name === feature && f.is_enabled !== false))
+      .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+    return granting[0]?.display_name ?? null
+  }, [publicPlans])
+
   const modalMessage = () => {
     return (
       <ul className="p-3">
@@ -2821,6 +2867,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               onSignIn={handleSignIn}
               hasAuditorPermission={hasAuditorPermission}
               hasSkillsPermission={hasSkillsPermission}
+              onUpgradeRequired={handleFeatureUpgradeRequired}
+              getRequiredPlanName={getRequiredPlanName}
             />
           ) : (
             <AiChatPromptArea
@@ -2877,6 +2925,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               onSignIn={handleSignIn}
               hasAuditorPermission={hasAuditorPermission}
               hasSkillsPermission={hasSkillsPermission}
+              onUpgradeRequired={handleFeatureUpgradeRequired}
+              getRequiredPlanName={getRequiredPlanName}
             />
           )
         }

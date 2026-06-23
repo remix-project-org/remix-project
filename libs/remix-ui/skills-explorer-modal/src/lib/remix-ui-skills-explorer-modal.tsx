@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@remix-ui/app'
+import { Features } from '@remix-api'
 import { CustomTooltip } from '@remix-ui/helper'
 import JSZip from 'jszip'
 import './remix-ui-skills-explorer-modal.css'
@@ -29,8 +30,8 @@ export interface RemixUiSkillsExplorerModalProps {
 
 export function RemixUiSkillsExplorerModal(props: RemixUiSkillsExplorerModalProps) {
   const { features } = useAuth()
-  const hasBasicSkills = !!features['skills:basic']
-  const hasAdvancedSkills = !!features['skills:advanced']
+  const hasBasicSkills = !!features[Features.SKILLS_BASIC]
+  const hasAdvancedSkills = !!features[Features.SKILLS_ADVANCED]
   const { isOpen, onClose, plugin } = props
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [loading, setLoading] = useState<boolean>(false)

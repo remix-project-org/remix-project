@@ -22,7 +22,7 @@ import { GitHubLogin } from '../components/gitLogin'
 import { CustomTooltip } from 'libs/remix-ui/helper/src/lib/components/custom-tooltip'
 import { useCloneRepositoryModal } from '../components/CloneRepositoryModal'
 import { TrackingContext } from '@remix-ide/tracking'
-import { MatomoEvent, TopbarEvent, WorkspaceEvent, LoginMode, LoginModeResponse } from '@remix-api'
+import { MatomoEvent, TopbarEvent, WorkspaceEvent, LoginMode, LoginModeResponse, Features } from '@remix-api'
 import { LoginButton } from '@remix-ui/login'
 import { LoginModal } from 'libs/remix-ui/login/src/lib/modals/login-modal'
 import { appActionTypes } from 'libs/remix-ui/app/src/lib/remix-app/actions/app'
@@ -121,7 +121,7 @@ export function RemixUiTopbar() {
     return true
   }
 
-  const hasCloudStoragePermission = features['storage:s3']?.is_enabled === true
+  const hasCloudStoragePermission = features[Features.STORAGE_S3]?.is_enabled === true
   const showCloudToggle = showLoginUI && cloudEnabledByConfig && cloudEnabled && hasCloudStoragePermission && isVisibleByAudience(cloudVisibilityMode, isAuthenticated)
   const showNotificationBell = isVisibleByAudience(notificationMode, isAuthenticated)
 

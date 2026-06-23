@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { Features } from '@remix-api'
 
 export interface Command {
   name: string
@@ -7,6 +8,7 @@ export interface Command {
   category?: string
   action?: () => void
   disabled?: boolean
+  requiredFeatures: string[] // List of required features for this command
 }
 
 interface AutocompletePanelProps {
@@ -18,6 +20,14 @@ interface AutocompletePanelProps {
   selectedIndex: number
   onSelectedIndexChange: (index: number) => void
   extraCommands?: Command[]
+  /** Predicate telling whether the signed-in user has a given feature. Defaults to always-true. */
+  hasFeature?: (feature: string) => boolean
+  /** Whether the user is signed in. When false, locked commands surface a "Sign in" badge instead of a plan name. */
+  isAuthenticated?: boolean
+  /** Called when the user picks a command they are not entitled to. Receives the missing feature key. */
+  onUpgradeRequired?: (command: Command, missingFeature: string) => void
+  /** Resolves a missing feature to the cheapest plan that grants it (e.g. "Pro") for the upsell badge. */
+  getRequiredPlanName?: (feature: string) => string | null
 }
 
 // Available commands - this could be moved to a config file or fetched dynamically
@@ -29,13 +39,13 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'ollama', description: 'Configure Ollama integration', category: 'Settings' },
 
   // Compilation & Analysis
-  { name: 'compile', description: 'Compile contract', category: 'Build' },
+  { name: 'compile', description: 'Compile contract', category: 'Build', requiredFeatures: [Features.AI_SOLCODER] },
   // { name: 'slither', description: 'Run Slither security analysis', category: 'Analysis' },
   // { name: 'mythril', description: 'Run Mythril security scan', category: 'Analysis' },
 
   // Deployment & Verification
-  { name: 'deploy', description: 'Deploy contract to network', category: 'Deploy' },
-  { name: 'etherscan', description: 'Fetch contract from Etherscan and call the Etherscan service', category: 'Import' },
+  { name: 'deploy', description: 'Deploy contract to network', category: 'Deploy', requiredFeatures: [Features.AI_SOLCODER] },
+  { name: 'etherscan', description: 'Fetch contract from Etherscan and call the Etherscan service', category: 'Import', requiredFeatures: [Features.MCP_ETHERSCAN] },
   // { name: 'verify', description: 'Verify contract on block explorer', category: 'Deploy' },
 
   // Testing & Debugging
@@ -43,9 +53,9 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'debug', description: 'Debug transaction', category: 'Debug' },
 
   // DeFi & Integrations
-  { name: 'thegraph', description: 'Fetch data from The Graph', category: 'Data' },
-  { name: 'alchemy', description: 'Fetch data from Alchemy', category: 'Data' },
-  { name: 'circle', description: 'Circle integration', category: 'DeFi' },
+  { name: 'thegraph', description: 'Fetch data from The Graph', category: 'Data', requiredFeatures: [Features.MCP_THEGRAPH] },
+  { name: 'alchemy', description: 'Fetch data from Alchemy', category: 'Data', requiredFeatures: [Features.MCP_ALCHEMY] },
+  { name: 'circle', description: 'Circle integration', category: 'DeFi', requiredFeatures: [Features.MCP_CIRCLE] },
   // { name: 'uniswap', description: 'Uniswap integration', category: 'DeFi' },
   // { name: 'aave', description: 'Aave integration', category: 'DeFi' },
 
@@ -54,9 +64,9 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'docs', description: 'Open documentation', category: 'Help' },
 
   // Frontend & UI
-  { name: 'create a dapp [quickdapp agent]', description: 'DApp development', category: 'Frontend' },
+  { name: 'create a dapp [quickdapp agent]', description: 'DApp development', category: 'Frontend', requiredFeatures: [Features.DAPP_QUICKDAPP] },
 
-  { name: 'audit a contract. I am going to give you the actual file name.', description: 'Contract auditing', category: 'Security' },
+  { name: 'audit a contract. I am going to give you the actual file name.', description: 'Contract auditing', category: 'Security', requiredFeatures: [Features.AI_AUDITOR] },
 ]
 
 export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
@@ -67,11 +77,23 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
   themeTracker,
   selectedIndex,
   onSelectedIndexChange,
-  extraCommands = []
+  extraCommands = [],
+  hasFeature,
+  isAuthenticated = true,
+  onUpgradeRequired,
+  getRequiredPlanName
 }) => {
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([])
   const panelRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  // Returns the first required feature the user is missing, or null when the
+  // command is fully unlocked. When no predicate is supplied we assume the
+  // user is entitled (keeps the panel usable in tests / standalone previews).
+  const getMissingFeature = (cmd: Command): string | null => {
+    if (!hasFeature || !cmd.requiredFeatures?.length) return null
+    return cmd.requiredFeatures.find((f) => !hasFeature(f)) ?? null
+  }
 
   useEffect(() => {
     if (!searchTerm || !searchTerm.startsWith('/')) {
@@ -207,6 +229,11 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
               {commands.map((cmd) => {
                 const index = flatCommands.indexOf(cmd)
                 const isSelected = index === selectedIndex
+                const missingFeature = getMissingFeature(cmd)
+                const isLocked = missingFeature !== null
+                // Cheapest plan that unlocks this command (e.g. "Pro"),
+                // falls back to a generic "Upgrade" label when unknown.
+                const planName = isLocked ? getRequiredPlanName?.(missingFeature as string) ?? null : null
 
                 return (
                   <button
@@ -232,7 +259,16 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
                         e.currentTarget.style.backgroundColor = isSelected ? selectedColor : 'var(--bs-body-bg)'
                       }
                     }}
-                    onClick={() => !cmd.disabled && onSelect(cmd)}
+                    onClick={() => {
+                      if (cmd.disabled) return
+                      // A locked command (missing entitlement) routes to the
+                      // plan manager instead of running. We never execute it.
+                      if (isLocked) {
+                        onUpgradeRequired?.(cmd, missingFeature as string)
+                        return
+                      }
+                      onSelect(cmd)
+                    }}
                     data-id={`autocomplete-item-${cmd.name}`}
                     disabled={cmd.disabled}
                   >
@@ -241,6 +277,13 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
                         <span className="font-weight-medium" style={{ fontSize: '0.78rem', opacity: cmd.disabled ? 0.6 : 1 }}>
                       /{cmd.name}
                         </span>
+                        {isLocked && (
+                          <i
+                            className="fa-solid fa-lock ms-2"
+                            style={{ color: 'var(--bs-gray)', fontSize: '0.65rem' }}
+                            aria-hidden="true"
+                          />
+                        )}
                         {cmd.shortcut && (
                           <span
                             className="ms-2 px-2 py-1 rounded-pill small"
@@ -269,7 +312,22 @@ export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
                         {cmd.description}
                       </span>
                     </div>
-                    {isSelected && !cmd.disabled && (
+                    {isLocked ? (
+                      <span
+                        className="badge rounded-pill ms-2"
+                        style={{
+                          backgroundColor: 'var(--custom-ai-color)',
+                          color: 'var(--bs-body-bg)',
+                          fontSize: '0.65rem',
+                          padding: '3px 8px',
+                          fontWeight: 'normal',
+                          whiteSpace: 'nowrap'
+                        }}
+                        data-id={`autocomplete-upgrade-${cmd.name}`}
+                      >
+                        {!isAuthenticated ? 'Sign in' : (planName ?? 'Upgrade')}
+                      </span>
+                    ) : isSelected && !cmd.disabled && (
                       <span
                         className="badge rounded-pill ms-2"
                         style={{

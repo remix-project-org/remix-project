@@ -35,6 +35,7 @@ import {
   getToolsForDeployer,
   getSecurityToolsForSecurityAuditor
 } from './helpers/subagentToolFilters'
+import { Features } from '@remix-api'
 
 export interface SubagentConfigItem {
   name: string
@@ -61,14 +62,14 @@ export async function buildSubagentConfigs(
     }
   }
 
-  const hasAuditorPermission = await hasFeature('ai:auditor')
-  const hasTheGraphPermission = await hasFeature('mcp:thegraph')
-  const hasEtherscanPermission = await hasFeature('mcp:etherscan')
-  const hasAlchemyPermission = await hasFeature('mcp:alchemy')
-  const hasWebSearchPermission = await hasFeature('mcp:web-search')
-  const hasCirclePermission = await hasFeature('mcp:circle')
-  const hasOZpermission = await hasFeature('mcp:openzeppelin')
-  const hasQuickdappPermission = await hasFeature('dapp:quickdapp')
+  const hasAuditorPermission = await hasFeature(Features.AI_AUDITOR)
+  const hasTheGraphPermission = await hasFeature(Features.MCP_THEGRAPH)
+  const hasEtherscanPermission = await hasFeature(Features.MCP_ETHERSCAN)
+  const hasAlchemyPermission = await hasFeature(Features.MCP_ALCHEMY)
+  const hasWebSearchPermission = await hasFeature(Features.MCP_WEB_SEARCH)
+  const hasCirclePermission = await hasFeature(Features.MCP_CIRCLE)
+  const hasOZpermission = await hasFeature(Features.MCP_OPENZEPPELIN)
+  const hasQuickdappPermission = await hasFeature(Features.DAPP_QUICKDAPP)
 
   const etherscanTools = getEtherscanToolsForEtherscanSpecialist(tools)
   const theGraphTools = getTheGraphToolsForTheGraphSpecialist(tools)

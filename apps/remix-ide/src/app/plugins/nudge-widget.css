@@ -277,6 +277,28 @@
   to { opacity: 1; transform: translateY(-100%); }
 }
 
+/* Right-side variant */
+.nudge-widget--right {
+  left: auto;
+  right: 16px;
+  animation-name: nudge-slideIn-right;
+}
+
+@keyframes nudge-slideIn-right {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.nudge-widget--right.nudge-widget--out {
+  transform: translateY(20px) scale(0.95);
+}
+
 /* Responsive — hide on very small screens */
 @media (max-width: 600px) {
   .nudge-widget {

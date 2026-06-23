@@ -17,12 +17,13 @@
 
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useEffect, useMemo, useSyncExternalStore } from 'react'
-import { PluginViewWrapper } from '@remix-ui/helper'
+import { PluginViewWrapper, DISCORD_URL } from '@remix-ui/helper'
 // Paddle singleton lives next to this plugin now — `@remix-ui/billing` was
 // removed when Plan Manager became the sole billing surface.
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent } from './paddle-singleton'
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js'
-import type { CreditsUsageQuery, UsageReport } from '@remix-api'
+import type { CreditsUsageQuery, FeatureGroup, UsageReport } from '@remix-api'
+import { Features, FEATURE_LABELS } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 
 import {
@@ -31,6 +32,8 @@ import {
   type CheckoutResult,
   type CheckoutResultKind,
   type CheckoutIntent,
+  type CheckoutBreakdown,
+  type CartItem,
   type PlanState,
   type CreditStatus,
   type CreditState,
@@ -66,7 +69,7 @@ const profile = {
   name: 'planManager',
   displayName: 'Plan & Credits',
   description: 'Manage your subscription, top up credits and review AI usage',
-  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'resolveConfirm'],
+  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm'],
   events: ['opened', 'closed', 'checkoutResultChanged'],
   icon: PLAN_ICON,
   location: 'sidePanel',
@@ -84,6 +87,9 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   // Memo to detect repeated AUTH events (auth-plugin re-emits a lot).
   private lastAuthSig = ''
+  // Prevent the free-plan welcome nudge from firing more than once per session
+  // (it fires on every loadAccountData otherwise).
+  private freePlanAutoOpenFired = false
   // Paddle wiring is owned by the plugin so the panel can drive checkout
   // end-to-end without a host shell. The Paddle singleton lives in
   // ./paddle-singleton (formerly @remix-ui/billing).
@@ -149,7 +155,16 @@ export class PlanManagerPlugin extends ViewPlugin {
         token: s.token ?? null,
         userId: s.user?.id ?? null
       })
-      if (s.isAuthenticated) void this.loadAccountData()
+      if (s.isAuthenticated) {
+        void this.initPaddleSingleton()
+        // Auth is the driving motor: every login must (re)load the catalog of
+        // available products, exactly like permissions/balance. The eager load
+        // in onActivation runs while still anonymous and 401s, so without this
+        // the panel can open (e.g. via a sign-in CTA) with no plans/packages.
+        this.store.send({ type: 'CATALOG_LOAD' })
+        void this.loadCatalog()
+        void this.loadAccountData()
+      }
     }
     try {
       this.on('auth', 'authStateChanged', onAuthChange as any)
@@ -180,19 +195,54 @@ export class PlanManagerPlugin extends ViewPlugin {
    * screen. Pass an `intent` to pre-select a section and/or surface the
    * feature key that triggered the open.
    */
-  async open(intent?: OpenIntent): Promise<void> {
-    this.store.send({ type: 'OPEN_OVERLAY', intent })
+  async open(intent?: OpenIntent | string): Promise<void> {
+    // Support string shortcut from nudge targets: 'topup' → { initialSection: 'topup' }
+    const resolved: OpenIntent | undefined = typeof intent === 'string'
+      ? { initialSection: intent as OpenIntent['initialSection'] }
+      : intent
+    const snapBefore = this.store.getSnapshot()
+    planManagerLogger.log('[PlanManager:open] called', {
+      rawIntent: intent,
+      resolvedIntent: resolved,
+      wasOpen: snapBefore.isOpen,
+      isAuthenticated: snapBefore.isAuthenticated,
+      dataState: snapBefore.dataState,
+      catalogPlans: snapBefore.catalogPlans?.length ?? 0,
+      hasPermissions: !!snapBefore.permissions
+    })
+    this.store.send({ type: 'OPEN_OVERLAY', intent: resolved })
     // Refresh on every open — catalog (plans/packages) and, when signed
     // in, account-scoped data (credits/quotas, subscription, permissions).
     // This keeps the panel consistent with the API instead of relying on
     // whatever was loaded at login.
     this.refreshOnOpen()
     try {
+      // If the side panel is collapsed (d-none), un-hide it first.
+      // showContent alone doesn't remove d-none when isHidden===true &&
+      // the saved panelState also has isHidden===true — the sidePanel handler
+      // deliberately keeps it hidden in that code path.
+      const panelHidden = await this.call('sidePanel' as any, 'isPanelHidden').catch(() => false)
+      if (panelHidden) {
+        await this.call('sidePanel' as any, 'togglePanel').catch(() => {})
+      }
+      await this.call('sidePanel' as any, 'showContent', 'planManager').catch(() => {})
+    } catch { /* noop */ }
+    try {
       await this.call('menuicons', 'select', 'planManager')
     } catch { /* noop */ }
   }
 
   close(): void {
+    // If Paddle checkout is in-progress, clear it before closing — otherwise
+    // re-opening the panel shows an empty checkout frame with no iframe.
+    // Also clear any pending cart so the upsell step doesn't linger on re-open.
+    const snap = this.store.getSnapshot()
+    if (snap.pendingCheckout && !snap.checkoutResult) {
+      this.store.send({ type: 'CHECKOUT_CLOSED' })
+    }
+    if (snap.cartItems.length > 0 && !snap.checkoutResult) {
+      this.store.send({ type: 'CART_CLEAR' })
+    }
     this.store.send({ type: 'CLOSE_OVERLAY' })
   }
 
@@ -242,9 +292,10 @@ export class PlanManagerPlugin extends ViewPlugin {
     case 'processing':
     case 'success':
       this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId: result.transactionId })
-      // Trigger a refresh so 'processing' promotes to 'success' once data
-      // confirms (the machine handles the promotion in its DATA_LOADED action).
-      void this.loadAccountData()
+      // Refresh ending with PURCHASE_CONFIRMED so 'processing' promotes to
+      // 'success'. A bare loadAccountData() emits DATA_LOADED, which does NOT
+      // promote while the data region is already in the 'ready' state.
+      void this.completePurchaseRefresh()
       break
     case 'closed':
       this.store.send({ type: 'CHECKOUT_CLOSED' })
@@ -253,7 +304,8 @@ export class PlanManagerPlugin extends ViewPlugin {
       this.store.send({
         type: 'CHECKOUT_ERROR',
         message: result.errorMessage,
-        transactionId: result.transactionId
+        transactionId: result.transactionId,
+        meta: result.meta
       })
       break
     }
@@ -330,29 +382,87 @@ export class PlanManagerPlugin extends ViewPlugin {
       return
     }
 
-    this.store.send({ type: 'CHECKOUT_INTENT', intent: 'subscription', itemLabel, productId: planId })
+    // Free plan → straight to checkout (no upsell opportunity).
+    if (targetIsFree) {
+      this.store.send({ type: 'CHECKOUT_INTENT', intent: 'subscription', itemLabel, productId: planId })
+      await this.runCheckout('subscription', itemLabel, async () => {
+        const productsApi: any = await this.call('auth', 'getProductsApi').catch(() => null)
+        if (!productsApi) return { ok: false, error: 'Products API unavailable' }
+        const req: any = { slug: planId, provider: 'paddle' }
+        if (typeof resolvedPriceId === 'number') req.price_id = resolvedPriceId
+        const resp = await productsApi.purchaseProduct(req)
+        if (!resp?.ok) return { ok: false, error: resp?.error || 'Could not start purchase.' }
+        const data: any = resp.data
+        if (data?.immediate === true) {
+          return { ok: true, data: { immediate: true, message: data.message } as any }
+        }
+        return { ok: true, data: { transactionId: data?.transactionId, checkoutUrl: data?.checkoutUrl } }
+      })
+      return
+    }
+
+    // Paid plan → seed the cart with this plan and show the upsell step.
+    // The user can then add credit packages before proceeding to checkout.
+    this.store.send({ type: 'CART_CLEAR' })
+    this.store.send({
+      type: 'CART_ADD',
+      item: {
+        slug: planId,
+        name: itemLabel,
+        productType: 'subscription_plan',
+        priceCents: plan?.priceUsd ?? 0,
+        priceId: resolvedPriceId,
+        billingInterval: plan?.billingInterval ?? 'month'
+      }
+    })
+  }
+
+  /**
+   * Multi-item checkout — bundles a subscription plan + optional credit
+   * packages into a single Paddle transaction via POST /products/checkout.
+   * The cart is built up by the upsell UI; this fires when the user hits
+   * "Proceed to checkout" from the cart step.
+   */
+  async checkoutCart(): Promise<void> {
+    const snap = this.store.getSnapshot()
+    const cart = snap.cartItems
+    if (cart.length === 0) return
+
+    // Build a label from all items for the pending-checkout indicator.
+    const planItem = cart.find(i => i.productType === 'subscription_plan')
+    const itemLabel = planItem
+      ? `${planItem.name} + ${cart.length - 1} add-on${cart.length - 1 !== 1 ? 's' : ''}`
+      : cart.map(i => i.name).join(' + ')
+    const productId = planItem?.slug ?? cart[0].slug
+
+    this.store.send({ type: 'CHECKOUT_INTENT', intent: 'subscription', itemLabel, productId })
+
     await this.runCheckout('subscription', itemLabel, async () => {
       const productsApi: any = await this.call('auth', 'getProductsApi').catch(() => null)
       if (!productsApi) return { ok: false, error: 'Products API unavailable' }
-      const req: any = { slug: planId, provider: 'paddle' }
-      if (typeof resolvedPriceId === 'number') req.price_id = resolvedPriceId
-      const resp = await productsApi.purchaseProduct(req)
+
+      const items = cart.map(item => {
+        const entry: { slug: string; price_id?: number } = { slug: item.slug }
+        if (typeof item.priceId === 'number') entry.price_id = item.priceId
+        return entry
+      })
+
+      const resp = await productsApi.checkoutProducts({
+        items,
+        provider: 'paddle'
+      })
+
       if (!resp?.ok) {
         const err = (resp?.data as any)?.error || resp?.error
         if (err === 'ALREADY_SUBSCRIBED') {
-          // Defensive fallback — the pre-flight above should normally have
-          // routed us already, but the user's local snapshot might be stale.
-          void this.changePlan(planId, resolvedPriceId)
-          return { ok: false, error: 'You already have an active paid subscription. Switching to the change-plan flow…' }
+          // Fall back to single-plan change flow for the subscription item.
+          if (planItem) void this.changePlan(planItem.slug, planItem.priceId)
+          return { ok: false, error: 'You already have an active subscription. Switching to change-plan flow…' }
         }
-        return { ok: false, error: resp?.error || 'Could not start purchase.' }
+        return { ok: false, error: resp?.error || 'Could not start checkout.' }
       }
+
       const data: any = resp.data
-      // Free / immediate-grant path — no checkout, just refresh.
-      if (data?.immediate === true) {
-        return { ok: true, data: { immediate: true, message: data.message } as any }
-      }
-      // Paid path — standard checkout payload.
       return { ok: true, data: { transactionId: data?.transactionId, checkoutUrl: data?.checkoutUrl } }
     })
   }
@@ -391,9 +501,9 @@ export class PlanManagerPlugin extends ViewPlugin {
         return
       }
 
-      // 1. Preview proration. Best-effort — if it fails (e.g. provider quirk)
-      //    we still let the user attempt the PATCH; the backend will reject
-      //    if it really can't apply.
+      // 1. Preview proration. This is authoritative: the backend can refuse
+      //    a plan change before we ever show a confirm dialog (for example,
+      //    downgrades that must wait until the current period ends).
       let confirmMessage = `Switch your subscription to ${itemLabel}?`
       let chargeCentsNum: number | null = null
       let creditCentsNum: number | null = null
@@ -402,6 +512,11 @@ export class PlanManagerPlugin extends ViewPlugin {
         const previewReq: any = { planSlug: planId, prorationBillingMode: PRORATION }
         if (externalPriceId) previewReq.priceId = externalPriceId
         const preview = await billingApi.previewSubscriptionChange(previewReq)
+        if (!preview?.ok) {
+          const failure = this.formatApiFailure(preview, `Could not preview the switch to ${itemLabel}.`, 'plan-change-preview')
+          this.store.send({ type: 'CHECKOUT_ERROR', message: failure.message, meta: failure.meta })
+          return
+        }
         if (preview?.ok && preview.data?.preview) {
           const totals = (preview.data.preview as any)?.update_summary || (preview.data.preview as any)?.totals || {}
           const charge = totals?.result?.amount ?? totals?.charge?.amount ?? totals?.total ?? null
@@ -416,7 +531,14 @@ export class PlanManagerPlugin extends ViewPlugin {
             confirmMessage = `Switch to ${itemLabel}? You'll receive a ${formatMoney(credit, currency)} credit on your next invoice.`
           }
         }
-      } catch { /* fall through to plain confirm */ }
+      } catch (err: any) {
+        this.store.send({
+          type: 'CHECKOUT_ERROR',
+          message: err?.message || `Could not preview the switch to ${itemLabel}.`,
+          meta: { flow: 'plan-change-preview' }
+        })
+        return
+      }
 
       const choice = await this.requestConfirm({
         title: `Switch to ${itemLabel}`,
@@ -433,8 +555,8 @@ export class PlanManagerPlugin extends ViewPlugin {
           currency: switchCurrency
         }),
         actions: [
-          { value: 'cancel', label: 'Keep current plan', variant: 'ghost' },
-          { value: 'confirm', label: `Switch to ${itemLabel}`, variant: 'primary', icon: 'fas fa-arrow-right' }
+          { value: 'confirm', label: `Switch to ${itemLabel}`, variant: 'primary', icon: 'fas fa-arrow-right' },
+          { value: 'cancel', label: 'Keep current plan', variant: 'ghost' }
         ]
       })
       if (choice !== 'confirm') {
@@ -447,13 +569,18 @@ export class PlanManagerPlugin extends ViewPlugin {
       if (externalPriceId) changeReq.priceId = externalPriceId
       const resp = await billingApi.changeSubscription(changeReq)
       if (!resp?.ok) {
-        this.store.send({ type: 'CHECKOUT_ERROR', message: resp?.error || 'Could not change plan.' })
+        const failure = this.formatApiFailure(resp, 'Could not change plan.', 'plan-change-commit')
+        this.store.send({ type: 'CHECKOUT_ERROR', message: failure.message, meta: failure.meta })
         return
       }
 
       // 3. PATCH response already reflects new state — mark complete and refresh.
       this.store.send({ type: 'CHECKOUT_COMPLETED' })
-      setTimeout(() => { void this.loadAccountData() }, 250)
+      // Use completePurchaseRefresh so it ends with PURCHASE_CONFIRMED, which
+      // promotes the result 'processing' → 'success'. A bare loadAccountData()
+      // only emits DATA_LOADED, which does NOT promote while the data region is
+      // already in the 'ready' state.
+      setTimeout(() => { void this.completePurchaseRefresh() }, 250)
     } catch (err: any) {
       planManagerLogger.error('[PlanManager] Plan change failed', err)
       this.store.send({ type: 'CHECKOUT_ERROR', message: err?.message || 'Unexpected error during plan change.' })
@@ -482,7 +609,7 @@ export class PlanManagerPlugin extends ViewPlugin {
         : 'Cancel at period end'
       const choice = await this.requestConfirm({
         title: `Cancel ${planState.planName}?`,
-        message: 'Pick when the cancellation should take effect. After cancellation you\u2019ll keep the Free plan automatically \u2014 no action needed on your part.',
+        message: 'After cancellation you\u2019ll keep the Free plan automatically \u2014 no action needed on your part.',
         variant: 'danger',
         eyebrow: 'Cancel subscription',
         icon: 'fas fa-circle-xmark',
@@ -493,17 +620,15 @@ export class PlanManagerPlugin extends ViewPlugin {
           { label: 'After cancellation', value: 'Free plan', tone: 'muted' as const }
         ],
         actions: [
-          { value: 'keep', label: 'Keep subscription', variant: 'ghost' },
-          { value: 'immediately', label: 'Cancel immediately', variant: 'danger', icon: 'fas fa-bolt' },
-          { value: 'next_billing_period', label: periodEndLabel, variant: 'primary', icon: 'fas fa-calendar-check' }
+          { value: 'next_billing_period', label: periodEndLabel, variant: 'primary', icon: 'fas fa-calendar-check' },
+         // { value: 'immediately', label: 'Cancel immediately', variant: 'danger', icon: 'fas fa-bolt' },
+          { value: 'keep', label: 'Keep subscription', variant: 'ghost' }
         ]
       })
       if (choice !== 'immediately' && choice !== 'next_billing_period') return
       chosen = choice
     }
 
-    // Route through the same checkout-result UI as purchases so the user
-    // gets explicit confirmation, error states, and the data refresh that
     // flips the plan card to "Free" in real time.
     const planName = planState.planName
     this.store.send({ type: 'CHECKOUT_INTENT', intent: 'cancel', itemLabel: planName, productId: planState.planId ?? planName })
@@ -525,11 +650,50 @@ export class PlanManagerPlugin extends ViewPlugin {
       this.store.send({ type: 'CHECKOUT_COMPLETED', meta })
       // Refresh — immediate cancel triggers webhook to grant free; period-end
       // cancel just sets cancelAtPeriodEnd, which the next refresh will pick up.
-      // The data refresh promotes the result from 'processing' → 'success'.
-      setTimeout(() => { void this.loadAccountData() }, 250)
+      // Use completePurchaseRefresh so it ends with PURCHASE_CONFIRMED, which
+      // promotes the result 'processing' → 'success'. A bare loadAccountData()
+      // only emits DATA_LOADED, which does NOT promote while the data region is
+      // already in the 'ready' state, leaving the UI stuck on "waiting for
+      // confirmation".
+      setTimeout(() => { void this.completePurchaseRefresh() }, 250)
     } catch (err: any) {
       planManagerLogger.error('[PlanManager] Cancel subscription failed', err)
       this.store.send({ type: 'CHECKOUT_ERROR', message: err?.message || 'Unexpected error during cancellation.' })
+    }
+  }
+
+  /**
+   * Reactivate (un-cancel) a subscription that is scheduled to cancel at period
+   * end. Removes the pending scheduled cancellation so the sub renews as normal.
+   * No-op when the user has no paid subscription with a pending cancellation.
+   */
+  async reactivateSubscription(): Promise<void> {
+    const snap = this.store.getSnapshot()
+    if (!snap.isAuthenticated) return
+    const planState = selectPlanState(snap)
+    if (planState.kind !== 'paid' || !planState.isCancelled) return
+
+    const planName = planState.planName
+    this.store.send({ type: 'CHECKOUT_INTENT', intent: 'reactivate', itemLabel: planName, productId: planState.planId ?? planName })
+
+    try {
+      const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
+      if (!billingApi) {
+        this.store.send({ type: 'CHECKOUT_ERROR', message: 'Billing service is not available right now.' })
+        return
+      }
+      const resp = await billingApi.reactivateSubscription()
+      if (!resp?.ok) {
+        this.store.send({ type: 'CHECKOUT_ERROR', message: resp?.error || 'Could not reactivate your subscription.' })
+        return
+      }
+      this.store.send({ type: 'CHECKOUT_COMPLETED' })
+      // End with completePurchaseRefresh so it emits PURCHASE_CONFIRMED, which
+      // promotes the result 'processing' → 'success' and refreshes permissions.
+      setTimeout(() => { void this.completePurchaseRefresh() }, 250)
+    } catch (err: any) {
+      planManagerLogger.error('[PlanManager] Reactivate subscription failed', err)
+      this.store.send({ type: 'CHECKOUT_ERROR', message: err?.message || 'Unexpected error during reactivation.' })
     }
   }
 
@@ -571,6 +735,23 @@ export class PlanManagerPlugin extends ViewPlugin {
       this.pendingConfirmResolver = resolve
       this.store.send({ type: 'CONFIRM_REQUEST', dialog })
     })
+  }
+
+  private formatApiFailure(resp: any, fallback: string, flow?: string): { message: string; meta: Record<string, string> } {
+    const data = resp?.data ?? {}
+    const bodyMessage = typeof data?.message === 'string' && data.message.trim() ? data.message.trim() : ''
+    const responseError = typeof resp?.error === 'string' && resp.error.trim() ? resp.error.trim() : ''
+    const errorCode = typeof data?.error === 'string' && data.error.trim()
+      ? data.error.trim()
+      : responseError
+    const message = bodyMessage || responseError || fallback
+    const meta: Record<string, string> = {}
+    if (flow) meta.flow = flow
+    if (errorCode) meta.errorCode = errorCode
+    if (typeof data?.hint === 'string' && data.hint.trim()) meta.hint = data.hint.trim()
+    if (Number.isFinite(Number(data?.currentPriceCents))) meta.currentPrice = formatMoney(Number(data.currentPriceCents), 'USD')
+    if (Number.isFinite(Number(data?.targetPriceCents))) meta.targetPrice = formatMoney(Number(data.targetPriceCents), 'USD')
+    return { message, meta }
   }
 
   /**
@@ -666,15 +847,27 @@ export class PlanManagerPlugin extends ViewPlugin {
       // Paddle hand-off; the backend already granted the membership.
       if ((response.data as any).immediate === true) {
         this.store.send({ type: 'CHECKOUT_COMPLETED' })
-        // Trigger a fast data refresh so the UI reflects the new plan.
-        setTimeout(() => { void this.loadAccountData() }, 250)
+        // Trigger a fast refresh that ends with PURCHASE_CONFIRMED so the
+        // result is promoted 'processing' → 'success' (a bare loadAccountData
+        // would leave it stuck while the data region is already 'ready').
+        setTimeout(() => { void this.completePurchaseRefresh() }, 250)
         return
+      }
+      if (!this.paddle && !getPaddle()) {
+        await this.initPaddleSingleton()
       }
       const paddleInstance = this.paddle ?? getPaddle()
       if (paddleInstance && transactionId) {
-        // Paddle.js overlay — events come back via the singleton handler.
+        // Paddle.js inline checkout — renders inside .paddle-checkout-container
         openCheckoutWithTransaction(paddleInstance, transactionId, {
-          settings: { displayMode: 'overlay', theme: 'light' }
+          settings: {
+            displayMode: 'inline',
+            theme: 'dark',
+            variant: 'one-page',
+            frameTarget: 'paddle-checkout-container',
+            frameInitialHeight: 700,
+            frameStyle: 'width: 100%; min-width: 312px; min-height: 700px; background-color: transparent; border: none;',
+          }
         })
         this.store.send({ type: 'CHECKOUT_OPENED' })
       } else if (checkoutUrl) {
@@ -700,8 +893,19 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   /** Translate Paddle SDK events into machine events. */
   private handlePaddleEvent(event: PaddleEventData): void {
+    console.debug('[PlanManager] Paddle event', event.name, event.data)
     const transactionId = (event as any)?.data?.transaction_id as string | undefined
     switch (event.name) {
+    // Fired once when the checkout iframe loads, then on every change the
+    // user makes (discount, country/VAT, payment method). Carries the full
+    // financial breakdown Paddle calculated — surface it in our summary.
+    case 'checkout.loaded' as any:
+    case 'checkout.customer.updated' as any:
+    case 'checkout.updated' as any: {
+      const breakdown = this.parseCheckoutBreakdown(event)
+      if (breakdown) this.store.send({ type: 'CHECKOUT_BREAKDOWN', breakdown })
+      break
+    }
     case 'checkout.completed': {
       const pendingIntent = this.store.getSnapshot().pendingCheckout?.intent ?? 'subscription'
       this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
@@ -728,6 +932,44 @@ export class PlanManagerPlugin extends ViewPlugin {
       // Other events (loaded, customer.created, items.updated, etc.) are
       // not interesting for the panel right now.
       break
+    }
+  }
+
+  /**
+   * Pull the financial breakdown out of a Paddle `checkout.loaded` /
+   * `checkout.updated` event. Money values are already in major units
+   * (e.g. dollars) in the event payload. Returns null when the payload
+   * doesn't carry usable totals yet.
+   */
+  private parseCheckoutBreakdown(event: PaddleEventData): CheckoutBreakdown | null {
+    const data = (event as any)?.data
+    const totals = data?.totals
+    if (!data || !totals) return null
+
+    const recurring = data.recurring_totals
+      ? {
+        subtotal: Number(data.recurring_totals.subtotal ?? 0),
+        discount: Number(data.recurring_totals.discount ?? 0),
+        tax: Number(data.recurring_totals.tax ?? 0),
+        total: Number(data.recurring_totals.total ?? 0)
+      }
+      : null
+
+    const firstItem = Array.isArray(data.items) ? data.items[0] : undefined
+    const cycle = firstItem?.billing_cycle
+    const billingCycle = cycle?.interval
+      ? { interval: cycle.interval, frequency: Number(cycle.frequency ?? 1) }
+      : null
+
+    return {
+      currencyCode: data.currency_code ?? 'USD',
+      subtotal: Number(totals.subtotal ?? 0),
+      discount: Number(totals.discount ?? 0),
+      tax: Number(totals.tax ?? 0),
+      total: Number(totals.total ?? 0),
+      discountCode: data.discount?.code ?? null,
+      recurring,
+      billingCycle
     }
   }
 
@@ -795,7 +1037,28 @@ export class PlanManagerPlugin extends ViewPlugin {
             featureGroupName: p.feature_group?.name ?? null,
             isPopular: p.is_popular === true,
             providers: mapProviders(topProviders),
-            prices
+            prices,
+            introDiscounts: Array.isArray(p.intro_discounts) && p.intro_discounts.length > 0
+              ? p.intro_discounts.map((d: any) => ({
+                id: d.id,
+                name: d.name,
+                code: d.code,
+                discountType: d.discount_type,
+                amount: Number(d.amount) || 0,
+                currency: d.currency ?? null,
+                recur: d.recur === true,
+                maxRecurringIntervals: d.max_recurring_intervals ?? null
+              }))
+              : [],
+            introCreditPackages: Array.isArray(p.intro_credit_packages) && p.intro_credit_packages.length > 0
+              ? p.intro_credit_packages.map((cp: any) => ({
+                id: cp.id,
+                slug: cp.slug,
+                name: cp.name,
+                credits: Number(cp.credits) || 0,
+                quantity: Number(cp.quantity) || 1
+              }))
+              : []
           }
         })
 
@@ -852,11 +1115,11 @@ export class PlanManagerPlugin extends ViewPlugin {
    * webhook has been processed. Per the brief: every 2s for the first 15s,
    * then every 5s up to a 60s soft cap. Hard ceiling at 5 minutes total.
    *
-   * For subscriptions we poll `GET /billing/subscription` for
-   * `hasActiveSubscription === true`. For credit packages (which never appear
-   * in /billing/subscription) we poll `GET /billing/transaction/:txnId` and
-   * stop on a terminal status. The 404 + `{ status: 'pending' }` body is the
-   * documented "keep polling" signal — *not* an error.
+   * When a `transactionId` is available (all normal Paddle flows) we poll
+   * `GET /billing/transaction/:txnId` for a terminal status — this works for
+   * both credit topups and subscription purchases and confirms payment without
+   * waiting for the subscription webhook to propagate. We fall back to
+   * `GET /billing/subscription` only when there is no transactionId.
    *
    * On terminal failure (failed/canceled/refunded/disputed) we surface a
    * CHECKOUT_ERROR; on a soft-timeout we leave the result in 'processing' so
@@ -881,10 +1144,13 @@ export class PlanManagerPlugin extends ViewPlugin {
     const HARD_CAP_MS = 300_000
     const intervalAt = (elapsed: number) => (elapsed < 15_000 ? 2_000 : 5_000)
 
-    // Subscriptions are confirmed via /billing/subscription. Credit topups
-    // *require* the transactionId since they never appear there.
-    const useTransactionPoll = intent === 'topup'
-    if (useTransactionPoll && !transactionId) {
+    // Use the transaction endpoint whenever we have a transactionId — it gives
+    // a direct payment-confirmed signal for both topups and subscriptions,
+    // without depending on the subscription webhook propagating first.
+    // Only fall back to subscription polling when there's no transactionId
+    // (shouldn't happen for normal Paddle flows).
+    const useTransactionPoll = !!transactionId
+    if (!useTransactionPoll && intent === 'topup') {
       planManagerLogger.warn(tag('topup poll without transactionId — single refresh fallback'))
       await this.completePurchaseRefresh()
       return
@@ -976,6 +1242,7 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   private async loadAccountData(): Promise<void> {
+    console.debug('[PlanManager] Loading account data')
     try {
       const [credits, subResp, permissions] = await Promise.all([
         this.call('auth', 'getCredits').catch(() => null) as Promise<any>,
@@ -1001,6 +1268,80 @@ export class PlanManagerPlugin extends ViewPlugin {
         // to false when absent so the UI doesn't promise a trial we can't grant.
         isTrialEligible: !!subResp?.isTrialEligible
       })
+
+      // Auto-open the panel to prompt email verification when:
+      //   • the `ai:verified_accounts` feature is enabled (so the gate exists)
+      //   • the user hasn't verified their email (or hasn't added one yet)
+      //   • the panel isn't already open (avoid interrupting an active session)
+      const gateEnabled = !!permissions && hasFeature(permissions, 'ai:verified_accounts')
+      const emailMissing = permissions?.has_email === false
+      const emailUnverified = permissions?.email_verified === false
+      const panelAlreadyOpen = this.store.getSnapshot().isOpen
+      const emailGateDiagnosis = !gateEnabled
+        ? 'skip: ai:verified_accounts feature not enabled'
+        : !emailMissing && !emailUnverified
+          ? 'skip: email present and verified — no action needed'
+          : panelAlreadyOpen
+            ? 'skip: panel already open — not interrupting active session'
+            : emailMissing
+              ? 'FIRE: email not on file (has_email=false)'
+              : 'FIRE: email present but unverified (email_verified=false)'
+      planManagerLogger.log('[PlanManager:email-gate]', {
+        diagnosis: emailGateDiagnosis,
+        gateEnabled,
+        has_email: permissions?.has_email,
+        email_verified: permissions?.email_verified,
+        emailMissing,
+        emailUnverified,
+        panelAlreadyOpen
+      })
+      if (gateEnabled && (emailMissing || emailUnverified) && !panelAlreadyOpen) {
+        planManagerLogger.log('[PlanManager:email-gate] auto-opening panel → email-unverified')
+        this.store.send({ type: 'OPEN_OVERLAY', intent: { reason: 'email-unverified' } })
+        // Catalog wasn't loaded as part of this path — fetch it now so the
+        // panel isn't empty when it opens on a fresh login.
+        this.store.send({ type: 'CATALOG_LOAD' })
+        void this.loadCatalog()
+        this.call('menuicons', 'select', 'planManager').catch(() => { /* noop */ })
+        return
+      }
+
+      // Auto-open to the Plans section for free-plan users so they see what's
+      // available and are motivated to upgrade or top up. Only fires once per
+      // session (not on every data refresh) and only when the plans surface is
+      // enabled by the backend.
+      const canShowPlans = hasFeature(permissions, 'ui:show-plans')
+      const snap = this.store.getSnapshot()
+      const planState = selectPlanState(snap)
+      const isFreePlan = planState.kind === 'no_subscription'
+      const freePlanGateDiagnosis = !canShowPlans
+        ? 'skip: ui:show-plans feature not enabled'
+        : !isFreePlan
+          ? `skip: user has plan (kind=${planState.kind}, planId=${planState.planId ?? 'none'}) — no upgrade prompt`
+          : this.freePlanAutoOpenFired
+            ? 'skip: already fired once this session'
+            : panelAlreadyOpen
+              ? 'skip: panel already open — not interrupting active session'
+              : 'FIRE: free plan user, panel not open, first time this session'
+      planManagerLogger.log('[PlanManager:free-plan-gate]', {
+        diagnosis: freePlanGateDiagnosis,
+        canShowPlans,
+        planKind: planState.kind,
+        planId: planState.planId ?? null,
+        isFreePlan,
+        alreadyFired: this.freePlanAutoOpenFired,
+        panelAlreadyOpen
+      })
+      if (canShowPlans && isFreePlan && !this.freePlanAutoOpenFired && !panelAlreadyOpen) {
+        this.freePlanAutoOpenFired = true
+        planManagerLogger.log('[PlanManager:free-plan-gate] auto-opening panel → free plan')
+        this.store.send({ type: 'OPEN_OVERLAY', intent: { initialSection: 'plans', reason: 'feature-required' } })
+        // Catalog wasn't loaded as part of this path — fetch it now so plans
+        // are visible immediately without having to close and reopen the panel.
+        this.store.send({ type: 'CATALOG_LOAD' })
+        void this.loadCatalog()
+        this.call('menuicons', 'select', 'planManager').catch(() => { /* noop */ })
+      }
     } catch (err: any) {
       this.store.send({ type: 'DATA_FAILED', message: err?.message ?? 'Failed to load account data' })
     }
@@ -1053,7 +1394,7 @@ const PlanManagerStub: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) =>
       <i className="fas fa-wallet"></i>
     </div>
     <h5>Plan & Credits</h5>
-    <p>Compare plans, top up credits, and track your AI usage in one place.</p>
+    <p>Compare plans, top up AI credits, and track your AI usage in one place.</p>
     <button
       data-id="planManagerStubOpenButton"
       className="plan-manager-stub-btn"
@@ -1072,28 +1413,50 @@ const PlanManagerOverlay: React.FC<{
   plugin: PlanManagerPlugin
   snap: PlanManagerSnapshot
 }> = ({ plugin, snap }) => {
-  // null = no expanded section (Plans / Top up / Usage all collapsed). The
-  // panel landing view is intentionally quiet: hero + a summary of free
-  // quotas + (when relevant) an upgrade promo. Tabs only expand on demand
-  // OR when another plugin opens us with a routing intent (see effect below).
-  const [activeSection, setActiveSection] = React.useState<'plans' | 'topup' | 'usage' | null>(null)
+  // 'credits' = default landing view (hero + quotas). Other tabs expand
+  // their own section and collapse the credits view. null means no tab is
+  // active (used internally when a feature is hidden by permissions).
+  const [activeSection, setActiveSection] = React.useState<'credits' | 'plans' | 'topup' | 'usage' | null>('credits')
 
   // When a non-UI plugin opens us with an intent, follow its routing
   // hint. We track the intent identity (reference) so a fresh OPEN_OVERLAY
   // re-applies even if the user has since navigated away.
   const intent = snap.openIntent
   const lastIntentRef = React.useRef<OpenIntent | null>(null)
+  // The section an external intent wants us to land on. Held in a ref so we
+  // can (re)apply it once the backing permissions/catalog load. open() races
+  // ahead of refreshOnOpen(), so when the intent first fires the target
+  // section is still default-denied (permissions === null → hidden) and the
+  // "keep activeSection honest" effect below would otherwise drop it, leaving
+  // the panel blank with no way to recover the intent.
+  const pendingSectionRef = React.useRef<'credits' | 'plans' | 'topup' | 'usage' | null>(null)
   useEffect(() => {
-    if (!intent || intent === lastIntentRef.current) return
+    if (!intent || intent === lastIntentRef.current) {
+      planManagerLogger.log('[PlanManager:section] intent effect skipped', {
+        hasIntent: !!intent,
+        sameAsLast: intent === lastIntentRef.current,
+        intent
+      })
+      return
+    }
     lastIntentRef.current = intent
+    let target: 'credits' | 'plans' | 'topup' | 'usage' | null = null
     if (intent.initialSection) {
-      setActiveSection(intent.initialSection)
+      target = intent.initialSection
     } else if (intent.reason === 'feature-required' || intent.reason === 'quota-exhausted') {
       // Sensible defaults when the caller didn't pin a section.
-      setActiveSection(intent.reason === 'quota-exhausted' ? 'topup' : 'plans')
+      target = intent.reason === 'quota-exhausted' ? 'topup' : 'plans'
     }
     // Otherwise leave the section collapsed — the user opened the panel
     // from the menu icon and we don't want to push a particular screen.
+    pendingSectionRef.current = target
+    planManagerLogger.log('[PlanManager:section] intent effect applied', {
+      intent,
+      initialSection: intent.initialSection ?? null,
+      reason: intent.reason ?? null,
+      resolvedTarget: target
+    })
+    if (target) setActiveSection(target)
   }, [intent])
 
   // Close-on-Escape — UI concern, stays in React.
@@ -1120,16 +1483,107 @@ const PlanManagerOverlay: React.FC<{
   // default-deny rationale.
   const ui: UiVisibility = useMemo(() => selectUiVisibility(snap), [snap])
   const requiresEmailVerification = !!snap.permissions
-    && hasFeature(snap.permissions, 'ai:verified_accounts')
+    && hasFeature(snap.permissions, Features.AI_VERIFIED_ACCOUNTS)
     && (snap.permissions.has_email === false || snap.permissions.email_verified === false)
   // Keep `activeSection` honest with permissions: if the user (or an
   // intent) selected a tab the backend has since hidden, drop the
   // selection so we don't render a section without its nav entry.
   useEffect(() => {
-    if (activeSection === 'plans' && !ui.showPlans) setActiveSection(null)
-    else if (activeSection === 'topup' && !ui.showTopUps) setActiveSection(null)
-    else if (activeSection === 'usage' && !ui.showUsage) setActiveSection(null)
-  }, [activeSection, ui.showPlans, ui.showTopUps, ui.showUsage])
+    // A pending intent section takes priority: re-apply it the moment its
+    // visibility resolves (permissions arrive after the open()/refresh race),
+    // and keep its tab selected meanwhile instead of collapsing to a blank
+    // panel — the section renders its own loading/empty state until then.
+    const pending = pendingSectionRef.current
+    planManagerLogger.log('[PlanManager:section] reconcile effect run', {
+      pending,
+      activeSection,
+      ui: {
+        showCredits: ui.showCredits,
+        showPlans: ui.showPlans,
+        showTopUps: ui.showTopUps,
+        showUsage: ui.showUsage,
+        anyVisible: ui.anyVisible
+      }
+    })
+    if (pending) {
+      const pendingVisible =
+        pending === 'credits' ? ui.showCredits :
+          pending === 'plans' ? ui.showPlans :
+            pending === 'topup' ? ui.showTopUps :
+              pending === 'usage' ? ui.showUsage : false
+      if (pendingVisible) {
+        planManagerLogger.log('[PlanManager:section] pending section now visible — applying', { pending })
+        setActiveSection(pending)
+        pendingSectionRef.current = null
+      } else {
+        planManagerLogger.log('[PlanManager:section] pending section not yet visible — holding tab', { pending })
+      }
+      if (pending === activeSection) return
+      // An intent still wants a (not-yet-visible) section — let it win;
+      // don't fall back yet or we'd flicker through another tab first.
+      if (pending) return
+    }
+    // Is the current selection still backed by a visible nav entry?
+    const currentVisible =
+      activeSection === 'credits' ? ui.showCredits :
+        activeSection === 'plans' ? ui.showPlans :
+          activeSection === 'topup' ? ui.showTopUps :
+            activeSection === 'usage' ? ui.showUsage :
+              false // null === nothing selected
+    if (!currentVisible) {
+      // The selected tab (or the default 'credits' landing) is hidden by
+      // permissions. Rather than collapse to a blank panel, fall back to the
+      // first visible section. This is what lands a free-tier user (no
+      // `ui:show-credits` grant) on Plans automatically instead of a blank
+      // body under visible tabs.
+      const fallback: 'credits' | 'plans' | 'topup' | 'usage' | null =
+        ui.showCredits ? 'credits' :
+          ui.showPlans ? 'plans' :
+            ui.showTopUps ? 'topup' :
+              ui.showUsage ? 'usage' : null
+      if (fallback !== activeSection) {
+        planManagerLogger.log('[PlanManager:section] falling back to first visible section', {
+          from: activeSection,
+          to: fallback,
+          ui: {
+            showCredits: ui.showCredits,
+            showPlans: ui.showPlans,
+            showTopUps: ui.showTopUps,
+            showUsage: ui.showUsage
+          }
+        })
+        setActiveSection(fallback)
+      }
+    }
+  }, [activeSection, ui.showCredits, ui.showPlans, ui.showTopUps, ui.showUsage])
+
+  // ── Diagnostic: full picture on every meaningful change ──────────────────
+  useEffect(() => {
+    const p = snap.permissions as any
+    const uiKeys = p
+      ? Object.keys(p).filter(k => k.startsWith('ui:') || k.startsWith('ui_show') || k.includes('show'))
+      : []
+    planManagerLogger.log('[PlanManager:diag] state snapshot', {
+      isOpen: snap.isOpen,
+      isAuthenticated: snap.isAuthenticated,
+      dataState: snap.dataState,
+      openIntent: snap.openIntent,
+      activeSection,
+      pendingSection: pendingSectionRef.current,
+      ui: {
+        showCredits: ui.showCredits,
+        showPlans: ui.showPlans,
+        showTopUps: ui.showTopUps,
+        showUsage: ui.showUsage,
+        anyVisible: ui.anyVisible
+      },
+      catalogPlans: snap.catalogPlans?.length ?? 0,
+      visiblePlans: visiblePlans.length,
+      hasPermissions: !!snap.permissions,
+      permissionUiKeys: uiKeys,
+      requiresEmailVerification
+    })
+  }, [snap.isOpen, snap.isAuthenticated, snap.dataState, snap.openIntent, snap.permissions, snap.catalogPlans, activeSection, ui.showCredits, ui.showPlans, ui.showTopUps, ui.showUsage, visiblePlans.length, requiresEmailVerification])
 
   const refreshDate = formatDate(status.refreshDate)
 
@@ -1192,7 +1646,7 @@ const PlanManagerOverlay: React.FC<{
         )}
         {/*
           Email verification gate. The backend now blocks AI access until the
-          user has a confirmed email on file (so we don't burn free credits on
+          user has a confirmed email on file (so we don't burn included credits on
           burner addresses, and so SIWE-only accounts can recover their plan).
           When `email_verified` is false (or `has_email` is false for SIWE
           users) we hide the catalog/hero/alerts and show a focused verify
@@ -1207,7 +1661,18 @@ const PlanManagerOverlay: React.FC<{
           />
         )}
         {!checkoutResult && snap.isAuthenticated && snap.dataState === 'ready'
-          && !requiresEmailVerification && <>
+          && !requiresEmailVerification && (() => {
+          // While the inline Paddle checkout is open we hide all the
+          // surrounding context (hero, alerts, promo, quotas, nav) so the
+          // user can focus on completing payment. The checkout panel
+          // becomes the only thing in the main area. Same for the cart
+          // upsell step — no need to show hero/alerts/nav behind it.
+          const checkoutActive = (!!snap.pendingCheckout && !snap.checkoutResult)
+            || (snap.cartItems.length > 0 && !snap.checkoutResult)
+          // A nav section is open → collapse the landing content so the
+          // selected section gets all the space.
+          const sectionActive = activeSection !== null
+          return <>
 
           {/*
             When the user has no `ui:show-*` features granted we collapse
@@ -1215,13 +1680,14 @@ const PlanManagerOverlay: React.FC<{
             this to confirm sign-in without exposing the (currently
             irrelevant) plans/credits/quotas surface.
           */}
-          {!ui.anyVisible && (
+          {!checkoutActive && !ui.anyVisible && (
             <PlanIdentityCard planCtx={planCtx} />
           )}
 
           {/* Alerts are credit/plan-oriented — only meaningful when
-              at least one of those surfaces is visible. */}
-          {ui.anyVisible && activeAlert === 'beta-transition' && (
+              at least one of those surfaces is visible. Shown above nav
+              so urgent warnings are never buried. */}
+          {!checkoutActive && ui.anyVisible && activeAlert === 'beta-transition' && (
             <BetaTransitionAlert
               planCtx={planCtx}
               onUpgrade={() => setActiveSection('plans')}
@@ -1229,7 +1695,7 @@ const PlanManagerOverlay: React.FC<{
             />
           )}
 
-          {ui.anyVisible && activeAlert === 'plan-lifecycle' && (
+          {!checkoutActive && ui.anyVisible && activeAlert === 'plan-lifecycle' && (
             <PlanLifecycleAlert
               planCtx={planCtx}
               onRenew={() => setActiveSection('plans')}
@@ -1237,7 +1703,7 @@ const PlanManagerOverlay: React.FC<{
             />
           )}
 
-          {ui.showCredits && activeAlert === 'credit' && (
+          {!checkoutActive && ui.showCredits && activeAlert === 'credit' && (
             <CreditAlert
               status={status}
               refreshDate={refreshDate}
@@ -1247,46 +1713,13 @@ const PlanManagerOverlay: React.FC<{
             />
           )}
 
-          {ui.showCredits && (
-            <Hero
-              status={status}
-              refreshDate={refreshDate}
-              planCtx={planCtx}
-              heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
-              onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
-            />
-          )}
-
-          {/*
-            Upgrade promo. Surfaced when the user has headroom in the
-            catalog (free / starter-tier paid / etc.) and no higher-priority
-            alert is showing — alerts already drive their own CTA, no
-            point doubling up. Sits above the quotas so it gets attention
-            before the user dives into per-model details. Requires the
-            Plans surface — there's nowhere to send the user otherwise.
-          */}
-          {ui.showPlans && !activeAlert && canUpgrade && (
-            <UpgradePromoBanner
-              planCtx={planCtx}
-              onUpgrade={() => setActiveSection(s => s === 'plans' ? null : 'plans')}
-            />
-          )}
-
-          {ui.showQuotas && (
-            <QuotasPanel
-              quotas={quotas}
-              aiModels={snap.permissions?.ai_models}
-              planLabel={planCtx.planName}
-              paidCredits={snap.credits?.paid_credits ?? 0}
-              canUpgrade={canUpgrade && ui.showPlans}
-              onUpgrade={() => setActiveSection('plans')}
-              onTopUp={() => setActiveSection('topup')}
-            />
-          )}
-
-          {(ui.showPlans || ui.showTopUps || ui.showUsage) && (
+          {/* Nav tabs — placed right after alerts so they sit at a
+              predictable position. Credits is always the first tab and
+              shows the default landing view (hero + quotas). */}
+          {!checkoutActive && (ui.showCredits || ui.showPlans || ui.showTopUps || ui.showUsage) && (
             <nav className="pm-nav">
               {([
+                { id: 'credits', label: 'Credits', icon: 'fas fa-coins', visible: ui.showCredits },
                 { id: 'plans', label: 'Plans', icon: 'fas fa-layer-group', visible: ui.showPlans },
                 { id: 'topup', label: 'Top up', icon: 'fas fa-bolt', visible: ui.showTopUps },
                 { id: 'usage', label: 'Usage breakdown', icon: 'fas fa-chart-bar', visible: ui.showUsage }
@@ -1306,21 +1739,239 @@ const PlanManagerOverlay: React.FC<{
             </nav>
           )}
 
+          {/* Credits view — shown when the Credits tab is active. */}
+          {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
+            <Hero
+              status={status}
+              refreshDate={refreshDate}
+              planCtx={planCtx}
+              heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
+              onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
+            />
+          )}
+
+          {/*
+            Upgrade promo — only on the credits view, no alert already
+            showing its own CTA.
+          */}
+          {!checkoutActive && activeSection === 'credits' && ui.showPlans && !activeAlert && canUpgrade && (
+            <UpgradePromoBanner
+              planCtx={planCtx}
+              plans={visiblePlans}
+              onUpgrade={() => setActiveSection(s => s === 'plans' ? null : 'plans')}
+            />
+          )}
+
+          {!checkoutActive && activeSection === 'credits' && ui.showQuotas && (
+            <QuotasPanel
+              quotas={quotas}
+              aiModels={snap.permissions?.ai_models}
+              paidCredits={snap.credits?.paid_credits ?? 0}
+              canUpgrade={canUpgrade && ui.showPlans}
+              onUpgrade={() => setActiveSection('plans')}
+              onTopUp={() => setActiveSection('topup')}
+            />
+          )}
+
           <main className="pm-main">
-            {ui.showPlans && activeSection === 'plans' && (
+            {/* Inline Paddle checkout container — visible while checkout is in progress */}
+            {snap.pendingCheckout && !snap.checkoutResult && (() => {
+              const pending = snap.pendingCheckout
+              const plan = pending.intent !== 'topup'
+                ? snap.catalogPlans.find(p => p.id === pending.productId)
+                : null
+              const pkg = pending.intent === 'topup'
+                ? snap.catalogPackages.find(p => p.id === pending.productId)
+                : null
+              const productName = plan?.name ?? pkg?.name ?? pending.itemLabel ?? 'Your order'
+              const priceCents = plan?.priceUsd ?? pkg?.priceUsd ?? 0
+              const priceFormatted = `$${(priceCents / 100).toFixed(2)}`
+              const billingLabel = plan
+                ? `per ${plan.billingInterval === 'year' ? 'year' : 'month'}`
+                : 'one-time'
+              const features = plan?.features ?? []
+              const credits = plan?.creditsPerMonth ?? pkg?.credits ?? null
+              // Extra items in cart (credit add-ons bundled with the plan).
+              const cartAddons = snap.cartItems.filter(i => i.productType === 'credit_package')
+              // Intro credit packages auto-added by the backend (free gifts).
+              const introCreditPkgs = plan?.introCreditPackages ?? []
+
+              // Intro launch-offer banner — the same promo merchandised on
+              // the plan cards, reinforced here so the user sees why their
+              // "due today" is lower than the headline price.
+              const introDiscount = (plan?.introDiscounts ?? [])[0] ?? null
+              let introOfferLabel: string | null = null
+              let discountedPriceFormatted: string | null = null
+              if (introDiscount && priceCents > 0) {
+                const isPct = introDiscount.discountType === 'percentage'
+                const discountedCents = isPct
+                  ? Math.max(0, Math.floor(priceCents * (1 - introDiscount.amount / 100)))
+                  : Math.max(0, priceCents - Math.round(introDiscount.amount * 100))
+                if (discountedCents < priceCents) {
+                  discountedPriceFormatted = `$${(discountedCents / 100).toFixed(2)}`
+                }
+                const unit = plan?.billingInterval === 'year' ? 'year' : 'month'
+                const intervals = introDiscount.maxRecurringIntervals
+                const duration = !introDiscount.recur || !intervals || intervals === 1
+                  ? `first ${unit}`
+                  : `first ${intervals} ${unit}s`
+                introOfferLabel = isPct
+                  ? `${Math.round(introDiscount.amount)}% off ${duration}`
+                  : `$${introDiscount.amount.toFixed(2)} off ${duration}`
+              }
+
+              // Live breakdown from Paddle (totals are already in major units).
+              const bd = snap.checkoutBreakdown
+              const fmtMoney = (amount: number, currency = bd?.currencyCode ?? 'USD') => {
+                try {
+                  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
+                } catch {
+                  return `${currency} ${amount.toFixed(2)}`
+                }
+              }
+              const cadenceLabel = (cycle: CheckoutBreakdown['billingCycle']) => {
+                if (!cycle) return ''
+                const unit = cycle.interval
+                return cycle.frequency === 1
+                  ? `per ${unit}`
+                  : `every ${cycle.frequency} ${unit}s`
+              }
+
+              return (
+                <div className="pm-inline-checkout">
+                  <div className="pm-inline-checkout__header">
+                    <button
+                      className="pm-inline-checkout__back"
+                      onClick={() => plugin.store.send({ type: 'CHECKOUT_CLOSED' })}
+                    >
+                      <i className="fas fa-arrow-left"></i>
+                      <span>Back to plans</span>
+                    </button>
+                  </div>
+                  <div className="pm-inline-checkout__body">
+                    {/* Order summary side */}
+                    <aside className="pm-inline-checkout__summary">
+                      <h3 className="pm-inline-checkout__product-name">{productName}</h3>
+                      <div className="pm-inline-checkout__price">
+                        {discountedPriceFormatted && (
+                          <span className="pm-inline-checkout__price-was">{priceFormatted}</span>
+                        )}
+                        <span className="pm-inline-checkout__price-amount">{discountedPriceFormatted ?? priceFormatted}</span>
+                        <span className="pm-inline-checkout__price-period">{billingLabel}</span>
+                      </div>
+                      {credits !== null && credits > 0 && (
+                        <div className="pm-inline-checkout__credits">
+                          <i className="fas fa-bolt"></i>
+                          <span>{credits.toLocaleString()} credits{plan ? ' / month' : ''}</span>
+                        </div>
+                      )}
+
+                      {introOfferLabel && (
+                        <div className="pm-inline-checkout__intro-offer" title={introDiscount?.name ?? undefined}>
+                          <i className="fas fa-tags" aria-hidden></i>
+                          <span>{introDiscount?.name ? `${introDiscount.name} · ${introOfferLabel}` : introOfferLabel}</span>
+                        </div>
+                      )}
+
+                      {/* Bundled credit add-ons from multi-item cart */}
+                      {(cartAddons.length > 0 || introCreditPkgs.length > 0) && (
+                        <div className="pm-inline-checkout__addons">
+                          <div className="pm-inline-checkout__addons-label">Also in this order:</div>
+                          {introCreditPkgs.map((cp: any) => (
+                            <div key={cp.slug} className="pm-inline-checkout__addon-row pm-inline-checkout__addon-row--gift">
+                              <span><i className="fas fa-gift"></i> {cp.name || `${(cp.credits * (cp.quantity || 1)).toLocaleString()} free AI credits`}</span>
+                              <span className="pm-inline-checkout__addon-free">FREE</span>
+                            </div>
+                          ))}
+                          {cartAddons.map(addon => (
+                            <div key={addon.slug} className="pm-inline-checkout__addon-row">
+                              <span><i className="fas fa-bolt"></i> {addon.name}</span>
+                              <span>${(addon.priceCents / 100).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Live price breakdown from Paddle — appears once the
+                          checkout iframe loads and updates as the user enters
+                          country/VAT or applies a discount. */}
+                      {bd ? (
+                        <div className="pm-inline-checkout__breakdown">
+                          <div className="pm-inline-checkout__line">
+                            <span>Subtotal</span>
+                            <span>{fmtMoney(bd.subtotal)}</span>
+                          </div>
+                          {bd.discount > 0 && (
+                            <div className="pm-inline-checkout__line pm-inline-checkout__line--discount">
+                              <span>
+                                Discount
+                                {bd.discountCode ? ` (${bd.discountCode})` : ''}
+                              </span>
+                              <span>-{fmtMoney(bd.discount)}</span>
+                            </div>
+                          )}
+                          {bd.tax > 0 && (
+                            <div className="pm-inline-checkout__line">
+                              <span>VAT / Tax</span>
+                              <span>{fmtMoney(bd.tax)}</span>
+                            </div>
+                          )}
+                          <div className="pm-inline-checkout__line pm-inline-checkout__line--total">
+                            <span>Due today</span>
+                            <span>{fmtMoney(bd.total)}</span>
+                          </div>
+                          {bd.recurring && bd.billingCycle && (
+                            <div className="pm-inline-checkout__renews">
+                              Then {fmtMoney(bd.recurring.total)} {cadenceLabel(bd.billingCycle)}
+                            </div>
+                          )}
+                        </div>
+                      ) : features.length > 0 && (
+                        <ul className="pm-inline-checkout__features">
+                          {features.map((f, i) => (
+                            <li key={i}>
+                              <i className="fas fa-check"></i>
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="pm-inline-checkout__secure">
+                        <i className="fas fa-lock"></i>
+                        <span>Secure checkout powered by Paddle</span>
+                      </div>
+                    </aside>
+                    {/* Paddle inline frame */}
+                    <div className="pm-inline-checkout__frame">
+                      <div className="paddle-checkout-container" />
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+            {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length > 0 && !snap.checkoutResult && (
+              <CartUpsellStep
+                cart={snap.cartItems}
+                packages={visiblePackages}
+                plans={visiblePlans}
+                plugin={plugin}
+              />
+            )}
+            {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showPlans && activeSection === 'plans' && (
               <PlansSection
                 plans={visiblePlans}
                 currentPlanId={planCtx.planId}
-                userFeatureGroupNames={snap.permissions?.feature_groups?.map(g => g.name) ?? []}
+                userFeatureGroups={snap.permissions?.feature_groups ?? []}
                 isTrialEligible={snap.isTrialEligible}
                 purchasingId={purchasingProductId}
                 requiredFeature={intent?.requiredFeature ?? null}
                 onSubscribe={(planId, priceId) => plugin.subscribeToPlan(planId, priceId)}
                 onCancel={() => plugin.cancelSubscription()}
+                onReactivate={() => plugin.reactivateSubscription()}
                 cancelledNotice={planCtx.kind === 'paid' && planCtx.isCancelled ? { expiresOn: planCtx.expiresOn } : null}
               />
             )}
-            {ui.showTopUps && activeSection === 'topup' && (
+            {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showTopUps && activeSection === 'topup' && (
               <TopUpSection
                 packages={visiblePackages}
                 purchasingId={purchasingProductId}
@@ -1330,17 +1981,19 @@ const PlanManagerOverlay: React.FC<{
             {ui.showUsage && activeSection === 'usage' && <UsageSection plugin={plugin} />}
           </main>
 
-        </>}
+        </>
+          })()}
 
         <footer className="pm-footer">
           <div className="pm-footer__legal">
             {snap.isAuthenticated
               ? <>Signed in · billing data live</>
-              : <>Catalog only · sign in to manage your subscription</>}
+              : <>Catalog only. Sign in to manage your subscription.</>}
           </div>
+          <div className="pm-footer__vat">All prices exclude VAT/tax where applicable</div>
           <div className="pm-footer__links">
             <a href="https://remix-ide.readthedocs.io/" target="_blank" rel="noreferrer">Docs</a>
-            <a href="https://discord.gg/TWfKkZVwJW" target="_blank" rel="noreferrer">Support</a>
+            <a href={DISCORD_URL} target="_blank" rel="noreferrer">Support</a>
           </div>
         </footer>
 
@@ -1455,13 +2108,12 @@ function formatResetTime(iso: string, period: QuotaEntry['period'], now: number 
 const QuotasPanel: React.FC<{
   quotas: QuotaEntry[]
   aiModels: ModelLookup
-  planLabel: string
-  /** Paid balance available to spend AFTER the free quota is drained. */
+  /** Paid balance available to spend AFTER the included quota is drained. */
   paidCredits: number
   canUpgrade: boolean
   onUpgrade: () => void
   onTopUp: () => void
-}> = ({ quotas, aiModels, planLabel, paidCredits, canUpgrade, onUpgrade, onTopUp }) => {
+}> = ({ quotas, aiModels, paidCredits, canUpgrade, onUpgrade, onTopUp }) => {
   const [expanded, setExpanded] = React.useState(false)
 
   if (!quotas || quotas.length === 0) return null
@@ -1496,12 +2148,12 @@ const QuotasPanel: React.FC<{
   return (
     <section
       className={`pm-quotas ${expanded ? 'pm-quotas--expanded' : 'pm-quotas--collapsed'}`}
-      aria-label="Free AI usage included with your plan"
+      aria-label="Included AI usage with your plan"
     >
       <div className="pm-quotas__head">
         <div>
-          <div className="pm-quotas__eyebrow">Free with {planLabel}</div>
-          <h3 className="pm-quotas__title">Free AI usage included</h3>
+          <div className="pm-quotas__eyebrow">Included in your plan</div>
+          <h3 className="pm-quotas__title">Included AI usage</h3>
         </div>
         <div className="pm-quotas__head-right">
           <div className="pm-quotas__hint">
@@ -1553,15 +2205,15 @@ const QuotasPanel: React.FC<{
               <header className="pm-quota__head">
                 <div className="pm-quota__label">
                   <span className="pm-quota__name" data-id={`pm-quota-${slugId}-name`}>{label}</span>
-                  <span className="pm-quota__period">{periodWord} free</span>
+                  <span className="pm-quota__period">{periodWord} included</span>
                 </div>
                 {unlimited ? (
-                  <span className="pm-quota__badge pm-quota__badge--unlimited" title="Unlimited free usage">∞ Unlimited</span>
+                  <span className="pm-quota__badge pm-quota__badge--unlimited" title="Unlimited included usage">∞ Unlimited</span>
                 ) : (
                   <div className="pm-quota__counts">
                     <span className="pm-quota__used" data-id={`pm-quota-${slugId}-used`}>{q.used.toLocaleString()}</span>
                     <span className="pm-quota__sep">/</span>
-                    <span className="pm-quota__cap" data-id={`pm-quota-${slugId}-cap`}>{q.amount.toLocaleString()} free</span>
+                    <span className="pm-quota__cap" data-id={`pm-quota-${slugId}-cap`}>{q.amount.toLocaleString()} included</span>
                   </div>
                 )}
               </header>
@@ -1576,8 +2228,8 @@ const QuotasPanel: React.FC<{
                 <span className="pm-quota__reset">
                   {exhausted
                     ? (hasPaid
-                      ? <>Free quota used — now drawing paid credits</>
-                      : <>Free quota used — {reset.toLowerCase()}</>)
+                      ? <>Included quota used — now drawing paid credits</>
+                      : <>Included quota used — {reset.toLowerCase()}</>)
                     : reset}
                 </span>
                 {exhausted && !hasPaid && (
@@ -1615,35 +2267,113 @@ const QuotasPanel: React.FC<{
    ───────────────────────────────────────────────────────────────────────── */
 
 /**
- * Lightweight "you can move up" banner. Shown when `selectCanUpgrade` is
- * true and no higher-priority alert is on screen. Copy adapts to the
- * user's current plan kind so we don't tell a paid user about "starting".
+ * Upgrade promo banner. Shown when `selectCanUpgrade` is true.
+ * Derives real pricing, discount, and free-credits data from the highest
+ * (most expensive) plan in the catalogue so the copy always reflects what
+ * the backend actually offers — no hardcoded strings.
  */
 const UpgradePromoBanner: React.FC<{
   planCtx: ReturnType<typeof selectPlanState>
+  plans: ReturnType<typeof selectVisiblePlans>
   onUpgrade: () => void
-}> = ({ planCtx, onUpgrade }) => {
+}> = ({ planCtx, plans, onUpgrade }) => {
+  // Pick the top-tier plan (highest monthly price).
+  const topPlan = React.useMemo(() => {
+    if (!plans || plans.length === 0) return null
+    return [...plans].sort((a, b) => b.priceUsd - a.priceUsd)[0]
+  }, [plans])
+
+  // ── Pricing ──────────────────────────────────────────────────────────
+  const priceCents = topPlan?.priceUsd ?? 0
+  const introDiscount = (topPlan?.introDiscounts ?? [])[0] ?? null
+  let discountedCents: number | null = null
+  let introOfferLabel: string | null = null
+  if (introDiscount && priceCents > 0) {
+    const isPct = introDiscount.discountType === 'percentage'
+    const dc = isPct
+      ? Math.max(0, Math.floor(priceCents * (1 - introDiscount.amount / 100)))
+      : Math.max(0, priceCents - Math.round(introDiscount.amount * 100))
+    if (dc < priceCents) discountedCents = dc
+    const unit = topPlan?.billingInterval === 'year' ? 'year' : 'month'
+    const intervals = introDiscount.maxRecurringIntervals
+    const duration = !introDiscount.recur || !intervals || intervals === 1
+      ? `first ${unit}`
+      : `first ${intervals} ${unit}s`
+    introOfferLabel = isPct
+      ? `${Math.round(introDiscount.amount)}% off ${duration}`
+      : `$${introDiscount.amount.toFixed(2)} off ${duration}`
+  }
+  const fullPriceLabel = priceCents > 0 ? `$${(priceCents / 100).toFixed(2)}` : null
+  const discountedPriceLabel = discountedCents != null ? `$${(discountedCents / 100).toFixed(2)}` : null
+  const cadence = topPlan?.billingInterval === 'year' ? 'per year' : 'per month'
+
+  // ── Free credits ─────────────────────────────────────────────────────
+  // Sum intro credit packages (free gifts bundled at sign-up).
+  const introPkgs = topPlan?.introCreditPackages ?? []
+  const freeCreditsTotal = introPkgs.reduce((sum, cp: any) => sum + (cp.credits ?? 0) * (cp.quantity ?? 1), 0)
+
+  // ── Feature pills ────────────────────────────────────────────────────
+  const features: string[] = topPlan?.features ?? []
+
+  // ── Headlines ────────────────────────────────────────────────────────
+  const planName = topPlan?.name ?? 'Pro'
   const isFree = planCtx.kind === 'no_subscription'
   const headline = isFree
-    ? 'Unlock more credits and advanced models'
-    : `Get more from Remix AI — upgrade from ${planCtx.planName}`
-  const sub = isFree
-    ? 'Higher daily caps, full model lineup, and paid credits that never expire.'
-    : 'Bigger free quotas across every model, plus priority access on new releases.'
+    ? `Unlock ${planName}`
+    : `Get more from Remix AI — upgrade from ${planCtx.planName} to ${planName}`
 
   return (
     <section className="pm-promo" aria-label="Upgrade your plan">
       <div className="pm-promo__glow" aria-hidden />
+
       <div className="pm-promo__body">
         <div className="pm-promo__eyebrow">
           <i className="fas fa-arrow-up-right-dots"></i>
           <span>Upgrade</span>
         </div>
+
         <h3 className="pm-promo__title">{headline}</h3>
-        <p className="pm-promo__sub">{sub}</p>
+
+        {/* Pricing row */}
+        {fullPriceLabel && (
+          <div className="pm-promo__price-row">
+            {discountedPriceLabel ? (
+              <>
+                <span className="pm-promo__price-strike">{fullPriceLabel}</span>
+                <span className="pm-promo__price-current">{discountedPriceLabel}</span>
+              </>
+            ) : (
+              <span className="pm-promo__price-current">{fullPriceLabel}</span>
+            )}
+            <span className="pm-promo__price-cadence">{cadence}</span>
+          </div>
+        )}
+
+        {/* Promo pills */}
+        <div className="pm-promo__pills">
+          {introOfferLabel && (
+            <span className="pm-promo__pill pm-promo__pill--offer">
+              <i className="fas fa-tag"></i>
+              {introOfferLabel}
+            </span>
+          )}
+          {freeCreditsTotal > 0 && (
+            <span className="pm-promo__pill pm-promo__pill--credits">
+              <i className="fas fa-gift"></i>
+              {freeCreditsTotal.toLocaleString()} free AI credits
+            </span>
+          )}
+          {features.slice(0, 100).map((f, i) => (
+            <span key={i} className="pm-promo__pill pm-promo__pill--feature">
+              <i className="fas fa-check"></i>
+              {f}
+            </span>
+          ))}
+        </div>
       </div>
+
       <button type="button" className="pm-promo__cta" onClick={onUpgrade}>
-        See plans
+        See {planName} plans
         <i className="fas fa-arrow-right"></i>
       </button>
     </section>
@@ -1662,7 +2392,13 @@ const Hero: React.FC<{
   /** Omit to hide the Top up CTA — used when `ui:show-top-ups` is off. */
   onTopUp?: () => void
 }> = ({ status, refreshDate, planCtx, heroCompact, onTopUp }) => {
-  const { remaining, total, state } = status
+  const { paidRemaining, total, state, includedRemaining, includedTotal, hasUnlimitedIncluded } = status
+  const showIncluded = hasUnlimitedIncluded || includedTotal > 0
+  // Total available = paid + included (what the CEO wants to see as the headline)
+  const totalAvailable = hasUnlimitedIncluded ? null : paidRemaining + includedRemaining
+  // Only show the blue paid chip when there are also included credits — otherwise
+  // the total already equals just the paid amount and the chip would be redundant.
+  const showPaidChip = paidRemaining > 0 && showIncluded
 
   // Credits don't expire and top-ups stack, so a "% of cycle" gauge would
   // misrepresent the model. We only surface a forward-looking line: when
@@ -1672,13 +2408,14 @@ const Hero: React.FC<{
   // to a calmer copy that doesn't imply a quota the user can hit.
   const renderRenewal = (): React.ReactNode => {
     if (planCtx.kind === 'paid') {
+      const planName = planCtx.planName
       if (planCtx.isCancelled && refreshDate) {
-        return <>Ends <em>{refreshDate}</em> · won't renew</>
+        return <><em>{planName}</em> ends <em>{refreshDate}</em> · won't renew</>
       }
       if (refreshDate && total > 0) {
-        return <>Renews <em>{refreshDate}</em> · <em>+{total.toLocaleString()}</em> credits</>
+        return <><em>{planName}</em> renews <em>{refreshDate}</em></>
       }
-      if (refreshDate) return <>Renews <em>{refreshDate}</em></>
+      if (refreshDate) return <><em>{planName}</em> renews <em>{refreshDate}</em></>
     }
     if (planCtx.kind === 'beta') {
       return planCtx.expiresOn
@@ -1695,10 +2432,43 @@ const Hero: React.FC<{
   return (
     <section className={`pm-hero pm-hero--${state} ${heroCompact ? 'pm-hero--compact' : ''}`}>
       <div className="pm-hero__left">
-        <div className="pm-hero__eyebrow">Credit balance</div>
-        <div className="pm-hero__amount">
-          <span className="pm-hero__num">{remaining.toLocaleString()}</span>
-          <span className="pm-hero__unit">credits</span>
+        <div className="pm-hero__eyebrow">Total AI credits available</div>
+        <div className="pm-hero__balance-row">
+          <div className="pm-hero__amount">
+            {hasUnlimitedIncluded ? (
+              <span className="pm-hero__num">∞</span>
+            ) : (
+              <span className="pm-hero__num">{totalAvailable!.toLocaleString()}</span>
+            )}
+          </div>
+          {/* Paid credits chip — blue, only shown when there's a paid balance */}
+          {showPaidChip && (
+            <div className="pm-hero__included pm-hero__included--paid" aria-label="Paid AI credits">
+              <span className="pm-hero__included-kicker">Paid credits</span>
+              <span className="pm-hero__included-value">{paidRemaining.toLocaleString()}</span>
+              <span className="pm-hero__included-label">credits</span>
+            </div>
+          )}
+          {/* Included (free) credits chip */}
+          {showIncluded && !hasUnlimitedIncluded && (
+            <div className="pm-hero__included pm-hero__included--free" aria-label="Free included AI credits">
+              <span className="pm-hero__included-kicker">Free included AI</span>
+              <span className="pm-hero__included-value">
+                {includedRemaining.toLocaleString()}
+                {includedRemaining !== includedTotal && (
+                  <><span>/</span>{includedTotal.toLocaleString()}</>
+                )}
+              </span>
+              <span className="pm-hero__included-label">credits</span>
+            </div>
+          )}
+          {hasUnlimitedIncluded && (
+            <div className="pm-hero__included pm-hero__included--free" aria-label="Free included AI credits">
+              <span className="pm-hero__included-kicker">Free included AI</span>
+              <span className="pm-hero__included-value">Unlimited</span>
+              <span className="pm-hero__included-label">credits</span>
+            </div>
+          )}
         </div>
         <div className="pm-hero__meta">
           {renderRenewal()}
@@ -1892,9 +2662,29 @@ function computeYearlySavings(p: any): { percent: number; monthsFree: number } |
   return { percent: pct, monthsFree }
 }
 
+function normalizePlanKey(value: unknown): string {
+  return String(value ?? '').trim().toLowerCase()
+}
+
+function findAccessGroupForPlan(plan: any, groups: FeatureGroup[]): FeatureGroup | null {
+  const featureGroupName = normalizePlanKey(plan.featureGroupName)
+  if (!featureGroupName) return null
+  const matches = groups.filter(group => normalizePlanKey(group.name) === featureGroupName)
+  if (matches.length === 0) return null
+  return [...matches].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0]
+}
+
+function formatFeatureGroupSource(sourceType: string | null | undefined): string {
+  if (sourceType === 'subscription') return 'subscription'
+  if (sourceType === 'admin_grant') return 'admin grant'
+  if (!sourceType) return 'access grant'
+  return sourceType.replace(/_/g, ' ')
+}
+
 const PlanCard: React.FC<{
   plan: any
-  isCurrent: boolean
+  isSubscriptionCurrent: boolean
+  accessGroup: FeatureGroup | null
   isRecommended: boolean
   isPurchasing: boolean
   anyPurchasing: boolean
@@ -1902,7 +2692,8 @@ const PlanCard: React.FC<{
   cancelledNotice: { expiresOn: string | null } | null
   onSubscribe: (planId: string, priceId?: number) => void
   onCancel: () => void
-}> = ({ plan, isCurrent, isRecommended, isPurchasing, anyPurchasing, isTrialEligible, cancelledNotice, onSubscribe, onCancel }) => {
+  onReactivate: () => void
+}> = ({ plan, isSubscriptionCurrent, accessGroup, isRecommended, isPurchasing, anyPurchasing, isTrialEligible, cancelledNotice, onSubscribe, onCancel, onReactivate }) => {
   const pricesArr: any[] = Array.isArray(plan.prices) ? plan.prices : []
   const activePrices = pricesArr.filter((pr: any) => pr.is_active !== false)
   const hasMonthly = activePrices.some((pr: any) => pr.billing_interval === 'month')
@@ -1935,19 +2726,59 @@ const PlanCard: React.FC<{
     ? 'forever'
     : selectedInterval === 'year' ? 'per year' : 'per month'
   const isFree = selectedPriceCents === 0
+
+  // Intro discount — launch promo (e.g. "60% off your first 3 months").
+  // We compute the discounted headline price to entice, and surface the
+  // offer name as a badge. The actual discount is applied by Paddle at
+  // checkout via the prefilled discount code.
+  const introDiscount = (plan.introDiscounts ?? [])[0] ?? null
+  let discountedPriceLabel: string | null = null
+  let introOfferLabel: string | null = null
+  if (introDiscount && !isFree && selectedPriceCents > 0) {
+    const isPct = introDiscount.discountType === 'percentage'
+    const discountedCents = isPct
+      ? Math.max(0, Math.floor(selectedPriceCents * (1 - introDiscount.amount / 100)))
+      : Math.max(0, selectedPriceCents - Math.round(introDiscount.amount * 100))
+    if (discountedCents < selectedPriceCents) {
+      discountedPriceLabel = `$${(discountedCents / 100).toFixed(2)}`
+      const intervals = introDiscount.maxRecurringIntervals
+      const unit = selectedInterval === 'year' ? 'year' : 'month'
+      const duration = !introDiscount.recur || !intervals
+        ? `first ${unit}`
+        : intervals === 1
+          ? `first ${unit}`
+          : `first ${intervals} ${unit}s`
+      introOfferLabel = isPct
+        ? `${Math.round(introDiscount.amount)}% off ${duration}`
+        : `${discountedPriceLabel} off ${duration}`
+    }
+  }
+
+  const isAccessActive = accessGroup !== null
+  const isSubscriptionAccess = isAccessActive && accessGroup.source_type === 'subscription'
+  const showUnifiedCurrent = isSubscriptionCurrent && isSubscriptionAccess
+  const isPlanActive = isSubscriptionCurrent || isAccessActive
   const trialDays = Number(plan.trialPeriodDays) || 0
-  const showTrial = trialDays > 0 && isTrialEligible && !isCurrent && !isFree
+  const showTrial = trialDays > 0 && isTrialEligible && !isPlanActive && !isFree
   const trialCredits = Number(plan.trialCredits) || 0
-  const disabled = isCurrent || isFree || anyPurchasing
+  const disabled = isPlanActive || isFree || anyPurchasing
   const accent = pickAccent(plan.id)
 
   return (
     <article
-      className={`pm-plan ${isCurrent ? 'is-current' : ''} ${isRecommended ? 'is-recommended' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
+      className={`pm-plan ${isPlanActive ? 'is-current' : ''} ${isSubscriptionCurrent ? 'is-subscription-current' : ''} ${isAccessActive ? 'is-access-current' : ''} ${isRecommended ? 'is-recommended' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
       style={{ '--pm-accent': accent } as React.CSSProperties}
     >
-      {isRecommended && !isCurrent && <div className="pm-plan__ribbon">Recommended</div>}
-      {isCurrent && <div className="pm-plan__current">Current</div>}
+      <div className="pm-plan__badges">
+        {isRecommended && !isPlanActive && <div className="pm-plan__ribbon">Recommended</div>}
+        {showUnifiedCurrent && <div className="pm-plan__current">Current</div>}
+        {!showUnifiedCurrent && isSubscriptionCurrent && <div className="pm-plan__current pm-plan__current--subscription">Subscription</div>}
+        {!showUnifiedCurrent && isAccessActive && (
+          <div className="pm-plan__current pm-plan__current--access" title={`Access from ${formatFeatureGroupSource(accessGroup.source_type)}`}>
+            {`You have access`}
+          </div>
+        )}
+      </div>
       {showTrial && (
         <div className="pm-plan__trial-badge" title={trialCredits ? `${trialCredits} credits included` : undefined}>
           <i className="fas fa-gift"></i>
@@ -1985,9 +2816,35 @@ const PlanCard: React.FC<{
       )}
 
       <div className="pm-plan__price">
-        <span className="pm-plan__price-num">{priceLabel}</span>
-        <span className="pm-plan__price-cad">{cadenceLabel}</span>
+        {discountedPriceLabel ? (
+          <>
+            <span className="pm-plan__price-was">{priceLabel}</span>
+            <span className="pm-plan__price-num">{discountedPriceLabel}</span>
+            <span className="pm-plan__price-cad">{cadenceLabel}</span>
+          </>
+        ) : (
+          <>
+            <span className="pm-plan__price-num">{priceLabel}</span>
+            <span className="pm-plan__price-cad">{cadenceLabel}</span>
+          </>
+        )}
       </div>
+      {introOfferLabel && (
+        <div className="pm-plan__intro-offer" title={introDiscount?.name ?? undefined}>
+          <i className="fas fa-tags" aria-hidden></i>
+          <span>{introDiscount?.name ? `${introDiscount.name} · ${introOfferLabel}` : introOfferLabel}</span>
+        </div>
+      )}
+      {(plan.introCreditPackages ?? []).length > 0 && (
+        <div className="pm-plan__intro-credits">
+          <i className="fas fa-gift" aria-hidden></i>
+          <span>
+            {(plan.introCreditPackages ?? []).map((cp: any) =>
+              `${(cp.credits * (cp.quantity || 1)).toLocaleString()} free AI credits`
+            ).join(' + ')}
+          </span>
+        </div>
+      )}
       {savingsBadge && (
         <div className="pm-plan__savings" title="Compared to paying month-to-month">
           <i className="fas fa-sparkles" aria-hidden></i>
@@ -2009,16 +2866,17 @@ const PlanCard: React.FC<{
         disabled={disabled}
         onClick={() => { if (!disabled) onSubscribe(plan.id, selectedPriceId) }}
       >
-        {isCurrent ? 'Active'
+        {isSubscriptionCurrent ? 'Active'
           : isPurchasing ? <><i className="fas fa-spinner fa-spin"></i> Opening checkout…</>
-            : isFree ? 'Always free'
-              : showTrial
-                ? <><i className="fas fa-flask"></i> Start {trialDays}-day free trial</>
-                : `Switch to ${plan.name}`}
+            : isAccessActive ? 'Access active'
+              : isFree ? 'Always free'
+                : showTrial
+                  ? <><i className="fas fa-flask"></i> Start {trialDays}-day free trial</>
+                  : `Switch to ${plan.name}`}
       </button>
       {/* Cancel affordance — only on the active *paid* plan. Free /
           beta have no subscription row to cancel. */}
-      {isCurrent && !isFree && (
+      {isSubscriptionCurrent && !isFree && (
         <>
           {cancelledNotice && (
             <div className="pm-plan__cancel-notice" role="status">
@@ -2030,27 +2888,236 @@ const PlanCard: React.FC<{
               </span>
             </div>
           )}
-          <button
-            type="button"
-            className="pm-plan__cancel-link"
-            onClick={() => onCancel()}
-            title="Cancel your subscription"
-          >
-            {cancelledNotice ? 'Manage cancellation' : 'Cancel subscription'}
-          </button>
+          {cancelledNotice ? (
+            <button
+              type="button"
+              className="pm-plan__reactivate-link"
+              onClick={() => onReactivate()}
+              title="Remove the scheduled cancellation and keep your subscription"
+            >
+              <i className="fas fa-rotate-left" aria-hidden></i> Reactivate subscription
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="pm-plan__cancel-link"
+              onClick={() => onCancel()}
+              title="Cancel your subscription"
+            >
+              Cancel subscription
+            </button>
+          )}
         </>
       )}
     </article>
   )
 }
 
+// ─── Cart upsell step ───────────────────────────────────────────────
+// Shown after the user picks a paid plan. Offers credit packages to
+// bundle into a single Paddle transaction (multi-item checkout).
+const CartUpsellStep: React.FC<{
+  cart: CartItem[]
+  packages: any[]
+  plans: any[]
+  plugin: PlanManagerPlugin
+}> = ({ cart, packages, plans, plugin }) => {
+  const planItem = cart.find(i => i.productType === 'subscription_plan')
+  const addedSlugs = new Set(cart.filter(i => i.productType === 'credit_package').map(i => i.slug))
+  const cartTotal = cart.reduce((sum, item) => sum + item.priceCents, 0)
+
+  // Look up intro discount from the plan catalog to show promo banner.
+  const planObj = planItem ? plans.find((p: any) => p.id === planItem.slug) : null
+  const introDiscount = (planObj?.introDiscounts ?? [])[0] ?? null
+
+  // Compute the discounted first-payment price so we can show the crossed-out
+  // regular price and the actual amount the user pays today.
+  // Credit packages are one-time and not subject to the subscription discount.
+  const planPriceCents = planItem?.priceCents ?? 0
+  const nonPlanCents = cartTotal - planPriceCents
+  let discountedFirstPaymentCents: number | null = null
+  let renewalLabel: string | null = null    // "then $X.XX/mo after first 3 months"
+  if (introDiscount && planPriceCents > 0) {
+    const isPct = introDiscount.discountType === 'percentage'
+    const discountedPlanCents = isPct
+      ? Math.max(0, Math.floor(planPriceCents * (1 - introDiscount.amount / 100)))
+      : Math.max(0, planPriceCents - Math.round(introDiscount.amount * 100))
+    if (discountedPlanCents < planPriceCents) {
+      discountedFirstPaymentCents = discountedPlanCents + nonPlanCents
+      const interval = planItem?.billingInterval ?? 'month'
+      const intervals = introDiscount.maxRecurringIntervals
+      const durationLabel = !introDiscount.recur || !intervals
+        ? `first ${interval}`
+        : intervals === 1
+          ? `first ${interval}`
+          : `first ${intervals} ${interval}s`
+      renewalLabel = `then $${(planPriceCents / 100).toFixed(2)}/${interval} after ${durationLabel}`
+    }
+  }
+  const hasDiscount = discountedFirstPaymentCents !== null && discountedFirstPaymentCents < cartTotal
+  const checkoutDisplayCents = hasDiscount ? discountedFirstPaymentCents! : cartTotal
+
+  const addPackage = (pkg: any) => {
+    plugin.store.send({
+      type: 'CART_ADD',
+      item: {
+        slug: pkg.id,
+        name: pkg.name,
+        productType: 'credit_package',
+        priceCents: pkg.priceUsd ?? 0,
+        credits: pkg.credits
+      }
+    })
+  }
+
+  const removePackage = (slug: string) => {
+    plugin.store.send({ type: 'CART_REMOVE', slug })
+  }
+
+  const goBack = () => {
+    plugin.store.send({ type: 'CART_CLEAR' })
+  }
+
+  const proceed = () => {
+    void plugin.checkoutCart()
+  }
+
+  return (
+    <div className="pm-cart-upsell">
+      <div className="pm-cart-upsell__header">
+        <button className="pm-cart-upsell__back" onClick={goBack}>
+          <i className="fas fa-arrow-left"></i>
+          <span>Back to plans</span>
+        </button>
+      </div>
+
+      {/* Current cart summary */}
+      <div className="pm-cart-upsell__summary">
+        <h3 className="pm-cart-upsell__title">Your order</h3>
+        <ul className="pm-cart-upsell__items">
+          {cart.map(item => (
+            <li key={item.slug} className="pm-cart-upsell__item">
+              <div className="pm-cart-upsell__item-info">
+                <span className="pm-cart-upsell__item-name">{item.name}</span>
+                <span className="pm-cart-upsell__item-price">${(item.priceCents / 100).toFixed(2)}</span>
+              </div>
+              {item.productType === 'credit_package' && (
+                <button
+                  className="pm-cart-upsell__item-remove"
+                  onClick={() => removePackage(item.slug)}
+                  title="Remove from cart"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        <div className="pm-cart-upsell__total">
+          <span>Total</span>
+          <div className="pm-cart-upsell__total-right">
+            {hasDiscount ? (
+              <>
+                <span className="pm-cart-upsell__total-original">${(cartTotal / 100).toFixed(2)}</span>
+                <span className="pm-cart-upsell__total-discounted">${(discountedFirstPaymentCents! / 100).toFixed(2)}</span>
+              </>
+            ) : (
+              <span>${(cartTotal / 100).toFixed(2)}</span>
+            )}
+          </div>
+        </div>
+        {renewalLabel && (
+          <div className="pm-cart-upsell__renewal-note">{renewalLabel}</div>
+        )}
+
+        {/* Discount notice — anchored to the total so it's visually connected */}
+        {introDiscount && (
+          <div className="pm-cart-upsell__discount-notice">
+            <i className="fas fa-tags"></i>
+            <div>
+              <strong>{introDiscount.name}</strong>
+              <span>
+                {introDiscount.discountType === 'percentage'
+                  ? ` — ${Math.round(introDiscount.amount)}% off`
+                  : ` — $${introDiscount.amount.toFixed(2)} off`}
+                {' '}will be applied at checkout
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Bonus intro credits — also anchored in the summary block */}
+        {(planObj?.introCreditPackages ?? []).length > 0 && (
+          <div className="pm-cart-upsell__bonus-notice">
+            <i className="fas fa-gift"></i>
+            <div>
+              <strong>Bonus included</strong>
+              <span>
+                {' — '}
+                {(planObj.introCreditPackages ?? []).map((cp: any) =>
+                  `${(cp.credits * (cp.quantity || 1)).toLocaleString()} free AI credits`
+                ).join(' + ')}
+                {' '}added to your account on sign-up
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Upsell: available credit packages */}
+      {packages.length > 0 && (
+        <div className="pm-cart-upsell__addons">
+          <h4 className="pm-cart-upsell__addons-title">
+            <i className="fas fa-bolt"></i>
+            Add AI credits to your order
+          </h4>
+          <p className="pm-cart-upsell__addons-desc">
+            Bundle AI credits with your subscription — one checkout, no extra transaction fees.
+          </p>
+          <div className="pm-cart-upsell__addons-grid">
+            {packages.map((pkg: any) => {
+              const isAdded = addedSlugs.has(pkg.id)
+              return (
+                <button
+                  key={pkg.id}
+                  className={`pm-cart-upsell__addon ${isAdded ? 'is-added' : ''}`}
+                  onClick={() => isAdded ? removePackage(pkg.id) : addPackage(pkg)}
+                >
+                  <span className="pm-cart-upsell__addon-credits">
+                    {(pkg.credits ?? 0).toLocaleString()}
+                  </span>
+                  <span className="pm-cart-upsell__addon-label">AI credits</span>
+                  <span className="pm-cart-upsell__addon-price">
+                    ${((pkg.priceUsd ?? 0) / 100).toFixed(2)}
+                  </span>
+                  <span className="pm-cart-upsell__addon-action">
+                    {isAdded ? <><i className="fas fa-check"></i> Added</> : <><i className="fas fa-plus"></i> Add</>}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Proceed to checkout */}
+      <button className="pm-cart-upsell__checkout-btn" onClick={proceed}>
+        <i className="fas fa-lock"></i>
+        <span>Proceed to checkout — ${(checkoutDisplayCents / 100).toFixed(2)}</span>
+      </button>
+      <div className="pm-cart-upsell__note">
+        <i className="fas fa-info-circle"></i>
+        <span>You'll complete payment securely via Paddle</span>
+      </div>
+    </div>
+  )
+}
+
 const PlansSection: React.FC<{
   plans: any[]
   currentPlanId: string | null
-  /** Feature group names the user already has (from permissions). Used to detect
-   * "current" when the subscription record is absent but a feature group was
-   * granted directly (e.g. after purchasing via /products/available). */
-  userFeatureGroupNames: string[]
+  /** Feature groups currently granting access. Permissions and quotas follow these, not necessarily billing. */
+  userFeatureGroups: FeatureGroup[]
   /** True when the user has never used a trial — enables "Start free trial" CTAs. */
   isTrialEligible: boolean
   purchasingId: string | null
@@ -2059,9 +3126,11 @@ const PlansSection: React.FC<{
   onSubscribe: (planId: string, priceId?: number) => void
   /** Cancel the active paid subscription. Opens the in-panel chooser. */
   onCancel: () => void
+  /** Reactivate a subscription scheduled to cancel (removes the scheduled cancellation). */
+  onReactivate: () => void
   /** When the active paid sub is set to cancel, show "will not renew" copy. */
   cancelledNotice: { expiresOn: string | null } | null
-}> = ({ plans, currentPlanId, userFeatureGroupNames, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, cancelledNotice }) => {
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice }) => {
   if (plans.length === 0) {
     return (
       <div className="pm-empty">
@@ -2079,6 +3148,14 @@ const PlansSection: React.FC<{
     ? popularPlan.id
     : (sorted.length >= 3 ? sorted[1].id : null)
   const anyPurchasing = purchasingId !== null
+  const currentPlan = sorted.find(plan => plan.id === currentPlanId) ?? null
+  const accessMatches = sorted
+    .map(plan => ({ plan, group: findAccessGroupForPlan(plan, userFeatureGroups) }))
+    .filter((entry): entry is { plan: any; group: FeatureGroup } => entry.group !== null)
+  const primaryAccess = [...accessMatches].sort((a, b) => (b.group.priority ?? 0) - (a.group.priority ?? 0))[0] ?? null
+  const accessDiffersFromSubscription = !!primaryAccess && (
+    !currentPlan || primaryAccess.plan.id !== currentPlan.id || primaryAccess.group.source_type !== 'subscription'
+  )
 
   return (
     <div className="pm-plans" data-id="pm-plans-view">
@@ -2086,21 +3163,30 @@ const PlansSection: React.FC<{
         <div className="pm-plans__required" role="status" data-id="pm-plans-required-feature" data-required-feature={requiredFeature}>
           <i className="fas fa-bolt" aria-hidden></i>
           <span>
-            Your current plan doesn't include <code>{requiredFeature}</code>.
+            Your current plan doesn't include <strong>{FEATURE_LABELS[requiredFeature as keyof typeof FEATURE_LABELS] ?? requiredFeature}</strong>.
             Choose a plan below that does to unlock it.
           </span>
         </div>
       )}
+      {accessDiffersFromSubscription && (
+        <div className="pm-plans__access-note" role="status">
+          <i className="fas fa-key" aria-hidden></i>
+          <span>
+            Active subscription: <strong>{currentPlan?.name ?? 'None'}</strong>. Active access: <strong>{primaryAccess.plan.name}</strong>
+          </span>
+        </div>
+      )}
       {sorted.map(plan => {
-        const isCurrent = plan.id === currentPlanId ||
-          (plan.featureGroupName != null && userFeatureGroupNames.includes(plan.featureGroupName))
+        const isSubscriptionCurrent = plan.id === currentPlanId
+        const accessGroup = findAccessGroupForPlan(plan, userFeatureGroups)
         const isRecommended = plan.id === recommendedId
         const isPurchasing = purchasingId === plan.id
         return (
           <PlanCard
             key={plan.id}
             plan={plan}
-            isCurrent={isCurrent}
+            isSubscriptionCurrent={isSubscriptionCurrent}
+            accessGroup={accessGroup}
             isRecommended={isRecommended}
             isPurchasing={isPurchasing}
             anyPurchasing={anyPurchasing}
@@ -2108,6 +3194,7 @@ const PlansSection: React.FC<{
             cancelledNotice={cancelledNotice}
             onSubscribe={onSubscribe}
             onCancel={onCancel}
+            onReactivate={onReactivate}
           />
         )
       })}
@@ -2115,14 +3202,14 @@ const PlansSection: React.FC<{
           compete visually with the priced cards. */}
       <a
         className="pm-enterprise-strip"
-        href="mailto:sales@remix.live?subject=Remix%20Team%20%2F%20Enterprise%20enquiry"
+        href="https://remix.live/contact"
         target="_blank"
         rel="noopener noreferrer"
       >
         <span className="pm-enterprise-strip__label">
           <i className="fas fa-building" aria-hidden></i>
           <strong>Team &amp; Enterprise</strong>
-          <span className="pm-enterprise-strip__sub">SSO, pooled credits, custom quotas</span>
+          <span className="pm-enterprise-strip__sub"></span>
         </span>
         <span className="pm-enterprise-strip__cta">
           Contact us <i className="fas fa-arrow-right" aria-hidden></i>
@@ -2194,7 +3281,7 @@ const TopUpSection: React.FC<{
       </div>
       <div className="pm-topup__custom">
         <span>Need a custom amount?</span>
-        <a href="mailto:remix@ethereum.org">Contact us</a>
+        <a href="https://remix.live/contact" target="_blank" rel="noopener noreferrer">Contact us</a>
       </div>
     </div>
   )
@@ -2365,7 +3452,7 @@ const UsageSection: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) => {
         </div>
         <div className="pm-usage__total">
           <div className="pm-usage__total-num">{formatCreditValue(totals.credits)}</div>
-          <div className="pm-usage__total-lbl">credits billed</div>
+          <div className="pm-usage__total-lbl">credits used</div>
         </div>
       </div>
 
@@ -2432,7 +3519,7 @@ const ALERT_COPY: Record<Exclude<CreditState, 'healthy' | 'unknown'>, {
   empty: {
     eyebrow: 'Out of credits',
     title: () => 'You\'ve used all your credits',
-    body: (r) => `AI features are paused until you top up, upgrade your plan${r ? `, or your free allowance refills on ${r}` : ''}.`,
+    body: (r) => `AI features are paused until you top up, upgrade your plan${r ? `, or your included allowance refills on ${r}` : ''}.`,
     icon: 'fas fa-bolt'
   }
 }
@@ -2446,6 +3533,7 @@ const CreditAlert: React.FC<{
 }> = ({ status, refreshDate, canUpgrade, onTopUp, onUpgrade }) => {
   if (status.state === 'healthy' || status.state === 'unknown') return null
   const copy = ALERT_COPY[status.state]
+  const remaining = status.availableRemaining
 
   return (
     <section className={`pm-alert pm-alert--${status.state}`}>
@@ -2455,7 +3543,7 @@ const CreditAlert: React.FC<{
       </div>
       <div className="pm-alert__body">
         <div className="pm-alert__eyebrow">{copy.eyebrow}</div>
-        <div className="pm-alert__title">{copy.title(status.remaining)}</div>
+        <div className="pm-alert__title">{copy.title(remaining)}</div>
         <p className="pm-alert__desc">{copy.body(refreshDate)}</p>
       </div>
       <div className="pm-alert__actions">
@@ -2465,7 +3553,7 @@ const CreditAlert: React.FC<{
           </button>
         )}
         <button className="pm-alert__btn pm-alert__btn--solid" onClick={onTopUp}>
-          <i className="fas fa-bolt"></i> Buy credits
+          <i className="fas fa-bolt"></i> Buy AI credits
         </button>
       </div>
     </section>
@@ -2586,7 +3674,7 @@ const BETA_ALERT_COPY: Record<Exclude<PlanLifecycle, 'active' | 'trial'>, {
       `The free beta wraps up ${days <= 1 ? 'tomorrow' : `in ${days} days`}${expiresOn ? ` (${formatDate(expiresOn)})` : ''}. Your feedback got us here — now it's time to pick a plan that fits how you build.`,
     body: 'Pick any paid tier before your beta ends and your projects, history, and AI credits keep flowing without a hiccup. As a thank-you, your first month carries over a bonus credit pack.',
     primary: 'See paid plans',
-    secondary: 'Top up credits'
+    secondary: 'Top up AIcredits'
   },
   expired: {
     eyebrow: 'Beta has ended',
@@ -2595,7 +3683,7 @@ const BETA_ALERT_COPY: Record<Exclude<PlanLifecycle, 'active' | 'trial'>, {
       `The beta ended ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago${expiresOn ? ` (${formatDate(expiresOn)})` : ''}. AI features are paused while you choose a plan — your workspaces and history are safe and waiting.`,
     body: 'Pick a paid plan to switch everything back on. Beta testers get a one-time bonus credit pack on their first paid month — our way of saying thanks for being early.',
     primary: 'Choose a plan',
-    secondary: 'Top up credits'
+    secondary: 'Top up AI credits'
   }
 }
 
@@ -2693,11 +3781,11 @@ const SignInPromptScreen: React.FC<{
             <i className="fas fa-sparkles"></i>
             <span>Account required</span>
           </div>
-          <h2 className="pm-signin__title">Create a free account to use Remix&nbsp;AI</h2>
+          <h2 className="pm-signin__title">Create a free account to use RemixAI</h2>
 
           <ul className="pm-signin__perks">
-            <li><i className="fas fa-robot"></i> Solidity assistant, completions &amp; security audit</li>
-            <li><i className="fas fa-lock"></i> Auth via your existing identity — we never see your password</li>
+            <li><i className="fas fa-robot"></i> Solidity Assistant, Code Completion, and Security Audits</li>
+            <li><i className="fas fa-lock"></i> Authorize via your existing identity — we never see your password.</li>
           </ul>
 
           <div className="pm-signin__actions">
@@ -2714,8 +3802,8 @@ const SignInPromptScreen: React.FC<{
           </div>
 
           <p className="pm-signin__legal">
-            By continuing you agree to the&nbsp;
-            <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms</a>
+            By continuing, you agree to the&nbsp;
+            <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms of Service</a>
             &nbsp;and&nbsp;
             <a href="https://remix-project.org/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
           </p>
@@ -2944,11 +4032,11 @@ const EmailVerificationScreen: React.FC<{
             </h2>
             <p className="pm-signin__lede">
               {isAddMode
-                ? 'You signed in with a wallet, so we don\'t have an email on file. We need a verified address before unlocking AI features — it\'s how we keep free credits out of the hands of throwaway accounts and how you\'ll recover your plan if you ever lose your wallet.'
+                ? 'You signed in with a wallet, so we don\'t have an email on file. We need a verified address before unlocking AI features — it\'s how we keep included credits out of the hands of throwaway accounts and how you\'ll recover your plan if you ever lose your wallet.'
                 : (<>
                   We\'ll email a 6-digit code to{' '}
                   <strong className="pm-verify__email">{targetEmailMasked || 'your address on file'}</strong>.
-                  This is a one-time check to keep free credits out of throwaway accounts.
+                  This is a one-time check to keep included credits out of throwaway accounts.
                 </>)}
             </p>
 
@@ -3110,7 +4198,7 @@ const PlanManagerError: React.FC<{ message?: string | null; onRetry: () => void 
 const CHECKOUT_COPY: Record<CheckoutResultKind, {
   eyebrow: string
   icon: string
-  title: (intent: string, itemLabel?: string) => string
+  title: (intent: string, itemLabel?: string, meta?: Record<string, string>) => string
   body: (intent: string, itemLabel?: string, meta?: Record<string, string>) => string
 }> = {
   processing: {
@@ -3118,10 +4206,14 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
     icon: 'fas fa-spinner fa-spin',
     title: (intent, item) => intent === 'cancel'
       ? `Cancelling ${item || 'your subscription'}…`
-      : 'Confirming your payment…',
+      : intent === 'reactivate'
+        ? `Reactivating ${item || 'your subscription'}…`
+        : 'Confirming your payment…',
     body: (intent, item) => intent === 'cancel'
       ? `We’re processing your cancellation${item ? ` of ${item}` : ''}. This usually takes just a moment.`
-      : `We're waiting for confirmation from the payment processor${item ? ` for ${item}` : ''}. This usually takes a few seconds — feel free to keep this open or close it; we'll notify you when it lands.`
+      : intent === 'reactivate'
+        ? `We’re removing the scheduled cancellation${item ? ` for ${item}` : ''}. This usually takes just a moment.`
+        : `We're waiting for confirmation from the payment processor${item ? ` for ${item}` : ''}. This usually takes a few seconds — feel free to keep this open or close it; we'll notify you when it lands.`
   },
   success: {
     eyebrow: 'Payment confirmed',
@@ -3130,7 +4222,8 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
       intent === 'topup' ? `${item || 'Credits'} added to your account` :
         intent === 'subscription' ? `Welcome to ${item || 'your new plan'}` :
           intent === 'cancel' ? `${item || 'Subscription'} cancelled` :
-            'Purchase confirmed',
+            intent === 'reactivate' ? `${item || 'Subscription'} reactivated` :
+              'Purchase confirmed',
     body: (intent, _item, meta) =>
       intent === 'topup'
         ? 'Your balance has been updated. AI workflows are ready to go.'
@@ -3140,7 +4233,9 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
             ? (meta?.effectiveFrom === 'next_billing_period'
               ? `Your subscription will end${meta?.accessUntil ? ` on ${meta.accessUntil}` : ' at the end of your current billing period'}. Until then nothing changes — you keep every paid feature and credit.`
               : 'Your subscription has been cancelled and you’re back on the Free plan. Any unused paid credits stay in your account and keep working.')
-            : 'You can start using your new entitlements right away.'
+            : intent === 'reactivate'
+              ? 'Your subscription will renew as normal — the scheduled cancellation has been removed and you keep every paid feature and credit.'
+              : 'You can start using your new entitlements right away.'
   },
   closed: {
     eyebrow: 'Checkout cancelled',
@@ -3154,15 +4249,29 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
   error: {
     eyebrow: 'Payment failed',
     icon: 'fas fa-circle-exclamation',
-    title: (intent) => intent === 'cancel'
-      ? 'We couldn’t cancel your subscription'
-      : 'We couldn’t complete your payment',
-    body: (intent) =>
-      intent === 'topup'
-        ? 'Your top-up didn\'t go through. No credits were added and no card was charged.'
-        : intent === 'cancel'
-          ? 'Your cancellation request didn’t go through. Your subscription is unchanged. Please try again or contact support if the problem persists.'
-          : 'Your subscription change didn\'t go through. Your current plan is unchanged and no card was charged.'
+    title: (intent, item, meta) => {
+      if (meta?.flow === 'plan-change-preview') {
+        return meta?.errorCode === 'downgrade_not_supported'
+          ? `Can't switch to ${item || 'that plan'} mid-cycle`
+          : `Couldn't preview ${item || 'that plan'}`
+      }
+      return intent === 'cancel'
+        ? 'We couldn’t cancel your subscription'
+        : intent === 'reactivate'
+          ? 'We couldn’t reactivate your subscription'
+          : 'We couldn’t complete your payment'
+    },
+    body: (intent, _item, meta) => {
+      if (meta?.flow === 'plan-change-preview') {
+        return meta?.errorCode === 'downgrade_not_supported'
+          ? 'Your current plan is unchanged. Cancel at period end, then choose the lower plan after this billing period expires.'
+          : 'Your current plan is unchanged. Please try again in a moment.'
+      }
+      if (intent === 'topup') return 'Your top-up didn\'t go through. No credits were added and no card was charged.'
+      if (intent === 'cancel') return 'Your cancellation request didn’t go through. Your subscription is unchanged. Please try again or contact support if the problem persists.'
+      if (intent === 'reactivate') return 'Your reactivation request didn’t go through. The scheduled cancellation is still in place. Please try again or contact support if the problem persists.'
+      return 'Your subscription change didn\'t go through. Your current plan is unchanged and no card was charged.'
+    }
   }
 }
 
@@ -3174,14 +4283,17 @@ const CheckoutResultScreen: React.FC<{
 }> = ({ result, onDismiss, onViewPlans, onViewTopUps }) => {
   const copy = CHECKOUT_COPY[result.kind]
   const isCancel = result.intent === 'cancel'
-  const tryAgain = isCancel ? onViewPlans : (result.intent === 'topup' ? onViewTopUps : onViewPlans)
-  const tryAgainLabel = isCancel ? 'Back to plans' : (result.intent === 'topup' ? 'Choose a top-up' : 'Back to plans')
+  const isUnsupportedDowngrade = result.kind === 'error' && result.meta?.errorCode === 'downgrade_not_supported'
+  const tryAgain = isCancel || isUnsupportedDowngrade ? onViewPlans : (result.intent === 'topup' ? onViewTopUps : onViewPlans)
+  const tryAgainLabel = isCancel || isUnsupportedDowngrade ? 'Back to plans' : (result.intent === 'topup' ? 'Choose a top-up' : 'Back to plans')
   const eyebrow = isCancel
     ? (result.kind === 'success' ? 'Cancellation confirmed'
       : result.kind === 'processing' ? 'Cancelling'
         : result.kind === 'error' ? 'Cancellation failed'
           : copy.eyebrow)
-    : copy.eyebrow
+    : result.kind === 'error' && result.meta?.flow === 'plan-change-preview'
+      ? 'Plan change unavailable'
+      : copy.eyebrow
 
   return (
     <section className={`pm-result pm-result--${result.kind}`}>
@@ -3192,7 +4304,7 @@ const CheckoutResultScreen: React.FC<{
       </div>
 
       <div className="pm-result__eyebrow">{eyebrow}</div>
-      <h2 className="pm-result__title">{copy.title(result.intent, result.itemLabel)}</h2>
+      <h2 className="pm-result__title">{copy.title(result.intent, result.itemLabel, result.meta)}</h2>
       <p className="pm-result__body">{copy.body(result.intent, result.itemLabel, result.meta)}</p>
 
       {result.kind === 'error' && result.errorMessage && (
@@ -3232,7 +4344,7 @@ const CheckoutResultScreen: React.FC<{
           <>
             {!isCancel && (
               <button className="pm-result__btn pm-result__btn--primary" onClick={tryAgain}>
-                <i className="fas fa-rotate-right"></i> Try again
+                <i className={isUnsupportedDowngrade ? 'fas fa-arrow-left' : 'fas fa-rotate-right'}></i> {isUnsupportedDowngrade ? tryAgainLabel : 'Try again'}
               </button>
             )}
             {isCancel && (
@@ -3240,14 +4352,20 @@ const CheckoutResultScreen: React.FC<{
                 <i className="fas fa-arrow-left"></i> Back to account
               </button>
             )}
-            <a
-              className="pm-result__btn pm-result__btn--ghost"
-              href="https://discord.gg/TWfKkZVwJW"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <i className="fas fa-life-ring"></i> Contact support
-            </a>
+            {isUnsupportedDowngrade ? (
+              <button className="pm-result__btn pm-result__btn--ghost" onClick={onDismiss}>
+                Dismiss
+              </button>
+            ) : (
+              <a
+                className="pm-result__btn pm-result__btn--ghost"
+                href={DISCORD_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <i className="fas fa-life-ring"></i> Contact support
+              </a>
+            )}
           </>
         )}
 
@@ -3303,14 +4421,6 @@ function ConfirmModal({ dialog, onResolve }: {
           <div className="pm-modal__atmosphere-orb"></div>
           <div className="pm-modal__atmosphere-grain"></div>
         </div>
-        <button
-          type="button"
-          className="pm-modal__close"
-          aria-label="Dismiss"
-          onClick={() => onResolve(null)}
-        >
-          <i className="fas fa-times"></i>
-        </button>
         <div className="pm-modal__header">
           {dialog.icon && (
             <div className="pm-modal__icon" aria-hidden="true">
@@ -3321,6 +4431,14 @@ function ConfirmModal({ dialog, onResolve }: {
             {dialog.eyebrow && <div className="pm-modal__eyebrow">{dialog.eyebrow}</div>}
             <h3 className="pm-modal__title" id={`${dialog.id}-title`}>{dialog.title}</h3>
           </div>
+          <button
+            type="button"
+            className="pm-modal__close"
+            aria-label="Dismiss"
+            onClick={() => onResolve(null)}
+          >
+            <i className="fas fa-times"></i>
+          </button>
         </div>
         <div className="pm-modal__body">
           {dialog.message.split('\n').filter(Boolean).map((para, i) => (
@@ -3341,18 +4459,21 @@ function ConfirmModal({ dialog, onResolve }: {
             ))}
           </div>
         )}
-        <div className="pm-modal__actions">
-          {dialog.actions.map((action) => (
-            <button
-              key={action.value}
-              type="button"
-              className={`pm-modal__btn pm-modal__btn--${action.variant ?? 'primary'}`}
-              onClick={() => onResolve(action.value)}
-            >
-              {action.icon && <i className={action.icon}></i>}
-              <span>{action.label}</span>
-            </button>
-          ))}
+        <div className={`pm-modal__actions pm-modal__actions--count-${dialog.actions.length}`}>
+          {dialog.actions.map((action) => {
+            const actionSlug = action.value.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/_/g, '-')
+            return (
+              <button
+                key={action.value}
+                type="button"
+                className={`pm-modal__btn pm-modal__btn--${action.variant ?? 'primary'} pm-modal__btn--action-${actionSlug}`}
+                onClick={() => onResolve(action.value)}
+              >
+                {action.icon && <i className={action.icon}></i>}
+                <span>{action.label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

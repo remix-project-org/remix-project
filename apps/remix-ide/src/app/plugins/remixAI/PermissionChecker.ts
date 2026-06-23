@@ -1,5 +1,6 @@
 import { remixAILogger } from '@remix/remix-ai-core'
 import { endpointUrls } from '@remix-endpoints-helper'
+import { Features } from '@remix-api'
 import type { MCPAccessResult } from './types'
 import type { IRemixAIPlugin } from './types'
 
@@ -29,8 +30,8 @@ export class PermissionChecker {
       }
       const features = snap.permissions.features as Record<string, { is_enabled?: boolean }> | undefined
       const groups = snap.permissions.feature_groups as Array<{ name?: string }> | undefined
-      const hasBasicMcp = features?.['mcp:basicExternal']?.is_enabled === true
-      const hasWebSearch = features?.['mcp:web-search']?.is_enabled === true
+      const hasBasicMcp = features?.[Features.MCP_BASIC_EXTERNAL]?.is_enabled === true
+      const hasWebSearch = features?.[Features.MCP_WEB_SEARCH]?.is_enabled === true
       const isBetaUser = Array.isArray(groups) && groups.some((g) => g?.name === 'beta')
       return { hasBasicMcp, hasWebSearch, isBetaUser }
     } catch (error) {

@@ -1,6 +1,6 @@
 import * as packageJson from '../../../../../package.json'
 import { Plugin } from '@remixproject/engine';
-import { trackMatomoEvent } from '@remix-api'
+import { trackMatomoEvent, Features } from '@remix-api'
 import { remixAILogger, RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig } from '@remix/remix-ai-core';
 import { MCPInferencer, DeepAgentInferencer, onApiKeysChange } from '@remix/remix-ai-core';
@@ -669,7 +669,7 @@ export class RemixAIPlugin extends Plugin {
 
   async code_completion(prompt: string, promptAfter: string, params:IParams=CompletionParams): Promise<any> {
     this.emit('codeCompletionUsed')
-    return this.withAssistantGate('ai:completion', async () => {
+    return this.withAssistantGate(Features.AI_COMPLETION, async () => {
       if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
       params.provider = 'mistralai' // default provider for code completion
       const currentFileName = await this.call('fileManager', 'getCurrentFile')
@@ -918,7 +918,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async code_insertion(msg_pfx: string, msg_sfx: string, params:IParams=CompletionParams): Promise<any> {
-    return this.withAssistantGate('ai:completion', async () => {
+    return this.withAssistantGate(Features.AI_COMPLETION, async () => {
       if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
 
       params.provider = 'mistralai' // default provider for code completion

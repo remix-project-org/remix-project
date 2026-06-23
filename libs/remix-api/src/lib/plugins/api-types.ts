@@ -166,6 +166,42 @@ export interface AppConfig {
 /** Response from GET /sso/config (public, no auth required) */
 export type AppConfigResponse = AppConfig
 
+/**
+ * A single feature entry as exposed by the public plans catalog
+ * (`GET /config/public/plans`). Mirrors the permissions feature shape.
+ */
+export interface PublicPlanFeature {
+  feature_name: string
+  feature_display_name?: string
+  category?: string
+  is_enabled?: boolean
+  limit_value?: number | null
+  limit_unit?: string | null
+  source_feature_group?: string
+  priority?: number
+}
+
+/**
+ * A plan/tier from the public catalog (`GET /config/public/plans`).
+ * No authentication required — used to map a missing feature to the
+ * cheapest plan that grants it so the UI can label upsell CTAs
+ * (e.g. "Pro") instead of a generic "Upgrade".
+ */
+export interface PublicPlan {
+  id: number
+  name: string
+  display_name: string
+  description?: string
+  /** Higher = better tier. Used to find the lowest tier granting a feature. */
+  priority: number
+  is_active?: number | boolean
+  is_default?: number | boolean
+  features: PublicPlanFeature[]
+}
+
+/** Response from GET /config/public/plans (public, no auth required) */
+export type PublicPlansResponse = PublicPlan[]
+
 // ==================== Registration Mode ====================
 
 export type RegistrationMode = 'open' | 'existing_only' | 'invite_only'
@@ -619,6 +655,29 @@ export interface AvailableProductsResponse {
 }
 
 /**
+ * Request body for POST /products/checkout — multi-item checkout.
+ * Bundles a subscription + credit packages into one Paddle transaction.
+ */
+export interface MultiItemCheckoutRequest {
+  items: Array<{ slug: string; price_id?: number }>
+  provider: 'paddle' | 'crypto'
+  returnUrl?: string
+}
+
+export interface MultiItemCheckoutResponse {
+  checkoutUrl: string
+  transactionId: string
+  provider: string
+  items: Array<{
+    id: number
+    slug: string
+    name: string
+    product_type: 'subscription_plan' | 'credit_package'
+    price_cents: number
+  }>
+}
+
+/**
  * Request body for POST /products/purchase — the unified purchase
  * endpoint for plans, packages, and free-tier grants.
  */
@@ -741,6 +800,21 @@ export interface CancelSubscriptionResponse {
   }
 }
 
+/**
+ * Response for POST /billing/subscription/reactivate — removes a pending
+ * scheduled cancellation (un-cancel). The returned subscription reflects the
+ * cleared scheduledChange eagerly.
+ */
+export interface ReactivateSubscriptionResponse {
+  ok: true
+  subscription: {
+    id: string
+    status: string
+    scheduledChange: any | null
+    nextBilledAt: string | null
+  }
+}
+
 // ===== Transaction polling (GET /billing/transaction/:providerTransactionId) ====
 
 /**
@@ -828,6 +902,41 @@ export interface UsageReport {
 }
 
 /**
+ * Promotional intro discount attached to a subscription plan (from
+ * /api/products/available `intro_discount`). Used to merchandise launch
+ * offers — e.g. "60% off your first 3 months". Maps to a Paddle discount.
+ */
+export interface IntroDiscount {
+  id: number
+  /** Display name, e.g. "60% OFF LAUNCH OFFER". */
+  name: string
+  /** Discount code applied at checkout, e.g. "60PERCENTOFF". */
+  code: string
+  discountType: 'percentage' | 'flat' | string
+  /** Percentage (e.g. 60) or flat amount, as a number. */
+  amount: number
+  currency: string | null
+  /** Whether the discount recurs on subsequent billing periods. */
+  recur: boolean
+  /** How many billing intervals the discount applies for (null = forever). */
+  maxRecurringIntervals: number | null
+}
+
+/**
+ * Intro credit package bundled with a subscription plan as a sign-up
+ * incentive (e.g. "20,000 Free AI Credits"). Auto-added to the checkout
+ * transaction by the backend.
+ */
+export interface IntroCreditPackage {
+  id: number
+  slug: string
+  name: string
+  credits: number
+  /** How many of this package are included (usually 1). */
+  quantity: number
+}
+
+/**
  * Subscription plan - recurring monthly credit allocation
  */
 export interface SubscriptionPlan {
@@ -859,6 +968,11 @@ export interface SubscriptionPlan {
    * `price_id` through to `/products/purchase`.
    */
   prices?: AvailableProductPrice[]
+  /** Promotional intro discounts (launch offers). An array — multiple
+   *  discounts may apply (e.g. percentage + flat combined). */
+  introDiscounts?: IntroDiscount[]
+  /** Free/bonus credit packages included with sign-up (intro gift). */
+  introCreditPackages?: IntroCreditPackage[]
 }
 
 /**

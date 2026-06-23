@@ -77,12 +77,14 @@ export const ChatNoticeStrip: React.FC<ChatNoticeStripProps> = ({ notice, onDism
       <div className="flex-grow-1">
         <div className="fw-bold">{notice.title}</div>
         <div className="small">{notice.message}</div>
-        <div className="small text-muted mt-1">
-          <code>{notice.code}</code>
-          {notice.actionable && (
-            <span className="ms-2">· You can try sending again.</span>
-          )}
-        </div>
+        {(notice.code || notice.actionable) && (
+          <div className="small text-muted mt-1">
+            {notice.code && <code>{notice.code}</code>}
+            {notice.actionable && (
+              <span className="ms-2">· You can try sending again.</span>
+            )}
+          </div>
+        )}
         {notice.actions && notice.actions.length > 0 && (
           <div className="d-flex flex-wrap gap-2 mt-2">
             {notice.actions.map((action) => {

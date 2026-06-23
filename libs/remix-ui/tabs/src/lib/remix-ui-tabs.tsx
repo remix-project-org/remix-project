@@ -12,7 +12,7 @@ import { values } from 'lodash'
 import { AppContext } from '@remix-ui/app'
 import { useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
-import { desktopConnectionType } from '@remix-api'
+import { desktopConnectionType, Features } from '@remix-api'
 import isElectron from 'is-electron'
 import { CompileDropdown, RunScriptDropdown, EmptyDropdown, AmpSqlDropdown } from '@remix-ui/tabs'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
@@ -633,7 +633,7 @@ export const TabsUI = (props: TabsUIProps) => {
 
   const handleQuickDappStartNow = async () => {
     // Permission gate: non-beta users see the QuickDapp lock screen
-    const quickdappFeature = features?.['dapp:quickdapp']
+    const quickdappFeature = features?.[Features.DAPP_QUICKDAPP]
     if (!quickdappFeature?.is_enabled) {
       try {
         await props.plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')

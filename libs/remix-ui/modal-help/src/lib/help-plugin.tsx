@@ -1,6 +1,6 @@
 import { ViewPlugin } from '@remixproject/engine-web'
 import React from 'react'
-import { PluginViewWrapper } from '@remix-ui/helper'
+import { PluginViewWrapper, DISCORD_URL, REMIX_DOCS_URL } from '@remix-ui/helper'
 import { useAuth } from '@remix-ui/app'
 import { trackMatomoEvent as baseTrackMatomoEvent, HelpEvent, MatomoEvent } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
@@ -245,7 +245,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
           className="help-panel-discord-btn"
           onClick={() => {
             trackMatomoEvent({ category: 'help', action: 'betaLinkClicked', name: 'discord', isClick: true })
-            window.open('https://discord.gg/TWfKkZVwJW', '_blank')
+            window.open(DISCORD_URL, '_blank')
           }}
         >
           <i className="fab fa-discord"></i>
@@ -381,8 +381,8 @@ const HelpModalOverlay: React.FC<{
         onLink={(link) => {
           trackMatomoEvent({ category: 'help', action: 'betaLinkClicked', name: link, isClick: true })
           switch (link) {
-          case 'discord': window.open('https://discord.gg/TWfKkZVwJW', '_blank'); break
-          case 'docs': window.open('https://remix-ide.readthedocs.io/', '_blank'); break
+          case 'discord': window.open(DISCORD_URL, '_blank'); break
+          case 'docs': window.open(REMIX_DOCS_URL, '_blank'); break
           case 'blog': window.open('https://ethereumremix.substack.com/', '_blank'); break
           }
         }}

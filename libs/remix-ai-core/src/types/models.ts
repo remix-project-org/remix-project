@@ -1,4 +1,5 @@
 import { IParams } from './types';
+import { Features } from '@remix-api';
 
 /**
  * Model registry entry.
@@ -132,7 +133,7 @@ export function parseAIModelsFromPermissions(permissions: any): AIModel[] | null
   // feature enabled. The backend doesn't ship Ollama in `ai_models[]`
   // (it's a local capability), so the feature flag is the only signal.
   const features = permissions?.features as Record<string, { is_enabled?: boolean }> | undefined
-  if (features && features['ai:ollama']?.is_enabled === true) {
+  if (features && features[Features.AI_OLLAMA]?.is_enabled === true) {
     parsed.push(OLLAMA_MODEL)
   }
   return parsed

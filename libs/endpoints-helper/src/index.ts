@@ -153,8 +153,8 @@ export interface RemixConfig {
  *   updateEndpoints(config)
  */
 export async function fetchRemixConfig(baseUrl: string): Promise<RemixConfig> {
-  const url = `${baseUrl.replace(/\/$/, '')}/.well-known/remix-config`;
-  const res = await fetch(url);
+  const url = `${baseUrl.replace(/\/$/, '')}/.well-known/remix-config?v=${Date.now()}`;
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch remix-config: ${res.status}`);
   return res.json();
 }
@@ -190,7 +190,7 @@ export function updateEndpoints(config: RemixConfig): void {
   if (config.services.mcp) {
     endpointUrls.mcpCorsProxy = `${base}${config.services.mcp}`;
   } // SSO must always point to auth.api.remix.live (separate auth domain)
-  endpointUrls.sso = 'https://auth.api.remix.live/sso';
+  //endpointUrls.sso = 'https://auth.api.remix.live/sso';
  }
 
 /**
@@ -203,8 +203,8 @@ export async function initEndpoints(baseUrl?: string): Promise<void> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 3000);
   try {
-    const url = `${base}/.well-known/remix-config`;
-    const res = await fetch(url, { signal: controller.signal });
+    const url = `${base}/.well-known/remix-config?v=${Date.now()}`;
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
     if (!res.ok) throw new Error(`Discovery HTTP ${res.status}`);
     const config: RemixConfig = await res.json();
     updateEndpoints(config);

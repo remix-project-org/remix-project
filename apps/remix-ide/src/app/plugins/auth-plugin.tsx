@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, ProductsApiService, InviteApiService, TestPoolApiService, EthSkillsApiService, Credits, InviteValidateResponse, InviteRedeemResponse, RegistrationMode, RegistrationModeResponse, LoginMode, LoginModeResponse, ACCESS_POLICY_ERROR_CODES, AccessPolicy, AccessPolicyResponse, AppConfig, PoolCheckoutResponse, PoolReleaseResponse, PoolStatusResponse } from '@remix-api'
+import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, ProductsApiService, InviteApiService, TestPoolApiService, EthSkillsApiService, Credits, InviteValidateResponse, InviteRedeemResponse, RegistrationMode, RegistrationModeResponse, LoginMode, LoginModeResponse, ACCESS_POLICY_ERROR_CODES, AccessPolicy, AccessPolicyResponse, AppConfig, PublicPlan, PoolCheckoutResponse, PoolReleaseResponse, PoolStatusResponse } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { QueryParams } from '@remix-project/remix-lib'
 import { getAddress } from 'ethers'
@@ -9,7 +9,7 @@ const profile = {
   name: 'auth',
   displayName: 'Authentication',
   description: 'Handles SSO authentication and credits',
-  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'getProductsApi', 'getEthSkillsApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
+  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'getProductsApi', 'getEthSkillsApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'getPublicPlans', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
   events: ['authStateChanged', 'creditsUpdated', 'accountLinked', 'gitHubTokenReady', 'inviteTokenDetected', 'inviteTokenRedeemed', 'registrationModeChanged', 'loginModeChanged', 'accessPolicyChanged', 'appConfigChanged']
 }
 
@@ -34,6 +34,7 @@ export class AuthPlugin extends Plugin {
   private cachedLoginMessage: string = ''
   private cachedAccessPolicy: AccessPolicyResponse | null = null
   private cachedAppConfig: AppConfig | null = null
+  private cachedPublicPlans: PublicPlan[] | null = null
   /**
    * Fresh permissions cached after refreshPermissions(). When set, takes
    * precedence over the assistantState snapshot in getAllPermissions() so
@@ -583,6 +584,39 @@ export class AuthPlugin extends Plugin {
       val = (config as any)[key]
     }
     return (val !== undefined && val !== null ? val : defaultValue) as T
+  }
+
+  /**
+   * Get the public plans catalog (`/config/public/plans`). Each plan
+   * carries its granted `features`, so callers can map a missing feature
+   * to the cheapest plan that grants it (for "Pro"-style upsell labels).
+   * No authentication required. Cached after first fetch.
+   */
+  async getPublicPlans(): Promise<PublicPlan[]> {
+    try {
+      if (this.cachedPublicPlans) {
+        return this.cachedPublicPlans
+      }
+
+      // Plans endpoint is at the auth server root: /config/public/plans
+      const authBaseUrl = endpointUrls.sso.replace(/\/sso\/?$/, '')
+      const response = await fetch(`${authBaseUrl}/config/public/plans`, {
+        headers: { 'Accept': 'application/json' }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const plans: PublicPlan[] = Array.isArray(data) ? data : (data?.plans ?? [])
+        this.cachedPublicPlans = plans
+        this.log('[AuthPlugin] Public plans loaded:', plans.length)
+        return plans
+      }
+
+      console.warn('[AuthPlugin] Failed to fetch public plans, status:', response.status)
+      return []
+    } catch (error) {
+      console.warn('[AuthPlugin] Error fetching public plans:', error)
+      return []
+    }
   }
 
   private isDesktop(): boolean {

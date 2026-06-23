@@ -61,6 +61,8 @@ interface AiChatPromptAreaProps {
     onSignIn?: () => void
     hasAuditorPermission?: boolean
     hasSkillsPermission?: boolean
+    onUpgradeRequired?: (commandName: string, missingFeature: string) => void
+    getRequiredPlanName?: (feature: string) => string | null
 }
 
 export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
@@ -206,6 +208,8 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         handleGasOptimisationAudit={props.handleGasOptimisationAudit}
         hasAuditorPermission={props.hasAuditorPermission}
         hasSkillsPermission={props.hasSkillsPermission}
+        onUpgradeRequired={props.onUpgradeRequired}
+        getRequiredPlanName={props.getRequiredPlanName}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

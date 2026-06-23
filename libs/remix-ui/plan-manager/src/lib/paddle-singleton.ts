@@ -199,6 +199,10 @@ export function openCheckoutWithTransaction(
       displayMode?: 'overlay' | 'inline'
       theme?: 'light' | 'dark'
       locale?: string
+      frameTarget?: string
+      frameInitialHeight?: number
+      frameStyle?: string
+      variant?: 'one-page' | 'multi-page'
     }
   }
 ): void {
@@ -212,15 +216,22 @@ export function openCheckoutWithTransaction(
     return
   }
 
-  planManagerLogger.log('[Paddle] Opening checkout for transaction:', transactionId)
+  const displayMode = options?.settings?.displayMode || 'overlay'
+  planManagerLogger.log('[Paddle] Opening checkout for transaction:', transactionId, '| mode:', displayMode)
 
   paddle.Checkout.open({
     transactionId,
     settings: {
-      displayMode: options?.settings?.displayMode || 'overlay',
+      displayMode,
       theme: options?.settings?.theme || 'light',
       locale: options?.settings?.locale || 'en',
       allowLogout: false,
+      ...(displayMode === 'inline' && {
+        frameTarget: options?.settings?.frameTarget || 'paddle-checkout-container',
+        frameInitialHeight: options?.settings?.frameInitialHeight || 450,
+        frameStyle: options?.settings?.frameStyle || 'width: 100%; min-width: 312px; background-color: transparent; border: none;',
+      }),
+      ...(options?.settings?.variant && { variant: options.settings.variant }),
     }
   })
 }

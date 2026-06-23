@@ -33,6 +33,7 @@ import type {
   CreditPackage,
   PermissionsResponse
 } from '@remix-api'
+import { Features } from '@remix-api'
 import { planManagerLogger, setPlanManagerLoggingEnabled } from './plan-manager-logger'
 
 export type { QuotaEntry }
@@ -50,7 +51,7 @@ export type ActiveAlert =
   | null
 
 export type CheckoutResultKind = 'processing' | 'success' | 'closed' | 'error'
-export type CheckoutIntent = 'subscription' | 'topup' | 'feature' | 'cancel'
+export type CheckoutIntent = 'subscription' | 'topup' | 'feature' | 'cancel' | 'reactivate'
 
 export interface CheckoutResult {
   kind: CheckoutResultKind
@@ -64,6 +65,33 @@ export interface CheckoutResult {
    * for a cancel result. Kept loose because intents have different shapes.
    */
   meta?: Record<string, string>
+}
+
+/**
+ * Live financial breakdown for the open checkout, derived from Paddle's
+ * `checkout.loaded` / `checkout.updated` events. All money values are in
+ * major currency units (e.g. dollars), matching Paddle's event payload.
+ * Updated on every change the user makes inside the inline checkout
+ * (discount applied, country/VAT entered, payment method switched).
+ */
+export interface CheckoutBreakdown {
+  currencyCode: string
+  /** Amount due today. */
+  subtotal: number
+  discount: number
+  tax: number
+  total: number
+  /** Discount code, when one is applied. */
+  discountCode: string | null
+  /** Recurring charge for subscriptions (null for one-time top-ups). */
+  recurring: {
+    subtotal: number
+    discount: number
+    tax: number
+    total: number
+  } | null
+  /** Billing cadence for subscriptions, e.g. { interval: 'month', frequency: 3 }. */
+  billingCycle: { interval: 'day' | 'week' | 'month' | 'year'; frequency: number } | null
 }
 
 /** Snapshot the UI consumes — purely derived, never mutated outside the machine. */
@@ -81,6 +109,10 @@ export interface PlanManagerSnapshot {
   checkoutResult: CheckoutResult | null
   /** Set while a Paddle checkout is being prepared/open (no result yet). */
   pendingCheckout: CheckoutIntentRecord | null
+  /** Live price breakdown from Paddle while the inline checkout is open. */
+  checkoutBreakdown: CheckoutBreakdown | null
+  /** Multi-item checkout cart (subscription + credit add-ons). */
+  cartItems: CartItem[]
   errorMessage: string | null
   /**
    * Why the panel was opened. Set on the most recent OPEN_OVERLAY when a
@@ -162,6 +194,7 @@ export interface OpenIntent {
 export const THRESHOLDS = {
   CREDIT_LOW_PCT: 0.20, // <20% of monthly allowance → 'low'
   CREDIT_CRITICAL_PCT: 0.05, // <5%                       → 'critical'
+  INCLUDED_UNLIMITED_AMOUNT: 1e15, // Mirrors quota UI's ∞ threshold.
   PLAN_EXPIRING_DAYS: 7 // ≤7 days to renewal/end    → 'expiring'
 } as const
 
@@ -169,6 +202,17 @@ interface CheckoutIntentRecord {
   intent: CheckoutIntent
   itemLabel?: string
   productId?: string
+}
+
+/** A single item in the checkout cart (subscription + credit top-ups). */
+export interface CartItem {
+  slug: string
+  name: string
+  productType: 'subscription_plan' | 'credit_package'
+  priceCents: number
+  credits?: number
+  priceId?: number
+  billingInterval?: 'month' | 'year'
 }
 
 interface MachineContext {
@@ -187,6 +231,9 @@ interface MachineContext {
   // checkout
   pendingCheckout: CheckoutIntentRecord | null
   checkoutResult: CheckoutResult | null
+  checkoutBreakdown: CheckoutBreakdown | null
+  /** Multi-item checkout cart — subscription + optional credit add-ons. */
+  cartItems: CartItem[]
   // overlay routing
   openIntent: OpenIntent | null
   // confirm dialog
@@ -210,10 +257,15 @@ export type PlanManagerEvent =
   // checkout
   | { type: 'CHECKOUT_INTENT'; intent: CheckoutIntent; itemLabel?: string; productId?: string }
   | { type: 'CHECKOUT_OPENED' }
+  | { type: 'CHECKOUT_BREAKDOWN'; breakdown: CheckoutBreakdown }
   | { type: 'CHECKOUT_COMPLETED'; transactionId?: string; meta?: Record<string, string> }
   | { type: 'CHECKOUT_CLOSED' }
-  | { type: 'CHECKOUT_ERROR'; message?: string; transactionId?: string }
+  | { type: 'CHECKOUT_ERROR'; message?: string; transactionId?: string; meta?: Record<string, string> }
   | { type: 'CHECKOUT_RESULT_DISMISS' }
+  // Cart
+  | { type: 'CART_ADD'; item: CartItem }
+  | { type: 'CART_REMOVE'; slug: string }
+  | { type: 'CART_CLEAR' }
   // Plugin-side signal: backend confirmed the purchase + we just refreshed
   // permissions/credits/sub. Promotes 'processing' → 'success' regardless of
   // current data substate (DATA_LOADED alone only fires inside `refreshing`).
@@ -241,6 +293,8 @@ const initialContext: MachineContext = {
   catalogPackages: [],
   pendingCheckout: null,
   checkoutResult: null,
+  checkoutBreakdown: null,
+  cartItems: [],
   openIntent: null,
   confirmDialog: null,
   lastError: null
@@ -302,6 +356,12 @@ export const planManagerMachine = setup({
         itemLabel: event.itemLabel,
         productId: event.productId
       }
+      // A fresh checkout starts with no breakdown until Paddle loads it.
+      context.checkoutBreakdown = null
+    },
+    setCheckoutBreakdown: ({ context, event }) => {
+      if (event.type !== 'CHECKOUT_BREAKDOWN') return
+      context.checkoutBreakdown = event.breakdown
     },
     setCheckoutProcessing: ({ context, event }) => {
       if (event.type !== 'CHECKOUT_COMPLETED') return
@@ -322,12 +382,16 @@ export const planManagerMachine = setup({
       // Clear the in-flight intent so per-card "Opening…" / disabled states
       // reset (selectPurchasingProductId reads from pendingCheckout).
       context.pendingCheckout = null
+      context.checkoutBreakdown = null
+      context.cartItems = []
     },
     setCheckoutClosed: ({ context }) => {
       const intent = context.pendingCheckout?.intent ?? 'subscription'
       const itemLabel = context.pendingCheckout?.itemLabel
       context.checkoutResult = { kind: 'closed', intent, itemLabel }
       context.pendingCheckout = null
+      context.checkoutBreakdown = null
+      context.cartItems = []
     },
     setCheckoutError: ({ context, event }) => {
       if (event.type !== 'CHECKOUT_ERROR') return
@@ -338,12 +402,29 @@ export const planManagerMachine = setup({
         intent,
         itemLabel,
         errorMessage: event.message,
-        transactionId: event.transactionId
+        transactionId: event.transactionId,
+        meta: event.meta
       }
       context.pendingCheckout = null
+      context.checkoutBreakdown = null
+      context.cartItems = []
     },
     clearCheckoutResult: ({ context }) => {
       context.checkoutResult = null
+    },
+    cartAdd: ({ context, event }) => {
+      if (event.type !== 'CART_ADD') return
+      // Prevent duplicates by slug — idempotent add.
+      if (!context.cartItems.some(i => i.slug === event.item.slug)) {
+        context.cartItems = [...context.cartItems, event.item]
+      }
+    },
+    cartRemove: ({ context, event }) => {
+      if (event.type !== 'CART_REMOVE') return
+      context.cartItems = context.cartItems.filter(i => i.slug !== event.slug)
+    },
+    cartClear: ({ context }) => {
+      context.cartItems = []
     },
     setOpenIntent: ({ context, event }) => {
       if (event.type !== 'OPEN_OVERLAY' && event.type !== 'TOGGLE_OVERLAY') return
@@ -470,6 +551,12 @@ export const planManagerMachine = setup({
     },
     checkout: {
       initial: 'idle',
+      on: {
+        // Cart events — available in any checkout sub-state.
+        CART_ADD: { actions: ['cartAdd'] },
+        CART_REMOVE: { actions: ['cartRemove'] },
+        CART_CLEAR: { actions: ['cartClear'] }
+      },
       states: {
         idle: {
           on: {
@@ -482,6 +569,9 @@ export const planManagerMachine = setup({
         inProgress: {
           on: {
             CHECKOUT_OPENED: {},
+            CHECKOUT_BREAKDOWN: {
+              actions: ['setCheckoutBreakdown']
+            },
             CHECKOUT_COMPLETED: {
               target: 'result',
               actions: ['setCheckoutProcessing']
@@ -579,6 +669,8 @@ export function snapshotFromActor(actor: AnyActorRef): PlanManagerSnapshot {
     catalogPackages: ctx.catalogPackages,
     checkoutResult: ctx.checkoutResult,
     pendingCheckout: ctx.pendingCheckout,
+    checkoutBreakdown: ctx.checkoutBreakdown,
+    cartItems: ctx.cartItems,
     errorMessage: ctx.lastError,
     isTrialEligible: ctx.isTrialEligible,
     openIntent: ctx.openIntent,
@@ -730,31 +822,91 @@ export function selectPlanState(snap: PlanManagerSnapshot, now: number = Date.no
 
 /**
  * Credit severity. Total = credits per cycle (subscription's allowance,
- * else permissions/free quota, else just balance for accuracy when nothing
+ * else permissions/included quota, else just balance for accuracy when nothing
  * else is known).
  */
 export interface CreditStatus {
   state: CreditState
+  /** Paid/top-up credits. This is the big number in the hero. */
   remaining: number
   total: number
   used: number
   usedPct: number // 0–100
   remainingPct: number // 0–1
   refreshDate: string | null // ISO, when the next allowance lands
+  paidRemaining: number
+  includedRemaining: number
+  includedTotal: number
+  includedUsed: number
+  hasUnlimitedIncluded: boolean
+  availableRemaining: number
+  availableTotal: number
+}
+
+function emptyCreditStatus(state: CreditState = 'unknown'): CreditStatus {
+  return {
+    state,
+    remaining: 0,
+    total: 0,
+    used: 0,
+    usedPct: 0,
+    remainingPct: 0,
+    refreshDate: null,
+    paidRemaining: 0,
+    includedRemaining: 0,
+    includedTotal: 0,
+    includedUsed: 0,
+    hasUnlimitedIncluded: false,
+    availableRemaining: 0,
+    availableTotal: 0
+  }
+}
+
+function selectIncludedCredits(credits: Credits): Pick<CreditStatus, 'includedRemaining' | 'includedTotal' | 'includedUsed' | 'hasUnlimitedIncluded'> {
+  const quotas = Array.isArray(credits.quotas) ? credits.quotas : []
+  const activeQuotas = quotas.filter(q => q && typeof q.amount === 'number' && q.amount > 0)
+  const hasUnlimitedIncluded = activeQuotas.some(q => q.amount >= THRESHOLDS.INCLUDED_UNLIMITED_AMOUNT)
+  const finiteQuotas = activeQuotas.filter(q => q.amount < THRESHOLDS.INCLUDED_UNLIMITED_AMOUNT)
+
+  if (finiteQuotas.length > 0 || hasUnlimitedIncluded) {
+    return finiteQuotas.reduce((acc, quota) => {
+      const amount = Math.max(0, quota.amount ?? 0)
+      const remaining = Math.max(0, quota.remaining ?? amount - Math.max(0, quota.used ?? 0))
+      const used = Math.max(0, Math.min(amount, quota.used ?? amount - remaining))
+      acc.includedRemaining += remaining
+      acc.includedTotal += amount
+      acc.includedUsed += used
+      return acc
+    }, {
+      includedRemaining: 0,
+      includedTotal: 0,
+      includedUsed: 0,
+      hasUnlimitedIncluded
+    })
+  }
+
+  const fallbackFree = Math.max(0, credits.free_credits ?? 0)
+  return {
+    includedRemaining: fallbackFree,
+    includedTotal: fallbackFree,
+    includedUsed: 0,
+    hasUnlimitedIncluded: false
+  }
 }
 
 export function selectCreditStatus(snap: PlanManagerSnapshot): CreditStatus {
   const credits = snap.credits
   if (!credits) {
-    return { state: 'unknown', remaining: 0, total: 0, used: 0, usedPct: 0, remainingPct: 0, refreshDate: null }
+    return emptyCreditStatus('unknown')
   }
 
-  const remaining = Math.max(0, credits.balance ?? 0)
+  const paidRemaining = Math.max(0, credits.paid_credits ?? credits.balance ?? 0)
+  const included = selectIncludedCredits(credits)
 
   // Total (this cycle's allowance) — best-effort:
   //   1. subscription.creditsPerMonth (legacy field on UserSubscription)
   //   2. matching catalog plan's creditsPerMonth
-  //   3. (free + paid) — gives a sensible baseline when no plan signal exists
+  //   3. paid balance — gives a sensible baseline when no plan signal exists
   const sub = snap.subscription
   let total = 0
   if (sub?.creditsPerPeriod) total = sub.creditsPerPeriod
@@ -764,26 +916,40 @@ export function selectCreditStatus(snap: PlanManagerSnapshot): CreditStatus {
     if (match) total = match.creditsPerMonth
   }
   if (!total) {
-    // Best fallback: balance + any consumed paid credits we can infer.
-    // Free-credits + paid-credits gives the *current* split, not the
-    // monthly cap — but it's better than zero for severity calc.
-    total = (credits.free_credits ?? 0) + (credits.paid_credits ?? 0)
+    total = paidRemaining
   }
-  if (!total) total = remaining // last resort; severity will read 'healthy'
 
-  const used = Math.max(0, total - remaining)
-  const remainingPct = total > 0 ? remaining / total : 1
+  const availableRemaining = paidRemaining + included.includedRemaining
+  const availableTotal = Math.max(total, paidRemaining) + included.includedTotal
+
+  const remaining = paidRemaining
+  const used = Math.max(0, total - paidRemaining)
+  const remainingPct = total > 0 ? paidRemaining / total : 1
   const usedPct = total > 0 ? Math.min(100, (used / total) * 100) : 0
 
   let state: CreditState
-  if (remaining <= 0) state = 'empty'
-  else if (remainingPct < THRESHOLDS.CREDIT_CRITICAL_PCT) state = 'critical'
-  else if (remainingPct < THRESHOLDS.CREDIT_LOW_PCT) state = 'low'
+  if (included.hasUnlimitedIncluded) state = 'healthy'
+  else if (availableRemaining <= 0) state = 'empty'
+  else if (paidRemaining <= 0 && included.includedRemaining > 0) state = 'healthy'
+  else if (availableTotal > 0 && availableRemaining / availableTotal < THRESHOLDS.CREDIT_CRITICAL_PCT) state = 'critical'
+  else if (availableTotal > 0 && availableRemaining / availableTotal < THRESHOLDS.CREDIT_LOW_PCT) state = 'low'
   else state = 'healthy'
 
   const refreshDate = sub?.currentBillingPeriod?.endsAt ?? sub?.currentPeriodEnd ?? sub?.nextBilledAt ?? null
 
-  return { state, remaining, total, used, usedPct, remainingPct, refreshDate }
+  return {
+    state,
+    remaining,
+    total,
+    used,
+    usedPct,
+    remainingPct,
+    refreshDate,
+    paidRemaining,
+    ...included,
+    availableRemaining,
+    availableTotal
+  }
 }
 
 /**
@@ -906,11 +1072,11 @@ export interface UiVisibility {
  */
 export function selectUiVisibility(snap: PlanManagerSnapshot): UiVisibility {
   const p = snap.permissions
-  const showCredits = hasFeature(p, 'ui:show-credits')
-  const showPlans = hasFeature(p, 'ui:show-plans')
-  const showQuotas = hasFeature(p, 'ui:show-quotas')
-  const showTopUps = hasFeature(p, 'ui:show-top-ups')
-  const showUsage = hasFeature(p, 'ui:show-usage')
+  const showCredits = hasFeature(p, Features.UI_SHOW_CREDITS)
+  const showPlans = hasFeature(p, Features.UI_SHOW_PLANS)
+  const showQuotas = hasFeature(p, Features.UI_SHOW_QUOTAS)
+  const showTopUps = hasFeature(p, Features.UI_SHOW_TOP_UPS)
+  const showUsage = hasFeature(p, Features.UI_SHOW_USAGE)
   return {
     showCredits,
     showPlans,
@@ -1019,11 +1185,11 @@ export class PlanManagerStore {
           ? 'record'
           : typeof featuresRaw,
       uiFeatureRaw: {
-        'ui:show-credits': readRawFeature('ui:show-credits'),
-        'ui:show-plans': readRawFeature('ui:show-plans'),
-        'ui:show-quotas': readRawFeature('ui:show-quotas'),
-        'ui:show-top-ups': readRawFeature('ui:show-top-ups'),
-        'ui:show-usage': readRawFeature('ui:show-usage')
+        'ui:show-credits': readRawFeature(Features.UI_SHOW_CREDITS),
+        'ui:show-plans': readRawFeature(Features.UI_SHOW_PLANS),
+        'ui:show-quotas': readRawFeature(Features.UI_SHOW_QUOTAS),
+        'ui:show-top-ups': readRawFeature(Features.UI_SHOW_TOP_UPS),
+        'ui:show-usage': readRawFeature(Features.UI_SHOW_USAGE)
       },
       uiFeatureResolved: ui
     }
@@ -1058,6 +1224,10 @@ export class PlanManagerStore {
         credit: {
           state: credit.state,
           remaining: credit.remaining,
+          paidRemaining: credit.paidRemaining,
+          includedRemaining: credit.includedRemaining,
+          includedTotal: credit.includedTotal,
+          availableRemaining: credit.availableRemaining,
           total: credit.total,
           usedPct: credit.usedPct
         },

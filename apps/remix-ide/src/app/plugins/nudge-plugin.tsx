@@ -221,9 +221,23 @@ export class NudgePlugin extends Plugin {
       this.engine_.fire('file:saved')
     })
 
-    // Credits updated
-    this.on('auth' as any, 'creditsUpdated', () => {
+    // Plan purchased — user is no longer on free plan, retire the upgrade nudge
+    this.on('planManager' as any, 'purchaseConfirmed', () => {
+      this.engine_.unfire('user:on_free_plan')
+      this.engine_.disableRule('free-plan-upgrade')
+    })
+
+    // Credits updated — check if balance is low and nudge to top up
+    this.on('auth' as any, 'creditsUpdated', async (credits: any) => {
       this.engine_.fire('user:credits_updated')
+      const balance = typeof credits?.balance === 'number' ? credits.balance : (credits ?? 0)
+      const permissions = await this.call('auth' as any, 'getAllPermissions')
+      // Users with quotas already have included AI usage — the low-balance
+      // nudge only makes sense for pure pay-as-you-go users with no quota.
+      const hasQuotas = Array.isArray(permissions?.quotas) && permissions.quotas.length > 0
+      if (!hasQuotas && balance <= 20000) {
+        this.engine_.fire('user:credits_low')
+      }
     })
   }
 
@@ -298,9 +312,114 @@ export class NudgePlugin extends Plugin {
         // Fire-and-forget — failures (helpPlugin not ready, storage
         // blocked, etc.) shouldn't break the nudge flow.
         this._maybeShowBetaFarewell(betaGroup).catch(() => {})
+      } else {
+        // Non-beta logged-in user — check if they're on the free plan
+        // and show an upgrade nudge with live discount copy.
+        this._checkFreePlanNudge().catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check
+    }
+  }
+
+  /**
+   * Checks whether the authenticated, non-beta user is on the free plan.
+   * If so, fetches the live plan catalog to build a rich upgrade nudge
+   * (with real discount copy when available), registers the rule, and
+   * fires the `user:on_free_plan` engine event.
+   */
+  private async _checkFreePlanNudge(): Promise<void> {
+    this.log('[NudgePlugin] _checkFreePlanNudge: start')
+    try {
+      // 1. Does the user already have an active paid subscription?
+      const billingApi = await this.call('auth' as any, 'getBillingApi')
+      this.log('[NudgePlugin] _checkFreePlanNudge: billingApi resolved', billingApi)
+      const subResp = await billingApi.getSubscription()
+      this.log('[NudgePlugin] _checkFreePlanNudge: subscription response', subResp)
+      const subData = subResp?.data
+      const sub = subData?.subscription
+      // subData.hasActiveSubscription is the authoritative flag; fall back to
+      // checking the nested subscription.status for API variants that omit it.
+      if (subData?.hasActiveSubscription || (sub && ['active', 'trialing', 'past_due'].includes(sub.status))) {
+        this.log('[NudgePlugin] _checkFreePlanNudge: user has active subscription, skipping nudge', sub?.status)
+        return
+      }
+      this.log('[NudgePlugin] _checkFreePlanNudge: no active subscription, proceeding', subData)
+
+      // 2. Fetch plan catalog to derive discount copy.
+      let title = 'Upgrade to Remix AI Pro'
+      let message = 'Upgrade to a paid plan to unlock premium AI models, MCP tools, higher credit quotas, and more.'
+
+      try {
+        const productsApi = await this.call('auth' as any, 'getProductsApi')
+        this.log('[NudgePlugin] _checkFreePlanNudge: productsApi resolved')
+        const catalogResp = await productsApi.getAvailableProducts({ type: 'subscription_plan' })
+        this.log('[NudgePlugin] _checkFreePlanNudge: catalog response', catalogResp)
+        const plans: any[] = (catalogResp.data?.data ?? []).filter((p: any) => (p.price_cents ?? 0) > 0)
+        this.log('[NudgePlugin] _checkFreePlanNudge: paid plans', plans)
+        const topPlan = [...plans].sort((a: any, b: any) => b.price_cents - a.price_cents)[0]
+        this.log('[NudgePlugin] _checkFreePlanNudge: top plan', topPlan)
+
+        if (topPlan) {
+          const planName: string = topPlan.name
+          title = `Upgrade to ${planName}`
+          const priceCents: number = topPlan.price_cents
+          const unit: string = topPlan.billing_interval === 'year' ? 'year' : 'month'
+          const introDiscount = Array.isArray(topPlan.intro_discounts) ? topPlan.intro_discounts[0] : null
+          this.log('[NudgePlugin] _checkFreePlanNudge: introDiscount', introDiscount)
+
+          if (introDiscount) {
+            const isPct = introDiscount.discount_type === 'percentage'
+            const dc = isPct
+              ? Math.max(0, Math.floor(priceCents * (1 - (Number(introDiscount.amount) || 0) / 100)))
+              : Math.max(0, priceCents - Math.round((Number(introDiscount.amount) || 0) * 100))
+            const intervals = introDiscount.max_recurring_intervals
+            const duration = !introDiscount.recur || !intervals || intervals === 1
+              ? `first ${unit}`
+              : `first ${intervals} ${unit}s`
+            const offerLabel = isPct
+              ? `${Math.round(Number(introDiscount.amount) || 0)}% off ${duration}`
+              : `$${(Number(introDiscount.amount) || 0).toFixed(2)} off ${duration}`
+            const discountedLabel = `$${(dc / 100).toFixed(2)}`
+            const regularLabel = `$${(priceCents / 100).toFixed(2)}`
+            message = `Limited offer: ${offerLabel} — get ${planName} for just ${discountedLabel}/${unit} (regular ${regularLabel}). Premium models, MCP tools, and higher credit quotas included.`
+            this.log('[NudgePlugin] _checkFreePlanNudge: discount message built', { offerLabel, discountedLabel, regularLabel })
+          } else {
+            const priceLabel = `$${(priceCents / 100).toFixed(2)}`
+            message = `Upgrade to ${planName} for ${priceLabel}/${unit} — unlock premium AI models, MCP integrations, and higher credit quotas.`
+            this.log('[NudgePlugin] _checkFreePlanNudge: no discount, price message built', priceLabel)
+          }
+        }
+      } catch (err) {
+        this.log('[NudgePlugin] _checkFreePlanNudge: catalog fetch failed', err)
+        // Catalog unavailable — fall through with generic copy.
+      }
+
+      // 3. Register the rule (dynamic copy baked in) and fire the trigger.
+      this.log('[NudgePlugin] _checkFreePlanNudge: registering rule and firing user:on_free_plan', { title, message })
+      this.engine_.addRule({
+        id: 'free-plan-upgrade',
+        condition: 'user:on_free_plan',
+        action: {
+          type: 'widget',
+          position: 'right',
+          hidePermanentDismiss: true,
+          title,
+          message,
+          actionLabel: 'See Plans',
+          actionTarget: 'planManager::open',
+          icon: 'fas fa-arrow-up-right-dots',
+          widgetColor: '#8b5cf6',
+          widgetBg: 'rgba(139, 92, 246, 0.1)',
+        },
+        showOnce: 'session',
+        priority: 13
+      })
+      this.engine_.fire('user:on_free_plan')
+      this.log('[NudgePlugin] _checkFreePlanNudge: done')
+    } catch (err) {
+      this.log('[NudgePlugin] _checkFreePlanNudge: outer error', err)
+      // Auth or billing API unavailable — skip silently.
     }
   }
 
@@ -527,6 +646,27 @@ export class NudgePlugin extends Plugin {
       },
       showOnce: 'session',
       priority: 8
+    })
+
+    /* ─── Credits low — encourage top-up ─── */
+
+    this.engine_.addRule({
+      id: 'credits-low-topup',
+      condition: 'user:credits_low',
+      action: {
+        type: 'widget',
+        position: 'right',
+        hidePermanentDismiss: true,
+        title: 'Running Low on AI Credits',
+        message: 'Your credit balance is getting low. Top up now to keep using AI features without interruption.',
+        actionLabel: 'Top Up Credits',
+        actionTarget: 'planManager::open::topup',
+        icon: 'fas fa-bolt',
+        widgetColor: '#f59e0b',
+        widgetBg: 'rgba(245, 158, 11, 0.1)'
+      },
+      showOnce: 'session',
+      priority: 16
     })
 
     /* ─── Unauthenticated AI nudges — show login prompt after AI engagement ─── */
@@ -787,7 +927,7 @@ function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecor
       {/* Corner widget for active nudges */}
       {nudge && nudge.action.type !== 'hint' && (
         <div
-          className={`nudge-widget ${state.animateOut ? 'nudge-widget--out' : ''}`}
+          className={`nudge-widget${nudge.action.position === 'right' ? ' nudge-widget--right' : ''}${state.animateOut ? ' nudge-widget--out' : ''}`}
           data-id="nudge-widget"
           style={{
             ...(nudge.action.widgetColor ? { '--nw-accent': nudge.action.widgetColor } as React.CSSProperties : {}),
@@ -831,12 +971,12 @@ function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecor
             )}
           </div>
 
-          {(nudge.action.dismissable !== false) && (
+          {(nudge.action.dismissable !== false) && !nudge.action.hidePermanentDismiss && (
             <button
               className="nudge-widget-never"
               onClick={(e) => { e.stopPropagation(); onDismissPermanent() }}
             >
-                            Don&apos;t show this again
+              Don&apos;t show this again
             </button>
           )}
         </div>

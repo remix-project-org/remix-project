@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { DISCORD_URL } from '@remix-ui/helper';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -556,7 +557,7 @@ const BetaFeatureReel: React.FC<BetaFeatureReelProps> = ({
               Beta Perk
             </span>
             <div
-              onClick={() => window.open('https://discord.gg/TWfKkZVwJW', '_blank')}
+              onClick={() => window.open(DISCORD_URL, '_blank')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -685,7 +686,7 @@ const BetaFeatureReel: React.FC<BetaFeatureReelProps> = ({
               <div style={{ marginTop: 8 }}>
                 {feat.btn && feat.visual === "community" ? (
                   <button
-                    onClick={() => window.open('https://discord.gg/TWfKkZVwJW', '_blank')}
+                    onClick={() => window.open(DISCORD_URL, '_blank')}
                     style={{
                       background: "rgba(88,101,242,0.15)",
                       color: "#b8bfff",

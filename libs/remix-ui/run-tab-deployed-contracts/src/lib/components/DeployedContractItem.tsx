@@ -16,6 +16,7 @@ import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import BN from 'bn.js'
 import { TrackingContext } from '@remix-ide/tracking'
 import { useAuth } from '@remix-ui/app'
+import { Features } from '@remix-api'
 import isElectron from 'is-electron'
 
 const txHelper = remixLib.execution.txHelper
@@ -35,7 +36,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const { trackMatomoEvent } = useContext(TrackingContext)
   const intl = useIntl()
   const { features } = useAuth()
-  const hasQuickdappAccess = features?.['dapp:quickdapp']?.is_enabled
+  const hasQuickdappAccess = features?.[Features.DAPP_QUICKDAPP]?.is_enabled
   const isDesktop = isElectron()
   const [networkName, setNetworkName] = useState<string>('')
   const [isExpanded, setIsExpanded] = useState<boolean>(true)

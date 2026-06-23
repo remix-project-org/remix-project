@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer, useState, useMemo, useRef, useContext } from 'react';
+import { Features } from '@remix-api';
 import { LoginModal, startSignInFlow } from '@remix-ui/login';
 import { IntlProvider } from 'react-intl';
 import CreateInstance from './components/CreateInstance';
@@ -31,7 +32,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   const activeDappRef = useRef(appState.activeDapp);
 
   // Permission gating
-  const hasAccess = features?.['dapp:quickdapp']?.is_enabled
+  const hasAccess = features?.[Features.DAPP_QUICKDAPP]?.is_enabled
   const quickdappEnabled = remixAppContext?.appConfig?.['quickdapp.enabled']
   const quickdappEnabledRef = useRef(quickdappEnabled)
   quickdappEnabledRef.current = quickdappEnabled
