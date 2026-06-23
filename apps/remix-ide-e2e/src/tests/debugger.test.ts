@@ -290,9 +290,10 @@ module.exports = {
 
   'Should display solidity imported code while debugging github import #group2': function (browser: NightwatchBrowser) {
     browser
+      .waitForElementVisible('*[data-id="verticalIconsKindsolidity"]')
+      .clickLaunchIcon('solidity')
       .clearConsole()
       .clearTransactions()
-      .clickLaunchIcon('solidity')
       .testContracts('externalImport.sol', sources[1]['externalImport.sol'], ['ERC20'])
       .clickLaunchIcon('udapp')
       .selectContract('ERC20')
