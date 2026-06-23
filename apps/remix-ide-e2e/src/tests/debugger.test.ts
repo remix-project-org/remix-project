@@ -19,21 +19,23 @@ module.exports = {
   },
 
   after: async function (browser: NightwatchBrowser, done: VoidFunction) {
-    // Release the pool session the auth plugin checked out in `before`.
-    try {
-      const result: any = await new Promise((resolve) => {
-        browser.execute(function () {
-          return sessionStorage.getItem('remix_pool_session')
-        }, [], (res: any) => resolve(res))
-      })
+    // Release the pool session the auth plugin checked out in `before` (only if poolApiKey was set).
+    if (poolApiKey) {
+      try {
+        const result: any = await new Promise((resolve) => {
+          browser.execute(function () {
+            return sessionStorage.getItem('remix_pool_session')
+          }, [], (res: any) => resolve(res))
+        })
 
-      if (result && result.value) {
-        const session = JSON.parse(result.value)
-        console.log(`[Debugger] Releasing pool session: ${session.sessionId}`)
-        await releaseAccount(session.sessionId)
+        if (result && result.value) {
+          const session = JSON.parse(result.value)
+          console.log(`[Debugger] Releasing pool session: ${session.sessionId}`)
+          await releaseAccount(session.sessionId)
+        }
+      } catch (err: any) {
+        console.error(`[Debugger] Release failed: ${err.message}`)
       }
-    } catch (err: any) {
-      console.error(`[Debugger] Release failed: ${err.message}`)
     }
     browser.end()
     done()
