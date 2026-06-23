@@ -1,14 +1,14 @@
-// 'use strict'
-// import { NightwatchBrowser } from 'nightwatch'
-// import init from '../helpers/init'
-// import { releaseAccount } from '../helpers/pool'
-// import { waitAndVerifySync, waitForSyncIdle } from '../helpers/cloud-sync-verify'
+'use strict'
+import { NightwatchBrowser } from 'nightwatch'
+import init from '../helpers/init'
+import { releaseAccount } from '../helpers/pool'
+import { waitAndVerifySync, waitForSyncIdle } from '../helpers/cloud-sync-verify'
 
-// require('dotenv').config()
+require('dotenv').config()
 
-// const poolApiKey = process.env.E2E_POOL_API_KEY || ''
+const poolApiKey = process.env.E2E_POOL_API_KEY || ''
 
-// module.exports = {
+module.exports = {
 //   '@disabled': true,
 
 //   before: function (browser: NightwatchBrowser, done: VoidFunction) {
@@ -1973,4 +1973,4 @@
 //     browser.assert.ok(hasSolFile, 'AI workspace restored from S3 still has .sol files')
 //   }
 
-// }
+}
