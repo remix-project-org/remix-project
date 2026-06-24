@@ -1273,7 +1273,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       //   • the `ai:verified_accounts` feature is enabled (so the gate exists)
       //   • the user hasn't verified their email (or hasn't added one yet)
       //   • the panel isn't already open (avoid interrupting an active session)
-      const gateEnabled = !!permissions && hasFeature(permissions, 'ai:verified_accounts')
+      const gateEnabled = !!permissions && hasFeature(permissions, Features.AI_VERIFIED_ACCOUNTS)
       const emailMissing = permissions?.has_email === false
       const emailUnverified = permissions?.email_verified === false
       const panelAlreadyOpen = this.store.getSnapshot().isOpen
@@ -1310,7 +1310,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       // available and are motivated to upgrade or top up. Only fires once per
       // session (not on every data refresh) and only when the plans surface is
       // enabled by the backend.
-      const canShowPlans = hasFeature(permissions, 'ui:show-plans')
+      const canShowPlans = hasFeature(permissions, Features.UI_SHOW_PLANS)
       const snap = this.store.getSnapshot()
       const planState = selectPlanState(snap)
       const isFreePlan = planState.kind === 'no_subscription'
