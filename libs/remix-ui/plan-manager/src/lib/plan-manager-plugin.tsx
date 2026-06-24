@@ -430,8 +430,11 @@ export class PlanManagerPlugin extends ViewPlugin {
 
     // Build a label from all items for the pending-checkout indicator.
     const planItem = cart.find(i => i.productType === 'subscription_plan')
+    const addOnCount = cart.length - 1
     const itemLabel = planItem
-      ? `${planItem.name} + ${cart.length - 1} add-on${cart.length - 1 !== 1 ? 's' : ''}`
+      ? (addOnCount > 0
+        ? `${planItem.name} + ${addOnCount} add-on${addOnCount !== 1 ? 's' : ''}`
+        : planItem.name)
       : cart.map(i => i.name).join(' + ')
     const productId = planItem?.slug ?? cart[0].slug
 
@@ -1229,15 +1232,21 @@ export class PlanManagerPlugin extends ViewPlugin {
     planManagerLogger.log(LOG, 'start')
     await Promise.all([
       this.loadAccountData().catch(err => planManagerLogger.warn(LOG, 'loadAccountData failed', err)),
-      this.call('auth', 'refreshPermissions').catch(err => planManagerLogger.warn(LOG, 'refreshPermissions failed', err)),
-      this.call('auth', 'refreshCredits').catch(err => planManagerLogger.warn(LOG, 'refreshCredits failed', err)),
       this.call('auth', 'refreshAccessPolicy').catch(err => planManagerLogger.warn(LOG, 'refreshAccessPolicy failed', err))
     ])
+    // Refresh permissions BEFORE credits. The credits-low nudge keys off the
+    // `auth.creditsUpdated` event and checks whether the user now has quotas;
+    // if credits refresh first, that check reads the *old* (quota-less) plan and
+    // fires a "Running low" warning immediately after an upgrade. Sequencing the
+    // permission refresh first ensures the new plan's quota is visible by then.
+    await this.call('auth', 'refreshPermissions').catch(err => planManagerLogger.warn(LOG, 'refreshPermissions failed', err))
+    await this.call('auth', 'refreshCredits').catch(err => planManagerLogger.warn(LOG, 'refreshCredits failed', err))
     // Promote 'processing' → 'success' in the panel. DATA_LOADED alone won't
     // do it because the data state is usually 'ready' (not 'refreshing') by
     // the time we get here; PURCHASE_CONFIRMED is handled at machine root.
     this.store.send({ type: 'PURCHASE_CONFIRMED' })
-    this.emit('purchaseConfirmed')
+    const cr = this.store.getSnapshot().checkoutResult
+    this.emit('purchaseConfirmed', { intent: cr?.intent, label: cr?.itemLabel })
     planManagerLogger.log(LOG, 'done')
   }
 
@@ -1459,12 +1468,18 @@ const PlanManagerOverlay: React.FC<{
     if (target) setActiveSection(target)
   }, [intent])
 
+  // While a Paddle checkout is in flight (card entry or payment confirmation)
+  // an accidental dismiss would abort the transaction, so we suppress the
+  // backdrop-click and Escape shortcuts until it resolves. The explicit X /
+  // cancel controls still work.
+  const isCheckoutActive = (!!snap.pendingCheckout && !snap.checkoutResult) || (snap.checkoutResult?.kind === 'processing')
+
   // Close-on-Escape — UI concern, stays in React.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') plugin.close() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !isCheckoutActive) plugin.close() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [plugin])
+  }, [plugin, isCheckoutActive])
 
   // Pure derivations — every render reads fresh from the snapshot.
   const planCtx = useMemo(() => selectPlanState(snap), [snap])
@@ -1588,7 +1603,7 @@ const PlanManagerOverlay: React.FC<{
   const refreshDate = formatDate(status.refreshDate)
 
   return (
-    <div className="pm-backdrop" onClick={() => plugin.close()}>
+    <div className="pm-backdrop" onClick={() => { if (!isCheckoutActive) plugin.close() }}>
       <div className={`pm-shell pm-shell--${status.state}`} onClick={(e) => e.stopPropagation()}>
         <div className="pm-atmosphere" aria-hidden>
           <div className="pm-atmosphere__orb pm-atmosphere__orb--a" />
@@ -4220,7 +4235,7 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
     icon: 'fas fa-check',
     title: (intent, item) =>
       intent === 'topup' ? `${item || 'Credits'} added to your account` :
-        intent === 'subscription' ? `Welcome to ${item || 'your new plan'}` :
+        intent === 'subscription' ? `Welcome to ${/^remix/i.test(item || '') ? item : `Remix ${item || 'Pro'}`}!` :
           intent === 'cancel' ? `${item || 'Subscription'} cancelled` :
             intent === 'reactivate' ? `${item || 'Subscription'} reactivated` :
               'Purchase confirmed',

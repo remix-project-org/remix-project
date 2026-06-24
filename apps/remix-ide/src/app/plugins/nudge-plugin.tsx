@@ -55,6 +55,11 @@ export class NudgePlugin extends Plugin {
   engine_: NudgeEngine
   private state: NudgePluginState
   debug: boolean
+  // Epoch ms until which the "Running low on credits" nudge is suppressed
+  // (set right after an upgrade so a freshly-paid user isn't warned).
+  private _suppressLowCreditsUntil = 0
+  // Plan label shown in the post-upgrade celebration nudge (e.g. "Remix Pro").
+  private _upgradedPlanLabel = 'Remix Pro'
 
   // Type-safe tracker defaulting to NudgeEvent
   private trackMatomoEvent = <T extends MatomoEvent = NudgeEvent>(event: T) => {
@@ -222,14 +227,48 @@ export class NudgePlugin extends Plugin {
     })
 
     // Plan purchased — user is no longer on free plan, retire the upgrade nudge
-    this.on('planManager' as any, 'purchaseConfirmed', () => {
+    this.on('planManager' as any, 'purchaseConfirmed', (info?: { intent?: string; label?: string }) => {
       this.engine_.unfire('user:on_free_plan')
       this.engine_.disableRule('free-plan-upgrade')
+
+      // Only celebrate / suppress for an actual plan upgrade (not top-ups,
+      // cancellations or reactivations).
+      if (info?.intent && info.intent !== 'subscription') return
+
+      this._suppressLowCreditsUntil = Date.now() + 60_000
+      this.engine_.unfire('user:credits_low')
+      this.engine_.disableRule('credits-low-topup')
+
+      // Celebrate the upgrade and point at the newly unlocked features. The
+      // rule is (re)registered with the resolved plan name baked in, then fired.
+      const planLabel = (info?.label || 'Pro').replace(/\s*\+.*$/, '') // strip any "+ N add-ons"
+      this._upgradedPlanLabel = /^remix/i.test(planLabel) ? planLabel : `Remix ${planLabel}`
+      this.engine_.addRule({
+        id: 'plan-upgraded-welcome',
+        condition: 'user:plan_upgraded',
+        action: {
+          type: 'widget',
+          position: 'right',
+          hidePermanentDismiss: true,
+          title: `You're on ${this._upgradedPlanLabel}! 🎉`,
+          message: 'Your upgrade is live — premium AI models, higher limits, and the audit tools are unlocked. Open the AI assistant to put them to work.',
+          actionLabel: 'Open AI Assistant',
+          actionTarget: 'menuicons::select::remixaiassistant',
+          icon: 'fas fa-circle-check',
+          widgetColor: '#2fbfb1',
+          widgetBg: 'rgba(47, 191, 177, 0.1)'
+        },
+        showOnce: 'session',
+        priority: 20
+      })
+      this.engine_.fire('user:plan_upgraded')
     })
 
     // Credits updated — check if balance is low and nudge to top up
     this.on('auth' as any, 'creditsUpdated', async (credits: any) => {
       this.engine_.fire('user:credits_updated')
+      // Don't warn about low credits right after an upgrade (see above).
+      if (Date.now() < this._suppressLowCreditsUntil) return
       const balance = typeof credits?.balance === 'number' ? credits.balance : (credits ?? 0)
       const permissions = await this.call('auth' as any, 'getAllPermissions')
       // Users with quotas already have included AI usage — the low-balance
