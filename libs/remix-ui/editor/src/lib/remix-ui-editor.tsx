@@ -129,6 +129,7 @@ export type DecorationsReturn = {
 
 export type PluginType = {
   on: (plugin: string, event: string, listener: any) => void
+  off: (plugin: string, event: string) => void
   call: (plugin: string, method: string, arg1?: any, arg2?: any, arg3?: any, arg4?: any) => any
 }
 
@@ -423,6 +424,32 @@ export const EditorUI = (props: EditorUIProps) => {
       }
       lastHoverPositionRef.current = null
     })
+  }, [])
+
+  // Listen for code analysis popover setting changes
+  useEffect(() => {
+    const handleCodeAnalysisPopoverSettingChange = (isEnabled: boolean) => {
+      // If disabled, immediately close any open popover
+      if (!isEnabled) {
+        setTooltipData(null)
+        // Clear any pending hover timeouts
+        if (hoverTimeoutRef.current) {
+          clearTimeout(hoverTimeoutRef.current)
+          hoverTimeoutRef.current = null
+        }
+        lastHoverPositionRef.current = null
+      }
+    }
+
+    props.plugin.on('settings', 'codeAnalysisPopoverChoiceUpdated', handleCodeAnalysisPopoverSettingChange)
+
+    return () => {
+      try {
+        props.plugin.off('settings', 'codeAnalysisPopoverChoiceUpdated')
+      } catch (e) {
+        // ignore
+      }
+    }
   }, [])
 
   /**
@@ -1025,8 +1052,8 @@ export const EditorUI = (props: EditorUIProps) => {
 
           // Start new timeout for this position
           hoverTimeoutRef.current = setTimeout(() => {
-            openContextualTooltip(position, editorRef, monacoRef, setTooltipData, trackMatomoEvent)
-          }, 1000) // 1.0 seconds
+            openContextualTooltip(position, editorRef, monacoRef, setTooltipData, trackMatomoEvent, props.plugin)
+          }, 2500) // 2.5 seconds
         }
       }
     })

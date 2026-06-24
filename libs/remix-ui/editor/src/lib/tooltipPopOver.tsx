@@ -216,15 +216,32 @@ const getLanguageFromFilename = (filename: string): { label: string; code: strin
   return { label: 'code', code: '' }
 }
 
-export const openContextualTooltip = (
+export const openContextualTooltip = async (
   position: IPosition,
   editorRef: any,
   monacoRef: any,
   setTooltipData: (data: any) => void,
-  trackMatomoEvent: (event: any) => void
+  trackMatomoEvent: (event: any) => void,
+  plugin?: any
 ) => {
   // Check if popover is disabled for this session
   if (isPopoverDisabled()) return
+
+  // Check if popover is disabled in settings (persistent)
+  if (plugin) {
+    try {
+      const isEnabled = await plugin.call('settings', 'get', 'settings/editor/code-analysis-popover')
+      // Default to true if undefined, but respect explicit false
+      const shouldShow = isEnabled !== false
+      if (!shouldShow) {
+        console.log('[CodeAnalysisPopover] Disabled in settings, not showing popover')
+        return
+      }
+    } catch (error) {
+      // If there's an error reading the setting, default to showing the popover
+      console.warn('Failed to read code analysis popover setting:', error)
+    }
+  }
 
   if (!editorRef.current) return
   const model = editorRef.current.getModel()

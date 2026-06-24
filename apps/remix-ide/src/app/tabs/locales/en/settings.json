@@ -72,6 +72,8 @@
   "settings.matomoAnalyticsWithCookiesDescription": "Enable tracking with cookies for more detailed insights.",
   "settings.aiCopilot": "RemixAI Copilot",
   "settings.aiCopilotDescription": "RemixAI Copilot assists with code suggestions and improvements.",
+  "settings.editorCodeAnalysisPopover": "Show code analysis popover",
+  "settings.editorCodeAnalysisPopoverDescription": "Display AI-powered code analysis when you select text in the editor",
   "settings.aiPrivacyPolicy": "RemixAI Privacy & Data Usage",
   "settings.viewPrivacyPolicy": "View Privacy Policy",
   "settings.mcpServerConfiguration": "MCP Server Configuration",

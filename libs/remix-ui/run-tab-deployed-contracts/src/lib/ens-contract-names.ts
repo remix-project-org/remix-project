@@ -302,9 +302,14 @@ export async function fetchEnsPreflight(params: PreflightRequest): Promise<Prefl
 }
 
 export async function createEnsJob(params: PreflightRequest): Promise<JobCreateResponse> {
+  const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null
+
   const response = await fetch(`${apiBase()}/jobs`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
     body: JSON.stringify(params),
   })
   const data = await response.json().catch(() => null)
