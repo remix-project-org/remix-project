@@ -2,10 +2,10 @@ import { ViewPlugin } from '@remixproject/engine-web'
 import React from 'react'
 import { PluginViewWrapper, DISCORD_URL, REMIX_DOCS_URL } from '@remix-ui/helper'
 import { useAuth } from '@remix-ui/app'
-import { trackMatomoEvent as baseTrackMatomoEvent, HelpEvent, MatomoEvent } from '@remix-api'
+import { trackMatomoEvent as baseTrackMatomoEvent, HelpEvent, MatomoEvent, Features } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 
-export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell'
+export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell' | 'starter-guide' | 'pro-guide'
 
 /**
  * Survey users complete to unlock their 50% off Pro reward. Kept here
@@ -153,6 +153,12 @@ interface TopicDef {
   icon: string
   color: string
   tag?: string
+  /**
+   * Feature keys the user must have for this guide to be visible. When set,
+   * the card only renders if every listed feature is enabled (plan-gated
+   * guides). When omitted, the guide is treated as beta-only.
+   */
+  requiredFeatures?: string[]
 }
 
 const TOPICS: TopicDef[] = [
@@ -203,6 +209,127 @@ const TOPICS: TopicDef[] = [
     color: '#e86baf',
     tag: 'Reward'
   },
+  {
+    // Plan-gated: visible to anyone whose plan includes the AI assistant.
+    id: 'starter-guide',
+    title: 'Get started with Starter',
+    description: 'Make the most of your plan — AI chat, one-click compile fixes, and ready-made skills.',
+    icon: 'fas fa-seedling',
+    color: '#5b9cf5',
+    tag: 'Starter',
+    requiredFeatures: [Features.AI_SOLCODER]
+  },
+  {
+    // Plan-gated: visible to plans that include the security auditor (Pro).
+    id: 'pro-guide',
+    title: 'Unlock Pro features',
+    description: 'Sophisticated agents, advanced commands, security audits, gas optimisation, premium models, and live on-chain data.',
+    icon: 'fas fa-crown',
+    color: '#f0a030',
+    tag: 'Pro',
+    requiredFeatures: [Features.AI_AUDITOR]
+  },
+]
+
+/* ─── Plan guide demo content (static, like the MCP/QuickDApp demos) ─── */
+
+import type { PlanGuideDemo } from './plan-guide-modal'
+
+const STARTER_DEMOS: PlanGuideDemo[] = [
+  {
+    key: 'chat', name: 'AI chat', color: '#5b9cf5',
+    desc: 'Ask anything — generate contracts, explain code, or get Solidity help.',
+    example: '"Write an ERC-20 with a capped supply"',
+    prompt: 'Write an ERC-20 token with a capped supply and an owner-only mint function.',
+    mockReply: 'Drafting <span class="plg-hl">CappedToken.sol</span>…\n\n' +
+      '  • OpenZeppelin ERC20 + Ownable\n  • `cap` enforced in `_update`\n  • owner-only `mint`\n\n' +
+      'Created the file in your workspace — hit Compile to try it.'
+  },
+  {
+    key: 'compile', name: 'Compile & fix', color: '#2fbfb1',
+    desc: 'Let the assistant compile the active file and fix any errors it finds.',
+    example: '"/compile fix the errors in this file"',
+    prompt: '/compile fix any errors in the active file',
+    mockReply: 'Compiling <span class="plg-hl">MyContract.sol</span>…\n\n' +
+      'Found 1 error: missing visibility on `transfer`.\nApplied fix → recompiled <span class="plg-hl">successfully</span>.'
+  },
+  {
+    key: 'skills', name: 'Ready-made skills', color: '#6bdb8a',
+    desc: 'Load a curated skill so the assistant follows a proven workflow.',
+    example: '"Load a skill, then use it"',
+    prompt: 'Load the available skills and apply one that fits writing a secure ERC-721.',
+    mockReply: 'Added the selected skill to <span class="plg-hl">skills/</span>.\n\n' +
+      'I\'ll follow its checklist as we build your ERC-721 — starting with access control and safe minting.'
+  },
+  {
+    key: 'explain', name: 'Explain code', color: '#9b7dff',
+    desc: 'Get a line-by-line walkthrough of any contract in your workspace.',
+    example: '"Explain what this contract does"',
+    prompt: 'Explain what the active contract does, function by function, and flag any risks.',
+    mockReply: 'Walking through <span class="plg-hl">Vault.sol</span>…\n\n' +
+      '  • `deposit()` — credits the sender\n  • `withdraw()` — ⚠️ external call before state update (reentrancy risk)\n\n' +
+      'Want me to apply the checks-effects-interactions fix?'
+  }
+]
+
+const PRO_DEMOS: PlanGuideDemo[] = [
+  {
+    key: 'audit', name: 'Security audit', color: '#f0a030',
+    desc: 'Run the auditor against your contract using curated security checklists.',
+    example: '"/audit this contract"',
+    prompt: '/audit a contract — audit the open file against the security checklists in audits/.',
+    mockReply: 'Auditing <span class="plg-hl">Token.sol</span> against the selected checklist…\n\n' +
+      '  • Reentrancy: <span class="plg-hl">pass</span>\n  • Access control: 1 finding (unprotected `setOwner`)\n\n' +
+      'Full report saved to <span class="plg-hl">audit_reports/</span>.'
+  },
+  {
+    key: 'gas', name: 'Gas optimisation', color: '#6bdb8a',
+    desc: 'Profile your contract and get concrete gas savings with before/after numbers.',
+    example: '"/gas-audit this contract"',
+    prompt: 'Run a gas optimization audit on the active contract and suggest concrete savings with estimates.',
+    mockReply: 'Profiling <span class="plg-hl">Token.sol</span> for gas…\n\n' +
+      '  • Cache `storage` reads in loops → <span class="plg-hl">−2,100 gas</span>\n' +
+      '  • Use `calldata` for read-only args → <span class="plg-hl">−480 gas</span>\n' +
+      '  • Pack two `uint128` fields into one slot → <span class="plg-hl">−20,000 gas</span> per write\n\n' +
+      'Apply all, or pick one to start?'
+  },
+  {
+    key: 'agents', name: 'Sophisticated agents', color: '#2fbfb1',
+    desc: 'Pro enables specialized subagents — Comprehensive Auditor, Gas Optimizer, Solidity Engineer — that coordinate multi-step work for you.',
+    example: '"Do a full review of my contract"',
+    prompt: 'Run a comprehensive review of my contract — coordinate the security, gas, and code-quality agents.',
+    mockReply: 'Spinning up subagents…\n\n' +
+      '  • <span class="plg-hl">Comprehensive Auditor</span> — orchestrating\n' +
+      '  • Security Auditor → 2 findings\n  • Gas Optimizer → 3 savings\n  • Code Reviewer → 1 nit\n\n' +
+      'Merging everything into one prioritized report.'
+  },
+  {
+    key: 'commands', name: 'Advanced commands', color: '#e86baf',
+    desc: 'Pro unlocks advanced slash commands. Type “/” in the chat to reach them.',
+    example: '"/audit", "/gas-audit"',
+    prompt: '/audit a contract',
+    mockReply: 'Advanced commands are now enabled:\n\n' +
+      '  • <span class="plg-hl">/audit</span> — security audit against checklists\n' +
+      '  • <span class="plg-hl">/gas-audit</span> — gas optimisation pass\n' +
+      '  • <span class="plg-hl">/load-audit-checklist</span> — load curated checklists\n\n' +
+      'Just type “/” in the assistant to use them.'
+  },
+  {
+    key: 'models', name: 'Premium models', color: '#9b7dff',
+    desc: 'Switch to Claude Opus / Sonnet for deeper reasoning on complex contracts.',
+    example: '"Use the strongest model"',
+    prompt: 'Switch to the most capable model and review my contract architecture for design flaws.',
+    mockReply: 'Now using <span class="plg-hl">Claude Opus</span>.\n\n' +
+      'Reviewing architecture… your proxy pattern mixes storage layouts — I\'ll outline a safe upgrade path.'
+  },
+  {
+    key: 'mcp', name: 'Live on-chain data', color: '#5b9cf5',
+    desc: 'Query Etherscan, Alchemy and The Graph directly from the assistant.',
+    example: '"Verify my contract on Etherscan"',
+    prompt: 'Use Etherscan to verify the contract I just deployed on Sepolia and show the status.',
+    mockReply: 'Connecting to <span class="plg-hl">Etherscan (Sepolia)</span>…\n\n' +
+      'Contract verified ✓ — source matches, compiler 0.8.20, MIT.'
+  }
 ]
 
 /* ─── Side-panel React UI ─── */
@@ -210,24 +337,37 @@ const TOPICS: TopicDef[] = [
 import './help-panel.css'
 
 const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
-  const { featureGroups } = useAuth()
+  const { featureGroups, features } = useAuth()
   const isBeta = featureGroups?.some(fg => fg.name === 'beta')
   const activeModal = plugin.activeModal
+
+  const hasFeat = (f: string): boolean => {
+    const e = features?.[f]
+    if (e == null) return false
+    if (typeof e === 'boolean') return e
+    return e.is_enabled !== false && e.allowed !== false
+  }
+
+  const visibleTopics = TOPICS.filter(t =>
+    t.requiredFeatures && t.requiredFeatures.length
+      ? t.requiredFeatures.every(hasFeat)
+      : isBeta
+  )
 
   // Type-safe tracker defaulting to HelpEvent
   const trackMatomoEvent = <T extends MatomoEvent = HelpEvent>(event: T) => {
     baseTrackMatomoEvent(plugin, event)
   }
 
-  if (!isBeta) {
+  if (visibleTopics.length === 0) {
     return (
       <div className="help-panel help-panel--locked">
         <div className="help-panel-locked-icon">
           <i className="fas fa-lock"></i>
         </div>
-        <h5 className="help-panel-locked-title">Beta Required</h5>
+        <h5 className="help-panel-locked-title">No guides yet</h5>
         <p className="help-panel-locked-desc">
-          Sign in with a beta account to access guides and feature walkthroughs.
+          Sign in with a paid plan or beta account to unlock guides and feature walkthroughs.
         </p>
       </div>
     )
@@ -239,7 +379,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
       <div className="help-panel-header">
         <div className="help-panel-header-badge">
           <span className="help-panel-header-dot" />
-          Beta Guides
+          {isBeta ? 'Beta Guides' : 'Guides'}
         </div>
         <button
           className="help-panel-discord-btn"
@@ -258,7 +398,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
 
       {/* Topic cards */}
       <div className="help-panel-topics">
-        {TOPICS.map((topic) => (
+        {visibleTopics.map((topic) => (
           <div
             key={topic.id}
             className="help-panel-card"
@@ -304,6 +444,7 @@ import BetaFarewellModal, { FarewellDismissKind } from './beta-farewell-modal'
 import McpHelpModal from './mcp-help-modal'
 import CloudHelpModal from './cloud-help-modal'
 import QuickDAppHelpModal from './quickdapp-help-modal'
+import PlanGuideModal from './plan-guide-modal'
 
 /** Snooze duration when the user picks "Remind me later" on the farewell modal. */
 const BETA_FAREWELL_REMIND_DELAY_MS = 24 * 60 * 60 * 1000 // 1 day
@@ -387,6 +528,30 @@ const HelpModalOverlay: React.FC<{
           }
         }}
       />
+    case 'starter-guide':
+      return (
+        <PlanGuideModal
+          open
+          onClose={onClose}
+          onShowReel={showReel}
+          planName="Remix Starter"
+          accent="#5b9cf5"
+          intro="Your Starter plan unlocks the RemixAI assistant. Click any feature below to see how to put it to work."
+          demos={STARTER_DEMOS}
+        />
+      )
+    case 'pro-guide':
+      return (
+        <PlanGuideModal
+          open
+          onClose={onClose}
+          onShowReel={showReel}
+          planName="Remix Pro"
+          accent="#f0a030"
+          intro="You're on Pro. More sophisticated agents and advanced commands are now enabled — along with the security auditor, gas optimisation, premium models, and live on-chain data. Try a demo of each below."
+          demos={PRO_DEMOS}
+        />
+      )
     case 'mcp':
       return <McpHelpModal open onClose={onClose} onShowReel={showReel} />
     case 'cloud':

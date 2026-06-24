@@ -990,8 +990,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       setHasSkillsPermission(isOn(Features.AI_SKILLS))
 
       const nextPillStates = {
-        upgrade: comingSoon ? 'coming_soon' : isOn(Features.AI_UPGRADE_AVAILABLE) ? 'available' : 'hidden',
-        buyCredits: comingSoon ? 'hidden' : isOn(Features.AI_BUY_CREDITS) ? 'available' : 'hidden'
+        upgrade: (comingSoon || isOn(Features.AI_UPGRADE_AVAILABLE)) ? 'available' : 'hidden',
+        buyCredits: isOn(Features.AI_BUY_CREDITS) ? 'available' : 'hidden'
       } as const
       setPillStates(nextPillStates)
       void refreshCooldown()
