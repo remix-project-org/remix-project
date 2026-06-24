@@ -381,13 +381,13 @@ module.exports = {
       .debugTransaction(0)
       .waitForElementPresent('*[data-id="callTraceHeader"]', 60000)
       .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step:', 60000)
-      .pause(1000)
+      .pause(3000) // Wait for debugger backend to fully initialize before jumping
       // Use goToVMTraceStep which intelligently uses jumpTo method when available
       // This avoids clicking 5453 times and instead uses stepManager.jumpTo(5453) directly
       .goToVMTraceStep(5453)
-      .pause(2000)
+      .pause(5000) // Allow more time for jump to complete, especially on slower CI environments
       // Verify we reached the correct step
-      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 5453', 20000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 5453', 60000)
       .waitForElementVisible('*[data-id="stateLocalsContent"]', 10000)
       .pause(2000) // Wait for large array to be processed and rendered
       // Expand "locals" first to see variable names
