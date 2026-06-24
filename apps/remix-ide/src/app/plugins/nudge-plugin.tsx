@@ -229,7 +229,6 @@ export class NudgePlugin extends Plugin {
 
     // Credits updated — check if balance is low and nudge to top up
     this.on('auth' as any, 'creditsUpdated', async (credits: any) => {
-      console.log('[NudgePlugin] creditsUpdated event received', credits)
       this.engine_.fire('user:credits_updated')
       const balance = typeof credits?.balance === 'number' ? credits.balance : (credits ?? 0)
       const permissions = await this.call('auth' as any, 'getAllPermissions')
