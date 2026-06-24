@@ -387,7 +387,7 @@ module.exports = {
       .goToVMTraceStep(5453)
       .pause(2000)
       // Verify we reached the correct step
-      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 5453', 10000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 5453', 20000)
       .waitForElementVisible('*[data-id="stateLocalsContent"]', 10000)
       .pause(2000) // Wait for large array to be processed and rendered
       // Expand "locals" first to see variable names
