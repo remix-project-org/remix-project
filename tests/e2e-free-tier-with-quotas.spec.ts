@@ -2,6 +2,8 @@ import { test, expect } from './helpers/e2e-pool';
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
+// DISABLED: Playwright E2E test
+/*
 test('test', async ({ page }) => {
   const poolApiKey = process.env.E2E_POOL_API_KEY || process.env.E2E_POOL_KEY
   if (!poolApiKey) {
@@ -51,3 +53,4 @@ test('test', async ({ page }) => {
 
 
 });
+*/

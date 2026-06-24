@@ -39,13 +39,13 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'ollama', description: 'Configure Ollama integration', category: 'Settings' },
 
   // Compilation & Analysis
-  { name: 'compile', description: 'Compile contract', category: 'Build', requiredFeatures: [Features.AI_SOLCODER] },
+  { name: 'compile', description: 'Compile contract', category: 'Build', requiredFeatures: [Features.AI_SOLCODER]},
   // { name: 'slither', description: 'Run Slither security analysis', category: 'Analysis' },
   // { name: 'mythril', description: 'Run Mythril security scan', category: 'Analysis' },
 
   // Deployment & Verification
-  { name: 'deploy', description: 'Deploy contract to network', category: 'Deploy', requiredFeatures: [Features.AI_SOLCODER] },
-  { name: 'etherscan', description: 'Fetch contract from Etherscan and call the Etherscan service', category: 'Import', requiredFeatures: [Features.MCP_ETHERSCAN] },
+  { name: 'deploy', description: 'Deploy contract to network', category: 'Deploy', requiredFeatures: [Features.AI_SOLCODER]},
+  { name: 'etherscan', description: 'Fetch contract from Etherscan and call the Etherscan service', category: 'Import', requiredFeatures: [Features.MCP_ETHERSCAN]},
   // { name: 'verify', description: 'Verify contract on block explorer', category: 'Deploy' },
 
   // Testing & Debugging
@@ -53,9 +53,9 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'debug', description: 'Debug transaction', category: 'Debug' },
 
   // DeFi & Integrations
-  { name: 'thegraph', description: 'Fetch data from The Graph', category: 'Data', requiredFeatures: [Features.MCP_THEGRAPH] },
-  { name: 'alchemy', description: 'Fetch data from Alchemy', category: 'Data', requiredFeatures: [Features.MCP_ALCHEMY] },
-  { name: 'circle', description: 'Circle integration', category: 'DeFi', requiredFeatures: [Features.MCP_CIRCLE] },
+  { name: 'thegraph', description: 'Fetch data from The Graph', category: 'Data', requiredFeatures: [Features.MCP_THEGRAPH]},
+  { name: 'alchemy', description: 'Fetch data from Alchemy', category: 'Data', requiredFeatures: [Features.MCP_ALCHEMY]},
+  { name: 'circle', description: 'Circle integration', category: 'DeFi', requiredFeatures: [Features.MCP_CIRCLE]},
   // { name: 'uniswap', description: 'Uniswap integration', category: 'DeFi' },
   // { name: 'aave', description: 'Aave integration', category: 'DeFi' },
 
@@ -64,9 +64,9 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'docs', description: 'Open documentation', category: 'Help' },
 
   // Frontend & UI
-  { name: 'create a dapp [quickdapp agent]', description: 'DApp development', category: 'Frontend', requiredFeatures: [Features.DAPP_QUICKDAPP] },
+  { name: 'create a dapp [quickdapp agent]', description: 'DApp development', category: 'Frontend', requiredFeatures: [Features.DAPP_QUICKDAPP]},
 
-  { name: 'audit a contract. I am going to give you the actual file name.', description: 'Contract auditing', category: 'Security', requiredFeatures: [Features.AI_AUDITOR] },
+  { name: 'audit a contract. I am going to give you the actual file name.', description: 'Contract auditing', category: 'Security', requiredFeatures: [Features.AI_AUDITOR]},
 ]
 
 export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({
