@@ -44,7 +44,6 @@ export const FileExplorer = (props: FileExplorerProps) => {
     setHasCopied
   } = props
   const [state, setState] = useState<WorkSpaceState>(workspaceState)
-  // const [isPending, startTransition] = useTransition();
   const treeRef = useRef<HTMLDivElement>(null)
   const [cutActivated, setCutActivated] = useState(false)
 
