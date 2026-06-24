@@ -250,7 +250,7 @@ export class NudgePlugin extends Plugin {
           type: 'widget',
           position: 'right',
           hidePermanentDismiss: true,
-          title: `You're on ${this._upgradedPlanLabel}! 🎉`,
+          title: `You're on ${this._upgradedPlanLabel}!`,
           message: 'Your upgrade is live — premium AI models, higher limits, and the audit tools are unlocked. Open the AI assistant to put them to work.',
           actionLabel: 'Open AI Assistant',
           actionTarget: 'menuicons::select::remixaiassistant',
