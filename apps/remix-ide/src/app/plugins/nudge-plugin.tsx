@@ -229,13 +229,14 @@ export class NudgePlugin extends Plugin {
 
     // Credits updated — check if balance is low and nudge to top up
     this.on('auth' as any, 'creditsUpdated', async (credits: any) => {
+      console.log('[NudgePlugin] creditsUpdated event received', credits)
       this.engine_.fire('user:credits_updated')
       const balance = typeof credits?.balance === 'number' ? credits.balance : (credits ?? 0)
       const permissions = await this.call('auth' as any, 'getAllPermissions')
       // Users with quotas already have included AI usage — the low-balance
       // nudge only makes sense for pure pay-as-you-go users with no quota.
       const hasQuotas = Array.isArray(permissions?.quotas) && permissions.quotas.length > 0
-      if (!hasQuotas && balance <= 20000) {
+      if (!hasQuotas && balance <= 10000) {
         this.engine_.fire('user:credits_low')
       }
     })
