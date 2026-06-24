@@ -133,7 +133,7 @@ export async function buildSubagentConfigs(
       systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
       model: fallbackModel,
       tools: quickDappTools,
-      description: 'Used whenever you are tasked with generating and updating DApp frontends. When you are proposing a solution that involves writing a frontend app only mention the quickdapp specialist agent.'
+      description: 'Used for all QuickDapp/DApp frontend generation and update requests. Direct chat DApp updates must be delegated here so list_dapps/update_dapp are used instead of current-workspace file inspection.'
     })
   }
 

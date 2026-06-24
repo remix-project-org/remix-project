@@ -486,12 +486,22 @@ window.addEventListener('unhandledrejection', function(e) {
       return;
     }
 
+    const targetMode = activeDapp.mode || (activeDapp.inlineMode ? 'inline' : 'workspace');
+    const targetSourceRoot = targetMode === 'inline' ? '/frontend' : '/';
+
     // Gather current DApp file list for context
     let fileList: string[] = [];
     try {
-      const srcFiles = await plugin.call('fileManager', 'readdir', 'src');
+      const sourceDir = targetMode === 'inline' ? 'frontend/src' : 'src';
+      const sourcePrefix = `${sourceDir}/`;
+      const srcFiles = await plugin.call('fileManager', 'readdir', sourceDir);
       if (srcFiles) {
-        fileList = Object.keys(srcFiles).map(f => f.replace(/^src\//, 'src/'));
+        fileList = Object.keys(srcFiles).map((filePath) => {
+          const normalized = filePath.replace(/^\/+/, '');
+          return normalized.startsWith(sourcePrefix)
+            ? normalized
+            : `${sourcePrefix}${normalized.replace(/^src\//, '')}`;
+        });
       }
     } catch (e) {
       console.warn('[QuickDapp] Could not read DApp files:', e);
@@ -501,7 +511,14 @@ window.addEventListener('unhandledrejection', function(e) {
     const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
     const contractInfo = activeDapp.contract;
     const promptParts = [
-      `I have an existing DApp called "${dappName}" in workspace "${activeDapp.workspaceName}".`,
+      `DApp update target context:`,
+      `Use the target details below exactly. Do not infer or substitute a different workspace.`,
+      ``,
+      `Target DApp: "${dappName}"`,
+      `Target workspaceName: "${activeDapp.workspaceName}"`,
+      `Target slug: "${activeDapp.slug}"`,
+      `Target mode: "${targetMode}"`,
+      `Target source root: "${targetSourceRoot}"`,
       ``,
       `Contract: ${contractInfo?.name || 'Unknown'} at ${contractInfo?.address || 'unknown'}`,
       `Chain: ${contractInfo?.chainId || 'unknown'}`,
@@ -513,7 +530,12 @@ window.addEventListener('unhandledrejection', function(e) {
 
     promptParts.push(
       ``,
-      `I want to update this DApp. Please list my DApp workspaces, confirm this is the right one, and then ask me what changes I'd like to make.`
+      `I want to update this exact DApp.`,
+      `For this first response, do not call list_dapps, update_dapp, generate_dapp, read_file, write_file, or finalize_dapp_generation.`,
+      `Only ask me one concise question: what changes would I like to make?`,
+      `After my next reply, call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to my requested changes.`,
+      `Use exactly the target workspaceName above if calling update_dapp.`,
+      `Never call generate_dapp for this update flow.`
     );
 
     const prompt = promptParts.join('\n');

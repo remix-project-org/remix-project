@@ -723,6 +723,92 @@ ${codeToAnalyze}
               <button
                 className="btn btn-link p-0 text-start"
                 style={{
+                  fontSize: "0.7rem",
+                  color: "var(--bs-primary)",
+                  textDecoration: "none",
+                  pointerEvents: "auto" // Enable pointer events for this button
+                }}
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  if (plugin) {
+                    try {
+                      // Track button click
+                      trackMatomoEvent({
+                        category: 'ai',
+                        action: 'remixAI',
+                        name: 'contextual_popup_analyze_complete_file_clicked',
+                        isClick: true,
+                        value: keyword
+                      })
+
+                      // Get current file to determine language
+                      const currentFile = await plugin.call('fileManager', 'getCurrentFile')
+                      if (!currentFile) {
+                        console.error('No file is currently open')
+                        return
+                      }
+
+                      // Read the entire file content
+                      const fileContent = await plugin.call('fileManager', 'readFile', currentFile)
+                      const isSolidityFile = currentFile.endsWith('.sol')
+                      const { label: languageLabel, code: language } = getLanguageFromFilename(currentFile)
+
+                      // Extract filename from path for display
+                      const fileName = currentFile.split('/').pop() || currentFile
+
+                      const wholeFilePrompt = isSolidityFile
+                        ? `Analyse this complete Solidity smart contract file for security implications, best practices, and potential vulnerabilities. Provide a comprehensive review covering:
+- Security issues and vulnerabilities
+- Gas optimization opportunities
+- Code quality and maintainability
+- Best practices and recommendations
+
+File: ${fileName}
+
+\`\`\`solidity
+${fileContent}
+\`\`\``
+                        : `Analyse this complete ${languageLabel} file for potential issues, best practices, and code quality improvements. Provide a comprehensive review covering:
+- Potential bugs and issues
+- Code quality and maintainability
+- Performance considerations
+- Best practices and recommendations
+
+File: ${fileName}
+
+\`\`\`${language}
+${fileContent}
+\`\`\``
+
+                      // Clear the selection in the editor to prevent popover from re-appearing
+                      if (onClearSelection) {
+                        onClearSelection()
+                      }
+
+                      await plugin.call('manager', 'activatePlugin', 'remixaiassistant')
+                      await plugin.call('menuicons', 'select', 'remixaiassistant')
+                      await plugin.call('remixaiassistant', 'newConversation')
+
+                      // Small delay to ensure panel is open
+                      setTimeout(async () => {
+                        // Call RemixAI with editor code analysis flag
+                        await plugin.call('remixaiassistant', 'chatPipe', wholeFilePrompt, true)
+                      }, 500)
+
+                      // Close the tooltip
+                      onClose()
+                    } catch (error) {
+                      console.error('Failed to analyze whole file:', error)
+                    }
+                  }
+                }}
+              >
+                <i className="fas fa-file-code me-1" style={{ fontSize: "0.65rem" }}></i>
+                  Analyze complete file
+              </button>
+              <button
+                className="btn btn-link p-0 text-start"
+                style={{
                   fontSize: "0.65rem",
                   color: "var(--bs-body-color)",
                   textDecoration: "none",

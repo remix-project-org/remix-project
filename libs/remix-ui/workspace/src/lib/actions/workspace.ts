@@ -37,7 +37,15 @@ import {
   setCurrentWorkspaceHasGitSubmodules,
   setCurrentLocalFilePath,
 } from './payload'
-import { addSlash, checkSlash, checkSpecialChars } from '@remix-ui/helper'
+import {
+  addSlash,
+  checkSlash,
+  checkSpecialChars,
+  getQuickDappWorkspaceLock,
+  getQuickDappWorkspaceLockMessage,
+  getQuickDappWorkspaceMutationLockMessage,
+  isQuickDappWorkspaceSwitchBlocked
+} from '@remix-ui/helper'
 
 import { FileTree, JSONStandardInput, WorkspaceTemplate } from '../types'
 import { QueryParams } from '@remix-project/remix-lib'
@@ -65,6 +73,32 @@ const NO_WORKSPACE = ' - none - '
 const ELECTRON = 'electron'
 const queryParams = new QueryParams()
 let plugin: any, dgitPlugin: Plugin<any, CustomRemixApi>,dispatch: React.Dispatch<any>
+
+type WorkspaceActionCallback = (err: Error, result?: string | number | boolean | Record<string, any>) => void
+
+const throwIfQuickDappWorkspaceMutationLocked = (
+  actionName: string,
+  workspaceName?: string,
+  cb?: WorkspaceActionCallback
+) => {
+  const quickDappLock = getQuickDappWorkspaceLock()
+  if (!quickDappLock) return
+
+  const message = getQuickDappWorkspaceMutationLockMessage(quickDappLock, actionName, workspaceName)
+  console.warn('[QuickDapp][WorkspaceLock] blocked workspace mutation', {
+    action: actionName,
+    operation: quickDappLock.operation,
+    lockedWorkspace: quickDappLock.workspaceName,
+    attemptedWorkspace: workspaceName,
+    slug: quickDappLock.slug
+  })
+  try {
+    plugin.call('notification', 'toast', message)
+  } catch { /* best-effort notification */ }
+  const error = new Error(message)
+  cb && cb(error)
+  throw error
+}
 
 /** Guard flag to prevent concurrent default-workspace creation in cloud mode */
 let _creatingDefaultCloudWorkspace = false
@@ -260,6 +294,8 @@ const _createWorkspaceInternal = async (
   contractContent?: string,
   contractName?: string,
 ) => {
+  throwIfQuickDappWorkspaceMutationLocked('Workspace creation', workspaceName, cb)
+
   if (plugin.registry.get('platform').api.isDesktop()) {
     if (workspaceTemplateName) {
       await plugin.call('remix-templates', 'loadTemplateInNewWindow', workspaceTemplateName, opts, contractContent, contractName)
@@ -452,6 +488,7 @@ export const populateWorkspace = async (
 }
 
 export const createWorkspaceTemplate = async (workspaceName: string, template: WorkspaceTemplate = 'remixDefault', metadata?: TemplateType, contractContent?: string, contractName?: string) => {
+  throwIfQuickDappWorkspaceMutationLocked('Workspace creation', workspaceName)
   if (!workspaceName) throw new Error('workspace name cannot be empty')
   if (checkSpecialChars(workspaceName) || checkSlash(workspaceName)) throw new Error('special characters are not allowed')
   if ((await workspaceExists(workspaceName)) && template === 'remixDefault') throw new Error('Workspace already exists')
@@ -792,6 +829,8 @@ export const fetchWorkspaceDirectory = async (path: string) => {
 
 export const renameWorkspace = async (oldName: string, workspaceName: string, cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void) => {
   return workspaceOperationQueue.run(async function renameWorkspace() {
+    throwIfQuickDappWorkspaceMutationLocked('Workspace rename', oldName, cb)
+
     // ── Cloud mode: only API rename + update mapping (no local FS rename, dir is UUID) ──
     if (cloudStore.isCloudMode) {
       try {
@@ -837,6 +876,8 @@ export const renameWorkspaceFromProvider = async (oldName: string, workspaceName
 
 export const deleteWorkspace = async (workspaceName: string, cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void) => {
   return workspaceOperationQueue.run(async function deleteWorkspace() {
+    throwIfQuickDappWorkspaceMutationLocked('Workspace deletion', workspaceName, cb)
+
     // ── Cloud mode: delete via API + remove local UUID dir ──
     if (cloudStore.isCloudMode) {
       try {
@@ -904,6 +945,8 @@ export const deleteWorkspace = async (workspaceName: string, cb?: (err: Error, r
 
 export const deleteAllWorkspaces = async () => {
   return workspaceOperationQueue.run(async function deleteAllWorkspaces() {
+    throwIfQuickDappWorkspaceMutationLocked('Deleting all workspaces')
+
     const workspaces = await getWorkspaces()
     await plugin.fileManager.closeAllFiles()
 
@@ -929,6 +972,21 @@ const deleteWorkspaceFromProvider = async (workspaceName: string) => {
 export const switchToWorkspace = async (name: string) => {
   return workspaceOperationQueue.run(async function switchToWorkspace() {
     console.log('[switchToWorkspace] called with name=', name, 'isCloudMode=', cloudStore.isCloudMode, 'stack=', new Error().stack?.split('\\n').slice(1, 4).join(' | '))
+    const quickDappLock = getQuickDappWorkspaceLock()
+    if (quickDappLock && isQuickDappWorkspaceSwitchBlocked(name)) {
+      const message = getQuickDappWorkspaceLockMessage(quickDappLock, name)
+      console.warn('[QuickDapp][WorkspaceLock] blocked workspace switch', {
+        operation: quickDappLock.operation,
+        lockedWorkspace: quickDappLock.workspaceName,
+        attemptedWorkspace: name,
+        slug: quickDappLock.slug
+      })
+      try {
+        plugin.call('notification', 'toast', message)
+      } catch { /* best-effort notification */ }
+      throw new Error(message)
+    }
+
     // ── Cloud mode: delegate to cloud workspace switch ──
     if (cloudStore.isCloudMode) {
       try {
@@ -1195,6 +1253,8 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
 
 export const cloneRepository = async (url: string) => {
   return workspaceOperationQueue.run(async function cloneRepository() {
+    throwIfQuickDappWorkspaceMutationLocked('Workspace clone')
+
     const config = plugin.registry.get('config').api
     const token = config.get('settings/gist-access-token')
     const repoConfig: cloneInputType = { url, token, depth: 10 }
