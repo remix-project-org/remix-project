@@ -299,9 +299,9 @@ const STARTER_DEMOS: PlanGuideDemo[] = [
   {
     key: 'codehelper', name: 'RemixAI Code Helper', color: '#5b9cf5',
     desc: 'A focused coding helper that writes, refactors, and fixes Solidity alongside you.',
-    example: '"Refactor this function for clarity"',
-    prompt: 'Refactor the selected function for readability and add NatSpec comments.',
-    mockReply: 'Refactored <span class="plg-hl">transfer()</span> — extracted checks, added NatSpec, kept behaviour identical. Recompiled cleanly.'
+    example: '"Can you analyze this function for security issues?"',
+    prompt: 'How do I use the code helper to analyze my code?',
+    mockReply: 'Select a function or snippet in the editor, then a `Code Analysis` block will appear with suggestions.'
   },
   {
     key: 'connectors', name: 'Web Search & OpenZeppelin', color: '#9b7dff',

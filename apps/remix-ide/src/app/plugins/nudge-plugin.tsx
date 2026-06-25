@@ -380,18 +380,46 @@ export class NudgePlugin extends Plugin {
     this.call('helpPlugin' as any, 'showModal', topic).catch(() => { /* help plugin unavailable */ })
   }
 
-  private _maybeShowFreeWelcome(): void {
-    const KEY = 'remix:free-welcome-shown'
+  private _isBlockingModalOpen(): boolean {
     try {
-      if (localStorage.getItem(KEY)) return
+      const dialogs = Array.from(document.querySelectorAll('.modal')) as HTMLElement[]
+      if (dialogs.some(d => getComputedStyle(d).display !== 'none')) return true
+      if (document.querySelector('.pm-backdrop, .skills-explorer-modal-background, .checklist-explorer-modal-background')) return true
+    } catch { /* DOM not ready / unavailable — treat as "no modal" */ }
+    return false
+  }
+
+  private _waitForModalsToClose(timeoutMs = 5 * 60_000): Promise<boolean> {
+    return new Promise(resolve => {
+      const start = Date.now()
+      const tick = () => {
+        if (!this._isBlockingModalOpen()) return resolve(true)
+        if (Date.now() - start > timeoutMs) return resolve(false)
+        setTimeout(tick, 500)
+      }
+      setTimeout(tick, 2500)
+    })
+  }
+
+  private async _maybeShowFreeWelcome(): Promise<void> {
+    let key = 'remix:free-welcome-shown'
+    try {
+      const user = await this.call('auth' as any, 'getUser')
+      if (user?.sub) key = `remix:free-welcome-shown:${user.sub}`
+    } catch { /* no user id available — fall back to the shared key */ }
+
+    try {
+      if (localStorage.getItem(key)) return
     } catch {
-      return
+      return // storage blocked — don't risk repeating the popup every load
     }
-    setTimeout(() => {
-      this.call('helpPlugin' as any, 'showModal', 'free-guide')
-        .then(() => { try { localStorage.setItem(KEY, '1') } catch { /* storage blocked */ } })
-        .catch(() => { })
-    }, 2500)
+
+    const clear = await this._waitForModalsToClose()
+    if (!clear) return // still blocked after the cap — retry on a later session
+
+    this.call('helpPlugin' as any, 'showModal', 'free-guide')
+      .then(() => { try { localStorage.setItem(key, '1') } catch { /* storage blocked */ } })
+      .catch(() => { /* help plugin unavailable — retry next session */ })
   }
 
   private _setAuthState(isAuthenticated: boolean): void {
@@ -423,7 +451,7 @@ export class NudgePlugin extends Plugin {
         // and show an upgrade nudge with live discount copy.
         this._checkFreePlanNudge().catch(() => {})
         // First sign-in: introduce the free features via the help guide.
-        this._maybeShowFreeWelcome()
+        this._maybeShowFreeWelcome().catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check
