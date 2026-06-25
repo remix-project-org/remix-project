@@ -414,12 +414,12 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                 <i className="fa-solid fa-arrow-left"></i>
               </button>
               {wizardStep === 'confirm' && (
-                <span className="text-light align-self-center">
+                <span className="text-body align-self-center">
                   Generate Audit Checklist
                 </span>
               )}
               {wizardStep === 'saving' && (
-                <span className="text-light align-self-center">Saving Checklist...</span>
+                <span className="text-body align-self-center">Saving Checklist...</span>
               )}
             </div>
           ) : (
@@ -498,7 +498,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                           return (
                             <div key={mainCategory.category} className="main-category mb-3">
                               <div
-                                className={`main-category-header p-3 d-flex justify-content-between align-items-center cursor-pointer bg-secondary text-light`}
+                                className={`main-category-header p-3 d-flex justify-content-between align-items-center cursor-pointer bg-secondary text-body`}
                                 onClick={() => toggleCategory(mainCategory.category)}
                                 style={isSelected ? { boxShadow: 'inset 4px 0 0 var(--bs-primary)' } : isLoaded ? { boxShadow: 'inset 4px 0 0 var(--bs-success)' } : {}}
                               >
@@ -548,9 +548,9 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                           // Category with sub-categories (original structure)
                           return (
                             <div key={mainCategory.category} className="main-category mb-3">
-                              <div className="main-category-header bg-secondary text-light p-2 rounded-top">
+                              <div className="main-category-header bg-secondary text-body p-2 rounded-top">
                                 <h5 className="mb-1">{mainCategory.category}</h5>
-                                <p className="mb-0 small text-light-emphasis">{mainCategory.description}</p>
+                                <p className="mb-0 small text-body">{mainCategory.description}</p>
                               </div>
 
                               <div className="sub-categories border border-secondary rounded-bottom">
@@ -630,7 +630,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                 <h3 className="mb-3">Generate Audit Checklist</h3>
                 <div className="checklist-details mb-4 text-center">
                   <div className="mb-3">
-                    <strong className="text-light">{selectedCategories.size} categories selected</strong>
+                    <strong className="text-body">{selectedCategories.size} categories selected</strong>
                   </div>
                   <div className="selected-categories">
                     {Array.from(selectedCategories).map(categoryPath => {
@@ -639,13 +639,13 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                         return (
                           <div key={categoryPath} className="mb-1">
                             <span className="text-muted small">{mainCat} →</span>
-                            <span className="text-light ms-1">{subCat}</span>
+                            <span className="text-primary fw-semibold ms-1">{subCat}</span>
                           </div>
                         )
                       } else {
                         return (
                           <div key={categoryPath} className="mb-1">
-                            <span className="text-light">{categoryPath}</span>
+                            <span className="text-primary fw-semibold">{categoryPath}</span>
                           </div>
                         )
                       }
@@ -701,7 +701,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                 <div className="spinner-border text-primary fa-3x mb-4" role="status">
                   <span className="visually-hidden">Saving checklist...</span>
                 </div>
-                <h3 className="text-light mb-3">Generating Checklist</h3>
+                <h3 className="mb-3">Generating Checklist</h3>
                 <p className="text-muted">
                   Creating your audit checklist file...
                 </p>

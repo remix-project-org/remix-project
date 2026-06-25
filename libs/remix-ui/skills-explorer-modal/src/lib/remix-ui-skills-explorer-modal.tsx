@@ -411,18 +411,18 @@ export function RemixUiSkillsExplorerModal(props: RemixUiSkillsExplorerModalProp
                 <i className="fa-solid fa-arrow-left"></i>
               </button>
               {activeTab === 'browse' && wizardStep === 'confirm' && (
-                <span className="text-light align-self-center">
+                <span className="text-body align-self-center">
                   Add {selectedSkills.size} Skill{selectedSkills.size !== 1 ? 's' : ''}
                 </span>
               )}
               {activeTab === 'browse' && wizardStep === 'downloading' && (
-                <span className="text-light align-self-center">Adding Skills...</span>
+                <span className="text-body align-self-center">Adding Skills...</span>
               )}
               {activeTab === 'upload' && uploadStep === 'preview' && (
-                <span className="text-light align-self-center">Review Skill</span>
+                <span className="text-body align-self-center">Review Skill</span>
               )}
               {activeTab === 'upload' && uploadStep === 'uploading' && (
-                <span className="text-light align-self-center">Adding Skill...</span>
+                <span className="text-body align-self-center">Adding Skill...</span>
               )}
             </div>
           ) : (
@@ -590,8 +590,8 @@ export function RemixUiSkillsExplorerModal(props: RemixUiSkillsExplorerModalProp
                     <div className="skill-details mb-4 text-center">
                       {selectedSkillInfos.map(s => (
                         <div key={s.id} className="mb-1">
-                          <strong className="text-light">{s.name}</strong>
-                          <span className="text-muted ms-2 small">→ skills/{s.name}/</span>
+                          <span className="text-muted small">{s.name} →</span>
+                          <span className="text-primary fw-semibold ms-1">skills/{s.name}/</span>
                         </div>
                       ))}
                     </div>
@@ -628,7 +628,7 @@ export function RemixUiSkillsExplorerModal(props: RemixUiSkillsExplorerModalProp
                     <div className="spinner-border text-primary fa-3x mb-4" role="status">
                       <span className="visually-hidden">Downloading skills...</span>
                     </div>
-                    <h3 className="text-light mb-3">Adding Skills</h3>
+                    <h3 className="mb-3">Adding Skills</h3>
                     <p className="text-muted">
                       Downloading and setting up {selectedSkills.size} skill{selectedSkills.size !== 1 ? 's' : ''}...
                     </p>
@@ -768,7 +768,7 @@ export function RemixUiSkillsExplorerModal(props: RemixUiSkillsExplorerModalProp
                         <div className="spinner-border text-primary fa-3x mb-4" role="status">
                           <span className="visually-hidden">Adding skill...</span>
                         </div>
-                        <h3 className="text-light mb-3">Adding Skill</h3>
+                        <h3 className="mb-3">Adding Skill</h3>
                         <p className="text-muted">
                       Saving skill files to your workspace...
                         </p>
