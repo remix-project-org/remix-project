@@ -4,7 +4,6 @@ import Fuse from 'fuse.js'
 import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription } from '@remix-ui/helper'
 import { AppConfig, FeatureGroup } from '@remix-api'
 import { AppContext, useAuth } from '@remix-ui/app'
-import { API_KEYS_ALLOWED_PLANS } from '@remix/remix-ai-core'
 
 import { initialState, settingReducer } from './settingsReducer'
 import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
@@ -330,7 +329,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
 
   // Check if user can use their own API keys based on their plan
   const canUseOwnApiKeys = useMemo(() => {
-    return featureGroups.some(fg => API_KEYS_ALLOWED_PLANS.includes(fg.name))
+    return features['ai:api-key']?.is_enabled === true
   }, [featureGroups])
 
   // Check if user has access to contextual editor feature (code analysis popover)
