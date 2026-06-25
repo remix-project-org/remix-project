@@ -288,17 +288,23 @@ export class NudgePlugin extends Plugin {
       })
       this.engine_.fire('user:plan_upgraded')
 
-      // Resolve which plan guide to open once the user dismisses the
-      // post-checkout success screen.
-      this.call('auth' as any, 'getAllPermissions')
-        .then((perms: any) => {
-          this._pendingPlanGuide = hasPermFeature(perms, Features.AI_AUDITOR)
-            ? 'pro-guide'
-            : hasPermFeature(perms, Features.AI_SOLCODER)
-              ? 'starter-guide'
-              : null
-        })
-        .catch(() => { /* permissions unavailable — skip the guide */ })
+      const planLower = planLabel.toLowerCase()
+      if (/pro/.test(planLower)) {
+        this._pendingPlanGuide = 'pro-guide'
+      } else if (/starter/.test(planLower)) {
+        this._pendingPlanGuide = 'starter-guide'
+      } else {
+        this.call('auth' as any, 'refreshPermissions')
+          .then(() => this.call('auth' as any, 'getAllPermissions'))
+          .then((perms: any) => {
+            this._pendingPlanGuide = hasPermFeature(perms, Features.AI_AUDITOR)
+              ? 'pro-guide'
+              : hasPermFeature(perms, Features.AI_SOLCODER)
+                ? 'starter-guide'
+                : null
+          })
+          .catch(() => { /* permissions unavailable — skip the guide */ })
+      }
     })
 
     this.on('planManager' as any, 'checkoutResultChanged', (result: any) => {

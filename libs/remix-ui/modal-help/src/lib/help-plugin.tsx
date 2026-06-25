@@ -297,7 +297,6 @@ const STARTER_DEMOS: PlanGuideDemo[] = [
   {
     key: 'connectors', name: 'Web Search & OpenZeppelin', color: '#9b7dff',
     desc: 'Starter connectors: live Web Search and the OpenZeppelin library, built in.',
-    example: '"Scaffold an ERC20 with OpenZeppelin"',
     prompt: 'Use the OpenZeppelin connector to scaffold a mintable, pausable ERC20, and web-search the latest best practices.',
     mockReply: 'Pulling from the <span class="plg-hl">OpenZeppelin</span> connector…\n\n' +
       'Generated `Token.sol` (ERC20 + ERC20Pausable + Ownable). Web Search confirms it matches current OZ v5 guidance.'
@@ -359,7 +358,8 @@ const PRO_DEMOS: PlanGuideDemo[] = [
       '  • <span class="plg-hl">/gas-audit</span> — gas-consumption check\n' +
       '  • <span class="plg-hl">/load-audit-checklist</span> — load curated checklists\n\n' +
       'Just type “/” in the assistant to use them.'
-  }
+  },
+  ...STARTER_DEMOS.map((d) => (d.key === 'connectors' ? { ...d, key: 'starter-connectors' } : d))
 ]
 
 /* ─── Side-panel React UI ─── */
