@@ -1053,7 +1053,7 @@ export const EditorUI = (props: EditorUIProps) => {
           // Start new timeout for this position
           hoverTimeoutRef.current = setTimeout(() => {
             openContextualTooltip(position, editorRef, monacoRef, setTooltipData, trackMatomoEvent, props.plugin)
-          }, 2500) // 2.5 seconds
+          }, 1250) // 1.25 seconds
         }
       }
     })
