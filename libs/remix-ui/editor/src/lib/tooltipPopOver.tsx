@@ -66,14 +66,6 @@ export interface TooltipPopOverProps {
   isSelectedText?: boolean
 }
 
-interface CodeActionSuggestion {
-  id: string
-  title: string
-  description?: string
-  newCode: string  // The complete new code to replace current selection/file
-  severity?: 'safe' | 'review'
-}
-
 interface DocumentationLink {
   title: string
   url: string
@@ -86,7 +78,6 @@ interface KeywordData {
   body: string
   risk: 'critical' | 'high' | 'medium' | 'low' | 'info' | 'performance'
   riskLabel: string
-  suggestions?: CodeActionSuggestion[]
   relatedDocs?: DocumentationLink[]
 }
 
@@ -400,77 +391,6 @@ export const TooltipPopOver: React.FC<TooltipPopOverProps> = ({
   const [fromCache, setFromCache] = useState(false)
   const risk = data ? RISK_CONFIG[data.risk] : null
 
-  /**
-   * Apply a code action suggestion using the existing showCustomDiff mechanism
-   */
-  const applySuggestion = async (suggestion: CodeActionSuggestion) => {
-    if (!plugin) return
-
-    try {
-      // Get current file
-      const currentFile = await plugin.call('fileManager', 'getCurrentFile')
-      if (!currentFile) {
-        await plugin.call('notification', 'toast', 'No file is currently open')
-        return
-      }
-
-      // Get current content
-      const currentContent = await plugin.call('fileManager', 'readFile', currentFile)
-
-      // For single-word selection with context, we need to replace just the current line
-      // For multi-word selection, we replace the entire selection
-      let newContent: string
-
-      if (contextLines && contextLines.length > 0) {
-        // Single word selection - replace the current line
-        const lines = currentContent.split('\n')
-        const contextLineMatch = contextLines.match(/Current line: (.+)/i)
-
-        if (contextLineMatch) {
-          const currentLine = contextLineMatch[1].trim()
-          // Find the line in the file
-          const lineIndex = lines.findIndex((line: string) => line.trim() === currentLine)
-
-          if (lineIndex !== -1) {
-            // Replace the line
-            lines[lineIndex] = suggestion.newCode
-            newContent = lines.join('\n')
-          } else {
-            // Fallback: replace the keyword
-            newContent = currentContent.replace(keyword, suggestion.newCode)
-          }
-        } else {
-          // Fallback
-          newContent = currentContent.replace(keyword, suggestion.newCode)
-        }
-      } else {
-        // Multi-word selection - replace the selected text with the new code
-        newContent = currentContent.replace(keyword, suggestion.newCode)
-      }
-
-      // Use the existing showCustomDiff API to show accept/decline widgets
-      await plugin.call('editor', 'showCustomDiff', currentFile, newContent)
-
-      // Close the tooltip
-      onClose()
-      if (onClearSelection) {
-        onClearSelection()
-      }
-
-      // Track the action
-      trackMatomoEvent({
-        category: 'ai',
-        action: 'remixAI',
-        name: 'contextual_popup_apply_suggestion',
-        isClick: true,
-        value: suggestion.id
-      })
-    } catch (error: any) {
-      console.error('Failed to apply suggestion:', error)
-      await plugin.call('notification', 'toast', `Failed to apply fix: ${error?.message || 'Unknown error'}`)
-    }
-  }
-
   // Fetch keyword data from remixAI
   useEffect(() => {
     if (!visible || !plugin || !keyword) return
@@ -515,12 +435,10 @@ Return ONLY valid JSON (no markdown, no explanation):
   "body": "Explanation (max 50 words)",
   "risk": "critical|high|medium|low|info|performance",
   "riskLabel": "Short description",
-  "suggestions": [{"id": "1", "title": "Fix description", "newCode": "Fixed code", "severity": "safe"}],
   "relatedDocs": [{"title": "Doc name", "url": "https://...", "category": "security"}]
 }
 
 Risk levels: critical=security, high=dangerous, medium=warning, low=minor, info=tip, performance=gas.
-Include "suggestions" with fixes if applicable (can be empty array).
 For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
 Use empty array if no relevant trusted docs.`
             : `Analyze this ${fileLanguage} code:
@@ -533,12 +451,10 @@ Return ONLY valid JSON (no markdown, no explanation):
   "body": "Explanation (max 50 words)",
   "risk": "critical|high|medium|low|info|performance",
   "riskLabel": "Short description",
-  "suggestions": [{"id": "1", "title": "Fix description", "newCode": "Fixed code", "severity": "safe"}],
   "relatedDocs": [{"title": "Doc name", "url": "https://...", "category": "best-practice"}]
 }
 
 Risk levels: critical=severe, high=dangerous, medium=warning, low=minor, info=tip, performance=optimization.
-Include "suggestions" with fixes if applicable (can be empty array).
 For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
 Use empty array if no relevant trusted docs.`
           : // Single word selection - analyze with context lines
@@ -553,12 +469,10 @@ Return ONLY valid JSON (no markdown):
   "body": "Explanation about ${keyword} (max 40 words)",
   "risk": "critical|high|medium|low|info|performance",
   "riskLabel": "Short description",
-  "suggestions": [{"id": "1", "title": "Fix description", "newCode": "Complete fixed line", "severity": "safe"}],
   "relatedDocs": [{"title": "Doc name", "url": "https://...", "category": "security"}]
 }
 
 Risk: critical=security, high=dangerous, medium=warning, low=minor, info=tip, performance=gas.
-"suggestions" array can be empty if no fixes needed.
 For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
 Use empty array if no relevant trusted docs.`
             : `Analyze ${fileLanguage} code focusing on "${keyword}":
@@ -571,12 +485,10 @@ Return ONLY valid JSON (no markdown):
   "body": "Explanation about ${keyword} (max 40 words)",
   "risk": "critical|high|medium|low|info|performance",
   "riskLabel": "Short description",
-  "suggestions": [{"id": "1", "title": "Fix description", "newCode": "Complete fixed line", "severity": "safe"}],
   "relatedDocs": [{"title": "Doc name", "url": "https://...", "category": "best-practice"}]
 }
 
 Risk: critical=severe, high=dangerous, medium=warning, low=minor, info=tip, performance=optimization.
-"suggestions" array can be empty if no fixes needed.
 For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
 Use empty array if no relevant trusted docs.`
 
@@ -1013,40 +925,6 @@ ${fileContent}
                   Do not show analysis for this session
               </button>
             </div>
-
-            {/* Code Action Suggestions */}
-            {data.suggestions && data.suggestions.length > 0 && (
-              <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--bs-border-color)' }}>
-                <div className="mb-2" style={{ fontSize: '0.7rem', fontWeight: 600, opacity: 0.8 }}>
-                  <i className="fas fa-magic me-1" style={{ fontSize: '0.65rem' }}></i>
-                  Quick Fixes:
-                </div>
-                <div className="d-flex flex-column gap-1">
-                  {data.suggestions.map((suggestion, idx) => (
-                    <button
-                      key={suggestion.id || idx}
-                      className="btn btn-sm btn-outline-primary text-start d-flex align-items-center justify-content-between"
-                      style={{ fontSize: '0.7rem', padding: '4px 8px' }}
-                      title={suggestion.description || suggestion.title}
-                      onClick={async (e) => {
-                        e.stopPropagation()
-                        await applySuggestion(suggestion)
-                      }}
-                    >
-                      <span className="d-flex align-items-center gap-2">
-                        <i className="fas fa-code" style={{ fontSize: '0.65rem' }}></i>
-                        <span>{suggestion.title}</span>
-                      </span>
-                      {suggestion.severity === 'review' && (
-                        <span className="badge bg-warning text-dark" style={{ fontSize: '0.55rem' }}>
-                          Review
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Documentation Links */}
             {data.relatedDocs && data.relatedDocs.length > 0 && (
