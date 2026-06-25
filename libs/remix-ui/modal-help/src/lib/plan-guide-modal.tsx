@@ -64,11 +64,11 @@ const TypingIndicator: React.FC = () => (
   </div>
 )
 
-const DemoCard: React.FC<{ demo: PlanGuideDemo; active: boolean; onSelect: () => void; onTry: () => void }> = ({ demo, active, onSelect, onTry }) => {
+const DemoCard: React.FC<{ demo: PlanGuideDemo; active: boolean; onTry: () => void }> = ({ demo, active, onTry }) => {
   const [hovered, setHovered] = useState(false)
   return (
     <div
-      onClick={onSelect}
+      onClick={onTry}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -83,16 +83,9 @@ const DemoCard: React.FC<{ demo: PlanGuideDemo; active: boolean; onSelect: () =>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: active ? c.cy : c.td, marginLeft: 'auto', transition: 'background 0.3s' }} />
       </div>
       <div style={{ fontSize: 11, color: c.tm, lineHeight: 1.5, marginBottom: 10 }}>{demo.desc}</div>
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.td, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 8px', lineHeight: 1.5, marginBottom: 10, border: '0.5px solid rgba(255,255,255,0.04)' }}>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.td, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 8px', lineHeight: 1.5, border: '0.5px solid rgba(255,255,255,0.04)' }}>
         {demo.example}
       </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); onTry() }}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: c.cy, background: c.cyd, border: '0.5px solid rgba(47,191,177,0.2)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
-      >
-        Demo
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
-      </button>
     </div>
   )
 }
@@ -156,7 +149,7 @@ const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName
           {/* Demo cards */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '20px 24px' }}>
             {demos.map((demo) => (
-              <DemoCard key={demo.key} demo={demo} active={activeKey === demo.key} onSelect={() => setActiveKey(demo.key)} onTry={() => handleTry(demo)} />
+              <DemoCard key={demo.key} demo={demo} active={activeKey === demo.key} onTry={() => handleTry(demo)} />
             ))}
           </div>
 
