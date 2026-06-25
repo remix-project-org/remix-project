@@ -51,9 +51,8 @@ export interface RemixUiRemixAiAssistantProps {
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
   sendChat: (prompt: string, isEditorCodeAnalysis?: boolean) => Promise<void>
-  /** Sends whatever text is currently in the prompt input (no-op if empty) */
   submitCurrentInput: () => Promise<void>
-  /** Clears local chat history (parent receives onMessagesChange([])) */
+  addAssistantMessage: (text: string) => void
   clearChat: () => void
   /** Returns current chat history array */
   getHistory: () => ChatMessage[]
@@ -264,8 +263,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   )
 
   useEffect(() => {
-    if (props.plugin.externalMessage) {
-      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: props.plugin.externalMessage, timestamp: Date.now(), sentiment: 'none' }])
+    const external = props.plugin.externalMessage
+    if (external?.text) {
+      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: external.text, timestamp: external.timestamp, sentiment: 'none' }])
+      props.plugin.externalMessage = null
     }
   }, [props.plugin.externalMessage])
 
@@ -2380,6 +2381,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       },
       submitCurrentInput: async () => {
         await handleSend()
+      },
+      addAssistantMessage: (text: string) => {
+        if (!text) return
+        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: text, timestamp: Date.now(), sentiment: 'none' }])
       },
       clearChat: () => {
         setMessages([])

@@ -53,7 +53,7 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     prompts: [
       { text: 'Write a Solidity ERC20 token with mint and burn functions', requiredFeatures: [Features.AI_SOLCODER]},
       { text: 'Add an ownable access control to a contract', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: '/compile: fix any errors in the active file', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: '/compile fix any errors in the active file', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
@@ -236,7 +236,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         category: 'Tools',
         action: () => {
           handleLoadAuditChecklist()
-          setInput('Audit a contract. Ask me which contract file to audit')
+          setInput('Audit a contract. Ask which contract file to audit if none provided.')
         },
         disabled: !hasAuditorPermission
       })

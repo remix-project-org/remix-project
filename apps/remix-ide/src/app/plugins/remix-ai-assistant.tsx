@@ -31,7 +31,7 @@ export class RemixAIAssistant extends ViewPlugin {
   event: any
   chatRef: React.RefObject<RemixUiRemixAiAssistantHandle>
   history: ChatMessage[] = []
-  externalMessage: string
+  externalMessage: { text: string, timestamp: number } | null = null
   storageManager: ChatHistoryStorageManager | null = null
   currentConversationId: string | null = null
   conversations: ConversationMetadata[] = []
@@ -495,7 +495,13 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   handleExternalMessage = (message: string) => {
-    this.externalMessage = message
+    if (!message) return
+    if (this.chatRef?.current) {
+      this.chatRef.current.addAssistantMessage(message)
+      return
+    }
+    // Not mounted yet — queue it; the component drains this on mount.
+    this.externalMessage = { text: message, timestamp: Date.now() }
     this.renderComponent()
   }
 
