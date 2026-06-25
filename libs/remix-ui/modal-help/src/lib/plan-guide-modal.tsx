@@ -16,10 +16,13 @@ export interface PlanGuideDemo {
   /** Accent dot colour for the card. */
   color: string
   desc: string
-  /** Short, quoted example shown on the card. */
-  example: string
-  /** The prompt run (real or simulated) when the user clicks Demo. */
-  prompt: string
+  /** Short, quoted example shown on the card. Omit to hide the example box. */
+  example?: string
+  /**
+   * The prompt run (real or simulated) when the user clicks Demo. Omit to
+   * show an assistant-only reply with no user message (informational cards).
+   */
+  prompt?: string
   /** Simulated assistant reply (supports <span class="plg-hl">…</span>). */
   mockReply: string
 }
@@ -83,9 +86,11 @@ const DemoCard: React.FC<{ demo: PlanGuideDemo; active: boolean; onTry: () => vo
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: active ? c.cy : c.td, marginLeft: 'auto', transition: 'background 0.3s' }} />
       </div>
       <div style={{ fontSize: 11, color: c.tm, lineHeight: 1.5, marginBottom: 10 }}>{demo.desc}</div>
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.td, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 8px', lineHeight: 1.5, border: '0.5px solid rgba(255,255,255,0.04)' }}>
-        {demo.example}
-      </div>
+      {demo.example && (
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.td, background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 8px', lineHeight: 1.5, border: '0.5px solid rgba(255,255,255,0.04)' }}>
+          {demo.example}
+        </div>
+      )}
     </div>
   )
 }
@@ -99,15 +104,21 @@ const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName
   useEffect(() => () => { if (replyTimeout.current) clearTimeout(replyTimeout.current) }, [])
 
   const handleTry = useCallback((demo: PlanGuideDemo) => {
-    if (onSendPrompt) {
+    if (onSendPrompt && demo.prompt) {
       onSendPrompt(demo.prompt)
       if (closeOnTry) onClose()
       return
     }
     setActiveKey(demo.key)
+    if (replyTimeout.current) clearTimeout(replyTimeout.current)
+    // No prompt → informational card: show the reply immediately, no typing.
+    if (!demo.prompt) {
+      setIsTyping(false)
+      setMessages([{ role: 'assistant', content: demo.mockReply }])
+      return
+    }
     setMessages([{ role: 'user', content: demo.prompt }])
     setIsTyping(true)
-    if (replyTimeout.current) clearTimeout(replyTimeout.current)
     replyTimeout.current = setTimeout(() => {
       setIsTyping(false)
       setMessages((prev) => [...prev, { role: 'assistant', content: demo.mockReply }])

@@ -250,7 +250,6 @@ const FREE_DEMOS: PlanGuideDemo[] = [
   {
     key: 'assistant', name: 'RemixAI Assistant', color: '#5b9cf5',
     desc: 'Ask anything — generate contracts, explain code, and fix errors right in the editor.',
-    example: '"Write an ERC-20 with a capped supply"',
     prompt: 'Write an ERC-20 token with a capped supply and an owner-only mint function.',
     mockReply: 'Drafting <span class="plg-hl">CappedToken.sol</span>…\n\n' +
       '  • OpenZeppelin ERC20 + Ownable\n  • `cap` enforced in `_update`\n  • owner-only `mint`\n\n' +
@@ -259,7 +258,6 @@ const FREE_DEMOS: PlanGuideDemo[] = [
   {
     key: 'quickdapp', name: 'QuickDApp Generation', color: '#6bdb8a',
     desc: 'Generate a frontend wired to your contract from a prompt (hosting is a paid add-on).',
-    example: '"Create a dapp for my contract"',
     prompt: 'Generate a frontend dapp for my deployed contract with connect-wallet and the main calls.',
     mockReply: 'Generating your dapp…\n\n  • Wallet connect\n  • Read/write forms per function\n  • Vite + React scaffold\n\n' +
       'Frontend created in <span class="plg-hl">/frontend</span>. Run it locally, or upgrade to host it.'
@@ -267,7 +265,6 @@ const FREE_DEMOS: PlanGuideDemo[] = [
   {
     key: 'skills', name: 'Basic AI Skills', color: '#9b7dff',
     desc: 'Load curated basic skills so the assistant follows proven workflows.',
-    example: '"Load a skill, then use it"',
     prompt: 'Load the available basic skills and apply one that fits writing a secure ERC-721.',
     mockReply: 'Added the selected skill to <span class="plg-hl">skills/</span>.\n\n' +
       'I\'ll follow its checklist as we build your ERC-721 — starting with access control and safe minting.'
@@ -275,16 +272,12 @@ const FREE_DEMOS: PlanGuideDemo[] = [
   {
     key: 'models', name: 'Usage-based Models', color: '#2fbfb1',
     desc: 'Pay-as-you-go access to AI models — you only pay for what you use.',
-    example: '"What does this model cost?"',
-    prompt: 'Explain how usage-based pricing works for the AI models on the free plan.',
-    mockReply: 'On Free, models are <span class="plg-hl">usage-based</span> — you\'re billed per request from your credit balance, with no monthly fee. Upgrade for a monthly credit gift.'
+    mockReply: 'You now have access to <span class="plg-hl">usage-based</span> models — you\'re billed per request from your credit balance, with no monthly fee. Upgrade for a monthly credit gift.'
   },
   {
     key: 'apikey', name: 'Bring Your Own API Keys', color: '#f0a030',
     desc: 'Plug in your own provider API key to use the assistant with your own account.',
-    example: '"Use my own API key"',
-    prompt: 'How do I configure RemixAI to use my own provider API key?',
-    mockReply: 'Open <span class="plg-hl">RemixAI settings</span> → API keys, paste your provider key, and the assistant will route requests through your account.'
+    mockReply: 'You now have access to <span class="plg-hl">bring-your-own API keys</span>. Open <span class="plg-hl">Settings → RemixAI Assistant</span>, scroll to the far bottom, and activate it — paste your provider key there and the assistant will route requests through your account.'
   }
 ]
 
@@ -292,14 +285,11 @@ const STARTER_DEMOS: PlanGuideDemo[] = [
   {
     key: 'skills', name: 'Full AI Skills', color: '#6bdb8a',
     desc: 'Starter unlocks the full skills library — load and import any advanced skill.',
-    example: '"Load the advanced skills"',
-    prompt: 'Load the full advanced skills library and apply the one best suited to my contract.',
-    mockReply: 'Full skills access enabled. Added the selected advanced skill to <span class="plg-hl">skills/</span> — I\'ll follow its expert workflow from here.'
+    mockReply: 'You now have access to the <span class="plg-hl">full AI skills library</span>. Load and import any advanced skill into <span class="plg-hl">skills/</span>, and the assistant will follow its expert workflow.'
   },
   {
     key: 'codehelper', name: 'RemixAI Code Helper', color: '#5b9cf5',
     desc: 'A focused coding helper that writes, refactors, and fixes Solidity alongside you.',
-    example: '"Can you analyze this function for security issues?"',
     prompt: 'How do I use the code helper to analyze my code?',
     mockReply: 'Select a function or snippet in the editor, then a `Code Analysis` block will appear with suggestions.\n\n' +
       '<img src="https://raw.githubusercontent.com/remix-project-org/remix-dynamics/main/gifs/code_analyzis.gif" alt="Code Analysis" style="max-width:100%;border-radius:6px;" />'
@@ -315,23 +305,17 @@ const STARTER_DEMOS: PlanGuideDemo[] = [
   {
     key: 'ollama', name: 'Local & Private LLMs', color: '#2fbfb1',
     desc: 'Run models locally and privately with Ollama or llama-server — your code never leaves your machine.',
-    example: '"Use my local Ollama model"',
-    prompt: 'Connect to my local Ollama instance and use it for this session.',
-    mockReply: 'Connected to <span class="plg-hl">Ollama</span> on localhost. The assistant now runs fully locally — private and offline-capable.'
+    mockReply: 'You now have access to the <span class="plg-hl">Ollama</span> integration. Connect to a local Ollama or llama-server instance and the assistant runs fully on your machine — private, offline-capable, and your code never leaves it.'
   },
   {
     key: 'ens', name: 'Name with ENS/Enscribe', color: '#f0a030',
     desc: 'Give your deployed contracts a human-readable ENS / Enscribe name.',
-    example: '"Register my contract to ENS"',
-    prompt: 'Register my deployed contract address to an ENS name I own using Enscribe.',
-    mockReply: 'Linking <span class="plg-hl">mytoken.eth</span> → 0x9a2…3b1 via Enscribe…\n\nResolver record set — your contract is now reachable by name.'
+    mockReply: 'You now have access to <span class="plg-hl">ENS / Enscribe</span> naming. Give your deployed contracts a human-readable name like <span class="plg-hl">mytoken.eth</span> so they\'re reachable by name instead of a raw address.'
   },
   {
     key: 'cloud', name: 'Cloud Workspaces', color: '#5b9cf5',
     desc: 'Sync your projects to the cloud and open any workspace from any device.',
-    example: '"Save this workspace to the cloud"',
-    prompt: 'Sync my current workspace to the cloud so I can open it from another device.',
-    mockReply: 'Workspace synced to your <span class="plg-hl">cloud account</span>. Sign in anywhere and it\'ll be waiting for you.'
+    mockReply: 'You now have access to <span class="plg-hl">cloud workspaces</span>. Sync your projects to your cloud account and open any workspace from any device — sign in anywhere and it\'ll be waiting for you.'
   }
 ]
 
@@ -339,8 +323,7 @@ const PRO_DEMOS: PlanGuideDemo[] = [
   {
     key: 'auditor', name: 'Auditor Agent', color: '#f0a030',
     desc: 'The RemixAI auditor agent reviews your contract against curated security checklists.',
-    example: '"/audit the current contract in the editor"',
-    prompt: '/audit a contract — audit the open file against the security checklists in audits/.',
+    prompt: '<span class="plg-hl">/audit</span>  a contract — audit the open file against the security checklists in audits/.',
     mockReply: 'Auditing <span class="plg-hl">Token.sol</span> against the selected checklist…\n\n' +
       '  • Reentrancy: <span class="plg-hl">pass</span>\n  • Access control: 1 finding (unprotected `setOwner`)\n\n' +
       'Full report saved to <span class="plg-hl">audit_reports/</span>.'
@@ -348,7 +331,6 @@ const PRO_DEMOS: PlanGuideDemo[] = [
   {
     key: 'gas', name: 'Gas Consumption Checks', color: '#6bdb8a',
     desc: 'Profile your contract and get concrete gas savings with before/after numbers.',
-    example: '"/gas-audit the current contract in the editor"',
     prompt: 'Run a gas-consumption check on the active contract and suggest concrete savings with estimates.',
     mockReply: 'Profiling <span class="plg-hl">Token.sol</span> for gas…\n\n' +
       '  • Cache `storage` reads in loops → <span class="plg-hl">−2,100 gas</span>\n' +
@@ -359,7 +341,6 @@ const PRO_DEMOS: PlanGuideDemo[] = [
   {
     key: 'connectors', name: 'TheGraph / Etherscan / Alchemy', color: '#5b9cf5',
     desc: 'Pro adds The Graph, Etherscan and Alchemy — live on-chain data and verification in chat.',
-    example: '"Verify my contract on Etherscan"',
     prompt: 'Use Etherscan to verify the contract I just deployed on Sepolia and show the status.',
     mockReply: 'Connecting to <span class="plg-hl">Etherscan (Sepolia)</span>…\n\n' +
       'Contract verified ✓ — source matches, compiler 0.8.20, MIT.\n\nThe Graph and Alchemy connectors are ready too — just ask.'
@@ -367,14 +348,11 @@ const PRO_DEMOS: PlanGuideDemo[] = [
   {
     key: 'hosting', name: 'Unlimited Dapp Hosting', color: '#9b7dff',
     desc: 'Generate and host your dapps with QuickDApp — unlimited hosting on Pro.',
-    example: '"Host this dapp"',
-    prompt: 'Host my generated dapp and give me a shareable URL.',
-    mockReply: 'Deploying your frontend…\n\nLive at <span class="plg-hl">https://your-dapp.remix.host</span>\n\nPro includes <span class="plg-hl">unlimited hosting</span> — ship as many dapps as you like.'
+    mockReply: 'You now have access to <span class="plg-hl">unlimited dapp hosting</span>. Generate a frontend with QuickDApp and host it to get a shareable URL like <span class="plg-hl">https://your-dapp.remix.host</span> — ship as many dapps as you like.'
   },
   {
     key: 'commands', name: 'Advanced Commands', color: '#e86baf',
     desc: 'Pro unlocks advanced slash commands for the auditor and gas agents. Type “/” to reach them.',
-    example: '"/audit", "/gas-audit"',
     prompt: '/audit a contract',
     mockReply: 'Advanced commands are enabled:\n\n' +
       '  • <span class="plg-hl">/audit</span> — security audit against checklists\n' +
