@@ -301,7 +301,8 @@ const STARTER_DEMOS: PlanGuideDemo[] = [
     desc: 'A focused coding helper that writes, refactors, and fixes Solidity alongside you.',
     example: '"Can you analyze this function for security issues?"',
     prompt: 'How do I use the code helper to analyze my code?',
-    mockReply: 'Select a function or snippet in the editor, then a `Code Analysis` block will appear with suggestions.'
+    mockReply: 'Select a function or snippet in the editor, then a `Code Analysis` block will appear with suggestions.\n\n' +
+      '<img src="https://raw.githubusercontent.com/remix-project-org/remix-dynamics/main/gifs/code_analyzis.gif" alt="Code Analysis" style="max-width:100%;border-radius:6px;" />'
   },
   {
     key: 'connectors', name: 'Web Search & OpenZeppelin', color: '#9b7dff',
