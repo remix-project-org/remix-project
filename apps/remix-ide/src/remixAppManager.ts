@@ -140,7 +140,8 @@ let requiredModules = [
   'nudgePlugin',
   'helpPlugin',
   'planManager',
-  'assistantState'
+  'assistantState',
+  'thegraph'
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
@@ -219,7 +220,8 @@ export function isNative(name) {
     'udappTransactions',
     'txRunner',
     'lifecycle',
-    'skillsexplorermodal'
+    'skillsexplorermodal',
+    'thegraph'
   ]
   return nativePlugins.includes(name) || requiredModules.includes(name) || isInjectedProvider(name) || isVM(name) || isScriptRunner(name)
 }
@@ -474,6 +476,17 @@ export class RemixAppManager extends BaseRemixAppManager {
       pattern: [],
       sticky: true,
       group: 7,
+    })
+    this.call('filePanel', 'registerContextMenuItem', {
+      id: 'thegraph',
+      name: 'runSubgraphFile',
+      label: 'Run Subgraph Query',
+      type: [],
+      extension: ['.subgraph'],
+      path: [],
+      pattern: [],
+      group: 2,
+      multiselect: false
     })
     if (Registry.getInstance().get('platform').api.isDesktop()) {
       await this.call('filePanel', 'registerContextMenuItem', {

@@ -35,6 +35,19 @@ export function getQuickDappGenerationContext(workspaceName: string): QuickDappG
   return activeContexts.get(workspaceName)
 }
 
+export function getActiveQuickDappGenerationContexts(): QuickDappGenerationContext[] {
+  pruneExpiredQuickDappContexts()
+  return Array.from(activeContexts.values()).sort((a, b) => b.startedAt - a.startedAt)
+}
+
+export function getActiveQuickDappGenerationContext(): QuickDappGenerationContext | undefined {
+  return getActiveQuickDappGenerationContexts()[0]
+}
+
 export function clearQuickDappGenerationContext(workspaceName: string) {
   activeContexts.delete(workspaceName)
+}
+
+export function clearAllQuickDappGenerationContexts() {
+  activeContexts.clear()
 }

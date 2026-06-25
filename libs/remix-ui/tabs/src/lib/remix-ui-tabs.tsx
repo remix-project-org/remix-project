@@ -84,7 +84,7 @@ const tabsReducer = (state: ITabsState, action: ITabsAction) => {
     return state
   }
 }
-const PlayExtList = ['js', 'ts', 'sol', 'circom', 'vy', 'nr', 'yul', 'sql']
+const PlayExtList = ['js', 'ts', 'sol', 'circom', 'vy', 'nr', 'yul', 'sql', 'subgraph']
 
 export const TabsUI = (props: TabsUIProps) => {
 
@@ -531,6 +531,19 @@ export const TabsUI = (props: TabsUIProps) => {
         return
       }
 
+      if (tabsState.currentExt === 'subgraph') {
+        try {
+          props.plugin.call('notification', 'toast', 'Running subgraph query...')
+          await props.plugin.call('thegraph', 'runSubgraphFile', path)
+          setCompileState('compiled')
+        } catch (e) {
+          console.error(e)
+          props.plugin.call('notification', 'toast', `Subgraph error: ${e.message}`)
+          setCompileState('idle')
+        }
+        return
+      }
+
       if (isVegaVisualization) {
         try {
           const file = await props.plugin.call('fileManager', 'getCurrentFile')
@@ -882,6 +895,8 @@ export const TabsUI = (props: TabsUIProps) => {
     mainLabel = compileState === 'compiling' ? 'Running...' : 'Run'
   } else if (tabsState.currentExt === 'sql') {
     mainLabel = 'Run SQL'
+  } else if (tabsState.currentExt === 'subgraph') {
+    mainLabel = compileState === 'compiling' ? 'Running...' : 'Run Query'
   } else if (isVegaVisualization) {
     mainLabel = 'Generate Visualization'
   } else {

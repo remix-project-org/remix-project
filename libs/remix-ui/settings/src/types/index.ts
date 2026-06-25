@@ -114,6 +114,8 @@ export interface SettingsState {
   'swarm-postage-stamp-id': ConfigState,
   'sindri-access-token': ConfigState,
   'etherscan-access-token': ConfigState,
+  'thegraph-config': ConfigState,
+  'thegraph-access-token': ConfigState,
   'ai-privacy-policy': ConfigState,
   'mcp/servers/enable': ConfigState,
   'mcp-server-management': ConfigState,
@@ -130,6 +132,7 @@ export interface SettingsState {
   'deepagent-mistral-api-key': ConfigState,
   'deepagent-openai-api-key': ConfigState,
   'deepagent-moonshot-api-key': ConfigState,
+  'editor/code-analysis-popover': ConfigState,
   toaster: ConfigState
 }
 export interface SettingsActionPayloadTypes {

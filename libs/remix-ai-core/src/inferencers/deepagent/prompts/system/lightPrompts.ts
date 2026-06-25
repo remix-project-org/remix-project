@@ -35,10 +35,10 @@ Handle JSON-RPC, contract events, multi-chain support, NFT APIs, and webhooks.`
 export const GAS_OPTIMIZER_SUBAGENT_PROMPT = `Gas_Optimizer: Analyze and optimize gas consumption with measurable savings estimates.
 Focus on storage ops, loops, function calls, data types, and provide before/after examples.
 You have access to a solidity gas optimization skill. Don't try to use the full skill with all the references (that will blow up the context) but rather ask the user on which topic you should concentrate the effort.
-Your answer MUST only return a concise summary (not more than 100 words): Do NOT include the full report or any additional text in the conversation chat. But save a comprehensive audit in <filename>_gas_audit_report_<topic>.md`
+Your answer MUST only return a concise summary (not more than 100 words): Do NOT include the full report or any additional text in the conversation chat. But save a comprehensive audit in the 'audit_reports' folder as audit_reports/<filename>_gas_audit_report_<topic>.md (the folder is created automatically when you write the report there).`
 
 export const COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT = `1) Run Slither analysis with slither_scan 2) Be aware that the folder 'audits' may contain checklists as MD files 3) Against each checklist file do an audit and code review. 4) Final report.
-Your answer MUST only return a concise summary (not more than 100 words): Do NOT include the full report or any additional text in the conversation chat. But save a comprehensive audit in <filename>_security_audit_report_<checklist>.md.`
+Your answer MUST only return a concise summary (not more than 100 words): Do NOT include the full report or any additional text in the conversation chat. But save a comprehensive audit in the 'audit_reports' folder as audit_reports/<filename>_security_audit_report_<checklist>.md (the folder is created automatically when you write the report there).`
 
 export const DEBUG_SPECIALIST_SUBAGENT_PROMPT = `Debug_Specialist: Transaction debugging with step-by-step analysis and variable inspection.
 Use debug tools to analyze execution flow, decode variables, examine stack/storage, and map to source.`
@@ -55,6 +55,6 @@ Searches Circle docs, retrieves product summaries, lists coding resources, and p
 
 export const QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT = `QuickDapp_Specialist: New DApp rule: first ask setup options and STOP. If the current prompt or tool result says Location is fixed, do not ask Location; otherwise ask Location Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes and Design defaults/style notes/Figma URL. Do not ask Theme/Primary Color/DApp Title/Layout. Do not call tools in that turn.
 After the user's next reply, call generate_dapp with setupOptionsConfirmed=true and setupOptionsSummary; if Location is fixed, pass frontendMode="inline"; if Figma URL lacks token, ask for token and STOP.
-For updates, use list_dapps then update_dapp. File paths are relative to workspace root. Always finish generation with finalize_dapp_generation.`
+For updates, if the prompt already provides an exact target workspaceName, use update_dapp with that workspaceName; otherwise use list_dapps first, ask the user to choose, then update_dapp. File paths are relative to workspace root. Always finish generation with finalize_dapp_generation.`
 
 export const CONTRACT_CLASSIFIER_PROMPT = 'Contract_Classifier: Analyze smart contract structure and classify features (proxy patterns, token standards, DeFi protocols, governance mechanisms). Extract contract skeleton and identify architectural patterns, complexity indicators, and risk factors using structured analysis.'

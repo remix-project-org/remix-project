@@ -221,6 +221,7 @@ export const CompileBtn = ({ plugin, appState, id, compileAction }: { plugin: an
 export const gitAccessTokenLink = 'https://github.com/settings/tokens/new?scopes=gist,repo&description=Remix%20IDE%20Token'
 export const etherscanTokenLink = 'https://etherscan.io/myapikey'
 export const sindriAccessTokenLink = 'https://sindri.app'
+export const thegraphApiKeyLink = 'https://thegraph.com/studio/apikeys/'
 
 export const GitHubCredentialsDescription = () => {
   const intl = useIntl()
@@ -264,6 +265,23 @@ export const EtherscanConfigDescription = () => {
         <a className="text-primary" target="_blank" href={etherscanTokenLink}>
           {intl.formatMessage({ id: 'settings.etherscanAccessTokenText2' })}
         </a> <FormattedMessage id="settings.etherscanAccessTokenText3" />
+      </p>
+    </>
+  )
+}
+
+export const TheGraphConfigDescription = () => {
+  const intl = useIntl()
+
+  return (
+    <>
+      <p className="mb-1">
+        <FormattedMessage id="settings.thegraphAccessTokenText" />
+      </p>
+      <p className="mb-1">
+        <a className="text-primary" target="_blank" href={thegraphApiKeyLink}>
+          {intl.formatMessage({ id: 'settings.thegraphAccessTokenText2' })}
+        </a> <FormattedMessage id="settings.thegraphAccessTokenText3" />
       </p>
     </>
   )

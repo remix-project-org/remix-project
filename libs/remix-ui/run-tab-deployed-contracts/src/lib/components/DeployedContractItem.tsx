@@ -37,6 +37,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const intl = useIntl()
   const { features } = useAuth()
   const hasQuickdappAccess = features?.[Features.DAPP_QUICKDAPP]?.is_enabled
+  const hasRegisterEnsAccess = features?.[Features.REGISTER_ENS]?.is_enabled === true
   const isDesktop = isElectron()
   const [networkName, setNetworkName] = useState<string>('')
   const [isExpanded, setIsExpanded] = useState<boolean>(true)
@@ -510,6 +511,28 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
     }
   }
 
+  const handleSaveABI = async (contract: DeployedContract) => {
+    if (onKebabMenuToggle) {
+      onKebabMenuToggle(false)
+    }
+    const abi = contract.abi || contract.contractData?.abi
+    if (abi) {
+      const contractFilePath = contract.filePath || contract.contractData?.contract?.file
+
+      if (contractFilePath) {
+        const abiFilePath = contractFilePath.replace(/\.[^/.]+$/, '.abi')
+
+        await plugin.call('fileManager', 'writeFile', abiFilePath, JSON.stringify(abi, null, 2))
+        await plugin.call('notification', 'toast', `ABI saved to ${abiFilePath}`)
+      } else {
+        const abiFilePath = `${contract.name}.abi`
+
+        await plugin.call('fileManager', 'writeFile', abiFilePath, JSON.stringify(abi, null, 2))
+        await plugin.call('notification', 'toast', `ABI saved to ${abiFilePath}`)
+      }
+    }
+  }
+
   const handleCopyBytecode = async (contract: DeployedContract) => {
     if (onKebabMenuToggle) {
       onKebabMenuToggle(false)
@@ -560,6 +583,17 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
   const handleNameContract = async () => {
     if (onKebabMenuToggle) {
       onKebabMenuToggle(false)
+    }
+    if (!hasRegisterEnsAccess) {
+      try {
+        await plugin.call('planManager' as any, 'open' as any, {
+          reason: 'feature-required',
+          requiredFeature: Features.REGISTER_ENS
+        })
+      } catch {
+        await plugin.call('notification', 'toast', 'Your current plan does not include ENS contract naming.')
+      }
+      return
     }
     setShowEnsNaming(true)
     if (!isExpanded) setIsExpanded(true)
@@ -712,6 +746,7 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
             onCreateDapp={handleCreateDapp}
             onNameContract={networkName !== 'Remix VM' ? handleNameContract : undefined}
             onCopyABI={handleCopyABI}
+            onSaveABI={handleSaveABI}
             onCopyBytecode={handleCopyBytecode}
             onOpenInExplorer={handleOpenInExplorer}
             onClear={handleClear}

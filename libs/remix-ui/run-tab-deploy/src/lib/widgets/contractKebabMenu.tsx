@@ -2,6 +2,7 @@ import React, { useContext } from 'react'
 import { Overlay } from 'react-bootstrap'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { TrackingContext } from '@remix-ide/tracking'
+import { useIntl } from 'react-intl'
 
 interface ContractKebabMenuProps {
   show: boolean
@@ -9,6 +10,7 @@ interface ContractKebabMenuProps {
   onHide: () => void
   onCopyABI: () => string
   onCopyBytecode: () => string
+  onSaveABI?: () => void
   menuIndex?: string | number
 }
 
@@ -37,9 +39,11 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
   onHide,
   onCopyABI,
   onCopyBytecode,
+  onSaveABI,
   menuIndex = 'default',
 }) => {
   const { trackMatomoEvent } = useContext(TrackingContext)
+  const intl = useIntl()
 
   return (
     <Overlay
@@ -96,6 +100,28 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
                   <span>Copy ABI</span>
                 </div>
               </CopyToClipboard>
+              {onSaveABI && (
+                <div
+                  className="d-flex align-items-center px-3 py-2"
+                  data-id="saveABI"
+                  onClick={() => {
+                    trackMatomoEvent?.({ category: 'udapp', action: 'contractSaveABI', name: 'clicked', isClick: true })
+                    onSaveABI()
+                    onHide()
+                  }}
+                  style={{
+                    color: 'var(--bs-body-color)',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bs-secondary-bg)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <span className="me-2">
+                    <i className="far fa-save" />
+                  </span>
+                  <span>{intl.formatMessage({ id: 'udapp.saveABIMenuItem' })}</span>
+                </div>
+              )}
               <CopyToClipboard tip="Copy" icon="fa-clipboard" direction="right" getContent={onCopyBytecode} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyContractBytecode', name: 'clicked', isClick: true })}>
                 <div
                   className="d-flex align-items-center px-3 py-2"

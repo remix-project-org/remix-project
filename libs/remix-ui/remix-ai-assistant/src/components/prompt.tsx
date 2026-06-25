@@ -9,7 +9,17 @@ import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip } from '@remix-ui/helper'
 import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
-import { AutocompletePanel, Command } from './AutocompletePanel'
+import { AutocompletePanel, AVAILABLE_COMMANDS, Command } from './AutocompletePanel'
+
+const getActiveCommandName = (text: string): string | null => {
+  const lastSpaceSlash = text.lastIndexOf(' /')
+  const slashStart = lastSpaceSlash !== -1 ? lastSpaceSlash + 1 : text.startsWith('/') ? 0 : -1
+  if (slashStart === -1) return null
+  const afterSlash = text.slice(slashStart + 1)
+  const spaceIdx = afterSlash.indexOf(' ')
+  if (spaceIdx === -1) return null
+  return afterSlash.slice(0, spaceIdx).trim() || null
+}
 
 const getSlashWord = (text: string): string | null => {
   // Only detect slash commands at the beginning or after a space
@@ -18,16 +28,9 @@ const getSlashWord = (text: string): string | null => {
   if (slashStart === -1) return null
 
   const afterSlash = text.slice(slashStart)
+  if (/\s/.test(afterSlash)) return null
 
-  // If there's already a colon, the command is complete
-  if (afterSlash.includes(':')) return null
-
-  // Extract the word after the slash (until space or end)
-  const nextSpace = afterSlash.indexOf(' ')
-  const word = nextSpace === -1 ? afterSlash : afterSlash.slice(0, nextSpace)
-
-  // Return the word to show autocomplete
-  return word
+  return afterSlash
 }
 
 // A shortcut prompt is either a plain prompt string (always available) or an
@@ -48,36 +51,36 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     id: 'code',
     label: 'Code',
     prompts: [
-      { text: 'Write a Solidity ERC20 token with mint and burn functions', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'Add an ownable access control to a contract', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: '/compile: fix any errors in the active file', requiredFeatures: [Features.AI_SOLCODER] },
+      { text: 'Write a Solidity ERC20 token with mint and burn functions', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'Add an ownable access control to a contract', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: '/compile: fix any errors in the active file', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'explain',
     label: 'Explain',
     prompts: [
-      { text: 'Explain what this contract does line by line', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'What are the security risks in this code?', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'What does this function return and when does it revert?', requiredFeatures: [Features.AI_SOLCODER] },
+      { text: 'Explain what this contract does line by line', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What are the security risks in this code?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What does this function return and when does it revert?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'learn',
     label: 'Learn',
     prompts: [
-      { text: 'What is a smart contract?', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'How does gas work in Ethereum?', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'What is the difference between memory and storage in Solidity?', requiredFeatures: [Features.AI_SOLCODER] },
+      { text: 'What is a smart contract?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'How does gas work in Ethereum?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What is the difference between memory and storage in Solidity?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'deploy',
     label: 'Deploy',
     prompts: [
-      { text: '/deploy: deploy this contract to Sepolia testnet', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'How do I verify my contract on Etherscan?', requiredFeatures: [Features.AI_SOLCODER] },
-      { text: 'What network should I use for testing?', requiredFeatures: [Features.AI_SOLCODER] },
+      { text: '/deploy this contract to Sepolia testnet', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'How do I verify my contract on Etherscan?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What network should I use for testing?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
 ]
@@ -157,7 +160,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   aiRouteReady = true,
   isAuthenticated = true,
   onSignIn,
-  isNewChat = false,
   handleLoadSkills,
   handleOpenSettings,
   handleLoadAuditChecklist,
@@ -200,10 +202,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   // Handle autocomplete visibility
   useEffect(() => {
-    // Don't show autocomplete if input ends with ": " (completed command)
-    const endsWithCommandColon = input.trimEnd().endsWith(':')
     const hasSlashWord = !!getSlashWord(input)
-    const shouldShow = hasSlashWord && !isStreaming && !endsWithCommandColon
+    const shouldShow = hasSlashWord && !isStreaming
 
     setShowAutocomplete(shouldShow)
     // Reset selected index when hiding or showing the panel
@@ -215,12 +215,12 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   const actionCommands: Command[] = useMemo(() => {
     const cmds: Command[] = [
-      { name: 'model', description: 'Switch AI model', category: 'Settings', action: handleSetModel, requiredFeatures: [] },
+      { name: 'model', description: 'Switch AI model', category: 'Settings', action: handleSetModel, requiredFeatures: []},
     ]
-    if (handleOpenSettings) cmds.push({ name: 'settings', description: 'Open RemixAI settings', category: 'Settings', action: handleOpenSettings, requiredFeatures: [] })
+    if (handleOpenSettings) cmds.push({ name: 'settings', description: 'Open RemixAI settings', category: 'Settings', action: handleOpenSettings, requiredFeatures: []})
     if (handleLoadSkills) {
       cmds.push({
-        name: 'Load Skills',
+        name: 'load-skills',
         description: 'Load skills',
         category: 'Tools',
         action: handleLoadSkills,
@@ -230,16 +230,28 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     }
     if (handleLoadAuditChecklist) {
       cmds.push({
-        name: 'Load Security Audit checklist',
+        name: 'audit',
+        description: 'Audit a contract',
+        requiredFeatures: [Features.AI_AUDITOR],
+        category: 'Tools',
+        action: () => {
+          handleLoadAuditChecklist()
+          setInput('Audit a contract. Ask me which contract file to audit')
+        },
+        disabled: !hasAuditorPermission
+      })
+      cmds.push({
+        name: 'load-audit-checklist',
         description: 'Load audit checklist',
         category: 'Tools',
         action: handleLoadAuditChecklist,
-        requiredFeatures: [Features.AI_AUDITOR]
+        requiredFeatures: [Features.AI_AUDITOR],
+        disabled: !hasAuditorPermission
       })
     }
-    if (handleGasOptimisationAudit) cmds.push({ name: 'Start Gas Optimisation Audit', description: 'Gas optimisation audit', category: 'Tools', action: handleGasOptimisationAudit, requiredFeatures: [Features.AI_AUDITOR] })
+    if (handleGasOptimisationAudit) cmds.push({ name: 'gas-audit', description: 'Gas optimisation audit', category: 'Tools', action: handleGasOptimisationAudit, requiredFeatures: [Features.AI_AUDITOR]})
     return cmds
-  }, [handleSetModel, handleOpenSettings, handleLoadSkills, handleLoadAuditChecklist, handleGasOptimisationAudit])
+  }, [handleSetModel, handleOpenSettings, handleLoadSkills, handleLoadAuditChecklist, handleGasOptimisationAudit, hasAuditorPermission, hasSkillsPermission, setInput])
 
   // Returns the first required feature the user is missing for a command,
   // or null when the command is fully unlocked.
@@ -282,10 +294,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     } else {
       const lastSpaceSlash = input.lastIndexOf(' /')
       const slashStart = lastSpaceSlash !== -1 ? lastSpaceSlash + 1 : input.startsWith('/') ? 0 : input.length
-      setInput(input.slice(0, slashStart) + '/' + command.name + ': ')
+      setInput(input.slice(0, slashStart) + '/' + command.name + ' ')
     }
     textareaRef?.current?.focus()
-  }, [input, setInput, setShowAutocomplete, getMissingFeature, onUpgradeRequired])
+  }, [input, setInput, setShowAutocomplete, getMissingFeature, onUpgradeRequired, handleLoadAuditChecklist, hasAuditorPermission])
 
   const handleShortcutSelect = useCallback((prompt: string) => {
     setInput(prompt)
@@ -382,12 +394,21 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   const toolCommands = actionCommands.filter(cmd => cmd.category === 'Tools')
 
+  // Contextual hint for a just-inserted command (e.g. "/compile ") so the user
+  const activeCommandHint = useMemo(() => {
+    const name = getActiveCommandName(input)
+    console.log(name)
+    if (!name) return null
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name.toLowerCase() === name.toLowerCase())
+    return cmd?.hint ?? null
+  }, [input])
+
   // Logout doesn't reliably flip `aiRouteReady` (the route was already ready),
   // so authentication is the source of truth for whether the composer is
   // usable. Folding it in here disables the input + send button and surfaces
   // the sign-in CTA the instant the user logs out.
   const composerReady = aiRouteReady && isAuthenticated
-  const needsSignIn = !isAuthenticated && !!onSignIn
+  const needsSignIn = !aiRouteReady && !isAuthenticated && !!onSignIn
   const placeholderText = needsSignIn
     ? 'Sign in to chat with RemixAI…'
     : aiRouteReady
@@ -396,8 +417,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   return (
     <>
-      {isNewChat && <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
-        <div className="d-flex flex-row" style={{ gap: '4px' }}>
+      <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
+        <div className="d-flex flex-row align-items-center" style={{ gap: '4px' }}>
           {[...SHORTCUT_CATEGORIES, ...(toolCommands.length > 0 ? [{ id: 'tools', label: 'Tools' }] : [])].map(cat => (
             <button
               key={cat.id}
@@ -469,9 +490,9 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                     {promptText.startsWith('/') ? (
                       <span>
                         <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>
-                          {promptText.substring(0, promptText.indexOf(':') + 1)}
+                          {promptText.indexOf(' ') === -1 ? promptText : promptText.substring(0, promptText.indexOf(' '))}
                         </span>
-                        {promptText.substring(promptText.indexOf(':') + 1)}
+                        {promptText.indexOf(' ') === -1 ? '' : promptText.substring(promptText.indexOf(' '))}
                       </span>
                     ) : promptText}
                   </span>
@@ -557,7 +578,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             })}
           </div>
         )}
-      </div>}
+      </div>
       <div
         ref={promptAreaRef}
         className="prompt-area d-flex flex-column mx-2 p-1 rounded-3 border border-text position-relative"
@@ -617,6 +638,16 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               onKeyDown={handleKeyDown}
               placeholder={placeholderText}
             />
+            {activeCommandHint && (
+              <div
+                className="px-2 pb-1 d-flex align-items-center"
+                style={{ fontSize: '0.72rem', color: 'var(--bs-secondary-color)', fontStyle: 'italic' }}
+                data-id="command-hint"
+              >
+                <i className="fa-regular fa-circle-question me-1" style={{ fontSize: '0.7rem' }}></i>
+                {activeCommandHint}
+              </div>
+            )}
             <div className="d-flex flex-row align-items-center">
               {/* <div className="d-flex flex-row align-items-center"> */}
               <button

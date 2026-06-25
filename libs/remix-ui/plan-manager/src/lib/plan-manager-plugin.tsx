@@ -548,7 +548,6 @@ export class PlanManagerPlugin extends ViewPlugin {
         message: confirmMessage,
         eyebrow: 'Plan switch',
         icon: 'fas fa-arrow-right-arrow-left',
-        accent: pickAccent(planId),
         highlights: this.buildSwitchHighlights({
           fromPlanName: selectPlanState(snap).planName,
           toPlanName: itemLabel,
@@ -616,7 +615,6 @@ export class PlanManagerPlugin extends ViewPlugin {
         variant: 'danger',
         eyebrow: 'Cancel subscription',
         icon: 'fas fa-circle-xmark',
-        accent: '#e75b89',
         highlights: [
           { label: 'Current plan', value: planState.planName, tone: 'default' },
           ...(periodEndDate ? [{ label: 'Access until', value: periodEndDate, tone: 'positive' as const }] : []),
@@ -624,7 +622,7 @@ export class PlanManagerPlugin extends ViewPlugin {
         ],
         actions: [
           { value: 'next_billing_period', label: periodEndLabel, variant: 'primary', icon: 'fas fa-calendar-check' },
-         // { value: 'immediately', label: 'Cancel immediately', variant: 'danger', icon: 'fas fa-bolt' },
+          // { value: 'immediately', label: 'Cancel immediately', variant: 'danger', icon: 'fas fa-bolt' },
           { value: 'keep', label: 'Keep subscription', variant: 'ghost' }
         ]
       })
@@ -1282,7 +1280,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       //   • the `ai:verified_accounts` feature is enabled (so the gate exists)
       //   • the user hasn't verified their email (or hasn't added one yet)
       //   • the panel isn't already open (avoid interrupting an active session)
-      const gateEnabled = !!permissions && hasFeature(permissions, 'ai:verified_accounts')
+      const gateEnabled = !!permissions && hasFeature(permissions, Features.AI_VERIFIED_ACCOUNTS)
       const emailMissing = permissions?.has_email === false
       const emailUnverified = permissions?.email_verified === false
       const panelAlreadyOpen = this.store.getSnapshot().isOpen
@@ -1319,7 +1317,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       // available and are motivated to upgrade or top up. Only fires once per
       // session (not on every data refresh) and only when the plans surface is
       // enabled by the backend.
-      const canShowPlans = hasFeature(permissions, 'ui:show-plans')
+      const canShowPlans = hasFeature(permissions, Features.UI_SHOW_PLANS)
       const snap = this.store.getSnapshot()
       const planState = selectPlanState(snap)
       const isFreePlan = planState.kind === 'no_subscription'
@@ -1689,315 +1687,315 @@ const PlanManagerOverlay: React.FC<{
           const sectionActive = activeSection !== null
           return <>
 
-          {/*
+            {/*
             When the user has no `ui:show-*` features granted we collapse
             the overlay to a minimal identity card. Onboarding flows use
             this to confirm sign-in without exposing the (currently
             irrelevant) plans/credits/quotas surface.
           */}
-          {!checkoutActive && !ui.anyVisible && (
-            <PlanIdentityCard planCtx={planCtx} />
-          )}
+            {!checkoutActive && !ui.anyVisible && (
+              <PlanIdentityCard planCtx={planCtx} />
+            )}
 
-          {/* Alerts are credit/plan-oriented — only meaningful when
+            {/* Alerts are credit/plan-oriented — only meaningful when
               at least one of those surfaces is visible. Shown above nav
               so urgent warnings are never buried. */}
-          {!checkoutActive && ui.anyVisible && activeAlert === 'beta-transition' && (
-            <BetaTransitionAlert
-              planCtx={planCtx}
-              onUpgrade={() => setActiveSection('plans')}
-              onTopUp={() => setActiveSection('topup')}
-            />
-          )}
+            {!checkoutActive && ui.anyVisible && activeAlert === 'beta-transition' && (
+              <BetaTransitionAlert
+                planCtx={planCtx}
+                onUpgrade={() => setActiveSection('plans')}
+                onTopUp={() => setActiveSection('topup')}
+              />
+            )}
 
-          {!checkoutActive && ui.anyVisible && activeAlert === 'plan-lifecycle' && (
-            <PlanLifecycleAlert
-              planCtx={planCtx}
-              onRenew={() => setActiveSection('plans')}
-              onUpgrade={() => setActiveSection('plans')}
-            />
-          )}
+            {!checkoutActive && ui.anyVisible && activeAlert === 'plan-lifecycle' && (
+              <PlanLifecycleAlert
+                planCtx={planCtx}
+                onRenew={() => setActiveSection('plans')}
+                onUpgrade={() => setActiveSection('plans')}
+              />
+            )}
 
-          {!checkoutActive && ui.showCredits && activeAlert === 'credit' && (
-            <CreditAlert
-              status={status}
-              refreshDate={refreshDate}
-              canUpgrade={canUpgrade}
-              onTopUp={() => setActiveSection('topup')}
-              onUpgrade={() => setActiveSection('plans')}
-            />
-          )}
+            {!checkoutActive && ui.showCredits && activeAlert === 'credit' && (
+              <CreditAlert
+                status={status}
+                refreshDate={refreshDate}
+                canUpgrade={canUpgrade}
+                onTopUp={() => setActiveSection('topup')}
+                onUpgrade={() => setActiveSection('plans')}
+              />
+            )}
 
-          {/* Nav tabs — placed right after alerts so they sit at a
+            {/* Nav tabs — placed right after alerts so they sit at a
               predictable position. Credits is always the first tab and
               shows the default landing view (hero + quotas). */}
-          {!checkoutActive && (ui.showCredits || ui.showPlans || ui.showTopUps || ui.showUsage) && (
-            <nav className="pm-nav">
-              {([
-                { id: 'credits', label: 'Credits', icon: 'fas fa-coins', visible: ui.showCredits },
-                { id: 'plans', label: 'Plans', icon: 'fas fa-layer-group', visible: ui.showPlans },
-                { id: 'topup', label: 'Top up', icon: 'fas fa-bolt', visible: ui.showTopUps },
-                { id: 'usage', label: 'Usage breakdown', icon: 'fas fa-chart-bar', visible: ui.showUsage }
-              ] as const).filter(s => s.visible).map(s => (
-                <button
-                  key={s.id}
-                  data-id={`planManagerNav-${s.id}`}
-                  className={`pm-nav__item ${activeSection === s.id ? 'is-active' : ''}`}
-                  // Click on the active tab collapses it — we want a calm
-                  // landing view, so re-clicking the same tab returns to it.
-                  onClick={() => setActiveSection(prev => prev === s.id ? null : s.id)}
-                >
-                  <i className={s.icon}></i>
-                  <span>{s.label}</span>
-                </button>
-              ))}
-            </nav>
-          )}
+            {!checkoutActive && (ui.showCredits || ui.showPlans || ui.showTopUps || ui.showUsage) && (
+              <nav className="pm-nav">
+                {([
+                  { id: 'credits', label: 'Credits', icon: 'fas fa-coins', visible: ui.showCredits },
+                  { id: 'plans', label: 'Plans', icon: 'fas fa-layer-group', visible: ui.showPlans },
+                  { id: 'topup', label: 'Top up', icon: 'fas fa-bolt', visible: ui.showTopUps },
+                  { id: 'usage', label: 'Usage breakdown', icon: 'fas fa-chart-bar', visible: ui.showUsage }
+                ] as const).filter(s => s.visible).map(s => (
+                  <button
+                    key={s.id}
+                    data-id={`planManagerNav-${s.id}`}
+                    className={`pm-nav__item ${activeSection === s.id ? 'is-active' : ''}`}
+                    // Click on the active tab collapses it — we want a calm
+                    // landing view, so re-clicking the same tab returns to it.
+                    onClick={() => setActiveSection(prev => prev === s.id ? null : s.id)}
+                  >
+                    <i className={s.icon}></i>
+                    <span>{s.label}</span>
+                  </button>
+                ))}
+              </nav>
+            )}
 
-          {/* Credits view — shown when the Credits tab is active. */}
-          {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
-            <Hero
-              status={status}
-              refreshDate={refreshDate}
-              planCtx={planCtx}
-              heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
-              onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
-            />
-          )}
+            {/* Credits view — shown when the Credits tab is active. */}
+            {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
+              <Hero
+                status={status}
+                refreshDate={refreshDate}
+                planCtx={planCtx}
+                heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
+                onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
+              />
+            )}
 
-          {/*
+            {/*
             Upgrade promo — only on the credits view, no alert already
             showing its own CTA.
           */}
-          {!checkoutActive && activeSection === 'credits' && ui.showPlans && !activeAlert && canUpgrade && (
-            <UpgradePromoBanner
-              planCtx={planCtx}
-              plans={visiblePlans}
-              onUpgrade={() => setActiveSection(s => s === 'plans' ? null : 'plans')}
-            />
-          )}
+            {!checkoutActive && activeSection === 'credits' && ui.showPlans && !activeAlert && canUpgrade && (
+              <UpgradePromoBanner
+                planCtx={planCtx}
+                plans={visiblePlans}
+                onUpgrade={() => setActiveSection(s => s === 'plans' ? null : 'plans')}
+              />
+            )}
 
-          {!checkoutActive && activeSection === 'credits' && ui.showQuotas && (
-            <QuotasPanel
-              quotas={quotas}
-              aiModels={snap.permissions?.ai_models}
-              paidCredits={snap.credits?.paid_credits ?? 0}
-              canUpgrade={canUpgrade && ui.showPlans}
-              onUpgrade={() => setActiveSection('plans')}
-              onTopUp={() => setActiveSection('topup')}
-            />
-          )}
+            {!checkoutActive && activeSection === 'credits' && ui.showQuotas && (
+              <QuotasPanel
+                quotas={quotas}
+                aiModels={snap.permissions?.ai_models}
+                paidCredits={snap.credits?.paid_credits ?? 0}
+                canUpgrade={canUpgrade && ui.showPlans}
+                onUpgrade={() => setActiveSection('plans')}
+                onTopUp={() => setActiveSection('topup')}
+              />
+            )}
 
-          <main className="pm-main">
-            {/* Inline Paddle checkout container — visible while checkout is in progress */}
-            {snap.pendingCheckout && !snap.checkoutResult && (() => {
-              const pending = snap.pendingCheckout
-              const plan = pending.intent !== 'topup'
-                ? snap.catalogPlans.find(p => p.id === pending.productId)
-                : null
-              const pkg = pending.intent === 'topup'
-                ? snap.catalogPackages.find(p => p.id === pending.productId)
-                : null
-              const productName = plan?.name ?? pkg?.name ?? pending.itemLabel ?? 'Your order'
-              const priceCents = plan?.priceUsd ?? pkg?.priceUsd ?? 0
-              const priceFormatted = `$${(priceCents / 100).toFixed(2)}`
-              const billingLabel = plan
-                ? `per ${plan.billingInterval === 'year' ? 'year' : 'month'}`
-                : 'one-time'
-              const features = plan?.features ?? []
-              const credits = plan?.creditsPerMonth ?? pkg?.credits ?? null
-              // Extra items in cart (credit add-ons bundled with the plan).
-              const cartAddons = snap.cartItems.filter(i => i.productType === 'credit_package')
-              // Intro credit packages auto-added by the backend (free gifts).
-              const introCreditPkgs = plan?.introCreditPackages ?? []
+            <main className="pm-main">
+              {/* Inline Paddle checkout container — visible while checkout is in progress */}
+              {snap.pendingCheckout && !snap.checkoutResult && (() => {
+                const pending = snap.pendingCheckout
+                const plan = pending.intent !== 'topup'
+                  ? snap.catalogPlans.find(p => p.id === pending.productId)
+                  : null
+                const pkg = pending.intent === 'topup'
+                  ? snap.catalogPackages.find(p => p.id === pending.productId)
+                  : null
+                const productName = plan?.name ?? pkg?.name ?? pending.itemLabel ?? 'Your order'
+                const priceCents = plan?.priceUsd ?? pkg?.priceUsd ?? 0
+                const priceFormatted = `$${(priceCents / 100).toFixed(2)}`
+                const billingLabel = plan
+                  ? `per ${plan.billingInterval === 'year' ? 'year' : 'month'}`
+                  : 'one-time'
+                const features = plan?.features ?? []
+                const credits = plan?.creditsPerMonth ?? pkg?.credits ?? null
+                // Extra items in cart (credit add-ons bundled with the plan).
+                const cartAddons = snap.cartItems.filter(i => i.productType === 'credit_package')
+                // Intro credit packages auto-added by the backend (free gifts).
+                const introCreditPkgs = plan?.introCreditPackages ?? []
 
-              // Intro launch-offer banner — the same promo merchandised on
-              // the plan cards, reinforced here so the user sees why their
-              // "due today" is lower than the headline price.
-              const introDiscount = (plan?.introDiscounts ?? [])[0] ?? null
-              let introOfferLabel: string | null = null
-              let discountedPriceFormatted: string | null = null
-              if (introDiscount && priceCents > 0) {
-                const isPct = introDiscount.discountType === 'percentage'
-                const discountedCents = isPct
-                  ? Math.max(0, Math.floor(priceCents * (1 - introDiscount.amount / 100)))
-                  : Math.max(0, priceCents - Math.round(introDiscount.amount * 100))
-                if (discountedCents < priceCents) {
-                  discountedPriceFormatted = `$${(discountedCents / 100).toFixed(2)}`
+                // Intro launch-offer banner — the same promo merchandised on
+                // the plan cards, reinforced here so the user sees why their
+                // "due today" is lower than the headline price.
+                const introDiscount = (plan?.introDiscounts ?? [])[0] ?? null
+                let introOfferLabel: string | null = null
+                let discountedPriceFormatted: string | null = null
+                if (introDiscount && priceCents > 0) {
+                  const isPct = introDiscount.discountType === 'percentage'
+                  const discountedCents = isPct
+                    ? Math.max(0, Math.floor(priceCents * (1 - introDiscount.amount / 100)))
+                    : Math.max(0, priceCents - Math.round(introDiscount.amount * 100))
+                  if (discountedCents < priceCents) {
+                    discountedPriceFormatted = `$${(discountedCents / 100).toFixed(2)}`
+                  }
+                  const unit = plan?.billingInterval === 'year' ? 'year' : 'month'
+                  const intervals = introDiscount.maxRecurringIntervals
+                  const duration = !introDiscount.recur || !intervals || intervals === 1
+                    ? `first ${unit}`
+                    : `first ${intervals} ${unit}s`
+                  introOfferLabel = isPct
+                    ? `${Math.round(introDiscount.amount)}% off ${duration}`
+                    : `$${introDiscount.amount.toFixed(2)} off ${duration}`
                 }
-                const unit = plan?.billingInterval === 'year' ? 'year' : 'month'
-                const intervals = introDiscount.maxRecurringIntervals
-                const duration = !introDiscount.recur || !intervals || intervals === 1
-                  ? `first ${unit}`
-                  : `first ${intervals} ${unit}s`
-                introOfferLabel = isPct
-                  ? `${Math.round(introDiscount.amount)}% off ${duration}`
-                  : `$${introDiscount.amount.toFixed(2)} off ${duration}`
-              }
 
-              // Live breakdown from Paddle (totals are already in major units).
-              const bd = snap.checkoutBreakdown
-              const fmtMoney = (amount: number, currency = bd?.currencyCode ?? 'USD') => {
-                try {
-                  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
-                } catch {
-                  return `${currency} ${amount.toFixed(2)}`
+                // Live breakdown from Paddle (totals are already in major units).
+                const bd = snap.checkoutBreakdown
+                const fmtMoney = (amount: number, currency = bd?.currencyCode ?? 'USD') => {
+                  try {
+                    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
+                  } catch {
+                    return `${currency} ${amount.toFixed(2)}`
+                  }
                 }
-              }
-              const cadenceLabel = (cycle: CheckoutBreakdown['billingCycle']) => {
-                if (!cycle) return ''
-                const unit = cycle.interval
-                return cycle.frequency === 1
-                  ? `per ${unit}`
-                  : `every ${cycle.frequency} ${unit}s`
-              }
+                const cadenceLabel = (cycle: CheckoutBreakdown['billingCycle']) => {
+                  if (!cycle) return ''
+                  const unit = cycle.interval
+                  return cycle.frequency === 1
+                    ? `per ${unit}`
+                    : `every ${cycle.frequency} ${unit}s`
+                }
 
-              return (
-                <div className="pm-inline-checkout">
-                  <div className="pm-inline-checkout__header">
-                    <button
-                      className="pm-inline-checkout__back"
-                      onClick={() => plugin.store.send({ type: 'CHECKOUT_CLOSED' })}
-                    >
-                      <i className="fas fa-arrow-left"></i>
-                      <span>Back to plans</span>
-                    </button>
-                  </div>
-                  <div className="pm-inline-checkout__body">
-                    {/* Order summary side */}
-                    <aside className="pm-inline-checkout__summary">
-                      <h3 className="pm-inline-checkout__product-name">{productName}</h3>
-                      <div className="pm-inline-checkout__price">
-                        {discountedPriceFormatted && (
-                          <span className="pm-inline-checkout__price-was">{priceFormatted}</span>
+                return (
+                  <div className="pm-inline-checkout">
+                    <div className="pm-inline-checkout__header">
+                      <button
+                        className="pm-inline-checkout__back"
+                        onClick={() => plugin.store.send({ type: 'CHECKOUT_CLOSED' })}
+                      >
+                        <i className="fas fa-arrow-left"></i>
+                        <span>Back to plans</span>
+                      </button>
+                    </div>
+                    <div className="pm-inline-checkout__body">
+                      {/* Order summary side */}
+                      <aside className="pm-inline-checkout__summary">
+                        <h3 className="pm-inline-checkout__product-name">{productName}</h3>
+                        <div className="pm-inline-checkout__price">
+                          {discountedPriceFormatted && (
+                            <span className="pm-inline-checkout__price-was">{priceFormatted}</span>
+                          )}
+                          <span className="pm-inline-checkout__price-amount">{discountedPriceFormatted ?? priceFormatted}</span>
+                          <span className="pm-inline-checkout__price-period">{billingLabel}</span>
+                        </div>
+                        {credits !== null && credits > 0 && (
+                          <div className="pm-inline-checkout__credits">
+                            <i className="fas fa-bolt"></i>
+                            <span>{credits.toLocaleString()} credits{plan ? ' / month' : ''}</span>
+                          </div>
                         )}
-                        <span className="pm-inline-checkout__price-amount">{discountedPriceFormatted ?? priceFormatted}</span>
-                        <span className="pm-inline-checkout__price-period">{billingLabel}</span>
-                      </div>
-                      {credits !== null && credits > 0 && (
-                        <div className="pm-inline-checkout__credits">
-                          <i className="fas fa-bolt"></i>
-                          <span>{credits.toLocaleString()} credits{plan ? ' / month' : ''}</span>
-                        </div>
-                      )}
 
-                      {introOfferLabel && (
-                        <div className="pm-inline-checkout__intro-offer" title={introDiscount?.name ?? undefined}>
-                          <i className="fas fa-tags" aria-hidden></i>
-                          <span>{introDiscount?.name ? `${introDiscount.name} · ${introOfferLabel}` : introOfferLabel}</span>
-                        </div>
-                      )}
+                        {introOfferLabel && (
+                          <div className="pm-inline-checkout__intro-offer" title={introDiscount?.name ?? undefined}>
+                            <i className="fas fa-tags" aria-hidden></i>
+                            <span>{introDiscount?.name ? `${introDiscount.name} · ${introOfferLabel}` : introOfferLabel}</span>
+                          </div>
+                        )}
 
-                      {/* Bundled credit add-ons from multi-item cart */}
-                      {(cartAddons.length > 0 || introCreditPkgs.length > 0) && (
-                        <div className="pm-inline-checkout__addons">
-                          <div className="pm-inline-checkout__addons-label">Also in this order:</div>
-                          {introCreditPkgs.map((cp: any) => (
-                            <div key={cp.slug} className="pm-inline-checkout__addon-row pm-inline-checkout__addon-row--gift">
-                              <span><i className="fas fa-gift"></i> {cp.name || `${(cp.credits * (cp.quantity || 1)).toLocaleString()} free AI credits`}</span>
-                              <span className="pm-inline-checkout__addon-free">FREE</span>
-                            </div>
-                          ))}
-                          {cartAddons.map(addon => (
-                            <div key={addon.slug} className="pm-inline-checkout__addon-row">
-                              <span><i className="fas fa-bolt"></i> {addon.name}</span>
-                              <span>${(addon.priceCents / 100).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                        {/* Bundled credit add-ons from multi-item cart */}
+                        {(cartAddons.length > 0 || introCreditPkgs.length > 0) && (
+                          <div className="pm-inline-checkout__addons">
+                            <div className="pm-inline-checkout__addons-label">Also in this order:</div>
+                            {introCreditPkgs.map((cp: any) => (
+                              <div key={cp.slug} className="pm-inline-checkout__addon-row pm-inline-checkout__addon-row--gift">
+                                <span><i className="fas fa-gift"></i> {cp.name || `${(cp.credits * (cp.quantity || 1)).toLocaleString()} free AI credits`}</span>
+                                <span className="pm-inline-checkout__addon-free">FREE</span>
+                              </div>
+                            ))}
+                            {cartAddons.map(addon => (
+                              <div key={addon.slug} className="pm-inline-checkout__addon-row">
+                                <span><i className="fas fa-bolt"></i> {addon.name}</span>
+                                <span>${(addon.priceCents / 100).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
-                      {/* Live price breakdown from Paddle — appears once the
+                        {/* Live price breakdown from Paddle — appears once the
                           checkout iframe loads and updates as the user enters
                           country/VAT or applies a discount. */}
-                      {bd ? (
-                        <div className="pm-inline-checkout__breakdown">
-                          <div className="pm-inline-checkout__line">
-                            <span>Subtotal</span>
-                            <span>{fmtMoney(bd.subtotal)}</span>
-                          </div>
-                          {bd.discount > 0 && (
-                            <div className="pm-inline-checkout__line pm-inline-checkout__line--discount">
-                              <span>
-                                Discount
-                                {bd.discountCode ? ` (${bd.discountCode})` : ''}
-                              </span>
-                              <span>-{fmtMoney(bd.discount)}</span>
-                            </div>
-                          )}
-                          {bd.tax > 0 && (
+                        {bd ? (
+                          <div className="pm-inline-checkout__breakdown">
                             <div className="pm-inline-checkout__line">
-                              <span>VAT / Tax</span>
-                              <span>{fmtMoney(bd.tax)}</span>
+                              <span>Subtotal</span>
+                              <span>{fmtMoney(bd.subtotal)}</span>
                             </div>
-                          )}
-                          <div className="pm-inline-checkout__line pm-inline-checkout__line--total">
-                            <span>Due today</span>
-                            <span>{fmtMoney(bd.total)}</span>
-                          </div>
-                          {bd.recurring && bd.billingCycle && (
-                            <div className="pm-inline-checkout__renews">
+                            {bd.discount > 0 && (
+                              <div className="pm-inline-checkout__line pm-inline-checkout__line--discount">
+                                <span>
+                                Discount
+                                  {bd.discountCode ? ` (${bd.discountCode})` : ''}
+                                </span>
+                                <span>-{fmtMoney(bd.discount)}</span>
+                              </div>
+                            )}
+                            {bd.tax > 0 && (
+                              <div className="pm-inline-checkout__line">
+                                <span>VAT / Tax</span>
+                                <span>{fmtMoney(bd.tax)}</span>
+                              </div>
+                            )}
+                            <div className="pm-inline-checkout__line pm-inline-checkout__line--total">
+                              <span>Due today</span>
+                              <span>{fmtMoney(bd.total)}</span>
+                            </div>
+                            {bd.recurring && bd.billingCycle && (
+                              <div className="pm-inline-checkout__renews">
                               Then {fmtMoney(bd.recurring.total)} {cadenceLabel(bd.billingCycle)}
-                            </div>
-                          )}
+                              </div>
+                            )}
+                          </div>
+                        ) : features.length > 0 && (
+                          <ul className="pm-inline-checkout__features">
+                            {features.map((f, i) => (
+                              <li key={i}>
+                                <i className="fas fa-check"></i>
+                                <span>{f}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className="pm-inline-checkout__secure">
+                          <i className="fas fa-lock"></i>
+                          <span>Secure checkout powered by Paddle</span>
                         </div>
-                      ) : features.length > 0 && (
-                        <ul className="pm-inline-checkout__features">
-                          {features.map((f, i) => (
-                            <li key={i}>
-                              <i className="fas fa-check"></i>
-                              <span>{f}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <div className="pm-inline-checkout__secure">
-                        <i className="fas fa-lock"></i>
-                        <span>Secure checkout powered by Paddle</span>
+                      </aside>
+                      {/* Paddle inline frame */}
+                      <div className="pm-inline-checkout__frame">
+                        <div className="paddle-checkout-container" />
                       </div>
-                    </aside>
-                    {/* Paddle inline frame */}
-                    <div className="pm-inline-checkout__frame">
-                      <div className="paddle-checkout-container" />
                     </div>
                   </div>
-                </div>
-              )
-            })()}
-            {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length > 0 && !snap.checkoutResult && (
-              <CartUpsellStep
-                cart={snap.cartItems}
-                packages={visiblePackages}
-                plans={visiblePlans}
-                plugin={plugin}
-              />
-            )}
-            {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showPlans && activeSection === 'plans' && (
-              <PlansSection
-                plans={visiblePlans}
-                currentPlanId={planCtx.planId}
-                userFeatureGroups={snap.permissions?.feature_groups ?? []}
-                isTrialEligible={snap.isTrialEligible}
-                purchasingId={purchasingProductId}
-                requiredFeature={intent?.requiredFeature ?? null}
-                onSubscribe={(planId, priceId) => plugin.subscribeToPlan(planId, priceId)}
-                onCancel={() => plugin.cancelSubscription()}
-                onReactivate={() => plugin.reactivateSubscription()}
-                cancelledNotice={planCtx.kind === 'paid' && planCtx.isCancelled ? { expiresOn: planCtx.expiresOn } : null}
-              />
-            )}
-            {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showTopUps && activeSection === 'topup' && (
-              <TopUpSection
-                packages={visiblePackages}
-                purchasingId={purchasingProductId}
-                onPurchase={(packageId) => plugin.purchaseCredits(packageId)}
-              />
-            )}
-            {ui.showUsage && activeSection === 'usage' && <UsageSection plugin={plugin} />}
-          </main>
+                )
+              })()}
+              {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length > 0 && !snap.checkoutResult && (
+                <CartUpsellStep
+                  cart={snap.cartItems}
+                  packages={visiblePackages}
+                  plans={visiblePlans}
+                  plugin={plugin}
+                />
+              )}
+              {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showPlans && activeSection === 'plans' && (
+                <PlansSection
+                  plans={visiblePlans}
+                  currentPlanId={planCtx.planId}
+                  userFeatureGroups={snap.permissions?.feature_groups ?? []}
+                  isTrialEligible={snap.isTrialEligible}
+                  purchasingId={purchasingProductId}
+                  requiredFeature={intent?.requiredFeature ?? null}
+                  onSubscribe={(planId, priceId) => plugin.subscribeToPlan(planId, priceId)}
+                  onCancel={() => plugin.cancelSubscription()}
+                  onReactivate={() => plugin.reactivateSubscription()}
+                  cancelledNotice={planCtx.kind === 'paid' && planCtx.isCancelled ? { expiresOn: planCtx.expiresOn } : null}
+                />
+              )}
+              {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showTopUps && activeSection === 'topup' && (
+                <TopUpSection
+                  packages={visiblePackages}
+                  purchasingId={purchasingProductId}
+                  onPurchase={(packageId) => plugin.purchaseCredits(packageId)}
+                />
+              )}
+              {ui.showUsage && activeSection === 'usage' && <UsageSection plugin={plugin} />}
+            </main>
 
-        </>
-          })()}
+          </>
+        })()}
 
         <footer className="pm-footer">
           <div className="pm-footer__legal">
@@ -2411,9 +2409,10 @@ const Hero: React.FC<{
   const showIncluded = hasUnlimitedIncluded || includedTotal > 0
   // Total available = paid + included (what the CEO wants to see as the headline)
   const totalAvailable = hasUnlimitedIncluded ? null : paidRemaining + includedRemaining
-  // Only show the blue paid chip when there are also included credits — otherwise
-  // the total already equals just the paid amount and the chip would be redundant.
-  const showPaidChip = paidRemaining > 0 && showIncluded
+  // Only show the blue paid chip when there are also *remaining* included credits
+  // (or unlimited) — otherwise the total equals just the paid amount and the chip
+  // would duplicate the headline number.
+  const showPaidChip = paidRemaining > 0 && (includedRemaining > 0 || hasUnlimitedIncluded)
 
   // Credits don't expire and top-ups stack, so a "% of cycle" gauge would
   // misrepresent the model. We only surface a forward-looking line: when
@@ -2777,15 +2776,12 @@ const PlanCard: React.FC<{
   const showTrial = trialDays > 0 && isTrialEligible && !isPlanActive && !isFree
   const trialCredits = Number(plan.trialCredits) || 0
   const disabled = isPlanActive || isFree || anyPurchasing
-  const accent = pickAccent(plan.id)
 
   return (
     <article
-      className={`pm-plan ${isPlanActive ? 'is-current' : ''} ${isSubscriptionCurrent ? 'is-subscription-current' : ''} ${isAccessActive ? 'is-access-current' : ''} ${isRecommended ? 'is-recommended' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
-      style={{ '--pm-accent': accent } as React.CSSProperties}
+      className={`pm-plan ${isPlanActive ? 'is-current' : ''} ${isFree ? 'is-free' : ''} ${isSubscriptionCurrent ? 'is-subscription-current' : ''} ${isAccessActive ? 'is-access-current' : ''} ${isRecommended ? 'is-recommended' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
     >
       <div className="pm-plan__badges">
-        {isRecommended && !isPlanActive && <div className="pm-plan__ribbon">Recommended</div>}
         {showUnifiedCurrent && <div className="pm-plan__current">Current</div>}
         {!showUnifiedCurrent && isSubscriptionCurrent && <div className="pm-plan__current pm-plan__current--subscription">Subscription</div>}
         {!showUnifiedCurrent && isAccessActive && (
@@ -2798,6 +2794,12 @@ const PlanCard: React.FC<{
         <div className="pm-plan__trial-badge" title={trialCredits ? `${trialCredits} credits included` : undefined}>
           <i className="fas fa-gift"></i>
           <span>{trialDays}-day free trial</span>
+        </div>
+      )}
+
+      {isRecommended && !isPlanActive && (
+        <div className="pm-plan__ribbon">
+          <i className="fas fa-star" aria-hidden></i> Recommended
         </div>
       )}
 
@@ -2951,7 +2953,7 @@ const CartUpsellStep: React.FC<{
   const planPriceCents = planItem?.priceCents ?? 0
   const nonPlanCents = cartTotal - planPriceCents
   let discountedFirstPaymentCents: number | null = null
-  let renewalLabel: string | null = null    // "then $X.XX/mo after first 3 months"
+  let renewalLabel: string | null = null // "then $X.XX/mo after first 3 months"
   if (introDiscount && planPriceCents > 0) {
     const isPct = introDiscount.discountType === 'percentage'
     const discountedPlanCents = isPct
@@ -3276,12 +3278,16 @@ const TopUpSection: React.FC<{
               onClick={() => { if (!disabled) onPurchase(t.id) }}
               title={isUnavailable ? 'Pricing not available right now' : undefined}
             >
-              {isPopular ? <div className="pm-topup__pop">Best value</div> : null}
+              {isPopular && (
+                <div className="pm-topup__pop">
+                  <i className="fas fa-star" aria-hidden></i> Best value
+                </div>
+              )}
+              <div className="pm-topup__price">{price}</div>
               <div className="pm-topup__credits">
                 <span className="pm-topup__credits-num">{credits.toLocaleString()}</span>
                 <span className="pm-topup__credits-unit">credits</span>
               </div>
-              <div className="pm-topup__price">{price}</div>
               <div className="pm-topup__perk">{credits > 0 ? `$${perK} per 1k credits` : 'Pricing unavailable'}</div>
               <span className="pm-topup__buy">
                 {isPurchasing
@@ -3472,7 +3478,7 @@ const UsageSection: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) => {
       </div>
 
       <div className="pm-usage__tokens">
-        {formatCompactNumber(totals.calls)} calls | {formatCompactNumber(totals.totalTokens)} tokens | {formatUsd(totals.costUsd)} provider cost
+        {formatCompactNumber(totals.calls)} calls · {formatCompactNumber(totals.totalTokens)} tokens · {formatUsd(totals.costUsd)} provider cost
       </div>
 
       <div className="pm-usage__list">
@@ -3499,7 +3505,7 @@ const UsageSection: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) => {
               </div>
 
               <div className="pm-usage__tokens">
-                {formatCompactNumber(row.calls)} calls | {formatCompactNumber(row.totalTokens)} tokens | {formatUsd(row.costUsd)}
+                {formatCompactNumber(row.calls)} calls · {formatCompactNumber(row.totalTokens)} tokens · {formatUsd(row.costUsd)}
               </div>
             </article>
           )
@@ -4519,13 +4525,6 @@ function formatMoney(amount: unknown, currency: string = 'USD'): string {
   }
 }
 
-const PLAN_ACCENTS = ['#2fbfb1', '#5b9cf5', '#9b7dff', '#f59f5b', '#e75b89']
-function pickAccent(planId: string): string {
-  let h = 0
-  for (let i = 0; i < planId.length; i++) h = (h * 31 + planId.charCodeAt(i)) >>> 0
-  return PLAN_ACCENTS[h % PLAN_ACCENTS.length]
-}
-
 function buildUsageRange(days: number): { from: string; to: string } {
   const to = new Date()
   const from = new Date(to.getTime())
@@ -4545,10 +4544,17 @@ function toFiniteNumber(value: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
+const USAGE_ACCENTS = [
+  'var(--custom-primary)',
+  'var(--bs-success)',
+  'var(--bs-warning)',
+  'var(--bs-info)',
+  'var(--bs-danger)',
+]
 function pickUsageAccent(seed: string): string {
   let h = 0
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
-  return PLAN_ACCENTS[h % PLAN_ACCENTS.length]
+  return USAGE_ACCENTS[h % USAGE_ACCENTS.length]
 }
 
 function buildUsageRows(report: UsageReport | null): UsageDisplayRow[] {

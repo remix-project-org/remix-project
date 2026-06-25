@@ -42,6 +42,10 @@ import {
   extractRelativePath,
   FSWriteOperation,
 } from './cloud-fs-observer'
+import {
+  getQuickDappWorkspaceLock,
+  getQuickDappWorkspaceMutationLockMessage
+} from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import CloudWorkspaceFileProvider from '../../../../../../apps/remix-ide/src/app/files/cloudWorkspaceFileProvider'
 
@@ -64,6 +68,21 @@ const REFRESH_DEBOUNCE_MS = 600
  */
 let _versionCheckTimer: ReturnType<typeof setTimeout> | null = null
 const VERSION_CHECK_DEBOUNCE_MS = 2_000 // 2s after first write activity
+
+function notifyIfQuickDappWorkspaceLocked(actionName: string): boolean {
+  const quickDappLock = getQuickDappWorkspaceLock()
+  if (!quickDappLock) return false
+
+  const message = getQuickDappWorkspaceMutationLockMessage(quickDappLock, actionName)
+  console.warn('[QuickDapp][WorkspaceLock] blocked cloud workspace action', {
+    action: actionName,
+    lockedWorkspace: quickDappLock.workspaceName,
+    operation: quickDappLock.operation,
+    slug: quickDappLock.slug
+  })
+  _plugin?.call('notification', 'toast', message)
+  return true
+}
 
 /**
  * Build a user-scoped localStorage key.
@@ -184,6 +203,7 @@ export function exitCloudProvider(): void {
  */
 export async function enableCloud(): Promise<void> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
+  if (notifyIfQuickDappWorkspaceLocked('Enabling cloud storage')) return
   if (cloudStore.isCloudMode) { return }
 
   // Show confirmation modal before enabling cloud mode
@@ -286,6 +306,7 @@ async function doEnableCloud(): Promise<void> {
  */
 export async function disableCloud(): Promise<void> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
+  if (notifyIfQuickDappWorkspaceLocked('Disabling cloud storage')) return
   if (!cloudStore.isCloudMode) { return }
 
   // Show confirmation modal before disabling cloud mode

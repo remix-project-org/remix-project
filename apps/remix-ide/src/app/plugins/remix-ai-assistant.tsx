@@ -20,7 +20,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: ['toolApprovalResponse', 'stopRequested'],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest']
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput']
 }
 
 export class RemixAIAssistant extends ViewPlugin {
@@ -314,6 +314,40 @@ export class RemixAIAssistant extends ViewPlugin {
         updatedAt: Date.now()
       }).catch(err => remixAILogger.error('Failed to persist conversation title:', err))
     }
+
+    this.generateConversationTitle(conversationId, prompt)
+  }
+
+  private async generateConversationTitle(conversationId: string, prompt: string) {
+    try {
+      const titlePrompt =
+        'Generate a concise, descriptive title (at most 6 words) for a chat that begins with the following user message. ' +
+        'Reply with ONLY the title — no quotes, no punctuation at the end, no preamble.\n\n' +
+        `User message: ${prompt}`
+      const raw = await this.call('remixAI', 'basic_prompt', titlePrompt)
+      if (typeof raw !== 'string') return
+
+      // Keep the first line, strip surrounding quotes/backticks, clamp length.
+      let title = raw.split('\n').map(l => l.trim()).find(Boolean) || ''
+      title = title.replace(/^["'`]+|["'`]+$/g, '').trim()
+      if (!title) return
+      if (title.length > 60) title = title.slice(0, 59).trimEnd() + '…'
+
+      console.log('[RemixAI] Generated conversation title:', title)
+      // Only apply if the conversation still exists.
+      if (!this.conversations.some(c => c.id === conversationId)) return
+
+      this.conversations = this.conversations.map(conv =>
+        conv.id === conversationId ? { ...conv, title, updatedAt: Date.now() } : conv
+      )
+      this.renderComponent()
+
+      if (this.storageManager) {
+        await this.storageManager.updateConversation(conversationId, { title, updatedAt: Date.now() })
+      }
+    } catch (err) {
+      remixAILogger.warn('Failed to generate AI conversation title:', err)
+    }
   }
 
   toggleHistorySidebar() {
@@ -463,6 +497,12 @@ export class RemixAIAssistant extends ViewPlugin {
   handleExternalMessage = (message: string) => {
     this.externalMessage = message
     this.renderComponent()
+  }
+
+  async submitChatInput() {
+    if (this.chatRef?.current) {
+      await this.chatRef.current.submitCurrentInput()
+    }
   }
 
   onReady() {

@@ -30,6 +30,7 @@ import './remix-ui-editor.css'
 import { circomLanguageConfig, circomTokensProvider } from './syntaxes/circom'
 import { noirLanguageConfig, noirTokensProvider } from './syntaxes/noir'
 import { sqlLanguageConfig, sqlTokensProvider } from './syntaxes/sql'
+import { subgraphLanguageConfig, subgraphTokensProvider } from './syntaxes/subgraph'
 import type { IPosition, IRange } from 'monaco-editor'
 import { GenerationParams } from '@remix/remix-ai-core';
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
@@ -128,6 +129,7 @@ export type DecorationsReturn = {
 
 export type PluginType = {
   on: (plugin: string, event: string, listener: any) => void
+  off: (plugin: string, event: string) => void
   call: (plugin: string, method: string, arg1?: any, arg2?: any, arg3?: any, arg4?: any) => any
 }
 
@@ -161,6 +163,7 @@ export type EditorAPIType = {
   getDiffSessions: () => Promise<DiffSession[]>
   setActiveDiff: (diffId: string) => Promise<boolean>
   closeDiffSession: (diffId: string) => Promise<boolean>
+  closeSplitView: () => void
 }
 
 /* eslint-disable-next-line */
@@ -171,6 +174,8 @@ export interface EditorUIProps {
   currentFile: string
   currentDiffFile: string
   isDiff: boolean
+  splitViewFile: string
+  splitViewContent: string
   events: {
     onBreakPointAdded: (file: string, line: number) => void
     onBreakPointCleared: (file: string, line: number) => void
@@ -421,6 +426,32 @@ export const EditorUI = (props: EditorUIProps) => {
     })
   }, [])
 
+  // Listen for code analysis popover setting changes
+  useEffect(() => {
+    const handleCodeAnalysisPopoverSettingChange = (isEnabled: boolean) => {
+      // If disabled, immediately close any open popover
+      if (!isEnabled) {
+        setTooltipData(null)
+        // Clear any pending hover timeouts
+        if (hoverTimeoutRef.current) {
+          clearTimeout(hoverTimeoutRef.current)
+          hoverTimeoutRef.current = null
+        }
+        lastHoverPositionRef.current = null
+      }
+    }
+
+    props.plugin.on('settings', 'codeAnalysisPopoverChoiceUpdated', handleCodeAnalysisPopoverSettingChange)
+
+    return () => {
+      try {
+        props.plugin.off('settings', 'codeAnalysisPopoverChoiceUpdated')
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [])
+
   /**
    * add widget ranges to disposedWidgets when decoratorListCollection changes,
    * this is used to restore the widgets when the file is changed.
@@ -524,6 +555,8 @@ export const EditorUI = (props: EditorUIProps) => {
       monacoRef.current.editor.setModelLanguage(file.model, 'remix-noir')
     } else if (file.language === 'sql') {
       monacoRef.current.editor.setModelLanguage(file.model, 'remix-sql')
+    } else if (file.language === 'subgraph') {
+      monacoRef.current.editor.setModelLanguage(file.model, 'remix-subgraph')
     } else if (file.language === 'md') {
       monacoRef.current.editor.setModelLanguage(file.model, 'markdown')
     }
@@ -936,6 +969,10 @@ export const EditorUI = (props: EditorUIProps) => {
     return await props.plugin.call('editor', 'closeDiffSession', diffId)
   }
 
+  props.editorAPI.closeSplitView = () => {
+    props.plugin.call('editor', 'closeSplitView')
+  }
+
   function removeAllWidgets() {
     const widgetIds = Object.keys(decoratorListCollection)
     if (widgetIds.length === 0) return
@@ -1015,8 +1052,8 @@ export const EditorUI = (props: EditorUIProps) => {
 
           // Start new timeout for this position
           hoverTimeoutRef.current = setTimeout(() => {
-            openContextualTooltip(position, editorRef, monacoRef, setTooltipData, trackMatomoEvent)
-          }, 1000) // 1.0 seconds
+            openContextualTooltip(position, editorRef, monacoRef, setTooltipData, trackMatomoEvent, props.plugin)
+          }, 2500) // 2.5 seconds
         }
       }
     })
@@ -1484,6 +1521,9 @@ export const EditorUI = (props: EditorUIProps) => {
     monacoRef.current = monaco
     props.setMonaco(monaco)
 
+    // Define and set the theme for this editor instance
+    defineAndSetTheme(monaco)
+
     // Initialize the inline completion provider
     // By creating the provider instance before registering it, Monaco now has a proper object to work with instead of null,
     // preventing the WeakMap error when processing keystrokes.
@@ -1498,6 +1538,7 @@ export const EditorUI = (props: EditorUIProps) => {
     monacoRef.current.languages.register({ id: 'remix-toml' })
     monacoRef.current.languages.register({ id: 'remix-noir' })
     monacoRef.current.languages.register({ id: 'remix-sql' })
+    monacoRef.current.languages.register({ id: 'remix-subgraph' })
 
     // Allow JSON schema requests
     monacoRef.current.languages.json.jsonDefaults.setDiagnosticsOptions({ enableSchemaRequest: true })
@@ -1584,6 +1625,9 @@ export const EditorUI = (props: EditorUIProps) => {
 
     monacoRef.current.languages.setMonarchTokensProvider('remix-sql', sqlTokensProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-sql', sqlLanguageConfig as any)
+
+    monacoRef.current.languages.setMonarchTokensProvider('remix-subgraph', subgraphTokensProvider as any)
+    monacoRef.current.languages.setLanguageConfiguration('remix-subgraph', subgraphLanguageConfig as any)
 
     monacoRef.current.languages.registerDefinitionProvider('remix-solidity', new RemixDefinitionProvider(props, monaco))
     monacoRef.current.languages.registerDocumentHighlightProvider('remix-solidity', new RemixHighLightProvider(props, monaco))
@@ -1930,26 +1974,83 @@ export const EditorUI = (props: EditorUIProps) => {
         className={props.isDiff ? "d-block" : "d-none"}
         data-id="diffEditor"
       />
-      <Editor
-        width="100%"
-        height={props.isDiff ? '0%' : '100%'}
-        path={props.currentFile}
-        language={editorModelsState[props.currentFile] ? editorModelsState[props.currentFile].language : 'text'}
-        onMount={handleEditorDidMount}
-        beforeMount={handleEditorWillMount}
-        options={{
-          glyphMargin: true,
-          readOnly: (!editorRef.current || !props.currentFile) && editorModelsState[props.currentFile]?.readOnly,
-          inlineSuggest: {
-            enabled: true
-          },
-          minimap: {
-            enabled: false
-          }
-        }}
-        defaultValue={defaultEditorValue}
-        className={props.isDiff ? "d-none" : "d-block"}
-      />
+      {/* Split View - shown when splitViewFile is set */}
+      {props.splitViewFile && !props.isDiff && (
+        <div className="d-flex flex-row w-100 h-100">
+          {/* Left editor */}
+          <div style={{ width: '50%', height: '100%' }}>
+            <Editor
+              width="100%"
+              height="100%"
+              path={props.currentFile}
+              language={editorModelsState[props.currentFile] ? editorModelsState[props.currentFile].language : 'text'}
+              onMount={handleEditorDidMount}
+              beforeMount={handleEditorWillMount}
+              keepCurrentModel={true}
+              options={{
+                glyphMargin: true,
+                readOnly: editorModelsState[props.currentFile]?.readOnly,
+                inlineSuggest: { enabled: true },
+                minimap: { enabled: false }
+              }}
+              defaultValue={defaultEditorValue}
+            />
+          </div>
+          {/* Right panel */}
+          <div style={{ width: '50%', height: '100%', borderLeft: '1px solid var(--secondary)' }} className="d-flex flex-column">
+            {/* Header */}
+            <div className="d-flex justify-content-between align-items-center px-2 py-1 border-bottom" style={{ backgroundColor: 'var(--secondary)', minHeight: '32px' }}>
+              <span className="small" style={{ color: 'var(--text)' }}>Query Results</span>
+              <button
+                className="btn btn-sm p-0"
+                onClick={() => props.editorAPI.closeSplitView()}
+                title="Close split view"
+                style={{ color: 'var(--text)', lineHeight: 1 }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            {/* Results editor */}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <Editor
+                width="100%"
+                height="100%"
+                path="inmemory://remix-splitview-results.json"
+                language="json"
+                value={props.splitViewContent}
+                beforeMount={handleEditorWillMount}
+                keepCurrentModel={true}
+                options={{
+                  glyphMargin: false,
+                  readOnly: true,
+                  inlineSuggest: { enabled: false },
+                  minimap: { enabled: false }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Regular single editor - shown when NOT in split view */}
+      {!props.splitViewFile && (
+        <Editor
+          width="100%"
+          height={props.isDiff ? '0%' : '100%'}
+          path={props.currentFile}
+          language={editorModelsState[props.currentFile] ? editorModelsState[props.currentFile].language : 'text'}
+          onMount={handleEditorDidMount}
+          beforeMount={handleEditorWillMount}
+          keepCurrentModel={true}
+          options={{
+            glyphMargin: true,
+            readOnly: (!editorRef.current || !props.currentFile) && editorModelsState[props.currentFile]?.readOnly,
+            inlineSuggest: { enabled: true },
+            minimap: { enabled: false }
+          }}
+          defaultValue={defaultEditorValue}
+          className={props.isDiff ? "d-none" : "d-block"}
+        />
+      )}
       {editorModelsState[props.currentFile]?.readOnly && (
         <span className="ps-4 h6 mb-0 w-100 alert-info position-absolute bottom-0 end-0">
           <i className="fas fa-lock-alt p-2"></i>

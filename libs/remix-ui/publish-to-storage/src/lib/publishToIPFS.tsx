@@ -3,8 +3,10 @@ import IpfsHttpClient from 'ipfs-http-client'
 let ipfsNodes = []
 
 export const publishToIPFS = async (contract, api) => {
-  ipfsNodes = [IpfsHttpClient({ host: 'ipfs.infura.io', port: 5001, protocol: 'https' })]
+  ipfsNodes = []
+
   if (api.config.get('settings/ipfs-url')) {
+    // User has configured a custom IPFS node (e.g., local IPFS)
     const auth = api.config.get('settings/ipfs-project-id')
       ? 'Basic ' + Buffer.from(api.config.get('settings/ipfs-project-id') + ':' + api.config.get('settings/ipfs-project-secret')).toString('base64')
       : null
@@ -12,11 +14,13 @@ export const publishToIPFS = async (contract, api) => {
       host: api.config.get('settings/ipfs-url'),
       port: api.config.get('settings/ipfs-port'),
       protocol: api.config.get('settings/ipfs-protocol'),
-      headers: {
-        Authorization: auth
-      }
+      headers: auth ? { Authorization: auth } : {}
     })
     ipfsNodes.push(ipfs)
+  } else {
+    // No custom IPFS configured - Infura requires authentication now
+    // Users should configure their own IPFS node or provide Infura credentials
+    throw new Error('No IPFS node configured. Please configure an IPFS URL in Settings > IPFS, or use a local IPFS node (e.g., localhost:5001).')
   }
 
   // gather list of files to publish
@@ -56,9 +60,8 @@ export const publishToIPFS = async (contract, api) => {
           return reject(new Error('Error while extracting the hash from metadata.json'))
         }
 
-        api
-          .readFile(fileName)
-          .then((content) => {
+        api.call('contentImport', 'resolve', fileName)
+          .then(({ content }) => {
             sources.push({
               content: content,
               hash: hash,
@@ -70,9 +73,25 @@ export const publishToIPFS = async (contract, api) => {
               filename: fileName
             })
           })
-          .catch((error) => {
-            console.log(error)
-            reject(error)
+          .catch(() => {
+            api
+              .readFile(fileName)
+              .then((content) => {
+                sources.push({
+                  content: content,
+                  hash: hash,
+                  filename: fileName
+                })
+                resolve({
+                  content: content,
+                  hash: hash,
+                  filename: fileName
+                })
+              })
+              .catch((error) => {
+                console.log(error)
+                reject(error)
+              })
           })
       })
     })

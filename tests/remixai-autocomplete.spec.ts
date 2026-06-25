@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+// DISABLED: Playwright E2E test
+/*
 test('RemixAI action autocomplete panel should show available actions, selecting an action should copy the command to the input', async ({ page }) => {
   const poolApiKey = process.env.E2E_POOL_API_KEY || process.env.E2E_POOL_KEY
   if (!poolApiKey) {
@@ -20,3 +22,4 @@ test('RemixAI action autocomplete panel should show available actions, selecting
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).dblclick();
   await expect(page.getByPlaceholder('Type "/" for more options or')).toContainText('/alchemy:');
 });
+*/

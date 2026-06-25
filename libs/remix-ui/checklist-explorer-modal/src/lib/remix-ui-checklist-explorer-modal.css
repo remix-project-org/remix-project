@@ -241,15 +241,6 @@
   }
 }
 
-/* ========== Selection state styling ========== */
-
-.sub-category-header[style*="box-shadow"] {
-  background-color: var(--bs-primary-bg-subtle) !important;
-  border-left: 4px solid var(--bs-primary);
-}
-
-/* ========== Search result highlighting ========== */
-
 .text-highlight {
   background: rgba(var(--bs-warning-rgb), 0.3);
   padding: 0.1rem 0.2rem;

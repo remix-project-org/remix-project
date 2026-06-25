@@ -51,6 +51,8 @@ export interface RemixUiRemixAiAssistantProps {
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
   sendChat: (prompt: string, isEditorCodeAnalysis?: boolean) => Promise<void>
+  /** Sends whatever text is currently in the prompt input (no-op if empty) */
+  submitCurrentInput: () => Promise<void>
   /** Clears local chat history (parent receives onMessagesChange([])) */
   clearChat: () => void
   /** Returns current chat history array */
@@ -87,6 +89,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [messages, setMessages] = useState<ChatMessage[]>(props.initialMessages || [])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
+  // sendPrompt is memoized without `messages` / `currentConversationId` in its
+  // deps, so its closure goes stale (e.g. after starting a new chat mid-session).
+  // Mirror the live values in a ref so the first-message detection stays correct.
+  const firstPromptStateRef = useRef({ count: (props.initialMessages || []).length, conversationId: props.currentConversationId })
+  useEffect(() => {
+    firstPromptStateRef.current = { count: messages.length, conversationId: props.currentConversationId }
+  }, [messages, props.currentConversationId])
   const [isThinking, setIsThinking] = useState(false)
   const [showModelSelector, setShowModelSelector] = useState(false)
   const [assistantChoice, setAssistantChoice] = useState<'openai' | 'mistralai' | 'anthropic' | 'ollama'>(
@@ -1647,9 +1656,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
       setMessages(prev => [...prev, userMsg])
 
-      // If this is the first message in the conversation, optimistically show it in the sidebar
-      if (messages.length === 0 && props.currentConversationId) {
-        props.plugin.onFirstPromptSent(props.currentConversationId, trimmed)
+      const { count: priorMessageCount, conversationId: activeConversationId } = firstPromptStateRef.current
+      if (priorMessageCount === 0 && activeConversationId) {
+        props.plugin.onFirstPromptSent(activeConversationId, trimmed)
       }
 
       /** append streaming chunks helper - clears tool status when content arrives */
@@ -2369,12 +2378,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       sendChat: async (prompt: string, isEditorCodeAnalysis?: boolean) => {
         await sendPrompt(prompt, isEditorCodeAnalysis)
       },
+      submitCurrentInput: async () => {
+        await handleSend()
+      },
       clearChat: () => {
         setMessages([])
       },
       getHistory: () => messages
     }),
-    [sendPrompt, messages]
+    [sendPrompt, handleSend, messages]
   )
   const chatHistoryRef = useRef<HTMLElement | null>(null)
 
@@ -2549,6 +2561,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     </div>
   )
 
+  const currentConversationTitle = props.conversations?.find(c => c.id === props.currentConversationId)?.title
+  const headerChatTitle = (currentConversationTitle && currentConversationTitle !== 'New Conversation')
+    ? currentConversationTitle
+    : messages.find(m => m.role === 'user')?.content
+
   return (
     props.isInitializing ? (
       <div
@@ -2607,7 +2624,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 showButton={showButton}
                 setShowButton={setShowButton}
                 theme={themeTracker?.name}
-                chatTitle={messages.find(m => m.role === 'user')?.content}
+                chatTitle={headerChatTitle}
                 isAiChatMaximized={isAiChatMaximized}
                 setIsAiChatMaximized={setIsAiChatMaximized}
               />
@@ -2726,7 +2743,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   showButton={showButton}
                   setShowButton={setShowButton}
                   theme={themeTracker?.name}
-                  chatTitle={messages.find(m => m.role === 'user')?.content}
+                  chatTitle={headerChatTitle}
                   isAiChatMaximized={isAiChatMaximized}
                   setIsAiChatMaximized={setIsAiChatMaximized}
                 />
