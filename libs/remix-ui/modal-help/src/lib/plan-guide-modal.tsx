@@ -174,7 +174,7 @@ const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName
               <div style={{ padding: 14, minHeight: 120, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {messages.length === 0 && !isTyping ? (
                   <div style={{ fontSize: 12, color: c.td, textAlign: 'center', padding: '28px 0', fontStyle: 'italic' }}>
-                    Click &ldquo;Demo&rdquo; on any feature above to see it in action
+                    Click on any feature above to see it in action and for more information about how it works.
                   </div>
                 ) : (
                   <>

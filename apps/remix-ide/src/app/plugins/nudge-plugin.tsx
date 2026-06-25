@@ -141,10 +141,10 @@ export class NudgePlugin extends Plugin {
 
   private _setupEventListeners(): void {
     // Auth state changes
-    this.on('auth', 'authStateChanged', (state: { isAuthenticated: boolean }) => {
+    this.on('auth', 'authStateChanged', (state: { isAuthenticated: boolean; isNewUser?: boolean; isFreshLogin?: boolean }) => {
       if (state?.isAuthenticated) {
         this._setAuthState(true)
-        this._checkBetaMembership()
+        this._checkBetaMembership({ isNewUser: state.isNewUser, isFreshLogin: !!state.isFreshLogin })
       } else {
         this._setAuthState(false)
       }
@@ -401,7 +401,11 @@ export class NudgePlugin extends Plugin {
     })
   }
 
-  private async _maybeShowFreeWelcome(): Promise<void> {
+  private async _maybeShowFreeWelcome({ isNewUser, isFreshLogin }: { isNewUser?: boolean; isFreshLogin?: boolean }): Promise<void> {
+    // Only ever on a real login/registration event, never a session restore.
+    if (!isFreshLogin) return
+    if (isNewUser === false) return
+
     let key = 'remix:free-welcome-shown'
     try {
       const user = await this.call('auth' as any, 'getUser')
@@ -409,11 +413,15 @@ export class NudgePlugin extends Plugin {
     } catch { /* no user id available — fall back to the shared key */ }
 
     try {
-      if (localStorage.getItem(key)) return
+      if (localStorage.getItem(key)) {
+        this.log('[NudgePlugin] free welcome already shown for', key)
+        return
+      }
     } catch {
       return // storage blocked — don't risk repeating the popup every load
     }
 
+    this.log('[NudgePlugin] free welcome: waiting for modals to close', { isNewUser, isFreshLogin })
     const clear = await this._waitForModalsToClose()
     if (!clear) return // still blocked after the cap — retry on a later session
 
@@ -434,7 +442,7 @@ export class NudgePlugin extends Plugin {
     this.engine_.fire('user:not_logged_in')
   }
 
-  private async _checkBetaMembership(): Promise<void> {
+  private async _checkBetaMembership(opts: { isNewUser?: boolean; isFreshLogin?: boolean } = {}): Promise<void> {
     try {
       const permissions = await this.call('auth' as any, 'getAllPermissions')
       this.log('User permissions:', permissions)
@@ -450,8 +458,8 @@ export class NudgePlugin extends Plugin {
         // Non-beta logged-in user — check if they're on the free plan
         // and show an upgrade nudge with live discount copy.
         this._checkFreePlanNudge().catch(() => {})
-        // First sign-in: introduce the free features via the help guide.
-        this._maybeShowFreeWelcome().catch(() => {})
+        // First registration only: introduce the free features via the help guide.
+        this._maybeShowFreeWelcome(opts).catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check

@@ -484,7 +484,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
         // OTP flow bypasses that method entirely.
         if (plugin && typeof plugin.call === 'function') {
           try {
-            await plugin.call('auth', 'notifyEmailOtpLogin', data.user, data.token)
+            await plugin.call('auth', 'notifyEmailOtpLogin', data.user, data.token, data.isNewUser)
           } catch (e) {
             loginModalLogger.warn('[LoginModal] Failed to notify auth plugin of email OTP login:', e)
           }

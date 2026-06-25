@@ -763,7 +763,7 @@ export class AuthPlugin extends Plugin {
       }
 
       // Wait for message from popup
-      const result = await new Promise<{ user: AuthUser; accessToken: string; refreshToken: string; providerToken?: string }>((resolve, reject) => {
+      const result = await new Promise<{ user: AuthUser; accessToken: string; refreshToken: string; providerToken?: string; isNewUser?: boolean }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           cleanup()
           reject(new Error('Login timeout'))
@@ -793,7 +793,8 @@ export class AuthPlugin extends Plugin {
               user: event.data.user,
               accessToken: event.data.accessToken,
               refreshToken: event.data.refreshToken,
-              providerToken: event.data.providerToken
+              providerToken: event.data.providerToken,
+              isNewUser: event.data.isNewUser
             })
           } else if (event.data.type === 'sso-auth-error') {
             cleanup()
@@ -870,11 +871,12 @@ export class AuthPlugin extends Plugin {
       // Schedule proactive refresh based on access token expiry
       this.scheduleRefresh(result.accessToken)
 
-      // Emit auth state change
       this.emit('authStateChanged', {
         isAuthenticated: true,
         user: result.user,
-        token: result.accessToken
+        token: result.accessToken,
+        isNewUser: result.isNewUser,
+        isFreshLogin: true
       })
       this.call('nudgePlugin', 'fire', 'user:logged_in')
 
@@ -1381,7 +1383,7 @@ export class AuthPlugin extends Plugin {
    *   2. Emit `authStateChanged` so CloudProvider (and others) react
    *   3. Fetch credits
    */
-  async notifyEmailOtpLogin(user: any, accessToken: string): Promise<void> {
+  async notifyEmailOtpLogin(user: any, accessToken: string, isNewUser?: boolean): Promise<void> {
     this.scheduleRefresh(accessToken)
 
     const refreshToken = localStorage.getItem('remix_refresh_token')
@@ -1392,7 +1394,9 @@ export class AuthPlugin extends Plugin {
     this.emit('authStateChanged', {
       isAuthenticated: true,
       user,
-      token: accessToken
+      token: accessToken,
+      isNewUser,
+      isFreshLogin: true
     })
 
     this.refreshCredits().catch(console.error)
@@ -1857,11 +1861,12 @@ export class AuthPlugin extends Plugin {
       // Schedule proactive token refresh
       this.scheduleRefresh(result.token)
 
-      // Emit auth state changed
       this.emit('authStateChanged', {
         isAuthenticated: true,
         user: result.user,
-        token: result.token
+        token: result.token,
+        isNewUser: result.isNewUser,
+        isFreshLogin: true
       })
 
       // If launched via desktop bridge, send tokens back to the desktop app.
@@ -1997,12 +2002,12 @@ export class AuthPlugin extends Plugin {
       }
 
       console.log('[Base] Login successful!')
-
-      // Emit auth state changed
       this.emit('authStateChanged', {
         isAuthenticated: true,
         user: result.user,
-        token: result.token
+        token: result.token,
+        isNewUser: result.isNewUser,
+        isFreshLogin: true
       })
 
       // If launched via desktop bridge, send tokens back to the desktop app.
