@@ -20,7 +20,7 @@ export const FirstTimeUserCard: React.FC<FirstTimeUserCardProps> = ({ plugin }) 
     await plugin.call('menuicons', 'select', 'remixaiassistant')
     await plugin.call('remixaiassistant', 'newConversation')
     setTimeout(() => {
-      plugin.call('remixaiassistant', 'chatPipe', `Why Ethereum and decentralized applications are important for the future of technology and society. Give me a concise and clear explanation. Provide use cases. Propose some areas of discussion, then stop and let me ask you more questions about it.`)
+      plugin.call('remixaiassistant', 'chatPipe', `Why Ethereum and decentralized applications are important for the future of technology and society. Give me a concise and clear explanation. Provide use cases. Use the exact spelling "Ethereum" throughout. Propose some areas of discussion, then stop and let me ask you more questions about it.`)
     }, 200)
   }
 
