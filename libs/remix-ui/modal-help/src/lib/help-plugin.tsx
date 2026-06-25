@@ -259,15 +259,19 @@ const FREE_DEMOS: PlanGuideDemo[] = [
     key: 'quickdapp', name: 'QuickDApp Generation', color: '#6bdb8a',
     desc: 'Generate a frontend wired to your contract from a prompt (hosting is a paid add-on).',
     prompt: 'Generate a frontend dapp for my deployed contract with connect-wallet and the main calls.',
-    mockReply: 'Generating your dapp…\n\n  • Wallet connect\n  • Read/write forms per function\n  • Vite + React scaffold\n\n' +
-      'Frontend created in <span class="plg-hl">/frontend</span>. Run it locally, or upgrade to host it.'
+    mockReply: `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/create-dapp.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
   },
   {
     key: 'skills', name: 'Basic AI Skills', color: '#9b7dff',
     desc: 'Load curated basic skills so the assistant follows proven workflows.',
     prompt: 'Load the available basic skills and apply one that fits writing a secure ERC-721.',
-    mockReply: 'Added the selected skill to <span class="plg-hl">skills/</span>.\n\n' +
-      'I\'ll follow its checklist as we build your ERC-721 — starting with access control and safe minting.'
+    mockReply: `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/load-skills.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
   },
   {
     key: 'models', name: 'Usage-based Models', color: '#2fbfb1',
@@ -285,7 +289,10 @@ const STARTER_DEMOS: PlanGuideDemo[] = [
   {
     key: 'skills', name: 'Full AI Skills', color: '#6bdb8a',
     desc: 'Starter unlocks the full skills library — load and import any advanced skill.',
-    mockReply: 'You now have access to the <span class="plg-hl">full AI skills library</span>. Load and import any advanced skill into <span class="plg-hl">skills/</span>, and the assistant will follow its expert workflow.'
+    mockReply: `You now have access to the <span class="plg-hl">full AI skills library</span>. Load and import any advanced skill into <span class="plg-hl">skills/</span>, and the assistant will follow its expert workflow. <video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/load-skills.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
   },
   {
     key: 'codehelper', name: 'RemixAI Code Helper', color: '#5b9cf5',
@@ -309,12 +316,19 @@ const STARTER_DEMOS: PlanGuideDemo[] = [
   {
     key: 'ens', name: 'Name with ENS/Enscribe', color: '#f0a030',
     desc: 'Give your deployed contracts a human-readable ENS / Enscribe name.',
-    mockReply: 'You now have access to <span class="plg-hl">ENS / Enscribe</span> naming. Give your deployed contracts a human-readable name like <span class="plg-hl">mytoken.eth</span> so they\'re reachable by name instead of a raw address.'
+    mockReply: `You now have access to <span class="plg-hl">ENS / Enscribe</span> naming. Give your deployed contracts a human-readable name like <span class="plg-hl">mytoken.eth</span> so they\'re reachable by name instead of a raw address.
+    <video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/ens-registration.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
   },
   {
     key: 'cloud', name: 'Cloud Workspaces', color: '#5b9cf5',
     desc: 'Sync your projects to the cloud and open any workspace from any device.',
-    mockReply: 'You now have access to <span class="plg-hl">cloud workspaces</span>. Sync your projects to your cloud account and open any workspace from any device — sign in anywhere and it\'ll be waiting for you.'
+    mockReply: `You now have access to <span class="plg-hl">cloud workspaces</span>. Sync your projects to your cloud account and open any workspace from any device — sign in anywhere and it\'ll be waiting for you.<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/cloud-workspace.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
   }
 ]
 
@@ -323,19 +337,19 @@ const PRO_DEMOS: PlanGuideDemo[] = [
     key: 'auditor', name: 'Auditor Agent', color: '#f0a030',
     desc: 'The RemixAI auditor agent reviews your contract against curated security checklists.',
     prompt: '<span class="plg-hl">/audit</span>  a contract — audit the open file against the security checklists in audits/.',
-    mockReply: 'Auditing <span class="plg-hl">Token.sol</span> against the selected checklist…\n\n' +
-      '  • Reentrancy: <span class="plg-hl">pass</span>\n  • Access control: 1 finding (unprotected `setOwner`)\n\n' +
-      'Full report saved to <span class="plg-hl">audit_reports/</span>.'
+    mockReply: `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/audit-contract.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>` 
   },
   {
     key: 'gas', name: 'Gas Consumption Checks', color: '#6bdb8a',
     desc: 'Profile your contract and get concrete gas savings with before/after numbers.',
     prompt: 'Run a gas-consumption check on the active contract and suggest concrete savings with estimates.',
-    mockReply: 'Profiling <span class="plg-hl">Token.sol</span> for gas…\n\n' +
-      '  • Cache `storage` reads in loops → <span class="plg-hl">−2,100 gas</span>\n' +
-      '  • Use `calldata` for read-only args → <span class="plg-hl">−480 gas</span>\n' +
-      '  • Pack two `uint128` fields into one slot → <span class="plg-hl">−20,000 gas</span> per write\n\n' +
-      'Apply all, or pick one to start?'
+    mockReply: `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/gas-optimization.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
   },
   {
     key: 'connectors', name: 'TheGraph / Etherscan / Alchemy', color: '#5b9cf5',
