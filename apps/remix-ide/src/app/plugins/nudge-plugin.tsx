@@ -288,8 +288,8 @@ export class NudgePlugin extends Plugin {
       })
       this.engine_.fire('user:plan_upgraded')
 
-      // Open the plan guide right after checkout — it shows the user what their
-      // new plan unlocks.
+      // Resolve which plan guide to open once the user dismisses the
+      // post-checkout success screen.
       this.call('auth' as any, 'getAllPermissions')
         .then((perms: any) => {
           this._pendingPlanGuide = hasPermFeature(perms, Features.AI_AUDITOR)
@@ -297,20 +297,17 @@ export class NudgePlugin extends Plugin {
             : hasPermFeature(perms, Features.AI_SOLCODER)
               ? 'starter-guide'
               : null
-          if (this._pendingPlanGuide) {
-            setTimeout(() => { this.call('planManager' as any, 'close').catch(() => { /* already closed */ }) }, 1800)
-          }
         })
         .catch(() => { /* permissions unavailable — skip the guide */ })
     })
 
-    // When the checkout/plan panel closes after an upgrade, open the guide
-    // associated with the new plan.
+    this.on('planManager' as any, 'checkoutResultChanged', (result: any) => {
+      if (!result) this._openPendingPlanGuide()
+    })
+
+    // …or when the user closes the plan panel outright after an upgrade.
     this.on('planManager' as any, 'closed', () => {
-      const topic = this._pendingPlanGuide
-      if (!topic) return
-      this._pendingPlanGuide = null
-      this.call('helpPlugin' as any, 'showModal', topic).catch(() => { /* help plugin unavailable */ })
+      this._openPendingPlanGuide()
     })
 
     // Credits updated — check if balance is low and nudge to top up
@@ -376,6 +373,27 @@ export class NudgePlugin extends Plugin {
     }
   }
 
+  private _openPendingPlanGuide(): void {
+    const topic = this._pendingPlanGuide
+    if (!topic) return
+    this._pendingPlanGuide = null
+    this.call('helpPlugin' as any, 'showModal', topic).catch(() => { /* help plugin unavailable */ })
+  }
+
+  private _maybeShowFreeWelcome(): void {
+    const KEY = 'remix:free-welcome-shown'
+    try {
+      if (localStorage.getItem(KEY)) return
+    } catch {
+      return
+    }
+    setTimeout(() => {
+      this.call('helpPlugin' as any, 'showModal', 'free-guide')
+        .then(() => { try { localStorage.setItem(KEY, '1') } catch { /* storage blocked */ } })
+        .catch(() => { })
+    }, 2500)
+  }
+
   private _setAuthState(isAuthenticated: boolean): void {
     if (isAuthenticated) {
       this.engine_.unfire('user:not_logged_in')
@@ -404,6 +422,8 @@ export class NudgePlugin extends Plugin {
         // Non-beta logged-in user — check if they're on the free plan
         // and show an upgrade nudge with live discount copy.
         this._checkFreePlanNudge().catch(() => {})
+        // First sign-in: introduce the free features via the help guide.
+        this._maybeShowFreeWelcome()
       }
     } catch {
       // Permissions not available — skip beta check

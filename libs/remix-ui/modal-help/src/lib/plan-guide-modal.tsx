@@ -140,7 +140,7 @@ const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName
           <div style={{ padding: '20px 24px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 18, fontWeight: 500, color: c.tx, display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
               <i className="fas fa-circle-check" style={{ color: accent, fontSize: 16 }}></i>
-              {planName} guide
+              {planName} Guide
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5, textTransform: 'uppercase', color: accent, background: `${accent}1f`, padding: '3px 10px', borderRadius: 5, border: `0.5px solid ${accent}40` }}>
                 Your plan
               </span>
@@ -165,7 +165,7 @@ const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName
             <div style={{ margin: '0 24px 20px', borderRadius: 12, background: c.s1, border: '0.5px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.04)', fontSize: 12, fontWeight: 500, color: c.tm }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.gn, animation: 'plgDot 2s ease-in-out infinite' }} />
-                RemixAI assistant
+                RemixAI Assistant
               </div>
               <div style={{ padding: 14, minHeight: 120, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {messages.length === 0 && !isTyping ? (

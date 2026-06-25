@@ -657,7 +657,7 @@ const McpHelpModal: React.FC<McpHelpModalProps> = ({
                     animation: "mcpDotPulse 2s ease-in-out infinite",
                   }}
                 />
-                RemixAI assistant
+                RemixAI Assistant
               </div>
 
               {/* Chat body */}

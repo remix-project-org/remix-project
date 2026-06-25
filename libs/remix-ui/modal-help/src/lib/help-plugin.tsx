@@ -5,7 +5,7 @@ import { useAuth } from '@remix-ui/app'
 import { trackMatomoEvent as baseTrackMatomoEvent, HelpEvent, MatomoEvent, Features } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 
-export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell' | 'starter-guide' | 'pro-guide'
+export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell' | 'free-guide' | 'starter-guide' | 'pro-guide'
 
 /**
  * Survey users complete to unlock their 50% off Pro reward. Kept here
@@ -210,20 +210,31 @@ const TOPICS: TopicDef[] = [
     tag: 'Reward'
   },
   {
-    // Plan-gated: visible to anyone whose plan includes the AI assistant.
-    id: 'starter-guide',
-    title: 'Get started with Starter',
-    description: 'Make the most of your plan — AI chat, one-click compile fixes, and ready-made skills.',
-    icon: 'fas fa-seedling',
-    color: '#5b9cf5',
-    tag: 'Starter',
+    // The RemixAI assistant is the free baseline, so this shows for everyone
+    // signed in with the assistant.
+    id: 'free-guide',
+    title: 'What you get for free',
+    description: 'RemixAI Assistant, QuickDApp generation, basic AI skills, usage-based models, and bring-your-own API key.',
+    icon: 'fas fa-gift',
+    color: '#6bdb8a',
+    tag: 'Free',
     requiredFeatures: [Features.AI_SOLCODER]
   },
   {
-    // Plan-gated: visible to plans that include the security auditor (Pro).
+    // "Full AI Skills" (advanced skills) marks Starter and up.
+    id: 'starter-guide',
+    title: 'Get started with Starter',
+    description: 'Full AI skills, the Code Helper, Web Search & OpenZeppelin connectors, local LLMs (Ollama), ENS/Enscribe naming, and cloud workspaces.',
+    icon: 'fas fa-seedling',
+    color: '#5b9cf5',
+    tag: 'Starter',
+    requiredFeatures: [Features.SKILLS_ADVANCED]
+  },
+  {
+    // The auditor agent is Pro-only.
     id: 'pro-guide',
     title: 'Unlock Pro features',
-    description: 'Sophisticated agents, advanced commands, security audits, gas optimisation, premium models, and live on-chain data.',
+    description: 'Everything in Starter, plus the auditor agent, gas-consumption checks, The Graph / Etherscan / Alchemy connectors, and unlimited dapp hosting.',
     icon: 'fas fa-crown',
     color: '#f0a030',
     tag: 'Pro',
@@ -235,10 +246,10 @@ const TOPICS: TopicDef[] = [
 
 import type { PlanGuideDemo } from './plan-guide-modal'
 
-const STARTER_DEMOS: PlanGuideDemo[] = [
+const FREE_DEMOS: PlanGuideDemo[] = [
   {
-    key: 'chat', name: 'AI chat', color: '#5b9cf5',
-    desc: 'Ask anything — generate contracts, explain code, or get Solidity help.',
+    key: 'assistant', name: 'RemixAI Assistant', color: '#5b9cf5',
+    desc: 'Ask anything — generate contracts, explain code, and fix errors right in the editor.',
     example: '"Write an ERC-20 with a capped supply"',
     prompt: 'Write an ERC-20 token with a capped supply and an owner-only mint function.',
     mockReply: 'Drafting <span class="plg-hl">CappedToken.sol</span>…\n\n' +
@@ -246,47 +257,98 @@ const STARTER_DEMOS: PlanGuideDemo[] = [
       'Created the file in your workspace — hit Compile to try it.'
   },
   {
-    key: 'compile', name: 'Compile & fix', color: '#2fbfb1',
-    desc: 'Let the assistant compile the active file and fix any errors it finds.',
-    example: '"/compile fix the errors in this file"',
-    prompt: '/compile fix any errors in the active file',
-    mockReply: 'Compiling <span class="plg-hl">MyContract.sol</span>…\n\n' +
-      'Found 1 error: missing visibility on `transfer`.\nApplied fix → recompiled <span class="plg-hl">successfully</span>.'
+    key: 'quickdapp', name: 'QuickDApp Generation', color: '#6bdb8a',
+    desc: 'Generate a frontend wired to your contract from a prompt (hosting is a paid add-on).',
+    example: '"Create a dapp for my contract"',
+    prompt: 'Generate a frontend dapp for my deployed contract with connect-wallet and the main calls.',
+    mockReply: 'Generating your dapp…\n\n  • Wallet connect\n  • Read/write forms per function\n  • Vite + React scaffold\n\n' +
+      'Frontend created in <span class="plg-hl">/frontend</span>. Run it locally, or upgrade to host it.'
   },
   {
-    key: 'skills', name: 'Ready-made skills', color: '#6bdb8a',
-    desc: 'Load a curated skill so the assistant follows a proven workflow.',
+    key: 'skills', name: 'Basic AI Skills', color: '#9b7dff',
+    desc: 'Load curated basic skills so the assistant follows proven workflows.',
     example: '"Load a skill, then use it"',
-    prompt: 'Load the available skills and apply one that fits writing a secure ERC-721.',
+    prompt: 'Load the available basic skills and apply one that fits writing a secure ERC-721.',
     mockReply: 'Added the selected skill to <span class="plg-hl">skills/</span>.\n\n' +
       'I\'ll follow its checklist as we build your ERC-721 — starting with access control and safe minting.'
   },
   {
-    key: 'explain', name: 'Explain code', color: '#9b7dff',
-    desc: 'Get a line-by-line walkthrough of any contract in your workspace.',
-    example: '"Explain what this contract does"',
-    prompt: 'Explain what the active contract does, function by function, and flag any risks.',
-    mockReply: 'Walking through <span class="plg-hl">Vault.sol</span>…\n\n' +
-      '  • `deposit()` — credits the sender\n  • `withdraw()` — ⚠️ external call before state update (reentrancy risk)\n\n' +
-      'Want me to apply the checks-effects-interactions fix?'
+    key: 'models', name: 'Usage-based Models', color: '#2fbfb1',
+    desc: 'Pay-as-you-go access to AI models — you only pay for what you use.',
+    example: '"What does this model cost?"',
+    prompt: 'Explain how usage-based pricing works for the AI models on the free plan.',
+    mockReply: 'On Free, models are <span class="plg-hl">usage-based</span> — you\'re billed per request from your credit balance, with no monthly fee. Upgrade for a monthly credit gift.'
+  },
+  {
+    key: 'apikey', name: 'Bring Your Own API Keys', color: '#f0a030',
+    desc: 'Plug in your own provider API key to use the assistant with your own account.',
+    example: '"Use my own API key"',
+    prompt: 'How do I configure RemixAI to use my own provider API key?',
+    mockReply: 'Open <span class="plg-hl">RemixAI settings</span> → API keys, paste your provider key, and the assistant will route requests through your account.'
+  }
+]
+
+const STARTER_DEMOS: PlanGuideDemo[] = [
+  {
+    key: 'skills', name: 'Full AI Skills', color: '#6bdb8a',
+    desc: 'Starter unlocks the full skills library — load and import any advanced skill.',
+    example: '"Load the advanced skills"',
+    prompt: 'Load the full advanced skills library and apply the one best suited to my contract.',
+    mockReply: 'Full skills access enabled. Added the selected advanced skill to <span class="plg-hl">skills/</span> — I\'ll follow its expert workflow from here.'
+  },
+  {
+    key: 'codehelper', name: 'RemixAI Code Helper', color: '#5b9cf5',
+    desc: 'A focused coding helper that writes, refactors, and fixes Solidity alongside you.',
+    example: '"Refactor this function for clarity"',
+    prompt: 'Refactor the selected function for readability and add NatSpec comments.',
+    mockReply: 'Refactored <span class="plg-hl">transfer()</span> — extracted checks, added NatSpec, kept behaviour identical. Recompiled cleanly.'
+  },
+  {
+    key: 'connectors', name: 'Web Search & OpenZeppelin', color: '#9b7dff',
+    desc: 'Starter connectors: live Web Search and the OpenZeppelin library, built in.',
+    example: '"Scaffold an ERC20 with OpenZeppelin"',
+    prompt: 'Use the OpenZeppelin connector to scaffold a mintable, pausable ERC20, and web-search the latest best practices.',
+    mockReply: 'Pulling from the <span class="plg-hl">OpenZeppelin</span> connector…\n\n' +
+      'Generated `Token.sol` (ERC20 + ERC20Pausable + Ownable). Web Search confirms it matches current OZ v5 guidance.'
+  },
+  {
+    key: 'ollama', name: 'Local & Private LLMs', color: '#2fbfb1',
+    desc: 'Run models locally and privately with Ollama or llama-server — your code never leaves your machine.',
+    example: '"Use my local Ollama model"',
+    prompt: 'Connect to my local Ollama instance and use it for this session.',
+    mockReply: 'Connected to <span class="plg-hl">Ollama</span> on localhost. The assistant now runs fully locally — private and offline-capable.'
+  },
+  {
+    key: 'ens', name: 'Name with ENS/Enscribe', color: '#f0a030',
+    desc: 'Give your deployed contracts a human-readable ENS / Enscribe name.',
+    example: '"Register my contract to ENS"',
+    prompt: 'Register my deployed contract address to an ENS name I own using Enscribe.',
+    mockReply: 'Linking <span class="plg-hl">mytoken.eth</span> → 0x9a2…3b1 via Enscribe…\n\nResolver record set — your contract is now reachable by name.'
+  },
+  {
+    key: 'cloud', name: 'Cloud Workspaces', color: '#5b9cf5',
+    desc: 'Sync your projects to the cloud and open any workspace from any device.',
+    example: '"Save this workspace to the cloud"',
+    prompt: 'Sync my current workspace to the cloud so I can open it from another device.',
+    mockReply: 'Workspace synced to your <span class="plg-hl">cloud account</span>. Sign in anywhere and it\'ll be waiting for you.'
   }
 ]
 
 const PRO_DEMOS: PlanGuideDemo[] = [
   {
-    key: 'audit', name: 'Security audit', color: '#f0a030',
-    desc: 'Run the auditor against your contract using curated security checklists.',
-    example: '"/audit this contract"',
+    key: 'auditor', name: 'Auditor Agent', color: '#f0a030',
+    desc: 'The RemixAI auditor agent reviews your contract against curated security checklists.',
+    example: '"/audit the current contract in the editor"',
     prompt: '/audit a contract — audit the open file against the security checklists in audits/.',
     mockReply: 'Auditing <span class="plg-hl">Token.sol</span> against the selected checklist…\n\n' +
       '  • Reentrancy: <span class="plg-hl">pass</span>\n  • Access control: 1 finding (unprotected `setOwner`)\n\n' +
       'Full report saved to <span class="plg-hl">audit_reports/</span>.'
   },
   {
-    key: 'gas', name: 'Gas optimisation', color: '#6bdb8a',
+    key: 'gas', name: 'Gas Consumption Checks', color: '#6bdb8a',
     desc: 'Profile your contract and get concrete gas savings with before/after numbers.',
-    example: '"/gas-audit this contract"',
-    prompt: 'Run a gas optimization audit on the active contract and suggest concrete savings with estimates.',
+    example: '"/gas-audit the current contract in the editor"',
+    prompt: 'Run a gas-consumption check on the active contract and suggest concrete savings with estimates.',
     mockReply: 'Profiling <span class="plg-hl">Token.sol</span> for gas…\n\n' +
       '  • Cache `storage` reads in loops → <span class="plg-hl">−2,100 gas</span>\n' +
       '  • Use `calldata` for read-only args → <span class="plg-hl">−480 gas</span>\n' +
@@ -294,41 +356,30 @@ const PRO_DEMOS: PlanGuideDemo[] = [
       'Apply all, or pick one to start?'
   },
   {
-    key: 'agents', name: 'Sophisticated agents', color: '#2fbfb1',
-    desc: 'Pro enables specialized subagents — Comprehensive Auditor, Gas Optimizer, Solidity Engineer — that coordinate multi-step work for you.',
-    example: '"Do a full review of my contract"',
-    prompt: 'Run a comprehensive review of my contract — coordinate the security, gas, and code-quality agents.',
-    mockReply: 'Spinning up subagents…\n\n' +
-      '  • <span class="plg-hl">Comprehensive Auditor</span> — orchestrating\n' +
-      '  • Security Auditor → 2 findings\n  • Gas Optimizer → 3 savings\n  • Code Reviewer → 1 nit\n\n' +
-      'Merging everything into one prioritized report.'
-  },
-  {
-    key: 'commands', name: 'Advanced commands', color: '#e86baf',
-    desc: 'Pro unlocks advanced slash commands. Type “/” in the chat to reach them.',
-    example: '"/audit", "/gas-audit"',
-    prompt: '/audit a contract',
-    mockReply: 'Advanced commands are now enabled:\n\n' +
-      '  • <span class="plg-hl">/audit</span> — security audit against checklists\n' +
-      '  • <span class="plg-hl">/gas-audit</span> — gas optimisation pass\n' +
-      '  • <span class="plg-hl">/load-audit-checklist</span> — load curated checklists\n\n' +
-      'Just type “/” in the assistant to use them.'
-  },
-  {
-    key: 'models', name: 'Premium models', color: '#9b7dff',
-    desc: 'Switch to Claude Opus / Sonnet for deeper reasoning on complex contracts.',
-    example: '"Use the strongest model"',
-    prompt: 'Switch to the most capable model and review my contract architecture for design flaws.',
-    mockReply: 'Now using <span class="plg-hl">Claude Opus</span>.\n\n' +
-      'Reviewing architecture… your proxy pattern mixes storage layouts — I\'ll outline a safe upgrade path.'
-  },
-  {
-    key: 'mcp', name: 'Live on-chain data', color: '#5b9cf5',
-    desc: 'Query Etherscan, Alchemy and The Graph directly from the assistant.',
+    key: 'connectors', name: 'TheGraph / Etherscan / Alchemy', color: '#5b9cf5',
+    desc: 'Pro adds The Graph, Etherscan and Alchemy — live on-chain data and verification in chat.',
     example: '"Verify my contract on Etherscan"',
     prompt: 'Use Etherscan to verify the contract I just deployed on Sepolia and show the status.',
     mockReply: 'Connecting to <span class="plg-hl">Etherscan (Sepolia)</span>…\n\n' +
-      'Contract verified ✓ — source matches, compiler 0.8.20, MIT.'
+      'Contract verified ✓ — source matches, compiler 0.8.20, MIT.\n\nThe Graph and Alchemy connectors are ready too — just ask.'
+  },
+  {
+    key: 'hosting', name: 'Unlimited Dapp Hosting', color: '#9b7dff',
+    desc: 'Generate and host your dapps with QuickDApp — unlimited hosting on Pro.',
+    example: '"Host this dapp"',
+    prompt: 'Host my generated dapp and give me a shareable URL.',
+    mockReply: 'Deploying your frontend…\n\nLive at <span class="plg-hl">https://your-dapp.remix.host</span>\n\nPro includes <span class="plg-hl">unlimited hosting</span> — ship as many dapps as you like.'
+  },
+  {
+    key: 'commands', name: 'Advanced Commands', color: '#e86baf',
+    desc: 'Pro unlocks advanced slash commands for the auditor and gas agents. Type “/” to reach them.',
+    example: '"/audit", "/gas-audit"',
+    prompt: '/audit a contract',
+    mockReply: 'Advanced commands are enabled:\n\n' +
+      '  • <span class="plg-hl">/audit</span> — security audit against checklists\n' +
+      '  • <span class="plg-hl">/gas-audit</span> — gas-consumption check\n' +
+      '  • <span class="plg-hl">/load-audit-checklist</span> — load curated checklists\n\n' +
+      'Just type “/” in the assistant to use them.'
   }
 ]
 
@@ -359,6 +410,18 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
     baseTrackMatomoEvent(plugin, event)
   }
 
+  // The modal overlay must render independently of the topic cards: a guide
+  // can be auto-opened (e.g. the post-login free guide or a post-upgrade plan
+  // guide) before the user's features have loaded, when the panel would
+  // otherwise show its locked/empty state.
+  const modalOverlay = activeModal && (
+    <HelpModalOverlay
+      topic={activeModal}
+      plugin={plugin}
+      onClose={() => plugin.closeModal()}
+    />
+  )
+
   if (visibleTopics.length === 0) {
     return (
       <div className="help-panel help-panel--locked">
@@ -369,6 +432,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
         <p className="help-panel-locked-desc">
           Sign in with a paid plan or beta account to unlock guides and feature walkthroughs.
         </p>
+        {modalOverlay}
       </div>
     )
   }
@@ -425,13 +489,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
       </div>
 
       {/* ── Modal overlay ── */}
-      {activeModal && (
-        <HelpModalOverlay
-          topic={activeModal}
-          plugin={plugin}
-          onClose={() => plugin.closeModal()}
-        />
-      )}
+      {modalOverlay}
     </div>
   )
 }
@@ -528,6 +586,18 @@ const HelpModalOverlay: React.FC<{
           }
         }}
       />
+    case 'free-guide':
+      return (
+        <PlanGuideModal
+          open
+          onClose={onClose}
+          onShowReel={showReel}
+          planName="Remix Free"
+          accent="#6bdb8a"
+          intro="Welcome to Remix! On the free plan you get the RemixAI assistant, QuickDApp frontend generation, basic AI skills, usage-based models, and the option to bring your own API key. Click any feature to see it in action."
+          demos={FREE_DEMOS}
+        />
+      )
     case 'starter-guide':
       return (
         <PlanGuideModal
@@ -536,7 +606,7 @@ const HelpModalOverlay: React.FC<{
           onShowReel={showReel}
           planName="Remix Starter"
           accent="#5b9cf5"
-          intro="Your Starter plan unlocks the RemixAI assistant. Click any feature below to see how to put it to work."
+          intro="Your Starter plan adds full AI skills, the Code Helper, Web Search & OpenZeppelin connectors, local LLMs via Ollama, ENS/Enscribe naming, cloud workspaces, and a 40,000-credit ($4) gift. Try a demo of each below."
           demos={STARTER_DEMOS}
         />
       )
@@ -548,7 +618,7 @@ const HelpModalOverlay: React.FC<{
           onShowReel={showReel}
           planName="Remix Pro"
           accent="#f0a030"
-          intro="You're on Pro. More sophisticated agents and advanced commands are now enabled — along with the security auditor, gas optimisation, premium models, and live on-chain data. Try a demo of each below."
+          intro="You're on Pro — everything in Starter, plus the RemixAI auditor agent, gas-consumption checks, The Graph / Etherscan / Alchemy connectors, unlimited dapp hosting, and a 120,000-credit ($12) gift. Try a demo of each below."
           demos={PRO_DEMOS}
         />
       )
