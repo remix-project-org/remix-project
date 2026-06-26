@@ -283,7 +283,6 @@ export const openContextualTooltip = async (
       // Default to true if undefined, but respect explicit false
       const shouldShow = isEnabled !== false
       if (!shouldShow) {
-        console.log('[CodeAnalysisPopover] Disabled in settings, not showing popover')
         return
       }
     } catch (error) {
@@ -522,9 +521,6 @@ Use empty array if no relevant trusted docs.`
         try {
           let jsonStr = response.result || response
 
-          // Log the raw response for debugging
-          console.log('[TooltipPopOver] Raw AI response:', jsonStr)
-
           // Try to extract JSON from the response
           const jsonMatch = jsonStr.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
@@ -535,7 +531,6 @@ Use empty array if no relevant trusted docs.`
 
           // Validate required fields
           if (!parsedData.title || !parsedData.body || !parsedData.risk || !parsedData.riskLabel) {
-            console.warn('[TooltipPopOver] Missing required fields:', parsedData)
             throw new Error('Missing required fields in response')
           }
 
@@ -549,17 +544,8 @@ Use empty array if no relevant trusted docs.`
               return isValid
             })
             parsedData.relatedDocs = validDocs
-
-            if (validDocs.length !== parsedData.relatedDocs.length) {
-              console.log('[TooltipPopOver] Filtered documentation URLs. Valid:', validDocs.length, 'Total:', parsedData.relatedDocs.length)
-            }
           }
-
-          // Log successful parse
-          console.log('[TooltipPopOver] Successfully parsed AI response:', parsedData)
         } catch (parseError: any) {
-          console.error('[TooltipPopOver] Failed to parse AI response:', parseError)
-          console.error('[TooltipPopOver] Raw response was:', response)
 
           // Show more helpful error message
           parsedData = {
@@ -574,9 +560,6 @@ Use empty array if no relevant trusted docs.`
         setCachedAnalysis(cacheKey, parsedData)
         setData(parsedData)
       } catch (error: any) {
-        console.error('[TooltipPopOver] Failed to fetch keyword info:', error)
-        console.error('[TooltipPopOver] Error details:', error?.message, error?.stack)
-
         // Show more helpful error message
         const errorMessage = error?.message || 'Unknown error'
         setData({
@@ -834,7 +817,6 @@ ${codeToAnalyze}
                       // Get current file to determine language
                       const currentFile = await plugin.call('fileManager', 'getCurrentFile')
                       if (!currentFile) {
-                        console.error('No file is currently open')
                         return
                       }
 
