@@ -108,7 +108,7 @@ export const ConnectToGitHub = () => {
       {(context.gitHubUser && context.gitHubUser.isConnected) ? null : <>
         <label className="text-uppercase">Connect to GitHub</label>
         <button className='btn btn-secondary mt-1 w-100' onClick={openPopupLogin}>
-          <i className="fab fa-github me-1"></i>Login with GitHub
+          <i className="fab fa-github me-1"></i>connect with GitHub
         </button>
         {popupError && !gitHubResponse && !authorized && (
           <div className="alert alert-warning mt-2" role="alert">

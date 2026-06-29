@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, { } from "react";
 import { gitActionsContext, pluginActionsContext } from "../../state/context";
 import LoaderIndicator from "./loaderindicator";
+import { FormattedMessage } from "react-intl";
 
 export const RemotesNavigation = ({ eventKey, activePanel, callback }) => {
   const pluginactions = React.useContext(pluginActionsContext)
@@ -23,7 +24,7 @@ export const RemotesNavigation = ({ eventKey, activePanel, callback }) => {
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          <label className="ps-2 nav form-check-label">REMOTES</label>
+          <label className="ps-2 nav form-check-label"><FormattedMessage id="gitui.remotes" /></label>
           <LoaderIndicator></LoaderIndicator>
         </span>
       </div>

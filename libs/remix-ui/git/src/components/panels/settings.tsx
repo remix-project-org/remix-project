@@ -39,9 +39,9 @@ export const Settings = () => {
 
   return (
     <>
-      <input name='githubToken' onChange={e => handleChangeUserNameState(e.target.value)} value={githubToken} className="form-control mb-2" placeholder="GitHub token" type="text" id="githubToken" />
-      <input name='githubUsername' onChange={e => handleChangeUserNameState(e.target.value)} value={githubUsername} className="form-control mb-2" placeholder="GitHub username" type="text" id="githubUsername" />
-      <input name='githubEmail' onChange={e => handleChangeEmailState(e.target.value)} value={githubEmail} className="form-control mb-1" placeholder="GitHub email" type="text" id="githubEmail" />
+      <input name='githubToken' onChange={e => handleChangeUserNameState(e.target.value)} value={githubToken} className="form-control mb-2" placeholder={intl.formatMessage({ id: 'gitui.githubTokenPlaceholder' })} type="text" id="githubToken" />
+      <input name='githubUsername' onChange={e => handleChangeUserNameState(e.target.value)} value={githubUsername} className="form-control mb-2" placeholder={intl.formatMessage({ id: 'gitui.githubUsernamePlaceholder' })} type="text" id="githubUsername" />
+      <input name='githubEmail' onChange={e => handleChangeEmailState(e.target.value)} value={githubEmail} className="form-control mb-1" placeholder={intl.formatMessage({ id: 'gitui.githubEmailPlaceholder' })} type="text" id="githubEmail" />
       <hr />
     </>
   );

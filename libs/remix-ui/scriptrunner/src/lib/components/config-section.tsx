@@ -18,6 +18,7 @@ export interface ConfigSectionProps {
 
 export default function ConfigSection(props: ConfigSectionProps) {
   const [isVisible, setIsVisible] = useState(true)
+  const [isHovered, setIsHovered] = useState(false)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = ScriptRunnerPluginEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
@@ -30,7 +31,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
   const SectionHeader = () => {
     return (
       <section className="text-nowrap me-1">
-        <div className="form-check">
+        <div className="form-check fs-6">
           <input
             className="form-check-input"
             type="radio"
@@ -48,7 +49,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
           />
           <label className="pointer form-check-label" htmlFor={`${props.config.title || props.config.name}`}
             data-id={`sr-${(props.activeConfig && props.activeConfig.name === props.config.name)?'loaded':'notloaded'}-${props.config.name}`}>
-            <div className="ps-2">{props.config.title || props.config.name}</div>
+            <div className="ps-1 fw-semibold">{props.config.title || props.config.name}</div>
           </label>
         </div>
       </section>
@@ -63,17 +64,18 @@ export default function ConfigSection(props: ConfigSectionProps) {
     return (
       <>
         {visibleDeps.map((dep, depIndex) => (
-          <li className="p-1 text-secondary" data-id={`dependency-${dep.name}-${dep.version}`} key={depIndex}>
+          <li className="p-1 ms-1 text-secondary" data-id={`dependency-${dep.name}-${dep.version}`} key={depIndex}>
             {dep.name} (v{dep.version})
           </li>
         ))}
         {hasMore && (
-          <li>
+          <li style={{ listStyle: 'none' }}>
             <a
               href="#"
               className="text-primary text-decoration-none"
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 setShowAll(!showAll);
               }}
             >
@@ -87,7 +89,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
   }
 
   return (
-    <section className="mb-2">
+    <section className="">
       <section className="d-flex flex-row ">
         <SectionHeader />
         <label htmlFor={`${props.config.title || props.config.name}`} className="pointer w-100 d-flex flex-row mb-0">
@@ -96,7 +98,7 @@ export default function ConfigSection(props: ConfigSectionProps) {
             <div onClick={() => props.loadScriptRunner(props.config)} className="pointer px-2 pb-1 mb-0 pb-0">
               { props.activeConfig && props.activeConfig.name === props.config.name &&
                 <div className="d-flex flex-row mt-1">
-                  <FontAwesomeIcon data-id={`sr-loaded-${props.config.name}`} className="text-success ms-3" icon={faCheck}></FontAwesomeIcon>
+                  <FontAwesomeIcon data-id={`sr-loaded-${props.config.name}`} className="text-success ms-1" icon={faCheck} size="lg"></FontAwesomeIcon>
                   {isVisible && <span onAnimationEnd={handleAnimationEnd} className="text-success px-3 mb-0 pb-0" style={{ animation: 'fadeOut 5s forwards', animationFillMode: 'forwards' }}>Config loaded</span>}
                 </div>
               }
@@ -129,10 +131,22 @@ export default function ConfigSection(props: ConfigSectionProps) {
       </section>
 
       <section className="d-flex flex-column w-100">
-        <div className="mt-2 mb-4 bg-dark p-3 ">
-          <p className="text-dark font-monospace">{props.config.description}</p>
-          <p className="text-dark">Dependencies</p>
-          <ul className="list-unstyled m-0">
+        <div
+          className={`mt-2 bg-dark p-3 ${props.activeConfig && props.activeConfig.name === props.config.name || isHovered ? 'border border-primary' : ''} pointer`}
+          style={{ borderRadius: '10px' }}
+          onClick={() => {
+            props.loadScriptRunner(props.config)
+            if (!props.config.errorStatus) {
+              props.setActiveKey(props.config.name)
+            }
+            trackMatomoEvent({ category: 'scriptRunnerPlugin', action: 'loadScriptRunnerConfig', name: props.config.name, isClick: true })
+          }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <p className="text-dark font-monospace mb-2">{props.config.description}</p>
+          <p className="text-dark mb-1">Dependencies:</p>
+          <ul className="m-0 ms-3">
             <Dependencies />
           </ul>
         </div>

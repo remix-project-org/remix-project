@@ -1,3 +1,4 @@
+import { remixAILogger } from '../../helpers/logger'
 /**
  * Chart.js Tool Handlers for Remix MCP Server
  *
@@ -123,7 +124,7 @@ export class ChartJsGenerateHandler extends BaseToolHandler {
       return this.createSuccessResult(result);
 
     } catch (error) {
-      console.error('Chart.js generation error:', error);
+      remixAILogger.error('Chart.js generation error:', error);
 
       const errorMessage = error instanceof Error ? error.message : String(error);
 

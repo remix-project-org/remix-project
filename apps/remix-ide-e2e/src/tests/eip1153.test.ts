@@ -11,7 +11,7 @@ module.exports = {
   'Should execute a contract that uses transient storage #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('udapp')
-      .switchEnvironment('vm-cancun') // switch to a vm that know this eip.
+      .switchEnvironment('vm-cancun', 'Remix_VM') // switch to a vm that know this eip.
       .addFile('transient_storage.sol', { content: contractTransientStorage })
       .clickLaunchIcon('solidity')
       .setSolidityCompilerVersion('soljson-v0.8.24+commit.e11b9ed9.js')
@@ -22,10 +22,10 @@ module.exports = {
       .clickLaunchIcon('udapp')
       .createContract('')
       .clickInstance(0)
-      .clickFunction('useTransientStorage - transact (not payable)')
+      .clickFunction(0, 0)
       .testFunction('last',
         {
-          status: '1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution completed',
           'decoded output': {
             0: 'uint256: out1 14',
             1: 'uint256: out2 15'
@@ -39,7 +39,7 @@ module.exports = {
       .clickLaunchIcon('udapp')
       .createContract('')
       .clickInstance(1)
-      .clickFunction('get - call')
+      .clickFunction(1, 0)
       .testFunction('last',
         {
           'decoded output': {

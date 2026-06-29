@@ -1,3 +1,15 @@
+function isFileSystemDebugEnabled(): boolean {
+  try {
+    return localStorage.getItem('remix-storage-debug') === 'true'
+  } catch {
+    return false
+  }
+}
+
+function logFileSystem(...args: any[]): void {
+  if (isFileSystemDebugEnabled()) console.log(...args)
+}
+
 export class fileSystem {
   name: string
   enabled: boolean
@@ -45,10 +57,10 @@ export class fileSystems {
     try {
       this.fileSystems[fs.name] = fs
       await fs.test() && await fs.load()
-      console.log(fs.name + ' is loaded...')
+      logFileSystem(fs.name + ' is loaded...')
       return true
     } catch (e) {
-      console.log(fs.name + ' not available...')
+      logFileSystem(fs.name + ' not available...')
       return false
     }
   }

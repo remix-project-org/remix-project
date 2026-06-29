@@ -10,6 +10,7 @@ import * as packageJson from '../../../../../package.json'
 import { compilerConfigChangedToastMsg, compileToastMsg } from '@remix-ui/helper'
 import { isNative } from '../../remixAppManager'
 import { Registry } from '@remix-project/remix-lib'
+import { DependencyResolvingCompiler } from '../lib/dependency-resolving-compiler'
 
 const remixConfigPath = 'remix.config.json'
 const profile = {
@@ -36,7 +37,14 @@ export default class CompileTab extends CompilerApiMixin(ViewPlugin) { // implem
     this.fileManager = fileManager
     this.config = config
     this.queryParams = new QueryParams()
-    this.compileTabLogic = new CompileTabLogic(this, this.contentImport)
+    // Pass 'this' as the plugin reference so CompileTabLogic can access contentImport via this.call()
+    this.compileTabLogic = new CompileTabLogic(
+      this,
+      undefined,
+      (api, debug) => new DependencyResolvingCompiler(api, (url, cb) => {
+        cb(`${url} not found.`)
+      }, undefined, debug)
+    )
     this.compiler = this.compileTabLogic.compiler
     this.compileTabLogic.init()
     this.initCompilerApi()
@@ -137,12 +145,12 @@ export default class CompileTab extends CompilerApiMixin(ViewPlugin) { // implem
         group: 6
       })
       this.on('fileManager', 'fileSaved', async (file) => {
-        if(file === remixConfigPath) {
+        if (file === remixConfigPath) {
           this.emit('configFileChanged', file)
         }
       })
       this.on('fileManager', 'fileAdded', async (file) => {
-        if(file === remixConfigPath) {
+        if (file === remixConfigPath) {
           this.emit('configFileChanged', file)
         }
       })

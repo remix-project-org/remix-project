@@ -6,6 +6,49 @@ export interface MCPDefaultServersConfig {
   defaultServers: IMCPServer[];
 }
 
+export const mcpBasicServersConfig: MCPDefaultServersConfig = {
+  version: '1.0.0',
+  defaultServers: [
+    {
+      name: 'Alchemy',
+      description: 'Alchemy blockchain data query',
+      transport: 'http',
+      url: endpointUrls.mcpCorsProxy + '/alchemy',
+      autoStart: true,
+      enabled: true,
+      timeout: 30000
+    },
+    {
+      name: 'Etherscan',
+      description: 'Etherscan block explorer',
+      transport: 'http',
+      url: endpointUrls.mcpCorsProxy + '/etherscan/mcp',
+      autoStart: true,
+      enabled: true,
+      timeout: 30000
+    },
+    {
+      name: 'The Graph API',
+      description: 'The Graph API (Subgraph and token API)',
+      transport: 'http',
+      url: endpointUrls.mcpCorsProxy + '/thegraph/mcp',
+      autoStart: true,
+      enabled: true,
+      timeout: 30000
+    },
+    /*
+    {
+      name: 'Sourcify',
+      description: 'Sourcify smart contract verification',
+      transport: 'http',
+      url: endpointUrls.mcpCorsProxy + '/sourcify/mcp',
+      autoStart: true,
+      enabled: true,
+      timeout: 30000
+    },*/
+  ]
+}
+
 export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
   version: "1.0.0",
   defaultServers: [
@@ -16,7 +59,7 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       autoStart: true,
       enabled: true,
       timeout: 5000,
-      isBuiltIn: true
+      isBuiltIn: true,
     },
     {
       name: 'OpenZeppelin Contracts',
@@ -27,6 +70,16 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       enabled: true,
       timeout: 30000
     },
+    {
+      name: 'Circle',
+      description: 'Circle API for code generation',
+      transport: 'http',
+      url: 'https://api.circle.com/v1/codegen/mcp',
+      autoStart: true,
+      enabled: true,
+      timeout: 30000
+    },
+    /*
     {
       name: 'OpenZeppelin Contracts Cairo',
       description: 'OpenZeppelin smart contract library and security tools',
@@ -53,24 +106,27 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
       autoStart: true,
       enabled: true,
       timeout: 30000
-    },
+    },*/
+  ]
+};
+
+// Permission-gated bucket. Servers in this list MUST NOT be auto-connected
+// for anonymous users — they require a valid bearer token. Including them
+// in the unconditional defaults causes spurious 401s in the console and
+// leaks an unauthenticated request to a protected endpoint, which the
+// gateway treats as a security signal. Gate inclusion on `mcp:web-search`
+// via PermissionChecker.checkMCPAccess().
+export const mcpWebSearchServersConfig: MCPDefaultServersConfig = {
+  version: '1.0.0',
+  defaultServers: [
     {
-      name: 'Alchemy',
-      description: 'Alchemy blockchain data query',
+      name: 'Web Search',
+      description: 'Web search capabilities',
       transport: 'http',
-      url: endpointUrls.mcpCorsProxy + '/alchemy',
+      url: endpointUrls.mcpCorsProxy + '/web-search',
       autoStart: true,
       enabled: true,
       timeout: 30000
     }
-    // {
-    //   name: 'Etherscan',
-    //   description: 'Etherscan block explorer',
-    //   transport: 'http',
-    //   url: endpointUrls.mcpCorsProxy + '/etherscan',
-    //   autoStart: true,
-    //   enabled: true,
-    //   timeout: 30000
-    // }
   ]
 };

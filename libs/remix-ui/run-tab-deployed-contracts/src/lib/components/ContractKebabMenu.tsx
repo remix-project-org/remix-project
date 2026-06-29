@@ -1,0 +1,189 @@
+import React, { useContext } from 'react'
+import { Overlay } from 'react-bootstrap'
+import { useIntl } from 'react-intl'
+import { DeployedContract } from '../types'
+import { TrackingContext } from '@remix-ide/tracking'
+import { UdappEvent } from '@remix-api'
+
+interface ContractKebabMenuProps {
+  show: boolean
+  target: HTMLElement
+  onHide: () => void
+  contract: DeployedContract
+  onCreateDapp?: (contract: DeployedContract) => void
+  onNameContract?: (contract: DeployedContract) => void
+  onCopyABI?: (contract: DeployedContract) => void
+  onSaveABI?: (contract: DeployedContract) => void
+  onCopyBytecode?: (contract: DeployedContract) => void
+  onOpenInExplorer?: (contract: DeployedContract) => void
+  onClear?: (contract: DeployedContract) => void
+}
+
+const MenuContent = React.forwardRef<HTMLElement, any>((props, ref) => {
+  const { children, style, popper, show, hasDoneInitialMeasure, arrowProps, ...rest } = props
+  return (
+    <section
+      ref={ref}
+      style={{
+        minWidth: 200,
+        zIndex: 9999,
+        ...style,
+      }}
+      {...rest}
+    >
+      {children}
+    </section>
+  )
+})
+
+MenuContent.displayName = 'MenuContent'
+
+export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
+  show,
+  target,
+  onHide,
+  contract,
+  onCreateDapp,
+  onNameContract,
+  onCopyABI,
+  onSaveABI,
+  onCopyBytecode,
+  onOpenInExplorer,
+  onClear
+}) => {
+  const intl = useIntl()
+  const { trackMatomoEvent } = useContext(TrackingContext)
+  const menuItems: Array<{
+    id: string
+    label: string
+    icon: string
+    color: string
+    action: UdappEvent['action']
+    onClick: () => void
+  }> = [
+    onCreateDapp && {
+      id: 'createDapp',
+      label: intl.formatMessage({ id: 'udapp.createDappMenuItem' }),
+      icon: 'fa-kit fa-remixai',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractCreateDapp' as const,
+      onClick: () => onCreateDapp(contract)
+    },
+    onNameContract && {
+      id: 'nameContract',
+      label: 'Name Contract (ENS)',
+      icon: 'fas fa-link',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractNameENS' as const,
+      onClick: () => onNameContract(contract)
+    },
+    onCopyABI && {
+      id: 'copyABI',
+      label: intl.formatMessage({ id: 'udapp.copyABIMenuItem' }),
+      icon: 'far fa-copy',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractCopyABI' as const,
+      onClick: () => onCopyABI(contract)
+    },
+    onSaveABI && {
+      id: 'saveABI',
+      label: intl.formatMessage({ id: 'udapp.saveABIMenuItem' }),
+      icon: 'far fa-save',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractSaveABI' as const,
+      onClick: () => onSaveABI(contract)
+    },
+    onCopyBytecode && {
+      id: 'copyBytecode',
+      label: intl.formatMessage({ id: 'udapp.copyBytecodeMenuItem' }),
+      icon: 'far fa-copy',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractCopyBytecode' as const,
+      onClick: () => onCopyBytecode(contract)
+    },
+    onOpenInExplorer && {
+      id: 'openInExplorer',
+      label: intl.formatMessage({ id: 'udapp.openInExplorerMenuItem' }),
+      icon: 'fas fa-external-link-alt',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractOpenExplorer' as const,
+      onClick: () => onOpenInExplorer(contract)
+    },
+    onClear && {
+      id: 'clear',
+      label: intl.formatMessage({ id: 'udapp.clearMenuItem' }),
+      icon: 'far fa-trash-alt text-danger',
+      color: 'var(--bs-danger)',
+      action: 'deployedContractRemove' as const,
+      onClick: () => onClear(contract)
+    }
+  ].filter(Boolean)
+
+  return (
+    <Overlay
+      show={show}
+      target={target}
+      placement="auto"
+      container={document.body}
+      popperConfig={{
+        modifiers: [
+          { name: "offset", options: { offset: [0, 8]} },
+          {
+            name: "preventOverflow",
+            options: {
+              boundary: "clippingParents",
+              padding: 8,
+              mainAxis: true,
+              altAxis: true
+            }
+          },
+          {
+            name: 'flip',
+            options: {
+              enabled: true,
+              fallbackPlacements: ['bottom', 'top', 'left', 'right'],
+              padding: 8
+            }
+          }
+        ],
+      }}
+      rootClose
+      transition={false}
+      onHide={onHide}
+    >
+      {(props) => (
+        <MenuContent {...props} data-id={`contractKebabMenu-${contract.address}`}>
+          <div className="p-0 rounded w-100" style={{ backgroundColor: 'var(--bs-light)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)' }}>
+            <div className="d-flex flex-column">
+              {menuItems.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="d-flex align-items-center px-3 py-2"
+                  data-id={item.id}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    trackMatomoEvent?.({ category: 'udapp', action: item.action, name: 'clicked', isClick: true })
+                    item.onClick()
+                  }}
+                  style={{
+                    color: item.color,
+                    cursor: 'pointer',
+                    ...(index === 0 && { borderTopLeftRadius: 8, borderTopRightRadius: 8 }),
+                    ...(index === menuItems.length - 1 && { borderBottomLeftRadius: 8, borderBottomRightRadius: 8 })
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bs-secondary-bg)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <span className="me-2">
+                    <i className={item.icon} />
+                  </span>
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </MenuContent>
+      )}
+    </Overlay>
+  )
+}

@@ -6,15 +6,15 @@
     "npm": "^6.14.15"
   },
   "dependencies": {
-    "ethers": "^6.14.0",
     "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
     "@openzeppelin/upgrades-core": "^1.30.0",
-    "@openzeppelin/wizard": "^0.4.0",
+    "@openzeppelin/wizard": "^0.10.5",
     "@remix-project/remixd": "../../dist/libs/remixd",
+    "adm-zip": "^0.5.16",
     "deep-equal": "^1.0.1",
-    "tree-kill": "^1.2.2",
-    "adm-zip": "^0.5.16"
+    "ethers": "^6.14.0",
+    "tree-kill": "^1.2.2"
   },
   "devDependencies": {
     "http-server": "^14.1.1",

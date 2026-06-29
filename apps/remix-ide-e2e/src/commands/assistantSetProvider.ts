@@ -15,7 +15,7 @@ class SetAssistantProvider extends EventEmitter {
 
 function setAssistant(browser: NightwatchBrowser, provider: string, done: VoidFunction) {
   browser
-    .waitForElementPresent('*[data-id="remix-ai-assistant-ready"]')
+    .assistantWaitForReady()
     .execute(function (provider) {
       (window as any).remixAIChat.current.sendChat(`/setAssistant ${provider}`);
     }, [provider])
@@ -29,7 +29,6 @@ function setAssistant(browser: NightwatchBrowser, provider: string, done: VoidFu
       locateStrategy: 'xpath',
       selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
     })
-    //.pause()
     .perform(() => done())
 }
 

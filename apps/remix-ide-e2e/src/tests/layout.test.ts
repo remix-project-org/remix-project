@@ -10,7 +10,6 @@ module.exports = {
   '@sources': function () {
     return sources
   },
-
   'Should pin solidity compiler plugin to the right and switch focus for left side panel to the file-explorer': function (browser: NightwatchBrowser) {
     browser.waitForElementVisible('[data-id="movePluginToRight"]')
       .click('[data-id="movePluginToRight"]')
@@ -25,7 +24,8 @@ module.exports = {
       .click('[data-id="movePluginToLeft"]')
       .waitForElementVisible('[data-id="movePluginToRight"]')
       .assert.containsText('.sidepanel h6[data-id="sidePanelSwapitTitle"]', 'SOLIDITY COMPILER')
-      .waitForElementNotVisible('.right-side-panel h6[data-id="sidePanelSwapitTitle"]')
+      .waitForElementVisible('*[data-id="close_settings"]')
+      .click('*[data-id="close_settings"]')
   },
   'Should pin a plugin while an another plugin is already pinned': function (browser: NightwatchBrowser) {
     browser.waitForElementVisible('[data-id="movePluginToRight"]')
@@ -33,34 +33,31 @@ module.exports = {
       .waitForElementVisible('[data-id="movePluginToLeft"]')
       .waitForElementVisible('.right-side-panel h6[data-id="sidePanelSwapitTitle"]')
       .assert.containsText('.right-side-panel h6[data-id="sidePanelSwapitTitle"]', 'SOLIDITY COMPILER')
-      .clickLaunchIcon('udapp')
+      .clickLaunchIcon('search')
+      .waitForElementVisible('[data-id="movePluginToRight"]')
       .click('[data-id="movePluginToRight"]')
       .waitForElementVisible('[data-id="movePluginToLeft"]')
-      .assert.containsText('.right-side-panel h6[data-id="sidePanelSwapitTitle"]', 'DEPLOY & RUN TRANSACTIONS')
+      .assert.containsText('.right-side-panel h6[data-id="sidePanelSwapitTitle"]', 'SEARCH')
       .assert.containsText('.sidepanel h6[data-id="sidePanelSwapitTitle"]', 'SOLIDITY COMPILER')
   },
   'Should pin a pinned plugin to the right after reloading the page': function (browser: NightwatchBrowser) {
     browser.refreshPage()
       .waitForElementVisible('.right-side-panel h6[data-id="sidePanelSwapitTitle"]')
-      .assert.containsText('.right-side-panel h6[data-id="sidePanelSwapitTitle"]', 'DEPLOY & RUN TRANSACTIONS')
+      .assert.containsText('.right-side-panel h6[data-id="sidePanelSwapitTitle"]', 'SEARCH')
   },
-  'Should maintain logged state of udapp plugin after pinning and unpinning': function (browser: NightwatchBrowser) {
-    browser.waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
-      .click('*[data-id="treeViewLitreeViewItemcontracts"]')
-      .openFile('contracts/1_Storage.sol')
-      .pause(5000)
-      .waitForElementPresent('*[data-id="Deploy - transact (not payable)"]')
-      .click('*[data-id="Deploy - transact (not payable)"]')
-      .waitForElementPresent('#instance0xd9145CCE52D386f254917e481eB44e9943F39138')
-      .clickInstance(0)
-      .clickFunction('store - transact (not payable)', { types: 'uint256 num', values: '10' })
-      .clickFunction('retrieve - call')
+  'Should maintain logged state of search plugin after pinning and unpinning to verify state persistence': function (browser: NightwatchBrowser) {
+    browser.clickLaunchIcon('search')
+      .waitForElementVisible('*[id="search_input"]')
+      .waitForElementVisible('*[id="search_include"]')
+      .setValue('*[id="search_include"]', ', *.*').pause(2000)
+      .setValue('*[id="search_input"]', 'Storage').sendKeys('*[id="search_input"]', browser.Keys.ENTER)
+      .pause(1000)
+      .waitForElementContainsText('*[data-id="search_results"]', '1_STORAGE.SOL', 60000)
       .click('[data-id="movePluginToLeft"]')
       .waitForElementVisible('[data-id="movePluginToRight"]')
-      .clickInstance(0)
-      .waitForElementContainsText('[data-id="treeViewLi0"]', 'uint256: 10')
+      .waitForElementContainsText('*[data-id="search_results"]', '1_STORAGE.SOL')
   },
-  'Should maintain logged state of search plugin after pinning and unpinning': function (browser: NightwatchBrowser) {
+  'Should maintain logged state of search plugin after pinning and unpinning': '' + function (browser: NightwatchBrowser) {
     browser.clickLaunchIcon('search')
       .waitForElementVisible('*[id="search_input"]')
       .waitForElementVisible('*[id="search_include"]')

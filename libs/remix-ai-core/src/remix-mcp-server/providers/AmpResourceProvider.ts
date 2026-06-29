@@ -1,3 +1,4 @@
+import { remixAILogger } from '../../helpers/logger'
 /**
  * Amp Resource Provider - Provides access to Amp query examples and documentation
  */
@@ -51,7 +52,7 @@ export class AmpResourceProvider extends BaseResourceProvider {
         )
       );
     } catch (error) {
-      console.warn('Failed to get Amp resources:', error);
+      remixAILogger.warn('Failed to get Amp resources:', error);
     }
 
     return resources;

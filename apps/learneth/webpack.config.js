@@ -79,5 +79,11 @@ module.exports = composePlugins(withNx(), (config) => {
 
   config.experiments.syncWebAssembly = true
 
+  // polyfill global for browser (needed by stream-browserify etc.)
+  config.node = {
+    ...config.node,
+    global: true,
+  }
+
   return config
 })

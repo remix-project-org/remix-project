@@ -1,5 +1,5 @@
 import React, { useContext } from 'react'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import { RenderIf } from '@remix-ui/helper'
 import { ThemeContext } from '../themeContext'
@@ -14,6 +14,7 @@ interface PluginCardProps {
 function PluginCard({ profile, isActive, isLoading, togglePlugin }: PluginCardProps) {
   const theme = useContext(ThemeContext)
   const isDark = theme.name === 'dark'
+  const intl = useIntl()
 
   const handleDocsClick = () => {
     if (profile.documentation) {
@@ -50,7 +51,7 @@ function PluginCard({ profile, isActive, isLoading, togglePlugin }: PluginCardPr
         <div className="p-3">
           <div className={`text-${(profile.maintainedBy || '').toLowerCase() === 'remix' ? 'success' : 'dark'} mb-1`}>
             <i className="fa-solid fa-shield-halved me-2"></i>
-            <FormattedMessage id="home.maintainedBy" defaultMessage="Maintained by"/> {profile.maintainedBy || 'Community'}
+            <FormattedMessage id="home.maintainedBy" defaultMessage="Maintained by"/> {profile.maintainedBy || intl.formatMessage({ id: 'pluginManager.communityMaintained' })}
           </div>
           <div className="small mb-2" style={{ color: isDark ? 'white' : 'black' }}>{profile.description}</div>
         </div>

@@ -1,0 +1,68 @@
+.debugger-search-bar .search-bar-title {
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.debugger-search-bar .search-input-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.debugger-search-bar .search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+  font-size: 0.875rem;
+}
+
+.debugger-search-bar .search-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+  background-color: var(--bs-light);
+  color: var(--text-primary);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.debugger-search-bar .search-input:focus {
+  border: 1px solid var(--bs-body-color);
+  box-shadow: none;
+  outline: none;
+}
+
+.debugger-search-bar .stop-debugging-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.debugger-search-bar .stop-debugging-btn:hover {
+  background-color: var(--bs-danger);
+  opacity: 0.9;
+}
+
+.debugger-search-bar .search-start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.debugger-search-bar .search-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

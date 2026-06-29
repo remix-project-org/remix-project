@@ -41,8 +41,10 @@ export interface SettingsSection {
   key: string
   label: string
   description: string,
+  requiresAuth?: boolean, // Flag to indicate this section requires authentication
   subSections: {
     title?: string,
+    description?: string,
     options: {
       name: keyof SettingsState,
       label: string,
@@ -112,11 +114,25 @@ export interface SettingsState {
   'swarm-postage-stamp-id': ConfigState,
   'sindri-access-token': ConfigState,
   'etherscan-access-token': ConfigState,
+  'thegraph-config': ConfigState,
+  'thegraph-access-token': ConfigState,
   'ai-privacy-policy': ConfigState,
   'mcp/servers/enable': ConfigState,
   'mcp-server-management': ConfigState,
-  'ollama-config': ConfigState,
-  'ollama-endpoint': ConfigState,
+  'account-manager': ConfigState,
+  'profile-section': ConfigState,
+  'credits-balance': ConfigState,
+  'connected-accounts': ConfigState,
+  'billing-section': ConfigState,
+  // Ollama configuration is temporarily disabled - will be enabled later
+  // 'ollama-config': ConfigState,
+  // 'ollama-endpoint': ConfigState,
+  'deepagent-api-keys-config': ConfigState,
+  'deepagent-anthropic-api-key': ConfigState,
+  'deepagent-mistral-api-key': ConfigState,
+  'deepagent-openai-api-key': ConfigState,
+  'deepagent-moonshot-api-key': ConfigState,
+  'editor/code-analysis-popover': ConfigState,
   toaster: ConfigState
 }
 export interface SettingsActionPayloadTypes {

@@ -18,7 +18,7 @@ const SelectDropdown = ({ value, options, name, dispatch }: SelectDropdownProps)
     dispatch({ type: 'SET_LOADING', payload: { name: name } })
     if (name === 'theme') {
       const themeModule = Registry.getInstance().get('themeModule').api
-      const theme = themeModule.getThemes().find((theme) => theme.name === value)
+      const theme = themeModule.getThemes().find((theme: any) => theme.name === value)
 
       if (theme) {
         themeModule.switchTheme(theme.name)
@@ -41,7 +41,7 @@ const SelectDropdown = ({ value, options, name, dispatch }: SelectDropdownProps)
         </div>
       </Dropdown.Toggle>
 
-      <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden bg-light" data-id="custom-dropdown-items">
+      <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden bg-light p-0" data-id="custom-dropdown-items">
         {
           options.map((option) => (
             <Dropdown.Item key={option.value} onClick={() => handleChange(name, option.value)} data-id={`settingsTabDropdownItem${option.value}`}>

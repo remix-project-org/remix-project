@@ -6,11 +6,13 @@ import { RemotesImport } from "./remotesimport"
 import { GitEvent, MatomoEvent } from "@remix-api"
 import { gitMatomoEventTypes } from "../../types"
 import { TrackingContext } from "@remix-ide/tracking"
+import { FormattedMessage, useIntl } from "react-intl"
 
 export const Remotes = () => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
+  const intl = useIntl()
   const [remoteName, setRemoteName] = React.useState<string>('')
   const [url, setUrl] = React.useState<string>('')
 
@@ -52,19 +54,19 @@ export const Remotes = () => {
               );
             })}
           </div> : <div>
-            <label className="text-uppercase">No remotes</label>
+            <label className="text-uppercase"><FormattedMessage id="gitui.noRemotes" /></label>
           </div>}
         <hr></hr>
-        <label className="text-uppercase">Add remote from GitHub</label>
+        <label className="text-uppercase"><FormattedMessage id="gitui.addRemoteFromGitHub" /></label>
         <RemotesImport />
         <hr></hr>
-        <label className="text-uppercase">Add remote manually</label>
-        <input data-id="add-manual-remotename" placeholder="remote name" name='remotename' onChange={e => onRemoteNameChange(e.target.value)} value={remoteName} className="form-control mb-2" type="text" id="remotename" />
-        <input data-id="add-manual-remoteurl" placeholder="remote url" name='remoteurl' onChange={e => onUrlChange(e.target.value)} value={url} className="form-control mb-2" type="text" id="remoteurl" />
+        <label className="text-uppercase"><FormattedMessage id="gitui.addRemoteManually" /></label>
+        <input data-id="add-manual-remotename" placeholder={intl.formatMessage({ id: 'gitui.remoteNamePlaceholder' })} name='remotename' onChange={e => onRemoteNameChange(e.target.value)} value={remoteName} className="form-control mb-2" type="text" id="remotename" />
+        <input data-id="add-manual-remoteurl" placeholder={intl.formatMessage({ id: 'gitui.remoteUrlPlaceholder' })} name='remoteurl' onChange={e => onUrlChange(e.target.value)} value={url} className="form-control mb-2" type="text" id="remoteurl" />
 
         <button data-id="add-manual-remotebtn" disabled={(remoteName && url) ? false : true} className='btn btn-primary mt-1 w-100' onClick={async () => {
           addRemote();
-        }}>add remote</button>
+        }}><FormattedMessage id="gitui.addRemote" /></button>
         <hr className="mt-0 border border-2" />
       </div>
     </>)

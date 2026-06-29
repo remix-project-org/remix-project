@@ -12,6 +12,14 @@ import {
   isFunctionDescription, CompilerRetriggerMode, EsWebWorkerHandlerInterface
 } from './types'
 
+function isCompilerDebugEnabled(): boolean {
+  try {
+    return globalThis.localStorage?.getItem('remix-compiler-debug') === 'true'
+  } catch {
+    return false
+  }
+}
+
 /*
   trigger compilationFinished, compilerLoaded, compilationStarted, compilationDuration
 */
@@ -241,7 +249,7 @@ export class Compiler {
    */
 
   loadVersion(usingWorker: boolean, url: string): void {
-    console.log('Loading ' + url + ' ' + (usingWorker ? 'with worker' : 'without worker'))
+    if (isCompilerDebugEnabled()) console.log('Loading ' + url + ' ' + (usingWorker ? 'with worker' : 'without worker'))
     this.event.trigger('loadingCompiler', [url, usingWorker])
     if (this.state.worker) {
       this.state.worker.terminate()

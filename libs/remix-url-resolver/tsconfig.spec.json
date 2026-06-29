@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.paths.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "es2020",
+    "module": "commonjs",
+    "types": ["node", "mocha"],
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "importHelpers": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "lib": ["es2017", "es2019", "dom"]
+  },
+  "include": ["tests/**/*.ts", "src/**/*.ts"]
+}

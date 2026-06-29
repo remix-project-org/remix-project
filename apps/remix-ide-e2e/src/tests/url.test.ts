@@ -10,25 +10,25 @@ const sources = [
     'myTokenV1.sol': {
       content: `
       // SPDX-License-Identifier: MIT
-      pragma solidity ^0.8.20;
-
-      import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-      import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-      import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-      import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-
+      pragma solidity ^0.8.4;
+      
+      import "@openzeppelin/contracts-upgradeable@4.8.3/token/ERC721/ERC721Upgradeable.sol";
+      import "@openzeppelin/contracts-upgradeable@4.8.3/access/OwnableUpgradeable.sol";
+      import "@openzeppelin/contracts-upgradeable@4.8.3/proxy/utils/Initializable.sol";
+      import "@openzeppelin/contracts-upgradeable@4.8.3/proxy/utils/UUPSUpgradeable.sol";
+      
       contract MyToken is Initializable, ERC721Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
           /// @custom:oz-upgrades-unsafe-allow constructor
           constructor() {
               _disableInitializers();
           }
-
-          function initialize(address initialOwner) initializer public {
+      
+          function initialize() initializer public {
               __ERC721_init("MyToken", "MTK");
-              __Ownable_init(initialOwner);
+              __Ownable_init();
               __UUPSUpgradeable_init();
           }
-
+      
           function _authorizeUpgrade(address newImplementation)
               internal
               onlyOwner
@@ -60,13 +60,12 @@ module.exports = {
 
       .url('http://127.0.0.1:8080/#autoCompile=true&optimize=true&runs=300&code=cHJhZ21hIHNvbGlkaXR5ID49MC42LjAgPDAuNy4wOwoKaW1wb3J0ICJodHRwczovL2dpdGh1Yi5jb20vT3BlblplcHBlbGluL29wZW56ZXBwZWxpbi1jb250cmFjdHMvYmxvYi9tYXN0ZXIvY29udHJhY3RzL2FjY2Vzcy9Pd25hYmxlLnNvbCI7Cgpjb250cmFjdCBHZXRQYWlkIGlzIE93bmFibGUgewogIGZ1bmN0aW9uIHdpdGhkcmF3KCkgZXh0ZXJuYWwgb25seU93bmVyIHsKICB9Cn0')
       .refreshPage() // we do one reload for making sure we already have the default workspace
-
       .verify.elementPresent('[data-id="compilerContainerAutoCompile"]:checked')
       .click('[for="autoCompile"]') // we set it too false again
       .click('[for="autoCompile"]') // back to True in the local storage
       .assert.containsText('*[data-id="compilerContainerCompileBtn"]', 'contract-76747f6e19.sol')
       .clickLaunchIcon('filePanel')
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .getEditorValue((content) => {
         browser.assert.ok(content && content.indexOf(
           'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol') !== -1,
@@ -83,7 +82,7 @@ module.exports = {
         selector: `//li[@data-id="treeViewLitreeViewItemethereum/remix-project/apps/remix-ide/contracts/app/solidity/mode.sol"]`,
         locateStrategy: 'xpath'
       })
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .getEditorValue((content) => {
         browser.assert.ok(content && content.indexOf(
           'proposals.length = _numProposals;') !== -1,
@@ -96,7 +95,7 @@ module.exports = {
       .url('http://127.0.0.1:8080/#address=0xdac17f958d2ee523a2206206994597c13d831ec7')
       .refreshPage()
       .pause(2000)
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemTetherToken.sol"]')
       .click('*[data-id="treeViewLitreeViewItemTetherToken.sol"]')
       .getEditorValue((content) => {
@@ -106,13 +105,13 @@ module.exports = {
       })
   },
 
-  'Should load Blockscout verified contracts from URL "address" and "blockscout" params (single source)': ''+function (browser: NightwatchBrowser) {
+  'Should load Blockscout verified contracts from URL "address" and "blockscout" params (single source)': function (browser: NightwatchBrowser) {
     browser
       .url('http://127.0.0.1:8080/#address=0xdAC17F958D2ee523a2206206994597C13D831ec7&blockscout=eth.blockscout.com')
       .refreshPage()
       .pause(7000)
-      .currentWorkspaceIs('code-sample')
-      .assert.elementPresent('*[data-id="treeViewLitreeViewItemTetherToken.sol"]')
+      .currentWorkspaceIs('code-sample-')
+      .assert.elementPresent('*[data-id="treeViewLitreeViewItemeth.blockscout.com/0xdAC17F958D2ee523a2206206994597C13D831ec7/TetherToken.sol"]')
       .getEditorValue((content) => {
         browser.assert.ok(content && content.indexOf(
           'contract TetherToken is Pausable, StandardToken, BlackList {') !== -1)
@@ -125,7 +124,7 @@ module.exports = {
       .url('http://127.0.0.1:8080/#address=0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9&blockscout=eth.blockscout.com')
       .refreshPage()
       .pause(7000)
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .assert.elementPresent('*[data-id="treeViewLitreeViewItemcontracts"]')
       .assert.elementPresent('*[data-id="treeViewLitreeViewItemcontracts/open-zeppelin"]')
       .assert.elementPresent('*[data-id="treeViewLitreeViewItemcontracts/open-zeppelin/Address.sol"]')
@@ -154,7 +153,7 @@ module.exports = {
         selector: `//li[@data-id="treeViewLitreeViewItemethereum/remix-project/apps/remix-ide/contracts/app/solidity/mode.sol"]`,
         locateStrategy: 'xpath'
       })
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .getEditorValue((content) => {
         browser.assert.ok(content && content.indexOf(
           'proposals.length = _numProposals;') !== -1,
@@ -162,12 +161,9 @@ module.exports = {
       })
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
-      .currentWorkspaceIs('default_workspace')
-      .execute(() => {
-        return document.querySelector('[data-id="dropdown-item-code-sample"]') === null
-      }, [], (result) => {
-        browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
-      })
+      // With the new persistent workspace behavior, code-sample workspaces are kept
+      // and the workspace remains as 'code-sample-' instead of switching to 'default_workspace'
+      .currentWorkspaceIs('code-sample-')
   },
 
   'Should load the code from URL & code params with special character #group1': function (browser: NightwatchBrowser) {
@@ -181,7 +177,7 @@ module.exports = {
         selector: `//li[@data-id="treeViewLitreeViewItemcontract-89b91e9381.sol"]`,
         locateStrategy: 'xpath'
       })
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .waitForElementVisible({
         selector: '//*[@id="editorView"]',
         locateStrategy: 'xpath'
@@ -193,11 +189,46 @@ module.exports = {
       })
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
-      .currentWorkspaceIs('default_workspace')
-      .execute(() => {
-        return document.querySelector('[data-id="dropdown-item-code-sample"]') === null
-      }, [], (result) => {
-        browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
+      // With the new persistent workspace behavior, code-sample workspaces are kept
+      // and the workspace remains as 'code-sample-' instead of switching to 'default_workspace'
+      .currentWorkspaceIs('code-sample-')
+  },
+
+  'Should load the code with remaps URL parameter #group1': function (browser: NightwatchBrowser) {
+    // Base64 encoded contract: pragma solidity ^0.8.0; import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; contract MyToken is ERC20 { constructor() ERC20("MyToken", "MTK") {} }
+    // Base64 encoded remaps: @openzeppelin/contracts/=https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.0/contracts/
+    browser
+      .url('http://127.0.0.1:8080/#code=cHJhZ21hIHNvbGlkaXR5IF4wLjguMDsKCmltcG9ydCAiQG9wZW56ZXBwZWxpbi9jb250cmFjdHMvdG9rZW4vRVJDMjAvRVJDMjAuc29sIjsKCmNvbnRyYWN0IE15VG9rZW4gaXMgRVJDMjAgewogICAgY29uc3RydWN0b3IoKSBFUkMyMCgiTXlUb2tlbiIsICJNVEsiKSB7fQp9&remaps=QG9wZW56ZXBwZWxpbi9jb250cmFjdHMvPWh0dHBzOi8vZ2l0aHViLmNvbS9PcGVuWmVwcGVsaW4vb3BlbnplcHBlbGluLWNvbnRyYWN0cy9ibG9iL3Y0LjkuMC9jb250cmFjdHMv')
+      .refreshPage() // we do one reload for making sure we already have the default workspace
+
+      .waitForElementVisible('[data-id="compilerContainerCompileBtn"]')
+      .clickLaunchIcon('filePanel')
+      .currentWorkspaceIs('code-sample-')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemremappings.txt"]')
+      .click('*[data-id="treeViewLitreeViewItemremappings.txt"]')
+      .pause(500) // Wait for editor to load remappings.txt content
+      .getEditorValue((content) => {
+        browser.assert.ok(content && content.indexOf(
+          '@openzeppelin/contracts/=https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.0/contracts/') !== -1,
+        'remappings.txt has been loaded with correct content')
+      })
+      .waitForElementVisible({
+        selector: `//li[contains(@data-id, "treeViewLitreeViewItemcontract-") and contains(@data-id, ".sol")]`,
+        locateStrategy: 'xpath'
+      })
+      .click({
+        selector: `//li[contains(@data-id, "treeViewLitreeViewItemcontract-") and contains(@data-id, ".sol")]`,
+        locateStrategy: 'xpath'
+      })
+      .waitForElementVisible({
+        selector: '//*[@id="editorView"]',
+        locateStrategy: 'xpath'
+      })
+      .pause(500) // Wait for editor content to fully load
+      .getEditorValue((content) => {
+        browser.assert.ok(content && content.indexOf(
+          '@openzeppelin/contracts/token/ERC20/ERC20.sol') !== -1,
+        'contract code has been loaded')
       })
   },
 
@@ -212,7 +243,7 @@ module.exports = {
         selector: `//li[@data-id="treeViewLitreeViewItemcontract-e0bf950259.sol"]`,
         locateStrategy: 'xpath'
       })
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .waitForElementVisible({
         selector: '//*[@id="editorView"]',
         locateStrategy: 'xpath'
@@ -229,12 +260,9 @@ module.exports = {
       })
       .url('http://127.0.0.1:8080') // refresh without loading the code sample
       .pause(2000)
-      .currentWorkspaceIs('default_workspace')
-      .execute(() => {
-        return document.querySelector('[data-id="dropdown-item-code-sample"]') === null
-      }, [], (result) => {
-        browser.assert.ok((result as any).value, 'sample template has not be persisted.') // code-sample should not be kept.
-      })
+      // With the new persistent workspace behavior, code-sample workspaces are kept
+      // and the workspace remains as 'code-sample-' instead of switching to 'default_workspace'
+      .currentWorkspaceIs('code-sample-')
   },
 
   'Should load the code from language & code params #group1': function (browser: NightwatchBrowser) {
@@ -246,7 +274,7 @@ module.exports = {
 
       .clickLaunchIcon('filePanel')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontract-eaa022e37e.yul"]')
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .openFile('contract-eaa022e37e.yul')
       .getEditorValue((content) => {
         console.log(content)
@@ -264,36 +292,11 @@ module.exports = {
       .clickLaunchIcon('solidity')
       .pause(2000)
       .click('[data-id="compilerContainerCompileBtn"]')
-      .clickLaunchIcon('filePanel')
-      .openFile('.deps/npm/@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol')
-      .isVisible({
-        selector: '*[data-id="treeViewDivtreeViewItem.deps/npm/@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol"]',
-        timeout: 120000,
-        suppressNotFoundErrors: true
-      })
-      .clickLaunchIcon('solidity')
-      .click('[data-id="compilerContainerCompileBtn"]')
-      .clickLaunchIcon('filePanel')
-      .isVisible({
-        selector: '*[data-id="treeViewDivtreeViewItem.deps/npm/@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol"]',
-        timeout: 120000,
-        suppressNotFoundErrors: true
-      })
-      .clickLaunchIcon('solidity')
-      .click('[data-id="compilerContainerCompileBtn"]')
-      .clickLaunchIcon('filePanel')
-      .waitForElementVisible({
-        selector: '*[data-id="treeViewDivtreeViewItem.deps/npm/@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol"]',
-        timeout: 120000,
-      })
-      .openFile('myTokenV1.sol')
-      .clickLaunchIcon('solidity')
       .waitForElementPresent('select[id="compiledContracts"] option[value=MyToken]', 60000)
       .clickLaunchIcon('udapp')
-      .click('select.udapp_contractNames')
-      .click('select.udapp_contractNames option[value=MyToken]')
+      .selectContract('MyToken')
       .waitForElementPresent('[data-id="contractGUIDeployWithProxyLabel"]')
-      .expect.element('[data-id="contractGUIDeployWithProxy"]').to.be.selected
+      .waitForElementPresent('[data-id="contractGUIDeployWithProxy"] button i.fa-toggle-on')
   },
 
   'Should select upgrade with proxy option from URL params #group2': function (browser: NightwatchBrowser) {
@@ -311,10 +314,9 @@ module.exports = {
       .click('[data-id="compilerContainerCompileBtn"]')
       .waitForElementPresent('select[id="compiledContracts"] option[value=MyToken]', 60000)
       .clickLaunchIcon('udapp')
-      .click('select.udapp_contractNames')
-      .click('select.udapp_contractNames option[value=MyToken]')
+      .selectContract('MyToken')
       .waitForElementPresent('[data-id="contractGUIUpgradeImplementationLabel"]')
-      .expect.element('[data-id="contractGUIUpgradeImplementation"]').to.be.selected
+      .waitForElementPresent('[data-id="contractGUIUpgradeImplementation"] button i.fa-toggle-on')
   },
 
   'Should load using various URL compiler params #group2': function (browser: NightwatchBrowser) {
@@ -375,7 +377,7 @@ module.exports = {
     browser
       .url('http://127.0.0.1:8080/#optimize=false&runs=200&url=https://raw.githubusercontent.com/EthVM/evm-source-verification/main/contracts/1/0x011e5846975c6463a8c6337eecf3cbf64e328884/input.json')
       .refreshPage()
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .waitForElementVisible('*[data-id="treeViewDivtreeViewItem@openzeppelin/contracts/access/AccessControl.sol"]')
       .openFile('contracts')
       .openFile('contracts/governance')
@@ -397,7 +399,7 @@ module.exports = {
       .url('http://127.0.0.1:8080/#ghfolder=https://github.com/ethereum/remix-project/tree/master/apps/remix-ide/contracts/hardhat')
       .refreshPage()
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]', 40000)
-      .currentWorkspaceIs('code-sample')
+      .currentWorkspaceIs('code-sample-')
       .openFile('contracts')
       // .openFile('contracts/Lock.sol')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/Lock.sol"]')

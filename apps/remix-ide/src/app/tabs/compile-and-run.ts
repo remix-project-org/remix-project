@@ -55,7 +55,7 @@ export class CompileAndRun extends Plugin {
       }
       const content = await this.call('fileManager', 'readFile', fileName)
       if (clearAllInstances) {
-        await this.call('udapp', 'clearAllInstances')
+        await this.call('udappDeployedContracts', 'clearDeployedContracts')
       }
       await this.call('scriptRunnerBridge', 'execute', content, fileName)
     } catch (e) {

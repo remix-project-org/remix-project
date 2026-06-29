@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import axios from 'axios';
+import { endpointUrls } from '@remix-endpoints-helper';
 
 interface GitHubCallbackProps {
   tokenExchangeEndpoint?: string;
 }
 
 export const GitHubCallback: React.FC<GitHubCallbackProps> = ({
-  tokenExchangeEndpoint = 'https://github-login-proxy.api.remix.live/login/oauth/access_token'
+  tokenExchangeEndpoint = `${endpointUrls.gitHubLoginProxy}/login/oauth/access_token`
 }) => {
   const hasRun = useRef(false);
 

@@ -70,7 +70,7 @@ export class ResourceScoring {
     params: IEnhancedMCPProviderParams = {}
   ): Promise<IResourceScore[]> {
     const domainWeights = { ...this.defaultDomainWeights, ...(params.domainWeights || {}) };
-    const relevanceThreshold = params.relevanceThreshold || 0.35;
+    const relevanceThreshold = params.relevanceThreshold || 0.20;
 
     const scoredResources: IResourceScore[] = [];
 

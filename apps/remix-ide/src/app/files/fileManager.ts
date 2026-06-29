@@ -13,6 +13,9 @@ import { commitChange } from '@remix-ui/git'
 /*
   attach to files event (removed renamed)
   trigger: currentFileChanged
+        // Handle any errors that occur during the mapping process
+      }
+    }
 */
 
 const profile = {
@@ -22,7 +25,7 @@ const profile = {
   icon: 'assets/img/fileManager.webp',
   permission: true,
   version: packageJson.version,
-  methods: ['closeAllFiles', 'closeFile', 'file', 'exists', 'open', 'writeFile', 'writeMultipleFiles', 'writeFileNoRewrite',
+  methods: ['closeAllFiles', 'closeFile', 'file', 'exists', 'open', 'openFile', 'writeFile', 'writeMultipleFiles', 'writeFileNoRewrite',
     'readFile', 'copyFile', 'copyDir', 'rename', 'mkdir', 'readdir', 'dirList', 'fileList', 'remove', 'getCurrentFile', 'getFile',
     'getFolder', 'setFile', 'switchFile', 'refresh', 'getProviderOf', 'getProviderByName', 'getPathFromUrl', 'getUrlFromPath',
     'saveCurrentFile', 'setBatchFiles', 'isGitRepo', 'isFile', 'isDirectory', 'hasGitSubmodule', 'copyFolderToJson', 'diff',
@@ -626,7 +629,7 @@ export default class FileManager extends Plugin {
     if (this.currentRequest) {
       const canCall = await this.askUserPermission(`writeFile`, `modifying ${path} ...`)
       const required = this.appManager.isRequired(this.currentRequest.from)
-      if (canCall && !required) {
+      if (canCall && !required && !options?.silent) {
         // inform the user about modification after permission is granted and even if permission was saved before
         this.call('notification', 'toast', fileChangedToastMsg(this.currentRequest.from, path))
       }
@@ -656,11 +659,11 @@ export default class FileManager extends Plugin {
    * @param {string} file url we are trying to resolve
    * @returns {{ string, provider }} file path resolved and its provider.
    */
-  getPathFromUrl(file) {
+  getPathFromUrl(file: string) {
     const provider = this.fileProviderOf(file)
     if (!provider) throw new Error(`no provider for ${file}`)
     return {
-      file: provider.getPathFromUrl(file) || file, // in case an external URL is given as input, we resolve it to the right internal path
+      file: provider.getPathFromUrl(file) || file,
       provider
     }
   }

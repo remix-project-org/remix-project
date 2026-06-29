@@ -46,6 +46,23 @@ export const GitHubPopupCallback = () => {
       })
 
       if (data.access_token) {
+        // Register with SSO API to create user and set cookies
+        try {
+          await axios.post(`${endpointUrls.sso}/github/verify`, {
+            access_token: data.access_token
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            withCredentials: true // Important: allows cookies to be set
+          })
+          console.log('[GitHubPopupCallback] Registered with SSO API')
+        } catch (ssoError) {
+          console.warn('[GitHubPopupCallback] SSO registration failed:', ssoError)
+          // Continue anyway - GitHub still works for git operations
+        }
+
         window.opener?.postMessage({ type: 'GITHUB_AUTH_SUCCESS', token: data.access_token }, window.location.origin)
       } else {
         console.log('[GitHubPopupCallback] Posting failure message')

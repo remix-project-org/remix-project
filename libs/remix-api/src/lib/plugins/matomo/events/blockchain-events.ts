@@ -1,6 +1,6 @@
 /**
  * Blockchain Events - Blockchain interactions and UDAPP tracking events
- * 
+ *
  * This file contains all blockchain and universal dapp related Matomo events.
  */
 
@@ -8,8 +8,7 @@ import { MatomoEventBase } from '../core/base-types';
 
 export interface BlockchainEvent extends MatomoEventBase {
   category: 'blockchain';
-  action: 
-    | 'providerChanged'
+  action:
     | 'accountChanged'
     | 'connectionError'
     | 'transactionFailed'
@@ -21,8 +20,7 @@ export interface BlockchainEvent extends MatomoEventBase {
 
 export interface UdappEvent extends MatomoEventBase {
   category: 'udapp';
-  action: 
-    | 'providerChanged'
+  action:
     | 'sendTransaction-from-plugin'
     | 'sendTransaction-from-gui'
     | 'safeSmartAccount'
@@ -41,17 +39,129 @@ export interface UdappEvent extends MatomoEventBase {
     | 'DeployAndPublish'
     | 'DeployOnly'
     | 'DeployContractTo'
-    | 'broadcastCompilationResult';
+    | 'broadcastCompilationResult'
+    | 'environmentDropdownOpen'
+    | 'environmentSelected'
+    | 'categoryDropdownOpen'
+    | 'categorySelected'
+    | 'accountDropdownOpen'
+    | 'accountSelected'
+    | 'accountAliasEditStart'
+    | 'accountAliasSaved'
+    | 'accountAliasCancelled'
+    | 'copyAccountAddress'
+    | 'copyDelegationAddress'
+    | 'kebabMenuOpen'
+    | 'renameAccount'
+    | 'newAccount'
+    | 'createSmartAccount'
+    | 'authorizeDelegation'
+    | 'deleteAccount'
+    | 'deleteDelegation'
+    | 'forkDialogOpen'
+    | 'forkDialogClose'
+    | 'forkNameInput'
+    | 'forkSubmit'
+    | 'resetDialogOpen'
+    | 'resetDialogClose'
+    | 'resetCancel'
+    | 'resetConfirm'
+    | 'signMessageInput'
+    | 'signEIP712'
+    | 'delegationAddressInput'
+    | 'smartAccountLearnMore'
+    | 'passphraseInput'
+    | 'passphraseConfirmInput'
+    | 'contractDropdownOpen'
+    | 'contractSelected'
+    | 'compileContract'
+    | 'recompileContract'
+    | 'contractKebabMenuOpen'
+    | 'copyContractABI'
+    | 'contractSaveABI'
+    | 'copyContractBytecode'
+    | 'deployCardToggle'
+    | 'deployWithProxyToggle'
+    | 'upgradeWithProxyToggle'
+    | 'proxyDropdownOpen'
+    | 'proxyAddressSelected'
+    | 'proxyAddressInput'
+    | 'proxyConstructorInput'
+    | 'proxyConstructorExpand'
+    | 'copyProxyInput'
+    | 'verifyContractToggle'
+    | 'constructorInput'
+    | 'constructorExpand'
+    | 'copyConstructorInput'
+    | 'copyCallData'
+    | 'copyParameters'
+    | 'valueInput'
+    | 'valueUnitChange'
+    | 'gasLimitToggle'
+    | 'gasLimitInput'
+    | 'deployButtonClick'
+    | 'mainnetMaxPriorityFeeInput'
+    | 'mainnetMaxFeeInput'
+    | 'mainnetGasPriceInput'
+    | 'mainnetConfirmCheckbox'
+    | 'copyTransactionData'
+    | 'addContractButtonClick'
+    | 'clearAllContractsButtonClick'
+    | 'addContractDialogClose'
+    | 'addContractAddressInput'
+    | 'addContractSubmit'
+    | 'clearAllDialogClose'
+    | 'clearAllDialogCancel'
+    | 'clearAllDialogConfirm'
+    | 'scrollToNewInstanceClick'
+    | 'pinContractToggle'
+    | 'copyDeployedContractAddress'
+    | 'deployedContractKebabMenuOpen'
+    | 'deployedContractToggle'
+    | 'highLevelInteractionToggle'
+    | 'lowLevelInteractionToggle'
+    | 'deployedContractFunctionSelect'
+    | 'deployedContractFunctionInput'
+    | 'deployedContractExecute'
+    | 'deployedContractCalldataInput'
+    | 'deployedContractValueInput'
+    | 'deployedContractValueUnitChange'
+    | 'deployedContractGasLimitToggle'
+    | 'deployedContractGasLimitInput'
+    | 'deployedContractTreeExpand'
+    | 'deployedContractCreateDapp'
+    | 'deployedContractNameENS'
+    | 'deployedContractCopyABI'
+    | 'deployedContractSaveABI'
+    | 'deployedContractCopyBytecode'
+    | 'deployedContractOpenExplorer'
+    | 'deployedContractRemove'
+    | 'transactionsAccordionToggle'
+    | 'transactionsSaveButtonClick'
+    | 'transactionsClearAllButtonClick'
+    | 'transactionsSaveDialogClose'
+    | 'transactionsScenarioInput'
+    | 'transactionsSaveScenario'
+    | 'transactionsClearAllDialogClose'
+    | 'transactionsClearAllCancel'
+    | 'transactionsClearAllConfirm'
+    | 'transactionsTabChange'
+    | 'transactionsSortChange'
+    | 'transactionCopyHash'
+    | 'transactionKebabMenuOpen'
+    | 'transactionDebug'
+    | 'transactionReplay'
+    | 'transactionOpenTerminal'
+    | 'transactionOpenExplorer'
+    | 'transactionClear'
+    | 'transactionRecordCardToggle'
+    | 'transactionRecordCopyAddress';
 }
 
 export interface RunEvent extends MatomoEventBase {
   category: 'run';
-  action: 
+  action:
     | 'recorder'
     | 'debug';
 }
-
-
-
-
 

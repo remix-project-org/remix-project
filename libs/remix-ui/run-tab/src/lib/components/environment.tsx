@@ -197,7 +197,7 @@ export function EnvironmentUI(props: EnvironmentProps) {
         { currentProvider && currentProvider.config.isVM && isSaveEvmStateChecked && !currentProvider.config.isVMStateForked && !currentProvider.config.isRpcForkedState && <CustomTooltip placement={'auto-end'} tooltipClasses="text-wrap" tooltipId="deleteVMStatetooltip" tooltipText={<FormattedMessage id="udapp.resetVmStateTitle" />}>
           <span onClick={resetVmState} style={{ cursor: 'pointer', float: 'right', textTransform: 'none' }}>
             <i className="udapp_infoDeployAction ms-2 fas fa-rotate-right" data-id="delete-state-icon"></i>
-            <span className="ms-1" style = {{ textTransform: 'none', fontSize: '13px' }}>Reset State</span>
+            <span className="ms-1" style = {{ textTransform: 'none', fontSize: '13px' }}><FormattedMessage id="udapp.resetStateLabel" /></span>
           </span>
         </CustomTooltip> }
         {isSwitching && <i className="fa fa-spinner fa-pulse ms-2" aria-hidden="true"></i>}
@@ -214,10 +214,10 @@ export function EnvironmentUI(props: EnvironmentProps) {
             <DropdownLabel label={currentProvider && currentProvider.displayName} bridges={bridges} currentProvider={currentProvider} envLabel={props.envLabel} runTabState={props.udappState} setExecutionEnv={props.setExecutionContext} isL2={isL2} plugin={props.runTabPlugin} />
           </Dropdown.Toggle>
           <Dropdown.Menu as={CustomMenu} className="w-100 form-select udapp_exenv_menu" data-id="custom-dropdown-items">
-            {providers.length === 0 && <Dropdown.Item>No provider pinned</Dropdown.Item>}
+            {providers.length === 0 && <Dropdown.Item><FormattedMessage id="udapp.noProviderPinned" /></Dropdown.Item>}
 
             {remixVMs.length > 0 && (
-              <SubmenuPortal label="Remix VM">
+              <SubmenuPortal label={intl.formatMessage({ id: 'udapp.remixVmSubmenu' })}>
                 {remixVMs.map(({ name, displayName }) => (
                   <Dropdown.Item
                     key={name}
@@ -233,7 +233,7 @@ export function EnvironmentUI(props: EnvironmentProps) {
             <Dropdown.Divider className="border-secondary" />
 
             {injectedProviders.length > 0 && (
-              <SubmenuPortal label="Browser extension">
+              <SubmenuPortal label={intl.formatMessage({ id: 'udapp.browserExtensionSubmenu' })}>
                 {injectedProviders.map(({ name, displayName }) => (
                   <Dropdown.Item
                     key={name}
@@ -281,7 +281,7 @@ export function EnvironmentUI(props: EnvironmentProps) {
             <Dropdown.Divider className="border-secondary" />
 
             {devProviders.length > 0 && (
-              <SubmenuPortal label="Dev">
+              <SubmenuPortal label={intl.formatMessage({ id: 'udapp.devSubmenu' })}>
                 {devProviders.map(({ name, displayName }) => (
                   <Dropdown.Item
                     key={name}

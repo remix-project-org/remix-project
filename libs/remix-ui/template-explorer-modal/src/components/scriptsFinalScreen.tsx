@@ -14,7 +14,7 @@ export function ScriptsFinalScreen(props: ScriptsFinalScreenProps) {
   return (
     <section className="d-flex flex-column gap-3 bg-light" style={{ height: '80%' }}>
 
-      <button className="btn btn-primary btn-sm mx-3" data-id="validateWorkspaceButton" onClick={async () => {
+      <button className="btn btn-primary btn-sm mx-3" data-id="validateWorkspaceButton" disabled={state.creating} onClick={async () => {
         await facade.createWorkspace({
           workspaceName: state.workspaceName,
           workspaceTemplateName: state.workspaceTemplateChosen.value,
@@ -26,7 +26,7 @@ export function ScriptsFinalScreen(props: ScriptsFinalScreenProps) {
           contractName: state.tokenName
         })
         facade.closeWizard()
-      }}>Finish</button>
+      }}>{state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : 'Finish'}</button>
     </section>
   )
 }

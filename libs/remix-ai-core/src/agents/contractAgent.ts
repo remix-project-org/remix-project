@@ -1,3 +1,4 @@
+import { remixAILogger } from '../helpers/logger'
 import isElectron from 'is-electron'
 import { AssistantParams } from "../types/models";
 import { workspaceAgent } from "./workspaceAgent";
@@ -19,7 +20,6 @@ export class ContractAgent {
 
   private constructor(props) {
     this.plugin = props;
-    AssistantParams.provider = this.plugin.assistantProvider
   }
 
   public static getInstance(props) {
@@ -37,7 +37,6 @@ export class ContractAgent {
   async writeContracts(payload, userPrompt, statusCallback?: (status: string) => Promise<void>) {
     const prev_statusCallback = statusCallback
     statusCallback = async (status: string) => {
-      console.log('Generation status:', status)
       if (prev_statusCallback) {
         await prev_statusCallback(status)
       }
@@ -173,7 +172,7 @@ export class ContractAgent {
       await this.plugin.call('filePanel', 'createWorkspace', wsp_name, true)
       this.workspaceName = wsp_name
     } catch (error) {
-      console.error('Error creating workspace:', error)
+      remixAILogger.error('Error creating workspace:', error)
     }
   }
 

@@ -6,13 +6,13 @@ import { customAction } from '@remixproject/plugin-api'
 import { trackMatomoEventAsync } from '@remix-api'
 import { displayNotification, displayPopUp, fetchDirectoryError, fetchDirectoryRequest, fetchDirectorySuccess, focusElement, fsInitializationCompleted, hidePopUp, removeInputFieldSuccess, setCurrentLocalFilePath, setCurrentWorkspace, setExpandPath, setMode, setWorkspaces } from './payload'
 import { listenOnPluginEvents, listenOnProviderEvents } from './events'
-import { createWorkspaceTemplate, getWorkspaces, loadWorkspacePreset, setPlugin, workspaceExists } from './workspace'
-import { QueryParams, Registry } from '@remix-project/remix-lib'
+import { createWorkspaceTemplate, getWorkspaces, loadWorkspacePreset, setPlugin, workspaceExists, createWorkspace } from './workspace'
+import { setCloudPlugin, setCreateDefaultCloudWorkspaceFn } from '../cloud/cloud-workspace-actions'
+import { QueryParams, Registry, all } from '@remix-project/remix-lib'
 import { fetchContractFromEtherscan, fetchContractFromBlockscout } from '@remix-project/core-plugin' // eslint-disable-line
 import JSZip from 'jszip'
 import { Actions, FileTree } from '../types'
 import IpfsHttpClient from 'ipfs-http-client'
-import { AppModal, ModalTypes } from '@remix-ui/app'
 import { Topbar } from 'apps/remix-ide/src/app/components/top-bar'
 
 export * from './events'
@@ -21,6 +21,36 @@ export * from './workspace'
 const queryParams = new QueryParams()
 
 let plugin, dispatch: React.Dispatch<Actions>
+
+async function generate10LetterHash(input) {
+  // Encode the input string as UTF-8
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+
+  // Hash the data using SHA-256
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+  // Convert the hash to a hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Take the first 10 characters
+  return hashHex.substring(0, 10);
+}
+
+// Generate an 8-letter random suffix for temporary workspace names
+const generateRandomSuffix = async (content?: string): Promise<string> => {
+  if (content) {
+    // If content is provided, generate a deterministic suffix based on the content
+    return await generate10LetterHash(content)
+  }
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
 
 export type UrlParametersType = {
   gist: string,
@@ -32,6 +62,55 @@ export type UrlParametersType = {
   blockscout: string,
   ghfolder: string
   endpoint: string
+  remaps: string
+}
+
+// Helper function to check if a workspace name matches the code-sample pattern
+const isCodeSampleWorkspace = (name: string): boolean => {
+  // Matches 'code-sample' or 'code-sample-xxxxxxxx' where x is alphanumeric (8 chars)
+  return /^code-sample(-[a-z0-9]{8})?$/.test(name)
+}
+
+// Clean up all temporary code-sample workspaces
+// Runs on every page load but optimized to be non-blocking and fast
+const cleanupCodeSampleWorkspaces = (workspaces: { name: string; isGitRepo: boolean; }[], workspaceProvider) => {
+  try {
+    // Quick synchronous check: if no workspace names match the pattern, return immediately
+    const codeSampleWorkspaces = workspaces.filter(ws => isCodeSampleWorkspace(ws.name))
+
+    if (codeSampleWorkspaces.length === 0) {
+      return // Nothing to clean, exit fast
+    }
+
+    // Background cleanup - doesn't block initialization
+    const browserProvider = plugin.fileProviders.browser
+    const workspacesPath = workspaceProvider.workspacesPath
+
+    // Fire and forget - delete all temporary workspaces in parallel
+    const cleanupPromises = codeSampleWorkspaces.map(ws =>
+      browserProvider.remove(workspacesPath + '/' + ws.name)
+        .then(() => {
+          console.log(`[Cleanup] Deleted temporary workspace: ${ws.name}`)
+          return ws.name
+        })
+        .catch((error) => {
+          console.error(`[Cleanup] Failed to delete workspace ${ws.name}:`, error)
+          return null
+        })
+    )
+
+    // Log results when done (in background, no need to update state as it's already filtered)
+    Promise.all(cleanupPromises).then((results) => {
+      const cleanedCount = results.filter(r => r !== null).length
+      if (cleanedCount > 0) {
+        console.log(`[Cleanup] Cleaned up ${cleanedCount} temporary workspace(s)`)
+      }
+    }).catch((error) => {
+      console.error('[Cleanup] Error during cleanup:', error)
+    })
+  } catch (error) {
+    console.error('[Cleanup] Error during cleanup:', error)
+  }
 }
 
 const basicWorkspaceInit = async (workspaces: { name: string; isGitRepo: boolean; }[], workspaceProvider) => {
@@ -57,25 +136,25 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
     plugin = filePanelPlugin
     dispatch = reducerDispatch
     setPlugin(plugin, dispatch)
+    setCloudPlugin(plugin, dispatch)
+    // Register the createWorkspace function for cloud-workspace-actions to use
+    // when it needs to create a default workspace (avoids circular import).
+    setCreateDefaultCloudWorkspaceFn((name, template) => createWorkspace(name, template as any))
     const workspaceProvider = filePanelPlugin.fileProviders.workspace
     const localhostProvider = filePanelPlugin.fileProviders.localhost
     const electrOnProvider = filePanelPlugin.fileProviders.electron
     const params = queryParams.get() as UrlParametersType
-    let editorMounted = false
-    let filePathToOpen = null
+    const lifecycle = Registry.getInstance().get('lifecycle').api
     let workspaces = []
-    plugin.on('editor', 'editorMounted', async () => {
-      editorMounted = true
-      if (filePathToOpen){
-        setTimeout(async () => {
-          await plugin.fileManager.openFile(filePathToOpen)
-          filePathToOpen = null
-        }, 1000)
-      }
-    })
     if (!(Registry.getInstance().get('platform').api.isDesktop())) {
-      workspaces = await getWorkspaces() || []
+      const allWorkspaces = await getWorkspaces() || []
+
+      // Filter out code-sample workspaces - these should never be used or displayed
+      workspaces = allWorkspaces.filter(ws => !isCodeSampleWorkspace(ws.name))
       dispatch(setWorkspaces(workspaces))
+
+      // Clean up temporary code-sample workspaces from previous sessions (non-blocking)
+      // cleanupCodeSampleWorkspaces(allWorkspaces, workspaceProvider)
     }
     if (params.gist) {
       const name = 'gist ' + params.gist
@@ -84,17 +163,13 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       dispatch(setCurrentWorkspace({ name, isGitRepo: false }))
       await loadWorkspacePreset('gist-template')
     } else if (params.code || params.url || params.shareCode || params.ghfolder) {
-      await createWorkspaceTemplate('code-sample', 'code-template')
-      plugin.setWorkspace({ name: 'code-sample', isLocalhost: false })
-      dispatch(setCurrentWorkspace({ name: 'code-sample', isGitRepo: false }))
+      const workspaceName = `code-sample-${await generateRandomSuffix(params.code || params.url || params.shareCode || params.ghfolder)}`
+      await createWorkspaceTemplate(workspaceName, 'code-template')
+      plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
+      dispatch(setCurrentWorkspace({ name: workspaceName, isGitRepo: false }))
       const filePath = await loadWorkspacePreset('code-template')
-      plugin.on('filePanel', 'workspaceInitializationCompleted', async () => {
-        if (editorMounted){
-          setTimeout(async () => {
-            await plugin.fileManager.openFile(filePath)}, 1000)
-        } else {
-          filePathToOpen = filePath
-        }
+      lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
+        await plugin.fileManager.openFile(filePath)
       })
     } else if (params.address && params.blockscout) {
       if (params.address.startsWith('0x') && params.address.length === 42 && params.blockscout.length > 0) {
@@ -104,7 +179,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         let data
         let count = 0
         try {
-          const workspaceName = 'code-sample'
+          const workspaceName = `code-sample-${await generateRandomSuffix(params.address + params.blockscout)}`
           let filePath
           const target = `/${blockscoutUrl}/${contractAddress}`
 
@@ -117,13 +192,8 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
           for (filePath in data.compilationTargets)
             await workspaceProvider.set(filePath, data.compilationTargets[filePath]['content'])
 
-          plugin.on('filePanel', 'workspaceInitializationCompleted', async () => {
-            if (editorMounted){
-              setTimeout(async () => {
-                await plugin.fileManager.openFile(filePath)}, 1000)
-            } else {
-              filePathToOpen = filePath
-            }
+          lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
+            await plugin.fileManager.openFile(filePath)
           })
           plugin.call('notification', 'toast', `Added ${count} verified contract${count === 1 ? '' : 's'} from ${blockscoutUrl} network for contract address ${contractAddress} !!`)
         } catch (error) {
@@ -139,7 +209,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         try {
           let etherscanKey = await plugin.call('config', 'getAppParameter', 'etherscan-access-token')
           if (!etherscanKey) etherscanKey = '2HKUX5ZVASZIKWJM8MIQVCRUVZ6JAWT531'
-          const workspaceName = 'code-sample'
+          const workspaceName = `code-sample-${await generateRandomSuffix(params.address)}`
           let filePath
           const foundOnNetworks = []
           const endpoint = params.endpoint || 'api.etherscan.io'
@@ -160,13 +230,8 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
             await workspaceProvider.set('compiler_config.json', JSON.stringify(data.config, null, '\t'))
           }
 
-          plugin.on('filePanel', 'workspaceInitializationCompleted', async () => {
-            if (editorMounted){
-              setTimeout(async () => {
-                await plugin.fileManager.openFile(filePath)}, 1000)
-            } else {
-              filePathToOpen = filePath
-            }
+          lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
+            await plugin.fileManager.openFile(filePath)
           })
           plugin.call('notification', 'toast', `Added ${count} verified contract${count === 1 ? '' : 's'} from ${foundOnNetworks.join(',')} network${foundOnNetworks.length === 1 ? '' : 's'} of Etherscan for contract address ${contractAddress} !!`)
         } catch (error) {
@@ -228,21 +293,17 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
     const localhostProvider = plugin.fileProviders.localhost
     const electrOnProvider = plugin.fileProviders.electron
     const params = queryParams.get() as UrlParametersType
-    let editorMounted = false
-    let filePathToOpen = null
+    const lifecycle = Registry.getInstance().get('lifecycle').api
     let workspaces = []
-    plugin.on('editor', 'editorMounted', async () => {
-      editorMounted = true
-      if (filePathToOpen){
-        setTimeout(async () => {
-          await plugin.fileManager.openFile(filePathToOpen)
-          filePathToOpen = null
-        }, 1000)
-      }
-    })
     if (!(Registry.getInstance().get('platform').api.isDesktop())) {
-      workspaces = await getWorkspaces() || []
+      const allWorkspaces = await getWorkspaces() || []
+
+      // Filter out code-sample workspaces - these should never be used or displayed
+      workspaces = allWorkspaces.filter(ws => !isCodeSampleWorkspace(ws.name))
       dispatch(setWorkspaces(workspaces))
+
+      // Clean up temporary code-sample workspaces from previous sessions (non-blocking)
+      // cleanupCodeSampleWorkspaces(allWorkspaces, workspaceProvider)
     }
     if (params.gist) {
       const name = 'gist ' + params.gist
@@ -251,17 +312,13 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       dispatch(setCurrentWorkspace({ name, isGitRepo: false }))
       await loadWorkspacePreset('gist-template')
     } else if (params.code || params.url || params.shareCode || params.ghfolder) {
-      await createWorkspaceTemplate('code-sample', 'code-template')
-      plugin.setWorkspace({ name: 'code-sample', isLocalhost: false })
-      dispatch(setCurrentWorkspace({ name: 'code-sample', isGitRepo: false }))
+      const workspaceName = `code-sample-${await generateRandomSuffix(params.code || params.url || params.shareCode || params.ghfolder)}`
+      await createWorkspaceTemplate(workspaceName, 'code-template')
+      plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
+      dispatch(setCurrentWorkspace({ name: workspaceName, isGitRepo: false }))
       const filePath = await loadWorkspacePreset('code-template')
-      plugin.on('filePanel', 'workspaceInitializationCompleted', async () => {
-        if (editorMounted){
-          setTimeout(async () => {
-            await plugin.fileManager.openFile(filePath)}, 1000)
-        } else {
-          filePathToOpen = filePath
-        }
+      lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
+        await plugin.fileManager.openFile(filePath)
       })
     } else if (params.address && params.blockscout) {
       if (params.address.startsWith('0x') && params.address.length === 42 && params.blockscout.length > 0) {
@@ -271,7 +328,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         let data
         let count = 0
         try {
-          const workspaceName = 'code-sample'
+          const workspaceName = `code-sample-${await generateRandomSuffix(params.address + params.blockscout)}`
           let filePath
           const target = `/${blockscoutUrl}/${contractAddress}`
 
@@ -284,13 +341,8 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
           for (filePath in data.compilationTargets)
             await workspaceProvider.set(filePath, data.compilationTargets[filePath]['content'])
 
-          plugin.on('filePanel', 'workspaceInitializationCompleted', async () => {
-            if (editorMounted){
-              setTimeout(async () => {
-                await plugin.fileManager.openFile(filePath)}, 1000)
-            } else {
-              filePathToOpen = filePath
-            }
+          lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
+            await plugin.fileManager.openFile(filePath)
           })
           plugin.call('notification', 'toast', `Added ${count} verified contract${count === 1 ? '' : 's'} from ${blockscoutUrl} network for contract address ${contractAddress} !!`)
         } catch (error) {
@@ -306,7 +358,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         try {
           let etherscanKey = await plugin.call('config', 'getAppParameter', 'etherscan-access-token')
           if (!etherscanKey) etherscanKey = '2HKUX5ZVASZIKWJM8MIQVCRUVZ6JAWT531'
-          const workspaceName = 'code-sample'
+          const workspaceName = `code-sample-${await generateRandomSuffix(params.address)}`
           let filePath
           const foundOnNetworks = []
           const endpoint = params.endpoint || 'api.etherscan.io'
@@ -327,13 +379,8 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
             await workspaceProvider.set('compiler_config.json', JSON.stringify(data.config, null, '\t'))
           }
 
-          plugin.on('filePanel', 'workspaceInitializationCompleted', async () => {
-            if (editorMounted){
-              setTimeout(async () => {
-                await plugin.fileManager.openFile(filePath)}, 1000)
-            } else {
-              filePathToOpen = filePath
-            }
+          lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
+            await plugin.fileManager.openFile(filePath)
           })
           plugin.call('notification', 'toast', `Added ${count} verified contract${count === 1 ? '' : 's'} from ${foundOnNetworks.join(',')} network${foundOnNetworks.length === 1 ? '' : 's'} of Etherscan for contract address ${contractAddress} !!`)
         } catch (error) {
@@ -358,7 +405,6 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       dispatch(fsInitializationCompleted())
       plugin.emit('workspaceInitializationCompleted')
       return
-
     } else if (localStorage.getItem("currentWorkspace")) {
       const index = workspaces.findIndex(element => element.name == localStorage.getItem("currentWorkspace"))
       if (index !== -1) {
@@ -672,7 +718,6 @@ export const runScript = async (path: string) => {
 export const signTypedData = async (path: string) => {
   const typedData = await plugin.call('fileManager', 'readFile', path)
   const web3 = await plugin.call('blockchain', 'web3')
-  const settings = await plugin.call('udapp', 'getSettings')
   let parsed
   try {
     parsed = JSON.parse(typedData)
@@ -682,8 +727,9 @@ export const signTypedData = async (path: string) => {
   }
 
   try {
-    const result = await web3.send('eth_signTypedData_v4', [settings.selectedAccount, parsed])
-    plugin.call('terminal', 'log', { type: 'log', value: `${path} signature using ${settings.selectedAccount} : ${result}` })
+    const selectedAccount = await plugin.call('udappEnv', 'getSelectedAccount')
+    const result = await web3.send('eth_signTypedData_v4', [selectedAccount, parsed])
+    plugin.call('terminal', 'log', { type: 'log', value: `${path} signature using ${selectedAccount} : ${result}` })
   } catch (e) {
     console.error(e)
     plugin.call('terminal', 'log', { type: 'error', value: `error while signing ${path}: ${e.message || e}` })

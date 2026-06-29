@@ -1,10 +1,12 @@
 import React, { useContext, useEffect } from 'react' // eslint-disable-line
+import { appPlatformTypes, platformContext } from '@remix-ui/app'
 import { TerminalContext } from '../context'
 import { RemixUiTerminalProps, SET_OPEN } from '../types/terminalTypes'
 import './remix-ui-terminal-menu-buttons.css'
 
 export const RemixUITerminalMenuButtons = (props: RemixUiTerminalProps) => {
   const { xtermState, dispatchXterm, terminalState, dispatch } = useContext(TerminalContext)
+  const platform = useContext(platformContext)
 
   function selectOutput(event: any): void {
     props.plugin.call('layout', 'minimize', props.plugin.profile.name, false)
@@ -33,7 +35,7 @@ export const RemixUITerminalMenuButtons = (props: RemixUiTerminalProps) => {
       <button id="tabOutput" data-id="tabOutput" className={`xtermButton btn btn-sm border-secondary me-2 border ${!xtermState.showOutput ? '' : 'd-flex btn-secondary'}`} onClick={selectOutput}>
         Output
       </button>
-      <button data-id="tabXTerm" id="tabXTerm" className={`xtermButton btn btn-sm border-secondary ${xtermState.terminalsEnabled ? 'd-block' : 'd-none'} ${xtermState.showOutput ? '' : 'btn-secondary'}`}
+      <button data-id="tabXTerm" id="tabXTerm" className={`xtermButton btn btn-sm border-secondary ${(xtermState.terminalsEnabled || platform === appPlatformTypes.desktop) ? 'd-block' : 'd-none'} ${xtermState.showOutput ? '' : 'btn-secondary'}`}
         onClick={async(e) => await showTerminal(e)}>
         <span className="far fa-terminal border-0 ms-1"></span>
       </button>

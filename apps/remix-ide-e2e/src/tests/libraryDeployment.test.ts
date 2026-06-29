@@ -18,27 +18,22 @@ module.exports = {
   },
 
   'Test Auto Deploy Lib': function (browser: NightwatchBrowser) {
-    let addressRef: string
     browser.verifyContracts(['test'])
       .clickLaunchIcon('udapp')
-      .click('#selectExEnv')
       .selectContract('test')
       .createContract('')
-      .getAddressAtPosition(0, (address) => {
-        console.log('testAutoDeployLib ' + address)
-        addressRef = address
-      })
       .clickInstance(0)
       .perform((done) => {
-        browser.testConstantFunction(addressRef, 'get - call', null, '0:\nuint256: 45').perform(() => {
+        browser.testConstantFunction(0, 0, null, '0:\nuint256: 45').perform(() => {
           done()
         })
       })
   },
 
   'Test Manual Deploy Lib': function (browser: NightwatchBrowser) {
-    browser.click('*[data-id="deployAndRunClearInstances"]')
-      .pause(5000)
+    browser
+      .clickLaunchIcon('udapp')
+      .clearDeployedContracts()
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
       .waitForElementVisible('*[data-id="settings-sidebar-general"]')
@@ -89,7 +84,6 @@ function checkDeployShouldFail (browser: NightwatchBrowser, callback: VoidFuncti
 }
 
 function checkDeployShouldSucceed (browser: NightwatchBrowser, address: string, callback: VoidFunction) {
-  let addressRef: string
   let config
   browser.openFile('artifacts/test.json')
     .getEditorValue((content) => {
@@ -104,13 +98,10 @@ function checkDeployShouldSucceed (browser: NightwatchBrowser, address: string, 
     .clickLaunchIcon('udapp')
     .selectContract('test') // deploy lib
     .createContract('')
-    .getAddressAtPosition(1, (address) => {
-      addressRef = address
-    })
     .clickInstance(1)
     .perform(() => {
       browser
-        .testConstantFunction(addressRef, 'get - call', null, '0:\nuint256: 45')
+        .testConstantFunction(1, 0, null, '0:\nuint256: 45')
         .perform(() => { callback() })
     })
 }

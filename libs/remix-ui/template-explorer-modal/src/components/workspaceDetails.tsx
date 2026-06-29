@@ -46,7 +46,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
   }, [state.contractType, state.contractTag])
 
   return (
-    <section data-id="workspace-details-section" className="d-flex flex-column gap-3 bg-light workspace-details-section">
+    <section data-id="workspace-details-section" className="d-flex flex-column gap-3 bg-light workspace-details-section h-100">
       <div className="p-3 d-flex flex-row align-items-center">
         { showEditWorkspaceName ? <input data-id="workspace-name-input" type="text" className="form-control form-control-sm" value={uniqueWorkspaceName} onChange={(e) => {
           setUniqueWorkspaceName(e.target.value)
@@ -56,7 +56,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
         </span> }
         <i data-id="default-workspace-name-edit-icon" className={`${showEditWorkspaceName ? 'fas fa-lock ms-2' : "ms-2 fas fa-edit"}`} onClick={() => setShowEditWorkspaceName(!showEditWorkspaceName)}></i>
       </div>
-      <div className="d-flex flex-row h-100 pt-1 ps-3 pe-3 pb-3 workspace-details-content-wrapper">
+      <div className="d-flex flex-column flex-md-row h-100 pt-1 ps-3 pe-3 pb-3 workspace-details-content-wrapper">
         <div className="workspace-details-file-explorer">
           <MiniFileExplorer />
         </div>
@@ -90,7 +90,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
           </>
         </div>
 
-        <button className="btn btn-primary btn-sm" data-id="validateWorkspaceButton" onClick={async () => {
+        <button className="btn btn-primary btn-sm" data-id="validateWorkspaceButton" disabled={state.creating} onClick={async () => {
           await facade.createWorkspace({
             workspaceName: uniqueWorkspaceName,
             workspaceTemplateName: state.workspaceTemplateChosen.value,
@@ -103,7 +103,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
           facade.closeWizard()
           dispatch({ type: TemplateExplorerWizardAction.RESET_STATE })
         }}>
-          <i className="far fa-plus me-2"></i> Create a new workspace
+          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-plus me-2"></i> Create a new workspace</>}
         </button>
       </div>
     </section>

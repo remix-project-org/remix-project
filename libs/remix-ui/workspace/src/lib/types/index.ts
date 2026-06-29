@@ -57,6 +57,7 @@ export type WorkspaceMetadata = {
   isGist?: string
   isLocalhost?: boolean
   absolutePath?: string
+  remoteId?: string
 }
 
 export type TemplateType = {

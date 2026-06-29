@@ -1,0 +1,27 @@
+{
+  "name": "@remix-project/import-resolver",
+  "version": "0.1.0",
+  "description": "Standalone Node adapter for Remix Solidity import resolving and flattening",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/remix-project-org/remix-project.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Remix Team",
+  "bugs": {
+    "url": "https://github.com/remix-project-org/remix-project/issues"
+  },
+  "homepage": "https://github.com/remix-project-org/remix-project/tree/master/libs/remix-import-resolver#readme",
+  "bin": {
+    "remix-flatten": "dist/libs/remix-import-resolver/src/cli.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

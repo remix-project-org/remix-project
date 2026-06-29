@@ -49,9 +49,9 @@ const tests = {
                 contractAaddress = address
             })
             .clickInstance(0)
-            .clickFunction('increment - transact (not payable)')
+            .clickFunction(0, 0)
             .perform((done) => {
-                browser.testConstantFunction(contractAaddress, 'number - call', null, '0:\nuint256: 1').perform(() => {
+                browser.testConstantFunction(0, 1, null, '0:\nuint256: 1').perform(() => {
                     done()
                 })
             })

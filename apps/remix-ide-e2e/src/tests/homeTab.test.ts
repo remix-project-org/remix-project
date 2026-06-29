@@ -31,6 +31,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="homeTabGetStartedozerc20"]')
       .click('*[data-id="homeTabGetStartedozerc20"')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemremappings.txt"]')
       .waitForElementVisible('*[data-id="treeViewDivtreeViewItemtests/MyToken_test.sol"]')
       .click('*[data-id="treeViewDivtreeViewItemtests/MyToken_test.sol"]')
       .waitForElementPresent({

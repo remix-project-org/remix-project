@@ -21,6 +21,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
   } = props
 
   const [state, setState] = useState({
+    workspaceReloadFlag: 0,
     isHardhatProject: false,
     isTruffleProject: false,
     isFoundryProject: false,
@@ -48,7 +49,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
   const [currentVersion, setCurrentVersion] = useState('')
   const [hideWarnings, setHideWarnings] = useState<boolean>(false)
   const [compileErrors, setCompileErrors] = useState<Record<string, CompileErrors>>({ [currentFile]: api.compileErrors })
-  const [badgeStatus, setBadgeStatus] = useState<Record<string, { key: string; title?: string; type?: string }>>({})
+  const [badgeStatus, setBadgeStatus] = useState<Record<string, { key: string | number; title?: string; type?: string }>>({})
   const [contractsFile, setContractsFile] = useState<ContractsFile>({})
   const platform = useContext(platformContext)
 
@@ -85,12 +86,21 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     const isHardhat = (isLocalhost || isDesktop) && (await compileTabLogic.isHardhatProject())
     const isTruffle = (isLocalhost || isDesktop) && (await compileTabLogic.isTruffleProject())
     const isFoundry = (isLocalhost || isDesktop) && (await compileTabLogic.isFoundryProject())
+
+    // we reset the UI each time we switch workspace
+    setTimeout(() => {
+      api.setAppParameter('hardhat-compilation', false)
+      api.setAppParameter('foundry-compilation', false)
+      api.setAppParameter('truffle-compilation', false)
+    }, 0)
+
     setState((prevState) => {
       return {
         ...prevState,
         currentFile,
         isHardhatProject: isHardhat,
         workspaceName: workspaceName,
+        workspaceReloadFlag: Date.now(),
         isTruffleProject: isTruffle,
         isFoundryProject: isFoundry
       }
@@ -153,7 +163,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     }
   }
 
-  api.statusChanged = (data: { key: string; title?: string; type?: string }) => {
+  api.statusChanged = (data: { key: string | number; title?: string; type?: string }) => {
     setBadgeStatus({ ...badgeStatus, [currentFile]: data })
   }
 
@@ -279,6 +289,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
           pluginProps={props}
           isHardhatProject={state.isHardhatProject}
           workspaceName={state.workspaceName}
+          workspaceReloadFlag={state.workspaceReloadFlag}
           isTruffleProject={state.isTruffleProject}
           isFoundryProject={state.isFoundryProject}
           compileTabLogic={compileTabLogic}

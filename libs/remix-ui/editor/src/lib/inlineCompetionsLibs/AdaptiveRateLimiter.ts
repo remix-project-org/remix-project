@@ -57,29 +57,14 @@ export class AdaptiveRateLimiter {
     const minIntervalCheck = timeSinceLastRequest < this.minRequestInterval;
     const adaptiveCooldownCheck = timeSinceLastCompletion < adaptiveCooldown;
 
-    // console.log('[AdaptiveRateLimiter] shouldAllowRequest check:', {
-    //   timeSinceLastRequest,
-    //   timeSinceLastCompletion,
-    //   minRequestInterval: this.minRequestInterval,
-    //   adaptiveCooldown,
-    //   acceptanceRate: this.acceptanceRate,
-    //   minIntervalCheck,
-    //   adaptiveCooldownCheck
-    // });
-
-    // Check minimum request interval
     if (minIntervalCheck) {
-      // console.log('[AdaptiveRateLimiter] Blocked: minimum request interval not met');
       return false;
     }
 
-    // Check adaptive cooldown
     if (adaptiveCooldownCheck) {
-      // console.log('[AdaptiveRateLimiter] Blocked: adaptive cooldown active');
       return false;
     }
 
-    // console.log('[AdaptiveRateLimiter] Request allowed');
     return true;
   }
 
@@ -99,7 +84,6 @@ export class AdaptiveRateLimiter {
       timestamp: Date.now(),
       accepted: false
     });
-    // console.log('[AdaptiveRateLimiter] Completion shown, total:', this.totalCompletions);
   }
 
   trackCompletionAccepted(): void {
@@ -109,13 +93,10 @@ export class AdaptiveRateLimiter {
     if (this.recentCompletionHistory.length > 0) {
       this.recentCompletionHistory[this.recentCompletionHistory.length - 1].accepted = true;
     }
-
-    // console.log('[AdaptiveRateLimiter] Completion accepted, total accepted:', this.acceptedCompletions);
   }
 
   trackCompletionRejected(): void {
     this.rejectedCompletions++;
-    // console.log('[AdaptiveRateLimiter] Completion rejected, total rejected:', this.rejectedCompletions);
   }
 
   private getAdaptiveCooldown(): number {
@@ -149,12 +130,6 @@ export class AdaptiveRateLimiter {
       // do not penalize anyone at startup
       this.acceptanceRate = 0.5;
     }
-
-    // console.log('[AdaptiveRateLimiter] Acceptance rate updated:', {
-    //   oldHistoryLength,
-    //   newHistoryLength: this.recentCompletionHistory.length,
-    //   acceptanceRate: this.acceptanceRate
-    // });
   }
 
   getStats(): AdaptiveRateLimiterStats {

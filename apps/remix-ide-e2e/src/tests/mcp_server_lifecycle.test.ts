@@ -1,7 +1,8 @@
 import { NightwatchBrowser } from 'nightwatch'
 import init from '../helpers/init'
 
-module.exports = {
+module.exports = {}
+const tests = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
     init(browser, done)
@@ -9,7 +10,7 @@ module.exports = {
 
   'Should test RemixMCPServer startup and initialization': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="remix-ai-assistant"]')
+      .assistantWaitForReady()
       .execute(function () {
         const aiPlugin = (window as any).getRemixAIPlugin;
         if (!aiPlugin) {

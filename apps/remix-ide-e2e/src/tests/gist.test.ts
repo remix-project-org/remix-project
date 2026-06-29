@@ -112,19 +112,11 @@ module.exports = {
       .click('*[data-id="github-configSwitch"]')
       .waitForElementVisible('*[data-shared="tooltipPopup"]', 5000)
       .assert.containsText('*[data-shared="tooltipPopup"]', 'Credentials removed')
+      .waitForElementNotPresent('*[data-shared="tooltipPopup"]', 10000)
       .click('*[data-id="github-dropdown-toggle"]')
+    
       .waitForElementNotPresent('*[data-id="github-dropdown-item-publish-to-gist"]')
-      // .waitForElementVisible('[data-id="fileSystemModalDialogModalFooter-react"] .modal-ok')
-      // .execute(function () { (document.querySelector('[data-id="fileSystemModalDialogModalFooter-react"] .modal-ok') as HTMLElement).click() })
-      // .perform((done) => {
-      //   browser.getText('[data-id="fileSystemModalDialogModalBody-react"]', (result) => {
-      //     console.log('result.value: ', result.value)
-      //     browser.assert.ok(result.value === 'Remix requires an access token (which includes gists creation permission). Please go to the settings tab to create one.', 'Assert failed. Gist token error message not displayed.')
-      //     done()
-      //   })
-      // })
-      // .waitForElementPresent('[data-id="fileSystemModalDialogModalFooter-react"] .modal-ok')
-      // .click('[data-id="fileSystemModalDialogModalFooter-react"] .modal-ok')
+
   },
 
   'Import From Gist For Valid Gist ID #group2': '' + function (browser: NightwatchBrowser) {

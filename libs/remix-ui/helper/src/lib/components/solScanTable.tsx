@@ -4,6 +4,7 @@ import parse from 'html-react-parser'
 import { ScanReport } from '@remix-ui/helper'
 import { MatomoEvent, CompilerEvent } from '@remix-api'
 import { TrackingContext } from '@remix-ide/tracking'
+import { FormattedMessage } from 'react-intl'
 
 interface SolScanTableProps {
   scanReport: ScanReport
@@ -21,16 +22,16 @@ export function SolScanTable(props: SolScanTableProps) {
   return (
     <>
       <br/>
-      <h6>SolidityScan result for <b>{fileName}</b>:</h6>
+      <h6><FormattedMessage id="helper.solidityScanResult" /> <b>{fileName}</b>:</h6>
       <table className="table table-bordered table-hover">
         <thead>
           <tr>
             <td scope="col" style={{ wordBreak: "keep-all" }}>#</td>
-            <td scope="col" style={{ wordBreak: "keep-all" }}>NAME</td>
-            <td scope="col" style={{ wordBreak: "keep-all" }}>SEVERITY</td>
-            <td scope="col" style={{ wordBreak: "keep-all" }}>CONFIDENCE</td>
-            <td scope="col" style={{ wordBreak: "keep-all" }}>DESCRIPTION</td>
-            <td scope="col" style={{ wordBreak: "keep-all" }}>REMEDIATION</td>
+            <td scope="col" style={{ wordBreak: "keep-all" }}><FormattedMessage id="helper.scanColName" /></td>
+            <td scope="col" style={{ wordBreak: "keep-all" }}><FormattedMessage id="helper.scanColSeverity" /></td>
+            <td scope="col" style={{ wordBreak: "keep-all" }}><FormattedMessage id="helper.scanColConfidence" /></td>
+            <td scope="col" style={{ wordBreak: "keep-all" }}><FormattedMessage id="helper.scanColDescription" /></td>
+            <td scope="col" style={{ wordBreak: "keep-all" }}><FormattedMessage id="helper.scanColRemediation" /></td>
           </tr>
         </thead>
         <tbody>
@@ -43,7 +44,7 @@ export function SolScanTable(props: SolScanTableProps) {
                   <td scope="col">{template.template_details.issue_severity}</td>
                   <td scope="col">{template.template_details.issue_confidence}</td>
                   <td scope="col">{parse(template.template_details.static_issue_description)} {template.positions ? `Lines: ${template.positions}`: ''}</td>
-                  <td scope="col">{template.template_details.issue_remediation ? parse(template.template_details.issue_remediation) : 'Not Available' }</td>
+                  <td scope="col">{template.template_details.issue_remediation ? parse(template.template_details.issue_remediation) : <FormattedMessage id="helper.scanNotAvailable" /> }</td>
                 </tr>
               )
             })
@@ -54,15 +55,15 @@ export function SolScanTable(props: SolScanTableProps) {
 
       { multi_file_scan_summary ? (
         <>
-          <p className='text-success'><b>Scan Summary: </b></p>
-          <p>&emsp; Lines Analyzed: {multi_file_scan_summary.lines_analyzed_count}</p>
-          <p>&emsp; Scan Score: {multi_file_scan_summary.score_v2}</p>
-          <p>&emsp; Issue Distribution: { JSON.stringify(multi_file_scan_summary.issue_severity_distribution, null, 1)} </p>
-          <p>For more details,&nbsp;
+          <p className='text-success'><b><FormattedMessage id="helper.scanSummaryLabel" /></b></p>
+          <p>&emsp; <FormattedMessage id="helper.scanLinesAnalyzed" /> {multi_file_scan_summary.lines_analyzed_count}</p>
+          <p>&emsp; <FormattedMessage id="helper.scanScore" /> {multi_file_scan_summary.score_v2}</p>
+          <p>&emsp; <FormattedMessage id="helper.scanIssueDistribution" /> { JSON.stringify(multi_file_scan_summary.issue_severity_distribution, null, 1)} </p>
+          <p><FormattedMessage id="helper.scanForMoreDetails" />&nbsp;
             <a href="https://solidityscan.com/?utm_campaign=remix&utm_source=remix"
               target='_blank'
               onClick={() => trackMatomoEvent({ category: 'solidityCompiler', action: 'solidityScan', name: 'goToSolidityScan', isClick: true })}>
-              go to SolidityScan.
+              <FormattedMessage id="helper.scanGoToSolidityScan" />
             </a>
           </p>
         </>

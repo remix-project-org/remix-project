@@ -80,7 +80,22 @@ logs
 apps/remix-ide-e2e/src/extensions/chrome/metamask
 apps/remix-ide-e2e/tmp/
 
+# Generated import resolution cache and fetched artifacts
+.deps/
+/@*
+
 # IDE - Cursor
 .cursor/
 PR_MESSAGE.md
 apps/remix-ide-e2e/tmp/
+.playwright-mcp/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+docker-compose.staging.yml
+Dockerfile.staging
+.dockerignore

@@ -9,10 +9,12 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
     .click('*[data-id="workspacecreate"]')
     .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
     .waitForElementVisible('*[data-id="template-explorer-template-container"]')
-    .click('*[data-id="template-explorer-template-container"]')
+    .scrollInto('*[data-id="template-explorer-template-container"]')
     .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
     .click('*[data-id="template-card-remixDefault-0"]')
     .waitForElementVisible('*[data-id="workspace-details-section"]')
+    .waitForElementVisible('*[data-id="validateWorkspaceButton"]')
+    .click('*[data-id="validateWorkspaceButton"]')
 }
 
 const tests = {

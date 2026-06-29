@@ -1,3 +1,4 @@
+import { remixAILogger } from '../../helpers/logger'
 /**
  * Validation Middleware for Remix MCP Server
  */
@@ -22,6 +23,7 @@ export interface ValidationError {
   value?: any;
   expectedType?: string;
   actualType?: string;
+  suggestion?: string;
 }
 
 export interface ValidationWarning {
@@ -254,19 +256,35 @@ export class ValidationMiddleware extends BaseMiddleware {
   private validateFieldSchema(field: string, value: any, schema: any, result: ValidationResult): void {
     // Type validation
     if (schema.type) {
-      const expectedType = schema.type;
       const actualType = Array.isArray(value) ? 'array' : typeof value;
 
-      if (expectedType !== actualType) {
-        result.errors.push({
-          field,
-          code: 'TYPE_MISMATCH',
-          message: `Field '${field}' expected type ${expectedType}, got ${actualType}`,
-          expectedType,
-          actualType,
-          value
-        });
-        return;
+      // Handle union types (array of allowed types)
+      if (Array.isArray(schema.type)) {
+        if (!schema.type.includes(actualType)) {
+          result.errors.push({
+            field,
+            code: 'TYPE_MISMATCH',
+            message: `Field '${field}' expected type ${schema.type.join('|')}, got ${actualType}`,
+            expectedType: schema.type.join('|'),
+            actualType,
+            value
+          });
+          return;
+        }
+      } else {
+        // Handle single type
+        const expectedType = schema.type;
+        if (expectedType !== actualType) {
+          result.errors.push({
+            field,
+            code: 'TYPE_MISMATCH',
+            message: `Field '${field}' expected type ${expectedType}, got ${actualType}`,
+            expectedType,
+            actualType,
+            value
+          });
+          return;
+        }
       }
     }
 
@@ -577,7 +595,39 @@ export class ValidationMiddleware extends BaseMiddleware {
 
     // Validate workspace state
     if (this.requiresWorkspace(call.name)) {
-      // TODO: Check if workspace is properly initialized
+      try {
+        const workspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+
+        if (!workspace) {
+          result.errors.push({
+            field: 'workspace',
+            code: 'NO_WORKSPACE',
+            message: 'No workspace is currently active. Please create or select a workspace before performing this operation.',
+            suggestion: 'Create a new workspace or open an existing one from the File Explorer panel'
+          });
+          return;
+        }
+
+        // Check if workspace is read-only for write operations
+        const writeOperations = ['file_write', 'file_create', 'file_delete', 'file_move', 'file_copy'];
+        if (writeOperations.includes(call.name) && workspace.isReadOnly) {
+          result.errors.push({
+            field: 'workspace',
+            code: 'READONLY_WORKSPACE',
+            message: `Cannot perform write operation in read-only workspace: ${workspace.name}`,
+            suggestion: 'Switch to a writable workspace or create a new one'
+          });
+          return;
+        }
+      } catch (error) {
+        remixAILogger.error('[ValidationMiddleware] Error checking workspace:', error);
+        result.warnings.push({
+          field: 'workspace',
+          code: 'WORKSPACE_CHECK_FAILED',
+          message: 'Unable to verify workspace status',
+          suggestion: 'Ensure a workspace is active before continuing'
+        });
+      }
     }
 
     // Validate compilation state for deployment
@@ -653,6 +703,9 @@ export class ValidationMiddleware extends BaseMiddleware {
       if (fileOpsConfig?.allowedExtensions && args.path) {
         // If wildcard '*' is in the list, allow all extensions
         const allowAllExtensions = fileOpsConfig.allowedExtensions.includes('*');
+        const is_dir = args?.type === 'directory';
+        if (is_dir) return;
+
         if (!allowAllExtensions) {
           const extension = args.path.split('.').pop()?.toLowerCase();
           if (extension && !fileOpsConfig.allowedExtensions.includes(extension)) {
@@ -744,11 +797,6 @@ export class ValidationMiddleware extends BaseMiddleware {
           message: `Method '${args.methodName}' not found in ABI`
         });
       }
-    }
-
-    // Validate method arguments
-    if (args.args && args.methodName) {
-      // TODO: Validate arguments against ABI method signature
     }
   }
 

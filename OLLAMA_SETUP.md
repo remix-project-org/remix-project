@@ -23,10 +23,10 @@ Ollama is a local AI model runner that allows you to run large language models o
 - **Fill-in-Middle (FIM) support**: Advanced code completion capabilities
 
 ## Model compatible with the Remix IDE
-The folowing is a list of model compatible with the Remix IDE (both desktop and web). The models have been tested to provide acceptable results on mid-tier consumer GPUs. As operating Ollama independently, the user should understand the model performance criteria and their hardware specifications.
+The following is a list of models compatible with the Remix IDE (both desktop and web). The models have been tested to provide acceptable results on mid-tier consumer GPUs. As operating Ollama independently, the user should understand the model performance criteria and their hardware specifications.
 
 - **codestral:latest**
-- **quen3-coder:latest**
+- **qwen3-coder:latest**
 - **gpt-oss:latest**
 - **deepseek-coder-v2:latest** Great for code completion
 

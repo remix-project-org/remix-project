@@ -8,21 +8,21 @@ export class AbstractPanel extends HostPlugin {
   events: EventEmitter
   event: any
   public plugins: Record<string, PluginRecord> = {}
-  constructor (profile) {
+  constructor (profile: any) {
     super(profile)
     this.events = new EventEmitter()
     this.event = new EventManager()
   }
 
   currentFocus (): string {
-    const activePlugin = Object.values(this.plugins).find(plugin => {
+    const activePlugin = Object.values(this.plugins).find((plugin: PluginRecord) => {
       return plugin.active
     })
-
+    // @ts-ignore
     return activePlugin ? activePlugin.profile.name : null
   }
 
-  addView (profile, view) {
+  addView (profile: any, view: any) {
     if (this.plugins[profile.name]) throw new Error(`Plugin ${profile.name} already rendered`)
     this.plugins[profile.name] = {
       profile: profile,
@@ -33,7 +33,7 @@ export class AbstractPanel extends HostPlugin {
     }
   }
 
-  removeView (profile) {
+  removeView (profile: any) {
     this.emit('pluginDisabled', profile.name)
     this.call('menuicons', 'unlinkContent', profile)
     this.remove(profile.name)
@@ -43,7 +43,7 @@ export class AbstractPanel extends HostPlugin {
    * Remove a plugin from the panel
    * @param {String} name The name of the plugin to remove
    */
-  remove (name) {
+  remove (name: any) {
     delete this.plugins[name]
   }
 
@@ -51,7 +51,7 @@ export class AbstractPanel extends HostPlugin {
    * Display the content of this specific plugin
    * @param {String} name The name of the plugin to display the content
    */
-  showContent (name) {
+  showContent (name: any) {
     if (!this.plugins[name]) throw new Error(`Plugin ${name} is not yet activated`)
     Object.values(this.plugins).forEach(plugin => {
       plugin.active = false
@@ -59,7 +59,7 @@ export class AbstractPanel extends HostPlugin {
     this.plugins[name].active = true
   }
 
-  focus (name) {
+  focus (name: any) {
     this.showContent(name)
   }
 }

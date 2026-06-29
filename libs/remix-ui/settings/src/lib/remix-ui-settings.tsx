@@ -1,13 +1,15 @@
 import { ViewPlugin } from '@remixproject/engine-web'
-import React, {useState, useReducer, useEffect} from 'react' // eslint-disable-line
+import React, { useState, useReducer, useEffect, useContext, useMemo } from 'react' // eslint-disable-line
 import Fuse from 'fuse.js'
-import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription } from '@remix-ui/helper'
+import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription } from '@remix-ui/helper'
+import { AppConfig, FeatureGroup } from '@remix-api'
+import { AppContext, useAuth } from '@remix-ui/app'
 
 import { initialState, settingReducer } from './settingsReducer'
-import {Toaster} from '@remix-ui/toaster' // eslint-disable-line
+import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
 import { ThemeModule } from '@remix-ui/theme-module'
 import { ThemeContext, themes } from '@remix-ui/home-tab'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { Registry, QueryParams } from '@remix-project/remix-lib'
 import { SettingsSectionUI } from './settings-section'
 import { SettingsSection } from '../types'
@@ -25,11 +27,6 @@ export interface RemixUiSettingsProps {
 }
 
 const settingsConfig = Registry.getInstance().get('settingsConfig').api
-
-// Check if MCP is enabled via query parameter
-const queryParams = new QueryParams()
-const mcpEnabled = queryParams.exists('experimental')
-
 const settingsSections: SettingsSection[] = [
   {
     key: 'general',
@@ -37,7 +34,19 @@ const settingsSections: SettingsSection[] = [
     description: 'settings.generalSettingsDescription',
     subSections: [
       {
-        title: 'Code editor',
+        title: 'settings.appearanceSection',
+        options: [{
+          name: 'theme',
+          label: 'settings.theme',
+          type: 'select',
+          selectOptions: settingsConfig.themes.map((theme) => ({
+            label: theme.name + ' (' + theme.quality + ')',
+            value: theme.name
+          }))
+        }]
+      },
+      {
+        title: 'settings.codeEditorSection',
         options: [{
           name: 'generate-contract-metadata',
           label: 'settings.generateContractMetadataText',
@@ -55,10 +64,15 @@ const settingsSections: SettingsSection[] = [
           name: 'display-errors',
           label: 'settings.displayErrorsText',
           type: 'toggle'
-        },{
+        }, {
           name: 'text-wrap',
           label: 'settings.wordWrapText',
           type: 'toggle'
+        }, {
+          name: 'editor/code-analysis-popover' as keyof typeof initialState,
+          label: 'settings.editorCodeAnalysisPopover',
+          description: 'settings.editorCodeAnalysisPopoverDescription',
+          type: 'toggle' as const
         }, {
           name: 'personal-mode',
           label: 'settings.enablePersonalModeText',
@@ -70,169 +84,236 @@ const settingsSections: SettingsSection[] = [
           label: 'settings.enableSaveEnvState',
           type: 'toggle'
         }]
+      }
+    ]
+  },
+  {
+    key: 'account',
+    label: 'settings.account',
+    description: 'settings.accountDescription',
+    requiresAuth: true, // Special flag for auth-required sections
+    subSections: [
+      {
+        title: 'settings.profileSection',
+        options: [{
+          name: 'profile-section',
+          label: '',
+          type: 'custom' as const,
+          customComponent: 'profileSection'
+        }]
       },
       {
-        title: 'Appearance',
+        title: 'settings.creditsBalanceSection',
         options: [{
-          name: 'theme',
-          label: 'settings.theme',
-          type: 'select',
-          selectOptions: settingsConfig.themes.map((theme) => ({
-            label: theme.name + ' (' + theme.quality + ')',
-            value: theme.name
-          }))
+          name: 'credits-balance',
+          label: '',
+          type: 'custom' as const,
+          customComponent: 'creditsBalance'
+        }]
+      },
+      {
+        title: 'settings.connectedAccountsSection',
+        description: 'settings.connectedAccountsDescription',
+        options: [{
+          name: 'connected-accounts',
+          label: '',
+          type: 'custom' as const,
+          customComponent: 'connectedAccounts'
         }]
       }
     ]
   },
-  { key: 'analytics', label: 'settings.analytics', description: 'settings.analyticsDescription', subSections: [
-    { options: [{
-      name: 'matomo-analytics',
-      label: 'settings.matomoAnalyticsNoCookies',
-      headerClass: 'text-secondary',
-      type: 'toggle',
-      description: 'settings.matomoAnalyticsNoCookiesDescription',
-    }, {
-      name: 'matomo-perf-analytics',
-      label: 'settings.matomoAnalyticsWithCookies',
-      type: 'toggle',
-      description: 'settings.matomoAnalyticsWithCookiesDescription',
-      footnote: {
-        text: 'Manage Cookie Preferences',
-        link: 'https://matomo.org/',
-        styleClass: 'text-primary'
+  {
+    key: 'analytics', label: 'settings.analytics', description: 'settings.analyticsDescription', subSections: [
+      {
+        options: [{
+          name: 'matomo-analytics',
+          label: 'settings.matomoAnalyticsNoCookies',
+          headerClass: 'text-secondary',
+          type: 'toggle',
+          description: 'settings.matomoAnalyticsNoCookiesDescription',
+        }, {
+          name: 'matomo-perf-analytics',
+          label: 'settings.matomoAnalyticsWithCookies',
+          type: 'toggle',
+          description: 'settings.matomoAnalyticsWithCookiesDescription',
+          footnote: {
+            text: 'settings.manageCookiePreferences',
+            link: 'https://matomo.org/',
+            styleClass: 'text-primary'
+          }
+        }]
       }
-    }]
-    }
-  ]},
-  { key: 'ai', label: 'settings.ai', description: 'settings.aiDescription', subSections: [
-    {
-      options: [{
-        name: 'copilot/suggest/activate',
-        label: 'settings.aiCopilot',
-        description: 'settings.aiCopilotDescription',
-        type: 'toggle',
-        footnote: {
-          text: 'Learn more about AI Copilot',
-          link: 'https://remix-ide.readthedocs.io/en/latest/ai.html',
-          styleClass: 'text-primary'
-        }
+    ]
+  },
+  {
+    key: 'ai', label: 'settings.ai', description: 'settings.aiDescription', subSections: [
+      {
+        options: [{
+          name: 'copilot/suggest/activate',
+          label: 'settings.aiCopilot',
+          description: 'settings.aiCopilotDescription',
+          type: 'toggle',
+          footnote: {
+            text: 'settings.learnMoreAiCopilot',
+            link: 'https://remix-ide.readthedocs.io/en/latest/ai.html',
+            styleClass: 'text-primary'
+          }
+        },
+        {
+          name: 'ai-privacy-policy',
+          label: 'settings.aiPrivacyPolicy',
+          description: 'settings.aiPrivacyPolicyDescription',
+          type: 'button',
+          buttonOptions: {
+            label: 'settings.viewPrivacyPolicy',
+            action: 'link',
+            link: 'https://remix-ide.readthedocs.io/en/latest/ai.html'
+          }
+        },
+        // Ollama configuration is temporarily disabled - will be enabled later
+        // {
+        //   name: 'ollama-config',
+        //   label: 'settings.ollamaConfig',
+        //   description: 'settings.ollamaConfigDescription',
+        //   type: 'toggle',
+        //   toggleUIOptions: [{
+        //     name: 'ollama-endpoint',
+        //     type: 'text'
+        //   }]
+        // }
+        ]
       },
       {
-        name: 'ai-privacy-policy',
-        label: 'settings.aiPrivacyPolicy',
-        description: 'settings.aiPrivacyPolicyDescription',
-        type: 'button',
-        buttonOptions: {
-          label: 'settings.viewPrivacyPolicy',
-          action: 'link',
-          link: 'https://remix-ide.readthedocs.io/en/latest/ai.html'
-        }
+        title: 'settings.mcpServersSection',
+        options: [{
+          name: 'mcp/servers/enable' as keyof typeof initialState,
+          label: 'settings.enableMCPEnhancement',
+          description: 'settings.enableMCPEnhancementDescription',
+          type: 'toggle' as const,
+          footnote: {
+            text: 'settings.learnMoreMcp',
+            link: 'https://modelcontextprotocol.io/',
+            styleClass: 'text-primary'
+          }
+        },
+        {
+          name: 'mcp-server-management' as keyof typeof initialState,
+          label: 'settings.mcpServerConfiguration',
+          description: 'settings.mcpServerConfigurationDescription',
+          type: 'custom' as const,
+          customComponent: 'mcpServerManager'
+        }]
       },
       {
-        name: 'ollama-config',
-        label: 'settings.ollamaConfig',
-        description: 'settings.ollamaConfigDescription',
-        type: 'toggle',
-        toggleUIOptions: [{
-          name: 'ollama-endpoint',
-          type: 'text'
+        title: 'settings.deepAgentApiKeysSection',
+        options: [{
+          name: 'deepagent-api-keys-config' as keyof typeof initialState,
+          label: 'settings.useOwnApiKeys',
+          description: 'settings.useOwnApiKeysDescription',
+          type: 'toggle' as const,
+          toggleUIOptions: [{
+            name: 'deepagent-anthropic-api-key' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-mistral-api-key' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-openai-api-key' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-moonshot-api-key' as keyof typeof initialState,
+            type: 'password'
+          }]
         }]
       }]
-    },
-    ...(mcpEnabled ? [{
-      title: 'MCP Servers',
-      options: [{
-        name: 'mcp/servers/enable' as keyof typeof initialState,
-        label: 'settings.enableMCPEnhancement',
-        description: 'settings.enableMCPEnhancementDescription',
-        type: 'toggle' as const,
-        footnote: {
-          text: 'Learn more about MCP',
-          link: 'https://modelcontextprotocol.io/',
-          styleClass: 'text-primary'
-        }
-      },
+  },
+  {
+    key: 'services', label: 'settings.services', description: 'settings.servicesDescription', subSections: [
       {
-        name: 'mcp-server-management' as keyof typeof initialState,
-        label: 'settings.mcpServerConfiguration',
-        description: 'settings.mcpServerConfigurationDescription',
-        type: 'custom' as const,
-        customComponent: 'mcpServerManager'
+        options: [{
+          name: 'github-config',
+          label: 'settings.gitAccessTokenTitle',
+          type: 'toggle',
+          toggleUIDescription: <GitHubCredentialsDescription />,
+          toggleUIOptions: [{
+            name: 'gist-access-token',
+            type: 'password'
+          }, {
+            name: 'github-user-name',
+            type: 'text'
+          }, {
+            name: 'github-email',
+            type: 'text'
+          }]
+        }, {
+          name: 'ipfs-config',
+          label: 'settings.ipfs',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'ipfs-url',
+            type: 'text'
+          }, {
+            name: 'ipfs-protocol',
+            type: 'text'
+          }, {
+            name: 'ipfs-port',
+            type: 'text'
+          }, {
+            name: 'ipfs-project-id',
+            type: 'text'
+          }, {
+            name: 'ipfs-project-secret',
+            type: 'text'
+          }]
+        }, {
+          name: 'swarm-config',
+          label: 'settings.swarm',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'swarm-private-bee-address',
+            type: 'text'
+          }, {
+            name: 'swarm-postage-stamp-id',
+            type: 'text'
+          }]
+        }, {
+          name: 'sindri-config',
+          label: 'settings.sindriAccessTokenTitle',
+          type: 'toggle',
+          toggleUIDescription: <SindriCredentialsDescription />,
+          toggleUIOptions: [{
+            name: 'sindri-access-token',
+            type: 'password'
+          }]
+        }, {
+          name: 'etherscan-config',
+          label: 'settings.etherscanTokenTitle',
+          type: 'toggle',
+          toggleUIDescription: <EtherscanConfigDescription />,
+          toggleUIOptions: [{
+            name: 'etherscan-access-token',
+            type: 'password'
+          }]
+        }, {
+          name: 'thegraph-config',
+          label: 'settings.thegraphTokenTitle',
+          type: 'toggle',
+          toggleUIDescription: <TheGraphConfigDescription />,
+          toggleUIOptions: [{
+            name: 'thegraph-access-token',
+            type: 'password'
+          }]
+        }]
       }]
-    }] : [])
-  ]},
-  { key: 'services', label: 'settings.services', description: 'settings.servicesDescription', subSections: [
-    {
-      options: [{
-        name: 'github-config',
-        label: 'settings.gitAccessTokenTitle',
-        type: 'toggle',
-        toggleUIDescription: <GitHubCredentialsDescription />,
-        toggleUIOptions: [{
-          name: 'gist-access-token',
-          type: 'password'
-        }, {
-          name: 'github-user-name',
-          type: 'text'
-        }, {
-          name: 'github-email',
-          type: 'text'
-        }]
-      }, {
-        name: 'ipfs-config',
-        label: 'settings.ipfs',
-        type: 'toggle',
-        toggleUIOptions: [{
-          name: 'ipfs-url',
-          type: 'text'
-        }, {
-          name: 'ipfs-protocol',
-          type: 'text'
-        }, {
-          name: 'ipfs-port',
-          type: 'text'
-        }, {
-          name: 'ipfs-project-id',
-          type: 'text'
-        }, {
-          name: 'ipfs-project-secret',
-          type: 'text'
-        }]
-      }, {
-        name: 'swarm-config',
-        label: 'settings.swarm',
-        type: 'toggle',
-        toggleUIOptions: [{
-          name: 'swarm-private-bee-address',
-          type: 'text'
-        }, {
-          name: 'swarm-postage-stamp-id',
-          type: 'text'
-        }]
-      }, {
-        name: 'sindri-config',
-        label: 'settings.sindriAccessTokenTitle',
-        type: 'toggle',
-        toggleUIDescription: <SindriCredentialsDescription />,
-        toggleUIOptions: [{
-          name: 'sindri-access-token',
-          type: 'password'
-        }]
-      },{
-        name: 'etherscan-config',
-        label: 'settings.etherscanTokenTitle',
-        type: 'toggle',
-        toggleUIDescription: <EtherscanConfigDescription />,
-        toggleUIOptions: [{
-          name: 'etherscan-access-token',
-          type: 'password'
-        }]
-      }]
-    }]}
+  }
 ]
 
 export const RemixUiSettings = (props: RemixUiSettingsProps) => {
+  const appContext = useContext(AppContext)
+  const appConfig = appContext?.appConfig || {}
+  const intl = useIntl()
+  const { features } = useAuth()
   const [settingsState, dispatch] = useReducer(settingReducer, initialState)
   const [selected, setSelected] = useState(settingsSections[0].key)
   const [search, setSearch] = useState('')
@@ -243,6 +324,101 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
   }>({
     themeQuality: themes.light
   })
+  const [visibleSections, setVisibleSections] = useState<SettingsSection[]>(settingsSections)
+  const [featureGroups, setFeatureGroups] = useState<FeatureGroup[]>([])
+
+  // Check if user can use their own API keys based on their plan
+  const canUseOwnApiKeys = useMemo(() => {
+    return features['ai:api-key']?.is_enabled === true
+  }, [featureGroups])
+
+  // Check if user has access to contextual editor feature (code analysis popover)
+  const hasContextualEditorFeature = useMemo(() => {
+    return features['ai:contextual-editor']?.is_enabled === true
+  }, [features])
+
+  // Fetch user's feature groups on mount (for API keys feature)
+  useEffect(() => {
+    const fetchFeatureGroups = async () => {
+      try {
+        const permissions = await props.plugin.call('auth', 'getAllPermissions')
+        if (permissions?.feature_groups) {
+          setFeatureGroups(permissions.feature_groups)
+        } else {
+          setFeatureGroups([])
+        }
+      } catch (error) {
+        console.warn('[Settings] Failed to fetch feature groups:', error)
+        setFeatureGroups([])
+      }
+    }
+    fetchFeatureGroups()
+
+    // Listen for auth changes to update feature groups
+    const handleAuthChange = async () => {
+      await fetchFeatureGroups()
+    }
+    props.plugin.on('auth', 'authStateChanged', handleAuthChange)
+
+    return () => {
+      try {
+        props.plugin.off('auth', 'authStateChanged')
+      } catch (e) {
+        console.log(e)
+      }
+    }
+  }, [props.plugin])
+
+  // Derive visible sections based on app config and user permissions
+  const computeVisibleSections = (config: AppConfig, canUseApiKeys: boolean, hasContextualEditor: boolean): SettingsSection[] => {
+    return settingsSections
+      .filter(section => {
+        if (section.key === 'account' && config['settings.account_management'] === false) {
+          return false
+        }
+        return true
+      })
+      .map(section => {
+        // For AI section, filter out the deepagent-api-keys subsection if user can't use own API keys
+        if (section.key === 'ai' && !canUseApiKeys) {
+          return {
+            ...section,
+            subSections: section.subSections.filter(
+              subSection => subSection.title !== 'settings.deepAgentApiKeysSection'
+            )
+          }
+        }
+        // For General section, filter code analysis popover based on permission flag
+        if (section.key === 'general') {
+          return {
+            ...section,
+            subSections: section.subSections.map(subSection => ({
+              ...subSection,
+              options: subSection.options.filter(option => {
+                // Filter out code analysis popover if user doesn't have the feature
+                //@ts-ignore
+                if (!hasContextualEditor && option.name === 'editor/code-analysis-popover') {
+                  return false
+                }
+                return true
+              })
+            }))
+          }
+        }
+        return section
+      })
+  }
+
+  // Recompute visible sections when shared app config or permissions change
+  useEffect(() => {
+    const sections = computeVisibleSections(appConfig, canUseOwnApiKeys, hasContextualEditorFeature)
+    setVisibleSections(sections)
+    setFilteredSections(sections)
+    if (!sections.find(s => s.key === selected)) {
+      setSelected(sections[0]?.key)
+      setFilteredSection(sections[0])
+    }
+  }, [appConfig, canUseOwnApiKeys, hasContextualEditorFeature])
 
   useEffect(() => {
     props.plugin.call('theme', 'currentTheme').then((theme) => {
@@ -254,7 +430,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
       })
     })
 
-    props.plugin.on('theme', 'themeChanged', (theme) => {
+    props.plugin.on('theme', 'themeChanged', (theme: any) => {
       setState((prevState) => {
         dispatch({ type: 'SET_VALUE', payload: { name: 'theme', value: theme.name } })
         return {
@@ -262,21 +438,42 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
           themeQuality: theme.quality === 'dark' ? themes.dark : themes.light
         }
       })
+
     })
 
-    props.plugin.on('settings', 'copilotChoiceUpdated', (isChecked) => {
+    props.plugin.on('settings', 'copilotChoiceUpdated', (isChecked: any) => {
       dispatch({ type: 'SET_VALUE', payload: { name: 'copilot/suggest/activate', value: isChecked } })
     })
 
-    props.plugin.on('settings', 'matomoPerfAnalyticsChoiceUpdated', (isChecked) => {
+    props.plugin.on('settings', 'matomoPerfAnalyticsChoiceUpdated', (isChecked: any) => {
       dispatch({ type: 'SET_VALUE', payload: { name: 'matomo-perf-analytics', value: isChecked } })
     })
+
+    // Listen for plugin event to open a specific settings section
+    const onOpenSection = ({ sectionKey }: { sectionKey: string }) => {
+      // Validate section key exists; fallback to 'general'
+      const keys = settingsSections.map(s => s.key)
+      const target = keys.includes(sectionKey) ? sectionKey : 'general'
+      setSelected(target)
+      const section = settingsSections.find(s => s.key === target)
+      if (section) setFilteredSection(section)
+    }
+
+    props.plugin.on('settings', 'openSection', onOpenSection)
+
+    return () => {
+      try {
+        props.plugin.off('settings', 'openSection')
+      } catch (e) {
+        console.log(e)
+      }
+    }
 
   }, [])
 
   useEffect(() => {
     if (search.length > 0) {
-      const fuseTopLevel = new Fuse(settingsSections, {
+      const fuseTopLevel = new Fuse(visibleSections, {
         threshold: 0.1,
         keys: ['label', 'description', 'subSections.label', 'subSections.description', 'subSections.options.label', 'subSections.options.description', 'subSections.options.selectOptions.label', 'subSections.options.footnote.text']
       })
@@ -304,38 +501,41 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
         setFilteredSection({} as SettingsSection)
       }
     } else {
-      setFilteredSections(settingsSections)
-      setFilteredSection(settingsSections[0])
-      setSelected(settingsSections[0].key)
+      setFilteredSections(visibleSections)
+      setFilteredSection(visibleSections[0])
+      setSelected(visibleSections[0]?.key)
     }
-  }, [search])
+  }, [search, visibleSections])
 
   return (
     <ThemeContext.Provider value={state.themeQuality}>
       {settingsState.toaster.value ? <Toaster message={settingsState.toaster.value as string} /> : null}
       <div className="container-fluid bg-light h-100 d-flex flex-column">
         <div className='pt-5'></div>
-        <div className='d-flex flex-row pb-4'>
-          <div data-id="settings-sidebar-header" className="input-group ps-5 remix-settings-sidebar">
-            <h2 className={`d-inline-block pe-5 ${state.themeQuality.name === 'dark' ? 'text-white' : 'text-black'}`} style={{ width: '7.8em' }}><FormattedMessage id="settings.displayName" /></h2>
-            <div className='d-flex flex-grow-1 remix-settings-search' style={{ maxWidth: '53.5em', minHeight: '4em' }}>
-              <span className="input-group-text rounded-0 border-end-0 pe-0" style={{ backgroundColor: state.themeQuality.name === 'dark' ? 'var(--custom-onsurface-layer-4)' : 'var(--bs-body-bg)' }}><i className="fa fa-search"></i></span>
-              <input type="text" className="form-control shadow-none h-100 rounded-0 border-start-0 no-outline w-100" placeholder="Search settings" style={{ minWidth: '21.5em' }} value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
+        <div className='d-flex flex-row pb-4 gap-4'>
+          <div data-id="settings-sidebar-header" className="ps-3 remix-settings-sidebar" style={{ flex: '1 1 0', minWidth: '8em', maxWidth: '18em' }}>
+            <h3 className={`fw-semibold ${state.themeQuality.name === 'dark' ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.5rem' }}><FormattedMessage id="settings.displayName" /></h3>
+          </div>
+          <div className='d-flex flex-grow-1 remix-settings-search' style={{ maxWidth: '53.5em', minHeight: '4em' }}>
+            <span className="input-group-text rounded-0 border-end-0 pe-0" style={{ backgroundColor: state.themeQuality.name === 'dark' ? 'var(--custom-onsurface-layer-4)' : 'var(--bs-body-bg)' }}><i className="fa fa-search"></i></span>
+            <input type="text" className="form-control shadow-none h-100 rounded-0 border-start-0 no-outline w-100" placeholder={intl.formatMessage({ id: 'settings.searchSettings' })} style={{ minWidth: '21.5em' }} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         </div>
-        {filteredSections.length === 0 ? <div className="text-info text-center cursor-pointer">No match found</div> :
-          <div className="d-flex flex-wrap align-items-stretch flex-fill" style={{ minHeight: 0 }}>
+        {filteredSections.length === 0 ? <div className="text-info text-center cursor-pointer"><FormattedMessage id="settings.noMatchFound" /></div> :
+          <div className="d-flex align-items-stretch flex-fill gap-4" style={{ minHeight: 0, overflow: 'hidden' }}>
             {/* Sidebar */}
             <div
-              className="flex-column bg-transparent p-0 px-5 remix-settings-sidebar"
-              style={{ width: '28.2em' }}
+              className="flex-column bg-transparent p-0 px-3 remix-settings-sidebar overflow-auto"
+              style={{ flex: '1 1 0', minWidth: '8em', maxWidth: '18em', height: '100%' }}
+              data-id="settings-sidebar-nav"
             >
-              <ul className="list-unstyled">
+              <ul className="list-unstyled" data-id="settings-sidebar-nav-ul">
                 {filteredSections.map((section, index) => (
                   <li
                     className={`nav-item ${index !== filteredSections.length - 1 ? 'border-bottom' : ''} px-0 py-3 ${selected === section.key ? state.themeQuality.name === 'dark' ? 'active text-white' : 'active text-black' : 'text-secondary'}`}
                     key={index}
+                    style={{ cursor: 'pointer' }}
+                    data-id={`settings-sidebar-${section.key}-li`}
                   >
                     <a
                       data-id={`settings-sidebar-${section.key}`}
@@ -345,8 +545,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
                         setFilteredSection(section)
                       }}
                     >
-                      <h4 className={`${selected === section.key ? state.themeQuality.name === 'dark' ? 'active text-white' : 'active text-black' : 'text-secondary'}`}><FormattedMessage id={section.label} /></h4>
-                      {selected !== section.key && <span><FormattedMessage id={section.description} /></span>}
+                      <h5 className={`fw-semibold mb-2 ${selected === section.key ? state.themeQuality.name === 'dark' ? 'active text-white' : 'active text-black' : 'text-secondary'}`} style={{ fontSize: '1rem' }} data-id={`settings-sidebar-${section.key}-h5`}><FormattedMessage id={section.label} /></h5>
                     </a>
                   </li>
                 ))}
@@ -354,14 +553,14 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
             </div>
             {/* Main Content */}
             <div
-              className="flex-column p-0 flex-grow-1 flex-shrink-1 mw-50"
-              style={{ minWidth: 0, flexBasis: '27.3em', minHeight: 0 }}
+              className="flex-column p-0"
+              style={{ flex: '3 1 0', minWidth: 0, height: '100%' }}
             >
               <div className="remix-settings-main h-100 overflow-auto" style={{ maxWidth: '53.5em' }}>
                 <SettingsSectionUI plugin={props.plugin} section={filteredSection} state={settingsState} dispatch={dispatch} />
               </div>
             </div>
-          </div> }
+          </div>}
       </div>
     </ThemeContext.Provider>
   )

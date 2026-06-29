@@ -9,7 +9,7 @@ import { filePathFilter, AnyFilter } from '@jsdevtools/file-path-filter'
 const profile = {
   name: 'codeFormatter',
   description: 'prettier plugin for Remix',
-  methods: ['format'],
+  methods: ['format', 'preloadPrettier'],
   events: [''],
   version: '0.0.1'
 }
@@ -67,14 +67,49 @@ export class CodeFormat extends Plugin {
   espree: any
   yml: any
   sol: any
+  preloadPromise: Promise<void> | null = null
 
   constructor() {
     super(profile)
   }
 
+  /**
+   * Preload prettier and its plugins to improve first-format performance
+   * Can be called when the editor finishes loading
+   */
+  async preloadPrettier() {
+    // Prevent multiple simultaneous preload calls
+    if (this.preloadPromise) {
+      return this.preloadPromise
+    }
+
+    // If already loaded, return immediately
+    if (this.prettier) {
+      return Promise.resolve()
+    }
+
+    this.preloadPromise = (async () => {
+      try {
+        this.prettier = await import('prettier/standalone')
+        this.ts = await import('prettier/parser-typescript')
+        this.babel = await import('prettier/parser-babel')
+        this.espree = await import('prettier/parser-espree')
+        this.yml = await import('prettier/parser-yaml')
+        this.sol = (await import('prettier-plugin-solidity')).default
+      } catch (error) {
+        console.error('Error preloading prettier:', error)
+        // Reset so it can be retried
+        this.preloadPromise = null
+        throw error
+      }
+    })()
+
+    return this.preloadPromise
+  }
+
   async format(file: string, content?: string, onlyReturn?: boolean) {
 
-    // lazy load
+    // lazy load if not already preloaded
     if (!this.prettier) {
       this.prettier = await import('prettier/standalone')
       this.ts = await import('prettier/parser-typescript')

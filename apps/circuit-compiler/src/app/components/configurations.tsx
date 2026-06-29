@@ -1,8 +1,9 @@
 import { CustomTooltip, RenderIf } from "@remix-ui/helper"
-import { FormattedMessage } from "react-intl"
+import { FormattedMessage, useIntl } from "react-intl"
 import { ConfigurationsProps, PrimeValue } from "../types"
 
 export function Configurations ({primeValue, setPrimeValue, versionValue}: ConfigurationsProps) {
+  const intl = useIntl()
   return (
     <div className="flex-column">
       <div className="flex-column d-flex">
@@ -14,7 +15,7 @@ export function Configurations ({primeValue, setPrimeValue, versionValue}: Confi
             placement={"auto"}
             tooltipId="circuitPrimeLabelTooltip"
             tooltipClasses="text-nowrap"
-            tooltipText={<span>{'To choose the prime number to use to generate the circuit. Receives the name of the curve (bn128, bls12381, goldilocks, grumpkin, pallas, vesta)'}</span>}
+            tooltipText={<span>{intl.formatMessage({ id: 'circuit.primeTooltip' })}</span>}
           >
             <div>
               <select

@@ -1,3 +1,4 @@
+import { remixAILogger } from '../helpers/logger'
 // model implementation for the model selection component
 
 import constants from 'constants';
@@ -93,6 +94,7 @@ export interface IAIStreamResponse{
   streamResponse: any,
   callback?: any,
   toolExecutionStatusCallback?: (isExecuting: boolean, toolName?: string, toolArgs?: Record<string, any>) => void
+  modelId?: string
 }
 
 export enum AIRequestType {
@@ -134,7 +136,7 @@ export class JsonStreamParser {
         const obj: GeneratedTextObject = JSON.parse(jsonStr);
         results.push(obj);
       } catch (error) {
-        console.error('Error parsing JSON:', error);
+        remixAILogger.error('Error parsing JSON:', error);
       }
       startIndex = endIndex + 1;
     }
@@ -153,3 +155,7 @@ export interface CompilationResult {
   errfiles?: { [key: string]: any }
   compilerPayload?: any
 }
+
+// Re-export AI Model types from models.ts
+export type { AIModel } from './models'
+export type AIModelId = string

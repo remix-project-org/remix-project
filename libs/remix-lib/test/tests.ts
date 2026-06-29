@@ -1,4 +1,6 @@
 require('./eventManager.ts')
+require('./event-guard.ts')
+require('./nudge-engine.ts')
 require('./util.ts')
 require('./txFormat.ts')
 require('./txHelper.ts')

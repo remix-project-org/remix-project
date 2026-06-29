@@ -28,7 +28,7 @@ module.exports = {
       .clickInstance(0)
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
-          browser.sendLowLevelTx(address, '0', '0xaa')
+          browser.sendLowLevelTx(0, '0', '0xaa')
             .journalLastChildIncludes('to: CheckSpecials.(fallback)')
             .journalLastChildIncludes('value: 0 wei')
             .journalLastChildIncludes('data: 0xaa')
@@ -41,10 +41,10 @@ module.exports = {
     // don't need to redeploy it, same contract
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
-        browser.sendLowLevelTx(address, '0', '0xa')
+        browser.sendLowLevelTx(0, '0', '0xa')
           .pause(1000)
-          .waitForElementVisible(`#instance${address} label[id="deployAndRunLLTxError"]`)
-          .assert.containsText(`#instance${address} label[id="deployAndRunLLTxError"]`, 'The calldata should be a valid hexadecimal value with size of at least one byte.')
+          .waitForElementVisible(`#instance${address} [data-id="deployAndRunLLTxError"]`)
+          .assert.containsText(`#instance${address} [data-id="deployAndRunLLTxError"]`, 'The calldata should be a valid hexadecimal value with size of at least one byte.')
           .perform(done())
       })
     })
@@ -53,10 +53,10 @@ module.exports = {
     // don't need to redeploy it, same contract
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
-        browser.sendLowLevelTx(address, '0', '0x1aa')
+        browser.sendLowLevelTx(0, '0', '0x1aa')
           .pause(1000)
-          .waitForElementVisible(`#instance${address} label[id="deployAndRunLLTxError"]`)
-          .assert.containsText(`#instance${address} label[id="deployAndRunLLTxError"]`, 'The calldata should be a valid hexadecimal value.')
+          .waitForElementVisible(`#instance${address} [data-id="deployAndRunLLTxError"]`)
+          .assert.containsText(`#instance${address} [data-id="deployAndRunLLTxError"]`, 'The calldata should be a valid hexadecimal value.')
           .perform(done())
       })
     })
@@ -65,7 +65,7 @@ module.exports = {
     // don't need to redeploy it, same contract
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
-        browser.sendLowLevelTx(address, '1', '')
+        browser.sendLowLevelTx(0, '1', '')
           .journalLastChildIncludes('to: CheckSpecials.(receive)')
           .journalLastChildIncludes('value: 1 wei')
           .journalLastChildIncludes('data: 0x')
@@ -77,7 +77,7 @@ module.exports = {
     // don't need to redeploy it, same contract
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
-        browser.sendLowLevelTx(address, '10', '0xaa')
+        browser.sendLowLevelTx(0, '10', '0xaa')
           .journalLastChildIncludes('to CheckSpecials.(fallback) errored:')
           .journalLastChildIncludes('The called function should be payable if you send value')
           .perform(done())
@@ -93,7 +93,7 @@ module.exports = {
       .clickInstance(0)
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
-          browser.sendLowLevelTx(address, '1', '')
+          browser.sendLowLevelTx(0, '1', '')
             .journalLastChildIncludes('to: CheckSpecials.(receive)')
             .journalLastChildIncludes('value: 1 wei')
             .journalLastChildIncludes('data: 0x')
@@ -105,9 +105,9 @@ module.exports = {
     // don't need to redeploy it, same contract
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
-        browser.sendLowLevelTx(address, '0', '0xaa')
-          .waitForElementVisible(`#instance${address} label[id="deployAndRunLLTxError"]`)
-          .assert.containsText(`#instance${address} label[id="deployAndRunLLTxError"]`, '\'Fallback\' function is not defined')
+        browser.sendLowLevelTx(0, '0', '0xaa')
+          .waitForElementVisible(`#instance${address} [data-id="deployAndRunLLTxError"]`)
+          .assert.containsText(`#instance${address} [data-id="deployAndRunLLTxError"]`, '\'Fallback\' function is not defined')
           .perform(done())
       })
     })
@@ -121,7 +121,7 @@ module.exports = {
       .clickInstance(0)
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
-          browser.sendLowLevelTx(address, '1', '')
+          browser.sendLowLevelTx(0, '1', '')
             .journalLastChildIncludes('to: CheckSpecials.(fallback)')
             .journalLastChildIncludes('value: 1 wei')
             .journalLastChildIncludes('data: 0x')
@@ -133,7 +133,7 @@ module.exports = {
     // don't need to redeploy it, same contract
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
-        browser.sendLowLevelTx(address, '1', '0xaa')
+        browser.sendLowLevelTx(0, '1', '0xaa')
           .journalLastChildIncludes('to: CheckSpecials.(fallback)')
           .journalLastChildIncludes('value: 1 wei')
           .journalLastChildIncludes('data: 0xaa')
@@ -150,10 +150,10 @@ module.exports = {
       .clickInstance(0)
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
-          browser.sendLowLevelTx(address, '1', '')
+          browser.sendLowLevelTx(0, '1', '')
             .pause(1000)
-            .waitForElementVisible(`#instance${address} label[id="deployAndRunLLTxError"]`)
-            .assert.containsText(`#instance${address} label[id="deployAndRunLLTxError"]`, 'should have either \'receive\' or payable \'fallback\'')
+            .waitForElementVisible(`#instance${address} [data-id="deployAndRunLLTxError"]`)
+            .assert.containsText(`#instance${address} [data-id="deployAndRunLLTxError"]`, 'should have either \'receive\' or payable \'fallback\'')
             .perform(done())
         })
       })
@@ -172,7 +172,7 @@ module.exports = {
       .clickInstance(0).pause(1000)
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
-          browser.sendLowLevelTx(address, '999999998765257135', '0xaa')
+          browser.sendLowLevelTx(0, '999999998765257135', '0xaa')
             .journalLastChildIncludes('to: CheckSpecials.(fallback)')
             .journalLastChildIncludes('value: 999999998765257135 wei')
             .journalLastChildIncludes('data: 0xaa')
@@ -183,7 +183,7 @@ module.exports = {
   'Use special functions receive/fallback - receive and fallback are declared and payable, sending wei #group6': function (browser: NightwatchBrowser) {
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
-        browser.sendLowLevelTx(address, '1', '')
+        browser.sendLowLevelTx(0, '1', '')
           .pause(1000)
           .journalLastChildIncludes('to: CheckSpecials.(receive)')
           .journalLastChildIncludes('value: 1 wei')
@@ -205,10 +205,10 @@ module.exports = {
       .pause(1000)
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
-          browser.sendLowLevelTx(address, '0', '')
+          browser.sendLowLevelTx(0, '0', '')
             .pause(1000)
-            .waitForElementVisible(`#instance${address} label[id="deployAndRunLLTxError"]`)
-            .assert.containsText(`#instance${address} label[id="deployAndRunLLTxError"]`, 'Both \'receive\' and \'fallback\' functions are not defined')
+            .waitForElementVisible(`#instance${address} [data-id="deployAndRunLLTxError"]`)
+            .assert.containsText(`#instance${address} [data-id="deployAndRunLLTxError"]`, 'Both \'receive\' and \'fallback\' functions are not defined')
             .perform(done())
         })
       })

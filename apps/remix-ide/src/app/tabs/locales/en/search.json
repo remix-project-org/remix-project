@@ -1,5 +1,6 @@
 {
   "search.displayName": "Search in files",
+  "search.cannotUndoChange": "Cannot undo this change",
   "search.replace": "Replace",
   "search.replaceAll": "Replace All",
   "search.placeholder1": "Type to search",

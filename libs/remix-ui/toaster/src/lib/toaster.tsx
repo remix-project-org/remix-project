@@ -30,9 +30,9 @@ export const ToastTrigger = (props: ToasterProps) => {
       mountedRef.current = true
 
       // Show toast using Sonner - Sonner handles deduplication via ID automatically
-      const duration = props.timeout || 2000
+      const duration = props.timeout || 3000
       const showCloseButton = true
-      const showLoadingIcon = duration > 2000
+      const showLoadingIcon = duration > 3000
 
       if (typeof props.message === 'string') {
         const toastId = toast.custom(
@@ -148,9 +148,9 @@ export const Toaster = (props: ToasterProps) => {
   useEffect(() => {
     if (props.message) {
       // Show toast using Sonner
-      const duration = props.timeout || 2000
+      const duration = props.timeout || 3000
       const showCloseButton = true
-      const showLoadingIcon = duration > 2000
+      const showLoadingIcon = duration > 3000
 
       let toastId: string | number
 

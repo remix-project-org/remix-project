@@ -1,6 +1,6 @@
 'use strict'
 import { CompilerAbstract } from '@remix-project/remix-solidity'
-import { Compiler } from '@remix-project/remix-solidity'
+import { DependencyResolvingCompiler } from '../../../lib/dependency-resolving-compiler'
 
 import { CompilationResult, CompilationSource } from '@remix-project/remix-solidity'
 import { CodeParser } from "../code-parser";
@@ -12,30 +12,30 @@ import { lastCompilationResult } from '@remixproject/plugin-api';
 import { monacoTypes } from '@remix-ui/editor';
 
 enum MarkerSeverity {
-    Hint = 1,
-    Info = 2,
-    Warning = 4,
-    Error = 8
+  Hint = 1,
+  Info = 2,
+  Warning = 4,
+  Error = 8
 }
 
 type errorMarker = {
-    message: string
-    severity: monacoTypes.MarkerSeverity
-    position: {
-        start: {
-            line: number
-            column: number
-        },
-        end: {
-            line: number
-            column: number
-        }
+  message: string
+  severity: monacoTypes.MarkerSeverity
+  position: {
+    start: {
+      line: number
+      column: number
     },
-    file: string
+    end: {
+      line: number
+      column: number
+    }
+  },
+  file: string
 }
 export default class CodeParserCompiler {
   plugin: CodeParser
-  compiler: any // used to compile the current file separately from the main compiler
+  compiler: DependencyResolvingCompiler // used to compile the current file separately from the main compiler
   onAstFinished: (success: any, data: CompilationResult, source: CompilationSourceCode, input: any, version: any) => Promise<void>;
   errorState: boolean;
   gastEstimateTimeOut: any
@@ -119,7 +119,14 @@ export default class CodeParserCompiler {
       this.plugin.emit('astFinished')
     }
 
-    this.compiler = new Compiler((url, cb) => this.plugin.call('contentImport', 'resolveAndSave', url, undefined).then((result) => cb(null, result)).catch((error) => cb(error.message)))
+    this.compiler = new DependencyResolvingCompiler(
+      this.plugin,
+      (url, cb) => {
+        cb(`${url} not found.`)
+      },
+      null, // importResolverFactory - not used by DependencyResolvingCompiler
+      false // debug - set to false for code-parser to reduce noise
+    )
     this.compiler.event.register('compilationFinished', this.onAstFinished)
   }
 
@@ -162,7 +169,7 @@ export default class CodeParserCompiler {
               }
             }
 
-        this.compiler.set('configFileContent', state.useFileConfiguration? configFileContent: JSON.stringify(configFileContent))
+        this.compiler.set('configFileContent', state.useFileConfiguration ? configFileContent : JSON.stringify(configFileContent))
 
         if (await this.plugin.call('fileManager', 'exists', 'remappings.txt')) {
           const remappings = await this.plugin.call('fileManager', 'readFile', 'remappings.txt')

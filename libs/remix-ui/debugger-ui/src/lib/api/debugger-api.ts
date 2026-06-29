@@ -1,4 +1,4 @@
-import { init , traceHelper, TransactionDebugger as Debugger } from '@remix-project/remix-debug'
+import { init , traceHelper, TransactionDebugger as Debugger, OffsetToLineColumnConverterFn } from '@remix-project/remix-debug'
 import { CompilerAbstract } from '@remix-project/remix-solidity'
 import { lineText } from '@remix-ui/editor'
 import { util } from '@remix-project/remix-lib'
@@ -7,9 +7,11 @@ const { toHexPaddedString } = util
 
 export const DebuggerApiMixin = (Base) => class extends Base {
 
+  offsetToLineColumnConverter: OffsetToLineColumnConverterFn
   initialWeb3: BrowserProvider
-  debuggerBackend
+  debuggerBackend: Debugger
   web3Provider: any
+  currentSourceLocation: any
 
   initDebuggerApi () {
     const self = this
@@ -46,8 +48,24 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     await this.call('editor', 'discardLineTexts' as any)
   }
 
-  async highlight (lineColumnPos, path, rawLocation, stepDetail, lineGasCost) {
-    await this.call('editor', 'highlight', lineColumnPos, path, '', { focus: true })
+  getCurrentSourceLocation () {
+    return this.currentSourceLocation
+  }
+
+  getStackAt (vmtraceIndex: number) {
+    return this.debuggerBackend.debugger.traceManager.getStackAt(vmtraceIndex)
+  }
+
+  async highlight (lineColumnPos, path, rawLocation, stepDetail, lineGasCost, origin?, step?) {
+    // Pass the main contract being debugged as the origin for proper resolution
+    await this.call('editor', 'highlight', lineColumnPos, path, '', { focus: true, origin })
+
+    // Get current step index from debugger backend if not provided
+    let currentStep = step
+    if (currentStep === undefined && this.debuggerBackend && this.debuggerBackend.step_manager) {
+      currentStep = this.debuggerBackend.step_manager.currentStepIndex
+    }
+
     const label = `${stepDetail.op} costs ${stepDetail.gasCost} gas - this line costs ${lineGasCost} gas - ${stepDetail.gas} gas left`
     const linetext: lineText = {
       content: label,
@@ -62,6 +80,14 @@ export const DebuggerApiMixin = (Base) => class extends Base {
       ],
     }
     await this.call('editor', 'addLineText' as any, linetext, path)
+    this.currentSourceLocation = {
+      line: lineColumnPos.start.line + 1,
+      path,
+      stepDetail,
+      lineGasCost,
+      origin,
+      step: currentStep
+    }
   }
 
   async getFile (path) {
@@ -96,13 +122,22 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     this.onRemoveHighlightsListener = listener
   }
 
+  setCache (key: string, value: any) {
+    const ttlMs = 1 * 24 * 60 * 60 * 1000 // 1 day
+    return this.call('indexedDbCache', 'setWithTTL', key, value, ttlMs, 'debugger')
+  }
+
+  getCache (key: string) {
+    return this.call('indexedDbCache', 'get', key, 'debugger')
+  }
+
   async fetchContractAndCompile (address, receipt) {
     const target = (address && traceHelper.isContractCreation(address)) ? receipt.contractAddress : address
     const targetAddress = target || receipt.contractAddress || receipt.to
     const codeAtAddress = await this._web3.getCode(targetAddress)
     const output = await this.call('fetchAndCompile', 'resolve', targetAddress, codeAtAddress, '.debug')
     if (output) {
-      return new CompilerAbstract(output.languageversion, output.data, output.source)
+      return new CompilerAbstract(output.languageversion, output.data, output.source, null, this as any)
     }
     return null
   }
@@ -164,7 +199,7 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     else this._web3 = this.initialWeb3
     init.extendProvider(this._web3)
     if (this.onDebugRequestedListener) {
-      this.onDebugRequestedListener(hash, this._web3).then((debuggerBackend) => {
+      this.onDebugRequestedListener(hash, this._web3).then((debuggerBackend: Debugger) => {
         this.debuggerBackend = debuggerBackend
       })
     }
@@ -175,6 +210,7 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     this.on('editor', 'breakpointAdded', (fileName, row) => { if (this.onBreakpointAddedListener) this.onBreakpointAddedListener(fileName, row) })
     this.on('editor', 'contentChanged', () => { if (this.onEditorContentChangedListener) this.onEditorContentChangedListener() })
     this.on('network', 'providerChanged', (provider) => { if (this.onEnvChangedListener) this.onEnvChangedListener(provider) })
+    this.currentSourceLocation = null
   }
 
   onDeactivation () {
@@ -182,11 +218,13 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     this.off('editor', 'breakpointCleared')
     this.off('editor', 'breakpointAdded')
     this.off('editor', 'contentChanged')
+    this.currentSourceLocation = null
   }
 
   showMessage (title: string, message: string) {}
 
   async onStartDebugging (debuggerBackend: any) {
+    this.currentSourceLocation = null
     const pinnedPlugin = await this.call('rightSidePanel', 'currentFocus')
 
     if (pinnedPlugin === 'debugger') {
@@ -199,6 +237,7 @@ export const DebuggerApiMixin = (Base) => class extends Base {
   }
 
   async onStopDebugging () {
+    this.currentSourceLocation = null
     const pinnedPlugin = await this.call('rightSidePanel', 'currentFocus')
 
     if (pinnedPlugin === 'debugger') {

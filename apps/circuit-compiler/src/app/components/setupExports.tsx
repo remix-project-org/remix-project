@@ -1,5 +1,5 @@
 import { CustomTooltip } from "@remix-ui/helper"
-import { FormattedMessage } from "react-intl"
+import { FormattedMessage, useIntl } from "react-intl"
 import { SetupExportsBtn } from "./setupExportsBtn"
 import { useContext } from "react"
 import { CircuitAppContext } from "../contexts"
@@ -7,6 +7,7 @@ import { runSetupAndExport } from "../actions"
 
 export function SetupExports () {
   const circuitApp = useContext(CircuitAppContext)
+  const intl = useIntl()
 
   return (
     <div className="flex-column">
@@ -27,7 +28,7 @@ export function SetupExports () {
               readOnly
             />
             <label className="form-check-label" data-id="groth16ProvingScheme" htmlFor="groth16ProvingScheme" style={{ paddingTop: '0.125rem' }}>
-              Groth16
+              <FormattedMessage id="circuit.groth16" />
             </label>
           </div>
           <div className="radio form-control custom-radio form-check bg-body">
@@ -42,7 +43,7 @@ export function SetupExports () {
               readOnly
             />
             <label className="form-check-label" data-id="plonkProvingScheme" htmlFor="plonkProvingScheme" style={{ paddingTop: '0.125rem' }}>
-              Plonk
+              <FormattedMessage id="circuit.plonk" />
             </label>
           </div>
         </div>
@@ -54,7 +55,7 @@ export function SetupExports () {
             placement={"auto"}
             tooltipId="circuitPtauTooltip"
             tooltipClasses="text-nowrap"
-            tooltipText={<span>{'To choose the from the list of ptau files'}</span>}
+            tooltipText={<span>{intl.formatMessage({ id: 'circuit.ptauTooltip' })}</span>}
           >
             <div className="mb-1">
               <select

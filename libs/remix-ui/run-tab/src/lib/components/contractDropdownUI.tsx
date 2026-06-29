@@ -249,7 +249,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
 
     if (isProxyDeployment) {
       props.modal(
-        'Deploy Implementation & Proxy (ERC1967)',
+        intl.formatMessage({ id: 'udapp.deployImplementationProxy' }),
         deployWithProxyMsg(),
         intl.formatMessage({ id: 'udapp.proceed' }),
         () => {
@@ -270,7 +270,7 @@ export function ContractDropdownUI(props: ContractDropdownProps) {
       )
     } else if (isContractUpgrade) {
       props.modal(
-        'Deploy Implementation & Update Proxy',
+        intl.formatMessage({ id: 'udapp.deployImplementationUpdateProxy' }),
         upgradeWithProxyMsg(),
         intl.formatMessage({ id: 'udapp.proceed' }),
         () => {

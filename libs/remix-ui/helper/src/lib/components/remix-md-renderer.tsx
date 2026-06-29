@@ -7,10 +7,28 @@ import remarkGfm from 'remark-gfm'
 import '../css/helper.css'
 
 export function normalizeMarkdown(input: string): string {
-  return input
+  if (typeof input !== 'string') {
+    return ''
+  }
+  let result = input
     .trim()
     .replace(/\n{2,}/g, '\n\n')
     .replace(/[ \t]+$/gm, '')
+
+  // Close any unclosed code fences (critical during streaming)
+  const fenceMatches = result.match(/^```/gm)
+  if (fenceMatches && fenceMatches.length % 2 !== 0) {
+    result += '\n```'
+  }
+
+  // Close unclosed inline code spans on the last line
+  const lastLine = result.split('\n').pop() || ''
+  const backtickCount = (lastLine.match(/`/g) || []).length
+  if (backtickCount % 2 !== 0) {
+    result += '`'
+  }
+
+  return result
 }
 
 export function RemixMdRenderer({ markDownContent, theme }: { markDownContent: string, theme: string }): React.ReactNode {

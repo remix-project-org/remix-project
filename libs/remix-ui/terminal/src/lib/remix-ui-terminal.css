@@ -22,8 +22,10 @@ element.style {
   z-index           : 20;
 }
 .remix_ui_terminal_menu {
-  max-height           : 35px;
+  /* max-height           : 35px; */
   min-height           : 35px;
+  padding: .25em 0;
+  border-bottom: var(--custom-border-light) 1px solid;
 }
 .remix_ui_terminal_toggleTerminal {
   cursor            : pointer;
@@ -79,6 +81,8 @@ element.style {
   white-space                 : nowrap;
   overflow                    : hidden;
   text-overflow               : ellipsis;
+  font-size: 14px;
+  background-color: transparent;
 }
 .remix_ui_terminal_searchIcon {
   width                       : 25px;

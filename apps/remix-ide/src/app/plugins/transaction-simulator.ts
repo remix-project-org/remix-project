@@ -295,7 +295,7 @@ export class TransactionSimulator extends Plugin {
     value?: string,
     maxFeePerGas?: string,
     data?: string,
-    validation: boolean = true,
+    validation: boolean = false,
     traceTransfers: boolean = true,
     shouldDecodeLogs: boolean = true
   ): Promise<SimulationResult> {

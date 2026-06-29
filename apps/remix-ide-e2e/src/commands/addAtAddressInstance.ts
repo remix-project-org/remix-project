@@ -15,31 +15,34 @@ class addAtAddressInstance extends EventEmitter {
 
 function addInstance (browser: NightwatchBrowser, address: string, isValidFormat: boolean, isValidChecksum: boolean, isAbi: boolean, callback: VoidFunction) {
   browser
-  .clickLaunchIcon('udapp')
-  .waitForElementVisible('.ataddressinput')
-  .click('.ataddressinput')
-  .setValue('.ataddressinput', address, function () {
-    if (!isValidFormat || !isValidChecksum) browser.assert.elementPresent('button[id^="runAndDeployAtAddressButton"]:disabled')
-    else if (isAbi) {
-      browser
-        .click({
-          selector: '//*[@id="runAndDeployAtAddressButtonContainer"]',
-          locateStrategy: 'xpath'
-         })
-        .waitForElementPresent('[data-id="udappNotify-modal-footer-ok-react"]', 5000)
-        .execute(function () {
-          const modal = document.querySelector('[data-id="udappNotify-modal-footer-ok-react"]') as any
+    .clickLaunchIcon('udapp')
+    .waitForElementVisible('[data-id="addDeployedContract"]')
+    .pause(500) // Wait for any UI transitions to complete
+    .execute(function () {
+    // Use JavaScript to click the button, avoiding sticky header issues
+      const button = document.querySelector('[data-id="addDeployedContract"]') as HTMLElement
+      if (button) {
+        button.scrollIntoView({ behavior: 'auto', block: 'center' })
+        button.click()
+      }
+    })
+    .waitForElementVisible('[data-id="deployedContractAddressInput"]')
+    .setValue('[data-id="deployedContractAddressInput"]', address, function () {
+      if (!isValidFormat || !isValidChecksum) browser.assert.elementPresent('[data-id="addDeployedContractButton"]:disabled')
+      else if (isAbi) {
+        browser
+          .click('[data-id="addDeployedContractButton"]') // Click Add button in dialog
+          .waitForElementPresent('[data-id="deployedContractsAtAddress-modal-footer-ok-react"]', 5000)
+          .execute(function () {
+            const modal = document.querySelector('[data-id="deployedContractsAtAddress-modal-footer-ok-react"]') as any
 
-          modal.click()
-        })
-    } else {
-      browser.click({
-        selector: '//*[@id="runAndDeployAtAddressButtonContainer"]',
-        locateStrategy: 'xpath'
-      })
-    }
-    callback()
-  })
+            modal.click()
+          })
+      } else {
+        browser.click('[data-id="addDeployedContractButton"]') // Click Add button in dialog
+      }
+      callback()
+    })
 }
 
 module.exports = addAtAddressInstance

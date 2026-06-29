@@ -1,5 +1,17 @@
 import { fileSystem } from "../fileSystem";
 
+function isLocalStorageFileSystemDebugEnabled(): boolean {
+  try {
+    return localStorage.getItem('remix-storage-debug') === 'true'
+  } catch {
+    return false
+  }
+}
+
+function logLocalStorageFileSystem(...args: any[]): void {
+  if (isLocalStorageFileSystemDebugEnabled()) console.log(...args)
+}
+
 export class localStorageFS extends fileSystem {
 
   constructor() {
@@ -16,7 +28,7 @@ export class localStorageFS extends fileSystem {
           fs: 'LocalStorage'
         }, async function (e) {
           if (e) {
-            console.log('BrowserFS Error: ' + e)
+            logLocalStorageFileSystem('BrowserFS Error: ' + e)
             reject(e)
           } else {
             me.fs = { ...window.require('fs') }
@@ -35,7 +47,7 @@ export class localStorageFS extends fileSystem {
           }
         })
       } catch (e) {
-        console.log('BrowserFS is not ready!')
+        logLocalStorageFileSystem('BrowserFS is not ready!')
         reject(e)
       }
     })

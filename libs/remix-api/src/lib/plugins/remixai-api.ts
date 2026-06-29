@@ -20,5 +20,6 @@ export interface IRemixAI {
     ProcessChatRequestBuffer(params:IParams): Promise<void>,
     initialize(remoteModel?:IRemoteModel, useRemote?:boolean): Promise<void>,
     vulnerability_check(prompt: string, params?): Promise<string | null>,
+    cancelRequest(): Promise<void>,
   }
 }

@@ -43,6 +43,23 @@ export class TraceCache {
     this.sstore = {} // all sstore occurrences in the trace
   }
 
+  getAll () {
+    return {
+      returnValues: this.returnValues,
+      stopIndexes: this.stopIndexes,
+      outofgasIndexes: this.outofgasIndexes,
+      callsTree: this.callsTree,
+      callsData: this.callsData,
+      contractCreation: this.contractCreation,
+      // steps: this.steps,
+      addresses: this.addresses,
+      callDataChanges: this.callDataChanges,
+      memoryChanges: this.memoryChanges,
+      storageChanges: this.storageChanges,
+      sstore: this.sstore
+    }
+  }
+
   pushSteps (index, currentCallIndex) {
     this.steps[index] = currentCallIndex
   }

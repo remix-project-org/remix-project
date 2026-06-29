@@ -19,7 +19,7 @@ export function FinalScreen(props: FinalScreenProps) {
         <i data-id="finalize-contractWizard-workspace-edit-icon" className="fa-solid fa-edit ms-2" onClick={() => setShowEditWorkspaceName(!showEditWorkspaceName)}></i>
       </div>
 
-      <button className="btn btn-primary btn-sm mx-3" data-id="validateWorkspaceButton" onClick={async () => {
+      <button className="btn btn-primary btn-sm mx-3" data-id="validateWorkspaceButton" disabled={state.creating} onClick={async () => {
         await facade.createWorkspace({
           workspaceName: state.workspaceName,
           workspaceTemplateName: state.workspaceTemplateChosen.value,
@@ -31,7 +31,7 @@ export function FinalScreen(props: FinalScreenProps) {
           contractName: state.tokenName
         })
         facade.closeWizard()
-      }}>Finish</button>
+      }}>{state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : 'Finish'}</button>
     </section>
   )
 }

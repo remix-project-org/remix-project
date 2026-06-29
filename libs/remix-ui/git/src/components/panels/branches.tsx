@@ -7,12 +7,14 @@ import { RemoteBranchDetails } from "./branches/remotebranchedetails";
 import { faSync } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { branch } from "@remix-api";
+import { FormattedMessage, useIntl } from "react-intl";
 
 const pageLength = 5;
 
 export const Branches = () => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
+  const intl = useIntl()
   const [localBranchPage, setLocalBranchPage] = useState(1);
   const [remoteBranchPage, setRemoteBranchPage] = useState(1);
   const [newBranch, setNewBranch] = useState({ value: "" });
@@ -50,7 +52,7 @@ export const Branches = () => {
         {context.branches && context.branches.length ?
           <div>
             <div data-id='branches-panel-content-local-branches'>
-              <label className="text-uppercase">local branches </label><div className="badge text-bg-info rounded-pill ms-2">{localBranches.length}</div>
+              <label className="text-uppercase"><FormattedMessage id="gitui.localBranches" /> </label><div className="badge text-bg-info rounded-pill ms-2">{localBranches.length}</div>
               {currentBranch && <LocalBranchDetails branch={currentBranch}></LocalBranchDetails>}
               {context.branches && localBranches.slice(0, localBranchPage * pageLength).map((branch, index) => {
                 return (
@@ -59,13 +61,13 @@ export const Branches = () => {
               })}
               {context.branches && localBranches.length > localBranchPage * pageLength && <GitUIButton className="btn btn-sm" onClick={() => {
                 setLocalBranchPage(localBranchPage + 1)
-              }}>Show more</GitUIButton>}
+              }}><FormattedMessage id="gitui.showMore" /></GitUIButton>}
             </div>
             <hr />
             {context.upstream ?
               <>
                 <div data-id='branches-panel-content-remote-branches'>
-                  <label className="text-uppercase">remote branches on {context.upstream ? context.upstream.name : null}</label><div className="badge text-bg-info rounded-pill ms-2">{remoteBranches.length}</div>
+                  <label className="text-uppercase"><FormattedMessage id="gitui.remoteBranchesOn" /> {context.upstream ? context.upstream.name : null}</label><div className="badge text-bg-info rounded-pill ms-2">{remoteBranches.length}</div>
                   {context.branches && remoteBranches
                     .slice(0, remoteBranchPage * pageLength)
                     .map((branch, index) => {
@@ -75,25 +77,25 @@ export const Branches = () => {
                     })}
                   {context.branches && remoteBranches.length > remoteBranchPage * pageLength && <><GitUIButton data-id='show-more-branches-on-remote' className="btn btn-sm" onClick={() => {
                     setRemoteBranchPage(remoteBranchPage + 1);
-                  }}>Show more</GitUIButton><br></br></>}
+                  }}><FormattedMessage id="gitui.showMore" /></GitUIButton><br></br></>}
                   <GitUIButton data-id={`remote-sync-${context.upstream.name}`} className="btn btn-sm" onClick={async () => {
                     await actions.fetch({
                       remote: context.upstream
                     })
-                  }}><FontAwesomeIcon icon={faSync} ></FontAwesomeIcon><label className="ps-1">Fetch more from remote</label></GitUIButton>
+                  }}><FontAwesomeIcon icon={faSync} ></FontAwesomeIcon><label className="ps-1"><FormattedMessage id="gitui.fetchMoreFromRemote" /></label></GitUIButton>
                   <hr /></div></> : null}
 
           </div> : null}
         {context.currentBranch
           && context.currentBranch.name !== ''
           && (!context.branches || context.branches.length === 0) ?
-          <div className="text-muted">Current branch is <strong className="text-dark">{`${context.currentBranch.name}`}</strong> but you have no commits.</div>
+          <div className="text-muted"><FormattedMessage id="gitui.currentBranchNoCommits" values={{ name: <strong className="text-dark">{`${context.currentBranch.name}`}</strong> }} /></div>
           : null}
-        <label className="text-uppercase pt-2 pb-1">Create branch</label>
+        <label className="text-uppercase pt-2 pb-1"><FormattedMessage id="gitui.createBranch" /></label>
         <div className="mb-3">
 
           <input
-            placeholder="branch name"
+            placeholder={intl.formatMessage({ id: 'gitui.branchNamePlaceholder' })}
             onChange={handleChange}
             className="form-control w-md-25 w-100"
             data-id="newbranchname"
@@ -107,7 +109,7 @@ export const Branches = () => {
           className="btn w-md-25 w-100 btn-primary mb-3"
           id="createbranch-btn"
         >
-          create new branch
+          <FormattedMessage id="gitui.createNewBranch" />
         </GitUIButton>
       </div>
     </>

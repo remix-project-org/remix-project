@@ -9,7 +9,7 @@ export class Recorder {
   getAll: () => void;
   clearAll: () => void;
   run: (records, accounts, options, abis, linkReferences, confirmationCb, continueCb, promptCb, alertCb, logCallBack, newContractFn) => void
-  runScenario: (liveMode, json, continueCb, promptCb, alertCb, confirmationCb, logCallBack, cb) => void
+  runScenario: (liveMode, json) => Promise<{ abi: any, address: string, contractName: string }>
 }
 import { Blockchain } from "./blockchain";
 

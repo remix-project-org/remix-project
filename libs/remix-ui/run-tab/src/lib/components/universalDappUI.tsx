@@ -8,7 +8,7 @@ import { CopyToClipboard } from '@remix-ui/clipboard'
 import * as remixLib from '@remix-project/remix-lib'
 import * as ethJSUtil from '@ethereumjs/util'
 import { ModalTypes } from '@remix-ui/app'
-import { QueryParams } from '@remix-project/remix-lib'
+
 import { ContractGUI } from './contractGUI'
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import { BN } from 'bn.js'
@@ -33,27 +33,14 @@ export function UniversalDappUI(props: UdappProps) {
   const [instanceBalance, setInstanceBalance] = useState(0)
 
   const isGenerating = useRef(false)
-  const [useNewAiBuilder, setUseNewAiBuilder] = useState(false)
-
-  const checkUrlParams = useCallback(() => {
-    const qp = new QueryParams()
-    const hasFlag = qp.exists('experimental')
-
-    setUseNewAiBuilder(prev => {
-      if (prev !== hasFlag) {
-        return hasFlag
-      }
-      return prev
-    })
-  }, [])
+  const [selectedProvider, setSelectedProvider] = useState<string>('')
 
   useEffect(() => {
-    checkUrlParams()
-    window.addEventListener('hashchange', checkUrlParams)
-    return () => {
-      window.removeEventListener('hashchange', checkUrlParams)
-    }
-  }, [checkUrlParams])
+    (async () => {
+      const selectedProvider = await props.plugin.call('udappEnv', 'getSelectedProvider')
+      setSelectedProvider(selectedProvider)
+    })()
+  }, [])
 
   useEffect(() => {
     if (!props.instance.abi) {
@@ -85,7 +72,7 @@ export function UniversalDappUI(props: UdappProps) {
     }
   }, [props.instance.balance])
 
-  const sendData = () => {
+  const sendData = async () => {
     setLlIError('')
     const fallback = txHelper.getFallbackInterface(contractABI)
     const receive = txHelper.getReceiveInterface(contractABI)
@@ -95,7 +82,7 @@ export function UniversalDappUI(props: UdappProps) {
       contractName: props.instance.name,
       contractABI: contractABI
     }
-    const amount = props.sendValue
+    const amount = await props.plugin.call('udappDeploy', 'getValue')
 
     if (amount !== '0') {
       // check for numeric and receive/fallback
@@ -159,6 +146,7 @@ export function UniversalDappUI(props: UdappProps) {
 
   const pinContract = async() => {
     const provider = await props.plugin.call('blockchain', 'getProviderObject')
+
     if (!provider.config.statePath && provider.config.isRpcForkedState) {
       // we can't pin a contract in the following case:
       // - state is not persisted
@@ -174,31 +162,20 @@ export function UniversalDappUI(props: UdappProps) {
       filePath: props.instance.filePath || `${workspace.name}/${props.instance.contractData.contract.file}`,
       pinnedAt: Date.now()
     }
-    await props.plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${props.plugin.REACT_API.chainId}/${props.instance.address}.json`, JSON.stringify(objToSave, null, 2))
+
+    const savePath = `.deploys/pinned-contracts/${props.plugin.REACT_API.chainId}/${props.instance.address}.json`
+
+    await props.plugin.call('fileManager', 'writeFile', savePath, JSON.stringify(objToSave, null, 2))
+
     trackMatomoEvent({ category: 'udapp', action: 'pinContracts', name: `pinned at ${props.plugin.REACT_API.chainId}`, isClick: false })
     props.pinInstance(props.index, objToSave.pinnedAt, objToSave.filePath)
   }
 
-  const runTransaction = (lookupOnly, funcABI: FuncABI, valArr, inputsValues, funcIndex?: number) => {
+  const runTransaction = async (lookupOnly, funcABI: FuncABI, valArr, inputsValues, funcIndex?: number) => {
     if (props.instance.isPinned) trackMatomoEvent({ category: 'udapp', action: 'pinContracts', name: 'interactWithPinned', isClick: false })
-    const functionName = funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
-    const logMsg = `${lookupOnly ? 'call' : 'transact'} to ${props.instance.name}.${functionName}`
-
-    props.runTransactions(
-      props.index,
-      lookupOnly,
-      funcABI,
-      inputsValues,
-      props.instance.name,
-      contractABI,
-      props.instance.contractData,
-      address,
-      logMsg,
-      props.mainnetPrompt,
-      props.gasEstimationPrompt,
-      props.passphrasePrompt,
-      funcIndex
-    )
+    // const functionName = funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
+    // const logMsg = `${lookupOnly ? 'call' : 'transact'} to ${props.instance.name}.${functionName}`
+    await props.runTransactions(props.index, lookupOnly, funcABI, inputsValues, props.instance.name, contractABI, props.instance.contractData, address, funcIndex)
   }
 
   const extractDataDefault = (item, parent?) => {
@@ -326,83 +303,51 @@ export function UniversalDappUI(props: UdappProps) {
             <div></div>
             <div className="btn d-flex p-0 align-self-center">
 
-              {/* [V2 Logic] New AI Builder Mode (Sparkles) */}
-              {useNewAiBuilder && props.exEnvironment && (
+              {/* [V2 Logic] AI Builder Mode (Sparkles) */}
+              {selectedProvider && (
                 <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
                   <i
                     data-id="instanceEditIcon"
                     className="fas fa-sparkles"
                     onClick={async () => {
                       try {
-                        const data = await props.plugin.call('compilerArtefacts', 'getArtefactsByContractName', props.instance.name)
-                        const description: string = await new Promise((resolve, reject) => {
-                          const modalMessage = (
-                            <ul className="p-3">
-                              <div className="mb-2">
-                                <span>Please describe how you would want the design to look like.</span>
-                              </div>
-                              <div>This might take up to 2 minutes.</div>
-                            </ul>
-                          )
-                          const modalContent = {
-                            id: 'generate-website-ai',
-                            title: 'Generate a Dapp UI with AI',
-                            message: modalMessage,
-                            placeholderText: 'E.g: "The website should have a dark theme, and show the account address and balance on top. The website should be responsive and look good on mobile. There should be a button to connect the wallet, and a button to refresh the balance, with a nice layout and design."',
-                            modalType: ModalTypes.textarea,
-                            okLabel: 'Generate',
-                            cancelLabel: 'Cancel',
-                            okFn: (value: string) => setTimeout(() => resolve(value), 0),
-                            cancelFn: () => setTimeout(() => reject(new Error('Canceled')), 0),
-                            hideFn: () => setTimeout(() => reject(new Error('Hide')), 0)
-                          }
-                          // @ts-ignore
-                          props.plugin.call('notification', 'modal', modalContent)
-                        })
+                        console.log('[QuickDapp] Sparkle button clicked', { name: props.instance.name, address, timestamp: Date.now() });
 
-                        if (isGenerating.current) {
-                          await props.plugin.call('notification', 'toast', 'AI generation is already in progress.')
-                          return
-                        }
+                        // [QuickDapp] Open AI Assistant with contract details + generate directly with defaults.
+                        const abi = props.instance.abi || props.instance.contractData?.abi || []
+                        const abiJson = JSON.stringify(abi)
 
-                        isGenerating.current = true
+                        const prompt = `I want to create a DApp frontend for my deployed contract. Here are the contract details you'll need when calling generate_dapp:
 
-                        await props.plugin.call('ai-dapp-generator', 'resetDapp', address)
+contractName: ${props.instance.name}
+contractAddress: ${address}
+chainId: ${props.plugin.REACT_API.chainId}
+contractAbi: ${abiJson}
+
+Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers.js. Generate the DApp directly without asking additional questions.`
+
+                        // Activate and focus AI Assistant
                         try {
-                          await props.plugin.call('quick-dapp-v2', 'clearInstance')
-                        } catch (e) {
-                          console.warn('Quick Dapp clean up failed (plugin might not be loaded yet):', e)
-                        }
+                          await props.plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
+                        } catch (e) { /* may already be active */ }
 
+                        // Open the right side panel (AI Assistant)
                         try {
-                          await props.plugin.call('quick-dapp-v2', 'startAiLoading')
-                        } catch (e) {
-                          console.warn('Failed to start loading state:', e)
-                        }
+                          await props.plugin.call('rightSidePanel', 'focusPanel')
+                        } catch (e) { /* best-effort */ }
 
-                        await generateAIDappWithPlugin(description, address, data, props)
-                        await props.plugin.call('tabs', 'focus', 'quick-dapp-v2')
+                        // Send prompt to AI Assistant
+                        console.log('[QuickDapp] calling chatPipe from sparkle...');
+                        await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+                        console.log('[QuickDapp] chatPipe returned from sparkle');
+
+                        trackMatomoEvent({ category: 'udapp', action: 'sendTransaction-from-gui', name: 'create_dapp_sparkle', isClick: true })
                       } catch (error) {
                         if (error.message !== 'Canceled' && error.message !== 'Hide') {
-                          console.error('Error generating DApp:', error)
+                          console.error('[QuickDapp] Error:', error)
                           await props.plugin.call('terminal', 'log', { type: 'error', value: error.message })
                         }
-                      } finally {
-                        isGenerating.current = false
                       }
-                    }}
-                  ></i>
-                </CustomTooltip>
-              )}
-
-              {/* [V1 Logic] Legacy Edit Mode (Pencil) */}
-              {!useNewAiBuilder && props.exEnvironment && props.exEnvironment.startsWith('injected') && (
-                <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
-                  <i
-                    data-id="instanceEditIcon"
-                    className="fas fa-edit"
-                    onClick={() => {
-                      props.editInstance(props.instance)
                     }}
                   ></i>
                 </CustomTooltip>
@@ -491,7 +436,7 @@ export function UniversalDappUI(props: UdappProps) {
             </CustomTooltip>
           </div>
           <div className="d-flex flex-column align-items-start">
-            <label className="">CALLDATA</label>
+            <label className=""><FormattedMessage id="udapp.calldataLabel" /></label>
             <div className="d-flex justify-content-end w-100 align-items-center">
               <CustomTooltip
                 placement="bottom"
@@ -508,7 +453,7 @@ export function UniversalDappUI(props: UdappProps) {
                   className="btn udapp_instanceButton p-0 w-50 border-warning text-warning"
                   onClick={sendData}
                 >
-                  Transact
+                  <FormattedMessage id="udapp.transactButton" />
                 </button>
               </CustomTooltip>
             </div>
@@ -524,77 +469,5 @@ export function UniversalDappUI(props: UdappProps) {
   )
 }
 
-const generateAIDappWithPlugin = async (description: string, address: string, contractData: any, props: UdappProps) => {
-  try {
-    trackMatomoEvent(this, {
-      category: 'quick-dapp-v2',
-      action: 'generate',
-      name: 'start',
-      isClick: false
-    })
-    const pages: Record<string, string> = await props.plugin.call('ai-dapp-generator', 'generateDapp', {
-      description,
-      address,
-      abi: props.instance.abi || props.instance.contractData.abi,
-      chainId: props.plugin.REACT_API.chainId,
-      contractName: props.instance.name
-    })
+// [QuickDapp] Legacy generateAIDappWithPlugin removed — DApp creation now handled via AI Assistant chatPipe → generate_dapp MCP tool
 
-    try {
-      await props.plugin.call('fileManager', 'remove', 'dapp')
-    } catch (e) {
-    }
-    await props.plugin.call('fileManager', 'mkdir', 'dapp')
-
-    for (const [rawFilename, content] of Object.entries(pages)) {
-      const safeParts = rawFilename.replace(/\\/g, '/')
-        .split('/')
-        .filter(part => part !== '..' && part !== '.' && part !== '');
-
-      if (safeParts.length === 0) {
-        continue;
-      }
-      const safeFilename = safeParts.join('/');
-      const fullPath = 'dapp/' + safeFilename;
-
-      if (safeParts.length > 1) {
-        const subFolders = safeParts.slice(0, -1);
-        let currentPath = 'dapp';
-        for (const folder of subFolders) {
-          currentPath = `${currentPath}/${folder}`;
-          try {
-            await props.plugin.call('fileManager', 'mkdir', currentPath);
-          } catch (e) { }
-        }
-      }
-      await props.plugin.call('fileManager', 'writeFile', fullPath, content)
-    }
-
-    props.editInstance(
-      address,
-      props.instance.abi,
-      props.instance.name,
-      contractData.artefact.devdoc,
-      contractData.artefact.metadata,
-      pages
-    )
-
-    trackMatomoEvent(this, {
-      category: 'quick-dapp-v2',
-      action: 'generate',
-      name: 'success',
-      isClick: false
-    })
-
-  } catch (error) {
-    trackMatomoEvent(this, {
-      category: 'quick-dapp-v2',
-      action: 'error',
-      name: 'generation_failed',
-      value: error.message,
-      isClick: false
-    })
-    console.error('Error generating DApp:', error)
-    await props.plugin.call('terminal', 'log', { type: 'error', value: error.message })
-  }
-}

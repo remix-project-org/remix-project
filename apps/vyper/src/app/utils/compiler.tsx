@@ -83,7 +83,10 @@ export async function compile(url: string, contract: Contract): Promise<VyperCom
     }
   }
 
-  let response = await axios.post(`${url.endsWith('/') ? url + 'compile' : url + '/compile'}`, compilePackage )
+  const compileEndpoint = `${url.endsWith('/') ? url + 'compile' : url + '/compile'}`
+  // eslint-disable-next-line no-console
+  console.info('[Vyper] Using compiler URL:', url, '→ POST', compileEndpoint)
+  let response = await axios.post(compileEndpoint, compilePackage )
   if (response.status === 404) {
     throw new Error(`Vyper compiler not found at "${url}".`)
   }

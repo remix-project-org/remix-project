@@ -12,7 +12,7 @@ module.exports = {
   'Should be able to create GIT without credentials #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -23,10 +23,13 @@ module.exports = {
       .waitForElementVisible('*[data-id="default-workspace-name-edit-icon"]')
       .click('*[data-id="default-workspace-name-edit-icon"]')
       .setValue('*[data-id="workspace-name-input"]', 'workspace_blank')
-      .click('[data-id="initGitRepositoryLabel"]')
+      .waitForElementVisible('[for="initGit"]')
+      .click('[for="initGit"]')
+      .pause(1000)
       .click('*[data-id="validateWorkspaceButton"]')
+      .frameParent()
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
-      .waitForElementPresent('*[data-id="treeViewLitreeViewItem.git"]')
+      .waitForElementPresent('*[data-id="treeViewLitreeViewItem.git"]', 60000)
       .waitForElementVisible('[data-id="treeViewDivtreeViewItemREADME.txt"]')
   },
   'Should add credentials #group1 #group2 #group3': function (browser: NightwatchBrowser) {
@@ -41,7 +44,7 @@ module.exports = {
   'Should create and initialize a GIT repository #group1': function (browser: NightwatchBrowser) {
     browser
       // .waitForElementNotVisible('[data-id="workspaceGitPanel"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -89,8 +92,6 @@ module.exports = {
       .setValue('[data-id="modalDialogCustomPromptTextClone"]', 'https://github.com/remix-project-org/awesome-remix')
       .click('[data-id="topbarModal-modal-footer-ok-react"]')
       .waitForElementPresent('.fa-spinner')
-      .pause(5000)
-      .waitForElementNotPresent('.fa-spinner')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.git"]')
       .waitForElementContainsText('[data-id="workspacesSelect"]', 'awesome-remix')
   },
@@ -178,8 +179,6 @@ module.exports = {
       .setValue('[data-id="modalDialogCustomPromptTextClone"]', 'https://github.com/ioedeveloper/test-branch-change')
       .click('[data-id="topbarModal-modal-footer-ok-react"]')
       .waitForElementPresent('.fa-spinner')
-      .pause(7000)
-      .waitForElementNotPresent('.fa-spinner')
       .waitForElementContainsText('[data-id="workspacesSelect"]', 'test-branch-change')
       .waitForElementVisible('[data-id="workspaceGitPanel"]')
       .waitForElementVisible('[data-id="workspaceGitBranchesDropdown"]')
@@ -377,14 +376,14 @@ module.exports = {
       .waitForElementNotPresent('[data-id="treeViewDivtreeViewItemlibdeep"]')
       .waitForElementNotPresent('[data-id="treeViewDivtreeViewItemtest-branch-submodule-recursive"]')
       .waitForElementNotPresent('[data-id="treeViewDivtreeViewItemtest-branch-submodule-2"]')
-      .click('[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .waitForElementVisible('*[data-id="dropdown-item-test-branch-submodule"]')
       .waitForElementVisible('*[data-id="dropdown-item-default_workspace"]')
       .click('*[data-id="dropdown-item-default_workspace"]')
   },
   'When switching to main update the modules #group4': function (browser: NightwatchBrowser) {
     browser
-      .click('[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .waitForElementVisible('*[data-id="dropdown-item-test-branch-submodule"]')
       .click('[data-id="dropdown-item-test-branch-submodule"]')
       .refreshPage()
@@ -396,6 +395,7 @@ module.exports = {
       .waitForElementContainsText('[data-id="custom-dropdown-items"]', 'origin/main')
       .waitForElementPresent('[data-id="workspaceGit-origin/main"]')
       .click('[data-id="workspaceGit-origin/main"]')
+      .modalFooterOKClick('checkoutRemoteBranch')
       .waitForElementVisible('[data-id="updatesubmodules"]')
       .click('[data-id="updatesubmodules"]')
       .waitForElementPresent('.fa-spinner')
@@ -449,7 +449,7 @@ module.exports = {
 
   'Should create a git workspace (uniswapV4Template) #group4': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -475,7 +475,7 @@ module.exports = {
 
   'Should create Remix default workspace with files #group5': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -510,11 +510,12 @@ module.exports = {
       .setValue('*[data-id="gitubUsername"]', 'git')
       .setValue('*[data-id="githubEmail"]', 'git@example.com')
       .click('*[data-id="saveGitHubCredentials"]')
-      .modalFooterOKClick('github-credentials-error')
+
   },
   'check source control panel #group5': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="sourcecontrol-panel"]')
+      .pause(1000)
       .click('*[data-id="sourcecontrol-panel"]')
       .waitForElementVisible({
         selector: "//*[@data-status='new-untracked' and @data-file='/tests/MyToken_test_test.sol']",
@@ -546,7 +547,7 @@ module.exports = {
   },
   'Should create a git workspace (uniswapV4Template) #group5': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')

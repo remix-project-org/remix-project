@@ -24,8 +24,14 @@ export class RemixReferenceProvider implements monaco.languages.ReferenceProvide
         for (const node of nodes) {
           const position = sourceMappingDecoder.decode(node.src)
           const fileInNode = compilationResult.getSourceName(position.file)
-          let fileTarget = await this.props.plugin.call('fileManager', 'getPathFromUrl', fileInNode)
-          fileTarget = fileTarget.file
+          // Resolve via resolution index only
+          let fileTarget: string
+          try {
+            const resolved = await this.props.plugin.call('resolutionIndex', 'resolvePath', file, fileInNode)
+            fileTarget = resolved || fileInNode
+          } catch (e) {
+            fileTarget = fileInNode
+          }
           const fileContent = await this.props.plugin.call('fileManager', 'readFile', fileInNode)
           const lineColumn = await this.props.plugin.call('codeParser', 'getLineColumnOfPosition', position)
 

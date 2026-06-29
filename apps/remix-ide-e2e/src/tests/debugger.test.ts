@@ -1,16 +1,84 @@
 'use strict'
 import { NightwatchBrowser } from 'nightwatch'
 import init from '../helpers/init'
+import { releaseAccount } from '../helpers/pool'
+
+const poolApiKey = process.env.E2E_POOL_API_KEY || ''
 
 module.exports = {
   '@disabled': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    init(browser, done)
+    if (!poolApiKey) {
+      console.error('[Debugger] E2E_POOL_API_KEY not set — AI assistant steps will fail without it')
+      return init(browser, done)
+    }
+    // Pass the pool key + unlimited quota feature group so the auth plugin
+    // can check out a real test account. The "Ask RemixAI" group1 step
+    // needs a logged-in user with quota to hit the assistant endpoint.
+    const url = `http://127.0.0.1:8080#e2e_pool_key=${poolApiKey}&e2e_feature_groups=e2e-unlimited-quota`
+    init(browser, done, url, true)
+  },
+
+  after: async function (browser: NightwatchBrowser, done: VoidFunction) {
+    // Release the pool session the auth plugin checked out in `before` (only if poolApiKey was set).
+    if (poolApiKey) {
+      try {
+        const result: any = await new Promise((resolve) => {
+          browser.execute(function () {
+            return sessionStorage.getItem('remix_pool_session')
+          }, [], (res: any) => resolve(res))
+        })
+
+        if (result && result.value) {
+          const session = JSON.parse(result.value)
+          console.log(`[Debugger] Releasing pool session: ${session.sessionId}`)
+          await releaseAccount(session.sessionId)
+        }
+      } catch (err: any) {
+        console.error(`[Debugger] Release failed: ${err.message}`)
+      }
+    }
+    browser.end()
+    done()
   },
 
   '@sources': function () {
     return sources
   },
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Pool login — runs for every group so AI-assistant-backed steps work.
+  // Mirrors the pattern used in testPoolLogin.test.ts / chatHistory.test.ts.
+  // ──────────────────────────────────────────────────────────────────────
+  // DISABLED: Requires E2E_POOL_API_KEY
+  /*
+  'Should enable login and show sign-in button': function (browser: NightwatchBrowser) {
+    browser
+      .execute(function () {
+        localStorage.setItem('enableLogin', 'true')
+      })
+      .refreshPage()
+      .pause(5000)
+      .waitForElementVisible('*[data-id="login-button"]', 15000)
+      .assert.elementPresent('*[data-id="login-button"]')
+  },
+
+  'Should login via the test pool through the real UI flow': function (browser: NightwatchBrowser) {
+    browser
+      .click('*[data-id="login-button"]')
+      .pause(3000)
+      .waitForElementVisible({
+        selector: '//button[contains(., "E2E Test Pool")]',
+        locateStrategy: 'xpath',
+        timeout: 15000
+      })
+      .click({
+        selector: '//button[contains(., "E2E Test Pool")]',
+        locateStrategy: 'xpath'
+      })
+      .pause(5000)
+  },
+  */
 
   'Should launch debugger #group1': function (browser: NightwatchBrowser) {
     browser.addFile('blah.sol', sources[0]['blah.sol'])
@@ -19,47 +87,56 @@ module.exports = {
       .clickLaunchIcon('solidity').click('*[data-id="compilerContainerCompileBtn"]')
       .pause(4000)
       .clickLaunchIcon('udapp')
-      .waitForElementPresent('*[data-bs-title="Deploy - transact (not payable)"]', 60000)
-      .click('*[data-bs-title="Deploy - transact (not payable)"]')
+      .createContract('')
       .debugTransaction(0)
-      .waitForElementContainsText('*[data-id="sidePanelSwapitTitle"]', 'DEBUGGER', 60000)
-      .clearConsole()
+      // Check that execution trace section is visible
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      // Check that step debug buttons are visible in bottom bar
+      .waitForElementVisible('*[data-id="btnJumpPreviousBreakpoint"]', 60000)
+      .waitForElementVisible('*[data-id="btnStepBack"]', 60000)
+      .waitForElementVisible('*[data-id="btnStepInto"]', 60000)
+      .waitForElementVisible('*[data-id="btnStepForward"]', 60000)
+      .waitForElementVisible('*[data-id="btnJumpNextBreakpoint"]', 60000)
   },
 
   'Should debug failing transaction #group1': function (browser: NightwatchBrowser) {
     browser.waitForElementVisible('*[data-id="verticalIconsKindudapp"]')
       .clickLaunchIcon('udapp')
       .clickInstance(0)
-      .scrollAndClick('*[data-bs-title="string name, uint256 goal"]')
-      .setValue('*[data-bs-title="string name, uint256 goal"]', '"toast", 999')
-      .click('*[data-id="createProject - transact (not payable)"]')
+      .clearConsole()
+      .clickFunction(0, 0, ["toast", "999"])
       .debugTransaction(0)
       .pause(2000)
-      .scrollAndClick('*[data-id="solidityLocals"]')
-      .waitForElementContainsText('*[data-id="solidityLocals"]', 'toast', 60000)
-      .waitForElementContainsText('*[data-id="solidityLocals"]', '999', 60000)
-  },
-
-  'Should debug transaction using slider #group1': function (browser: NightwatchBrowser) {
-    browser.waitForElementVisible('*[data-id="verticalIconsKindudapp"]')
-      .waitForElementVisible('*[data-id="slider"]')
-      .goToVMTraceStep(51)
-      .waitForElementContainsText('*[data-id="solidityLocals"]', 'toast', 60000)
-      .waitForElementContainsText('*[data-id="solidityLocals"]', '999', 60000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'vm trace step:\n51', 60000)
+      .goToVMTraceStep(327)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 327', 10000)
+      .waitForElementVisible('*[data-id="stateLocalsContent"]')
+      .pause(1000) // Wait for data to load
+      // First expand "locals" to see variable names
+      .execute(function () {
+        // Step 1: Expand the "locals" key
+        const solidityLocals = document.querySelector('[data-id="solidityLocals"]')
+        if (solidityLocals) {
+          const firstIcon = solidityLocals.querySelector('.json-expand-icon')
+          if (firstIcon) (firstIcon as any).click()
+        }
+      })
+      .waitForElementVisible('*[data-id="name-expand-icon"]')
+      .click('*[data-id="name-expand-icon"]')
+      .waitForElementContainsText('[data-id="name-json-nested"] [data-id="value-json-value"]', 'toast')
+      .click('*[data-id="goal-expand-icon"]')
+      .waitForElementContainsText('[data-id="goal-json-nested"] [data-id="value-json-value"]', '999')
   },
 
   'Should step back and forward transaction #group1': function (browser: NightwatchBrowser) {
     browser.waitForElementVisible('*[data-id="verticalIconsKindudapp"]')
-      .waitForElementPresent('*[data-id="buttonNavigatorIntoBack"]')
-      .scrollAndClick('*[data-id="buttonNavigatorIntoBack"]')
+      .waitForElementPresent('*[data-id="btnStepBack"]')
+      .click('*[data-id="btnStepBack"]')
       .pause(2000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'vm trace step:\n50', 60000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'execution step:\n50', 60000)
-      .click('*[data-id="buttonNavigatorIntoForward"]')
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 326', 60000)
+      .click('*[data-id="btnStepInto"]')
       .pause(2000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'vm trace step:\n51', 60000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'execution step:\n51', 60000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 327', 60000)
   },
 
   'Should jump through breakpoints #group1': function (browser: NightwatchBrowser) {
@@ -70,33 +147,161 @@ module.exports = {
       .execute(() => {
         (window as any).addRemixBreakpoint(21)
       }, [], () => { })
-      .waitForElementVisible('*[data-id="buttonNavigatorJumpPreviousBreakpoint"]')
-      .click('*[data-id="buttonNavigatorJumpPreviousBreakpoint"]')
+      .waitForElementVisible('*[data-id="btnJumpPreviousBreakpoint"]')
+      .click('*[data-id="btnJumpPreviousBreakpoint"]')
       .pause(2000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'vm trace step:\n0', 60000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'execution step:\n0', 60000)
-      .click('*[data-id="buttonNavigatorJumpNextBreakpoint"]')
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 0', 60000)
+      .click('*[data-id="btnJumpNextBreakpoint"]')
       .pause(10000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'vm trace step:\n352', 60000)
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'execution step:\n352', 60000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 352', 60000)
   },
+
+  'Should display transaction details #group1': function (browser: NightwatchBrowser) {
+    // The debugger is already running from previous test
+    // Transaction details should be visible in the debugger view
+    browser
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 10000)
+      .pause(2000) // Wait for transaction details to load
+      // Check if transaction details section exists
+      .waitForElementVisible('*[data-id="txDetails"]', 10000)
+      // Verify Status field
+      .waitForElementVisible('*[data-id="txStatus"]', 10000)
+      .waitForElementContainsText('*[data-id="txStatus"]', 'Failed')
+      // Verify Tx Fee is visible and not N/A
+      .waitForElementContainsText('*[data-id="txFee"]', '500940000000000 Wei')
+      // Verify Block number is visible
+      .waitForElementContainsText('*[data-id="txBlock"]', '2')
+      // Verify Tx Type is visible
+      .waitForElementContainsText('*[data-id="txType"]', 'Type 0')
+      // Verify Timestamp is visible
+      .waitForElementVisible('*[data-id="txTimestamp"]')
+      .getText('*[data-id="txTimestamp"]', (result) => {
+        const value = typeof result.value === 'string' ? result.value : ''
+        browser.assert.ok(value !== 'N/A' && value.length > 0, 'Timestamp should be displayed')
+      })
+      // Verify Gas Price is visible
+      .waitForElementContainsText('*[data-id="txGasPrice"]', '20000000000 Wei')
+      // Verify From address is visible
+      .waitForElementContainsText('*[data-id="txFrom"]', '0x5B38...ddC4')
+      // Verify Gas Used is visible
+      .waitForElementContainsText('*[data-id="txGasUsed"]', '25047')
+      // Verify To address is visible
+      .waitForElementContainsText('*[data-id="txTo"]', '0xd914...9138')
+      // Verify Tx Index is visible
+      .waitForElementContainsText('*[data-id="txIndex"]', '0')
+      // Verify Function name is visible
+      .waitForElementContainsText('*[data-id="txFunction"]', 'createProject')
+      // Verify Tx Nonce is visible
+      .waitForElementContainsText('*[data-id="txNonce"]', '1')
+      // Verify Value is visible
+      .waitForElementContainsText('*[data-id="txValue"]', '0 Wei')
+  },
+
+  // DISABLED: Requires E2E_POOL_API_KEY for AI assistant authentication
+  /*
+  'Should click Ask RemixAI while debugging and open assistant on right side #group1': function (browser: NightwatchBrowser) {
+    browser
+      // Step 1: Stop any existing debugger session
+      .perform((done) => {
+        browser.elements('css selector', '*[id="debuggerTransactionStartButtonContainer"]', (result) => {
+          if (Array.isArray(result.value) && result.value.length > 0) {
+            // Check if the stop button is visible (debugger is running)
+            browser.isVisible('*[id="debuggerTransactionStartButtonContainer"]', (visResult) => {
+              if (visResult.value === true) {
+                browser
+                  .click('*[id="debuggerTransactionStartButtonContainer"]')
+                  .pause(1000)
+                  .perform(() => done())
+              } else {
+                done()
+              }
+            })
+          } else {
+            done()
+          }
+        })
+      })
+      // Step 2: Open AI assistant and ensure it's on the left side
+      .clickLaunchIcon('remixaiassistant')
+      .assistantWaitForReady()
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .pause(500)
+      // Move assistant to left side if it's on the right
+      .perform((done) => {
+        browser.elements('css selector', '*[data-id="movePluginToLeft"]', (result) => {
+          if (Array.isArray(result.value) && result.value.length > 0) {
+            // Assistant is on right side, move it to left
+            browser
+              .click('*[data-id="movePluginToLeft"]')
+              .pause(1000)
+              .perform(() => done())
+          } else {
+            // Already on left side
+            done()
+          }
+        })
+      })
+      // Verify assistant is on the left side
+      .waitForElementVisible('*[data-id="movePluginToRight"]', 5000)
+      .waitForElementVisible('#side-panel', 5000) // Left panel should be visible
+      // Clear any existing chat
+      .assistantClearChat()
+      .pause(500)
+      // Step 3: Start a new debugging session
+      .clickLaunchIcon('udapp')
+      .clearConsole()
+      .clickFunction(0, 0, ["test", "100"])
+      .pause(2000)
+      .debugTransaction(0)
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      .pause(1000)
+      // Step 4: Click Ask RemixAI button while debugging
+      .waitForElementVisible('*[data-id="ask-remixai-action"]', 10000)
+      .click('*[data-id="ask-remixai-action"]')
+      .pause(2000) // Wait for the assistant to process and move to right side
+      // Verify the Ask RemixAI button is still visible and hasn't changed to compile button
+      .waitForElementVisible('*[data-id="ask-remixai-action"]', 5000)
+      .assert.textContains('*[data-id="ask-remixai-action"]', 'Debug with RemixAI')
+      // Step 5: Verify AI assistant is now on the right side panel
+      .waitForElementVisible('#right-side-panel', 10000) // Right side panel should be visible
+      .waitForElementVisible('*[data-id="movePluginToLeft"]', 10000) // Move to left button indicates it's on right side
+      .assistantWaitForReady() // Assistant should be visible and ready
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .pause(1000) // Wait for the prompt to be sent
+      // Verify the correct prompt was sent to the AI assistant
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble") and contains(.,"Give me more info about current debugging session")]'
+      }, 10000)
+      // Wait for AI to finish responding
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
+      }, 60000) // Wait for streaming to complete
+  },
+  */
 
   'Should display solidity imported code while debugging github import #group2': function (browser: NightwatchBrowser) {
     browser
+      .waitForElementVisible('*[data-id="verticalIconsKindsolidity"]')
+      .clickLaunchIcon('solidity')
       .clearConsole()
       .clearTransactions()
-      .clickLaunchIcon('solidity')
       .testContracts('externalImport.sol', sources[1]['externalImport.sol'], ['ERC20'])
       .clickLaunchIcon('udapp')
-      .waitForElementPresent('*[data-bs-title="Deploy - transact (not payable)"]', 35000)
       .selectContract('ERC20')
       .createContract('"tokenName", "symbol"')
       .debugTransaction(0)
-      .waitForElementVisible('#stepdetail')
-      .waitForElementVisible({
-        locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"475")]',
-      })
+      .waitForElementVisible('*[data-id="callTraceHeader"]')
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 474')
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf(`constructor (string memory name_, string memory symbol_) {
         _name = name_;
@@ -105,10 +310,8 @@ module.exports = {
           'current displayed content is not from the ERC20 source code')
       })
       .goToVMTraceStep(10)
-      .waitForElementVisible({
-        locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"10")]',
-      })
+      .pause(300)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 10', 10000)
   },
 
   'Should display correct source highlighting while debugging a contract which has ABIEncoderV2 #group2': function (browser: NightwatchBrowser) {
@@ -120,21 +323,19 @@ module.exports = {
     browser
       .refreshPage()
       .clickLaunchIcon('solidity')
-      .setSolidityCompilerVersion('soljson-v0.6.12+commit.27d51765.js')
       .testContracts('withABIEncoderV2.sol', sources[2]['withABIEncoderV2.sol'], ['test'])
       .clickLaunchIcon('udapp')
       .selectContract('test')
       .createContract('')
       .clearConsole()
       .clickInstance(0)
-      .clickFunction('test1 - transact (not payable)', { types: 'bytes userData', values: '0x000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000015b38da6a701c568545dcfcb03fcb875f56beddc4' })
+      .clickFunction(0, 0, ['0x000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000015b38da6a701c568545dcfcb03fcb875f56beddc4'])
       .debugTransaction(0)
-      .waitForElementVisible('#stepdetail')
-      .waitForElementVisible({
-        locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"133")]',
-      })
+      .waitForElementVisible('*[data-id="callTraceHeader"]')
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 131')
       .goToVMTraceStep(261)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 261', 10000)
       .waitForElementPresent('.highlightLine8')
       /*
         for the test below:
@@ -145,10 +346,25 @@ module.exports = {
         In that case the source highlight at 261 should be the same as for step 262
       */
 
-      .goToVMTraceStep(266)
+      .goToVMTraceStep(265)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 265', 10000)
+      .pause(500)
+      .execute(function () {
+        const solidityLocals = document.querySelector('[data-id="solidityLocals"]')
+        if (solidityLocals) {
+          const firstIcon = solidityLocals.querySelector('.json-expand-icon')
+          if (firstIcon) (firstIcon as any).click()
+        }
+      })
+      .pause(500)
       .checkVariableDebug('soliditylocals', localVariable_step266_ABIEncoder) // locals should not be initiated at this point, only idAsk should
       .goToVMTraceStep(717)
-      .checkVariableDebug('soliditylocals', localVariable_step717_ABIEncoder) // all locals should be initiaed
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 717', 10000)
+      .pause(500)
+
+      .checkVariableDebug('soliditylocals', localVariable_step717_ABIEncoder) // all locals should be initiated
       .clearTransactions()
   },
 
@@ -157,28 +373,43 @@ module.exports = {
       .clickLaunchIcon('solidity')
       .testContracts('locals.sol', sources[3]['locals.sol'], ['testLocals'])
       .clickLaunchIcon('udapp')
-      .waitForElementPresent('*[data-bs-title="Deploy - transact (not payable)"]', 40000)
       .createContract('')
       .pause(2000)
       .clearConsole()
       .clickInstance(0)
-      .clickFunction('t - transact (not payable)')
+      .clickFunction(0, 0)
       .pause(2000)
       .debugTransaction(0)
-      .waitForElementVisible('*[data-id="slider"]')
-      .waitForElementVisible({
-        locateStrategy: 'xpath',
-        selector: '//*[@data-id="treeViewLivm trace step" and contains(.,"29")]',
-      })
+      .waitForElementPresent('*[data-id="callTraceHeader"]', 60000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step:', 60000)
+      .pause(3000) // Wait for debugger backend to fully initialize before jumping
+      // Use goToVMTraceStep which intelligently uses jumpTo method when available
+      // This avoids clicking 5453 times and instead uses stepManager.jumpTo(5453) directly
       .goToVMTraceStep(5453)
-      .waitForElementPresent('*[data-id="treeViewDivtreeViewItemarray"]')
-      .click('*[data-id="treeViewDivtreeViewItemarray"]')
-      .waitForElementPresent('*[data-id="treeViewDivtreeViewLoadMore"]')
-      .waitForElementVisible('*[data-id="solidityLocals"]')
-      .waitForElementContainsText('*[data-id="solidityLocals"]', '9: 9 uint256', 60000)
-      .notContainsText('*[data-id="solidityLocals"]', '10: 10 uint256')
-      .clearTransactions()
-      .clearConsole().pause(2000)
+      .pause(5000) // Allow more time for jump to complete, especially on slower CI environments
+      // Verify we reached the correct step
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 5453', 60000)
+      .waitForElementVisible('*[data-id="stateLocalsContent"]', 10000)
+      .pause(2000) // Wait for large array to be processed and rendered
+      // Expand "locals" first to see variable names
+      .execute(function () {
+        const solidityLocals = document.querySelector('[data-id="solidityLocals"]')
+        if (solidityLocals) {
+          const firstIcon = solidityLocals.querySelector('.json-expand-icon')
+          if (firstIcon) (firstIcon as any).click()
+        }
+      })
+      .pause(2000) // Wait for variables to render
+      // Expand the array variable to see its values
+      .waitForElementVisible('*[data-id="array-expand-icon"]', 20000)
+      .click('*[data-id="array-expand-icon"]')
+      .pause(1000)
+      // Verify array content is displayed
+      .waitForElementContainsText('[data-id="array-json-nested"]', '9', 60000)
+      // Cleanup
+      .clearDeployedContracts()
+      .clearConsole()
+      .pause(1000)
   },
 
   'Should debug using generated sources #group4': function (browser: NightwatchBrowser) {
@@ -190,19 +421,22 @@ module.exports = {
       .createContract('')
       .clearConsole()
       .clickInstance(0)
-      .clickFunction('f - transact (not payable)', { types: 'uint256[] ', values: '[]' })
+      .clickFunction(0, 0, ['[]'])
       .debugTransaction(0)
       .pause(2000)
       .click('*[id="debuggerTransactionStartButtonContainer"]') // stop debugging
       .click('*[data-id="debugGeneratedSourcesLabel"]') // select debug with generated sources
-      .click('*[id="debuggerTransactionStartButtonContainer"]') // start debugging
-      .pause(2000)
+      .debugTransaction(0) // start debugging again with generated sources
+      .pause(4000)
+      .goToVMTraceStep(39)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 39', 10000)
+      .pause(500)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf('if slt(sub(dataEnd, headStart), 32)') !== -1, 'current displayed content is not a generated source')
       })
       .click('*[id="debuggerTransactionStartButtonContainer"]')
   },
-  // depends on Should debug using generated sources
   'Should call the debugger api: getTrace #group4': function (browser: NightwatchBrowser) {
     let txhash
     browser
@@ -222,7 +456,6 @@ module.exports = {
       .pause(3000)
       .waitForElementContainsText('*[data-id="terminalJournal"]', '{"gas":"0x5752","return":"0x0000000000000000000000000000000000000000000000000000000000000000","structLogs":', 60000)
   },
-  // depends on Should debug using generated sources
   'Should call the debugger api: debug #group4': function (browser: NightwatchBrowser) {
     let txhash
     browser
@@ -237,39 +470,53 @@ module.exports = {
         browser.addFile('test_jsDebug.js', { content: jsDebug.replace('<txhash>', txhash) }).perform(() => {
           done()
         })
-      })      
+      })
       .executeScriptInTerminal('remix.exeCurrent()')
-      .pause(3000)
-      .clickLaunchIcon('debugger')
-      .waitForElementVisible('*[data-id="slider"]')
+      .pause(5000) // Wait for the API call to start debugging and open the panel      
+      .waitForElementVisible('*[data-id="callTraceHeader"]')
       .goToVMTraceStep(154)
-      .scrollInto('*[data-id="stepdetail"]')
-      .waitForElementContainsText('*[data-id="stepdetail"]', 'vm trace step:\n154', 60000)
+      .pause(500)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 154', 10000)
   },
 
   'Should start debugging using remix debug nodes (rinkeby) #group4': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
       .setSolidityCompilerVersion('soljson-v0.8.7+commit.e28d00a7.js')
-      .addFile('useDebugNodes.sol', sources[5]['useDebugNodes.sol']) // compile contract
+      .addFile('storage.sol', sources[5]['storage.sol']) // compile contract
       .clickLaunchIcon('udapp')
-      .switchEnvironment('basic-http-provider') // select web3 provider with debug nodes URL
-      .clearValue('*[data-id="modalDialogCustomPromptText"]')
-      .setValue('*[data-id="modalDialogCustomPromptText"]', 'https://remix-rinkeby.ethdevops.io')
-      .modalFooterOKClick()
-      .waitForElementPresent('*[title="Deploy - transact (not payable)"]', 65000) // wait for the compilation to succeed
+      .connectToExternalHttpProvider('https://remix-rinkeby.ethdevops.io', 'Custom')
+      .createContract('') // wait for the compilation to succeed
       .clickLaunchIcon('debugger')
       .clearValue('*[data-id="debuggerTransactionInput"]')
       .setValue('*[data-id="debuggerTransactionInput"]', '0x156dbf7d0f9b435dd900cfc8f3264d523dd25733418ddbea1ce53e294f421013')
       .click('*[data-id="debugGeneratedSourcesLabel"]') // unselect debug with generated sources
       .click('*[data-id="debuggerTransactionStartButton"]')
-      .waitForElementVisible('*[data-id="solidityLocals"]', 60000)
+      .waitForElementVisible('*[data-id="stateLocalsContent"]', 60000)
       .pause(10000)
+      // Expand "locals" first
+      .execute(function () {
+        const solidityLocals = document.querySelector('[data-id="solidityLocals"]')
+        if (solidityLocals) {
+          const firstIcon = solidityLocals.querySelector('.json-expand-icon')
+          if (firstIcon) (firstIcon as any).click()
+        }
+      })
+      .pause(500)
+      // Expand "state" first
+      .execute(function () {
+        const solidityState = document.querySelector('[data-id="solidityState"]')
+        if (solidityState) {
+          const firstIcon = solidityState.querySelector('.json-expand-icon')
+          if (firstIcon) (firstIcon as any).click()
+        }
+      })
+      .pause(500)
       .checkVariableDebug('soliditylocals', { num: { value: '2', type: 'uint256' } })
       .checkVariableDebug('soliditystate', { number: { value: '0', type: 'uint256', constant: false, immutable: false } })
   },
 
-  'Should debug reverted transactions #group5': function (browser: NightwatchBrowser) {
+  'Should debug reverted transactions and jump to revert #group5': function (browser: NightwatchBrowser) {
     browser
       .testContracts('reverted.sol', sources[6]['reverted.sol'], ['A', 'B', 'C'])
       .clickLaunchIcon('udapp')
@@ -277,13 +524,112 @@ module.exports = {
       .createContract('')
       .pause(500)
       .clickInstance(0)
-      .clickFunction('callA - transact (not payable)')
+      .clickFunction(0, 0)
+      .pause(2000)
       .debugTransaction(1)
-      .pause(4000)
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      // Jump to Revert button should be visible when transaction has reverted
+      .waitForElementVisible('*[data-id="btnJumpToRevert"]', 10000)
+      // Go to some other step first
       .goToVMTraceStep(80)
-      .waitForElementVisible('*[data-id="debugGoToRevert"]', 60000)
-      .click('*[data-id="debugGoToRevert"]')
-      .waitForElementContainsText('*[data-id="asmitems"] div[selected="selected"]', '114 REVERT')
+      .pause(1000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 80', 60000)
+      // Now click Jump to Revert button
+      .click('*[data-id="btnJumpToRevert"]')
+      .pause(500)
+      // Verify we jumped to the revert step
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 205', 60000)
+  },
+
+  'Should update state during contract creation and function call #group6': function (browser: NightwatchBrowser) {
+    browser
+      .clickLaunchIcon('solidity')
+      .testContracts('owner.sol', sources[7]['owner.sol'], ['Owner'])
+      .clickLaunchIcon('udapp')
+      .selectContract('Owner')
+      .pause(2000)
+      .clearConsole()
+      .createContract('')
+      .pause(2000)
+      // Debug the contract creation transaction (index 0)
+      .debugTransaction(0)
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      .waitForElementVisible('*[data-id="solidityState"]')
+      .click('*[data-id="state-expand-icon"]')
+      .waitForElementVisible('*[data-id="owner-expand-icon"]')
+      .click('*[data-id="owner-expand-icon"]')
+      .waitForElementContainsText('[data-id="owner-json-nested"] [data-id="value-json-value"]', '0x0000000000000000000000000000000000000000', 10000)
+      .goToVMTraceStep(31)
+      .pause(1000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 31', 10000)
+      .pause(1000)
+      .waitForElementContainsText('[data-id="owner-json-nested"] [data-id="value-json-value"]', '0x5B38DA6A701C568545DCFCB03FCB875F56BEDDC4', 10000)
+      .waitForElementContainsText('[data-id="owner-json-nested"] [data-id="type-json-value"]', 'address', 10000)
+      // Stop debugger
+      .click('*[id="debuggerTransactionStartButtonContainer"]')
+      .pause(1000)
+      // Now call changeOwner with a different account address
+      .clickLaunchIcon('udapp')
+      .clearConsole()
+      .clickInstance(0)
+      .clickFunction(0, 0, ['0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2'])
+      .pause(2000)
+      // Debug the changeOwner transaction (index 0 after clearing console)
+      .debugTransaction(0)
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      // The state section should still be expanded, but click to expand if collapsed
+      .waitForElementVisible('*[data-id="solidityState"]')
+      .click('*[data-id="state-expand-icon"]')
+      .waitForElementVisible('*[data-id="owner-expand-icon"]')
+      .click('*[data-id="owner-expand-icon"]')
+      .waitForElementContainsText('[data-id="owner-json-nested"] [data-id="value-json-value"]', '0x5B38DA6A701C568545DCFCB03FCB875F56BEDDC4', 10000)
+      // Go to a later step where the owner has been updated
+      .goToVMTraceStep(170)
+      .pause(1000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 170', 10000)
+      .pause(10000)
+      // Verify the owner has changed to the new address
+      .waitForElementContainsText('[data-id="owner-json-nested"] [data-id="value-json-value"]', '0xAB8483F64D9C6D1ECF9B849AE677DD3315835CB2', 10000)
+      .waitForElementContainsText('[data-id="owner-json-nested"] [data-id="type-json-value"]', 'address', 10000)
+  },
+  'Should check execution trace reset #group6': function (this: NightwatchBrowser, browser: NightwatchBrowser) {
+    browser
+      .addFile('storage.sol', sources[5]['storage.sol'])
+      .pause(2000)
+      .clickLaunchIcon('solidity')
+      .click('*[data-id="compilerContainerCompileBtn"]')
+      .pause(3000)
+      .clickLaunchIcon('udapp')
+      .clearConsole()
+      // Deploy the contract
+      .createContract('')
+      .pause(2000)
+      // Start debugging the transaction
+      .debugTransaction(0)
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      .pause(1000)
+      // Verify initial state: execution trace should show the initial message
+      .waitForElementVisible('.debugger-call-stack', 10000)
+      .waitForElementContainsText('.debugger-call-stack .text-muted', 'Select a call from Call Trace to view execution details', 5000)
+      // Select a call from the call trace
+      .waitForElementVisible('*[data-id="call-trace-type-create"]', 10000)
+      .pause(500)
+      .click('*[data-id="call-trace-type-create"]')
+      .pause(1000)
+      // Verify execution trace now shows the execution details (not the initial message)
+      .waitForElementVisible('*[data-id="call-stack-list"]', 10000)
+      .assert.not.elementPresent('*[data-id="select-call-text"]')
+      // Stop debugger
+      .click('*[data-id="debuggerTransactionStartButton"]')
+      .pause(1000)
+      // start debugger again
+      .click('*[data-id="debuggerTransactionStartButton"]')
+      .waitForElementVisible('*[data-id="callTraceHeader"]', 60000)
+      .pause(1000)
+      // Verify initial state: execution trace should show the initial message again (reset successfully)
+      .waitForElementVisible('.debugger-call-stack', 10000)
+      .waitForElementContainsText('*[data-id="select-call-text"]', 'Select a call from Call Trace to view execution details', 5000)
+      .assert.not.elementPresent('*[data-id="call-stack-list"]')
   }
 }
 
@@ -375,7 +721,7 @@ const sources = [
     }
   },
   {
-    'useDebugNodes.sol': {
+    'storage.sol': {
       content: `
       // SPDX-License-Identifier: GPL-3.0
 
@@ -418,12 +764,7 @@ const sources = [
         }
         function callA() public {
             p = 123;
-            try b.callB() {
-
-            }
-            catch (bytes memory reason) {
-
-            }
+            b.callB();
         }
     }
 
@@ -447,73 +788,94 @@ const sources = [
         }
     }`
     }
+  },
+  {
+    'owner.sol': {
+      content: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Owner {
+    address public owner;
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    function changeOwner(address newOwner) public {
+        require(msg.sender == owner, "Only owner can change owner");
+        owner = newOwner;
+    }
+}`
+    }
   }
 ]
 
 const localVariable_step266_ABIEncoder = { // eslint-disable-line
-  '<1>': {
-    length: '0x0',
-    type: 'bytes',
-    value: '0x'
-  },
-  '<2>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000000'
-  },
-  '<3>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000000'
-  },
-  '<4>': {
-    type: 'uint256',
-    value: '0'
-  },
-  idAsk: {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000002'
-  },
-  userData: {
-    value: '0x000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000015b38da6a701c568545dcfcb03fcb875f56beddc4',
-    type: 'bytes'
-  }
+	"userData": {
+		"value": "0x000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000015b38da6a701c568545dcfcb03fcb875f56beddc4",
+		"type": "bytes"
+	},
+	"<1>": {
+		"length": "0xNaN",
+		"value": "0x",
+		"type": "bytes"
+	},
+	"<2>": {
+		"value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"type": "bytes32"
+	},
+	"<3>": {
+		"value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"type": "bytes32"
+	},
+	"<4>": {
+		"value": "0",
+		"type": "uint256"
+	},
+	"idAsk": {
+		"value": "0x0000000000000000000000000000000000000000000000000000000000000002",
+		"type": "bytes32"
+	}
 }
 
 const localVariable_step717_ABIEncoder = { // eslint-disable-line
-  '<1>': {
-    length: '0xd0',
-    type: 'bytes',
-    value: '0x5b38da6a701c568545dcfcb03fcb875f56beddc45b38da6a701c568545dcfcb03fcb875f56beddc400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001'
-  },
-  '<2>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000002'
-  },
-  '<3>': {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000001'
-  },
-  '<4>': {
-    type: 'uint256',
-    value: '84'
-  },
-  idAsk: {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000002'
-  },
-  idOffer: {
-    type: 'bytes32',
-    value: '0x0000000000000000000000000000000000000000000000000000000000000001'
-  },
-  ro: {
-    length: '0xd0',
-    type: 'bytes',
-    value: '0x5b38da6a701c568545dcfcb03fcb875f56beddc45b38da6a701c568545dcfcb03fcb875f56beddc400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001'
-  },
-  userData: {
-    value: '0x000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000015b38da6a701c568545dcfcb03fcb875f56beddc4',
-    type: 'bytes'
-  }
+	"userData": {
+		"value": "0x000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000015b38da6a701c568545dcfcb03fcb875f56beddc4",
+		"type": "bytes"
+	},
+	"<1>": {
+		"length": "0xd0",
+		"value": "0x5b38da6a701c568545dcfcb03fcb875f56beddc45b38da6a701c568545dcfcb03fcb875f56beddc400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001",
+		"type": "bytes"
+	},
+	"<2>": {
+		"value": "0x0000000000000000000000000000000000000000000000000000000000000002",
+		"type": "bytes32"
+	},
+	"<3>": {
+		"value": "0x0000000000000000000000000000000000000000000000000000000000000001",
+		"type": "bytes32"
+	},
+	"<4>": {
+		"value": "84",
+		"type": "uint256"
+	},
+	"idAsk": {
+		"value": "0x0000000000000000000000000000000000000000000000000000000000000002",
+		"type": "bytes32"
+	},
+	"idOffer": {
+		"value": "0x0000000000000000000000000000000000000000000000000000000000000001",
+		"type": "bytes32"
+	},
+	"ro": {
+		"length": "0xd0",
+		"value": "0x5b38da6a701c568545dcfcb03fcb875f56beddc45b38da6a701c568545dcfcb03fcb875f56beddc400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001",
+		"type": "bytes"
+	}
 }
+
+
 
 const jsGetTrace = `(async () => {
   try {

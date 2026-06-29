@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect, useReducer, useRef, SyntheticEvent, useContext } from 'react' // eslint-disable-line
-import { useIntl } from 'react-intl'
+import { useIntl, FormattedMessage } from 'react-intl'
 import {
   registerCommandAction,
   registerLogScriptRunnerAction,
@@ -23,8 +23,10 @@ import jsbeautify from 'js-beautify'
 import RenderUnKnownTransactions from './components/RenderUnknownTransactions' // eslint-disable-line
 import RenderCall from './components/RenderCall' // eslint-disable-line
 import RenderKnownTransactions from './components/RenderKnownTransactions' // eslint-disable-line
+import DebuggerCallStack from './components/DebuggerCallStack' // eslint-disable-line
+import { showCopyableValues } from './components/CopyableValues' // eslint-disable-line
 import parse from 'html-react-parser'
-import { EMPTY_BLOCK, KNOWN_TRANSACTION, RemixUiTerminalProps, SET_ISVM, SET_OPEN, UNKNOWN_TRANSACTION } from './types/terminalTypes'
+import { EMPTY_BLOCK, KNOWN_TRANSACTION, RemixUiTerminalProps, SET_ISVM, SET_OPEN, UNKNOWN_TRANSACTION, COPYABLE_VALUES } from './types/terminalTypes'
 import { wrapScript } from './utils/wrapScript'
 import { TerminalContext } from './context'
 
@@ -78,17 +80,96 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
   })
 
   const [showTableHash, setShowTableHash] = useState([])
+  const [isDebuggerActive, setIsDebuggerActive] = useState(false)
 
   // terminal inputRef
   const inputEl = useRef(null)
   const messagesEndRef = useRef(null)
   const typeWriterIndexes = useRef([])
+  const terminalStateRef = useRef(terminalState)
 
   // terminal draggable
   const panelRef = useRef(null)
   const terminalMenu = useRef(null)
 
   const intl = useIntl()
+
+  useEffect(() => {
+    terminalStateRef.current = terminalState
+  }, [terminalState])
+
+  useEffect(() => {
+    // Check if debugger is active
+    const checkDebuggerActive = async () => {
+      try {
+        const active = await props.plugin.call('sidePanel', 'currentFocus')
+        const isDebuggerFocused = active === 'debugger'
+        setIsDebuggerActive(isDebuggerFocused)
+      } catch (err) {
+        console.error('Failed to check debugger active state', err)
+      }
+    }
+
+    checkDebuggerActive()
+
+    // Listen for plugin activation/deactivation
+    const onPluginActivated = (name: string) => {
+      const isDebugger = name === 'debugger'
+      setIsDebuggerActive(isDebugger)
+    }
+
+    // Listen to focusChanged which fires when user switches plugins
+    props.plugin.on('sidePanel', 'focusChanged', onPluginActivated)
+    props.plugin.on('sidePanel', 'pluginDisabled', onPluginActivated)
+
+    return () => {
+      props.plugin.off('sidePanel', 'focusChanged', onPluginActivated)
+      props.plugin.off('sidePanel', 'pluginDisabled', onPluginActivated)
+    }
+  }, [props.plugin])
+
+  // Re-check if debugger is active when isDebugging changes
+  useEffect(() => {
+    if (props.isDebugging) {
+      const checkDebuggerActive = async () => {
+        try {
+          // Add a small delay to allow the debugger to activate
+          await new Promise(resolve => setTimeout(resolve, 100))
+          const active = await props.plugin.call('sidePanel', 'currentFocus')
+          const isDebugger = active === 'debugger'
+          setIsDebuggerActive(isDebugger)
+        } catch (err) {
+          console.error('Failed to check debugger active state on debugging change', err)
+        }
+      }
+      checkDebuggerActive()
+    } else {
+      // When debugging stops, reset the active state
+      setIsDebuggerActive(false)
+    }
+  }, [props.isDebugging, props.plugin])
+
+  // Add a polling mechanism to periodically check if debugger is active
+  // This is a fallback in case event listeners don't work
+  useEffect(() => {
+    if (!props.isDebugging) return
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const active = await props.plugin.call('sidePanel', 'currentFocus')
+        const isDebugger = active === 'debugger'
+        if (isDebugger !== isDebuggerActive) {
+          setIsDebuggerActive(isDebugger)
+        }
+      } catch (err) {
+        console.error('Failed to poll debugger active state', err)
+      }
+    }, 500) // Check every 500ms
+
+    return () => {
+      clearInterval(pollInterval)
+    }
+  }, [props.isDebugging, isDebuggerActive, props.plugin])
 
   const scrollToBottom = () => {
     messagesEndRef.current && messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
@@ -109,6 +190,15 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
         })
       },
 
+      logCopyableValues: (data) => {
+        scriptRunnerDispatch({
+          type: 'copyableValues',
+          payload: {
+            message: [data],
+          },
+        })
+      },
+
       log: (message) => {
         if (typeof message === 'string') {
           message = {
@@ -120,6 +210,10 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
           type: message.type ? message.type : 'log',
           payload: { message: [message.value]},
         })
+      },
+
+      getJournal: () => {
+        return terminalStateRef.current.journalBlocks || []
       },
     })
   }, [])
@@ -583,22 +677,33 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
     }
   }
 
+  // Check if we should show the debugger call stack
+  // Note: We check both isDebugging from props AND isDebuggerActive (from side panel focus)
+  // to ensure we only show call stack when debugger is active in the side panel
+  const showDebuggerCallStack = props.isDebugging && isDebuggerActive
+
   return (
     ( props.visible &&
-      <div style={{ flexGrow: 1 }} className="remix_ui_terminal_panel h-100 mb-2" ref={panelRef}>
+      <div style={{ flexGrow: 1 }} className="remix_ui_terminal_panel h-100" ref={panelRef}>
         <div tabIndex={-1} className="remix_ui_terminal_container d-flex h-100 m-0 flex-column" data-id="terminalContainer">
           {handleAutoComplete()}
-          <div className="position-relative d-flex flex-column-reverse h-100">
-            <div id="journal" className="remix_ui_terminal_journal d-flex flex-column pt-3 pb-4 px-2 mx-2 me-0" data-id="terminalJournal">
-              {!terminalState.clearConsole && <TerminalWelcomeMessage storage={storage} packageJson={version} />}
-              {terminalState.journalBlocks &&
+          <div className="position-relative d-flex flex-column-reverse h-100" key={`terminal-view-${showDebuggerCallStack ? 'debug' : 'normal'}`}>
+            {showDebuggerCallStack ? (
+              <div id="debugger-call-stack-view" className="w-100 h-100">
+                <DebuggerCallStack plugin={props.plugin} />
+              </div>
+            ) : (
+              <>
+                <div id="journal" className="remix_ui_terminal_journal d-flex flex-column pt-3 pb-4 px-2 mx-2 me-0" data-id="terminalJournal">
+                  {!terminalState.clearConsole && <TerminalWelcomeMessage storage={storage} packageJson={version} />}
+                  {terminalState.journalBlocks &&
               terminalState.journalBlocks.map((x, index) => {
                 if (x.name === EMPTY_BLOCK) {
                   return (
                     <div className={classNameBlock} data-id="block" key={index}>
                       <span className="remix_ui_terminal_tx">
                         <div className="remix_ui_terminal_txItem">
-                          [<span className="remix_ui_terminal_txItemTitle">block:{x.message} - </span> 0 {'transactions'} ]
+                          [<span className="remix_ui_terminal_txItemTitle">block:{x.message} - </span> 0 <FormattedMessage id="terminal.transactions" /> ]
                         </div>
                       </span>
                     </div>
@@ -659,6 +764,15 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
                         </div>
                       )
                     })
+                } else if (x.name === 'copyableValues') {
+                  return x.message
+                    .map((data, i) => {
+                      return (
+                        <div className={classNameBlock} data-id="block_copyableValues" key={index}>
+                          {showCopyableValues(data)}
+                        </div>
+                      )
+                    })
                 } else if (Array.isArray(x.message)) {
                   if (terminalState.searchInput !== '') return []
                   return x.message.map((msg, i) => {
@@ -669,7 +783,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
                     else if (!msg) msg = 'null'
                     if (React.isValidElement(msg)) {
                       return (
-                        <div className="px-4 block" data-id="block" key={i}>
+                        <div className="px-4 block mt-3" data-id="block" key={i}>
                           <span className={x.style}>{msg}</span>
                         </div>
                       )
@@ -731,24 +845,26 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
                   }
                 }
               })}
-              <div ref={messagesEndRef} />
-            </div>
-            {isOpen && (
-              <div id="terminalCli" data-id="terminalCli" className="remix_ui_terminal_cli position-absolute w-100" onClick={focusinput}>
-                <span className="remix_ui_terminal_prompt blink mx-1 fw-bold text-dark">{'>'}</span>
-                <input
-                  className="remix_ui_terminal_input ms-1 text-dark text-break border-0"
-                  ref={inputEl}
-                  spellCheck="false"
-                  contentEditable="true"
-                  id="terminalCliInput"
-                  data-id="terminalCliInput"
-                  onChange={(event) => onChange(event)}
-                  onKeyDown={(event) => handleKeyDown(event)}
-                  value={autoCompletState.userInput}
-                  onPaste={handlePaste}
-                ></input>
-              </div>
+                  <div ref={messagesEndRef} />
+                </div>
+                {isOpen && (
+                  <div id="terminalCli" data-id="terminalCli" className="remix_ui_terminal_cli position-absolute w-100" onClick={focusinput}>
+                    <span className="remix_ui_terminal_prompt blink mx-1 fw-bold text-dark">{'>'}</span>
+                    <input
+                      className="remix_ui_terminal_input ms-1 text-dark text-break border-0"
+                      ref={inputEl}
+                      spellCheck="false"
+                      contentEditable="true"
+                      id="terminalCliInput"
+                      data-id="terminalCliInput"
+                      onChange={(event) => onChange(event)}
+                      onKeyDown={(event) => handleKeyDown(event)}
+                      value={autoCompletState.userInput}
+                      onPaste={handlePaste}
+                    ></input>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -1,5 +1,6 @@
 /* eslint-disable no-case-declarations */
 import EventEmitter from 'events';
+import { remixAILogger, setRemixAILoggingEnabled } from '../helpers/logger';
 import {
   IMCPInitializeResult,
   IMCPServerCapabilities,
@@ -7,6 +8,21 @@ import {
   IMCPToolResult,
   IMCPResourceContent
 } from '../types/mcp';
+
+// Helper function to track events using MatomoManager instance
+function trackMatomoEvent(category: string, action: string, name: string) {
+  try {
+    if (typeof window !== 'undefined' && (window as any)._matomoManagerInstance) {
+      const matomoInstance = (window as any)._matomoManagerInstance;
+      if (typeof matomoInstance.trackEvent === 'function') {
+        matomoInstance.trackEvent(category, action, name);
+      }
+    }
+  } catch (error) {
+    // Silent fail for tracking
+    remixAILogger.debug('Matomo tracking failed:', error);
+  }
+}
 import {
   IRemixMCPServer,
   RemixMCPServerConfig,
@@ -31,23 +47,31 @@ import { createFileManagementTools } from './handlers/FileManagementHandler';
 import { createDeploymentTools } from './handlers/DeploymentHandler';
 import { createDebuggingTools } from './handlers/DebuggingHandler';
 import { createCodeAnalysisTools } from './handlers/CodeAnalysisHandler';
+import { createContractClassificationTools } from './handlers/ContractClassifierHandler';
 import { createChartJsTools } from './handlers/ChartJsHandler';
 import { createTutorialsTools } from './handlers/TutorialsHandler';
 import { createAmpTools } from './handlers/AmpHandler';
 import { createMathUtilsTools } from './handlers/MathUtilsHandler';
 import { createFoundryHardhatTools } from './handlers/FoundryHardhatHandler';
+import { createCoordinationTools } from './handlers/CoordinationHandler';
+import { createSkillTools } from './handlers/SkillLoaderHandler';
+import { createDAppGeneratorTools } from './handlers/DAppGeneratorHandler';
 
 // Import resource providers
 import { ProjectResourceProvider } from './providers/ProjectResourceProvider';
 import { CompilationResourceProvider } from './providers/CompilationResourceProvider';
 import { DeploymentResourceProvider } from './providers/DeploymentResourceProvider';
-import { TutorialsResourceProvider } from './providers/TutorialsResourceProvider';
 import { AmpResourceProvider } from './providers/AmpResourceProvider';
+import { DebuggingResourceProvider } from './providers/DebuggingResourceProvider';
+import { ContextResourceProvider } from './providers/ContextResourceProvider';
 
 // Import middleware
 import { SecurityMiddleware } from './middleware/SecurityMiddleware';
 import { ValidationMiddleware } from './middleware/ValidationMiddleware';
+import { FilePermissionMiddleware } from './middleware/FilePermissionMiddleware';
 import { MCPConfigManager } from './config/MCPConfigManager';
+
+import isElectron from 'is-electron'
 
 /**
  * Main Remix MCP Server implementation
@@ -65,12 +89,14 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   private _startTime: Date = new Date();
   private _securityMiddleware: SecurityMiddleware;
   private _validationMiddleware: ValidationMiddleware;
+  private _filePermissionMiddleware: FilePermissionMiddleware;
   private _configManager: MCPConfigManager;
   private _isInitialized: boolean = false;
 
   constructor(plugin, config: RemixMCPServerConfig) {
     super();
     this._config = config;
+    setRemixAILoggingEnabled(!!this._config.debug);
     this._plugin = plugin
     this._tools = new RemixToolRegistry();
     this._resources = new RemixResourceProviderRegistry(plugin);
@@ -96,6 +122,9 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
     );
     this._validationMiddleware = new ValidationMiddleware(
       this._plugin,
+      this._configManager
+    );
+    this._filePermissionMiddleware = new FilePermissionMiddleware(
       this._configManager
     );
 
@@ -133,6 +162,14 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   }
 
   /**
+   * Check if file write is allowed for the given file path
+   * This method delegates to FilePermissionMiddleware
+   */
+  async checkFileWritePermission(filePath: string): Promise<{ allowed: boolean; reason?: string }> {
+    return await this._filePermissionMiddleware.checkFileWritePermission(filePath, this._plugin);
+  }
+
+  /**
    * Initialize the MCP server
    */
   async initialize(): Promise<IMCPInitializeResult> {
@@ -150,15 +187,11 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       if (this._isInitialized) return initResult;
 
       try {
-        await this._configManager.loadConfig();
-        const securityConfig = this._configManager.getSecurityConfig();
-        const validationConfig = this._configManager.getValidationConfig();
-        console.log('[RemixMCPServer] Middlewares connected:');
-        console.log(`  - SecurityMiddleware: using ${securityConfig.excludeTools?.length || 0} excluded tools`);
-        console.log(`  - ValidationMiddleware: strictMode=${validationConfig.strictMode}, ${Object.keys(validationConfig.toolValidation || {}).length} tool-specific rules`);
-
+        const mcpConfig = await this._configManager.loadConfig();
+        this.syncLoggingConfig(mcpConfig);
       } catch (error) {
-        console.log(`[RemixMCPServer] Failed to load MCP config: ${error.message}, using defaults`);
+        this.syncLoggingConfig();
+        remixAILogger.log(`[RemixMCPServer] Failed to load MCP config: ${error.message}, using defaults`);
       }
 
       await this.initializeDefaultTools();
@@ -301,9 +334,13 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
     // Get current user (default to 'default' role)
     const currentUser = 'default'; // Can be extended to get from plugin context
-    console.log("checking permissions")
     const permissionCheckResult = await this.checkPermissions(call.name, currentUser);
-    console.log("permissions checked", permissionCheckResult)
+
+    const timestamp = Date.now();
+    const [workspace, currentFile] = await Promise.all([
+      this.getCurrentWorkspace(),
+      this.getCurrentFile()
+    ]);
 
     const execution: ToolExecutionStatus = {
       id: executionId,
@@ -311,7 +348,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       startTime,
       status: 'running',
       context: {
-        workspace: await this.getCurrentWorkspace(),
+        workspace,
         user: currentUser,
         permissions: permissionCheckResult.userPermissions
       }
@@ -322,28 +359,22 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
     try {
       const context = {
-        workspace: execution.context.workspace,
-        currentFile: await this.getCurrentFile(),
+        workspace,
+        currentFile,
         permissions: permissionCheckResult.userPermissions,
-        timestamp: Date.now(),
+        timestamp,
         requestId: executionId
       };
 
-      // STEP 1: Security Validation (uses MCPConfigManager for dynamic config)
-      console.log(`[RemixMCPServer] Step 1: Security validation for tool '${call.name}' (using MCPConfigManager)`);
       const securityResult = await this._securityMiddleware.validateToolCall(call, context, this._plugin);
 
       if (!securityResult.allowed) {
-        console.log(`[RemixMCPServer] Security validation FAILED for tool '${call.name}': ${securityResult.reason}`);
+        remixAILogger.log(`[RemixMCPServer] Security validation FAILED for tool '${call.name}': ${securityResult.reason}`);
         throw new Error(`Security validation failed: ${securityResult.reason}`);
       }
-      console.log(`[RemixMCPServer] Security validation PASSED for tool '${call.name}'`);
 
-      // STEP 2: Input Validation (uses MCPConfigManager for dynamic config)
-      console.log(`[RemixMCPServer] Step 2: Input validation for tool '${call.name}' (using MCPConfigManager)`);
       const toolDefinition = this._tools.get(call.name);
       const inputSchema = toolDefinition?.inputSchema;
-
       const validationResult = await this._validationMiddleware.validateToolCall(
         call,
         inputSchema,
@@ -353,16 +384,33 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
       if (!validationResult.valid) {
         const errorMessages = validationResult.errors.map(e => e.message).join(', ');
-        console.log(`[RemixMCPServer] Input validation FAILED for tool '${call.name}': ${errorMessages}`);
+        remixAILogger.log(`[RemixMCPServer] Input validation FAILED for tool '${call.name}': ${errorMessages}`);
         throw new Error(`Input validation failed: ${errorMessages}`);
       }
 
       // Log warnings if any
       if (validationResult.warnings.length > 0) {
         const warnings = validationResult.warnings.map(w => w.message).join(', ');
-        console.log(`[RemixMCPServer] Input validation warnings for tool '${call.name}': ${warnings}`);
-      } else {
-        console.log(`[RemixMCPServer] Input validation PASSED for tool '${call.name}'`);
+        remixAILogger.log(`[RemixMCPServer] Input validation warnings for tool '${call.name}': ${warnings}`);
+      }
+
+      // STEP 3: File Permision Check (for file operations)
+      const fileOperations = ['file_write', 'file_create', 'file_delete', 'file_move', 'file_copy', 'file_replace'];
+      if (fileOperations.includes(call.name)) {
+        const filePath = call.arguments?.path || call.arguments?.filePath || call.arguments?.from || call.arguments?.source;
+
+        if (filePath) {
+          const permissionResult = await this._filePermissionMiddleware.checkFileWritePermission(
+            filePath,
+            this._plugin
+          );
+
+          if (!permissionResult.allowed) {
+            remixAILogger.log(`[RemixMCPServer] File operation permission DENIED for '${filePath}': ${permissionResult.reason}`);
+            throw new Error(`File operation permission denied: ${permissionResult.reason || 'User denied the operation'}. See file remix.config.json`);
+          }
+          remixAILogger.log(`[RemixMCPServer] File operation permission GRANTED for '${filePath}'`);
+        }
       }
 
       const timeout = this._config.toolTimeout || 60000 * 10 // 10 minutes;;
@@ -379,7 +427,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       execution.endTime = new Date();
       this._stats.totalToolCalls++;
 
-      console.log(`[RemixMCPServer] Tool '${call.name}' executed successfully`);
+      trackMatomoEvent('ai', 'remixAI', `mcp_tool_executed_${call.name}`);
       this.emit('tool-executed', execution);
       return result;
 
@@ -389,7 +437,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       execution.endTime = new Date();
       this._stats.errorCount++;
 
-      console.log(`[RemixMCPServer] Tool '${call.name}' execution FAILED: ${error.message}`);
+      remixAILogger.log(`[RemixMCPServer] Tool '${call.name}' execution FAILED: ${error.message}`);
       this.emit('tool-executed', execution);
       return {
         isError:true,
@@ -416,6 +464,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
     // Get from provider
     const content = await this._resources.getResourceContent(uri);
 
+    // Track resource read
+    const resourceName = uri.replace('://', '_');
+    trackMatomoEvent('ai', 'remixAI', `mcp_resource_read_${resourceName}`);
+
     // Cache result
     if (this._config.enableResourceCache !== false) {
       this._resourceCache.set(uri, {
@@ -437,8 +489,6 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   async checkPermissions(operation: string, user: string, resource?: string): Promise<PermissionCheckResult> {
     try {
       const securityConfig = this._configManager.getSecurityConfig();
-      console.log("securityConfig", securityConfig)
-      // If permissions
 
       if (!securityConfig.permissions.requirePermissions) {
         return {
@@ -450,9 +500,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       }
 
       const userPermissions = this.getUserPermissions(user, securityConfig);
-      console.log("userPermissions", userPermissions)
       const requiredPermissions = this.getOperationPermissions(operation);
-      console.log("requiredPermissions", requiredPermissions)
 
       if (userPermissions.includes('*')) {
         return {
@@ -501,7 +549,6 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       // Additional resource-specific checks
       if (resource) {
         const resourceCheck = this.checkResourcePermissions(resource, userPermissions, securityConfig);
-        console.log("Resource check:", resourceCheck)
         if (!resourceCheck.allowed) {
           // Log denied resource access
           this.logAuditEntry({
@@ -550,7 +597,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       return result;
 
     } catch (error) {
-      console.error('[RemixMCPServer] Error checking permissions:', error);
+      remixAILogger.error('[RemixMCPServer] Error checking permissions:', error);
 
       this.logAuditEntry({
         id: `perm_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
@@ -588,12 +635,11 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
     }
 
     if (entry.severity === 'error') {
-      console.error('[RemixMCPServer] Audit:', entry);
+      remixAILogger.error('[RemixMCPServer] Audit:', entry);
     }
   }
 
   private getUserPermissions(user: string, securityConfig: any): string[] {
-    console.log('security config', securityConfig)
     const permissions: string[] = [];
 
     if (securityConfig.permissions?.defaultPermissions) {
@@ -647,10 +693,14 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       // Analysis
       'analyze_code': ['analysis:static'],
       'security_scan': ['analysis:security'],
-      'estimate_gas': ['analysis:gas']
+      'estimate_gas': ['analysis:gas'],
+
+      // Additional tools
+      'run_script': ['transaction:send'],
+      'simulate_transaction': ['transaction:simulate']
     };
 
-    return defaultPermissionMap[operation] || ['*'];
+    return defaultPermissionMap[operation] || [`tool:${operation}`];
   }
 
   private checkResourcePermissions(resource: string, userPermissions: string[], securityConfig: any): { allowed: boolean; reason?: string } {
@@ -715,7 +765,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       const result = await this._resources.getResources();
       this.emit('resources-refreshed', result.resources.length);
     } catch (error) {
-      console.log(`Failed to refresh resources: ${error.message}`, 'error');
+      remixAILogger.log(`Failed to refresh resources: ${error.message}`, 'error');
       throw error;
     }
   }
@@ -725,13 +775,11 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
    */
   async reloadConfig(): Promise<void> {
     try {
-      console.log('[RemixMCPServer] Reloading MCP configuration...');
       const mcpConfig = await this._configManager.reloadConfig();
-      console.log('[RemixMCPServer] Configuration reloaded successfully');
-      console.log('[RemixMCPServer] Configuration summary:', this._configManager.getConfigSummary());
+      this.syncLoggingConfig(mcpConfig);
       this.emit('config-reloaded', mcpConfig);
     } catch (error) {
-      console.log(`[RemixMCPServer] Failed to reload config: ${error.message}`);
+      remixAILogger.log(`[RemixMCPServer] Failed to reload config: ${error.message}`);
       throw error;
     }
   }
@@ -742,8 +790,15 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
   updateMCPConfig(partialConfig: Partial<any>): void {
     this._configManager.updateConfig(partialConfig);
-    console.log('[RemixMCPServer] Configuration updated at runtime');
+    this.syncLoggingConfig();
     this.emit('config-updated', this._configManager.getConfig());
+  }
+
+  private syncLoggingConfig(mcpConfig: any = this._configManager.getConfig()): void {
+    const logging = mcpConfig?.logging;
+    setRemixAILoggingEnabled(
+      !!this._config.debug || (logging?.console === true && logging?.level === 'debug')
+    );
   }
 
   private setState(newState: ServerState): void {
@@ -789,34 +844,64 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       const debuggingTools = createDebuggingTools();
       this._tools.registerBatch(debuggingTools);
 
-      // Register debugging tools
+      // Register code analyser tools
       const codeAnalysisTools = createCodeAnalysisTools();
       this._tools.registerBatch(codeAnalysisTools);
+
+      // Register contract classification tools
+      const contractClassificationTools = createContractClassificationTools();
+      this._tools.registerBatch(contractClassificationTools);
+
+      // Register enhanced audit tools
+      /*
+      const enhancedAuditTools = createEnhancedAuditTools();
+      this._tools.registerBatch(enhancedAuditTools);
+      */
 
       // Register tutorial tools
       const tutorialTools = createTutorialsTools();
       this._tools.registerBatch(tutorialTools);
 
       // Register Amp tools
+      /*
       const ampTools = createAmpTools();
       this._tools.registerBatch(ampTools);
+      */
 
       // Register Math Utils tools
       const mathUtilsTools = createMathUtilsTools();
       this._tools.registerBatch(mathUtilsTools);
 
+      const coordinationTools = createCoordinationTools();
+      this._tools.registerBatch(coordinationTools);
+
       // Register Foundry and Hardhat tools
-      const foundryHardhatTools = createFoundryHardhatTools();
-      this._tools.registerBatch(foundryHardhatTools);
+      if (isElectron()) {
+        const foundryHardhatTools = createFoundryHardhatTools();
+        this._tools.registerBatch(foundryHardhatTools);
+      }
 
       // Register Chartjs tool
+      /*
       const chartJsTools = createChartJsTools();
       this._tools.registerBatch(chartJsTools);
+      */
+
+      // Register Skill Management tools
+      // skills can be added from the UI and can be dynamic.
+      /*
+      const skillTools = createSkillTools();
+      this._tools.registerBatch(skillTools);
+      */
+
+      // Register DApp Generator tools
+      const dappGeneratorTools = createDAppGeneratorTools();
+      this._tools.registerBatch(dappGeneratorTools);
 
       const totalTools = this._tools.list().length;
 
     } catch (error) {
-      console.log(`Failed to initialize default tools: ${error.message}`, 'error');
+      remixAILogger.log(`Failed to initialize default tools: ${error.message}`, 'error');
       throw error;
     }
   }
@@ -827,6 +912,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
   private async initializeDefaultResourceProviders(): Promise<void> {
     if (this._resources.list().length > 0) return
     try {
+      // Register context resource provider (always included, highest priority)
+      const contextProvider = new ContextResourceProvider(this._plugin);
+      this._resources.register(contextProvider);
+
       // Register project resource provider
       const projectProvider = new ProjectResourceProvider(this._plugin);
       this._resources.register(projectProvider);
@@ -836,21 +925,17 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       this._resources.register(compilationProvider);
 
       // Register deployment resource provider
-      const deploymentProvider = new DeploymentResourceProvider();
+      const deploymentProvider = new DeploymentResourceProvider(this._plugin);
       this._resources.register(deploymentProvider);
 
-      // Register tutorial resource provider
-      const tutorialsProvider = new TutorialsResourceProvider(this._plugin);
-      this._resources.register(tutorialsProvider);
-
-      // Register Amp resource provider
-      const ampProvider = new AmpResourceProvider(this._plugin);
-      this._resources.register(ampProvider);
+      // Register debugging resource provider
+      const debuggingProvider = new DebuggingResourceProvider(this._plugin);
+      this._resources.register(debuggingProvider);
 
       const totalProviders = this._resources.list().length;
 
     } catch (error) {
-      console.log(`Failed to initialize default resource providers: ${error.message}`, 'error');
+      remixAILogger.log(`Failed to initialize default resource providers: ${error.message}`, 'error');
       throw error;
     }
   }

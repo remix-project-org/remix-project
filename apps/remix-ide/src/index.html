@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<html class="overflow-hidden">
+<html lang="en" class="overflow-hidden">
 
 <head>
 	<meta charset="utf-8">
@@ -24,7 +24,55 @@
 		THE SOFTWARE.
 		-->
 	<meta http-equiv="X-UA-Compatible" content="chrome=1">
-	<title>Remix - Ethereum IDE</title>
+
+	<!-- SEO Meta Tags -->
+	<title>Remix IDE - Smart Contract Development</title>
+	<meta name="description" content="Remix IDE - Powerful web-based IDE for smart contract development, testing, and deployment. Build, debug, and deploy Solidity contracts with ease.">
+	<meta name="keywords" content="ethereum, solidity, smart contracts, blockchain, remix, ide, development, web3, dapp, testing, deployment">
+	<meta name="author" content="Remix Project">
+	<meta name="robots" content="index, follow">
+
+	<!-- Canonical URL -->
+	<link rel="canonical" href="https://remix.ethereum.org/">
+
+	<!-- Open Graph / Facebook -->
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="https://remix.ethereum.org/">
+	<meta property="og:title" content="Remix IDE - Smart Contract Development">
+	<meta property="og:description" content="Powerful web-based IDE for smart contract development, testing, and deployment. Build, debug, and deploy Solidity contracts with ease.">
+	<meta property="og:image" content="https://remix.ethereum.org/assets/img/remix-logo-blue.png">
+	<meta property="og:site_name" content="Remix IDE">
+
+	<!-- Twitter -->
+	<meta property="twitter:card" content="summary_large_image">
+	<meta property="twitter:url" content="https://remix.ethereum.org/">
+	<meta property="twitter:title" content="Remix IDE - Smart Contract Development">
+	<meta property="twitter:description" content="Build, test, and deploy Solidity smart contracts with the most popular Web3 IDE">
+	<meta property="twitter:image" content="https://remix.ethereum.org/assets/img/remix-logo-blue.png">
+
+	<!-- JSON-LD Structured Data -->
+	<script type="application/ld+json">
+	{
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		"name": "Remix IDE",
+		"description": "Powerful web-based IDE for smart contract development, testing, and deployment",
+		"url": "https://remix.ethereum.org/",
+		"applicationCategory": "DeveloperApplication",
+		"operatingSystem": "Web Browser",
+		"creator": {
+			"@type": "Organization",
+			"name": "Remix Labs",
+			"url": "https://remix.live/"
+		},
+		"keywords": ["ethereum", "solidity", "smart contracts", "blockchain", "web3", "ide"],
+		"image": "https://remix.ethereum.org/assets/img/remix-logo-blue.png"
+	}
+	</script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="assets/css/pygment_trac.css">
 	<link rel="icon" type="image/x-icon" href="assets/img/remix-logo-blue.png">
 	<link rel="stylesheet" href="assets/css/intro.js/4.1.0/introjs.min.css">
@@ -80,19 +128,6 @@
 		}
 		@keyframes pre-splash-spin { to { transform: rotate(360deg); } }
 	</style>
-	<script>
-		function isProbablyMobile() {
-			return (
-				window.matchMedia("(max-width: 768px)").matches &&
-				("ontouchstart" in window || navigator.maxTouchPoints > 0)
-			);
-		}
-    const noMobileRedirect = window.location &&
-      ((window.location.search && window.location.search.indexOf('nomobileredirect') !== -1) || (window.location.hash && window.location.hash.indexOf('nomobileredirect') !== -1))
-		if (!noMobileRedirect && isProbablyMobile()) {
-      window.location.replace("https://mobile.remix.live")
-    }
-	</script>
 </head>
 
 <body>
@@ -112,6 +147,10 @@
 	<!-- <script type="text/javascript" src="assets/js/loader.js"></script> -->
 	<script type="text/javascript" src="assets/js/intro.min.js"></script>
 	<script type="text/javascript" src="assets/js/parser/antlr.js"></script>
+	<!-- Paddle.js for billing/checkout -->
+	<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+	<!-- Tally.so feedback popup widget -->
+	<script src="https://tally.so/widgets/embed.js"></script>
 </body>
 
 </html>

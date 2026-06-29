@@ -15,18 +15,15 @@ class VerifyContracts extends EventEmitter {
 
 function verifyContracts (browser: NightwatchBrowser, compiledContractNames: string[], opts: { wait: number, version?: string, runs?: string }, callback: VoidFunction) {
   browser
+    .closeBetaPopUp()
     .clickLaunchIcon('solidity')
-    .pause(opts.wait)
-    .pause(5000)
     .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
     .perform(async (done) => {
       if (opts.version) {
         browser
           .click('*[data-id="compilation-details"]')
           .waitForElementVisible('*[data-id="remixui_treeviewitem_metadata"]')
-          .pause(2000)
           .waitForElementVisible('*[data-id="treeViewDivtreeViewItemcompiler"]')
-          .pause(2000)
           .click('*[data-id="treeViewDivtreeViewItemcompiler"]')
           .waitForElementVisible('*[data-id="treeViewLiversion"]')
           .waitForElementContainsText('*[data-id="treeViewLiversion"]', `${opts.version}`)
@@ -41,9 +38,7 @@ function verifyContracts (browser: NightwatchBrowser, compiledContractNames: str
         browser
           .click('*[data-id="compilation-details"]')
           .waitForElementVisible('*[data-id="remixui_treeviewitem_metadata"]')
-          .pause(2000)
-          .assert.visible('*[data-id="treeViewDivtreeViewItemsettings"]')
-          .pause(2000)
+          .waitForElementVisible('*[data-id="treeViewDivtreeViewItemsettings"]')
           .click('*[data-id="treeViewDivtreeViewItemsettings"]')
           .waitForElementVisible('*[data-id="treeViewDivtreeViewItemoptimizer"]')
           .click('*[data-id="treeViewDivtreeViewItemoptimizer"]')

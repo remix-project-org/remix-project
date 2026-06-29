@@ -4,33 +4,60 @@ export class ToolApiGenerator {
 
   generateAPIDescription(): string {
     return `
-Use callMCPTool(toolName, args) to call tools. You can perform multiple tasks by chaining tool calls.
+Use callMCPTool(toolName, args) to call tools. You can only perform one single task or tool call sequentially. 
+Do not allow chaining tool calls. Do not write function or complex code.
 Each callMCPTool returns a object according to this interface
 export interface IMCPToolResult {
   content: Array<{
     type: 'text' | 'image' | 'resource';
     text?: string;
-    data?: string;
     mimeType?: string;
   }>;
   isError?: boolean;
 }
 
-Examples:
-// Reading files - returns string content directly
-const fileContent = await callMCPTool('file_read', { path: 'contract.sol' });
-const modified = fileContent.replace('old', 'new');
+Pay attention that the result of callMCPTool is not a string but an object in the occasion you have to process the tool result. 
 
-// Multiple tasks 1
-const compiled = await callMCPTool('solidity_compile', { file: 'contract.sol' });
+Example of correct usage:
+const toolReturnValue = return (await callMCPTool('tool_name', { param1: 'value1' })).content[0].text
+
+Every tool returns a success or failed response following this schema:
+{
+  content: [{
+    type: 'text',
+    text: typeof content === 'string' ? content : JSON.stringify(content, replacer, 2)
+  }],
+  isError: false
+};
+
+Example Taks:
+
+## Tasks 1
+return await callMCPTool('solidity_compile', { file: 'contract.sol' });
+
+## Task 2
 const deployed = await callMCPTool('deploy_contract', { contractName: 'MyToken' });
+return deployed
 
 
+## Task 3
 // With loops for batch operations
 const files = ['contracts/Token.sol', 'contracts/NFT.sol', 'contracts/DAO.sol'];
 for (const file of files) {
   await callMCPTool('solidity_compile', { file: 'contracts/' + file });
 }
+
+## Sequantial tasks
+### Task 4.1 
+// first: compile a contract
+return await callMCPTool('solidity_compile', { file: 'contract.sol' });
+
+### Task 4.2
+// second: deploy a contract
+return await callMCPTool('deploy_contract', { contractName: 'MyToken' });
+
+
+Do not use remix.call(..) or any other method to interact with Remix, only use callMCPTool as described above.
 `;
   }
 
@@ -52,12 +79,7 @@ for (const file of files) {
         })
         .join(', ');
 
-      // Truncate description to max 50 characters
-      const description = tool.description.length > 50
-        ? tool.description.substring(0, 50) + '...'
-        : tool.description;
-
-      list += `- ${tool.name}({${paramsList}}) - ${description}\n\n`;
+      list += `- ${tool.name}({${paramsList}}) - ${tool.description}\n\n`;
     }
 
     return list;

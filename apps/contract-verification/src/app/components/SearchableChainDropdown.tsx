@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, Ref } from 'react'
 import Fuse from 'fuse.js'
 import type { Chain } from '../types'
 import { AppContext } from '../AppContext'
-import intl, { useIntl } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { Dropdown } from 'react-bootstrap'
 
 function getChainDescriptor(chain: Chain): string {
@@ -151,7 +151,7 @@ export const SearchableChainDropdown: React.FC<DropdownProps> = ({ label, id, se
     return (
       <div className="dropdown">
         <label htmlFor={id}>{label}</label>
-        <div>Loading chains...</div>
+        <div><FormattedMessage id="contract-verification.loadingChains" /></div>
       </div>
     )
   }

@@ -50,30 +50,6 @@ export interface ResourceMetadata {
   dependencies?: string[];
 }
 
-export interface DeployedContractInstance {
-  name: string;
-  address: string;
-  abi: any[];
-  timestamp: string;
-  from: string;
-  transactionHash: string;
-  blockNumber: number;
-  blockHash?: string;
-  gasUsed: number;
-  gasPrice: string;
-  value: string;
-  status: string;
-  constructorArgs: any[];
-  verified: boolean;
-  index: number;
-}
-
-export interface DeployedContractsByNetwork {
-  [networkProvider: string]: {
-    [contractAddress: string]: DeployedContractInstance;
-  };
-}
-
 /**
  * Project file resource
  */

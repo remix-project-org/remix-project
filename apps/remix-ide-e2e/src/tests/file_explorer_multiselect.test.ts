@@ -10,8 +10,9 @@ module.exports = {
   'Should select multiple items in file explorer #group1': function (browser: NightwatchBrowser) {
     const selectedElements = []
     browser
-      .openFile('contracts')
+      .expandAllFolders()
       .click({ selector: '//*[@data-id="treeViewDivtreeViewItemcontracts/1_Storage.sol"]', locateStrategy: 'xpath' })
+      .pause(500)
       .findElement({ selector: '//*[@data-id="treeViewDivtreeViewItemcontracts/2_Owner.sol"]', locateStrategy: 'xpath' }, (el) => {
         selectedElements.push(el)
       })

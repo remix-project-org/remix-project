@@ -1,4 +1,4 @@
-import { CLEAR_CONSOLE, CMD_HISTORY, EMPTY_BLOCK, ERROR, HTML, INFO, KNOWN_TRANSACTION, LISTEN_ON_NETWORK, LOG, TYPEWRITERLOG, TYPEWRITERWARNING, AITYPEWRITERWARNING, TYPEWRITERSUCCESS, NEW_TRANSACTION, SCRIPT, UNKNOWN_TRANSACTION, WARN, TOGGLE, SEARCH, SET_ISVM, SET_OPEN } from '../types/terminalTypes'
+import { CLEAR_CONSOLE, CMD_HISTORY, EMPTY_BLOCK, ERROR, HTML, INFO, KNOWN_TRANSACTION, LISTEN_ON_NETWORK, LOG, TYPEWRITERLOG, TYPEWRITERWARNING, AITYPEWRITERWARNING, TYPEWRITERSUCCESS, NEW_TRANSACTION, SCRIPT, UNKNOWN_TRANSACTION, WARN, TOGGLE, SEARCH, SET_ISVM, SET_OPEN, COPYABLE_VALUES } from '../types/terminalTypes'
 
 export const initialState = {
   journalBlocks: [],
@@ -235,6 +235,11 @@ export const registerScriptRunnerReducer = (state, action) => {
     return {
       ...state,
       journalBlocks: initialState.journalBlocks.push({ message: action.payload.message, style: '', provider: action.payload.provider }),
+    }
+  case COPYABLE_VALUES:
+    return {
+      ...state,
+      journalBlocks: initialState.journalBlocks.push({ message: action.payload.message, style: '', name: 'copyableValues', provider: action.payload.provider }),
     }
   }
 }

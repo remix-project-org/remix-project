@@ -58,6 +58,12 @@ export class DesktopHostPlugin extends ElectronBasePlugin {
         client.emit('chainChanged', context)
       }
     })
+    eventEmitter.on('accountsChanged', (context) => {
+      console.log('accountsChanged', context)
+      for (const client of this.clients) {
+        client.emit('accountsChanged', context)
+      }
+    })
   }
 
   async startServer(): Promise<void> {
@@ -125,9 +131,20 @@ export class DesktopHostPluginClient extends ElectronBasePluginClient {
   }
 
   async openInCI() {
-    const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+      ]
+    });
     const page = await browser.newPage();
-    await page.goto(`http://localhost:${ports.http_port}/?activate=udapp,desktopClient&desktopClientPort=${ports.websocket_port}`);
+    await page.goto(
+      `http://localhost:${ports.http_port}/?activate=udapp,desktopClient&desktopClientPort=${ports.websocket_port}`,
+      { waitUntil: 'networkidle0', timeout: 30000 }
+    );
   }
 
 

@@ -9,5 +9,14 @@
   "panel.maintainedExternally": "Not maintained by Remix",
   "panel.pluginInfo": "Plugin info",
   "panel.linkToDoc": "Link to documentation",
-  "panel.makeAnissue": "Make an issue"
+  "panel.makeAnissue": "Make an issue",
+  "panel.pluginDetails": "Plugin details",
+  "panel.maintainedByLabel": "Maintained by",
+  "panel.fileExplorerTitle": "File Explorer",
+  "panel.fileExplorerDescription": "Create and manage your files.",
+  "panel.remixAiTitle": "RemixAI Assistant",
+  "panel.remixAiDescription": "AI code assistant for Remix IDE.",
+  "panel.minimizePanel": "Minimize Panel",
+  "panel.maximizePanel": "Maximize Panel",
+  "panel.hidePanel": "Hide Panel"
 }

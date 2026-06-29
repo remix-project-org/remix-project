@@ -2,6 +2,7 @@
  * Code Analysis Tool Handlers for Remix MCP Server
  */
 
+import { endpointUrls } from "@remix-endpoints-helper"
 import { IMCPToolResult } from '../../types/mcp';
 import { BaseToolHandler } from '../registry/RemixToolRegistry';
 import {
@@ -9,15 +10,11 @@ import {
   RemixToolDefinition
 } from '../types/mcpTools';
 import { Plugin } from '@remixproject/engine';
-import { performSolidityScan } from '@remix-project/core-plugin';
+import { CompilerAbstract } from "@remix-project/remix-solidity";
 
-/**
- * Solidity Scan Tool Handler
- * Analyzes Solidity code for security vulnerabilities and code quality issues
- */
-export class SolidityScanHandler extends BaseToolHandler {
-  name = 'solidity_scan';
-  description = 'Scan Solidity smart contracts for security vulnerabilities and code quality issues using SolidityScan API';
+export class SlitherHandler extends BaseToolHandler {
+  name = 'slither_scan';
+  description = 'Scan Solidity smart contracts for security vulnerabilities and code quality issues using Slither';
   inputSchema = {
     type: 'object',
     properties: {
@@ -52,24 +49,43 @@ export class SolidityScanHandler extends BaseToolHandler {
   async execute(args: { filePath: string }, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       // Check if file exists
-      const workspace = await plugin.call('filePanel', 'getCurrentWorkspace');
-      const fileName = `${workspace.name}/${args.filePath}`;
-      const filePath = `.workspaces/${fileName}`;
-
-      const exists = await plugin.call('fileManager', 'exists', filePath);
+      const exists = await plugin.call('fileManager', 'exists', args.filePath);
       if (!exists) {
         return this.createErrorResult(`File not found: ${args.filePath}`);
       }
 
-      // Use the core scanning function from remix-core-plugin
-      const scanReport = await performSolidityScan(plugin, args.filePath);
+      const compilationResult: CompilerAbstract = await plugin.call('compilerArtefacts' as any, 'getCompilerAbstract', args.filePath)
+      if (!compilationResult || !compilationResult.source || !compilationResult.source.sources) {
+        return this.createErrorResult('No compilation result available for the specified file path. Please compile the contract first.');
+      }
 
+      const compilerConfig = await plugin.call('solidity' as any , 'getCurrentCompilerConfig');
+
+      const flattened = await plugin.call('contractflattener', 'flattenContract', compilationResult.source, args.filePath, compilationResult.data, compilationResult.input, false);
+
+      // Call external Slither endpoint
+      const response = await fetch(endpointUrls.mcpCorsProxy + '/slither/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sources: { [args.filePath]: { content: flattened } },
+          version: compilerConfig?.currentVersion
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const scanReport = await response.json();
+      const parsedScanReport = JSON.parse(scanReport.analysis);
       const result = {
         success: true,
-        fileName,
+        fileName: args.filePath,
         scanCompletedAt: new Date().toISOString(),
-        multi_file_scan_details: scanReport.multi_file_scan_details,
-        multi_file_scan_summary: scanReport.multi_file_scan_summary
+        analysis_result: parsedScanReport
       };
       return this.createSuccessResult(result);
 
@@ -85,12 +101,12 @@ export class SolidityScanHandler extends BaseToolHandler {
 export function createCodeAnalysisTools(): RemixToolDefinition[] {
   return [
     {
-      name: 'solidity_scan',
-      description: 'Scan Solidity smart contracts for security vulnerabilities and code quality issues using SolidityScan API',
-      inputSchema: new SolidityScanHandler().inputSchema,
+      name: 'slither_scan',
+      description: `Scan Solidity smart contracts for security vulnerabilities and code quality issues using Slither.`,
+      inputSchema: new SlitherHandler().inputSchema,
       category: ToolCategory.ANALYSIS,
-      permissions: ['analysis:scan', 'file:read'],
-      handler: new SolidityScanHandler()
+      permissions: ['slither:scan', 'file:read'],
+      handler: new SlitherHandler()
     }
   ];
 }

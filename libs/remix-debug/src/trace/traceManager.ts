@@ -5,19 +5,25 @@ import { TraceAnalyser } from './traceAnalyser'
 import { TraceCache } from './traceCache'
 import { TraceStepManager } from './traceStepManager'
 import { isCreateInstruction } from './traceHelper'
+import { DebugTraceTransactionResult } from '../types'
+// import { BrowserProvider } from 'ethers'
 
 export class TraceManager {
-  web3
+  web3: any
   fork: string
   isLoading: boolean
-  trace
-  traceCache
-  traceAnalyser
-  traceStepManager
-  tx
+  trace: DebugTraceTransactionResult['structLogs']
+  traceCache: TraceCache
+  traceAnalyser: TraceAnalyser
+  traceStepManager: TraceStepManager
+  tx: any
+  getCache: (key: string) => Promise<any>
+  setCache: (key: string, value: any) => Promise<void>
 
   constructor (options) {
     this.web3 = options.web3
+    this.getCache = options.getCache || null
+    this.setCache = options.setCache || null
     this.isLoading = false
     this.trace = null
     this.traceCache = new TraceCache()
@@ -60,7 +66,14 @@ export class TraceManager {
     }
   }
 
-  getTrace (txHash) {
+  async getTrace (txHash): Promise<DebugTraceTransactionResult> {
+    // Try to get from cache first
+    const cached = await this.fromCache(txHash)
+    if (cached) {
+      return cached
+    }
+
+    // If not in cache, fetch from network
     return new Promise((resolve, reject) => {
       const options = {
         disableStorage: true,
@@ -68,11 +81,40 @@ export class TraceManager {
         disableStack: false,
         fullStorage: false
       }
-      this.web3.debug.traceTransaction(txHash, options, function (error, result) {
+      this.web3.debug.traceTransaction(txHash, options, (error, result) => {
         if (error) return reject(error)
+        // Cache the result asynchronously (don't await to avoid blocking)
+        this.cacheIt(txHash, result).catch(cacheError => {
+          console.warn('Failed to cache trace:', cacheError)
+        })
         resolve(result)
       })
     })
+  }
+
+  async cacheIt(txHash: string, trace: DebugTraceTransactionResult): Promise<void> {
+    try {
+      this.setCache && await this.setCache(txHash, trace)
+      console.log(`Trace cached for transaction: ${txHash}`)
+    } catch (error) {
+      console.error('Error caching trace:', error)
+    }
+  }
+
+  async fromCache(txHash: string): Promise<DebugTraceTransactionResult | null> {
+
+    try {
+      const cached = this.getCache && await this.getCache(txHash) as DebugTraceTransactionResult
+      if (cached) {
+        console.log(`Trace found in cache for transaction: ${txHash}`)
+      } else {
+        console.log(`No cached trace found for transaction: ${txHash}`)
+      }
+      return cached
+    } catch (error) {
+      console.error('Error retrieving from cache:', error)
+      return null // Don't throw, just return null to fallback to network
+    }
   }
 
   init () {
@@ -151,7 +193,7 @@ export class TraceManager {
     if (this.trace[stepIndex] && this.trace[stepIndex].stack) { // there's always a stack
       if (Array.isArray(this.trace[stepIndex].stack)) {
         const stack = this.trace[stepIndex].stack.slice(0)
-        stack.reverse()
+        // stack.reverse()
         return stack.map(el => toHexPaddedString(el))
       } else {
         // it's an object coming from the VM.
@@ -159,12 +201,12 @@ export class TraceManager {
         // we don't turn the stack coming from the VM into an array when the tx is executed
         // but now when the app needs it.
         const stack = []
-        for (const prop in this.trace[stepIndex].stack) {
+        for (const prop in this.trace[stepIndex].stack as any) {
           if (prop !== 'length') {
             stack.push(toHexPaddedString(this.trace[stepIndex].stack[prop]))
           }
         }
-        stack.reverse()
+        // stack.reverse()
         return stack
       }
     } else {

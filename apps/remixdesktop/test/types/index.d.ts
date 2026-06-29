@@ -14,7 +14,7 @@ declare module 'nightwatch' {
     addFile(name: string, content: NightwatchContractContent, readMeFile?: string): NightwatchBrowser
     verifyContracts(compiledContractNames: string[], opts?: {wait: number; version?: string; runs?: string}): NightwatchBrowser
     selectAccount(account?: string): NightwatchBrowser
-    clickFunction(fnFullName: string, expectedInput?: NightwatchClickFunctionExpectedInput): NightwatchBrowser
+    clickFunction(instanceIndex: number, functionIndex: number, expectedInput?: string[]): NightwatchBrowser
     testFunction(txHash: string, expectedInput: NightwatchTestFunctionExpectedInput): NightwatchBrowser
     goToVMTraceStep(step: number, incr?: number): NightwatchBrowser
     checkVariableDebug(id: string, debugValue: NightwatchCheckVariableDebugValue): NightwatchBrowser
@@ -39,7 +39,7 @@ declare module 'nightwatch' {
     selectContract(contractName: string): NightwatchBrowser
     createContract(inputParams: string): NightwatchBrowser
     getAddressAtPosition(index: number, cb: (pos: string) => void): NightwatchBrowser
-    testConstantFunction(address: string, fnFullName: string, expectedInput: NightwatchTestConstantFunctionExpectedInput | null, expectedOutput: string): NightwatchBrowser
+    testConstantFunction(instanceIndex: number, functionIndex: number, expectedInput: string[] | null, expectedOutput: string): NightwatchBrowser
     getEditorValue(callback: (content: string) => void): NightwatchBrowser
     getInstalledPlugins(cb: (plugins: string[]) => void): NightwatchBrowser
     verifyCallReturnValue(address: string, checks: string[] | callbackCheckVerifyCallReturnValue): NightwatchBrowser

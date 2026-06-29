@@ -1,9 +1,0 @@
-{
-  "name": "remix-dapp",
-  "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
-  "dependencies": {
-    "webpack-manifest-plugin": "^5.0.0"
-  }
-}

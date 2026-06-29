@@ -175,7 +175,7 @@ function HomeTabFile({ plugin }: HomeTabFileProps) {
           {(state.recentWorkspaces[0] || state.recentWorkspaces[1] || state.recentWorkspaces[2]) && (
             <div className="d-flex flex-column mb-5 remixui_recentworkspace">
               <label style={{ fontSize: '0.8rem' }} className="mt-1">
-                Recent Workspaces
+                <FormattedMessage id="home.recentWorkspaces" />
               </label>
               {state.recentWorkspaces[0] && state.recentWorkspaces[0] !== '' && (
                 <a className="cursor-pointer mb-1 ms-2" href="#" onClick={(e) => handleSwitchToRecentWorkspace(e, state.recentWorkspaces[0])}>
@@ -237,7 +237,7 @@ function HomeTabFile({ plugin }: HomeTabFileProps) {
             >
               <button className="btn text-nowrap p-2 me-2 border my-1 mb-2" data-id="landingPageImportFromGistButton" onClick={() => importFromGist()}>
                 <i className="fab fa-github ps-1 pe-2"></i>
-                Gist
+                <FormattedMessage id="home.gist" />
               </button>
             </CustomTooltip>
             <CustomTooltip placement={'top'} tooltipId="overlay-tooltip" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="home.gitCloneTooltip" />} tooltipTextClasses="border bg-light text-dark p-1 pe-3"
@@ -252,7 +252,7 @@ function HomeTabFile({ plugin }: HomeTabFileProps) {
                 await plugin.call('filePanel', 'clone')
               }}>
                 <i className="fa-brands fa-github-alt ps-1 pe-2"></i>
-                Clone
+                <FormattedMessage id="home.clone" />
               </button>
             </CustomTooltip>
             <CustomTooltip placement={'top'} tooltipId="overlay-tooltip" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="home.connectToLocalhost" />} tooltipTextClasses="border bg-light text-dark p-1 pe-3">

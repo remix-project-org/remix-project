@@ -7,7 +7,6 @@ import { EventEmitter } from 'events'
 import * as packageJson from '../../../../../package.json'
 import { TemplateExplorerProvider } from 'libs/remix-ui/template-explorer-modal/context/template-explorer-context'
 import { WorkspaceTemplate } from 'libs/remix-ui/workspace/src/lib/types'
-import { TemplateExplorerModalFacade } from 'libs/remix-ui/template-explorer-modal/src/utils/workspaceUtils'
 
 const pluginProfile = {
   name: 'templateexplorermodal',

@@ -170,6 +170,10 @@ export interface IMatomoManager {
   trackPageView(title?: string): void;
   setCustomDimension(id: number, value: string): void;
 
+  // Feature groups tracking (user plan/membership)
+  updateFeatureGroups(groupNames: string[]): void;
+  clearFeatureGroups(): void;
+
   // State and status methods
   getState(): MatomoState & MatomoStatus;
   getStatus(): MatomoStatus;
@@ -494,6 +498,10 @@ export class MatomoManager implements IMatomoManager {
       this.log(`Setting custom dimension ${id}: ${value}`);
       window._paq.push(['setCustomDimension', parseInt(id), value]);
     }
+
+    // Set feature groups dimension to 'none' initially (will be updated when user logs in)
+    window._paq.push(['setCustomDimension', this.customDimensions.featureGroups, 'none']);
+    this.log('Set featureGroups dimension: none (initial)');
 
     // Set bot detection dimension
     if (this.botDetectionResult) {
@@ -903,6 +911,34 @@ export class MatomoManager implements IMatomoManager {
     this.log(`Setting custom dimension ${id}: ${value}`);
     window._paq.push(['setCustomDimension', id, value]);
     this.emit('custom-dimension-set', { id, value });
+  }
+
+  // ================== FEATURE GROUPS TRACKING ==================
+
+  /**
+   * Update the feature groups custom dimension with the user's current memberships.
+   * Call this after login or when feature groups change (e.g., plan upgrade, invite redemption).
+   *
+   * The value is stored as a comma-separated string of group names (e.g., "beta,ai-unlimited").
+   * In Matomo, use segment filters with "contains" to filter by individual groups.
+   *
+   * @param groupNames - Array of feature group names (e.g., ['beta', 'ai-unlimited'])
+   */
+  updateFeatureGroups(groupNames: string[]): void {
+    const value = groupNames.length > 0 ? groupNames.sort().join(',') : 'none';
+    this.log(`Updating feature groups dimension ${this.customDimensions.featureGroups}: ${value}`);
+    window._paq.push(['setCustomDimension', this.customDimensions.featureGroups, value]);
+    this.emit('feature-groups-updated', { groups: groupNames, dimensionValue: value });
+  }
+
+  /**
+   * Clear the feature groups dimension (e.g., on logout).
+   * Sets the dimension to 'none' so subsequent events are tagged as unauthenticated/no-plan.
+   */
+  clearFeatureGroups(): void {
+    this.log(`Clearing feature groups dimension ${this.customDimensions.featureGroups}`);
+    window._paq.push(['setCustomDimension', this.customDimensions.featureGroups, 'none']);
+    this.emit('feature-groups-updated', { groups: [], dimensionValue: 'none' });
   }
 
   // ================== STATE MANAGEMENT ==================

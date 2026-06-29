@@ -4,6 +4,7 @@ import "./utils/log"
 import os from 'os';
 import fs from 'fs';
 import { exec } from 'child_process';
+import { startCREBridge } from './lib/creDesktopBridge';
 
 export let isPackaged = false;
 export const version = app.getVersion();
@@ -110,6 +111,7 @@ app.on('ready', async () => {
   trackEvent('App', 'OS', process.platform, 1);
   if (!isE2E) registerLinuxProtocolHandler();
   require('./engine')
+  startCREBridge()
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -182,6 +184,12 @@ function handleRemixUrl(url: string) {
         githubAuthHandlerPlugin?.exchangeCodeForToken(code);
         console.log('Auth exchange', code);
       }
+      break;
+    }
+
+    case '/auth/sso-callback': {
+      console.log('SSO auth callback received');
+      desktopAuthHandlerPlugin?.handleSSOCallback(searchParams);
       break;
     }
 
@@ -268,7 +276,7 @@ import HelpMenu from './menus/help';
 import { execCommand } from './menus/commands';
 import main from './menus/main';
 import { trackEvent } from './utils/matamo';
-import { githubAuthHandlerPlugin } from './engine';
+import { githubAuthHandlerPlugin, desktopAuthHandlerPlugin } from './engine';
 
 const commandKeys: Record<string, string> = {
   'window:new': 'CmdOrCtrl+N',

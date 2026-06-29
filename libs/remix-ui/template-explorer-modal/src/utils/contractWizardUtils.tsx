@@ -6,29 +6,47 @@ import { ContractTypeStrategy } from '../../types/template-explorer-types'
 export function getErc20ContractCode (contractType: 'erc20', state: ContractTypeStrategy) {
 
   if (state.contractType === contractType) {
-    if (state.contractOptions.mintable && state.contractOptions.burnable && state.contractOptions.pausable) {
+    if (state.contractOptions.mintable && state.contractOptions.burnable && state.contractOptions.pausable && state.contractOptions.permit) {
       if (state.contractAccessControl === 'ownable') {
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSOwnableMintableBurnablePausableOptions(state.contractName || 'MyToken')
         }
+        return erc20.erc20MintablePausableBurnableOwnablePermitOnlyOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'roles') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSRolesFullOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20MintableBurnablePausableRolesPermitOnlyOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'managed') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSManagedFullOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20MintablePausableBurnableManagedPermitOnlyOptions(state.contractName || 'MyToken')
+      }
+    } else if (state.contractOptions.mintable && state.contractOptions.burnable && state.contractOptions.pausable) {
+      if (state.contractAccessControl === 'ownable') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSOwnableMintableBurnablePausableOptionsNonPermit(state.contractName || 'MyToken')
+        }
         return erc20.erc20MintablePausableBurnableOwnableOptions(state.contractName || 'MyToken')
       } else if (state.contractAccessControl === 'roles') {
         if (state.contractUpgradability.uups) {
-          return erc20.erc20UUPSRolesFullOptions(state.contractName || 'MyToken')
+          return erc20.erc20UUPSRolesFullOptionsNonPermit(state.contractName || 'MyToken')
         }
-        return erc20.erc20MintablePausableBurnableRolesOptions(state.contractName || 'MyToken')
+        return erc20.erc20MintablePausableBurnableRolesOptionsNonPermit(state.contractName || 'MyToken')
       } else if (state.contractAccessControl === 'managed') {
         if (state.contractUpgradability.uups) {
-          return erc20.erc20UUPSManagedFullOptions(state.contractName || 'MyToken')
+          return erc20.erc20UUPSManagedFullOptionsNonPermit(state.contractName || 'MyToken')
         }
-        return erc20.erc20MintablePausableBurnableManagedOptions(state.contractName || 'MyToken')
+        return erc20.erc20MintablePausableBurnableManagedOptionsNonPermit(state.contractName || 'MyToken')
       }
-    } else if (state.contractOptions.mintable && state.contractOptions.burnable) {
+    }
+    else if (state.contractOptions.mintable && state.contractOptions.burnable && !state.contractOptions.permit) {
       if (state.contractAccessControl === 'ownable') {
         if (state.contractUpgradability.uups) {
-          return erc20.erc20UUPSOwnableMintableBurnableOptions(state.contractName || 'MyToken')
+          return erc20.erc20MintableBurnableOwnableUUPSOnlyOptions(state.contractName || 'MyToken')
         }
-        return erc20.erc20BurnableMintableOwnableOptions(state.contractName || 'MyToken')
+        return erc20.erc20MintableBurnableOwnableOnlyOptions(state.contractName || 'MyToken')
       } else if (state.contractAccessControl === 'roles') {
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSRolesFullOptions(state.contractName || 'MyToken')
@@ -37,17 +55,66 @@ export function getErc20ContractCode (contractType: 'erc20', state: ContractType
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSManagedFullOptions(state.contractName || 'MyToken')
         }
-        return erc20.erc20MintableManagedOptions(state.contractName || 'MyToken')
+        return erc20.erc20MintableBurnableManagedOptions(state.contractName || 'MyToken')
       }
-      return erc20.erc20BurnableMintableOwnableOptions(state.contractName || 'MyToken')
-    }
-    if (state.contractOptions.mintable && state.contractOptions.pausable) {
+      return erc20.erc20MintableBurnableOwnableOnlyOptions(state.contractName || 'MyToken')
+    } else if (state.contractOptions.mintable && state.contractOptions.burnable && state.contractOptions.permit) {
       if (state.contractAccessControl === 'ownable') {
         if (state.contractUpgradability.uups) {
-          return erc20.erc20PausableBurnableMintableOwnableOptions(state.contractName || 'MyToken')
+          return erc20.erc20MintableBurnbaleOwnableUUPSPermitOnlyOptions(state.contractName || 'MyToken')
         }
-        return erc20.erc20MintablePausableOwnableOptions(state.contractName || 'MyToken')
+        return erc20.erc20MintableBurnableOwnablePermitOnlyOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'roles') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20MintableBurnableRolesUUPSPermitOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20MintableBurnableRolesPermitOnlyOption(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'managed') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSMintableBurnableManagedPermitOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20MintableManagedPermitOnlyOptions(state.contractName || 'MyToken')
       }
+      return erc20.erc20MintableBurnableOwnablePermitOnlyOptions(state.contractName || 'MyToken')
+    }
+    if (state.contractOptions.pausable && state.contractOptions.permit && state.contractOptions.mintable) {
+      if (state.contractAccessControl === 'ownable') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20PausablePermitMintableOwnableOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20PausableMintableOwnableNonPermitOnlyOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'roles') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSPausableMintableOwnableRolesPermitOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20PausableMintableOwnableRolesNonPermitOnlyOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'managed') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSPausableMintableOwnableManagedPermitOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20PausableMintableOwnableManagedNonPermitOnlyOptions(state.contractName || 'MyToken')
+      }
+      return erc20.erc20PausableMintableOwnableNonPermitOnlyOptions(state.contractName || 'MyToken')
+    }
+    if (state.contractOptions.burnable && state.contractOptions.pausable && state.contractOptions.permit) {
+      if (state.contractAccessControl === 'ownable') {
+        if (state.contractUpgradability.uups) {
+          return erc20.ercUUPS20BurnablePausableOwnablePermitOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20BurnablePausableOwnablePermitOnlyOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'roles') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSBurnablePausableRolesPermitOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20BurnablePausableRolesPermitOnlyOptions(state.contractName || 'MyToken')
+      }
+      else if (state.contractAccessControl === 'managed') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSBurnablePausableManagedPermitOnly(state.contractName || 'MyToken')
+        }
+        return erc20.erc20BurnablePausableManagedPermitOnlyOption(state.contractName || 'MyToken')
+      }
+      return erc20.erc20PausableBurnableOwnableOptions(state.contractName || 'MyToken')
     }
     if (state.contractOptions.burnable && state.contractOptions.pausable) {
       if (state.contractAccessControl === 'ownable') {
@@ -68,24 +135,83 @@ export function getErc20ContractCode (contractType: 'erc20', state: ContractType
         return erc20.erc20MintableBurnablePausableManagedOptions(state.contractName || 'MyToken')
       }
       return erc20.erc20PausableBurnableOwnableOptions(state.contractName || 'MyToken')
-    } else if (state.contractOptions.mintable) {
+    } else if (state.contractOptions.pausable && state.contractOptions.permit) {
+      if (state.contractAccessControl === 'ownable') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSPausableOwnablePermitOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20PausablePermitOnlyOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'roles') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSPausableRolesPermitOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20PausableRolesPermitOnlyOptions(state.contractName || 'MyToken')
+      }
+      else if (state.contractAccessControl === 'managed') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSPausableManagedPermitOnlyOption(state.contractName || 'MyToken')
+        }
+        return erc20.erc20PausableManagedPermitOnlyOption(state.contractName || 'MyToken')
+      }
+      return erc20.erc20PausablePermitOnlyOptions(state.contractName || 'MyToken')
+    } else if (state.contractOptions.pausable && !state.contractOptions.permit) {
+      if (state.contractAccessControl === 'ownable') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSPausableOwnableOnlyOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20PausableOwnableOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'roles') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSPausableRolesOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20MintableBurnablePausableRolesOptions(state.contractName || 'MyToken')
+      }
+      else if (state.contractAccessControl === 'managed') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSPausableManagedNonPermitOnlyOption(state.contractName || 'MyToken')
+        }
+        return erc20.erc20PausableManagedNonPermitOnlyOption(state.contractName || 'MyToken')
+      }
+      return erc20.erc20PausableOwnableOptions(state.contractName || 'MyToken')
+    }
+    else if (state.contractOptions.mintable && state.contractOptions.permit) {
       if (state.contractAccessControl === 'ownable') {
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSOwnableMintableOptions(state.contractName || 'MyToken')
         }
-        return erc20.erc20MintableOwnableOptions(state.contractName || 'MyToken')
+        return erc20.erc20MintableOwnablePermitOnlyOptions(state.contractName || 'MyToken')
       } else if (state.contractAccessControl === 'roles') {
         if (state.contractUpgradability.uups) {
-          return erc20.erc20UUPSRolesFullOptions(state.contractName || 'MyToken')
+          return erc20.erc20UUPSMintableRolesPermitOnlyOptions(state.contractName || 'MyToken')
         }
-        return erc20.erc20MintableRolesOptions(state.contractName || 'MyToken')
+        return erc20.erc20MintableRolesPermitOnlyOption(state.contractName || 'MyToken')
       } else if (state.contractAccessControl === 'managed') {
         if (state.contractUpgradability.uups) {
-          return erc20.erc20UUPSManagedFullOptions(state.contractName || 'MyToken')
+          return erc20.erc20UUPSMintableManagedPermitOnlyOptions(state.contractName || 'MyToken')
         }
-        return erc20.erc20MintableManagedOptions(state.contractName || 'MyToken')
+        return erc20.erc20MintableManagedPermitOnlyOption(state.contractName || 'MyToken')
       }
-    } else if (state.contractOptions.burnable) {
+      return erc20.erc20MintableOwnablePermitOnlyOptions(state.contractName || 'MyToken')
+    } else if (state.contractOptions.mintable && !state.contractOptions.permit) {
+      if (state.contractAccessControl === 'ownable') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSMintableOwnableOnlyOption(state.contractName || 'MyToken')
+        }
+        return erc20.erc20MintableOwnableNonPermitOnlyOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'roles') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSMintableRolesOnlyOption(state.contractName || 'MyToken')
+        }
+        return erc20.erc20MintableRolesNonPermitOnlyOption(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'managed') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSMintableManagedOnlyOption(state.contractName || 'MyToken')
+        }
+        return erc20.erc20MintableManagedNonPermitOnlyOption(state.contractName || 'MyToken')
+      }
+      return erc20.erc20MintableOwnableNonPermitOnlyOptions(state.contractName || 'MyToken')
+    }
+    else if (state.contractOptions.burnable && state.contractOptions.permit) {
       if (state.contractAccessControl === 'ownable') {
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSOwnableBurnableOptions(state.contractName || 'MyToken')
@@ -100,7 +226,25 @@ export function getErc20ContractCode (contractType: 'erc20', state: ContractType
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSManagedFullOptions(state.contractName || 'MyToken')
         }
+        return erc20.erc20BurnableManagedOptions(state.contractName || 'MyToken')
+      }
+      return erc20.erc20BurnableOnlyPermitOptions(state.contractName || 'MyToken')
+    } else if (state.contractOptions.burnable && !state.contractOptions.permit) {
+      if (state.contractAccessControl === 'ownable') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSOwnableBurnableNonPermitOptions(state.contractName || 'MyToken')
+        }
         return erc20.erc20BurnableOwnableOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'roles') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSBurnableRolesNonPermitOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20BurnableRolesOptions(state.contractName || 'MyToken')
+      } else if (state.contractAccessControl === 'managed') {
+        if (state.contractUpgradability.uups) {
+          return erc20.erc20UUPSBurnableManagedNonPermitOptions(state.contractName || 'MyToken')
+        }
+        return erc20.erc20BurnableManagedOptions(state.contractName || 'MyToken')
       }
       return erc20.erc20BurnableOnlyOptions(state.contractName || 'MyToken')
     }
@@ -109,17 +253,47 @@ export function getErc20ContractCode (contractType: 'erc20', state: ContractType
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSOwnablePausableOptions(state.contractName || 'MyToken')
         }
+        return erc20.erc20PausableOwnableOptions(state.contractName)
       } else if (state.contractAccessControl === 'roles') {
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSRolesFullOptions(state.contractName || 'MyToken')
         }
-        return erc20.erc20PausableRolesOptions(state.contractName || 'MyToken')
+        return erc20.erc20PausableOwnableRolesOnlyOption(state.contractName || 'MyToken')
       } else if (state.contractAccessControl === 'managed') {
         if (state.contractUpgradability.uups) {
           return erc20.erc20UUPSManagedFullOptions(state.contractName || 'MyToken')
         }
-        return erc20.erc20PausableOwnableOptions(state.contractName || 'MyToken')
+        return erc20.erc20PausableManagedOptions(state.contractName || 'MyToken')
+      } else if (state.contractOptions.permit) {
+        return erc20.erc20PausableOwnablePermitOptions(state.contractName || 'MyToken')
       }
+      return erc20.erc20PausableOwnableOptions(state.contractName || 'MyToken')
+    }
+    else if (state.contractUpgradability.uups && state.contractOptions.permit === false) {
+      if (state.contractAccessControl === 'ownable') {
+        return erc20.erc20UUPSOwnableNoOptions(state.contractName || 'MyToken')
+      }
+      else if (state.contractAccessControl === 'roles') {
+        return erc20.erc20UUPSRolesNoOptions(state.contractName || 'MyToken')
+      }
+      else if (state.contractAccessControl === 'managed') {
+        return erc20.erc20UUPSManagedNoOptions(state.contractName || 'MyToken')
+      }
+      return erc20.erc20UUPSNoOptions(state.contractName || 'MyToken')
+    } else if (state.contractUpgradability.uups && state.contractOptions.permit) {
+      if (state.contractAccessControl === 'ownable') {
+        return erc20.erc20UUPSOwnablePermitNoOptions(state.contractName || 'MyToken')
+      }
+      else if (state.contractAccessControl === 'roles') {
+        return erc20.erc20UUPSRolesPermitNoOptions(state.contractName || 'MyToken')
+      }
+      else if (state.contractAccessControl === 'managed') {
+        return erc20.erc20UUPSManagedPermitNoOptions(state.contractName || 'MyToken')
+      }
+      return erc20.erc20UUPSOwnablePermitNoOptions(state.contractName || 'MyToken')
+    }
+    else if (state.contractOptions.permit) {
+      return erc20.erc20DefaultPermitNoOptions(state.contractName || 'MyToken')
     }
     return erc20.erc20DefaultNoOptions(state.contractName || 'MyToken')
   }

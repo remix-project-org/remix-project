@@ -1,6 +1,6 @@
 import { CustomTooltip, RenderIf } from '@remix-ui/helper'
 import React, { useEffect, useState } from 'react'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { RunTabState } from '../types'
 
 export type DropDownLabelProps = {
@@ -17,7 +17,7 @@ export type DropDownLabelProps = {
 }
 
 export function DropdownLabel({ label, bridges, currentProvider, envLabel, runTabState, setExecutionEnv, isL2, plugin }: DropDownLabelProps) {
-
+  const intl = useIntl()
   const [renderLabel, setRenderLabel] = useState(label)
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export function DropdownLabel({ label, bridges, currentProvider, envLabel, runTa
         setRenderLabel(selectedEnv.displayName)
         setExecutionEnv({ context: selectedEnv.value })
       } else {
-        setRenderLabel('No provider set')
+        setRenderLabel(intl.formatMessage({ id: 'udapp.noProviderSet' }))
       }
     }
     checkEnvLabels()

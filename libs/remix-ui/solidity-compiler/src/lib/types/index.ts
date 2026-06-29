@@ -16,6 +16,7 @@ export interface CompilerContainerProps {
   isTruffleProject: boolean,
   isFoundryProject: boolean,
   workspaceName: string,
+  workspaceReloadFlag: number,
   tooltip: (message: string | JSX.Element) => void,
   modal: (title: string, message: string | JSX.Element, okLabel: string, okFn: () => void, donotHideOnOkClick?: boolean, cancelLabel?: string, cancelFn?: () => void) => void,
   compiledFileName: string,
@@ -23,7 +24,7 @@ export interface CompilerContainerProps {
   configurationSettings: ConfigurationSettings,
   solJsonBinData: iSolJsonBinData,
   setCompileErrors: (errors: Record<string, CompileErrors>) => void
-  setBadgeStatus: (badgeStatus: Record<string, { key: string; title?: string; type?: string }>) => void
+  setBadgeStatus: (badgeStatus: Record<string, { key: string | number; title?: string; type?: string }>) => void
 }
 
 export interface ContractSelectionProps {

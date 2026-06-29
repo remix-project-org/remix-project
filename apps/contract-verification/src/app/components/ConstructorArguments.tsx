@@ -109,7 +109,7 @@ export const ConstructorArguments: React.FC<ConstructorArgumentsProps> = ({ abiE
 
   return (
     <div className="mt-4">
-      <label>Constructor Arguments - only for Etherscan</label>
+      <label><FormattedMessage id="contract-verification.constructorArgumentsLabel" /></label>
       <div className="d-flex py-1 align-items-center form-check">
         <input className="form-check-input" type="checkbox" id="toggleRawInputSwitch" checked={toggleRawInput} onChange={() => setToggleRawInput(!toggleRawInput)} />
         <label className="m-0 form-check-label" style={{ paddingTop: '2px' }} htmlFor="toggleRawInputSwitch">

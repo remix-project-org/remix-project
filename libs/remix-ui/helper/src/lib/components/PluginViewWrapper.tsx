@@ -7,7 +7,9 @@ interface IPluginViewWrapperProps {
 }
 
 export const PluginViewWrapper = ({ plugin, useAppContext = false }: IPluginViewWrapperProps) => {
-  const [state, setState] = useState<any>(null)
+  const [state, setState] = useState<any>(() =>
+    plugin.getInitialState ? plugin.getInitialState() : null
+  )
   const appContext = useAppContext ? useContext(AppContext) : null
 
   useEffect(() => {

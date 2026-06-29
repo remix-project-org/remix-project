@@ -29,7 +29,6 @@ export class CodeExplainAgent {
         return content
       } else return prompt
     } catch {
-      console.log('There is No file selected')
       return 'There is No file selected'
     }
   }

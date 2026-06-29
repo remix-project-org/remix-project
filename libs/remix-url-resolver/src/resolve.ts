@@ -226,13 +226,13 @@ export class RemixURLResolver {
       },
       {
         type: 'http',
-        match: (url) => { return /^(http?:\/\/?(.*))$/.exec(url) },
-        handle: (match) => this.handleHttp(match[1], match[2])
+        match: (url) => { return /^http:\/\/([^\s]+)$/.exec(url) },
+        handle: (match) => this.handleHttp(match[0], match[1])
       },
       {
         type: 'https',
-        match: (url) => { return /^(https?:\/\/?(.*))$/.exec(url) },
-        handle: (match) => this.handleHttps(match[1], match[2])
+        match: (url) => { return /^https:\/\/([^\s]+)$/.exec(url) },
+        handle: (match) => this.handleHttps(match[0], match[1])
       },
       {
         type: 'swarm',
@@ -273,7 +273,11 @@ export class RemixURLResolver {
       },
       {
         type: 'npm',
-        match: (url) => { return /^[^/][^\n"?:*<>|]*$/g.exec(url) }, // match a typical relative path
+        match: (url) => {
+          // Only match bare package paths (not starting with protocol or ./ or ../)
+          if (/^(https?:\/\/|ipfs:\/\/|bzz-raw:\/\/|\.|\/)/.test(url)) return null
+          return /^[^/][^\n"?:*<>|]*$/g.exec(url)
+        }, // match a typical bare package path
         handle: (match) => this.handleNpmImport(match[0])
       }
     ]

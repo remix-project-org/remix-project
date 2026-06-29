@@ -21,8 +21,6 @@ module.exports = {
       .setValue('[data-id="modalDialogCustomPromptTextClone"]', 'https://github.com/Uniswap/v4-core')
       .click('[data-id="topbarModal-modal-footer-ok-react"]')
       .waitForElementPresent('.fa-spinner')
-      .pause(5000)
-      .waitForElementNotPresent('.fa-spinner', 240000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.git"]', 240000)
       .waitForElementContainsText('[data-id="workspacesSelect"]', 'v4-core')
   },
@@ -38,8 +36,6 @@ module.exports = {
       .waitForElementVisible('[data-id="updatesubmodules"]', 120000)
       .click('[data-id="updatesubmodules"]')
       .waitForElementPresent('.fa-spinner')
-      .waitForElementNotPresent('.fa-spinner', 240000)
-      .pause(5000)
   },
 
   'Should verify submodules are loaded #group1': function (browser: NightwatchBrowser) {
@@ -97,7 +93,7 @@ module.exports = {
       .pause(2000)
       .click('[data-id="compilerContainerCompileBtn"]')
       .clickLaunchIcon('filePanel')
-      .verifyContracts(['PoolManager'], { wait: 10000 })
+      .verifyContracts(['PoolManager'], { wait: 60000 })
       .pause(5000)
   },
 

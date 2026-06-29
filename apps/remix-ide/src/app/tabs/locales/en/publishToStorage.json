@@ -6,14 +6,15 @@
   "publishToStorage.title3": "Swarm Publish Failed",
   "publishToStorage.title4": "IPFS Settings",
   "publishToStorage.title4.message1": "You have not set your own custom IPFS settings.",
-  "publishToStorage.title4.message2": "We won’t be providing a public endpoint anymore for publishing your contracts to IPFS.",
+  "publishToStorage.title4.message2": "We won't be providing a public endpoint anymore for publishing your contracts to IPFS.",
   "publishToStorage.title4.message3": "Instead of that, 4 options are now available:",
   "publishToStorage.title4.message4": "DEFAULT OPTION: Use the public INFURA node. This will not guarantee your data will persist.",
   "publishToStorage.title4.message5": "Use your own INFURA IPFS node. This requires a subscription. <a>Learn more</a>",
-  "publishToStorage.title4.message6": "Use any external IPFS which doesn’t require any authentication.",
+  "publishToStorage.title4.message6": "Use any external IPFS which doesn't require any authentication.",
   "publishToStorage.title4.message7": "Use your own local ipfs node (which usually runs under http://localhost:5001)",
   "publishToStorage.title4.message8": "You can update your IPFS settings in the SETTINGS tab.",
   "publishToStorage.title4.message9": "Now the default option will be used.",
   "publishToStorage.title5": "IPFS Publish Failed",
-  "publishToStorage.title5.message": "Failed to publish metadata file and sources to {storage}, please check the {storage} gateways is available."
+  "publishToStorage.title5.message": "Failed to publish metadata file and sources to {storage}, please check the {storage} gateways is available.",
+  "publishToStorage.message1": "Metadata of this contract is not available."
 }

@@ -1,12 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useContext, useEffect, useState } from 'react'
-import { ThemeContext } from '../themeContext'
 import { ToggleSwitch } from '@remix-ui/toggle'
-import { RenderIf, RenderIfNot } from '@remix-ui/helper'
 import { FormattedMessage } from 'react-intl'
 import { HOME_TAB_PLUGIN_LIST } from './constant'
 import axios from 'axios'
-import { LoadingCard } from './LoaderPlaceholder'
 import { HomeTabEvent, MatomoEvent } from '@remix-api'
 import { TrackingContext } from '@remix-ide/tracking'
 
@@ -35,11 +31,8 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
   const [loadingPlugins, setLoadingPlugins] = useState<string[]>([])
   const [pluginList, setPluginList] = useState<{ caption: string, plugins: PluginInfo[] }>({ caption: '', plugins: []})
   const [isLoading, setIsLoading] = useState(true)
-  const theme = useContext(ThemeContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
-  const isDark = theme.name === 'dark'
 
-  // Component-specific tracker with default HomeTabEvent type
   const trackMatomoEvent = <T extends MatomoEvent = HomeTabEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
   }
@@ -49,10 +42,8 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
       try {
         setIsLoading(true)
         const response = await axios.get(HOME_TAB_PLUGIN_LIST)
-
         response.data && setPluginList(response.data)
 
-        // Initialize active plugins state based on current plugin status
         if (response.data && response.data.plugins) {
           const currentlyActive = []
           for (const pluginInfo of response.data.plugins) {
@@ -62,7 +53,6 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
           }
           setActivePlugins(currentlyActive)
         }
-
         setIsLoading(false)
       } catch (error) {
         console.error('Error fetching plugin list:', error)
@@ -73,9 +63,7 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
     const onActivate = (pluginProfile: any) => {
       try {
         const pluginName = pluginProfile?.name || pluginProfile?.profile?.name
-        if (pluginName) {
-          setActivePlugins(activePlugins => [...activePlugins, pluginName])
-        }
+        if (pluginName) setActivePlugins(prev => [...prev, pluginName])
       } catch (error) {
         console.error('Error handling plugin activation:', error)
       }
@@ -84,9 +72,7 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
     const onDeactivate = (pluginProfile: any) => {
       try {
         const pluginName = pluginProfile?.name || pluginProfile?.profile?.name
-        if (pluginName) {
-          setActivePlugins(activePlugins => activePlugins.filter((id) => id !== pluginName))
-        }
+        if (pluginName) setActivePlugins(prev => prev.filter((id) => id !== pluginName))
       } catch (error) {
         console.error('Error handling plugin deactivation:', error)
       }
@@ -102,98 +88,92 @@ function HomeTabFeaturedPlugins({ plugin }: HomeTabFeaturedPluginsProps) {
   }, [])
 
   const activateFeaturedPlugin = async (pluginId: string) => {
-    setLoadingPlugins([...loadingPlugins, pluginId])
+    setLoadingPlugins(prev => [...prev, pluginId])
     if (await plugin.appManager.isActive(pluginId)) {
-      trackMatomoEvent({
-        category: 'hometab',
-        action: 'featuredPluginsToggle',
-        name: `deactivate-${pluginId}`,
-        isClick: true
-      })
+      trackMatomoEvent({ category: 'hometab', action: 'featuredPluginsToggle', name: `deactivate-${pluginId}`, isClick: true })
       await plugin.appManager.deactivatePlugin(pluginId)
-      setActivePlugins(activePlugins.filter((id) => id !== pluginId))
+      setActivePlugins(prev => prev.filter((id) => id !== pluginId))
     } else {
-      trackMatomoEvent({
-        category: 'hometab',
-        action: 'featuredPluginsToggle',
-        name: `activate-${pluginId}`,
-        isClick: true
-      })
+      trackMatomoEvent({ category: 'hometab', action: 'featuredPluginsToggle', name: `activate-${pluginId}`, isClick: true })
       await plugin.appManager.activatePlugin([pluginId])
       await plugin.verticalIcons.select(pluginId)
-      setActivePlugins([...activePlugins, pluginId])
+      setActivePlugins(prev => [...prev, pluginId])
     }
-    setLoadingPlugins(loadingPlugins.filter((id) => id !== pluginId))
+    setLoadingPlugins(prev => prev.filter((id) => id !== pluginId))
   }
 
   const handleFeaturedPluginActionClick = async (pluginInfo: PluginInfo) => {
-    trackMatomoEvent({
-      category: 'hometab',
-      action: 'featuredPluginsActionClick',
-      name: pluginInfo.pluginTitle,
-      isClick: true
-    })
+    trackMatomoEvent({ category: 'hometab', action: 'featuredPluginsActionClick', name: pluginInfo.pluginTitle, isClick: true })
     if (pluginInfo.action.type === 'link') {
       window.open(pluginInfo.action.url, '_blank')
     } else if (pluginInfo.action.type === 'methodCall') {
       if (pluginInfo.action.pluginMethod === 'activatePlugin') {
         await plugin.appManager.activatePlugin([pluginInfo.action.pluginName])
         await plugin.call('menuicons', 'select', pluginInfo.action.pluginName)
-      } else plugin.call(pluginInfo.action.pluginName, pluginInfo.action.pluginMethod, pluginInfo.action.pluginArgs)
+      } else {
+        plugin.call(pluginInfo.action.pluginName, pluginInfo.action.pluginMethod, pluginInfo.action.pluginArgs)
+      }
     }
   }
 
-  function PluginCard(pluginInfo: PluginInfo) {
+  function PluginRow(pluginInfo: PluginInfo) {
     return (
-      <div className="card border h-100">
-        <div className="d-flex align-items-center px-2 justify-content-between border-bottom">
-          <div className='d-flex align-items-center px-2'>
-            <RenderIf condition={loadingPlugins.includes(pluginInfo.pluginId)}>
-              <i className="fad fa-spinner fa-spin me-2"></i>
-            </RenderIf>
-            <RenderIfNot condition={loadingPlugins.includes(pluginInfo.pluginId)}>
-              { pluginInfo.iconClass ? <i className={`${pluginInfo.iconClass} me-2`}></i> : <i className="fa-solid fa-file-book me-2"></i> }
-            </RenderIfNot>
-            <span className="fw-bold" style={{ color: isDark ? 'white' : 'black' }}>{pluginInfo.pluginTitle}</span>
-          </div>
-          <ToggleSwitch id={`toggleSwitch-${pluginInfo.pluginId}`} isOn={activePlugins.includes(pluginInfo.pluginId)} onClick={() => activateFeaturedPlugin(pluginInfo.pluginId)} />
-        </div>
-        <div className="d-flex flex-column justify-content-between h-100">
-          <div className="p-3">
-            <div className={`text-${(pluginInfo.maintainedBy || '').toLowerCase() === 'remix' ? 'success' : 'dark'} mb-1`}><i className="fa-solid fa-shield-halved me-2"></i><FormattedMessage id="home.maintainedBy"/> {pluginInfo.maintainedBy || 'Community'}</div>
-            <div className="small mb-2" style={{ color: isDark ? 'white' : 'black' }}>{pluginInfo.description}</div>
-          </div>
-          <div className="px-3 pb-3">
-            <button className="btn btn-light btn-sm w-100 text-decoration-none border" onClick={async () => await handleFeaturedPluginActionClick(pluginInfo)}>
-              <i className="fa-solid fa-book me-1"></i>{pluginInfo.action.label}
+      <div key={pluginInfo.pluginId} className="ht-row">
+        <span className="ht-row-icon">
+          {loadingPlugins.includes(pluginInfo.pluginId)
+            ? <i className="fad fa-spinner fa-spin"></i>
+            : pluginInfo.iconClass
+              ? <i className={pluginInfo.iconClass}></i>
+              : <i className="fa-solid fa-puzzle-piece"></i>
+          }
+        </span>
+        <span className="ht-row-text">
+          <strong>{pluginInfo.pluginTitle}</strong>
+          <small className="d-flex align-items-center justify-content-between gap-2">
+            <span className="text-truncate">{pluginInfo.description}</span>
+            <button
+              className="ht-link-btn flex-shrink-0"
+              onClick={async (e) => { e.stopPropagation(); await handleFeaturedPluginActionClick(pluginInfo) }}
+            >
+              {pluginInfo.action.label} →
             </button>
-          </div>
-        </div>
+          </small>
+        </span>
+        <ToggleSwitch
+          id={`toggleSwitch-${pluginInfo.pluginId}`}
+          isOn={activePlugins.includes(pluginInfo.pluginId)}
+          onClick={() => activateFeaturedPlugin(pluginInfo.pluginId)}
+        />
+      </div>
+    )
+  }
+
+  function SkeletonRow({ i }: { i: number }) {
+    return (
+      <div key={i} className="ht-row">
+        <span className="ht-skeleton ht-row-icon"></span>
+        <span className="ht-row-text">
+          <span className="ht-skeleton" style={{ height: '12px', width: '50%', marginBottom: '5px' }}></span>
+          <span className="ht-skeleton" style={{ height: '10px', width: '75%' }}></span>
+        </span>
       </div>
     )
   }
 
   return (
-    <div className="w-100 align-items-end remixui_featuredplugins_container" id="hTFeaturedPlugins">
-      <div className="d-flex justify-content-between align-items-center mb-2">
-        <h6 style={{ color: isDark ? 'white' : 'black' }}>{pluginList.caption}</h6>
-        <button className="btn btn-secondary btn-md" onClick={() => plugin.call('menuicons', 'select', 'pluginManager')} ><FormattedMessage id="home.exploreAllPlugins"/></button>
+    <div className="ht-section ht-section-divider">
+      <div className="ht-section-header">
+        <span className="ht-section-title">
+          {pluginList.caption || <FormattedMessage id="home.featuredPlugins" defaultMessage="Featured Plugins" />}
+        </span>
+        <button className="ht-link-btn" onClick={() => plugin.call('menuicons', 'select', 'pluginManager')}>
+          <FormattedMessage id="home.exploreAllPlugins" /> →
+        </button>
       </div>
-      <div className="row">
-        {
-          isLoading ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <div key={`loading-${index}`} className="col-lg-12 col-xl-6 col-md-6 col-sm-12 mb-4">
-                <LoadingCard />
-              </div>
-            ))
-          ) : (
-            pluginList.plugins.map((pluginInfo: PluginInfo) => (
-              <div className="col-lg-12 col-xl-6 col-md-6 col-sm-12 mb-4 " key={pluginInfo.pluginId}>{ PluginCard(pluginInfo) }</div>
-            ))
-          )
-        }
-      </div>
+      {isLoading
+        ? [0, 1, 2, 3].map(i => <SkeletonRow key={i} i={i} />)
+        : pluginList.plugins.map(p => PluginRow(p))
+      }
     </div>
   )
 }

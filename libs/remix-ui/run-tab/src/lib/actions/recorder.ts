@@ -38,38 +38,31 @@ export const storeScenario = async (plugin: RunTab, dispatch: React.Dispatch<any
   )
 }
 
-const runScenario = (liveMode: boolean, plugin: RunTab, dispatch: React.Dispatch<any>, file: string, gasEstimationPrompt: (msg: string) => JSX.Element, passphrasePrompt: (msg: string) => JSX.Element, confirmDialogContent: MainnetPrompt) => {
-  if (!file) return dispatch(displayNotification('Alert', 'Unable to run scenario, no specified scenario file', 'OK', null))
+const runScenario = async (liveMode: boolean, plugin: RunTab, dispatch: React.Dispatch<any>, file: string): Promise<{ abi: any, address: string, contractName: string }> => {
+  if (!file) {
+    dispatch(displayNotification('Alert', 'Unable to run scenario, no specified scenario file', 'OK', null))
+    throw new Error('Unable to run scenario, no specified scenario file')
+  }
 
-  plugin.fileManager.readFile(file).then((json) => {
+  try {
+    const json = await plugin.fileManager.readFile(file)
     // TODO: there is still a UI dependency to remove here, it's still too coupled at this point to remove easily
-    plugin.recorder.runScenario(
-      liveMode,
-      json,
-      (error, continueTxExecution, cancelCb) => {
-        continueHandler(dispatch, gasEstimationPrompt, error, continueTxExecution, cancelCb)
-      }, (okCb, cancelCb) => {
-        promptHandler(dispatch, passphrasePrompt, okCb, cancelCb)
-      }, (msg) => {
-        dispatch(displayNotification('Alert', msg, 'OK', null))
-      }, (network, tx, gasEstimation, continueTxExecution, cancelCb) => {
-        confirmationHandler(plugin, dispatch, confirmDialogContent, network, tx, gasEstimation, continueTxExecution, cancelCb)
-      }, (msg: string) => {
-        const log = logBuilder(msg)
+    const { abi, address, contractName } = await plugin.recorder.runScenario(liveMode, json)
 
-        return terminalLogger(plugin, log)
-      }, (error, abi, address, contractName) => {
-        if (error) {
-          return dispatch(displayNotification('Alert', error, 'OK', null))
-        }
-        addInstance(dispatch, { name: contractName, address, abi })
-      })
-  }).catch((error) => dispatch(displayNotification('Alert', error, 'OK', null)))
+    addInstance(dispatch, { name: contractName, address, abi })
+    return { abi, address, contractName }
+  } catch (error) {
+    dispatch(displayNotification('Alert', error, 'OK', null))
+    throw error
+  }
 }
 
-export const runCurrentScenario = (liveMode: boolean, plugin: RunTab, dispatch: React.Dispatch<any>, gasEstimationPrompt: (msg: string) => JSX.Element, passphrasePrompt: (msg: string) => JSX.Element, confirmDialogContent: MainnetPrompt) => {
+export const runCurrentScenario = async (liveMode: boolean, plugin: RunTab, dispatch: React.Dispatch<any>): Promise<{ abi: any, address: string, contractName: string }> => {
   const file = plugin.config.get('currentFile')
 
-  if (!file) return dispatch(displayNotification('Alert', 'A scenario file has to be selected', 'Ok', null))
-  runScenario(liveMode, plugin, dispatch, file, gasEstimationPrompt, passphrasePrompt, confirmDialogContent)
+  if (!file) {
+    dispatch(displayNotification('Alert', 'A scenario file has to be selected', 'Ok', null))
+    throw new Error('A scenario file has to be selected')
+  }
+  return await runScenario(liveMode, plugin, dispatch, file)
 }

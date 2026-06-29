@@ -86,7 +86,7 @@ tape('TraceManager', function (t) {
       const result = traceManager.getStackAt(28)
       console.log(result)
       st.ok(result.length === 4)
-      st.ok(result[3] === '0x60fe47b1')
+      st.ok(result[0] === '0x60fe47b1')
     } catch (error) {
       st.fail(error)
     }

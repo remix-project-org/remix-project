@@ -4,8 +4,25 @@ import { trackMatomoEvent } from '@remix-api'
 import { QueryParams } from '@remix-project/remix-lib'
 import { IframePlugin } from '@remixproject/engine-web'
 import { Registry } from '@remix-project/remix-lib'
+import type { AppLifecycle } from '@remix-project/remix-lib'
 import { RemixNavigator } from './types'
 import { Profile } from '@remixproject/plugin-utils'
+
+function isRemixAppManagerDebugEnabled(): boolean {
+  try {
+    return localStorage.getItem('remix-app-manager-debug') === 'true'
+  } catch {
+    return false
+  }
+}
+
+function logRemixAppManager(...args: any[]): void {
+  if (isRemixAppManagerDebugEnabled()) console.log(...args)
+}
+
+function errorRemixAppManager(...args: any[]): void {
+  if (isRemixAppManagerDebugEnabled()) console.error(...args)
+}
 
 // requiredModule removes the plugin from the plugin manager list on UI
 let requiredModules = [
@@ -89,23 +106,48 @@ let requiredModules = [
   'matomo',
   'walletconnect',
   'popupPanel',
+  'overlay',
   'remixAI',
   'remixAID',
   'remixaiassistant',
   'topbar',
   'templateexplorermodal',
+  'skillsexplorermodal',
+  'checklistexplorermodal',
   'githubAuthHandler',
   'desktopClient',
+  'auth',
+  'account',
   'transactionSimulator',
+  'ensContractNames',
   'amp',
+  'resolutionIndex',
   'vega',
-  'chartjs'
+  'chartjs',
+  'storageMonitor',
+  'indexedDbCache',
+  'notificationCenter',
+  'invitationManager',
+  'membershipRequest',
+  'feedback',
+  'udappEnv',
+  'udappDeploy',
+  'udappDeployedContracts',
+  'udappTransactions',
+  'txRunner',
+  'betaCornerWidget',
+  'lifecycle',
+  'nudgePlugin',
+  'helpPlugin',
+  'planManager',
+  'assistantState',
+  'thegraph'
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
 const dependentModules = ['foundry', 'hardhat', 'truffle', 'slither']
 
-const loadLocalPlugins = ['doc-gen', 'doc-viewer', 'contract-verification', 'vyper', 'solhint', 'circuit-compiler', 'learneth', 'quick-dapp', 'quick-dapp-v2', 'noir-compiler']
+const loadLocalPlugins = ['doc-gen', 'doc-viewer', 'contract-verification', 'vyper', 'solhint', 'circuit-compiler', 'learneth', 'noir-compiler']
 
 const partnerPlugins = ['cookbookdev']
 
@@ -167,9 +209,19 @@ export function isNative(name) {
     'noir-compiler',
     'remixaiassistant',
     'templateexplorermodal',
+    'skillsexplorermodal',
     'amp',
     'vega',
-    'chartjs'
+    'chartjs',
+    'quick-dapp-v2',
+    'udappEnv',
+    'udappDeploy',
+    'udappDeployedContracts',
+    'udappTransactions',
+    'txRunner',
+    'lifecycle',
+    'skillsexplorermodal',
+    'thegraph'
   ]
   return nativePlugins.includes(name) || requiredModules.includes(name) || isInjectedProvider(name) || isVM(name) || isScriptRunner(name)
 }
@@ -232,12 +284,12 @@ export class RemixAppManager extends BaseRemixAppManager {
         try {
           await this.call(name, 'deactivate')
         } catch (e) {
-          console.log(e)
+          logRemixAppManager(e)
         }
       }
       await this.toggleActive(name)
     } else {
-      console.log('cannot deactivate', name)
+      logRemixAppManager('cannot deactivate', name)
     }
   }
 
@@ -269,6 +321,16 @@ export class RemixAppManager extends BaseRemixAppManager {
     this.event.emit('activate', plugin)
     this.emit('activate', plugin)
     if (!this.isRequired(plugin.name)) trackMatomoEvent(this, { category: 'pluginManager', action: 'activate', name: plugin.name, isClick: true })
+
+    // Forward to lifecycle state machine
+    try {
+      const lifecycle = Registry.getInstance().get('lifecycle')
+      if (lifecycle?.api) {
+        (lifecycle.api as AppLifecycle).send({ type: 'PLUGIN_ACTIVATED', name: plugin.name })
+      }
+    } catch (e) {
+      // lifecycle not yet registered — safe to ignore during early boot
+    }
   }
 
   getAll() {
@@ -288,6 +350,16 @@ export class RemixAppManager extends BaseRemixAppManager {
     )
     this.event.emit('deactivate', plugin)
     trackMatomoEvent(this, { category: 'pluginManager', action: 'deactivate', name: plugin.name, isClick: true })
+
+    // Forward to lifecycle state machine
+    try {
+      const lifecycle = Registry.getInstance().get('lifecycle')
+      if (lifecycle?.api) {
+        (lifecycle.api as AppLifecycle).send({ type: 'PLUGIN_DEACTIVATED', name: plugin.name })
+      }
+    } catch (e) {
+      // lifecycle not yet registered — safe to ignore
+    }
   }
 
   isDependent(name: string): boolean {
@@ -313,13 +385,13 @@ export class RemixAppManager extends BaseRemixAppManager {
       })
       localStorage.setItem('plugins-directory', JSON.stringify(plugins))
     } catch (e) {
-      console.log('getting plugins list from localstorage...')
+      logRemixAppManager('getting plugins list from localstorage...')
       const savedPlugins = localStorage.getItem('plugins-directory')
       if (savedPlugins) {
         try {
           plugins = JSON.parse(savedPlugins)
         } catch (e) {
-          console.error(e)
+          errorRemixAppManager(e)
         }
       }
     }
@@ -338,7 +410,7 @@ export class RemixAppManager extends BaseRemixAppManager {
         // add the local plugin
         plugins.push(profileJson)
       } catch (e) {
-        console.log(e)
+        logRemixAppManager(e)
       }
     }
 
@@ -405,6 +477,17 @@ export class RemixAppManager extends BaseRemixAppManager {
       sticky: true,
       group: 7,
     })
+    this.call('filePanel', 'registerContextMenuItem', {
+      id: 'thegraph',
+      name: 'runSubgraphFile',
+      label: 'Run Subgraph Query',
+      type: [],
+      extension: ['.subgraph'],
+      path: [],
+      pattern: [],
+      group: 2,
+      multiselect: false
+    })
     if (Registry.getInstance().get('platform').api.isDesktop()) {
       await this.call('filePanel', 'registerContextMenuItem', {
         id: 'fs',
@@ -458,7 +541,8 @@ class PluginLoader {
       'solidityumlgen',
       'remixGuide',
       'doc-viewer',
-      'UIScriptRunner'
+      'UIScriptRunner',
+      'quick-dapp-v2'
     ]
     this.loaders = {}
     this.loaders.localStorage = {

@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import { CompileBtn, CompilerFeedback, CompilerReport, CustomTooltip, extractNameFromKey, RenderIf } from '@remix-ui/helper'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { NoirAppContext } from '../contexts'
 import { CompileOptions } from '@remix-ui/helper'
 import { compileNoirCircuit } from '../actions'
@@ -12,6 +12,7 @@ const MATOMO_CATEGORY = MatomoCategories.NOIR_COMPILER
 
 export function Container () {
   const noirApp = useContext(NoirAppContext)
+  const intl = useIntl()
 
   const projectRoot = noirApp.appState.filePath.substring(0, noirApp.appState.filePath.lastIndexOf('/src/'))
   const buildPath = projectRoot === '' ? 'build' : `${projectRoot}/build`
@@ -69,7 +70,7 @@ export function Container () {
                 placement="bottom"
                 tooltipId="showNoirCompilerTooltip"
                 tooltipClasses="text-nowrap"
-                tooltipText='See compiler license'
+                tooltipText={intl.formatMessage({ id: 'noir.seeCompilerLicense' })}
               >
                 <span className="far fa-file-certificate border-0 p-0 ms-2" onClick={() => showCompilerLicense()}></span>
               </CustomTooltip>
@@ -107,7 +108,7 @@ export function Container () {
                 <button className="btn btn-sm btn-outline-info w-100 text-start mt-2" onClick={(e) => handleViewFile(e, `${buildPath}/program.json`)}>
                   <div className="d-flex align-items-center">
                     <i className="fas fa-file-invoice me-2"></i>
-                    <span>View Artifact</span>
+                    <span><FormattedMessage id="noir.viewArtifact" /></span>
                   </div>
                 </button>
                 <hr></hr>
@@ -116,7 +117,7 @@ export function Container () {
                     placement="bottom-start"
                     tooltipId="generateProofTooltip"
                     tooltipClasses="text-nowrap"
-                    tooltipText='If your circuit has public inputs, edit Prover.toml before generating the proof.'
+                    tooltipText={intl.formatMessage({ id: 'noir.generateProofTooltip' })}
                   >
                     <button
                       id="noir_generate_proof"
@@ -127,7 +128,7 @@ export function Container () {
                       {noirApp.appState.proofingStatus === 'proofing' ? (
                         <>
                           <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                          <span className="ms-1">Generating Proof...</span>
+                          <span className="ms-1"><FormattedMessage id="noir.generatingProof" /></span>
                         </>
                       ) : (
                         <FormattedMessage id="noir.generateProof" defaultMessage="Generate Proof" />
@@ -137,7 +138,7 @@ export function Container () {
                   <button className="btn btn-sm btn-outline-info w-100 text-start mt-2" onClick={(e) => handleViewFile(e, proverTomlPath)}>
                     <div className="d-flex align-items-center">
                       <i className="fas fa-file-invoice me-2"></i>
-                      <span>View Prover.toml</span>
+                      <span><FormattedMessage id="noir.viewProverToml" /></span>
                     </div>
                   </button>
                 </div>
@@ -153,13 +154,13 @@ export function Container () {
                   <button className="btn btn-sm btn-outline-info mb-1 flex-grow-1 text-start" onClick={(e) => handleViewFile(e, `${buildPath}/proof`)}>
                     <div className="d-flex align-items-center">
                       <i className="fas fa-file-code me-2"></i>
-                      <span>View Proof</span>
+                      <span><FormattedMessage id="noir.viewProof" /></span>
                     </div>
                   </button>
                   <button className="btn btn-sm btn-outline-info mb-1 flex-grow-1 text-start" onClick={(e) => handleViewFile(e, `${buildPath}/public_inputs`)}>
                     <div className="d-flex align-items-center">
                       <i className="fas fa-file-invoice me-2"></i>
-                      <span>View Public Inputs</span>
+                      <span><FormattedMessage id="noir.viewPublicInputs" /></span>
                     </div>
                   </button>
                 </div>
@@ -167,13 +168,13 @@ export function Container () {
                   <button className="btn btn-sm btn-outline-info mb-1 flex-grow-1 text-start" onClick={(e) => handleViewFile(e, `${contractsPath}/Verifier.sol`)}>
                     <div className="d-flex align-items-center">
                       <i className="fab fa-ethereum me-2"></i>
-                      <span>View Verifier.sol</span>
+                      <span><FormattedMessage id="noir.viewVerifierSol" /></span>
                     </div>
                   </button>
                   <button className="btn btn-sm btn-outline-info mb-1 flex-grow-1 text-start" onClick={(e) => handleViewFile(e, `${scriptsPath}/verify.ts`)}>
                     <div className="d-flex align-items-center">
                       <i className="fab fa-js-square me-2"></i>
-                      <span>View verify.ts</span>
+                      <span><FormattedMessage id="noir.viewVerifyTs" /></span>
                     </div>
                   </button>
                 </div>

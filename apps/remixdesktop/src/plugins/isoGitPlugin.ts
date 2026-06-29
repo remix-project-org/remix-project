@@ -347,21 +347,33 @@ class IsoGitPluginClient extends ElectronBasePluginClient {
   }
 
   async clone(cmd: cloneInputType) {
+    // Only prompt for folder if not already provided
+    if (!cmd.dir) {
+      try {
+        cmd.dir = await this.call('fs' as any, 'selectFolder', null, 'Select or create a folder to clone the repository in', 'Select as Repository Destination')
+        if (!cmd.dir) {
+          throw new Error('Clone cancelled: No destination folder selected')
+        }
+      } catch (e) {
+        throw new Error('Clone cancelled: ' + e.message)
+      }
+    }
+
     if (this.gitIsInstalled) {
       try {
         this.call('terminal' as any, 'log', 'Cloning using git... please wait.')
         const result = await gitProxy.clone(cmd)
-        
+
         // Send stdout to terminal as info
         if (result.stdout) {
           this.call('terminal' as any, 'log', { type: 'info', value: result.stdout })
         }
-        
+
         // Send stderr to terminal as warning (git often sends progress info to stderr)
         if (result.stderr) {
           this.call('terminal' as any, 'log', { type: 'info', value: result.stderr })
         }
-        
+
         this.call('terminal' as any, 'log', { type: 'info', value: 'Clone completed successfully!' })
       } catch (e) {
         this.call('terminal' as any, 'log', { type: 'error', value: `Clone failed: ${e.message}` })

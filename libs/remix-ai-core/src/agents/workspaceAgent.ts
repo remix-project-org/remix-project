@@ -1,3 +1,4 @@
+import { remixAILogger } from '../helpers/logger'
 import { IContextType, SupportedFileExtensions, ISimilaritySearchConfig } from "../types/types";
 import { extractFirstLvlImports } from "../helpers/localImportsExtractor";
 export class workspaceAgent {
@@ -77,7 +78,7 @@ export class workspaceAgent {
         }
       }
       return files + '\n}'
-    } catch (error) { console.error('Error getting current workspace files:', error); }
+    } catch (error) { remixAILogger.error('Error getting current workspace files:', error); }
   }
 
   async writeGenerationResults(payload, statusCallback?: (status: string) => Promise<void>) {
@@ -124,7 +125,7 @@ export class workspaceAgent {
             hasCreatedFiles = true
           }
         } catch (fileError) {
-          console.warn(`Error processing file ${file.fileName}:`, fileError)
+          remixAILogger.warn(`Error processing file ${file.fileName}:`, fileError)
         }
       }
 
@@ -138,7 +139,7 @@ export class workspaceAgent {
 
       return result || 'No files modified'
     } catch (error) {
-      console.warn('Error writing generation results:', error);
+      remixAILogger.warn('Error writing generation results:', error);
       return 'No files modified'
     }
   }

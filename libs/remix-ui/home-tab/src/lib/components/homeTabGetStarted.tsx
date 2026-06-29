@@ -27,43 +27,43 @@ type WorkspaceTemplate = {
 const workspaceTemplates: WorkspaceTemplate[] = [
   {
     gsID: 'sUTLogo',
-    workspaceTitle: 'Start Coding',
-    description: 'Start coding using the default template.',
+    workspaceTitle: 'home.templateStartCodingTitle',
+    description: 'home.templateStartCodingDesc',
     projectLogo: 'assets/img/remixverticaltextLogo.png',
     templateName: 'remixDefault',
   },
   {
     gsID: 'sUTLogo',
-    workspaceTitle: 'ZK Semaphore',
-    description: 'Create a new ZK Project with Circom using this template.',
+    workspaceTitle: 'home.templateZKSemaphoreTitle',
+    description: 'home.templateZKSemaphoreDesc',
     projectLogo: 'assets/img/circom.webp',
     templateName: 'semaphore',
   },
   {
     gsID: 'sUTLogo',
-    workspaceTitle: 'ERC20',
-    description: 'Create a new ERC20 token using this template.',
+    workspaceTitle: 'home.templateERC20Title',
+    description: 'home.templateERC20Desc',
     projectLogo: 'assets/img/oxprojectLogo.png',
     templateName: 'ozerc20',
   },
   {
     gsID: 'sUTLogo',
-    workspaceTitle: 'Uniswap V4 Hooks',
-    description: 'Create a new workspace based on this template.',
+    workspaceTitle: 'home.templateUniswapV4Title',
+    description: 'home.templateUniswapV4Desc',
     projectLogo: 'assets/img/gnosissafeLogo.png',
     templateName: 'uniswapV4Template',
   },
   {
     gsID: 'sUTLogo',
-    workspaceTitle: 'NFT / ERC721',
-    description: 'Create a new ERC721 token using this template.',
+    workspaceTitle: 'home.templateNFTTitle',
+    description: 'home.templateNFTDesc',
     projectLogo: 'assets/img/openzeppelinLogo.png',
     templateName: 'ozerc721',
   },
   {
     gsID: 'sUTLogo',
-    workspaceTitle: 'MultiSig',
-    description: 'Create a new MultiSig wallet using this template.',
+    workspaceTitle: 'home.templateMultiSigTitle',
+    description: 'home.templateMultiSigDesc',
     projectLogo: 'assets/img/gnosissafeLogo.png',
     templateName: 'gnosisSafeMultisig',
   }
@@ -169,7 +169,7 @@ function HomeTabGetStarted({ plugin }: HomeTabGetStartedProps) {
             <div className="d-flex flex-row align-items-center flex-wrap">
               {workspaceTemplates.map((template, index) => (
                 <CustomTooltip
-                  tooltipText={template.description}
+                  tooltipText={intl.formatMessage({ id: template.description })}
                   tooltipId={template.gsID}
                   tooltipClasses="text-nowrap"
                   tooltipTextClasses="border bg-light text-dark p-1 pe-3"
@@ -189,7 +189,7 @@ function HomeTabGetStarted({ plugin }: HomeTabGetStartedProps) {
                     }}
                     data-id={`homeTabGetStarted${template.templateName}`}
                   >
-                    {template.workspaceTitle}
+                    <FormattedMessage id={template.workspaceTitle} />
                   </button>
                 </CustomTooltip>
               ))}

@@ -31,7 +31,7 @@ export const SourceControlNavigation = ({ eventKey, activePanel, callback }) => 
           {
             activePanel === eventKey ? <FontAwesomeIcon className='' icon={faCaretDown}></FontAwesomeIcon> : <FontAwesomeIcon className='' icon={faCaretRight}></FontAwesomeIcon>
           }
-          <label className="nav ps-2 form-check-label">SOURCE CONTROL</label>
+          <label className="nav ps-2 form-check-label"><FormattedMessage id="gitui.sourceControl" /></label>
           <LoaderIndicator></LoaderIndicator>
 
         </span>

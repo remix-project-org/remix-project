@@ -75,18 +75,23 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
   const [compilerContainer, dispatch] = useReducer(compilerReducer, compilerInitialState)
 
   useEffect(() => {
-    api.getAppParameter('hardhat-compilation').then((result) => {
-      if (result) {
-        sethhCompilation(true)
-      }
-    })
-
-    api.getAppParameter('foundry-compilation').then((result) => {
-      if (result) {
-        setFoundryCompilation(true)
-      }
-    })
+    sethhCompilation(false)
+    setFoundryCompilation(false)
+    setTruffleCompilation(false)
+    api.setAppParameter('hardhat-compilation', false)
+    api.setAppParameter('foundry-compilation', false)
+    api.setAppParameter('truffle-compilation', false)
   }, [])
+
+  useEffect(() => {
+    sethhCompilation(false)
+    setFoundryCompilation(false)
+    setTruffleCompilation(false)
+    api.setAppParameter('hardhat-compilation', false)
+    api.setAppParameter('foundry-compilation', false)
+    api.setAppParameter('truffle-compilation', false)
+  }, [props.workspaceReloadFlag])
+
   const intl = useIntl()
 
   useEffect(() => {
@@ -352,7 +357,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
 
   const startingCompilation = () => {
     if (!compileIcon.current) return
-    compileIcon.current.setAttribute('title', 'compiling...')
+    compileIcon.current.setAttribute('title', intl.formatMessage({ id: 'solidity.compilingTitle' }))
     compileIcon.current.classList.remove('remixui_bouncingIcon')
     compileIcon.current.classList.add('remixui_spinningIcon')
   }
@@ -413,7 +418,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
 
   const compilationFinished = () => {
     if (!compileIcon.current) return
-    compileIcon.current.setAttribute('title', 'idle')
+    compileIcon.current.setAttribute('title', intl.formatMessage({ id: 'solidity.idleTitle' }))
     compileIcon.current.classList.remove('remixui_spinningIcon')
     compileIcon.current.classList.remove('remixui_bouncingIcon')
     if (!state.autoCompile || (state.autoCompile && state.matomoAutocompileOnce)) {
@@ -535,7 +540,8 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     // "Uncaught RangeError: Maximum call stack size exceeded" error on Chromium,
     // resort to non-worker version in that case.
     if (selectedVersion === 'builtin') selectedVersion = state.defaultVersion
-    if (selectedVersion !== 'builtin' && (canUseWorker(selectedVersion) || platform === appPlatformTypes.desktop)) {
+    const useWorker = selectedVersion !== 'builtin' && (canUseWorker(selectedVersion) || platform === appPlatformTypes.desktop)
+    if (useWorker) {
       compileTabLogic.compiler.loadVersion(true, url)
     } else {
       compileTabLogic.compiler.loadVersion(false, url)
@@ -735,7 +741,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     api.setAppParameter('hardhat-compilation', checked)
     if (checked){
       // @ts-ignore
-      api.call('notification', 'toast', 'Use Hardhat configuration to set solidity compiler version and settings.', 4000)
+      api.call('notification', 'toast', intl.formatMessage({ id: 'solidity.useHardhatConfig' }), 4000)
     }
   }
 
@@ -746,7 +752,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     api.setAppParameter('foundry-compilation', checked)
     if (checked){
       // @ts-ignore
-      api.call('notification', 'toast', 'Use Foundry configuration to set solidity compiler version and settings.', 4000)
+      api.call('notification', 'toast', intl.formatMessage({ id: 'solidity.useFoundryConfig' }), 4000)
     }
   }
 
@@ -757,7 +763,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     api.setAppParameter('truffle-compilation', checked)
     if (checked){
       // @ts-ignore
-      api.call('notification', 'toast', 'Use Truffle configuration to set solidity compiler version and settings.', 4000)
+      api.call('notification', 'toast', intl.formatMessage({ id: 'solidity.useTruffleConfig' }), 4000)
     }
   }
 
@@ -905,7 +911,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                 onChange={updateFoundryCompilation}
                 id="enableFoundry"
                 type="checkbox"
-                title="Enable Foundry Compilation"
+                title={intl.formatMessage({ id: 'solidity.enableFoundryTitle' })}
                 checked={foundryCompilation}
               />
               <label className="form-check-label" htmlFor="enableFoundry">
@@ -1055,10 +1061,10 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                       pointerEvents: state.useFileConfiguration ? 'none' : 'auto'
                     }}
                   >
-                    <option data-id={state.language === 'Solidity' ? 'selected' : ''} value="Solidity">
+                    <option data-sol-lang="solidity" data-id={state.language === 'Solidity' ? 'selected' : ''} value="Solidity">
                       Solidity
                     </option>
-                    <option data-id={state.language === 'Yul' ? 'selected' : ''} value="Yul">
+                    <option data-sol-lang="yul" data-id={state.language === 'Yul' ? 'selected' : ''} value="Yul">
                       Yul
                     </option>
                   </select>
@@ -1089,7 +1095,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
                   placement="top"
                   tooltipId="configfileOptimisationNumbeTooltip"
                   tooltipClasses="text-nowrap"
-                  tooltipText={(!state.optimize ? "Enable " : "Disable ") + "opcode-based optimizer for the generated bytecode and the Yul optimizer for the Yul code"}
+                  tooltipText={intl.formatMessage({ id: !state.optimize ? 'solidity.enableOptimizerTooltip' : 'solidity.disableOptimizerTooltip' })}
                 >
                   <div className='form-check'>
                     <input
@@ -1147,7 +1153,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               e.stopPropagation()
               handleConfigFileClick()
             }}>
-              <i className="text-secondary mt-1 pe-1 far fa-edit"></i> Update config remix.config.json
+              <i className="text-secondary mt-1 pe-1 far fa-edit"></i> <FormattedMessage id="solidity.updateConfigFile" />
             </a>
           </RenderIf>
         </div>

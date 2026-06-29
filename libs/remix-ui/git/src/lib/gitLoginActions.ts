@@ -12,6 +12,25 @@ export const setLoginPlugin = (pluginInstance: any) => {
   plugin = pluginInstance;
 };
 
+// Register GitHub token with SSO API for user creation and cookie setting
+export const registerGitHubWithSSO = async (githubToken: string): Promise<void> => {
+  try {
+    const response = await axios.post(`${endpointUrls.sso}/github/verify`, {
+      access_token: githubToken
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      withCredentials: true // Important: allows cookies to be set
+    });
+    console.log('[GitLogin] Registered GitHub with SSO:', response.data);
+  } catch (error) {
+    console.error('[GitLogin] Failed to register GitHub with SSO:', error);
+    throw error;
+  }
+};
+
 // Helper function for tracking git events from library functions
 const trackGitEvent = (action: GitEvent['action'], name?: string, isClick: boolean = false) => {
   if (!plugin) return

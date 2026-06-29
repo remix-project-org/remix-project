@@ -17,7 +17,7 @@ function generate(browser: NightwatchBrowser, prompt: string, provider: string, 
 
   console.log('Generating with prompt:', prompt, 'and provider:', provider)
   browser
-    .waitForElementPresent('*[data-id="remix-ai-assistant-ready"]')
+    .assistantWaitForReady()
     .assistantSetProvider(provider)
     .waitForElementPresent({
       locateStrategy: 'xpath',

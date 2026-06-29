@@ -22,6 +22,7 @@ export class InjectedProvider {
     // passwordPromptCb((passphrase) => {
     //   this.executionContext.web3().eth.personal.newAccount(passphrase).then((result) => cb(null, result)).catch(error => cb(error))
     // })
+    throw new Error('Feature is not supported for injected provider.')
   }
 
   async resetEnvironment () {

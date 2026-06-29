@@ -25,13 +25,15 @@ export enum ToolCategory {
   ANALYSIS = 'analysis',
   WORKSPACE = 'workspace',
   TESTING = 'testing',
-  GIT = 'git'
+  GIT = 'git',
+  COORDINATION = 'coordination'
 }
 
 export interface AccountInfo {
-  address: string;
-  balance?: string;
-  displayName?: string;
+  alias: string,
+  account: string,
+  balance?: string,
+  symbol?: string
   isSmartAccount?: boolean;
 }
 
@@ -53,6 +55,12 @@ export interface ToolExecutionContext {
  */
 export interface FileReadArgs {
   path: string;
+}
+
+export interface FileReplacerArgs {
+  path: string
+  contentToReplace: string
+  regEx: string
 }
 
 export interface FileWriteArgs {
@@ -86,8 +94,24 @@ export interface DirectoryListArgs {
   recursive?: boolean;
 }
 
+export interface FileReadChunkArgs {
+  path: string;
+  offset?: number;
+  limit?: number;
+}
+
+export interface FileGrepArgs {
+  path: string;
+  pattern: string;
+  ignoreCase?: boolean;
+  lineNumbers?: boolean;
+  contextBefore?: number;
+  contextAfter?: number;
+  maxMatches?: number;
+}
+
 export interface SolidityCompileArgs {
-  file?: string;
+  filePath?: string;
   version?: string;
   optimize?: boolean;
   runs?: number;
@@ -145,7 +169,13 @@ export interface SimulateTransactionArgs {
 }
 
 export interface RunScriptArgs {
-  file: string
+  filePath: string
+}
+
+export interface AddInstanceArgs {
+  contractAddress: string;
+  abi: any[] | string;
+  contractName: string;
 }
 
 /**
@@ -167,50 +197,17 @@ export interface HexToDecimalArgs {
   hex: string;
 }
 
+export interface TimestampToDateArgs {
+  timestamp: string | number;
+  format?: 'iso' | 'local' | 'utc';
+}
+
 export interface DebugSessionArgs {
   transactionHash?: string;
 }
 
-export interface BreakpointArgs {
-  sourceFile: string;
-  lineNumber: number;
-  condition?: string;
-  hitCount?: number;
-}
-
-export interface DebugStepArgs {
-  sessionId: string;
-  stepType: 'into' | 'over' | 'out' | 'continue';
-}
-
-export interface DebugWatchArgs {
-  sessionId: string;
-  expression: string;
-  watchType?: 'variable' | 'expression' | 'memory';
-}
-
-export interface DebugEvaluateArgs {
-  sessionId: string;
-  expression: string;
-  context?: 'current' | 'global' | 'local';
-}
-
-export interface DebugCallStackArgs {
-  sessionId: string;
-}
-
-export interface DebugVariablesArgs {
-  sessionId: string;
-  scope?: 'local' | 'global' | 'storage' | 'memory';
-}
-
 export interface StartDebuggerArgs {
   txHash: string;
-}
-
-export interface SetBreakpointArgs {
-  file: string;
-  line: number;
 }
 
 export interface InspectVariableArgs {
@@ -266,15 +263,51 @@ export interface ImportProjectArgs {
 }
 
 /**
+ * Skill loader argument types
+ */
+export interface LoadSkillArgs {
+  skill_id: string;
+}
+
+// eslint-disable-next-line
+export interface ListSkillsArgs {
+  // No parameters needed
+}
+
+/**
  * Tool result types
  */
 export interface FileOperationResult {
   success: boolean;
   path: string;
   message?: string;
-  content?: string;
+  payload?: string;
   size?: number;
   lastModified?: string;
+}
+
+export interface FileReadChunkResult {
+  success: boolean;
+  path: string;
+  content: string;
+  startLine: number;
+  endLine: number;
+  totalLines: number;
+  hasMore: boolean;
+}
+
+export interface FileGrepResult {
+  success: boolean;
+  path: string;
+  pattern: string;
+  matches: Array<{
+    lineNumber: number;
+    line: string;
+    contextBefore?: string[];
+    contextAfter?: string[];
+  }>;
+  totalMatches: number;
+  truncated: boolean;
 }
 
 export interface CompilationResult {
@@ -289,7 +322,7 @@ export interface CompilationResult {
   errors: any[];
   errorFiles?: any[];
   warnings: any[];
-  sources: Record<string, any>;
+  // sources: Record<string, any>; // comment out to avoid large payloads, can be added back if needed
 }
 
 export interface DeploymentResult {
@@ -305,6 +338,13 @@ export interface DeploymentResult {
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface RunScriptResult {}
 
+export interface AddInstanceResult {
+  success: boolean;
+  contractAddress: string;
+  contractName: string;
+  message?: string;
+}
+
 export interface ContractInteractionResult {
   success: boolean;
   result?: any;
@@ -319,46 +359,6 @@ export interface DebugSessionResult {
   transactionHash?: string;
   status: string;
   createdAt: string;
-}
-
-export interface BreakpointResult {
-  success: boolean;
-  breakpointId: string;
-  sourceFile: string;
-  lineNumber: number;
-  condition?: string;
-  hitCount?: number;
-  enabled: boolean;
-  setAt: string;
-}
-
-export interface DebugStepResult {
-  success: boolean;
-  sessionId: string;
-  stepType: string;
-  currentLocation: {
-    sourceFile: string;
-    lineNumber: number;
-    columnNumber?: number;
-  };
-  stackTrace: {
-    function: string;
-    sourceFile: string;
-    lineNumber: number;
-  }[];
-  steppedAt: string;
-}
-
-export interface DebugInfo {
-  currentStep: number;
-  totalSteps: number;
-  currentFile: string;
-  currentLine: number;
-  callStack: any[];
-  variables: Record<string, any>;
-  memory: string;
-  stack: string[];
-  storage: Record<string, string>;
 }
 
 export interface AnalysisResult {
@@ -399,6 +399,26 @@ export interface AmpQueryResult<T = any> {
   rowCount: number;
   query: string;
   error?: string;
+}
+
+export interface LoadSkillResult extends FileOperationResult {
+  skill_id: string;
+  skill_name: string;
+  skill_description: string;
+  files_created: string[];
+  total_files: number;
+}
+
+export interface SkillInfo {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface ListSkillsResult {
+  success: boolean;
+  skills: SkillInfo[];
+  total_skills: number;
 }
 
 export interface RemixToolDefinition extends IMCPTool {

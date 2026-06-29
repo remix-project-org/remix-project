@@ -117,39 +117,62 @@ export type ChangeType = {
 // Function to extract ranges with line numbers and changed text
 export const extractLineNumberRangesWithText = (diff: ChangeObject<string>[]) => {
   const changes: ChangeType[] = []
+  let originalLineNumber = 1
+  let modifiedLineNumber = 1
 
-  let originalLinesIncr = 1
-  let modifedLinesIncr = 1
-  diff.forEach((part, index) => {
-    if (part.added || part.removed) {
-      let lineNumber = originalLinesIncr // part.removed ? originalLinesIncr : modifedLinesIncr
-      const previousChanged = changes[index - 1]
-      const modified = (previousChanged && previousChanged.lineNumber && previousChanged.lineNumber === lineNumber - 1) || false
-      if (modified && part.added && previousChanged.type === 'removed') {
-        lineNumber = lineNumber - 1
-        previousChanged.discarded = true
-      }
-      if (modified && part.removed && previousChanged.type === 'added') {
-        lineNumber = lineNumber - 1
-        previousChanged.discarded = true
-      }
+  for (let i = 0; i < diff.length; i++) {
+    const part = diff[i]
+
+    // Handle unchanged parts
+    if (!part.added && !part.removed) {
+      changes.push({ part })
+      originalLineNumber += part.count
+      modifiedLineNumber += part.count
+      continue
+    }
+
+    // Handle added/removed parts
+    const previousChange = changes[i - 1]
+    const isModification = isConsecutiveModification(previousChange, originalLineNumber)
+
+    if (isModification) {
+      // Mark previous change as discarded and create modified change
+      previousChange.discarded = true
+
       changes.push({
         part,
-        lineNumber,
-        type: modified ? 'modified' : (part.added ? 'added' : 'removed'),
-        previous: modified ? previousChanged : null,
-        originalLinesIncr,
-        modifedLinesIncr
+        lineNumber: originalLineNumber - 1,
+        type: 'modified',
+        previous: previousChange,
+        originalLinesIncr: originalLineNumber,
+        modifedLinesIncr: modifiedLineNumber
       })
-      if (part.removed) originalLinesIncr += part.count
-      if (part.added) modifedLinesIncr += part.count
     } else {
+      // Create simple added/removed change
       changes.push({
-        part
+        part,
+        lineNumber: originalLineNumber,
+        type: part.added ? 'added' : 'removed',
+        previous: null,
+        originalLinesIncr: originalLineNumber,
+        modifedLinesIncr: modifiedLineNumber
       })
-      originalLinesIncr += part.count
-      modifedLinesIncr += part.count
     }
-  })
+
+    // Update line counters
+    if (part.removed) originalLineNumber += part.count
+    if (part.added) modifiedLineNumber += part.count
+  }
+
   return changes
+}
+
+// Helper function to check if current change is part of a modification (add after remove or remove after add)
+function isConsecutiveModification(previousChange: ChangeType | undefined, currentLineNumber: number): boolean {
+  if (!previousChange || !previousChange.lineNumber) {
+    return false
+  }
+
+  return previousChange.lineNumber === currentLineNumber - 1 &&
+         (previousChange.type === 'removed' || previousChange.type === 'added')
 }

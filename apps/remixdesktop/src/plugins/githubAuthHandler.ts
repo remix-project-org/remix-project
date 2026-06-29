@@ -30,8 +30,14 @@ export class GitHubAuthHandler extends ElectronBasePlugin {
       })
 
       if (response.data.access_token) {
-        this.sendAccessToken(response.data.access_token)
-        console.log('[GitHubAuthHandler] Access token received:', response.data.access_token)
+        const githubToken = response.data.access_token
+        
+        // Register with SSO API to create user and set cookies
+        await this.registerWithSSO(githubToken)
+        
+        // Send to frontend for local storage (existing git plugin usage)
+        this.sendAccessToken(githubToken)
+        console.log('[GitHubAuthHandler] Access token received and registered with SSO')
         return
       } else {
         throw new Error('No access token received')
@@ -40,6 +46,26 @@ export class GitHubAuthHandler extends ElectronBasePlugin {
     catch (error) {
       console.error('[GitHubAuthHandler] Error exchanging code for token:', error)
       throw new Error('Failed to exchange code for access token')
+    }
+  }
+
+  async registerWithSSO(githubToken: string): Promise<void> {
+    try {
+      // Call the SSO API to verify GitHub token, create/update user, and set cookies
+      const response = await axios.post(`${endpointUrls.sso}/github/verify`, {
+        access_token: githubToken
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        withCredentials: true // Important: allows cookies to be set
+      })
+
+      console.log('[GitHubAuthHandler] Registered with SSO API:', response.data)
+    } catch (error) {
+      console.error('[GitHubAuthHandler] Failed to register with SSO:', error)
+      // Don't throw - allow GitHub functionality to work even if SSO registration fails
     }
   }
 

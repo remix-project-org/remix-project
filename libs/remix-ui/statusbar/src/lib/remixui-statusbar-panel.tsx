@@ -24,7 +24,7 @@ export type ScamAlert = {
 
 export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
   const platform = useContext(platformContext)
-  const [showScamDetails, setShowScamDetails] = useState(true)
+  const [showScamDetails, setShowScamDetails] = useState(false)
   const [scamAlerts, setScamAlerts] = useState<ScamAlert[]>([])
   const [gitBranchName, setGitBranchName] = useState('')
   const [isAiActive, setIsAiActive] = useState(false)
@@ -101,8 +101,8 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
             />
           </FloatingFocusManager>
         )}
-        <div className="d-flex remixui_statusbar_height flex-row bg-info justify-content-between align-items-center">
-          {(platform !== appPlatformTypes.desktop) && <div className="remixui_statusbar bg-warning px-2 remixui_statusbar_custom_padding d-flex justify-center align-items-center">
+        <div className="d-flex remixui_statusbar_height flex-row bg-body border-top border-secondary justify-content-between align-items-center">
+          {(platform !== appPlatformTypes.desktop) && <div className="remixui_statusbar px-2 remixui_statusbar_custom_padding d-flex justify-center align-items-center">
             <ScamAlertStatus refs={refs} getReferenceProps={getReferenceProps} />
           </div>}
           {(platform === appPlatformTypes.desktop) && <div className="remixui_statusbar">

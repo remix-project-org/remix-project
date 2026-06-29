@@ -22,5 +22,12 @@
   "circuit.exportVerificationKey": "Export verification key",
   "circuit.exportVerifierCalldata": "Export verifier calldata",
   "circuit.exportWtnsJson": "Export witness as JSON",
-  "circuit.runSetup": "Run setup"
+  "circuit.runSetup": "Run setup",
+  "circuit.seeCompilerLicense": "See compiler license",
+  "circuit.rerunSetupWarning": "circom file content changed, please compile and re-run setup to update exported keys.",
+  "circuit.primeTooltip": "To choose the prime number to use to generate the circuit. Receives the name of the curve (bn128, bls12381, goldilocks, grumpkin, pallas, vesta)",
+  "circuit.groth16": "Groth16",
+  "circuit.plonk": "Plonk",
+  "circuit.ptauTooltip": "To choose the from the list of ptau files",
+  "circuit.setupAndExportTooltip": "Click to setup and export verification keys"
 }

@@ -1,3 +1,4 @@
+import { remixAILogger } from '../../helpers/logger'
 /**
  * Project Resource Provider - Provides access to project files and metadata
  */
@@ -67,7 +68,7 @@ export class ProjectResourceProvider extends BaseResourceProvider {
       );
 
     } catch (error) {
-      console.warn('Failed to get project resources:', error);
+      remixAILogger.warn('Failed to get project resources:', error);
     }
 
     return resources;
@@ -84,10 +85,6 @@ export class ProjectResourceProvider extends BaseResourceProvider {
 
     if (uri.startsWith('project://dependencies')) {
       return this.getProjectDependencies(plugin);
-    }
-
-    if (uri.startsWith('file://')) {
-      return this.getFileContent(uri, plugin);
     }
 
     throw new Error(`Unsupported resource URI: ${uri}`);
@@ -107,7 +104,12 @@ export class ProjectResourceProvider extends BaseResourceProvider {
       path = path.substring(1);
     }
 
-    if (visited.has(path) || path.includes('node_modules') || path.includes('.git') || path.includes('.deps')) {
+    if (visited.has(path) ||
+        path.includes('node_modules') ||
+        path.includes('.git') ||
+        path.includes('.deps') ||
+        path.includes('artifacts/build-info') ||
+        path.includes('.debug')) {
       return;
     }
     visited.add(path);
@@ -145,7 +147,6 @@ export class ProjectResourceProvider extends BaseResourceProvider {
               {
                 category,
                 tags: this.getTagsForFile(path, fileExtension),
-                fileExtension,
                 size: await this.getFileSize(plugin, path),
                 lastModified: new Date().toISOString()
               }
@@ -154,7 +155,7 @@ export class ProjectResourceProvider extends BaseResourceProvider {
         }
       }
     } catch (error) {
-      console.warn(`Failed to process path ${path}:`, error);
+      remixAILogger.warn(`Failed to process path ${path}:`, error);
     }
   }
 
@@ -162,11 +163,17 @@ export class ProjectResourceProvider extends BaseResourceProvider {
     try {
       const workspacePath = await this.getWorkspacePath(plugin);
       const structure = await this.buildDirectoryTree(plugin, workspacePath);
-
+      let openedFiles: string[] = []
+      try {
+        openedFiles = await plugin.call('fileManager', 'getOpenedFiles') || [];
+      } catch (error) {
+        remixAILogger.warn('Failed to get opened files:', error)
+      }
       return this.createJsonContent('project://structure', {
         root: workspacePath,
         structure,
-        generatedAt: new Date().toISOString()
+        generatedAt: new Date().toISOString(),
+        currentOpenedFiles: openedFiles
       });
     } catch (error) {
       return this.createTextContent('project://structure', `Error building project structure: ${error.message}`);
@@ -290,7 +297,9 @@ export class ProjectResourceProvider extends BaseResourceProvider {
 
           for (const file of fileList.slice(0, 100)) { // Limit to prevent memory issues
             const fullPath = file;
-            if (!file.startsWith('.') && !file.includes('node_modules')) {
+            if (!file.startsWith('.') &&
+                !file.includes('node_modules') &&
+                !file.includes('artifacts/build-info')) {
               const child = await this.buildDirectoryTree(plugin, fullPath, maxDepth - 1);
               if (child) children.push(child);
             }
@@ -310,12 +319,10 @@ export class ProjectResourceProvider extends BaseResourceProvider {
           })
         };
       } else {
-        const extension = path.split('.').pop()?.toLowerCase() || '';
         return {
           name,
           type: 'file',
           path,
-          extension,
           size: await this.getFileSize(plugin, path)
         };
       }
@@ -339,7 +346,9 @@ export class ProjectResourceProvider extends BaseResourceProvider {
 
         for (const file of fileList) {
           const fullPath = file;
-          if (!file.startsWith('.') && !file.includes('node_modules')) {
+          if (!file.startsWith('.') &&
+              !file.includes('node_modules') &&
+              !file.includes('artifacts/build-info')) {
             await this.scanForImports(plugin, fullPath, dependencies);
           }
         }
@@ -352,7 +361,7 @@ export class ProjectResourceProvider extends BaseResourceProvider {
         })));
       }
     } catch (error) {
-      console.warn(`Failed to scan imports in ${path}:`, error);
+      remixAILogger.warn(`Failed to scan imports in ${path}:`, error);
     }
   }
 
@@ -417,7 +426,7 @@ export class ProjectResourceProvider extends BaseResourceProvider {
 
   private shouldIncludeFile(path: string, extension: string): boolean {
     // Include source files and important project files
-    const includedExtensions = ['sol', 'js', 'ts', 'json', 'md', 'txt', 'toml', 'yaml', 'yml'];
+    const includedExtensions = ['sol', 'js', 'ts', 'json', 'md', 'txt', 'toml', 'yaml', 'yml', 'sql', 'jsx', 'tsx', 'abi'];
     const includedFiles = ['README', 'LICENSE', 'Dockerfile'];
 
     const filename = path.split('/').pop() || '';
@@ -431,12 +440,16 @@ export class ProjectResourceProvider extends BaseResourceProvider {
       'sol': 'text/x-solidity',
       'js': 'application/javascript',
       'ts': 'application/typescript',
+      'abi': 'application/json',
       'json': 'application/json',
       'md': 'text/markdown',
       'txt': 'text/plain',
       'toml': 'text/x-toml',
       'yaml': 'text/x-yaml',
-      'yml': 'text/x-yaml'
+      'yml': 'text/x-yaml',
+      'sql': 'application/sql',
+      'jsx': 'text/jsx',
+      'tsx': 'text/tsx'
     };
 
     return mimeTypes[extension] || 'text/plain';
@@ -444,7 +457,7 @@ export class ProjectResourceProvider extends BaseResourceProvider {
 
   private getCategoryForFile(extension: string): ResourceCategory {
     if (['sol'].includes(extension)) return ResourceCategory.CODE;
-    if (['js', 'ts'].includes(extension)) return ResourceCategory.CODE;
+    if (['js', 'ts', 'jsx', 'tsx'].includes(extension)) return ResourceCategory.CODE;
     if (['json', 'toml', 'yaml', 'yml'].includes(extension)) return ResourceCategory.PROJECT_FILES;
     if (['md', 'txt'].includes(extension)) return ResourceCategory.DOCUMENTATION;
     return ResourceCategory.PROJECT_FILES;

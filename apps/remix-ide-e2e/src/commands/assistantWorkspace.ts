@@ -15,8 +15,7 @@ class AssistantWorkspace extends EventEmitter {
 
 function workspaceGenerate(browser: NightwatchBrowser, prompt: string, provider: string, done: VoidFunction) {
   browser
-    .waitForElementVisible('*[data-id="remix-ai-assistant"]')
-    .waitForElementPresent('*[data-id="remix-ai-assistant-ready"]')
+    .assistantWaitForReady()
     .assistantSetProvider(provider)
     .execute(function (prompt) {
       (window as any).remixAIChat.current.sendChat(`/workspace ${prompt}`);

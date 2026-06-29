@@ -176,6 +176,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
   }, [state.selectedTag, state.searchTerm, state.templateRepository])
 
   const fileModeOnlyCategories = useMemo(() => new Set(['GitHub Actions', 'Contract Verification', 'Solidity CREATE2', 'Generic ZKP']), [])
+  const bothModesCategories = useMemo(() => new Set(['Chainlink CRE']), [])
 
   const dedupedTemplates = useMemo((): TemplateCategory[] => {
     const recentSet = new Set<string>((recentTemplates || []).map((t: any) => t && t.value))
@@ -207,10 +208,15 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
 
     if (state.manageCategory === 'Template') {
       // Hide file-only categories when managing templates (workspace creation mode).
-      processedTemplates = processedTemplates.filter((category: TemplateCategory) => !fileModeOnlyCategories.has(category?.name))
+      // But always show categories that support both modes
+      processedTemplates = processedTemplates.filter((category: TemplateCategory) =>
+        !fileModeOnlyCategories.has(category?.name) || bothModesCategories.has(category?.name)
+      )
     } else if (state.manageCategory === 'Files') {
-      // In file mode, only surface the file-only categories.
-      processedTemplates = processedTemplates.filter((category: TemplateCategory) => fileModeOnlyCategories.has(category?.name))
+      // In file mode, only surface the file-only categories and both-modes categories.
+      processedTemplates = processedTemplates.filter((category: TemplateCategory) =>
+        fileModeOnlyCategories.has(category?.name) || bothModesCategories.has(category?.name)
+      )
     }
 
     // Find Cookbook from the original template repository
@@ -230,7 +236,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
     }
 
     return processedTemplates
-  }, [filteredTemplates, recentTemplates, state.manageCategory, state.templateRepository, state.searchTerm, fileModeOnlyCategories])
+  }, [filteredTemplates, recentTemplates, state.manageCategory, state.templateRepository, state.searchTerm, fileModeOnlyCategories, bothModesCategories])
 
   const handleTagClick = (tag: string) => {
     dispatch({ type: TemplateExplorerWizardAction.SET_SELECTED_TAG, payload: state.selectedTag === tag ? null : tag })

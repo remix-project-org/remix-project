@@ -166,6 +166,11 @@ export enum CompilerRetriggerMode {
   'retrigger'
 }
 
+export interface LastCompilationResult {
+    data: CompilationResult | null,
+    source: SourceWithTarget | null | undefined
+}
+
 export interface CompilerState {
     compileJSON: ((input: SourceWithTarget, timeStamp?: number) => void) | null,
     worker: any,
@@ -182,10 +187,7 @@ export interface CompilerState {
     useFileConfiguration: boolean,
     configFileContent: Record<string, any>,
     compilerRetriggerMode: CompilerRetriggerMode,
-    lastCompilationResult: {
-      data: CompilationResult | null,
-      source: SourceWithTarget | null | undefined
-    } | null
+    lastCompilationResult: LastCompilationResult | null
 }
 
 export interface SourceWithTarget {

@@ -9,9 +9,18 @@ import { MatomoEventBase } from '../core/base-types';
 export interface DebuggerEvent extends MatomoEventBase {
   category: 'debugger';
   action:
+    | 'searchTxHash'
     | 'start'
     | 'step'
     | 'breakpoint'
+    | 'stepButton'
+    | 'debugConfig'
+    | 'jumpButtonCallTrace'
+    | 'jumpButtonExecTrace'
+    | 'toggle'
+    | 'toggleAccordion'
+    | 'stopDebugging'
+    | 'errorInStartDebugging'
     | 'startDebugging';
 }
 
@@ -145,8 +154,6 @@ export interface ScriptExecutorEvent extends MatomoEventBase {
     | 'CompileAndRun';
 }
 
-
-
 /**
  * Editor Events - Type-safe builders
  */
@@ -201,9 +208,6 @@ export interface SolidityUMLGenEvent extends MatomoEventBase {
     | 'activated';
 }
 
-
-
-
 /**
  *
  * Circuit Compiler Events - Type-safe builders
@@ -220,7 +224,6 @@ export interface CircuitCompilerEvent extends MatomoEventBase {
     | 'runSetupAndExport';
 }
 
-
 /**
  * Noir Compiler Events - Type-safe builders
  */
@@ -233,7 +236,6 @@ export interface NoirCompilerEvent extends MatomoEventBase {
     | 'view_file';
 }
 
-
 /**
  * Contract Verification Events - Type-safe builders
  */
@@ -243,7 +245,6 @@ export interface ContractVerificationEvent extends MatomoEventBase {
     | 'verify'
     | 'lookup';
 }
-
 
 /**
  * Learneth Events - Type-safe builders
@@ -276,7 +277,6 @@ export interface LearnethEvent extends MatomoEventBase {
     | 'reset_all';
 }
 
-
 /**
  * Script Runner Plugin Events - Type-safe builders
  */
@@ -289,7 +289,6 @@ export interface ScriptRunnerPluginEvent extends MatomoEventBase {
     | 'configChanged';
 }
 
-
 /**
  * Quick DApp V2 Events - Type-safe builders
  */
@@ -297,8 +296,11 @@ export interface QuickDappV2Event extends MatomoEventBase {
   category: 'quick-dapp-v2';
   action:
     | 'generate'
+    | 'generate_figma'
     | 'update'
     | 'deploy_ipfs'
     | 'register_ens'
+    | 'base_app_setup_complete'
+    | 'ai_usage'
     | 'error';
 }

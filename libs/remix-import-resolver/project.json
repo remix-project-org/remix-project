@@ -1,0 +1,45 @@
+{
+  "name": "remix-import-resolver",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-import-resolver/src",
+  "projectType": "library",
+  "implicitDependencies": [],
+  "targets": {
+    "build": {
+      "executor": "@nrwl/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-import-resolver",
+        "main": "libs/remix-import-resolver/src/index.ts",
+        "tsConfig": "libs/remix-import-resolver/tsconfig.lib.json",
+        "updateBuildableProjectDepsInPackageJson": false,
+        "assets": [
+          "libs/remix-import-resolver/*.md"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@nrwl/workspace:run-commands",
+      "options": {
+  "command": "TS_NODE_PROJECT=libs/remix-import-resolver/tsconfig.spec.json mocha -r ts-node/register -r tsconfig-paths/register \"libs/remix-import-resolver/test/**/*.spec.ts\"",
+        "cwd": "."
+      }
+    },
+    "test:suite": {
+      "executor": "@nrwl/workspace:run-commands",
+      "options": {
+        "command": "TS_NODE_PROJECT=libs/remix-import-resolver/tsconfig.spec.json mocha -r ts-node/register -r tsconfig-paths/register {args.suite}",
+        "cwd": "."
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/remix-import-resolver/**/*.ts"],
+        "eslintConfig": "libs/remix-solidity/.eslintrc"
+      }
+    }
+  },
+  "tags": []
+}

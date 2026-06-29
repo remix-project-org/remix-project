@@ -1,3 +1,4 @@
+import { remixAILogger } from './logger'
 import { isOllamaAvailable, listModels, getBestAvailableModel, validateModel, getOllamaHost } from "../inferencers/local/ollama";
 import { OllamaInferencer } from "../inferencers/local/ollamaInferencer";
 import { GenerationParams } from "../types/models";
@@ -47,7 +48,6 @@ export class ChatCommandParser {
     if (handler) {
       return handler(rawArgs, this, statusCallback);
     } else {
-      console.log(`Unknown command: ${commandName}`);
       return "";
     }
   }
@@ -205,7 +205,7 @@ export class ChatCommandParser {
 • \`/ollama stop\` - Stop Ollama integration`;
       }
     } catch (error) {
-      console.error("Ollama command error:", error);
+      remixAILogger.error("Ollama command error:", error);
       return `Ollama command failed: ${error.message || 'Unknown error'}. Please try again.`;
     }
   }

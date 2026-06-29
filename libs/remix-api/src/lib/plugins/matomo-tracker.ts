@@ -1,15 +1,15 @@
 /**
  * Type-safe Matomo tracking helper utility
- * 
+ *
  * This utility provides compile-time type safety for Matomo tracking calls
  * by bypassing loose plugin API typing and enforcing MatomoEvent types.
- * 
+ *
  * Usage:
  *   import { trackMatomoEvent } from '@remix-api';
- *   
+ *
  *   // Instead of: plugin.call('matomo', 'trackEvent', 'category', 'action', 'name')
  *   trackMatomoEvent(plugin, { category: 'homeTab', action: 'WORKSPACE_LOADED', name: 'workspaceName', isClick: false });
- * 
+ *
  *   // Instead of: await api.call('matomo', 'trackEvent', 'ai', 'chat', 'user-input')
  *   await trackMatomoEvent(api, { category: 'ai', action: 'CHAT', name: 'user-input', isClick: false });
  */
@@ -25,7 +25,7 @@ export interface PluginLike {
 
 /**
  * Type-safe synchronous Matomo tracking function
- * 
+ *
  * @param plugin - Any plugin-like object with a call method
  * @param event - Type-safe MatomoEvent object with category, action, name, and value
  */
@@ -46,7 +46,7 @@ export function trackMatomoEvent(plugin: PluginLike, event: MatomoEvent): void {
 
 /**
  * Type-safe asynchronous Matomo tracking function
- * 
+ *
  * @param plugin - Any plugin-like object with a call method
  * @param event - Type-safe MatomoEvent object with category, action, name, and value
  * @returns Promise that resolves when tracking is complete
@@ -68,7 +68,7 @@ export async function trackMatomoEventAsync(plugin: PluginLike, event: MatomoEve
 
 /**
  * Type-safe Matomo tracking class for stateful usage
- * 
+ *
  * Useful when you want to maintain a reference to the plugin
  * and make multiple tracking calls.
  */

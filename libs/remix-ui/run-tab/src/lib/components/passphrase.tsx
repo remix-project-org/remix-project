@@ -8,7 +8,7 @@ interface PromptProps {
 }
 
 export function PassphrasePrompt(props: PromptProps) {
-  const handleSignPassphrase = (e) => {
+  const handleSignPassphrase = (e: any) => {
     props.setPassphrase(e.target.value)
   }
 

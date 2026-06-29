@@ -18,7 +18,8 @@ export class CompilerClientApi extends CompilerApiMixin(PluginClient) implements
   constructor () {
     super()
     createClient(this as any)
-    this.compileTabLogic = new CompileTabLogic(this, this.contentImport)
+    // Use default (legacy) Compiler in the plugin app; DependencyResolvingCompiler is only wired in main app
+    this.compileTabLogic = new CompileTabLogic(this)
     this.compiler = this.compileTabLogic.compiler
     this.compileTabLogic.init()
     this.initCompilerApi()

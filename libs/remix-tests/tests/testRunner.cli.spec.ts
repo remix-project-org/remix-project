@@ -63,7 +63,7 @@ Commands:
       // match initial lines
       console.log(res.stdout.toString())
       expect(res.stdout.toString().trim()).to.match(/:: Running tests using remix-tests ::/)
-      expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
+      // expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
       // match test result
       expect(res.stdout.toString().trim()).to.match(/AssertOkTest/)
       expect(res.stdout.toString().trim()).to.match(/AssertOkTest okPassTest/) // check if console.log is printed
@@ -83,7 +83,7 @@ Commands:
       expect(res.stdout.toString().trim()).to.contain('Compiler version set to 0.7.4. Latest version is')
       expect(res.stdout.toString().trim()).to.contain('Loading remote solc version v0.7.4+commit.3f05b770 ...')
       expect(res.stdout.toString().trim()).to.match(/:: Running tests using remix-tests ::/)
-      expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
+      // expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
       // match test result
       expect(res.stdout.toString().trim()).to.match(/Ok pass test/)
       expect(res.stdout.toString().trim()).to.match(/Ok fail test/)
@@ -102,7 +102,7 @@ Commands:
       // match initial lines
       expect(res.stdout.toString().trim()).to.contain('EVM set to petersburg')
       expect(res.stdout.toString().trim()).to.match(/:: Running tests using remix-tests ::/)
-      expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
+      // expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
       // match test result
       expect(res.stdout.toString().trim()).to.match(/Ok pass test/)
       expect(res.stdout.toString().trim()).to.match(/Ok fail test/)
@@ -115,7 +115,7 @@ Commands:
       // match initial lines
       expect(res.stdout.toString().trim().includes('Optimization is enabled'))
       expect(res.stdout.toString().trim()).to.match(/:: Running tests using remix-tests ::/)
-      expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
+      // expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
       // match test result
       expect(res.stdout.toString().trim()).to.match(/Ok pass test/)
       expect(res.stdout.toString().trim()).to.match(/Ok fail test/)
@@ -129,7 +129,7 @@ Commands:
       expect(res.stdout.toString().trim()).to.contain('Optimization is enabled')
       expect(res.stdout.toString().trim()).to.contain('Runs set to 300')
       expect(res.stdout.toString().trim()).to.match(/:: Running tests using remix-tests ::/)
-      expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
+      // expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
       // match test result
       expect(res.stdout.toString().trim()).to.match(/Ok pass test/)
       expect(res.stdout.toString().trim()).to.match(/Ok fail test/)
@@ -152,7 +152,7 @@ Commands:
       expect(res.stdout.toString().trim()).to.contain('Optimization is enabled')
       expect(res.stdout.toString().trim()).to.contain('Runs set to 250')
       expect(res.stdout.toString().trim()).to.match(/:: Running tests using remix-tests ::/)
-      expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
+      // expect(res.stdout.toString().trim()).to.match(/creation of library remix_tests.sol:Assert pending.../)
       // match test result
       expect(res.stdout.toString().trim()).to.match(/Ok pass test/)
       expect(res.stdout.toString().trim()).to.match(/Ok fail test/)

@@ -83,15 +83,14 @@ export class RemixHoverProvider implements monacoTypes.languages.HoverProvider {
 
     if (nodeAtPosition) {
       if (nodeAtPosition.absolutePath) {
-        const target = await this.props.plugin.call('fileManager', 'getPathFromUrl', nodeAtPosition.absolutePath)
-        if (target.file !== nodeAtPosition.absolutePath) {
-          contents.push({
-            value: `${target.file}`
-          })
-        }
-        contents.push({
-          value: `${nodeAtPosition.absolutePath}`
-        })
+        try {
+          const currentFile = await this.props.plugin.call('fileManager', 'file')
+          const resolved = await this.props.plugin.call('resolutionIndex', 'resolvePath', currentFile, nodeAtPosition.absolutePath)
+          if (resolved && resolved !== nodeAtPosition.absolutePath) {
+            contents.push({ value: `${resolved}` })
+          }
+        } catch (_) { /* ignore */ }
+        contents.push({ value: `${nodeAtPosition.absolutePath}` })
       }
       if (nodeAtPosition.nodeType === 'VariableDeclaration') {
         contents.push({

@@ -1,0 +1,327 @@
+'use strict'
+
+import { NightwatchBrowser } from 'nightwatch'
+import examples from '../examples/example-contracts'
+import { initWithE2EPool, loginWithE2EPool, releaseE2EPool } from '../helpers/e2ePool'
+
+const sources = [
+  { 'SimpleStorage.sol': { content: examples.ballot.content } }
+]
+
+const tests = {
+  '@disabled': true,
+  before: function (browser: NightwatchBrowser, done: VoidFunction) {
+    initWithE2EPool(browser, done, 'AIToolSelector', undefined, true, undefined, true, true)
+  },
+  after: async function (browser: NightwatchBrowser, done: VoidFunction) {
+    await releaseE2EPool(browser, done, 'AIToolSelector')
+  },
+  '@sources': function () {
+    return sources
+  },
+
+  'Should login via the test pool through the real UI flow': function (browser: NightwatchBrowser) {
+    loginWithE2EPool(browser)
+  },
+
+  'Setup workspace for tool selector tests #group1': function (browser: NightwatchBrowser) {
+    browser
+      .addFile('SimpleStorage.sol', sources[0]['SimpleStorage.sol'])
+      .openFile('SimpleStorage.sol')
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+  },
+
+  'Should select compilation-related tools for compile prompt #group1': function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a prompt that should trigger compilation tools
+        (window as any).remixAIChat.current.sendChat('compile the storage contract');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 60000
+      })
+      // Verify response contains compilation-related content
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble") and (contains(.,"compil") or contains(.,"Compil"))]',
+        timeout: 5000
+      })
+  },
+
+  'Should select file management tools for file operations prompt #group1': function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a prompt that should trigger file management tools
+        (window as any).remixAIChat.current.sendChat('read the contents of SimpleStorage.sol');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 60000
+      })
+      // Verify that core file tools are available
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble")]',
+        timeout: 5000
+      })
+  },
+
+  'Should include core tools for generic prompts #group1': function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a generic prompt that should include core tools
+        (window as any).remixAIChat.current.sendChat('help me with my project');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 60000
+      })
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble")]',
+        timeout: 5000
+      })
+  },
+
+  'Should select deployment tools for deployment-related prompt #group1': function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a prompt that should trigger deployment tools
+        (window as any).remixAIChat.current.sendChat('deploy the storage contract');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='hitl-auto-accept-checkbox']",
+        timeout: 600000
+      })
+      .click('*[data-id="hitl-auto-accept-checkbox"]')
+      .click('*[data-id="tool-approval-approve-button"]')
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 600000
+      })
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble") and (contains(.,"deploy") or contains(.,"Deploy"))]',
+        timeout: 5000
+      })
+  },
+
+  'Should select analysis tools for security audit prompt #group1': '' + function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a prompt that should trigger analysis tools
+        (window as any).remixAIChat.current.sendChat('scan my contract for security vulnerabilities');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 60000
+      })
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble") and (contains(.,"secur") or contains(.,"vulnerab") or contains(.,"analyz"))]',
+        timeout: 5000
+      })
+  },
+
+  'Should handle multi-keyword prompts with multiple tool categories #group1': function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a complex prompt that should match multiple categories
+        (window as any).remixAIChat.current.sendChat('compile the owner contract, analyze it for bugs, and help me deploy it');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 600000
+      })
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble")]',
+        timeout: 5000
+      })
+  },
+
+  'Should select git tools for version control prompt #group1': '' + function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a prompt that should trigger git tools
+        (window as any).remixAIChat.current.sendChat('commit the changes to git');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 600000
+      })
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble") and (contains(.,"git") or contains(.,"commit"))]',
+        timeout: 5000
+      })
+  },
+
+  'Should select testing tools for test-related prompt #group1': function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a prompt that should trigger testing tools
+        (window as any).remixAIChat.current.sendChat('run tests on the storage contract');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 600000
+      })
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble") and (contains(.,"test") or contains(.,"Test"))]',
+        timeout: 5000
+      })
+  },
+
+  'Should handle prompts with vyper keyword #group1': function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a prompt that mentions Vyper
+        (window as any).remixAIChat.current.sendChat('compile the vyper contract');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 600000
+      })
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble")]',
+        timeout: 5000
+      })
+  },
+
+  'Should handle debugging prompts #group1': function (browser: NightwatchBrowser) {
+    browser
+      .assistantClearChat()
+      .waitForCompilerLoaded()
+      .clickLaunchIcon('remixaiassistant')
+      .waitForElementPresent({
+        selector: "//*[@data-id='remix-ai-assistant-ready']",
+        locateStrategy: 'xpath',
+        timeout: 120000
+      })
+      .execute(function () {
+        // Send a debugging prompt
+        (window as any).remixAIChat.current.sendChat('debug the transaction');
+      })
+      .waitForElementPresent({
+        locateStrategy: 'xpath',
+        selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']",
+        timeout: 600000
+      })
+      .waitForElementVisible({
+        locateStrategy: 'xpath',
+        selector: '//div[contains(@class,"chat-bubble")]',
+        timeout: 5000
+      })
+  },
+
+}
+
+const branch = process.env.CIRCLE_BRANCH
+const runTestsConditions = branch && (branch === 'master' || branch === 'remix_live' || branch.includes('remix_beta') || branch.includes('metamask'))
+
+const checkBrowserIsChrome = function (browser: NightwatchBrowser) {
+  return browser.browserName.indexOf('chrome') > -1
+}
+
+/*
+if (!checkBrowserIsChrome(browser)) {
+  module.exports = {}
+} else {
+  module.exports = {
+    ...(branch ? (runTestsConditions ? tests : {}) : tests)
+  }
+}
+*/
+
+module.exports = {}

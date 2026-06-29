@@ -57,7 +57,6 @@ const pluginCategories: Record<string, number[]> = {
   'desktopClient': [7],
   'doc-gen': [7],
   'LearnEth': [7],
-  'quick-dapp': [7, 2],
   'quick-dapp-v2': [7, 2],
   'remixGuide': [7],
   'UIScriptRunner': [7],
@@ -162,7 +161,7 @@ export const RemixUiPluginManager = ({ pluginComponent }: RemixUiPluginManagerPr
   const getFilteredPlugins = () => {
     let plugins = [...pluginComponent.activePlugins, ...pluginComponent.inactivePlugins]
 
-    const HIDDEN_PLUGINS = ['ai-dapp-generator']
+    const HIDDEN_PLUGINS: string[] = []
     plugins = plugins.filter(profile => !HIDDEN_PLUGINS.includes(profile.name))
 
     if (filterByRemix) {

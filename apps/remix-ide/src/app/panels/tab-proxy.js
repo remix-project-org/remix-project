@@ -23,6 +23,8 @@ export default class TabProxy extends Plugin {
     this.dispatch = null
     this.themeQuality = 'dark'
     this.maximize = false
+    this.isDebugging = false
+    this.canRunScenario = false
   }
 
   async onActivation () {
@@ -30,6 +32,44 @@ export default class TabProxy extends Plugin {
       this.themeQuality = theme.quality
       // update invert for all icons
       this.renderComponent()
+    })
+
+    // Track if debugging session is actually active (not just the button state)
+    this.debuggingSessionActive = false
+
+    // Listen for debugger events to update isDebugging state
+    this.on('debugger', 'debuggingStarted', () => {
+      this.debuggingSessionActive = true
+      this.isDebugging = true
+      this.renderComponent()
+    })
+
+    this.on('debugger', 'debuggingStopped', () => {
+      this.debuggingSessionActive = false
+      this.isDebugging = false
+      this.renderComponent()
+    })
+
+    // Listen for side panel plugin changes
+    this.on('sidePanel', 'focusChanged', (pluginName) => {
+      if (pluginName === 'debugger' && this.debuggingSessionActive) {
+        // Returning to debugger while debugging is in progress - show Ask RemixAI button
+        this.isDebugging = true
+        this.renderComponent()
+      } else if (pluginName !== 'debugger' && pluginName !== 'remixaiassistant' && this.isDebugging) {
+        // Switching away from debugger - hide Ask RemixAI button (but not when showing AI assistant)
+        this.isDebugging = false
+        this.renderComponent()
+      }
+    })
+
+    // Also listen for menuicons changes (for main panel plugins)
+    this.on('menuicons', 'showContent', (pluginName) => {
+      // Don't hide Ask RemixAI button when switching to AI assistant during debugging
+      if (pluginName !== 'debugger' && pluginName !== 'remixaiassistant' && this.isDebugging) {
+        this.isDebugging = false
+        this.renderComponent()
+      }
     })
 
     this.on('fileManager', 'filesAllClosed', () => {
@@ -75,8 +115,10 @@ export default class TabProxy extends Plugin {
       }
     })
 
-    this.on('fileManager', 'currentFileChanged', (file) => {
+    this.on('fileManager', 'currentFileChanged', async (file) => {
       const workspace = this.fileManager.currentWorkspace()
+
+      await this.checkIfCanRunScenario(file)
 
       if (this.fileManager.mode === 'browser') {
         const workspacePath = workspace + '/' + file
@@ -114,6 +156,13 @@ export default class TabProxy extends Plugin {
           this.emit('closeFile', file)
         })
         this.tabsApi.activateTab(path)
+      }
+    })
+
+    this.on('fileManager', 'fileSaved', async (file) => {
+      const currentFile = this.fileManager.currentFile()
+      if (currentFile && currentFile === file && file.endsWith('.json')) {
+        await this.checkIfCanRunScenario(file)
       }
     })
 
@@ -199,7 +248,47 @@ export default class TabProxy extends Plugin {
     } catch (e) {
       console.log('theme plugin has an issue: ', e)
     }
+    try {
+      const currentFile = await this.call('fileManager', 'getCurrentFile')
+      if (currentFile) {
+        await this.checkIfCanRunScenario(currentFile)
+      }
+    } catch (error) {
+      console.error('Error getting current file:', error)
+    }
+
     this.renderComponent()
+  }
+
+  async checkIfCanRunScenario(currentFile) {
+    try {
+      if (!currentFile) {
+        this.canRunScenario = false
+        this.renderComponent()
+        return
+      }
+      const fileContent = await this.call('fileManager', 'readFile', currentFile)
+      const parsedContent = JSON.parse(fileContent)
+
+      // Check if it has the required structure of a scenario file
+      const isValidScenario =
+        parsedContent &&
+        typeof parsedContent === 'object' &&
+        'accounts' in parsedContent &&
+        typeof parsedContent.accounts === 'object' &&
+        'linkReferences' in parsedContent &&
+        typeof parsedContent.linkReferences === 'object' &&
+        'transactions' in parsedContent &&
+        Array.isArray(parsedContent.transactions) &&
+        'abis' in parsedContent &&
+        typeof parsedContent.abis === 'object'
+
+      this.canRunScenario = isValidScenario
+      this.renderComponent()
+    } catch (error) {
+      this.canRunScenario = false
+      this.renderComponent()
+    }
   }
 
   focus (name) {
@@ -211,10 +300,24 @@ export default class TabProxy extends Plugin {
     this.tabsApi.activateTab(name)
   }
 
-  switchTab (tabName) {
+  async switchTab (tabName) {
     if (this._handlers[tabName]) {
       this._handlers[tabName].switchTo()
       this.tabsApi.activateTab(tabName)
+    }
+    if (tabName && tabName.toLowerCase().includes('quick-dapp')) {
+      const leftPanelHidden = await this.call('sidePanel', 'isPanelHidden')
+      const terminalPanelHidden = await this.call('terminal', 'isPanelHidden')
+
+      // Hide left panel if it's visible
+      if (!leftPanelHidden) {
+        await this.call('sidePanel', 'togglePanel')
+      }
+
+      // Hide terminal panel if it's visible
+      if (!terminalPanelHidden) {
+        await this.call('terminal', 'togglePanel')
+      }
     }
   }
 
@@ -379,6 +482,8 @@ export default class TabProxy extends Plugin {
       onReady={state.onReady}
       themeQuality={state.themeQuality}
       maximize={this.maximize}
+      isDebugging={state.isDebugging}
+      canRunScenario={state.canRunScenario}
     />
   }
 
@@ -414,7 +519,9 @@ export default class TabProxy extends Plugin {
       onZoomIn,
       onZoomOut,
       onReady,
-      themeQuality: this.themeQuality
+      themeQuality: this.themeQuality,
+      isDebugging: this.isDebugging,
+      canRunScenario: this.canRunScenario
     })
   }
 

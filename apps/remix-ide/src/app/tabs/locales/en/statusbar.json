@@ -1,0 +1,14 @@
+{
+  "statusbar.didYouKnow": "Did you know?",
+  "statusbar.connectedToDesktop": "Connected to the desktop application",
+  "statusbar.connectedToBrowser": "Connected to browser",
+  "statusbar.connectedToMetamask": "Connected to Metamask",
+  "statusbar.alreadyConnectedError": "Error: you are already connected to the desktop application in another tab or window",
+  "statusbar.waitingForDesktop": "Waiting for the desktop application to connect...",
+  "statusbar.disableRemixAICopilot": "Disable RemixAI Copilot",
+  "statusbar.enableRemixAICopilot": "Enable RemixAI Copilot. Switch to .sol file to try it.",
+  "statusbar.remixAICopilotDisabled": "RemixAI Copilot (disabled)",
+  "statusbar.remixAICopilotEnabled": "RemixAI Copilot (enabled)",
+  "statusbar.initializeAsGitRepo": "Initialize as git repo",
+  "statusbar.scamAlerts": "Scam Alerts"
+}

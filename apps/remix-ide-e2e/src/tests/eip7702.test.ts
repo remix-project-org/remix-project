@@ -12,7 +12,7 @@ module.exports = {
     let addressDelegate
     browser
       .clickLaunchIcon('udapp')
-      .switchEnvironment('vm-prague')
+      .switchEnvironment('vm-prague', 'Remix_VM')
       .addFile('delegate.sol', { content: delegate })
       .clickLaunchIcon('solidity')
       .setSolidityCompilerVersion('soljson-v0.8.28+commit.7893614a.js')
@@ -27,10 +27,17 @@ module.exports = {
           done()
         })
       })
-      .click('[data-id="deployAndRunClearInstances"]')
+      .clickLaunchIcon('udapp')
+      .clearDeployedContracts()
       .perform((done) => {
         browser
-          .click('*[data-id="create-delegation-authorization"]')
+          .waitForElementVisible('[data-id="runTabSelectAccount"]')
+          .moveToElement('[data-id="runTabSelectAccount"]', 10, 10)
+          .pause(500)
+          .waitForElementPresent('[data-id="selected-account-kebab-menu"]')
+          .click('[data-id="selected-account-kebab-menu"]')
+          .waitForElementVisible('[data-id="authorizeDelegation"]')
+          .click('[data-id="authorizeDelegation"]')
           .waitForElementVisible('*[data-id="create-delegation-authorization-input"]')
           .execute(() => {
             (document.querySelector('*[data-id="create-delegation-authorization-input"]') as any).focus()
@@ -38,10 +45,10 @@ module.exports = {
           .setValue('*[data-id="create-delegation-authorization-input"]', addressDelegate)
           .perform(() => done())
       })
-      .modalFooterOKClick('udappNotify')
+      .modalFooterOKClick('createDelegationAuthorization')
       .waitForElementContainsText('*[data-id="terminalJournal"]', 'This account will be running the code located at')
       .clickInstance(0)
-      .clickFunction('entryPoint - call')
+      .clickFunction(0, 6)
       .verifyCallReturnValue('0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', ['0:address: 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108'])
   },
 
@@ -49,7 +56,7 @@ module.exports = {
     browser
       .refresh()
       .clickLaunchIcon('udapp')
-      .switchEnvironment('vm-prague')
+      .switchEnvironment('vm-prague', 'Remix_VM')
       .waitForElementVisible('*[data-id="delete-delegation"]')
       .selectAccount('0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2')
       .waitForElementNotPresent('*[data-id="delete-delegation"]')
@@ -60,14 +67,13 @@ module.exports = {
   'Should remove the delegation #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="delete-delegation"]')
-      .click('*[data-id="remixDRValueLabel"]')
       .click('*[data-id="delete-delegation"]')
-      .modalFooterOKClick('udappNotify')
+      .modalFooterOKClick('deleteDelegation')
       .waitForElementNotPresent('*[data-id="delete-delegation"]')
       .waitForElementContainsText('*[data-id="terminalJournal"]', `Delegation for 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4 removed.`)
       .refresh()
       .clickLaunchIcon('udapp')
-      .switchEnvironment('vm-prague')
+      .switchEnvironment('vm-prague', 'Remix_VM')
       .waitForElementNotPresent('*[data-id="delete-delegation"]')
   }
 }

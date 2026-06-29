@@ -1,6 +1,6 @@
 {
   "name": "@remix-project/remix-url-resolver",
-  "version": "0.0.112",
+  "version": "0.0.122",
   "description": "Solidity import url resolver engine",
   "main": "src/index.js",
   "types": "src/index.d.ts",
@@ -24,7 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "@erebos/bzz-node": "^0.13.0",
-    "axios": "1.12.0",
+    "axios": "1.13.5",
     "semver": "^7.5.4",
     "url": "^0.11.0",
     "valid-url": "^1.0.9"
@@ -41,5 +41,5 @@
     "typescript": "^3.1.6"
   },
   "typings": "src/index.d.ts",
-  "gitHead": "32f3eaf6111329259ec66498ae62dda813fb5b76"
+  "gitHead": "7ab0c02208f4cc457506acfb22544c35011425a6"
 }

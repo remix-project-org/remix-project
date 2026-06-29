@@ -39,6 +39,12 @@ module.exports = composePlugins(withNx(), (config) => {
   // add public path
   config.output.publicPath = '/'
 
+  // polyfill global for browser (needed by stream-browserify etc.)
+  config.node = {
+    ...config.node,
+    global: true,
+  }
+
   // add copy & provide plugin
   config.plugins.push(
     new webpack.ProvidePlugin({

@@ -89,34 +89,39 @@ export function deployAll (compileResult: compilationInterface, provider: Browse
         })
       }
 
-      async.eachOfLimit(contractsToDeploy, 1, function (contractName, index, nextEach) {
-        const contract = compiledObject[contractName]
-        const encodeDataFinalCallback = (error, contractDeployData) => {
-          if (error) return nextEach(error)
-          provider.getSigner().then((signer) => {
-            const deployObject: ContractFactory = new ethers.ContractFactory(contract.abi, '0x' + contractDeployData.dataHex, signer)
-            deployRunner(deployObject, { abi: contract.abi, signer }, contractName, contract.filename, (error) => { nextEach(error) })
+      const deployAllContracts = async () => {
+        for (const contractName of contractsToDeploy) {
+          const contract = compiledObject[contractName]
+          const funAbi = null // no need to set the abi for encoding the constructor
+          const params = '' // we suppose that the test contract does not have any param in the constructor
+          const encodeDataDeployLibraryCallback = (libData, callback) => {
+            const abi = compiledObject[libData.data.contractName].abi
+            const code = compiledObject[libData.data.contractName].code
+            provider.getSigner().then((signer) => {
+              const deployObject: ContractFactory = new ethers.ContractFactory(abi, '0x' + code, signer)
+              deployRunner(deployObject, { abi, signer }, libData.data.contractName, contract.filename, callback)
+            })
+          }
+          const contractDeployData = await execution.txFormat.encodeConstructorCallAndDeployLibraries(contractName, contract.raw, compileResult, params, funAbi, encodeDataDeployLibraryCallback)
+
+          const signer = await provider.getSigner()
+          const deployObject: ContractFactory = new ethers.ContractFactory(contract.abi, '0x' + contractDeployData.dataHex, signer)
+
+          await new Promise<void>((resolve, reject) => {
+            deployRunner(deployObject, { abi: contract.abi, signer }, contractName, contract.filename, (error: any) => {
+              if (error) reject(error)
+              else resolve()
+            })
           })
         }
+      }
 
-        const encodeDataStepCallback = (msg) => { console.dir(msg) }
-
-        const encodeDataDeployLibraryCallback = (libData, callback) => {
-          const abi = compiledObject[libData.data.contractName].abi
-          const code = compiledObject[libData.data.contractName].code
-          provider.getSigner().then((signer) => {
-            const deployObject: ContractFactory = new ethers.ContractFactory(abi, '0x' + code, signer)
-            deployRunner(deployObject, { abi, signer }, libData.data.contractName, contract.filename, callback)
-          })
-        }
-
-        const funAbi = null // no need to set the abi for encoding the constructor
-        const params = '' // we suppose that the test contract does not have any param in the constructor
-        execution.txFormat.encodeConstructorCallAndDeployLibraries(contractName, contract.raw, compileResult, params, funAbi, encodeDataFinalCallback, encodeDataStepCallback, encodeDataDeployLibraryCallback)
-      }, function (err) {
-        if (err) return next(err)
-        next(null, contracts)
-      })
+      deployAllContracts()
+        .then(() => next(null, contracts))
+        .catch((error) => {
+          console.error(error)
+          next(error)
+        })
     }
   ], callback)
 }

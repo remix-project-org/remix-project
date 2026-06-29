@@ -10,7 +10,8 @@ import {
   WeiToEtherArgs,
   EtherToWeiArgs,
   DecimalToHexArgs,
-  HexToDecimalArgs
+  HexToDecimalArgs,
+  TimestampToDateArgs
 } from '../types/mcpTools';
 import { Plugin } from '@remixproject/engine';
 import { formatEther, parseEther } from 'ethers';
@@ -243,13 +244,113 @@ export class HexToDecimalHandler extends BaseToolHandler {
 }
 
 /**
+ * Unix Timestamp to Human Readable Date Converter Tool Handler
+ */
+export class TimestampToDateHandler extends BaseToolHandler {
+  name = 'timestamp_to_date';
+  description = 'Convert Unix timestamp to human readable date/time';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      timestamp: {
+        type: ['string', 'number'],
+        description: 'Unix timestamp (seconds since epoch) to convert to human readable date'
+      },
+      format: {
+        type: 'string',
+        enum: ['iso', 'local', 'utc'],
+        description: 'Output format: "iso" for ISO string, "local" for local date string, "utc" for UTC string',
+        default: 'iso'
+      }
+    },
+    required: ['timestamp']
+  };
+
+  getPermissions(): string[] {
+    return ['utils:convert'];
+  }
+
+  validate(args: TimestampToDateArgs): boolean | string {
+    const required = this.validateRequired(args, ['timestamp']);
+    if (required !== true) return required;
+
+    // Convert to number for validation
+    const timestampNum = typeof args.timestamp === 'string' ? parseInt(args.timestamp, 10) : args.timestamp;
+
+    // Validate that timestamp is a valid number
+    if (isNaN(timestampNum)) {
+      return 'Timestamp must be a valid number';
+    }
+
+    // Check if timestamp is reasonable (between 1970 and far future)
+    if (timestampNum < 0 || timestampNum > 4294967295) {
+      return 'Timestamp must be a valid Unix timestamp (0 to 4294967295)';
+    }
+
+    // Validate format if provided
+    if (args.format && !['iso', 'local', 'utc'].includes(args.format)) {
+      return 'Format must be one of: iso, local, utc';
+    }
+
+    return true;
+  }
+
+  async execute(args: TimestampToDateArgs, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      const timestamp = typeof args.timestamp === 'string' ? parseInt(args.timestamp, 10) : args.timestamp;
+      const format = args.format || 'iso';
+
+      // Create Date object from timestamp (multiply by 1000 to convert seconds to milliseconds)
+      const date = new Date(timestamp * 1000);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return this.createErrorResult('Invalid timestamp - cannot convert to valid date');
+      }
+
+      let formattedDate: string;
+      let formatDescription: string;
+
+      switch (format) {
+      case 'iso':
+        formattedDate = date.toISOString();
+        formatDescription = 'ISO 8601';
+        break;
+      case 'local':
+        formattedDate = date.toString();
+        formatDescription = 'Local time string';
+        break;
+      case 'utc':
+        formattedDate = date.toUTCString();
+        formatDescription = 'UTC string';
+        break;
+      default:
+        formattedDate = date.toISOString();
+        formatDescription = 'ISO 8601';
+      }
+
+      return this.createSuccessResult({
+        success: true,
+        timestamp: timestamp,
+        date: formattedDate,
+        format: format,
+        message: `${timestamp} (Unix timestamp) = ${formattedDate} (${formatDescription})`,
+        timezone: format === 'local' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined
+      });
+    } catch (error) {
+      return this.createErrorResult(`Failed to convert timestamp to date: ${error.message}`);
+    }
+  }
+}
+
+/**
  * Create math utilities tool definitions
  */
 export function createMathUtilsTools(): RemixToolDefinition[] {
   return [
     {
       name: 'wei_to_ether',
-      description: 'Convert wei to ether',
+      description: 'Convert wei to ether. ALWAYS use this tool when you want to output an ETHER value knowing the WEI value.',
       inputSchema: new WeiToEtherHandler().inputSchema,
       category: ToolCategory.DEPLOYMENT,
       permissions: ['utils:convert'],
@@ -257,7 +358,7 @@ export function createMathUtilsTools(): RemixToolDefinition[] {
     },
     {
       name: 'ether_to_wei',
-      description: 'Convert ether to wei',
+      description: 'Convert ether to wei. ALWAYS use this tool when you want to output a WEI value knowing the ETHER value.',
       inputSchema: new EtherToWeiHandler().inputSchema,
       category: ToolCategory.DEPLOYMENT,
       permissions: ['utils:convert'],
@@ -265,7 +366,7 @@ export function createMathUtilsTools(): RemixToolDefinition[] {
     },
     {
       name: 'decimal_to_hex',
-      description: 'Convert decimal number to hexadecimal',
+      description: 'Convert decimal number to hexadecimal. ALWAYS use this tool when you need an hexadecimal value knowing the decimal value (when you display a value to the user, when a generated script or MCP tool require a specific type, etc...).',
       inputSchema: new DecimalToHexHandler().inputSchema,
       category: ToolCategory.DEPLOYMENT,
       permissions: ['utils:convert'],
@@ -273,11 +374,19 @@ export function createMathUtilsTools(): RemixToolDefinition[] {
     },
     {
       name: 'hex_to_decimal',
-      description: 'Convert hexadecimal to decimal number',
+      description: 'Convert hexadecimal to decimal number. ALWAYS use this tool when you need an decimal value knowing the hexadecimal value (when you display a value to the user, when a generated script or MCP tool require a specific type, etc...).',
       inputSchema: new HexToDecimalHandler().inputSchema,
       category: ToolCategory.DEPLOYMENT,
       permissions: ['utils:convert'],
       handler: new HexToDecimalHandler()
+    },
+    {
+      name: 'timestamp_to_date',
+      description: 'Convert Unix timestamp to human readable date/time. ALWAYS use this tool when you want to output a human readable date knowing the Unix timestamp.',
+      inputSchema: new TimestampToDateHandler().inputSchema,
+      category: ToolCategory.DEPLOYMENT,
+      permissions: ['utils:convert'],
+      handler: new TimestampToDateHandler()
     }
   ];
 }

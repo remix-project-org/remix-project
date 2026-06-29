@@ -54,7 +54,7 @@ export default function (op, full) {
     0x3c: ['EXTCODECOPY', 700, 4, 0, true, true],
     0x3d: ['RETURNDATASIZE', 2, 0, 1, true],
     0x3e: ['RETURNDATACOPY', 3, 3, 0, true],
-    0x3f: ['EXTCODEHASH', 400, 3, 0, true],
+    0x3f: ['EXTCODEHASH', 400, 1, 1, true, true],
 
     // '0x40' range - block operations
     0x40: ['BLOCKHASH', 20, 1, 1, true, true],
@@ -65,6 +65,9 @@ export default function (op, full) {
     0x45: ['GASLIMIT', 2, 0, 1, true],
     0x46: ['CHAINID', 2, 0, 1, false],
     0x47: ['SELFBALANCE', 5, 0, 1, false],
+    0x48: ['BASEFEE', 2, 0, 1, false],
+    0x49: ['BLOBHASH', 3, 1, 1, false],
+    0x4a: ['BLOBBASEFEE', 2, 0, 1, false],
 
     // 0x50 range - 'storage' and execution
     0x50: ['POP', 2, 1, 0, false],
@@ -79,6 +82,10 @@ export default function (op, full) {
     0x59: ['MSIZE', 2, 0, 1, false],
     0x5a: ['GAS', 2, 0, 1, false],
     0x5b: ['JUMPDEST', 1, 0, 0, false],
+    0x5c: ['TLOAD', 100, 1, 1, false],
+    0x5d: ['TSTORE', 100, 2, 0, false],
+    0x5e: ['MCOPY', 3, 3, 0, true],
+    0x5f: ['PUSH0', 3, 0, 1, false],
 
     // 0x60, range
     0x60: ['PUSH1', 3, 0, 1, false],

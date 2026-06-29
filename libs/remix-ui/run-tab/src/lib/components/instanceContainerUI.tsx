@@ -22,7 +22,7 @@ export function InstanceContainerUI(props: InstanceContainerProps) {
             <FormattedMessage id="udapp.deployedContracts" />
           </label>
         </CustomTooltip>
-        <CustomTooltip placement="top-start" tooltipClasses="text-nowrap" tooltipId="numOfDeployedInstancesTooltip" tooltipText="Number of deployed contracts">
+        <CustomTooltip placement="top-start" tooltipClasses="text-nowrap" tooltipId="numOfDeployedInstancesTooltip" tooltipText={<FormattedMessage id="udapp.numberOfDeployedContractsTooltip" />}>
           <div className="badge rounded-pill text-bg-primary text-center ms-2" data-id="deployedContractsBadge">{instanceList.length}</div>
         </CustomTooltip>
         <div className="w-100"></div>
@@ -51,14 +51,9 @@ export function InstanceContainerUI(props: InstanceContainerProps) {
                 unpinInstance={props.unpinInstance}
                 removeInstance={props.removeInstance}
                 index={index}
-                gasEstimationPrompt={props.gasEstimationPrompt}
-                passphrasePrompt={props.passphrasePrompt}
-                mainnetPrompt={props.mainnetPrompt}
                 runTransactions={props.runTransactions}
-                sendValue={props.sendValue}
                 getFuncABIInputs={props.getFuncABIInputs}
                 plugin={props.plugin}
-                exEnvironment={props.exEnvironment}
                 editInstance={props.editInstance}
                 solcVersion={props.solcVersion}
                 getVersion={props.getVersion}

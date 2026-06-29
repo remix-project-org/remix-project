@@ -10,6 +10,8 @@ const testsBash = {
   },
   'open xterm linux and create a file': function (browser: NightwatchBrowser) {
     browser
+      .waitForElementVisible('*[data-id="toggleBottomPanelIcon"]')
+      .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('*[data-id="tabXTerm"]', 10000)
       .click('*[data-id="tabXTerm"]')
       .waitForElementVisible('*[data-type="remixUIXT"]', 10000)

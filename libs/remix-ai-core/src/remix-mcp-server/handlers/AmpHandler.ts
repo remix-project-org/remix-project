@@ -1,3 +1,4 @@
+import { remixAILogger } from '../../helpers/logger'
 /* eslint-disable no-async-promise-executor */
 /**
  * Amp Query Tool Handlers for Remix MCP Server
@@ -90,7 +91,7 @@ export class AmpQueryHandler extends BaseToolHandler {
       return this.createSuccessResult(result);
 
     } catch (error) {
-      console.error('Amp query error:', error?.cause?.rawMessage);
+      remixAILogger.error('Amp query error:', error?.cause?.rawMessage);
 
       const errorMessage = error?.cause?.rawMessage
 
@@ -201,7 +202,7 @@ export class AmpDatasetManifestHandler extends BaseToolHandler {
       return this.createSuccessResult(result);
 
     } catch (error) {
-      console.error('Amp dataset manifest fetch error:', error?.cause?.rawMessage);
+      remixAILogger.error('Amp dataset manifest fetch error:', error?.cause?.rawMessage);
 
       const errorMessage = error?.cause?.rawMessage
 
@@ -252,12 +253,10 @@ export class AmpDatasetListHandler extends BaseToolHandler {
           return { indexing_chains: d.indexing_chains, description: d.description, ...short }
         })
       };
-
-      console.log(result)
       return this.createSuccessResult(result);
 
     } catch (error) {
-      console.error('Amp dataset listt fetch error:', error);
+      remixAILogger.error('Amp dataset listt fetch error:', error);
 
       const errorMessage = error instanceof Error ? error.message : String(error);
 

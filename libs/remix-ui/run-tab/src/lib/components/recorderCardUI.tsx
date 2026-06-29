@@ -5,7 +5,7 @@ import { RecorderProps } from '../types'
 import { CustomTooltip } from '@remix-ui/helper'
 
 export function RecorderUI(props: RecorderProps) {
-  const inputLive = useRef<HTMLInputElement>()
+  const inputLive: any = useRef<HTMLInputElement>()
   const [toggleExpander, setToggleExpander] = useState<boolean>(false)
   const [enableRunButton, setEnableRunButton] = useState<boolean>(true)
   const intl = useIntl()
@@ -16,7 +16,7 @@ export function RecorderUI(props: RecorderProps) {
 
   const handleClickRunButton = () => {
     const liveMode = inputLive.current ? inputLive.current.checked : false
-    props.runCurrentScenario(liveMode, props.gasEstimationPrompt, props.passphrasePrompt, props.mainnetPrompt)
+    props.runCurrentScenario(liveMode)
   }
 
   useEffect(() => {
@@ -50,20 +50,7 @@ export function RecorderUI(props: RecorderProps) {
               {props.count}
             </div>
           </CustomTooltip>
-          <CustomTooltip
-            placement={'auto-end'}
-            tooltipClasses="text-nowrap"
-            tooltipId="recordedTransactionsWalkthroughtooltip"
-            tooltipText={<FormattedMessage id="udapp.transactionsWalkthroughTooltip" />}
-          >
-            <i
-              className={'ms-2 fas fa-info align-self-center'}
-              aria-hidden="true"
-              onClick={() => startWalkthrough()}
-              data-id="recorderStartWalkthrough"
-            >
-            </i>
-          </CustomTooltip>
+
         </div>
         <div className="w-100" onClick={toggleClass}></div>
         <div className="p-3">
@@ -72,6 +59,7 @@ export function RecorderUI(props: RecorderProps) {
           </span>
         </div>
       </div>
+
       { toggleExpander && <div className={`pb-2 flex-column d-flex`} data-id='remixRecorderExpanded'>
         <div className="mb-1 mt-1 form-check mb-1" id='udappRecorderUseLatest'>
           <input ref={inputLive} type="checkbox" id="livemode-recorder" className="form-check-input" name="input-livemode" />

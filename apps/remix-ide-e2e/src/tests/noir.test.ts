@@ -12,7 +12,7 @@ module.exports = {
   'Should create noir workspace template #group1': '' + function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .click('*[data-id="workspacecreate"]')
       .waitForElementPresent('*[data-id="template-card-multNr-0"]')
       .scrollAndClick('*[data-id="template-card-multNr-0"]')

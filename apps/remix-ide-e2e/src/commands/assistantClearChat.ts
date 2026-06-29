@@ -15,11 +15,12 @@ class AssistantClearChat extends EventEmitter {
 
 function clearChat(browser: NightwatchBrowser, done: VoidFunction) {
   browser
+    .assistantWaitForReady()
     .execute(function () {
-      (window as any).remixAIChat.current.clearChat();
+      (window as any).remixAIChat.current.clearChat()
     }, [])
 
   done()
 }
 
-module.exports = AssistantClearChat;
+module.exports = AssistantClearChat

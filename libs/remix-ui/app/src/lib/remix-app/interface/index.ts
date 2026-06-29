@@ -38,9 +38,36 @@ export interface AlertModal {
     message: string | JSX.Element,
 }
 
+export interface ActionNotificationAction {
+    label: string
+    /** The plugin name to call */
+    plugin?: string
+    /** The method on the plugin to call */
+    method?: string
+    /** Arguments to pass to the plugin method */
+    args?: any[]
+    /** Direct callback (used internally when called from React side) */
+    fn?: () => void
+    /** Bootstrap color variant: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'link' */
+    variant?: string
+}
+
+export interface ActionNotification {
+    id: string
+    title: string
+    message: string | JSX.Element
+    /** Action buttons to display */
+    actions: ActionNotificationAction[]
+    /** Auto-dismiss timeout in ms (0 = no auto-dismiss). Default: 0 */
+    timeout?: number
+    timestamp?: number
+    hide?: boolean
+}
+
 export interface ModalState {
     modals: AppModal[],
     toasters: {message: (string | JSX.Element), timestamp: number, timeout?: number, toastId?: number }[],
+    actionNotifications: ActionNotification[],
     focusModal: AppModal,
     focusToaster: {message: (string | JSX.Element), timestamp: number, timeout?: number, toastId?: number }
     focusTemplateExplorer: GenericModal
@@ -99,8 +126,12 @@ export interface AppState {
     needsGitInit: boolean
     canUseGit: boolean
     showPopupPanel: boolean
+    showOverlayPanel: boolean
     connectedToDesktop: desktopConnection
     desktopClientConnected: desktopConnection
-    genericModalState?: GenericModal
+    genericModalState?: GenericModal,
+    aiChatHistoryState?: { showAiChatHistory: boolean, closeAiChatHistory: boolean, toggleIsAiChatMaximized: boolean },
+    showSkillsModal?: boolean,
+    showChecklistModal?: boolean
 }
 

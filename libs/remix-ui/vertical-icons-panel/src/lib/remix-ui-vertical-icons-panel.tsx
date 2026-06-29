@@ -1,8 +1,10 @@
 import React, { Fragment, useContext, useEffect, useReducer, useRef, useState } from 'react'
 import { Plugin } from '@remixproject/engine'
+//@ts-ignore
 import './remix-ui-vertical-icons-panel.css'
 import IconList from './components/IconList'
 import Home from './components/Home'
+import { HelpMenu } from './components/HelpMenu'
 import { verticalScrollReducer } from './reducers/verticalScrollReducer'
 import { Chevron } from './components/Chevron'
 import { IconRecord } from './types'
@@ -10,6 +12,7 @@ import { AppContext, onLineContext } from '@remix-ui/app'
 import { CustomTooltip } from '@remix-ui/helper'
 import { Registry } from '@remix-project/remix-lib'
 import { desktopConnectionType } from '@remix-api'
+import { FormattedMessage } from 'react-intl'
 
 export interface RemixUiVerticalIconsPanelProps {
   verticalIconsPlugin: Plugin
@@ -27,6 +30,7 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
   const iconPanelRef = useRef<any>()
   const [activateScroll, dispatchScrollAction] = useReducer(verticalScrollReducer, initialState)
   const [theme, setTheme] = useState<string>('dark')
+  const [helpMenuOpen, setHelpMenuOpen] = useState<boolean>(false)
   const online = useContext(onLineContext)
   const appContext = useContext(AppContext)
 
@@ -84,7 +88,6 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
   return (
     <div id="iconsP" className="h-100">
       <div className="remixui_icons d-flex flex-column remixui_icons_height" ref={iconPanelRef}>
-        {/* <Home verticalIconPlugin={verticalIconsPlugin} /> */}
         <div className={scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? 'remixui_default-icons-container remixui_requiredSection' : activateScroll && activateScroll.scrollState ? 'remixui_default-icons-container remixui_requiredSection' : 'remixui_requiredSection'}>
           <IconList theme={theme} icons={icons.filter((p) => p.isRequired && p.profile.name !== 'pluginManager')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} />
           {scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? <Chevron direction="up" divElementRef={scrollableRef} cssRule={'fa fa-chevron-up remixui_icon-chevron my-0'} /> : null}
@@ -93,12 +96,12 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
           <IconList
             theme={theme}
             icons={icons.filter((p) => {
-              return !p.isRequired && p.profile.name !== 'settings'
+              return !p.isRequired && p.profile.name !== 'settings' && p.profile.name !== 'walkthrough'
             })}
             verticalIconsPlugin={verticalIconsPlugin}
             itemContextAction={itemContextAction}
           />
-          <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'settings' || p.profile.name === 'pluginManager')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} />
+          <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'settings' || p.profile.name === 'walkthrough' || p.profile.name === 'pluginManager')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} />
         </div>
         <div className="remixui_default-icons-container border-0 pb-3">
           {scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? <Chevron divElementRef={scrollableRef} direction="down" cssRule={'fa fa-chevron-down remixui_icon-chevron my-0'} /> : null}
@@ -113,6 +116,19 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
               </CustomTooltip>
             )
           ) : null}
+        </div>
+        <div className="remixui_help-container">
+          <CustomTooltip placement="right" tooltipText={<FormattedMessage id="home.helpAndResources" defaultMessage="Help & Resources" />}>
+            <button
+              className="remixui_help-btn"
+              data-id="helpMenuButton"
+              aria-expanded={helpMenuOpen}
+              onClick={() => setHelpMenuOpen((prev) => !prev)}
+            >
+              <i className="fas fa-circle-info" aria-hidden="true"></i>
+            </button>
+          </CustomTooltip>
+          {helpMenuOpen && <HelpMenu onClose={() => setHelpMenuOpen(false)} />}
         </div>
       </div>
     </div>

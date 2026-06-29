@@ -1,14 +1,12 @@
 import { envChangeNotification } from "@remix-ui/helper"
 import { RunTab } from "../types/run-tab"
 import { trackMatomoEvent } from '@remix-api'
-import { setExecutionContext, setFinalContext, updateAccountBalances, fillAccountsList } from "./account"
 import { setAccount, addExternalProvider, addInstance, addNewProxyDeployment, removeExternalProvider, setNetworkNameFromProvider, setPinnedChainId, setExecEnv } from "./actions"
 import { addDeployOption, clearAllInstances, clearRecorderCount, setSelectedAccount, fetchContractListSuccess, resetProxyDeployments, resetUdapp, setCurrentContract, setCurrentFile, setLoadType, setRecorderCount, setRemixDActivated, setSendValue, fetchAccountsListSuccess, fetchAccountsListRequest, setSendUnit } from "./payload"
 import { updateInstanceBalance } from './deploy'
 import { CompilerAbstract } from '@remix-project/remix-solidity'
 import BN from 'bn.js'
 import { Plugin } from "@remixproject/engine"
-import { getNetworkProxyAddresses } from "./deploy"
 import { shortenAddress } from "@remix-ui/helper"
 import { parseUnits } from "ethers"
 
@@ -27,8 +25,8 @@ export const setupEvents = (plugin: RunTab) => {
     chainId: null
   }
   plugin.on('remixAI', 'setValueRequest', (value, unit) => {
-    dispatch(setSendUnit(unit))
-    dispatch(setSendValue(value))
+    plugin.call('udappDeploy', 'setValueUnit', unit)
+    plugin.call('udappDeploy', 'setValue', value)
   })
   plugin.blockchain.events.on('newTransaction', (tx, receipt) => {
     plugin.emit('newTransaction', tx, receipt)
@@ -37,15 +35,11 @@ export const setupEvents = (plugin: RunTab) => {
   plugin.blockchain.event.register('transactionExecuted', (error, from, to, data, lookupOnly, txResult) => {
     if (!lookupOnly) dispatch(setSendValue('0'))
     if (error) return
-    updateAccountBalances(plugin, dispatch)
+    // updateAccountBalances(plugin, dispatch)
     updateInstanceBalance(plugin, dispatch)
   })
 
   plugin.blockchain.event.register('contextChanged', async (context) => {
-    dispatch(resetProxyDeployments())
-    getNetworkProxyAddresses(plugin, dispatch)
-    setFinalContext(plugin, dispatch)
-    fillAccountsList(plugin, dispatch)
     // 'contextChanged' & 'networkStatus' both are triggered on workspace & network change
     // There is chance that pinned contracts state is overridden by other event
     // We load pinned contracts for VM environment in this event
@@ -70,7 +64,7 @@ export const setupEvents = (plugin: RunTab) => {
     if (currentNetwork.provider !== networkProvider() || (!isVM && currentNetwork.chainId !== network.id)) {
       currentNetwork.provider = networkProvider()
       if (!isVM) {
-        fillAccountsList(plugin, dispatch)
+        // fillAccountsList(plugin, dispatch)
         currentNetwork.chainId = network.id
         await loadPinnedContracts(plugin, dispatch, pinnedChainId)
       }
@@ -101,18 +95,18 @@ export const setupEvents = (plugin: RunTab) => {
 
   plugin.on('desktopHost', 'chainChanged', (context) => {
     //console.log('desktopHost chainChanged', context)
-    fillAccountsList(plugin, dispatch)
+    // fillAccountsList(plugin, dispatch)
     updateInstanceBalance(plugin, dispatch)
   })
 
-  plugin.on('desktopHost', 'disconnected', () => {
-    setExecutionContext(plugin, dispatch, { context: 'vm-cancun', fork: '' })
-  })
+  // plugin.on('desktopHost', 'disconnected', () => {
+  //   setExecutionContext(plugin, dispatch, { context: 'vm-cancun', fork: '' })
+  // })
 
-  plugin.on('udapp', 'setEnvironmentModeReducer', (env: { context: string, fork: string }, from: string) => {
-    plugin.call('notification', 'toast', envChangeNotification(env, from))
-    setExecutionContext(plugin, dispatch, env)
-  })
+  // plugin.on('udapp', 'setEnvironmentModeReducer', (env: { context: string, fork: string }, from: string) => {
+  //   plugin.call('notification', 'toast', envChangeNotification(env, from))
+  //   setExecutionContext(plugin, dispatch, env)
+  // })
 
   plugin.on('udapp', 'clearAllInstancesReducer', () => {
     dispatch(clearAllInstances())
@@ -187,7 +181,7 @@ export const setupEvents = (plugin: RunTab) => {
   })
 
   setInterval(() => {
-    fillAccountsList(plugin, dispatch)
+    // fillAccountsList(plugin, dispatch)
     updateInstanceBalance(plugin, dispatch)
   }, 30000)
 }

@@ -7,16 +7,16 @@ type EndpointUrls = {
 };
 
 const defaultUrls: EndpointUrls = {
-  ipfsGateway: 'https://jqgt.api.remix.live',
-  ghfolderpull: 'https://ghfolderpull.api.remix.live',
+  ipfsGateway: 'https://api.remix.live/endpoints/jqgt',
+  ghfolderpull: 'https://api.remix.live/endpoints/ghfolderpull',
 };
 
 const endpointPathMap: Record<keyof EndpointUrls, string> = {
-  ipfsGateway: 'jqgt',
-  ghfolderpull: 'ghfolderpull',
+  ipfsGateway: 'endpoints/jqgt',
+  ghfolderpull: 'endpoints/ghfolderpull',
 };
 
-const prefix = process.env.NX_ENDPOINTS_URL;
+const prefix = null;
 
 const resolvedUrls: EndpointUrls = prefix
   ? Object.fromEntries(

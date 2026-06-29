@@ -1,16 +1,29 @@
 import { util } from '@remix-project/remix-lib'
 import { EventManager } from '../eventManager'
+import type { Ethdebugger } from '../Ethdebugger'
+import type { TraceManager } from '../trace/traceManager'
 
+/**
+ * Manages stepping through transaction execution traces in the debugger.
+ * Handles navigation, breakpoints, and maintains the current execution state.
+ */
 export class DebuggerStepManager {
-  event
-  debugger
-  traceManager
+  event: EventManager
+  debugger: Ethdebugger
+  traceManager: TraceManager
   currentStepIndex: number
   traceLength: number
   codeTraceLength: number
   revertionPoint
   currentCall
 
+  /**
+   * Creates a new DebuggerStepManager instance.
+   * Initializes step tracking and sets up event listeners for trace management.
+   *
+   * @param {Object} _debugger - The debugger instance
+   * @param {Object} traceManager - The trace manager instance for accessing execution trace
+   */
   constructor (_debugger, traceManager) {
     this.event = new EventManager()
     this.debugger = _debugger
@@ -23,6 +36,11 @@ export class DebuggerStepManager {
     this.listenToEvents()
   }
 
+  /**
+   * Registers event listeners for debugger and call tree events.
+   * Handles trace loading, call tree building, and step index changes.
+   * Detects revert conditions and triggers appropriate warnings.
+   */
   listenToEvents () {
     this.debugger.event.register('newTraceLoaded', this, () => {
       this.traceManager.getLength((error, newLength) => {
@@ -95,6 +113,12 @@ export class DebuggerStepManager {
     })
   }
 
+  /**
+   * Triggers the stepChanged event with the current step state.
+   * Determines if the step is at the initial position, end position, or within valid range.
+   *
+   * @param {number} step - The step index to trigger the event for
+   */
   triggerStepChanged (step) {
     this.traceManager.getLength((error, length) => {
       let stepState = 'valid'
@@ -112,70 +136,98 @@ export class DebuggerStepManager {
     })
   }
 
+  /**
+   * Steps backward into the previous instruction in the trace.
+   * In Solidity mode, resolves to the previous source code location.
+   *
+   * @param {boolean} solidityMode - If true, steps to previous Solidity source location; if false, steps to previous EVM instruction
+   */
   stepIntoBack (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    let step = this.currentStepIndex - 1
-    this.currentStepIndex = step
+
+    let step
     if (solidityMode) {
-      step = this.resolveToReducedTrace(step, -1)
-    }
+      step = this.resolveToReducedTrace(this.currentStepIndex, -1)
+    } else
+      step = this.currentStepIndex - 1
+
+    this.currentStepIndex = step
     if (!this.traceManager.inRange(step)) {
       return
     }
     this.triggerStepChanged(step)
   }
 
+  /**
+   * Steps forward into the next instruction in the trace.
+   * In Solidity mode, resolves to the next source code location.
+   *
+   * @param {boolean} solidityMode - If true, steps to next Solidity source location; if false, steps to next EVM instruction
+   */
   stepIntoForward (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    let step = this.currentStepIndex + 1
-    this.currentStepIndex = step
+    let step
     if (solidityMode) {
-      step = this.resolveToReducedTrace(step, 1)
-    }
+      step = this.resolveToReducedTrace(this.currentStepIndex, 1)
+    } else
+      step = this.currentStepIndex + 1
+    this.currentStepIndex = step
     if (!this.traceManager.inRange(step)) {
       return
     }
     this.triggerStepChanged(step)
   }
 
+  /**
+   * Steps backward over the current statement, skipping into function calls.
+   * Moves to the previous statement at the same or higher scope level.
+   *
+   * @param {boolean} solidityMode - If true, steps at Solidity source level; if false, steps at EVM instruction level
+   */
   stepOverBack (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    let step = this.traceManager.findStepOverBack(this.currentStepIndex)
-    if (solidityMode) {
-      step = this.resolveToReducedTrace(step, -1)
-    }
+    const step = this.traceManager.findStepOverBack(this.currentStepIndex)
     if (this.currentStepIndex === step) return
     this.currentStepIndex = step
     this.triggerStepChanged(step)
   }
 
+  /**
+   * Steps forward over the current statement, skipping function call details.
+   * If at a function call, jumps to the statement after the call returns.
+   *
+   * @param {boolean} solidityMode - If true, steps at Solidity source level; if false, steps at EVM instruction level
+   */
   stepOverForward (solidityMode) {
     if (!this.traceManager.isLoaded()) return
     if (this.currentStepIndex >= this.traceLength - 1) return
-    let step = this.currentStepIndex + 1
-    const scope = this.debugger.callTree.findScope(step)
-    if (scope && scope.firstStep === step) {
-      step = scope.lastStep + 1
-    }
-    if (solidityMode) {
-      step = this.resolveToReducedTrace(step, 1)
-    }
+
+    // Use the traceManager's findStepOverForward for proper call handling
+    const step = this.traceManager.findStepOverForward(this.currentStepIndex)
     if (this.currentStepIndex === step) return
     this.currentStepIndex = step
     this.triggerStepChanged(step)
   }
 
+  /**
+   * Jumps out of the current function scope to the calling context.
+   * Moves execution to the step immediately after the current function call.
+   *
+   * @param {boolean} solidityMode - If true, resolves at Solidity source level; if false, at EVM instruction level
+   */
   jumpOut (solidityMode) {
     if (!this.traceManager.isLoaded()) return
-    let step = this.traceManager.findStepOut(this.currentStepIndex)
-    if (solidityMode) {
-      step = this.resolveToReducedTrace(step, 0)
-    }
+    const step = this.traceManager.findStepOut(this.currentStepIndex)
     if (this.currentStepIndex === step) return
     this.currentStepIndex = step
     this.triggerStepChanged(step)
   }
 
+  /**
+   * Jumps directly to a specific step in the execution trace.
+   *
+   * @param {number} step - The target step index to jump to
+   */
   jumpTo (step) {
     if (!this.traceManager.inRange(step)) return
     if (this.currentStepIndex === step) return
@@ -183,14 +235,26 @@ export class DebuggerStepManager {
     this.triggerStepChanged(step)
   }
 
+  /**
+   * Jumps to the step where a revert/exception occurred in the transaction.
+   * Uses the stored revertionPoint from the last detected revert.
+   */
   jumpToException () {
     this.jumpTo(this.revertionPoint)
   }
 
+  /**
+   * Jumps forward to the next breakpoint in the trace.
+   * If no breakpoint is found ahead, stays at the current position.
+   */
   jumpNextBreakpoint () {
     this.debugger.breakpointManager.jumpNextBreakpoint(this.currentStepIndex, true)
   }
 
+  /**
+   * Jumps to the previous breakpoint in the trace.
+   * If no breakpoint is found ahead, stays at the current position.
+   */
   jumpPreviousBreakpoint () {
     this.debugger.breakpointManager.jumpPreviousBreakpoint(this.currentStepIndex, true)
   }
@@ -230,13 +294,29 @@ export class DebuggerStepManager {
     if (!this.debugger.callTree.reducedTrace.length) {
       return value
     }
-    let nextSource = util.findClosestIndex(value, this.debugger.callTree.reducedTrace)
-    nextSource = nextSource + incr
-    if (nextSource <= 0) {
-      nextSource = 0
-    } else if (nextSource > this.debugger.callTree.reducedTrace.length) {
-      nextSource = this.debugger.callTree.reducedTrace.length - 1
+    let index = this.debugger.callTree.reducedTrace.indexOf(value)
+    if (index !== -1) {
+      const newIndex = index + incr
+      // Ensure we stay within bounds
+      if (newIndex < 0) return this.debugger.callTree.reducedTrace[0]
+      if (newIndex >= this.debugger.callTree.reducedTrace.length) {
+        return this.debugger.callTree.reducedTrace[this.debugger.callTree.reducedTrace.length - 1]
+      }
+      return this.debugger.callTree.reducedTrace[newIndex]
     }
-    return this.debugger.callTree.reducedTrace[nextSource]
+    index = util.findLowerBound(value, this.debugger.callTree.reducedTrace)
+    if (index === 0) {
+      return this.debugger.callTree.reducedTrace[0]
+    } else if (index >= this.debugger.callTree.reducedTrace.length) {
+      return this.debugger.callTree.reducedTrace[this.debugger.callTree.reducedTrace.length - 1]
+    }
+
+    if (incr === -1) return this.debugger.callTree.reducedTrace[index]
+    // Ensure index + 1 doesn't go out of bounds
+    const nextIndex = index + 1
+    if (nextIndex >= this.debugger.callTree.reducedTrace.length) {
+      return this.debugger.callTree.reducedTrace[this.debugger.callTree.reducedTrace.length - 1]
+    }
+    return this.debugger.callTree.reducedTrace[nextIndex]
   }
 }

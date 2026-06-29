@@ -18,12 +18,15 @@ function track(event) {
     console.debug('Tracking error:', error)
   }
 }
+/*
 if (typeof window !== 'undefined' && typeof window.ethereum !== 'undefined') {
   var injectedProvider = window.ethereum
   provider = new ethers.BrowserProvider(injectedProvider, 'any')
 } else {
   provider = new ethers.JsonRpcProvider('http://localhost:8545')
-}
+}*/
+
+provider = new ethers.AbstractProvider()
 
 /*
   trigger contextChanged, web3EndpointChanged
@@ -75,68 +78,61 @@ export class ExecutionContext {
     return provider
   }
 
-  detectNetwork (callback) {
-    return new Promise((resolve, reject) => {
-      if (this.isVM()) {
-        callback && callback(null, { id: '-', name: 'VM' })
-        return resolve({ id: '-', name: 'VM' })
-      } else {
-        if (!provider) {
-          callback && callback('No provider set')
-          return reject('No provider set')
-        }
-        const cb = async (err, id) => {
-          let name = 'Custom'
-          let networkNativeCurrency = { name: "Ether", symbol: "ETH", decimals: 18 }
-          if (err) name = 'Unknown'
-          // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
-          else if (id === 1) name = 'Main'
-          else if (id === 11155111) name = 'Sepolia'
-          else {
-            let networkDetails = localStorage.getItem('networkDetails')
-            if (!networkDetails) networkDetails = '{}'
-            networkDetails = JSON.parse(networkDetails)
-            if (networkDetails[id]) {
-              name = networkDetails[id].name
-              networkNativeCurrency = networkDetails[id].nativeCurrency
-            } else {
-              const response = await fetch('https://chainid.network/chains.json')
-              if (response.ok) {
-                const networks = await response.json()
-                const connectedNetwork = networks.find((n) => n.chainId === id)
-                if (connectedNetwork) {
-                  name = connectedNetwork.name
-                  networkNativeCurrency = connectedNetwork.nativeCurrency
-                  networkDetails[id] = { name, nativeCurrency:  networkNativeCurrency}
-                  localStorage.setItem('networkDetails', JSON.stringify(networkDetails))
-                }
-              }
+  async detectNetwork () {
+    if (this.isVM()) {
+      return { id: '-', name: 'VM' }
+    } else {
+      if (!provider) {
+        throw new Error('No provider set')
+      }
+      const network = await provider.getNetwork()
+      const id = parseInt(network.chainId)
+      let name = 'Custom'
+      let networkNativeCurrency = { name: "Ether", symbol: "ETH", decimals: 18 }
+      // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
+      if (id === 1) name = 'Main'
+      else if (id === 11155111) name = 'Sepolia'
+      else {
+        let networkDetails = localStorage.getItem('networkDetails')
+        if (!networkDetails) networkDetails = '{}'
+        networkDetails = JSON.parse(networkDetails)
+        if (networkDetails[id]) {
+          name = networkDetails[id].name
+          networkNativeCurrency = networkDetails[id].nativeCurrency
+        } else {
+          const response = await fetch('https://chainid.network/chains.json')
+          if (response.ok) {
+            const networks = await response.json()
+            const connectedNetwork = networks.find((n) => n.chainId === id)
+            if (connectedNetwork) {
+              name = connectedNetwork.name
+              networkNativeCurrency = connectedNetwork.nativeCurrency
+              networkDetails[id] = { name, nativeCurrency:  networkNativeCurrency}
+              localStorage.setItem('networkDetails', JSON.stringify(networkDetails))
             }
           }
-        
-          if (id === 1) {
-            provider.getBlock(0).then((block) => {
-              if (block && block.hash !== this.mainNetGenesisHash) name = 'Custom'
-              callback && callback(err, { id, name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency })
-              return resolve({ id, name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency })
-            }).catch((error) => {
-              // Rabby wallet throws an error at this point. We are in that case unable to check the genesis hash.
-              callback && callback(err, { id, name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency })
-              return resolve({ id, name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency })
-            })
-          } else {
-            callback && callback(err, { id, name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency })
-            return resolve({ id, name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency })
-          }
         }
-        provider.getNetwork().then(async (network) => await cb(null, parseInt(network.chainId))).catch(err => cb(err))
       }
-    })
+        
+      if (id === 1) {
+        try {
+          const block = await provider.getBlock(0)
+
+          if (block && block.hash !== this.mainNetGenesisHash) name = 'Custom'
+          return { id: id.toString(), name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency }
+        } catch(error) {
+          // Rabby wallet throws an error at this point. We are in that case unable to check the genesis hash.
+          return { id: id.toString(), name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency }
+        }
+      } else {
+        return { id: id.toString(), name, lastBlock: this.lastBlock, currentFork: this.currentFork, networkNativeCurrency }
+      }
+    }
   }
 
-  removeProvider (name) {
+  async removeProvider (name) {
     if (name && this.customNetWorks[name]) {
-      if (this.executionContext === name) this.setContext('vm-osaka', null, null, null)
+      if (this.executionContext === name) await this.setContext('vm-osaka')
       delete this.customNetWorks[name]
       this.event.trigger('removeProvider', [name])
     }
@@ -156,12 +152,24 @@ export class ExecutionContext {
     return provider
   }
 
-  setContext (context, endPointUrl, confirmCb, infoCb) {
+  async setContext (context) {
     this.executionContext = context
-    this.executionContextChange(context, endPointUrl, confirmCb, infoCb, null)
+    await this.executionContextChange(context)
   }
 
-  async executionContextChange (value, endPointUrl, confirmCb, infoCb, cb) {
+  discardPreviousConnectionAttempt () {
+    this.abortController && this.abortController.abort()
+  }
+
+  _withAbort(promise, signal) {
+    return new Promise((resolve, reject) => {
+      signal.throwIfAborted(); // already aborted before we start
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      promise.then(resolve).catch(reject);
+    })
+  }
+
+  async executionContextChange (value) {
     // Track provider change event
     track({
       category: 'udapp',
@@ -170,24 +178,22 @@ export class ExecutionContext {
       isClick: false
     })
     const context = value.context
-    if (!cb) cb = () => { /* Do nothing. */ }
-    if (!confirmCb) confirmCb = () => { /* Do nothing. */ }
-    if (!infoCb) infoCb = () => { /* Do nothing. */ }
     if (this.customNetWorks[context]) {
       this.isConnected = false
       var network = this.customNetWorks[context]
       try {
-        await network.init()
+        this.abortController = new AbortController();
+        await this._withAbort(network.init(), this.abortController.signal)
+        this.abortController = null
         this.currentFork = network.config.fork
         // injected
         provider = new ethers.BrowserProvider(network.provider, 'any')
         this.executionContext = context
         this.isConnected = await this._updateChainContext()
         this.event.trigger('contextChanged', [context])
-        cb()
       } catch (e) {
         console.error(e)
-        cb(false)
+        throw e
       }
     }
   }

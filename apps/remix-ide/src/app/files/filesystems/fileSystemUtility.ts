@@ -5,6 +5,18 @@ import { trackMatomoEvent } from '@remix-api'
 
 import type { MatomoEvent } from '@remix-api'
 
+function isFileSystemUtilityDebugEnabled(): boolean {
+  try {
+    return localStorage.getItem('remix-storage-debug') === 'true'
+  } catch {
+    return false
+  }
+}
+
+function logFileSystemUtility(...args: any[]): void {
+  if (isFileSystemUtilityDebugEnabled()) console.log(...args)
+}
+
 // Helper function to track events using MatomoManager instance
 function track(event: MatomoEvent) {
   try {
@@ -22,12 +34,12 @@ export class fileSystemUtility {
       await fsTo.checkWorkspaces()
 
       if (fsTo.hasWorkSpaces) {
-        console.log(`${fsTo.name} already has files`)
+        logFileSystemUtility(`${fsTo.name} already has files`)
         return true
       }
 
       if (!fsFrom.hasWorkSpaces) {
-        console.log('no files to migrate')
+        logFileSystemUtility('no files to migrate')
         return true
       }
 
@@ -36,18 +48,18 @@ export class fileSystemUtility {
       const toFiles = await this.copyFolderToJson('/', null, null, fsTo.fs)
 
       if (hashMessage(JSON.stringify(toFiles)) === hashMessage(JSON.stringify(fromFiles))) {
-        console.log('file migration successful')
+        logFileSystemUtility('file migration successful')
         return true
       } else {
         track({ category: 'Migrate', action: 'error', name: 'hash mismatch', isClick: false })
-        console.log('file migration failed falling back to ' + fsFrom.name)
+        logFileSystemUtility('file migration failed falling back to ' + fsFrom.name)
         fsTo.loaded = false
         return false
       }
     } catch (err) {
-      console.log(err)
+      logFileSystemUtility(err)
       track({ category: 'Migrate', action: 'error', name: err && err.message, isClick: false })
-      console.log('file migration failed falling back to ' + fsFrom.name)
+      logFileSystemUtility('file migration failed falling back to ' + fsFrom.name)
       fsTo.loaded = false
       return false
     }
@@ -69,7 +81,7 @@ export class fileSystemUtility {
       track({ category: 'Backup', action: 'download', name: 'preload', isClick: true })
     } catch (err) {
       track({ category: 'Backup', action: 'error', name: err && err.message, isClick: false })
-      console.log(err)
+      logFileSystemUtility(err)
     }
   }
 

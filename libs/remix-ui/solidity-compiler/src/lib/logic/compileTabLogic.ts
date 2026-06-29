@@ -1,10 +1,10 @@
 import { ICompilerApi } from '@remix-project/remix-lib'
-import { getValidLanguage, Compiler } from '@remix-project/remix-solidity'
+import { getValidLanguage, Compiler, EVMVersion, Language } from '@remix-project/remix-solidity'
 import { EventEmitter } from 'events'
 import { configFileContent } from '../compilerConfiguration'
 
 export class CompileTabLogic {
-  public compiler
+  public compiler: Compiler
   public api: ICompilerApi
   public contentImport
   public optimize
@@ -15,12 +15,21 @@ export class CompileTabLogic {
   public event
   public evmVersions: Array<string>
   public useFileConfiguration: boolean
+  private debug: boolean = false
 
-  constructor (api: ICompilerApi, contentImport) {
+  constructor (api: ICompilerApi, debug?: boolean, createCompiler?: (api: ICompilerApi, debug?: boolean) => any) {
     this.api = api
-    this.contentImport = contentImport
+    // Enable debug logging if explicitly set, or if localStorage flag is set
+    this.debug = debug !== undefined ? debug : (localStorage.getItem('remix-debug-resolver') === 'true')
+
     this.event = new EventEmitter()
-    this.compiler = new Compiler((url, cb) => api.resolveContentAndSave(url).then((result) => cb(null, result)).catch((error) => cb(error.message)))
+
+    // Create compiler (injectable). Default to legacy Compiler if none provided.
+    if (createCompiler) {
+      this.compiler = createCompiler(this.api, this.debug)
+    } else {
+      this.compiler = new Compiler((url, cb) => api.resolveContentAndSave(url).then((result) => cb(null, result)).catch((error) => cb(error.message)))
+    }
     this.evmVersions = ['default', 'osaka', 'prague', 'cancun', 'shanghai', 'paris', 'london', 'berlin', 'istanbul', 'petersburg', 'constantinople', 'byzantium', 'spuriousDragon', 'tangerineWhistle', 'homestead']
   }
 
@@ -43,11 +52,11 @@ export class CompileTabLogic {
       this.evmVersion = null
     }
     this.api.setCompilerQueryParameters({ evmVersion: this.evmVersion })
-    this.compiler.set('evmVersion', this.evmVersion)
+    this.compiler.set('evmVersion', this.evmVersion as EVMVersion)
 
     this.language = getValidLanguage(this.api.getCompilerQueryParameters().language)
     if (this.language != null) {
-      this.compiler.set('language', this.language)
+      this.compiler.set('language', this.language as Language)
     }
 
   }
@@ -73,7 +82,7 @@ export class CompileTabLogic {
   setEvmVersion (newEvmVersion) {
     this.evmVersion = newEvmVersion
     this.api.setCompilerQueryParameters({ evmVersion: this.evmVersion })
-    this.compiler.set('evmVersion', this.evmVersion)
+    this.compiler.set('evmVersion', this.evmVersion as EVMVersion)
   }
 
   async getCompilerState () {
@@ -144,21 +153,27 @@ export class CompileTabLogic {
    * Compile a specific file of the file manager
    * @param {string} target the path to the file to compile
    */
-  compileFile (target) {
+  async compileFile (target) {
     if (!target) throw new Error('No target provided for compilation')
-    return new Promise((resolve, reject) => {
-      this.api.readFile(target).then(async(content) => {
-        const sources = { [target]: { content } }
-        this.event.emit('removeAnnotations')
-        this.event.emit('startingCompilation')
-        await this.setCompilerMappings()
-        await this.setCompilerConfigContent()
-        // setTimeout fix the animation on chrome... (animation triggered by 'staringCompilation')
-        setTimeout(() => { this.compiler.compile(sources, target); resolve(true) }, 100)
-      }).catch((error) => {
-        reject(error)
-      })
-    })
+
+    try {
+      // Read the entry file
+      const content = await this.api.readFile(target)
+
+      this.event.emit('removeAnnotations')
+      this.event.emit('startingCompilation')
+      await this.setCompilerMappings()
+      await this.setCompilerConfigContent()
+
+      const sources = { [target]: { content } }
+
+      this.compiler.compile(sources, target)
+
+      return true
+    } catch (error) {
+      console.error(`[CompileTabLogic] ❌ Compilation failed:`, error)
+      throw error
+    }
   }
 
   async isHardhatProject () {

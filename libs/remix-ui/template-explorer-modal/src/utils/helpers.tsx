@@ -31,6 +31,7 @@ export const templatesRepository = [
         displayName: "ERC20",
         tagList: ["ERC20", "Solidity"],
         description: 'A customizable fungible token contract',
+        requiresCustomization: true,
       },
       {
         value: "ozerc20",
@@ -66,6 +67,7 @@ export const templatesRepository = [
         displayName: "ERC721 (NFT)",
         tagList: ["ERC721", "Solidity"],
         description: 'A customizable non-fungible token (NFT) contract',
+        requiresCustomization: true,
       },
       {
         value: "ozerc721",
@@ -101,6 +103,7 @@ export const templatesRepository = [
         tagList: ["ERC1155", "Solidity"],
         displayName: "ERC1155",
         description: 'A customizable multi token contract',
+        requiresCustomization: true,
       },
       {
         value: "ozerc1155",
@@ -408,6 +411,23 @@ export const templatesRepository = [
       }
     ],
     IsArtefact: true
+  },
+  {
+    name: 'Chainlink CRE',
+    items: [
+      {
+        value: "creAIPredictionMarket",
+        displayName: 'AI Prediction Market',
+        tagList: ["Solidity", "Chainlink"],
+        description: 'CRE Bootcamp: Building AI-Powered Prediction Markets'
+      },
+      {
+        value: "creWorldCupPredictionMarket",
+        displayName: 'World Cup Prediction Market',
+        tagList: ["Solidity", "Chainlink"],
+        description: 'CRE Bootcamp: Building World Cup Prediction Markets'
+      }
+    ]
   }
 ]
 

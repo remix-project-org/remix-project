@@ -14,7 +14,7 @@ const profile = {
   name: 'editor',
   description: 'service - editor',
   version: packageJson.version,
-  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff'],
+  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints', 'acceptDiff', 'discardDiff', 'getDiffSessions', 'setActiveDiff', 'closeDiffSession', 'openSplitView', 'closeSplitView'],
 }
 
 export default class Editor extends Plugin {
@@ -37,6 +37,17 @@ export default class Editor extends Plugin {
     this.previousInput = ''
     this.saveTimeout = null
     this.emptySession = null
+    
+    // Multiple diff sessions support
+    this.diffSessions = {}  // Store multiple diff sessions: { diffId: { originalPath, modifiedPath, originalContent, modifiedContent, path } }
+    this.activeDiffId = null  // Currently active diff session
+    this.diffCounter = 0  // Counter for generating unique diff IDs
+
+    // Split view state (for showing two different files side by side)
+    this.splitViewFile = null
+    this.splitViewContent = null
+    this.splitViewLeftPath = null
+
     this.modes = {
       sol: 'sol',
       yul: 'sol',
@@ -61,7 +72,8 @@ export default class Editor extends Plugin {
       html: 'html',
       css: 'css',
       sql: 'sql',
-      md: 'md'
+      md: 'md',
+      subgraph: 'subgraph'
     }
 
     this.activated = false
@@ -107,6 +119,8 @@ export default class Editor extends Plugin {
       events={state.events}
       plugin={state.plugin}
       isDiff={state.isDiff}
+      splitViewFile={state.splitViewFile}
+      splitViewContent={state.splitViewContent}
       setMonaco={(monaco) => this.setMonaco(monaco)}
     />
   }
@@ -138,6 +152,8 @@ export default class Editor extends Plugin {
       currentFile: this.currentFile,
       currentDiffFile: this.currentDiffFile,
       isDiff: this.isDiff,
+      splitViewFile: this.splitViewFile,
+      splitViewContent: this.splitViewContent,
       events: this.events,
       plugin: this
     })
@@ -512,8 +528,167 @@ export default class Editor extends Plugin {
     return this.api.findMatches(this.currentFile, string)
   }
 
+  _simpleHash(str) {
+    let hash = 0;
+    if (str.length === 0) return hash.toString();
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString();
+  }
+
   async showCustomDiff (file, content) {
-    return this.api.showCustomDiff(file, content)
+    const source = this.getText(file) || ''
+    try {
+      await this.openDiff({
+        hashOriginal: this._simpleHash(source),
+        hashModified: this._simpleHash(content),
+        readonly: true,
+        path: file,
+        modified: content,
+        original: source,
+        type: "modified",
+      })
+    } catch (err) {
+      console.error('[editor] showCustomDiff failed:', err)
+    }
+  }
+
+  hasUnacceptedChanges () {
+    return this.api.hasUnacceptedChanges()
+  }
+
+  /**
+   * Open a split view showing two files side by side
+   * @param {string} leftPath - Path of the file to show on the left
+   * @param {string} rightPath - Path of the file to show on the right
+   * @param {string} rightContent - Content for the right side
+   */
+  async openSplitView (leftPath, rightPath, rightContent) {
+    try {
+      // Make sure the left file is opened
+      const openedfiles = await this.call('fileManager', 'getOpenedFiles')
+      if (!openedfiles[leftPath]) {
+        await this.call('fileManager', 'openFile', leftPath)
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+
+      // Set split view state
+      this.splitViewLeftPath = leftPath
+      this.splitViewFile = rightPath
+      this.splitViewContent = rightContent
+      this.renderComponent()
+    } catch (err) {
+      console.error('[editor] openSplitView failed:', err)
+      throw err
+    }
+  }
+
+  closeSplitView () {
+    this.splitViewFile = null
+    this.splitViewContent = null
+    this.splitViewLeftPath = null
+    this.renderComponent()
+  }
+
+  setIsDiff (isDiff, currentDiffFile = null, hashedPathModified = null) {
+    this.isDiff = isDiff
+    this.currentDiffFile = currentDiffFile
+    this.hashedPathModified = hashedPathModified
+  }
+
+  createDiffSession (originalPath, modifiedPath, originalContent, modifiedContent, filePath) {
+    const diffId = `diff_${++this.diffCounter}`
+    this.diffSessions[diffId] = {
+      id: diffId,
+      originalPath,
+      modifiedPath, 
+      originalContent,
+      modifiedContent,
+      filePath,
+      createdAt: Date.now()
+    }
+    return diffId
+  }
+
+  setActiveDiff (diffId) {
+    if (this.diffSessions[diffId]) {
+      this.activeDiffId = diffId
+      const session = this.diffSessions[diffId]
+      this.setIsDiff(true, session.originalPath, session.modifiedPath)
+      return true
+    }
+    return false
+  }
+
+  closeDiffSession (diffId) {
+    if (this.diffSessions[diffId]) {
+      const session = this.diffSessions[diffId]
+      // Clean up sessions
+      if (this.sessions[session.originalPath]) {
+        delete this.sessions[session.originalPath]
+      }
+      if (this.sessions[session.modifiedPath]) {
+        delete this.sessions[session.modifiedPath]
+      }
+      delete this.diffSessions[diffId]
+      
+      // If this was the active diff, switch to another or close diff view
+      if (this.activeDiffId === diffId) {
+        const remainingDiffs = Object.keys(this.diffSessions)
+        if (remainingDiffs.length > 0) {
+          this.setActiveDiff(remainingDiffs[0])
+        } else {
+          this.setIsDiff(false)
+          this.activeDiffId = null
+          this.renderComponent()
+        }
+      }
+      return true
+    }
+    return false
+  }
+
+  getDiffSessions () {
+    return Object.values(this.diffSessions)
+  }
+
+  acceptDiff () {
+    if (!this.activeDiffId || !this.diffSessions[this.activeDiffId]) {
+      return false
+    }
+    
+    const diffSession = this.diffSessions[this.activeDiffId]
+    console.log('Accepting diff for', diffSession.filePath, { diffId: this.activeDiffId })
+    
+    // Open the original file with the modified content
+    this.open(diffSession.filePath, diffSession.modifiedContent)
+    this.emit('customDiffAccepted', diffSession.filePath)
+    
+    // Close this diff session
+    this.closeDiffSession(this.activeDiffId)
+    
+    return true
+  }
+
+  discardDiff () {
+    if (!this.activeDiffId || !this.diffSessions[this.activeDiffId]) {
+      return false
+    }
+    
+    const diffSession = this.diffSessions[this.activeDiffId]
+    console.log('Discarding diff for', diffSession.filePath, { diffId: this.activeDiffId })
+    
+    // Open the original file with the original content (discarding changes)
+    this.open(diffSession.filePath, diffSession.originalContent)
+    this.emit('customDiffRejected', diffSession.filePath)
+    
+    // Close this diff session
+    this.closeDiffSession(this.activeDiffId)
+    
+    return true
   }
 
   addModel(path, content) {
@@ -562,7 +737,7 @@ export default class Editor extends Plugin {
        - URL prepended with "browser"
        - URL not prepended with the file explorer. We assume (as it is in the whole app, that this is a "browser" URL
     */
-    this.isDiff = false
+    this.setIsDiff(false)
     if (!this.sessions[path]) {
       this.readOnlySessions[path] = false
       const session = await this._createSession(path, content, this._getMode(path))
@@ -584,19 +759,36 @@ export default class Editor extends Plugin {
       const session = await this._createSession(path, content, this._getMode(path))
       this.sessions[path] = session
     }
-    this.isDiff = false
+    this.setIsDiff(false)
     this._switchSession(path)
   }
 
   async openDiff(change) {
+    const openedfiles = await this.call('fileManager', 'getOpenedFiles')
+    if (!openedfiles[change.path] || !openedfiles) {
+      await this.call('fileManager', 'openFile', change.path)
+      await new Promise(resolve => setTimeout(resolve, 500)) // wait for file to be opened and content to be loaded in the file manager
+    }
     const hashedPathModified = change.readonly ? change.path + change.hashModified : change.path
     const hashedPathOriginal = change.path + change.hashOriginal
     const session = await this._createSession(hashedPathModified, change.modified, this._getMode(change.path), change.readonly)
     await this._createSession(hashedPathOriginal, change.original, this._getMode(change.path), change.readonly)
     this.sessions[hashedPathModified] = session
-    this.currentDiffFile = hashedPathOriginal
-    this.isDiff = true
+    
+    // Create a new diff session
+    const diffId = this.createDiffSession(
+      hashedPathOriginal, 
+      hashedPathModified, 
+      change.original, 
+      change.modified, 
+      change.path
+    )
+    
+    // Set this as the active diff
+    this.setActiveDiff(diffId)
     this._switchSession(hashedPathModified)
+    
+    return diffId
   }
 
   /**
@@ -781,8 +973,13 @@ export default class Editor extends Plugin {
 
   async addDecoration (decoration, filePath, typeOfDecoration) {
     if (!filePath) return
-    filePath = await this.call('fileManager', 'getPathFromUrl', filePath)
-    filePath = filePath.file
+    try {
+      const currentFile = await this.call('fileManager', 'file')
+      const resolved = await this.call('resolutionIndex', 'resolvePath', currentFile, filePath)
+      filePath = resolved || filePath
+    } catch (e) {
+      // best-effort: fall back to provided path
+    }
     if (!this.sessions[filePath]) return
     const path = filePath || this.currentFile
 
@@ -811,10 +1008,40 @@ export default class Editor extends Plugin {
     await this.addDecoration(annotation, filePath, 'sourceAnnotationsPerFile')
   }
 
-  async highlight (position, filePath, highlightColor, opt = { focus: true }) {
-    filePath = filePath || this.currentFile
+  async highlight (position, filePath, highlightColor, opt = { focus: true, origin: undefined }) {
+    // Allow callers (e.g. debugger) to specify the import origin file so we can
+    // resolve the correct dependency version/path via resolutionIndex.
+    // Falls back to the current file when origin is not provided for backward compatibility.
+    try {
+      const currentFile = await this.call('fileManager', 'file')
+      const originPath = opt && opt.origin ? opt.origin : currentFile
+      
+      // Try resolution index with __sources__ + .raw_paths.json approach first
+      if (originPath) {
+        try {
+          const resolved = await this.call('resolutionIndex', 'resolveActualPath', originPath, filePath)
+          if (resolved) {
+            filePath = resolved
+          } else {
+            // Fall back to regular resolution
+            const fallback = await this.call('resolutionIndex', 'resolvePath', originPath, filePath)
+            filePath = fallback || filePath || this.currentFile
+          }
+        } catch (e) {
+          console.log('Resolution failed, using provided path:', e)
+          filePath = filePath || this.currentFile
+        }
+      } else {
+        filePath = filePath || this.currentFile
+      }
+    } catch (e) {
+      // best-effort: fall back to provided path or current file
+      filePath = filePath || this.currentFile
+    }
+
     if (opt.focus) {
       await this.call('fileManager', 'open', filePath)
+      await new Promise((resolve) => setTimeout(resolve, 50)) // wait for the editor to load the file
       this.scrollToLine(position.start.line)
     }
     await this.addDecoration({ position }, filePath, 'markerPerFile')
@@ -841,5 +1068,11 @@ export default class Editor extends Plugin {
 
   getPositionAt(offset) {
     return this.api.getPositionAt(offset)
+  }
+
+  clearAllBreakpoints() {
+    if (this.api && this.api.clearAllBreakpoints) {
+      return this.api.clearAllBreakpoints()
+    }
   }
 }

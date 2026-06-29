@@ -1,0 +1,239 @@
+.environment-item-hover:hover {
+    background-color: var(--custom-onsurface-layer-3) !important;
+    border-radius: 0 !important;
+    color: var(--theme-text-color, --bs-gray-500) !important;
+  }
+  .account-item-hover:hover {
+    background-color: var(--custom-onsurface-layer-3) !important;
+    border-radius: 0 !important;
+    color: var(--theme-text-color, --bs-gray-600) !important;
+  }
+  .category-item-hover:hover {
+    background-color: var(--custom-onsurface-layer-4) !important;
+    border-radius: 0 !important;
+    color: var(--theme-text-color, --bs-gray-500) !important;
+  }
+  .account-balance-container {
+    position: relative;
+  }
+  .account-balance-text {
+    display: block;
+  }
+  .account-kebab-icon {
+    display: none;
+  }
+  .account-item-hover:hover .account-balance-text {
+    display: none;
+  }
+  .account-item-hover:hover .account-kebab-icon {
+    display: block;
+    padding-right: 0.5rem;
+  }
+  .account-kebab-icon:hover {
+    color: var(--theme-text-color, white) !important;
+  }
+  .selected-account-balance-container {
+    position: relative;
+  }
+  .selected-account-balance-text {
+    display: block;
+  }
+  .selected-account-kebab-icon {
+    display: none;
+  }
+  .selected-account-hover:hover .selected-account-balance-text,
+  .selected-account-hover.dropdown-open .selected-account-balance-text,
+  .selected-account-balance-container.kebab-menu-open .selected-account-balance-text {
+    display: none;
+  }
+  .selected-account-hover:hover .selected-account-kebab-icon,
+  .selected-account-hover.dropdown-open .selected-account-kebab-icon,
+  .selected-account-balance-container.kebab-menu-open .selected-account-kebab-icon {
+    display: block;
+    padding-right: 0.5rem;
+  }
+  .selected-account-kebab-icon:hover {
+    color: var(--theme-text-color, white) !important;
+  }
+  .account-balance-container.kebab-menu-open .account-balance-text {
+    display: none;
+  }
+  .account-balance-container.kebab-menu-open .account-kebab-icon {
+    display: block;
+    padding-right: 0.5rem;
+  }
+
+  /* Smart account hierarchical display */
+  .smart-account-item {
+    position: relative;
+  }
+
+  .indented-account {
+    position: relative;
+  }
+
+  .smart-account-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: none;
+    color: var(--bs-info);
+    background: var(--bs-light);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .smart-account-badge-selected {
+    margin-top: 0.25rem;
+  }
+
+  .smart-account-badge-dropdown {
+    margin-top: 0.25rem;
+  }
+
+  .tree-connector-vertical {
+    position: absolute;
+    left: -1rem;
+    top: 0;
+    bottom: 50%;
+    width: 1px;
+    background-color: var(--bs-border-color, #888);
+  }
+
+  .tree-connector-horizontal {
+    position: absolute;
+    left: -1rem;
+    top: 50%;
+    width: 10px;
+    height: 1px;
+    background-color: var(--bs-border-color, #888);
+  }
+
+  .account-info-container {
+    gap: 0.25rem;
+  }
+
+  .account-details-wrapper {
+    position: relative;
+    width: 100%;
+    gap: 0.25rem;
+  }
+
+  .indented-account-wrapper {
+    position: relative;
+    width: 100%;
+    gap: 0.25rem;
+  }
+
+  .owner-label-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--bs-info);
+    background: var(--custom-onsurface-layer-2);
+    white-space: nowrap;
+  }
+
+  .account-address-label {
+    color: var(--bs-tertiary-color);
+    position: relative;
+  }
+
+  .edit-account-input {
+    width: 150px;
+  }
+
+  .copy-icon {
+    cursor: pointer;
+  }
+
+  .cursor-pointer {
+    cursor: pointer;
+  }
+
+  .env-card {
+    background-color: var(--custom-onsurface-layer-1);
+  }
+
+  .env-card-heading {
+    color: var(--theme-text-color);
+  }
+
+  .btn-small-text {
+    font-size: 0.7rem;
+  }
+
+  .env-toggle {
+    background-color: var(--custom-onsurface-layer-2);
+    cursor: pointer;
+  }
+
+  .env-toggle:hover {
+    background-color: var(--custom-onsurface-layer-3) !important;
+  }
+
+  .env-toggle-content {
+    flex-grow: 1;
+    overflow: hidden;
+    display: flex;
+    justify-content: left;
+  }
+
+  .dropdown-menu-env {
+    background-color: var(--custom-onsurface-layer-2);
+    z-index: 1;
+    padding: 0;
+  }
+
+  .account-toggle {
+    background-color: var(--custom-onsurface-layer-2);
+  }
+
+  .account-toggle:hover {
+    background-color: var(--custom-onsurface-layer-3) !important;
+  }
+
+  .account-balance-color {
+    color: var(--bs-tertiary-color);
+  }
+
+  .delegation-alert {
+    font-size: 0.85rem;
+  }
+
+  .delegation-address {
+    max-width: 150px;
+  }
+
+  .deployed-contracts-section {
+    color: var(--bs-tertiary-color);
+  }
+
+  .indented-dropdown-item {
+    padding-left: 1.75rem !important;
+  }
+
+  .normal-dropdown-item {
+    padding-left: 0.5rem !important;
+  }
+
+  /* Sticky header shadow effect */
+  #udappEnvComponent {
+    transition: box-shadow 0.3s ease-in-out;
+  }
+
+  #udappEnvComponent.scrolled {
+    box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.2), 0 3px 6px -2px rgba(0, 0, 0, 0.15);
+  }
+
+  #udappScrollableContent {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+
+  [data-theme="dark"] #udappScrollableContent {
+    background-color: rgba(255, 255, 255, 0.02);
+  }

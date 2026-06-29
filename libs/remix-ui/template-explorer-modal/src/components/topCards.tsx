@@ -156,7 +156,7 @@ export function TopCards() {
   return (
     <div className="title">
       <div className="row g-3 mb-1" style={{ position: 'relative' }}>
-        <div className="col-6">
+        <div className="col-12 col-md-6">
           <div
             data-id="create-blank-workspace-topcard"
             className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
@@ -195,7 +195,7 @@ export function TopCards() {
             </span>
           </div>
         </div>
-        <div className="col-6">
+        <div className="col-12 col-md-6">
           <div
             data-id="create-with-ai-topcard"
             className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
@@ -247,7 +247,7 @@ export function TopCards() {
             </span>
           </div>
         </div>
-        <div className="col-6">
+        <div className="col-12 col-md-6">
           <div
             data-id="contract-wizard-topcard"
             className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
@@ -258,7 +258,7 @@ export function TopCards() {
                 trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizard', isClick: true })
               } else {
                 dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
-                facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract' }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
+                facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract', requiresCustomization: true }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
                 trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizardCreateFile', isClick: true })
               }
             }}
@@ -283,7 +283,7 @@ export function TopCards() {
             </span>
           </div>
         </div>
-        {(!isElectron() || state.manageCategory !== 'Template') && <div className="col-6">
+        {(!isElectron() || state.manageCategory !== 'Template') && <div className="col-12 col-md-6">
           <div
             ref={importCardRef}
             data-id="import-project-topcard"
@@ -351,13 +351,14 @@ export function TopCards() {
           </div>
         </div>}
         {importFiles && <ImportOptions />}
-        {state.manageCategory === 'Template' && <div className="col-6">
+        {state.manageCategory === 'Template' && <div className="col-12 col-md-6">
           <div
             data-id="create-git-clone"
             className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
             onClick={async () => {
-              facade.closeWizard()
-              showCloneModal()
+              // facade.closeWizard()
+              // showCloneModal()
+              dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'gitClone' })
               trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardGitClone', isClick: true })
             }}
             style={{

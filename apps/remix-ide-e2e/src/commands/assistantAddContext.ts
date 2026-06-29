@@ -15,7 +15,7 @@ class AssistantAddCtx extends EventEmitter {
 
 function selectCtx(browser: NightwatchBrowser, ctx: string, done: VoidFunction) {
   browser
-    .waitForElementVisible('*[data-id="remix-ai-assistant"]')
+    .assistantWaitForReady()
     .waitForElementVisible('*[data-id="composer-ai-add-context"]')
     .click({
       locateStrategy: 'xpath',

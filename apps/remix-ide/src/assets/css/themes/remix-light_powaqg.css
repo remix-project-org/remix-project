@@ -137,6 +137,9 @@
   --custom-ai-color: #1ea2aa;
   --custom-onsurface-layer-1:#f8fafe;
   --custom-onsurface-layer-2:#fff;
+  --custom-primary: #007aa6;
+  --fws-desktop-color: #E67065;
+  --fws-desktop-color-rgb: 230, 112, 101;
 }
 
 [data-bs-theme=dark] {
@@ -196,6 +199,9 @@
   --custom-ai-color: #2de7f3;
   --custom-onsurface-layer-1:#f8fafe;
   --custom-onsurface-layer-2:#fff;
+  --custom-primary: #007aa6;
+  --fws-desktop-color: #E67065;
+  --fws-desktop-color-rgb: 230, 112, 101;
 }
 
 *,
@@ -255,7 +261,7 @@ body {
 .btn-ai span {
     color: var(--custom-ai-color);
 }
-  
+
 .btn-ai:hover {
     opacity: 0.8;
 }
@@ -282,6 +288,9 @@ h6, .h6, h5, .h5, h4, .h4, h3, .h3, h2, .h2, h1, .h1 {
 
 h1, .h1 {
   font-size: calc(1.425rem + 2.1vw);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px;
 }
 @media (min-width: 1200px) {
   h1, .h1 {
@@ -291,6 +300,9 @@ h1, .h1 {
 
 h2, .h2 {
   font-size: calc(1.375rem + 1.5vw);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 20px;
 }
 @media (min-width: 1200px) {
   h2, .h2 {
@@ -300,6 +312,9 @@ h2, .h2 {
 
 h3, .h3 {
   font-size: calc(1.325rem + 0.9vw);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 18px;
 }
 @media (min-width: 1200px) {
   h3, .h3 {
@@ -309,6 +324,9 @@ h3, .h3 {
 
 h4, .h4 {
   font-size: calc(1.275rem + 0.3vw);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 14px;
 }
 @media (min-width: 1200px) {
   h4, .h4 {
@@ -318,6 +336,9 @@ h4, .h4 {
 
 h5, .h5 {
   font-size: 1.25rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 14px;
 }
 
 h6, .h6 {
@@ -12309,4 +12330,9 @@ textarea.form-control-lg {
 .toast .btn-close,
 .offcanvas .btn-close {
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23000'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e");
+}
+
+/* Custom theme-aware text color for debugger values */
+.text-theme-contrast {
+  color: #000;
 }

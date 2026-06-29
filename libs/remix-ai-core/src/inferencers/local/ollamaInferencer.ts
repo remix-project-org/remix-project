@@ -1,3 +1,4 @@
+import { remixAILogger } from '../../helpers/logger'
 import { AIRequestType, ICompletions, IGeneration, IParams } from "../../types/types";
 import { CompletionParams, GenerationParams } from "../../types/models";
 import { discoverOllamaHost, listModels } from "./ollama";
@@ -5,6 +6,7 @@ import { HandleOllamaResponse } from "../../helpers/streamHandler";
 import { sanitizeCompletionText } from "../../helpers/textSanitizer";
 import { FIMModelManager } from "./fimModelConfig";
 import { buildChatPrompt } from "../../prompts/promptBuilder";
+import { ChatHistory } from "../../prompts/chat";
 import {
   CONTRACT_PROMPT,
   WORKSPACE_PROMPT,
@@ -74,7 +76,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
       trackMatomoEvent('ai', 'remixAI', `ollama_initialize_success:${this.model_name}`);
     } catch (error) {
       trackMatomoEvent('ai', 'remixAI', `ollama_model_selection_error:${error.message || 'unknown_error'}`);
-      console.warn('Could not auto-select model. Make sure you have at least one model installed:', error);
+      remixAILogger.warn('Could not auto-select model. Make sure you have at least one model installed:', error);
     }
   }
 
@@ -197,7 +199,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
         return hasInsertSupport;
       }
     } catch (error) {
-      console.warn(`Failed to check model insert support: ${error}`);
+      remixAILogger.warn(`Failed to check model insert support: ${error}`);
     }
     return false;
   }
@@ -340,10 +342,12 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
     }
 
     try {
+      this.currentAbortController = new AbortController()
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(streamPayload),
+        signal: this.currentAbortController.signal,
       });
 
       if (!response.ok) {
@@ -504,7 +508,7 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
 
   async answer(prompt: string, options: IParams = GenerationParams): Promise<any> {
     trackMatomoEvent('ai', 'remixAI', `ollama_chat_answer:model:${this.model_name}|stream:${!!options.stream_result}|tools:${!!options.tools}`);
-    const chatHistory = buildChatPrompt()
+    const chatHistory = buildChatPrompt(ChatHistory.queueSize)
     const payload = this._buildPayload(prompt, options, CHAT_PROMPT, chatHistory);
     if (options.stream_result) {
       return await this._streamInferenceRequest(payload, AIRequestType.GENERAL);

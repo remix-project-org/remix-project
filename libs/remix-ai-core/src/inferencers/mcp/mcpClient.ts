@@ -1,3 +1,5 @@
+import { remixAILogger } from '../../helpers/logger'
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import EventEmitter from "events";
 import {
   IMCPResource,
@@ -21,7 +23,7 @@ function trackMatomoEvent(category: string, action: string, name?: string) {
       }
     }
   } catch (error) {
-    console.debug('Matomo tracking failed:', error);
+    remixAILogger.debug('Matomo tracking failed:', error);
   }
 }
 
@@ -40,17 +42,39 @@ export class MCPClient {
   private resourceListCache?: { resources: IMCPResource[], timestamp: number }; // Cache for HTTP servers
   private toolListCache?: { tools: IMCPTool[], timestamp: number }; // Cache for HTTP servers
   private readonly CACHE_TTL = 120000; // 120 seconds cache TTL
+  private sessionId: string
+  // Optional bearer-token provider. Resolved fresh on every outgoing
+  // request so we always pick up the current JWT (refreshes, logouts).
+  // Returns null when the user is anonymous — in that case we omit
+  // the Authorization header rather than sending "Bearer null".
+  private getAuthToken?: () => Promise<string | null>;
 
-  constructor(server: IMCPServer, remixMCPServer?: any) {
+  constructor(server: IMCPServer, remixMCPServer?: any, getAuthToken?: () => Promise<string | null>) {
     this.server = server;
     this.eventEmitter = new EventEmitter();
     this.remixMCPServer = remixMCPServer;
+    this.getAuthToken = getAuthToken;
+  }
+
+  private async authHeaders(): Promise<Record<string, string>> {
+    if (!this.getAuthToken) return {};
+    try {
+      const token = await this.getAuthToken();
+      if (token && typeof token === 'string') {
+        return { Authorization: `Bearer ${token}` };
+      }
+    } catch (e) {
+      // Auth plugin not active or token fetch failed — fall through
+      // anonymous. The MCP server will reject with 401 if it requires auth.
+      remixAILogger.debug('[MCPClient] auth token fetch failed:', e);
+    }
+    return {};
   }
 
   async connect(): Promise<IMCPInitializeResult> {
     try {
       this.eventEmitter.emit('connecting', this.server.name);
-      trackMatomoEvent('ai', 'mcp_connect_attempt', `${this.server.name}|${this.server.transport}`);
+      trackMatomoEvent('ai', 'remixAI', `mcp_connect_attempt_${this.server.name}|${this.server.transport}`);
 
       if (this.server.transport === 'internal') {
         return await this.connectInternal();
@@ -68,7 +92,7 @@ export class MCPClient {
 
     } catch (error) {
       this.eventEmitter.emit('error', this.server.name, error);
-      trackMatomoEvent('ai', 'mcp_connect_failed', `${this.server.name}|${error.message}`);
+      trackMatomoEvent('ai', 'remixAI', `mcp_connect_failed_${this.server.name}|${error.message}`);
       throw error;
     }
   }
@@ -82,7 +106,7 @@ export class MCPClient {
     this.connected = true;
     this.capabilities = result.capabilities;
     this.eventEmitter.emit('connected', this.server.name, result);
-    trackMatomoEvent('ai', 'mcp_connect_success', `${this.server.name}|internal`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_connect_success_${this.server.name}|internal`);
     return result;
   }
 
@@ -120,7 +144,7 @@ export class MCPClient {
     this.capabilities = result.capabilities;
 
     this.eventEmitter.emit('connected', this.server.name, result);
-    trackMatomoEvent('ai', 'mcp_connect_success', `${this.server.name}|http`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_connect_success_${this.server.name}|http`);
     return result;
   }
 
@@ -151,7 +175,7 @@ export class MCPClient {
               this.handleSSEMessage(response);
             }
           } catch (error) {
-            console.error(`[MCP] Error parsing SSE message:`, error);
+            remixAILogger.error(`[MCP] Error parsing SSE message:`, error);
           }
         };
 
@@ -182,7 +206,6 @@ export class MCPClient {
         let initialized = false;
 
         this.wsConnection.onopen = () => {
-          console.log(`[MCP] WebSocket connection opened to ${this.server.name}`);
 
           // Send initialize message
           const initMessage = {
@@ -222,7 +245,7 @@ export class MCPClient {
               this.handleWebSocketMessage(response);
             }
           } catch (error) {
-            console.error(`[MCP] Error parsing WebSocket message:`, error);
+            remixAILogger.error(`[MCP] Error parsing WebSocket message:`, error);
           }
         };
 
@@ -245,12 +268,19 @@ export class MCPClient {
   }
 
   private async sendHTTPRequest(request: any): Promise<any> {
+    // Prepare headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/event-stream', // Required by some MCP servers
+      ...(await this.authHeaders()),
+    };
+
+    // Include session ID if it exists for this endpoint
+    if (this.sessionId) headers['mcp-session-id'] = this.sessionId
+
     const response = await fetch(this.server.url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, text/event-stream', // Required by some MCP servers
-      },
+      headers,
       body: JSON.stringify(request),
       signal: this.httpAbortController!.signal
     });
@@ -258,6 +288,12 @@ export class MCPClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+    }
+
+    // Capture session ID from response header if present
+    const responseSessionId = response.headers.get('mcp-session-id');
+    if (responseSessionId) {
+      this.sessionId = responseSessionId
     }
 
     // Check if response is SSE format (some MCP servers return SSE even for POST)
@@ -286,6 +322,7 @@ export class MCPClient {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json, text/event-stream', // Required by some MCP servers
+        ...(await this.authHeaders()),
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
@@ -349,6 +386,7 @@ export class MCPClient {
       this.tools = [];
       this.resourceListCache = undefined; // Clear cache on disconnect
       this.toolListCache = undefined; // Clear cache on disconnect
+      this.sessionId = null
       this.eventEmitter.emit('disconnected', this.server.name);
     }
   }
@@ -381,7 +419,6 @@ export class MCPClient {
       // Check cache for HTTP servers
       const now = Date.now();
       if (this.resourceListCache && (now - this.resourceListCache.timestamp) < this.CACHE_TTL) {
-        console.log(`[MCP] Using cached resource list for ${this.server.name}`);
         return this.resourceListCache.resources;
       }
 
@@ -444,7 +481,7 @@ export class MCPClient {
       throw new Error(`MCP server ${this.server.name} is not connected`);
     }
 
-    trackMatomoEvent('ai', 'mcp_resource_read', `${this.server.name}|${uri}`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_resource_read_${this.server.name}|${uri}`);
 
     if (this.server.transport === 'internal' && this.remixMCPServer) {
       const response = await this.remixMCPServer.handleMessage({
@@ -546,7 +583,6 @@ export class MCPClient {
       }
 
       this.tools = response.result.tools || [];
-
       // Update cache
       this.toolListCache = {
         tools: this.tools,
@@ -591,7 +627,7 @@ export class MCPClient {
       throw new Error(`MCP server ${this.server.name} is not connected`);
     }
 
-    trackMatomoEvent('ai', 'mcp_tool_call', `${this.server.name}|${toolCall.name}`);
+    trackMatomoEvent('ai', 'remixAI', `mcp_tool_call_${this.server.name}|${toolCall.name}`);
 
     if (this.server.transport === 'internal' && this.remixMCPServer) {
       const response = await this.remixMCPServer.handleMessage({
@@ -601,10 +637,10 @@ export class MCPClient {
       });
 
       if (response.error) {
-        trackMatomoEvent('ai', 'mcp_tool_call_failed', `${this.server.name}|${toolCall.name}|${response.error.message}`);
+        trackMatomoEvent('ai', 'remixAI', `mcp_tool_call_failed_${this.server.name}|${toolCall.name}|${response.error.message}`);
         throw new Error(`Failed to call tool: ${response.error.message}`);
       }
-      trackMatomoEvent('ai', 'mcp_tool_call_success', `${this.server.name}|${toolCall.name}`);
+      trackMatomoEvent('ai', 'remixAI', `mcp_tool_call_success_${this.server.name}|${toolCall.name}`);
       return response.result;
     } else if (this.server.transport === 'http') {
       const response = await this.sendHTTPRequest({

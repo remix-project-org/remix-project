@@ -40,7 +40,7 @@
 
 .swapitTitle {
     margin: 0;
-    text-transform: uppercase;
+    /* text-transform: uppercase; */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -129,6 +129,7 @@ iframe {
 .terminal-wrap {
     min-height: 70px;
     height: 20%;
+    z-index: 1;
 }
 
 .terminal-wrap.maximized {

@@ -3,13 +3,13 @@ import React from "react";
 import { setCanUseApp, setLoading, setRepoName, setGItHubToken, setLog, setGitHubUser, setUserEmails, setTimestamp, setDesktopWorkingDir, setVersion } from "../state/gitpayload";
 import { gitActionDispatch, gitUIPanels, storage } from "../types";
 import { Plugin } from "@remixproject/engine";
-import { getBranches, getFileStatusMatrix, loadGitHubUserFromToken, getRemotes, gitlog, setPlugin, setStorage, init } from "./gitactions";
+import { getBranches, getFileStatusMatrix, loadGitHubUserFromToken, getRemotes, gitlog, setPlugin, setStorage, init, getBranchDifferences } from "./gitactions";
 import { Profile } from "@remixproject/plugin-utils";
 import { CustomRemixApi, trackMatomoEvent } from "@remix-api";
 import { saveToken, statusChanged } from "./pluginActions";
 import { appPlatformTypes } from "@remix-ui/app";
 import { AppAction } from "@remix-ui/app";
-import { setLoginPlugin, startGitHubLogin, disconnectFromGitHub } from "./gitLoginActions";
+import { setLoginPlugin, startGitHubLogin, disconnectFromGitHub, registerGitHubWithSSO } from "./gitLoginActions";
 
 let plugin: Plugin<any, CustomRemixApi>, gitDispatch: React.Dispatch<gitActionDispatch>, loaderDispatch: React.Dispatch<any>, loadFileQueue: AsyncDebouncedQueue
 let callBackEnabled: boolean = false
@@ -165,7 +165,7 @@ export const setCallBacks = (viewPlugin: Plugin, gitDispatcher: React.Dispatch<g
       gitDispatch(setTimestamp(Date.now()))
     }, 10)
     loadFileQueue.enqueue(async () => {
-      getBranches()
+      await getBranches()
     }, 20)
     gitDispatch(setLog({
       message: 'Committed changes...',
@@ -251,12 +251,32 @@ export const setCallBacks = (viewPlugin: Plugin, gitDispatcher: React.Dispatch<g
   plugin.on('githubAuthHandler', 'onLogin', async (data: { token: string }) => {
     await saveToken(data.token)
     await loadGitHubUserFromToken()
+
+    // Register with SSO API for user creation and cookie setting
+    try {
+      await registerGitHubWithSSO(data.token)
+    } catch (error) {
+      console.error('[Git] Failed to register GitHub with SSO:', error)
+      // Don't fail the flow - GitHub still works for git operations
+    }
+
     trackMatomoEvent(plugin, {
       category: 'git',
       action: 'CONNECT_TO_GITHUB_SUCCESS',
       name: 'ON_LOGIN_EVENT',
       isClick: false
     })
+  })
+
+  // Listen for GitHub token bridged from SSO login/link
+  plugin.on('auth', 'gitHubTokenReady', async (data: { token: string | null }) => {
+    if (data.token) {
+      console.log('[Git] GitHub token received from SSO, loading user...')
+      await loadGitHubUserFromToken()
+    } else {
+      console.log('[Git] GitHub token cleared via SSO disconnect')
+      await loadGitHubUserFromToken() // Will clear the state since token is gone
+    }
   })
 
   callBackEnabled = true;

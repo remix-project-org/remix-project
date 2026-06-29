@@ -6,7 +6,7 @@
   position: absolute;
   left: 0px;
   top: 0px;
-  height: 0.3em;
+  height: 6px;
   z-index: 100;
 }
 
@@ -24,6 +24,11 @@
 .dragbar_terminal.ondrag {
   background-color: var(--bs-secondary);
   cursor: row-resize;
+}
+
+/* Hide dragbar when terminal panel is hidden */
+.dragbar_terminal:has(+ .terminal-wrap.d-none) {
+  display: none !important;
 }
 
 /* Hide dragbar when terminal panel is maximized */

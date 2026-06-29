@@ -12,6 +12,7 @@ import { CommitDetails } from "../commits/commitdetails";
 import { BranchDifferences } from "./branchdifferences";
 import GitUIButton from "../../buttons/gituibutton";
 import { TrackingContext } from "@remix-ide/tracking";
+import { FormattedMessage } from "react-intl";
 
 export interface BrancheDetailsProps {
   branch: branch;
@@ -93,7 +94,7 @@ export const LocalBranchDetails = (props: BrancheDetailsProps) => {
             })}
           </div>
         </div>
-        {hasNextPage && <GitUIButton data-id='load-more-local-branches' className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}>Load more</GitUIButton>}
+        {hasNextPage && <GitUIButton data-id='load-more-local-branches' className="mb-1 ms-2 btn btn-sm" onClick={loadNextPage}><FormattedMessage id="gitui.loadMore" /></GitUIButton>}
       </>
     </Accordion.Collapse>
   </Accordion>)

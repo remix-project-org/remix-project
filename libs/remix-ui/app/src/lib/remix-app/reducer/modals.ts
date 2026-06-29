@@ -87,5 +87,21 @@ export const modalReducer = (state: ModalState = ModalInitialState, action: Moda
   case modalActionTypes.setTemplateExplorer: {
     return { ...state, focusTemplateExplorer: action.payload }
   }
+
+  case modalActionTypes.setActionNotification: {
+    const notification = {
+      ...action.payload,
+      timestamp: action.payload.timestamp || Date.now(),
+      hide: false
+    }
+    return { ...state, actionNotifications: [...state.actionNotifications, notification]}
+  }
+
+  case modalActionTypes.hideActionNotification: {
+    return {
+      ...state,
+      actionNotifications: state.actionNotifications.filter(n => n.id !== action.payload.id)
+    }
+  }
   }
 }

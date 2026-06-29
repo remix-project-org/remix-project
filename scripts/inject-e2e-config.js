@@ -42,9 +42,9 @@ const configScript = `
 	<script>
 		window.__REMIX_COMPILER_URLS__ = {
 			binURL: '${binUrl}',
-			wasmURL: '${wasmUrl}',
-			npmURL: '${npmUrl}'
+			wasmURL: '${wasmUrl}'
 		};
+    window.__IS_E2E_TEST__ = true;
 	</script>
 `;
 

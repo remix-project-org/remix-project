@@ -14,6 +14,24 @@ module.exports = {
       .waitForElementVisible('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.codicon-layout-panel')
       .waitForElementVisible('*[data-id="toggleRightSidePanelIcon"]')
+      .waitForElementVisible('.codicon-layout-sidebar-right')
+  },
+  'Check if RemixAI plugin is pinned to right side panel on load #group1': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementVisible('*[data-id="movePluginToLeft"]')
+      .waitForElementVisible('*[data-id="toggleRightSidePanelIcon"]')
+      .waitForElementVisible('.codicon-layout-sidebar-right')
+      .assistantWaitForReady()
+      .click('*[data-id="movePluginToLeft"]')
+      .waitForElementVisible('*[data-pinnedPlugin="movePluginToRight-remixaiassistant"]')
+      .waitForElementVisible('.codicon-layout-sidebar-right-off') // check the icon toggling on top bar
+      .click('*[data-id="toggleRightSidePanelIcon"]') // Check for toaster if plugin on the right side is moved to left, no plugin is pinned on the right side
+      .waitForElementVisible(
+        {
+          selector: "//*[@data-shared='tooltipPopup' and contains(.,'No plugin pinned on the Right Side Panel')]",
+          locateStrategy: 'xpath'
+        }
+      )
   },
   'Pin Solidity Compiler plugin to right side panel #group1': function (browser: NightwatchBrowser) {
     browser
@@ -55,27 +73,28 @@ module.exports = {
       .click('*[data-id="hideRightSidePanel"]')
       .waitForElementVisible('.codicon-layout-sidebar-right-off')
       .waitForElementNotVisible('#right-side-panel')
-      .clickLaunchIcon('udapp')
-      .waitForElementVisible('*[data-pinnedplugin="movePluginToRight-udapp"]')
+      .clickLaunchIcon('search')
+      .waitForElementVisible('*[data-pinnedplugin="movePluginToRight-search"]')
+      .waitForElementVisible('*[data-id="movePluginToRight"]')
       .click('*[data-id="movePluginToRight"]')
       .waitForElementVisible('#right-side-panel')
-      .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-udapp"]')
+      .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-search"]')
       .waitForElementVisible('.codicon-layout-sidebar-right')
       .waitForElementVisible('*[data-pinnedplugin="movePluginToRight-solidity"]')
   },
   'Click vertical icon of pinned plugin to unhide right side panel #group1': function (browser: NightwatchBrowser) {
     browser
       .refreshPage()
-      .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-udapp"]')
+      .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-search"]')
       .waitForElementVisible('#right-side-panel')
       .click('*[data-id="hideRightSidePanel"]')
       .waitForElementVisible('.codicon-layout-sidebar-right-off')
       .waitForElementNotVisible('#right-side-panel')
-      // Click the vertical icon for the pinned plugin (udapp)
-      .click('*[data-id="verticalIconsKindudapp"]')
+      // Click the vertical icon for the pinned plugin (search)
+      .click('*[data-id="verticalIconsKindsearch"]')
       .waitForElementVisible('#right-side-panel')
       .waitForElementVisible('.codicon-layout-sidebar-right')
-      .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-udapp"]')
+      .waitForElementVisible('*[data-pinnedplugin="movePluginToLeft-search"]')
   },
   'Hide left side panel using toggle icon on top bar #group1': function (browser: NightwatchBrowser) {
     browser
@@ -84,9 +103,8 @@ module.exports = {
       .click('*[data-id="toggleLeftSidePanelIcon"]')
       .waitForElementVisible('.codicon-layout-sidebar-left-off')
       .waitForElementNotVisible('#side-panel')
-      // Make sure other panels are visible
+      // Make sure other panels are visible (except terminal which is hidden by default)
       .waitForElementVisible('#right-side-panel')
-      .waitForElementVisible('.terminal-wrap')
   },
   'Reload & use vertical icon panel and top bar toggle icon to toggle left side bar #group1': function (browser: NightwatchBrowser) {
     browser
@@ -107,6 +125,7 @@ module.exports = {
   },
   'Hide bottom terminal panel using toggle icon on top bar #group1': function (browser: NightwatchBrowser) {
     browser
+      // Terminal is shown by init.ts for e2e tests
       .waitForElementVisible('.terminal-wrap')
       .waitForElementVisible('.codicon-layout-panel')
       .click('*[data-id="toggleBottomPanelIcon"]')
@@ -118,6 +137,7 @@ module.exports = {
   },
   'Hide bottom terminal panel using hideBottomPanel icon (close icon) #group1': function (browser: NightwatchBrowser) {
     browser
+      // Terminal is shown by init.ts for e2e tests
       .waitForElementVisible('.terminal-wrap')
       .waitForElementVisible('*[data-id="hideBottomPanel"]')
       .click('*[data-id="hideBottomPanel"]')
@@ -129,12 +149,13 @@ module.exports = {
       // Hide again using hideBottomPanel
       .click('*[data-id="hideBottomPanel"]')
       .waitForElementNotVisible('.terminal-wrap')
-      // Show again using hideBottomPanel (requires clicking top bar toggle first to show terminal bar)
+      // Show again using top bar toggle
       .click('*[data-id="toggleBottomPanelIcon"]')
       .waitForElementVisible('.terminal-wrap')
   },
   'Terminal panel automatically unhides when log is added #group1': function (browser: NightwatchBrowser) {
     browser
+      // Terminal should be visible from previous test, hide it first
       .waitForElementVisible('.terminal-wrap')
       .click('*[data-id="hideBottomPanel"]')
       .waitForElementNotVisible('.terminal-wrap')
@@ -181,7 +202,7 @@ module.exports = {
       .waitForElementNotVisible('#side-panel')
       // Open the workspace dropdown
       .waitForElementVisible('*[data-id="workspacesSelect"]')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       // Click on "Create Workspace" menu item
       .waitForElementVisible('*[data-id="workspacecreate"]')

@@ -13,30 +13,56 @@ const rightSidePanel = {
   description: 'Remix IDE right side panel',
   version: packageJson.version,
   methods: ['addView', 'removeView', 'currentFocus', 'pinView', 'unPinView', 'highlight',
-    'getHiddenPlugin', 'togglePanel', 'isPanelHidden'
+    'getHiddenPlugin', 'togglePanel', 'isPanelHidden', 'maximizePanel', 'isRightSidePanelMaximized'
   ],
   events: []
 }
 
 export class RightSidePanel extends AbstractPanel {
   dispatch: React.Dispatch<any> = () => {}
-  loggedState: Record<string, any>
-  rightSidePanelState: Record<string, any> // pluginProfile, isHidden
-  highlightStamp: number
-  hiddenPlugin: any
-  isHidden: boolean
-  isMaximized: boolean
+  loggedState: Record<string, any> = {}
+  rightSidePanelState: Record<string, any> = {} // pluginProfile, isHidden
+  highlightStamp: number = 0
+  hiddenPlugin: any = null
+  isHidden: boolean = true
+  isMaximized: boolean = false
   maximizedState: { leftPanelHidden: boolean, terminalPanelHidden: boolean }
+  desktopClientMode: boolean = false
 
-  constructor() {
+  constructor(desktopClientMode: boolean) {
     super(rightSidePanel)
+    this.desktopClientMode = desktopClientMode
+    this.isHidden = true
+    this.hiddenPlugin = null
     this.isMaximized = false
     this.maximizedState = { leftPanelHidden: false, terminalPanelHidden: false }
   }
 
-  onActivation() {
+  async onActivation() {
     this.renderComponent()
-    this.on('sidePanel', 'pluginDisabled', (name) => {
+
+    // Restore pinned plugin from localStorage if panel was previously deactivated
+    const panelStatesStr = window.localStorage.getItem('panelStates')
+    const panelStates = panelStatesStr ? JSON.parse(panelStatesStr) : {}
+    if (panelStates.rightSidePanel?.pluginProfile) {
+      const profile = panelStates.rightSidePanel.pluginProfile
+      // Check if the plugin view needs to be restored
+      if (!this.plugins[profile.name]) {
+        try {
+          // The plugin should already be activated, just need to get its view
+          const isActive = await this.call('manager', 'isActive', profile.name)
+          if (isActive) {
+            // Plugin is active, get its view and add it to the panel
+            // Note: The view will be added via the normal plugin activation flow
+            // This ensures the panel knows about the pinned plugin
+          }
+        } catch (e) {
+          console.warn('Could not restore pinned plugin on rightSidePanel activation:', e)
+        }
+      }
+    }
+
+    this.on('sidePanel', 'pluginDisabled', (name: string) => {
       if (this.plugins[name] && this.plugins[name].active) {
         this.emit('unPinnedPlugin', name)
         this.events.emit('unPinnedPlugin', name)
@@ -66,9 +92,7 @@ export class RightSidePanel extends AbstractPanel {
     })
 
     // Initialize isHidden state from panelStates in localStorage
-    const panelStatesStr = window.localStorage.getItem('panelStates')
-    const panelStates = panelStatesStr ? JSON.parse(panelStatesStr) : {}
-
+    // Reuse panelStates from earlier in the function
     if (panelStates.rightSidePanel) {
       // If no plugin profile exists, ensure the panel is hidden
       if (!panelStates.rightSidePanel.pluginProfile) {
@@ -84,12 +108,27 @@ export class RightSidePanel extends AbstractPanel {
         }
       }
 
-      if (this.isHidden) {
-        const pinnedPanel = document.querySelector('#right-side-panel')
+      // Sync DOM state with localStorage state
+      const pinnedPanel = document.querySelector('#right-side-panel')
+      if (this.isHidden || this.desktopClientMode) {
         pinnedPanel?.classList.add('d-none')
         trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnLoad', isClick: false })
         this.emit('rightSidePanelHidden')
         this.events.emit('rightSidePanelHidden')
+      } else {
+        // Explicitly remove d-none class when panel should be visible
+        pinnedPanel?.classList.remove('d-none')
+        if (panelStates.rightSidePanel.pluginProfile) {
+          trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnLoad', isClick: false })
+          this.emit('rightSidePanelShown')
+          this.events.emit('rightSidePanelShown')
+        }
+      }
+
+      // Notify vertical-icons about the pinned plugin on load
+      if (panelStates.rightSidePanel.pluginProfile) {
+        this.events.emit('pinnedPlugin', panelStates.rightSidePanel.pluginProfile, this.isHidden)
+        this.emit('pinnedPlugin', panelStates.rightSidePanel.pluginProfile, this.isHidden)
       }
     } else {
       // Initialize with default state if not found - no plugin pinned means hidden
@@ -109,7 +148,7 @@ export class RightSidePanel extends AbstractPanel {
     }
   }
 
-  async pinView (profile, view) {
+  async pinView (profile: any, view: any) {
     const activePlugin = this.currentFocus()
 
     if (activePlugin === profile.name) throw new Error(`Plugin ${profile.name} already pinned`)
@@ -122,35 +161,22 @@ export class RightSidePanel extends AbstractPanel {
     this.plugins[profile.name].pinned = true
     this.plugins[profile.name].active = true
 
-    // When pinning a plugin, check if panel was hidden because no plugin was pinned
-    const panelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
-    const wasHiddenWithNoPlugin = this.isHidden && !panelStates.rightSidePanel?.pluginProfile
+    // Determine if we should show the panel when pinning
+    const pinnedPanel = document.querySelector('#right-side-panel')
 
-    // Show the panel if it was hidden due to no plugin being pinned
-    if (wasHiddenWithNoPlugin) {
-      const pinnedPanel = document.querySelector('#right-side-panel')
-      pinnedPanel?.classList.remove('d-none')
-      this.hiddenPlugin = null
-      this.isHidden = false
-      this.events.emit('rightSidePanelShown')
-      this.emit('rightSidePanelShown')
-    } else if (this.hiddenPlugin && this.hiddenPlugin.name !== profile.name) {
-      // Only show the panel if we're pinning a different plugin than the one that's currently hidden
-      const pinnedPanel = document.querySelector('#right-side-panel')
-      pinnedPanel?.classList.remove('d-none')
-      this.hiddenPlugin = null
-      this.isHidden = false
-      this.events.emit('rightSidePanelShown')
-      this.emit('rightSidePanelShown')
-    } else if (this.hiddenPlugin && this.hiddenPlugin.name === profile.name) {
-      // If we're pinning the same plugin that was hidden, keep it hidden
-      const pinnedPanel = document.querySelector('#right-side-panel')
+    // Keep panel hidden only if we're re-pinning the exact same plugin that was explicitly hidden
+    const shouldStayHidden = this.isHidden && this.hiddenPlugin && this.hiddenPlugin.name === profile.name
+
+    if (shouldStayHidden || this.desktopClientMode) {
+      // Keep the panel hidden for the same plugin
       pinnedPanel?.classList.add('d-none')
       this.hiddenPlugin = profile
       this.isHidden = true
-    }
-
-    if (!this.isHidden && !this.hiddenPlugin) {
+    } else {
+      // Show the panel for any new plugin or when switching plugins
+      pinnedPanel?.classList.remove('d-none')
+      this.hiddenPlugin = null
+      this.isHidden = false
       this.events.emit('rightSidePanelShown')
       this.emit('rightSidePanelShown')
     }
@@ -167,7 +193,7 @@ export class RightSidePanel extends AbstractPanel {
     this.emit('pinnedPlugin', profile, this.isHidden)
   }
 
-  async unPinView (profile) {
+  async unPinView (profile: any) {
     const activePlugin = this.currentFocus()
 
     if (activePlugin !== profile.name) throw new Error(`Plugin ${profile.name} is not pinned`)
@@ -229,7 +255,6 @@ export class RightSidePanel extends AbstractPanel {
 
     // Check if no plugin is pinned
     if (!pluginProfile) {
-      this.call('notification', 'toast', 'No plugin pinned on the Right Side Panel.')
       // Ensure the panel is hidden and toggle icon is off
       if (!this.isHidden) {
         this.isHidden = true
@@ -247,7 +272,7 @@ export class RightSidePanel extends AbstractPanel {
       return
     }
 
-    if (this.isHidden) {
+    if (this.isHidden && !this.desktopClientMode) {
       this.isHidden = false
       pinnedPanel?.classList.remove('d-none')
       trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnToggleIconClick', isClick: false })
@@ -277,6 +302,10 @@ export class RightSidePanel extends AbstractPanel {
 
   isPanelHidden() {
     return this.isHidden
+  }
+
+  isRightSidePanelMaximized() {
+    return this.isMaximized
   }
 
   async maximizePanel() {
@@ -343,8 +372,11 @@ export class RightSidePanel extends AbstractPanel {
 
   highlight () {
     // If the right side panel is hidden, unhide it when a pinned icon is clicked
-    if (this.isHidden) {
-      const pinnedPanel = document.querySelector('#right-side-panel')
+    const pinnedPanel = document.querySelector('#right-side-panel')
+    const isPanelHiddenInDOM = pinnedPanel?.classList.contains('d-none')
+
+    // Check both the state variable and actual DOM state to ensure proper visibility
+    if ((this.isHidden || isPanelHiddenInDOM) && !this.desktopClientMode) {
       this.isHidden = false
       this.hiddenPlugin = null
       pinnedPanel?.classList.remove('d-none')
@@ -355,7 +387,13 @@ export class RightSidePanel extends AbstractPanel {
       // Update localStorage
       const panelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
       const currentPlugin = this.currentFocus()
-      const pluginProfile = currentPlugin && this.plugins[currentPlugin] ? this.plugins[currentPlugin].profile : null
+
+      // If no plugin in panel yet, try to get from localStorage
+      let pluginProfile = currentPlugin && this.plugins[currentPlugin] ? this.plugins[currentPlugin].profile : null
+      if (!pluginProfile && panelStates.rightSidePanel?.pluginProfile) {
+        pluginProfile = panelStates.rightSidePanel.pluginProfile
+      }
+
       panelStates.rightSidePanel = {
         isHidden: false,
         pluginProfile: pluginProfile
@@ -378,7 +416,34 @@ export class RightSidePanel extends AbstractPanel {
   }
 
   updateComponent(state: any) {
-    return <RemixPluginPanel header={<RemixUIPanelHeader plugins={state.plugins} pinView={this.pinView.bind(this)} unPinView={this.unPinView.bind(this)} togglePanel={this.togglePanel.bind(this)} maximizePanel={this.maximizePanel.bind(this)} isMaximized={this.isMaximized}></RemixUIPanelHeader>} { ...state } />
+    const hasPlugins = state.plugins && Object.keys(state.plugins).length > 0
+    return (
+      <>
+        {!hasPlugins && (
+          <div className="d-flex justify-content-center align-items-center h-100">
+            <div className="fas fa-spinner fa-pulse fa-2x text-secondary" role="status" data-id="right-side-panel-loading-spinner">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        )}
+        <RemixPluginPanel
+          header={
+            !hasPlugins ? null : (
+              <RemixUIPanelHeader
+                sourcePlugin={this}
+                plugins={state.plugins}
+                pinView={this.pinView.bind(this)}
+                unPinView={this.unPinView.bind(this)}
+                togglePanel={this.togglePanel.bind(this)}
+                maximizePanel={this.maximizePanel.bind(this)}
+                isMaximized={this.isMaximized}
+              />
+            )
+          }
+          {...state}
+        />
+      </>
+    )
   }
 
   renderComponent() {

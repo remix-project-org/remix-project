@@ -1,0 +1,307 @@
+/* ============================
+   Nudge Widget
+   Bottom-left floating contextual widget
+   ============================ */
+
+.nudge-widget {
+  /* Overridable accent colors via inline style */
+  --nw-accent: #a5b4fc;
+  --nw-bg: rgba(49, 46, 129, 0.7);
+  position: fixed;
+  bottom: 40px;
+  left: 16px;
+  width: 280px;
+  z-index: 9000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px color-mix(in srgb, var(--nw-accent) 15%, transparent);
+  background: var(--custom-onsurface-layer-2, #1a1a2e);
+  animation: nudge-slideIn 0.4s ease-out;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.nudge-widget--out {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
+@keyframes nudge-slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Close button */
+.nudge-widget-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  backdrop-filter: blur(4px);
+}
+
+.nudge-widget-close:hover {
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+/* Clickable body */
+.nudge-widget-body {
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s;
+}
+
+.nudge-widget-body:hover {
+  transform: translateY(-1px);
+}
+
+.nudge-widget-body:hover .nudge-widget-cta {
+  color: var(--nw-accent);
+}
+
+/* Illustration area */
+.nudge-widget-illustration {
+  position: relative;
+  background: linear-gradient(135deg, rgba(8, 18, 42, 0.95) 0%, var(--nw-bg) 50%, rgba(8, 18, 42, 0.95) 100%);
+  padding: 1.25rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nudge-widget-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--nw-accent) 30%, transparent), color-mix(in srgb, var(--nw-accent) 20%, transparent));
+  border: 1px solid color-mix(in srgb, var(--nw-accent) 20%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  color: var(--nw-accent);
+  filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--nw-accent) 20%, transparent));
+}
+
+.nudge-widget-icon-wrap svg {
+  width: 1.6em;
+  height: 1.6em;
+  fill: currentColor;
+}
+
+/* Text content */
+.nudge-widget-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0.85rem 1rem 0.35rem;
+  color: var(--bs-body-color, #e2e2e2);
+}
+
+.nudge-widget-desc {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--bs-secondary-color, #888);
+  margin: 0 1rem;
+}
+
+.nudge-widget-cta {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--nw-accent);
+  margin: 0.65rem 1rem 1rem;
+  transition: color 0.15s;
+}
+
+.nudge-widget-cta i {
+  font-size: 0.6rem;
+  margin-left: 2px;
+  transition: transform 0.15s;
+}
+
+.nudge-widget-body:hover .nudge-widget-cta i {
+  transform: translateX(3px);
+}
+
+/* "Don't show again" link */
+.nudge-widget-never {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 0.45rem 1rem 0.65rem;
+  font-size: 0.68rem;
+  color: var(--bs-secondary-color, #666);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.06));
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.nudge-widget-never:hover {
+  color: var(--bs-body-color, #aaa);
+}
+
+/* ============================
+   Nudge Decorations
+   Pulsating dots, glowing borders, tooltips
+   ============================ */
+
+/* Default nudge color — overridable via --nudge-color on the element */
+.nudge-decoration {
+  --nudge-color: #6366f1;
+}
+
+/* Glow effect around decorated element */
+.nudge-decoration--glow {
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--nudge-color) 50%, transparent),
+              0 0 12px color-mix(in srgb, var(--nudge-color) 30%, transparent);
+  animation: nudge-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes nudge-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--nudge-color) 50%, transparent),
+                          0 0 12px color-mix(in srgb, var(--nudge-color) 30%, transparent); }
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--nudge-color) 70%, transparent),
+                     0 0 20px color-mix(in srgb, var(--nudge-color) 50%, transparent); }
+}
+
+/* Pulsating dot */
+.nudge-pulse-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--nudge-color, #6366f1);
+  cursor: pointer;
+  z-index: 1;
+  animation: nudge-dot-pulse 1.5s ease-in-out infinite;
+}
+
+.nudge-pulse-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--nudge-color, #6366f1) 30%, transparent);
+  animation: nudge-dot-ring 1.5s ease-in-out infinite;
+}
+
+@keyframes nudge-dot-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+@keyframes nudge-dot-ring {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Badge decoration */
+.nudge-decoration--badge::after {
+  content: '!';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+/* Tooltip */
+.nudge-tooltip {
+  position: absolute;
+  top: -8px;
+  right: 20px;
+  transform: translateY(-100%);
+  background: var(--custom-onsurface-layer-2, #1a1a2e);
+  color: var(--bs-body-color, #e2e2e2);
+  border: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  max-width: 220px;
+  white-space: normal;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  z-index: 2;
+  animation: nudge-tooltip-in 0.15s ease-out;
+}
+
+.nudge-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  background: var(--custom-onsurface-layer-2, #1a1a2e);
+  border-right: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.1));
+  border-bottom: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.1));
+  transform: rotate(45deg);
+}
+
+@keyframes nudge-tooltip-in {
+  from { opacity: 0; transform: translateY(calc(-100% + 4px)); }
+  to { opacity: 1; transform: translateY(-100%); }
+}
+
+/* Right-side variant */
+.nudge-widget--right {
+  left: auto;
+  right: 16px;
+  animation-name: nudge-slideIn-right;
+}
+
+@keyframes nudge-slideIn-right {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.nudge-widget--right.nudge-widget--out {
+  transform: translateY(20px) scale(0.95);
+}
+
+/* Responsive — hide on very small screens */
+@media (max-width: 600px) {
+  .nudge-widget {
+    display: none;
+  }
+}

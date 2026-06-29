@@ -11,13 +11,11 @@ export const compilecontracts = async (contracts, plugin): Promise<CompilationRe
   // do not compile tests files
   let result
   try {
-    // console.log('Compiling contracts:', contracts)
     result = await plugin.call('solidity' as any, 'compileWithParameters', contracts, compilationParams)
     const data = result.data
     let error = false
 
     if (data.errors) {
-      // console.log('Compilation errors:', data.errors)
       error = data.errors.find((error) => error.type !== 'Warning')
     }
 

@@ -1,9 +1,10 @@
-import { LayoutCompatibilityReport } from '@openzeppelin/upgrades-core/dist/storage/report'
 import React from 'react'
+import { LayoutCompatibilityReport } from '@openzeppelin/upgrades-core/dist/storage/report'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { CompileOptionsProps } from '../types/compilerTypes'
 import { CustomTooltip } from './components/custom-tooltip'
 import { extractNameFromKey } from './remix-ui-helper'
+import type { OverSizeLimit } from '@remix-project/core-plugin'
 
 export const fileChangedToastMsg = (from: string, path: string) => (
   <div>
@@ -220,6 +221,7 @@ export const CompileBtn = ({ plugin, appState, id, compileAction }: { plugin: an
 export const gitAccessTokenLink = 'https://github.com/settings/tokens/new?scopes=gist,repo&description=Remix%20IDE%20Token'
 export const etherscanTokenLink = 'https://etherscan.io/myapikey'
 export const sindriAccessTokenLink = 'https://sindri.app'
+export const thegraphApiKeyLink = 'https://thegraph.com/studio/apikeys/'
 
 export const GitHubCredentialsDescription = () => {
   const intl = useIntl()
@@ -267,3 +269,81 @@ export const EtherscanConfigDescription = () => {
     </>
   )
 }
+
+export const TheGraphConfigDescription = () => {
+  const intl = useIntl()
+
+  return (
+    <>
+      <p className="mb-1">
+        <FormattedMessage id="settings.thegraphAccessTokenText" />
+      </p>
+      <p className="mb-1">
+        <a className="text-primary" target="_blank" href={thegraphApiKeyLink}>
+          {intl.formatMessage({ id: 'settings.thegraphAccessTokenText2' })}
+        </a> <FormattedMessage id="settings.thegraphAccessTokenText3" />
+      </p>
+    </>
+  )
+}
+
+export const isOverSizePrompt = (values: OverSizeLimit) => {
+  return (
+    <div>
+      {values.overSizeEip170 && (
+        <div>
+          <FormattedMessage
+            id="udapp.isOverSizePromptEip170"
+            values={{
+              br: <br />,
+              a: (
+                <a href="https://eips.ethereum.org/EIPS/eip-170" target="_blank" rel="noreferrer">
+                  eip-170
+                </a>
+              ),
+            }}
+          />
+        </div>
+      )}
+      {values.overSizeEip3860 && (
+        <div>
+          <FormattedMessage
+            id="udapp.isOverSizePromptEip3860"
+            values={{
+              br: <br />,
+              a: (
+                <a href="https://eips.ethereum.org/EIPS/eip-3860" target="_blank" rel="noreferrer">
+                  eip-3860
+                </a>
+              ),
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+export const SmartAccountPromptTitle = ({ title }: { title: string }) => {
+  return (
+    <div className="d-flex align-items-center">
+      <span className="badge bg-success me-2">Alpha</span>
+      <span>{title}</span>
+    </div>
+  )
+}
+export const checkSumWarning = () => (
+  <span className="text-start">
+    <FormattedMessage
+      id="udapp.checkSumWarning"
+      values={{
+        br: <br />,
+        a: (
+          <a href="https://eips.ethereum.org/EIPS/eip-55" target="_blank" rel="noreferrer">
+        EIP-55
+          </a>
+        ),
+      }}
+    />
+  </span>
+)

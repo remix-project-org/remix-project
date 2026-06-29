@@ -283,7 +283,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
   return (
     <div className={`desktop-download ${compact ? 'compact' : 'full'} ${variant === 'span' ? 'span-variant' : ''} ${className}`} style={style}>
       {variant === 'span' ? (
-        // Span variant - for use in dropdown items
+        // Span variant - for use in dropdown items (uses <span> not <a> to avoid nested anchors inside Dropdown.Item)
         <div className="d-flex align-items-center">
           {detectedDownload ? (
             <CustomTooltip
@@ -291,16 +291,14 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
               tooltipText={`Download ${detectedDownload.filename} (${formatSize(detectedDownload.size)})`}
               tooltipId="desktop-download-tooltip"
             >
-              <a
-                href={detectedDownload.url}
+              <span
                 className="text-decoration-none d-flex align-items-center"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'inherit' }}
+                role="link"
+                style={{ color: 'inherit', cursor: 'pointer' }}
                 onClick={(e) => {
                   e.stopPropagation()
                   trackDownloadClick(detectedDownload.platform, detectedDownload.filename, 'span')
-                  // Allow the default link behavior
+                  window.open(detectedDownload.url, '_blank', 'noopener,noreferrer')
                 }}
               >
                 <i className={getPlatformIcon(detectedDownload.platform)}></i>
@@ -314,7 +312,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
                     }}
                   />
                 </span>
-              </a>
+              </span>
             </CustomTooltip>
           ) : (
             <CustomTooltip
@@ -322,15 +320,13 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
               tooltipText={`Remix Desktop ${releaseData.tag_name} - Available for Windows, macOS, and Linux`}
               tooltipId="desktop-download-tooltip"
             >
-              <a
-                href={releaseData.html_url}
+              <span
                 className="text-decoration-none d-flex align-items-center gap-2"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'inherit' }}
+                role="link"
+                style={{ color: 'inherit', cursor: 'pointer' }}
                 onClick={(e) => {
                   e.stopPropagation()
-                  // Allow the default link behavior
+                  window.open(releaseData.html_url, '_blank', 'noopener,noreferrer')
                 }}
               >
                 <i className="far fa-desktop"></i>
@@ -341,7 +337,7 @@ export const DesktopDownload: React.FC<DesktopDownloadProps> = ({
                     values={{ version: releaseData.tag_name }}
                   />
                 </span>
-              </a>
+              </span>
             </CustomTooltip>
           )}
         </div>

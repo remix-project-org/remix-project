@@ -12,9 +12,9 @@ export const fetchContractFromBlockscout = async (plugin, endpoint, contractAddr
           throw new Error(`contract not verified on Blockscout ${endpoint} network`)
         }
       }
-    } else throw new Error('unable to retrieve contract data ' + data.message)
+    } else throw new Error('unable to retrieve contract data ' + JSON.stringify(data.message))
   } catch (e) {
-    throw new Error('unable to retrieve contract data: ' + e.message)
+    throw new Error('unable to retrieve contract data: ' + JSON.stringify(e.message))
   }
 
   if (!data || !data.result) {

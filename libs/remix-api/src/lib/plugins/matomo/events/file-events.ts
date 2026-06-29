@@ -14,6 +14,7 @@ export interface FileExplorerEvent extends MatomoEventBase {
     | 'createBlankFile'
     | 'createNewFile'
     | 'createNewFolder'
+    | 'createNewWorkspace'
     | 'uploadFolder'
     | 'importFromIpfs'
     | 'importFromLocalFileSystem'
@@ -51,6 +52,15 @@ export interface BackupEvent extends MatomoEventBase {
     | 'error'
     | 'download'
     | 'userActivate';
+}
+
+export interface WorkspaceStorageEvent extends MatomoEventBase {
+  category: 'WorkspaceStorage';
+  action:
+    | 'workspaceSize'      // Total size of a workspace (KB)
+    | 'nodeModulesSize'    // Size of node_modules folder (KB)
+    | 'gitSize'            // Size of .git folder (KB)
+    | 'totalStorageSize';  // Total storage size across all workspaces (KB)
 }
 
 

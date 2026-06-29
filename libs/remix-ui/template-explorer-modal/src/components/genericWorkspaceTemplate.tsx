@@ -71,8 +71,8 @@ export function GenericWorkspaceTemplate() {
   }
 
   return (
-    <section data-id={`generic-template-section-${state.workspaceTemplateChosen.value}`} className="mx-3 p-2">
-      <div className="d-flex flex-column p-3 bg-light" style={{ height: state.workspaceName === 'MultiSig Wallet' ? '90%' : calculateHeight() }}>
+    <section data-id={`generic-template-section-${state.workspaceTemplateChosen.value}`} style={{ overflowY: 'scroll' }} className="mx-3 p-2">
+      <div className="d-flex flex-column p-3 bg-light">
         <div>
           <label className="form-label text-uppercase small mb-1">Workspace name</label>
         </div>
@@ -94,7 +94,7 @@ export function GenericWorkspaceTemplate() {
             </>
           </div>
 
-          <button className="btn btn-primary btn-sm mx-3" data-id={`validate-${state.workspaceTemplateChosen.value}workspace-button`} onClick={async () => {
+          <button className="btn btn-primary btn-sm mx-3" data-id={`validate-${state.workspaceTemplateChosen.value}workspace-button`} disabled={state.creating} onClick={async () => {
             await facade.createWorkspace({
               workspaceName: uniqueWorkspaceName,
               workspaceTemplateName: state.workspaceTemplateChosen.value,
@@ -107,7 +107,7 @@ export function GenericWorkspaceTemplate() {
             })
             trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithGenericTemplate', name: state.workspaceTemplateChosen.value, isClick: true })
             facade.closeWizard()
-          }}>Finish</button>
+          }}>{state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : 'Finish'}</button>
         </div>
         <div className="overflow-y-auto" style={{ maxHeight: '70%' }}>
           {readMe?.readMe && (

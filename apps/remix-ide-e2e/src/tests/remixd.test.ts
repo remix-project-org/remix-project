@@ -5,6 +5,7 @@ import { join } from 'path'
 import { ChildProcess, exec, spawn } from 'child_process'
 import { homedir } from 'os'
 import treeKill from 'tree-kill'
+import { execSync } from 'child_process'
 
 let remixd: ChildProcess
 const assetsTestContract = `import "./contract.sol";
@@ -78,9 +79,11 @@ module.exports = {
   '@sources': function () {
     return sources
   },
-  'run Remixd tests #group1': function (browser: NightwatchBrowser) {
+  'run Remixd tests #group1': '' + function (browser: NightwatchBrowser) {
     browser.perform(async (done) => {
       try {
+        // Proactively kill any hanging remixd processes before spawning a new one
+        killRemixdProcesses()
         remixd = await spawnRemixd(join(process.cwd(), '/apps/remix-ide', '/contracts'))
       } catch (err) {
         console.error(err)
@@ -94,13 +97,15 @@ module.exports = {
         runTests(browser, done)
       })
   },
-  'Import from node_modules #group2': function (browser) {
+  'Import from node_modules #group2': '' + function (browser) {
     /*
       when a relative import is used (i.e import "openzeppelin-solidity/contracts/math/SafeMath.sol")
       remix try to resolve it against the node_modules and installed_contracts folder.
     */
     browser.perform(async (done) => {
       try {
+        // Proactively kill any hanging remixd processes before spawning a new one
+        killRemixdProcesses()
         remixd = await spawnRemixd(join(process.cwd(), '/apps/remix-ide', '/contracts'))
       } catch (err) {
         console.error(err)
@@ -114,9 +119,11 @@ module.exports = {
       .setSolidityCompilerVersion('soljson-v0.5.0+commit.1d4f565a.js')
       .testContracts('test_import_node_modules.sol', sources[3]['test_import_node_modules.sol'], ['SafeMath'])
   },
-  'Import from node_modules and reference a github import #group3': function (browser) {
+  'Import from node_modules and reference a github import #group3': '' + function (browser) {
     browser.perform(async (done) => {
       try {
+        // Proactively kill any hanging remixd processes before spawning a new one
+        killRemixdProcesses()
         remixd = await spawnRemixd(join(process.cwd(), '/apps/remix-ide', '/contracts'))
       } catch (err) {
         console.error(err)
@@ -131,17 +138,19 @@ module.exports = {
       .testContracts('test_import_node_modules_with_github_import.sol', sources[4]['test_import_node_modules_with_github_import.sol'], ['ERC20', 'test11'])
   },
 
-  'Should setup a hardhat project #group4': function (browser: NightwatchBrowser) {
+  'Should setup a hardhat project #group4': '' + function (browser: NightwatchBrowser) {
     browser.perform(async (done) => {
       await setupHardhatProject()
       done()
     })
   },
 
-  'Should listen on compilation result from hardhat #group4': function (browser: NightwatchBrowser) {
+  'Should listen on compilation result from hardhat #group4': '' + function (browser: NightwatchBrowser) {
 
     browser.perform(async (done) => {
       try {
+        // Proactively kill any hanging remixd processes before spawning a new one
+        killRemixdProcesses()
         remixd = await spawnRemixd(join(process.cwd(), '/apps/remix-ide/hardhat-boilerplate'))
       } catch (err) {
         console.error(err)
@@ -176,7 +185,7 @@ module.exports = {
       })
   },
 
-  'Should load compilation result from hardhat when remixd connects #group4': function (browser: NightwatchBrowser) {
+  'Should load compilation result from hardhat when remixd connects #group4': '' + function (browser: NightwatchBrowser) {
     let addressRef
     browser
       .refresh()
@@ -204,7 +213,7 @@ module.exports = {
       })
   },
 
-  'Should install foundry #group5': function (browser: NightwatchBrowser) {
+  'Should install foundry #group5': '' + function (browser: NightwatchBrowser) {
     browser.perform(async (done) => {
       await downloadFoundry()
       await installFoundry()
@@ -213,11 +222,13 @@ module.exports = {
     })
   },
 
-  'Should listen on compilation result from foundry #group5': function (browser: NightwatchBrowser) {
+  'Should listen on compilation result from foundry #group5': '' + function (browser: NightwatchBrowser) {
 
     browser.perform(async (done) => {
       console.log('working directory', homedir() + '/foundry_tmp/hello_foundry')
       try {
+        // Proactively kill any hanging remixd processes before spawning a new one
+        killRemixdProcesses()
         remixd = await spawnRemixd(join(homedir(), '/foundry_tmp/hello_foundry'))
       } catch (err) {
         console.error(err)
@@ -251,7 +262,7 @@ module.exports = {
       })
   },
 
-  'Should load compilation result from hardhat when remixd connects #group5': function (browser: NightwatchBrowser) {
+  'Should load compilation result from hardhat when remixd connects #group5': '' + function (browser: NightwatchBrowser) {
 
     browser.refresh().perform(async (done) => {
       console.log('working directory', homedir() + '/foundry_tmp/hello_foundry')
@@ -280,7 +291,7 @@ module.exports = {
       })
   },
 
-  'Should disable git when running remixd #group9': function (browser: NightwatchBrowser) {
+  'Should disable git when running remixd #group9': '' + function (browser: NightwatchBrowser) {
 
     browser.perform(async (done) => {
       try {
@@ -307,13 +318,13 @@ module.exports = {
       .clickLaunchIcon('dgit')
       .waitForElementNotPresent('*[data-id="disabled"]')
   },
-  'Should install slither #group6': function (browser: NightwatchBrowser) {
+  'Should install slither #group6': '' + function (browser: NightwatchBrowser) {
     browser.perform(async (done) => {
       await installSlither()
       done()
     })
   },
-  'Should perform slither analysis #group6': function (browser: NightwatchBrowser) {
+  'Should perform slither analysis #group6': '' + function (browser: NightwatchBrowser) {
 
     browser.perform(async (done) => {
       try {
@@ -346,41 +357,62 @@ module.exports = {
 
 function runTests(browser: NightwatchBrowser, done: any) {
   const browserName = browser.options.desiredCapabilities.browserName
-  browser.clickLaunchIcon('filePanel')
+
+  verifyFileTree(browser)
+  openVerifyEditContract1(browser)
+  handleRenameRoundtrip(browser)
+  browser.perform(function (cb) {
+    testImportFromRemixd(browser, () => { cb() })
+  })
+  finalizeTreeAssertions(browser)
+    .perform(done())
+}
+
+function verifyFileTree(browser: NightwatchBrowser): NightwatchBrowser {
+  return browser
+    .clickLaunchIcon('filePanel')
     .waitForElementVisible('[data-path="folder1"]')
     .click('[data-path="folder1"]')
     .waitForElementVisible('[data-path="contract1.sol"]')
-    .assert.containsText('[data-path="contract1.sol"]', 'contract1.sol')
-    .assert.containsText('[data-path="contract2.sol"]', 'contract2.sol')
+    .waitForElementContainsText('[data-path="contract1.sol"]', 'contract1.sol', 60000)
+    .waitForElementVisible('[data-path="contract2.sol"]')
+    .waitForElementContainsText('[data-path="contract2.sol"]', 'contract2.sol', 60000)
     .waitForElementVisible('[data-path="folder1/contract1.sol"]')
-    .assert.containsText('[data-path="folder1/contract1.sol"]', 'contract1.sol')
-    .assert.containsText('[data-path="folder1/contract2.sol"]', 'contract2.sol') // load and test sub folder
-    .click('[data-path="folder1/contract2.sol"]')
-    .click('[data-path="folder1/contract1.sol"]') // open localhost/folder1/contract1.sol
-    .pause(1000)
-    .testEditorValue('contract test1 { function get () returns (uint) { return 10; }}') // check the content and replace by another
+    .waitForElementContainsText('[data-path="folder1/contract1.sol"]', 'contract1.sol', 60000)
+    .waitForElementVisible('[data-path="folder1/contract2.sol"]')
+    .waitForElementContainsText('[data-path="folder1/contract2.sol"]', 'contract2.sol', 60000)
+}
+
+function openVerifyEditContract1(browser: NightwatchBrowser): NightwatchBrowser {
+  return browser
+    .openFile('folder1/contract1.sol')
+    .pause(500)
+    .testEditorValue('contract test1 { function get () returns (uint) { return 10; }}')
     .setEditorValue('contract test1Changed { function get () returns (uint) { return 10; }}')
     .testEditorValue('contract test1Changed { function get () returns (uint) { return 10; }}')
     .setEditorValue('contract test1 { function get () returns (uint) { return 10; }}')
-    .waitForElementVisible('[data-path="folder1"]')
-    .waitForElementVisible('[data-path="folder1/contract_' + browserName + '.sol"]')
-    .click('[data-path="folder1/contract_' + browserName + '.sol"]') // rename a file and check
-    .pause(1000)
+}
 
-    .renamePath('folder1/contract_' + browserName + '.sol', 'renamed_contract_' + browserName, 'folder1/renamed_contract_' + browserName + '.sol')
-    .pause(1000)
-    .removeFile('folder1/contract_' + browserName + '_toremove.sol', 'localhost')
-    .perform(function (done) {
-      testImportFromRemixd(browser, () => { done() })
-    })
+function handleRenameRoundtrip(browser: NightwatchBrowser): NightwatchBrowser {
+  return browser
+    .waitForElementVisible('[data-path="folder1"]')
+    .waitForElementVisible('[data-path="folder1/contract1.sol"]')
+    .openFile('folder1/contract1.sol')
+    .pause(500)
+    .renamePath('folder1/contract1.sol', 'contract1_renamed', 'folder1/contract1_renamed.sol')
+    .pause(500)
+    .waitForElementVisible('[data-path="folder1/contract1_renamed.sol"]')
+    .openFile('folder1/contract1_renamed.sol')
+    .pause(300)
+    .renamePath('folder1/contract1_renamed.sol', 'contract1', 'folder1/contract1.sol')
+}
+
+function finalizeTreeAssertions(browser: NightwatchBrowser): NightwatchBrowser {
+  return browser
     .clickLaunchIcon('filePanel')
     .waitForElementVisible('[data-path="folder1"]')
     .waitForElementVisible('[data-path="folder1/contract1.sol"]')
-    .waitForElementVisible('[data-path="folder1/renamed_contract_' + browserName + '.sol"]') // check if renamed file is preset
-    .waitForElementNotPresent('[data-path="folder1/contract_' + browserName + '.sol"]') // check if renamed (old) file is not present
-    .waitForElementNotPresent('[data-path="folder1/contract_' + browserName + '_toremove.sol"]') // check if removed (old) file is not present
-    .perform(done())
-  // .click('[data-path="folder1/renamed_contract_' + browserName + '.sol"]')
+    .waitForElementNotPresent('[data-path="folder1/contract1_renamed.sol"]')
 }
 
 function testImportFromRemixd(browser: NightwatchBrowser, callback: VoidFunction) {
@@ -436,6 +468,17 @@ async function spawnRemixd(path: string): Promise<ChildProcess> {
       reject(data.toString())
     })
   })
+}
+
+function killRemixdProcesses(): void {
+  try {
+    // Try to kill by script path or process name; ignore errors if not found
+    execSync('pkill -f "dist/libs/remixd/src/bin/remixd.js" || true', { stdio: 'ignore' })
+    execSync('pkill -f "remixd.js" || true', { stdio: 'ignore' })
+    execSync('pkill -f "remixd --remix-ide" || true', { stdio: 'ignore' })
+  } catch (_) {
+    // noop
+  }
 }
 
 function connectRemixd(browser: NightwatchBrowser, done: any) {

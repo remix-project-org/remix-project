@@ -12,6 +12,7 @@ export const EMPTY_BLOCK = 'emptyBlock'
 export const NEW_TRANSACTION = 'newTransaction'
 export const NEW_BLOCK = 'newBlock'
 export const NEW_CALL = 'newCall'
+export const COPYABLE_VALUES = 'copyableValues'
 
 export const HTML = 'html'
 export const LOG = 'log'
@@ -37,4 +38,6 @@ export interface RemixUiTerminalProps {
   visible: boolean,
   isMaximized?: boolean,
   maximizePanel?: () => void,
+  isDebugging?: boolean,
+  debuggerCallStack?: any[],
 }

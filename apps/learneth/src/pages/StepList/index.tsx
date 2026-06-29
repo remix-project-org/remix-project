@@ -60,6 +60,13 @@ export default function StepListPage(): JSX.Element {
   const queryParams = new URLSearchParams(location.search)
   const id = queryParams.get('id') as string
   const { detail, selectedId } = useAppSelector((s) => s.workshop)
+
+  // Set the current tutorial ID in remixClient when component mounts or ID changes
+  useEffect(() => {
+    if (id) {
+      remixClient.setCurrentTutorial(detail[selectedId]?.entities?.[id])
+    }
+  }, [id])
   const repo = detail[selectedId]
   const entity = repo?.entities?.[id] || {}
 

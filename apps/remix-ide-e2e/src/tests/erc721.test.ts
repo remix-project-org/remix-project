@@ -14,7 +14,7 @@ module.exports = {
   },
   'Deploy SampleERC721 whose bytecode is very similar to ERC721': function (browser: NightwatchBrowser) {
     browser.clickLaunchIcon('filePanel')
-      .click('*[data-id="workspacesSelect"]')
+      .clickWorkspaceDropdown()
       .pause(2000)
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
@@ -44,7 +44,7 @@ module.exports = {
       .createContract('')
       .testFunction('last',
         {
-          status: '1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution completed',
           'decoded input': {}
         }).end()
   }

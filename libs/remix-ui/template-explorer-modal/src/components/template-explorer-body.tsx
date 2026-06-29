@@ -6,7 +6,7 @@ import { NotFound } from './notfound'
 import { MatomoCategories } from '@remix-api'
 
 export function TemplateExplorerBody() {
-  const { selectedTag, allTags, handleTagClick, clearFilter, dedupedTemplates, state, theme, trackMatomoEvent } = useContext(TemplateExplorerContext)
+  const { selectedTag, allTags, handleTagClick, clearFilter, dedupedTemplates, state, theme, trackMatomoEvent, fileMode } = useContext(TemplateExplorerContext)
 
   const filterTheseTags = tag => tag !== 'Circom' && tag !== 'All' && tag !== 'Noir' && tag !== 'AI'
 
@@ -15,7 +15,7 @@ export function TemplateExplorerBody() {
       <TopCards />
       {
         (dedupedTemplates.length === 0) ? <NotFound /> : (
-          <div className={"body overflow-y-hidden pt-2"}>
+          <div className={"body pt-2 mb-3"} style={{ height: `calc(88vh - ${fileMode ? 350 : 410}px)` }}>
             <>
               <div className="d-flex flex-column gap-1">
                 <label

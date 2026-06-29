@@ -63,42 +63,42 @@ export interface IMatomoApi {
     methods: {
         // Type-safe tracking method
         track: (event: MatomoEvent) => void;
-        
+
         // Direct access to full interface
         getManager: () => any;
         getMatomoManager: () => any;
-        
+
         // Initialization methods
         initialize: (pattern?: InitializationPattern, options?: InitializationOptions) => Promise<void>;
         loadScript: () => Promise<void>;
         waitForLoad: (timeout?: number) => Promise<void>;
-        
+
         // Mode switching & consent management
         switchMode: (mode: TrackingMode, options?: ModeSwitchOptions) => Promise<void>;
         giveConsent: (options?: { processQueue?: boolean }) => Promise<void>;
         revokeConsent: () => Promise<void>;
-        
+
         // Tracking methods
         trackEvent: (event: MatomoEvent) => number;
         trackPageView: (title?: string) => void;
         setCustomDimension: (id: number, value: string) => void;
-        
+
         // State and status methods
         getState: () => MatomoState & MatomoStatus;
         getStatus: () => MatomoStatus;
         isMatomoLoaded: () => boolean;
         getMatomoCookies: () => string[];
         deleteMatomoCookies: () => Promise<void>;
-        
+
         // Queue management
         getQueueStatus: () => { queueLength: number; initialized: boolean; commands: MatomoCommand[] };
         processPreInitQueue: () => Promise<void>;
         clearPreInitQueue: () => number;
-        
+
         // Utility and diagnostic methods
         getDiagnostics: () => MatomoDiagnostics;
         reset: () => Promise<void>;
-        
+
         // Event system (renamed to avoid Plugin conflicts)
         addMatomoListener: <T = any>(event: string, callback: (data: T) => void) => void;
         removeMatomoListener: <T = any>(event: string, callback: (data: T) => void) => void;

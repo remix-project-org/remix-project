@@ -48,7 +48,7 @@ const tests = {
           .refreshPage()
           .waitForElementVisible('*[data-id="remixIdeIconPanel"]', 10000)
           .clickLaunchIcon('udapp')
-          .waitForElementPresent('*[data-id="settingsNetworkEnv"]')
+          .waitForElementPresent('*[data-id="detectedNetworkEnv"]')
           .switchEnvironment('injected-MetaMask')
           //.getBrowserLogs()
           .pause(3000)
@@ -58,7 +58,7 @@ const tests = {
           .click('*[data-testid="confirm-btn"]') // this connects the metamask account to remix
           .switchBrowserTab(0) // back to remix
           .pause(2000)
-          .assert.containsText('*[data-id="settingsNetworkEnv"]', 'Sepolia (11155111) network')
+          .assert.containsText('*[data-id="detectedNetworkEnv"]', 'Sepolia (11155111) network')
 
         done()
       })
@@ -207,7 +207,7 @@ const tests = {
 
       .testFunction('last',
         {
-          status: '1 Transaction mined and execution succeed',
+          status: '1 Transaction mined and execution completed',
           'decoded input': { 'address to': '0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB' }
         })
   },
@@ -301,8 +301,8 @@ const tests = {
       .waitForElementVisible('*[data-id="remixIdeIconPanel"]', 10000)
       .clickLaunchIcon('udapp')
       .switchEnvironment('injected-MetaMask')
-      .waitForElementPresent('*[data-id="settingsNetworkEnv"]')
-      .assert.containsText('*[data-id="settingsNetworkEnv"]', 'Main (1) network')
+      .waitForElementPresent('*[data-id="detectedNetworkEnv"]')
+      .assert.containsText('*[data-id="detectedNetworkEnv"]', 'Main (1) network')
 
 
   },

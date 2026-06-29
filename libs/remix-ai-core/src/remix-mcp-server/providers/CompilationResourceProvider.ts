@@ -1,3 +1,4 @@
+import { remixAILogger } from '../../helpers/logger'
 /**
  * Compilation Resource Provider - Provides access to compilation results and artifacts
  */
@@ -6,6 +7,7 @@ import { Plugin } from '@remixproject/engine';
 import { IMCPResource, IMCPResourceContent } from '../../types/mcp';
 import { BaseResourceProvider } from '../registry/RemixResourceProviderRegistry';
 import { ResourceCategory } from '../types/mcpResources';
+import { LastCompilationResult, CompiledContract } from '@remix-project/remix-solidity';
 
 export class CompilationResourceProvider extends BaseResourceProvider {
   name = 'compilation';
@@ -109,7 +111,7 @@ export class CompilationResourceProvider extends BaseResourceProvider {
       await this.addContractResources(plugin, resources);
 
     } catch (error) {
-      console.warn('Failed to get compilation resources:', error);
+      remixAILogger.warn('Failed to get compilation resources:', error);
     }
 
     return resources;
@@ -153,10 +155,25 @@ export class CompilationResourceProvider extends BaseResourceProvider {
 
   private async addContractResources(plugin: Plugin, resources: IMCPResource[]): Promise<void> {
     try {
-      // TODO: Get actual compilation result from Remix API
-      const mockContracts = ['MyToken', 'TokenSale', 'Ownable']; // Mock data
+      const compilationResult: any = await plugin.call('solidity' as any, 'getCompilationResult');
 
-      for (const contractName of mockContracts) {
+      if (!compilationResult || !compilationResult.data?.contracts) {
+        return;
+      }
+
+      const contracts = compilationResult.data.contracts;
+      const contractNames = new Set<string>();
+
+      for (const [fileName, fileContracts] of Object.entries(contracts)) {
+        if (fileContracts && typeof fileContracts === 'object') {
+          for (const contractName of Object.keys(fileContracts as any)) {
+            contractNames.add(contractName);
+          }
+        }
+      }
+
+      // Create resources for each real contract
+      for (const contractName of contractNames) {
         resources.push(
           this.createResource(
             `contract://${contractName}`,
@@ -173,7 +190,7 @@ export class CompilationResourceProvider extends BaseResourceProvider {
         );
       }
     } catch (error) {
-      console.warn('Failed to add contract resources:', error);
+      remixAILogger.warn('[CompilationResourceProvider] Failed to add contract resources:', error);
     }
   }
 
@@ -190,22 +207,24 @@ export class CompilationResourceProvider extends BaseResourceProvider {
         contracts: {},
         errors: compilationResult.data?.errors || [],
         errorFiles: compilationResult.errFiles || [],
-        warnings: compilationResult?.data?.errors.find((error) => error.type === 'Warning') || [],
-        sources: compilationResult?.source || {}
+        warnings: compilationResult?.data?.errors?.find((error) => error.type === 'Warning') || [],
+        // sources: compilationResult?.source || {}
       };
 
       // Process contracts
       if (compilationResult.data?.contracts) {
-        for (const [fileName, fileContracts] of Object.entries(compilationResult.contracts)) {
+        for (const [fileName, fileContracts] of Object.entries(compilationResult.data.contracts)) {
           for (const [contractName, contractData] of Object.entries(fileContracts as any)) {
             const contract = contractData as any;
-            result.contracts[`${fileName}:${contractName}`] = {
-              abi: contract.abi || [],
-              // bytecode: contract.evm?.bytecode?.object || '',
-              // deployedBytecode: contract.evm?.deployedBytecode?.object || '',
-              // metadata: contract.metadata ? JSON.parse(contract.metadata) : {},
-              gasEstimates: contract.evm?.gasEstimates || {}
-            };
+            if (fileName.includes(compilationResult.source?.target as string)){
+              result.contracts[`${fileName}:${contractName}`] = {
+                abi: contract.abi || [],
+                // bytecode: contract.evm?.bytecode?.object || '',
+                // deployedBytecode: contract.evm?.deployedBytecode?.object || '',
+                // metadata: contract.metadata ? JSON.parse(contract.metadata) : {},
+                gasEstimates: contract.evm?.gasEstimates || {}
+              };
+            }
           }
         }
       }
@@ -249,7 +268,7 @@ export class CompilationResourceProvider extends BaseResourceProvider {
         return this.createTextContent('compilation://errors', `Error getting compilation errors`);
       }
 
-      const errors = compilationResult.data.errors || []
+      const errors = compilationResult.data?.errors || []
       return this.createJsonContent('compilation://errors', errors);
     } catch (error) {
       return this.createTextContent('compilation://errors', `Error getting compilation errors: ${error.message}`);
@@ -311,14 +330,18 @@ export class CompilationResourceProvider extends BaseResourceProvider {
     const contractName = uri.replace('contract://', '');
 
     try {
-      const compilationResult: any = await plugin.call('solidity' as any, 'getCompilationResult')
+      const compilationResult: LastCompilationResult = await plugin.call('solidity' as any, 'getCompilationResult')
       if (!compilationResult) {
         return this.createTextContent(uri, 'No compilation result available');
       }
 
-      let contractDetails = {}
-      for (const contractFileObj of compilationResult.data.contracts) {
-        if (Object.keys(contractFileObj).includes(contractName)) contractDetails = contractFileObj
+      let contractDetails: CompiledContract
+      for (const fileName in compilationResult.data.contracts) {
+        const contractsInFile = compilationResult.data.contracts[fileName]
+        if (Object.keys(contractsInFile).includes(contractName)) {
+          contractDetails = contractsInFile[contractName]
+          break
+        }
       }
       return this.createJsonContent(uri, contractDetails);
     } catch (error) {

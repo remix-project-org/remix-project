@@ -1,0 +1,217 @@
+import React, { Dispatch, useMemo } from 'react'
+import GroupListMenu from './contextOptMenu'
+import { PromptArea } from './prompt'
+import { AiAssistantType, groupListType } from '../types/componentTypes'
+import { ChatMessage, AIModel } from '@remix/remix-ai-core'
+
+interface AiChatPromptAreaProps {
+    selectedModelId: unknown
+    handleOllamaModelSelection: Dispatch<any>
+    selectedOllamaModel: unknown
+    ollamaModels: any
+    ollamaModelOpt?: { top: number, left: number }
+    ollamaMenuRef?: React.RefObject<HTMLDivElement>
+    themeTracker: any
+    showHistorySidebar: boolean
+    isMaximized: boolean
+    modelOpt: { top: number, left: number }
+    menuRef: React.RefObject<HTMLDivElement>
+    assistantChoice: any
+    setAssistantChoice: React.Dispatch<React.SetStateAction<any>>
+    mcpEnabled: boolean
+    mcpEnhanced: boolean
+    setMcpEnhanced: React.Dispatch<React.SetStateAction<boolean>>
+    availableModels: AIModel[]
+    selectedModel: any
+    autoModeEnabled: boolean
+    autoModeAvailable: boolean
+    handleModelSelection: (modelName: string) => void
+    onLockedModelClick?: (modelId: string, modelName: string) => void
+    /** Permission-derived state of the per-model "Upgrade plan" pill. */
+    upgradePillState?: 'hidden' | 'coming_soon' | 'available'
+    /** Permission-derived state of the per-model "Buy credits" pill. */
+    buyCreditsPillState?: 'hidden' | 'coming_soon' | 'available'
+    /** Called when the user clicks the "Buy credits" pill on a locked model. */
+    onBuyCreditsClick?: (modelId: string, modelName: string) => void
+    input: string
+    setInput: React.Dispatch<React.SetStateAction<string>>
+    isStreaming: boolean
+    handleSend: () => void
+    stopRequest: () => void
+    handleSetModel: () => void
+    handleGenerateWorkspace: () => void
+    dispatchActivity: (type: string, payload?: any) => void
+    modelBtnRef: React.RefObject<HTMLButtonElement>
+    modelSelectorBtnRef: React.RefObject<HTMLButtonElement>
+    textareaRef?: React.RefObject<HTMLTextAreaElement>
+    maximizePanel: () => Promise<void>
+    setShowOllamaModelSelector: React.Dispatch<React.SetStateAction<boolean>>
+    showOllamaModelSelector: boolean
+    showModelSelector: boolean
+    setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
+    messages: ChatMessage[]
+    handleLoadSkills?: () => void
+    handleOpenSettings?: () => void
+    handleLoadAuditChecklist?: () => void
+    handleGasOptimisationAudit?: () => void
+    usingOwnApiKey?: boolean
+    aiRoute?: 'initializing' | 'agent' | 'tools' | 'chat'
+    aiRouteReady?: boolean
+    isAuthenticated?: boolean
+    onSignIn?: () => void
+    hasAuditorPermission?: boolean
+    hasSkillsPermission?: boolean
+    onUpgradeRequired?: (commandName: string, missingFeature: string) => void
+    getRequiredPlanName?: (feature: string) => string | null
+}
+
+export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
+  const modelList = useMemo(() => {
+    const autoModeOption = {
+      label: 'Auto Mode',
+      bodyText: 'Automatically select the best model based on your prompt',
+      icon: 'fa-solid fa-magic-wand-sparkles' as const,
+      stateValue: 'auto',
+      dataId: 'ai-model-auto',
+      isLocked: false
+    }
+
+    const modelOptions = props.availableModels.map(model => {
+      return {
+        label: model.displayName,
+        bodyText: model.description,
+        icon: 'fa-solid fa-check' as const,
+        stateValue: model.id,
+        dataId: `ai-model-${model.id.replace(/[^a-zA-Z0-9]/g, '-')}`,
+        isLocked: !model.available
+      }
+    })
+
+    return props.autoModeAvailable ? [autoModeOption, ...modelOptions] : modelOptions
+  }, [props.availableModels, props.autoModeAvailable])
+
+  const handleLockedItemClick = (item: groupListType) => {
+    props.onLockedModelClick?.(item.stateValue, item.label)
+  }
+
+  const handleBuyCreditsClick = (item: groupListType) => {
+    props.onBuyCreditsClick?.(item.stateValue, item.label)
+  }
+
+  {/* Prompt area - fixed at bottom */}
+  return (
+    <section
+      id="remix-ai-prompt-area"
+      className="ai-assistant-prompt-bg"
+      style={{ flexShrink: 0, minHeight: '110px', backgroundColor: props.messages.length > 0 && (props.themeTracker?.name.toLowerCase() === 'dark' ? '#222336' : '#eff1f5') as any }}
+      data-theme={props.themeTracker && props.themeTracker?.name.toLowerCase()}
+    >
+      {props.showModelSelector && (
+        <div
+          className="pt-2 mb-2 z-3 bg-light border border-text position-fixed"
+          style={{ borderRadius: '8px', top: props.modelOpt.top, left: props.modelOpt.left + 16, zIndex: 2000, minWidth: '300px', maxWidth: '400px' }}
+          ref={props.menuRef}
+        >
+          <div className="text-uppercase ms-2 mb-2 small">AI Model</div>
+          <GroupListMenu
+            setChoice={props.handleModelSelection}
+            setShowOptions={props.setShowModelSelector}
+            choice={props.autoModeEnabled ? 'auto' : props.selectedModelId}
+            groupList={modelList}
+            onLockedItemClick={handleLockedItemClick}
+            upgradePillState={props.upgradePillState}
+            buyCreditsPillState={props.buyCreditsPillState}
+            onBuyCreditsClick={props.onBuyCreditsClick ? handleBuyCreditsClick : undefined}
+          />
+          {false && props.mcpEnabled && (
+            <div className="border-top mt-2 pt-2">
+              <div className="text-uppercase ms-2 mb-2 small">MCP Enhancement</div>
+              <div className="form-check ms-2 mb-2">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="mcpEnhancementToggle"
+                  checked={props.mcpEnhanced}
+                  onChange={(e) => props.setMcpEnhanced(e.target.checked)}
+                />
+                <label className="form-check-label small" htmlFor="mcpEnhancementToggle">
+                        Enable MCP context enhancement
+                </label>
+              </div>
+              <div className="small text-muted ms-2">
+                      Adds relevant context from the connected MCP servers
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {props.showOllamaModelSelector && props.selectedModel?.provider === 'ollama' && (
+        <div
+          className="pt-2 mb-2 z-3 bg-light border border-text position-fixed"
+          style={{ borderRadius: '8px', top: props.ollamaModelOpt?.top, left: props.ollamaModelOpt?.left, zIndex: 2000, minWidth: '280px', maxWidth: '400px' }}
+          ref={props.ollamaMenuRef}
+        >
+          <div className="text-uppercase ms-2 mb-2 small">Ollama Model</div>
+          <GroupListMenu
+            setChoice={props.handleOllamaModelSelection}
+            setShowOptions={props.setShowOllamaModelSelector}
+            choice={props.selectedOllamaModel}
+            groupList={props.ollamaModels.map((model: any) => {
+              const name = typeof model === 'string' ? model : model.name
+              const supported = typeof model === 'string' ? true : model.supported
+              return {
+                label: name,
+                bodyText: '',
+                icon: 'fa-solid fa-check',
+                stateValue: name,
+                dataId: `ollama-model-${name.replace(/[^a-zA-Z0-9]/g, '-')}`,
+                disabled: !supported,
+                disabledReason: 'No tool support'
+              }
+            })}
+          />
+        </div>
+      )}
+      <PromptArea
+        input={props.input}
+        setInput={props.setInput}
+        isStreaming={props.isStreaming}
+        handleSend={props.handleSend}
+        handleSetModel={props.handleSetModel}
+        handleModelSelection={props.handleModelSelection}
+        handleGenerateWorkspace={props.handleGenerateWorkspace}
+        dispatchActivity={props.dispatchActivity}
+        modelBtnRef={props.modelBtnRef}
+        textareaRef={props.textareaRef}
+        assistantChoice={props.assistantChoice}
+        themeTracker={props.themeTracker}
+        setShowOllamaModelSelector={props.setShowOllamaModelSelector}
+        showOllamaModelSelector={props.showOllamaModelSelector}
+        showModelSelector={props.showModelSelector}
+        setShowModelSelector={props.setShowModelSelector}
+        selectedModel={props.selectedModel}
+        handleOllamaModelSelection={props.handleOllamaModelSelection}
+        ollamaModels={props.ollamaModels}
+        selectedOllamaModel={props.selectedOllamaModel}
+        modelSelectorBtnRef={props.modelSelectorBtnRef}
+        autoModeEnabled={props.autoModeEnabled}
+        stopRequest={props.stopRequest}
+        handleLoadSkills={props.handleLoadSkills}
+        usingOwnApiKey={props.usingOwnApiKey}
+        aiRoute={props.aiRoute}
+        aiRouteReady={props.aiRouteReady}
+        isAuthenticated={props.isAuthenticated}
+        onSignIn={props.onSignIn}
+        isNewChat={props.messages.length === 0}
+        handleOpenSettings={props.handleOpenSettings}
+        handleLoadAuditChecklist={props.handleLoadAuditChecklist}
+        handleGasOptimisationAudit={props.handleGasOptimisationAudit}
+        hasAuditorPermission={props.hasAuditorPermission}
+        hasSkillsPermission={props.hasSkillsPermission}
+        onUpgradeRequired={props.onUpgradeRequired}
+        getRequiredPlanName={props.getRequiredPlanName}
+      />
+      <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
+    </section>
+  )
+}

@@ -17,7 +17,7 @@ import { renderApp } from './app/utils/AppRenderer'
   // Setup config and auto-initialize Matomo if we have existing settings
   await autoInitializeMatomo({
     matomoManager,
-    debug: true
+    debug: false
   });
 
   // Setup theme and locale

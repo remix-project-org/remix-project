@@ -10,8 +10,8 @@ import { InitializationPattern, TrackingMode, MatomoState, CustomRemixApi } from
 const profile = {
   name: 'settings',
   displayName: 'Settings',
-  methods: ['get', 'updateCopilotChoice', 'getCopilotSetting', 'set', 'updateMatomoPerfAnalyticsChoice'],
-  events: [],
+  methods: ['get', 'updateCopilotChoice', 'getCopilotSetting', 'set', 'updateMatomoPerfAnalyticsChoice', 'showSection'],
+  events: ['openSection'],
   icon: 'assets/img/settings.webp',
   description: 'Remix-IDE settings',
   kind: 'settings',
@@ -132,6 +132,12 @@ export default class SettingsTab extends ViewPlugin {
     this.useMatomoAnalytics = true
     this.emit('matomoPerfAnalyticsChoiceUpdated', isChecked);
     this.dispatch({ ...this })
+  }
+
+  // Public API: focus a specific settings section by key
+  // Example keys: 'general', 'account', 'analytics', 'ai', 'services'
+  showSection(sectionKey: string) {
+    this.emit('openSection', { sectionKey })
   }
 
 }
