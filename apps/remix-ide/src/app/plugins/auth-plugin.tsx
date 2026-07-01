@@ -199,7 +199,14 @@ export class AuthPlugin extends Plugin {
   async getPaddleConfig(): Promise<{ clientToken: string | null; environment: 'sandbox' | 'production' }> {
     try {
       // Ensure we have a token set
-      await this.getToken()
+      const token = await this.getToken()
+
+      // The billing /config endpoint requires auth. When the user isn't logged
+      // in there is nothing to fetch — skip the request instead of firing a
+      // guaranteed 401 (which also needlessly trips the token-refresh path).
+      if (!token) {
+        return { clientToken: null, environment: 'sandbox' }
+      }
 
       const response = await this.billingApi.getConfig()
       if (response.ok && response.data?.paddle) {
