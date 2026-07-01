@@ -21,6 +21,7 @@ import { PluginViewWrapper, DISCORD_URL } from '@remix-ui/helper'
 // Paddle singleton lives next to this plugin now — `@remix-ui/billing` was
 // removed when Plan Manager became the sole billing surface.
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent, previewPrices } from './paddle-singleton'
+import { reportCheckoutTelemetry, setCheckoutTelemetryToken, setCheckoutTelemetryEnv } from './checkout-telemetry'
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js'
 import type { CreditsUsageQuery, FeatureGroup, UsageReport } from '@remix-api'
 import { Features, FEATURE_LABELS, trackMatomoEvent } from '@remix-api'
@@ -97,6 +98,10 @@ export class PlanManagerPlugin extends ViewPlugin {
   private paddle: Paddle | null = null
   private paddleEventHandler: ((e: PaddleEventData) => void) | null = null
   private paddleTheme: 'dark' | 'light' = 'dark'
+  // initPaddleSingleton runs on several paths (activation, auth arrival,
+  // checkout, price preview); only surface a blocked Paddle.js once per session
+  // so a blocker doesn't spam the telemetry sink.
+  private paddleBlockedReported = false
 
   // Desktop (Electron) billing bridge.
   // Paddle's checkout iframe can't run inside the Electron shell, so on
@@ -198,6 +203,9 @@ export class PlanManagerPlugin extends ViewPlugin {
       const sig = `${s.isAuthenticated}|${s.token ?? ''}`
       if (sig === this.lastAuthSig) return
       this.lastAuthSig = sig
+      // Attach the JWT to checkout telemetry so the admin viewer can attribute
+      // failures to a user (the sink is optionalAuth — works without it too).
+      setCheckoutTelemetryToken(s.isAuthenticated ? (s.token ?? null) : null)
       this.store.send({
         type: 'AUTH_CHANGED',
         isAuthenticated: !!s.isAuthenticated,
@@ -217,6 +225,13 @@ export class PlanManagerPlugin extends ViewPlugin {
     }
     try {
       this.on('auth', 'authStateChanged', onAuthChange as any)
+      // A silent token refresh emits `tokenRefreshed` (NOT authStateChanged, so
+      // consumers don't re-init). Keep the telemetry bearer token in sync here
+      // too, otherwise it goes stale after the first refresh and the admin
+      // viewer can't attribute later checkout events to the user.
+      this.on('auth', 'tokenRefreshed', (p: { token?: string }) => {
+        if (p?.token) setCheckoutTelemetryToken(p.token)
+      })
       this.on('auth', 'creditsUpdated', () => { void this.loadAccountData() })
       // Initial sync — auth might already be settled by the time we activate.
       const user = await this.call('auth', 'getUser').catch(() => null)
@@ -299,6 +314,15 @@ export class PlanManagerPlugin extends ViewPlugin {
     const pending = this.store.getSnapshot().pendingCheckout
     if (pending) {
       this.trackCheckout('closed', pending.intent, reason)
+      // Our own signal: the user dismissed the Remix modal that hosts the
+      // Paddle frame (X / backdrop / Escape / panel close). Paddle's own
+      // `checkout.closed` often does NOT fire here because we tear the frame
+      // container down ourselves — so this is a distinct abandonment signal.
+      reportCheckoutTelemetry('checkout.abandoned', {
+        transactionId: (pending as any)?.transactionId,
+        message: `Remix checkout modal closed (${reason})`,
+        detail: { reason, intent: pending.intent, itemLabel: (pending as any)?.itemLabel },
+      })
     }
     this.store.send({ type: 'CHECKOUT_CLOSED' })
   }
@@ -1229,9 +1253,29 @@ export class PlanManagerPlugin extends ViewPlugin {
         planManagerLogger.log('[PlanManager] No Paddle client token from auth — checkout will fall back to hosted URL.')
         return
       }
+      // Record the environment so every telemetry event is tagged sandbox/prod.
+      setCheckoutTelemetryEnv(config.environment)
       this.paddle = await initPaddle(config.clientToken, config.environment)
+      // Belt-and-suspenders: some ad/tracking blockers let init resolve but
+      // strip the global, so the overlay can never render. Surface it now.
+      if (!this.paddle && !getPaddle() && typeof (globalThis as any).Paddle === 'undefined' && !this.paddleBlockedReported) {
+        this.paddleBlockedReported = true
+        reportCheckoutTelemetry('script.blocked', {
+          message: 'window.Paddle undefined after initPaddle resolved',
+          paddleEnv: config.environment,
+        })
+      }
     } catch (err) {
       planManagerLogger.warn('[PlanManager] Paddle init failed', err)
+      // Init threw and Paddle is still not on the window → the CDN script was
+      // blocked/failed. This is the single biggest silent "can't buy" cause.
+      if (typeof (globalThis as any).Paddle === 'undefined' && !this.paddleBlockedReported) {
+        this.paddleBlockedReported = true
+        reportCheckoutTelemetry('script.blocked', {
+          message: (err as any)?.message || 'Paddle.js failed to initialize',
+          detail: { name: (err as any)?.name },
+        })
+      }
     }
   }
 
@@ -1262,12 +1306,22 @@ export class PlanManagerPlugin extends ViewPlugin {
       const billingApi = await this.call('auth', 'getBillingApi').catch(() => null) as any
       if (!billingApi) {
         this.trackCheckout('error', intent, 'billing_unavailable')
+        reportCheckoutTelemetry('transaction.error', {
+          errorCode: 'billing_unavailable',
+          message: 'Billing service is not available right now.',
+          detail: { intent, itemLabel },
+        })
         this.store.send({ type: 'CHECKOUT_ERROR', message: 'Billing service is not available right now.' })
         return
       }
       const response = await apiCall(billingApi)
       if (!response?.ok || !response.data) {
         this.trackCheckout('error', intent, response?.error || 'start_failed')
+        reportCheckoutTelemetry('transaction.error', {
+          errorCode: response?.error || 'start_failed',
+          message: response?.error || 'Could not start checkout.',
+          detail: { intent, itemLabel },
+        })
         this.store.send({ type: 'CHECKOUT_ERROR', message: response?.error || 'Could not start checkout.' })
         return
       }
@@ -1288,6 +1342,13 @@ export class PlanManagerPlugin extends ViewPlugin {
       }
       const paddleInstance = this.paddle ?? getPaddle()
       if (paddleInstance && transactionId) {
+        // Backend produced a transaction and Paddle is ready — record it so a
+        // *missing* subsequent `checkout.loaded` reveals a silent overlay
+        // failure (blocker that never throws).
+        reportCheckoutTelemetry('transaction.created', {
+          transactionId,
+          detail: { intent, itemLabel, displayMode: 'inline' },
+        })
         // Paddle.js inline checkout — renders inside .paddle-checkout-container
         openCheckoutWithTransaction(paddleInstance, transactionId, {
           settings: {
@@ -1305,6 +1366,11 @@ export class PlanManagerPlugin extends ViewPlugin {
         // Hosted-checkout fallback — we won't get Paddle events back, so
         // surface a "processing" state immediately and poll the backend
         // until the webhook lands.
+        reportCheckoutTelemetry('checkout.hosted_fallback', {
+          transactionId,
+          message: 'Opened hosted checkout URL (no inline Paddle events).',
+          detail: { intent, itemLabel },
+        })
         window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
         this.trackCheckout('opened', intent, 'hosted_url')
         this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
@@ -1312,11 +1378,21 @@ export class PlanManagerPlugin extends ViewPlugin {
         void this.pollPaymentConfirmation(intent, transactionId)
       } else {
         this.trackCheckout('error', intent, 'no_checkout_reference')
+        reportCheckoutTelemetry('transaction.error', {
+          errorCode: 'no_checkout_reference',
+          message: 'Backend returned no checkout reference.',
+          detail: { intent, itemLabel },
+        })
         this.store.send({ type: 'CHECKOUT_ERROR', message: 'Backend returned no checkout reference.' })
       }
     } catch (err: any) {
       planManagerLogger.error('[PlanManager] Checkout failed', err)
       this.trackCheckout('error', intent, err?.message || 'unexpected_error')
+      reportCheckoutTelemetry('transaction.error', {
+        errorCode: 'unexpected_error',
+        message: err?.message || 'Unexpected checkout error.',
+        detail: { intent, itemLabel, stack: err?.stack },
+      })
       this.store.send({ type: 'CHECKOUT_ERROR', message: err?.message || 'Unexpected checkout error.' })
     }
     // Touch unused param to satisfy strict mode — `intent`/`itemLabel` are
@@ -1328,6 +1404,12 @@ export class PlanManagerPlugin extends ViewPlugin {
   /** Translate Paddle SDK events into machine events. */
   private handlePaddleEvent(event: PaddleEventData): void {
     console.debug('[PlanManager] Paddle event', event.name, event.data)
+    // Mirror every notable Paddle overlay event into checkout telemetry before
+    // running the machine logic. This is the browser-side signal the billing
+    // admin funnel keys off: overlay rendered (loaded) → completed, or a
+    // closed/error/warning in between. `detail: d` keeps the full payload so
+    // we still capture everything even if a specific field path shifts.
+    this.reportPaddleTelemetry(event)
     const transactionId = (event as any)?.data?.transaction_id as string | undefined
     switch (event.name) {
     // Fired once when the checkout iframe loads, then on every change the
@@ -1379,6 +1461,38 @@ export class PlanManagerPlugin extends ViewPlugin {
       // not interesting for the panel right now.
       break
     }
+  }
+
+  /**
+   * Map a Paddle SDK event onto the checkout-telemetry funnel. Only the exact
+   * event names the billing admin viewer aggregates are reported; the runtime
+   * `checkout.payment.failed` alias is folded into `checkout.error`. Field
+   * paths inside `data` can vary by event, so we extract best-effort and dump
+   * the full payload as `detail` (the server caps it) — nothing is lost.
+   */
+  private reportPaddleTelemetry(event: PaddleEventData): void {
+    const name = event?.name as string | undefined
+    if (!name) return
+    const map: Record<string, string> = {
+      'checkout.loaded': 'checkout.loaded',
+      'checkout.payment.selected': 'checkout.payment.selected',
+      'checkout.payment.initiated': 'checkout.payment.initiated',
+      'checkout.completed': 'checkout.completed',
+      'checkout.closed': 'checkout.closed',
+      'checkout.error': 'checkout.error',
+      'checkout.warning': 'checkout.warning',
+      'checkout.payment.failed': 'checkout.error',
+    }
+    const reported = map[name]
+    if (!reported) return
+    const d: any = (event as any)?.data || {}
+    reportCheckoutTelemetry(reported, {
+      transactionId: d.transaction_id || d.id,
+      paddleCustomerId: d.customer?.id,
+      errorCode: d.error?.code || d.reason || (event as any)?.error?.code,
+      message: d.error?.detail || d.error?.message || (event as any)?.error?.message || name,
+      detail: d,
+    })
   }
 
   /**

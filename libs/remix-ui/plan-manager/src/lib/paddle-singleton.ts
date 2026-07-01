@@ -7,6 +7,7 @@
 
 import { initializePaddle, Paddle, PaddleEventData, CheckoutEventNames } from '@paddle/paddle-js'
 import { planManagerLogger, setPlanManagerLoggingEnabled } from './plan-manager-logger'
+import { reportCheckoutTelemetry } from './checkout-telemetry'
 
 type Environment = 'sandbox' | 'production'
 
@@ -219,21 +220,33 @@ export function openCheckoutWithTransaction(
   const displayMode = options?.settings?.displayMode || 'overlay'
   planManagerLogger.log('[Paddle] Opening checkout for transaction:', transactionId, '| mode:', displayMode)
 
-  paddle.Checkout.open({
-    transactionId,
-    settings: {
-      displayMode,
-      theme: options?.settings?.theme || 'light',
-      locale: options?.settings?.locale || 'en',
-      allowLogout: false,
-      ...(displayMode === 'inline' && {
-        frameTarget: options?.settings?.frameTarget || 'paddle-checkout-container',
-        frameInitialHeight: options?.settings?.frameInitialHeight || 450,
-        frameStyle: options?.settings?.frameStyle || 'width: 100%; min-width: 312px; background-color: transparent; border: none;',
-      }),
-      ...(options?.settings?.variant && { variant: options.settings.variant }),
-    }
-  })
+  try {
+    paddle.Checkout.open({
+      transactionId,
+      settings: {
+        displayMode,
+        theme: options?.settings?.theme || 'light',
+        locale: options?.settings?.locale || 'en',
+        allowLogout: false,
+        ...(displayMode === 'inline' && {
+          frameTarget: options?.settings?.frameTarget || 'paddle-checkout-container',
+          frameInitialHeight: options?.settings?.frameInitialHeight || 450,
+          frameStyle: options?.settings?.frameStyle || 'width: 100%; min-width: 312px; background-color: transparent; border: none;',
+        }),
+        ...(options?.settings?.variant && { variant: options.settings.variant }),
+      }
+    })
+  } catch (err: any) {
+    // Our own open() call threw before Paddle could take over — record it so
+    // the admin viewer can distinguish "we never opened" from "overlay never
+    // rendered" (script.blocked) or "user closed" (checkout.closed).
+    reportCheckoutTelemetry('open.error', {
+      transactionId,
+      message: err?.message || String(err),
+      detail: { displayMode, stack: err?.stack },
+    })
+    throw err
+  }
 }
 
 /**

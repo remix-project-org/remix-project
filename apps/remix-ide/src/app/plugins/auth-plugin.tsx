@@ -28,6 +28,14 @@ export class AuthPlugin extends Plugin {
   private testPoolApi: TestPoolApiService | null = null
   private activePoolSession: { sessionId: string; accountId: string } | null = null
   private refreshTimer: number | null = null
+  // How long to wait before retrying a token refresh that failed for a
+  // transient reason (404 / 5xx / network) rather than an expired refresh
+  // token (401). We keep retrying on this cadence until we get a fresh token.
+  private readonly refreshRetryMs = 10_000
+  // Set when session restore at startup found an expired access token but the
+  // refresh failed transiently. The scheduled retry then emits the full
+  // authStateChanged(true) once it recovers, instead of a bare tokenRefreshed.
+  private authRestorePending = false
   private pendingInviteToken: string | null = null
   private cachedRegistrationMode: RegistrationMode | null = null
   private cachedLoginMode: LoginMode | null = null
@@ -124,6 +132,23 @@ export class AuthPlugin extends Plugin {
     this.refreshTimer = window.setTimeout(() => {
       this.refreshAccessToken().catch(() => {/* handled in method */ })
     }, delay)
+  }
+
+  /**
+   * Schedule a retry of a token refresh that failed for a *transient* reason
+   * (404 / 5xx / network) — as opposed to a 401, which means the refresh
+   * token itself is dead and we log out. We don't have a fresh access token
+   * to compute an expiry from, so we retry on a fixed cadence until we get a
+   * new token (with a TTL we can schedule against) or the server returns 401.
+   */
+  private scheduleRefreshRetry(reason: string) {
+    // No refresh token → nothing to retry with; leave the session as-is.
+    if (!localStorage.getItem('remix_refresh_token')) return
+    this.clearRefreshTimer()
+    this.log(`[AuthPlugin] Token refresh will retry in ${this.refreshRetryMs / 1000}s (${reason})`)
+    this.refreshTimer = window.setTimeout(() => {
+      this.refreshAccessToken().catch(() => {/* handled in method */ })
+    }, this.refreshRetryMs)
   }
 
   /**
@@ -1186,17 +1211,29 @@ export class AuthPlugin extends Plugin {
           localStorage.setItem('remix_refresh_token', response.data.refresh_token)
         }
 
-        // Update all API clients
-        this.apiClient.setToken(newAccessToken)
-        this.creditsApi.setToken(newAccessToken)
-        this.permissionsApi.setToken(newAccessToken)
-        this.billingApi.setToken(newAccessToken)
-        this.inviteApi.setToken(newAccessToken)
-        this.ethSkillsApi.setToken(newAccessToken)
+        // Update all API clients (single source of truth so no client is ever
+        // missed and left sending a stale Bearer token after a refresh).
+        this.applyAuthTokenToApiClients(newAccessToken)
 
         this.log('[AuthPlugin] Access token refreshed successfully')
         // Reschedule next proactive refresh
         this.scheduleRefresh(newAccessToken)
+
+        if (this.authRestorePending) {
+          // A transient failure had deferred session restore at startup — now
+          // that we have a valid token, complete the restore with a full
+          // authStateChanged so consumers initialize their authed state.
+          this.authRestorePending = false
+          const userStr = localStorage.getItem('remix_user')
+          const user = userStr ? JSON.parse(userStr) : null
+          if (user) {
+            this.emit('authStateChanged', { isAuthenticated: true, user, token: newAccessToken })
+            this.refreshCredits().catch(console.error)
+          } else {
+            this.emit('tokenRefreshed', { token: newAccessToken })
+          }
+          return newAccessToken
+        }
 
         // Notify all listeners about the new token
         // Only emit tokenRefreshed — NOT authStateChanged.
@@ -1208,14 +1245,24 @@ export class AuthPlugin extends Plugin {
         return newAccessToken
       }
 
-      console.warn('[AuthPlugin] Token refresh failed:', response.error)
+      // The refresh call did not succeed. Distinguish a dead refresh token
+      // (401 → tokens are unusable, log out) from a transient failure
+      // (404 / 5xx / network with status 0 → keep the session and retry every
+      // ~10s until we get a fresh token with a TTL, or the server says 401).
+      if (response.status === 401) {
+        console.warn('[AuthPlugin] Refresh token rejected (401) — logging out')
+        await this.logout()
+        return null
+      }
 
-      // Any failed refresh means tokens are no longer usable — log out
-      await this.logout()
-
+      console.warn(`[AuthPlugin] Token refresh failed (status ${response.status}): ${response.error} — scheduling retry`)
+      this.scheduleRefreshRetry(`status ${response.status}`)
       return null
     } catch (error) {
       console.error('[AuthPlugin] Token refresh error:', error)
+      // Unexpected/network exception is transient — retry rather than logging
+      // the user out over a blip.
+      this.scheduleRefreshRetry('exception')
       return null
     }
   }
@@ -1422,6 +1469,17 @@ export class AuthPlugin extends Plugin {
         this.log('[AuthPlugin] Token expired, attempting refresh...')
         const refreshed = await this.refreshAccessToken()
         if (!refreshed) {
+          // If the refresh token is still present, the failure was transient
+          // (404 / 5xx / network) and refreshAccessToken has already scheduled
+          // a retry — keep the stored session and let that retry complete the
+          // restore (it will emit authStateChanged once it succeeds). Only a
+          // hard 401 clears the refresh token (via logout), so an absent token
+          // means the session is genuinely gone.
+          if (localStorage.getItem('remix_refresh_token')) {
+            this.authRestorePending = true
+            this.log('[AuthPlugin] Refresh temporarily unavailable at startup — keeping session, will retry')
+            return
+          }
           this.log('[AuthPlugin] Refresh failed, clearing session')
           this.clearStoredAuth()
           this.emit('authStateChanged', {
@@ -1495,6 +1553,12 @@ export class AuthPlugin extends Plugin {
             })
             this.refreshCredits().catch(console.error)
           }
+        } else if (localStorage.getItem('remix_refresh_token')) {
+          // Transient refresh failure (404 / 5xx / network) — refreshAccessToken
+          // scheduled a retry and kept our tokens. Keep the session and let the
+          // retry complete the restore rather than forcing a re-login.
+          this.authRestorePending = true
+          this.log('[AuthPlugin] Refresh temporarily unavailable at startup — keeping session, will retry')
         } else {
           this.log('[AuthPlugin] Refresh failed, clearing session')
           this.clearStoredAuth()
