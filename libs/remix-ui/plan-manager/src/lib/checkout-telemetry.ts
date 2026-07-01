@@ -27,19 +27,19 @@ import { planManagerLogger } from './plan-manager-logger'
  * give us visibility into the steps that happen *before* Paddle ever runs.
  */
 export type CheckoutTelemetryEvent =
-  | 'script.blocked'        // Paddle.js failed to load (adblock / CSP / tracking-protection)
-  | 'checkout.loaded'       // Paddle overlay actually rendered
+  | 'script.blocked' // Paddle.js failed to load (adblock / CSP / tracking-protection)
+  | 'checkout.loaded' // Paddle overlay actually rendered
   | 'checkout.payment.selected' // user picked a payment method
   | 'checkout.payment.initiated' // user submitted payment (clicked "Pay")
-  | 'checkout.completed'    // Paddle reported success
-  | 'checkout.closed'       // user dismissed the overlay (abandonment signal)
-  | 'checkout.error'        // Paddle reported an error
-  | 'checkout.warning'      // Paddle reported a warning
-  | 'open.error'            // our own Paddle.Checkout.open(...) threw
-  | 'transaction.created'   // * backend returned a transactionId, about to open Paddle
-  | 'transaction.error'     // * backend never produced a checkout ref — overlay never shown
+  | 'checkout.completed' // Paddle reported success
+  | 'checkout.closed' // user dismissed the overlay (abandonment signal)
+  | 'checkout.error' // Paddle reported an error
+  | 'checkout.warning' // Paddle reported a warning
+  | 'open.error' // our own Paddle.Checkout.open(...) threw
+  | 'transaction.created' // * backend returned a transactionId, about to open Paddle
+  | 'transaction.error' // * backend never produced a checkout ref — overlay never shown
   | 'checkout.hosted_fallback' // * opened the hosted URL instead of the inline overlay
-  | 'checkout.abandoned'    // * user closed the Remix modal hosting the Paddle frame
+  | 'checkout.abandoned' // * user closed the Remix modal hosting the Paddle frame
 
 export interface CheckoutTelemetryFields {
   message?: string
