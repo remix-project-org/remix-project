@@ -144,7 +144,7 @@ jobs:
   build:
     docker:
       - image: cimg/node:20.19.0-browsers
-    resource_class: medium+
+    resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     steps:
       - checkout
