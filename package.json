@@ -192,7 +192,7 @@
     "driver.js": "^1.4.0",
     "effect": "^3.19.8",
     "electron-squirrel-startup": "^1.0.0",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.1",
     "esbuild-wasm": "^0.25.12",
     "eslint-config-prettier": "^8.5.0",
     "ethers": "^6.14.0",
