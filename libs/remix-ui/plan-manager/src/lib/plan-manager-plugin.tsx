@@ -102,6 +102,29 @@ export class PlanManagerPlugin extends ViewPlugin {
   // checkout, price preview); only surface a blocked Paddle.js once per session
   // so a blocker doesn't spam the telemetry sink.
   private paddleBlockedReported = false
+  // Init-lifecycle telemetry guards (once per session each). `configMissing`
+  // resets on a fresh login so a later successful token re-reports if it fails
+  // again. These make the init path visible: init.ok = SDK ready; config.missing
+  // = getPaddleConfig gave no client token (no token yet, or billing/config
+  // failing) — the overlay can then only fall back to the hosted URL.
+  private paddleInitOkReported = false
+  private paddleConfigMissingReported = false
+  // Last reason the inline Paddle SDK wasn't available, so a subsequent
+  // hosted-checkout fallback can report WHY it fell back (config/token problem
+  // vs a blocked CDN/global vs no attempt yet). Cleared on a successful init.
+  private lastPaddleInitIssue: 'config_missing' | 'script_blocked' | null = null
+
+  // Load watchdog for the inline overlay. Paddle sometimes emits nothing (or a
+  // payload-less checkout.error) when the iframe fails to render — so after we
+  // hand a transaction to Paddle we arm a timer and, if checkout.loaded never
+  // arrives, emit `checkout.load_timeout`. `checkoutContext` also lets us
+  // correlate a later payload-less error back to the transaction we opened and
+  // report whether the overlay ever rendered.
+  private checkoutLoadWatchdog: number | null = null
+  private checkoutContext: { transactionId?: string; intent?: string; itemLabel?: string; openedAt: number; loaded: boolean } | null = null
+  // How long to wait for checkout.loaded before declaring a silent render
+  // failure. Generous enough to survive a slow network / cold Paddle CDN.
+  private readonly checkoutLoadTimeoutMs = 12_000
 
   // Desktop (Electron) billing bridge.
   // Paddle's checkout iframe can't run inside the Electron shell, so on
@@ -247,6 +270,7 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   onDeactivation(): void {
+    this.clearCheckoutLoadWatchdog()
     if (this.paddleEventHandler) {
       offPaddleEvent(this.paddleEventHandler)
       this.paddleEventHandler = null
@@ -311,6 +335,9 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   cancelCheckout(reason: string = 'user_cancelled'): void {
+    // The user is walking away from this checkout — stop the load watchdog so
+    // a dismissal isn't misreported as a silent render failure.
+    this.clearCheckoutLoadWatchdog()
     const pending = this.store.getSnapshot().pendingCheckout
     if (pending) {
       this.trackCheckout('closed', pending.intent, reason)
@@ -1251,6 +1278,30 @@ export class PlanManagerPlugin extends ViewPlugin {
         { clientToken: string | null; environment: 'sandbox' | 'production' } | null
       if (!config?.clientToken) {
         planManagerLogger.log('[PlanManager] No Paddle client token from auth — checkout will fall back to hosted URL.')
+        // Remember why the inline SDK is unavailable so a later hosted-checkout
+        // fallback can attribute itself (token/billing-config problem).
+        this.lastPaddleInitIssue = 'config_missing'
+        // Init only works once the user is logged in and the bearer token
+        // successfully fetches billing/config. For an anonymous user this is
+        // expected (config isn't fetched without a token), so we stay quiet.
+        // The signal worth capturing is "authenticated but STILL no client
+        // token" — that points at billing/config or the token itself failing.
+        const isAuthenticated = this.store.getSnapshot().isAuthenticated
+        if (isAuthenticated && !this.paddleConfigMissingReported) {
+          this.paddleConfigMissingReported = true
+          const token = await this.call('auth', 'getToken').catch(() => null)
+          reportCheckoutTelemetry('paddle.config.missing', {
+            message: token
+              ? 'billing/config returned no Paddle client token'
+              : 'Authenticated but no access token available',
+            detail: {
+              isAuthenticated,
+              hasToken: !!token,
+              configReturned: !!config,
+              environment: config?.environment ?? null,
+            },
+          })
+        }
         return
       }
       // Record the environment so every telemetry event is tagged sandbox/prod.
@@ -1259,10 +1310,24 @@ export class PlanManagerPlugin extends ViewPlugin {
       // Belt-and-suspenders: some ad/tracking blockers let init resolve but
       // strip the global, so the overlay can never render. Surface it now.
       if (!this.paddle && !getPaddle() && typeof (globalThis as any).Paddle === 'undefined' && !this.paddleBlockedReported) {
+        this.lastPaddleInitIssue = 'script_blocked'
         this.paddleBlockedReported = true
         reportCheckoutTelemetry('script.blocked', {
           message: 'window.Paddle undefined after initPaddle resolved',
           paddleEnv: config.environment,
+        })
+      } else if ((this.paddle || getPaddle()) && !this.paddleInitOkReported) {
+        // SDK is ready — the positive signal that the whole config→init chain
+        // worked for this user. Absence of this (with config.missing or
+        // script.blocked present) tells us where the funnel broke.
+        this.paddleInitOkReported = true
+        // A recovered init after a prior config.missing means a later login/
+        // token succeeded — allow config.missing to report again if it breaks.
+        this.paddleConfigMissingReported = false
+        this.lastPaddleInitIssue = null
+        reportCheckoutTelemetry('paddle.init.ok', {
+          paddleEnv: config.environment,
+          detail: { environment: config.environment },
         })
       }
     } catch (err) {
@@ -1270,6 +1335,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       // Init threw and Paddle is still not on the window → the CDN script was
       // blocked/failed. This is the single biggest silent "can't buy" cause.
       if (typeof (globalThis as any).Paddle === 'undefined' && !this.paddleBlockedReported) {
+        this.lastPaddleInitIssue = 'script_blocked'
         this.paddleBlockedReported = true
         reportCheckoutTelemetry('script.blocked', {
           message: (err as any)?.message || 'Paddle.js failed to initialize',
@@ -1360,6 +1426,11 @@ export class PlanManagerPlugin extends ViewPlugin {
             frameStyle: 'width: 100%; min-width: 312px; min-height: 700px; background-color: transparent; border: none;',
           }
         })
+        // Arm the load watchdog: if checkout.loaded never fires the overlay
+        // silently failed to render (blocker / init error that emits no usable
+        // event). This is the single biggest "created a transaction but the
+        // user never saw a form" signal.
+        this.armCheckoutLoadWatchdog({ transactionId, intent, itemLabel })
         this.trackCheckout('opened', intent, transactionId)
         this.store.send({ type: 'CHECKOUT_OPENED' })
       } else if (checkoutUrl) {
@@ -1369,7 +1440,7 @@ export class PlanManagerPlugin extends ViewPlugin {
         reportCheckoutTelemetry('checkout.hosted_fallback', {
           transactionId,
           message: 'Opened hosted checkout URL (no inline Paddle events).',
-          detail: { intent, itemLabel },
+          detail: { intent, itemLabel, reason: this.lastPaddleInitIssue ?? 'no_inline_sdk' },
         })
         window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
         this.trackCheckout('opened', intent, 'hosted_url')
@@ -1421,7 +1492,10 @@ export class PlanManagerPlugin extends ViewPlugin {
       console.log('[PlanManager] Paddle checkout update', event.name, event.data)
       // The very first event is the iframe finishing load — track it once as a
       // distinct funnel step; subsequent updates are price recalculations.
-      if (event.name === ('checkout.loaded' as any)) this.trackCheckout('paddle_loaded', undefined, transactionId)
+      if (event.name === ('checkout.loaded' as any)) {
+        this.markCheckoutLoaded()
+        this.trackCheckout('paddle_loaded', undefined, transactionId)
+      }
       const breakdown = this.parseCheckoutBreakdown(event)
       if (breakdown) {
         this.trackCheckout('breakdown_updated', breakdown.currencyCode, breakdown.total)
@@ -1430,6 +1504,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       break
     }
     case 'checkout.completed': {
+      this.clearCheckoutLoadWatchdog()
       const pendingIntent = this.store.getSnapshot().pendingCheckout?.intent ?? 'subscription'
       this.trackCheckout('completed', pendingIntent, transactionId)
       this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
@@ -1440,6 +1515,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       break
     }
     case 'checkout.closed': {
+      this.clearCheckoutLoadWatchdog()
       const pendingClose = this.store.getSnapshot().pendingCheckout
       if (pendingClose) this.trackCheckout('closed', pendingClose.intent, transactionId)
       this.store.send({ type: 'CHECKOUT_CLOSED' })
@@ -1449,6 +1525,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // also be `checkout.payment.failed`; handle both spellings.
     case 'checkout.payment.failed' as any:
     case 'checkout.error' as any: {
+      this.clearCheckoutLoadWatchdog()
       const message = (event as any)?.error?.message
         || (event as any)?.data?.error?.message
         || 'Payment failed'
@@ -1486,13 +1563,111 @@ export class PlanManagerPlugin extends ViewPlugin {
     const reported = map[name]
     if (!reported) return
     const d: any = (event as any)?.data || {}
+    const isError = reported === 'checkout.error' || reported === 'checkout.warning'
+    // Correlate back to the transaction we actually opened. Paddle's error
+    // payload is frequently empty ({}), so without this the admin viewer shows
+    // a "–" transaction and no way to tie the failure to a draft.
+    const ctx = this.checkoutContext
+    const transactionId = d.transaction_id || d.id || (isError ? ctx?.transactionId : undefined)
+    // Dump the WHOLE event, not just event.data — Paddle sometimes carries the
+    // error at the top level (event.error) while data is empty. For errors also
+    // attach whether the overlay ever rendered and how long since we opened, so
+    // "never loaded" is distinguishable from "loaded then failed".
+    const detail: Record<string, unknown> = { name, data: d }
+    if ((event as any)?.error !== undefined) detail.error = (event as any).error
+    if (isError && ctx) {
+      detail.loadedBefore = ctx.loaded
+      detail.msSinceOpen = Date.now() - ctx.openedAt
+      detail.intent = ctx.intent
+      detail.itemLabel = ctx.itemLabel
+    }
     reportCheckoutTelemetry(reported, {
-      transactionId: d.transaction_id || d.id,
+      transactionId,
       paddleCustomerId: d.customer?.id,
       errorCode: d.error?.code || d.reason || (event as any)?.error?.code,
-      message: d.error?.detail || d.error?.message || (event as any)?.error?.message || name,
-      detail: d,
+      message: d.error?.detail || d.error?.message || (event as any)?.error?.message
+        || (isError && ctx && !ctx.loaded ? 'Paddle error before overlay rendered (empty payload)' : name),
+      detail,
     })
+  }
+
+  /**
+   * Arm the inline-overlay load watchdog. If `checkout.loaded` doesn't arrive
+   * within `checkoutLoadTimeoutMs`, the overlay silently failed to render and
+   * we emit `checkout.load_timeout` — the signal for "backend gave us a
+   * transaction but the user never saw a payment form".
+   */
+  private armCheckoutLoadWatchdog(ctx: { transactionId?: string; intent?: string; itemLabel?: string }): void {
+    this.clearCheckoutLoadWatchdog()
+    this.checkoutContext = { ...ctx, openedAt: Date.now(), loaded: false }
+    this.checkoutLoadWatchdog = window.setTimeout(() => {
+      this.checkoutLoadWatchdog = null
+      const c = this.checkoutContext
+      if (!c || c.loaded) return
+      // Probe the DOM the overlay renders into so the timeout event can tell
+      // "Paddle never injected an iframe" (blocker / init failure) apart from
+      // "iframe injected but never signalled loaded" (blank / cross-origin
+      // render stall). `frameTarget` is the container class we passed to
+      // Paddle.Checkout.open.
+      const probe = this.probeCheckoutFrame('paddle-checkout-container')
+      reportCheckoutTelemetry('checkout.load_timeout', {
+        transactionId: c.transactionId,
+        message: `Paddle checkout.loaded not received within ${this.checkoutLoadTimeoutMs}ms — overlay likely failed to render.`,
+        detail: {
+          intent: c.intent,
+          itemLabel: c.itemLabel,
+          waitedMs: this.checkoutLoadTimeoutMs,
+          paddleGlobalPresent: typeof (globalThis as any).Paddle !== 'undefined',
+          ...probe,
+        },
+      })
+    }, this.checkoutLoadTimeoutMs)
+  }
+
+  /**
+   * Inspect the checkout container to distinguish failure modes at timeout:
+   *   - `containerFound=false`  → our render target is missing (panel closed /
+   *     markup changed) — the overlay had nowhere to mount.
+   *   - `iframeCount=0`         → Paddle never injected an iframe (blocker, CSP,
+   *     or Paddle.Checkout.open silently no-op'd).
+   *   - `iframeCount>0`         → iframe exists but never fired loaded — a blank
+   *     / cross-origin-stalled render. `iframeVisible`/dimensions hint whether
+   *     it's hidden vs zero-sized.
+   * All reads are best-effort and never throw into the watchdog.
+   */
+  private probeCheckoutFrame(containerClass: string): Record<string, unknown> {
+    try {
+      if (typeof document === 'undefined') return { containerFound: false }
+      const container = document.getElementsByClassName(containerClass)[0] as HTMLElement | undefined
+      if (!container) return { containerFound: false }
+      const iframes = container.getElementsByTagName('iframe')
+      const first = iframes[0] as HTMLIFrameElement | undefined
+      const rect = first?.getBoundingClientRect()
+      return {
+        containerFound: true,
+        iframeCount: iframes.length,
+        iframeSrcHost: first?.src ? (() => { try { return new URL(first.src).host } catch { return 'unparseable' } })() : null,
+        iframeVisible: first ? (getComputedStyle(first).visibility !== 'hidden' && getComputedStyle(first).display !== 'none') : false,
+        iframeWidth: rect ? Math.round(rect.width) : null,
+        iframeHeight: rect ? Math.round(rect.height) : null,
+      }
+    } catch (e: any) {
+      return { probeError: e?.message || 'probe_failed' }
+    }
+  }
+
+  /** Mark the current checkout as rendered and stop the watchdog. */
+  private markCheckoutLoaded(): void {
+    if (this.checkoutContext) this.checkoutContext.loaded = true
+    this.clearCheckoutLoadWatchdog()
+  }
+
+  /** Cancel a pending load watchdog (checkout reached a terminal state). */
+  private clearCheckoutLoadWatchdog(): void {
+    if (this.checkoutLoadWatchdog !== null) {
+      window.clearTimeout(this.checkoutLoadWatchdog)
+      this.checkoutLoadWatchdog = null
+    }
   }
 
   /**

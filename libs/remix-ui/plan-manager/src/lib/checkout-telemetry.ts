@@ -28,6 +28,8 @@ import { planManagerLogger } from './plan-manager-logger'
  */
 export type CheckoutTelemetryEvent =
   | 'script.blocked' // Paddle.js failed to load (adblock / CSP / tracking-protection)
+  | 'paddle.init.ok' // * Paddle SDK initialized successfully (config fetched + SDK ready)
+  | 'paddle.config.missing' // * getPaddleConfig returned no clientToken (no token / billing config call failing)
   | 'checkout.loaded' // Paddle overlay actually rendered
   | 'checkout.payment.selected' // user picked a payment method
   | 'checkout.payment.initiated' // user submitted payment (clicked "Pay")
@@ -39,6 +41,7 @@ export type CheckoutTelemetryEvent =
   | 'transaction.created' // * backend returned a transactionId, about to open Paddle
   | 'transaction.error' // * backend never produced a checkout ref — overlay never shown
   | 'checkout.hosted_fallback' // * opened the hosted URL instead of the inline overlay
+  | 'checkout.load_timeout' // * overlay never fired checkout.loaded within the watchdog window
   | 'checkout.abandoned' // * user closed the Remix modal hosting the Paddle frame
 
 export interface CheckoutTelemetryFields {
