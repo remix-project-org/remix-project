@@ -2,12 +2,15 @@
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Form, Button, Alert, Card, Collapse, Spinner } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { useAuth } from '@remix-ui/app'
+import { Features } from '@remix-api'
 import { toPng } from 'html-to-image';
 import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
 import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
 import { validateEnsName } from '../../utils/ens-utils';
+import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
@@ -18,11 +21,14 @@ import EnsRegistrationModal from './EnsRegistrationModal';
 const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
 
 function DeployPanel(): JSX.Element {
+  const { features } = useAuth()
+  const hasQuickdappPublishPermission = features[Features.DAPP_PUBLISH]?.is_enabled === true
   const intl = useIntl();
   const { appState, dispatch, dappManager, plugin } = useContext(AppContext);
   const { activeDapp } = appState;
   const { title, details, logo } = appState.instance;
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
+  const hasGraphGateway = hasTheGraphGatewaySources(activeDapp);
 
   const [deployResult, setDeployResult] = useState({
     cid: activeDapp?.deployment?.ipfsCid || '',
@@ -117,6 +123,10 @@ function DeployPanel(): JSX.Element {
   };
 
   const handleIpfsDeploy = async () => {
+    if (!hasQuickdappPublishPermission) {
+      plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.DAPP_PUBLISH })
+      return
+    }
     if (!activeDapp) return;
     setDeployResult({ cid: '', gatewayUrl: '', error: '' });
     setIsDeploying(true);
@@ -155,6 +165,7 @@ function DeployPanel(): JSX.Element {
       // seeing </script> in user text as the closing tag for this script element.
       const safeJson = (val: string) => JSON.stringify(val).replace(/<\//g, '<\\/');
       const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${safeJson(logoDataUrl || '')},title:${safeJson(title || '')},details:${safeJson(details || '')}};</script>`;
+      const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'ipfs-deploy' });
       const walletScript = generateWalletSelectionScript();
 
       // Escape text for safe use in HTML attribute values (OG/Twitter meta tags)
@@ -215,11 +226,9 @@ function DeployPanel(): JSX.Element {
       ].filter(Boolean).join('\n    ');
 
       let modifiedHtml = indexHtmlContent;
-      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n    ${ogTags}\n</head>`);
-      else modifiedHtml = `<html><head>${injectionScript}\n${ogTags}</head>${modifiedHtml}</html>`;
+      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n${graphRuntimeScript}\n    ${ogTags}\n</head>`);
+      else modifiedHtml = `<html><head>${injectionScript}\n${graphRuntimeScript}\n${ogTags}</head>${modifiedHtml}</html>`;
 
-      console.log("[IPFS Deploy] indexHtml length:", indexHtmlContent.length, "scriptRegexTest:", /<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/.test(indexHtmlContent));
-      if (!/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/.test(indexHtmlContent)) { console.log("[IPFS Deploy] Script tags:", indexHtmlContent.match(/<script[^>]*>/g)); console.log("[IPFS Deploy] HTML head:", indexHtmlContent.substring(0, 500)); }
       const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
       modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
       modifiedHtml = modifiedHtml.replace(/<link rel="stylesheet"[^>]*href="(?:\/|\.\/)?src\/index\.css"[^>]*>/, '');
@@ -335,6 +344,12 @@ function DeployPanel(): JSX.Element {
                 IPFS deployment is not available for Remix VM contracts. Deploy your contract to a public network first.
               </Alert>
             )}
+            {hasGraphGateway && (
+              <Alert variant="info" className="mt-2 small mb-0">
+                <i className="fas fa-key me-1"></i>
+                The Graph API key from Remix settings is sealed by Remix for this deployment. It is not embedded in the DApp, and visitors do not need their own key.
+              </Alert>
+            )}
             {displayCid && (
               <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
                 <div className="fw-bold">Deployed Successfully!</div>
@@ -347,7 +362,7 @@ function DeployPanel(): JSX.Element {
         </Collapse>
       </Card>
 
-      {displayCid && (
+      {(
         <Card className="mb-2">
           <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0" data-id="ens-section-header">
             Register ENS Name <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
@@ -368,6 +383,10 @@ function DeployPanel(): JSX.Element {
                 {ensNameError && <small className="text-danger mt-1 d-block">{ensNameError}</small>}
               </Form.Group>
               <Button variant="secondary" className="w-100" onClick={() => {
+                if (!hasQuickdappPublishPermission) {
+                  plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.DAPP_PUBLISH })
+                  return
+                }
                 setEnsResult({ success: '', error: '', txHash: '', domain: '' });
                 trackMatomoEvent(plugin as any, {
                   category: 'quick-dapp-v2',
@@ -376,7 +395,7 @@ function DeployPanel(): JSX.Element {
                   isClick: true
                 });
                 setShowEnsModal(true);
-              }} disabled={!ensName || !!ensNameError}>{ensButtonText}</Button>
+              }} disabled={!displayCid || !ensName || !!ensNameError}>{ensButtonText}</Button>
               <EnsRegistrationModal
                 show={showEnsModal}
                 onHide={() => setShowEnsModal(false)}

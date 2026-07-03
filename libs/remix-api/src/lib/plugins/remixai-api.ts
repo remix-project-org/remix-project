@@ -1,5 +1,6 @@
 import { IParams, IRemoteModel } from "@remix/remix-ai-core";
 import { StatusEvents } from "@remixproject/plugin-utils";
+import { ChatPromptMetadata } from "./remix-ai-assistant-api";
 
 export interface IRemixAI {
   events: {
@@ -16,7 +17,7 @@ export interface IRemixAI {
     error_explaining(prompt: string, context?: string, params?): Promise<string | null>,
     answer(prompt: string, params?): Promise<string | null>,
     initializeModelBackend(local: boolean, generalModel?, completionModel?): Promise<void>,
-    chatPipe(pipeMessage: string): Promise<void>,
+    chatPipe(fn: string, prompt: string, context?: string, pipeMessage?: string, metadata?: ChatPromptMetadata): Promise<void>,
     ProcessChatRequestBuffer(params:IParams): Promise<void>,
     initialize(remoteModel?:IRemoteModel, useRemote?:boolean): Promise<void>,
     vulnerability_check(prompt: string, params?): Promise<string | null>,

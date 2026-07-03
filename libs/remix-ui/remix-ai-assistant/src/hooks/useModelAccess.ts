@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { remixAILogger } from '@remix/remix-ai-core'
+import { Features } from '@remix-api'
 
 interface AssistantStatePluginCaller {
   call: (pluginName: string, method: string, ...args: any[]) => Promise<any>
@@ -45,7 +46,7 @@ export function useModelAccess(plugin?: AssistantStatePluginCaller): ModelAccess
       }
 
       const allowedMcpsFea: string[] = []
-      if (snap.permissions?.features?.['mcp:basicExternal']?.is_enabled) {
+      if (snap.permissions?.features?.[Features.MCP_BASIC_EXTERNAL]?.is_enabled) {
         allowedMcpsFea.push('mcpBasicExternal')
       }
       setAllowedMcps(allowedMcpsFea)

@@ -20,6 +20,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ModalDialog } from '@remix-ui/modal-dialog'
 import {
+  getQuickDappWorkspaceLock,
+  getQuickDappWorkspaceMutationLockMessage
+} from '@remix-ui/helper'
+import {
   discoverLocalWorkspaces,
   buildMigrationItems,
   migrateWorkspaces,
@@ -338,6 +342,18 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
   , [items, selected])
 
   const startMigration = useCallback(async () => {
+    const quickDappLock = getQuickDappWorkspaceLock()
+    if (quickDappLock) {
+      const message = getQuickDappWorkspaceMutationLockMessage(quickDappLock, 'Migrating workspaces to cloud')
+      console.warn('[QuickDapp][WorkspaceLock] blocked cloud migration', {
+        lockedWorkspace: quickDappLock.workspaceName,
+        operation: quickDappLock.operation,
+        slug: quickDappLock.slug
+      })
+      plugin?.call?.('notification', 'toast', message)
+      return
+    }
+
     const preparedItems = items.map(item => ({
       ...item,
       cloudName: cloudNames[item.localName] || item.cloudName,
@@ -371,7 +387,7 @@ export const CloudMigrationDialog: React.FC<CloudMigrationDialogProps> = ({
       console.error('[MigrationDialog] Migration failed:', err)
       setPhase('done')
     }
-  }, [items, selected, cloudNames, localWorkspaces, onMigrationComplete])
+  }, [items, selected, cloudNames, localWorkspaces, onMigrationComplete, plugin])
 
   // ── Result summary ──
 

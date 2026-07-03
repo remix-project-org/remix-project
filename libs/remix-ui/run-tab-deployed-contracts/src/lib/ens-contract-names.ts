@@ -262,6 +262,7 @@ export const friendlyEnsError = (raw: string): string => {
   if (raw.includes('name_not_controlled')) return 'This name exists but is not controlled by the Remix server.'
   if (raw.includes('taken')) return 'This name is already taken by a different address.'
   if (raw.includes('parent_not_owned')) return 'The ENS naming service is not available (parent not owned).'
+  if (raw.includes('owner() function')) return 'Reverse naming requires an owner() function on the contract.'
   if (raw.includes('contract owner')) return 'Only the contract owner can set the reverse name.'
   if (raw.includes('switch your wallet')) return raw
   if (raw.includes('No wallet provider')) return raw
@@ -301,9 +302,14 @@ export async function fetchEnsPreflight(params: PreflightRequest): Promise<Prefl
 }
 
 export async function createEnsJob(params: PreflightRequest): Promise<JobCreateResponse> {
+  const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null
+
   const response = await fetch(`${apiBase()}/jobs`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
     body: JSON.stringify(params),
   })
   const data = await response.json().catch(() => null)

@@ -27,7 +27,7 @@ interface MenuLinksProps {
 const VerticalIconsContextMenu = (props: VerticalIconsContextMenuProps) => {
   const menuRef = useRef(null)
   const [hasContextMenu, setHasContextMenu] = useState(false)
-
+  // @ts-ignore
   ClickOutside(menuRef, props.hideContextMenu)
   useEffect(() => {
     // @ts-ignore

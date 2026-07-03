@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { trackMatomoEvent } from '@remix-api'
 import { remixAILogger } from '@remix/remix-ai-core'
+import isElectron from 'is-electron'
 
 interface AiChatButtonsProps {
   theme: string
@@ -193,7 +194,10 @@ export function AiChatButtons({ theme, plugin, sendPrompt, handleGenerateWorkspa
       color: '',
       action: async () => {
         remixAILogger.log('[QuickDapp] Create DApp button clicked')
-        sendPrompt(intl.formatMessage({ id: 'remixApp.aiChatPrompt.createDapp' }))
+        const locationContext = isElectron()
+          ? 'Location is fixed to Inline in /frontend for this request. Do not ask Location.\n\n'
+          : ''
+        sendPrompt(locationContext + intl.formatMessage({ id: 'remixApp.aiChatPrompt.createDapp' }))
         trackMatomoEvent(plugin, { category: 'ai', action: 'conv_starter', name: 'create_dapp', isClick: true })
       }
     }

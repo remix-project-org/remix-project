@@ -1,4 +1,4 @@
-import { remixAILogger, IUserApiKeyConfig, API_KEYS_ALLOWED_PLANS } from '@remix/remix-ai-core'
+import { remixAILogger, IUserApiKeyConfig } from '@remix/remix-ai-core'
 
 export interface IPluginWithCalls {
   call(plugin: string, method: string, ...args: any[]): Promise<any>
@@ -21,13 +21,9 @@ export class ApiKeySettingsHelper {
   async canUseOwnApiKeys(): Promise<boolean> {
     try {
       const permissions = await this.plugin.call('auth', 'getAllPermissions')
-      const featureGroups = permissions?.feature_groups || []
-      const hasPermission = featureGroups.some((fg: any) =>
-        API_KEYS_ALLOWED_PLANS.includes(fg.name)
-      )
+      const hasPermission = permissions?.features['ai:api-key']?.is_enabled === true
       remixAILogger.log('[ApiKeySettingsHelper] API keys permission check:', {
         hasPermission,
-        featureGroups: featureGroups.map((fg: any) => fg.name)
       })
       return hasPermission
     } catch (error) {

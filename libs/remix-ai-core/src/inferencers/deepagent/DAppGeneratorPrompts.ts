@@ -112,7 +112,7 @@ You MUST separate each file using this EXACT delimiter format:
 
   /** index.html template with import map */
   indexHtmlTemplate: (ctx: DAppPromptContext): string => {
-    // Farcaster SDK and fc: meta tags removed - Base App now uses standard web app model (April 2026)
+    // Farcaster SDK and fc: meta tags removed - Base mini-app now uses standard web app model (April 2026)
     const baseMiniAppImport = ''
     const baseMiniAppMeta = ''
 
@@ -428,9 +428,9 @@ The Remix IDE preview automatically provides \`window.ethereum\` connected to th
 
 export const platform = {
 
-  /** Base App requirements - standard web app model (Farcaster SDK deprecated April 2026) */
+  /** Base mini-app requirements - standard web app model (Farcaster SDK deprecated April 2026) */
   baseMiniApp: (): string => `
-**BASE APP REQUIREMENTS (MANDATORY):**
+**Base mini-app REQUIREMENTS (MANDATORY):**
 1. **NO Farcaster SDK:** Do NOT import \`@farcaster/miniapp-sdk\`. It is deprecated and will cause errors.
 2. **NO fc: meta tags:** Do NOT include \`fc:frame\` or \`fc:miniapp\` meta tags in index.html.
 3. **ready() NOT NEEDED:** The app is considered ready when it loads. Do NOT call \`sdk.actions.ready()\`.

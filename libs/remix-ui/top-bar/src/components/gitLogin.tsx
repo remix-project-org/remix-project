@@ -79,7 +79,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
         ) : (
           <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
             <i className="fab fa-github me-1"></i>
-            <span className="d-flex flex-row flex-nowrap">Connect to GitHub</span>
+            <span className="d-flex flex-row flex-nowrap">Link</span>
           </div>
         )}
       </Button>
@@ -133,7 +133,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
               className="text-danger"
             >
               <i className="fas fa-sign-out-alt me-2"></i>
-              <span>Disconnect</span>
+              <span>Unlink</span>
             </Dropdown.Item>
           </>
         )}

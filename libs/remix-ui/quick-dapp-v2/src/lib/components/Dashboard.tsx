@@ -37,7 +37,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     const networks = new Set<string>();
     validDapps.forEach(dapp => {
       try {
-        if (dapp.contract.networkName) {
+        if (dapp.appKind === 'graph-only') {
+          networks.add('The Graph');
+        } else if (dapp.contract?.networkName) {
           networks.add(dapp.contract.networkName);
         } else {
           networks.add('Unknown Network');
@@ -54,7 +56,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     if (selectedNetwork !== 'All Chains') {
       result = result.filter(dapp =>
-        (dapp.contract.networkName || 'Unknown Network') === selectedNetwork
+        (dapp.appKind === 'graph-only' ? 'The Graph' : dapp.contract?.networkName || 'Unknown Network') === selectedNetwork
       );
     }
 

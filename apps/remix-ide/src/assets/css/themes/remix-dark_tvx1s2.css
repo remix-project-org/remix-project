@@ -144,6 +144,8 @@
   --custom-border-dark: #2c3244;
   --custom-border-dark-rgb: 44, 50, 68;
   --custom-primary: #64c4ff;
+  --fws-desktop-color: #FF8478;
+  --fws-desktop-color-rgb: 255, 132, 120;
 }
 
 [data-bs-theme=dark] {
@@ -210,6 +212,8 @@
   --custom-border-dark: #2c3244;
   --custom-border-dark-rgb: 44, 50, 68;
   --custom-primary: #64c4ff;
+  --fws-desktop-color: #FF8478;
+  --fws-desktop-color-rgb: 255, 132, 120;
 }
 
 *,

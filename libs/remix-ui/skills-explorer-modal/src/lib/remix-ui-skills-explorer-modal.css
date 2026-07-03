@@ -46,7 +46,7 @@
   background-image: url('search-icon.svg');
   background-position: 10px 8px;
   background-repeat: no-repeat;
-  color: var(--bs-light);
+  color: var(--bs-body-color);
 }
 
 .skills-explorer-container {
@@ -56,14 +56,14 @@
 }
 
 .category-title {
-  color: #667;
+  color: var(--bs-body-color);
   padding-bottom: 0.5rem;
   font-size: 1.2rem;
   font-weight: 400;
 }
 
 .category-description {
-  color: #667;
+  color: var(--bs-secondary-color);
   font-size: 0.9rem;
 }
 
@@ -223,7 +223,7 @@
 .skills-explorer-tab {
   background: transparent;
   border: none;
-  color: #667;
+  color: var(--bs-secondary-color);
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
   cursor: pointer;
@@ -271,11 +271,11 @@
 
 .upload-dropzone-text {
   font-size: 1rem;
-  color: var(--bs-dark);
+  color: var(--bs-body-color);
 }
 
 .upload-dropzone-hint {
-  color: #667;
+  color: var(--bs-secondary-color);
 }
 
 /* ========== Upload Requirements ========== */
@@ -335,7 +335,7 @@
 
 .files-list li {
   padding: 0.25rem 0;
-  color: var(--bs-light);
+  color: var(--bs-body-color);
 }
 
 .files-list code {

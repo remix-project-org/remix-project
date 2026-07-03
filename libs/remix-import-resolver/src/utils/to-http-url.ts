@@ -46,10 +46,15 @@ function getRuntimeConfig(): RuntimeConfig | undefined {
   return undefined
 }
 
-function toNpmCdn(url: string) {
+export const baseUrls = {
+  'jsdelivr': 'https://cdn.jsdelivr.net/npm',
+  'npm': 'https://unpkg.com'
+}
+function toNpmCdn(url: string, baseKey?: 'jsdelivr' | 'npm') {
+  const origin = baseUrls[baseKey || 'jsdelivr']
   // Map bare npm path like "@scope/pkg@1.2.3/file" or "@scope/pkg/file" to CDN
   const runtime = getRuntimeConfig()
-  const base = (runtime?.npmURL ? runtime.npmURL.replace(/\/+$/, '') : 'https://cdn.jsdelivr.net/npm')
+  const base = (runtime?.npmURL ? runtime.npmURL.replace(/\/+$/, '') : origin)
   return `${base}/${url}`
 }
 
@@ -80,4 +85,19 @@ export function toHttpUrl(url: string): string {
   if (isSwarmUrl(url)) return toSwarmGateway(url)
   // Fallback: treat as npm path
   return toNpmCdn(url)
+}
+
+/**
+ * Returns an ordered list of URLs to try for a given import path.
+ * For npm paths without a custom runtime override, returns both CDN endpoints
+ * (jsdelivr first, then unpkg) so callers can fall back if one is unreachable.
+ */
+export function toHttpUrls(url: string): string[] {
+  if (isHttpUrl(url)) return [url]
+  if (isIpfsUrl(url)) return [toIpfsGateway(url)]
+  if (isSwarmUrl(url)) return [toSwarmGateway(url)]
+  // If a custom npmURL is configured at runtime, only that endpoint is used
+  const runtime = getRuntimeConfig()
+  if (runtime?.npmURL) return [toNpmCdn(url, 'jsdelivr')]
+  return [toNpmCdn(url, 'jsdelivr'), toNpmCdn(url, 'npm')]
 }

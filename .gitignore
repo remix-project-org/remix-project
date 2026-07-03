@@ -96,3 +96,6 @@ apps/remix-ide-e2e/tmp/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+docker-compose.staging.yml
+Dockerfile.staging
+.dockerignore

@@ -484,7 +484,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
         // OTP flow bypasses that method entirely.
         if (plugin && typeof plugin.call === 'function') {
           try {
-            await plugin.call('auth', 'notifyEmailOtpLogin', data.user, data.token)
+            await plugin.call('auth', 'notifyEmailOtpLogin', data.user, data.token, data.isNewUser)
           } catch (e) {
             loginModalLogger.warn('[LoginModal] Failed to notify auth plugin of email OTP login:', e)
           }
@@ -621,15 +621,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                 <ul className="list-unstyled p-0 m-0">
                   <li className="mb-4 d-flex align-items-center">
                     <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
-                    <span className="login-modal-list-text">Full agentic RemixAI and new connected APIs</span>
+                    <span className="login-modal-list-text text-wrap">Full agentic RemixAI and new connected APIs</span>
                   </li>
                   <li className="mb-4 d-flex align-items-center">
                     <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
-                    <span className="login-modal-list-text">Cloud Storage, and Chat History</span>
+                    <span className="login-modal-list-text text-wrap">Cloud Storage, and Chat History</span>
                   </li>
                   <li className="mb-4 d-flex align-items-center">
                     <i className="fas fa-check-circle me-3 flex-shrink-0 login-modal-list-icon"></i>
-                    <span className="login-modal-list-text">QuickDapp — AI-assisted front-end builder with decentralized hosting</span>
+                    <span className="login-modal-list-text text-wrap">QuickDapp — AI-assisted front-end builder with decentralized hosting</span>
                   </li>
                 </ul>
               )}

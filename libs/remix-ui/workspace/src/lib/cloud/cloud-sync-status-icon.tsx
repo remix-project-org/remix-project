@@ -189,7 +189,7 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
 
   // When cloud is OFF the whole pill is grayed out; when ON the icon/text use
   // the live sync color (green when synced, orange/red for pending/error).
-  const mutedColor = theme === 'dark' ? '#9ba1b0' : '#8a8d99'
+  const mutedColor = '#a2a3bd'
   const iconColor = isOn ? syncProps?.color : mutedColor
 
   const label = isOn ? getSyncBadgeLabel(activeWorkspaceId ? syncStatus[activeWorkspaceId] : undefined) : 'Off'

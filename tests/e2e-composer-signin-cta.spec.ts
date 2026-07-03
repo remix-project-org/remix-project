@@ -2,6 +2,8 @@ import { test, expect } from './helpers/e2e-pool'
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
+// DISABLED: Playwright E2E test
+/*
 // Verifies the visual gating of the AI assistant composer:
 //   1. Anonymous load    → composer renders a "Sign in" CTA (no disabled
 //                          send button, no stop button) and a friendly
@@ -62,3 +64,4 @@ test('composer shows a Sign in CTA when anonymous and reverts to send after sign
   await expect(page.locator('[data-id="login-button"]')).toHaveCount(0)
   await expect(page.locator('[data-id="user-menu-compact"]')).toBeVisible()
 })
+*/

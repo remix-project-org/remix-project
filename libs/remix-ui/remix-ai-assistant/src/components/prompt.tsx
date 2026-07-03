@@ -3,11 +3,23 @@ import React, { MutableRefObject, Ref, useContext, useEffect, useRef, useState, 
 import GroupListMenu from "./contextOptMenu"
 import { AiAssistantType, AiContextType, groupListType } from '../types/componentTypes'
 import { MatomoEvent } from '@remix-api';
+import { Features } from '@remix-api';
+import { useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip } from '@remix-ui/helper'
 import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
-import { AutocompletePanel, Command } from './AutocompletePanel'
+import { AutocompletePanel, AVAILABLE_COMMANDS, Command } from './AutocompletePanel'
+
+const getActiveCommandName = (text: string): string | null => {
+  const lastSpaceSlash = text.lastIndexOf(' /')
+  const slashStart = lastSpaceSlash !== -1 ? lastSpaceSlash + 1 : text.startsWith('/') ? 0 : -1
+  if (slashStart === -1) return null
+  const afterSlash = text.slice(slashStart + 1)
+  const spaceIdx = afterSlash.indexOf(' ')
+  if (spaceIdx === -1) return null
+  return afterSlash.slice(0, spaceIdx).trim() || null
+}
 
 const getSlashWord = (text: string): string | null => {
   // Only detect slash commands at the beginning or after a space
@@ -16,53 +28,59 @@ const getSlashWord = (text: string): string | null => {
   if (slashStart === -1) return null
 
   const afterSlash = text.slice(slashStart)
+  if (/\s/.test(afterSlash)) return null
 
-  // If there's already a colon, the command is complete
-  if (afterSlash.includes(':')) return null
-
-  // Extract the word after the slash (until space or end)
-  const nextSpace = afterSlash.indexOf(' ')
-  const word = nextSpace === -1 ? afterSlash : afterSlash.slice(0, nextSpace)
-
-  // Return the word to show autocomplete
-  return word
+  return afterSlash
 }
 
-const SHORTCUT_CATEGORIES = [
+// A shortcut prompt is either a plain prompt string (always available) or an
+// object that additionally lists the features required to use it. Gated
+// prompts behave like the permission-locked slash commands (e.g. Load Skills):
+// when the user lacks a required feature they see a lock + upsell/sign-in badge
+// and clicking routes to the plan manager instead of filling the composer.
+type ShortcutPrompt = string | { text: string; requiredFeatures?: string[] }
+
+interface ShortcutCategory {
+  id: string
+  label: string
+  prompts: ShortcutPrompt[]
+}
+
+const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
   {
     id: 'code',
     label: 'Code',
     prompts: [
-      'Write a Solidity ERC20 token with mint and burn functions',
-      'Add an ownable access control to a contract',
-      '/compile: fix any errors in the active file',
+      { text: 'Write a Solidity ERC20 token with mint and burn functions', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'Add an ownable access control to a contract', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: '/compile fix any errors in the active file', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'explain',
     label: 'Explain',
     prompts: [
-      'Explain what this contract does line by line',
-      'What are the security risks in this code?',
-      'What does this function return and when does it revert?',
+      { text: 'Explain what this contract does line by line', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What are the security risks in this code?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What does this function return and when does it revert?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'learn',
     label: 'Learn',
     prompts: [
-      'What is a smart contract?',
-      'How does gas work in Ethereum?',
-      'What is the difference between memory and storage in Solidity?',
+      { text: 'What is a smart contract?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'How does gas work in Ethereum?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What is the difference between memory and storage in Solidity?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
   {
     id: 'deploy',
     label: 'Deploy',
     prompts: [
-      '/deploy: deploy this contract to Sepolia testnet',
-      'How do I verify my contract on Etherscan?',
-      'What network should I use for testing?',
+      { text: '/deploy this contract to Sepolia testnet', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'How do I verify my contract on Etherscan?', requiredFeatures: [Features.AI_SOLCODER]},
+      { text: 'What network should I use for testing?', requiredFeatures: [Features.AI_SOLCODER]},
     ],
   },
 ]
@@ -110,6 +128,13 @@ export interface PromptAreaProps {
   handleGasOptimisationAudit?: () => void
   hasAuditorPermission?: boolean
   hasSkillsPermission?: boolean
+  // Called when the user picks a slash command they are not entitled to.
+  // Receives the command name and the first missing feature key so the
+  // host can open the plan manager with the right upgrade context.
+  onUpgradeRequired?: (commandName: string, missingFeature: string) => void
+  // Resolves a missing feature to the cheapest plan that grants it (e.g.
+  // "Pro") so locked commands can label their badge with the target tier.
+  getRequiredPlanName?: (feature: string) => string | null
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -135,18 +160,33 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   aiRouteReady = true,
   isAuthenticated = true,
   onSignIn,
-  isNewChat = false,
   handleLoadSkills,
   handleOpenSettings,
   handleLoadAuditChecklist,
   handleGasOptimisationAudit,
   hasAuditorPermission = false,
-  hasSkillsPermission = false
+  hasSkillsPermission = false,
+  onUpgradeRequired,
+  getRequiredPlanName
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = MatomoEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
   }
+  const { features } = useAuth()
+  // Single source of truth for "does the signed-in user have feature X".
+  // Mirrors the permissions shape used across the assistant (Record or
+  // array of feature entries). Used to gate slash commands behind the
+  // plan manager.
+  const hasFeature = useCallback((feature: string): boolean => {
+    if (!features) return false
+    if (Array.isArray(features)) return features.some((f: any) => f?.feature_name === feature && f?.is_enabled !== false)
+    const entry = (features as Record<string, any>)[feature]
+    if (entry == null) return false
+    if (typeof entry === 'boolean') return entry
+    return entry?.is_enabled !== false && entry?.allowed !== false
+  }, [features])
+
   const [showAutocomplete, setShowAutocomplete] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
   const promptAreaRef = useRef<HTMLDivElement>(null)
@@ -162,10 +202,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   // Handle autocomplete visibility
   useEffect(() => {
-    // Don't show autocomplete if input ends with ": " (completed command)
-    const endsWithCommandColon = input.trimEnd().endsWith(':')
     const hasSlashWord = !!getSlashWord(input)
-    const shouldShow = hasSlashWord && !isStreaming && !endsWithCommandColon
+    const shouldShow = hasSlashWord && !isStreaming
 
     setShowAutocomplete(shouldShow)
     // Reset selected index when hiding or showing the panel
@@ -177,34 +215,71 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   const actionCommands: Command[] = useMemo(() => {
     const cmds: Command[] = [
-      { name: 'model', description: 'Switch AI model', category: 'Settings', action: handleSetModel },
+      { name: 'model', description: 'Switch AI model', category: 'Settings', action: handleSetModel, requiredFeatures: []},
     ]
-    if (handleOpenSettings) cmds.push({ name: 'settings', description: 'Open RemixAI settings', category: 'Settings', action: handleOpenSettings })
+    if (handleOpenSettings) cmds.push({ name: 'settings', description: 'Open RemixAI settings', category: 'Settings', action: handleOpenSettings, requiredFeatures: []})
     if (handleLoadSkills) {
       cmds.push({
-        name: 'Load Skills',
+        name: 'load-skills',
         description: 'Load skills',
         category: 'Tools',
         action: handleLoadSkills,
-        disabled: false
+        disabled: false,
+        requiredFeatures: [Features.SKILLS_BASIC]
       })
     }
     if (handleLoadAuditChecklist) {
       cmds.push({
-        name: 'Load Security Audit checklist',
-        description: hasAuditorPermission ? 'Load audit checklist' : 'Coming soon',
+        name: 'audit',
+        description: 'Audit a contract',
+        requiredFeatures: [Features.AI_AUDITOR],
         category: 'Tools',
-        action: hasAuditorPermission ? handleLoadAuditChecklist : undefined,
+        action: () => {
+          handleLoadAuditChecklist()
+          setInput('Audit a contract. Ask which contract file to audit if none provided.')
+        },
+        disabled: !hasAuditorPermission
+      })
+      cmds.push({
+        name: 'load-audit-checklist',
+        description: 'Load audit checklist',
+        category: 'Tools',
+        action: handleLoadAuditChecklist,
+        requiredFeatures: [Features.AI_AUDITOR],
         disabled: !hasAuditorPermission
       })
     }
-    if (handleGasOptimisationAudit) cmds.push({ name: 'Start Gas Optimisation Audit', description: hasAuditorPermission ? 'Gas optimisation audit' : 'Coming soon', category: 'Tools', action: handleGasOptimisationAudit, disabled: !hasAuditorPermission })
+    if (handleGasOptimisationAudit) cmds.push({ name: 'gas-audit', description: 'Gas optimisation audit', category: 'Tools', action: handleGasOptimisationAudit, requiredFeatures: [Features.AI_AUDITOR]})
     return cmds
-  }, [handleSetModel, handleOpenSettings, handleLoadSkills, handleLoadAuditChecklist, handleGasOptimisationAudit, hasAuditorPermission, hasSkillsPermission])
+  }, [handleSetModel, handleOpenSettings, handleLoadSkills, handleLoadAuditChecklist, handleGasOptimisationAudit, hasAuditorPermission, hasSkillsPermission, setInput])
+
+  // Returns the first required feature the user is missing for a command,
+  // or null when the command is fully unlocked.
+  const getMissingFeature = useCallback((command: Command): string | null => {
+    if (!command.requiredFeatures?.length) return null
+    return command.requiredFeatures.find((f) => !hasFeature(f)) ?? null
+  }, [hasFeature])
 
   // Handle command selection
   const handleCommandSelect = useCallback((command: Command) => {
     setShowAutocomplete(false)
+
+    // Gate: if the user lacks any required feature, route to the plan
+    // manager instead of running the command.
+    const missingFeature = getMissingFeature(command)
+    if (missingFeature) {
+      trackMatomoEvent({
+        category: 'ai',
+        action: 'remixAI',
+        value: `command_upgrade_required_${command.name}`,
+        isClick: true
+      })
+      onUpgradeRequired?.(command.name, missingFeature)
+      setInput('')
+      textareaRef?.current?.focus()
+      return
+    }
+
     // Track command selection with Matomo
     trackMatomoEvent({
       category: 'ai',
@@ -219,10 +294,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     } else {
       const lastSpaceSlash = input.lastIndexOf(' /')
       const slashStart = lastSpaceSlash !== -1 ? lastSpaceSlash + 1 : input.startsWith('/') ? 0 : input.length
-      setInput(input.slice(0, slashStart) + '/' + command.name + ': ')
+      setInput(input.slice(0, slashStart) + '/' + command.name + ' ')
     }
     textareaRef?.current?.focus()
-  }, [input, setInput, setShowAutocomplete])
+  }, [input, setInput, setShowAutocomplete, getMissingFeature, onUpgradeRequired, handleLoadAuditChecklist, hasAuditorPermission])
 
   const handleShortcutSelect = useCallback((prompt: string) => {
     setInput(prompt)
@@ -265,7 +340,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     }
 
     // Handle Enter key
-    if (e.key === 'Enter' && !e.shiftKey && !isStreaming && aiRouteReady) {
+    if (e.key === 'Enter' && !e.shiftKey && !isStreaming && aiRouteReady && isAuthenticated) {
       e.preventDefault()
 
       // If autocomplete panel is visible, select the highlighted command
@@ -285,7 +360,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         handleSend()
       }
     }
-  }, [showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, handleSend, setInput, setShowAutocomplete])
+  }, [showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, isAuthenticated, handleSend, setInput, setShowAutocomplete])
 
   useEffect(() => {
     if (!activeShortcut) return
@@ -319,6 +394,20 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   const toolCommands = actionCommands.filter(cmd => cmd.category === 'Tools')
 
+  // Contextual hint for a just-inserted command (e.g. "/compile ") so the user
+  const activeCommandHint = useMemo(() => {
+    const name = getActiveCommandName(input)
+    console.log(name)
+    if (!name) return null
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name.toLowerCase() === name.toLowerCase())
+    return cmd?.hint ?? null
+  }, [input])
+
+  // Logout doesn't reliably flip `aiRouteReady` (the route was already ready),
+  // so authentication is the source of truth for whether the composer is
+  // usable. Folding it in here disables the input + send button and surfaces
+  // the sign-in CTA the instant the user logs out.
+  const composerReady = aiRouteReady && isAuthenticated
   const needsSignIn = !aiRouteReady && !isAuthenticated && !!onSignIn
   const placeholderText = needsSignIn
     ? 'Sign in to chat with RemixAI…'
@@ -328,12 +417,17 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   return (
     <>
-      {isNewChat && <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
-        <div className="d-flex flex-row" style={{ gap: '4px' }}>
+      <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
+        <div className="d-flex flex-row align-items-center" style={{ gap: '4px' }}>
           {[...SHORTCUT_CATEGORIES, ...(toolCommands.length > 0 ? [{ id: 'tools', label: 'Tools' }] : [])].map(cat => (
             <button
               key={cat.id}
-              onClick={() => setActiveShortcut(prev => prev === cat.id ? null : cat.id)}
+              onClick={() => setActiveShortcut(prev => {
+                const next = prev === cat.id ? null : cat.id
+                // Track only when opening a category (not when toggling it shut)
+                if (next) trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'command_category_open', value: cat.id, isClick: true })
+                return next
+              })}
               className="btn btn-sm rounded-pill"
               style={{
                 fontSize: '0.72rem',
@@ -364,32 +458,72 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             }}
             data-id="shortcut-popover"
           >
-            {activeCategory.prompts.map((prompt, i) => (
-              <button
-                key={i}
-                onClick={() => handleShortcutSelect(prompt)}
-                className="d-block w-100 text-start px-3 py-2 border-0"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: 'var(--bs-body-color)',
-                  fontSize: '0.8rem',
-                  borderBottom: i < activeCategory.prompts.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                data-id={`shortcut-prompt-${i}`}
-              >
-                {prompt.startsWith('/') ? (
+            {activeCategory.prompts.map((prompt, i) => {
+              // Normalise the string|object prompt shape and resolve whether
+              // the user is missing any required feature (same gating model as
+              // the Tools commands / Load Skills).
+              const promptText = typeof prompt === 'string' ? prompt : prompt.text
+              const requiredFeatures = typeof prompt === 'string' ? undefined : prompt.requiredFeatures
+              const missingFeature = requiredFeatures?.find((f) => !hasFeature(f)) ?? null
+              const isLocked = missingFeature !== null
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    // Locked prompt → route to the plan manager (or sign-in
+                    // when anonymous) instead of dropping it into the composer.
+                    // The upgrade hand-off is tracked by onUpgradeRequired.
+                    if (isLocked) {
+                      setActiveShortcut(null)
+                      onUpgradeRequired?.(promptText, missingFeature as string)
+                      return
+                    }
+                    // Track which canned prompt was picked by category + index —
+                    // never the prompt text (kept short and content-free).
+                    trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'shortcut_selected', value: `${activeCategory.id}:${i}`, isClick: true })
+                    handleShortcutSelect(promptText)
+                  }}
+                  className="d-flex align-items-center justify-content-between w-100 text-start px-3 py-2 border-0"
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: 'var(--bs-body-color)',
+                    fontSize: '0.8rem',
+                    borderBottom: i < activeCategory.prompts.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                  data-id={`shortcut-prompt-${i}`}
+                >
                   <span>
-                    <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>
-                      {prompt.substring(0, prompt.indexOf(':') + 1)}
-                    </span>
-                    {prompt.substring(prompt.indexOf(':') + 1)}
+                    {promptText.startsWith('/') ? (
+                      <span>
+                        <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>
+                          {promptText.indexOf(' ') === -1 ? promptText : promptText.substring(0, promptText.indexOf(' '))}
+                        </span>
+                        {promptText.indexOf(' ') === -1 ? '' : promptText.substring(promptText.indexOf(' '))}
+                      </span>
+                    ) : promptText}
                   </span>
-                ) : prompt}
-              </button>
-            ))}
+                  {isLocked && (
+                    <span
+                      className="badge rounded-pill ms-2"
+                      style={{
+                        backgroundColor: 'var(--custom-ai-color)',
+                        color: 'var(--bs-body-bg)',
+                        fontSize: '0.6rem',
+                        padding: '2px 6px',
+                        fontWeight: 'normal',
+                        whiteSpace: 'nowrap'
+                      }}
+                      data-id={`shortcut-prompt-upgrade-${i}`}
+                    >
+                      {!isAuthenticated ? 'Sign in' : (getRequiredPlanName?.(missingFeature as string) ?? 'Upgrade')}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
         {activeShortcut === 'tools' && (
@@ -405,32 +539,57 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             }}
             data-id="shortcut-popover-tools"
           >
-            {toolCommands.map((cmd, i) => (
-              <button
-                key={cmd.name}
-                onClick={() => {
-                  setActiveShortcut(null)
-                  cmd.action?.()
-                }}
-                className="d-block w-100 text-start px-3 py-2 border-0"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: 'var(--bs-body-color)',
-                  fontSize: '0.8rem',
-                  borderBottom: i < toolCommands.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                data-id={`shortcut-tool-${cmd.name}`}
-              >
-                <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>/{cmd.name}</span>
-                <span className="ms-2" style={{ color: 'var(--bs-secondary-color)', fontSize: '0.75rem' }}>{cmd.description}</span>
-              </button>
-            ))}
+            {toolCommands.map((cmd, i) => {
+              const missingFeature = getMissingFeature(cmd)
+              const isLocked = missingFeature !== null
+              return (
+                <button
+                  key={cmd.name}
+                  onClick={() => {
+                    setActiveShortcut(null)
+                    // Locked tool → plan-manager hand-off (tracked by onUpgradeRequired).
+                    if (isLocked) {
+                      onUpgradeRequired?.(cmd.name, missingFeature as string)
+                      return
+                    }
+                    trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'tool_selected', value: cmd.name, isClick: true })
+                    cmd.action?.()
+                  }}
+                  className="d-block w-100 text-start px-3 py-2 border-0"
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: 'var(--bs-body-color)',
+                    fontSize: '0.8rem',
+                    borderBottom: i < toolCommands.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                  data-id={`shortcut-tool-${cmd.name}`}
+                >
+                  <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>/{cmd.name}</span>
+                  <span className="ms-2" style={{ color: 'var(--bs-secondary-color)', fontSize: '0.75rem' }}>{cmd.description}</span>
+                  {isLocked && (
+                    <span
+                      className="badge rounded-pill ms-2"
+                      style={{
+                        backgroundColor: 'var(--custom-ai-color)',
+                        color: 'var(--bs-body-bg)',
+                        fontSize: '0.6rem',
+                        padding: '2px 6px',
+                        fontWeight: 'normal'
+                      }}
+                      data-id={`shortcut-tool-upgrade-${cmd.name}`}
+                    >
+                      {!isAuthenticated ? 'Sign in' : (getRequiredPlanName?.(missingFeature as string) ?? 'Upgrade')}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
-      </div>}
+      </div>
       <div
         ref={promptAreaRef}
         className="prompt-area d-flex flex-column mx-2 p-1 rounded-3 border border-text position-relative"
@@ -447,6 +606,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             selectedIndex={selectedCommandIndex}
             onSelectedIndexChange={setSelectedCommandIndex}
             extraCommands={actionCommands}
+            hasFeature={hasFeature}
+            isAuthenticated={isAuthenticated}
+            onUpgradeRequired={(cmd, missingFeature) => onUpgradeRequired?.(cmd.name, missingFeature)}
+            getRequiredPlanName={getRequiredPlanName}
           />
         )}
         <div className="ai-chat-input d-flex flex-column">
@@ -479,13 +642,23 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               id="remix-ai-prompt-input"
               data-id="remix-ai-prompt-input"
               value={input}
-              disabled={isStreaming || !aiRouteReady}
+              disabled={isStreaming || !composerReady}
               onChange={e => {
                 setInput(e.target.value)
               }}
               onKeyDown={handleKeyDown}
               placeholder={placeholderText}
             />
+            {activeCommandHint && (
+              <div
+                className="px-2 pb-1 d-flex align-items-center"
+                style={{ fontSize: '0.72rem', color: 'var(--bs-secondary-color)', fontStyle: 'italic' }}
+                data-id="command-hint"
+              >
+                <i className="fa-regular fa-circle-question me-1" style={{ fontSize: '0.7rem' }}></i>
+                {activeCommandHint}
+              </div>
+            )}
             <div className="d-flex flex-row align-items-center">
               {/* <div className="d-flex flex-row align-items-center"> */}
               <button
@@ -571,7 +744,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 // stop button that cancels nothing is broken UX and
                 // confused users into thinking the assistant was stuck.
                 isStreaming={isStreaming}
-                disabled={!aiRouteReady}
+                disabled={!composerReady}
                 handleSend={handleSend}
                 themeTracker={themeTracker}
                 handleCancel={stopRequest}

@@ -1,7 +1,16 @@
-import React, {useState, useEffect, useRef, useContext, ChangeEvent, useReducer} from 'react' // eslint-disable-line
+import React, {useState, useEffect, useRef, useContext, ChangeEvent, useReducer, useCallback} from 'react' // eslint-disable-line
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Dropdown } from 'react-bootstrap'
-import { CustomIconsToggle, CustomMenu, CustomToggle, CustomTooltip, extractNameFromKey, extractParentFromKey } from '@remix-ui/helper'
+import {
+  CustomIconsToggle,
+  CustomMenu,
+  CustomToggle,
+  CustomTooltip,
+  extractNameFromKey,
+  extractParentFromKey,
+  getQuickDappWorkspaceLock,
+  getQuickDappWorkspaceMutationLockMessage
+} from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import {FileExplorer} from './components/file-explorer' // eslint-disable-line
 import {ModalDialog, ValidationResult} from '@remix-ui/modal-dialog' // eslint-disable-line
@@ -61,12 +70,31 @@ export function Workspace() {
   const [showMigrationDialog, setShowMigrationDialog] = useState(false)
   const { isCloudMode, activeWorkspaceId, syncStatus } = useCloudStore()
 
+  const notifyIfQuickDappWorkspaceLocked = useCallback((actionName: string, workspaceName?: string): boolean => {
+    const quickDappLock = getQuickDappWorkspaceLock()
+    if (!quickDappLock) return false
+
+    const message = getQuickDappWorkspaceMutationLockMessage(quickDappLock, actionName, workspaceName)
+    console.warn('[QuickDapp][WorkspaceLock] blocked workspace menu action', {
+      action: actionName,
+      lockedWorkspace: quickDappLock.workspaceName,
+      attemptedWorkspace: workspaceName,
+      operation: quickDappLock.operation,
+      slug: quickDappLock.slug
+    })
+    global.toast(message)
+    return true
+  }, [global])
+
   // ── Listen for migration dialog trigger from the top-bar dropdown ──
   useEffect(() => {
-    const handler = () => setShowMigrationDialog(true)
+    const handler = () => {
+      if (notifyIfQuickDappWorkspaceLocked('Opening cloud migration')) return
+      setShowMigrationDialog(true)
+    }
     cloudStore.on('showMigrationDialog', handler)
     return () => { cloudStore.off('showMigrationDialog', handler) }
-  }, [])
+  }, [notifyIfQuickDappWorkspaceLocked])
   const isCloudLoading = isCloudMode && activeWorkspaceId
     ? (syncStatus[activeWorkspaceId]?.status === 'loading' || syncStatus[activeWorkspaceId]?.status === 'syncing')
     : false
@@ -391,6 +419,8 @@ export function Workspace() {
   }, [currentWorkspace])
 
   const renameCurrentWorkspace = () => {
+    if (notifyIfQuickDappWorkspaceLocked('Workspace rename', currentWorkspace)) return
+
     global.modal(
       intl.formatMessage({ id: 'filePanel.workspace.rename' }),
       renameModalMessage(),
@@ -402,6 +432,8 @@ export function Workspace() {
 
   const [counter, setCounter] = useState(1)
   const createBlankWorkspace = async () => {
+    if (notifyIfQuickDappWorkspaceLocked('Workspace creation')) return
+
     const username = await global.plugin.call('settings', 'get', 'settings/github-user-name')
     const email = await global.plugin.call('settings', 'get', 'settings/github-email')
     const gitNotSet = !username || !email
@@ -441,6 +473,8 @@ export function Workspace() {
     )
   }
   const createWorkspace = async () => {
+    if (notifyIfQuickDappWorkspaceLocked('Workspace creation')) return
+
     await global.plugin.call('templateexplorermodal', 'updateTemplateExplorerInFileMode', false)
     appContext.appStateDispatch({
       type: appActionTypes.showGenericModal,
@@ -449,6 +483,8 @@ export function Workspace() {
   }
 
   const deleteCurrentWorkspace = () => {
+    if (notifyIfQuickDappWorkspaceLocked('Workspace deletion', currentWorkspace)) return
+
     global.modal(
       intl.formatMessage({ id: 'filePanel.workspace.delete' }),
       intl.formatMessage({ id: 'filePanel.workspace.deleteConfirm' }, { currentWorkspace }),
@@ -459,6 +495,8 @@ export function Workspace() {
   }
 
   const deleteAllWorkspaces = () => {
+    if (notifyIfQuickDappWorkspaceLocked('Deleting all workspaces')) return
+
     global.modal(
       intl.formatMessage({ id: 'filePanel.workspace.deleteAll' }),
       <>
@@ -490,6 +528,8 @@ export function Workspace() {
   }
 
   const cloneGitRepository = () => {
+    if (notifyIfQuickDappWorkspaceLocked('Workspace clone')) return
+
     global.modal(
       intl.formatMessage({ id: 'filePanel.workspace.clone' }),
       cloneModalMessage(),

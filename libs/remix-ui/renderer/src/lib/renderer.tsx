@@ -149,7 +149,7 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
 
       await plugin.call('menuicons' as any, 'select', 'remixaiassistant')
       setTimeout(async () => {
-        await plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
+        await (plugin as any).call('remixAI', 'chatPipe', 'error_explaining', message, undefined, undefined, { source: 'compiler-error', presetId: 'error-explain' })
       }, 500)
       trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'error_explaining_SolidityError', isClick: true })
     } catch (err) {

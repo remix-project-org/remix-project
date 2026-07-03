@@ -1,7 +1,6 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import React,{ ReactNode, useContext, useEffect, useRef, useState } from 'react'
 import Editor, { Monaco } from '@monaco-editor/react'
-import * as erc20 from '../contractCode/erc20'
 import { AccessControlType, ContractTypeStrategy, ContractWizardAction, TemplateExplorerWizardAction } from '../../types/template-explorer-types'
 import { getErc1155ContractCode, getErc20ContractCode, getErc721ContractCode } from '../utils/contractWizardUtils'
 import { TemplateExplorerContext } from '../../context/template-explorer-context'
@@ -26,7 +25,16 @@ const defaultStrategy: ContractTypeStrategy = {
     uups: false,
     transparent: false
   },
-  contractCode: erc20.erc20DefaultNoOptions('MyToken'),
+  contractCode: getErc20ContractCode('erc20', {
+    contractType: 'erc20',
+    contractOptions: { mintable: false, burnable: false, pausable: false, permit: true },
+    contractAccessControl: '',
+    contractUpgradability: { uups: false, transparent: false },
+    contractCode: '',
+    contractImport: '',
+    initializeAsGitRepo: false,
+    tokenName: 'MyToken'
+  }),
   contractImport: '',
   initializeAsGitRepo: false
 }
@@ -80,9 +88,6 @@ export function ContractWizard () {
     if (strategy.contractOptions.permit === false && strategy.contractType === 'erc20') {
       dispatch({ type: ContractWizardAction.UPDATE_ERC20_PERMIT, payload: { ...strategy.contractOptions, permit: true } })
     }
-  }
-  function updateTokenName(tokenName: string) {
-    dispatch({ type: ContractWizardAction.TOKEN_NAME_UPDATE, payload: tokenName })
   }
   function updateContractName(contractName: string) {
     dispatch({ type: ContractWizardAction.CONTRACT_NAME_UPDATE, payload: contractName })

@@ -22,7 +22,7 @@ import { GitHubLogin } from '../components/gitLogin'
 import { CustomTooltip } from 'libs/remix-ui/helper/src/lib/components/custom-tooltip'
 import { useCloneRepositoryModal } from '../components/CloneRepositoryModal'
 import { TrackingContext } from '@remix-ide/tracking'
-import { MatomoEvent, TopbarEvent, WorkspaceEvent, LoginMode, LoginModeResponse } from '@remix-api'
+import { MatomoEvent, TopbarEvent, WorkspaceEvent, LoginMode, LoginModeResponse, Features } from '@remix-api'
 import { LoginButton } from '@remix-ui/login'
 import { LoginModal } from 'libs/remix-ui/login/src/lib/modals/login-modal'
 import { appActionTypes } from 'libs/remix-ui/app/src/lib/remix-app/actions/app'
@@ -121,7 +121,7 @@ export function RemixUiTopbar() {
     return true
   }
 
-  const hasCloudStoragePermission = features['storage:s3']?.is_enabled === true
+  const hasCloudStoragePermission = features[Features.STORAGE_S3]?.is_enabled === true
   const showCloudToggle = showLoginUI && cloudEnabledByConfig && cloudEnabled && hasCloudStoragePermission && isVisibleByAudience(cloudVisibilityMode, isAuthenticated)
   const showNotificationBell = isVisibleByAudience(notificationMode, isAuthenticated)
 
@@ -734,7 +734,7 @@ export function RemixUiTopbar() {
       <div className="d-flex flex-row align-items-center justify-content-between w-100" style={{ minWidth: 0 }}>
         <div
           className="d-flex flex-row align-items-center m-1"
-          style={{ minWidth: 0, flex: isNonMaximizedWindow ? '0.78 1 0' : '1 1 0' }}
+          style={{ minWidth: 0 }}
         >
           <div
             className="d-flex align-items-center justify-content-between me-3 cursor-pointer"
@@ -781,10 +781,17 @@ export function RemixUiTopbar() {
           </span>
           {showCloudLoginModal && <LoginModal onClose={() => setShowCloudLoginModal(false)} plugin={plugin} />}
         </div>
-        <div className="m-1 d-flex align-self-center" style={{ minWidth: 0, flex: isNonMaximizedWindow ? '1.22 1 0' : '1 1 0' }}>
+        <div className="m-1 d-flex align-self-center">
+          {showCloudToggle && (
+            <CloudToggle
+              className="ms-2"
+              onEnableCloud={() => enableCloud().catch(() => {/* User cancelled */})}
+              onDisableCloud={() => disableCloud().catch(() => {/* User cancelled */})}
+              theme={currentTheme?.quality}
+            />)}
           <div
-            className="d-flex align-items-center flex-nowrap"
-            style={{ minWidth: 0, width: '100%', justifyContent: isNonMaximizedWindow ? 'flex-start' : 'center' }}
+            className="d-flex align-items-center flex-nowrap ms-2"
+            style={{ minWidth: 0, flex: '1 1 auto' }}
           >
             <WorkspacesDropdown
               menuItems={menuItems}
@@ -810,13 +817,6 @@ export function RemixUiTopbar() {
               openTemplateExplorer={openTemplateExplorer}
               onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
             />
-            {showCloudToggle && (
-              <CloudToggle
-                className="ms-2"
-                onEnableCloud={() => enableCloud()}
-                onDisableCloud={() => disableCloud()}
-                theme={currentTheme?.quality}
-              />)}
             <div
               ref={panelControlRef}
               data-id="panel-control"
@@ -877,7 +877,6 @@ export function RemixUiTopbar() {
                 theme={currentTheme?.quality}
               />
             </div>
-
             {showLoginUI && (
               <LoginButton
                 plugin={plugin}
@@ -936,6 +935,36 @@ export function RemixUiTopbar() {
             data-id="topbar-settingsIcon"
           >
             <i className="fa fa-cog"></i>
+          </span>
+          <span
+            className="ms-3"
+            style={{
+              fontSize: '1.2rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '4px',
+              backgroundColor: 'rgba(91, 207, 207, 0.1)',
+              border: '1px solid rgba(91, 207, 207, 0.3)'
+            }}
+            onClick={async () => {
+              const pState = await plugin.call('menuicons', 'getPluginState', 'remixaiassistant')
+              if (pState.pinned) {
+                plugin.call('rightSidePanel', 'highlight')
+              } else {
+                plugin.call('menuicons', 'toggle', 'remixaiassistant')
+              }
+            }}
+            data-id="remixai-assistant-icon"
+          >
+            <img
+              src="assets/img/remixai-logoAI.webp"
+              alt="remixaiassistant"
+              style={{ width: '20px', height: '20px' }}
+            />
           </span>
         </div>
       </div>

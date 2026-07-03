@@ -71,8 +71,8 @@ export function GenericWorkspaceTemplate() {
   }
 
   return (
-    <section data-id={`generic-template-section-${state.workspaceTemplateChosen.value}`} className="mx-3 p-2">
-      <div className="d-flex flex-column p-3 bg-light" style={{ height: state.workspaceName === 'MultiSig Wallet' ? '98%' : calculateHeight() }}>
+    <section data-id={`generic-template-section-${state.workspaceTemplateChosen.value}`} style={{ overflowY: 'scroll' }} className="mx-3 p-2">
+      <div className="d-flex flex-column p-3 bg-light">
         <div>
           <label className="form-label text-uppercase small mb-1">Workspace name</label>
         </div>

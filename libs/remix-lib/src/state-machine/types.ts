@@ -112,7 +112,9 @@ export interface NudgeAction {
   actionLabel?: string // e.g. "Try it now"
   actionTarget?: string // e.g. 'remixAI::switchModel::opus'
   icon?: string // e.g. 'fas fa-robot'
-  dismissable?: boolean // default true
+  dismissable?: boolean // default true; hides both X and 'Don't show again'
+  hidePermanentDismiss?: boolean // hides only the 'Don't show this again' footer button
+  position?: 'left' | 'right' // which side of the screen the widget anchors to (default 'left')
   hintStyle?: 'pulse' | 'glow' | 'badge' // decoration style for type:'hint' (default 'pulse')
   hintColor?: string // CSS color override, e.g. '#10b981', 'var(--bs-warning)'
   widgetColor?: string // accent color for the widget, e.g. '#6366f1'

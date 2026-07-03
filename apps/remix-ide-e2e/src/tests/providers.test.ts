@@ -70,7 +70,7 @@ module.exports = {
         (document.querySelector('*[data-id="basic-http-providerModalDialogModalBody-react"] input') as any).focus()
       }, [], () => { })
       .clearValue('*[data-id="basic-http-providerModalDialogModalBody-react"] input')
-      .setValue('*[data-id="basic-http-providerModalDialogModalBody-react"] input', 'https://scroll-rpc.publicnode.com')
+      .setValue('*[data-id="basic-http-providerModalDialogModalBody-react"] input', 'https://scroll.drpc.org')
       .modalFooterOKClick('basic-http-provider')
       .pause(1000)
       .waitForElementPresent({ selector: `[data-id="selected-provider-basic-http-provider"]`, timeout: 5000 })
@@ -86,7 +86,7 @@ module.exports = {
       .click('*[data-id="compile-action"]')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: "//span[@class='text-danger' and contains(., 'exceed maximum block range')]"
+        selector: "//span[@class='text-danger' and contains(., 'ranges over 10000 blocks are not supported on freetier')]"
       }, 60000)
       .waitForElementPresent({ selector: `[data-id="selected-provider-basic-http-provider"]`, timeout: 5000 })
   }
@@ -97,7 +97,7 @@ const testScript = `
 // Importing necessary libraries from Ethers.js for interaction with Ethereum blockchain.
 import { ethers } from "hardhat";
 
-// https://scroll-rpc.publicnode.com
+// https://scroll.drpc.org
 async function main() {
   // Setting up provider (RPC URL) to interact with your chosen Ethereum chain, 
   const [deployer] = await ethers.getSigners();

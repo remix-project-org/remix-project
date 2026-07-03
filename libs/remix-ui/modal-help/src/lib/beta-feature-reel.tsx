@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { DISCORD_URL } from '@remix-ui/helper';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -92,8 +93,8 @@ const FEATURES: Feature[] = [
     tagColor: "#5865F2",
     vizBg: "linear-gradient(135deg, #1a1a3a, #1e1640)",
     headline: "",
-    desc: "Join our Discord beta channel to share feedback, report issues, and shape the future of Remix — directly with the team.",
-    btn: "Join the Discord Beta Feedback Channel",
+    desc: "Join our Discord channel to share feedback, report issues, and shape the future of Remix — directly with the team.",
+    btn: "Join the Discord Feedback Channel",
     visual: "community",
   },
 ];
@@ -556,7 +557,7 @@ const BetaFeatureReel: React.FC<BetaFeatureReelProps> = ({
               Beta Perk
             </span>
             <div
-              onClick={() => window.open('https://discord.gg/TWfKkZVwJW', '_blank')}
+              onClick={() => window.open(DISCORD_URL, '_blank')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -581,7 +582,7 @@ const BetaFeatureReel: React.FC<BetaFeatureReelProps> = ({
               }}
             >
               <i className="fab fa-discord" style={{ fontSize: 13, color: '#5865F2' }} />
-              Join the Discord Beta Feedback Channel
+              Join the Discord Channel
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -685,7 +686,7 @@ const BetaFeatureReel: React.FC<BetaFeatureReelProps> = ({
               <div style={{ marginTop: 8 }}>
                 {feat.btn && feat.visual === "community" ? (
                   <button
-                    onClick={() => window.open('https://discord.gg/TWfKkZVwJW', '_blank')}
+                    onClick={() => window.open(DISCORD_URL, '_blank')}
                     style={{
                       background: "rgba(88,101,242,0.15)",
                       color: "#b8bfff",

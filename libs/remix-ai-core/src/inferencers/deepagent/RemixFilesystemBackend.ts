@@ -2,6 +2,10 @@ import { remixAILogger } from '../../helpers/logger'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
 import { ToolApprovalRequest, ToolApprovalResponse } from '../../types/humanInTheLoop'
+import {
+  getActiveQuickDappGenerationContext,
+  getQuickDappGenerationContext
+} from '../../helpers/quickDappGenerationContext'
 
 // File size limit for auto-summarization (100KB)
 const MAX_FILE_SIZE = 100 * 1024
@@ -49,6 +53,9 @@ export class RemixFilesystemBackend {
   ): Promise<{ error?: string; occurrences?: number; metadata?: any; filesUpdate?: any }> {
 
     try {
+      const managedConfigWrite = this.getQuickDappManagedConfigWriteError(this.normalizePath(filePath))
+      if (managedConfigWrite) return managedConfigWrite
+
       // If there are pending edits for a DIFFERENT file, flush them first
       for (const [batchFile] of this.editBatches) {
         if (batchFile !== filePath) {
@@ -114,6 +121,30 @@ export class RemixFilesystemBackend {
     if (!batch) return
     this.editBatches.delete(filePath)
 
+    const normalizedPath = this.normalizePath(filePath)
+    const managedConfigWrite = this.getQuickDappManagedConfigWriteError(normalizedPath)
+    if (managedConfigWrite) {
+      return
+    }
+    const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, this.isQuickDappCandidatePath(normalizedPath))
+    if (workspaceMismatch) {
+      remixAILogger.warn('[QuickDapp][WorkspaceLock] blocked pending edit flush in wrong workspace', {
+        filePath,
+        normalizedPath,
+        error: workspaceMismatch.error
+      })
+      return
+    }
+    const pathMismatch = this.getQuickDappPathMismatch(normalizedPath, this.isQuickDappCandidatePath(normalizedPath))
+    if (pathMismatch) {
+      remixAILogger.warn('[QuickDapp][WorkspaceLock] blocked pending edit flush at wrong DApp source root', {
+        filePath,
+        normalizedPath,
+        error: pathMismatch.error
+      })
+      return
+    }
+
     // Request ONE approval for the combined diff
     const result = await this.requestWriteApproval(filePath, batch.originalContent, batch.virtualContent, 'edit_file')
 
@@ -124,6 +155,10 @@ export class RemixFilesystemBackend {
     }
 
     const finalContent = result.modifiedContent || batch.virtualContent
+    const graphGatewayWrite = this.getQuickDappGraphGatewayWriteError(normalizedPath, finalContent)
+    if (graphGatewayWrite) {
+      return
+    }
 
     await this.writeFileInternal(filePath, finalContent)
   }
@@ -155,23 +190,29 @@ export class RemixFilesystemBackend {
 
   async read_file(path: string): Promise<string | { error: string }> {
     try {
-      const batch = this.editBatches.get(path)
+      const guardPath = this.normalizePath(path)
+      const isQuickDappCandidatePath = this.isQuickDappCandidatePath(guardPath)
+      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(guardPath, this.isQuickDappCandidatePath(guardPath))
+      if (workspaceMismatch) return workspaceMismatch
+      const pathMismatch = this.getQuickDappPathMismatch(guardPath, isQuickDappCandidatePath)
+      if (pathMismatch) return pathMismatch
+
+      const batch = this.editBatches.get(path) || this.editBatches.get(guardPath)
       if (batch) {
         return batch.virtualContent
       }
 
-      const normalizedPath = path
-      const exists = await this.plugin.call('fileManager', 'exists', normalizedPath)
+      const exists = await this.plugin.call('fileManager', 'exists', path)
 
       if (!exists) {
 
         throw new Error(`File not found: ${path}`)
       }
 
-      const content = await this.plugin.call('fileManager', 'readFile', normalizedPath)
+      const content = await this.plugin.call('fileManager', 'readFile', path)
 
       if (content.length > MAX_FILE_SIZE) {
-        return this.summarizeFile(normalizedPath, content)
+        return this.summarizeFile(path, content)
       }
 
       return content
@@ -197,14 +238,49 @@ export class RemixFilesystemBackend {
       // Defensive: strip workspace name prefix if the agent accidentally includes it
       // e.g. "dapp-storage-abc/src/App.jsx" → "/src/App.jsx"
       let normalizedPath = path
+      let currentWorkspaceName = ''
       try {
         const currentWs = await this.plugin.call('filePanel' as any, 'getCurrentWorkspace')
+        currentWorkspaceName = currentWs?.name || ''
         if (currentWs?.name && normalizedPath.startsWith(currentWs.name + '/')) {
           remixAILogger.warn(`[QuickDapp] Stripping workspace prefix from path: ${normalizedPath}`)
           normalizedPath = normalizedPath.substring(currentWs.name.length)
         }
       } catch (e) { /* ignore workspace check failure */ }
       if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath
+      const activeQuickDappContext = getActiveQuickDappGenerationContext()
+      const activeWorkspacePrefix = activeQuickDappContext?.workspaceName ? `/${activeQuickDappContext.workspaceName}/` : ''
+      if (activeWorkspacePrefix && normalizedPath.startsWith(activeWorkspacePrefix)) {
+        remixAILogger.warn(`[QuickDapp] Stripping target workspace prefix from path: ${normalizedPath}`)
+        normalizedPath = normalizedPath.substring(activeQuickDappContext.workspaceName.length + 1)
+        if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath
+      }
+      const managedConfigWrite = this.getQuickDappManagedConfigWriteError(normalizedPath)
+      if (managedConfigWrite) return managedConfigWrite
+      const isQuickDappCandidatePath = this.isQuickDappCandidatePath(normalizedPath)
+      const hasWeb3DappContent = this.hasQuickDappWeb3Content(content)
+      const shouldEnforceQuickDappRouting =
+        hasWeb3DappContent ||
+        normalizedPath.startsWith('/frontend/') ||
+        normalizedPath.startsWith('/dapp/') ||
+        /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(normalizedPath)
+      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, isQuickDappCandidatePath || hasWeb3DappContent)
+      if (workspaceMismatch) return workspaceMismatch
+      const pathMismatch = this.getQuickDappPathMismatch(normalizedPath, shouldEnforceQuickDappRouting)
+      if (pathMismatch) return pathMismatch
+      if (isQuickDappCandidatePath || hasWeb3DappContent) {
+        const activeQuickDappContext = currentWorkspaceName
+          ? getQuickDappGenerationContext(currentWorkspaceName)
+          : undefined
+        if (shouldEnforceQuickDappRouting && !activeQuickDappContext) {
+          return {
+            error:
+              `QUICKDAPP_ROUTING_REQUIRED: This looks like a DApp frontend file, but generate_dapp/update_dapp has not prepared a QuickDapp workspace. ` +
+              `Do NOT write this file directly. Ask the setup options if needed, then call generate_dapp with setupOptionsConfirmed=true and setupOptionsSummary. ` +
+              `After generate_dapp returns file instructions, write only the paths it specifies.`
+          }
+        }
+      }
       const exists = await this.plugin.call('fileManager', 'exists', normalizedPath)
 
       let oldContent = ''
@@ -223,6 +299,8 @@ export class RemixFilesystemBackend {
       }
 
       const finalContent = result.modifiedContent || content
+      const graphGatewayWrite = this.getQuickDappGraphGatewayWriteError(normalizedPath, finalContent)
+      if (graphGatewayWrite) return graphGatewayWrite
 
       await this.writeFileInternal(normalizedPath, finalContent)
 
@@ -248,6 +326,13 @@ export class RemixFilesystemBackend {
 
     try {
       const normalizedPath = this.normalizePath(path)
+      const managedConfigWrite = this.getQuickDappManagedConfigWriteError(normalizedPath)
+      if (managedConfigWrite) return managedConfigWrite
+      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, this.isQuickDappCandidatePath(normalizedPath))
+      if (workspaceMismatch) return workspaceMismatch
+      const pathMismatch = this.getQuickDappPathMismatch(normalizedPath, this.isQuickDappCandidatePath(normalizedPath))
+      if (pathMismatch) return pathMismatch
+
       const originalContent = await this.read_file(normalizedPath)
 
       if (typeof originalContent !== 'string') {
@@ -274,6 +359,8 @@ export class RemixFilesystemBackend {
       }
 
       const finalContent = result.modifiedContent || content
+      const graphGatewayWrite = this.getQuickDappGraphGatewayWriteError(normalizedPath, finalContent)
+      if (graphGatewayWrite) return graphGatewayWrite
 
       await this.writeFileInternal(normalizedPath, finalContent)
 
@@ -438,6 +525,124 @@ export class RemixFilesystemBackend {
     normalized = normalized.replace(/\/\//g, '/')
 
     return normalized
+  }
+
+  private isQuickDappCandidatePath(path: string): boolean {
+    return path === '/index.html' ||
+      path.startsWith('/src/') ||
+      path.startsWith('/frontend/') ||
+      path.startsWith('/dapp/') ||
+      /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(path)
+  }
+
+  private getQuickDappManagedConfigWriteError(path: string): { error: string } | undefined {
+    const normalizedPath = path.startsWith('/') ? path : this.normalizePath(path)
+    if (normalizedPath !== '/dapp.config.json' && normalizedPath !== '/frontend/dapp.config.json') return undefined
+
+    const activeQuickDappContext = getActiveQuickDappGenerationContext()
+    if (!activeQuickDappContext) return undefined
+
+    const error =
+      `QUICKDAPP_MANAGED_CONFIG: "${normalizedPath}" is managed by QuickDapp. ` +
+      `Do not write or edit dapp.config.json. Write only source files, then call finalize_dapp_generation.`
+
+    return { error }
+  }
+
+  private getQuickDappGraphGatewayWriteError(path: string, content: string): { error: string } | undefined {
+    const activeQuickDappContext = getActiveQuickDappGenerationContext()
+    if (!activeQuickDappContext) return undefined
+
+    const normalizedPath = path.startsWith('/') ? path : this.normalizePath(path)
+    if (!this.isQuickDappCandidatePath(normalizedPath)) return undefined
+    const unkeyedGatewayEndpointPattern =
+      /(?:fetch\s*\(\s*|(?:const|let|var)\s+[A-Za-z0-9_$]*(?:GRAPH|GRAPHQL|SUBGRAPH|ENDPOINT|URL|GATEWAY)[A-Za-z0-9_$]*\s*=\s*)['"`]https:\/\/gateway\.thegraph\.com\/api\/subgraphs\/id\//i
+    if (!unkeyedGatewayEndpointPattern.test(content)) return undefined
+
+    const error =
+      `QUICKDAPP_GRAPH_GATEWAY_API_KEY_REQUIRED: "${normalizedPath}" contains a The Graph gateway URL without an API key. ` +
+      `Do not fetch https://gateway.thegraph.com/api/subgraphs/id/... directly. ` +
+      `Read window.__QUICK_DAPP_GRAPH_CONFIG__, prefer graphConfig.proxyEndpoint plus source.proxyToken for deployed DApps, ` +
+      `and use graphConfig.apiKey only for Remix preview. Do not add a The Graph API key input or localStorage key fallback.`
+
+    return { error }
+  }
+
+  private hasQuickDappWeb3Content(content: string): boolean {
+    return typeof content === 'string' &&
+      /0x[a-fA-F0-9]{40}/.test(content) &&
+      /ethers|window\.ethereum|BrowserProvider|eth_requestAccounts|new Contract|contract ABI/i.test(content)
+  }
+
+  private async getCurrentWorkspaceName(): Promise<string> {
+    try {
+      const currentWs = await this.plugin.call('filePanel' as any, 'getCurrentWorkspace')
+      return currentWs?.name || ''
+    } catch {
+      return ''
+    }
+  }
+
+  private getQuickDappPathMismatch(path: string, shouldCheck: boolean): { error: string } | undefined {
+    if (!shouldCheck) return undefined
+
+    const activeQuickDappContext = getActiveQuickDappGenerationContext()
+    if (!activeQuickDappContext) return undefined
+
+    const normalizedPath = path.startsWith('/') ? path : this.normalizePath(path)
+    const isInlinePath = normalizedPath.startsWith('/frontend/')
+    const isWrongRoot = activeQuickDappContext.isInlineMode
+      ? !isInlinePath
+      : isInlinePath || normalizedPath.startsWith('/dapp/')
+
+    if (!isWrongRoot) return undefined
+
+    const expectedExample = activeQuickDappContext.isInlineMode
+      ? '/frontend/src/App.jsx'
+      : '/src/App.jsx'
+    const rejectedExample = activeQuickDappContext.isInlineMode
+      ? '/src/App.jsx'
+      : '/frontend/src/App.jsx'
+    const error =
+      `QUICKDAPP_PATH_MISMATCH: QuickDapp ${activeQuickDappContext.operation} is targeting ` +
+      `${activeQuickDappContext.isInlineMode ? 'inline mode under /frontend' : 'workspace mode at the workspace root'}, ` +
+      `but the requested path "${normalizedPath}" is in the wrong DApp source root. ` +
+      `Use paths like "${expectedExample}", not "${rejectedExample}".`
+
+    remixAILogger.warn('[QuickDapp][WorkspaceLock] blocked file tool at wrong DApp source root', {
+      operation: activeQuickDappContext.operation,
+      workspaceName: activeQuickDappContext.workspaceName,
+      isInlineMode: activeQuickDappContext.isInlineMode,
+      sourceRoot: activeQuickDappContext.sourceRoot,
+      path: normalizedPath
+    })
+
+    return { error }
+  }
+
+  private async getQuickDappWorkspaceMismatch(path: string, shouldCheck: boolean): Promise<{ error: string } | undefined> {
+    if (!shouldCheck) return undefined
+
+    const activeQuickDappContext = getActiveQuickDappGenerationContext()
+    if (!activeQuickDappContext) return undefined
+
+    const currentWorkspaceName = await this.getCurrentWorkspaceName()
+    if (currentWorkspaceName === activeQuickDappContext.workspaceName) return undefined
+
+    const currentWorkspaceLabel = currentWorkspaceName || 'unknown'
+    const error =
+      `QUICKDAPP_WORKSPACE_MISMATCH: QuickDapp ${activeQuickDappContext.operation} is targeting workspace ` +
+      `"${activeQuickDappContext.workspaceName}", but the current workspace is "${currentWorkspaceLabel}" while accessing "${path}". ` +
+      `Do not read, edit, or write DApp frontend files in the current workspace. Switch back to "${activeQuickDappContext.workspaceName}" or wait for the QuickDapp operation to finish.`
+
+    remixAILogger.warn('[QuickDapp][WorkspaceLock] blocked file tool in wrong workspace', {
+      operation: activeQuickDappContext.operation,
+      lockedWorkspace: activeQuickDappContext.workspaceName,
+      currentWorkspace: currentWorkspaceLabel,
+      path
+    })
+
+    return { error }
   }
 
   private summarizeFile(path: string, content: string): string {

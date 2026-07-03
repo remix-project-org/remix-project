@@ -30,10 +30,12 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
   const statusColor = dapp.status === 'deployed' ? 'text-success' : 'text-warning';
   const statusIcon = dapp.status === 'deployed' ? 'fa-check-circle' : 'fa-pen-square';
 
-  const loadingText = dapp.status === 'creating' ? 'AI Creating...' : 'AI Updating...';
   const progress = generationProgress;
   const generatedFiles = progress?.generatedFiles || [];
   const currentFile = progress?.filename;
+  const networkLabel = dapp.appKind === 'graph-only' ? 'The Graph' : dapp?.contract?.networkName || 'Remix VM';
+  const isCreating = dapp.status === 'creating' || (!progress && isProcessing && dapp.status !== 'updating');
+  const loadingText = isCreating ? 'AI Creating...' : 'AI Updating...';
 
   const statusText = progress?.status === 'generating_file' && currentFile
     ? `Generating ${currentFile}...`
@@ -92,7 +94,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
           )}
 
           <div className="position-absolute top-0 start-0 m-2 badge bg-primary opacity-75" data-id={`dapp-network-${dapp.slug}`}>
-            {dapp?.contract?.networkName || 'Remix VM'}
+            {networkLabel}
           </div>
 
           {!isProcessing && (

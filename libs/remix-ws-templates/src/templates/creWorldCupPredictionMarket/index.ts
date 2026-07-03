@@ -1,13 +1,11 @@
 export default async (opts, plugin) => {
   return {
     // @ts-ignore
-    'contracts/PredictionMarket.sol': (await import('raw-loader!./contracts/PredictionMarket.sol')).default,
-    // @ts-ignore
-    'contracts/interfaces/IReceiver.sol': (await import('raw-loader!./contracts/interfaces/IReceiver.sol')).default,
+    'contracts/WorldCupPredictionMarket.sol': (await import('raw-loader!./contracts/WorldCupPredictionMarket.sol')).default,
     // @ts-ignore
     'contracts/interfaces/ReceiverTemplate.sol': (await import('raw-loader!./contracts/interfaces/ReceiverTemplate.sol')).default,
     // @ts-ignore
-    'README.txt': (await import('raw-loader!./README.txt')).default,
+    'README.md': (await import('raw-loader!./README.md')).default,
     // @ts-ignore
     '.prettierrc.json': (await import('raw-loader!./.prettierrc')).default,
     // @ts-ignore

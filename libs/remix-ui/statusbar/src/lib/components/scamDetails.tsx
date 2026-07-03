@@ -28,20 +28,33 @@ export default function ScamDetails ({ refs, floatStyle, scamAlerts }: ScamDetai
         height: 'fit-content',
         transform: 'translate(88.5px, -80px)',
         willChange: 'transform',
-        boxShadow: "0 1px 7px var(--bs-secondary)"
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",
+        backgroundColor: 'var(--bs-warning)',
+        border: '2px solid var(--bs-warning-border-subtle)',
+        borderRadius: '6px',
+        color: 'var(--bs-warning-text-emphasis)',
+        opacity: 1,
+        zIndex: 9999
       } }
-      className="py-2 px-4 pb-0 mb-0 d-flex alert alert-warning border border-warning"
+      className="py-2 px-4 pb-0 mb-0 d-flex"
     >
       <span className="align-self-center ps-2 mt-1">
-        <i style={{ fontSize: 'xxx-large', fontWeight: 'lighter' }} className="pe-2 far fa-exclamation-triangle"></i>
+        <i style={{ fontSize: 'xxx-large', fontWeight: 'bold', color: 'var(--bs-warning-text-emphasis)' }} className="pe-2 fas fa-exclamation-triangle"></i>
       </span>
       <div className="d-flex flex-column pe-2 py-2">
         {scamAlerts && scamAlerts.map((alert, index) => (
-          <span className="ps-2 mt-1" key={`${alert.url}${index}`}>
+          <span className="ps-2 mt-1" key={`${alert.url}${index}`} style={{ color: 'var(--bs-warning-text-emphasis)', fontWeight: 600, fontSize: '0.9rem' }}>
             {alert.url.length < 1 ? <FormattedMessage id={`home.scamAlertText${index + 1}`} defaultMessage={alert.message} />
               : (<><FormattedMessage id={`home.scamAlertText${index + 1}`} defaultMessage={alert.message} /> :
                 <a
-                  className={`remixui_home_text text-decoration-none ps-1`}
+                  className="ps-1"
+                  style={{
+                    color: 'var(--bs-link-color)',
+                    fontWeight: 700,
+                    textDecoration: 'underline',
+                    outline: 'none',
+                    boxShadow: 'none'
+                  }}
                   onClick={() => {
                     index === 1 && trackMatomoEvent({ category: 'hometab', action: 'scamAlert', name: 'learnMore', isClick: true })
                     index === 2 && trackMatomoEvent({ category: 'hometab', action: 'scamAlert', name: 'safetyTips', isClick: true })

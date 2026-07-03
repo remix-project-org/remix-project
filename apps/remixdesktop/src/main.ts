@@ -193,6 +193,12 @@ function handleRemixUrl(url: string) {
       break;
     }
 
+    case '/billing/complete': {
+      console.log('Billing complete callback received');
+      desktopBillingHandlerPlugin?.handleBillingComplete(searchParams);
+      break;
+    }
+
     default:
       console.warn('Unknown remix:// URL path:', fullPath);
       break;
@@ -276,7 +282,7 @@ import HelpMenu from './menus/help';
 import { execCommand } from './menus/commands';
 import main from './menus/main';
 import { trackEvent } from './utils/matamo';
-import { githubAuthHandlerPlugin, desktopAuthHandlerPlugin } from './engine';
+import { githubAuthHandlerPlugin, desktopAuthHandlerPlugin, desktopBillingHandlerPlugin } from './engine';
 
 const commandKeys: Record<string, string> = {
   'window:new': 'CmdOrCtrl+N',

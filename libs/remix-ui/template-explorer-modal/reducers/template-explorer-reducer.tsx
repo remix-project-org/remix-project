@@ -1,7 +1,6 @@
 import React from 'react'
 import { ContractWizardAction, MetadataType, TemplateExplorerWizardAction, TemplateExplorerWizardState, TemplateRepository, WizardStep } from '../types/template-explorer-types'
 import { metadata, templatesRepository } from '../src/utils/helpers'
-import * as erc20 from '../src/contractCode/erc20'
 import { getErc20ContractCode } from '../src/utils/contractWizardUtils'
 
 export const initialState: TemplateExplorerWizardState = {
@@ -34,7 +33,16 @@ export const initialState: TemplateExplorerWizardState = {
     uups: false,
     transparent: false
   },
-  contractCode: erc20.erc20DefaultNoOptions('MyToken'),
+  contractCode: getErc20ContractCode('erc20', {
+    contractType: 'erc20',
+    contractOptions: { mintable: false, burnable: false, pausable: false, permit: true },
+    contractAccessControl: '',
+    contractUpgradability: { uups: false, transparent: false },
+    contractCode: '',
+    contractImport: '',
+    initializeAsGitRepo: false,
+    tokenName: 'MyToken'
+  }),
   contractImport: '',
   gitUrl: '',
   tokenName: 'MyToken',

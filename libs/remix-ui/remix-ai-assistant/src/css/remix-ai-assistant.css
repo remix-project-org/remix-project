@@ -1510,7 +1510,7 @@ body.light .message-copy-btn:hover {
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  margin: 0 12px 4px;
+  margin: 0 8px 4px;
   border-radius: 6px;
   font-size: 12px;
   flex-shrink: 0;

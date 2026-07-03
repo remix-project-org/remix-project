@@ -27,9 +27,11 @@ export class RightSidePanel extends AbstractPanel {
   isHidden: boolean = true
   isMaximized: boolean = false
   maximizedState: { leftPanelHidden: boolean, terminalPanelHidden: boolean }
+  desktopClientMode: boolean = false
 
-  constructor() {
+  constructor(desktopClientMode: boolean) {
     super(rightSidePanel)
+    this.desktopClientMode = desktopClientMode
     this.isHidden = true
     this.hiddenPlugin = null
     this.isMaximized = false
@@ -108,7 +110,7 @@ export class RightSidePanel extends AbstractPanel {
 
       // Sync DOM state with localStorage state
       const pinnedPanel = document.querySelector('#right-side-panel')
-      if (this.isHidden) {
+      if (this.isHidden || this.desktopClientMode) {
         pinnedPanel?.classList.add('d-none')
         trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'hiddenOnLoad', isClick: false })
         this.emit('rightSidePanelHidden')
@@ -165,7 +167,7 @@ export class RightSidePanel extends AbstractPanel {
     // Keep panel hidden only if we're re-pinning the exact same plugin that was explicitly hidden
     const shouldStayHidden = this.isHidden && this.hiddenPlugin && this.hiddenPlugin.name === profile.name
 
-    if (shouldStayHidden) {
+    if (shouldStayHidden || this.desktopClientMode) {
       // Keep the panel hidden for the same plugin
       pinnedPanel?.classList.add('d-none')
       this.hiddenPlugin = profile
@@ -270,7 +272,7 @@ export class RightSidePanel extends AbstractPanel {
       return
     }
 
-    if (this.isHidden) {
+    if (this.isHidden && !this.desktopClientMode) {
       this.isHidden = false
       pinnedPanel?.classList.remove('d-none')
       trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'shownOnToggleIconClick', isClick: false })
@@ -374,7 +376,7 @@ export class RightSidePanel extends AbstractPanel {
     const isPanelHiddenInDOM = pinnedPanel?.classList.contains('d-none')
 
     // Check both the state variable and actual DOM state to ensure proper visibility
-    if (this.isHidden || isPanelHiddenInDOM) {
+    if ((this.isHidden || isPanelHiddenInDOM) && !this.desktopClientMode) {
       this.isHidden = false
       this.hiddenPlugin = null
       pinnedPanel?.classList.remove('d-none')

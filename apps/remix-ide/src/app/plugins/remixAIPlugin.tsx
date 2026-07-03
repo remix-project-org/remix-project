@@ -1,6 +1,6 @@
 import * as packageJson from '../../../../../package.json'
 import { Plugin } from '@remixproject/engine';
-import { trackMatomoEvent } from '@remix-api'
+import { trackMatomoEvent, Features, ChatPromptMetadata } from '@remix-api'
 import { remixAILogger, RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig } from '@remix/remix-ai-core';
 import { MCPInferencer, DeepAgentInferencer, onApiKeysChange } from '@remix/remix-ai-core';
@@ -494,6 +494,12 @@ export class RemixAIPlugin extends Plugin {
 
         // Don't use remote fallback for Ollama - user explicitly chose local models
         const fallbackInferencer = this.selectedModel.provider === 'ollama' ? null : this.remoteInferencer
+
+        // Clean up old instance if it exists
+        if (this.deepAgentInferencer && typeof this.deepAgentInferencer.cleanup === 'function') {
+          this.deepAgentInferencer.cleanup()
+        }
+
         this.deepAgentInferencer = new DeepAgentInferencer(
           this,
           this.remixMCPServer.tools,
@@ -641,7 +647,8 @@ export class RemixAIPlugin extends Plugin {
     option.stream = false
     option.stream_result = false
     option.return_stream_response = false
-    return await this.remoteInferencer.basic_prompt(prompt, option)
+    // return await this.remoteInferencer.basic_prompt(prompt, option)
+    return this.deepAgentInferencer?.basic_inference(prompt) ?? this.remoteInferencer.basic_prompt(prompt, option)
   }
 
   async code_generation(prompt: string, params: IParams=CompletionParams): Promise<any> {
@@ -662,7 +669,7 @@ export class RemixAIPlugin extends Plugin {
 
   async code_completion(prompt: string, promptAfter: string, params:IParams=CompletionParams): Promise<any> {
     this.emit('codeCompletionUsed')
-    return this.withAssistantGate('ai:completion', async () => {
+    return this.withAssistantGate(Features.AI_COMPLETION, async () => {
       if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
       params.provider = 'mistralai' // default provider for code completion
       const currentFileName = await this.call('fileManager', 'getCurrentFile')
@@ -911,7 +918,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async code_insertion(msg_pfx: string, msg_sfx: string, params:IParams=CompletionParams): Promise<any> {
-    return this.withAssistantGate('ai:completion', async () => {
+    return this.withAssistantGate(Features.AI_COMPLETION, async () => {
       if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
 
       params.provider = 'mistralai' // default provider for code completion
@@ -921,7 +928,7 @@ export class RemixAIPlugin extends Plugin {
     })
   }
 
-  async chatPipe(fn, prompt: string, context?: string, pipeMessage?: string){
+  async chatPipe(fn, prompt: string, context?: string, pipeMessage?: string, metadata?: ChatPromptMetadata){
     // Gate before we pipe anything to the chat — otherwise the user bubble
     // appears for a request we already know we won't honor (and the
     // downstream null result crashes the chat with "cannot read body").
@@ -933,6 +940,11 @@ export class RemixAIPlugin extends Plugin {
       if (!ready) return
     } catch { /* assistantState not active — fall through to legacy path */ }
 
+    // Attribute the prompt so analytics can group it. Callers should pass
+    // explicit provenance; when absent we fall back to the function name so
+    // error/code-explain prompts are still distinguishable from user-typed.
+    const promptMeta: ChatPromptMetadata = metadata ?? { source: 'remixAI', presetId: fn }
+
     if (this.chatRequestBuffer == null){
       this.chatRequestBuffer = {
         fn_name: fn,
@@ -940,12 +952,12 @@ export class RemixAIPlugin extends Plugin {
         context: context
       }
 
-      if (pipeMessage) this.call('remixaiassistant', 'chatPipe', pipeMessage)
+      if (pipeMessage) this.call('remixaiassistant', 'chatPipe', pipeMessage, false, promptMeta)
       else {
-        if (fn === "code_explaining") this.call('remixaiassistant', 'chatPipe',"Explain the current code")
-        else if (fn === "error_explaining") this.call('remixaiassistant', 'chatPipe', "Explain the error")
-        else if (fn === "answer") this.call('remixaiassistant', 'chatPipe', "Answer the following question")
-        else if (fn === "vulnerability_check") this.call('remixaiassistant', 'chatPipe',"Is there any vulnerability in the pasted code?")
+        if (fn === "code_explaining") this.call('remixaiassistant', 'chatPipe',"Explain the current code", false, promptMeta)
+        else if (fn === "error_explaining") this.call('remixaiassistant', 'chatPipe', "Explain the error", false, promptMeta)
+        else if (fn === "answer") this.call('remixaiassistant', 'chatPipe', "Answer the following question", false, promptMeta)
+        else if (fn === "vulnerability_check") this.call('remixaiassistant', 'chatPipe',"Is there any vulnerability in the pasted code?", false, promptMeta)
         else remixAILogger.log("chatRequestBuffer function name not recognized.")
       }
     }

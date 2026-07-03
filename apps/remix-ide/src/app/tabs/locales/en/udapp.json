@@ -275,6 +275,7 @@
   "udapp._comment_contractKebab": "keys for ContractKebabMenu.tsx",
   "udapp.createDappMenuItem": "Create a DApp",
   "udapp.copyABIMenuItem": "Copy ABI",
+  "udapp.saveABIMenuItem": "Save ABI",
   "udapp.copyBytecodeMenuItem": "Copy Bytecode",
   "udapp.openInExplorerMenuItem": "Open in explorer",
   "udapp.clearMenuItem": "Clear",

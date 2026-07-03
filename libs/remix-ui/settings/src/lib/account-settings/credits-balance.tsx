@@ -177,7 +177,7 @@ export const CreditsBalance: React.FC<CreditsBalanceProps> = ({ plugin }) => {
           <div className="col-md-4 mb-2">
             <div className="text-center p-3 bg-light rounded">
               <div className="h4 mb-0 text-info">{credits.paid_credits.toLocaleString()}</div>
-              <small className="text-muted">Paid Credits</small>
+              <small className="text-muted">Paid AI Credits</small>
             </div>
           </div>
         </div>

@@ -73,7 +73,7 @@ export class RemixClient extends PluginClient<any, CustomRemixApi> {
       await this.client.plugin.call('popupPanel', 'showPopupPanel', true)
       await this.client.plugin.call('menuicons', 'select', 'remixaiassistant')
       setTimeout(async () => {
-        await this.client.plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', messageAI)
+        await (this.client.plugin as any).call('remixAI', 'chatPipe', 'error_explaining', messageAI, undefined, undefined, { source: 'vyper', presetId: 'error-explain' })
       }, 500)
     } catch (err) {
       console.error('unable to askGpt')

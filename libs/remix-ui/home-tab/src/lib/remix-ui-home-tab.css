@@ -2,8 +2,7 @@
 
 .ht-root {
   font-family: 'Nunito Sans', sans-serif;
-  --ht-accent: #64c4ff;
-  --ht-accent-rgb: 100, 196, 255;
+  --ht-accent: var(--custom-primary);
   --ht-hover-bg: rgba(var(--bs-body-color-rgb), 0.06);
 }
 
@@ -90,7 +89,7 @@
 }
 
 .ht-row:focus-visible {
-  outline: 1px solid rgba(var(--ht-accent-rgb), 0.5);
+  outline: 1px solid color-mix(in srgb, var(--ht-accent) 50%, transparent);
   outline-offset: -1px;
 }
 
@@ -105,7 +104,7 @@
   border-radius: 4px;
   flex-shrink: 0;
   font-size: 12px;
-  background: rgba(var(--ht-accent-rgb), 0.10);
+  background: color-mix(in srgb, var(--ht-accent) 10%, transparent);
   color: var(--ht-accent);
 }
 
@@ -133,15 +132,15 @@
 /* ─── CTA row ─── */
 
 .ht-row-cta {
-  background: rgba(var(--ht-accent-rgb), 0.08) !important;
-  border: 1px solid rgba(var(--ht-accent-rgb), 0.28) !important;
+  background: color-mix(in srgb, var(--ht-accent) 8%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--ht-accent) 28%, transparent) !important;
   padding: 8px 12px !important;
   border-radius: 8px !important;
 }
 
 .ht-row-cta:hover {
-  background: rgba(var(--ht-accent-rgb), 0.13) !important;
-  border-color: rgba(var(--ht-accent-rgb), 0.50) !important;
+  background: color-mix(in srgb, var(--ht-accent) 13%, transparent) !important;
+  border-color: color-mix(in srgb, var(--ht-accent) 50%, transparent) !important;
 }
 
 .ht-row-icon-cta {
@@ -152,7 +151,7 @@
   height: 28px !important;
   border-radius: 6px !important;
   font-size: 13px !important;
-  background: rgba(var(--ht-accent-rgb), 0.18) !important;
+  background: color-mix(in srgb, var(--ht-accent) 18%, transparent) !important;
   color: var(--ht-accent) !important;
 }
 
@@ -277,4 +276,3 @@ a.ht-cta-secondary:hover {
   color: var(--bs-secondary-color);
   line-height: 1.4;
 }
-

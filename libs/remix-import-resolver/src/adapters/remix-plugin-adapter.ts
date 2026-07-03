@@ -1,5 +1,5 @@
 import type { IOAdapter } from './io-adapter'
-import { toHttpUrl } from '../utils/to-http-url'
+import { toHttpUrls } from '../utils/to-http-url'
 import {
   isHttpUrl,
   isDepsPath,
@@ -62,11 +62,25 @@ export class RemixPluginAdapter implements IOAdapter {
     if (url.startsWith('/')) {
       return await this.readFile(url)
     }
-    // Translate to a concrete HTTP URL and fetch directly in the browser/plugin runtime.
-    const finalUrl = toHttpUrl(url)
-    const res = await fetch(finalUrl)
-    if (!res.ok) throw new Error(`Fetch failed ${res.status} for ${finalUrl}`)
-    return await res.text()
+    // Translate to concrete HTTP URLs and try each in order (5s timeout per attempt).
+    const urls = toHttpUrls(url)
+    let lastError: Error | undefined
+    for (const finalUrl of urls) {
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 5000)
+        try {
+          const res = await fetch(finalUrl, { signal: controller.signal })
+          if (!res.ok) throw new Error(`Fetch failed ${res.status} for ${finalUrl}`)
+          return await res.text()
+        } finally {
+          clearTimeout(timeout)
+        }
+      } catch (err) {
+        lastError = err as Error
+      }
+    }
+    throw lastError
   }
 
   async resolveAndSave(url: string, targetPath?: string, useOriginal?: boolean): Promise<string> {
