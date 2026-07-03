@@ -228,6 +228,23 @@ function DeployPortraitView() {
     return selectedContract.contractData.bytecodeObject
   }
 
+  const handleSaveABI = async () => {
+    if (!selectedContract?.contractData?.object?.abi) {
+      return
+    }
+    const abi = selectedContract.contractData.object.abi
+    const contractFilePath = selectedContract.filePath
+    if (contractFilePath) {
+      const abiFilePath = contractFilePath.replace(/\.[^/.]+$/, '.abi')
+      await plugin.call('fileManager', 'writeFile', abiFilePath, JSON.stringify(abi, null, 2))
+      await plugin.call('notification', 'toast', `ABI saved to ${abiFilePath}`)
+    } else {
+      const abiFilePath = `${selectedContract.name}.abi`
+      await plugin.call('fileManager', 'writeFile', abiFilePath, JSON.stringify(abi, null, 2))
+      await plugin.call('notification', 'toast', `ABI saved to ${abiFilePath}`)
+    }
+  }
+
   const switchProxyAddress = (address: string) => {
     trackMatomoEvent?.({ category: 'udapp', action: 'proxyAddressSelected', name: shortenProxyAddress(address), isClick: true })
     setProxyAddress(address)
@@ -458,6 +475,7 @@ function DeployPortraitView() {
                 target={contractKebabIconRef.current}
                 onHide={() => setIsContractMenuOpen(false)}
                 onCopyABI={getABI}
+                onSaveABI={handleSaveABI}
                 onCopyBytecode={getBytecode}
                 menuIndex="contract"
               />

@@ -28,6 +28,7 @@ export * from './events/tools-events';
 export * from './events/user-events';
 export * from './events/nudge-events';
 export * from './events/help-events';
+export * from './events/payment-events';
 
 // Import types for union
 import type { AIEvent, RemixAIAssistantEvent } from './events/ai-events';
@@ -41,6 +42,7 @@ import type { DebuggerEvent, EditorEvent, SolidityUnitTestingEvent, SolidityStat
 import type { AuthEvent, UserMenuEvent, CloudWorkspaceEvent, WalkthroughEvent, NotificationEvent, FeedbackEvent } from './events/user-events';
 import type { NudgeEvent } from './events/nudge-events';
 import type { HelpEvent } from './events/help-events';
+import type { CheckoutEvent } from './events/payment-events';
 
 // Union type of all Matomo events - includes base properties for compatibility
 export type MatomoEvent = (
@@ -121,6 +123,9 @@ export type MatomoEvent = (
 
   // Help / guides events
   | HelpEvent
+
+  // Checkout / payment funnel events
+  | CheckoutEvent
 ) & {
   // Ensure all events have these base properties for backward compatibility
   name?: string;

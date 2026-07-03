@@ -14,6 +14,7 @@ export interface FileExplorerEvent extends MatomoEventBase {
     | 'createBlankFile'
     | 'createNewFile'
     | 'createNewFolder'
+    | 'createNewWorkspace'
     | 'uploadFolder'
     | 'importFromIpfs'
     | 'importFromLocalFileSystem'

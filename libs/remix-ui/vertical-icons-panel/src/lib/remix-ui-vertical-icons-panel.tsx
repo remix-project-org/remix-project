@@ -1,5 +1,6 @@
 import React, { Fragment, useContext, useEffect, useReducer, useRef, useState } from 'react'
 import { Plugin } from '@remixproject/engine'
+//@ts-ignore
 import './remix-ui-vertical-icons-panel.css'
 import IconList from './components/IconList'
 import Home from './components/Home'
@@ -87,7 +88,6 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
   return (
     <div id="iconsP" className="h-100">
       <div className="remixui_icons d-flex flex-column remixui_icons_height" ref={iconPanelRef}>
-        {/* <Home verticalIconPlugin={verticalIconsPlugin} /> */}
         <div className={scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? 'remixui_default-icons-container remixui_requiredSection' : activateScroll && activateScroll.scrollState ? 'remixui_default-icons-container remixui_requiredSection' : 'remixui_requiredSection'}>
           <IconList theme={theme} icons={icons.filter((p) => p.isRequired && p.profile.name !== 'pluginManager')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} />
           {scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? <Chevron direction="up" divElementRef={scrollableRef} cssRule={'fa fa-chevron-up remixui_icon-chevron my-0'} /> : null}
@@ -117,19 +117,19 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
             )
           ) : null}
         </div>
-      </div>
-      <div className="remixui_help-container">
-        <CustomTooltip placement="right" tooltipText={<FormattedMessage id="home.helpAndResources" defaultMessage="Help & Resources" />}>
-          <button
-            className="remixui_help-btn"
-            data-id="helpMenuButton"
-            aria-expanded={helpMenuOpen}
-            onClick={() => setHelpMenuOpen((prev) => !prev)}
-          >
-            <i className="fas fa-question-circle" aria-hidden="true"></i>
-          </button>
-        </CustomTooltip>
-        {helpMenuOpen && <HelpMenu onClose={() => setHelpMenuOpen(false)} />}
+        <div className="remixui_help-container">
+          <CustomTooltip placement="right" tooltipText={<FormattedMessage id="home.helpAndResources" defaultMessage="Help & Resources" />}>
+            <button
+              className="remixui_help-btn"
+              data-id="helpMenuButton"
+              aria-expanded={helpMenuOpen}
+              onClick={() => setHelpMenuOpen((prev) => !prev)}
+            >
+              <i className="fas fa-circle-info" aria-hidden="true"></i>
+            </button>
+          </CustomTooltip>
+          {helpMenuOpen && <HelpMenu onClose={() => setHelpMenuOpen(false)} />}
+        </div>
       </div>
     </div>
   )

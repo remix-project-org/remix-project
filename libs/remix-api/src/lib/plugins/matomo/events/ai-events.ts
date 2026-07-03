@@ -109,6 +109,45 @@ export interface AIEvent extends MatomoEventBase {
 }
 
 /**
+ * Prompt / engagement tracking event names. These are emitted with
+ * `{ category: 'ai', action: 'remixAI', name: <one of these> }` so analytics
+ * can distinguish user-typed prompts from preset prompts and measure
+ * conversation depth/breadth. Kept as documented constants for grep-ability;
+ * `MatomoEventBase.name` is already `string`, so no union widening is needed.
+ *
+ *  - 'prompt_typed'       value = source (usually 'user')
+ *  - 'prompt_preset'      value = presetId (falls back to source)
+ *  - 'conversation_size'  value = number of messages in the active conversation
+ *  - 'conversation_count' value = total number of conversations the user has
+ *  - 'promptSend'         value = source (retained for dashboard continuity)
+ */
+export type AIPromptEventName =
+  | 'prompt_typed'
+  | 'prompt_preset'
+  | 'conversation_size'
+  | 'conversation_count'
+  | 'promptSend'
+
+/**
+ * Composer command / tools / shortcut interaction event names, emitted with
+ * `{ category: 'ai', action: 'remixAI', name: <one of these> }`. They track how
+ * users discover and trigger the slash-command palette, the Tools menu, and the
+ * category shortcut chips above the prompt input.
+ *
+ *  - 'command_category_open' value = category id ('code'|'explain'|'learn'|'deploy'|'tools')
+ *  - 'command_selected'      value = slash-command name picked from the autocomplete palette
+ *  - 'tool_selected'         value = tool command name run from the Tools menu
+ *  - 'shortcut_selected'     value = '<categoryId>:<index>' of the canned prompt chip picked
+ *  - 'command_upgrade_required' value = command/tool name a user lacked entitlement for
+ */
+export type AICommandEventName =
+  | 'command_category_open'
+  | 'command_selected'
+  | 'tool_selected'
+  | 'shortcut_selected'
+  | 'command_upgrade_required'
+
+/**
  * @deprecated Use AIEvent with name: 'like-response' | 'dislike-response' instead
  * This interface is kept for backward compatibility during migration
  */

@@ -55,7 +55,7 @@ export default function GroupListMenu(props: GroupListMenuProps) {
     if (state === 'hidden') return null
     const isComing = state === 'coming_soon'
     const isUpgrade = kind === 'upgrade'
-    const label = isComing ? 'Coming soon' : isUpgrade ? 'Upgrade plan' : 'Buy credits'
+    const label = isComing ? 'Coming soon' : isUpgrade ? 'Upgrade plan' : 'Buy AI credits'
     const icon = isComing ? 'fa-clock' : isUpgrade ? 'fa-arrow-up' : 'fa-bolt'
     const dataId = isUpgrade
       ? `${item.dataId}-upgrade-pill`

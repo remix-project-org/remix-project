@@ -29,6 +29,12 @@
   color: var(--bs-secondary);
 }
 
+.workspacesSelect {
+  background-color: var(--custom-onsurface-layer-2);
+  border-radius: .25rem !important;
+  overflow: hidden;
+}
+
 .panel-control-btn {
   display: flex;
   align-items: center;
@@ -43,12 +49,17 @@
 
 .panel-control-btn.active {
   background-color: rgba(var(--bs-primary-rgb), 0.08);
-  color: var(--bs-primary);
+  color: var(--custom-primary);
 }
 
 .panel-control-btn:hover {
   background-color: rgba(var(--bs-primary-rgb), 0.08);
-  color: var(--bs-primary);
+  color: var(--custom-primary);
+}
+
+.panel-control-btn.active:hover {
+  background-color: rgba(var(--bs-primary-rgb), 0.16);
+  color: var(--custom-primary);
 }
 
 .top-bar-dropdownItem {
@@ -143,6 +154,98 @@
   padding-left: 1rem;
   padding-right: 1rem;
   min-height: calc(100vh - 50px);
+}
+
+/* ── Workspace dropdown ── */
+
+/* Base font size for the whole menu */
+.fws-dropdown-menu,
+.fws-dropdown-menu * {
+  font-size: 13px;
+}
+
+/* Search input — flush the border between icon and field */
+.fws-search-wrap .input-group-text.fws-search-icon,
+.fws-search-wrap .form-control.fws-search-input {
+  background-color: var(--bs-body-bg);
+  border-color: var(--bs-border-color);
+}
+.fws-search-wrap .form-control.fws-search-input:focus {
+  background-color: var(--bs-body-bg);
+  box-shadow: none;
+  border-color: var(--bs-primary);
+}
+.fws-search-wrap .input-group-text.fws-search-icon {
+  color: var(--bs-secondary-color);
+}
+/* Keep border visually joined when input is focused */
+.fws-search-wrap .form-control.fws-search-input:focus + .input-group-text,
+.fws-search-wrap:focus-within .fws-search-icon {
+  border-color: var(--bs-primary);
+}
+
+/* Sync-state dot on each workspace row */
+.fws-status {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fws-status--synced {
+  background-color: var(--bs-success);
+  box-shadow: 0 0 0 2px rgba(var(--bs-success-rgb), 0.2);
+}
+.fws-status--local {
+  background-color: var(--bs-secondary-color);
+  opacity: 0.45;
+}
+
+/* Workspace kebab submenu panel.
+   Rendered via Overlay into document.body, so .dropdown-menu-scoped CSS variables
+   (--bs-dropdown-link-hover-bg etc.) are out of scope. Re-declare them here using
+   :root-level Bootstrap tokens that are always available. */
+.fws-submenu {
+  --bs-dropdown-link-color: var(--bs-body-color);
+  --bs-dropdown-link-hover-color: var(--bs-body-color);
+  --bs-dropdown-link-hover-bg: rgba(var(--bs-body-color-rgb), 0.06);
+  background-color: var(--custom-onsurface-layer-1);
+  border: 1px solid var(--bs-dropdown-border-color, var(--bs-border-color));
+  border-radius: var(--bs-dropdown-border-radius, 0.375rem);
+  box-shadow: var(--bs-dropdown-box-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+  padding: 4px;
+  min-width: 160px;
+  font-size: 13px;
+}
+
+/* Download Remix Desktop row */
+.fws-desktop-item .desktop-download {
+  width: 100%;
+}
+.fws-desktop-item .desktop-download [role="link"] {
+  gap: 8px;
+}
+.fws-desktop-item .desktop-download i {
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.fws-desktop-item:hover {
+  background-color: rgba(var(--fws-desktop-color-rgb, 255, 132, 120), 0.08) !important;
+}
+
+/* Delete all workspaces — danger hover background */
+.fws-danger-item:hover {
+  background-color: rgba(var(--bs-danger-rgb), 0.08) !important;
+}
+
+/* Icon column alignment in footer actions */
+.fws-action-icon {
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 12px;
 }
 
 /* Beta promo pill */

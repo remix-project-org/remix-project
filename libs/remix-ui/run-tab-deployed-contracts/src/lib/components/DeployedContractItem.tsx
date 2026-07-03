@@ -16,11 +16,15 @@ import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import BN from 'bn.js'
 import { TrackingContext } from '@remix-ide/tracking'
 import { useAuth } from '@remix-ui/app'
+import { Features } from '@remix-api'
 import isElectron from 'is-electron'
 
 const txHelper = remixLib.execution.txHelper
 const txFormat = remixLib.execution.txFormat
 const highlightedContracts = new Set<string>()
+const QUICKDAPP_SUBGRAPH_SETUP_OPTION = '- Subgraph: None (default) or a .subgraph file path/name'
+const QUICKDAPP_SUBGRAPH_SETUP_RULE = 'Subgraph defaults to None. If I choose to use a .subgraph, ask me for the .subgraph file path/name and pass it to generate_dapp as subgraphFilePath. Do not redirect me to the .subgraph context menu and do not invent graphContext.'
+const QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG = '- subgraphFilePath: include only if I chose a .subgraph file path/name; graphContext: include only if a validated graphContext was already provided by The Graph handoff'
 
 interface DeployedContractItemProps {
   contract: DeployedContract
@@ -35,7 +39,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const { trackMatomoEvent } = useContext(TrackingContext)
   const intl = useIntl()
   const { features } = useAuth()
-  const hasQuickdappAccess = features?.['dapp:quickdapp']?.is_enabled
+  const hasQuickdappAccess = features?.[Features.DAPP_QUICKDAPP]?.is_enabled
+  const hasRegisterEnsAccess = features?.[Features.REGISTER_ENS]?.is_enabled === true
   const isDesktop = isElectron()
   const [networkName, setNetworkName] = useState<string>('')
   const [isExpanded, setIsExpanded] = useState<boolean>(true)
@@ -414,45 +419,67 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
       const prompt = isDesktop
         ? `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:
 
-STEP 1 - CHECK FOR EXISTING CONTENT:
+STEP 1 - ASK FOR SETUP OPTIONS:
+Location is fixed to Inline in /frontend for this request. Ask me once for:
+- Base mini-app: No (default) or Yes
+- Design: defaults, style notes, or a Figma URL
+${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
+
+Ask exactly those setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+${QUICKDAPP_SUBGRAPH_SETUP_RULE}
+After asking, STOP and wait for my next reply. Do not check files, call generate_dapp, or write files in the same turn as this setup question.
+In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
+
+STEP 2 - CHECK FOR EXISTING CONTENT:
 Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"
 
-STEP 2 - CALL THE TOOL:
-After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate_dapp with these parameters:
+STEP 3 - CALL THE TOOL:
+After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate_dapp with:
+- description: my design answer, or "Modern dark mode single-page DApp using React and Ethers.js" if I skipped it
+- contractName: "${contract.name}"
+- contractAddress: "${contract.address}"
+- chainId: "${chainId}"
+- frontendMode: "inline"
+- isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
+- figmaUrl and figmaToken only if I provided them
+${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
+- confirmOverwrite: true only if I confirmed overwrite
+- setupOptionsConfirmed: true
+- setupOptionsSummary: a short summary of my confirmed setup choices
 
-generate_dapp({
-  description: "Modern dark mode single-page DApp using React and Ethers.js",
-  contractName: "${contract.name}",
-  contractAddress: "${contract.address}",
-  chainId: "${chainId}",
-  frontendMode: "inline",
-  confirmOverwrite: true  // only if I confirmed overwrite
-})
-
-IMPORTANT: Your next action MUST be checking /frontend and then calling generate_dapp. Do not just say "Understood" or "Proceeding" - actually call the tool.`
+IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
         : `I want to create a DApp frontend. Follow these steps exactly:
 
-STEP 1 - ASK FOR LOCATION CHOICE:
-Ask me: "Where should I create your DApp?"
-- Inline: In /frontend folder of current workspace
-- Workspace: In a new dedicated workspace
+STEP 1 - ASK FOR SETUP OPTIONS:
+Ask me once: "How should I create your DApp?"
+- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)
+- Base mini-app: No (default) or Yes
+- Design: defaults, style notes, or a Figma URL
+${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
+
+Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+${QUICKDAPP_SUBGRAPH_SETUP_RULE}
+After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.
+In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
 
 STEP 2 - IF I CHOOSE INLINE:
 Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"
 
 STEP 3 - CALL THE TOOL:
-After I answer, you MUST call generate_dapp with these parameters:
+After I answer, you MUST call generate_dapp with:
+- description: my design answer, or "Modern dark mode single-page DApp using React and Ethers.js" if I skipped it
+- contractName: "${contract.name}"
+- contractAddress: "${contract.address}"
+- chainId: "${chainId}"
+- frontendMode: "inline" or "workspace" based on my Location answer
+- isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
+- figmaUrl and figmaToken only if I provided them
+${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
+- confirmOverwrite: true only if I chose Inline and confirmed overwrite
+- setupOptionsConfirmed: true
+- setupOptionsSummary: a short summary of my confirmed setup choices
 
-generate_dapp({
-  description: "Modern dark mode single-page DApp using React and Ethers.js",
-  contractName: "${contract.name}",
-  contractAddress: "${contract.address}",
-  chainId: "${chainId}",
-  frontendMode: "inline" or "workspace",  // based on my choice
-  confirmOverwrite: true  // only if I chose inline AND confirmed overwrite
-})
-
-IMPORTANT: After I make my choice, your next action MUST be calling generate_dapp. Do not just say "Understood" or "Proceeding" - actually call the tool.`
+IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
 
       console.log('[QuickDapp] prompt assembled, length:', prompt.length);
 
@@ -468,7 +495,7 @@ IMPORTANT: After I make my choice, your next action MUST be calling generate_dap
 
       // Send prompt to AI Assistant
       console.log('[QuickDapp] calling chatPipe...');
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'run-tab', presetId: 'dapp-from-deployed-contract' })
       console.log('[QuickDapp] chatPipe returned');
 
       trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'create_dapp_via_ai', isClick: true })
@@ -490,6 +517,28 @@ IMPORTANT: After I make my choice, your next action MUST be calling generate_dap
     if (abi) {
       navigator.clipboard.writeText(JSON.stringify(abi, null, 2))
       await plugin.call('notification', 'toast', 'ABI copied to clipboard')
+    }
+  }
+
+  const handleSaveABI = async (contract: DeployedContract) => {
+    if (onKebabMenuToggle) {
+      onKebabMenuToggle(false)
+    }
+    const abi = contract.abi || contract.contractData?.abi
+    if (abi) {
+      const contractFilePath = contract.filePath || contract.contractData?.contract?.file
+
+      if (contractFilePath) {
+        const abiFilePath = contractFilePath.replace(/\.[^/.]+$/, '.abi')
+
+        await plugin.call('fileManager', 'writeFile', abiFilePath, JSON.stringify(abi, null, 2))
+        await plugin.call('notification', 'toast', `ABI saved to ${abiFilePath}`)
+      } else {
+        const abiFilePath = `${contract.name}.abi`
+
+        await plugin.call('fileManager', 'writeFile', abiFilePath, JSON.stringify(abi, null, 2))
+        await plugin.call('notification', 'toast', `ABI saved to ${abiFilePath}`)
+      }
     }
   }
 
@@ -543,6 +592,17 @@ IMPORTANT: After I make my choice, your next action MUST be calling generate_dap
   const handleNameContract = async () => {
     if (onKebabMenuToggle) {
       onKebabMenuToggle(false)
+    }
+    if (!hasRegisterEnsAccess) {
+      try {
+        await plugin.call('planManager' as any, 'open' as any, {
+          reason: 'feature-required',
+          requiredFeature: Features.REGISTER_ENS
+        })
+      } catch {
+        await plugin.call('notification', 'toast', 'Your current plan does not include ENS contract naming.')
+      }
+      return
     }
     setShowEnsNaming(true)
     if (!isExpanded) setIsExpanded(true)
@@ -695,6 +755,7 @@ IMPORTANT: After I make my choice, your next action MUST be calling generate_dap
             onCreateDapp={handleCreateDapp}
             onNameContract={networkName !== 'Remix VM' ? handleNameContract : undefined}
             onCopyABI={handleCopyABI}
+            onSaveABI={handleSaveABI}
             onCopyBytecode={handleCopyBytecode}
             onOpenInExplorer={handleOpenInExplorer}
             onClear={handleClear}

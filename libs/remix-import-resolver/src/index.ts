@@ -63,7 +63,7 @@ export {
   normalizeIpfsUrl,
   normalizeSwarmUrl
 } from './utils/url-normalizer'
-export { toHttpUrl } from './utils/to-http-url'
+export { toHttpUrl, toHttpUrls } from './utils/to-http-url'
 
 // Type-safe path types and common interfaces
 export type {

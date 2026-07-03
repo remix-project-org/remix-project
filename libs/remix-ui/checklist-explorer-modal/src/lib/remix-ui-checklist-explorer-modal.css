@@ -43,7 +43,7 @@
 }
 
 .checklist-explorer-modal-search-input {
-  color: var(--bs-light);
+  color: var(--bs-body-color);
 }
 
 .checklist-explorer-container {
@@ -53,14 +53,14 @@
 }
 
 .category-title {
-  color: #667;
+  color: var(--bs-body-color);
   padding-bottom: 0.5rem;
   font-size: 1.2rem;
   font-weight: 400;
 }
 
 .category-description {
-  color: #667;
+  color: var(--bs-secondary-color);
   font-size: 0.9rem;
 }
 
@@ -240,15 +240,6 @@
     max-height: 500px;
   }
 }
-
-/* ========== Selection state styling ========== */
-
-.sub-category-header[style*="box-shadow"] {
-  background-color: var(--bs-primary-bg-subtle) !important;
-  border-left: 4px solid var(--bs-primary);
-}
-
-/* ========== Search result highlighting ========== */
 
 .text-highlight {
   background: rgba(var(--bs-warning-rgb), 0.3);

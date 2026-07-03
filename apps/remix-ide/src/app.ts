@@ -26,6 +26,7 @@ import { ThemeModule } from './app/tabs/theme-module'
 import { VerticalIcons } from './app/components/vertical-icons'
 import { RemixAIAssistant } from './app/plugins/remix-ai-assistant'
 import { QuickDappV2 } from './app/plugins/quick-dapp-v2'
+import { TheGraphPlugin } from './app/plugins/thegraph'
 import { SolidityUmlGen } from './app/plugins/solidity-umlgen'
 import { VyperCompilationDetailsPlugin } from './app/plugins/vyper-compilation-details'
 import { ContractFlattener } from './app/plugins/contractFlattener'
@@ -77,6 +78,7 @@ import { HardhatHandleDesktop } from './app/plugins/electron/hardhatPlugin'
 import { circomPlugin } from './app/plugins/electron/circomElectronPlugin'
 import { GitHubAuthHandler } from './app/plugins/electron/gitHubAuthHandler'
 import { DesktopAuthHandler as DesktopAuthHandlerPlugin } from './app/plugins/electron/desktopAuthHandler'
+import { DesktopBillingHandler as DesktopBillingHandlerPlugin } from './app/plugins/electron/desktopBillingHandler'
 import { GitPlugin } from './app/plugins/git'
 import { Matomo } from './app/plugins/matomo'
 import { DesktopClient } from './app/plugins/desktop-client'
@@ -412,6 +414,9 @@ class AppComponent {
     const quickDappV2 = new QuickDappV2()
     this.remixAiAssistant = new RemixAIAssistant()
 
+    // ----------------- The Graph Subgraph Plugin -------------
+    const theGraphPlugin = new TheGraphPlugin()
+
     // ----------------- import content service ------------------------
     const contentImport = new CompilerImports()
     // ----------------- resolution index service ----------------------
@@ -581,6 +586,7 @@ class AppComponent {
       remixAI,
       assistantState,
       quickDappV2,
+      theGraphPlugin,
       walletConnect,
       amp,
       // vega,
@@ -616,6 +622,8 @@ class AppComponent {
       this.engine.register([githubAuthHandler])
       const desktopAuthHandler = new DesktopAuthHandlerPlugin()
       this.engine.register([desktopAuthHandler])
+      const desktopBillingHandler = new DesktopBillingHandlerPlugin()
+      this.engine.register([desktopBillingHandler])
     } else {
       //---- desktop client
       const desktopClient = new DesktopClient(blockchain)
@@ -647,7 +655,7 @@ class AppComponent {
     this.menuicons = new VerticalIcons()
     this.sidePanel = new SidePanel()
     this.hiddenPanel = new HiddenPanel()
-    this.rightSidePanel = new RightSidePanel()
+    this.rightSidePanel = new RightSidePanel(this.desktopClientMode)
     this.popupPanel = new PopupPanel()
     this.overlayPanel = new OverlayPanel()
 
@@ -802,7 +810,7 @@ class AppComponent {
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
     if (isElectron()) {
-      await this.appManager.activatePlugin(['isogit', 'electronconfig', 'electronTemplates', 'xterm', 'ripgrep', 'appUpdater', 'slither', 'foundry', 'hardhat', 'circom', 'githubAuthHandler']) // 'remixAID'
+      await this.appManager.activatePlugin(['isogit', 'electronconfig', 'electronTemplates', 'xterm', 'ripgrep', 'appUpdater', 'slither', 'foundry', 'hardhat', 'circom', 'githubAuthHandler', 'desktopBillingHandler']) // 'remixAID'
     }
 
     // ─── Lifecycle event bridges ────────────────────────────────────

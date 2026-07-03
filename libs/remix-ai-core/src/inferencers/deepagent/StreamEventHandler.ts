@@ -338,10 +338,8 @@ export class StreamEventHandler {
       }
 
       const currentTodoContent = currentTodoIndex >= 0 ? (todos[currentTodoIndex]?.content || todos[currentTodoIndex]?.task) : undefined
-      const currentTodoUIString = currentTodoIndex >= 0 ? (todos[currentTodoIndex]?.activeForm || currentTodoContent) : undefined
 
       remixAILogger.log('[StreamEventHandler] Todo list updated:', todos, 'Current index:', currentTodoIndex, 'Current todo:', currentTodoContent)
-      this.event.emit('onToolCall', { toolName: currentTodoContent, toolInput: { }, toolUIString: currentTodoUIString || currentTodoContent, status: 'start', threadId: this.getThreadId() }) // just for UI
 
       this.event.emit('onTodoUpdate', {
         todos: todos,

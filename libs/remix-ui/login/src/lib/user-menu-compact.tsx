@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react'
+import { DISCORD_URL } from '@remix-ui/helper'
 import { AuthUser, AuthProvider, LinkedAccount, AccountsResponse, FeatureGroup } from '@remix-api'
 import type { Credits } from '../../../app/src/lib/remix-app/context/auth-context'
 import { useAuth } from '../../../app/src/lib/remix-app/context/auth-context'
@@ -327,13 +328,13 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                 <button
                   className="dropdown-item user-menu-item user-menu-item--discord"
                   onClick={() => {
-                    window.open('https://discord.gg/TWfKkZVwJW', '_blank')
+                    window.open(DISCORD_URL, '_blank')
                     trackEvent('betaDiscord')
                     setShowDropdown(false)
                   }}
                 >
                   <i className="fab fa-discord user-menu-item-icon" style={{ color: '#5865F2' }}></i>
-                  Beta Feedback Channel
+                  Feedback Channel
                 </button>
               )}
 

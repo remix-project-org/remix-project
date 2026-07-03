@@ -86,7 +86,6 @@ export class DesktopClient extends ViewPlugin {
   }
 
   setAppStateDispatch(appStateDispatch: React.Dispatch<AppAction>) {
-    console.log('setAppStateDispatch', appStateDispatch)
     this.appStateDispatch = appStateDispatch
   }
 

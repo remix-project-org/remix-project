@@ -11,12 +11,12 @@ interface NotificationBellProps {
 }
 
 const TYPE_ICONS: Record<NotificationType, string> = {
-  info: 'fa-info-circle text-info',
+  info: 'fa-info-circle notification-icon-primary',
   warning: 'fa-exclamation-triangle text-warning',
   success: 'fa-check-circle text-success',
   error: 'fa-times-circle text-danger',
-  announcement: 'fa-bullhorn text-primary',
-  update: 'fa-arrow-circle-up text-info'
+  announcement: 'fa-bullhorn notification-icon-primary',
+  update: 'fa-arrow-circle-up notification-icon-primary'
 }
 
 function timeAgo(dateStr: string): string {
@@ -277,6 +277,9 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
                 </div>
                 <div className="notification-item-content">
                   <div className="notification-item-header">
+                    {notification.read_status === null && (
+                      <div className="notification-unread-dot"></div>
+                    )}
                     <span className={`notification-item-title ${notification.priority === 'high' || notification.priority === 'critical' ? 'fw-bold' : ''}`}>
                       {notification.title}
                     </span>
@@ -298,18 +301,15 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
                         {notification.action?.action_label || notification.action_label || 'View'}
                       </button>
                     )}
-                    <button
-                      className="notification-dismiss-btn"
-                      onClick={(e) => handleDismiss(notification.id, e)}
-                      title="Dismiss"
-                    >
-                      <i className="fa fa-times"></i>
-                    </button>
                   </div>
                 </div>
-                {notification.read_status === null && (
-                  <div className="notification-unread-dot"></div>
-                )}
+                <button
+                  className="notification-dismiss-btn"
+                  onClick={(e) => handleDismiss(notification.id, e)}
+                  title="Dismiss"
+                >
+                  <i className="fa fa-times"></i>
+                </button>
               </div>
             ))}
           </div>

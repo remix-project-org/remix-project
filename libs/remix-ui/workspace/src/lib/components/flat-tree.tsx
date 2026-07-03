@@ -8,7 +8,7 @@ import { FlatTreeDrop } from './flat-tree-drop';
 import { getEventTarget } from '../utils/getEventTarget';
 import { fileDecoration, FileDecorationIcons } from '@remix-ui/file-decorators';
 import { FileHoverIcons } from './file-explorer-hovericons';
-import { deletePath } from '../actions';
+import { deletePath, getWorkspaces } from '../actions';
 import { FileSystemContext } from '../contexts';
 
 export default function useOnScreen(ref: RefObject<HTMLElement>) {
@@ -48,6 +48,9 @@ interface FlatTreeProps {
   deletePath?: (path: string | string[]) => void | Promise<void>
   editPath?: (path: string, type: string, isNew?: boolean) => void
   warnMovingItems: (srcs: string[], dests: string) => Promise<void>
+  workspaceDetails?: { name: any
+    isLocalhost: any
+    absolutePath: string }
 }
 
 let mouseTimer: any = {
@@ -56,7 +59,8 @@ let mouseTimer: any = {
 }
 
 export const FlatTree = (props: FlatTreeProps) => {
-  const { files, flatTree, expandPath, focusEdit, editModeOff, handleTreeClick, warnMovingItems, fileState, focusElement, handleClickFolder, deletePath, moveFileSilently, moveFolderSilently, setFilesSelected } = props
+  const { files, flatTree, expandPath, focusEdit, editModeOff, handleTreeClick, warnMovingItems, fileState, focusElement, handleClickFolder, deletePath, moveFileSilently, moveFolderSilently, setFilesSelected, workspaceDetails } = props
+
   const [hover, setHover] = useState<string>('')
   const [mouseOverTarget, setMouseOverTarget] = useState<{
     path: string,
@@ -296,6 +300,9 @@ export const FlatTree = (props: FlatTreeProps) => {
 
   return (<>
     <div ref={containerRef} className='h-100 ps-1 mt-1'>
+      <div className="d-flex flex-row gap-2 align-items-center">
+        <span className="fa fa-caret-down"></span><span className="fa-regular fa-folder-open"></span><span>{workspaceDetails?.name}</span>
+      </div>
       <FlatTreeDrop
         dragSource={dragSource}
         getFlatTreeItem={getFlatTreeItem}
@@ -310,7 +317,7 @@ export const FlatTree = (props: FlatTreeProps) => {
         setSelectedItems={setSelectedItems}
       >
         <div data-id="treeViewUltreeViewMenu"
-          className='d-flex h-100 w-100 pb-2'
+          className='d-flex h-100 w-100 ms-3 pb-2'
           onClick={handleTreeClick}
           onMouseLeave={onMouseLeave}
           onMouseMove={onMouseMove}

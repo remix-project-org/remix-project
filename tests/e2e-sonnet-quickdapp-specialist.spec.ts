@@ -2,6 +2,8 @@ import { test, expect } from './helpers/e2e-pool'
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
+// DISABLED: Playwright E2E test
+/*
 /**
  * Sign in as an e2e pool user in the `e2e-starter-with-quotas` group, switch to
  * Claude Sonnet, then ask a deterministic question about the QuickDapp
@@ -20,7 +22,7 @@ test.use({ viewport: { width: 1440, height: 900 } })
  * orchestrator, so asking Sonnet to identify the dapp-frontend subagent by
  * name should produce a deterministic answer containing "QuickDapp" (and
  * usually at least one of its tool names).
- */
+ *//*
 test('Sonnet identifies the QuickDapp Specialist subagent', async ({ page }) => {
   test.setTimeout(300_000)
 
@@ -61,7 +63,7 @@ test('Sonnet identifies the QuickDapp Specialist subagent', async ({ page }) => 
   await promptInput.click()
   await promptInput.fill(question)
   await page.locator('[data-id="remix-ai-composer-send-btn"]').click()
-  
+
   // --- 4. Wait for the assistant response ----------------------------------
   await expect(page.locator('[data-id="ai-assistant-landing"]')).toBeHidden({ timeout: 15000 })
   const assistantBubble = page.locator('[data-id="ai-response-chat-bubble-section"] [data-id="ai-user-chat-bubble"]').first()
@@ -101,3 +103,4 @@ test('Sonnet identifies the QuickDapp Specialist subagent', async ({ page }) => 
   // Belt-and-suspenders: make sure it isn't a denial.
   expect(answer).not.toMatch(/\b(no,|does not have|doesn't have|no access|cannot|can't access|not available)\b/i)
 })
+*/

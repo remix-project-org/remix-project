@@ -48,7 +48,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
     },
     {
       action: 'createNewFile',
-      title: 'New file using Template',
+      title: 'Import Template',
       icon: 'far fa-file',
       placement: 'top',
       platforms:[appPlatformTypes.web, appPlatformTypes.desktop]
@@ -56,6 +56,13 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
     {
       action: 'createNewFolder',
       title: 'New folder',
+      icon: 'far fa-folder',
+      placement: 'top',
+      platforms:[appPlatformTypes.web, appPlatformTypes.desktop]
+    },
+    {
+      action: 'createNewWorkspace',
+      title: 'New workspace',
       icon: 'far fa-folder',
       placement: 'top',
       platforms:[appPlatformTypes.web, appPlatformTypes.desktop]
@@ -473,6 +480,32 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                     </Dropdown.Item>
                   )
                 })}
+                {
+                  menuItems.filter((item) => item.action === 'createNewWorkspace').map(({ action, title, icon, placement, platforms }, index) => {
+                    return (
+                      <Dropdown.Item
+                        data-id="fileExplorerCreateButton-createNewWorkspace"
+                        key={index}
+                        onClick={async () => {
+                          appContext.appStateDispatch({
+                            type: appActionTypes.showGenericModal,
+                            payload: true
+                          })
+                          trackMatomoEvent({
+                            category: MatomoCategories.FILE_EXPLORER,
+                            action: 'createNewWorkspace',
+                            isClick: true
+                          })
+                        }}
+                      >
+                        <span className="text-decoration-none">
+                          <i className={icon}></i>
+                          <span className="ps-2">{title}</span>
+                        </span>
+                      </Dropdown.Item>
+                    )
+                  })
+                }
                 {menuItems.filter((item) => item.action === 'createNewFile').map(({ action, title, icon, placement, platforms }, index) => {
                   return (
                     <Dropdown.Item

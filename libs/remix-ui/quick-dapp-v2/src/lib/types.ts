@@ -6,8 +6,9 @@ export interface DappConfig {
   name: string;
   workspaceName: string;
   mode?: DappMode;
+  appKind?: 'contract' | 'graph-only';
 
-  contract: {
+  contract?: {
     address: string;
     name: string;
     abi: any[];
@@ -39,8 +40,28 @@ export interface DappConfig {
     isBaseMiniApp?: boolean;
   };
 
+  dataSources?: {
+    theGraph?: QuickDappGraphContext[];
+  };
+
   inlineMode?: boolean;
   thumbnailPath?: string;
+}
+
+export interface QuickDappGraphContext {
+  source: 'subgraph-file' | 'remixai-chat' | 'manual';
+  filePath?: string;
+  endpoint: string;
+  endpointKind?: 'local' | 'thegraph-gateway' | 'generic-graphql';
+  endpointNeedsApiKey?: boolean;
+  apiKeySource?: 'remix-settings' | 'none';
+  subgraphId?: string;
+  network?: string;
+  description?: string;
+  query: string;
+  variables?: Record<string, any>;
+  operationName?: string;
+  operationType?: 'query' | 'mutation' | 'subscription';
 }
 
 export type DappMode = 'workspace' | 'inline';

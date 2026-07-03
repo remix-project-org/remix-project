@@ -338,7 +338,7 @@ Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers
 
                         // Send prompt to AI Assistant
                         console.log('[QuickDapp] calling chatPipe from sparkle...');
-                        await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+                        await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'run-tab', presetId: 'sparkle-dapp-generate' })
                         console.log('[QuickDapp] chatPipe returned from sparkle');
 
                         trackMatomoEvent({ category: 'udapp', action: 'sendTransaction-from-gui', name: 'create_dapp_sparkle', isClick: true })

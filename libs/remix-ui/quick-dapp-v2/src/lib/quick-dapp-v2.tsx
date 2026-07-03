@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer, useState, useMemo, useRef, useContext } from 'react';
+import { Features } from '@remix-api';
 import { LoginModal, startSignInFlow } from '@remix-ui/login';
 import { IntlProvider } from 'react-intl';
 import CreateInstance from './components/CreateInstance';
@@ -10,6 +11,12 @@ import { AppContext } from './contexts';
 import { AppContext as RemixAppContext, useAuth } from '@remix-ui/app';
 import { DappManager } from './utils/DappManager';
 import { QuickDappV2PluginApi, DappConfig } from './types';
+import {
+  clearAllQuickDappWorkspaceLocks,
+  clearQuickDappWorkspaceLock,
+  getQuickDappWorkspaceLock,
+  getQuickDappWorkspaceLockMessage
+} from '@remix-ui/helper';
 import './App.css';
 
 import { getNetworkName } from './utils/networks';
@@ -31,7 +38,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   const activeDappRef = useRef(appState.activeDapp);
 
   // Permission gating
-  const hasAccess = features?.['dapp:quickdapp']?.is_enabled
+  const hasAccess = features?.[Features.DAPP_QUICKDAPP]?.is_enabled
   const quickdappEnabled = remixAppContext?.appConfig?.['quickdapp.enabled']
   const quickdappEnabledRef = useRef(quickdappEnabled)
   quickdappEnabledRef.current = quickdappEnabled
@@ -77,7 +84,8 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
         const newDapp = await dappManager.createDapp(
           contractData.name,
           contractData,
-          payload.isBaseMiniApp || false
+          payload.isBaseMiniApp || false,
+          payload.graphContext
         );
 
         dispatch({ type: 'SET_ACTIVE_DAPP', payload: newDapp });
@@ -108,6 +116,9 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
     const handleDappGenerated = async (data: any) => {
       console.log('[QuickDapp] handleDappGenerated', { slug: data?.slug, workspaceName: data?.workspaceName, isUpdate: data?.isUpdate });
+      if (data?.workspaceName) {
+        clearQuickDappWorkspaceLock(data.workspaceName);
+      }
       if (!data.workspaceName || !data.slug) {
         console.log('[QuickDapp] handleDappGenerated: missing workspaceName or slug');
         return;
@@ -166,6 +177,11 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
     const handleDappGenerationError = (data: any) => {
       console.error('[QuickDapp] Received dappGenerationError event:', data);
+      if (data?.workspaceName) {
+        clearQuickDappWorkspaceLock(data.workspaceName);
+      } else {
+        clearAllQuickDappWorkspaceLocks();
+      }
       dispatch({ type: 'SET_AI_LOADING', payload: false });
       dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
 
@@ -202,6 +218,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     const handleGenerationProgress = async (data: any) => {
       // Handle cancellation: null data resets all progress state
       if (!data) {
+        clearAllQuickDappWorkspaceLocks();
         dispatch({ type: 'SET_GENERATION_PROGRESS', payload: null });
         dispatch({ type: 'SET_AI_LOADING', payload: false });
         if (currentSlugRef) {
@@ -379,9 +396,25 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     initApp();
   }, [plugin, dappManager]);
 
+  const notifyIfQuickDappWorkspaceLocked = (action: string, attemptedWorkspace?: string): boolean => {
+    const quickDappLock = getQuickDappWorkspaceLock();
+    if (!quickDappLock) return false;
+
+    const message = getQuickDappWorkspaceLockMessage(quickDappLock, attemptedWorkspace);
+    console.warn(`[QuickDapp][WorkspaceLock] blocked ${action}`, {
+      lockedWorkspace: quickDappLock.workspaceName,
+      attemptedWorkspace,
+      operation: quickDappLock.operation,
+      slug: quickDappLock.slug
+    });
+    plugin.call('notification', 'toast', message);
+    return true;
+  };
+
   // Handle delete operations
   const handleDeleteOne = async (dapp: DappConfig) => {
     if (!dapp.slug || !dappManager) return;
+    if (notifyIfQuickDappWorkspaceLocked('delete DApp', dapp.workspaceName)) return;
 
     try {
       deletingWorkspacesRef.current.add(dapp.workspaceName);
@@ -413,6 +446,8 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   };
 
   const handleDeleteAll = async () => {
+    if (notifyIfQuickDappWorkspaceLocked('delete all DApps')) return;
+
     // Snapshot workspace names before clearing
     const deletedWorkspaceNames = dappsRef.current
       .map(d => d.workspaceName)
@@ -535,6 +570,11 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           generationProgress={appState.generationProgress}
           onOpen={async (dapp) => {
             if (dapp.workspaceName) {
+              const quickDappLock = getQuickDappWorkspaceLock();
+              if (quickDappLock && dapp.workspaceName !== quickDappLock.workspaceName) {
+                notifyIfQuickDappWorkspaceLocked('dashboard card open', dapp.workspaceName);
+                return;
+              }
               try {
                 await dappManager.openDappWorkspace(dapp.workspaceName);
               } catch (e) {
@@ -544,7 +584,10 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
             dispatch({ type: 'SET_ACTIVE_DAPP', payload: dapp });
             dispatch({ type: 'SET_VIEW', payload: 'editor' });
           }}
-          onCreateNew={() => dispatch({ type: 'SET_VIEW', payload: 'create' })}
+          onCreateNew={() => {
+            if (notifyIfQuickDappWorkspaceLocked('create new DApp')) return;
+            dispatch({ type: 'SET_VIEW', payload: 'create' });
+          }}
           onDeleteOne={(slug: string) => {
             const dapp = appState.dapps.find((d: DappConfig) => d.slug === slug);
             if (dapp) handleDeleteOne(dapp);

@@ -35,6 +35,7 @@ import {
   getToolsForDeployer,
   getSecurityToolsForSecurityAuditor
 } from './helpers/subagentToolFilters'
+import { Features } from '@remix-api'
 
 export interface SubagentConfigItem {
   name: string
@@ -61,14 +62,14 @@ export async function buildSubagentConfigs(
     }
   }
 
-  const hasAuditorPermission = await hasFeature('ai:auditor')
-  const hasTheGraphPermission = await hasFeature('mcp:thegraph')
-  const hasEtherscanPermission = await hasFeature('mcp:etherscan')
-  const hasAlchemyPermission = await hasFeature('mcp:alchemy')
-  const hasWebSearchPermission = await hasFeature('mcp:web-search')
-  const hasCirclePermission = await hasFeature('mcp:circle')
-  const hasOZpermission = await hasFeature('mcp:openzeppelin')
-  const hasQuickdappPermission = await hasFeature('dapp:quickdapp')
+  const hasAuditorPermission = await hasFeature(Features.AI_AUDITOR)
+  const hasTheGraphPermission = await hasFeature(Features.MCP_THEGRAPH)
+  const hasEtherscanPermission = await hasFeature(Features.MCP_ETHERSCAN)
+  const hasAlchemyPermission = await hasFeature(Features.MCP_ALCHEMY)
+  const hasWebSearchPermission = await hasFeature(Features.MCP_WEB_SEARCH)
+  const hasCirclePermission = await hasFeature(Features.MCP_CIRCLE)
+  const hasOZpermission = await hasFeature(Features.MCP_OPENZEPPELIN)
+  const hasQuickdappPermission = await hasFeature(Features.DAPP_QUICKDAPP)
 
   const etherscanTools = getEtherscanToolsForEtherscanSpecialist(tools)
   const theGraphTools = getTheGraphToolsForTheGraphSpecialist(tools)
@@ -132,7 +133,7 @@ export async function buildSubagentConfigs(
       systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
       model: fallbackModel,
       tools: quickDappTools,
-      description: 'Used whenever you are tasked with generating and updating DApp frontends. Start by finding out the deployed contract, use generate_dapp to create a first version of the DApp, then update it iteratively using update_dapp. Use write_file to implement the DApp and finalize_dapp_generation when the DApp is ready to be used.'
+      description: 'Used for all QuickDapp/DApp frontend generation and update requests. Direct chat DApp updates must be delegated here so list_dapps/update_dapp are used instead of current-workspace file inspection.'
     })
   }
 
@@ -228,7 +229,7 @@ export async function buildSubagentConfigs(
         systemPrompt: SOLIDITY_CODE_GENERATION_PROMPT,
         model: fallbackModel,
         tools: solidityTools,
-        description: 'Specializes in writting solidity code using openzeppelin libraries'
+        description: 'Specializes in writing solidity code using openzeppelin libraries. Always pass the current solidity configuration to this subagent. When asked to generate solidity code, always start with the Advanced_Solidity_Developer subagent.'
       }
     )
   }

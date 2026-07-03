@@ -25,7 +25,7 @@ export function GenerateWorkspaceWithAi() {
             facade.closeWizard()
 
             trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithAiRequestSent', name: state.workspaceName, isClick: true })
-            await plugin.call('remixaiassistant', 'chatPipe', '/generate ' + state.workspaceName)
+            await plugin.call('remixaiassistant', 'chatPipe', '/generate ' + state.workspaceName, false, { source: 'template-explorer', presetId: 'generate-workspace' })
             // further matomo events handled by generate function
           }}>
             <i className="fa-solid fa-magic me-2"></i>

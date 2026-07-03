@@ -20,6 +20,8 @@ export const TEMPLATE_NAMES = {
   'uniswapV4HookBookMultiSigSwapHook': 'Uniswap V4 HookBook MultiSigSwapHook',
   'accountAbstraction': 'Account Abstraction Template',
   'introToEIP7702': 'Intro to EIP-7702',
+  'creAIPredictionMarket': 'CRE AI Prediction Market',
+  'creWorldCupPredictionMarket': 'CRE World Cup Prediction Market',
 }
 
 export const TEMPLATE_METADATA: Record<string, TemplateType> = {

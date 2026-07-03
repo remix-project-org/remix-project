@@ -1,10 +1,9 @@
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useState, useReducer, useEffect, useContext, useMemo } from 'react' // eslint-disable-line
 import Fuse from 'fuse.js'
-import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription } from '@remix-ui/helper'
+import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription } from '@remix-ui/helper'
 import { AppConfig, FeatureGroup } from '@remix-api'
-import { AppContext } from '@remix-ui/app'
-import { API_KEYS_ALLOWED_PLANS } from '@remix/remix-ai-core'
+import { AppContext, useAuth } from '@remix-ui/app'
 
 import { initialState, settingReducer } from './settingsReducer'
 import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
@@ -69,6 +68,11 @@ const settingsSections: SettingsSection[] = [
           name: 'text-wrap',
           label: 'settings.wordWrapText',
           type: 'toggle'
+        }, {
+          name: 'editor/code-analysis-popover' as keyof typeof initialState,
+          label: 'settings.editorCodeAnalysisPopover',
+          description: 'settings.editorCodeAnalysisPopoverDescription',
+          type: 'toggle' as const
         }, {
           name: 'personal-mode',
           label: 'settings.enablePersonalModeText',
@@ -291,6 +295,15 @@ const settingsSections: SettingsSection[] = [
             name: 'etherscan-access-token',
             type: 'password'
           }]
+        }, {
+          name: 'thegraph-config',
+          label: 'settings.thegraphTokenTitle',
+          type: 'toggle',
+          toggleUIDescription: <TheGraphConfigDescription />,
+          toggleUIOptions: [{
+            name: 'thegraph-access-token',
+            type: 'password'
+          }]
         }]
       }]
   }
@@ -300,6 +313,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
   const appContext = useContext(AppContext)
   const appConfig = appContext?.appConfig || {}
   const intl = useIntl()
+  const { features } = useAuth()
   const [settingsState, dispatch] = useReducer(settingReducer, initialState)
   const [selected, setSelected] = useState(settingsSections[0].key)
   const [search, setSearch] = useState('')
@@ -315,10 +329,15 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
 
   // Check if user can use their own API keys based on their plan
   const canUseOwnApiKeys = useMemo(() => {
-    return featureGroups.some(fg => API_KEYS_ALLOWED_PLANS.includes(fg.name))
+    return features['ai:api-key']?.is_enabled === true
   }, [featureGroups])
 
-  // Fetch user's feature groups on mount
+  // Check if user has access to contextual editor feature (code analysis popover)
+  const hasContextualEditorFeature = useMemo(() => {
+    return features['ai:contextual-editor']?.is_enabled === true
+  }, [features])
+
+  // Fetch user's feature groups on mount (for API keys feature)
   useEffect(() => {
     const fetchFeatureGroups = async () => {
       try {
@@ -351,7 +370,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
   }, [props.plugin])
 
   // Derive visible sections based on app config and user permissions
-  const computeVisibleSections = (config: AppConfig, canUseApiKeys: boolean): SettingsSection[] => {
+  const computeVisibleSections = (config: AppConfig, canUseApiKeys: boolean, hasContextualEditor: boolean): SettingsSection[] => {
     return settingsSections
       .filter(section => {
         if (section.key === 'account' && config['settings.account_management'] === false) {
@@ -369,20 +388,37 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
             )
           }
         }
+        // For General section, filter code analysis popover based on permission flag
+        if (section.key === 'general') {
+          return {
+            ...section,
+            subSections: section.subSections.map(subSection => ({
+              ...subSection,
+              options: subSection.options.filter(option => {
+                // Filter out code analysis popover if user doesn't have the feature
+                //@ts-ignore
+                if (!hasContextualEditor && option.name === 'editor/code-analysis-popover') {
+                  return false
+                }
+                return true
+              })
+            }))
+          }
+        }
         return section
       })
   }
 
   // Recompute visible sections when shared app config or permissions change
   useEffect(() => {
-    const sections = computeVisibleSections(appConfig, canUseOwnApiKeys)
+    const sections = computeVisibleSections(appConfig, canUseOwnApiKeys, hasContextualEditorFeature)
     setVisibleSections(sections)
     setFilteredSections(sections)
     if (!sections.find(s => s.key === selected)) {
       setSelected(sections[0]?.key)
       setFilteredSection(sections[0])
     }
-  }, [appConfig, canUseOwnApiKeys])
+  }, [appConfig, canUseOwnApiKeys, hasContextualEditorFeature])
 
   useEffect(() => {
     props.plugin.call('theme', 'currentTheme').then((theme) => {

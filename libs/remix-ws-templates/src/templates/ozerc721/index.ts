@@ -1,6 +1,6 @@
 import { erc721 } from '@openzeppelin/wizard';
 
-export default async (opts: any, plugin,overrides) => {
+export default async (opts: any, plugin, overrides) => {
 
   const contractName = (overrides && overrides.contractName) || 'MyToken'
   const contractContent = overrides && overrides.contractContent

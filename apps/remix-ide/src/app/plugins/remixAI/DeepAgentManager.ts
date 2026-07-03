@@ -90,6 +90,12 @@ export class DeepAgentManager {
       const resolvedModelId = await this.resolveOllamaModelId(plugin.selectedModel.provider, plugin.selectedModelId)
       // Don't use remote fallback for Ollama - user explicitly chose local models
       const fallbackInferencer = plugin.selectedModel.provider === 'ollama' ? null : plugin.remoteInferencer
+
+      // Clean up old instance if it exists
+      if (plugin.deepAgentInferencer && typeof plugin.deepAgentInferencer.cleanup === 'function') {
+        plugin.deepAgentInferencer.cleanup()
+      }
+
       plugin.deepAgentInferencer = new DeepAgentInferencer(
         plugin as any, // Cast to Plugin type
         plugin.remixMCPServer.tools,
@@ -304,6 +310,12 @@ export class DeepAgentManager {
         const resolvedModelId = await this.resolveOllamaModelId(plugin.selectedModel.provider, plugin.selectedModelId)
         // Don't use remote fallback for Ollama - user explicitly chose local models
         const fallbackInferencer = plugin.selectedModel.provider === 'ollama' ? null : plugin.remoteInferencer
+
+        // Clean up old instance if it exists
+        if (plugin.deepAgentInferencer && typeof plugin.deepAgentInferencer.cleanup === 'function') {
+          plugin.deepAgentInferencer.cleanup()
+        }
+
         plugin.deepAgentInferencer = new DeepAgentInferencer(
           plugin as any, // Cast to Plugin type
           plugin.remixMCPServer.tools,

@@ -14,7 +14,7 @@ const profile = {
   name: 'editor',
   description: 'service - editor',
   version: packageJson.version,
-  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints', 'acceptDiff', 'discardDiff', 'getDiffSessions', 'setActiveDiff', 'closeDiffSession'],
+  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints', 'acceptDiff', 'discardDiff', 'getDiffSessions', 'setActiveDiff', 'closeDiffSession', 'openSplitView', 'closeSplitView'],
 }
 
 export default class Editor extends Plugin {
@@ -42,6 +42,12 @@ export default class Editor extends Plugin {
     this.diffSessions = {}  // Store multiple diff sessions: { diffId: { originalPath, modifiedPath, originalContent, modifiedContent, path } }
     this.activeDiffId = null  // Currently active diff session
     this.diffCounter = 0  // Counter for generating unique diff IDs
+
+    // Split view state (for showing two different files side by side)
+    this.splitViewFile = null
+    this.splitViewContent = null
+    this.splitViewLeftPath = null
+
     this.modes = {
       sol: 'sol',
       yul: 'sol',
@@ -66,7 +72,8 @@ export default class Editor extends Plugin {
       html: 'html',
       css: 'css',
       sql: 'sql',
-      md: 'md'
+      md: 'md',
+      subgraph: 'subgraph'
     }
 
     this.activated = false
@@ -112,6 +119,8 @@ export default class Editor extends Plugin {
       events={state.events}
       plugin={state.plugin}
       isDiff={state.isDiff}
+      splitViewFile={state.splitViewFile}
+      splitViewContent={state.splitViewContent}
       setMonaco={(monaco) => this.setMonaco(monaco)}
     />
   }
@@ -143,6 +152,8 @@ export default class Editor extends Plugin {
       currentFile: this.currentFile,
       currentDiffFile: this.currentDiffFile,
       isDiff: this.isDiff,
+      splitViewFile: this.splitViewFile,
+      splitViewContent: this.splitViewContent,
       events: this.events,
       plugin: this
     })
@@ -547,6 +558,39 @@ export default class Editor extends Plugin {
 
   hasUnacceptedChanges () {
     return this.api.hasUnacceptedChanges()
+  }
+
+  /**
+   * Open a split view showing two files side by side
+   * @param {string} leftPath - Path of the file to show on the left
+   * @param {string} rightPath - Path of the file to show on the right
+   * @param {string} rightContent - Content for the right side
+   */
+  async openSplitView (leftPath, rightPath, rightContent) {
+    try {
+      // Make sure the left file is opened
+      const openedfiles = await this.call('fileManager', 'getOpenedFiles')
+      if (!openedfiles[leftPath]) {
+        await this.call('fileManager', 'openFile', leftPath)
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+
+      // Set split view state
+      this.splitViewLeftPath = leftPath
+      this.splitViewFile = rightPath
+      this.splitViewContent = rightContent
+      this.renderComponent()
+    } catch (err) {
+      console.error('[editor] openSplitView failed:', err)
+      throw err
+    }
+  }
+
+  closeSplitView () {
+    this.splitViewFile = null
+    this.splitViewContent = null
+    this.splitViewLeftPath = null
+    this.renderComponent()
   }
 
   setIsDiff (isDiff, currentDiffFile = null, hashedPathModified = null) {

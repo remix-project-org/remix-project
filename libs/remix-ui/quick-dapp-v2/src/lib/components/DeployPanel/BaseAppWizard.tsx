@@ -7,6 +7,7 @@ import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
 import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
 import { validateEnsName } from '../../utils/ens-utils';
+import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
@@ -49,6 +50,25 @@ const BaseAppWizard: React.FC = () => {
   const [copiedField, setCopiedField] = useState('');
   const [showEnsModal, setShowEnsModal] = useState(false);
   const [pendingEnsData, setPendingEnsData] = useState<{ cid: string; mode: 'initial' | 'update' } | null>(null);
+
+  const isInlineMode = activeDapp?.mode === 'inline';
+  const indexHtmlPath = isInlineMode ? 'frontend/index.html' : 'index.html';
+  const dappRootPath = isInlineMode ? '/frontend' : '/';
+  const rootPathLength = isInlineMode ? '/frontend'.length : 0;
+  const hasGraphGateway = hasTheGraphGatewaySources(activeDapp);
+
+  const ensureActiveDappWorkspace = async () => {
+    if (!activeDapp?.workspaceName) return;
+
+    const currentWs = await plugin.call('filePanel', 'getCurrentWorkspace');
+    if (currentWs?.name !== activeDapp.workspaceName) {
+      await plugin.call('filePanel', 'switchToWorkspace', {
+        name: activeDapp.workspaceName,
+        isLocalhost: false
+      });
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  };
 
   useEffect(() => {
     if (activeDapp?.config?.isBaseMiniApp) {
@@ -148,6 +168,8 @@ const BaseAppWizard: React.FC = () => {
   };
 
   const handleStep1Config = async () => {
+    if (!activeDapp) return;
+
     if (!savedWizardState.appIdMeta) {
       // @ts-ignore
       await plugin.call('notification', 'toast', "Please enter the App ID Meta Tag.");
@@ -174,10 +196,10 @@ const BaseAppWizard: React.FC = () => {
     try {
       setBaseFlowLoading(true);
 
-      const indexHtmlPath = 'index.html';
+      await ensureActiveDappWorkspace();
       // @ts-ignore
       let content = await plugin.call('fileManager', 'readFile', indexHtmlPath);
-      if (!content) throw new Error("index.html not found");
+      if (!content) throw new Error(`${indexHtmlPath} not found`);
 
       content = content.replace(/<meta\s+[^>]*base:app_id[^>]*\/?>/gi, '');
       content = content.replace(/<meta\s+[^>]*base:app_id[^>]*/gi, '');
@@ -211,11 +233,9 @@ const BaseAppWizard: React.FC = () => {
     let builder: InBrowserVite;
 
     try {
+      await ensureActiveDappWorkspace();
       builder = new InBrowserVite();
       await builder.initialize();
-      const isInlineMode = activeDapp?.mode === 'inline';
-      const dappRootPath = isInlineMode ? '/frontend' : '/';
-      const rootPathLength = isInlineMode ? '/frontend'.length : 0;
       const filesMap = new Map<string, string>();
       await readDappFiles(plugin, dappRootPath, filesMap, rootPathLength);
 
@@ -234,6 +254,7 @@ const BaseAppWizard: React.FC = () => {
       // seeing </script> in user text as the closing tag for this script element.
       const safeJson = (val: string) => JSON.stringify(val).replace(/<\//g, '<\\/');
       const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${safeJson(logoDataUrl || '')},title:${safeJson(title || '')},details:${safeJson(details || '')}};</script>`;
+      const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'base-ipfs-deploy' });
       const walletScript = generateWalletSelectionScript();
 
       // Escape text for safe use in HTML attribute values (OG/Twitter meta tags)
@@ -294,8 +315,8 @@ const BaseAppWizard: React.FC = () => {
       ].filter(Boolean).join('\n    ');
 
       let modifiedHtml = indexHtmlContent;
-      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n    ${ogTags}\n</head>`);
-      else modifiedHtml = `<html><head>${injectionScript}\n${ogTags}</head>${modifiedHtml}</html>`;
+      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n${graphRuntimeScript}\n    ${ogTags}\n</head>`);
+      else modifiedHtml = `<html><head>${injectionScript}\n${graphRuntimeScript}\n${ogTags}</head>${modifiedHtml}</html>`;
 
       const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
       modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
@@ -309,7 +330,7 @@ const BaseAppWizard: React.FC = () => {
         formData.append('files', screenshotBlob, 'screenshot.png');
       }
 
-      // Farcaster manifest no longer bundled — Base App uses standard web app model (April 2026)
+      // Farcaster manifest no longer bundled — Base mini-app uses standard web app model (April 2026)
 
       const uploadHeaders: Record<string, string> = {};
       const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('remix_access_token') : null;
@@ -548,7 +569,7 @@ const BaseAppWizard: React.FC = () => {
                       <strong>Update Code:</strong> Edit files in File Explorer, then click <strong>Publish Changes</strong> above to re-deploy to IPFS & ENS.
                     </li>
                     <li>
-                      <strong>Docs:</strong> For advanced configuration, see <a href="https://docs.base.org/mini-apps" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base Apps Documentation <i className="fas fa-external-link-alt small"></i></a>.
+                      <strong>Docs:</strong> For advanced configuration, see <a href="https://docs.base.org/mini-apps" target="_blank" rel="noreferrer" className="fw-bold text-decoration-underline">Base mini-apps Documentation <i className="fas fa-external-link-alt small"></i></a>.
                     </li>
                   </ul>
                 </div>
@@ -665,7 +686,7 @@ const BaseAppWizard: React.FC = () => {
                     Copy the <b>App ID Meta Tag</b> from the verification screen.
                     </Alert>
                     <Form.Group className="mb-3">
-                      <Form.Label>Base App ID Meta Tag</Form.Label>
+                      <Form.Label>Base mini-app ID Meta Tag</Form.Label>
                       <Form.Control
                         as="textarea" rows={2}
                         placeholder='<meta name="base:app_id" content="..." />'
@@ -686,6 +707,11 @@ const BaseAppWizard: React.FC = () => {
                     <Alert variant="info" className="small p-2 mb-3">
                     Deploy your app to IPFS and register an ENS subdomain (`.remixdapp.eth`).
                     </Alert>
+                    {hasGraphGateway && (
+                      <Alert variant="info" className="small p-2 mb-3">
+                        The Graph API key from Remix settings is sealed by Remix for this deployment. It is not embedded in the DApp, and visitors do not need their own key.
+                      </Alert>
+                    )}
 
                     <Form.Group className="mb-3">
                       <Form.Label>Choose ENS Name (Subdomain)</Form.Label>

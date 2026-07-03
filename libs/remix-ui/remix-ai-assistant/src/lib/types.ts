@@ -10,6 +10,10 @@ export type ActivityType =
   | 'promptSend'
   | 'streamStart'
   | 'streamEnd'
+  | 'prompt_typed'
+  | 'prompt_preset'
+  | 'conversation_size'
+  | 'conversation_count'
 
 /**
  * Sync status for cloud sync

@@ -424,6 +424,23 @@ export const templates = (intl: any, plugin: any): TemplateGroup[] => {
         }
       ],
       IsArtefact: true
+    },
+    {
+      name: 'Chainlink CRE',
+      items: [
+        {
+          value: "creAIPredictionMarket",
+          displayName: 'AI Prediction Market',
+          tagList: ["Solidity", "Chainlink"],
+          description: 'A Yes/No prediction market using Chainlink CRE'
+        },
+        {
+          value: "creWorldCupPredictionMarket",
+          displayName: 'World Cup Prediction Market',
+          tagList: ["Solidity", "Chainlink"],
+          description: 'A 1X2 sports prediction market using Chainlink CRE'
+        }
+      ]
     }
   ]
 }

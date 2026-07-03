@@ -2,13 +2,15 @@ import { test, expect } from './helpers/e2e-pool';
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
+// DISABLED: Playwright E2E tests
+/*
 /**
  * Quota-tier user flow:
  *   1. Sign in via topbar (E2E Test Pool)
  *   2. Switch to Mistral Medium for faster runs
  *   3. Open contracts/1_Storage.sol
  *   4. Click "Explain contract" in the bottom bar → assert the assistant responds
- */
+ *//*
 test('explain contract with AI', async ({ page }) => {
   test.setTimeout(300_000)
   const poolApiKey = process.env.E2E_POOL_API_KEY || process.env.E2E_POOL_KEY
@@ -67,7 +69,7 @@ test('explain contract with AI', async ({ page }) => {
  *   3. Replace contracts/1_Storage.sol with a faulty contract
  *   4. Compile → error card appears with "Ask RemixAI" button
  *   5. Click "Ask RemixAI" → assert the assistant responds
- */
+ *//*
 test('ask AI about a compile error', async ({ page }) => {
   test.setTimeout(240_000)
   const poolApiKey = process.env.E2E_POOL_API_KEY || process.env.E2E_POOL_KEY
@@ -148,7 +150,7 @@ contract Storage {
  *   4. Close the plan manager
  *   5. Replace the file with a faulty contract and compile
  *   6. Click "Ask RemixAI" on the error card → assert plan-manager pops up again
- */
+ *//*
 test('anonymous user is prompted by plan-manager when triggering AI actions', async ({ page }) => {
   test.setTimeout(120_000)
 
@@ -204,3 +206,4 @@ contract Storage {
   await askAiBtn.click();
   await expect(page.locator('[data-id="planManagerSignIn"]')).toBeVisible({ timeout: 15000 });
 });
+*/

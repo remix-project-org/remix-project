@@ -17,6 +17,7 @@ const swarmPrivateBeeAddress = config.get('settings/swarm-private-bee-address') 
 const swarmPostageStampId = config.get('settings/swarm-postage-stamp-id') || ''
 const sindriAccessToken = config.get('settings/sindri-access-token') || ''
 const etherscanAccessToken = config.get('settings/etherscan-access-token') || ''
+const thegraphAccessToken = config.get('settings/thegraph-access-token') || ''
 const mcpServersEnable = config.get('settings/mcp/servers/enable') || false
 const mcpServerManagement = config.get('settings/mcp-server-management') || false
 // Ollama configuration is temporarily disabled - will be enabled later
@@ -26,12 +27,14 @@ const deepagentAnthropicApiKey = config.get('settings/deepagent-anthropic-api-ke
 const deepagentMistralApiKey = config.get('settings/deepagent-mistral-api-key') || ''
 const deepagentOpenaiApiKey = config.get('settings/deepagent-openai-api-key') || ''
 const deepagentMoonshotApiKey = config.get('settings/deepagent-moonshot-api-key') || ''
+const enableCodeAnalysisPopover = config.get('settings/editor/code-analysis-popover')
 
 let githubConfig = config.get('settings/github-config') || false
 let ipfsConfig = config.get('settings/ipfs-config') || false
 let swarmConfig = config.get('settings/swarm-config') || false
 let sindriConfig = config.get('settings/sindri-config') || false
 let etherscanConfig = config.get('settings/etherscan-config') || false
+let thegraphConfig = config.get('settings/thegraph-config') || false
 // Ollama configuration is temporarily disabled - will be enabled later
 // let ollamaConfig = config.get('settings/ollama-config') || false
 let generateContractMetadata = config.get('settings/generate-contract-metadata')
@@ -59,6 +62,10 @@ if (!sindriConfig && sindriAccessToken) {
 if (!etherscanConfig && etherscanAccessToken) {
   config.set('settings/etherscan-config', true)
   etherscanConfig = true
+}
+if (!thegraphConfig && thegraphAccessToken) {
+  config.set('settings/thegraph-config', true)
+  thegraphConfig = true
 }
 // Ollama configuration is temporarily disabled - will be enabled later
 // if (!ollamaConfig && ollamaEndpoint !== 'http://localhost:11434') {
@@ -90,6 +97,12 @@ if (typeof displayErrors !== 'boolean') {
 if (typeof saveEvmState !== 'boolean') {
   config.set('settings/save-evm-state', true)
   saveEvmState = true
+}
+
+let enableCodeAnalysisPopoverBoolean = enableCodeAnalysisPopover
+if (typeof enableCodeAnalysisPopoverBoolean !== 'boolean') {
+  config.set('settings/editor/code-analysis-popover', true)
+  enableCodeAnalysisPopoverBoolean = true
 }
 
 export const initialState: SettingsState = {
@@ -205,6 +218,14 @@ export const initialState: SettingsState = {
     value: etherscanAccessToken,
     isLoading: false
   },
+  'thegraph-config': {
+    value: thegraphConfig,
+    isLoading: false
+  },
+  'thegraph-access-token': {
+    value: thegraphAccessToken,
+    isLoading: false
+  },
   'ai-privacy-policy': {
     value: '',
     isLoading: false
@@ -264,6 +285,11 @@ export const initialState: SettingsState = {
   },
   'deepagent-moonshot-api-key': {
     value: deepagentMoonshotApiKey,
+    isLoading: false
+  },
+  //@ts-ignore
+  'editor/code-analysis-popover': {
+    value: enableCodeAnalysisPopoverBoolean,
     isLoading: false
   },
   toaster: {
