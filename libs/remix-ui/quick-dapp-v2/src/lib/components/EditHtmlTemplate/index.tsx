@@ -155,6 +155,10 @@ function EditHtmlTemplate(): JSX.Element {
 
   const handleDeleteDapp = async () => {
     if (!activeDapp || !dappManager) return;
+    if (isAiUpdating) {
+      await plugin.call('notification', 'toast', 'Please wait until the AI update finishes before deleting this DApp.');
+      return;
+    }
 
     // Hide modal immediately to prevent UI hang during async deletion
     setShowDeleteModal(false);
@@ -917,7 +921,7 @@ window.addEventListener('unhandledrejection', function(e) {
               variant="outline-danger"
               size="sm"
               onClick={() => setShowDeleteModal(true)}
-              disabled={isBuilding || isCapturing}
+              disabled={isBuilding || isCapturing || isAiUpdating}
               data-id="delete-dapp-editor-btn"
             >
               <i className="fas fa-trash me-1"></i> Delete DApp
@@ -963,7 +967,7 @@ window.addEventListener('unhandledrejection', function(e) {
                         )}
                         <div className="mt-1 text-danger">
                           <i className="fas fa-exclamation-triangle me-1"></i>
-                          You can deploy to IPFS, but the deployed DApp will not function — Remix VM only runs locally in this browser and is not accessible externally.
+                          IPFS deployment is not available for Remix VM contracts. Deploy your contract to a public network first.
                         </div>
                         <div className="mt-1 text-warning">
                           <i className="fas fa-info-circle me-1"></i>
@@ -1073,7 +1077,7 @@ window.addEventListener('unhandledrejection', function(e) {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDeleteDapp} data-id="confirm-delete-dapp-btn">Yes, Delete</Button>
+          <Button variant="danger" onClick={handleDeleteDapp} disabled={isAiUpdating} data-id="confirm-delete-dapp-btn">Yes, Delete</Button>
         </Modal.Footer>
       </Modal>
     </div>

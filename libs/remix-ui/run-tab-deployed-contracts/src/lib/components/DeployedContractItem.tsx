@@ -385,11 +385,14 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   }
 
   const handleCreateDapp = async (contract: DeployedContract) => {
-    if (onKebabMenuToggle) {
-      onKebabMenuToggle(false)
-    }
+    if (isGenerating.current) return
+    isGenerating.current = true
 
     try {
+      if (onKebabMenuToggle) {
+        onKebabMenuToggle(false)
+      }
+
       // Permission gate: non-beta users see the QuickDapp lock screen
       if (!hasQuickdappAccess) {
         await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
