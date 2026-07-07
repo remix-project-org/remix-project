@@ -106,6 +106,7 @@ commands:
     steps:
       - run:
           name: Local build << parameters.target >> (Nx Cloud disabled)
+          no_output_timeout: 30m
           command: |
             CONFIG_FLAG="<< parameters.config >>"
             MEMORY="<< parameters.memory >>"
@@ -114,6 +115,8 @@ commands:
 
             # NX Cloud temporarily disabled - always use local build
             export NX_NO_CLOUD=true
+            export NX_DAEMON=false
+            export NX_PARALLEL=2
             # if [ -n "${NX_CLOUD_ACCESS_TOKEN:-}" ]; then
             #   echo "Attempting Nx Cloud build for $TARGET..."
             #   if NX_VERBOSE_LOGGING=1 node --max-old-space-size=$MEMORY ./node_modules/.bin/nx build $TARGET $CONFIG_FLAG --cloud --verbose; then
