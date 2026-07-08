@@ -1899,7 +1899,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // if the checkout truly can't open, the banner stays with our own message.
     case 'checkout.warning' as any:
     case 'checkout.payment.failed' as any:
-    case 'checkout.payment.error' as any: {      
+    case 'checkout.payment.error' as any: {
       const message = this.extractPaddleErrorMessage(event)
         || 'Something went wrong with this checkout. Please review your details and try again.'
       planManagerLogger.warn('[PlanManager:paddle-notice] showing in-frame banner', {
