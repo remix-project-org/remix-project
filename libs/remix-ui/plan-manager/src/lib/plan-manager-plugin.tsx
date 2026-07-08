@@ -300,6 +300,14 @@ export class PlanManagerPlugin extends ViewPlugin {
     } catch (err) {
       planManagerLogger.warn('[PlanManager] auth bridge failed', err)
     }
+
+    try {
+      if (!this.store.getSnapshot().isAuthenticated && Math.random() < 0.60) {
+        this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
+      }
+    } catch (err) {
+      planManagerLogger.warn('[PlanManager] nudge failed', err)
+    }
   }
 
   onDeactivation(): void {
@@ -2468,7 +2476,9 @@ export class PlanManagerPlugin extends ViewPlugin {
       })
       if (gateEnabled && (emailMissing || emailUnverified) && !panelAlreadyOpen) {
         planManagerLogger.log('[PlanManager:email-gate] auto-opening panel → email-unverified')
-        this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
+        if (Math.random() < 0.60) {
+          this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
+        }
         // Catalog wasn't loaded as part of this path — fetch it now so the
         // panel isn't empty when it opens on a fresh login.
         this.store.send({ type: 'CATALOG_LOAD' })
@@ -2506,7 +2516,9 @@ export class PlanManagerPlugin extends ViewPlugin {
       if (canShowPlans && isFreePlan && !this.freePlanAutoOpenFired && !panelAlreadyOpen) {
         this.freePlanAutoOpenFired = true
         planManagerLogger.log('[PlanManager:free-plan-gate] auto-opening panel → free plan')
-        this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
+        if (Math.random() < 0.60) {
+          this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
+        }
         // Catalog wasn't loaded as part of this path — fetch it now so plans
         // are visible immediately without having to close and reopen the panel.
         this.store.send({ type: 'CATALOG_LOAD' })
