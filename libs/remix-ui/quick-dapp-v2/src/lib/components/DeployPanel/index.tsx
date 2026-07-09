@@ -17,6 +17,15 @@ import { endpointUrls } from '@remix-endpoints-helper';
 
 import BaseAppWizard from './BaseAppWizard';
 import EnsRegistrationModal from './EnsRegistrationModal';
+import {
+  DOCS_FILENAME,
+  formatTimestamp,
+  getAppKindLabel,
+  getDappMode,
+  getDappSourceRoot,
+  getGraphSources,
+  redactUrlSecrets
+} from './docs';
 
 const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
 
@@ -45,11 +54,14 @@ function DeployPanel(): JSX.Element {
     domain: activeDapp?.deployment?.ensDomain || ''
   });
 
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [isGeneratingDocs, setIsGeneratingDocs] = useState(false);
+  const [docsExists, setDocsExists] = useState(false);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isPublishOpen, setIsPublishOpen] = useState(true);
-  const [isEnsOpen, setIsEnsOpen] = useState(true);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [isEnsOpen, setIsEnsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(true);
   const [copiedField, setCopiedField] = useState('');
   const [showEnsModal, setShowEnsModal] = useState(false);
@@ -74,9 +86,49 @@ function DeployPanel(): JSX.Element {
     }
   }, [activeDapp?.slug, activeDapp?.deployment]);
 
-  if (activeDapp?.config?.isBaseMiniApp) {
-    return <BaseAppWizard />;
-  }
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkDocsFile = async () => {
+      if (!activeDapp?.workspaceName || !plugin?.call) {
+        setDocsExists(false);
+        return;
+      }
+
+      try {
+        const exists = await plugin.call('filePanel', 'existsInWorkspace', activeDapp.workspaceName, DOCS_FILENAME);
+        if (!cancelled) setDocsExists(!!exists);
+      } catch (e) {
+        if (!cancelled) setDocsExists(false);
+      }
+    };
+
+    checkDocsFile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plugin, activeDapp?.workspaceName, activeDapp?.updatedAt, activeDapp?.deployment]);
+
+  useEffect(() => {
+    if (!plugin?.on || !plugin?.off || !activeDapp?.workspaceName) return;
+
+    const onDocsFileSaved = async (filePath: string) => {
+      const normalizedPath = String(filePath || '').replace(/^\/+/, '');
+      if (normalizedPath !== DOCS_FILENAME) return;
+
+      try {
+        const exists = await plugin.call('filePanel', 'existsInWorkspace', activeDapp.workspaceName, DOCS_FILENAME);
+        setDocsExists(!!exists);
+      } catch (e) {}
+    };
+
+    plugin.on('fileManager', 'fileSaved', onDocsFileSaved);
+
+    return () => {
+      try { plugin.off('fileManager', 'fileSaved', onDocsFileSaved); } catch (e) {}
+    };
+  }, [plugin, activeDapp?.workspaceName]);
 
   const handleSaveConfig = async () => {
     if (!dappManager || !activeDapp) return;
@@ -120,6 +172,94 @@ function DeployPanel(): JSX.Element {
   const handleRemoveLogo = () => {
     dispatch({ type: 'SET_INSTANCE', payload: { logo: null } });
     if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const openAiAssistantPanel = async () => {
+    try {
+      await plugin.call('manager', 'activatePlugin', 'remix-ai-assistant');
+    } catch (e) { /* may already be active */ }
+    try {
+      await plugin.call('rightSidePanel', 'focusPanel');
+    } catch (e) { /* best-effort */ }
+  };
+
+  const handleOpenDocs = async () => {
+    if (!activeDapp || !plugin) return;
+
+    try {
+      const exists = await plugin.call('filePanel', 'existsInWorkspace', activeDapp.workspaceName, DOCS_FILENAME);
+      setDocsExists(!!exists);
+
+      if (!exists) {
+        await plugin.call('notification', 'toast', `${DOCS_FILENAME} has not been created yet.`);
+        return;
+      }
+
+      const currentWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+      if (currentWorkspace?.name !== activeDapp.workspaceName) {
+        await plugin.call('filePanel', 'switchToWorkspace', {
+          name: activeDapp.workspaceName,
+          isLocalhost: false
+        });
+      }
+
+      await plugin.call('fileManager', 'open', DOCS_FILENAME);
+    } catch (e: any) {
+      console.warn(`[QuickDapp] Failed to open ${DOCS_FILENAME}:`, e);
+      await plugin.call('notification', 'toast', `Failed to open ${DOCS_FILENAME}: ${e.message || e}`);
+    }
+  };
+
+  const handleGenerateDocs = async () => {
+    if (!activeDapp || !plugin || isGeneratingDocs) return;
+
+    let docsFileExists = docsExists;
+    try {
+      docsFileExists = !!await plugin.call('filePanel', 'existsInWorkspace', activeDapp.workspaceName, DOCS_FILENAME);
+      setDocsExists(docsFileExists);
+    } catch (e) {}
+
+    if (docsFileExists) {
+      const shouldOverwrite = await plugin.call('notification', 'modal', {
+        id: 'quick-dapp-docs-overwrite',
+        title: `Generate ${DOCS_FILENAME}?`,
+        message: `This will overwrite the existing ${DOCS_FILENAME} file in this DApp workspace.`,
+        okLabel: 'Generate',
+        cancelLabel: 'Cancel'
+      });
+      if (!shouldOverwrite) return;
+    }
+
+    setIsGeneratingDocs(true);
+
+    try {
+      const currentWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+
+      if (currentWorkspace?.name !== activeDapp.workspaceName) {
+        await plugin.call('filePanel', 'switchToWorkspace', {
+          name: activeDapp.workspaceName,
+          isLocalhost: false
+        });
+      }
+
+      const prompt = [
+        'QuickDapp documentation request.',
+        'Delegate this request to QuickDapp_Specialist.',
+        `Call generate_dapp_docs with workspaceName="${activeDapp.workspaceName}", targetFilename="${DOCS_FILENAME}", confirmOverwrite=${docsFileExists ? 'true' : 'false'}.`,
+        `After generate_dapp_docs returns context, write exactly "/${DOCS_FILENAME}" using write_file.`,
+        'Do not call generate_dapp, update_dapp, generate_graph_dapp, or finalize_dapp_generation.'
+      ].join('\n');
+
+      await openAiAssistantPanel();
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-docs' });
+
+      await plugin.call('notification', 'toast', `${DOCS_FILENAME} request sent to RemixAI.`);
+    } catch (e: any) {
+      console.warn(`[QuickDapp] Failed to send ${DOCS_FILENAME} request:`, e);
+      await plugin.call('notification', 'toast', `Failed to request ${DOCS_FILENAME}: ${e.message || e}`);
+    } finally {
+      setIsGeneratingDocs(false);
+    }
   };
 
   const handleIpfsDeploy = async () => {
@@ -275,6 +415,100 @@ function DeployPanel(): JSX.Element {
     }
   };
 
+  const renderInfoRow = (label: string, value: React.ReactNode, monospace = false) => {
+    const displayValue = value === undefined || value === null || value === '' ? 'Not configured' : value;
+    return (
+      <div className="d-flex justify-content-between gap-2 py-1 border-bottom">
+        <span className="text-muted flex-shrink-0">{label}</span>
+        <span className={`text-end text-break ${monospace ? 'font-monospace small' : ''}`}>
+          {displayValue}
+        </span>
+      </div>
+    );
+  };
+
+  const renderDappInfo = () => {
+    if (!activeDapp) return null;
+
+    const graphSources = getGraphSources(activeDapp);
+    const baseConfig = (activeDapp.config as any)?.baseAppConfig;
+    const isBaseMiniApp = !!activeDapp.config?.isBaseMiniApp;
+    const sourceRoot = getDappSourceRoot(activeDapp);
+    const configPath = 'dapp.config.json';
+
+    return (
+      <Card className="mb-2">
+        <Card.Header onClick={() => setIsInfoOpen(!isInfoOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+          Dapp info <i className={`fas ${isInfoOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+        </Card.Header>
+        <Collapse in={isInfoOpen}>
+          <Card.Body className="small">
+            <div className="mb-3">
+              <div className="text-uppercase text-muted mb-1">Summary</div>
+              {renderInfoRow('Type', getAppKindLabel(activeDapp))}
+              {renderInfoRow('Status', activeDapp.status)}
+              {renderInfoRow('Mode', getDappMode(activeDapp))}
+              {renderInfoRow('Source root', sourceRoot, true)}
+              {renderInfoRow('Updated', formatTimestamp(activeDapp.updatedAt))}
+            </div>
+
+            <div className="mb-3">
+              <div className="text-uppercase text-muted mb-1">Contract</div>
+              {renderInfoRow('Network', activeDapp.contract?.networkName)}
+              {renderInfoRow('Chain ID', activeDapp.contract?.chainId)}
+              {renderInfoRow('Name', activeDapp.contract?.name)}
+              {renderInfoRow('Address', activeDapp.contract?.address, true)}
+              {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
+            </div>
+
+            <div className="mb-3">
+              <div className="text-uppercase text-muted mb-1">Workspace</div>
+              {renderInfoRow('DApp workspace', activeDapp.workspaceName, true)}
+              {renderInfoRow('Source workspace', activeDapp.sourceWorkspace?.name, true)}
+              {renderInfoRow('Config', configPath, true)}
+              {renderInfoRow('Docs', docsExists ? DOCS_FILENAME : 'Not generated', true)}
+            </div>
+
+            <div className="mb-3">
+              <div className="text-uppercase text-muted mb-1">Integrations</div>
+              {renderInfoRow('The Graph', graphSources.length ? `${graphSources.length} source${graphSources.length > 1 ? 's' : ''}` : 'Not enabled')}
+              {graphSources.map((source, index) => (
+                <div className="ps-2 mb-2" key={`${source.source}-${source.filePath || index}`}>
+                  {renderInfoRow(`Graph ${index + 1} source`, source.source)}
+                  {renderInfoRow(`Graph ${index + 1} file`, source.filePath, true)}
+                  {renderInfoRow(`Graph ${index + 1} kind`, source.endpointKind)}
+                  {renderInfoRow(`Graph ${index + 1} endpoint`, redactUrlSecrets(source.endpoint), true)}
+                  {renderInfoRow(`Graph ${index + 1} subgraph`, source.subgraphId, true)}
+                </div>
+              ))}
+              {renderInfoRow('Base mini app', isBaseMiniApp ? 'Enabled' : 'Not enabled')}
+              {isBaseMiniApp && renderInfoRow('Base app meta', baseConfig?.appIdMeta, true)}
+            </div>
+
+            <div className="mb-3">
+              <div className="text-uppercase text-muted mb-1">Deployment</div>
+              {renderInfoRow('IPFS CID', activeDapp.deployment?.ipfsCid, true)}
+              {renderInfoRow('Gateway', activeDapp.deployment?.gatewayUrl, true)}
+              {renderInfoRow('ENS', activeDapp.deployment?.ensDomain, true)}
+              {renderInfoRow('Last deployed', formatTimestamp(activeDapp.lastDeployedAt))}
+            </div>
+
+            <div className="d-flex flex-wrap gap-2">
+              <Button variant="outline-primary" size="sm" onClick={handleGenerateDocs} disabled={isGeneratingDocs}>
+                {isGeneratingDocs ? <><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-1" />Preparing...</> : `Generate ${DOCS_FILENAME}`}
+              </Button>
+              {docsExists && (
+                <Button variant="outline-secondary" size="sm" onClick={handleOpenDocs}>
+                  Open {DOCS_FILENAME}
+                </Button>
+              )}
+            </div>
+          </Card.Body>
+        </Collapse>
+      </Card>
+    );
+  };
+
   const renderEditForm = () => (
     <div className="mb-3">
       <Form.Group className="mb-3">
@@ -316,8 +550,19 @@ function DeployPanel(): JSX.Element {
   const ensButtonText = displayEnsSuccess ? 'Update Content Hash' : 'Register Subdomain';
   const currentEnsDomain = ensResult.domain || activeDapp?.deployment?.ensDomain;
 
+  if (activeDapp?.config?.isBaseMiniApp) {
+    return (
+      <div data-id="deploy-panel">
+        {renderDappInfo()}
+        <BaseAppWizard />
+      </div>
+    );
+  }
+
   return (
     <div data-id="deploy-panel">
+      {renderDappInfo()}
+
       <Card className="mb-2">
         <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
           Dapp details <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>

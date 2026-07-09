@@ -258,7 +258,7 @@ export class RemixFilesystemBackend {
       const managedConfigWrite = this.getQuickDappManagedConfigWriteError(normalizedPath)
       if (managedConfigWrite) return managedConfigWrite
       const isQuickDappCandidatePath = this.isQuickDappCandidatePath(normalizedPath)
-      const hasWeb3DappContent = this.hasQuickDappWeb3Content(content)
+      const hasWeb3DappContent = !this.isQuickDappDocumentationPath(normalizedPath) && this.hasQuickDappWeb3Content(content)
       const shouldEnforceQuickDappRouting =
         (isQuickDappCandidatePath && hasWeb3DappContent) ||
         normalizedPath.startsWith('/frontend/') ||
@@ -533,6 +533,11 @@ export class RemixFilesystemBackend {
       path.startsWith('/frontend/') ||
       path.startsWith('/dapp/') ||
       /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(path)
+  }
+
+  private isQuickDappDocumentationPath(path: string): boolean {
+    const normalizedPath = path.startsWith('/') ? path : this.normalizePath(path)
+    return normalizedPath === '/dapp-docs.md'
   }
 
   private getQuickDappManagedConfigWriteError(path: string): { error: string } | undefined {

@@ -24,6 +24,7 @@ import {
   buildExistingGraphDataSourceBlock,
   buildQuickDappGraphDataSourceInstructions
 } from '../prompts/quickDappTheGraphPrompts'
+import { GenerateDAppDocsHandler } from './DAppDocsHandler'
 
 const isLocalVMChainId = (chainId: number | string): boolean => {
   const n = Number(chainId)
@@ -2357,6 +2358,14 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:update', 'file:write'],
       handler: new UpdateDAppHandler()
+    },
+    {
+      name: 'generate_dapp_docs',
+      description: new GenerateDAppDocsHandler().description,
+      inputSchema: new GenerateDAppDocsHandler().inputSchema,
+      category: ToolCategory.WORKSPACE,
+      permissions: ['dapp:read', 'file:write'],
+      handler: new GenerateDAppDocsHandler()
     },
     {
       name: 'fetch_figma_design',
