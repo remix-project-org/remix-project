@@ -183,6 +183,11 @@ function DeployPanel(): JSX.Element {
     } catch (e) { /* best-effort */ }
   };
 
+  const isAiAssistantStreaming = () => {
+    const streamingEl = document.querySelector('[data-id="remix-ai-streaming"]');
+    return streamingEl?.getAttribute('data-streaming') === 'true';
+  };
+
   const handleOpenDocs = async () => {
     if (!activeDapp || !plugin) return;
 
@@ -212,6 +217,11 @@ function DeployPanel(): JSX.Element {
 
   const handleGenerateDocs = async () => {
     if (!activeDapp || !plugin || isGeneratingDocs) return;
+
+    if (isAiAssistantStreaming()) {
+      await plugin.call('notification', 'toast', 'The AI Assistant is currently processing a request. Please wait for it to finish, then try again.');
+      return;
+    }
 
     let docsFileExists = docsExists;
     try {

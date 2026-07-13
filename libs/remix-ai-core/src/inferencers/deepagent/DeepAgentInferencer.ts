@@ -38,6 +38,7 @@ import { Features } from '@remix-api'
 import { flattenJSON, renderTree } from './helpers/project'
 import { clearAllQuickDappWorkspaceLocks } from '@remix-ui/helper'
 import { clearAllQuickDappGenerationContexts } from '../../helpers/quickDappGenerationContext'
+import { clearQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
 
 export const notSuitableForCodeGeneration = ['mistral-medium-latest', 'mistral-small-latest', 'ministral-3b', 'ministral-8b-latest']
 
@@ -775,6 +776,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       throw error
     } finally {
+      clearQuickDappDocsContext()
       this.streamEventHandler.stopInactivityTracking()
       // Only null out if still one of this run's controllers (a new request might have started)
       if (this.currentAbortController && thisRunControllers.has(this.currentAbortController)) {
@@ -1039,6 +1041,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     try {
       clearAllQuickDappWorkspaceLocks()
       clearAllQuickDappGenerationContexts()
+      clearQuickDappDocsContext()
       remixAILogger.log('[QuickDapp][WorkspaceLock] cleared on AI cancel')
       this.plugin.emit('generationProgress', null)
     } catch (_) { /* best-effort cleanup */ }

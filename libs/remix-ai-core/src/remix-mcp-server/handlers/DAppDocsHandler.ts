@@ -1,5 +1,6 @@
 import { Plugin } from '@remixproject/engine'
 import { IMCPToolResult } from '../../types/mcp'
+import { setQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
 import { BaseToolHandler } from '../registry/RemixToolRegistry'
 
 export const DAPP_DOCS_FILENAME = 'dapp-docs.md'
@@ -100,8 +101,12 @@ const shouldSkipDir = (path: string): boolean => {
   return parts.some(part => SKIP_DIRS.has(part) || part.startsWith('.env') || SENSITIVE_FILE.test(part))
 }
 
-const limitText = (value: string, max = MAX_FILE_CHARS): string =>
-  value.length > max ? `${value.slice(0, max).trimEnd()}\n... [truncated]` : value
+const limitText = (value: string, max = MAX_FILE_CHARS): string => {
+  if (value.length <= max) return value
+  const marker = '\n... [truncated]'
+  if (max <= marker.length) return value.slice(0, max)
+  return `${value.slice(0, max - marker.length).trimEnd()}${marker}`
+}
 
 const redactSensitiveText = (value: string): string => {
   return value
@@ -241,11 +246,9 @@ const readGraphFiles = async (plugin: Plugin, workspaceName: string, config: any
 
 const readDappWorkspaceFiles = async (plugin: Plugin, workspaceName: string, config: any, files: DocsFile[], seen: Set<string>): Promise<void> => {
   const rootPath = getDappSourceRoot(config)
-  let totalChars = 0
+  const candidatePaths: string[] = []
 
   const collect = async (currentPath: string): Promise<void> => {
-    if (files.length >= MAX_DAPP_FILES || totalChars >= MAX_TOTAL_CHARS) return
-
     let entries: Record<string, any>
     try {
       entries = await plugin.call('fileManager' as any, 'readdir', currentPath)
@@ -254,8 +257,6 @@ const readDappWorkspaceFiles = async (plugin: Plugin, workspaceName: string, con
     }
 
     for (const [entryPath, entryData] of Object.entries(entries || {})) {
-      if (files.length >= MAX_DAPP_FILES || totalChars >= MAX_TOTAL_CHARS) return
-
       const normalized = normalizePath(entryPath)
       if (shouldSkipDir(normalized)) continue
 
@@ -265,22 +266,38 @@ const readDappWorkspaceFiles = async (plugin: Plugin, workspaceName: string, con
       }
 
       if (!shouldReadTextFile(normalized) || fileNameOf(normalized) === 'dapp.config.json') continue
-
-      try {
-        const rawContent = await plugin.call('fileManager' as any, 'readFile', entryPath)
-        const content = safeFileContent(String(rawContent || ''))
-        totalChars += content.length
-        addFile(files, seen, {
-          workspace: workspaceName,
-          path: normalized,
-          role: 'DApp frontend file',
-          content
-        })
-      } catch { /* skip unreadable files */ }
+      candidatePaths.push(entryPath)
     }
   }
 
   await collect(rootPath)
+
+  const priority = (path: string): number => {
+    const relativePath = normalizePath(path).replace(/^frontend\//, '')
+    if (relativePath === 'index.html') return 0
+    if (/^src\/main\.(js|jsx|ts|tsx)$/.test(relativePath)) return 1
+    if (/^src\/App\.(js|jsx|ts|tsx)$/.test(relativePath)) return 2
+    if (relativePath === 'package.json' || /^vite\.config\./.test(relativePath)) return 3
+    if (/^src\/(hooks|services|utils|lib)\//.test(relativePath)) return 4
+    if (/^src\/(pages|views|components)\//.test(relativePath)) return 5
+    if (extensionOf(relativePath) === '.css') return 7
+    return 6
+  }
+
+  candidatePaths.sort((a, b) => priority(a) - priority(b) || normalizePath(a).localeCompare(normalizePath(b)))
+
+  for (const filePath of candidatePaths) {
+    if (files.length >= MAX_DAPP_FILES) break
+    try {
+      const rawContent = await plugin.call('fileManager' as any, 'readFile', filePath)
+      addFile(files, seen, {
+        workspace: workspaceName,
+        path: normalizePath(filePath),
+        role: 'DApp frontend file',
+        content: safeFileContent(String(rawContent || ''))
+      })
+    } catch { /* skip unreadable files */ }
+  }
 }
 
 const buildDappContextText = (workspaceName: string, config: any): string => {
@@ -340,21 +357,28 @@ const buildDocsContext = async (plugin: Plugin, workspaceName: string, config: a
   await readGraphFiles(plugin, workspaceName, config, files, seen)
   await readDappWorkspaceFiles(plugin, workspaceName, config, files, seen)
 
-  const fileBlocks = files.map(file => [
-    `### ${file.role}: ${file.path}`,
-    `Workspace: ${file.workspace}`,
-    '```',
-    file.content,
-    '```'
-  ].join('\n'))
-
-  return [
+  let contextText = [
     '## DApp metadata',
     buildDappContextText(workspaceName, config),
     '',
-    '## Source files read for documentation',
-    fileBlocks.length ? fileBlocks.join('\n\n') : 'No source files were available to read.'
+    '## Source files read for documentation'
   ].join('\n')
+
+  contextText = limitText(contextText, MAX_TOTAL_CHARS)
+
+  for (const file of files) {
+    const prefix = `\n\n### ${file.role}: ${file.path}\nWorkspace: ${file.workspace}\n\`\`\`\n`
+    const suffix = '\n```'
+    const availableChars = MAX_TOTAL_CHARS - contextText.length - prefix.length - suffix.length
+    if (availableChars <= 0) break
+    contextText += `${prefix}${limitText(file.content, Math.min(MAX_FILE_CHARS, availableChars))}${suffix}`
+  }
+
+  if (!files.length) {
+    contextText += '\nNo source files were available to read.'
+  }
+
+  return contextText.slice(0, MAX_TOTAL_CHARS)
 }
 
 export class GenerateDAppDocsHandler extends BaseToolHandler {
@@ -406,6 +430,7 @@ export class GenerateDAppDocsHandler extends BaseToolHandler {
 
       await switchToWorkspaceIfNeeded(plugin, workspaceName)
       const contextText = await buildDocsContext(plugin, workspaceName, configLookup.config, configLookup.configPath)
+      setQuickDappDocsContext(workspaceName)
 
       return this.createSuccessResult({
         success: true,
@@ -418,12 +443,16 @@ export class GenerateDAppDocsHandler extends BaseToolHandler {
           `Use write_file with path "/${DAPP_DOCS_FILENAME}" only.\n\n` +
           `The ${DAPP_DOCS_FILENAME} file should include:\n` +
           `- Overview\n` +
+          `- Prerequisites and user flows\n` +
           `- Contract behavior\n` +
+          `- Contract interactions as a Markdown table with user action, UI/source, contract call, prerequisites, and result\n` +
           `- Frontend structure\n` +
           `- Network and deployment\n` +
           `- Integrations\n` +
           `- How to update this DApp\n` +
           `- Notes and limitations\n\n` +
+          `For major behavior and structure descriptions, cite the supporting source file path from the provided context. ` +
+          `Do not invent file paths or line numbers. ` +
           `Use only the metadata and source files below. If a value is not configured, say "Not configured". ` +
           `Do not invent contract behavior, deployment state, or integrations. ` +
           `Do not include secrets, API keys, private keys, raw tokens, base64 image data, or long source-code dumps.\n\n` +
