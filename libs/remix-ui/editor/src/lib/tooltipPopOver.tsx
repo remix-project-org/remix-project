@@ -491,30 +491,7 @@ Risk: critical=severe, high=dangerous, medium=warning, low=minor, info=tip, perf
 For "relatedDocs", ONLY use URLs from these trusted domains: ${trustedUrls}
 Use empty array if no relevant trusted docs.`
 
-        // Wrap API call with timeout to detect if AI is busy
-        const apiCallPromise = plugin.call('remixAI', 'basic_prompt', prompt)
-        const busyTimeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('AI_BUSY')), 5000) // 5 second timeout to detect busy state
-        })
-
-        let response
-        try {
-          response = await Promise.race([apiCallPromise, busyTimeoutPromise])
-        } catch (error: any) {
-          if (error?.message === 'AI_BUSY') {
-            // API is taking too long, likely processing another request
-            setFromCache(false)
-            setData({
-              title: 'RemixAI Assistant Busy',
-              body: 'The RemixAI assistant is currently processing another request. Please try again once it becomes available.',
-              risk: 'low' as const,
-              riskLabel: 'Busy'
-            })
-            setLoading(false)
-            return
-          }
-          throw error // Re-throw other errors
-        }
+        const response = await plugin.call('remixAI', 'basic_prompt', prompt)
 
         // Parse the JSON response
         let parsedData: KeywordData
