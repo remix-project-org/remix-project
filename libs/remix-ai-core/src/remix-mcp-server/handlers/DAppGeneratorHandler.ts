@@ -13,9 +13,17 @@ import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
 import { Plugin } from '@remixproject/engine'
 import {
+  buildQuickDappContractConfigFields,
   clearQuickDappWorkspaceLock,
+  createQuickDappContractSelection,
   DappOperations,
   extractNameFromKey,
+  getPrimaryQuickDappContract,
+  getQuickDappContracts,
+  normalizeQuickDappEnvironment,
+  QuickDappContractBinding,
+  QuickDappContractInput,
+  QuickDappContractSelection,
   setQuickDappWorkspaceLock
 } from '@remix-ui/helper'
 import isElectron from 'is-electron'
@@ -363,9 +371,13 @@ async function fetchAndSimplifyFigmaDesign(figmaUrl: string, figmaToken: string)
 export interface GenerateDAppArgs {
   description: string
   contractAddress: string
-  contractAbi: any[] | null
+  contractAbi?: any[] | null
   chainId: number | string
   contractName: string
+  additionalContracts?: Array<{
+    contractName: string
+    contractAddress: string
+  }>
   imageBase64?: string
   isBaseMiniApp?: boolean
   figmaUrl?: string
@@ -450,11 +462,17 @@ interface QuickDappSubgraphFileContext extends QuickDappGraphContext {
 export interface UpdateDAppArgs {
   description: string | any[]
   currentFiles: Record<string, string>
-  contractAddress: string
-  contractAbi: any[]
-  chainId: number | string
+  contractAddress?: string
+  contractAbi?: any[]
+  chainId?: number | string
   hasImage?: boolean
   workspaceName?: string
+}
+
+interface ResolvedQuickDappContractInfo {
+  address: string
+  chainId: string | number
+  contracts: QuickDappContractBinding[]
 }
 
 export interface DAppGenerationResult {
@@ -471,7 +489,7 @@ export interface DAppGenerationResult {
 
 export class GenerateDAppHandler extends BaseToolHandler {
   name = 'generate_dapp'
-  description = 'Create a new DApp frontend from a deployed smart contract. STRICT PREREQUISITE: first ask only the required setup options, then stop. If the current prompt or tool result says Location is fixed, do not ask Location; otherwise ask Location Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call this only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary. If a .subgraph file is chosen in contract-first flow, pass subgraphFilePath so this tool can resolve graphContext without losing the contract context. If Figma is requested, the URL/token are validated before any workspace or file generation begins.'
+  description = 'Create a new DApp frontend from one to eight deployed contracts in the current environment. Keep a single candidate preselected; when multiple candidates are available, ask the user to select the contracts and one primary. The existing contract fields identify that primary and additionalContracts contains the rest. The selected contract set is fixed after creation. STRICT PREREQUISITE: first ask only the required setup options, then stop. If the current prompt or tool result says Location is fixed, do not ask Location; otherwise ask Location Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call this only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary. If a .subgraph file is chosen in contract-first flow, pass subgraphFilePath so this tool can resolve graphContext without losing the contract context. If Figma is requested, the URL/token are validated before any workspace or file generation begins.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -496,6 +514,22 @@ export class GenerateDAppHandler extends BaseToolHandler {
       contractName: {
         type: 'string',
         description: 'Name of the contract'
+      },
+      additionalContracts: {
+        type: 'array',
+        description: 'Optional additional contracts deployed in the same current environment. The existing contract fields remain the primary contract.',
+        maxItems: 7,
+        items: {
+          type: 'object',
+          properties: {
+            contractName: { type: 'string' },
+            contractAddress: {
+              type: 'string',
+              pattern: '^0x[a-fA-F0-9]{40}$'
+            }
+          },
+          required: ['contractName', 'contractAddress']
+        }
       },
       imageBase64: {
         type: 'string',
@@ -532,7 +566,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       },
       setupOptionsSummary: {
         type: 'string',
-        description: 'Required when setupOptionsConfirmed=true. Short summary of the setup choices confirmed by the user, e.g. "Location workspace, Base mini-app no, Design defaults, Subgraph none".'
+        description: 'Required when setupOptionsConfirmed=true. Short summary of the confirmed contracts/primary, Location, Base mini-app, Design, and Subgraph choices.'
       },
       subgraphFilePath: {
         type: 'string',
@@ -590,6 +624,17 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
     if (!args.contractAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
       return 'Invalid contract address format'
+    }
+    if (args.additionalContracts) {
+      if (!Array.isArray(args.additionalContracts) || args.additionalContracts.length > 7) {
+        return 'additionalContracts must contain at most 7 contracts'
+      }
+      for (const contract of args.additionalContracts) {
+        if (!contract?.contractName?.trim()) return 'Each additional contract requires contractName'
+        if (!contract?.contractAddress?.match(/^0x[a-fA-F0-9]{40}$/)) {
+          return `Invalid additional contract address: ${contract?.contractAddress || '(empty)'}`
+        }
+      }
     }
     if (args.subgraphFilePath && !args.subgraphFilePath.trim()) {
       return 'subgraphFilePath must not be empty when provided'
@@ -709,6 +754,95 @@ export class GenerateDAppHandler extends BaseToolHandler {
     }
   }
 
+  private async resolveMultiContractSelection(
+    args: GenerateDAppArgs,
+    plugin: Plugin
+  ): Promise<QuickDappContractSelection> {
+    const currentWorkspace = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
+    if (!currentWorkspace?.name) {
+      throw new Error('Could not resolve the current contract workspace')
+    }
+    if (isDedicatedDappWorkspace(currentWorkspace.name)) {
+      throw new Error('Switch to the original contract workspace before creating a DApp')
+    }
+
+    const deployedContracts = await plugin.call('udappDeployedContracts' as any, 'getDeployedContracts')
+    if (!Array.isArray(deployedContracts)) {
+      throw new Error('Could not read deployed contracts from the current environment')
+    }
+    const deployedByAddress = new Map(
+      deployedContracts
+        .filter((contract: any) => typeof contract?.address === 'string')
+        .map((contract: any) => [contract.address.toLowerCase(), contract])
+    )
+
+    const actualProvider = await plugin.call('blockchain' as any, 'getProvider') as string
+    const currentEnvironment = actualProvider?.startsWith('vm')
+      ? actualProvider
+      : await plugin.call('blockchain' as any, 'sendRpc', 'eth_chainId') as string
+    if (currentEnvironment === undefined ||
+      normalizeQuickDappEnvironment(args.chainId) !== normalizeQuickDappEnvironment(currentEnvironment)) {
+      throw new Error('The selected contracts do not match the current execution environment')
+    }
+    let networkName = 'Unknown Network'
+    try {
+      const network = await plugin.call('udappEnv' as any, 'getNetwork')
+      networkName = network?.name || networkName
+    } catch (_) {
+      // Keep the fallback network name.
+    }
+
+    const requestedContracts: Array<{
+      contractName: string
+      contractAddress: string
+      contractAbi?: any[] | null
+    }> = [{
+      contractName: args.contractName,
+      contractAddress: args.contractAddress,
+      contractAbi: args.contractAbi
+    }, ...(args.additionalContracts || [])]
+
+    const inputs: QuickDappContractInput[] = []
+    for (const requested of requestedContracts) {
+      const deployed = deployedByAddress.get(requested.contractAddress.toLowerCase()) as any
+      if (!deployed) {
+        throw new Error(`Contract ${requested.contractAddress} is not deployed in the current workspace and environment`)
+      }
+
+      const abi = Array.isArray(deployed.abi) && deployed.abi.length > 0
+        ? deployed.abi
+        : Array.isArray(deployed.contractData?.abi) && deployed.contractData.abi.length > 0
+          ? deployed.contractData.abi
+          : requested.contractAbi
+
+      if (!Array.isArray(abi) || abi.length === 0) {
+        throw new Error(`ABI not found for contract ${requested.contractName} at ${requested.contractAddress}`)
+      }
+
+      const code = await plugin.call('blockchain' as any, 'getCode', requested.contractAddress) as string
+      if (!code || code === '0x' || code === '0x0') {
+        throw new Error(`No deployed bytecode found at ${requested.contractAddress}`)
+      }
+
+      const storedFilePath = deployed.filePath || deployed.contractData?.contract?.file || ''
+      const workspacePrefix = `${currentWorkspace.name}/`
+      const sourceFilePath = storedFilePath.startsWith(workspacePrefix)
+        ? storedFilePath.substring(workspacePrefix.length)
+        : storedFilePath
+
+      inputs.push({
+        name: requested.contractName || deployed.name || 'Contract',
+        address: requested.contractAddress,
+        abi,
+        chainId: args.chainId,
+        networkName,
+        sourceFilePath
+      })
+    }
+
+    return createQuickDappContractSelection(inputs)
+  }
+
   private async resolveGraphContextFromSubgraphFile(args: GenerateDAppArgs, plugin: Plugin): Promise<IMCPToolResult | null> {
     if (args.graphContext || !args.subgraphFilePath?.trim()) {
       return null
@@ -736,11 +870,12 @@ export class GenerateDAppHandler extends BaseToolHandler {
           errors: validation?.errors || [],
           warnings: validation?.warnings || [],
           missingFields: validation?.missingFields || [],
-          preserveFields: ['description', 'contractName', 'contractAddress', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl', 'subgraphFilePath'],
+          preserveFields: ['description', 'contractName', 'contractAddress', 'additionalContracts', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl', 'subgraphFilePath'],
           originalRequest: {
             description: args.description,
             contractName: args.contractName,
             contractAddress: args.contractAddress,
+            additionalContracts: args.additionalContracts,
             chainId: args.chainId,
             frontendMode: args.frontendMode,
             isBaseMiniApp: !!args.isBaseMiniApp,
@@ -765,11 +900,12 @@ export class GenerateDAppHandler extends BaseToolHandler {
         message: `Could not read the selected .subgraph file "${subgraphFilePath}". Ask the user for a valid .subgraph path/name, then call generate_dapp again with the same contract details and the corrected subgraphFilePath.`,
         subgraphFilePath,
         error: message,
-        preserveFields: ['description', 'contractName', 'contractAddress', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl'],
+        preserveFields: ['description', 'contractName', 'contractAddress', 'additionalContracts', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl'],
         originalRequest: {
           description: args.description,
           contractName: args.contractName,
           contractAddress: args.contractAddress,
+          additionalContracts: args.additionalContracts,
           chainId: args.chainId,
           frontendMode: args.frontendMode,
           isBaseMiniApp: !!args.isBaseMiniApp,
@@ -787,6 +923,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
     let dappOps: DappOperations | undefined
     let progressSlug: string | undefined
     let figmaDesign: FigmaDesignSuccess | undefined
+    let contractSelection: QuickDappContractSelection | undefined
     try {
       remixAILogger.log('[GenerateDApp] Received args:', getGenerateDAppArgsTrace(args))
       const isDesktop = isElectron()
@@ -802,17 +939,22 @@ export class GenerateDAppHandler extends BaseToolHandler {
           message: 'Before generating files, ask the user once for DApp setup options.',
           optionsToAsk: isDesktop
             ? [
+              `Contracts: keep ${args.contractName} preselected; if other deployed candidates exist, choose up to seven more and one primary`,
               'Base mini-app: No (default) or Yes',
               'Design: defaults, style notes, or a Figma URL',
               'Subgraph: None (default) or provide a .subgraph file path/name'
             ]
             : [
+              `Contracts: keep ${args.contractName} preselected; if other deployed candidates exist, choose up to seven more and one primary`,
               'Location: Workspace (default) or Inline in /frontend',
               'Base mini-app: No (default) or Yes',
               'Design: defaults, style notes, or a Figma URL',
               'Subgraph: None (default) or provide a .subgraph file path/name'
             ],
           defaults: {
+            contracts: args.additionalContracts?.length
+              ? `${args.contractName} as primary; additional contracts: ${args.additionalContracts.map((contract) => `${contract.contractName} at ${contract.contractAddress}`).join(', ')}`
+              : `${args.contractName} as primary; no additional contracts`,
             location: isDesktop ? 'inline' : 'workspace',
             isBaseMiniApp: false,
             design: 'defaults',
@@ -820,8 +962,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
           },
           fixedLocation: isDesktop ? 'inline' : undefined,
           nextAction: isDesktop
-            ? 'Ask only Base mini-app, Design, and Subgraph, then STOP. Location is fixed to Inline in /frontend for this request; do not ask Location. Subgraph defaults to None. If the user wants a .subgraph, ask for the .subgraph file path/name and pass it as subgraphFilePath; do not redirect to the .subgraph context menu. Do not call any tools or write files in the same turn. After the user answers, call generate_dapp again with setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode="inline", isBaseMiniApp, description, any figmaUrl/figmaToken, and subgraphFilePath if provided.'
-            : 'Ask only those setup options and then STOP. Subgraph defaults to None. If the user wants a .subgraph, ask for the .subgraph file path/name and pass it as subgraphFilePath; do not redirect to the .subgraph context menu. Do not call any tools or write files in the same turn. After the user answers, call generate_dapp again with setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode, isBaseMiniApp, description, any figmaUrl/figmaToken, and subgraphFilePath if provided.'
+            ? 'Keep a single contract preselected; include Contracts only when other deployed candidates are available. Ask Base mini-app, Design, and Subgraph, then STOP. Location is fixed to Inline in /frontend for this request; do not ask Location. Subgraph defaults to None. If the user wants a .subgraph, ask for the .subgraph file path/name and pass it as subgraphFilePath; do not redirect to the .subgraph context menu. Do not call any tools or write files in the same turn. After the user answers, call generate_dapp again with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode="inline", isBaseMiniApp, description, any figmaUrl/figmaToken, and subgraphFilePath if provided.'
+            : 'Ask only those setup options and then STOP. Subgraph defaults to None. If the user wants a .subgraph, ask for the .subgraph file path/name and pass it as subgraphFilePath; do not redirect to the .subgraph context menu. Do not call any tools or write files in the same turn. After the user answers, call generate_dapp again with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode, isBaseMiniApp, description, any figmaUrl/figmaToken, and subgraphFilePath if provided.'
         })
       }
 
@@ -833,17 +975,27 @@ export class GenerateDAppHandler extends BaseToolHandler {
       const chainResolution = await this.resolveGenerateChainId(args, plugin)
       args.chainId = chainResolution.chainId
 
+      if (args.additionalContracts?.length) {
+        try {
+          contractSelection = await this.resolveMultiContractSelection(args, plugin)
+          args.contractAbi = contractSelection.primary.abi
+        } catch (error: any) {
+          return this.createErrorResult(`Cannot create a multi-contract DApp: ${error.message}`)
+        }
+      }
+
       if (args.figmaUrl && !args.figmaToken) {
         return this.createSuccessResult({
           success: false,
           requiresUserInput: true,
           reason: 'figma_token_required',
           message: 'Ask the user for their Figma Personal Access Token before generating files.',
-          preserveFields: ['description', 'contractName', 'contractAddress', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl', 'subgraphFilePath', 'graphContext'],
+          preserveFields: ['description', 'contractName', 'contractAddress', 'additionalContracts', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl', 'subgraphFilePath', 'graphContext'],
           originalRequest: {
             description: args.description,
             contractName: args.contractName,
             contractAddress: args.contractAddress,
+            additionalContracts: args.additionalContracts,
             chainId: args.chainId,
             frontendMode: targetMode,
             isBaseMiniApp: !!args.isBaseMiniApp,
@@ -853,7 +1005,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
             subgraphFilePath: args.subgraphFilePath,
             graphContext: args.graphContext
           },
-          nextAction: 'Ask only for the Figma token and then STOP. After the user provides the token, call generate_dapp again with the same description, contractName, contractAddress, chainId, frontendMode, isBaseMiniApp, setupOptionsConfirmed=true, setupOptionsSummary, figmaUrl, subgraphFilePath or graphContext if present, and the new figmaToken.'
+          nextAction: 'Ask only for the Figma token and then STOP. After the user provides the token, call generate_dapp again with the same description, contractName, contractAddress, additionalContracts, chainId, frontendMode, isBaseMiniApp, setupOptionsConfirmed=true, setupOptionsSummary, figmaUrl, subgraphFilePath or graphContext if present, and the new figmaToken.'
         })
       }
 
@@ -876,11 +1028,12 @@ export class GenerateDAppHandler extends BaseToolHandler {
             defaults: {
               continueWithoutFigma: false
             },
-            preserveFields: ['description', 'contractName', 'contractAddress', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'subgraphFilePath', 'graphContext'],
+            preserveFields: ['description', 'contractName', 'contractAddress', 'additionalContracts', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'subgraphFilePath', 'graphContext'],
             originalRequest: {
               description: args.description,
               contractName: args.contractName,
               contractAddress: args.contractAddress,
+              additionalContracts: args.additionalContracts,
               chainId: args.chainId,
               frontendMode: targetMode,
               isBaseMiniApp: !!args.isBaseMiniApp,
@@ -891,14 +1044,14 @@ export class GenerateDAppHandler extends BaseToolHandler {
               graphContext: args.graphContext
             },
             nextAction:
-              'Tell the user the Figma fetch failed and ask for exactly one of: a corrected Figma token, a corrected Figma URL, or explicit confirmation to continue with defaults/no Figma. On the next generate_dapp call, preserve the same description, contractName, contractAddress, chainId, frontendMode, isBaseMiniApp, setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath or graphContext if present. If the user gives a corrected token, reuse the same figmaUrl. If the user gives a corrected URL, use that URL. If the user chooses defaults/no Figma, omit figmaUrl and figmaToken. Do NOT create a workspace, call write_file, or generate a default design unless the user explicitly chooses defaults.'
+              'Tell the user the Figma fetch failed and ask for exactly one of: a corrected Figma token, a corrected Figma URL, or explicit confirmation to continue with defaults/no Figma. On the next generate_dapp call, preserve the same description, contractName, contractAddress, additionalContracts, chainId, frontendMode, isBaseMiniApp, setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath or graphContext if present. If the user gives a corrected token, reuse the same figmaUrl. If the user gives a corrected URL, use that URL. If the user chooses defaults/no Figma, omit figmaUrl and figmaToken. Do NOT create a workspace, call write_file, or generate a default design unless the user explicitly chooses defaults.'
           })
         }
         figmaDesign = figmaResult
       }
 
       // ── ABI Resolution ──
-      if (!args.contractAbi) {
+      if (!contractSelection && !args.contractAbi) {
         // try to get the abi
         const data = (await plugin.call('compilerArtefacts', 'get', args.contractAddress) as CompilerAbstract)
         args.contractAbi = data?.getContract(args.contractName)?.object?.abi || null
@@ -934,15 +1087,18 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
           if (fileCount > 0 && !args.confirmOverwrite) {
             remixAILogger.log(`[QuickDapp] /frontend folder exists with ${fileCount} files, requesting user confirmation`)
+            const retryParameters = contractSelection
+              ? 'the SAME parameters (including additionalContracts)'
+              : 'the SAME parameters'
             const overwriteOptions = isDesktop
               ? `**Option 1: Overwrite existing files**\n` +
-                `- Call generate_dapp again with the SAME parameters PLUS confirmOverwrite=true, frontendMode="inline", and setupOptionsConfirmed=true\n\n` +
+                `- Call generate_dapp again with ${retryParameters} PLUS confirmOverwrite=true, frontendMode="inline", and setupOptionsConfirmed=true\n\n` +
                 `**Option 2: Cancel**\n` +
                 `- Do not proceed with DApp generation\n\n`
               : `**Option 1: Overwrite existing files**\n` +
-                `- Call generate_dapp again with the SAME parameters PLUS confirmOverwrite=true and setupOptionsConfirmed=true\n\n` +
+                `- Call generate_dapp again with ${retryParameters} PLUS confirmOverwrite=true and setupOptionsConfirmed=true\n\n` +
                 `**Option 2: Create in new workspace (RECOMMENDED - safer)**\n` +
-                `- Call generate_dapp again with the SAME parameters BUT change frontendMode="workspace" and keep setupOptionsConfirmed=true\n` +
+                `- Call generate_dapp again with ${retryParameters} BUT change frontendMode="workspace" and keep setupOptionsConfirmed=true\n` +
                 `- This creates a separate workspace and keeps existing /frontend files intact\n\n` +
                 `**Option 3: Cancel**\n` +
                 `- Do not proceed with DApp generation\n\n`
@@ -975,6 +1131,10 @@ export class GenerateDAppHandler extends BaseToolHandler {
             address: args.contractAddress,
             abi: args.contractAbi,
             chainId: args.chainId,
+            ...(contractSelection ? {
+              contracts: contractSelection.contracts,
+              primaryContractId: contractSelection.primaryContractId
+            } : {}),
             isBaseMiniApp: args.isBaseMiniApp,
             graphContext: args.graphContext
           })
@@ -1011,6 +1171,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       }
 
       if (targetMode === 'inline') {
+        const createdInlinePinPaths: string[] = []
         try {
           const configPath = 'dapp.config.json'
           remixAILogger.log(`[QuickDapp] Creating DApp config at ${configPath}`)
@@ -1037,6 +1198,17 @@ export class GenerateDAppHandler extends BaseToolHandler {
           }
 
           const timestamp = Date.now()
+          const contractConfigFields = contractSelection
+            ? buildQuickDappContractConfigFields(contractSelection)
+            : {
+              contract: {
+                name: args.contractName,
+                address: args.contractAddress,
+                abi: args.contractAbi,
+                chainId: args.chainId,
+                networkName
+              }
+            }
 
           const dappConfig = {
             _warning: 'DO NOT EDIT THIS FILE MANUALLY. MANAGED BY QUICK DAPP.',
@@ -1045,13 +1217,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
             workspaceName: actualWorkspaceName,
             mode: 'inline',
             appKind: 'contract',
-            contract: {
-              name: args.contractName,
-              address: args.contractAddress,
-              abi: args.contractAbi,
-              chainId: args.chainId,
-              networkName
-            },
+            ...contractConfigFields,
             config: {
               title: args.contractName,
               details: typeof args.description === 'string' ? args.description : `DApp for ${args.contractName}`,
@@ -1067,10 +1233,39 @@ export class GenerateDAppHandler extends BaseToolHandler {
             updatedAt: timestamp,
             processingStartedAt: timestamp
           }
+
+          if (contractSelection) {
+            try { await plugin.call('fileManager', 'mkdir', '.deploys') } catch (_) {}
+            try { await plugin.call('fileManager', 'mkdir', '.deploys/pinned-contracts') } catch (_) {}
+            for (const contract of contractSelection.contracts) {
+              const chainDirectory = `.deploys/pinned-contracts/${contract.chainId}`
+              const pinPath = `${chainDirectory}/${contract.address}.json`
+              try { await plugin.call('fileManager', 'mkdir', chainDirectory) } catch (_) {}
+              const exists = await plugin.call('fileManager', 'exists', pinPath)
+              if (!exists) {
+                await plugin.call('fileManager', 'writeFile', pinPath, JSON.stringify({
+                  name: contract.name,
+                  address: contract.address,
+                  abi: contract.abi,
+                  filePath: contract.sourceFilePath
+                    ? `${actualWorkspaceName}/${contract.sourceFilePath}`
+                    : '',
+                  pinnedAt: timestamp
+                }, null, 2))
+                createdInlinePinPaths.push(pinPath)
+              }
+            }
+          }
           await dappOps.ensureBaseDir()
           await plugin.call('fileManager', 'writeFile', configPath, JSON.stringify(dappConfig, null, 2))
           remixAILogger.log(`[QuickDapp] DApp config created at ${configPath}`)
         } catch (configErr) {
+          if (contractSelection) {
+            for (const pinPath of createdInlinePinPaths) {
+              try { await plugin.call('fileManager', 'remove', pinPath) } catch (_) {}
+            }
+            throw configErr
+          }
           remixAILogger.warn('[QuickDapp] Config creation failed (non-critical):', configErr)
         }
       }
@@ -1084,10 +1279,23 @@ export class GenerateDAppHandler extends BaseToolHandler {
       // The agent/subagent already knows DApp frontend patterns.
 
       // Extract contract ABI summary for concise context
-      const abiSummary = args.contractAbi
+      const abiSummary = (args.contractAbi || [])
         .filter((item: any) => item.type === 'function')
         .map((item: any) => `${item.name}(${(item.inputs || []).map((i: any) => `${i.type} ${i.name}`).join(', ')}) → ${(item.outputs || []).map((o: any) => o.type).join(', ') || 'void'} [${item.stateMutability}]`)
         .join('\n')
+      const multiContractBlock = contractSelection
+        ? `CONTRACTS (fixed at creation):\n${contractSelection.contracts.map((contract) => {
+          const primaryLabel = contract.id === contractSelection.primaryContractId ? ' (primary)' : ''
+          const functions = contract.abi
+            .filter((item: any) => item.type === 'function')
+            .map((item: any) => `  - ${item.name}(${(item.inputs || []).map((input: any) => input.type).join(', ')}) [${item.stateMutability}]`)
+            .join('\n')
+          return `- ${contract.alias}${primaryLabel}: ${contract.name} at ${contract.address}\n${functions}`
+        }).join('\n')}\n`
+        : `CONTRACT: ${args.contractName} at ${args.contractAddress} on chain ${args.chainId}${isLocalVMChainId(args.chainId) ? ' (Remix VM)' : ''}\nFUNCTIONS:\n${abiSummary}\n`
+      const contractGenerationStep = contractSelection
+        ? `2. Read the immutable bindings from window.__QUICK_DAPP_CONFIG__.contracts and primaryContractId. Create one shared provider/signer and one ethers.Contract instance per binding. Use each binding alias to avoid name collisions. Never hardcode contract addresses or ABIs.\n`
+        : `2. Use ethers.js v6 (BrowserProvider, Contract). Embed full ABI and contract address in code.\n`
 
       const isLocalVM = isLocalVMChainId(args.chainId)
       // Build optional Figma context line for subagent
@@ -1129,8 +1337,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
           `Now proceed to generate the DApp files directly using write_file.\n\n` +
           `---\n` +
           `TASK: Generate a new DApp frontend${isInlineMode ? ' in /frontend folder (inline mode)' : ''}\n` +
-          `CONTRACT: ${args.contractName} at ${args.contractAddress} on chain ${args.chainId}${isLocalVM ? ' (Remix VM)' : ''}\n` +
-          `FUNCTIONS:\n${abiSummary}\n\n` +
+          `${multiContractBlock}\n` +
           `USER DESIGN REQUEST: ${typeof args.description === 'string' ? args.description : JSON.stringify(args.description)}\n` +
           (args.isBaseMiniApp
             ? `\nBase mini-app RULES:\n` +
@@ -1159,7 +1366,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
           `- NEVER include workspace name "${dappOps.getWorkspaceName()}" in paths. ${correctPathExample}\n\n` +
           `STEPS:\n` +
           `1. Write files using write_file: ${fileWriteExamples}\n` +
-          `2. Use ethers.js v6 (BrowserProvider, Contract). Embed full ABI and contract address in code.\n` +
+          contractGenerationStep +
           `3. NEVER create or modify dapp.config.json — it is managed by the system.\n` +
           (isLocalVM
             ? `\nREMIX VM RULES (LOCAL DEV MODE - CRITICAL):\n` +
@@ -1202,7 +1409,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
 export class UpdateDAppHandler extends BaseToolHandler {
   name = 'update_dapp'
-  description = 'Update an existing DApp. Direct chat prerequisite: call list_dapps first and wait for the user to select a workspace. If the prompt already provides an exact DApp update target workspaceName, that counts as the user selection and you should use that exact workspaceName without calling list_dapps. Do not substitute a different workspaceName. Do not call generate_dapp for an update.'
+  description = 'Update an existing DApp without changing its contract bindings. Contract addresses, ABIs, chain, primary contract, and contract count are fixed at creation. If the request changes any binding, do not call this tool, generate_dapp, or file tools; tell the user to create a new DApp. Direct chat prerequisite: call list_dapps first and wait for the user to select a workspace. If the prompt already provides an exact DApp update target workspaceName, use that exact workspaceName without calling list_dapps. Never substitute a different workspaceName. Never call generate_dapp for an update.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -1216,16 +1423,16 @@ export class UpdateDAppHandler extends BaseToolHandler {
       },
       contractAddress: {
         type: 'string',
-        description: '(Optional) Contract address — auto-loaded from workspace config if omitted.'
+        description: 'Legacy compatibility field. Omit it; if provided, it must match the persisted primary contract address.'
       },
       contractAbi: {
         type: 'array',
-        description: '(Optional) Contract ABI — auto-loaded from workspace config if omitted.',
+        description: 'Legacy compatibility field. Omit it; if provided, it must match the persisted primary contract ABI.',
         items: { type: 'object' }
       },
       chainId: {
         type: ['number', 'string'],
-        description: '(Optional) Chain ID — auto-loaded from workspace config if omitted.'
+        description: 'Legacy compatibility field. Omit it; if provided, it must match the persisted primary contract chain.'
       }
     },
     required: ['workspaceName', 'description']
@@ -1241,57 +1448,29 @@ export class UpdateDAppHandler extends BaseToolHandler {
     return true
   }
 
-  /**
-   * Auto-resolve contract info from workspace dapp.config.json
-   */
-  private async resolveContractInfo(dappOps: DappOperations, args: UpdateDAppArgs, configOverride?: any): Promise<{
-    address: string, abi: any[], chainId: string | number
-  }> {
-    // Use provided args if available (with validation)
-    if (args.contractAddress && args.contractAbi && args.chainId) {
-      return this.validateContractInfo({
-        address: args.contractAddress,
-        abi: args.contractAbi,
-        chainId: args.chainId
-      })
+  private resolveContractInfo(args: UpdateDAppArgs, config: any): ResolvedQuickDappContractInfo {
+    const contracts = getQuickDappContracts(config)
+    const primary = getPrimaryQuickDappContract(config)
+    if (!primary) {
+      throw new Error('The DApp config does not contain a valid contract binding')
     }
 
-    // Auto-resolve from workspace config
-    remixAILogger.log('[QuickDapp] Auto-resolving contract info from config...')
-    try {
-      const config = configOverride || await dappOps.readConfig()
-      const resolved = this.validateContractInfo({
-        address: args.contractAddress || config.contract?.address,
-        abi: args.contractAbi || config.contract?.abi,
-        chainId: args.chainId || config.contract?.chainId
-      })
-      remixAILogger.log('[QuickDapp] \u2713 Resolved:', { address: resolved.address, chainId: resolved.chainId, abiLength: resolved.abi?.length })
-      return resolved
-    } catch (e: any) {
-      remixAILogger.warn('[QuickDapp] \u26a0 Failed to read config:', e?.message)
+    if (args.contractAddress && args.contractAddress.toLowerCase() !== primary.address.toLowerCase()) {
+      throw new Error('Contract bindings are fixed at DApp creation. Create a new DApp to use another address.')
+    }
+    if (args.chainId !== undefined && args.chainId !== null &&
+      normalizeQuickDappEnvironment(args.chainId) !== normalizeQuickDappEnvironment(primary.chainId)) {
+      throw new Error('Contract bindings are fixed at DApp creation. Create a new DApp to use another chain.')
+    }
+    if (args.contractAbi && JSON.stringify(args.contractAbi) !== JSON.stringify(primary.abi)) {
+      throw new Error('Contract bindings are fixed at DApp creation. The persisted ABI cannot be replaced during an update.')
     }
 
-    return this.validateContractInfo({
-      address: args.contractAddress,
-      abi: args.contractAbi,
-      chainId: args.chainId
-    })
-  }
-
-  /**
-   * Validate and sanitize contract info — prevents undefined from leaking into prompts.
-   */
-  private validateContractInfo(info: { address?: string, abi?: any[], chainId?: string | number }): {
-    address: string, abi: any[], chainId: string | number
-  } {
-    const address = (typeof info.address === 'string' && info.address.startsWith('0x'))
-      ? info.address
-      : '0x0000000000000000000000000000000000000000'
-    const abi = Array.isArray(info.abi) ? info.abi : []
-    const chainId = (info.chainId !== undefined && info.chainId !== null && String(info.chainId) !== 'undefined')
-      ? info.chainId
-      : 'vm-osaka'
-    return { address, abi, chainId }
+    return {
+      address: primary.address,
+      chainId: primary.chainId,
+      contracts
+    }
   }
 
   private getGraphSources(config: any): QuickDappGraphContext[] {
@@ -1441,6 +1620,17 @@ export class UpdateDAppHandler extends BaseToolHandler {
         )
       }
 
+      const targetConfig = targetConfigLookup.config || {}
+      const isGraphOnlyUpdate = targetConfig.appKind === 'graph-only'
+      let contractResolved: ResolvedQuickDappContractInfo | undefined
+      if (!isGraphOnlyUpdate) {
+        try {
+          contractResolved = this.resolveContractInfo(args, targetConfig)
+        } catch (error: any) {
+          return this.createErrorResult(error.message)
+        }
+      }
+
       dappOps = new DappOperations(targetMode, targetWorkspace, plugin)
       const isInlineMode = dappOps.isInline()
       setQuickDappWorkspaceLock({
@@ -1499,14 +1689,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
         return this.createErrorResult('No files found in workspace. Please ensure the DApp workspace is active.')
       }
 
-      const targetConfig = targetConfigLookup.config || {}
-      const isGraphOnlyUpdate = targetConfig.appKind === 'graph-only'
       const graphDataSourceBlock = this.getExistingGraphDataSourceBlock(targetConfig)
-
-      // Auto-resolve contract info from config for contract-backed DApps only.
-      const contractResolved = isGraphOnlyUpdate
-        ? undefined
-        : await this.resolveContractInfo(dappOps, args, targetConfig)
 
       // Emit UI events
       const updateStartPayload = { workspaceName: dappOps.getWorkspaceName(), slug: slugToUse }
@@ -1517,7 +1700,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
         workspaceName: dappOps.getWorkspaceName(),
         isInlineMode,
         sourceRoot: dappOps.getSourceRoot(),
-        ...(contractResolved?.address ? { contractAddress: contractResolved.address } : {}),
+        ...(contractResolved ? { contractAddress: contractResolved.address } : {}),
         operation: 'update'
       })
 
@@ -1532,9 +1715,15 @@ export class UpdateDAppHandler extends BaseToolHandler {
       // Build path examples based on mode
       const examplePaths = dappOps.resolvePath('src/App.jsx')
       const correctPathExample = `Correct: ${examplePaths}`
-      const appKindLine = contractResolved
-        ? `CONTRACT ADDRESS: ${contractResolved.address} on chain ${contractResolved.chainId}${isLocalVM ? ' (Remix VM)' : ''}\n`
-        : `APP KIND: Graph-only read-only DApp\n`
+      const isMultiContractUpdate = Boolean(contractResolved && contractResolved.contracts.length > 1)
+      const appKindLine = isMultiContractUpdate
+        ? `CONTRACT BINDINGS (immutable, chain ${contractResolved.chainId}${isLocalVM ? ', Remix VM' : ''}):\n` +
+          contractResolved.contracts.map((contract) =>
+            `- ${contract.alias}${contract.address.toLowerCase() === contractResolved.address.toLowerCase() ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
+          ).join('\n') + '\n'
+        : contractResolved
+          ? `CONTRACT ADDRESS: ${contractResolved.address} on chain ${contractResolved.chainId}${isLocalVM ? ' (Remix VM)' : ''}\n`
+          : `APP KIND: Graph-only read-only DApp\n`
       const buildRules = isGraphOnlyUpdate ? QUICKDAPP_GRAPH_ONLY_BUILD_RULES : QUICKDAPP_BUILD_RULES
       const logicPreservation = isGraphOnlyUpdate
         ? `LOGIC PRESERVATION (MANDATORY):\n` +
@@ -1548,8 +1737,9 @@ export class UpdateDAppHandler extends BaseToolHandler {
         : `LOGIC PRESERVATION (MANDATORY):\n` +
           `- NEVER remove existing ethers.js contract integrations, useState, useEffect, or ABI calls.\n` +
           `- NEVER remove wallet connection code or window.__QUICK_DAPP_CONFIG__ integration.\n` +
+          (isMultiContractUpdate ? `- Preserve the complete contract set and continue reading contracts and primaryContractId from window.__QUICK_DAPP_CONFIG__.\n` : '') +
           `- You MAY restructure JSX layout, change CSS classes, and add new features.\n` +
-          `- If the user asks to change contract address, ABI, chain, add contracts, or convert app kind, do not modify dapp.config.json or fake the config change. Explain that binding changes require a separate migration flow.\n` +
+          `- If the user asks to change contract address, ABI, chain, add contracts, or convert app kind, do not modify dapp.config.json or fake the config change. Explain that they must create a new DApp.\n` +
           `- When returning a file, return the COMPLETE file content — not just the changed portion.\n\n`
       const walletRules = !contractResolved
         ? ''
@@ -2328,7 +2518,7 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
     },
     {
       name: 'generate_dapp',
-      description: 'Set up a new DApp frontend from a deployed smart contract. STRICT PREREQUISITE: never call this in the same assistant turn where setup options are asked. First ask only the required setup options, then stop. If the current prompt or tool result says Location is fixed, do not ask Location; otherwise ask Location Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary. If a .subgraph file is chosen in contract-first flow, pass subgraphFilePath. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
+      description: 'Set up a new DApp frontend from one to eight deployed contracts in the current environment. STRICT PREREQUISITE: never call this in the same assistant turn where setup options are asked. Keep a single candidate preselected; with multiple candidates, ask for the selected contracts and one primary together with the other required setup options, then stop. If Location is fixed, do not ask it; otherwise ask Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Call only after the user replies, with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, and a non-empty setupOptionsSummary. Contract bindings are fixed after creation. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
       inputSchema: new GenerateDAppHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:generate', 'file:write'],
@@ -2352,7 +2542,7 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
     },
     {
       name: 'update_dapp',
-      description: 'Update an existing DApp. Direct chat prerequisite: call list_dapps and receive the user\'s explicit workspace selection. If the prompt already includes an exact DApp update target workspaceName, use that exact workspaceName directly. Never substitute another workspaceName or call generate_dapp for an update. Requires workspaceName and description.',
+      description: 'Update an existing DApp without changing contract bindings. If the request adds, removes, replaces, or reprioritizes contracts, or changes an address, ABI, or chain, do not call this tool, generate_dapp, or file tools; tell the user to create a new DApp. Otherwise, use the exact target workspaceName supplied by the prompt, or call list_dapps and wait for the user to select one. Never substitute a different workspaceName. Never call generate_dapp for an update.',
       inputSchema: new UpdateDAppHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:update', 'file:write'],

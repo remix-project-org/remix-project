@@ -8,7 +8,9 @@ import DeployPanel from '../DeployPanel';
 // remixClient removed - using plugin from context instead
 import { InBrowserVite } from '../../InBrowserVite';
 import { buildGraphRuntimeConfigScript } from '../../utils/graph-runtime-config';
+import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 import { buildQuickDappUpdateGraphContextBlock } from '@remix/remix-ai-core/quick-dapp-thegraph-prompts';
+import { getPrimaryQuickDappContract, getQuickDappContracts } from '@remix-ui/helper';
 
 interface Pages {
   [key: string]: string
@@ -334,15 +336,11 @@ function EditHtmlTemplate(): JSX.Element {
       logoDataUrl = logo;
     }
 
-    const injectionScript = `
-      <script>
-        window.__QUICK_DAPP_CONFIG__ = {
-          logo: ${JSON.stringify(logoDataUrl || '')},
-          title: ${JSON.stringify(title || '')},
-          details: ${JSON.stringify(details || '')}
-        };
-      </script>
-    `;
+    const injectionScript = buildQuickDappRuntimeConfigScript(activeDapp, {
+      logo: logoDataUrl,
+      title,
+      details
+    });
     const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: true, target: 'preview' });
     const debugScript = `<script>
 window.onerror = function(msg, url, line, col, error) {
@@ -563,6 +561,8 @@ window.addEventListener('unhandledrejection', function(e) {
     // Build rich context prompt
     const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
     const contractInfo = activeDapp.contract;
+    const contractBindings = getQuickDappContracts(activeDapp);
+    const primaryContract = getPrimaryQuickDappContract(activeDapp);
     const isGraphOnlyTarget = activeDapp.appKind === 'graph-only';
     const graphSources = Array.isArray(activeDapp.dataSources?.theGraph) ? activeDapp.dataSources.theGraph : [];
     const promptParts = [
@@ -582,6 +582,14 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(
         `Contract: none (Graph-only read-only DApp)`,
         `Update scope: UI/source updates only. Preserve Graph data fetching and do not add contract, wallet, provider, signer, ethers, transaction, or network switching code.`
+      );
+    } else if (contractBindings.length > 1) {
+      promptParts.push(
+        `Contract bindings are fixed at creation:`,
+        ...contractBindings.map((contract) =>
+          `- ${contract.alias}${contract.id === primaryContract?.id ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
+        ),
+        `Chain: ${primaryContract?.chainId || 'unknown'}`
       );
     } else {
       promptParts.push(
@@ -603,7 +611,8 @@ window.addEventListener('unhandledrejection', function(e) {
       `I want to update this exact DApp.`,
       `For this first response, do not call list_dapps, update_dapp, generate_dapp, read_file, write_file, or finalize_dapp_generation.`,
       `Only ask me one concise question: what changes would I like to make?`,
-      `After my next reply, call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to my requested changes.`,
+      `After my next reply, first check whether I asked to add, remove, replace, or reprioritize contracts, or change an address, ABI, or chain. If so, do not call update_dapp or any file tool; explain that I must create a new DApp.`,
+      `Otherwise, call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to my requested changes.`,
       `Use exactly the target workspaceName above if calling update_dapp.`,
       `Never call generate_dapp for this update flow.`
     );
@@ -635,6 +644,8 @@ window.addEventListener('unhandledrejection', function(e) {
     const targetSourceRoot = targetMode === 'inline' ? '/frontend' : '/';
     const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
     const contractInfo = activeDapp.contract;
+    const contractBindings = getQuickDappContracts(activeDapp);
+    const primaryContract = getPrimaryQuickDappContract(activeDapp);
     const isGraphOnlyTarget = activeDapp.appKind === 'graph-only';
     const graphSources = Array.isArray(activeDapp.dataSources?.theGraph) ? activeDapp.dataSources.theGraph : [];
 
@@ -658,6 +669,15 @@ window.addEventListener('unhandledrejection', function(e) {
         `Contract: none (Graph-only read-only DApp)`,
         `Fix scope: UI/source fixes only. Preserve Graph data fetching and do not add contract, wallet, provider, signer, ethers, transaction, or network switching code.`
       );
+    } else if (contractBindings.length > 1) {
+      promptParts.push(
+        `Contract bindings are fixed at creation:`,
+        ...contractBindings.map((contract) =>
+          `- ${contract.alias}${contract.id === primaryContract?.id ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
+        ),
+        `Chain: ${primaryContract?.chainId || 'unknown'}`,
+        `Network: ${primaryContract?.networkName || 'unknown'}`
+      );
     } else {
       promptParts.push(
         `Contract: ${contractInfo?.name || 'Unknown'} at ${contractInfo?.address || 'unknown'}`,
@@ -680,7 +700,7 @@ window.addEventListener('unhandledrejection', function(e) {
       `Call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to a concise summary of the preview issue above.`,
       `Fix only the cause of this preview issue.`,
       `Do not redesign the DApp or change unrelated UI/behavior.`,
-      `Preserve the existing contract, Graph, Base mini app, and deployment configuration.`,
+      `Preserve the existing contract bindings, Graph, Base mini app, and deployment configuration.`,
       `Never call generate_dapp for this fix flow.`,
       `After editing files, finalize the DApp update.`
     );
@@ -716,6 +736,8 @@ window.addEventListener('unhandledrejection', function(e) {
     return () => { mounted = false; };
   }, []);
 
+  const activeContractBindings = getQuickDappContracts(activeDapp);
+  const activeContractAddressKey = activeContractBindings.map((contract) => contract.address.toLowerCase()).join(',');
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
   const isGraphOnly = activeDapp?.appKind === 'graph-only';
   const dappNetworkLabel = isGraphOnly ? 'The Graph' : activeDapp?.contract?.networkName || 'Unknown Network';
@@ -806,7 +828,7 @@ window.addEventListener('unhandledrejection', function(e) {
   }, [plugin, isVM]);
 
   useEffect(() => {
-    if (!isVM || !isCurrentProviderVM || !plugin || !activeDapp?.contract?.address) {
+    if (!isVM || !isCurrentProviderVM || !plugin || !activeContractAddressKey) {
       setVmContractStatus('checking');
       return;
     }
@@ -820,9 +842,11 @@ window.addEventListener('unhandledrejection', function(e) {
           setVmContractStatus('deployed');
           return;
         }
-        const result = await web3.send('eth_getCode', [activeDapp.contract.address, 'latest']);
+        const results = await Promise.all(activeContractAddressKey.split(',').map((address) =>
+          web3.send('eth_getCode', [address, 'latest'])
+        ));
         if (cancelled) return;
-        if (result && result !== '0x' && result !== '0x0' && result.length > 2) {
+        if (results.every((result: string) => result && result !== '0x' && result !== '0x0' && result.length > 2)) {
           setVmContractStatus('deployed');
         } else {
           setVmContractStatus('not-found');
@@ -836,7 +860,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
     checkContract();
     return () => { cancelled = true; };
-  }, [isVM, isCurrentProviderVM, plugin, activeDapp?.contract?.address]);
+  }, [isVM, isCurrentProviderVM, plugin, activeContractAddressKey]);
 
   // Bridge setup: provides window.__remixVMBridge for DApp iframe to call VM directly.
   useEffect(() => {
@@ -1074,7 +1098,9 @@ window.addEventListener('unhandledrejection', function(e) {
                         {vmContractStatus === 'not-found' && (
                           <div className="text-danger mb-1">
                             <i className="fas fa-exclamation-circle me-1"></i>
-                            No contract found at <code>{activeDapp.contract.address}</code>. The VM state may have been reset. Please redeploy the contract.
+                            {activeContractBindings.length > 1
+                              ? 'One or more selected contracts are missing. The VM state may have been reset. Create a new DApp after redeploying the contracts.'
+                              : <>No contract found at <code>{activeDapp.contract.address}</code>. The VM state may have been reset. Please redeploy the contract.</>}
                           </div>
                         )}
                         {vmContractStatus === 'checking' && isCurrentProviderVM && (

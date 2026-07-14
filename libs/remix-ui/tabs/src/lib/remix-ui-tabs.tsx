@@ -706,6 +706,15 @@ export const TabsUI = (props: TabsUIProps) => {
       } catch (e) {
         chainId = 'unknown'
       }
+      const additionalInstances = instances.filter((candidate: any) =>
+        candidate.address?.toLowerCase() !== inst.address?.toLowerCase()
+      )
+      const contractSetupOption = additionalInstances.length > 0
+        ? `- Contracts: ${inst.name} at ${inst.address} is fixed as the primary for this entry. Additional contracts default to None; optionally choose up to seven from ${additionalInstances.map((candidate: any) => `${candidate.name} at ${candidate.address}`).join(', ')}`
+        : ''
+      const additionalContractsToolArg = additionalInstances.length > 0
+        ? `- additionalContracts: only the additional contracts I selected, using contractName and contractAddress from the list above`
+        : ''
 
       if (isDesktop) {
         // Desktop mode: always create inline
@@ -714,6 +723,7 @@ export const TabsUI = (props: TabsUIProps) => {
           ``,
           `STEP 1 - ASK FOR SETUP OPTIONS:`,
           `Location is fixed to Inline in /frontend for this request. Ask me once for:`,
+          ...(contractSetupOption ? [contractSetupOption] : []),
           `- Base mini-app: No (default) or Yes`,
           `- Design: defaults, style notes, or a Figma URL`,
           QUICKDAPP_SUBGRAPH_SETUP_OPTION,
@@ -732,6 +742,7 @@ export const TabsUI = (props: TabsUIProps) => {
           `- contractName: "${inst.name}"`,
           `- contractAddress: "${inst.address}"`,
           `- chainId: "${chainId}"`,
+          ...(additionalContractsToolArg ? [additionalContractsToolArg] : []),
           `- frontendMode: "inline"`,
           `- isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false`,
           `- figmaUrl and figmaToken only if I provided them`,
@@ -749,12 +760,15 @@ export const TabsUI = (props: TabsUIProps) => {
           ``,
           `STEP 1 - ASK FOR SETUP OPTIONS:`,
           `Ask me once: "How should I create your DApp?"`,
+          ...(contractSetupOption ? [contractSetupOption] : []),
           `- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)`,
           `- Base mini-app: No (default) or Yes`,
           `- Design: defaults, style notes, or a Figma URL`,
           QUICKDAPP_SUBGRAPH_SETUP_OPTION,
           ``,
-          `Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.`,
+          additionalInstances.length > 0
+            ? `Ask exactly the listed setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.`
+            : `Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.`,
           QUICKDAPP_SUBGRAPH_SETUP_RULE,
           `After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.`,
           `In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.`,
@@ -768,6 +782,7 @@ export const TabsUI = (props: TabsUIProps) => {
           `- contractName: "${inst.name}"`,
           `- contractAddress: "${inst.address}"`,
           `- chainId: "${chainId}"`,
+          ...(additionalContractsToolArg ? [additionalContractsToolArg] : []),
           `- frontendMode: "inline" or "workspace" based on my Location answer`,
           `- isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false`,
           `- figmaUrl and figmaToken only if I provided them`,
@@ -781,17 +796,18 @@ export const TabsUI = (props: TabsUIProps) => {
       }
     } else if (matchingInstances.length > 1) {
       // Multiple matching contracts — let AI ask the user to choose
-      const contractList = matchingInstances.map((inst: any, i: number) =>
-        `${i + 1}) ${inst.name} at ${inst.address}`
+      const matchingAddresses = new Set(matchingInstances.map((inst: any) => inst.address?.toLowerCase()))
+      const contractList = instances.map((inst: any, i: number) =>
+        `${i + 1}) ${inst.name} at ${inst.address}${matchingAddresses.has(inst.address?.toLowerCase()) ? ' (current file)' : ''}`
       ).join('\n')
       contextParts.push(
-        `I want to create a DApp frontend. I have multiple deployed contracts from "${currentFileName}":`,
+        `I want to create a DApp frontend. I have these deployed contracts; matches for "${currentFileName}" are marked:`,
         ``,
         contractList,
         ``,
         isDesktop
-          ? `Please ask me which contract I'd like to use, then STOP. After my next reply selects a contract, ask exactly these setup options and STOP again: Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Location is fixed to Inline in /frontend for this request. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with frontendMode="inline", setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`
-          : `Please ask me which contract I'd like to use, then STOP. After my next reply selects a contract, ask exactly these setup options and STOP again: Location Workspace(default)/Inline, Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`
+          ? `Ask one combined setup question: Contracts (one to eight from the list, with one primary), Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Location is fixed to Inline in /frontend. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode="inline", isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If /frontend has files, preserve the existing overwrite confirmation flow. The selected contract set is fixed after creation.`
+          : `Ask one combined setup question: Contracts (one to eight from the list, with one primary), Location Workspace(default)/Inline, Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode, isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If Inline has files, preserve the existing overwrite confirmation flow. The selected contract set is fixed after creation.`
       )
     } else if (instances.length > 0) {
       // No match for current file but other contracts exist
@@ -805,8 +821,8 @@ export const TabsUI = (props: TabsUIProps) => {
         contractList,
         ``,
         isDesktop
-          ? `Please ask me which contract to use, or if I'd like to compile and deploy "${currentFileName}" first, then STOP. After a contract is selected or deployed, ask exactly these setup options and STOP again: Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Location is fixed to Inline in /frontend for this request. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with frontendMode="inline", setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`
-          : `Please ask me which contract to use, or if I'd like to compile and deploy "${currentFileName}" first, then STOP. After a contract is selected or deployed, ask exactly these setup options and STOP again: Location Workspace(default)/Inline, Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`
+          ? `Ask one combined setup question: either compile and deploy "${currentFileName}" first or select one to eight listed contracts with one primary; Base mini-app No(default)/Yes; Design defaults/style notes/Figma URL; and Subgraph None(default)/.subgraph file path or name. Location is fixed to Inline in /frontend. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, compile and deploy if requested; once every selected contract is deployed, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode="inline", isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If /frontend has files, preserve the existing overwrite confirmation flow. The selected contract set is fixed after creation.`
+          : `Ask one combined setup question: either compile and deploy "${currentFileName}" first or select one to eight listed contracts with one primary; Location Workspace(default)/Inline; Base mini-app No(default)/Yes; Design defaults/style notes/Figma URL; and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, compile and deploy if requested; once every selected contract is deployed, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode, isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If Inline has files, preserve the existing overwrite confirmation flow. The selected contract set is fixed after creation.`
       )
     } else {
       // No deployed contracts at all — AI will guide compile→deploy→generate

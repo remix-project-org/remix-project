@@ -1,3 +1,5 @@
+import type { QuickDappContractBinding } from '@remix-ui/helper';
+
 export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
 
 export interface DappConfig {
@@ -15,6 +17,9 @@ export interface DappConfig {
     chainId: number | string;
     networkName: string;
   };
+
+  contracts?: QuickDappContractBinding[];
+  primaryContractId?: string;
 
   sourceWorkspace?: {
     name: string;

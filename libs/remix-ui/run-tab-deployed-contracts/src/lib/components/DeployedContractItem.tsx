@@ -35,7 +35,7 @@ interface DeployedContractItemProps {
 }
 
 export function DeployedContractItem({ contract, index, registerRef, isKebabMenuOpen = false, onKebabMenuToggle }: DeployedContractItemProps) {
-  const { dispatch, plugin, themeQuality } = useContext(DeployedContractsAppContext)
+  const { widgetState, dispatch, plugin, themeQuality } = useContext(DeployedContractsAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
   const intl = useIntl()
   const { features } = useAuth()
@@ -419,11 +419,21 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
       }
       console.log('[QuickDapp] chainId resolved:', chainId);
 
+      const additionalCandidates = widgetState.deployedContracts.filter((candidate: DeployedContract) =>
+        candidate.address?.toLowerCase() !== contract.address.toLowerCase()
+      )
+      const contractSetupOption = additionalCandidates.length > 0
+        ? `- Contracts: ${contract.name} at ${contract.address} is fixed as the primary for this entry. Additional contracts default to None; optionally choose up to seven from:\n${additionalCandidates.map((candidate) => `  - ${candidate.name} at ${candidate.address}`).join('\n')}`
+        : ''
+      const additionalContractsToolArg = additionalCandidates.length > 0
+        ? `- additionalContracts: only the additional contracts I selected, using contractName and contractAddress from the list above`
+        : ''
+
       const prompt = isDesktop
         ? `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:
 
 STEP 1 - ASK FOR SETUP OPTIONS:
-Location is fixed to Inline in /frontend for this request. Ask me once for:
+Location is fixed to Inline in /frontend for this request. Ask me once for:${contractSetupOption ? `\n${contractSetupOption}` : ''}
 - Base mini-app: No (default) or Yes
 - Design: defaults, style notes, or a Figma URL
 ${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
@@ -442,7 +452,7 @@ After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate
 - contractName: "${contract.name}"
 - contractAddress: "${contract.address}"
 - chainId: "${chainId}"
-- frontendMode: "inline"
+${additionalContractsToolArg ? `${additionalContractsToolArg}\n` : ''}- frontendMode: "inline"
 - isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
 - figmaUrl and figmaToken only if I provided them
 ${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
@@ -454,13 +464,13 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
         : `I want to create a DApp frontend. Follow these steps exactly:
 
 STEP 1 - ASK FOR SETUP OPTIONS:
-Ask me once: "How should I create your DApp?"
+Ask me once: "How should I create your DApp?"${contractSetupOption ? `\n${contractSetupOption}` : ''}
 - Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)
 - Base mini-app: No (default) or Yes
 - Design: defaults, style notes, or a Figma URL
 ${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
 
-Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+${additionalCandidates.length > 0 ? 'Ask exactly the listed setup options.' : 'Ask exactly those four setup options.'} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
 ${QUICKDAPP_SUBGRAPH_SETUP_RULE}
 After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.
 In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
@@ -474,7 +484,7 @@ After I answer, you MUST call generate_dapp with:
 - contractName: "${contract.name}"
 - contractAddress: "${contract.address}"
 - chainId: "${chainId}"
-- frontendMode: "inline" or "workspace" based on my Location answer
+${additionalContractsToolArg ? `${additionalContractsToolArg}\n` : ''}- frontendMode: "inline" or "workspace" based on my Location answer
 - isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
 - figmaUrl and figmaToken only if I provided them
 ${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}

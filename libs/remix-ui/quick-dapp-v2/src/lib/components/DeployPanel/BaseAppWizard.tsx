@@ -8,6 +8,7 @@ import { InBrowserVite } from '../../InBrowserVite';
 import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
 import { validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
+import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
@@ -250,10 +251,11 @@ const BaseAppWizard: React.FC = () => {
       if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
         logoDataUrl = logo;
       }
-      // Escape </  to <\/ inside JSON strings to prevent HTML parser from
-      // seeing </script> in user text as the closing tag for this script element.
-      const safeJson = (val: string) => JSON.stringify(val).replace(/<\//g, '<\\/');
-      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${safeJson(logoDataUrl || '')},title:${safeJson(title || '')},details:${safeJson(details || '')}};</script>`;
+      const injectionScript = buildQuickDappRuntimeConfigScript(activeDapp, {
+        logo: logoDataUrl,
+        title,
+        details
+      });
       const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'base-ipfs-deploy' });
       const walletScript = generateWalletSelectionScript();
 
