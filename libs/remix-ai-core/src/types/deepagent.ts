@@ -1,4 +1,4 @@
-export type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama'
+export type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama' | 'bedrock'
 
 export interface ModelSelection {
   provider: ModelProvider
@@ -14,6 +14,10 @@ export interface IUserApiKeyConfig {
   mistralApiKey?: string
   openaiApiKey?: string
   moonshotApiKey?: string
+  awsAccessKeyId?: string
+  awsSecretAccessKey?: string
+  awsSessionToken?: string
+  awsRegion?: string
 }
 
 /**

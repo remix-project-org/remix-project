@@ -3,6 +3,7 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatMistralAI } from '@langchain/mistralai'
 import { ChatOpenAI } from '@langchain/openai'
 import { ChatOllama } from '@langchain/ollama'
+import { ChatBedrockConverse } from '@langchain/aws'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { HTTPClient } from '@mistralai/mistralai/lib/http.js'
 import { endpointUrls } from '@remix-endpoints-helper'
@@ -394,6 +395,24 @@ export async function createModelInstance(
         fetch: moonshotFetch
       }
     }), `moonshot/${modelId}`)
+  }
+
+  case 'bedrock': {
+    if (!userApiKeys?.awsAccessKeyId || !userApiKeys?.awsSecretAccessKey) {
+      throw new Error('[ModelFactory] AWS credentials (awsAccessKeyId + awsSecretAccessKey) are required for Bedrock')
+    }
+    remixAILogger.log(`[ModelFactory] Creating Bedrock model: ${modelId} in region ${userApiKeys.awsRegion ?? 'us-east-1'}`)
+    return wrapModelForDebug(new ChatBedrockConverse({
+      model: modelId,
+      region: userApiKeys.awsRegion ?? 'us-east-1',
+      credentials: {
+        accessKeyId: userApiKeys.awsAccessKeyId,
+        secretAccessKey: userApiKeys.awsSecretAccessKey,
+        ...(userApiKeys.awsSessionToken ? { sessionToken: userApiKeys.awsSessionToken } : {})
+      },
+      maxTokens: maxTokens,
+      streaming: true,
+    }), `bedrock/${modelId}`)
   }
 
   case 'anthropic':
