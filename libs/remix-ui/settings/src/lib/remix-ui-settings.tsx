@@ -224,6 +224,18 @@ const settingsSections: SettingsSection[] = [
           }, {
             name: 'deepagent-moonshot-api-key' as keyof typeof initialState,
             type: 'password'
+          }, {
+            name: 'deepagent-aws-access-key-id' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-aws-secret-access-key' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-aws-session-token' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-aws-region' as keyof typeof initialState,
+            type: 'text'
           }]
         }]
       }]

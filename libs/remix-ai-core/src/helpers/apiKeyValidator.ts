@@ -85,6 +85,16 @@ export function validateApiKeyFormat(provider: ModelProvider, apiKey: string): A
       provider
     }
 
+  case 'bedrock':
+    if (trimmedKey.length < 16) {
+      return {
+        isValid: false,
+        provider,
+        error: 'AWS Access Key ID appears to be too short'
+      }
+    }
+    break
+
   default:
     break
   }
@@ -316,5 +326,6 @@ export function getProviderFromSettingKey(settingKey: string): ModelProvider | n
   if (settingKey.includes('openai')) return 'openai'
   if (settingKey.includes('mistral')) return 'mistralai'
   if (settingKey.includes('moonshot')) return 'moonshot'
+  if (settingKey.includes('aws')) return 'bedrock'
   return null
 }

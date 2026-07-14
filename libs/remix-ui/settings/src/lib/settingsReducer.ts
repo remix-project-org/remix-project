@@ -27,6 +27,10 @@ const deepagentAnthropicApiKey = config.get('settings/deepagent-anthropic-api-ke
 const deepagentMistralApiKey = config.get('settings/deepagent-mistral-api-key') || ''
 const deepagentOpenaiApiKey = config.get('settings/deepagent-openai-api-key') || ''
 const deepagentMoonshotApiKey = config.get('settings/deepagent-moonshot-api-key') || ''
+const deepagentAwsAccessKeyId = config.get('settings/deepagent-aws-access-key-id') || ''
+const deepagentAwsSecretAccessKey = config.get('settings/deepagent-aws-secret-access-key') || ''
+const deepagentAwsSessionToken = config.get('settings/deepagent-aws-session-token') || ''
+const deepagentAwsRegion = config.get('settings/deepagent-aws-region') || ''
 const enableCodeAnalysisPopover = config.get('settings/editor/code-analysis-popover')
 
 let githubConfig = config.get('settings/github-config') || false
@@ -74,7 +78,7 @@ if (!thegraphConfig && thegraphAccessToken) {
 // }
 // Auto-enable deepagent API keys config if any API key is set
 let deepagentApiKeysConfigAuto = deepagentApiKeysConfig
-if (!deepagentApiKeysConfigAuto && (deepagentAnthropicApiKey || deepagentMistralApiKey || deepagentOpenaiApiKey || deepagentMoonshotApiKey)) {
+if (!deepagentApiKeysConfigAuto && (deepagentAnthropicApiKey || deepagentMistralApiKey || deepagentOpenaiApiKey || deepagentMoonshotApiKey || deepagentAwsAccessKeyId)) {
   config.set('settings/deepagent-api-keys-config', true)
   deepagentApiKeysConfigAuto = true
 }
@@ -287,6 +291,22 @@ export const initialState: SettingsState = {
     value: deepagentMoonshotApiKey,
     isLoading: false
   },
+  'deepagent-aws-access-key-id': {
+    value: deepagentAwsAccessKeyId,
+    isLoading: false
+  },
+  'deepagent-aws-secret-access-key': {
+    value: deepagentAwsSecretAccessKey,
+    isLoading: false
+  },
+  'deepagent-aws-session-token': {
+    value: deepagentAwsSessionToken,
+    isLoading: false
+  },
+  'deepagent-aws-region': {
+    value: deepagentAwsRegion,
+    isLoading: false
+  },
   //@ts-ignore
   'editor/code-analysis-popover': {
     value: enableCodeAnalysisPopoverBoolean,
@@ -317,7 +337,11 @@ export const settingReducer = (state: SettingsState, action: SettingsActions): S
         action.payload.name === 'deepagent-anthropic-api-key' ||
         action.payload.name === 'deepagent-mistral-api-key' ||
         action.payload.name === 'deepagent-openai-api-key' ||
-        action.payload.name === 'deepagent-moonshot-api-key') {
+        action.payload.name === 'deepagent-moonshot-api-key' ||
+        action.payload.name === 'deepagent-aws-access-key-id' ||
+        action.payload.name === 'deepagent-aws-secret-access-key' ||
+        action.payload.name === 'deepagent-aws-session-token' ||
+        action.payload.name === 'deepagent-aws-region') {
       try {
         onDeepAgentApiKeysChanged();
       } catch (error) {

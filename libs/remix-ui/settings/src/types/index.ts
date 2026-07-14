@@ -132,6 +132,10 @@ export interface SettingsState {
   'deepagent-mistral-api-key': ConfigState,
   'deepagent-openai-api-key': ConfigState,
   'deepagent-moonshot-api-key': ConfigState,
+  'deepagent-aws-access-key-id': ConfigState,
+  'deepagent-aws-secret-access-key': ConfigState,
+  'deepagent-aws-session-token': ConfigState,
+  'deepagent-aws-region': ConfigState,
   'editor/code-analysis-popover': ConfigState,
   toaster: ConfigState
 }

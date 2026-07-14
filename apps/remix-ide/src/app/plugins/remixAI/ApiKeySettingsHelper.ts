@@ -69,12 +69,17 @@ export class ApiKeySettingsHelper {
       }
 
       // Read settings via plugin calls (parallel for performance)
-      const [useOwnKeysValue, anthropicApiKey, mistralApiKey, openaiApiKey, moonshotApiKey] = await Promise.all([
+      const [useOwnKeysValue, anthropicApiKey, mistralApiKey, openaiApiKey, moonshotApiKey,
+        awsAccessKeyId, awsSecretAccessKey, awsSessionToken, awsRegion] = await Promise.all([
         this.getSetting('deepagent-api-keys-config'),
         this.getSetting('deepagent-anthropic-api-key'),
         this.getSetting('deepagent-mistral-api-key'),
         this.getSetting('deepagent-openai-api-key'),
-        this.getSetting('deepagent-moonshot-api-key')
+        this.getSetting('deepagent-moonshot-api-key'),
+        this.getSetting('deepagent-aws-access-key-id'),
+        this.getSetting('deepagent-aws-secret-access-key'),
+        this.getSetting('deepagent-aws-session-token'),
+        this.getSetting('deepagent-aws-region')
       ])
 
       const useOwnKeys = useOwnKeysValue === 'true' || useOwnKeysValue === true
@@ -85,11 +90,12 @@ export class ApiKeySettingsHelper {
         hasAnthropicKey: !!anthropicApiKey,
         hasMistralKey: !!mistralApiKey,
         hasOpenaiKey: !!openaiApiKey,
-        hasMoonshotKey: !!moonshotApiKey
+        hasMoonshotKey: !!moonshotApiKey,
+        hasAwsCredentials: !!(awsAccessKeyId && awsSecretAccessKey)
       })
 
-      // Auto-enable if any API key is set
-      const hasAnyKey = anthropicApiKey || mistralApiKey || openaiApiKey || moonshotApiKey
+      // Auto-enable if any API key or AWS credentials are set
+      const hasAnyKey = anthropicApiKey || mistralApiKey || openaiApiKey || moonshotApiKey || (awsAccessKeyId && awsSecretAccessKey)
       if (!useOwnKeys && !hasAnyKey) {
         return undefined
       }
@@ -99,7 +105,11 @@ export class ApiKeySettingsHelper {
         anthropicApiKey: String(anthropicApiKey || ''),
         mistralApiKey: String(mistralApiKey || ''),
         openaiApiKey: String(openaiApiKey || ''),
-        moonshotApiKey: String(moonshotApiKey || '')
+        moonshotApiKey: String(moonshotApiKey || ''),
+        awsAccessKeyId: String(awsAccessKeyId || ''),
+        awsSecretAccessKey: String(awsSecretAccessKey || ''),
+        awsSessionToken: String(awsSessionToken || ''),
+        awsRegion: String(awsRegion || '')
       }
     } catch (error) {
       remixAILogger.warn('[ApiKeySettingsHelper] Failed to read user API keys config:', error)
@@ -131,6 +141,11 @@ export class ApiKeySettingsHelper {
       case 'moonshot':
         apiKey = await this.getSetting('deepagent-moonshot-api-key')
         break
+      case 'bedrock': {
+        const keyId = await this.getSetting('deepagent-aws-access-key-id')
+        const secret = await this.getSetting('deepagent-aws-secret-access-key')
+        return !!(keyId && secret)
+      }
       default:
         return false
       }

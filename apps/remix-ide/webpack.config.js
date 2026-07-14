@@ -126,8 +126,19 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     readline: false,
     child_process: false,
     buffer: require.resolve('buffer/'),
-    vm: require.resolve('vm-browserify')
+    vm: require.resolve('vm-browserify'),
+    util: require.resolve('util/')
   }
+
+  // Map node: scheme to bare module names so the existing resolve.fallback
+  // polyfills can take effect. AWS SDK v3 (pulled in by @langchain/aws) uses
+  // node:http, node:https, node:stream, etc. which Webpack 5 does not resolve
+  // via fallback without this redirect.
+  config.plugins.push(
+    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+      resource.request = resource.request.replace(/^node:/, '')
+    })
+  )
 
   // add externals
   config.externals = {
@@ -166,7 +177,11 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     '@so-ric/colorspace': false,
     // 'rust-verkle-wasm$': path.resolve(__dirname, '../../node_modules/rust-verkle-wasm/web/run_verkle_wasm.js')
     // Explicitly alias os to os-browserify for DeepAgent
-    'os': path.resolve(__dirname, '../../node_modules/os-browserify/browser.js')
+    'os': path.resolve(__dirname, '../../node_modules/os-browserify/browser.js'),
+    // Shim fs/promises for browser builds — AWS SDK v3 and other packages import
+    // it in Node.js-only code paths. resolve.fallback doesn't cover subpath
+    // exports, so alias is required here.
+    'fs/promises': path.resolve(__dirname, 'src/fs-promises-shim.js')
   }
 
 
