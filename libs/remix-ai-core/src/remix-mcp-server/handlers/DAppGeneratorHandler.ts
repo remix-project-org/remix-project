@@ -1294,7 +1294,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
         }).join('\n')}\n`
         : `CONTRACT: ${args.contractName} at ${args.contractAddress} on chain ${args.chainId}${isLocalVMChainId(args.chainId) ? ' (Remix VM)' : ''}\nFUNCTIONS:\n${abiSummary}\n`
       const contractGenerationStep = contractSelection
-        ? `2. Read the immutable bindings from window.__QUICK_DAPP_CONFIG__.contracts and primaryContractId. Create one shared provider/signer and one ethers.Contract instance per binding. Use each binding alias to avoid name collisions. Never hardcode contract addresses or ABIs.\n`
+        ? `2. Read the immutable bindings from window.__QUICK_DAPP_CONFIG__: contracts is an array of { id, alias, name, address, abi, chainId }, not an object keyed by alias. Resolve each binding with contracts.find((contract) => contract.alias === '<alias>') and the primary with contracts.find((contract) => contract.id === config.primaryContractId). Create one shared provider/signer and one ethers.Contract instance per binding. Never hardcode contract addresses or ABIs.\n`
         : `2. Use ethers.js v6 (BrowserProvider, Contract). Embed full ABI and contract address in code.\n`
 
       const isLocalVM = isLocalVMChainId(args.chainId)

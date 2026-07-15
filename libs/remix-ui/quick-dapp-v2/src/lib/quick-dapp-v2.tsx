@@ -214,6 +214,10 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       if (deletingWorkspacesRef.current.has(workspaceName)) return;
       const filtered = dappsRef.current.filter((d: any) => d.workspaceName !== workspaceName);
       dispatch({ type: 'SET_DAPPS', payload: filtered });
+      if (activeDappRef.current?.workspaceName === workspaceName) {
+        dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
+        dispatch({ type: 'SET_VIEW', payload: filtered.length > 0 ? 'dashboard' : 'create' });
+      }
     };
     const handleGenerationProgress = async (data: any) => {
       // Handle cancellation: null data resets all progress state
@@ -481,15 +485,14 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       } catch {}
     } catch (e) {
       console.error('[QuickDapp] deleteAll failed:', e);
-      // Recover: re-fetch actual state if deletion failed
-      try {
-        const remaining = await dappManager.getDapps();
-        dispatch({ type: 'SET_DAPPS', payload: remaining || []});
-        if (remaining && remaining.length > 0) {
-          dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
-        }
-      } catch {}
     } finally {
+      try {
+        const remaining = (await dappManager.getDapps()) || [];
+        dispatch({ type: 'SET_DAPPS', payload: remaining });
+        dispatch({ type: 'SET_VIEW', payload: remaining.length > 0 ? 'dashboard' : 'create' });
+      } catch (e) {
+        console.error('[QuickDapp] Failed to refresh DApps after deleteAll:', e);
+      }
       deletingWorkspacesRef.current.clear();
     }
   };
