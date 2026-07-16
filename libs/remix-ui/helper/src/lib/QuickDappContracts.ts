@@ -22,6 +22,14 @@ export interface QuickDappContractSelection {
 }
 
 const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
+const JAVASCRIPT_RESERVED_WORDS = new Set([
+  'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
+  'debugger', 'default', 'delete', 'do', 'else', 'enum', 'eval', 'export',
+  'extends', 'false', 'finally', 'for', 'function', 'if', 'implements', 'import',
+  'in', 'instanceof', 'interface', 'let', 'new', 'null', 'package', 'private',
+  'protected', 'public', 'return', 'static', 'super', 'switch', 'this', 'throw',
+  'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield'
+])
 
 export const normalizeQuickDappEnvironment = (chainId: number | string): string => {
   const value = String(chainId).trim().toLowerCase()
@@ -47,8 +55,11 @@ const getBaseAlias = (name: string): string => {
   return alias || 'Contract'
 }
 
-const getUniqueAlias = (name: string, usedAliases: Set<string>): string => {
-  const baseAlias = getBaseAlias(name)
+const getUniqueAlias = (name: string, usedAliases: Set<string>, avoidReservedWords = false): string => {
+  const sanitizedAlias = getBaseAlias(name)
+  const baseAlias = avoidReservedWords && JAVASCRIPT_RESERVED_WORDS.has(sanitizedAlias)
+    ? `_${sanitizedAlias}`
+    : sanitizedAlias
   let alias = baseAlias
   let suffix = 2
 
@@ -94,7 +105,7 @@ export const createQuickDappContractSelection = (
     return {
       ...input,
       id,
-      alias: getUniqueAlias(input.alias || input.name, usedAliases)
+      alias: getUniqueAlias(input.alias || input.name, usedAliases, true)
     }
   })
 
