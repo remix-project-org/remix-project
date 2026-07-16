@@ -426,6 +426,9 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       const updatedDapps = await dappManager.getDapps();
       dispatch({ type: 'SET_DAPPS', payload: updatedDapps || []});
 
+      if (activeDappRef.current?.workspaceName === dapp.workspaceName) {
+        dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
+      }
       if (!updatedDapps || updatedDapps.length === 0) {
         dispatch({ type: 'SET_VIEW', payload: 'create' });
       }

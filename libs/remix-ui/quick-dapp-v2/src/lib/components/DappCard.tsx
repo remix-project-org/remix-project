@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dropdown } from 'react-bootstrap';
+import { getPrimaryQuickDappContract, getQuickDappContracts } from '@remix-ui/helper';
 import { DappConfig, GenerationProgress } from '../types';
 
 interface DappCardProps {
@@ -30,6 +31,11 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
   const statusColor = dapp.status === 'deployed' ? 'text-success' : 'text-warning';
   const statusIcon = dapp.status === 'deployed' ? 'fa-check-circle' : 'fa-pen-square';
 
+  const contractBindings = dapp.appKind === 'graph-only' ? [] : getQuickDappContracts(dapp);
+  const primaryContract = getPrimaryQuickDappContract(dapp);
+  const contractSummary = contractBindings.map((contract) =>
+    `${contract.alias}${contract.id === primaryContract?.id ? ' (primary)' : ''}`
+  ).join(', ');
   const progress = generationProgress;
   const generatedFiles = progress?.generatedFiles || [];
   const currentFile = progress?.filename;
@@ -134,6 +140,17 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
               <small className="text-info d-block text-truncate mb-2" style={{ fontSize: '0.75rem' }}>
                 <i className="fas fa-folder-open me-1"></i>
                 {dapp.workspaceName}
+              </small>
+            )}
+            {contractBindings.length > 1 && (
+              <small
+                className="text-muted d-block text-truncate mb-2"
+                style={{ fontSize: '0.75rem' }}
+                title={contractSummary}
+                data-id={`dapp-contracts-${dapp.slug}`}
+              >
+                <i className="fas fa-cubes me-1"></i>
+                {contractBindings.length} contracts: {contractSummary}
               </small>
             )}
           </div>

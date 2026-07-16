@@ -2398,13 +2398,23 @@ export class ListDAppsHandler extends BaseToolHandler {
             continue
           }
 
+          const contractBindings = getQuickDappContracts(config)
+          const primaryContract = getPrimaryQuickDappContract(config)
           dapps.push({
             workspaceName: wsName,
             name: config.name || 'Untitled',
-            contractAddress: config.contract?.address || 'unknown',
-            contractName: config.contract?.name || 'unknown',
-            chainId: config.contract?.chainId || 'unknown',
-            networkName: config.contract?.networkName || '',
+            contractAddress: primaryContract?.address || 'unknown',
+            contractName: primaryContract?.name || 'unknown',
+            chainId: primaryContract?.chainId || 'unknown',
+            networkName: primaryContract?.networkName || '',
+            contractCount: contractBindings.length,
+            contracts: contractBindings.map((contract) => ({
+              id: contract.id,
+              alias: contract.alias,
+              name: contract.name,
+              address: contract.address,
+              isPrimary: contract.id === primaryContract?.id
+            })),
             status: config.status || 'unknown',
             createdAt: config.createdAt || 0,
             isInlineMode,
@@ -2438,7 +2448,7 @@ export class ListDAppsHandler extends BaseToolHandler {
         success: true,
         dapps,
         count: dapps.length,
-        message: `Found ${dapps.length} updatable DApp(s). Present this list to the user and ask which one they want to work with. Include the exact workspaceName, DApp name, contract name, contract address, status, and mode for each. When the user selects one, call update_dapp with that exact workspaceName.`
+        message: `Found ${dapps.length} updatable DApp(s). Present this list to the user and ask which one they want to work with. Include the exact workspaceName, DApp name, primary contract, contract bindings when there is more than one, status, and mode for each. When the user selects one, call update_dapp with that exact workspaceName.`
       })
     } catch (error: any) {
       remixAILogger.error('[QuickDapp] list_dapps failed:', error)
