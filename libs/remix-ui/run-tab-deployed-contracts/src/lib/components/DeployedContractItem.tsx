@@ -25,6 +25,7 @@ const highlightedContracts = new Set<string>()
 const QUICKDAPP_SUBGRAPH_SETUP_OPTION = '- Subgraph: None (default) or a .subgraph file path/name'
 const QUICKDAPP_SUBGRAPH_SETUP_RULE = 'Subgraph defaults to None. If I choose to use a .subgraph, ask me for the .subgraph file path/name and pass it to generate_dapp as subgraphFilePath. Do not redirect me to the .subgraph context menu and do not invent graphContext.'
 const QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG = '- subgraphFilePath: include only if I chose a .subgraph file path/name; graphContext: include only if a validated graphContext was already provided by The Graph handoff'
+const QUICKDAPP_SCOPE_NOTICE = 'Before listing setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage, and selected contract bindings are fixed after creation."'
 
 interface DeployedContractItemProps {
   contract: DeployedContract
@@ -423,6 +424,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
         ? `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:
 
 STEP 1 - ASK FOR SETUP OPTIONS:
+${QUICKDAPP_SCOPE_NOTICE}
 Location is fixed to Inline in /frontend for this request. Ask me once for:
 - Base mini-app: No (default) or Yes
 - Design: defaults, style notes, or a Figma URL
@@ -454,6 +456,7 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
         : `I want to create a DApp frontend. Follow these steps exactly:
 
 STEP 1 - ASK FOR SETUP OPTIONS:
+${QUICKDAPP_SCOPE_NOTICE}
 Ask me once: "How should I create your DApp?"
 - Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)
 - Base mini-app: No (default) or Yes

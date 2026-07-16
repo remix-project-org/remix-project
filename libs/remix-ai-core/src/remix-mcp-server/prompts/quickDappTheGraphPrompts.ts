@@ -33,6 +33,9 @@ export interface QuickDappContractHandoffPromptContext {
   mode: 'none' | 'single' | 'multiple'
 }
 
+const QUICKDAPP_SCOPE_NOTICE = 'Before listing setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage, and selected contract bindings are fixed after creation."'
+const QUICKDAPP_GRAPH_ONLY_SCOPE_NOTICE = 'Before listing setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage. This Graph-only DApp is read-only."'
+
 const formatContractCandidatesForPrompt = (candidates: QuickDappContractPromptCandidate[]): string[] =>
   candidates.map((contract, index) =>
     `${index + 1}. ${contract.name} at ${contract.address} on chain ${contract.chainId}`
@@ -58,6 +61,7 @@ const buildContractHandoffPrompt = (
       ...contractLines,
       '',
       'STEP 1 - ASK FOR SETUP OPTIONS:',
+      QUICKDAPP_SCOPE_NOTICE,
       `Use ${contract.name} at ${contract.address} on chain ${contract.chainId} unless I explicitly ask to choose another contract.`,
       'Ask me once: "How should I create your DApp?"',
       getLocationLine(isDesktop, false),
@@ -79,6 +83,7 @@ const buildContractHandoffPrompt = (
       ...contractLines,
       '',
       'STEP 1 - ASK FOR SETUP OPTIONS AND CONTRACT:',
+      QUICKDAPP_SCOPE_NOTICE,
       'Ask me once: "How should I create your DApp?"',
       getLocationLine(isDesktop, false),
       '- Base mini-app: No (default) or Yes',
@@ -99,6 +104,7 @@ const buildContractHandoffPrompt = (
     '- none found',
     '',
     'STEP 1 - ASK FOR GRAPH-ONLY SETUP OPTIONS:',
+    QUICKDAPP_GRAPH_ONLY_SCOPE_NOTICE,
     'Ask me once: "How should I create your DApp?"',
     getLocationLine(isDesktop, true),
     '- Base mini-app: No (default) or Yes',
