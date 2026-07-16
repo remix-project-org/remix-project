@@ -11,7 +11,7 @@ import { Features } from '@remix-api';
  */
 export interface AIModel {
   id: string
-  provider: 'openai' | 'mistralai' | 'moonshot' | 'anthropic' | 'ollama'
+  provider: 'openai' | 'mistralai' | 'moonshot' | 'anthropic' | 'ollama' | 'bedrock'
   /** Display name as the backend wants it shown. */
   displayName: string
   description: string
@@ -47,6 +47,78 @@ export const OLLAMA_MODEL: AIModel = {
   available: true,
   sortOrder: 1000
 }
+
+/**
+ * Curated list of AWS Bedrock models available when the user provides their
+ * own AWS credentials. Appended to the model list by the UI (not the backend).
+ */
+export const BEDROCK_MODELS: AIModel[] = [
+  {
+    id: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    provider: 'bedrock',
+    displayName: 'Claude 3.5 Sonnet v2 (Bedrock)',
+    description: 'Anthropic Claude 3.5 Sonnet v2 via AWS Bedrock',
+    category: 'coding',
+    capabilities: ['chat', 'code', 'tools'],
+    isDefault: false,
+    requiresAuth: false,
+    requiredFeature: null,
+    available: true,
+    sortOrder: 900
+  },
+  {
+    id: 'anthropic.claude-3-haiku-20240307-v1:0',
+    provider: 'bedrock',
+    displayName: 'Claude 3 Haiku (Bedrock)',
+    description: 'Anthropic Claude 3 Haiku via AWS Bedrock — fast and economical',
+    category: 'general',
+    capabilities: ['chat', 'code', 'tools'],
+    isDefault: false,
+    requiresAuth: false,
+    requiredFeature: null,
+    available: true,
+    sortOrder: 901
+  },
+  {
+    id: 'amazon.nova-pro-v1:0',
+    provider: 'bedrock',
+    displayName: 'Amazon Nova Pro (Bedrock)',
+    description: 'Amazon Nova Pro — high capability multimodal model',
+    category: 'general',
+    capabilities: ['chat', 'code', 'tools'],
+    isDefault: false,
+    requiresAuth: false,
+    requiredFeature: null,
+    available: true,
+    sortOrder: 902
+  },
+  {
+    id: 'amazon.nova-lite-v1:0',
+    provider: 'bedrock',
+    displayName: 'Amazon Nova Lite (Bedrock)',
+    description: 'Amazon Nova Lite — fast and low cost',
+    category: 'general',
+    capabilities: ['chat', 'code'],
+    isDefault: false,
+    requiresAuth: false,
+    requiredFeature: null,
+    available: true,
+    sortOrder: 903
+  },
+  {
+    id: 'meta.llama3-3-70b-instruct-v1:0',
+    provider: 'bedrock',
+    displayName: 'Llama 3.3 70B (Bedrock)',
+    description: 'Meta Llama 3.3 70B via AWS Bedrock',
+    category: 'general',
+    capabilities: ['chat', 'code', 'tools'],
+    isDefault: false,
+    requiresAuth: false,
+    requiredFeature: null,
+    available: true,
+    sortOrder: 904
+  }
+]
 
 /**
  * Anonymous fallback. The picker shows a single placeholder row that

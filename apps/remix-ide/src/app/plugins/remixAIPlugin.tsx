@@ -1,7 +1,7 @@
 import * as packageJson from '../../../../../package.json'
 import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent, Features, ChatPromptMetadata } from '@remix-api'
-import { remixAILogger, RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
+import { remixAILogger, RemoteInferencer, BedrockInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig } from '@remix/remix-ai-core';
 import { MCPInferencer, DeepAgentInferencer, onApiKeysChange } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
@@ -62,6 +62,7 @@ const profile = {
 export class RemixAIPlugin extends Plugin {
   aiIsActivated:boolean = false
   remoteInferencer:RemoteInferencer | OllamaInferencer | MCPInferencer = null
+  bedrockInferencer: BedrockInferencer | null = null
   isInferencing: boolean = false
   chatRequestBuffer: ChatRequestBuffer<any> = null
   codeExpAgent: CodeExplainAgent | null = null
@@ -511,7 +512,7 @@ export class RemixAIPlugin extends Plugin {
           },
           fallbackInferencer,
           this.mcpInferencer, // Pass MCPInferencer to gather external MCP client tools
-          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama', modelId: this.selectedModelId } // Pass selected model
+          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama' | 'bedrock', modelId: this.selectedModelId } // Pass selected model
         )
         await this.deepAgentInferencer.initialize()
         // Set up DeepAgent event listeners for streaming (once only)
@@ -580,6 +581,22 @@ export class RemixAIPlugin extends Plugin {
     this.remixMCPServer = await createRemixMCPServer(this)
 
     return true
+  }
+
+  public setBedrockInferencer(inferencer: BedrockInferencer | null): void {
+    this.bedrockInferencer = inferencer
+    if (inferencer) {
+      inferencer.event.on('onStreamResult', (chunk: string) => {
+        this.emit('onStreamResult', chunk)
+      })
+      inferencer.event.on('onInference', () => {
+        this.isInferencing = true
+      })
+      inferencer.event.on('onInferenceDone', () => {
+        this.isInferencing = false
+      })
+    }
+    this.publishRouteStatus()
   }
 
   /**
@@ -694,10 +711,11 @@ export class RemixAIPlugin extends Plugin {
       // route, not the langchain DeepAgent flow.
       const mcpRouteCheck = this.mcpEnabled && !!this.mcpInferencer
       const deepAgentRouteCheck = this.deepAgentEnabled && !!this.deepAgentInferencer
+      const bedrockRouteCheck = this.selectedModel?.provider === 'bedrock' && !!this.bedrockInferencer
       const remoteRouteCheck = !!this.remoteInferencer
       const route = mcpRouteCheck
         ? 'mcp'
-        : (deepAgentRouteCheck ? 'deepagent' : 'remote')
+        : (deepAgentRouteCheck ? 'deepagent' : (bedrockRouteCheck ? 'bedrock' : 'remote'))
       const routeFlow = {
         selectedRoute: route,
         checks: [
@@ -756,6 +774,9 @@ export class RemixAIPlugin extends Plugin {
       } else if (route === 'mcp'){
         remixAILogger.log('[answer][route-flow] dispatch=mcp.answer')
         return await this.mcpInferencer.answer(prompt, params)
+      } else if (route === 'bedrock') {
+        remixAILogger.log('[answer][route-flow] dispatch=bedrock.answer')
+        return await this.bedrockInferencer.answer(newPrompt, params)
       } else {
         remixAILogger.log('[answer][route-flow] dispatch=remote.answer')
         return await this.remoteInferencer.answer(newPrompt, params)
@@ -775,6 +796,8 @@ export class RemixAIPlugin extends Plugin {
       } else if (this.deepAgentEnabled && this.deepAgentInferencer) {
         await this.deepAgentManager.awaitReady()
         return await this.deepAgentInferencer.code_explaining(prompt, context, params)
+      } else if (this.selectedModel?.provider === 'bedrock' && this.bedrockInferencer) {
+        return await this.bedrockInferencer.code_explaining(prompt, context, params)
       } else {
         return await this.remoteInferencer.code_explaining(prompt, context, params)
       }
@@ -786,8 +809,7 @@ export class RemixAIPlugin extends Plugin {
   async error_explaining(prompt: string, params: IParams=GenerationParams): Promise<any> {
     this.emit('errorExplainRequested')
     const result = await this.withAssistantGate(this.getSelectedModelRequiredFeature(), async () => {
-      // NOTE: error_explaining ALWAYS goes to remote (solcoder) by design.
-      this.traceRouteDecision('error_explaining', { hardcodedRoute: 'remote', promptLen: prompt?.length ?? 0 })
+      this.traceRouteDecision('error_explaining', { promptLen: prompt?.length ?? 0 })
       let localFilesImports = ""
 
       // Get local imports from the workspace restrict to 5 most relevant files
@@ -798,6 +820,9 @@ export class RemixAIPlugin extends Plugin {
       }
       localFilesImports = localFilesImports + "\n End of local files imports.\n\n"
       const finalPrompt = localFilesImports ? `Using the following local imports: ${localFilesImports}\n\n` + prompt : prompt
+      if (this.selectedModel?.provider === 'bedrock' && this.bedrockInferencer) {
+        return await this.bedrockInferencer.error_explaining(finalPrompt, params)
+      }
       return await this.remoteInferencer.error_explaining(finalPrompt, params)
     })
     if (result && params.terminal_output) this.call('terminal', 'log', { type: 'aitypewriterwarning', value: result })
@@ -807,8 +832,10 @@ export class RemixAIPlugin extends Plugin {
   async vulnerability_check(prompt: string, params: IParams=GenerationParams): Promise<any> {
     this.emit('vulnerabilityCheckRequested')
     const result = await this.withAssistantGate(this.getSelectedModelRequiredFeature(), async () => {
-      // NOTE: vulnerability_check ALWAYS goes to remote (solcoder) by design.
-      this.traceRouteDecision('vulnerability_check', { hardcodedRoute: 'remote', promptLen: prompt?.length ?? 0 })
+      this.traceRouteDecision('vulnerability_check', { promptLen: prompt?.length ?? 0 })
+      if (this.selectedModel?.provider === 'bedrock' && this.bedrockInferencer) {
+        return await this.bedrockInferencer.vulnerability_check(prompt, params)
+      }
       return await this.remoteInferencer.vulnerability_check(prompt, params)
     })
     if (result && params.terminal_output) this.call('terminal', 'log', { type: 'aitypewriterwarning', value: result })
@@ -1168,6 +1195,8 @@ export class RemixAIPlugin extends Plugin {
       await this.deepAgentManager.cancelRequest(historyMessages)
     } else if (this.mcpEnabled && this.mcpInferencer) {
       this.mcpInferencer.cancelRequest()
+    } else if (this.bedrockInferencer) {
+      this.bedrockInferencer.cancelRequest()
     } else if (this.remoteInferencer) {
       (this.remoteInferencer as RemoteInferencer).cancelRequest()
     }

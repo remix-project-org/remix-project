@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, M
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, aiErrorFromException, remixAILogger } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, aiErrorFromException, remixAILogger, BEDROCK_MODELS, onApiKeysChange } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
 import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
@@ -97,7 +97,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [messages, props.currentConversationId])
   const [isThinking, setIsThinking] = useState(false)
   const [showModelSelector, setShowModelSelector] = useState(false)
-  const [assistantChoice, setAssistantChoice] = useState<'openai' | 'mistralai' | 'anthropic' | 'ollama'>(
+  const [assistantChoice, setAssistantChoice] = useState<'openai' | 'mistralai' | 'anthropic' | 'ollama' | 'bedrock'>(
     'mistralai'
   )
   const [showArchivedConversations, setShowArchivedConversations] = useState(false)
@@ -403,7 +403,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (model) {
           setSelectedModelId(currentModelId)
           setSelectedModel(model)
-          setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+          setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama' | 'bedrock')
         }
         await props.plugin.call('remixAI', 'setModelAccess', modelAccess)
       } catch (error) {
@@ -419,7 +419,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       if (model) {
         setSelectedModelId(modelId)
         setSelectedModel(model)
-        setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+        setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama' | 'bedrock')
       }
     }
 
@@ -980,7 +980,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         const models = await props.plugin.call('assistantState' as any, 'getAvailableModels')
         remixAILogger.log('[remix-ai-assistant] getAvailableModels →',
           Array.isArray(models) ? models.map((m: any) => `${m.id}(${m.available ? 'on' : 'off'})`).join(', ') : models)
-        if (Array.isArray(models) && models.length > 0) setAvailableModels(models)
+        if (Array.isArray(models) && models.length > 0) {
+          // Preserve any Bedrock models that were injected by checkAndInjectBedrockModels.
+          // A plain setAvailableModels(models) would wipe them on every stateChanged.
+          setAvailableModels(prev => {
+            const bedrock = prev.filter(m => m.provider === 'bedrock')
+            return [...models.filter(m => m.provider !== 'bedrock'), ...bedrock]
+          })
+        }
       } catch (e) { remixAILogger.warn('[remix-ai-assistant] getAvailableModels failed', e) }
     }
     const refreshFeatures = async () => {
@@ -1126,6 +1133,42 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onToolApprovalRequired')
       props.plugin.off('remixAI', 'onDappUpdateCompleted')
       try { props.plugin.off('assistantState' as any, 'stateChanged') } catch { /* noop */ }
+    }
+  }, [props.plugin])
+
+  // Inject Bedrock models when the user has AWS credentials configured in settings.
+  // Re-runs whenever API key settings change (via deepAgentSettingsEvents).
+  useEffect(() => {
+    const checkAndInjectBedrockModels = async () => {
+      let keyId: string | null = null
+      let secret: string | null = null
+      try {
+        keyId = await props.plugin.call('settings' as any, 'get', 'settings/deepagent-aws-access-key-id')
+        secret = await props.plugin.call('settings' as any, 'get', 'settings/deepagent-aws-secret-access-key')
+      } catch {
+        // settings plugin not yet connected — fall back to localStorage directly
+      }
+      // localStorage is the underlying store; use it when the plugin call returns nothing
+      if (!keyId) keyId = localStorage.getItem('settings/deepagent-aws-access-key-id')
+      if (!secret) secret = localStorage.getItem('settings/deepagent-aws-secret-access-key')
+      if (keyId && secret) {
+        setAvailableModels(prev => {
+          const withoutBedrock = prev.filter(m => m.provider !== 'bedrock')
+          return [...withoutBedrock, ...BEDROCK_MODELS]
+        })
+      } else {
+        setAvailableModels(prev => prev.filter(m => m.provider !== 'bedrock'))
+      }
+    }
+
+    checkAndInjectBedrockModels()
+    const unsub = onApiKeysChange(checkAndInjectBedrockModels)
+    // Also re-check when the model changes — covers the case where credentials
+    // were already saved before the user opens the model picker.
+    props.plugin.on('remixAI', 'modelChanged', checkAndInjectBedrockModels)
+    return () => {
+      unsub()
+      try { props.plugin.off('remixAI', 'modelChanged') } catch { /* noop */ }
     }
   }, [props.plugin])
 
@@ -1984,6 +2027,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           )
           break;
         }
+        case 'bedrock':
+          // Bedrock always routes through DeepAgent (direct AWS credentials, no proxy).
+          // The response is a string and this branch is never reached in normal flow;
+          // fall through to the generic handler as a safety net.
         default:
           await HandleStreamResponse(
             response,
@@ -2181,7 +2228,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (def && def.id && def.available !== false) {
           setSelectedModelId(def.id)
           setSelectedModel(def)
-          setAssistantChoice(def.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+          setAssistantChoice(def.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama' | 'bedrock')
           try {
             await props.plugin.call('remixAI', 'setModel', def.id)
           } catch (e) {
@@ -2217,7 +2264,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setSelectedModel(model)
 
     // Always update assistantChoice to match the selected model's provider
-    setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+    setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama' | 'bedrock')
     remixAILogger.log('Setting assistant choice to:', model.provider)
 
     if (model.provider === 'ollama') {
@@ -2242,7 +2289,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             await props.plugin.call('remixAI', 'setModel', fallbackModel.id)
             setSelectedModelId(fallbackModel.id)
             setSelectedModel(fallbackModel)
-            setAssistantChoice(fallbackModel.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+            setAssistantChoice(fallbackModel.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama' | 'bedrock')
           }
         } catch (e) {
           remixAILogger.warn('[remix-ai-assistant] failed to switch back to default model after Ollama unavailable', e)

@@ -850,6 +850,7 @@ const GATE_OWNED_CODES = new Set([
 ])
 
 export function selectChatNotice(snap: AssistantSnapshot): ChatNotice | null {
+  console.log('selectChatNotice', snap.lastError, snap.gateReason, snap)
   const err = snap.lastError
   if (!err) return null
   if (COOLDOWN_OWNED_CODES.has(err.code)) return null

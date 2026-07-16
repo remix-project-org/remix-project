@@ -3,9 +3,10 @@
 import { ICompletions,
   IParams, ChatEntry, AIRequestType, IRemoteModel } from './types/types'
 import { ModelType } from './types/constants'
-import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions } from './types/models'
+import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, BEDROCK_MODELS, getModelById, parseAIModelsFromPermissions } from './types/models'
 import { buildChatPrompt } from './prompts/promptBuilder'
 import { RemoteInferencer } from './inferencers/remote/remoteInference'
+import { BedrockInferencer } from './inferencers/bedrock/bedrockInferencer'
 import { OllamaInferencer } from './inferencers/local/ollamaInferencer'
 import { MCPInferencer } from './inferencers/mcp/mcpInferencer'
 import { DeepAgentInferencer } from './inferencers/deepagent/DeepAgentInferencer'
@@ -22,13 +23,13 @@ import { remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled } from
 export {
   ChatCommandParser,
   ModelType, ICompletions, IParams, IRemoteModel, buildChatPrompt,
-  RemoteInferencer, OllamaInferencer, MCPInferencer, DeepAgentInferencer, RemixMCPServer, isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost,
+  RemoteInferencer, BedrockInferencer, OllamaInferencer, MCPInferencer, DeepAgentInferencer, RemixMCPServer, isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost,
   getModelCapabilities, modelSupportsTools, modelSupportsThinking, listToolCapableModels,
   FIMModelManager, FIMModelConfig, FIM_MODEL_CONFIGS, createRemixMCPServer,
   InsertionParams, CompletionParams, GenerationParams, AssistantParams,
   ChatEntry, AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,
   mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig,
-  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions,
+  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, BEDROCK_MODELS, getModelById, parseAIModelsFromPermissions,
   ChatHistoryStorageManager, IndexedDBChatHistoryBackend,
   WeightedToolSelector, IChatMessage,
   remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled

@@ -1,5 +1,6 @@
 import { remixAILogger,
   MCPInferencer,
+  BedrockInferencer,
   GenerationParams,
   CompletionParams,
   AssistantParams,
@@ -7,11 +8,13 @@ import { remixAILogger,
   getBestAvailableModel,
   listModels,
   modelSupportsTools,
-  getModelById
+  getModelById,
+  BEDROCK_MODELS
 } from '@remix/remix-ai-core'
 import type { AIModel } from '@remix/remix-ai-core'
 import type { IRemixAIPlugin } from './types'
 import type { DeepAgentEventBridge } from './DeepAgentEventBridge'
+import { ApiKeySettingsHelper } from './ApiKeySettingsHelper'
 
 export interface ModelManagerDeps {
   plugin: IRemixAIPlugin
@@ -43,6 +46,9 @@ export class ModelManager {
       remixAILogger.warn('[ModelManager] assistantState.getAvailableModels failed', e)
     }
     if (!model) model = getModelById(modelId)
+    // Bedrock models are not in the backend catalogue (they're user-credential-local)
+    // so check the static list before giving up.
+    if (!model) model = BEDROCK_MODELS.find(m => m.id === modelId)
     if (!model) {
       // No silent fallback. The picker is fed by /permissions — if a
       // caller asks for a model id that isn't in any catalogue we have a
@@ -74,9 +80,14 @@ export class ModelManager {
       AssistantParams.threadId = ''
     }
 
+    console.log(`[ModelManager] Model set to ${modelId}`, model)
     // Switch inferencer based on provider
     if (model.provider === 'ollama') {
       await this.handleOllamaProvider(model, modelId)
+    } else if (model.provider === 'bedrock') {
+      await this.handleBedrockProvider(model, modelId)
+    } else if ((plugin as any).bedrockInferencer) {
+      ;(plugin as any).setBedrockInferencer(null)
     }
 
     // Update MCP inferencer if enabled
@@ -112,6 +123,24 @@ export class ModelManager {
     // Emit event for UI updates
     plugin.emit('modelChanged', modelId)
     ;(plugin as any).publishRouteStatus?.()
+  }
+
+  private async handleBedrockProvider(_model: AIModel, modelId: string): Promise<void> {
+    const plugin = this.deps.plugin
+    try {
+      const apiKeyHelper = new ApiKeySettingsHelper(plugin as any)
+      const userApiKeys = await apiKeyHelper.getUserApiKeysConfig()
+      if (userApiKeys?.awsAccessKeyId && userApiKeys?.awsSecretAccessKey) {
+        ;(plugin as any).setBedrockInferencer(new BedrockInferencer(modelId, userApiKeys))
+        remixAILogger.log(`[ModelManager] BedrockInferencer created for model: ${modelId}`)
+      } else {
+        remixAILogger.warn('[ModelManager] Bedrock selected but AWS credentials missing')
+        ;(plugin as any).setBedrockInferencer(null)
+      }
+    } catch (e) {
+      remixAILogger.warn('[ModelManager] BedrockInferencer creation failed', e)
+      ;(plugin as any).setBedrockInferencer(null)
+    }
   }
 
   private async handleOllamaProvider(_model: AIModel, _modelId: string): Promise<void> {

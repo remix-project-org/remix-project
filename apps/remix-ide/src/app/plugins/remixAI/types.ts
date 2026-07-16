@@ -112,6 +112,7 @@ export interface IRemixAIPlugin {
   mcpEnabled: boolean
   remixMCPServer: any
   remoteInferencer: any
+  bedrockInferencer: any
   deepAgentInferencer: DeepAgentInferencer | null
   deepAgentEnabled: boolean
   selectedModel: any
