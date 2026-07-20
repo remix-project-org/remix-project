@@ -55,6 +55,7 @@ function DeployPanel(): JSX.Element {
   });
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isDocsOpen, setIsDocsOpen] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
   const [isGeneratingDocs, setIsGeneratingDocs] = useState(false);
   const [docsExists, setDocsExists] = useState(false);
@@ -208,7 +209,8 @@ function DeployPanel(): JSX.Element {
         });
       }
 
-      await plugin.call('fileManager', 'open', DOCS_FILENAME);
+      await plugin.call('doc-viewer' as any, 'viewDocs', [DOCS_FILENAME]);
+      await plugin.call('tabs' as any, 'focus', 'doc-viewer');
     } catch (e: any) {
       console.warn(`[QuickDapp] Failed to open ${DOCS_FILENAME}:`, e);
       await plugin.call('notification', 'toast', `Failed to open ${DOCS_FILENAME}: ${e.message || e}`);
@@ -430,7 +432,7 @@ function DeployPanel(): JSX.Element {
     return (
       <div className="d-flex justify-content-between gap-2 py-1 border-bottom">
         <span className="text-muted flex-shrink-0">{label}</span>
-        <span className={`text-end text-break ${monospace ? 'font-monospace small' : ''}`}>
+        <span className={`text-end text-break ${monospace ? 'font-monospace' : ''}`}>
           {displayValue}
         </span>
       </div>
@@ -452,7 +454,7 @@ function DeployPanel(): JSX.Element {
           Dapp info <i className={`fas ${isInfoOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isInfoOpen}>
-          <Card.Body className="small">
+          <Card.Body>
             <div className="mb-3">
               <div className="text-uppercase text-muted mb-1">Summary</div>
               {renderInfoRow('Type', getAppKindLabel(activeDapp))}
@@ -476,7 +478,6 @@ function DeployPanel(): JSX.Element {
               {renderInfoRow('DApp workspace', activeDapp.workspaceName, true)}
               {renderInfoRow('Source workspace', activeDapp.sourceWorkspace?.name, true)}
               {renderInfoRow('Config', configPath, true)}
-              {renderInfoRow('Docs', docsExists ? DOCS_FILENAME : 'Not generated', true)}
             </div>
 
             <div className="mb-3">
@@ -502,22 +503,38 @@ function DeployPanel(): JSX.Element {
               {renderInfoRow('ENS', activeDapp.deployment?.ensDomain, true)}
               {renderInfoRow('Last deployed', formatTimestamp(activeDapp.lastDeployedAt))}
             </div>
-
-            <div className="d-flex flex-wrap gap-2">
-              <Button variant="outline-primary" size="sm" onClick={handleGenerateDocs} disabled={isGeneratingDocs}>
-                {isGeneratingDocs ? <><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-1" />Preparing...</> : `Generate ${DOCS_FILENAME}`}
-              </Button>
-              {docsExists && (
-                <Button variant="outline-secondary" size="sm" onClick={handleOpenDocs}>
-                  Open {DOCS_FILENAME}
-                </Button>
-              )}
-            </div>
           </Card.Body>
         </Collapse>
       </Card>
     );
   };
+
+  const renderDappDocs = () => (
+    <Card className="mb-2">
+      <Card.Header onClick={() => setIsDocsOpen(!isDocsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+        Dapp documentation <i className={`fas ${isDocsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+      </Card.Header>
+      <Collapse in={isDocsOpen}>
+        <Card.Body>
+          <div className="mb-3">
+            {renderInfoRow('Status', docsExists ? 'Generated' : 'Not generated')}
+            {renderInfoRow('Workspace', activeDapp?.workspaceName, true)}
+            {renderInfoRow('File path', `/${DOCS_FILENAME}`, true)}
+          </div>
+          <div className="d-flex flex-wrap gap-2">
+            <Button variant="primary" size="sm" onClick={handleGenerateDocs} disabled={isGeneratingDocs}>
+              {isGeneratingDocs ? <><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-1" />Preparing...</> : `Generate ${DOCS_FILENAME}`}
+            </Button>
+            {docsExists && (
+              <Button variant="secondary" size="sm" onClick={handleOpenDocs}>
+                View {DOCS_FILENAME}
+              </Button>
+            )}
+          </div>
+        </Card.Body>
+      </Collapse>
+    </Card>
+  );
 
   const renderEditForm = () => (
     <div className="mb-3">
@@ -564,6 +581,7 @@ function DeployPanel(): JSX.Element {
     return (
       <div data-id="deploy-panel">
         {renderDappInfo()}
+        {renderDappDocs()}
         <BaseAppWizard />
       </div>
     );
@@ -575,7 +593,7 @@ function DeployPanel(): JSX.Element {
 
       <Card className="mb-2">
         <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
-          Dapp details <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+          Dapp configuration <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isDetailsOpen}>
           <Card.Body>
@@ -583,6 +601,8 @@ function DeployPanel(): JSX.Element {
           </Card.Body>
         </Collapse>
       </Card>
+
+      {renderDappDocs()}
 
       <Card className="mb-2">
         <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">

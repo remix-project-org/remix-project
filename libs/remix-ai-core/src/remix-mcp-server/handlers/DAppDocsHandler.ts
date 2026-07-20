@@ -8,6 +8,7 @@ export const DAPP_DOCS_FILENAME = 'dapp-docs.md'
 const MAX_FILE_CHARS = 7000
 const MAX_TOTAL_CHARS = 36000
 const MAX_DAPP_FILES = 18
+const MAX_COVERAGE_FUNCTIONS = 40
 
 const SKIP_DIRS = new Set(['.deploys', '.git', '.states', 'build', 'dist', 'node_modules'])
 const SKIP_FILES = new Set([DAPP_DOCS_FILENAME, 'docs.md', 'preview.png', 'screenshot.png', 'package-lock.json', 'yarn.lock'])
@@ -142,6 +143,56 @@ const sanitizeJson = (value: any, key = ''): any => {
 }
 
 const safeFileContent = (content: string): string => limitText(redactSensitiveText(content))
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const hasContractFunctionCall = (content: string, functionName: string): boolean => {
+  const name = escapeRegExp(functionName)
+  return [
+    new RegExp(`\\.\\s*${name}\\s*\\(`),
+    new RegExp(`\\[\\s*['"\`]${name}['"\`]\\s*\\]\\s*\\(`),
+    new RegExp(`(?:functionName\\s*:|getFunction\\s*\\()\\s*['"\`]${name}['"\`]`)
+  ].some(pattern => pattern.test(content))
+}
+
+const buildContractCoverageEvidence = (config: any, files: DocsFile[]): string => {
+  const abi = Array.isArray(config?.contract?.abi) ? config.contract.abi : []
+  const functions = abi
+    .filter((item: any) => item?.type === 'function' && typeof item.name === 'string' && item.name)
+    .slice(0, MAX_COVERAGE_FUNCTIONS)
+
+  if (!functions.length) {
+    return 'No contract ABI functions are available. Contract coverage is not applicable.'
+  }
+
+  const frontendFiles = files.filter(file =>
+    file.role === 'DApp frontend file' && ['.html', '.js', '.jsx', '.ts', '.tsx'].includes(extensionOf(file.path))
+  )
+
+  const lines = [
+    'Static source reference scan only; this does not verify runtime behavior or transaction success.'
+  ]
+
+  for (const item of functions) {
+    const inputs = Array.isArray(item.inputs) ? item.inputs : []
+    const signature = `${item.name}(${inputs.map((input: any) => input.type || 'unknown').join(',')})`
+    const references = frontendFiles
+      .filter(file => hasContractFunctionCall(file.content, item.name))
+      .map(file => file.path)
+
+    lines.push(
+      `- ${signature} [${item.stateMutability || 'unknown'}]: ${references.length
+        ? `frontend call reference found in ${references.join(', ')}`
+        : 'no frontend call reference found'}`
+    )
+  }
+
+  if (abi.filter((item: any) => item?.type === 'function').length > functions.length) {
+    lines.push(`- Additional ABI functions omitted after the first ${MAX_COVERAGE_FUNCTIONS}.`)
+  }
+
+  return lines.join('\n')
+}
 
 const readWorkspaceFile = async (plugin: Plugin, workspaceName: string, filePath: string): Promise<string | null> => {
   try {
@@ -357,9 +408,14 @@ const buildDocsContext = async (plugin: Plugin, workspaceName: string, config: a
   await readGraphFiles(plugin, workspaceName, config, files, seen)
   await readDappWorkspaceFiles(plugin, workspaceName, config, files, seen)
 
+  const coverageEvidence = buildContractCoverageEvidence(config, files)
+
   let contextText = [
     '## DApp metadata',
     buildDappContextText(workspaceName, config),
+    '',
+    '## Contract coverage evidence',
+    coverageEvidence,
     '',
     '## Source files read for documentation'
   ].join('\n')
@@ -383,7 +439,7 @@ const buildDocsContext = async (plugin: Plugin, workspaceName: string, config: a
 
 export class GenerateDAppDocsHandler extends BaseToolHandler {
   name = 'generate_dapp_docs'
-  description = `Prepare QuickDapp documentation generation for an existing DApp workspace. Use this for dapp-docs.md requests. It validates the target workspace, gathers DApp config, contract source, frontend source, deployment, Base mini app, and The Graph context, then returns instructions to write exactly ${DAPP_DOCS_FILENAME}.`
+  description = `Prepare QuickDApp documentation generation for an existing DApp workspace. Use this for dapp-docs.md requests. It validates the target workspace, gathers DApp config, contract source, frontend source, deployment, Base mini app, and The Graph context, then returns instructions to write exactly ${DAPP_DOCS_FILENAME}.`
   inputSchema = {
     type: 'object',
     properties: {
@@ -436,24 +492,34 @@ export class GenerateDAppDocsHandler extends BaseToolHandler {
         success: true,
         workspaceName,
         targetFilename: DAPP_DOCS_FILENAME,
-        message: `QuickDapp docs context is ready.\n\n` +
+        message: `QuickDApp docs context is ready.\n\n` +
           `Write exactly one file now: /${DAPP_DOCS_FILENAME}\n` +
           `Do not modify frontend files, contract files, dapp.config.json, deployment settings, or any other file.\n` +
           `Do not call generate_dapp, update_dapp, generate_graph_dapp, or finalize_dapp_generation.\n` +
           `Use write_file with path "/${DAPP_DOCS_FILENAME}" only.\n\n` +
           `The ${DAPP_DOCS_FILENAME} file should include:\n` +
-          `- Overview\n` +
-          `- Prerequisites and user flows\n` +
-          `- Contract behavior\n` +
-          `- Contract interactions as a Markdown table with user action, UI/source, contract call, prerequisites, and result\n` +
-          `- Frontend structure\n` +
-          `- Network and deployment\n` +
-          `- Integrations\n` +
-          `- How to update this DApp\n` +
-          `- Notes and limitations\n\n` +
+          `- Overview: one short paragraph describing the DApp\n` +
+          `- Current environment: one Markdown table with QuickDApp Preview availability, contract network, external website URL, whether the contract is reachable outside Remix IDE, and a reason when unavailable\n` +
+          `- How to use: short steps for the main user flows\n` +
+          `- Features and contract coverage: one Markdown table with user action, contract function, transaction type, UI/source evidence, and coverage status\n` +
+          `- Project files: only the main files a maintainer is likely to edit\n` +
+          `- Limitations: current, concrete limitations only\n` +
+          `- Safe updates: supported ways to update the frontend and important restrictions\n\n` +
+          `Keep the document concise. Do not add design-system details such as colors or fonts unless they affect behavior. ` +
+          `Omit empty integrations and repeated metadata instead of listing many "Not configured" values. ` +
           `For major behavior and structure descriptions, cite the supporting source file path from the provided context. ` +
+          `Treat contract coverage as static source evidence only: use "Referenced" when a frontend call reference is provided and "Not found" otherwise. ` +
+          `"Not found" means the scan found no supported call pattern; it does not prove that a feature is unsupported. ` +
+          `Do not describe a referenced function as tested, working, or verified. If no ABI functions are available, state that contract coverage is not applicable. ` +
+          `Derive transaction type only from ABI mutability: view or pure is "Read only", nonpayable is "State-changing transaction", and payable is "Payable transaction". ` +
+          `Use an available gateway URL as the external website URL; otherwise state that the external website URL is not available. ` +
+          `If the contract uses a Remix VM network, state that the DApp currently runs in QuickDApp Preview through the Remix VM provider bridge. ` +
+          `For Remix VM, state that the contract is not reachable outside Remix IDE because Remix VM is an in-browser blockchain. ` +
+          `Do not say MetaMask or another browser wallet can connect to a Remix VM network, and do not instruct the user to publish that VM-bound DApp as a working public DApp. ` +
+          `Never instruct the user to edit dapp.config.json manually. Contract address, ABI, or network binding changes are outside normal frontend updates. ` +
+          `If the contract source is unavailable, do not infer access control, modifiers, internal validation, or other implementation behavior from the ABI alone. ` +
           `Do not invent file paths or line numbers. ` +
-          `Use only the metadata and source files below. If a value is not configured, say "Not configured". ` +
+          `Use only the metadata and source files below. If a required fact is unavailable, say that it is not configured or cannot be determined. ` +
           `Do not invent contract behavior, deployment state, or integrations. ` +
           `Do not include secrets, API keys, private keys, raw tokens, base64 image data, or long source-code dumps.\n\n` +
           `DApp context:\n${contextText}`
