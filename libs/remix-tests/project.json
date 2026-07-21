@@ -12,7 +12,6 @@
         "outputPath": "dist/libs/remix-tests",
         "main": "libs/remix-tests/src/index.ts",
         "tsConfig": "libs/remix-tests/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
         "assets": [
           {
             "glob": "remix-tests",
@@ -28,12 +27,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-tests/**/*.ts"],
-        "eslintConfig": "libs/remix-tests/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

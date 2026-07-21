@@ -12,7 +12,6 @@
         "outputPath": "dist/libs/remix-ws-templates",
         "main": "libs/remix-ws-templates/src/index.ts",
         "tsConfig": "libs/remix-ws-templates/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
         "assets": [
           {
             "glob": "templates/**/*",
@@ -34,12 +33,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-ws-templates/**/*.ts"],
-        "eslintConfig": "libs/remix-ws-templates/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

@@ -209,7 +209,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/contract-verification/**/*.ts"],
@@ -553,7 +553,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-import-resolver/**/*.ts"],
@@ -860,7 +860,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-url-resolver/**/*.ts"],
@@ -989,7 +989,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-ws-templates/**/*.ts"],
@@ -1741,7 +1741,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/solidity-compiler/**/*.ts"],
@@ -1890,7 +1890,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-core-plugin/**/*.ts"],
@@ -2045,7 +2045,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/circuit-compiler/**/*.ts"],
@@ -2261,7 +2261,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/ghaction-helper/**/*.ts"],
@@ -2376,7 +2376,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-astwalker/**/*.ts"],
@@ -2530,7 +2530,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-simulator/**/*.ts"],
@@ -2758,7 +2758,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-analyzer/**/*.ts"],
@@ -3358,7 +3358,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-solidity/**/*.ts"],
@@ -3511,7 +3511,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/noir-compiler/**/*.ts"],
@@ -3671,7 +3671,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-ai-core/**/*.ts"],
@@ -3862,7 +3862,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-debug/**/*.ts"],
@@ -4399,7 +4399,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-tests/**/*.ts"],
@@ -4698,7 +4698,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/doc-viewer/**/*.ts"],
@@ -4871,7 +4871,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/remix-ide/**/*.{ts,tsx,js,jsx}"],
@@ -7082,7 +7082,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-lib/**/*.ts"],
@@ -7337,7 +7337,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/debugger/**/*.ts"],
@@ -7497,7 +7497,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/learneth/**/*.ts"],
@@ -7707,7 +7707,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remix-ui/**/*.{ts,tsx,js,jsx}"],
@@ -10323,7 +10323,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/doc-gen/**/*.ts"],
@@ -10641,7 +10641,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/solhint/**/*.ts"],
@@ -10774,7 +10774,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["libs/remixd/**/*.ts"],
@@ -10968,7 +10968,7 @@
             "lint": {
               "cache": true,
               "inputs": ["default", "{workspaceRoot}/.eslintrc.json"],
-              "executor": "@nx/linter:eslint",
+              "executor": "@nx/eslint:eslint",
               "outputs": ["{options.outputFile}"],
               "options": {
                 "lintFilePatterns": ["apps/vyper/**/*.ts"],

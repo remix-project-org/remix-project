@@ -12,17 +12,11 @@
         "outputPath": "dist/libs/remix-solidity",
         "main": "libs/remix-solidity/src/index.ts",
         "tsConfig": "libs/remix-solidity/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
         "assets": ["libs/remix-solidity/*.md"]
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-solidity/**/*.ts"],
-        "eslintConfig": "libs/remix-solidity/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

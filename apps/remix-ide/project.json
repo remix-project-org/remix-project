@@ -74,12 +74,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["apps/remix-ide/**/*.{ts,tsx,js,jsx}"],
-        "eslintConfig": "apps/remix-ide/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

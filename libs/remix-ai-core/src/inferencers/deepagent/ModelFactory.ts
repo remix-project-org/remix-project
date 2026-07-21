@@ -20,7 +20,7 @@ const AI_DEBUG = (() => {
  * Reads the token fresh from localStorage so login/logout takes effect
  * without rebuilding the cached ChatAnthropic instance.
  */
-const authedFetch: typeof fetch = (input, init = {}) => {
+const authedFetch: typeof fetch = (input, init: RequestInit = {}) => {
   const headers = new Headers(init.headers || {})
   const auth = getRemixAuthHeader()
   if (auth.Authorization) {
@@ -125,7 +125,7 @@ function injectMoonshotReasoning(bodyText: string): string {
   }
 }
 
-const moonshotFetch: typeof fetch = async (input, init = {}) => {
+const moonshotFetch: typeof fetch = async (input, init: RequestInit = {}) => {
   const headers = new Headers(init.headers || {})
   const auth = getRemixAuthHeader()
   if (auth.Authorization) headers.set('Authorization', auth.Authorization)

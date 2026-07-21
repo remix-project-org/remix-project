@@ -34,12 +34,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["apps/doc-gen/**/*.ts"],
-        "eslintConfig": "apps/doc-gen/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     },
     "serve": {
       "executor": "@nx/webpack:dev-server",

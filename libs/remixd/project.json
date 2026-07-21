@@ -12,17 +12,11 @@
         "outputPath": "dist/libs/remixd",
         "main": "libs/remixd/src/index.ts",
         "tsConfig": "libs/remixd/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
         "assets": ["libs/remixd/*.md", "libs/remixd/origins.json"]
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remixd/**/*.ts"],
-        "eslintConfig": "libs/remixd/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

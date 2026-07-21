@@ -12,7 +12,6 @@
         "outputPath": "dist/libs/remix-debug",
         "main": "libs/remix-debug/src/index.ts",
         "tsConfig": "libs/remix-debug/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
         "assets": [
           {
             "glob": "rdb",
@@ -28,12 +27,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-debug/**/*.ts"],
-        "eslintConfig": "libs/remix-debug/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

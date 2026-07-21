@@ -41,12 +41,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["apps/solhint/**/*.ts"],
-        "eslintConfig": "apps/solhint/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     },
     "serve": {
       "executor": "@nx/webpack:dev-server",

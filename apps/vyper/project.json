@@ -34,12 +34,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["apps/vyper/**/*.ts"],
-        "eslintConfig": "apps/vyper/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     },
     "serve": {
       "executor": "@nx/webpack:dev-server",

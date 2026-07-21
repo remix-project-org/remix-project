@@ -12,17 +12,11 @@
         "outputPath": "dist/libs/remix-analyzer",
         "main": "libs/remix-analyzer/src/index.ts",
         "tsConfig": "libs/remix-analyzer/tsconfig.lib.json",
-        "assets": ["libs/remix-analyzer/*.md"],
-        "updateBuildableProjectDepsInPackageJson": false
+        "assets": ["libs/remix-analyzer/*.md"]
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-analyzer/**/*.ts"],
-        "eslintConfig": "libs/remix-analyzer/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

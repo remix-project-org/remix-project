@@ -11,17 +11,11 @@
         "outputPath": "dist/libs/remix-core-plugin",
         "main": "libs/remix-core-plugin/src/index.ts",
         "tsConfig": "libs/remix-core-plugin/tsconfig.lib.json",
-        "assets": [],
-        "updateBuildableProjectDepsInPackageJson": false
+        "assets": []
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-core-plugin/**/*.ts"],
-        "eslintConfig": "libs/remix-core-plugin/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

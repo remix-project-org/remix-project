@@ -123,6 +123,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     child_process: false,
     buffer: require.resolve('buffer/'),
     vm: require.resolve('vm-browserify'),
+    tty: false,
   }
 
   // add externals

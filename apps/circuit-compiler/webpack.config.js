@@ -1,10 +1,11 @@
 const { composePlugins, withNx } = require('@nx/webpack')
+const { withReact } = require('@nx/react')
 const webpack = require('webpack')
 const TerserPlugin = require('terser-webpack-plugin')
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
 
 // Nx plugins for webpack.
-module.exports = composePlugins(withNx(), (config) => {
+module.exports = composePlugins(withNx(), withReact(), (config) => {
   // Update the webpack config as needed here.
   // e.g. `config.plugins.push(new MyPlugin())`
   // add fallback for node modules
@@ -27,6 +28,7 @@ module.exports = composePlugins(withNx(), (config) => {
     child_process: false,
     buffer: require.resolve('buffer/'),
     vm: require.resolve('vm-browserify'),
+    tty: false,
   }
 
   // add externals

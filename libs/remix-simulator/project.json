@@ -12,7 +12,6 @@
         "outputPath": "dist/libs/remix-simulator",
         "main": "libs/remix-simulator/src/index.ts",
         "tsConfig": "libs/remix-simulator/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
         "assets": [
           {
             "glob": "ethsim",
@@ -28,12 +27,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-simulator/**/*.ts"],
-        "eslintConfig": "libs/remix-simulator/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

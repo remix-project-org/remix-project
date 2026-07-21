@@ -12,7 +12,6 @@
         "outputPath": "dist/libs/remix-import-resolver",
         "main": "libs/remix-import-resolver/src/index.ts",
         "tsConfig": "libs/remix-import-resolver/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
         "assets": ["libs/remix-import-resolver/*.md"]
       }
     },
@@ -31,10 +30,8 @@
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
+      "executor": "@nx/eslint:lint",
       "options": {
-        "lintFilePatterns": ["libs/remix-import-resolver/**/*.ts"],
         "eslintConfig": "libs/remix-solidity/.eslintrc"
       }
     }

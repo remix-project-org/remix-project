@@ -12,17 +12,11 @@
         "outputPath": "dist/libs/remix-url-resolver",
         "main": "libs/remix-url-resolver/src/index.ts",
         "tsConfig": "libs/remix-url-resolver/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
         "assets": ["libs/remix-url-resolver/*.md"]
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-url-resolver/**/*.ts"],
-        "eslintConfig": "libs/remix-url-resolver/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

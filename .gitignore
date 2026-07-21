@@ -99,3 +99,5 @@ apps/remix-ide-e2e/tmp/
 docker-compose.staging.yml
 Dockerfile.staging
 .dockerignore
+
+.nx/cache

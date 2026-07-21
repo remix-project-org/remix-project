@@ -6,12 +6,7 @@
   "implicitDependencies": [],
   "targets": {
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-ui/**/*.{ts,tsx,js,jsx}"],
-        "eslintConfig": "libs/remix-ui/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

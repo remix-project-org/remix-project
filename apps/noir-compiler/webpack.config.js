@@ -1,4 +1,5 @@
 const { composePlugins, withNx } = require('@nx/webpack')
+const { withReact } = require('@nx/react')
 const webpack = require('webpack')
 const TerserPlugin = require('terser-webpack-plugin')
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
@@ -6,7 +7,7 @@ const fs = require('fs')
 const path = require('path')
 
 // Nx plugins for webpack.
-module.exports = composePlugins(withNx(), (config) => {
+module.exports = composePlugins(withNx(), withReact(), (config) => {
   // use the web build for noir-wasm
   let pkgNoirWasm = fs.readFileSync(path.resolve(__dirname, '../../node_modules/@noir-lang/noir_wasm/package.json'), 'utf8')
   let typeCount = 0
@@ -39,6 +40,7 @@ module.exports = composePlugins(withNx(), (config) => {
     child_process: false,
     buffer: require.resolve('buffer/'),
     vm: require.resolve('vm-browserify'),
+    tty: false,
   }
 
   // add externals

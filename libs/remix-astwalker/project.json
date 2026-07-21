@@ -12,17 +12,11 @@
         "outputPath": "dist/libs/remix-astwalker",
         "main": "libs/remix-astwalker/src/index.ts",
         "tsConfig": "libs/remix-astwalker/tsconfig.lib.json",
-        "assets": ["libs/remix-astwalker/*.md"],
-        "updateBuildableProjectDepsInPackageJson": false
+        "assets": ["libs/remix-astwalker/*.md"]
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-astwalker/**/*.ts"],
-        "eslintConfig": "libs/remix-astwalker/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

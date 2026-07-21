@@ -12,17 +12,11 @@
         "outputPath": "dist/libs/ghaction-helper",
         "main": "libs/ghaction-helper/src/index.ts",
         "tsConfig": "libs/ghaction-helper/tsconfig.lib.json",
-        "assets": [],
-        "updateBuildableProjectDepsInPackageJson": false
+        "assets": []
       }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/ghaction-helper/**/*.ts"],
-        "eslintConfig": "libs/ghaction-helper/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []
