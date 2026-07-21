@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { WorkspaceTemplate } from 'libs/remix-ui/workspace/src/lib/types'
 import { TemplateExplorerModalFacade } from '../src/utils/workspaceUtils'
 import { TemplateCategoryStrategy } from '../stategies/templateCategoryStrategy'
@@ -104,7 +104,7 @@ export enum TemplateExplorerWizardAction {
   IMPORT_HTTPS = 'IMPORT_HTTPS',
   SET_GIT_URL = 'SET_GIT_URL',
   UPDATE_ERC20_PERMIT = 'UPDATE_ERC20_PERMIT',
-  SET_CREATING = 'SET_CREATING'
+  SET_CREATING = 'SET_CREATING',
 }
 
 export interface TemplateItem {
@@ -151,21 +151,21 @@ export type TemplateRepository = TemplateCategory[]
 export type MetadataType = Record<string, MetadataItem>
 
 export type MetadataItem =
-{
-    type: 'git'
-    url: string
-    branch?: string
-    forceCreateNewWorkspace: boolean
-  }
-| {
-    type: 'plugin'
-    name: string
-    endpoint?: string
-    params?: string[]
-    forceCreateNewWorkspace?: boolean
-    desktopCompatible?: boolean
-    disabled?: boolean;
-  }
+  | {
+      type: 'git'
+      url: string
+      branch?: string
+      forceCreateNewWorkspace: boolean
+    }
+  | {
+      type: 'plugin'
+      name: string
+      endpoint?: string
+      params?: string[]
+      forceCreateNewWorkspace?: boolean
+      desktopCompatible?: boolean
+      disabled?: boolean
+    }
 
 export interface TemplateExplorerProps {
   plugin?: any
@@ -190,7 +190,7 @@ export enum ContractWizardAction {
   TOKEN_NAME_UPDATE = 'TOKEN_NAME_UPDATE',
   CONTRACT_NAME_UPDATE = 'CONTRACT_NAME_UPDATE',
   CONTRACT_TAG_UPDATE = 'CONTRACT_TAG_UPDATE',
-  UPDATE_ERC20_PERMIT = 'UPDATE_ERC20_PERMIT'
+  UPDATE_ERC20_PERMIT = 'UPDATE_ERC20_PERMIT',
 }
 
 export interface ContractTypeStrategy {
@@ -216,36 +216,40 @@ export interface ContractTypeStrategy {
 export type AccessControlType = 'ownable' | 'roles' | 'managed' | ''
 export type ContractType = 'erc20' | 'erc721' | 'erc1155'
 
-export interface ContractOptions {mintable: boolean, burnable: boolean, pausable: boolean}
-export interface ContractUpgradability {uups: boolean, transparent: boolean}
+export interface ContractOptions {
+  mintable: boolean
+  burnable: boolean
+  pausable: boolean
+}
+export interface ContractUpgradability {
+  uups: boolean
+  transparent: boolean
+}
 
 export interface ModifyContractProps {
   tokenName: string
   updateTokenName: (tokenName: string) => void
-  strategy: ContractTypeStrategy & {contractOptions: ContractOptions, contractUpgradability: ContractUpgradability}
+  strategy: ContractTypeStrategy & { contractOptions: ContractOptions; contractUpgradability: ContractUpgradability }
   toggleContractOption: (key: keyof ContractOptions) => void
   switchAccessControl: (accessControl: AccessControlType) => void
-  checkBoxDispatch: (value: {
-    type: ContractWizardAction;
-    payload: any;
-}) => void
+  checkBoxDispatch: (value: { type: ContractWizardAction; payload: any }) => void
 }
 
 export interface CreateWorkspaceDeps {
-  workspaceName: string,
-  workspaceTemplateName: WorkspaceTemplate,
-  opts?: { mintable?: boolean, burnable?: boolean, pausable?: boolean, uups?: boolean, transparent?: boolean },
-  isEmpty?: boolean,
-  cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void,
-  isGitRepo?: boolean,
-  createCommit?: boolean,
-  contractContent?: string,
-  contractName?: string,
+  workspaceName: string
+  workspaceTemplateName: WorkspaceTemplate
+  opts?: { mintable?: boolean; burnable?: boolean; pausable?: boolean; uups?: boolean; transparent?: boolean }
+  isEmpty?: boolean
+  cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void
+  isGitRepo?: boolean
+  createCommit?: boolean
+  contractContent?: string
+  contractName?: string
 }
 
 type TemplateItemState = {
-  value: string,
-  displayName: string,
-  tagList: string[],
+  value: string
+  displayName: string
+  tagList: string[]
   description: string
 }

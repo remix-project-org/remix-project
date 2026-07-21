@@ -5,7 +5,7 @@
   "projectType": "application",
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
+      "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "development",
       "options": {
@@ -16,18 +16,13 @@
         "main": "apps/vyper/src/main.tsx",
         "polyfills": "apps/vyper/src/polyfills.ts",
         "tsConfig": "apps/vyper/tsconfig.app.json",
-        "assets": [
-          "apps/vyper/src/favicon.ico",
-          "apps/vyper/src/assets",
-          "apps/vyper/src/profile.json"
-        ],
+        "assets": ["apps/vyper/src/favicon.ico", "apps/vyper/src/assets", "apps/vyper/src/profile.json"],
         "styles": ["apps/vyper/src/styles.css"],
         "scripts": [],
         "webpackConfig": "apps/vyper/webpack.config.js"
       },
       "configurations": {
-        "development": {
-        },
+        "development": {},
         "production": {
           "fileReplacements": [
             {
@@ -39,7 +34,7 @@
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": ["apps/vyper/**/*.ts"],
@@ -47,7 +42,7 @@
       }
     },
     "serve": {
-      "executor": "@nrwl/webpack:dev-server",
+      "executor": "@nx/webpack:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "vyper:build",

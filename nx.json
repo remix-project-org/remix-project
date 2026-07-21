@@ -11,37 +11,16 @@
     "nx.json": "*"
   },
   "namedInputs": {
-    "default": [
-      "{projectRoot}/**/*",
-      "!{projectRoot}/**/*.spec.*",
-      "!{projectRoot}/**/*.test.*",
-      "!{projectRoot}/jest.config.*",
-      "!{projectRoot}/tsconfig.spec.json",
-      "!{projectRoot}/node_modules/**"
-    ],
-    "production": [
-      "default",
-      "!{projectRoot}/**/*.md",
-      "!{projectRoot}/**/*.story.*"
-    ]
+    "default": ["{projectRoot}/**/*", "!{projectRoot}/**/*.spec.*", "!{projectRoot}/**/*.test.*", "!{projectRoot}/jest.config.*", "!{projectRoot}/tsconfig.spec.json", "!{projectRoot}/node_modules/**"],
+    "production": ["default", "!{projectRoot}/**/*.md", "!{projectRoot}/**/*.story.*"]
   },
   "tasksRunnerOptions": {
     "default": {
-      "runner": "@nrwl/nx-cloud",
+      "runner": "nx-cloud",
       "options": {
-        "cacheableOperations": [
-          "build",
-          "test",
-          "lint",
-          "e2e"
-        ],
-  "accessToken": "env:NX_CLOUD_ACCESS_TOKEN",
-        "runtimeCacheInputs": [
-          "node -v",
-          "yarn -v",
-          "echo $WALLET_CONNECT_PROJECT_ID",
-          "echo $NX_DESKTOP_FROM_DIST"
-        ]
+        "cacheableOperations": ["build", "test", "lint", "e2e"],
+        "accessToken": "env:NX_CLOUD_ACCESS_TOKEN",
+        "runtimeCacheInputs": ["node -v", "yarn -v", "echo $WALLET_CONNECT_PROJECT_ID", "echo $NX_DESKTOP_FROM_DIST"]
       }
     }
   },
@@ -86,7 +65,7 @@
   },
   "defaultProject": "remix-ide",
   "generators": {
-    "@nrwl/react": {
+    "@nx/react": {
       "application": {
         "style": "css",
         "linter": "eslint",

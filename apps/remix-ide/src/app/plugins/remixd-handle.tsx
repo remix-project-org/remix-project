@@ -1,9 +1,9 @@
 /* eslint-disable no-unused-vars */
-import React, {useRef, useState, useEffect} from 'react' // eslint-disable-line
+import React, { useRef, useState, useEffect } from 'react' // eslint-disable-line
 import { FormattedMessage } from 'react-intl'
 import { WebsocketPlugin } from '@remixproject/engine-web'
 import * as packageJson from '../../../../../package.json'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { version as remixdVersion } from '../../../../../libs/remixd/package.json'
 import { PluginManager } from '@remixproject/engine'
 import { AppModal, AlertModal, appPlatformTypes } from '@remix-ui/app'
@@ -23,7 +23,7 @@ const profile = {
   repo: 'https://github.com/ethereum/remix-project/tree/master/libs/remixd',
   maintainedBy: 'Remix',
   documentation: 'https://remix-ide.readthedocs.io/en/latest/remixd.html',
-  authorContact: ''
+  authorContact: '',
 }
 
 export class RemixdHandle extends WebsocketPlugin {
@@ -113,7 +113,7 @@ export class RemixdHandle extends WebsocketPlugin {
     }
     if (this.localhostProvider.isConnected()) {
       this.deactivate()
-    } else if (!(Registry.getInstance().get('platform').api.isDesktop())) {
+    } else if (!Registry.getInstance().get('platform').api.isDesktop()) {
       // warn the user only if he/she is in the browser context
       const mod: AppModal = {
         id: 'remixdConnect',

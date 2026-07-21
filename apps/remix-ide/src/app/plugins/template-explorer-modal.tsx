@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React from 'react'
 import { AppAction } from '@remix-ui/app'
 import { PluginViewWrapper } from '@remix-ui/helper'
@@ -19,12 +19,12 @@ const pluginProfile = {
   location: 'none',
   version: packageJson.version,
   permission: true,
-  documentation: ''
+  documentation: '',
 }
 
 export class TemplateExplorerModalPlugin extends Plugin {
   element: HTMLDivElement
-  dispatch: React.Dispatch<any> = () => { }
+  dispatch: React.Dispatch<any> = () => {}
   event: EventEmitter
   appStateDispatch: any
   fileMode: boolean
@@ -35,16 +35,14 @@ export class TemplateExplorerModalPlugin extends Plugin {
     super(pluginProfile)
     this.element = document.createElement('div')
     this.element.setAttribute('id', 'template-explorer-modal')
-    this.dispatch = () => { }
+    this.dispatch = () => {}
     this.event = new EventEmitter()
     this.fileMode = false
     this.ipfsMode = false
     this.httpImportMode = false
   }
 
-  async onActivation(): Promise<void> {
-
-  }
+  async onActivation(): Promise<void> {}
 
   async addArtefactsToWorkspace(workspaceTemplateName: WorkspaceTemplate, opts: any, isEmpty: boolean, cb: (err: Error) => void) {
     this.emit('addTemplateToWorkspaceReducerEvent', workspaceTemplateName, opts, isEmpty, (err: Error) => {
@@ -86,9 +84,7 @@ export class TemplateExplorerModalPlugin extends Plugin {
     this.httpImportMode = httpImportMode
     this.renderComponent()
   }
-  onDeactivation(): void {
-
-  }
+  onDeactivation(): void {}
 
   setDispatch(dispatch: React.Dispatch<any>) {
     this.dispatch = dispatch
@@ -117,8 +113,6 @@ export class TemplateExplorerModalPlugin extends Plugin {
   }
 
   updateComponent(state: any) {
-    return (
-      <TemplateExplorerProvider fileMode={state.fileMode} plugin={state} ipfsMode={state.ipfsMode} httpImportMode={state.httpImportMode} />
-    )
+    return <TemplateExplorerProvider fileMode={state.fileMode} plugin={state} ipfsMode={state.ipfsMode} httpImportMode={state.httpImportMode} />
   }
 }

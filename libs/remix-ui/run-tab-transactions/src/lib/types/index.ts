@@ -1,5 +1,5 @@
 import React from 'react'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import type { TransactionsPlugin } from 'apps/remix-ide/src/app/udapp/udappTransactions'
 import { FuncABI } from '@remix-project/core-plugin'
 
@@ -16,13 +16,13 @@ export interface Transaction {
     to: string
     inputs: string
     linkReferences: Record<string, any>
-    name: string,
+    name: string
     parameters: any[]
     type: 'constructor' | 'function' | 'fallback' | 'receive'
     value: bigint
-    timestamp: number,
-    targetAddress: string,
-    status: string | number | boolean,
+    timestamp: number
+    targetAddress: string
+    status: string | number | boolean
     txHash: string
   }
 }
@@ -60,11 +60,11 @@ export type Actions =
   | { type: 'SET_SCENARIO_INPUT'; payload: string }
 
 export interface RecorderData {
-    journal: Transaction[];
-    _createdContracts: { [key: string]: any };
-    _createdContractsReverse: { [key: string]: any };
-    _usedAccounts: { [key: string]: any };
-    _abis: Record<string, FuncABI[]>;
-    _contractABIReferences: { [key: string]: any };
-    _linkReferences: { [key: string]: any };
-  }
+  journal: Transaction[]
+  _createdContracts: { [key: string]: any }
+  _createdContractsReverse: { [key: string]: any }
+  _usedAccounts: { [key: string]: any }
+  _abis: Record<string, FuncABI[]>
+  _contractABIReferences: { [key: string]: any }
+  _linkReferences: { [key: string]: any }
+}

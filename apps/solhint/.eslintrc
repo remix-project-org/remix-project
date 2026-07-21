@@ -9,7 +9,7 @@
         "*.jsx"
       ],
       "rules": {
-        "@nrwl/nx/enforce-module-boundaries": [
+        "@nx/enforce-module-boundaries": [
           "off"
         ]
       }

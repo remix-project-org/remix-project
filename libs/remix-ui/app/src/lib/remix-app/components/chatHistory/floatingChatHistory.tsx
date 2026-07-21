@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useContext } from 'react'
 import { ConversationMetadata } from '@remix/remix-ai-core'
 import { CustomTooltip } from '@remix-ui/helper'
@@ -23,22 +23,7 @@ interface FloatingChatHistoryProps {
   theme?: string
 }
 
-export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
-  conversations,
-  currentConversationId,
-  showArchived,
-  onNewConversation,
-  onLoadConversation,
-  onArchiveConversation,
-  onDeleteConversation,
-  onToggleArchived,
-  onClose,
-  onSearch,
-  isFloating = false,
-  isMaximized = false,
-  panelWidth,
-  theme = 'dark'
-}) => {
+export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({ conversations, currentConversationId, showArchived, onNewConversation, onLoadConversation, onArchiveConversation, onDeleteConversation, onToggleArchived, onClose, onSearch, isFloating = false, isMaximized = false, panelWidth, theme = 'dark' }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -47,16 +32,8 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
     baseTrackEvent?.<T>(event)
   }
   const defaultPanelWidth = '350px'
-  const resolvedPanelWidth = panelWidth !== undefined
-    ? typeof panelWidth === 'number' ? `${panelWidth}px` : panelWidth
-    : defaultPanelWidth
-  const sidebarStyle = isMaximized && !isFloating
-    ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth, maxWidth: resolvedPanelWidth }
-    : isFloating
-      ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth }
-      : panelWidth !== undefined
-        ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth, maxWidth: resolvedPanelWidth, backgroundColor: theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--light-background-color)' }
-        : { minWidth: defaultPanelWidth, backgroundColor: 'transparent' }
+  const resolvedPanelWidth = panelWidth !== undefined ? (typeof panelWidth === 'number' ? `${panelWidth}px` : panelWidth) : defaultPanelWidth
+  const sidebarStyle = isMaximized && !isFloating ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth, maxWidth: resolvedPanelWidth } : isFloating ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth } : panelWidth !== undefined ? { width: resolvedPanelWidth, minWidth: resolvedPanelWidth, maxWidth: resolvedPanelWidth, backgroundColor: theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--light-background-color)' } : { minWidth: defaultPanelWidth, backgroundColor: 'transparent' }
 
   useEffect(() => {
     let cancelled = false
@@ -67,7 +44,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
         try {
           const results = await onSearch(searchQuery)
           if (!cancelled) {
-            setFilteredConversations(results.filter(conv => conv.archived === showArchived && conv.messageCount > 0))
+            setFilteredConversations(results.filter((conv) => conv.archived === showArchived && conv.messageCount > 0))
           }
         } finally {
           if (!cancelled) setIsSearching(false)
@@ -75,29 +52,24 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
         return
       }
 
-      let filtered = conversations.filter(conv => conv.archived === showArchived && conv.messageCount > 0)
+      let filtered = conversations.filter((conv) => conv.archived === showArchived && conv.messageCount > 0)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase()
-        filtered = filtered.filter(conv =>
-          conv.title.toLowerCase().includes(query) ||
-          conv.preview.toLowerCase().includes(query)
-        )
+        filtered = filtered.filter((conv) => conv.title.toLowerCase().includes(query) || conv.preview.toLowerCase().includes(query))
       }
       if (!cancelled) setFilteredConversations(filtered)
     }
 
     doFilter()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [conversations, showArchived, searchQuery, onSearch])
 
-  const archivedCount = conversations.filter(c => c.archived && c.messageCount > 0).length
+  const archivedCount = conversations.filter((c) => c.archived && c.messageCount > 0).length
 
   return (
-    <div
-      className={`d-flex flex-column h-100 ${isFloating ? 'border-end' : isMaximized ? 'border-end' : 'w-100'}`}
-      style={sidebarStyle}
-      data-id="chat-history-sidebar-maximized"
-    >
+    <div className={`d-flex flex-column h-100 ${isFloating ? 'border-end' : isMaximized ? 'border-end' : 'w-100'}`} style={sidebarStyle} data-id="chat-history-sidebar-maximized">
       {/* Header */}
       <div className="p-3">
         <div className="d-flex justify-content-between align-items-center mb-3">
@@ -119,24 +91,12 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
             }
           `}</style>
           <i className={`fas ${isSearching ? 'fa-spinner fa-spin' : 'fa-search'} position-absolute`} style={{ left: '20px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, pointerEvents: 'none', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}></i>
-          <input
-            type="text"
-            className={`form-control ps-5 ${theme.toLowerCase() === 'dark' ? 'search-input-dark' : 'search-input-light'}`}
-            style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : 'var(--light-background-color)', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-id="search-conversations-input-maximized"
-          />
+          <input type="text" className={`form-control ps-5 ${theme.toLowerCase() === 'dark' ? 'search-input-dark' : 'search-input-light'}`} style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : 'var(--light-background-color)', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }} placeholder="Search conversations..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-id="search-conversations-input-maximized" />
         </div>
 
         {/* Archive Toggle */}
         <div className="d-flex justify-content-between align-items-center">
-          <button
-            className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`}
-            onClick={onToggleArchived}
-            data-id="toggle-archived-btn"
-          >
+          <button className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`} onClick={onToggleArchived} data-id="toggle-archived-btn">
             <i className="fas fa-archive me-2"></i>
             {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
           </button>
@@ -152,7 +112,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
           overflowX: 'hidden',
           overflowY: 'auto',
           flex: 1,
-          minHeight: 0
+          minHeight: 0,
         }}
       >
         {filteredConversations.length === 0 ? (
@@ -176,7 +136,7 @@ export const FloatingChatHistory: React.FC<FloatingChatHistoryProps> = ({
             )}
           </div>
         ) : (
-          filteredConversations.map(conv => (
+          filteredConversations.map((conv) => (
             <ChatHistoryItem
               key={conv.id}
               conversation={conv}

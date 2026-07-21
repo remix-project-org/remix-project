@@ -1,10 +1,10 @@
 import { Plugin } from '@remixproject/engine'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { EnvironmentPlugin } from 'apps/remix-ide/src/app/udapp/udappEnv'
 import React, { useState } from 'react'
 import { FormattedMessage } from 'react-intl'
 
-export function PassphraseCreationPrompt ({ udappEnv }: { udappEnv: EnvironmentPlugin }) {
+export function PassphraseCreationPrompt({ udappEnv }: { udappEnv: EnvironmentPlugin }) {
   const [passphrase, setPassphrase] = useState('')
   const [matchPassphrase, setMatchPassphrase] = useState('')
 
@@ -24,7 +24,6 @@ export function PassphraseCreationPrompt ({ udappEnv }: { udappEnv: EnvironmentP
     } else {
       udappEnv.setMatchPassphrase(null)
     }
-
   }
 
   return (

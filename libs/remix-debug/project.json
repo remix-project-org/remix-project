@@ -1,44 +1,40 @@
 {
-    "name": "remix-debug",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-debug/src",
-    "projectType": "library",
-    "implicitDependencies": [
-      "remix-lib",
-      "remix-astwalker"
-    ],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/remix-debug",
-          "main": "libs/remix-debug/src/index.ts",
-          "tsConfig": "libs/remix-debug/tsconfig.lib.json",
-          "updateBuildableProjectDepsInPackageJson": false,
-          "assets": [
-            {
-              "glob": "rdb",
-              "input": "libs/remix-debug/bin/",
-              "output": "bin/"
-            },
-            {
-              "glob": "*.md",
-              "input": "libs/remix-debug/",
-              "output": "/"
-            }
-          ]
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-debug/**/*.ts"],
-          "eslintConfig": "libs/remix-debug/.eslintrc"
-        }
+  "name": "remix-debug",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-debug/src",
+  "projectType": "library",
+  "implicitDependencies": ["remix-lib", "remix-astwalker"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-debug",
+        "main": "libs/remix-debug/src/index.ts",
+        "tsConfig": "libs/remix-debug/tsconfig.lib.json",
+        "updateBuildableProjectDepsInPackageJson": false,
+        "assets": [
+          {
+            "glob": "rdb",
+            "input": "libs/remix-debug/bin/",
+            "output": "bin/"
+          },
+          {
+            "glob": "*.md",
+            "input": "libs/remix-debug/",
+            "output": "/"
+          }
+        ]
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/remix-debug/**/*.ts"],
+        "eslintConfig": "libs/remix-debug/.eslintrc"
+      }
+    }
+  },
+  "tags": []
+}

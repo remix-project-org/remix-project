@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useRef, useState } from 'react'
 import { cloneRepository } from 'libs/remix-ui/workspace/src/lib/actions'
 import { IntlShape } from 'react-intl'
@@ -7,7 +7,7 @@ import { Modal, Button, Form } from 'react-bootstrap'
 
 interface CloneRepositoryModalProps {
   intl: IntlShape
-  platform: typeof appPlatformTypes[keyof typeof appPlatformTypes]
+  platform: (typeof appPlatformTypes)[keyof typeof appPlatformTypes]
   plugin: any
 }
 
@@ -24,10 +24,8 @@ export const useCloneRepositoryModal = ({ intl, platform, plugin }: CloneReposit
       okFn: () => {
         okFn()
       },
-      cancelFn: () => {
-
-      },
-      hideFn: () => null
+      cancelFn: () => {},
+      hideFn: () => null,
     }
     plugin.call('notification', 'modal', upgradeModal)
   }
@@ -38,7 +36,7 @@ export const useCloneRepositoryModal = ({ intl, platform, plugin }: CloneReposit
           type="text"
           data-id="modalDialogCustomPromptTextClone"
           placeholder={intl.formatMessage({
-            id: 'filePanel.workspace.enterGitUrl'
+            id: 'filePanel.workspace.enterGitUrl',
           })}
           ref={cloneUrlRef}
           className="form-control"
@@ -53,24 +51,12 @@ export const useCloneRepositoryModal = ({ intl, platform, plugin }: CloneReposit
     if (url) {
       cloneRepository(url)
     } else {
-      modal(
-        intl.formatMessage({ id: 'filePanel.workspace.clone' }),
-        intl.formatMessage({ id: 'filePanel.workspace.cloneMessage' }),
-        intl.formatMessage({ id: (platform !== appPlatformTypes.desktop) ? 'filePanel.ok' : 'filePanel.selectFolder' }),
-        () => { },
-        intl.formatMessage({ id: 'filePanel.cancel' })
-      )
+      modal(intl.formatMessage({ id: 'filePanel.workspace.clone' }), intl.formatMessage({ id: 'filePanel.workspace.cloneMessage' }), intl.formatMessage({ id: platform !== appPlatformTypes.desktop ? 'filePanel.ok' : 'filePanel.selectFolder' }), () => {}, intl.formatMessage({ id: 'filePanel.cancel' }))
     }
   }
 
   const showCloneModal = () => {
-    modal(
-      intl.formatMessage({ id: 'filePanel.workspace.clone' }),
-      cloneModalMessage(),
-      intl.formatMessage({ id: (platform !== appPlatformTypes.desktop) ? 'filePanel.ok' : 'filePanel.selectFolder' }),
-      handleTypingUrl,
-      intl.formatMessage({ id: 'filePanel.cancel' })
-    )
+    modal(intl.formatMessage({ id: 'filePanel.workspace.clone' }), cloneModalMessage(), intl.formatMessage({ id: platform !== appPlatformTypes.desktop ? 'filePanel.ok' : 'filePanel.selectFolder' }), handleTypingUrl, intl.formatMessage({ id: 'filePanel.cancel' }))
   }
 
   return { showCloneModal }
@@ -80,7 +66,7 @@ export const useCloneRepositoryModal = ({ intl, platform, plugin }: CloneReposit
 interface StandaloneCloneModalProps {
   show: boolean
   onHide: () => void
-  platform?: typeof appPlatformTypes[keyof typeof appPlatformTypes]
+  platform?: (typeof appPlatformTypes)[keyof typeof appPlatformTypes]
 }
 
 export const StandaloneCloneModal = ({ show, onHide, platform }: StandaloneCloneModalProps) => {
@@ -125,11 +111,7 @@ export const StandaloneCloneModal = ({ show, onHide, platform }: StandaloneClone
         <Button variant="secondary" onClick={handleCancel}>
           Cancel
         </Button>
-        <Button
-          variant="primary"
-          onClick={handleClone}
-          disabled={!url}
-        >
+        <Button variant="primary" onClick={handleClone} disabled={!url}>
           {platform === appPlatformTypes.desktop ? 'Select Folder' : 'OK'}
         </Button>
       </Modal.Footer>

@@ -42,6 +42,7 @@ remix-project/
 ### Key Libraries to Know
 
 **remix-ai-core** (Important for AI features):
+
 - Location: `libs/remix-ai-core/src/`
 - Structure:
   - `agents/`: Code explanation, security, completion, workspace agents
@@ -53,16 +54,19 @@ remix-project/
   - `prompts/`: System prompts and prompt builders
 
 **remix-core-plugin**:
+
 - Base classes for plugin development
 - Plugin architecture based on `@remixproject/engine`
 - Event-driven communication
 
 **remix-ui**:
+
 - Modular React components in separate packages
 - Each concern has its own sub-package (e.g., `remix-ui/terminal`, `remix-ui/editor`)
 - Uses Bootstrap 5 and React hooks
 
 **remix-ide-e2e**:
+
 - Nightwatch-based E2E tests
 - Tests organized by feature with groups: `<testname>_group<number>.test.js`
 - Group tags allow parallel execution: `#group1`, `#group2`, etc.
@@ -104,23 +108,27 @@ yarn format           # Format code
 ## Important Patterns & Conventions
 
 ### File Organization
+
 - TypeScript path aliases defined in `tsconfig.base.json`
 - Use `@remix-project/<library-name>` imports, not relative paths across libraries
 - Each library has: `src/`, `README.md`, `package.json`, `tsconfig.json`
 
 ### Testing Patterns
+
 - Unit tests: Jest, located alongside source files
 - E2E tests: Nightwatch, in `apps/remix-ide-e2e/src/tests/`
 - Group tags in E2E: `'Test description #group1': function (browser) { ... }`
 - Must add `'@disabled': true` to test file metadata when using groups
 
 ### Plugin Architecture
+
 - Plugins extend base classes from `remix-core-plugin`
 - Communication via event system
 - API contracts defined in `remix-api`
 - Uses `@remixproject/engine` framework
 
 ### UI Component Pattern
+
 ```typescript
 import React from 'react'
 
@@ -136,6 +144,7 @@ export const Component: React.FC<ComponentProps> = (props) => {
 ```
 
 ### Internationalization
+
 - Uses react-intl with FormattedMessage
 - Translations managed via CrowdIn (NOT GitHub PRs)
 - Locale files in `apps/remix-ide/src/app/tabs/locales/`
@@ -144,12 +153,14 @@ export const Component: React.FC<ComponentProps> = (props) => {
 ## When Working on This Codebase
 
 ### Always Check First
+
 1. **Build libs before building apps**: `yarn run build:libs` before `yarn build`
 2. **Nx cache**: Uses Nx Cloud for caching (configured in `nx.json`)
 3. **Node version**: Requires Node 20+ (check `package.json` engines)
 4. **Branch strategy**: PRs should target `master` branch
 
 ### Common Locations
+
 - **Tests**: `apps/remix-ide-e2e/src/tests/` (E2E), `<library>/src/**/*.spec.ts` (unit)
 - **UI Components**: `libs/remix-ui/<component>/src/lib/`
 - **Plugin Code**: `libs/remix-core-plugin/src/`
@@ -158,7 +169,9 @@ export const Component: React.FC<ComponentProps> = (props) => {
 - **Contributing Guide**: `CONTRIBUTING.md` at root
 
 ### File Reading Strategy
+
 When exploring the codebase:
+
 1. Start with `README.md` files in relevant directories
 2. Check `package.json` for dependencies and scripts
 3. Look for TypeScript interfaces/types to understand data structures
@@ -166,6 +179,7 @@ When exploring the codebase:
 5. For AI features, check `libs/remix-ai-core/src/` structure
 
 ### Code Style
+
 - Follow JavaScript Standard Style
 - TypeScript preferred for new code
 - Run `yarn format` before committing
@@ -174,25 +188,29 @@ When exploring the codebase:
 ### Typical Task Workflows
 
 **Adding a new library:**
+
 ```bash
-nx generate @nrwl/node:library <name>
+nx generate @nx/node:library <name>
 # Update build:libs script in package.json
 # Add README.md
 ```
 
 **Adding UI component:**
+
 - Create in `libs/remix-ui/<component>/src/lib/`
 - Export from package index
 - Add tests alongside component
 - Use existing Bootstrap 5 classes
 
 **Adding E2E test:**
+
 - Create in `apps/remix-ide-e2e/src/tests/`
 - Use group tags: `#group1`, `#group2`, etc.
 - Add `'@disabled': true` to metadata
 - Build with `yarn build:e2e` before running
 
 **Adding AI features:**
+
 - Agents: `libs/remix-ai-core/src/agents/`
 - MCP Handlers: `libs/remix-ai-core/src/remix-mcp-server/handlers/`
 - Resource Providers: `libs/remix-ai-core/src/remix-mcp-server/providers/`
@@ -227,6 +245,7 @@ nx generate @nrwl/node:library <name>
 ## Project-Specific Knowledge
 
 ### Ethereum/Solidity Context
+
 - This is a Solidity IDE, so many libraries deal with:
   - Solidity compilation and AST parsing
   - EVM debugging and transaction tracing
@@ -234,17 +253,20 @@ nx generate @nrwl/node:library <name>
   - Smart contract testing and deployment
 
 ### Desktop vs Web IDE
+
 - `remix-ide`: Web application (main focus)
 - `remixdesktop`: Electron wrapper with additional local file access
 - Both share most code but have different build configurations
 
 ### Plugin System
+
 - Remix is highly extensible through plugins
 - Plugins can be loaded from URLs, local files, or built-in
 - Communication via pub/sub event system
 - Each plugin has a profile (name, description, methods, events)
 
 ### Testing Philosophy
+
 - Group-based E2E tests for parallel execution
 - Tests can run in isolation or all groups sequentially
 - CircleCI runs tests in parallel across multiple containers
@@ -263,6 +285,7 @@ nx generate @nrwl/node:library <name>
 ## Updates to This File
 
 Team members should update this file when:
+
 - New critical patterns emerge
 - Project structure changes significantly
 - Important conventions are established

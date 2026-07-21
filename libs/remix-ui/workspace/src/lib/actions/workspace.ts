@@ -37,27 +37,19 @@ import {
   setCurrentWorkspaceHasGitSubmodules,
   setCurrentLocalFilePath,
 } from './payload'
-import {
-  addSlash,
-  checkSlash,
-  checkSpecialChars,
-  getQuickDappWorkspaceLock,
-  getQuickDappWorkspaceLockMessage,
-  getQuickDappWorkspaceMutationLockMessage,
-  isQuickDappWorkspaceSwitchBlocked
-} from '@remix-ui/helper'
+import { addSlash, checkSlash, checkSpecialChars, getQuickDappWorkspaceLock, getQuickDappWorkspaceLockMessage, getQuickDappWorkspaceMutationLockMessage, isQuickDappWorkspaceSwitchBlocked } from '@remix-ui/helper'
 
 import { FileTree, JSONStandardInput, WorkspaceTemplate } from '../types'
 import { QueryParams } from '@remix-project/remix-lib'
 import * as templateWithContent from '@remix-project/remix-ws-templates'
 import { ROOT_PATH } from '../utils/constants'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { IndexedDBStorage } from '../../../../../../apps/remix-ide/src/app/files/filesystems/indexedDB'
 import { getUncommittedFiles } from '../utils/gitStatusFilter'
 import { AppModal, ModalTypes } from '@remix-ui/app'
 
 import { gitUIPanels } from '@remix-ui/git'
-import { Plugin } from "@remixproject/engine";
+import { Plugin } from '@remixproject/engine'
 import { CustomRemixApi, branch, cloneInputType } from '@remix-api'
 import { scriptTemplates } from './scriptTemplates'
 
@@ -72,15 +64,11 @@ const LOCALHOST = ' - connect to localhost - '
 const NO_WORKSPACE = ' - none - '
 const ELECTRON = 'electron'
 const queryParams = new QueryParams()
-let plugin: any, dgitPlugin: Plugin<any, CustomRemixApi>,dispatch: React.Dispatch<any>
+let plugin: any, dgitPlugin: Plugin<any, CustomRemixApi>, dispatch: React.Dispatch<any>
 
 type WorkspaceActionCallback = (err: Error, result?: string | number | boolean | Record<string, any>) => void
 
-const throwIfQuickDappWorkspaceMutationLocked = (
-  actionName: string,
-  workspaceName?: string,
-  cb?: WorkspaceActionCallback
-) => {
+const throwIfQuickDappWorkspaceMutationLocked = (actionName: string, workspaceName?: string, cb?: WorkspaceActionCallback) => {
   const quickDappLock = getQuickDappWorkspaceLock()
   if (!quickDappLock) return
 
@@ -90,11 +78,13 @@ const throwIfQuickDappWorkspaceMutationLocked = (
     operation: quickDappLock.operation,
     lockedWorkspace: quickDappLock.workspaceName,
     attemptedWorkspace: workspaceName,
-    slug: quickDappLock.slug
+    slug: quickDappLock.slug,
   })
   try {
     plugin.call('notification', 'toast', message)
-  } catch { /* best-effort notification */ }
+  } catch {
+    /* best-effort notification */
+  }
   const error = new Error(message)
   cb && cb(error)
   throw error
@@ -129,12 +119,7 @@ class WorkspaceOperationQueue {
 
   private _log(tag: string, opId: number, label: string, extra?: string) {
     if (!this._debug) return
-    console.log(
-      `%c[WorkspaceQueue]%c %c${tag}%c %c${label}%c #${opId} depth=${this._depth} queued=${this._queuedCount}${extra ? ' ' + extra : ''}`,
-      'color:#e57a00;font-weight:bold', '',
-      tag.includes('ERR') ? 'color:red;font-weight:bold' : tag.includes('OK') ? 'color:green' : 'color:#2196F3;font-weight:bold', '',
-      'color:#9c27b0;font-weight:bold', ''
-    )
+    console.log(`%c[WorkspaceQueue]%c %c${tag}%c %c${label}%c #${opId} depth=${this._depth} queued=${this._queuedCount}${extra ? ' ' + extra : ''}`, 'color:#e57a00;font-weight:bold', '', tag.includes('ERR') ? 'color:red;font-weight:bold' : tag.includes('OK') ? 'color:green' : 'color:#2196F3;font-weight:bold', '', 'color:#9c27b0;font-weight:bold', '')
   }
 
   /**
@@ -168,8 +153,18 @@ class WorkspaceOperationQueue {
       this._depth++
       const t0 = performance.now()
       return fn().then(
-        (v) => { this._depth--; this._log('REENTRANT-OK', opId, opLabel, `${(performance.now() - t0).toFixed(0)}ms`); this._drainCheck(); return v },
-        (e) => { this._depth--; this._log('REENTRANT-ERR', opId, opLabel, `${(performance.now() - t0).toFixed(0)}ms ${e?.message || e}`); this._drainCheck(); throw e }
+        (v) => {
+          this._depth--
+          this._log('REENTRANT-OK', opId, opLabel, `${(performance.now() - t0).toFixed(0)}ms`)
+          this._drainCheck()
+          return v
+        },
+        (e) => {
+          this._depth--
+          this._log('REENTRANT-ERR', opId, opLabel, `${(performance.now() - t0).toFixed(0)}ms ${e?.message || e}`)
+          this._drainCheck()
+          throw e
+        },
       )
     }
 
@@ -283,17 +278,7 @@ const removeSlash = (s: string) => {
  * the workspace operation queue lock (e.g. deleteWorkspace, switchToWorkspace)
  * must call this directly to avoid deadlocking on the queue.
  */
-const _createWorkspaceInternal = async (
-  workspaceName: string,
-  workspaceTemplateName: WorkspaceTemplate,
-  opts = null,
-  isEmpty = false,
-  cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void,
-  isGitRepo: boolean = false,
-  createCommit: boolean = true,
-  contractContent?: string,
-  contractName?: string,
-) => {
+const _createWorkspaceInternal = async (workspaceName: string, workspaceTemplateName: WorkspaceTemplate, opts = null, isEmpty = false, cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void, isGitRepo: boolean = false, createCommit: boolean = true, contractContent?: string, contractName?: string) => {
   throwIfQuickDappWorkspaceMutationLocked('Workspace creation', workspaceName, cb)
 
   if (plugin.registry.get('platform').api.isDesktop()) {
@@ -364,12 +349,12 @@ const _createWorkspaceInternal = async (
               status.map(([filepath, , worktreeStatus]) =>
                 worktreeStatus
                   ? dgitPlugin.call('dgitApi', 'add', {
-                    filepath: removeSlash(filepath),
-                  })
+                      filepath: removeSlash(filepath),
+                    })
                   : dgitPlugin.call('dgitApi', 'rm', {
-                    filepath: removeSlash(filepath),
-                  })
-              )
+                      filepath: removeSlash(filepath),
+                    }),
+              ),
             )
             await dgitPlugin.call('dgitApi', 'commit', {
               author: {
@@ -379,24 +364,27 @@ const _createWorkspaceInternal = async (
               message: `Initial commit: remix template ${workspaceTemplateName}`,
             })
           } else {
-            plugin.call(
-              'notification',
-              'toast',
-              'Git credentials not set – skipping initial commit. You can set them in Settings → GitHub.'
-            )
+            plugin.call('notification', 'toast', 'Git credentials not set – skipping initial commit. You can set them in Settings → GitHub.')
           }
         }
       } catch (gitErr) {
         console.warn('[createWorkspace] Initial git commit failed (workspace is still usable):', gitErr)
-        plugin.call(
-          'notification',
-          'toast',
-          'Could not create initial git commit: ' + (gitErr.message || gitErr)
-        )
+        plugin.call('notification', 'toast', 'Could not create initial git commit: ' + (gitErr.message || gitErr))
       }
     }
 
-    await populateWorkspace(workspaceTemplateName, opts, isEmpty, (err: Error) => { cb && cb(err, workspaceName) }, isGitRepo, createCommit, contractContent, contractName)
+    await populateWorkspace(
+      workspaceTemplateName,
+      opts,
+      isEmpty,
+      (err: Error) => {
+        cb && cb(err, workspaceName)
+      },
+      isGitRepo,
+      createCommit,
+      contractContent,
+      contractName,
+    )
     // this call needs to be here after the callback because it calls dGitProvider which also calls this function and that would cause an infinite loop
     await plugin.setWorkspaces(await getWorkspaces())
   } catch (error) {
@@ -405,39 +393,17 @@ const _createWorkspaceInternal = async (
   }
 }
 
-export const createWorkspace = async (
-  workspaceName: string,
-  workspaceTemplateName: WorkspaceTemplate,
-  opts = null,
-  isEmpty = false,
-  cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void,
-  isGitRepo: boolean = false,
-  createCommit: boolean = true,
-  contractContent?: string,
-  contractName?: string,
-) => {
-  return workspaceOperationQueue.run(() =>
-    _createWorkspaceInternal(workspaceName, workspaceTemplateName, opts, isEmpty, cb, isGitRepo, createCommit, contractContent, contractName)
-  , `createWorkspace(${workspaceName})`)
+export const createWorkspace = async (workspaceName: string, workspaceTemplateName: WorkspaceTemplate, opts = null, isEmpty = false, cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void, isGitRepo: boolean = false, createCommit: boolean = true, contractContent?: string, contractName?: string) => {
+  return workspaceOperationQueue.run(() => _createWorkspaceInternal(workspaceName, workspaceTemplateName, opts, isEmpty, cb, isGitRepo, createCommit, contractContent, contractName), `createWorkspace(${workspaceName})`)
 }
 
 export const generateWorkspace = async () => {
-  await plugin.call('notification', 'alert', 'Your request is being processed. Please wait while I generate the Workspace for you. It won\'t be long.')
+  await plugin.call('notification', 'alert', "Your request is being processed. Please wait while I generate the Workspace for you. It won't be long.")
 }
 
-export const populateWorkspace = async (
-  workspaceTemplateName: WorkspaceTemplate,
-  opts = null,
-  isEmpty = false,
-  cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void,
-  isGitRepo: boolean = false,
-  createCommit: boolean = false,
-  contractContent?: string,
-  contractName?: string,
-) => {
-
-  if (scriptTemplates.some(template => template.templateName === workspaceTemplateName)) {
-    const templateArtefact = scriptTemplates.find(template => template.templateName === workspaceTemplateName)?.templateArtefact
+export const populateWorkspace = async (workspaceTemplateName: WorkspaceTemplate, opts = null, isEmpty = false, cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void, isGitRepo: boolean = false, createCommit: boolean = false, contractContent?: string, contractName?: string) => {
+  if (scriptTemplates.some((template) => template.templateName === workspaceTemplateName)) {
+    const templateArtefact = scriptTemplates.find((template) => template.templateName === workspaceTemplateName)?.templateArtefact
     if (templateArtefact) {
       for (const file of templateArtefact.files) {
         const fileExists = await plugin.call('fileManager', 'exists', file)
@@ -532,9 +498,9 @@ export type UrlParametersType = {
  * @param {string} b64Payload  The base64 payload you got from params.code
  */
 export const decodeBase64 = (b64Payload: string) => {
-  const raw = atob(decodeURIComponent(b64Payload));
-  const bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
+  const raw = atob(decodeURIComponent(b64Payload))
+  const bytes = Uint8Array.from(raw, (c) => c.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
 }
 
 const isReadme = (path: string) => {
@@ -562,10 +528,7 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
   const writeToTargetWorkspace = async (path: string, content: string) => {
     const current = workspaceProvider.workspace
     if (current !== _targetWorkspace) {
-      console.warn(
-        `[loadWorkspacePreset] workspace drifted: expected "${_targetWorkspace}" but provider has "${current}". ` +
-        `Forcing write to target workspace.`
-      )
+      console.warn(`[loadWorkspacePreset] workspace drifted: expected "${_targetWorkspace}" but provider has "${current}". ` + `Forcing write to target workspace.`)
     }
     workspaceProvider.workspace = _targetWorkspace
     try {
@@ -581,215 +544,219 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
   }
 
   switch (template) {
-  case 'code-template':
-    // creates a new workspace code-sample and loads code from url params.
-    try {
-      let path = ''
-      let content
+    case 'code-template':
+      // creates a new workspace code-sample and loads code from url params.
+      try {
+        let path = ''
+        let content
 
-      if (params.code) {
-        await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-code-param', isClick: false })
-        const hashed = bytesToHex(hash.keccakFromString(params.code))
+        if (params.code) {
+          await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-code-param', isClick: false })
+          const hashed = bytesToHex(hash.keccakFromString(params.code))
 
-        path = 'contract-' + hashed.replace('0x', '').substring(0, 10) + (params.language && params.language.toLowerCase() === 'yul' ? '.yul' : '.sol')
-        content = decodeBase64(params.code)
-        if (params.remaps) {
-          await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-remaps-param', isClick: false })
-          const remapsContent = decodeBase64(params.remaps)
-          await writeToTargetWorkspace('remappings.txt', remapsContent)
-        }
-        await writeToTargetWorkspace(path, content)
-      }
-      if (params.shareCode) {
-        await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-shareCode-param', isClick: false })
-        const host = '127.0.0.1'
-        const port = 5001
-        const protocol = 'http'
-        // const projectId = ''
-        // const projectSecret = ''
-        // const auth = 'Basic ' + Buffer.from(projectId + ':' + projectSecret).toString('base64')
-
-        const ipfs = IpfsHttpClient({ port, host, protocol
-          , headers: {
-            // authorization: auth
+          path = 'contract-' + hashed.replace('0x', '').substring(0, 10) + (params.language && params.language.toLowerCase() === 'yul' ? '.yul' : '.sol')
+          content = decodeBase64(params.code)
+          if (params.remaps) {
+            await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-remaps-param', isClick: false })
+            const remapsContent = decodeBase64(params.remaps)
+            await writeToTargetWorkspace('remappings.txt', remapsContent)
           }
-        })
-        const hashed = bytesToHex(hash.keccakFromString(params.shareCode))
-
-        path = 'contract-' + hashed.replace('0x', '').substring(0, 10) + (params.language && params.language.toLowerCase() === 'yul' ? '.yul' : '.sol')
-        const fileData = ipfs.get(params.shareCode)
-        for await (const file of fileData) {
-          const fileContent = []
-          for await (const chunk of file.content) fileContent.push(chunk)
-          content = Buffer.concat(fileContent).toString()
-        }
-        await writeToTargetWorkspace(path, content)
-      }
-      if (params.url) {
-        await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-url-param', isClick: false })
-        const data = await plugin.call('contentImport', 'resolve', params.url)
-        path = data.cleanUrl
-        content = data.content
-        try {
-          content = JSON.parse(content) as any
-          if (content.language && content.language === 'Solidity' && content.sources) {
-            const standardInput: JSONStandardInput = content as JSONStandardInput
-            for (const [fname, source] of Object.entries(standardInput.sources)) {
-              await writeToTargetWorkspace(fname, source.content)
-            }
-            return Object.keys(standardInput.sources)[0]
-          } else {
-            // preserve JSON whitespace if this isn't a Solidity compiler JSON-input-output file
-            content = data.content
-            await writeToTargetWorkspace(path, content)
-          }
-        } catch (e) {
-          console.log(e)
           await writeToTargetWorkspace(path, content)
         }
-      }
-      if (params.ghfolder) {
-        try {
-          await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-ghfolder-param', isClick: false })
-          const files = await plugin.call('contentImport', 'resolveGithubFolder', params.ghfolder)
-          for (const [path, content] of Object.entries(files)) {
-            await writeToTargetWorkspace(path, content as string)
+        if (params.shareCode) {
+          await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-shareCode-param', isClick: false })
+          const host = '127.0.0.1'
+          const port = 5001
+          const protocol = 'http'
+          // const projectId = ''
+          // const projectSecret = ''
+          // const auth = 'Basic ' + Buffer.from(projectId + ':' + projectSecret).toString('base64')
+
+          const ipfs = IpfsHttpClient({
+            port,
+            host,
+            protocol,
+            headers: {
+              // authorization: auth
+            },
+          })
+          const hashed = bytesToHex(hash.keccakFromString(params.shareCode))
+
+          path = 'contract-' + hashed.replace('0x', '').substring(0, 10) + (params.language && params.language.toLowerCase() === 'yul' ? '.yul' : '.sol')
+          const fileData = ipfs.get(params.shareCode)
+          for await (const file of fileData) {
+            const fileContent = []
+            for await (const chunk of file.content) fileContent.push(chunk)
+            content = Buffer.concat(fileContent).toString()
           }
-        } catch (e) {
-          console.log(e)
+          await writeToTargetWorkspace(path, content)
         }
+        if (params.url) {
+          await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-url-param', isClick: false })
+          const data = await plugin.call('contentImport', 'resolve', params.url)
+          path = data.cleanUrl
+          content = data.content
+          try {
+            content = JSON.parse(content) as any
+            if (content.language && content.language === 'Solidity' && content.sources) {
+              const standardInput: JSONStandardInput = content as JSONStandardInput
+              for (const [fname, source] of Object.entries(standardInput.sources)) {
+                await writeToTargetWorkspace(fname, source.content)
+              }
+              return Object.keys(standardInput.sources)[0]
+            } else {
+              // preserve JSON whitespace if this isn't a Solidity compiler JSON-input-output file
+              content = data.content
+              await writeToTargetWorkspace(path, content)
+            }
+          } catch (e) {
+            console.log(e)
+            await writeToTargetWorkspace(path, content)
+          }
+        }
+        if (params.ghfolder) {
+          try {
+            await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'code-template-ghfolder-param', isClick: false })
+            const files = await plugin.call('contentImport', 'resolveGithubFolder', params.ghfolder)
+            for (const [path, content] of Object.entries(files)) {
+              await writeToTargetWorkspace(path, content as string)
+            }
+          } catch (e) {
+            console.log(e)
+          }
+        }
+
+        return path
+      } catch (e) {
+        console.error(e)
       }
+      break
 
-      return path
-    } catch (e) {
-      console.error(e)
-    }
-    break
+    case 'gist-template':
+      // creates a new workspace gist-sample and get the file from gist
+      try {
+        await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'gist-template', isClick: false })
+        const gistId = params.gist
+        const response: AxiosResponse = await axios.get(`https://api.github.com/gists/${gistId}`)
+        const data = response.data as { files: any }
 
-  case 'gist-template':
-    // creates a new workspace gist-sample and get the file from gist
-    try {
-      await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: 'gist-template', isClick: false })
-      const gistId = params.gist
-      const response: AxiosResponse = await axios.get(`https://api.github.com/gists/${gistId}`)
-      const data = response.data as { files: any }
+        if (!data.files) {
+          return dispatch(
+            displayNotification(
+              'Gist load error',
+              'No files found',
+              'OK',
+              null,
+              () => {
+                dispatch(hideNotification())
+              },
+              null,
+            ),
+          )
+        }
+        const obj = {}
 
-      if (!data.files) {
-        return dispatch(
+        let openPath = ''
+        for (const [element] of Object.entries(data.files)) {
+          const path = element.replace(/\.\.\./g, '/')
+          let value
+          if (data.files[element].truncated) {
+            const response: AxiosResponse = await axios.get(data.files[element].raw_url)
+            value = { content: response.data }
+          } else {
+            value = { content: data.files[element].content }
+          }
+
+          if (data.files[element].type === 'application/json') {
+            obj['/' + path] = { content: JSON.stringify(value.content, null, '\t') }
+          } else obj['/' + path] = value
+
+          if (!openPath || isReadme(path)) openPath = path
+        }
+        plugin.fileManager.setBatchFiles(obj, 'workspace', true, (errorLoadingFile) => {
+          if (errorLoadingFile) {
+            dispatch(displayNotification('', errorLoadingFile.message || errorLoadingFile, 'OK', null, () => {}, null))
+          }
+        })
+        return openPath
+      } catch (e) {
+        dispatch(
           displayNotification(
             'Gist load error',
-            'No files found',
+            e.message,
             'OK',
             null,
             () => {
               dispatch(hideNotification())
             },
-            null
-          )
+            null,
+          ),
         )
+        console.error(e)
       }
-      const obj = {}
+      break
 
-      let openPath = ''
-      for (const [element] of Object.entries(data.files)) {
-        const path = element.replace(/\.\.\./g, '/')
-        let value
-        if (data.files[element].truncated) {
-          const response: AxiosResponse = await axios.get(data.files[element].raw_url)
-          value = { content: response.data }
+    default:
+      try {
+        let openPath = ''
+        const templateList = Object.keys(templateWithContent)
+        if (!templateList.includes(template)) break
+
+        await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: template, isClick: false })
+        // @ts-ignore
+        let files = {}
+        if (template === 'ozerc20' || template === 'ozerc721' || template === 'ozerc1155') {
+          files = await templateWithContent[template](opts, plugin, { contractContent, contractName })
         } else {
-          value = { content: data.files[element].content }
+          files = await templateWithContent[template](opts, plugin)
         }
-
-        if (data.files[element].type === 'application/json') {
-          obj['/' + path] = { content: JSON.stringify(value.content, null, '\t') }
-        } else
-          obj['/' + path] = value
-
-        if (!openPath || isReadme(path)) openPath = path
-      }
-      plugin.fileManager.setBatchFiles(obj, 'workspace', true, (errorLoadingFile) => {
-        if (errorLoadingFile) {
-          dispatch(displayNotification('', errorLoadingFile.message || errorLoadingFile, 'OK', null, () => {}, null))
-        }
-      })
-      return openPath
-    } catch (e) {
-      dispatch(
-        displayNotification(
-          'Gist load error',
-          e.message,
-          'OK',
-          null,
-          () => {
-            dispatch(hideNotification())
-          },
-          null
-        )
-      )
-      console.error(e)
-    }
-    break
-
-  default:
-    try {
-      let openPath = ''
-      const templateList = Object.keys(templateWithContent)
-      if (!templateList.includes(template)) break
-
-      await trackMatomoEventAsync(plugin, { category: 'workspace', action: 'template', name: template, isClick: false })
-      // @ts-ignore
-      let files = {}
-      if (template === 'ozerc20' || template === 'ozerc721' || template === 'ozerc1155') {
-        files = await templateWithContent[template](opts, plugin, { contractContent, contractName })
-      } else {
-        files = await templateWithContent[template](opts, plugin)
-      }
-      if (files) {
-        for (const file in files) {
-          try {
-            const uniqueFileName = await createNonClashingNameAsync(file, plugin.fileManager)
-            if (file === 'remix.config.json') {
-              let remixConfig = JSON.parse(files[file])
-              if (uniqueFileName !== file) {
-                try {
-                  remixConfig = { ...JSON.parse(await plugin.fileManager.readFile(file)), ...remixConfig }
-                } catch (_) { /* existing config unreadable — fall back to the template config */ }
+        if (files) {
+          for (const file in files) {
+            try {
+              const uniqueFileName = await createNonClashingNameAsync(file, plugin.fileManager)
+              if (file === 'remix.config.json') {
+                let remixConfig = JSON.parse(files[file])
+                if (uniqueFileName !== file) {
+                  try {
+                    remixConfig = { ...JSON.parse(await plugin.fileManager.readFile(file)), ...remixConfig }
+                  } catch (_) {
+                    /* existing config unreadable — fall back to the template config */
+                  }
+                }
+                remixConfig.project = template
+                remixConfig.version = projectVersion
+                remixConfig.IDE = window.location.hostname
+                await writeToTargetWorkspace(file, JSON.stringify(remixConfig, null, 2))
+              } else {
+                await writeToTargetWorkspace(uniqueFileName, files[file])
+                if ((uniqueFileName.indexOf('contracts/') >= 0 || uniqueFileName.indexOf('src/') >= 0) && !openPath) {
+                  openPath = uniqueFileName
+                } else if (isReadme(uniqueFileName)) {
+                  openPath = uniqueFileName
+                }
               }
-              remixConfig.project = template
-              remixConfig.version = projectVersion
-              remixConfig.IDE = window.location.hostname
-              await writeToTargetWorkspace(file, JSON.stringify(remixConfig, null, 2))
-            } else {
-              await writeToTargetWorkspace(uniqueFileName, files[file])
-              if ((uniqueFileName.indexOf('contracts/') >= 0 || uniqueFileName.indexOf('src/') >= 0) && !openPath) {
-                openPath = uniqueFileName
-              } else if (isReadme(uniqueFileName)) {
-                openPath = uniqueFileName
-              }
+            } catch (error) {
+              console.error(error)
             }
-          } catch (error) {
-            console.error(error)
           }
         }
-      }
-      return openPath || (files && Object.keys(files)[0])
-    } catch (e) {
-      dispatch(
-        displayNotification(
-          'Workspace load error',
-          e.message,
-          'OK',
-          null,
-          () => {
-            dispatch(hideNotification())
-          },
-          null
+        return openPath || (files && Object.keys(files)[0])
+      } catch (e) {
+        dispatch(
+          displayNotification(
+            'Workspace load error',
+            e.message,
+            'OK',
+            null,
+            () => {
+              dispatch(hideNotification())
+            },
+            null,
+          ),
         )
-      )
-      console.error(e)
-    }
-    break
+        console.error(e)
+      }
+      break
   }
 }
 
@@ -839,7 +806,7 @@ export const renameWorkspace = async (oldName: string, workspaceName: string, cb
     if (cloudStore.isCloudMode) {
       try {
         const cloudState = cloudStore.getState()
-        const cloudWs = cloudState.cloudWorkspaces.find(w => w.name === oldName)
+        const cloudWs = cloudState.cloudWorkspaces.find((w) => w.name === oldName)
         if (cloudWs) {
           const updated = await renameCloudWorkspaceAction(cloudWs, workspaceName)
           cloudStore.updateCloudWorkspace(updated)
@@ -886,7 +853,7 @@ export const deleteWorkspace = async (workspaceName: string, cb?: (err: Error, r
     if (cloudStore.isCloudMode) {
       try {
         const cloudState = cloudStore.getState()
-        const cloudWs = cloudState.cloudWorkspaces.find(w => w.name === workspaceName)
+        const cloudWs = cloudState.cloudWorkspaces.find((w) => w.name === workspaceName)
         if (cloudWs) {
           await deleteCloudWorkspaceAction(cloudWs)
           cloudStore.removeCloudWorkspace(cloudWs.uuid)
@@ -983,11 +950,13 @@ export const switchToWorkspace = async (name: string) => {
         operation: quickDappLock.operation,
         lockedWorkspace: quickDappLock.workspaceName,
         attemptedWorkspace: name,
-        slug: quickDappLock.slug
+        slug: quickDappLock.slug,
       })
       try {
         plugin.call('notification', 'toast', message)
-      } catch { /* best-effort notification */ }
+      } catch {
+        /* best-effort notification */
+      }
       throw new Error(message)
     }
 
@@ -995,7 +964,7 @@ export const switchToWorkspace = async (name: string) => {
     if (cloudStore.isCloudMode) {
       try {
         const cloudState = cloudStore.getState()
-        const cloudWs = cloudState.cloudWorkspaces.find(w => w.name === name)
+        const cloudWs = cloudState.cloudWorkspaces.find((w) => w.name === name)
         if (cloudWs) {
           // Set active immediately so the UI can show loading state for this workspace
           cloudStore.setActiveCloudWorkspace(cloudWs.uuid)
@@ -1046,7 +1015,6 @@ export const switchToWorkspace = async (name: string) => {
       await plugin.setWorkspace({ name, isLocalhost: false })
       dispatch(setMode('browser'))
       dispatch(setCurrentWorkspace({ name, isGitRepo: false }))
-
     } else {
       const isActive = await plugin.call('manager', 'isActive', 'remixd')
 
@@ -1090,7 +1058,7 @@ export const uploadFile = async (target, targetFolder: string, cb?: (err: Error,
   // the files module. Please ask the user here if they want to overwrite
   // a file and then just use `files.add`. The file explorer will
   // pick that up via the 'fileAdded' event from the files module.
-  [...target.files].forEach(async (file) => {
+  ;[...target.files].forEach(async (file) => {
     const workspaceProvider = plugin.fileProviders.workspace
     const name = targetFolder === '/' ? file.name : `${targetFolder}/${file.name}`
 
@@ -1172,7 +1140,7 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
       // ── Cloud mode: return cloud workspaces from the store ──
       if (cloudStore.isCloudMode) {
         const cloudState = cloudStore.getState()
-        const cloudWorkspaces: WorkspaceType[] = cloudState.cloudWorkspaces.map(cw => ({
+        const cloudWorkspaces: WorkspaceType[] = cloudState.cloudWorkspaces.map((cw) => ({
           name: cw.name,
           isGitRepo: false,
           hasGitSubmodules: false,
@@ -1190,7 +1158,6 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
       const workspaces: WorkspaceType[] = await new Promise((resolve, reject) => {
         const workspacesPath = plugin.fileProviders.workspace.workspacesPath
         plugin.fileProviders.browser.resolveDirectory('/' + workspacesPath, (error, items) => {
-
           if (error) {
             return reject(error)
           }
@@ -1229,7 +1196,7 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
                     currentBranch,
                     hasGitSubmodules,
                     isGist: null,
-                    remoteId
+                    remoteId,
                   }
                 } else {
                   return {
@@ -1237,15 +1204,15 @@ export const getWorkspaces = async (): Promise<WorkspaceType[]> | undefined => {
                     isGitRepo,
                     hasGitSubmodules,
                     isGist: plugin.isGist(name), // plugin is filePanel
-                    remoteId
+                    remoteId,
                   }
                 }
-              })
+              }),
           ).then((workspacesList) => resolve(workspacesList))
         })
       })
       // Filter out ghost workspaces with null/empty names (corrupted IndexedDB entries)
-      const validWorkspaces = workspaces.filter(ws => ws && ws.name)
+      const validWorkspaces = workspaces.filter((ws) => ws && ws.name)
       await plugin.setWorkspaces(validWorkspaces)
       return validWorkspaces
     } catch (e) {
@@ -1270,7 +1237,7 @@ export const cloneRepository = async (url: string) => {
         console.log(e)
         plugin.call('notification', 'alert', {
           id: 'cloneGitRepository',
-          message: e
+          message: e,
         })
       }
     } else {
@@ -1302,8 +1269,7 @@ export const cloneRepository = async (url: string) => {
           const cloneModal = {
             id: 'cloneGitRepository',
             title: 'Clone Git Repository',
-            message:
-            'An error occurred: Please check that you have the correct URL for the repo. If the repo is private, you need to add your github credentials (with the valid token permissions) in the Git plugin',
+            message: 'An error occurred: Please check that you have the correct URL for the repo. If the repo is private, you need to add your github credentials (with the valid token permissions) in the Git plugin',
             modalType: 'modal',
             okLabel: plugin.registry.get('platform').api.isDesktop() ? 'Select or create folder' : 'OK',
             okFn: async () => {
@@ -1313,7 +1279,7 @@ export const cloneRepository = async (url: string) => {
             hideFn: async () => {
               await deleteWorkspace(repoName)
               dispatch(cloneRepositoryFailed())
-            }
+            },
           }
           plugin.call('notification', 'modal', cloneModal)
         }
@@ -1452,10 +1418,12 @@ export const createNewBranch = async (branch: string) => {
   promise
     .then(async () => {
       await fetchWorkspaceDirectory(ROOT_PATH)
-      dispatch(setCurrentWorkspaceCurrentBranch({
-        remote: null,
-        name: branch,
-      }))
+      dispatch(
+        setCurrentWorkspaceCurrentBranch({
+          remote: null,
+          name: branch,
+        }),
+      )
       const workspacesPath = plugin.fileProviders.workspace.workspacesPath
       const workspaceName = plugin.fileProviders.workspace.workspace
       const branches = await getGitRepoBranches(workspacesPath + '/' + workspaceName)
@@ -1524,7 +1492,7 @@ export const checkoutRemoteBranch = async (branch: branch) => {
   } else {
     dispatch(cloneRepositoryRequest())
     dgitPlugin
-      .call('dgitApi', 'checkout',{
+      .call('dgitApi', 'checkout', {
         ref: branch.name,
         force: true,
         refresh: false,

@@ -6,10 +6,8 @@
   "implicitDependencies": [],
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "development",
       "options": {
         "compiler": "babel",
@@ -18,10 +16,7 @@
         "baseHref": "./",
         "main": "apps/solhint/src/main.tsx",
         "tsConfig": "apps/solhint/tsconfig.app.json",
-        "assets": [
-          "apps/solhint/src/favicon.ico",
-          "apps/solhint/src/profile.json"
-        ],
+        "assets": ["apps/solhint/src/favicon.ico", "apps/solhint/src/profile.json"],
         "styles": [],
         "webpackConfig": "apps/solhint/webpack.config.js"
       },
@@ -41,14 +36,12 @@
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "commands": [
-          "cd apps/solhint && yarn"
-        ],
+        "commands": ["cd apps/solhint && yarn"],
         "parallel": false
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": ["apps/solhint/**/*.ts"],
@@ -56,7 +49,7 @@
       }
     },
     "serve": {
-      "executor": "@nrwl/webpack:dev-server",
+      "executor": "@nx/webpack:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "solhint:build",

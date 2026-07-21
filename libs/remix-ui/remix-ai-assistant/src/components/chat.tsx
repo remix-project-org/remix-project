@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
@@ -47,100 +47,58 @@ const AiChatIntro: React.FC<AiChatIntroProps> = ({ theme }) => {
   )
 }
 
-export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
-  messages,
-  isStreaming,
-  isThinking,
-  sendPrompt,
-  recordFeedback,
-  historyRef,
-  theme,
-  plugin,
-  handleGenerateWorkspace,
-  allowedMcps,
-  onDappReviewAcceptAll,
-  onDappReviewRevertAll,
-  onDappReviewViewDiff,
-  handleLoadSkills
-}) => {
+export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({ messages, isStreaming, isThinking, sendPrompt, recordFeedback, historyRef, theme, plugin, handleGenerateWorkspace, allowedMcps, onDappReviewAcceptAll, onDappReviewRevertAll, onDappReviewViewDiff, handleLoadSkills }) => {
   const [btnColor, setBtnColor] = useState('')
   return (
-    <div
-      ref={historyRef}
-      className="h-100 d-flex flex-column gap-4 overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden"
-    >
+    <div ref={historyRef} className="h-100 d-flex flex-column gap-4 overflow-y-auto border-box-sizing preserve-wrap overflow-x-hidden">
       {messages.length === 0 ? (
         <AiChatIntro theme={theme} />
       ) : (
-        messages.map(msg => {
+        messages.map((msg) => {
           const isCorrupted = msg.role === 'assistant' && (msg.content === null || msg.content === undefined)
           const displayContent = isCorrupted ? '*Unable to load response.*' : (msg.content ?? '')
           const hasContent = typeof displayContent === 'string' && displayContent.trim().length > 0
-          const hasAssistantActivity = !!(
-            msg.isExecutingTools ||
-            msg.activeSubagent ||
-            msg.isSubagentStreaming ||
-            (msg.currentTask && msg.taskStatus === 'running') ||
-            (msg.todos && msg.todos.length > 0) ||
-            msg.dappUpdateReview?.status === 'pending'
-          )
+          const hasAssistantActivity = !!(msg.isExecutingTools || msg.activeSubagent || msg.isSubagentStreaming || (msg.currentTask && msg.taskStatus === 'running') || (msg.todos && msg.todos.length > 0) || msg.dappUpdateReview?.status === 'pending')
 
           if (msg.role === 'assistant' && !hasContent && !hasAssistantActivity) return null
 
           return (
             <div key={msg.id} className={`chat-row d-flex mb-2 gap-2 ${msg.role === 'user' ? 'justify-content-end' : ''}`} style={{ minWidth: '90%' }}>
               {/* Avatar for assistant */}
-              {msg.role === 'assistant' && (
-
-                <img
-                  src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight}
-                  alt="AI"
-                  className="assistant-avatar flex-shrink-0"
-                />
-              )}
+              {msg.role === 'assistant' && <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="AI" className="assistant-avatar flex-shrink-0" />}
 
               {/* Bubble */}
-              <div data-id="ai-response-chat-bubble-section" className="overflow-y-scroll" style={{
-                width: msg.role === 'assistant' ? '100%' : '90%'
-              }}>
+              <div
+                data-id="ai-response-chat-bubble-section"
+                className="overflow-y-scroll"
+                style={{
+                  width: msg.role === 'assistant' ? '100%' : '90%',
+                }}
+              >
                 {(msg.role === 'user' || hasContent) && (
-                  <div
-                    className={msg.role === 'user' ? 'chat-bubble bubble-user' : ''}
-                    data-id="ai-user-chat-bubble"
-                  >
-                    {msg.role === 'user' && (
-                      <small className="text-uppercase fw-bold text-secondary d-block mb-1">
-                        You
-                      </small>
-                    )}
+                  <div className={msg.role === 'user' ? 'chat-bubble bubble-user' : ''} data-id="ai-user-chat-bubble">
+                    {msg.role === 'user' && <small className="text-uppercase fw-bold text-secondary d-block mb-1">You</small>}
 
-                    <div className={`aiMarkup lh-base text-wrap d-flex flex-column gap-2 ${msg.isIntermediateContent ? 'text-muted' : ''} ${msg.streamingSubagentName ? 'subagent-content' : ''}`}
-                      style={msg.streamingSubagentName ? {
-                        borderLeft: '3px solid rgba(23, 162, 184, 0.5)',
-                        paddingLeft: '8px',
-                        marginLeft: '4px'
-                      } : undefined}
+                    <div
+                      className={`aiMarkup lh-base text-wrap d-flex flex-column gap-2 ${msg.isIntermediateContent ? 'text-muted' : ''} ${msg.streamingSubagentName ? 'subagent-content' : ''}`}
+                      style={
+                        msg.streamingSubagentName
+                          ? {
+                              borderLeft: '3px solid rgba(23, 162, 184, 0.5)',
+                              paddingLeft: '8px',
+                              marginLeft: '4px',
+                            }
+                          : undefined
+                      }
                     >
-                      {msg.role === 'assistant' || msg.role === 'editor_code_analysis' ? (
-                        RemixMarkdownViewer(theme, msg.content, btnColor, setBtnColor)
-                      ) : (
-                        <div className="ai-paragraph pb-0">
-                          {msg.content}
-                        </div>
-                      )}
+                      {msg.role === 'assistant' || msg.role === 'editor_code_analysis' ? RemixMarkdownViewer(theme, msg.content, btnColor, setBtnColor) : <div className="ai-paragraph pb-0">{msg.content}</div>}
                     </div>
 
                     {/* Copy button for user messages */}
                     {msg.role === 'user' && (
                       <div className="user-message-actions text-end mt-2">
                         <CustomTooltip tooltipText="Copy message" placement="top">
-                          <span
-                            role="button"
-                            aria-label="copy message"
-                            className="message-copy-btn"
-                            onClick={() => copy(msg.content)}
-                            onMouseDown={(e) => e.preventDefault()}
-                          >
+                          <span role="button" aria-label="copy message" className="message-copy-btn" onClick={() => copy(msg.content)} onMouseDown={(e) => e.preventDefault()}>
                             <i className="far fa-copy"></i>
                           </span>
                         </CustomTooltip>
@@ -151,16 +109,13 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                 {msg.role === 'assistant' && msg.isExecutingTools && (
                   <div className="tool-execution-indicator text-muted">
                     <i className="fa fa-spinner fa-spin me-2"></i>
-                    <span>
-                      {msg.executingToolUIString || msg.executingToolName || 'Executing tools...'}
-                    </span>
+                    <span>{msg.executingToolUIString || msg.executingToolName || 'Executing tools...'}</span>
                   </div>
                 )}
 
                 {/* Subagent Activity Indicator - shows when subagent is active or completed */}
                 {msg.role === 'assistant' && (msg.activeSubagent || msg.isSubagentStreaming || msg.streamingSubagentName) && (
-                  <div className="subagent-indicator mb-2 p-2 rounded"
-                  >
+                  <div className="subagent-indicator mb-2 p-2 rounded">
                     <div className="d-flex align-items-center">
                       <i className={`fa fa-robot me-2 text-ai ${msg.isSubagentStreaming ? 'fa-beat' : ''}`}></i>
                       <span className="text-ai">
@@ -181,15 +136,18 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
 
                 {/* Todo List Display */}
                 {msg.role === 'assistant' && msg.todos && msg.todos.length > 0 && (
-                  <div className="todo-list-container mt-2 mb-2 p-2 rounded" style={{
-                    backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                    border: '1px solid var(--bs-border-color)'
-                  }}>
+                  <div
+                    className="todo-list-container mt-2 mb-2 p-2 rounded"
+                    style={{
+                      backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                      border: '1px solid var(--bs-border-color)',
+                    }}
+                  >
                     <div className="todo-list-header gap-1 d-flex align-items-center mb-2">
                       <i className="fa fa-list-check me-2 text-ai"></i>
                       <strong className="">Task Plan</strong>
                       <span className="badge bg-secondary">
-                        {msg.todos.filter(t => t.status === 'completed').length}/{msg.todos.length}
+                        {msg.todos.filter((t) => t.status === 'completed').length}/{msg.todos.length}
                       </span>
                     </div>
                     <ul className="todo-list list-unstyled mb-0">
@@ -204,9 +162,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                               {todo.status === 'failed' && <i className="fa fa-times-circle text-danger"></i>}
                               {todo.status === 'stopped' && <i className="fa fa-stop-circle text-warning"></i>}
                             </span>
-                            <span className={`todo-task ${todo.status === 'completed' ? 'text-secondary' : ''} ${isCurrentTodo && todo.status !== 'completed' ? 'text-ai' : ''}`}>
-                              {todo.content || todo.task}
-                            </span>
+                            <span className={`todo-task ${todo.status === 'completed' ? 'text-secondary' : ''} ${isCurrentTodo && todo.status !== 'completed' ? 'text-ai' : ''}`}>{todo.content || todo.task}</span>
                           </li>
                         )
                       })}
@@ -215,64 +171,22 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                 )}
 
                 {/* DApp Update Review Card */}
-                {msg.role === 'assistant' && msg.dappUpdateReview && (
-                  <DAppUpdateReviewCard
-                    workspaceName={msg.dappUpdateReview.workspaceName}
-                    files={msg.dappUpdateReview.files}
-                    backups={msg.dappUpdateReview.backups}
-                    status={msg.dappUpdateReview.status}
-                    onAcceptAll={() => onDappReviewAcceptAll?.(msg.id)}
-                    onRevertAll={() => onDappReviewRevertAll?.(msg.id)}
-                    onViewDiff={(filePath, newContent, oldContent) =>
-                      onDappReviewViewDiff?.(filePath, newContent, oldContent)
-                    }
-                  />
-                )}
+                {msg.role === 'assistant' && msg.dappUpdateReview && <DAppUpdateReviewCard workspaceName={msg.dappUpdateReview.workspaceName} files={msg.dappUpdateReview.files} backups={msg.dappUpdateReview.backups} status={msg.dappUpdateReview.status} onAcceptAll={() => onDappReviewAcceptAll?.(msg.id)} onRevertAll={() => onDappReviewRevertAll?.(msg.id)} onViewDiff={(filePath, newContent, oldContent) => onDappReviewViewDiff?.(filePath, newContent, oldContent)} />}
 
                 {/* Feedback buttons */}
                 {msg.role === 'assistant' && hasContent && (
                   <div className="feedback text-end mt-2 me-1">
                     <CustomTooltip tooltipText="Copy message" placement="top">
-                      <span
-                        role="button"
-                        aria-label="copy message"
-                        className="message-copy-btn me-3"
-                        onClick={() => copy(displayContent)}
-                        onMouseDown={(e) => e.preventDefault()}
-                      >
+                      <span role="button" aria-label="copy message" className="message-copy-btn me-3" onClick={() => copy(displayContent)} onMouseDown={(e) => e.preventDefault()}>
                         <i className="far fa-copy"></i>
                       </span>
                     </CustomTooltip>
 
                     <CustomTooltip tooltipText="Good Response" placement="top">
-                      <span
-                        role="button"
-                        aria-label="thumbs up"
-                        className={`feedback-btn me-3 ${msg.sentiment === 'like' ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'
-                        }`}
-                        onClick={() =>
-                          recordFeedback(
-                            msg.id,
-                            msg.sentiment === 'like' ? 'none' : 'like'
-                          )
-                        }
-                      ></span>
+                      <span role="button" aria-label="thumbs up" className={`feedback-btn me-3 ${msg.sentiment === 'like' ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'}`} onClick={() => recordFeedback(msg.id, msg.sentiment === 'like' ? 'none' : 'like')}></span>
                     </CustomTooltip>
                     <CustomTooltip tooltipText="Bad Response" placement="top">
-                      <span
-                        role="button"
-                        aria-label="thumbs down"
-                        className={`feedback-btn ms-2 ${msg.sentiment === 'dislike'
-                          ? 'fas fa-thumbs-down'
-                          : 'far fa-thumbs-down'
-                        }`}
-                        onClick={() =>
-                          recordFeedback(
-                            msg.id,
-                            msg.sentiment === 'dislike' ? 'none' : 'dislike'
-                          )
-                        }
-                      ></span>
+                      <span role="button" aria-label="thumbs down" className={`feedback-btn ms-2 ${msg.sentiment === 'dislike' ? 'fas fa-thumbs-down' : 'far fa-thumbs-down'}`} onClick={() => recordFeedback(msg.id, msg.sentiment === 'dislike' ? 'none' : 'dislike')}></span>
                     </CustomTooltip>
                   </div>
                 )}
@@ -282,10 +196,13 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
         }) //end of messages renderconsole.log(content)
       )}
       {isThinking && (
-        <div className="thinking-indicator small mb-2 p-2 rounded mx-3" style={{
-          backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(255, 193, 7, 0.15)' : 'rgba(255, 193, 7, 0.1)',
-          border: '1px solid rgba(255, 193, 7, 0.3)'
-        }}>
+        <div
+          className="thinking-indicator small mb-2 p-2 rounded mx-3"
+          style={{
+            backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(255, 193, 7, 0.15)' : 'rgba(255, 193, 7, 0.1)',
+            border: '1px solid rgba(255, 193, 7, 0.3)',
+          }}
+        >
           <div className="d-flex align-items-center">
             <i className="fa fa-spinner fa-spin me-2 text-warning"></i>
             <span className="text-warning">
@@ -304,132 +221,90 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
 }
 
 function RemixMarkdownViewer(theme: string, markDownContent: string, btnColor: string, setBtnColor: Dispatch<SetStateAction<string>>): React.ReactNode {
-  return <ReactMarkdown
-    remarkPlugins={[[remarkGfm, {}]]}
-    remarkRehypeOptions={{}}
-    rehypePlugins={[rehypeRaw, rehypeSanitize]}
-    linkTarget="_blank"
-    components={{
-      // Code blocks and inline code
-      code({ node, inline, className, children, ...props }) {
-        const text = String(children).replace(/\n$/, '')
-        const match = /language-(\w+)/.exec(className || '')
-        const language = match ? match[1] : ''
-        if (inline) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[[remarkGfm, {}]]}
+      remarkRehypeOptions={{}}
+      rehypePlugins={[rehypeRaw, rehypeSanitize]}
+      linkTarget="_blank"
+      components={{
+        // Code blocks and inline code
+        code({ node, inline, className, children, ...props }) {
+          const text = String(children).replace(/\n$/, '')
+          const match = /language-(\w+)/.exec(className || '')
+          const language = match ? match[1] : ''
+          if (inline) {
+            return (
+              <code className="ai-inline-code" {...props}>
+                {text}
+              </code>
+            )
+          }
           return (
-            <code className="ai-inline-code" {...props}>
-              {text}
-            </code>
-          )
-        }
-        return (
-          <div className="ai-code-block-wrapper">
-            {language && (
-              <div className={`ai-code-header ${theme === 'Dark' ? 'text-white' : 'text-dark'}`}>
-                <span className="ai-code-language">{language}</span>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${btnColor.length > 0 ? 'btn-outline-success border border-success' : 'btn-outline-info border border-info'}`}
-                  onClick={() => {
-                    setBtnColor('successfulCopy')
-                    copy(text)
-                    setTimeout(() => setBtnColor(''), 2000)
-                  }}
-                >
+            <div className="ai-code-block-wrapper">
+              {language && (
+                <div className={`ai-code-header ${theme === 'Dark' ? 'text-white' : 'text-dark'}`}>
+                  <span className="ai-code-language">{language}</span>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${btnColor.length > 0 ? 'btn-outline-success border border-success' : 'btn-outline-info border border-info'}`}
+                    onClick={() => {
+                      setBtnColor('successfulCopy')
+                      copy(text)
+                      setTimeout(() => setBtnColor(''), 2000)
+                    }}
+                  >
+                    <i className="fa-regular fa-copy"></i>
+                  </button>
+                </div>
+              )}
+              {!language && (
+                <button type="button" className="ai-copy-btn ai-copy-btn-absolute" onClick={() => copy(text)}>
                   <i className="fa-regular fa-copy"></i>
                 </button>
-              </div>
-            )}
-            {!language && (
-              <button
-                type="button"
-                className="ai-copy-btn ai-copy-btn-absolute"
-                onClick={() => copy(text)}
-              >
-                <i className="fa-regular fa-copy"></i>
-              </button>
-            )}
-            <pre className="ai-code-pre">
-              <code className={className}>{text}</code>
-            </pre>
+              )}
+              <pre className="ai-code-pre">
+                <code className={className}>{text}</code>
+              </pre>
+            </div>
+          )
+        },
+        // Paragraphs
+        p: ({ node, ...props }) => <p className="ai-paragraph" {...props} />,
+        // Headings
+        h1: ({ node, ...props }) => <h1 className="ai-heading ai-h1 mb-1" {...props} />,
+        h2: ({ node, ...props }) => <h2 className="ai-heading ai-h2 mb-1" {...props} />,
+        h3: ({ node, ...props }) => <h3 className="ai-heading ai-h3 mb-1" {...props} />,
+        h4: ({ node, ...props }) => <h4 className="ai-heading ai-h4 mb-1" {...props} />,
+        h5: ({ node, ...props }) => <h5 className="ai-heading ai-h5  mb-1" {...props} />,
+        h6: ({ node, ...props }) => <h6 className="ai-heading ai-h6  mb-1" {...props} />,
+        // Lists
+        ul: ({ node, ...props }) => <ul className="ai-list ai-list-unordered" {...props} />,
+        ol: ({ node, ...props }) => <ol className="ai-list ai-list-ordered" {...props} />,
+        li: ({ node, ordered, ...props }) => <li className="ai-list-item" {...props} />,
+        // Links
+        a: ({ node, ...props }) => <a className="ai-link" target="_blank" rel="noopener noreferrer" {...props} />,
+        // Blockquotes
+        blockquote: ({ node, ...props }) => <blockquote className="ai-blockquote" {...props} />,
+        // Tables
+        table: ({ node, ...props }) => (
+          <div className="ai-table-wrapper">
+            <table className="ai-table" {...props} />
           </div>
-        )
-      },
-      // Paragraphs
-      p: ({ node, ...props }) => (
-        <p className="ai-paragraph" {...props} />
-      ),
-      // Headings
-      h1: ({ node, ...props }) => (
-        <h1 className="ai-heading ai-h1 mb-1" {...props} />
-      ),
-      h2: ({ node, ...props }) => (
-        <h2 className="ai-heading ai-h2 mb-1" {...props} />
-      ),
-      h3: ({ node, ...props }) => (
-        <h3 className="ai-heading ai-h3 mb-1" {...props} />
-      ),
-      h4: ({ node, ...props }) => (
-        <h4 className="ai-heading ai-h4 mb-1" {...props} />
-      ),
-      h5: ({ node, ...props }) => (
-        <h5 className="ai-heading ai-h5  mb-1" {...props} />
-      ),
-      h6: ({ node, ...props }) => (
-        <h6 className="ai-heading ai-h6  mb-1" {...props} />
-      ),
-      // Lists
-      ul: ({ node, ...props }) => (
-        <ul className="ai-list ai-list-unordered" {...props} />
-      ),
-      ol: ({ node, ...props }) => (
-        <ol className="ai-list ai-list-ordered" {...props} />
-      ),
-      li: ({ node, ordered, ...props }) => (
-        <li className="ai-list-item" {...props} />
-      ),
-      // Links
-      a: ({ node, ...props }) => (
-        <a className="ai-link" target="_blank" rel="noopener noreferrer" {...props} />
-      ),
-      // Blockquotes
-      blockquote: ({ node, ...props }) => (
-        <blockquote className="ai-blockquote" {...props} />
-      ),
-      // Tables
-      table: ({ node, ...props }) => (
-        <div className="ai-table-wrapper">
-          <table className="ai-table" {...props} />
-        </div>
-      ),
-      thead: ({ node, ...props }) => (
-        <thead className="ai-table-head" {...props} />
-      ),
-      tbody: ({ node, ...props }) => (
-        <tbody className="ai-table-body" {...props} />
-      ),
-      tr: ({ node, ...props }) => (
-        <tr className="ai-table-row" {...props} />
-      ),
-      th: ({ node, ...props }) => (
-        <th className="ai-table-header-cell" {...props} />
-      ),
-      td: ({ node, ...props }) => (
-        <td className="ai-table-cell" {...props} />
-      ),
-      // Horizontal rule
-      hr: ({ node, ...props }) => (
-        <hr className="ai-divider" {...props} />
-      ),
-      // Strong and emphasis
-      strong: ({ node, ...props }) => (
-        <strong className="ai-strong" {...props} />
-      ),
-      em: ({ node, ...props }) => (
-        <em className="ai-emphasis" {...props} />
-      )
-    }}
-  >
-    {normalizeMarkdown(markDownContent)}
-  </ReactMarkdown>
+        ),
+        thead: ({ node, ...props }) => <thead className="ai-table-head" {...props} />,
+        tbody: ({ node, ...props }) => <tbody className="ai-table-body" {...props} />,
+        tr: ({ node, ...props }) => <tr className="ai-table-row" {...props} />,
+        th: ({ node, ...props }) => <th className="ai-table-header-cell" {...props} />,
+        td: ({ node, ...props }) => <td className="ai-table-cell" {...props} />,
+        // Horizontal rule
+        hr: ({ node, ...props }) => <hr className="ai-divider" {...props} />,
+        // Strong and emphasis
+        strong: ({ node, ...props }) => <strong className="ai-strong" {...props} />,
+        em: ({ node, ...props }) => <em className="ai-emphasis" {...props} />,
+      }}
+    >
+      {normalizeMarkdown(markDownContent)}
+    </ReactMarkdown>
+  )
 }

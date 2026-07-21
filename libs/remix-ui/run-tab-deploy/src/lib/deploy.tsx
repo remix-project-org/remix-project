@@ -3,8 +3,8 @@ import { DeployAppContext } from './contexts'
 import { deployInitialState, deployReducer } from './reducers'
 import DeployPortraitView from './widgets/deployPortraitView'
 import { broadcastCompilationResult, addContractFile } from './actions'
-import "./css/index.css"
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+import './css/index.css'
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import type { DeployPlugin } from 'apps/remix-ide/src/app/udapp/udappDeploy'
 
 interface DeployWidgetProps {
@@ -70,11 +70,11 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
         dispatch({ type: 'CLEAR_ALL_CONTRACT_FILES', payload: undefined })
         const workspaceFiles = await plugin.call('fileManager', 'readdir', '/')
 
-        Object.keys(workspaceFiles).forEach(entry => addContractFile(entry, plugin, dispatch))
+        Object.keys(workspaceFiles).forEach((entry) => addContractFile(entry, plugin, dispatch))
         if (workspaceFiles['contracts'] && workspaceFiles['contracts'].isDirectory) {
           const contractFiles = await plugin.call('fileManager', 'readdir', '/contracts')
 
-          Object.keys(contractFiles).forEach(entry => addContractFile(entry, plugin, dispatch))
+          Object.keys(contractFiles).forEach((entry) => addContractFile(entry, plugin, dispatch))
         }
         dispatch({ type: 'SET_LAST_LOADED_WORKSPACE', payload: workspaceName })
       }
@@ -88,7 +88,7 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
 
     plugin.on('blockchain', 'networkStatus', async ({ error, network }: any) => {
       if (error) {
-        const netUI = 'can\'t detect network'
+        const netUI = "can't detect network"
 
         return dispatch({ type: 'SET_DETECTED_NETWORK', payload: netUI })
       }
@@ -96,9 +96,7 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
       const isVM = networkProvider.startsWith('vm') ? true : false
       // For forked VM states (vm-fs-*), remove the vm-fs- prefix to show just the state name
       // For regular VM states (vm-*), remove the vm- prefix to show the fork name
-      const vmName = networkProvider?.startsWith('vm-fs-')
-        ? networkProvider.replace('vm-fs-', '')
-        : networkProvider?.replace('vm-', '')
+      const vmName = networkProvider?.startsWith('vm-fs-') ? networkProvider.replace('vm-fs-', '') : networkProvider?.replace('vm-', '')
       const netUI = !isVM ? `${network.name} (${network.id || '-'}) network` : `Remix VM ${vmName}`
 
       dispatch({ type: 'SET_DETECTED_NETWORK', payload: netUI })
@@ -137,4 +135,3 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
 }
 
 export default DeployWidget
-

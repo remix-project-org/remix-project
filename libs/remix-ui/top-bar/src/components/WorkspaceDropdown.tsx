@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, ButtonGroup, Dropdown, Overlay } from 'react-bootstrap'
 import { remote } from '@remix-api'
@@ -97,16 +97,13 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
 
   const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceMetadata>({} as WorkspaceMetadata)
   const mainRef = useRef<HTMLDivElement>(null)
-  const subRefs = useMemo(
-    () => menuItems.map(() => React.createRef<HTMLDivElement>()),
-    [menuItems]
-  )
+  const subRefs = useMemo(() => menuItems.map(() => React.createRef<HTMLDivElement>()), [menuItems])
   const [togglerText, setTogglerText] = useState<string>(NO_WORKSPACE)
 
   const filteredItems = useMemo(() => {
-    const deduped = menuItems.filter((item, idx, arr) => arr.findIndex(i => i.name === item.name) === idx)
+    const deduped = menuItems.filter((item, idx, arr) => arr.findIndex((i) => i.name === item.name) === idx)
     const q = searchQuery.trim().toLowerCase()
-    return q ? deduped.filter(item => item.name.toLowerCase().includes(q)) : deduped
+    return q ? deduped.filter((item) => item.name.toLowerCase().includes(q)) : deduped
   }, [menuItems, searchQuery])
 
   // ── Refresh workspace list when cloud mode changes ──
@@ -116,7 +113,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
       try {
         const workspaces = await getWorkspaces()
         const updated = (workspaces || []).map((workspace) => {
-          (workspace as any).submenu = subItems
+          ;(workspace as any).submenu = subItems
           return workspace as any
         })
         setMenuItems(updated)
@@ -130,7 +127,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
     return [
       { label: 'Rename', onClick: renameCurrentWorkspace, icon: 'far fa-edit' },
       { label: 'Download', onClick: downloadCurrentWorkspace, icon: 'fas fa-download' },
-      { label: 'Delete', onClick: deleteCurrentWorkspace, icon: 'fas fa-trash' }
+      { label: 'Delete', onClick: deleteCurrentWorkspace, icon: 'fas fa-trash' },
     ]
   }, [])
 
@@ -196,7 +193,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
         setTimeout(async () => {
           workspaces = await getWorkspaces()
           const updated = (workspaces || []).map((workspace) => {
-            (workspace as any).submenu = subItems
+            ;(workspace as any).submenu = subItems
             return workspace as any
           })
           setMenuItems(updated)
@@ -229,14 +226,9 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
           <strong>What are these?</strong>
         </p>
         <p className="small mb-2">
-          Periodic snapshots are taken automatically while you work. They are <strong>not</strong> complete
-          backups — each one captures the workspace state at a single point in time, potentially
-          seconds to minutes behind your actual files.
+          Periodic snapshots are taken automatically while you work. They are <strong>not</strong> complete backups — each one captures the workspace state at a single point in time, potentially seconds to minutes behind your actual files.
         </p>
-        <p className="small mb-2">
-          Snapshots expire after 7 days. This will download all available snapshots
-          as a single zip file you can inspect locally.
-        </p>
+        <p className="small mb-2">Snapshots expire after 7 days. This will download all available snapshots as a single zip file you can inspect locally.</p>
         <p className="small text-muted mb-0">
           <i className="fas fa-info-circle me-1"></i>
           No changes will be made to your current workspace.
@@ -253,39 +245,20 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
           global.modal('Download Failed', `Could not download snapshots: ${err.message || err}`, 'OK', () => {})
         }
       },
-      'Cancel'
+      'Cancel',
     )
   }
 
   // Render simplified dropdown for desktop
   if (platform === appPlatformTypes.desktop) {
     return (
-      <Dropdown
-        as={ButtonGroup}
-        style={{ minWidth: 320, flex: '1 1 auto' }}
-        className="d-flex rounded-md"
-        id="workspacesSelect"
-        data-id="workspacesSelect"
-      >
-        <Dropdown.Toggle
-          as={CustomToggle}
-          className="workspacesSelect btn btn-sm w-100 border position-relative"
-          variant="secondary"
-          data-id="workspacesMenuDropdown"
-        >
-          <div
-            data-id="workspacesSelect-togglerText"
-            className="text-truncate position-absolute start-50 translate-middle"
-          >
+      <Dropdown as={ButtonGroup} style={{ minWidth: 320, flex: '1 1 auto' }} className="d-flex rounded-md" id="workspacesSelect" data-id="workspacesSelect">
+        <Dropdown.Toggle as={CustomToggle} className="workspacesSelect btn btn-sm w-100 border position-relative" variant="secondary" data-id="workspacesMenuDropdown">
+          <div data-id="workspacesSelect-togglerText" className="text-truncate position-absolute start-50 translate-middle">
             {togglerText}
           </div>
         </Dropdown.Toggle>
-        <ElectronWorkspaceMenu
-          showMain={showMain}
-          setShowMain={setShowMain}
-          openFolder={openFolder}
-          createWorkspace={createWorkspace}
-        />
+        <ElectronWorkspaceMenu showMain={showMain} setShowMain={setShowMain} openFolder={openFolder} createWorkspace={createWorkspace} />
       </Dropdown>
     )
   }
@@ -295,63 +268,36 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
     <Dropdown
       as={ButtonGroup}
       show={dropdownOpen}
-      onToggle={(open) => { if (isDropdownLocked && open) return; setDropdownOpen(open) }}
+      onToggle={(open) => {
+        if (isDropdownLocked && open) return
+        setDropdownOpen(open)
+      }}
       style={{ minWidth: 320, flex: '1 1 auto' }}
       className="d-flex rounded-md"
       id="workspacesSelect"
       data-id="workspacesSelect"
       data-disabled={isDropdownLocked ? 'true' : undefined}
     >
-      <Dropdown.Toggle
-        as={CustomToggle}
-        className="workspacesSelect btn btn-sm w-100 border position-relative"
-        variant="secondary"
-        data-id="workspacesMenuDropdown"
-        icon={selectedWorkspace && selectedWorkspace.isGitRepo ? 'fas fa-code-branch' : null}
-      >
-        <div
-          data-id="workspacesSelect-togglerText"
-          className="text-truncate position-absolute start-50 translate-middle d-flex align-items-center"
-        >
-          {isCloudMode && (() => {
-            const props = getSyncIconProps(activeSyncStatus)
-            return (
-              <i
-                className={`${props.icon}${props.animate ? ' ' + props.animate : ''} me-2`}
-                style={{ color: props.color, fontSize: '0.8em' }}
-                title={props.title}
-              />
-            )
-          })()}
+      <Dropdown.Toggle as={CustomToggle} className="workspacesSelect btn btn-sm w-100 border position-relative" variant="secondary" data-id="workspacesMenuDropdown" icon={selectedWorkspace && selectedWorkspace.isGitRepo ? 'fas fa-code-branch' : null}>
+        <div data-id="workspacesSelect-togglerText" className="text-truncate position-absolute start-50 translate-middle d-flex align-items-center">
+          {isCloudMode &&
+            (() => {
+              const props = getSyncIconProps(activeSyncStatus)
+              return <i className={`${props.icon}${props.animate ? ' ' + props.animate : ''} me-2`} style={{ color: props.color, fontSize: '0.8em' }} title={props.title} />
+            })()}
           {cloudLoading ? 'Loading workspaces...' : togglerText}
-          {!isCloudMode && selectedWorkspace && selectedWorkspace.remoteId && (
-            <CloudSyncStatusIcon remoteId={selectedWorkspace.remoteId} className="ms-2" />
-          )}
+          {!isCloudMode && selectedWorkspace && selectedWorkspace.remoteId && <CloudSyncStatusIcon remoteId={selectedWorkspace.remoteId} className="ms-2" />}
         </div>
       </Dropdown.Toggle>
 
-      <Dropdown.Menu
-        style={{ minWidth: '100%' }}
-        className="p-2 fws-dropdown-menu"
-        data-id="topbar-custom-dropdown-items"
-        show={showMain}
-        as="div"
-      >
+      <Dropdown.Menu style={{ minWidth: '100%' }} className="p-2 fws-dropdown-menu" data-id="topbar-custom-dropdown-items" show={showMain} as="div">
         {/* ── Search ── */}
         <div className="fws-search-wrap mb-2">
           <div className="input-group input-group-sm">
             <span className="input-group-text fws-search-icon border-end-0">
               <i className="fas fa-search" style={{ fontSize: '11px' }} />
             </span>
-            <input
-              type="text"
-              className="form-control fws-search-input border-start-0"
-              placeholder="Find a workspace…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onClick={e => e.stopPropagation()}
-              autoComplete="off"
-            />
+            <input type="text" className="form-control fws-search-input border-start-0" placeholder="Find a workspace…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onClick={(e) => e.stopPropagation()} autoComplete="off" />
           </div>
         </div>
 
@@ -374,24 +320,20 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                   className="d-flex align-items-center gap-2 rounded py-1 flex-grow-1 small"
                   style={isActive ? { backgroundColor: 'rgba(var(--bs-primary-rgb), 0.08)' } : undefined}
                   onMouseDown={(e) => {
-                    if (isDropdownLocked) { e.preventDefault(); return }
+                    if (isDropdownLocked) {
+                      e.preventDefault()
+                      return
+                    }
                     setDropdownOpen(false)
                     switchWorkspace(item.name)
                     e.preventDefault()
                   }}
                   data-id={`dropdown-item-${item.name}`}
                 >
-                  <span
-                    className={`fws-status ${item.remoteId ? 'fws-status--synced' : 'fws-status--local'}`}
-                    title={item.remoteId ? 'Synced to cloud' : 'Local only'}
-                  />
-                  {item.isGitRepo && item.currentBranch && (
-                    <i className="fas fa-code-branch text-body-secondary" style={{ fontSize: '10px', flexShrink: 0 }} />
-                  )}
+                  <span className={`fws-status ${item.remoteId ? 'fws-status--synced' : 'fws-status--local'}`} title={item.remoteId ? 'Synced to cloud' : 'Local only'} />
+                  {item.isGitRepo && item.currentBranch && <i className="fas fa-code-branch text-body-secondary" style={{ fontSize: '10px', flexShrink: 0 }} />}
                   <span className="text-truncate flex-grow-1">{item.name}</span>
-                  {isActive && (
-                    <i className="fas fa-check flex-shrink-0" style={{ fontSize: '10px', color: 'var(--bs-primary)' }} />
-                  )}
+                  {isActive && <i className="fas fa-check flex-shrink-0" style={{ fontSize: '10px', color: 'var(--bs-primary)' }} />}
                 </Dropdown.Item>
 
                 <div className="d-flex align-items-center flex-shrink-0" id="submenu-activate-button">
@@ -417,20 +359,16 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                     container={document.body}
                     popperConfig={{
                       modifiers: [
-                        { name: "offset", options: { offset: [8, 22]} },
-                        { name: "preventOverflow", options: { boundary: "viewport", padding: 8 } },
-                        { name: 'flip', options: { enabled: false } }
+                        { name: 'offset', options: { offset: [8, 22] } },
+                        { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+                        { name: 'flip', options: { enabled: false } },
                       ],
                     }}
                     rootClose
                     transition={false}
                     onHide={() => setOpenSubmenuId(null)}
                   >
-                    <section
-                      id={`submenu-${id}`}
-                      style={{ minWidth: 160, zIndex: 9999, position: 'relative' }}
-                      data-id="workspacesubMenuOverlay"
-                    >
+                    <section id={`submenu-${id}`} style={{ minWidth: 160, zIndex: 9999, position: 'relative' }} data-id="workspacesubMenuOverlay">
                       <div className="fws-submenu">
                         <Dropdown.Item
                           as="button"
@@ -479,11 +417,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
               </div>
             )
           })}
-          {filteredItems.length === 0 && (
-            <div className="text-center text-body-secondary small py-2">
-              {searchQuery ? `No workspaces match "${searchQuery}"` : 'No workspaces'}
-            </div>
-          )}
+          {filteredItems.length === 0 && <div className="text-center text-body-secondary small py-2">{searchQuery ? `No workspaces match "${searchQuery}"` : 'No workspaces'}</div>}
         </div>
 
         {/* ── Footer actions ── */}
@@ -491,46 +425,46 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
           <button
             className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
             data-id="workspacecreate"
-            onClick={() => { openTemplateExplorer(); setDropdownOpen(false) }}
+            onClick={() => {
+              openTemplateExplorer()
+              setDropdownOpen(false)
+            }}
           >
             <i className="fas fa-plus text-body-secondary fws-action-icon" />
             <span>New workspace</span>
           </button>
 
           {/* ── Cloud mode: sync status ── */}
-          {isCloudMode && activeSyncStatus && (() => {
-            const sp = getSyncIconProps(activeSyncStatus)
-            return (
-              <>
-                <div className="dropdown-divider my-1" />
-                <div
-                  className="dropdown-item d-flex align-items-center gap-2 small py-1 text-body-secondary"
-                  style={{ pointerEvents: 'none', fontSize: '0.8em' }}
-                >
-                  <i
-                    className={`${sp.icon}${sp.animate ? ' ' + sp.animate : ''} fws-action-icon`}
-                    style={{ color: sp.color }}
-                  />
-                  <span>
-                    {activeSyncStatus.status === 'loading' && 'Loading workspace…'}
-                    {activeSyncStatus.status === 'syncing' && 'Syncing to cloud…'}
-                    {activeSyncStatus.status === 'idle' && activeSyncStatus.lastSync && `Synced ${new Date(activeSyncStatus.lastSync).toLocaleTimeString()}`}
-                    {activeSyncStatus.status === 'idle' && !activeSyncStatus.lastSync && 'Cloud workspace'}
-                    {activeSyncStatus.status === 'error' && `Sync error: ${activeSyncStatus.error || 'Unknown'}`}
-                  </span>
-                  {activeSyncStatus.pendingChanges > 0 && (
-                    <span className="badge bg-warning ms-auto">{activeSyncStatus.pendingChanges}</span>
-                  )}
-                </div>
-              </>
-            )
-          })()}
+          {isCloudMode &&
+            activeSyncStatus &&
+            (() => {
+              const sp = getSyncIconProps(activeSyncStatus)
+              return (
+                <>
+                  <div className="dropdown-divider my-1" />
+                  <div className="dropdown-item d-flex align-items-center gap-2 small py-1 text-body-secondary" style={{ pointerEvents: 'none', fontSize: '0.8em' }}>
+                    <i className={`${sp.icon}${sp.animate ? ' ' + sp.animate : ''} fws-action-icon`} style={{ color: sp.color }} />
+                    <span>
+                      {activeSyncStatus.status === 'loading' && 'Loading workspace…'}
+                      {activeSyncStatus.status === 'syncing' && 'Syncing to cloud…'}
+                      {activeSyncStatus.status === 'idle' && activeSyncStatus.lastSync && `Synced ${new Date(activeSyncStatus.lastSync).toLocaleTimeString()}`}
+                      {activeSyncStatus.status === 'idle' && !activeSyncStatus.lastSync && 'Cloud workspace'}
+                      {activeSyncStatus.status === 'error' && `Sync error: ${activeSyncStatus.error || 'Unknown'}`}
+                    </span>
+                    {activeSyncStatus.pendingChanges > 0 && <span className="badge bg-warning ms-auto">{activeSyncStatus.pendingChanges}</span>}
+                  </div>
+                </>
+              )
+            })()}
 
           {/* ── Cloud mode: migrate local workspaces ── */}
           {isCloudMode && onMigrateToCloud && (
             <button
               className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
-              onClick={() => { onMigrateToCloud(); setDropdownOpen(false) }}
+              onClick={() => {
+                onMigrateToCloud()
+                setDropdownOpen(false)
+              }}
               data-id="workspaceMigrateToCloud"
             >
               <i className="fas fa-cloud-upload-alt fws-action-icon" style={{ color: 'var(--bs-info)' }} />
@@ -540,11 +474,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
 
           {/* ── Cloud mode: download backup snapshots ── */}
           {isCloudMode && (
-            <button
-              className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
-              onClick={handleDownloadSnapshots}
-              data-id="workspaceDownloadCloudSnapshots"
-            >
+            <button className="dropdown-item d-flex align-items-center gap-2 small rounded py-2" onClick={handleDownloadSnapshots} data-id="workspaceDownloadCloudSnapshots">
               <i className="fas fa-history fws-action-icon" style={{ color: 'var(--bs-warning)' }} />
               <span>Download cloud snapshots</span>
             </button>
@@ -559,14 +489,20 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
               </div>
               <button
                 className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
-                onClick={() => { downloadWorkspaces(); setDropdownOpen(false) }}
+                onClick={() => {
+                  downloadWorkspaces()
+                  setDropdownOpen(false)
+                }}
               >
                 <i className="far fa-download text-body-secondary fws-action-icon" />
                 <span>Backup</span>
               </button>
               <button
                 className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
-                onClick={() => { restoreBackup(); setDropdownOpen(false) }}
+                onClick={() => {
+                  restoreBackup()
+                  setDropdownOpen(false)
+                }}
               >
                 <i className="fas fa-upload text-body-secondary fws-action-icon" />
                 <span>Restore</span>
@@ -574,14 +510,20 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
               <div className="dropdown-divider my-1" />
               <button
                 className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
-                onClick={() => { connectToLocalhost(); setDropdownOpen(false) }}
+                onClick={() => {
+                  connectToLocalhost()
+                  setDropdownOpen(false)
+                }}
               >
                 <i className="fas fa-desktop text-body-secondary fws-action-icon" />
                 <span>Connect to Localhost</span>
               </button>
               <button
                 className="dropdown-item fws-danger-item d-flex align-items-center gap-2 small rounded py-2 text-danger"
-                onClick={() => { deleteAllWorkspaces(); setDropdownOpen(false) }}
+                onClick={() => {
+                  deleteAllWorkspaces()
+                  setDropdownOpen(false)
+                }}
               >
                 <i className="fas fa-trash-can fws-action-icon" />
                 <span>Delete all workspaces</span>

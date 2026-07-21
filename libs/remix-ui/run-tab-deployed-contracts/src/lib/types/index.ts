@@ -1,5 +1,5 @@
 import React from 'react'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import type { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
 import { FuncABI } from '@remix-project/core-plugin'
 
@@ -23,7 +23,7 @@ export interface DeployedContractsWidgetState {
   showAddDialog: boolean
   addressInput: string
   showClearAllDialog: boolean
-  loadType: 'abi' | 'sol' | 'vyper' | 'lexon' | 'contract' | 'other',
+  loadType: 'abi' | 'sol' | 'vyper' | 'lexon' | 'contract' | 'other'
   currentFile: string
   lastLoadedChainId: string | null
   lastLoadedWorkspace: string | null

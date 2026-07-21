@@ -15,7 +15,7 @@ import { TrackingContext } from '@remix-ide/tracking'
 import { desktopConnectionType, Features } from '@remix-api'
 import isElectron from 'is-electron'
 import { CompileDropdown, RunScriptDropdown, EmptyDropdown, AmpSqlDropdown } from '@remix-ui/tabs'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import TabProxy from 'apps/remix-ide/src/app/panels/tab-proxy'
 
 /* eslint-disable-next-line */
@@ -63,7 +63,7 @@ const initialTabsState: ITabsState = {
   selectedIndex: -1,
   fileDecorations: [],
   currentExt: '',
-  name: ''
+  name: '',
 }
 
 const QUICKDAPP_SUBGRAPH_SETUP_OPTION = '- Subgraph: None (default) or a .subgraph file path/name'
@@ -73,26 +73,25 @@ const QUICKDAPP_SCOPE_NOTICE = 'When asking setup options, briefly state this sc
 
 const tabsReducer = (state: ITabsState, action: ITabsAction) => {
   switch (action.type) {
-  case 'SELECT_INDEX':
-    return {
-      ...state,
-      currentExt: action.ext,
-      selectedIndex: action.payload,
-      name: action.name
-    }
-  case 'SET_FILE_DECORATIONS':
-    return {
-      ...state,
-      fileDecorations: action.payload as fileDecoration[]
-    }
-  default:
-    return state
+    case 'SELECT_INDEX':
+      return {
+        ...state,
+        currentExt: action.ext,
+        selectedIndex: action.payload,
+        name: action.name,
+      }
+    case 'SET_FILE_DECORATIONS':
+      return {
+        ...state,
+        fileDecorations: action.payload as fileDecoration[],
+      }
+    default:
+      return state
   }
 }
 const PlayExtList = ['js', 'ts', 'sol', 'circom', 'vy', 'nr', 'yul', 'sql', 'subgraph']
 
 export const TabsUI = (props: TabsUIProps) => {
-
   const [tabsState, dispatch] = useReducer(tabsReducer, initialTabsState)
   const currentIndexRef = useRef(-1)
   const tabsRef = useRef({})
@@ -118,7 +117,7 @@ export const TabsUI = (props: TabsUIProps) => {
     if (props.tabs[tabsState.selectedIndex] && props.tabs[tabsState.selectedIndex].show) {
       tabsRef.current[tabsState.selectedIndex].scrollIntoView({
         behavior: 'smooth',
-        block: 'center'
+        block: 'center',
       })
     }
   }, [tabsState.selectedIndex])
@@ -218,7 +217,9 @@ export const TabsUI = (props: TabsUIProps) => {
   }
 
   const setFileDecorations = (fileStates: fileDecoration[]) => {
-    getAI().then(value => setAI_switch(value)).catch(error => console.log(error))
+    getAI()
+      .then((value) => setAI_switch(value))
+      .catch((error) => console.log(error))
     dispatch({ type: 'SET_FILE_DECORATIONS', payload: fileStates })
   }
 
@@ -235,7 +236,7 @@ export const TabsUI = (props: TabsUIProps) => {
     props.onReady({
       activateTab,
       active,
-      setFileDecorations
+      setFileDecorations,
     })
     return () => {
       if (tabsElement.current) tabsElement.current.removeEventListener('wheel', transformScroll)
@@ -283,7 +284,7 @@ export const TabsUI = (props: TabsUIProps) => {
         category: 'editor',
         action: 'publishFromEditor',
         name: storageType,
-        isClick: true
+        isClick: true,
       })
 
       setTimeout(async () => {
@@ -304,7 +305,6 @@ export const TabsUI = (props: TabsUIProps) => {
           await props.plugin.call('menuicons', 'select', 'solidity')
         }
       }, 500)
-
     } catch (e) {
       console.error(e)
       await props.plugin.call('notification', 'toast', `Compilation failed, skipping 'Publish'.`)
@@ -345,7 +345,7 @@ export const TabsUI = (props: TabsUIProps) => {
           category: 'editor',
           action: 'runScript',
           name: 'new_script',
-          isClick: true
+          isClick: true,
         })
       } catch (e) {
         console.error(e)
@@ -365,7 +365,7 @@ export const TabsUI = (props: TabsUIProps) => {
 
       const configurations = await props.plugin.call('scriptRunnerBridge', 'getConfigurations')
 
-      const selectedConfig = configurations.find(c => c.name === runnerKey)
+      const selectedConfig = configurations.find((c) => c.name === runnerKey)
       if (!selectedConfig) {
         throw new Error(`Runner configuration "${runnerKey}" not found.`)
       }
@@ -380,7 +380,7 @@ export const TabsUI = (props: TabsUIProps) => {
         category: 'editor',
         action: 'runScriptWithEnv',
         name: runnerKey,
-        isClick: true
+        isClick: true,
       })
     } catch (e) {
       console.error(e)
@@ -389,24 +389,14 @@ export const TabsUI = (props: TabsUIProps) => {
     }
   }
 
-  const waitForFreshCompilationResult = async (
-    mySeq: number,
-    targetPath: string,
-    startMs: number,
-    maxWaitMs = 1500,
-    intervalMs = 120
-  ) => {
+  const waitForFreshCompilationResult = async (mySeq: number, targetPath: string, startMs: number, maxWaitMs = 1500, intervalMs = 120) => {
     const norm = (p: string) => p.replace(/^\/+/, '')
     const fileName = norm(targetPath).split('/').pop() || norm(targetPath)
 
     const hasFile = (res: any) => {
       if (!res) return false
-      const byContracts =
-        res.contracts && typeof res.contracts === 'object' &&
-        Object.keys(res.contracts).some(k => k.endsWith(fileName) || norm(k) === norm(targetPath))
-      const bySources =
-        res.sources && typeof res.sources === 'object' &&
-        Object.keys(res.sources).some(k => k.endsWith(fileName) || norm(k) === norm(targetPath))
+      const byContracts = res.contracts && typeof res.contracts === 'object' && Object.keys(res.contracts).some((k) => k.endsWith(fileName) || norm(k) === norm(targetPath))
+      const bySources = res.sources && typeof res.sources === 'object' && Object.keys(res.sources).some((k) => k.endsWith(fileName) || norm(k) === norm(targetPath))
       return byContracts || bySources
     }
 
@@ -421,13 +411,15 @@ export const TabsUI = (props: TabsUIProps) => {
         const isFreshTime = typeof ts === 'number' ? ts >= startMs : true
         if (res && hasFile(res) && isFreshTime) return res
       } catch {}
-      await new Promise(r => setTimeout(r, intervalMs))
+      await new Promise((r) => setTimeout(r, intervalMs))
     }
     return last
   }
 
   const attachCompilationListener = (compilerName: string, mySeq: number, path: string, startedAt: number) => {
-    try { props.plugin.off(compilerName, 'compilationFinished') } catch {}
+    try {
+      props.plugin.off(compilerName, 'compilationFinished')
+    } catch {}
 
     const onFinished = async (_success: boolean) => {
       if (mySeq !== compileSeq.current || settledSeqRef.current === mySeq) return
@@ -454,7 +446,9 @@ export const TabsUI = (props: TabsUIProps) => {
         }
       }
       settledSeqRef.current = mySeq
-      try { props.plugin.off(compilerName, 'compilationFinished') } catch {}
+      try {
+        props.plugin.off(compilerName, 'compilationFinished')
+      } catch {}
     }
     props.plugin.on(compilerName, 'compilationFinished', onFinished)
   }
@@ -487,7 +481,7 @@ export const TabsUI = (props: TabsUIProps) => {
       category: 'editor',
       action: 'clickRunFromEditor',
       name: tabsState.currentExt,
-      isClick: true
+      isClick: true,
     })
 
     try {
@@ -515,18 +509,18 @@ export const TabsUI = (props: TabsUIProps) => {
       if (tabsState.currentExt === 'sql') {
         try {
           const content = await props.plugin.call('fileManager', 'readFile', path)
-          const authToken: string | undefined = await props.plugin.call('config', 'getEnv', 'AMP_QUERY_TOKEN');
-          const baseUrl: string | undefined = await props.plugin.call('config', 'getEnv', 'AMP_QUERY_URL');
+          const authToken: string | undefined = await props.plugin.call('config', 'getEnv', 'AMP_QUERY_TOKEN')
+          const baseUrl: string | undefined = await props.plugin.call('config', 'getEnv', 'AMP_QUERY_URL')
           // Perform the Amp query
           props.plugin.call('notification', 'toast', 'Performing the query...')
           const data = await props.plugin.call('amp', 'performAmpQuery', content, baseUrl, authToken)
           const result = {
             query: content,
-            data
+            data,
           }
           const resultPath = `./amp/results/query-${Date.now()}.json`
           await props.plugin.call('fileManager', 'writeFile', resultPath, JSON.stringify(result, null, '\t'))
-          props.plugin.call('notification', 'toast',`Query done. Result has been added to ${resultPath}`)
+          props.plugin.call('notification', 'toast', `Query done. Result has been added to ${resultPath}`)
           setCompileState('compiled')
         } catch (e) {
           console.error(e)
@@ -563,7 +557,7 @@ export const TabsUI = (props: TabsUIProps) => {
         yul: 'solidity',
         vy: 'vyper',
         circom: 'circuit-compiler',
-        nr: 'noir-compiler'
+        nr: 'noir-compiler',
       }[tabsState.currentExt]
 
       if (!compilerName) {
@@ -611,7 +605,9 @@ export const TabsUI = (props: TabsUIProps) => {
         await props.plugin.call('manager', 'activatePlugin', compilerName)
         await props.plugin.call('menuicons', 'select', compilerName)
         settledSeqRef.current = mySeq
-        try { props.plugin.off(compilerName, 'compilationFinished') } catch {}
+        try {
+          props.plugin.off(compilerName, 'compilationFinished')
+        } catch {}
       }, 3000)
 
       if (tabsState.currentExt === 'vy') {
@@ -621,7 +617,6 @@ export const TabsUI = (props: TabsUIProps) => {
           props.plugin.call('notification', 'toast', error.message)
         })
       }
-
     } catch (e) {
       console.error(e)
       setCompileState('idle')
@@ -643,7 +638,9 @@ export const TabsUI = (props: TabsUIProps) => {
       try {
         await props.plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
         await props.plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
-      } catch (e) { /* best-effort */ }
+      } catch (e) {
+        /* best-effort */
+      }
       return
     }
 
@@ -654,12 +651,12 @@ export const TabsUI = (props: TabsUIProps) => {
     try {
       const currentWs = await props.plugin.call('filePanel', 'getCurrentWorkspace')
       if (currentWs?.name?.startsWith('dapp-')) {
-        props.plugin.call('notification', 'toast',
-          'DApp generation is not available from a DApp workspace. Please switch to your contract workspace first.'
-        )
+        props.plugin.call('notification', 'toast', 'DApp generation is not available from a DApp workspace. Please switch to your contract workspace first.')
         return
       }
-    } catch (e) { /* proceed if check fails */ }
+    } catch (e) {
+      /* proceed if check fails */
+    }
 
     // Check if running in desktop mode - dapps should be created inline
     const isDesktop = isElectron()
@@ -670,7 +667,7 @@ export const TabsUI = (props: TabsUIProps) => {
 
     // 1. Gather deployed contracts silently
     try {
-      instances = await props.plugin.call('udappDeployedContracts', 'getDeployedContracts') || []
+      instances = (await props.plugin.call('udappDeployedContracts', 'getDeployedContracts')) || []
     } catch (e) {
       console.warn('[QuickDapp] Could not fetch deployed contracts:', e)
     }
@@ -684,9 +681,7 @@ export const TabsUI = (props: TabsUIProps) => {
       })
       if (matchingInstances.length === 0) {
         const baseName = currentFileName.replace('.sol', '')
-        matchingInstances = instances.filter((inst: any) =>
-          baseName.toLowerCase().includes(inst.name?.toLowerCase())
-        )
+        matchingInstances = instances.filter((inst: any) => baseName.toLowerCase().includes(inst.name?.toLowerCase()))
       }
     }
 
@@ -741,7 +736,7 @@ export const TabsUI = (props: TabsUIProps) => {
           `- setupOptionsConfirmed: true`,
           `- setupOptionsSummary: a short summary of my confirmed setup choices`,
           ``,
-          `IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
+          `IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`,
         )
       } else {
         // Web mode: ask for location choice
@@ -777,14 +772,12 @@ export const TabsUI = (props: TabsUIProps) => {
           `- setupOptionsConfirmed: true`,
           `- setupOptionsSummary: a short summary of my confirmed setup choices`,
           ``,
-          `IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
+          `IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`,
         )
       }
     } else if (matchingInstances.length > 1) {
       // Multiple matching contracts — let AI ask the user to choose
-      const contractList = matchingInstances.map((inst: any, i: number) =>
-        `${i + 1}) ${inst.name} at ${inst.address}`
-      ).join('\n')
+      const contractList = matchingInstances.map((inst: any, i: number) => `${i + 1}) ${inst.name} at ${inst.address}`).join('\n')
       contextParts.push(
         `I want to create a DApp frontend. I have multiple deployed contracts from "${currentFileName}":`,
         ``,
@@ -792,13 +785,11 @@ export const TabsUI = (props: TabsUIProps) => {
         ``,
         isDesktop
           ? `Please ask me which contract I'd like to use, then STOP. After my next reply selects a contract, ask exactly these setup options and STOP again: Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Location is fixed to Inline in /frontend for this request. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with frontendMode="inline", setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`
-          : `Please ask me which contract I'd like to use, then STOP. After my next reply selects a contract, ask exactly these setup options and STOP again: Location Workspace(default)/Inline, Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`
+          : `Please ask me which contract I'd like to use, then STOP. After my next reply selects a contract, ask exactly these setup options and STOP again: Location Workspace(default)/Inline, Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`,
       )
     } else if (instances.length > 0) {
       // No match for current file but other contracts exist
-      const contractList = instances.map((inst: any, i: number) =>
-        `${i + 1}) ${inst.name} at ${inst.address}`
-      ).join('\n')
+      const contractList = instances.map((inst: any, i: number) => `${i + 1}) ${inst.name} at ${inst.address}`).join('\n')
       contextParts.push(
         `I want to create a DApp frontend. I have "${currentFileName}" open but no deployed contracts matching it.`,
         `However, I have these other deployed contracts:`,
@@ -807,13 +798,11 @@ export const TabsUI = (props: TabsUIProps) => {
         ``,
         isDesktop
           ? `Please ask me which contract to use, or if I'd like to compile and deploy "${currentFileName}" first, then STOP. After a contract is selected or deployed, ask exactly these setup options and STOP again: Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Location is fixed to Inline in /frontend for this request. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with frontendMode="inline", setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`
-          : `Please ask me which contract to use, or if I'd like to compile and deploy "${currentFileName}" first, then STOP. After a contract is selected or deployed, ask exactly these setup options and STOP again: Location Workspace(default)/Inline, Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`
+          : `Please ask me which contract to use, or if I'd like to compile and deploy "${currentFileName}" first, then STOP. After a contract is selected or deployed, ask exactly these setup options and STOP again: Location Workspace(default)/Inline, Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Only after my following reply, call generate_dapp with setupOptionsConfirmed=true, setupOptionsSummary, and subgraphFilePath only if I chose a .subgraph file.`,
       )
     } else {
       // No deployed contracts at all — AI will guide compile→deploy→generate
-      const filePath = currentFile?.indexOf('/') !== -1
-        ? currentFile.substr(currentFile.indexOf('/') + 1)
-        : currentFile
+      const filePath = currentFile?.indexOf('/') !== -1 ? currentFile.substr(currentFile.indexOf('/') + 1) : currentFile
       if (isDesktop) {
         // Desktop mode: always create inline
         contextParts.push(
@@ -837,7 +826,7 @@ export const TabsUI = (props: TabsUIProps) => {
           `STEP 4 - GENERATE DAPP:`,
           `After deployment and confirmation, call generate_dapp with frontendMode: "inline", isBaseMiniApp from my answer (default false), figmaUrl/figmaToken only if provided, subgraphFilePath only if I chose a .subgraph file, setupOptionsConfirmed=true, and setupOptionsSummary.`,
           ``,
-          `Start by asking me for the setup options, then STOP.`
+          `Start by asking me for the setup options, then STOP.`,
         )
       } else {
         // Web mode: ask for location choice
@@ -868,7 +857,7 @@ export const TabsUI = (props: TabsUIProps) => {
           `STEP 4 - GENERATE DAPP:`,
           `After deployment, call generate_dapp with the deployed contract details, my location choice, isBaseMiniApp from my answer (default false), figmaUrl/figmaToken only if provided, subgraphFilePath only if I chose a .subgraph file, setupOptionsConfirmed=true, and setupOptionsSummary.`,
           ``,
-          `Start by asking me for the setup options, then STOP.`
+          `Start by asking me for the setup options, then STOP.`,
         )
       }
     }
@@ -878,10 +867,14 @@ export const TabsUI = (props: TabsUIProps) => {
     // 4. Activate AI Assistant and send
     try {
       await props.plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
-    } catch (e) { /* may already be active */ }
+    } catch (e) {
+      /* may already be active */
+    }
     try {
       await props.plugin.call('rightSidePanel', 'focusPanel')
-    } catch (e) { /* best-effort */ }
+    } catch (e) {
+      /* best-effort */
+    }
 
     console.log('[QuickDapp] Start Now → chatPipe (no modal), prompt length:', prompt.length)
     try {
@@ -914,50 +907,31 @@ export const TabsUI = (props: TabsUIProps) => {
   } else if (isVegaVisualization) {
     mainLabel = 'Generate Visualization'
   } else {
-    mainLabel = (tabsState.currentExt === 'js' || tabsState.currentExt === 'ts')
-      ? (compileState === 'compiling' ? "Run script" :
-        compileState === 'compiled' ? "Run script" : "Run script")
-      : (compileState === 'compiling' ? "Compiling..." :
-        compileState === 'compiled' ? "Compiled" : "Compile")
+    mainLabel = tabsState.currentExt === 'js' || tabsState.currentExt === 'ts' ? (compileState === 'compiling' ? 'Run script' : compileState === 'compiled' ? 'Run script' : 'Run script') : compileState === 'compiling' ? 'Compiling...' : compileState === 'compiled' ? 'Compiled' : 'Compile'
   }
   let dropDown
   if (tabsState.currentExt === 'js' || tabsState.currentExt === 'ts') {
     dropDown = (
-      <><RunScriptDropdown
-        onNotify={onNotify}
-        plugin={props.plugin}
-        onRun={handleRunScript}
-        disabled={!(PlayExtList.includes(tabsState.currentExt)) || compileState === 'compiling'}
-      />
+      <>
+        <RunScriptDropdown onNotify={onNotify} plugin={props.plugin} onRun={handleRunScript} disabled={!PlayExtList.includes(tabsState.currentExt) || compileState === 'compiling'} />
       </>
     )
   } else if (tabsState.currentExt === 'sol' || tabsState.currentExt === 'yul') {
     dropDown = (
       <>
-        <CompileDropdown
-          tabPath={active().substr(active().indexOf('/') + 1, active().length)}
-          compiledFileName={active()}
-          plugin={props.plugin}
-          disabled={!(PlayExtList.includes(tabsState.currentExt)) || compileState === 'compiling'}
-          onRequestCompileAndPublish={handleCompileAndPublish}
-          setCompileState={setCompileState}
-        />
+        <CompileDropdown tabPath={active().substr(active().indexOf('/') + 1, active().length)} compiledFileName={active()} plugin={props.plugin} disabled={!PlayExtList.includes(tabsState.currentExt) || compileState === 'compiling'} onRequestCompileAndPublish={handleCompileAndPublish} setCompileState={setCompileState} />
       </>
     )
   } else if (tabsState.currentExt === 'sql') {
     dropDown = (
       <>
-        <AmpSqlDropdown
-          onNotify={onNotify}
-          plugin={props.plugin}
-          disabled={!(PlayExtList.includes(tabsState.currentExt)) || compileState === 'compiling'}
-        />
+        <AmpSqlDropdown onNotify={onNotify} plugin={props.plugin} disabled={!PlayExtList.includes(tabsState.currentExt) || compileState === 'compiling'} />
       </>
     )
   } else {
     dropDown = (
       <>
-        <EmptyDropdown/>
+        <EmptyDropdown />
       </>
     )
   }
@@ -1013,79 +987,51 @@ export const TabsUI = (props: TabsUIProps) => {
   }
   return (
     <>
-      <div
-        className={`remix-ui-tabs justify-content-between  border-0 header nav-tabs ${
-          appContext.appState.connectedToDesktop === desktopConnectionType .disabled ? 'd-flex' : 'd-none'
-        }`}
-        data-id="tabs-component"
-      >
+      <div className={`remix-ui-tabs justify-content-between  border-0 header nav-tabs ${appContext.appState.connectedToDesktop === desktopConnectionType.disabled ? 'd-flex' : 'd-none'}`} data-id="tabs-component">
         <div className="d-flex flex-row" style={{ maxWidth: 'fit-content', width: '99%' }}>
           <div className="d-flex flex-row justify-content-center align-items-center m-1 mt-1">
             <div className="d-flex align-items-center m-1">
               {props.isDebugging ? (
-                <CustomTooltip
-                  placement="bottom"
-                  tooltipId="overlay-tooltip-ask-remixai"
-                  tooltipText={<span>Ask RemixAI about debugging</span>}
-                >
+                <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-ask-remixai" tooltipText={<span>Ask RemixAI about debugging</span>}>
                   <button
                     className="btn btn-ai d-flex align-items-center justify-content-center border-0 px-3 py-1"
                     data-id="ask-remixai-action"
                     style={{
-                      fontFamily: "Nunito Sans, sans-serif",
-                      fontSize: "11px",
+                      fontFamily: 'Nunito Sans, sans-serif',
+                      fontSize: '11px',
                       fontWeight: 700,
-                      lineHeight: "14px",
-                      whiteSpace: "nowrap",
-                      height: "28px"
+                      lineHeight: '14px',
+                      whiteSpace: 'nowrap',
+                      height: '28px',
                     }}
                     onClick={handleDebugWithRemixAI}
                   >
-                    <img src="assets/img/remixAI_small.svg" alt="Remix AI" style={{ width: "16px", height: "16px" }} />
-                    <span style={{ lineHeight: "12px", position: "relative", top: "1px" }}>
-                      Debug with RemixAI
-                    </span>
+                    <img src="assets/img/remixAI_small.svg" alt="Remix AI" style={{ width: '16px', height: '16px' }} />
+                    <span style={{ lineHeight: '12px', position: 'relative', top: '1px' }}>Debug with RemixAI</span>
                   </button>
                 </CustomTooltip>
               ) : (
                 <>
                   <div className="btn-group" role="group" data-id="compile_group" aria-label="compile group">
-                    <CustomTooltip
-                      placement="bottom"
-                      tooltipId="overlay-tooltip-run-script"
-                      tooltipText={
-                        <span>
-                          {tabsState.currentExt === 'js' || tabsState.currentExt === 'ts' ? (
-                            <FormattedMessage id="remixUiTabs.tooltipText1" />
-                          ) : tabsState.currentExt === 'sol' || tabsState.currentExt === 'yul' || tabsState.currentExt === 'circom' || tabsState.currentExt === 'vy' ? (
-                            <FormattedMessage id="remixUiTabs.tooltipText2" />
-                          ) : (
-                            <FormattedMessage id="remixUiTabs.tooltipText3" />
-                          )}
-                        </span>
-                      }
-                    >
+                    <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-run-script" tooltipText={<span>{tabsState.currentExt === 'js' || tabsState.currentExt === 'ts' ? <FormattedMessage id="remixUiTabs.tooltipText1" /> : tabsState.currentExt === 'sol' || tabsState.currentExt === 'yul' || tabsState.currentExt === 'circom' || tabsState.currentExt === 'vy' ? <FormattedMessage id="remixUiTabs.tooltipText2" /> : <FormattedMessage id="remixUiTabs.tooltipText3" />}</span>}>
                       <button
                         className="btn btn-primary d-flex align-items-center justify-content-center"
                         data-id="compile-action"
                         style={{
-                          padding: "4px 8px",
-                          height: "28px",
-                          fontFamily: "Nunito Sans, sans-serif",
-                          fontSize: "11px",
+                          padding: '4px 8px',
+                          height: '28px',
+                          fontFamily: 'Nunito Sans, sans-serif',
+                          fontSize: '11px',
                           fontWeight: 700,
-                          lineHeight: "14px",
-                          whiteSpace: "nowrap",
-                          borderRadius: "4px 0 0 4px"
+                          lineHeight: '14px',
+                          whiteSpace: 'nowrap',
+                          borderRadius: '4px 0 0 4px',
                         }}
                         disabled={btnDisabled}
                         onClick={handleCompileClick}
                       >
-                        <i className={
-                          compileState === 'compiled' ? "fas fa-check"
-                            : "fas fa-play"
-                        }></i>
-                        <span className="ms-2" style={{ lineHeight: "12px", position: "relative", top: "1px" }}>
+                        <i className={compileState === 'compiled' ? 'fas fa-check' : 'fas fa-play'}></i>
+                        <span className="ms-2" style={{ lineHeight: '12px', position: 'relative', top: '1px' }}>
                           {mainLabel}
                         </span>
                       </button>
@@ -1096,7 +1042,7 @@ export const TabsUI = (props: TabsUIProps) => {
               )}
             </div>
 
-            <div className="d-flex border-start ms-1 align-items-center" style={{ height: "3em" }}>
+            <div className="d-flex border-start ms-1 align-items-center" style={{ height: '3em' }}>
               <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-zoom-out" tooltipText={<FormattedMessage id="remixUiTabs.zoomOut" />}>
                 <span data-id="tabProxyZoomOut" className="btn fas fa-search-minus text-dark ps-2 pe-0 py-0 d-flex" onClick={() => props.onZoomOut()}></span>
               </CustomTooltip>
@@ -1121,7 +1067,7 @@ export const TabsUI = (props: TabsUIProps) => {
               dispatch({
                 type: 'SELECT_INDEX',
                 payload: index,
-                ext: getExt(props.tabs[currentIndexRef.current].name)
+                ext: getExt(props.tabs[currentIndexRef.current].name),
               })
               setCompileState('idle')
             }}
@@ -1138,15 +1084,9 @@ export const TabsUI = (props: TabsUIProps) => {
               <TabPanel className={tab.show ? '' : 'd-none'} key={tab.name}></TabPanel>
             ))}
           </Tabs>
-
         </div>
       </div>
-      {shouldShowQuickDappBanner && (
-        <QuickDappBanner
-          onClose={handleQuickDappBannerClose}
-          onStartNow={handleQuickDappStartNow}
-        />
-      )}
+      {shouldShowQuickDappBanner && <QuickDappBanner onClose={handleQuickDappBannerClose} onStartNow={handleQuickDappStartNow} />}
     </>
   )
 }

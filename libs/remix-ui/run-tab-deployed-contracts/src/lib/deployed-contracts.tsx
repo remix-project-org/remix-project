@@ -3,7 +3,7 @@ import { DeployedContractsAppContext } from './contexts'
 import { deployedContractsInitialState, deployedContractsReducer } from './reducers'
 import DeployedContractsPortraitView from './widgets/deployedContractsPortraitView'
 import './css/index.css'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
 import { loadPinnedContracts, refreshDeployedContractBalances } from './actions'
 

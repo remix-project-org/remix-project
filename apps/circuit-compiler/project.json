@@ -1,67 +1,65 @@
 {
-    "name": "circuit-compiler",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "apps/circuit-compiler/src",
-    "projectType": "application",
-    "implicitDependencies": [],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/webpack:webpack",
-        "outputs": ["{options.outputPath}"],
-        "defaultConfiguration": "development",
-        "options": {
-          "compiler": "babel",
-          "outputPath": "dist/apps/circuit-compiler",
-          "index": "apps/circuit-compiler/src/index.html",
-          "baseHref": "./",
-          "main": "apps/circuit-compiler/src/main.tsx",
-          "polyfills": "apps/circuit-compiler/src/polyfills.ts",
-          "tsConfig": "apps/circuit-compiler/tsconfig.app.json",
-          "assets": ["apps/circuit-compiler/src/profile.json", "apps/circuit-compiler/src/snarkjs.min.js"],
-          "styles": ["apps/circuit-compiler/src/css/app.css"],
-          "scripts": [],
-          "webpackConfig": "apps/circuit-compiler/webpack.config.js"          
-        },
-        "configurations": {
-          "development": {
-          },
-          "production": {
-            "fileReplacements": [
-              {
-                "replace": "apps/circuit-compiler/src/environments/environment.ts",
-                "with": "apps/circuit-compiler/src/environments/environment.prod.ts"
-              }
-            ]
-          }
-        }
+  "name": "circuit-compiler",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/circuit-compiler/src",
+  "projectType": "application",
+  "implicitDependencies": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "development",
+      "options": {
+        "compiler": "babel",
+        "outputPath": "dist/apps/circuit-compiler",
+        "index": "apps/circuit-compiler/src/index.html",
+        "baseHref": "./",
+        "main": "apps/circuit-compiler/src/main.tsx",
+        "polyfills": "apps/circuit-compiler/src/polyfills.ts",
+        "tsConfig": "apps/circuit-compiler/tsconfig.app.json",
+        "assets": ["apps/circuit-compiler/src/profile.json", "apps/circuit-compiler/src/snarkjs.min.js"],
+        "styles": ["apps/circuit-compiler/src/css/app.css"],
+        "scripts": [],
+        "webpackConfig": "apps/circuit-compiler/webpack.config.js"
       },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["apps/circuit-compiler/**/*.ts"],
-          "eslintConfig": "apps/circuit-compiler/.eslintrc"
-        }
-      },
-      "serve": {
-        "executor": "@nrwl/webpack:dev-server",
-        "defaultConfiguration": "development",
-        "options": {
-          "buildTarget": "circuit-compiler:build",
-          "hmr": true,
-          "baseHref": "/"
-        },
-        "configurations": {
-          "development": {
-            "buildTarget": "circuit-compiler:build:development",
-            "port": 2023
-          },
-          "production": {
-            "buildTarget": "circuit-compiler:build:production"
-          }
+      "configurations": {
+        "development": {},
+        "production": {
+          "fileReplacements": [
+            {
+              "replace": "apps/circuit-compiler/src/environments/environment.ts",
+              "with": "apps/circuit-compiler/src/environments/environment.prod.ts"
+            }
+          ]
         }
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/circuit-compiler/**/*.ts"],
+        "eslintConfig": "apps/circuit-compiler/.eslintrc"
+      }
+    },
+    "serve": {
+      "executor": "@nx/webpack:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "circuit-compiler:build",
+        "hmr": true,
+        "baseHref": "/"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "circuit-compiler:build:development",
+          "port": 2023
+        },
+        "production": {
+          "buildTarget": "circuit-compiler:build:production"
+        }
+      }
+    }
+  },
+  "tags": []
+}

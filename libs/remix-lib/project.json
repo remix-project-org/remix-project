@@ -1,31 +1,28 @@
 {
-    "name": "remix-lib",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-lib/src",
-    "projectType": "library",
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/remix-lib",
-          "main": "libs/remix-lib/src/index.ts",
-          "tsConfig": "libs/remix-lib/tsconfig.lib.json",
-          "updateBuildableProjectDepsInPackageJson": false,
-          "assets": [
-            "libs/remix-lib/*.md"
-          ]
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-lib/**/*.ts"],
-          "eslintConfig": "libs/remix-lib/.eslintrc"
-        }
+  "name": "remix-lib",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-lib/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-lib",
+        "main": "libs/remix-lib/src/index.ts",
+        "tsConfig": "libs/remix-lib/tsconfig.lib.json",
+        "updateBuildableProjectDepsInPackageJson": false,
+        "assets": ["libs/remix-lib/*.md"]
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/remix-lib/**/*.ts"],
+        "eslintConfig": "libs/remix-lib/.eslintrc"
+      }
+    }
+  },
+  "tags": []
+}

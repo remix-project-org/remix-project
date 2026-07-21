@@ -6,10 +6,8 @@
   "implicitDependencies": [],
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "development",
       "options": {
         "compiler": "babel",
@@ -19,13 +17,8 @@
         "main": "apps/solidity-compiler/src/main.tsx",
         "polyfills": "apps/solidity-compiler/src/polyfills.ts",
         "tsConfig": "apps/solidity-compiler/tsconfig.app.json",
-        "assets": [
-          "apps/solidity-compiler/src/favicon.ico",
-          "apps/solidity-compiler/src/assets"
-        ],
-        "styles": [
-          "apps/solidity-compiler/src/styles.css"
-        ],
+        "assets": ["apps/solidity-compiler/src/favicon.ico", "apps/solidity-compiler/src/assets"],
+        "styles": ["apps/solidity-compiler/src/styles.css"],
         "scripts": [],
         "webpackConfig": "apps/solidity-compiler/webpack.config.js"
       },
@@ -42,7 +35,7 @@
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": ["apps/solidity-compiler/**/*.ts"],
@@ -50,7 +43,7 @@
       }
     },
     "serve": {
-      "executor": "@nrwl/webpack:dev-server",
+      "executor": "@nx/webpack:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "solidity-compiler:build"

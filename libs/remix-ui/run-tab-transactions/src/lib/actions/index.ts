@@ -1,5 +1,5 @@
 import React from 'react'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { TransactionsPlugin } from 'apps/remix-ide/src/app/udapp/udappTransactions'
 import { Actions, Transaction, RecorderData } from '../types'
 import * as remixLib from '@remix-project/remix-lib'
@@ -9,7 +9,7 @@ import { trackMatomoEvent } from '@remix-api'
 const format = remixLib.execution.txFormat
 const txHelper = remixLib.execution.txHelper
 
-function resolveAddress (record: Transaction['record'], accounts: Record<string, string>) {
+function resolveAddress(record: Transaction['record'], accounts: Record<string, string>) {
   if (record.to) {
     const stamp = extractRecorderTimestamp(record.to)
     if (stamp) {
@@ -21,7 +21,7 @@ function resolveAddress (record: Transaction['record'], accounts: Record<string,
 }
 
 // Transaction action handlers
-export async function debugTransaction (plugin: TransactionsPlugin, transaction: Transaction) {
+export async function debugTransaction(plugin: TransactionsPlugin, transaction: Transaction) {
   try {
     const isDebuggerActive = await plugin.call('manager', 'isActive', 'debugger')
 
@@ -33,7 +33,7 @@ export async function debugTransaction (plugin: TransactionsPlugin, transaction:
       category: 'udapp',
       action: 'transactionDebug',
       name: shortenAddress(transaction.record?.txHash),
-      isClick: false
+      isClick: false,
     })
   } catch (error) {
     console.error('Error debugging transaction:', error)
@@ -41,7 +41,7 @@ export async function debugTransaction (plugin: TransactionsPlugin, transaction:
   }
 }
 
-export async function replayTransaction (transaction: Transaction, recorderData: RecorderData, plugin: TransactionsPlugin) {
+export async function replayTransaction(transaction: Transaction, recorderData: RecorderData, plugin: TransactionsPlugin) {
   try {
     const tx = transaction
     const accounts = recorderData._usedAccounts
@@ -116,8 +116,8 @@ export async function replayTransaction (transaction: Transaction, recorderData:
           timestamp: tx.timestamp,
           contractABI: recorderData._abis[transaction.record.abi],
           value: record.value,
-          linkReferences: tx.record.linkReferences
-        }
+          linkReferences: tx.record.linkReferences,
+        },
       }
       const result = await plugin.call('blockchain', 'runTx', txData)
 
@@ -127,7 +127,7 @@ export async function replayTransaction (transaction: Transaction, recorderData:
         category: 'udapp',
         action: 'transactionReplay',
         name: tx.record.type === 'constructor' ? 'deployment' : tx.record.name || 'transaction',
-        isClick: false
+        isClick: false,
       })
     } catch (err) {
       console.error(err)
@@ -139,7 +139,7 @@ export async function replayTransaction (transaction: Transaction, recorderData:
   }
 }
 
-export async function openTransactionInTerminal (plugin: TransactionsPlugin, transaction: Transaction) {
+export async function openTransactionInTerminal(plugin: TransactionsPlugin, transaction: Transaction) {
   try {
     // Scroll to the transaction element in the terminal and click it
     const txHash = transaction.record?.txHash
@@ -153,7 +153,7 @@ export async function openTransactionInTerminal (plugin: TransactionsPlugin, tra
           category: 'udapp',
           action: 'transactionOpenTerminal',
           name: shortenAddress(txHash),
-          isClick: false
+          isClick: false,
         })
       }
     }
@@ -163,7 +163,7 @@ export async function openTransactionInTerminal (plugin: TransactionsPlugin, tra
   }
 }
 
-export async function openTransactionInExplorer (plugin: TransactionsPlugin, transaction: Transaction) {
+export async function openTransactionInExplorer(plugin: TransactionsPlugin, transaction: Transaction) {
   try {
     const network = await plugin.call('network', 'detectNetwork')
     let explorerUrl = ''
@@ -171,21 +171,21 @@ export async function openTransactionInExplorer (plugin: TransactionsPlugin, tra
     // Determine explorer URL based on network
     if (network?.chainId) {
       switch (network.chainId) {
-      case '1':
-        explorerUrl = `https://etherscan.io/address/${transaction.record?.txHash}`
-        break
-      case '11155111':
-        explorerUrl = `https://sepolia.etherscan.io/address/${transaction.record?.txHash}`
-        break
-      case '5':
-        explorerUrl = `https://goerli.etherscan.io/address/${transaction.record?.txHash}`
-        break
-      case '10':
-        explorerUrl = `https://optimistic.etherscan.io/address/${transaction.record?.txHash}`
-        break
-      default:
-        await plugin.call('notification', 'toast', 'Block explorer not available for this network')
-        return
+        case '1':
+          explorerUrl = `https://etherscan.io/address/${transaction.record?.txHash}`
+          break
+        case '11155111':
+          explorerUrl = `https://sepolia.etherscan.io/address/${transaction.record?.txHash}`
+          break
+        case '5':
+          explorerUrl = `https://goerli.etherscan.io/address/${transaction.record?.txHash}`
+          break
+        case '10':
+          explorerUrl = `https://optimistic.etherscan.io/address/${transaction.record?.txHash}`
+          break
+        default:
+          await plugin.call('notification', 'toast', 'Block explorer not available for this network')
+          return
       }
       window.open(explorerUrl, '_blank')
 
@@ -193,7 +193,7 @@ export async function openTransactionInExplorer (plugin: TransactionsPlugin, tra
         category: 'udapp',
         action: 'transactionOpenExplorer',
         name: network.name.toLowerCase(),
-        isClick: false
+        isClick: false,
       })
     }
   } catch (error) {
@@ -202,7 +202,7 @@ export async function openTransactionInExplorer (plugin: TransactionsPlugin, tra
   }
 }
 
-export async function clearTransaction (plugin: TransactionsPlugin, transaction: Transaction, dispatch: React.Dispatch<Actions>) {
+export async function clearTransaction(plugin: TransactionsPlugin, transaction: Transaction, dispatch: React.Dispatch<Actions>) {
   try {
     dispatch({ type: 'REMOVE_TRANSACTION', payload: transaction.timestamp.toString() })
     await plugin.call('notification', 'toast', 'Transaction removed')
@@ -211,7 +211,7 @@ export async function clearTransaction (plugin: TransactionsPlugin, transaction:
       category: 'udapp',
       action: 'transactionClear',
       name: shortenAddress(transaction.record?.txHash),
-      isClick: false
+      isClick: false,
     })
   } catch (error) {
     console.error('Error clearing transaction:', error)

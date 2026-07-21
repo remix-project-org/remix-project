@@ -5,7 +5,7 @@
   "projectType": "application",
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
+      "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "development",
       "options": {
@@ -16,18 +16,13 @@
         "main": "apps/contract-verification/src/main.tsx",
         "polyfills": "apps/contract-verification/src/polyfills.ts",
         "tsConfig": "apps/contract-verification/tsconfig.app.json",
-        "assets": [
-          "apps/contract-verification/src/favicon.ico",
-          "apps/contract-verification/src/assets",
-          "apps/contract-verification/src/profile.json"
-        ],
+        "assets": ["apps/contract-verification/src/favicon.ico", "apps/contract-verification/src/assets", "apps/contract-verification/src/profile.json"],
         "styles": ["apps/contract-verification/src/styles.css"],
         "scripts": [],
         "webpackConfig": "apps/contract-verification/webpack.config.js"
       },
       "configurations": {
-        "development": {
-        },
+        "development": {},
         "production": {
           "fileReplacements": [
             {
@@ -39,7 +34,7 @@
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": ["apps/contract-verification/**/*.ts"],
@@ -47,7 +42,7 @@
       }
     },
     "serve": {
-      "executor": "@nrwl/webpack:dev-server",
+      "executor": "@nx/webpack:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "contract-verification:build",

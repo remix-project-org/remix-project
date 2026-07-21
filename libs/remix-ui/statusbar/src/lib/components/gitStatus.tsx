@@ -1,5 +1,5 @@
 import React, { useEffect, Dispatch, useState, useContext } from 'react'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { StatusBar } from 'apps/remix-ide/src/app/components/status-bar'
 import '../../css/statusbar.css'
 import { CustomTooltip } from '@remix-ui/helper'
@@ -23,26 +23,26 @@ export default function GitStatus({ plugin, gitBranchName, setGitBranchName }: G
 
   const initializeNewGitRepo = async () => {
     await plugin.call('dgit', 'init')
-    trackMatomoEvent(plugin, { category: 'statusBar', action: 'initNewRepo', isClick: true });
+    trackMatomoEvent(plugin, { category: 'statusBar', action: 'initNewRepo', isClick: true })
   }
 
   if (!appContext.appState.canUseGit) return null
 
   return (
-    <CustomTooltip
-      tooltipText={`${appContext.appState.needsGitInit
-        ? intl.formatMessage({ id: 'statusbar.initializeAsGitRepo' })
-        : intl.formatMessage({ id: 'git.checkout' }) + ': ' + appContext.appState.currentBranch.name}`}
-    >
-      <div
-        className="d-flex flex-row ps-3 text-body justify-content-center align-items-center remixui_statusbar_gitstatus"
-        onClick={async () => await openDgit()}
-      >
-        {!appContext.appState.needsGitInit ? <span className="fa-regular fa-code-branch ms-1"></span>
-          : <span className=" ms-1" onClick={initializeNewGitRepo}><FormattedMessage id="statusbar.initializeAsGitRepo" /></span>}
-        {!appContext.appState.needsGitInit && appContext.appState.currentBranch &&
-          <span onClick={async () => await openDgit()} className="ms-1">{appContext.appState.currentBranch.name}</span>
-        }
+    <CustomTooltip tooltipText={`${appContext.appState.needsGitInit ? intl.formatMessage({ id: 'statusbar.initializeAsGitRepo' }) : intl.formatMessage({ id: 'git.checkout' }) + ': ' + appContext.appState.currentBranch.name}`}>
+      <div className="d-flex flex-row ps-3 text-body justify-content-center align-items-center remixui_statusbar_gitstatus" onClick={async () => await openDgit()}>
+        {!appContext.appState.needsGitInit ? (
+          <span className="fa-regular fa-code-branch ms-1"></span>
+        ) : (
+          <span className=" ms-1" onClick={initializeNewGitRepo}>
+            <FormattedMessage id="statusbar.initializeAsGitRepo" />
+          </span>
+        )}
+        {!appContext.appState.needsGitInit && appContext.appState.currentBranch && (
+          <span onClick={async () => await openDgit()} className="ms-1">
+            {appContext.appState.currentBranch.name}
+          </span>
+        )}
       </div>
     </CustomTooltip>
   )

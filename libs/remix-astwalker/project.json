@@ -1,34 +1,29 @@
 {
-    "name": "remix-astwalker",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-astwalker/src",
-    "projectType": "library",
-    "implicitDependencies": [
-      "remix-lib"
-    ],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/remix-astwalker",
-          "main": "libs/remix-astwalker/src/index.ts",
-          "tsConfig": "libs/remix-astwalker/tsconfig.lib.json",
-          "assets": [
-            "libs/remix-astwalker/*.md"
-          ],
-          "updateBuildableProjectDepsInPackageJson": false
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-astwalker/**/*.ts"],
-          "eslintConfig": "libs/remix-astwalker/.eslintrc"
-        }
+  "name": "remix-astwalker",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-astwalker/src",
+  "projectType": "library",
+  "implicitDependencies": ["remix-lib"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-astwalker",
+        "main": "libs/remix-astwalker/src/index.ts",
+        "tsConfig": "libs/remix-astwalker/tsconfig.lib.json",
+        "assets": ["libs/remix-astwalker/*.md"],
+        "updateBuildableProjectDepsInPackageJson": false
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/remix-astwalker/**/*.ts"],
+        "eslintConfig": "libs/remix-astwalker/.eslintrc"
+      }
+    }
+  },
+  "tags": []
+}

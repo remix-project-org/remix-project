@@ -14,39 +14,16 @@
 
 import { cloudSyncEngine, CloudSyncEngine } from './cloud-sync-engine'
 import { cloudStore } from './cloud-store'
-import {
-  createCloudWorkspace as apiCreate,
-  updateCloudWorkspace as apiUpdate,
-  deleteCloudWorkspace as apiDelete,
-  listCloudWorkspaces as apiList,
-  fetchSTSToken,
-  fetchWorkspaceSTS,
-} from './cloud-workspace-api'
+import { createCloudWorkspace as apiCreate, updateCloudWorkspace as apiUpdate, deleteCloudWorkspace as apiDelete, listCloudWorkspaces as apiList, fetchSTSToken, fetchWorkspaceSTS } from './cloud-workspace-api'
 import { WorkspaceLockedError } from './cloud-workspace-lock'
 import { CloudWorkspace, WorkspaceSyncStatus } from './types'
 import { S3Client } from './s3-client'
 import JSZip from 'jszip'
-import {
-  setCurrentWorkspace,
-  setMode,
-  setReadOnlyMode,
-  setWorkspaces,
-} from '../actions/payload'
+import { setCurrentWorkspace, setMode, setReadOnlyMode, setWorkspaces } from '../actions/payload'
 import { createWorkspace, getWorkspaces, fetchWorkspaceDirectory } from '../actions/workspace'
-import {
-  enableCloudFSObserver,
-  disableCloudFSObserver,
-  onCloudFSWrite,
-  clearCloudFSListeners,
-  extractCloudWorkspaceUuid,
-  extractRelativePath,
-  FSWriteOperation,
-} from './cloud-fs-observer'
-import {
-  getQuickDappWorkspaceLock,
-  getQuickDappWorkspaceMutationLockMessage
-} from '@remix-ui/helper'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+import { enableCloudFSObserver, disableCloudFSObserver, onCloudFSWrite, clearCloudFSListeners, extractCloudWorkspaceUuid, extractRelativePath, FSWriteOperation } from './cloud-fs-observer'
+import { getQuickDappWorkspaceLock, getQuickDappWorkspaceMutationLockMessage } from '@remix-ui/helper'
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import CloudWorkspaceFileProvider from '../../../../../../apps/remix-ide/src/app/files/cloudWorkspaceFileProvider'
 
 // ── Plugin References ────────────────────────────────────────
@@ -78,7 +55,7 @@ function notifyIfQuickDappWorkspaceLocked(actionName: string): boolean {
     action: actionName,
     lockedWorkspace: quickDappLock.workspaceName,
     operation: quickDappLock.operation,
-    slug: quickDappLock.slug
+    slug: quickDappLock.slug,
   })
   _plugin?.call('notification', 'toast', message)
   return true
@@ -184,7 +161,9 @@ export function exitCloudProvider(): void {
   if (_fileOpenListenerActive && _plugin) {
     try {
       _plugin.off('fileManager', 'currentFileChanged')
-    } catch { /* plugin may already be gone */ }
+    } catch {
+      /* plugin may already be gone */
+    }
     _fileOpenListenerActive = false
   }
 
@@ -204,7 +183,9 @@ export function exitCloudProvider(): void {
 export async function enableCloud(): Promise<void> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
   if (notifyIfQuickDappWorkspaceLocked('Enabling cloud storage')) return
-  if (cloudStore.isCloudMode) { return }
+  if (cloudStore.isCloudMode) {
+    return
+  }
 
   // Show confirmation modal before enabling cloud mode
   return new Promise((resolve, reject) => {
@@ -224,7 +205,7 @@ export async function enableCloud(): Promise<void> {
       },
       cancelFn: () => {
         reject(new Error('User cancelled cloud enablement'))
-      }
+      },
     })
   })
 }
@@ -234,7 +215,9 @@ export async function enableCloud(): Promise<void> {
  */
 async function doEnableCloud(): Promise<void> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
-  if (cloudStore.isCloudMode) { return }
+  if (cloudStore.isCloudMode) {
+    return
+  }
 
   // Remember the current local workspace so we can restore it on disable
   const currentLocal = localStorage.getItem('currentWorkspace')
@@ -249,17 +232,14 @@ async function doEnableCloud(): Promise<void> {
     // workspace name must be closed while the local provider is still active.
     await _plugin.fileManager.closeAllFiles()
 
-    const [workspaces, stsToken] = await Promise.all([
-      apiList(),
-      fetchSTSToken(),
-    ])
+    const [workspaces, stsToken] = await Promise.all([apiList(), fetchSTSToken()])
 
     enterCloudProvider(workspaces)
     cloudStore.enterCloudMode(workspaces, stsToken)
 
     if (workspaces.length > 0) {
       const lastCloudName = localStorage.getItem(cloudLocalKey('lastCloudWorkspace'))
-      const targetWs = workspaces.find(w => w.name === lastCloudName) || workspaces[0]
+      const targetWs = workspaces.find((w) => w.name === lastCloudName) || workspaces[0]
       try {
         await switchToCloudWorkspace(targetWs, (status) => {
           cloudStore.updateSyncStatus(targetWs.uuid, status)
@@ -307,7 +287,9 @@ async function doEnableCloud(): Promise<void> {
 export async function disableCloud(): Promise<void> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
   if (notifyIfQuickDappWorkspaceLocked('Disabling cloud storage')) return
-  if (!cloudStore.isCloudMode) { return }
+  if (!cloudStore.isCloudMode) {
+    return
+  }
 
   // Show confirmation modal before disabling cloud mode
   return new Promise((resolve, reject) => {
@@ -327,7 +309,7 @@ export async function disableCloud(): Promise<void> {
       },
       cancelFn: () => {
         reject(new Error('User cancelled cloud disablement'))
-      }
+      },
     })
   })
 }
@@ -337,11 +319,13 @@ export async function disableCloud(): Promise<void> {
  */
 async function doDisableCloud(): Promise<void> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
-  if (!cloudStore.isCloudMode) { return }
+  if (!cloudStore.isCloudMode) {
+    return
+  }
 
   // Remember the current cloud workspace for when the user re-enables
   const activeId = cloudStore.getState().activeWorkspaceId
-  const activeWs = cloudStore.getState().cloudWorkspaces.find(w => w.uuid === activeId)
+  const activeWs = cloudStore.getState().cloudWorkspaces.find((w) => w.uuid === activeId)
   if (activeWs) localStorage.setItem(cloudLocalKey('lastCloudWorkspace'), activeWs.name)
 
   const proxy = _plugin.fileProviders.workspace
@@ -381,10 +365,17 @@ async function doDisableCloud(): Promise<void> {
         for (const e of entries) {
           try {
             const s = await (window as any).remixFileSystem.stat(`/.workspaces/${e}`)
-            if (s.isDirectory()) { targetLocal = e; break }
-          } catch { /* skip */ }
+            if (s.isDirectory()) {
+              targetLocal = e
+              break
+            }
+          } catch {
+            /* skip */
+          }
         }
-      } catch { /* /.workspaces may not exist */ }
+      } catch {
+        /* /.workspaces may not exist */
+      }
     }
 
     if (targetLocal) {
@@ -434,10 +425,7 @@ export function isCloudProvider(): boolean {
  * 2. Ensures the local directory exists
  * 3. Activates sync engine → pulls files from S3
  */
-export async function switchToCloudWorkspace(
-  cloudWorkspace: CloudWorkspace,
-  onSyncStatus?: (status: WorkspaceSyncStatus) => void,
-): Promise<void> {
+export async function switchToCloudWorkspace(cloudWorkspace: CloudWorkspace, onSyncStatus?: (status: WorkspaceSyncStatus) => void): Promise<void> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
 
   const provider = _plugin.fileProviders.workspace
@@ -467,54 +455,57 @@ export async function switchToCloudWorkspace(
     // Activate sync engine and pull from S3
     // acquireLock() inside activate() will throw WorkspaceLockedError if
     // another device/tab already holds the lock.
-    await cloudSyncEngine.activate(uuid, onSyncStatus, async () => {
-      // Called when a version conflict is detected — close all editor tabs
-      // so Remix autosave stops writing stale content, and notify the user.
-      try {
-        await _plugin.fileManager.closeAllFiles()
-      } catch (err) {
-        console.warn('[CloudSync:version] Failed to close editors:', err)
-      }
-      _plugin.call('notification', 'toast', 'Workspace updated on another device — pulling latest changes…')
-    }, async () => {
-      // Non-blocking prompt: remote _git.zip changed, ask user if they want to
-      // replace their local .git with the remote version.  This callback is
-      // fired as fire-and-forget from the sync engine, so the modal doesn't
-      // block the sync flow.
-      const result = await _plugin.call('notification', 'modal', {
-        id: 'cloud-git-conflict',
-        title: 'Git History Updated',
-        message: 'The git history for this workspace was updated on another device. Do you want to replace your local git history with the remote version?',
-        okLabel: 'Replace with Remote',
-        cancelLabel: 'Keep Local',
-      })
-      if (result) {
-        _plugin.call('notification', 'toast', 'Updating git history from remote…')
-        await cloudSyncEngine.pullGitSnapshot(true)
-        _plugin.call('notification', 'toast', 'Git history updated from remote.')
-      }
-    }, (message: string) => {
-      _plugin.call('notification', 'toast', message)
-    }, async (reason: 'stolen' | 'expired' | 'error') => {
-      // Lock lost — close the cloud workspace and switch back to legacy.
-      const reasonText = reason === 'stolen'
-        ? 'Another device opened this workspace.'
-        : reason === 'expired'
-          ? 'The workspace lock expired.'
-          : 'Lost connection to the workspace lock server.'
-      console.warn(`[CloudSync:lock] Lock lost (${reason}) — disabling cloud`)
-      _plugin.call('notification', 'modal', {
-        id: 'cloud-lock-lost',
-        title: 'Workspace Closed',
-        message: `${reasonText} The workspace has been closed to prevent conflicts. Any unsaved changes have been preserved locally.`,
-        okLabel: 'OK',
-      })
-      try {
-        await doDisableCloud()
-      } catch (err) {
-        console.error('[CloudSync:lock] doDisableCloud after lock loss failed:', err)
-      }
-    })
+    await cloudSyncEngine.activate(
+      uuid,
+      onSyncStatus,
+      async () => {
+        // Called when a version conflict is detected — close all editor tabs
+        // so Remix autosave stops writing stale content, and notify the user.
+        try {
+          await _plugin.fileManager.closeAllFiles()
+        } catch (err) {
+          console.warn('[CloudSync:version] Failed to close editors:', err)
+        }
+        _plugin.call('notification', 'toast', 'Workspace updated on another device — pulling latest changes…')
+      },
+      async () => {
+        // Non-blocking prompt: remote _git.zip changed, ask user if they want to
+        // replace their local .git with the remote version.  This callback is
+        // fired as fire-and-forget from the sync engine, so the modal doesn't
+        // block the sync flow.
+        const result = await _plugin.call('notification', 'modal', {
+          id: 'cloud-git-conflict',
+          title: 'Git History Updated',
+          message: 'The git history for this workspace was updated on another device. Do you want to replace your local git history with the remote version?',
+          okLabel: 'Replace with Remote',
+          cancelLabel: 'Keep Local',
+        })
+        if (result) {
+          _plugin.call('notification', 'toast', 'Updating git history from remote…')
+          await cloudSyncEngine.pullGitSnapshot(true)
+          _plugin.call('notification', 'toast', 'Git history updated from remote.')
+        }
+      },
+      (message: string) => {
+        _plugin.call('notification', 'toast', message)
+      },
+      async (reason: 'stolen' | 'expired' | 'error') => {
+        // Lock lost — close the cloud workspace and switch back to legacy.
+        const reasonText = reason === 'stolen' ? 'Another device opened this workspace.' : reason === 'expired' ? 'The workspace lock expired.' : 'Lost connection to the workspace lock server.'
+        console.warn(`[CloudSync:lock] Lock lost (${reason}) — disabling cloud`)
+        _plugin.call('notification', 'modal', {
+          id: 'cloud-lock-lost',
+          title: 'Workspace Closed',
+          message: `${reasonText} The workspace has been closed to prevent conflicts. Any unsaved changes have been preserved locally.`,
+          okLabel: 'OK',
+        })
+        try {
+          await doDisableCloud()
+        } catch (err) {
+          console.error('[CloudSync:lock] doDisableCloud after lock loss failed:', err)
+        }
+      },
+    )
   } catch (err) {
     if (err instanceof WorkspaceLockedError) {
       // Workspace is locked by another device — offer to take over
@@ -531,39 +522,51 @@ export async function switchToCloudWorkspace(
         // Force-acquire the lock — the old holder's heartbeat will get
         // 409 "stolen" and trigger its onLockLost → disableCloud.
         onSyncStatus?.({ status: 'loading', lastSync: null, pendingChanges: 0 })
-        await cloudSyncEngine.activate(uuid, onSyncStatus, async () => {
-          try { await _plugin.fileManager.closeAllFiles() } catch (e) { /* */ }
-          _plugin.call('notification', 'toast', 'Workspace updated on another device — pulling latest changes…')
-        }, async () => {
-          const result = await _plugin.call('notification', 'modal', {
-            id: 'cloud-git-conflict',
-            title: 'Git History Updated',
-            message: 'The git history for this workspace was updated on another device. Do you want to replace your local git history with the remote version?',
-            okLabel: 'Replace with Remote',
-            cancelLabel: 'Keep Local',
-          })
-          if (result) {
-            _plugin.call('notification', 'toast', 'Updating git history from remote…')
-            await cloudSyncEngine.pullGitSnapshot(true)
-            _plugin.call('notification', 'toast', 'Git history updated from remote.')
-          }
-        }, (message: string) => {
-          _plugin.call('notification', 'toast', message)
-        }, async (reason: 'stolen' | 'expired' | 'error') => {
-          const reasonText = reason === 'stolen'
-            ? 'Another device opened this workspace.'
-            : reason === 'expired'
-              ? 'The workspace lock expired.'
-              : 'Lost connection to the workspace lock server.'
-          console.warn(`[CloudSync:lock] Lock lost (${reason}) — disabling cloud`)
-          _plugin.call('notification', 'modal', {
-            id: 'cloud-lock-lost',
-            title: 'Workspace Closed',
-            message: `${reasonText} The workspace has been closed to prevent conflicts. Any unsaved changes have been preserved locally.`,
-            okLabel: 'OK',
-          })
-          try { await doDisableCloud() } catch (e) { console.error('[CloudSync:lock] doDisableCloud after lock loss failed:', e) }
-        }, true /* forceLock */)
+        await cloudSyncEngine.activate(
+          uuid,
+          onSyncStatus,
+          async () => {
+            try {
+              await _plugin.fileManager.closeAllFiles()
+            } catch (e) {
+              /* */
+            }
+            _plugin.call('notification', 'toast', 'Workspace updated on another device — pulling latest changes…')
+          },
+          async () => {
+            const result = await _plugin.call('notification', 'modal', {
+              id: 'cloud-git-conflict',
+              title: 'Git History Updated',
+              message: 'The git history for this workspace was updated on another device. Do you want to replace your local git history with the remote version?',
+              okLabel: 'Replace with Remote',
+              cancelLabel: 'Keep Local',
+            })
+            if (result) {
+              _plugin.call('notification', 'toast', 'Updating git history from remote…')
+              await cloudSyncEngine.pullGitSnapshot(true)
+              _plugin.call('notification', 'toast', 'Git history updated from remote.')
+            }
+          },
+          (message: string) => {
+            _plugin.call('notification', 'toast', message)
+          },
+          async (reason: 'stolen' | 'expired' | 'error') => {
+            const reasonText = reason === 'stolen' ? 'Another device opened this workspace.' : reason === 'expired' ? 'The workspace lock expired.' : 'Lost connection to the workspace lock server.'
+            console.warn(`[CloudSync:lock] Lock lost (${reason}) — disabling cloud`)
+            _plugin.call('notification', 'modal', {
+              id: 'cloud-lock-lost',
+              title: 'Workspace Closed',
+              message: `${reasonText} The workspace has been closed to prevent conflicts. Any unsaved changes have been preserved locally.`,
+              okLabel: 'OK',
+            })
+            try {
+              await doDisableCloud()
+            } catch (e) {
+              console.error('[CloudSync:lock] doDisableCloud after lock loss failed:', e)
+            }
+          },
+          true /* forceLock */,
+        )
         // Fall through to the pull logic below
       } else {
         // User cancelled — switch back to a legacy workspace
@@ -604,10 +607,7 @@ export async function switchToCloudWorkspace(
  * Only the API name is changed + the provider's mapping is updated.
  * No local FS rename needed (directory stays as UUID).
  */
-export async function renameCloudWorkspaceAction(
-  cloudWorkspace: CloudWorkspace,
-  newName: string,
-): Promise<CloudWorkspace> {
+export async function renameCloudWorkspaceAction(cloudWorkspace: CloudWorkspace, newName: string): Promise<CloudWorkspace> {
   if (!_plugin) throw new Error('Cloud plugin not initialized')
 
   const updated = await apiUpdate(cloudWorkspace.uuid, { name: newName })
@@ -698,10 +698,7 @@ export function startFileChangeTracking(workspaceProvider: any, workspaceUuid: s
     listeners.push({ event, handler })
   }
 
-  const shouldTrack = (relativePath: string) =>
-    relativePath &&
-    !relativePath.startsWith('.git/') &&
-    !relativePath.endsWith(CloudSyncEngine.MANIFEST_FILENAME)
+  const shouldTrack = (relativePath: string) => relativePath && !relativePath.startsWith('.git/') && !relativePath.endsWith(CloudSyncEngine.MANIFEST_FILENAME)
 
   addListener('fileAdded', (path: string) => {
     const relativePath = stripWorkspacePrefix(path, workspaceUuid, workspaceProvider.workspacesPath)
@@ -736,7 +733,9 @@ export function startFileChangeTracking(workspaceProvider: any, workspaceUuid: s
     for (const { event, handler } of listeners) {
       try {
         workspaceProvider.event.off(event, handler)
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     _cleanupTracking = null
   }
@@ -795,16 +794,11 @@ function handleRawFSWrite(op: FSWriteOperation, provider: any): void {
   //    and NOT while the engine is pulling (writes from S3→local should
   //    not be re-pushed back to S3).
   if (op.type !== 'mkdir' && op.type !== 'rmdir' && !cloudSyncEngine.isPulling) {
-    const changeType = op.type === 'writeFile' ? 'change'
-      : op.type === 'unlink' ? 'delete'
-        : op.type === 'rename' ? 'rename'
-          : 'change'
+    const changeType = op.type === 'writeFile' ? 'change' : op.type === 'unlink' ? 'delete' : op.type === 'rename' ? 'rename' : 'change'
 
     // For renames:  op.path = old path,  op.newPath = new path
     // The tracked change should have path = new (what to upload) and oldPath = old (what to delete).
-    const changePath = (op.type === 'rename' && op.newPath)
-      ? extractRelativePath(op.newPath)!
-      : relativePath
+    const changePath = op.type === 'rename' && op.newPath ? extractRelativePath(op.newPath)! : relativePath
     const changeOldPath = op.type === 'rename' ? relativePath : undefined
 
     if (!changePath) return // safety — newPath outside cloud workspace
@@ -866,7 +860,7 @@ export async function downloadBackupSnapshots(): Promise<number> {
 
   // List all objects and filter for backup zips
   const allObjects = await s3.listObjects()
-  const backups = allObjects.filter(obj => {
+  const backups = allObjects.filter((obj) => {
     const key = obj.key
     // key is relative to prefix, e.g. "_workspace_backup_1709912345678.zip"
     return key.startsWith('_workspace_backup_') && key.endsWith('.zip')
@@ -892,7 +886,7 @@ export async function downloadBackupSnapshots(): Promise<number> {
   }
 
   // Find workspace name for the download filename
-  const ws = state.cloudWorkspaces.find(w => w.uuid === uuid)
+  const ws = state.cloudWorkspaces.find((w) => w.uuid === uuid)
   const wsName = ws?.name || uuid
 
   const blob = await bundle.generateAsync({ type: 'blob' })

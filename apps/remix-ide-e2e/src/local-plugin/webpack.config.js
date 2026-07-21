@@ -1,4 +1,4 @@
-const { composePlugins, withNx } = require('@nrwl/webpack')
+const { composePlugins, withNx } = require('@nx/webpack')
 
 // Nx plugins for webpack.
 module.exports = composePlugins(withNx(), (config) => {
@@ -11,15 +11,15 @@ module.exports = composePlugins(withNx(), (config) => {
   // source-map loader
   config.module.rules.push({
     test: /\.js$/,
-    use: ["source-map-loader"],
-    enforce: "pre"
+    use: ['source-map-loader'],
+    enforce: 'pre',
   })
 
   config.ignoreWarnings = [/Failed to parse source map/] // ignore source-map-loader warnings
 
   config.watchOptions = {
-    ignored: /node_modules/
+    ignored: /node_modules/,
   }
 
-  return config;
-});
+  return config
+})

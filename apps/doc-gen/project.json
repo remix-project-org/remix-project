@@ -3,11 +3,10 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/doc-gen/src",
   "projectType": "application",
-  "implicitDependencies": [
-  ],
+  "implicitDependencies": [],
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
+      "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "development",
       "options": {
@@ -17,17 +16,13 @@
         "baseHref": "./",
         "main": "apps/doc-gen/src/main.tsx",
         "tsConfig": "apps/doc-gen/tsconfig.app.json",
-        "assets": [
-          "apps/doc-gen/src/favicon.ico",
-          "apps/doc-gen/src/profile.json"
-        ],
+        "assets": ["apps/doc-gen/src/favicon.ico", "apps/doc-gen/src/profile.json"],
         "styles": [],
         "scripts": [],
         "webpackConfig": "apps/doc-gen/webpack.config.js"
       },
       "configurations": {
-        "development": {
-        },
+        "development": {},
         "production": {
           "fileReplacements": [
             {
@@ -39,7 +34,7 @@
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": ["apps/doc-gen/**/*.ts"],
@@ -47,7 +42,7 @@
       }
     },
     "serve": {
-      "executor": "@nrwl/webpack:dev-server",
+      "executor": "@nx/webpack:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "doc-gen:build",

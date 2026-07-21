@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { Plugin } from '@remixproject/engine'
 import { LibraryProfile, MethodApi, StatusEvents } from '@remixproject/plugin-utils'
 import { AppModal } from '@remix-ui/app'
@@ -23,7 +23,7 @@ const profile: LibraryProfile<INotificationApi> = {
   name: 'notification',
   displayName: 'Notification',
   description: 'Displays notifications',
-  methods: ['modal', 'alert', 'toast', 'hideToaster', 'actionNotification', 'hideActionNotification']
+  methods: ['modal', 'alert', 'toast', 'hideToaster', 'actionNotification', 'hideActionNotification'],
 }
 
 export class NotificationPlugin extends Plugin implements MethodApi<INotificationApi> {

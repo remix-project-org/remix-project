@@ -1,4 +1,4 @@
-const { composePlugins, withNx } = require('@nrwl/webpack')
+const { composePlugins, withNx } = require('@nx/webpack')
 const webpack = require('webpack')
 const TerserPlugin = require('terser-webpack-plugin')
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
@@ -59,7 +59,7 @@ module.exports = composePlugins(withNx(), (config) => {
       Buffer: ['buffer', 'Buffer'],
       url: ['url', 'URL'],
       process: 'process/browser',
-    })
+    }),
   )
 
   // source-map loader

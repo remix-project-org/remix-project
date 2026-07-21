@@ -3,26 +3,21 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/remixd/src",
   "projectType": "library",
-  "implicitDependencies": [
-    "remix-solidity"
-  ],
+  "implicitDependencies": ["remix-solidity"],
   "targets": {
     "build": {
-      "executor": "@nrwl/js:tsc",
+      "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/libs/remixd",
         "main": "libs/remixd/src/index.ts",
         "tsConfig": "libs/remixd/tsconfig.lib.json",
         "updateBuildableProjectDepsInPackageJson": false,
-        "assets": [
-          "libs/remixd/*.md",
-          "libs/remixd/origins.json"
-        ]
+        "assets": ["libs/remixd/*.md", "libs/remixd/origins.json"]
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": ["libs/remixd/**/*.ts"],

@@ -1,67 +1,65 @@
 {
-    "name": "noir-compiler",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "apps/noir-compiler/src",
-    "projectType": "application",
-    "implicitDependencies": [],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/webpack:webpack",
-        "outputs": ["{options.outputPath}"],
-        "defaultConfiguration": "development",
-        "options": {
-          "compiler": "babel",
-          "outputPath": "dist/apps/noir-compiler",
-          "index": "apps/noir-compiler/src/index.html",
-          "baseHref": "./",
-          "main": "apps/noir-compiler/src/main.tsx",
-          "polyfills": "apps/noir-compiler/src/polyfills.ts",
-          "tsConfig": "apps/noir-compiler/tsconfig.app.json",
-          "assets": ["apps/noir-compiler/src/profile.json", "apps/noir-compiler/src/snarkjs.min.js"],
-          "styles": ["apps/noir-compiler/src/css/app.css"],
-          "scripts": [],
-          "webpackConfig": "apps/noir-compiler/webpack.config.js"          
-        },
-        "configurations": {
-          "development": {
-          },
-          "production": {
-            "fileReplacements": [
-              {
-                "replace": "apps/noir-compiler/src/environments/environment.ts",
-                "with": "apps/noir-compiler/src/environments/environment.prod.ts"
-              }
-            ]
-          }
-        }
+  "name": "noir-compiler",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/noir-compiler/src",
+  "projectType": "application",
+  "implicitDependencies": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "development",
+      "options": {
+        "compiler": "babel",
+        "outputPath": "dist/apps/noir-compiler",
+        "index": "apps/noir-compiler/src/index.html",
+        "baseHref": "./",
+        "main": "apps/noir-compiler/src/main.tsx",
+        "polyfills": "apps/noir-compiler/src/polyfills.ts",
+        "tsConfig": "apps/noir-compiler/tsconfig.app.json",
+        "assets": ["apps/noir-compiler/src/profile.json", "apps/noir-compiler/src/snarkjs.min.js"],
+        "styles": ["apps/noir-compiler/src/css/app.css"],
+        "scripts": [],
+        "webpackConfig": "apps/noir-compiler/webpack.config.js"
       },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["apps/noir-compiler/**/*.ts"],
-          "eslintConfig": "apps/noir-compiler/.eslintrc"
-        }
-      },
-      "serve": {
-        "executor": "@nrwl/webpack:dev-server",
-        "defaultConfiguration": "development",
-        "options": {
-          "buildTarget": "noir-compiler:build",
-          "hmr": true,
-          "baseHref": "/"
-        },
-        "configurations": {
-          "development": {
-            "buildTarget": "noir-compiler:build:development",
-            "port": 2023
-          },
-          "production": {
-            "buildTarget": "noir-compiler:build:production"
-          }
+      "configurations": {
+        "development": {},
+        "production": {
+          "fileReplacements": [
+            {
+              "replace": "apps/noir-compiler/src/environments/environment.ts",
+              "with": "apps/noir-compiler/src/environments/environment.prod.ts"
+            }
+          ]
         }
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/noir-compiler/**/*.ts"],
+        "eslintConfig": "apps/noir-compiler/.eslintrc"
+      }
+    },
+    "serve": {
+      "executor": "@nx/webpack:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "noir-compiler:build",
+        "hmr": true,
+        "baseHref": "/"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "noir-compiler:build:development",
+          "port": 2023
+        },
+        "production": {
+          "buildTarget": "noir-compiler:build:production"
+        }
+      }
+    }
+  },
+  "tags": []
+}

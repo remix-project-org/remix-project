@@ -5,7 +5,7 @@
   "projectType": "application",
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
+      "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "development",
       "options": {
@@ -16,17 +16,13 @@
         "main": "apps/remix-ide-e2e/src/local-plugin/src/main.tsx",
         "polyfills": "apps/remix-ide-e2e/src/local-plugin/src/polyfills.ts",
         "tsConfig": "apps/remix-ide-e2e/src/local-plugin/tsconfig.app.json",
-        "assets": [
-        ],
-        "styles": [
-          "apps/remix-ide-e2e/src/local-plugin/src/styles.css"
-        ],
+        "assets": [],
+        "styles": ["apps/remix-ide-e2e/src/local-plugin/src/styles.css"],
         "scripts": [],
         "webpackConfig": "apps/remix-ide-e2e/src/local-plugin/webpack.config.js"
       },
       "configurations": {
-        "development": {
-        },
+        "development": {},
         "production": {
           "fileReplacements": [
             {
@@ -38,7 +34,7 @@
       }
     },
     "serve": {
-      "executor": "@nrwl/webpack:dev-server",
+      "executor": "@nx/webpack:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "plugin_api:build",

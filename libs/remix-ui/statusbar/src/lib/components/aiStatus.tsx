@@ -1,4 +1,4 @@
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { StatusBar } from 'apps/remix-ide/src/app/components/status-bar'
 import { CustomTooltip } from '@remix-ui/helper'
 import React, { useContext, useEffect, useState } from 'react'
@@ -23,18 +23,17 @@ export default function AIStatus(props: AIStatusProps) {
       setCopilotActive(aiActivate)
     }
     run()
-
   }, [])
 
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(true)
 
   useEffect(() => {
     // Set a timeout to make UI message disappear after 3 seconds
     const timer = setTimeout(() => {
-      setVisible(false);
-    }, 5000);
+      setVisible(false)
+    }, 5000)
 
-    return () => clearTimeout(timer);
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -49,21 +48,15 @@ export default function AIStatus(props: AIStatusProps) {
 
   return (
     <div>
-      <CustomTooltip
-        tooltipText={copilotActive
-          ? intl.formatMessage({ id: 'statusbar.disableRemixAICopilot' })
-          : intl.formatMessage({ id: 'statusbar.enableRemixAICopilot' })}
-      >
+      <CustomTooltip tooltipText={copilotActive ? intl.formatMessage({ id: 'statusbar.disableRemixAICopilot' }) : intl.formatMessage({ id: 'statusbar.enableRemixAICopilot' })}>
         <span
           style={{ cursor: 'pointer' }}
-          className={"small mx-1 border-0 text-body " + (copilotActive === false ? "semi-bold" : "")}
+          className={'small mx-1 border-0 text-body ' + (copilotActive === false ? 'semi-bold' : '')}
           onClick={async () => {
             await props.plugin.call('settings' as any, 'updateCopilotChoice', !copilotActive)
           }}
         >
-          {copilotActive === false
-            ? <FormattedMessage id="statusbar.remixAICopilotDisabled" />
-            : <FormattedMessage id="statusbar.remixAICopilotEnabled" />}
+          {copilotActive === false ? <FormattedMessage id="statusbar.remixAICopilotDisabled" /> : <FormattedMessage id="statusbar.remixAICopilotEnabled" />}
         </span>
       </CustomTooltip>
       <div className="d-flex text-sm flex-row pe-2 text-body justify-content-center align-items-center">
@@ -76,14 +69,18 @@ export default function AIStatus(props: AIStatusProps) {
             border-color: var(--info)
           }
         `}</style>
-        { !appContext.appState.showPopupPanel && <div className='d-flex flex-column' style={{
-          position: 'absolute',
-          bottom: '1.5rem',
-          right: '0.5rem',
-          color: 'var(--custom-ai-color)',
-          alignItems: 'self-end',
-        }}>
-          {/* { visible &&
+        {!appContext.appState.showPopupPanel && (
+          <div
+            className="d-flex flex-column"
+            style={{
+              position: 'absolute',
+              bottom: '1.5rem',
+              right: '0.5rem',
+              color: 'var(--custom-ai-color)',
+              alignItems: 'self-end',
+            }}
+          >
+            {/* { visible &&
             <span className='p-1 text-info alert alert-secondary' style={{
               boxShadow: "0 1px 7px var(--bs-secondary)",
               zIndex: '200',
@@ -93,7 +90,7 @@ export default function AIStatus(props: AIStatusProps) {
                 👋 I'm here to help you!
             </span>
           } */}
-          {/* <button
+            {/* <button
             style={{
               backgroundColor: 'var(--brand-dark-blue)',
               height: '3rem',
@@ -113,8 +110,8 @@ export default function AIStatus(props: AIStatusProps) {
           >
             <img className="align-self-start" src="assets/img/aiLogoHead.webp" alt="" style={{ height: "2rem" }}></img>
           </button> */}
-        </div>
-        }
+          </div>
+        )}
       </div>
     </div>
   )

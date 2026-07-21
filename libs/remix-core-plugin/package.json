@@ -1,9 +1,8 @@
 {
-    "name": "@remix-project/core-plugin",
-    "version": "0.0.1",
-    "description": "This library was generated with [Nx](https://nx.dev).",
-    "main": "src/index.js",
-    "author": "Remix Team",
-    "license": "ISC"
-  }
-  
+  "name": "@remix-project/core-plugin",
+  "version": "0.0.1",
+  "description": "This library was generated with [Nx](https://nx.dev).",
+  "main": "src/index.js",
+  "author": "Remix Team",
+  "license": "ISC"
+}

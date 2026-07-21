@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { createElement } from 'react' // eslint-disable-line
 import { createPortal } from 'react-dom'
 import { RunTabUI } from '@remix-ui/run-tab'
@@ -22,7 +22,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: ['newTransaction'],
-  methods: ['showPluginDetails']
+  methods: ['showPluginDetails'],
 }
 
 export class RunTab extends ViewPlugin {
@@ -74,37 +74,44 @@ export class RunTab extends ViewPlugin {
   }
 
   renderComponent() {
-    this.dispatch && this.dispatch({
-      ...this,
-      envUI: this.envUI,
-      deployUI: this.deployUI,
-      deployedContractsUI: this.deployedContractsUI,
-      transactionsUI: this.transactionsUI
-    })
+    this.dispatch &&
+      this.dispatch({
+        ...this,
+        envUI: this.envUI,
+        deployUI: this.deployUI,
+        deployedContractsUI: this.deployedContractsUI,
+        transactionsUI: this.transactionsUI,
+      })
   }
 
   updateComponent() {
-    return (<>
-      { this.envUI && createPortal(this.envUI, document.getElementById('udappEnvComponent')) }
-      { this.deployUI && createPortal(this.deployUI, document.getElementById('udappDeployComponent')) }
-      { this.deployedContractsUI && createPortal(this.deployedContractsUI, document.getElementById('udappDeployedContractsComponent')) }
-      { this.transactionsUI && createPortal(this.transactionsUI, document.getElementById('udappTransactionsComponent')) }
-    </>)
+    return (
+      <>
+        {this.envUI && createPortal(this.envUI, document.getElementById('udappEnvComponent'))}
+        {this.deployUI && createPortal(this.deployUI, document.getElementById('udappDeployComponent'))}
+        {this.deployedContractsUI && createPortal(this.deployedContractsUI, document.getElementById('udappDeployedContractsComponent'))}
+        {this.transactionsUI && createPortal(this.transactionsUI, document.getElementById('udappTransactionsComponent'))}
+      </>
+    )
   }
 
   render() {
     return (
-      <div id="runTabView" style={{ position: 'relative', height: '100%', overflow: 'auto' }} onScroll={(e) => {
-        const target = e.target as HTMLElement
-        const envComponent = document.getElementById('udappEnvComponent')
-        if (envComponent) {
-          if (target.scrollTop > 0) {
-            envComponent.classList.add('scrolled')
-          } else {
-            envComponent.classList.remove('scrolled')
+      <div
+        id="runTabView"
+        style={{ position: 'relative', height: '100%', overflow: 'auto' }}
+        onScroll={(e) => {
+          const target = e.target as HTMLElement
+          const envComponent = document.getElementById('udappEnvComponent')
+          if (envComponent) {
+            if (target.scrollTop > 0) {
+              envComponent.classList.add('scrolled')
+            } else {
+              envComponent.classList.remove('scrolled')
+            }
           }
-        }
-      }}>
+        }}
+      >
         <div id="udappEnvComponent" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--body-bg)' }}></div>
         <div id="udappScrollableContent">
           <div id="udappDeployComponent"></div>

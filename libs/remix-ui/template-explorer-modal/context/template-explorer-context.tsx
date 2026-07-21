@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useState } from 'react'
 import { TemplateCategory, TemplateExplorerContextType, TemplateExplorerWizardAction, TemplateItem } from '../types/template-explorer-types'
 import { initialState, templateExplorerReducer } from '../reducers/template-explorer-reducer'
@@ -13,7 +13,7 @@ import TrackingContext from '@remix-ide/tracking'
 
 export const TemplateExplorerContext = createContext<TemplateExplorerContextType>({} as any)
 
-export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalPlugin, fileMode: boolean, ipfsMode: boolean, httpImportMode: boolean }) => {
+export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalPlugin; fileMode: boolean; ipfsMode: boolean; httpImportMode: boolean }) => {
   const [state, dispatch] = useReducer(templateExplorerReducer, initialState)
   const [theme, setTheme] = useState<any>(null)
   const appContext = useContext(AppContext)
@@ -66,7 +66,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
       if (!workspace) {
         return name
       } else {
-        const uniqueName = await plugin.call('filePanel', 'getAvailableWorkspaceName', name) as string
+        const uniqueName = (await plugin.call('filePanel', 'getAvailableWorkspaceName', name)) as string
         return uniqueName
       }
     } catch (error) {
@@ -120,9 +120,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
         })
       }
       //tag filter
-      const filtered = state.selectedTag
-        ? items.filter((it: any) => it && Array.isArray(it.tagList) && it.tagList.includes(state.selectedTag))
-        : items
+      const filtered = state.selectedTag ? items.filter((it: any) => it && Array.isArray(it.tagList) && it.tagList.includes(state.selectedTag)) : items
       return filtered
     } catch (e) {
       return []
@@ -147,32 +145,23 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
             const itemDisplayName = (item.displayName || '').toLowerCase()
             const itemValue = (item.value || '').toLowerCase()
             const itemDescription = (item.description || '').toLowerCase()
-            const itemTags = (item.tagList || []).map(tag => tag.toLowerCase()).join(' ')
+            const itemTags = (item.tagList || []).map((tag) => tag.toLowerCase()).join(' ')
 
             // Check category fields
             const categoryName = (template.name || '').toLowerCase()
             const categoryDescription = (template.description || '').toLowerCase()
 
             // Search across all fields
-            matchesSearch =
-              itemDisplayName.includes(searchTerm) ||
-              itemValue.includes(searchTerm) ||
-              itemDescription.includes(searchTerm) ||
-              itemTags.includes(searchTerm) ||
-              categoryName.includes(searchTerm) ||
-              categoryDescription.includes(searchTerm)
+            matchesSearch = itemDisplayName.includes(searchTerm) || itemValue.includes(searchTerm) || itemDescription.includes(searchTerm) || itemTags.includes(searchTerm) || categoryName.includes(searchTerm) || categoryDescription.includes(searchTerm)
           }
 
           // Filter by selected tag
-          const matchesTag = !selectedTag ||
-            (item.tagList && item.tagList.includes(selectedTag))
+          const matchesTag = !selectedTag || (item.tagList && item.tagList.includes(selectedTag))
 
           return matchesSearch && matchesTag
-        })
+        }),
       }))
-      .filter((template: TemplateCategory) =>
-        template && template.items && template.items.length > 0
-      )
+      .filter((template: TemplateCategory) => template && template.items && template.items.length > 0)
   }, [state.selectedTag, state.searchTerm, state.templateRepository])
 
   const fileModeOnlyCategories = useMemo(() => new Set(['GitHub Actions', 'Contract Verification', 'Solidity CREATE2', 'Generic ZKP']), [])
@@ -194,40 +183,34 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
       return unique
     }
 
-    let processedTemplates = (filteredTemplates || []).map((group: any) => ({
-      ...group,
-      items: makeUniqueItems(group && group.items ? group.items : [])
-    })).filter((g: any) => {
-      // Keep categories that have items OR special functionality (like Cookbook)
-      return g && (
-        (g.items && g.items.length > 0) ||
-        (g.name === 'Cookbook' && g.onClick) ||
-        (g.hasOptions && g.name !== 'Cookbook')
-      )
-    })
+    let processedTemplates = (filteredTemplates || [])
+      .map((group: any) => ({
+        ...group,
+        items: makeUniqueItems(group && group.items ? group.items : []),
+      }))
+      .filter((g: any) => {
+        // Keep categories that have items OR special functionality (like Cookbook)
+        return g && ((g.items && g.items.length > 0) || (g.name === 'Cookbook' && g.onClick) || (g.hasOptions && g.name !== 'Cookbook'))
+      })
 
     if (state.manageCategory === 'Template') {
       // Hide file-only categories when managing templates (workspace creation mode).
       // But always show categories that support both modes
-      processedTemplates = processedTemplates.filter((category: TemplateCategory) =>
-        !fileModeOnlyCategories.has(category?.name) || bothModesCategories.has(category?.name)
-      )
+      processedTemplates = processedTemplates.filter((category: TemplateCategory) => !fileModeOnlyCategories.has(category?.name) || bothModesCategories.has(category?.name))
     } else if (state.manageCategory === 'Files') {
       // In file mode, only surface the file-only categories and both-modes categories.
-      processedTemplates = processedTemplates.filter((category: TemplateCategory) =>
-        fileModeOnlyCategories.has(category?.name) || bothModesCategories.has(category?.name)
-      )
+      processedTemplates = processedTemplates.filter((category: TemplateCategory) => fileModeOnlyCategories.has(category?.name) || bothModesCategories.has(category?.name))
     }
 
     // Find Cookbook from the original template repository
-    const cookbookTemplate = (state.templateRepository as TemplateCategory[] || []).find(x => x.name === 'Cookbook')
+    const cookbookTemplate = ((state.templateRepository as TemplateCategory[]) || []).find((x) => x.name === 'Cookbook')
     const searchTerm = (state.searchTerm || '').trim().toLowerCase()
 
     // Only add Cookbook if there's no search term or if the search term contains "cookbook"
     const shouldShowCookbook = state.manageCategory !== 'Files' && (!searchTerm || searchTerm.includes('cookbook'))
 
     // If Cookbook exists and should be shown and is not already in processedTemplates, add it as the second item
-    if (cookbookTemplate && shouldShowCookbook && !processedTemplates.find(t => t.name === 'Cookbook')) {
+    if (cookbookTemplate && shouldShowCookbook && !processedTemplates.find((t) => t.name === 'Cookbook')) {
       if (processedTemplates.length >= 1) {
         processedTemplates.splice(1, 0, cookbookTemplate)
       } else {
@@ -257,19 +240,14 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
       const trimmed = filtered.slice(0, 4)
       if (typeof window !== 'undefined') window.localStorage.setItem(RECENT_KEY, JSON.stringify(trimmed))
       dispatch({ type: TemplateExplorerWizardAction.SET_RECENT_BUMP, payload: state.recentBump + 1 })
-    } catch (e) {
-
-    }
+    } catch (e) {}
   }
 
   const contextValue = { templateRepository: state.templateRepository, metadata: state.metadata, selectedTag: state.selectedTag, recentTemplates, filteredTemplates, dedupedTemplates, handleTagClick, clearFilter, addRecentTemplate, RECENT_KEY, allTags, plugin, setSearchTerm, dispatch, state, theme, facade, templateCategoryStrategy, generateUniqueWorkspaceName, trackMatomoEvent, fileMode, ipfsMode, httpImportMode }
 
   return (
     <TemplateExplorerContext.Provider value={contextValue}>
-      <RemixUiTemplateExplorerModal
-        appState={appContext.appState}
-        dispatch={appContext.appStateDispatch}
-      />
+      <RemixUiTemplateExplorerModal appState={appContext.appState} dispatch={appContext.appStateDispatch} />
     </TemplateExplorerContext.Provider>
   )
 }

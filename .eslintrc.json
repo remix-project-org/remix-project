@@ -1,21 +1,12 @@
 {
   "root": true,
-  "ignorePatterns": [
-    "**/node_modules/**"
-  ],
-  "plugins": [
-    "@nrwl/nx"
-  ],
+  "ignorePatterns": ["**/node_modules/**"],
+  "plugins": ["@nx"],
   "overrides": [
     {
-      "files": [
-        "*.ts",
-        "*.tsx",
-        "*.js",
-        "*.jsx"
-      ],
+      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
       "rules": {
-        "@nrwl/nx/enforce-module-boundaries": [
+        "@nx/enforce-module-boundaries": [
           "error",
           {
             "enforceBuildableLibDependency": true,
@@ -23,9 +14,7 @@
             "depConstraints": [
               {
                 "sourceTag": "*",
-                "onlyDependOnLibsWithTags": [
-                  "*"
-                ]
+                "onlyDependOnLibsWithTags": ["*"]
               }
             ]
           }
@@ -34,13 +23,8 @@
       }
     },
     {
-      "files": [
-        "*.ts",
-        "*.tsx"
-      ],
-      "extends": [
-        "plugin:@nrwl/nx/typescript"
-      ],
+      "files": ["*.ts", "*.tsx"],
+      "extends": ["plugin:@nx/typescript"],
       "rules": {
         "@typescript-eslint/ban-ts-comment": "off",
         "@typescript-eslint/no-this-alias": "off",
@@ -60,7 +44,7 @@
         "object-curly-spacing": ["error", "always", { "arraysInObjects": false }],
         "no-trailing-spaces": "error",
         "no-multi-spaces": "error",
-        "no-multiple-empty-lines": ["error" , { "max": 1}],
+        "no-multiple-empty-lines": ["error", { "max": 1 }],
         "no-restricted-syntax": [
           "error",
           {
@@ -81,13 +65,8 @@
       }
     },
     {
-      "files": [
-        "*.js",
-        "*.jsx"
-      ],
-      "extends": [
-        "plugin:@nrwl/nx/javascript"
-      ],
+      "files": ["*.js", "*.jsx"],
+      "extends": ["plugin:@nx/javascript"],
       "rules": {
         "indent": ["error", 2]
       }

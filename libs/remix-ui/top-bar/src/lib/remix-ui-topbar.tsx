@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import BasicLogo from '../components/BasicLogo'
 //@ts-ignore
@@ -61,15 +61,15 @@ export function RemixUiTopbar() {
   const [bottomPanelHidden, setBottomPanelHidden] = useState<boolean>(false)
   const [rightPanelHidden, setRightPanelHidden] = useState<boolean>(false)
 
-  const [user, setUser] = useState<GitHubUser | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loginMode, setLoginMode] = useState<LoginMode | null>(null);
-  const [loginModeMessage, setLoginModeMessage] = useState<string>('');
-  const [adminOverride, setAdminOverride] = useState<boolean>(false);
-  const [cloudEnabled, setCloudEnabled] = useState<boolean>(true); // default true until config loaded
-  const [feedbackFormUrl, setFeedbackFormUrl] = useState<string | null>(null);
-  const [feedbackPanelOpen, setFeedbackPanelOpen] = useState<boolean>(false);
-  const [showCloudLoginModal, setShowCloudLoginModal] = useState<boolean>(false);
+  const [user, setUser] = useState<GitHubUser | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loginMode, setLoginMode] = useState<LoginMode | null>(null)
+  const [loginModeMessage, setLoginModeMessage] = useState<string>('')
+  const [adminOverride, setAdminOverride] = useState<boolean>(false)
+  const [cloudEnabled, setCloudEnabled] = useState<boolean>(true) // default true until config loaded
+  const [feedbackFormUrl, setFeedbackFormUrl] = useState<string | null>(null)
+  const [feedbackPanelOpen, setFeedbackPanelOpen] = useState<boolean>(false)
+  const [showCloudLoginModal, setShowCloudLoginModal] = useState<boolean>(false)
   const [isNonMaximizedWindow, setIsNonMaximizedWindow] = useState(false)
   const [compactRightLabels, setCompactRightLabels] = useState(false)
   const [compactPanelControl, setCompactPanelControl] = useState(false)
@@ -91,12 +91,12 @@ export function RemixUiTopbar() {
   const { showCloneModal } = useCloneRepositoryModal({
     intl,
     platform,
-    plugin: global.plugin
-  });
+    plugin: global.plugin,
+  })
 
   // Check if we're on the callback page
   if (window.location.pathname === '/auth/github/callback') {
-    return <GitHubCallback />;
+    return <GitHubCallback />
   }
 
   // Derive whether login UI should be shown based on ACL login mode
@@ -144,14 +144,16 @@ export function RemixUiTopbar() {
     }
   }, [])
 
-  useEffect(() => { labelsCompactRef.current = compactRightLabels }, [compactRightLabels])
-  useEffect(() => { panelCompactRef.current = compactPanelControl }, [compactPanelControl])
+  useEffect(() => {
+    labelsCompactRef.current = compactRightLabels
+  }, [compactRightLabels])
+  useEffect(() => {
+    panelCompactRef.current = compactPanelControl
+  }, [compactPanelControl])
 
   const measure = useCallback(() => {
     if (!panelControlRef.current || !rightSideRef.current) return
-    const gap =
-      rightSideRef.current.getBoundingClientRect().left -
-      panelControlRef.current.getBoundingClientRect().right
+    const gap = rightSideRef.current.getBoundingClientRect().left - panelControlRef.current.getBoundingClientRect().right
 
     const labelsCompact = labelsCompactRef.current
     const panelCompact = panelCompactRef.current
@@ -212,7 +214,7 @@ export function RemixUiTopbar() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.altKey && e.key === 'L') {
         e.preventDefault()
-        setAdminOverride(prev => {
+        setAdminOverride((prev) => {
           const next = !prev
           console.log(`[Topbar] Admin login override ${next ? 'enabled' : 'disabled'}`)
           return next
@@ -225,7 +227,7 @@ export function RemixUiTopbar() {
       plugin.off('auth', 'loginModeChanged')
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     const enabled = appContext?.appConfig?.['cloud.enabled']
@@ -266,15 +268,15 @@ export function RemixUiTopbar() {
   }, [])
 
   const handleLoginSuccess = (user: GitHubUser, token: string) => {
-    setUser(user);
-    setError(null);
-  };
+    setUser(user)
+    setError(null)
+  }
 
   async function openTemplateExplorer(): Promise<void> {
     await global.plugin.call('templateexplorermodal', 'updateTemplateExplorerInFileMode', false)
     appContext.appStateDispatch({
       type: appActionTypes.showGenericModal,
-      payload: true
+      payload: true,
     })
   }
 
@@ -451,23 +453,23 @@ export function RemixUiTopbar() {
         const ct = await plugin.call('theme', 'currentTheme')
         setCurrentTheme(ct)
       } catch (error) {
-        console.error("Error fetching current theme:", error)
+        console.error('Error fetching current theme:', error)
       }
     }
     loadCurrentTheme()
-  }, []);
+  }, [])
 
   const subItems = useMemo(() => {
     return [
       { label: 'Rename', onClick: renameCurrentWorkspace, icon: 'far fa-edit' },
       { label: 'Duplicate', onClick: downloadCurrentWorkspace, icon: 'fas fa-copy' },
       { label: 'Download', onClick: downloadCurrentWorkspace, icon: 'fas fa-download' },
-      { label: 'Delete', onClick: deleteCurrentWorkspace, icon: 'fas fa-trash' }
+      { label: 'Delete', onClick: deleteCurrentWorkspace, icon: 'fas fa-trash' },
     ]
   }, [])
 
   const updateMenuItems = async (workspaces?: WorkspaceMetadata[]) => {
-    const menuItems = (workspaces || await plugin.getWorkspaces()).map((workspace) => ({
+    const menuItems = (workspaces || (await plugin.getWorkspaces())).map((workspace) => ({
       name: workspace.name,
       isGitRepo: workspace.isGitRepo,
       isGist: (workspace as any).isGist,
@@ -475,7 +477,7 @@ export function RemixUiTopbar() {
       currentBranch: workspace.currentBranch,
       hasGitSubmodules: workspace.hasGitSubmodules,
       remoteId: workspace.remoteId,
-      submenu: subItems
+      submenu: subItems,
     }))
     setMenuItems(menuItems)
   }
@@ -487,13 +489,7 @@ export function RemixUiTopbar() {
     try {
       await renameWorkspace(currMenuName!, workspaceName)
     } catch (e: any) {
-      global.modal(
-        intl.formatMessage({ id: 'filePanel.workspace.rename' }),
-        e.message,
-        intl.formatMessage({ id: 'filePanel.ok' }),
-        () => { },
-        intl.formatMessage({ id: 'filePanel.cancel' })
-      )
+      global.modal(intl.formatMessage({ id: 'filePanel.workspace.rename' }), e.message, intl.formatMessage({ id: 'filePanel.ok' }), () => {}, intl.formatMessage({ id: 'filePanel.cancel' }))
       console.error(e)
     }
   }
@@ -502,13 +498,7 @@ export function RemixUiTopbar() {
     try {
       await handleDownloadWorkspace()
     } catch (e: any) {
-      global.modal(
-        intl.formatMessage({ id: 'filePanel.workspace.download' }),
-        e.message,
-        intl.formatMessage({ id: 'filePanel.ok' }),
-        () => { },
-        intl.formatMessage({ id: 'filePanel.cancel' })
-      )
+      global.modal(intl.formatMessage({ id: 'filePanel.workspace.download' }), e.message, intl.formatMessage({ id: 'filePanel.ok' }), () => {}, intl.formatMessage({ id: 'filePanel.cancel' }))
       console.error(e)
     }
   }
@@ -517,25 +507,13 @@ export function RemixUiTopbar() {
       await deleteWorkspace(workspaceName!)
       await updateMenuItems()
     } catch (e: any) {
-      global.modal(
-        intl.formatMessage({ id: 'filePanel.workspace.delete' }),
-        e.message,
-        intl.formatMessage({ id: 'filePanel.ok' }),
-        () => { },
-        intl.formatMessage({ id: 'filePanel.cancel' })
-      )
+      global.modal(intl.formatMessage({ id: 'filePanel.workspace.delete' }), e.message, intl.formatMessage({ id: 'filePanel.ok' }), () => {}, intl.formatMessage({ id: 'filePanel.cancel' }))
       console.error(e)
     }
   }
 
   const deleteCurrentWorkspace = (workspaceName?: string) => {
-    global.modal(
-      intl.formatMessage({ id: 'filePanel.workspace.delete' }),
-      intl.formatMessage({ id: 'filePanel.workspace.deleteConfirm' }, { currentWorkspace: workspaceName }),
-      intl.formatMessage({ id: 'filePanel.ok' }),
-      () => onFinishDeleteWorkspace(workspaceName),
-      intl.formatMessage({ id: 'filePanel.cancel' })
-    )
+    global.modal(intl.formatMessage({ id: 'filePanel.workspace.delete' }), intl.formatMessage({ id: 'filePanel.workspace.deleteConfirm' }, { currentWorkspace: workspaceName }), intl.formatMessage({ id: 'filePanel.ok' }), () => onFinishDeleteWorkspace(workspaceName), intl.formatMessage({ id: 'filePanel.cancel' }))
   }
 
   const restoreBackup = async () => {
@@ -558,13 +536,7 @@ export function RemixUiTopbar() {
     try {
       await deleteAllWorkspacesAction()
     } catch (e: any) {
-      global.modal(
-        intl.formatMessage({ id: 'filePanel.workspace.deleteAll' }),
-        e.message,
-        intl.formatMessage({ id: 'filePanel.ok' }),
-        () => { },
-        intl.formatMessage({ id: 'filePanel.cancel' })
-      )
+      global.modal(intl.formatMessage({ id: 'filePanel.workspace.deleteAll' }), e.message, intl.formatMessage({ id: 'filePanel.ok' }), () => {}, intl.formatMessage({ id: 'filePanel.cancel' }))
       console.error(e)
     }
   }
@@ -580,7 +552,7 @@ export function RemixUiTopbar() {
       </>,
       intl.formatMessage({ id: 'filePanel.ok' }),
       onFinishDeleteAllWorkspaces,
-      intl.formatMessage({ id: 'filePanel.cancel' })
+      intl.formatMessage({ id: 'filePanel.cancel' }),
     )
   }
 
@@ -597,21 +569,17 @@ export function RemixUiTopbar() {
 
   const renameModalMessage = (workspaceName?: string) => {
     return (
-      <div className='d-flex flex-column'>
-        <label><FormattedMessage id="filePanel.name" /></label>
+      <div className="d-flex flex-column">
+        <label>
+          <FormattedMessage id="filePanel.name" />
+        </label>
         <input type="text" data-id="modalDialogCustomPromptTextRename" defaultValue={workspaceName || currentMenuItemName} ref={workspaceRenameInput} className="form-control" />
       </div>
     )
   }
 
   const downloadCurrentWorkspace = () => {
-    global.modal(
-      intl.formatMessage({ id: 'filePanel.workspace.download' }),
-      intl.formatMessage({ id: 'filePanel.workspace.downloadConfirm' }),
-      intl.formatMessage({ id: 'filePanel.ok' }),
-      onFinishDownloadWorkspace,
-      intl.formatMessage({ id: 'filePanel.cancel' })
-    )
+    global.modal(intl.formatMessage({ id: 'filePanel.workspace.download' }), intl.formatMessage({ id: 'filePanel.workspace.downloadConfirm' }), intl.formatMessage({ id: 'filePanel.ok' }), onFinishDownloadWorkspace, intl.formatMessage({ id: 'filePanel.cancel' }))
   }
 
   const createWorkspace = async () => {
@@ -619,33 +587,21 @@ export function RemixUiTopbar() {
   }
 
   const renameCurrentWorkspace = (workspaceName?: string) => {
-    global.modal(
-      intl.formatMessage({ id: 'filePanel.workspace.rename' }),
-      renameModalMessage(workspaceName),
-      intl.formatMessage({ id: 'filePanel.save' }),
-      () => onFinishRenameWorkspace(workspaceName),
-      intl.formatMessage({ id: 'filePanel.cancel' })
-    )
+    global.modal(intl.formatMessage({ id: 'filePanel.workspace.rename' }), renameModalMessage(workspaceName), intl.formatMessage({ id: 'filePanel.save' }), () => onFinishRenameWorkspace(workspaceName), intl.formatMessage({ id: 'filePanel.cancel' }))
   }
 
-  const checkIfLightTheme = (themeName: string) => themeName.includes('dark') ? false : true
+  const checkIfLightTheme = (themeName: string) => (themeName.includes('dark') ? false : true)
 
-  const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean, mName: string }) => {
+  const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean; mName: string }) => {
     return (
       <>
         {props.isGitRepo ? (
-          <div
-            className="d-flex flex-row-reverse justify-content-end"
-          >
-            <span
-            >
-              {currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-1">{props.mName}</span>}</span>
+          <div className="d-flex flex-row-reverse justify-content-end">
+            <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-1">{props.mName}</span>}</span>
             <i className="fas fa-code-branch pt-1"></i>
           </div>
         ) : (
-          <div
-            className="d-flex justify-content-between"
-          >
+          <div className="d-flex justify-content-between">
             <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="ps-3">{props.mName}</span>}</span>
           </div>
         )}
@@ -659,29 +615,21 @@ export function RemixUiTopbar() {
       handleExpandPath([])
       trackMatomoEvent<WorkspaceEvent>({ category: 'workspace', action: 'switchWorkspace', name: name, isClick: true })
     } catch (e: any) {
-      global.modal(
-        intl.formatMessage({ id: 'filePanel.workspace.switch' }),
-        e.message,
-        intl.formatMessage({ id: 'filePanel.ok' }),
-        () => { },
-        intl.formatMessage({ id: 'filePanel.cancel' })
-      )
+      global.modal(intl.formatMessage({ id: 'filePanel.workspace.switch' }), e.message, intl.formatMessage({ id: 'filePanel.ok' }), () => {}, intl.formatMessage({ id: 'filePanel.cancel' }))
       console.error(e)
     }
   }
 
   const ShowAllMenuItems = () => {
-
     return (
       <>
         {global.fs.browser.workspaces.map(({ name, isGitRepo }: any, index: number) => (
-          <div
-            key={index}
-            className="d-flex justify-content-between w-100"
-          >
+          <div key={index} className="d-flex justify-content-between w-100">
             <Dropdown.Item
               key={index}
-              onClick={() => { switchWorkspace(name) }}
+              onClick={() => {
+                switchWorkspace(name)
+              }}
               data-id={`dropdown-item-${name}`}
               className="text-truncate"
               style={{ width: '90%' }}
@@ -705,8 +653,8 @@ export function RemixUiTopbar() {
     const cachedFilter = global.fs.browser.workspaces.filter((x: any) => !x.name.includes('localhost'))
     return (
       <div className="">
-        {
-          currentWorkspace === LOCALHOST && cachedFilter.length > 0 ? cachedFilter.map(({ name, isGitRepo }: any, index: number) => (
+        {currentWorkspace === LOCALHOST && cachedFilter.length > 0 ? (
+          cachedFilter.map(({ name, isGitRepo }: any, index: number) => (
             <Dropdown.Item
               key={index}
               onClick={() => {
@@ -716,8 +664,10 @@ export function RemixUiTopbar() {
             >
               <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} />
             </Dropdown.Item>
-          )) : <ShowAllMenuItems />
-        }
+          ))
+        ) : (
+          <ShowAllMenuItems />
+        )}
       </div>
     )
   }
@@ -733,7 +683,7 @@ export function RemixUiTopbar() {
         if (leftPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'showLeftSidePanelClicked', isClick: true })
         else trackMatomoEvent({ category: 'topbar', action: 'leftSidePanel', name: 'hideLeftSidePanelClicked', isClick: true })
         plugin.call('sidePanel', 'togglePanel')
-      }
+      },
     },
     {
       id: 'toggleBottomPanelIcon',
@@ -745,7 +695,7 @@ export function RemixUiTopbar() {
         if (bottomPanelHidden) trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'showTerminalPanelClicked', isClick: true })
         else trackMatomoEvent({ category: 'topbar', action: 'terminalPanel', name: 'hideTerminalPanelClicked', isClick: true })
         plugin.call('terminal', 'togglePanel')
-      }
+      },
     },
     {
       id: 'toggleRightSidePanelIcon',
@@ -763,20 +713,14 @@ export function RemixUiTopbar() {
           return
         }
         plugin.call('rightSidePanel', 'togglePanel')
-      }
-    }
+      },
+    },
   ]
 
   return (
-    <section
-      ref={sectionRef}
-      className="h-100 d-flex bg-light border flex-nowrap px-2"
-    >
+    <section ref={sectionRef} className="h-100 d-flex bg-light border flex-nowrap px-2">
       <div className="d-flex flex-row align-items-center justify-content-between w-100" style={{ minWidth: 0 }}>
-        <div
-          className="d-flex flex-row align-items-center m-1"
-          style={{ minWidth: 0 }}
-        >
+        <div className="d-flex flex-row align-items-center m-1" style={{ minWidth: 0 }}>
           <div
             className="d-flex align-items-center justify-content-between me-3 cursor-pointer"
             onClick={async () => {
@@ -815,7 +759,7 @@ export function RemixUiTopbar() {
             style={{
               whiteSpace: 'nowrap',
               flexShrink: 0,
-              color: currentTheme && !checkIfLightTheme(currentTheme.name) ? 'var(--white)' : 'var(--text)'
+              color: currentTheme && !checkIfLightTheme(currentTheme.name) ? 'var(--white)' : 'var(--text)',
             }}
           >
             {currentReleaseVersion}
@@ -826,14 +770,20 @@ export function RemixUiTopbar() {
           {showCloudToggle && (
             <CloudToggle
               className="ms-2"
-              onEnableCloud={() => enableCloud().catch(() => {/* User cancelled */})}
-              onDisableCloud={() => disableCloud().catch(() => {/* User cancelled */})}
+              onEnableCloud={() =>
+                enableCloud().catch(() => {
+                  /* User cancelled */
+                })
+              }
+              onDisableCloud={() =>
+                disableCloud().catch(() => {
+                  /* User cancelled */
+                })
+              }
               theme={currentTheme?.quality}
-            />)}
-          <div
-            className="d-flex align-items-center flex-nowrap ms-2"
-            style={{ minWidth: 0, flex: '1 1 auto' }}
-          >
+            />
+          )}
+          <div className="d-flex align-items-center flex-nowrap ms-2" style={{ minWidth: 0, flex: '1 1 auto' }}>
             <WorkspacesDropdown
               menuItems={menuItems}
               toggleDropdown={toggleDropdown}
@@ -858,28 +808,16 @@ export function RemixUiTopbar() {
               openTemplateExplorer={openTemplateExplorer}
               onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
             />
-            <div
-              ref={panelControlRef}
-              data-id="panel-control"
-              className="d-flex gap-1 align-items-center"
-              style={{ marginLeft: isNonMaximizedWindow ? '0.75rem' : '1.5rem', flexShrink: 0 }}
-            >
+            <div ref={panelControlRef} data-id="panel-control" className="d-flex gap-1 align-items-center" style={{ marginLeft: isNonMaximizedWindow ? '0.75rem' : '1.5rem', flexShrink: 0 }}>
               {compactPanelControl && !isE2E ? (
                 <Dropdown onToggle={setPanelControlMenuOpen}>
-                  <Dropdown.Toggle
-                    as={CustomToggle}
-                    id="panel-control-compact"
-                    data-id="panel-control-compact-toggle"
-                    icon=""
-                    useDefaultIcon={false}
-                    className="btn btn-link p-0 border-0 shadow-none"
-                  >
+                  <Dropdown.Toggle as={CustomToggle} id="panel-control-compact" data-id="panel-control-compact-toggle" icon="" useDefaultIcon={false} className="btn btn-link p-0 border-0 shadow-none">
                     <CustomTooltip placement="bottom-start" tooltipText="Control layout" hide={panelControlMenuOpen}>
                       <i className="codicon codicon-layout fs-6" />
                     </CustomTooltip>
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    {panelControls.map(ctrl => (
+                    {panelControls.map((ctrl) => (
                       <Dropdown.Item key={ctrl.id} onClick={ctrl.onClick} data-id={`${ctrl.id}-menuItem`}>
                         <i className={`${ctrl.iconClass} me-2`} />
                         {ctrl.label}
@@ -888,13 +826,9 @@ export function RemixUiTopbar() {
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                panelControls.map(ctrl => (
+                panelControls.map((ctrl) => (
                   <CustomTooltip key={ctrl.id} placement="bottom-start" tooltipText={ctrl.tooltip}>
-                    <div
-                      className={`panel-control-btn${ctrl.isActive ? ' active' : ''}`}
-                      data-id={ctrl.id}
-                      onClick={ctrl.onClick}
-                    >
+                    <div className={`panel-control-btn${ctrl.isActive ? ' active' : ''}`} data-id={ctrl.id} onClick={ctrl.onClick}>
                       <i className={`${ctrl.iconClass} fs-6`} />
                     </div>
                   </CustomTooltip>
@@ -903,38 +837,22 @@ export function RemixUiTopbar() {
             </div>
           </div>
         </div>
-        <div
-          ref={rightSideRef}
-          className="d-flex flex-row align-items-center justify-content-end flex-nowrap"
-          style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}
-        >
+        <div ref={rightSideRef} className="d-flex flex-row align-items-center justify-content-end flex-nowrap" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>
           <div className="d-flex flex-row align-items-center flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
             <div style={{ whiteSpace: 'nowrap' }}>
-              <GitHubLogin
-                cloneGitRepository={showCloneModal}
-                logOutOfGithub={logOutOfGithub}
-                publishToGist={publishToGist}
-                loginWithGitHub={loginWithGitHub}
-                theme={currentTheme?.quality}
-              />
+              <GitHubLogin cloneGitRepository={showCloneModal} logOutOfGithub={logOutOfGithub} publishToGist={publishToGist} loginWithGitHub={loginWithGitHub} theme={currentTheme?.quality} />
             </div>
-            {showLoginUI && (
-              <LoginButton
-                plugin={plugin}
-                variant="compact"
-                showCredits={true}
-                signInDataId="login-button"
-                className="ms-3 text-nowrap"
-                cloneGitRepository={showCloneModal}
-                publishToGist={publishToGist}
-              />
-            )}
+            {showLoginUI && <LoginButton plugin={plugin} variant="compact" showCredits={true} signInDataId="login-button" className="ms-3 text-nowrap" cloneGitRepository={showCloneModal} publishToGist={publishToGist} />}
             <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
               <span
                 className="btn btn-sm btn-warning d-flex align-items-center gap-1 ms-3 text-nowrap"
                 style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
                 onClick={() => {
-                  try { plugin.call('planManager', 'open', 'plans') } catch { /* plugin not ready */ }
+                  try {
+                    plugin.call('planManager', 'open', 'plans')
+                  } catch {
+                    /* plugin not ready */
+                  }
                   trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'SeePlans', isClick: true })
                 }}
                 data-id="topbar-upgradeBtn"
@@ -947,7 +865,11 @@ export function RemixUiTopbar() {
                 className="btn btn-sm btn-warning d-flex align-items-center gap-1 ms-3 text-nowrap"
                 style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
                 onClick={() => {
-                  try { plugin.call('planManager', 'open', 'topup') } catch { /* plugin not ready */ }
+                  try {
+                    plugin.call('planManager', 'open', 'topup')
+                  } catch {
+                    /* plugin not ready */
+                  }
                   trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'GetAICredits', isClick: true })
                 }}
                 data-id="topbar-upgradeBtn"
@@ -1022,11 +944,7 @@ export function RemixUiTopbar() {
             }}
             data-id="remixai-assistant-icon"
           >
-            <img
-              src="assets/img/remixai-logoAI.webp"
-              alt="remixaiassistant"
-              style={{ width: '20px', height: '20px' }}
-            />
+            <img src="assets/img/remixai-logoAI.webp" alt="remixaiassistant" style={{ width: '20px', height: '20px' }} />
           </span>
         </div>
       </div>

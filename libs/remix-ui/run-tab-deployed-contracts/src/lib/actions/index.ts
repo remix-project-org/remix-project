@@ -2,13 +2,13 @@ import React from 'react'
 import { trackMatomoEvent } from '@remix-api'
 import * as remixLib from '@remix-project/remix-lib'
 import { FuncABI } from '@remix-project/core-plugin'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
 import { Actions, DeployedContract } from '../types'
 
 const txFormat = remixLib.execution.txFormat
 
-export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>, address: string, currentFile: string, loadType: 'abi' | 'sol' | 'vyper' | 'lexon' | 'contract' | 'other') {
+export async function loadAddress(plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>, address: string, currentFile: string, loadType: 'abi' | 'sol' | 'vyper' | 'lexon' | 'contract' | 'other') {
   // Show confirmation modal for ABI files
   if (loadType === 'abi') {
     plugin.call('notification', 'modal', {
@@ -32,7 +32,7 @@ export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: Re
               category: 'udapp',
               action: 'useAtAddress',
               name: 'AtAddressLoadWithABI',
-              isClick: true
+              isClick: true,
             })
             await plugin.addInstance(address, abi, '<at address>')
             dispatch({ type: 'SET_ADDRESS_INPUT', payload: '' })
@@ -42,10 +42,11 @@ export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: Re
         } catch (e) {
           console.error('Error loading ABI:', e)
           await plugin.call('notification', 'toast', `⚠️ Error: ${e.message}`)
-        }},
+        }
+      },
       cancelFn: () => {
         plugin.call('notification', 'toast', 'Cancelled by user')
-      }
+      },
     })
   } else if (['sol', 'vyper', 'lexon', 'contract'].includes(loadType)) {
     try {
@@ -63,7 +64,7 @@ export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: Re
         category: 'udapp',
         action: 'useAtAddress',
         name: 'AtAddressLoadWithContract',
-        isClick: false
+        isClick: false,
       })
       dispatch({ type: 'SET_ADDRESS_INPUT', payload: '' })
     } catch (e) {
@@ -75,7 +76,7 @@ export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: Re
   }
 }
 
-export async function loadPinnedContracts (plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>, dirName: string) {
+export async function loadPinnedContracts(plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>, dirName: string) {
   dispatch({ type: 'CLEAR_ALL_CONTRACTS', payload: null })
   const isPinnedAvailable = await plugin.call('fileManager', 'exists', `.deploys/pinned-contracts/${dirName}`)
 
@@ -94,7 +95,7 @@ export async function loadPinnedContracts (plugin: DeployedContractsPlugin, disp
   }
 }
 
-export async function refreshDeployedContractBalances (plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>) {
+export async function refreshDeployedContractBalances(plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>) {
   const deployedContracts = plugin.getWidgetState?.()?.deployedContracts || []
 
   for (const contract of deployedContracts) {
@@ -111,17 +112,7 @@ export async function refreshDeployedContractBalances (plugin: DeployedContracts
   }
 }
 
-export async function runTransactions (
-  plugin: DeployedContractsPlugin,
-  dispatch: React.Dispatch<Actions>,
-  instanceIndex: number,
-  lookupOnly: boolean,
-  funcABI: FuncABI,
-  inputsValues: string,
-  contract: any,
-  funcIndex: number,
-  sendParams?: { value: bigint, gasLimit: string }
-) {
+export async function runTransactions(plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>, instanceIndex: number, lookupOnly: boolean, funcABI: FuncABI, inputsValues: string, contract: any, funcIndex: number, sendParams?: { value: bigint; gasLimit: string }) {
   // Destructure contract properties
   const { name: contractName, abi, contractData, address } = contract
   const contractABI = abi || contractData?.abi
@@ -147,12 +138,13 @@ export async function runTransactions (
   if (lookupOnly) {
     const response = txFormat.decodeResponse(result.returnValue, funcABI)
 
-    dispatch({ type: 'SET_DECODED_RESPONSE',
+    dispatch({
+      type: 'SET_DECODED_RESPONSE',
       payload: {
         instanceIndex,
         funcIndex,
-        response
-      }
+        response,
+      },
     })
   }
 }

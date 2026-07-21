@@ -1,10 +1,10 @@
 import React, { useEffect, useReducer, useState, useRef } from 'react'
 import { TransactionsAppContext } from './contexts'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { TransactionsPlugin } from 'apps/remix-ide/src/app/udapp/udappTransactions'
 import { transactionsReducer, transactionsInitialState } from './reducers'
 import TransactionsPortraitView from './widgets/TransactionsPortraitView'
-import "./css/transaction-recorder.css"
+import './css/transaction-recorder.css'
 
 function TransactionsWidget({ plugin, context }: { plugin: TransactionsPlugin; context?: string }) {
   // Check if there's already a primary instance
@@ -42,7 +42,7 @@ function TransactionsWidget({ plugin, context }: { plugin: TransactionsPlugin; c
   useEffect(() => {
     if (!isPrimaryInstance.current) {
       const syncInterval = setInterval(() => {
-        setSyncTrigger(prev => prev + 1)
+        setSyncTrigger((prev) => prev + 1)
       }, 500)
 
       return () => clearInterval(syncInterval)
@@ -50,10 +50,10 @@ function TransactionsWidget({ plugin, context }: { plugin: TransactionsPlugin; c
   }, [])
 
   // Get the current state and dispatch (use shared ones for secondary instances)
-  const currentState = isPrimaryInstance.current ? widgetState : (plugin.getWidgetState?.() || widgetState)
+  const currentState = isPrimaryInstance.current ? widgetState : plugin.getWidgetState?.() || widgetState
 
   // Get the dispatch function - for secondary instances, use the primary's dispatch
-  const dispatch = isPrimaryInstance.current ? localDispatch : (plugin.getDispatch() || localDispatch)
+  const dispatch = isPrimaryInstance.current ? localDispatch : plugin.getDispatch() || localDispatch
 
   useEffect(() => {
     // Only primary instance listens to blockchain events
@@ -66,7 +66,7 @@ function TransactionsWidget({ plugin, context }: { plugin: TransactionsPlugin; c
 
       localDispatch({
         type: 'RECORD_TRANSACTION_EXECUTED',
-        payload: { error, from, to, txResult, timestamp, payLoad, accounts }
+        payload: { error, from, to, txResult, timestamp, payLoad, accounts },
       })
     }
 
