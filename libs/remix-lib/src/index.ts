@@ -21,9 +21,9 @@ import { EOACode7702AuthorizationList } from '@ethereumjs/util'
 import type { TransactionReceipt } from 'ethers'
 export { ConsoleLogs } from './helpers/hhconsoleSigs'
 export { aaSupportedNetworks, aaLocalStorageKey, getPimlicoBundlerURL, aaDeterminiticProxyAddress, toAddress } from './helpers/aaConstants'
-export { ICompilerApi, ConfigurationSettings, iSolJsonBinData, iSolJsonBinDataBuild } from './types/ICompilerApi'
+export type { ICompilerApi, ConfigurationSettings, iSolJsonBinData, iSolJsonBinDataBuild } from './types/ICompilerApi'
 export { QueryParams } from './query-params'
-export { VMexecutionResult } from './execution/txRunnerVM'
+export type { VMexecutionResult } from './execution/txRunnerVM'
 export { Registry } from './registry'
 export { AppLifecycle, EventGuard, LifecyclePlugin, NudgeEngine, all, any, sequence, deserializeCondition } from './state-machine'
 export type { LifecycleEvent, Condition, ConditionInput, SerializedCondition, BootPhase, NudgeRule, NudgeAction, SerializedNudgeRule } from './state-machine'
@@ -75,4 +75,5 @@ const execution = {
   LogsManager,
   forkAt
 }
-export { EventManager, helpers, Storage, util, execution, hash, eip7702Constants, TxResult }
+export { EventManager, helpers, Storage, util, execution, hash, eip7702Constants }
+export type { TxResult }

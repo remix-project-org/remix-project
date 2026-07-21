@@ -318,6 +318,8 @@
     "@openzeppelin/contracts-upgradeable": "^5.0.0",
     "@playwright/test": "^1.60.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.10",
+    "@rspack/cli": "2.1.4",
+    "@rspack/core": "2.1.4",
     "@svgr/webpack": "^6.5.1",
     "@testing-library/react": "13.4.0",
     "@types/async": "^3.2.24",

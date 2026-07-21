@@ -9,8 +9,8 @@ import * as SolidityDecoder from './solidity-decoder'
 import { BreakpointManager } from './code/breakpointManager'
 import * as sourceMappingDecoder from './source/sourceMappingDecoder'
 import * as traceHelper from './trace/traceHelper'
-import { LineColumnLocation, RawLocation, Asts, TransactionReceipt, OffsetToLineColumnConverterFn } from './types'
-import { ScopesData, ScopeFilterMode, NestedScope, StepDetail } from './solidity-decoder/internalCallTree'
+import type { LineColumnLocation, RawLocation, Asts, TransactionReceipt, OffsetToLineColumnConverterFn } from './types'
+import type { ScopesData, ScopeFilterMode, NestedScope, StepDetail } from './solidity-decoder/internalCallTree'
 
 const storage = {
   StorageViewer: StorageViewer,
@@ -39,7 +39,10 @@ export {
   BreakpointManager,
   SolidityDecoder,
   storage,
-  CmdLine,
+  CmdLine
+}
+
+export type {
   LineColumnLocation,
   RawLocation,
   Asts,
