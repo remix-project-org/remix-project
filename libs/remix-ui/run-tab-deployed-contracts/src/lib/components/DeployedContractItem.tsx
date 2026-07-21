@@ -11,6 +11,7 @@ import { DeployedContract } from '../types'
 import { runTransactions } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
+import { QuickDappContractSelector } from './QuickDappContractSelector'
 
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import BN from 'bn.js'
@@ -62,6 +63,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const [expandPath, setExpandPath] = useState<string[]>([])
   const [functionSearchTerm, setFunctionSearchTerm] = useState<string>('')
   const [showEnsNaming, setShowEnsNaming] = useState<boolean>(false)
+  const [showQuickDappContractSelector, setShowQuickDappContractSelector] = useState<boolean>(false)
 
   useEffect(() => {
     plugin.call('udappEnv', 'getNetwork').then((net) => {
@@ -385,22 +387,11 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
     }
   }
 
-  const handleCreateDapp = async (contract: DeployedContract) => {
+  const startCreateDapp = async (contract: DeployedContract, selectedAdditionalContracts: DeployedContract[]) => {
     if (isGenerating.current) return
     isGenerating.current = true
 
     try {
-      if (onKebabMenuToggle) {
-        onKebabMenuToggle(false)
-      }
-
-      // Permission gate: non-beta users see the QuickDapp lock screen
-      if (!hasQuickdappAccess) {
-        await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
-        await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
-        return
-      }
-
       console.log('[QuickDapp] handleCreateDapp START', { name: contract.name, address: contract.address, timestamp: Date.now() });
 
       // Send contract details to AI Assistant for DApp generation
@@ -420,15 +411,12 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
       }
       console.log('[QuickDapp] chainId resolved:', chainId);
 
-      const additionalCandidates = widgetState.deployedContracts.filter((candidate: DeployedContract) =>
-        candidate.address?.toLowerCase() !== contract.address.toLowerCase()
-      )
-      const contractSetupOption = additionalCandidates.length > 0
-        ? `- Contracts: ${contract.name} at ${contract.address} is fixed as the primary for this entry. Additional contracts default to None; optionally choose up to seven from:\n${additionalCandidates.map((candidate) => `  - ${candidate.name} at ${candidate.address}`).join('\n')}`
-        : ''
-      const additionalContractsToolArg = additionalCandidates.length > 0
-        ? `- additionalContracts: only the additional contracts I selected, using contractName and contractAddress from the list above`
-        : ''
+      const contractSelectionContext = selectedAdditionalContracts.length > 0
+        ? `The contract selection was confirmed in the UI. Do not ask about Contracts or change this selection.\n- Primary: ${contract.name} at ${contract.address}\n- Additional: ${selectedAdditionalContracts.map((candidate) => `${candidate.name} at ${candidate.address}`).join(', ')}`
+        : `The contract selection was confirmed in the UI. Do not ask about Contracts or change this selection.\n- Primary: ${contract.name} at ${contract.address}\n- Additional: None`
+      const additionalContractsToolArg = selectedAdditionalContracts.length > 0
+        ? `- additionalContracts: ${JSON.stringify(selectedAdditionalContracts.map((candidate) => ({ contractName: candidate.name, contractAddress: candidate.address })))}`
+        : '- additionalContracts: omit this field'
 
       const prompt = isDesktop
         ? `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:
@@ -436,12 +424,13 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
 STEP 1 - ASK FOR SETUP OPTIONS:
 
 ${QUICKDAPP_SCOPE_NOTICE}
-Location is fixed to Inline in /frontend for this request. Ask me once for:${contractSetupOption ? `\n${contractSetupOption}` : ''}
+${contractSelectionContext}
+Location is fixed to Inline in /frontend for this request. Ask me once for:
 - Base mini-app: No (default) or Yes
 - Design: defaults, style notes, or a Figma URL
 ${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
 
-Ask exactly those setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+Ask exactly those three setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
 ${QUICKDAPP_SUBGRAPH_SETUP_RULE}
 After asking, STOP and wait for my next reply. Do not check files, call generate_dapp, or write files in the same turn as this setup question.
 In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
@@ -455,7 +444,8 @@ After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate
 - contractName: "${contract.name}"
 - contractAddress: "${contract.address}"
 - chainId: "${chainId}"
-${additionalContractsToolArg ? `${additionalContractsToolArg}\n` : ''}- frontendMode: "inline"
+${additionalContractsToolArg}
+- frontendMode: "inline"
 - isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
 - figmaUrl and figmaToken only if I provided them
 ${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
@@ -469,13 +459,14 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
 STEP 1 - ASK FOR SETUP OPTIONS:
 
 ${QUICKDAPP_SCOPE_NOTICE}
-Ask me once: "How should I create your DApp?"${contractSetupOption ? `\n${contractSetupOption}` : ''}
+${contractSelectionContext}
+Ask me once: "How should I create your DApp?"
 - Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)
 - Base mini-app: No (default) or Yes
 - Design: defaults, style notes, or a Figma URL
 ${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
 
-${additionalCandidates.length > 0 ? 'Ask exactly the listed setup options.' : 'Ask exactly those four setup options.'} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
 ${QUICKDAPP_SUBGRAPH_SETUP_RULE}
 After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.
 In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
@@ -489,7 +480,8 @@ After I answer, you MUST call generate_dapp with:
 - contractName: "${contract.name}"
 - contractAddress: "${contract.address}"
 - chainId: "${chainId}"
-${additionalContractsToolArg ? `${additionalContractsToolArg}\n` : ''}- frontendMode: "inline" or "workspace" based on my Location answer
+${additionalContractsToolArg}
+- frontendMode: "inline" or "workspace" based on my Location answer
 - isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
 - figmaUrl and figmaToken only if I provided them
 ${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
@@ -525,6 +517,32 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
     } finally {
       isGenerating.current = false
     }
+  }
+
+  const handleCreateDapp = async (contract: DeployedContract) => {
+    if (onKebabMenuToggle) onKebabMenuToggle(false)
+
+    // Permission gate: non-beta users see the QuickDapp lock screen.
+    if (!hasQuickdappAccess) {
+      try {
+        await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
+        await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
+      } catch (error) {
+        console.error('[QuickDapp] Could not open QuickDapp:', error)
+      }
+      return
+    }
+
+    const hasAdditionalContracts = widgetState.deployedContracts.some((candidate: DeployedContract) =>
+      candidate.address?.toLowerCase() !== contract.address.toLowerCase()
+    )
+
+    if (hasAdditionalContracts) {
+      setShowQuickDappContractSelector(true)
+      return
+    }
+
+    await startCreateDapp(contract, [])
   }
 
   const handleCopyABI = async (contract: DeployedContract) => {
@@ -1303,6 +1321,16 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
           )}
         </div>
       </div>
+      <QuickDappContractSelector
+        show={showQuickDappContractSelector}
+        primaryContract={contract}
+        deployedContracts={widgetState.deployedContracts}
+        onCancel={() => setShowQuickDappContractSelector(false)}
+        onConfirm={(additionalContracts) => {
+          setShowQuickDappContractSelector(false)
+          void startCreateDapp(contract, additionalContracts)
+        }}
+      />
     </div>
   )
 }
