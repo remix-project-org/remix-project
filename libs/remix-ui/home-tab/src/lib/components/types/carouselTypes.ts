@@ -11,7 +11,7 @@ export interface ResponsiveType {
 export function isMouseMoveEvent(
   e: React.MouseEvent | React.TouchEvent
 ): e is React.MouseEvent {
-  return "clientX" && "clientY" in e;
+  return "clientX" in e && "clientY" in e;
 }
 export interface CarouselProps {
   responsive: ResponsiveType;

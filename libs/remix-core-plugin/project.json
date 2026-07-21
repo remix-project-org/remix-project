@@ -4,16 +4,6 @@
   "sourceRoot": "libs/remix-core-plugin/src",
   "projectType": "library",
   "targets": {
-    "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/remix-core-plugin",
-        "main": "libs/remix-core-plugin/src/index.ts",
-        "tsConfig": "libs/remix-core-plugin/tsconfig.lib.json",
-        "assets": []
-      }
-    },
     "lint": {
       "executor": "@nx/eslint:lint"
     }

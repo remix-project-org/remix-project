@@ -7,7 +7,12 @@
   "targets": {
     "build": {
       "executor": "@nx/webpack:webpack",
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        {
+          "projects": ["doc-gen", "doc-viewer", "contract-verification", "vyper", "solhint", "circuit-compiler", "learneth", "noir-compiler"],
+          "target": "build"
+        }
+      ],
       "outputs": ["{options.outputPath}"],
       "inputs": ["default", "^default", "!{projectRoot}/src/assets/version.json"],
       "defaultConfiguration": "development",
