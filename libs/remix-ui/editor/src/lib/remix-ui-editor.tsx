@@ -37,6 +37,16 @@ import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvi
 import { RemixTSCompletionProvider } from './providers/tsCompletionProvider'
 import { TooltipPopOver, openContextualTooltip } from './tooltipPopOver'
 
+// This library uses the Matomo `window._paq` queue directly. Declare the global
+// augmentation here so the editor lib is self-contained: consumers that don't
+// pull in the app-level MatomoManager (e.g. the standalone `debugger` app) still
+// type-check, instead of relying on some other module to declare Window._paq.
+declare global {
+  interface Window {
+    _paq: any
+  }
+}
+
 const _paq = (window._paq = window._paq || []) // eslint-disable-line
 
 // Key for localStorage

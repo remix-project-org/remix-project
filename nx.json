@@ -11,28 +11,53 @@
     "nx.json": "*"
   },
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "!{projectRoot}/**/*.spec.*", "!{projectRoot}/**/*.test.*", "!{projectRoot}/jest.config.*", "!{projectRoot}/tsconfig.spec.json", "!{projectRoot}/node_modules/**"],
-    "production": ["default", "!{projectRoot}/**/*.md", "!{projectRoot}/**/*.story.*"]
+    "default": [
+      "{projectRoot}/**/*",
+      "!{projectRoot}/**/*.spec.*",
+      "!{projectRoot}/**/*.test.*",
+      "!{projectRoot}/jest.config.*",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/node_modules/**"
+    ],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.md",
+      "!{projectRoot}/**/*.story.*"
+    ]
   },
   "tasksRunnerOptions": {
     "default": {
       "options": {
-        "runtimeCacheInputs": ["node -v", "yarn -v", "echo $WALLET_CONNECT_PROJECT_ID", "echo $NX_DESKTOP_FROM_DIST"]
+        "runtimeCacheInputs": [
+          "node -v",
+          "yarn -v",
+          "echo $WALLET_CONNECT_PROJECT_ID",
+          "echo $NX_DESKTOP_FROM_DIST"
+        ]
       }
     }
   },
   "targetDefaults": {
     "build": {
       "cache": true,
-      "inputs": ["default", "^default"]
+      "inputs": [
+        "default",
+        "^default"
+      ]
     },
     "test": {
       "cache": true,
-      "inputs": ["default", "^production"]
+      "inputs": [
+        "default",
+        "^production"
+      ]
     },
     "@nx/eslint:lint": {
       "cache": true,
-      "inputs": ["default", "{workspaceRoot}/.eslintrc.json"]
+      "inputs": [
+        "default",
+        "{workspaceRoot}/.eslintrc.json"
+      ]
     }
   },
   "defaultBase": "master",
@@ -73,5 +98,6 @@
       }
     }
   },
-  "nxCloudAccessToken": "env:NX_CLOUD_ACCESS_TOKEN"
+  "nxCloudAccessToken": "env:NX_CLOUD_ACCESS_TOKEN",
+  "useInferencePlugins": false
 }
