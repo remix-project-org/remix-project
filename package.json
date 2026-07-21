@@ -86,7 +86,7 @@
     "simulator": "nx build remix-simulator && chmod +x dist/libs/remix-simulator/bin/ethsim && dist/libs/remix-simulator/bin/ethsim start --rpc",
     "sourcemap": "exorcist --root ../ apps/remix-ide/build/app.js.map > apps/remix-ide/build/app.js",
     "watch": "watchify apps/remix-ide/src/index.js -dv -p browserify-reload -o apps/remix-ide/build/app.js --exclude solc",
-    "reinstall": "rm ./node-modules/ -rf && rm yarn.lock && rm ./build/ -rf && yarn install & yarn run build",
+    "reinstall": "rm ./node_modules/ -rf && rm yarn.lock && rm ./build/ -rf && yarn install & yarn run build",
     "ganache": "npx ganache",
     "build-contracts": "find ./node_modules/@openzeppelin/contracts | grep -i '.sol' > libs/remix-ui/editor/src/lib/providers/completion/contracts/contracts.txt && find ./node_modules/@uniswap/v3-core/contracts | grep -i '.sol' >> libs/remix-ui/editor/src/lib/providers/completion/contracts/contracts.txt",
     "playwright:record": "playwright codegen http://127.0.0.1:8080 --target=playwright-test -o tests/recorded.spec.ts",

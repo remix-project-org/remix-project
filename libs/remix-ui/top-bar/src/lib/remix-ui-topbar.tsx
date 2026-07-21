@@ -939,7 +939,7 @@ export function RemixUiTopbar() {
                 }}
                 data-id="topbar-upgradeBtn"
               >
-                {!compactRightLabels && <span>See Plans</span>}
+                {!compactRightLabels ? <span>See Plans</span> : <span>Plans</span>}
               </span>
             </CustomTooltip>
             <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
@@ -952,7 +952,7 @@ export function RemixUiTopbar() {
                 }}
                 data-id="topbar-upgradeBtn"
               >
-                {!compactRightLabels && <span>Get AI Credits</span>}
+                {!compactRightLabels ? <span>Get AI Credits</span> : <span>AI Credits</span>}
               </span>
             </CustomTooltip>
           </div>

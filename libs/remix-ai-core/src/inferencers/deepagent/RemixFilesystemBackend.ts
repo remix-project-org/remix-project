@@ -260,15 +260,15 @@ export class RemixFilesystemBackend {
       const isQuickDappCandidatePath = this.isQuickDappCandidatePath(normalizedPath)
       const hasWeb3DappContent = this.hasQuickDappWeb3Content(content)
       const shouldEnforceQuickDappRouting =
-        hasWeb3DappContent ||
+        (isQuickDappCandidatePath && hasWeb3DappContent) ||
         normalizedPath.startsWith('/frontend/') ||
         normalizedPath.startsWith('/dapp/') ||
         /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(normalizedPath)
-      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, isQuickDappCandidatePath || hasWeb3DappContent)
+      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, isQuickDappCandidatePath)
       if (workspaceMismatch) return workspaceMismatch
       const pathMismatch = this.getQuickDappPathMismatch(normalizedPath, shouldEnforceQuickDappRouting)
       if (pathMismatch) return pathMismatch
-      if (isQuickDappCandidatePath || hasWeb3DappContent) {
+      if (isQuickDappCandidatePath) {
         const activeQuickDappContext = currentWorkspaceName
           ? getQuickDappGenerationContext(currentWorkspaceName)
           : undefined

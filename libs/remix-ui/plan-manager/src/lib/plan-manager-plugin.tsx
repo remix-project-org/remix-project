@@ -3163,11 +3163,13 @@ const PlanManagerOverlay: React.FC<{
                               <span>Due today</span>
                               <span>{fmtMoney(bd.total)}</span>
                             </div>
+
                             {bd.recurring && bd.billingCycle && (
                               <div className="pm-inline-checkout__renews">
                               Then {fmtMoney(bd.recurring.total)} {cadenceLabel(bd.billingCycle)}
                               </div>
                             )}
+                            <span className="pm-inline-checkout__renews" >By completing your purchase, you agree to our </span><span><a href="https://remix.live/termsandconditions" target="_blank" rel="noreferrer"><strong>Terms and Conditions</strong></a></span>
                           </div>
                         ) : features.length > 0 && (
                           <ul className="pm-inline-checkout__features">
@@ -3263,6 +3265,7 @@ const PlanManagerOverlay: React.FC<{
           </div>
           <div className="pm-footer__vat">All prices exclude VAT/tax where applicable</div>
           <div className="pm-footer__links">
+            <a href="https://remix.live/termsandconditions" target="_blank" rel="noreferrer">Terms and Conditions</a>
             <a href="https://remix-ide.readthedocs.io/" target="_blank" rel="noreferrer">Docs</a>
             <a href={DISCORD_URL} target="_blank" rel="noreferrer">Support</a>
           </div>
@@ -4581,9 +4584,11 @@ const CartUpsellStep: React.FC<{
             )}
           </div>
         </div>
+
         {renewalLabel && (
           <div className="pm-cart-upsell__renewal-note">{renewalLabel}</div>
         )}
+        By completing your purchase, you agree to our <span><a href="https://remix.live/termsandconditions" target="_blank" rel="noreferrer"><strong>Terms and Conditions</strong></a></span>
         {previewLoading && (
           <div className="pm-cart-upsell__price-loading">
             <i className="fas fa-spinner fa-spin"></i>
