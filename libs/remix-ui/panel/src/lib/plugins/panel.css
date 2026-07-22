@@ -9,7 +9,11 @@
 @font-face {
     font-family: 'codicon-vscode';
     font-display: block;
-    src: url('~@vscode/codicons/dist/codicon.ttf') format('truetype');
+    /* Relative path to node_modules rather than a module specifier: Nx 21's css/postcss
+       loader chain no longer resolves module-style url() (neither the legacy '~@vscode/...'
+       prefix nor a bare '@vscode/...') from library CSS. A relative path resolves reliably
+       across loader versions and under Rspack. Depth: plugins -> repo root is 6 levels. */
+    src: url('../../../../../../node_modules/@vscode/codicons/dist/codicon.ttf') format('truetype');
 }
 
 .codicon-screen-icon {

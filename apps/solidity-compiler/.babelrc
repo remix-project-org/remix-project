@@ -1,9 +1,13 @@
 {
-  "presets": ["@babel/preset-env", ["@nx/react/babel",
-    {"runtime": "automatic"}
-  ]],
+  "presets": [
+    "@babel/preset-env",
+    [
+      "@nx/react/babel",
+      {
+        "runtime": "automatic"
+      }
+    ]
+  ],
   "plugins": ["@babel/plugin-proposal-class-properties", "@babel/plugin-transform-runtime", "@babel/plugin-proposal-nullish-coalescing-operator"],
-  "ignore": [
-    "**/node_modules/**"
-  ]
+  "ignore": ["**/node_modules/**"]
 }

@@ -398,7 +398,7 @@ async function gzipCompress(data: Uint8Array): Promise<Uint8Array> {
   try {
     const cs = new CompressionStream('gzip')
     const writer = cs.writable.getWriter()
-    writer.write(data)
+    writer.write(data as BufferSource)
     writer.close()
     const reader = cs.readable.getReader()
     const chunks: Uint8Array[] = []
@@ -431,7 +431,7 @@ async function gzipDecompress(data: Uint8Array): Promise<Uint8Array> {
   }
   const ds = new DecompressionStream('gzip')
   const writer = ds.writable.getWriter()
-  writer.write(data)
+  writer.write(data as BufferSource)
   writer.close()
   const reader = ds.readable.getReader()
   const chunks: Uint8Array[] = []

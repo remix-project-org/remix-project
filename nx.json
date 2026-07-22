@@ -74,6 +74,5 @@
     }
   },
   "nxCloudAccessToken": "env:NX_CLOUD_ACCESS_TOKEN",
-  "useInferencePlugins": false,
-  "useLegacyCache": true
+  "useInferencePlugins": false
 }
