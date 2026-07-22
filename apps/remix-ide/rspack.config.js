@@ -291,10 +291,28 @@ module.exports = {
     hot: !liveReloadOnly,
     liveReload: true,
     historyApiFallback: true,
-    client: { overlay: true },
+    client: {
+      // Keep the compile-error overlay (useful), but suppress the runtime-error overlay: Remix's
+      // startup throws a few transient uncaught errors on each (re)load (workspace/file-manager
+      // init races, e.g. "No file selected"), which the runtimeErrors catcher paints as a red
+      // full-screen flash before the app recovers. Those are pre-existing app behavior, not build
+      // failures — surfacing them as a blocking overlay on every reload is just noise.
+      overlay: { errors: true, warnings: false, runtimeErrors: false }
+    },
     // serve the prebuilt plugin dists so the iframes resolve at /plugins/<dep>/
     static: pluginStaticPatterns
   },
   performance: { hints: false },
+  // TOP-LEVEL lazyCompilation (Rspack 2.x moved it out of `experiments`). @rspack/cli's `serve`
+  // force-enables `{ imports: true, entries: false }` for web apps UNLESS this key is already
+  // defined (see @rspack/cli isWebAppOnly + `void 0 === userConfig.lazyCompilation` guard), so
+  // setting it under `experiments` is silently ignored.
+  //
+  // Live-reload mode MUST disable it: with lazy compilation on, each dynamic import() compiles as a
+  // separate compilation, and liveReload does a full page reload on every completed compilation —
+  // the reload re-requests the chunks, which recompile, which reload... an infinite loop. Building
+  // everything up front means one compilation and no reload storm. HMR mode keeps lazy compilation
+  // (it applies each new chunk in place without a full reload), matching the CLI default.
+  lazyCompilation: liveReloadOnly ? false : { imports: true, entries: false },
   devtool: isProd ? false : 'eval-cheap-module-source-map'
 }
