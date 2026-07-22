@@ -11,6 +11,11 @@ const rspack = require('@rspack/core')
 const { ReactRefreshRspackPlugin } = require('@rspack/plugin-react-refresh')
 
 const isProd = process.env.NODE_ENV === 'production'
+// Live-reload mode: dev server watches + rebuilds, but does a full page refresh instead of HMR
+// (the webpack `yarn serve` equivalent). React Fast Refresh needs `hot`, and its swc transform
+// injects $RefreshReg$/$RefreshSig$ globals that throw without the runtime — so disable both here.
+const liveReloadOnly = process.env.RSPACK_LIVE_RELOAD === 'true'
+const useRefresh = !isProd && !liveReloadOnly
 
 // Compose the plugin apps into /plugins/<dep>, mirroring apps/remix-ide/webpack.config.js.
 // Each Stage-D Rspack pilot builds to dist/rspack-pilot/<dep>; copy those dirs in if they exist.
@@ -27,6 +32,16 @@ const pluginCopyPatterns = implicitDependencies
   })
   .filter(Boolean)
 console.log('[rspack] composing plugins:', pluginCopyPatterns.map((p) => p.to).join(', ') || '(none built yet)')
+
+// For `rspack serve` (HMR) the remix-ide shell is served from memory, but the plugin apps are
+// static builds that need to be reachable at /plugins/<dep>/ inside their iframes. Serve their
+// prebuilt dist dirs as dev-server static content (build them first via rspack-serve-all.js --hot).
+const pluginStaticPatterns = implicitDependencies
+  .map((dep) => {
+    const directory = path.resolve(__dirname, `../../dist/rspack-pilot/${dep}`)
+    return fs.existsSync(directory) ? { directory, publicPath: `/plugins/${dep}` } : false
+  })
+  .filter(Boolean)
 
 const versionData = {
   version: require('../../package.json').version,
@@ -154,7 +169,7 @@ module.exports = {
           options: {
             jsc: {
               parser: { syntax: 'typescript', tsx: true },
-              transform: { react: { runtime: 'automatic', development: !isProd, refresh: !isProd } }
+              transform: { react: { runtime: 'automatic', development: !isProd, refresh: useRefresh } }
             }
           }
         }
@@ -169,7 +184,7 @@ module.exports = {
           options: {
             jsc: {
               parser: { syntax: 'ecmascript', jsx: true },
-              transform: { react: { runtime: 'automatic', development: !isProd, refresh: !isProd } }
+              transform: { react: { runtime: 'automatic', development: !isProd, refresh: useRefresh } }
             }
           }
         }
@@ -268,13 +283,17 @@ module.exports = {
         resource.request = replacements[module]
       }
     }),
-    !isProd && new ReactRefreshRspackPlugin()
+    useRefresh && new ReactRefreshRspackPlugin()
   ].filter(Boolean),
   devServer: {
-    port: 4202,
-    hot: true,
+    port: parseInt(process.env.RSPACK_COMPOSITE_PORT || '8080', 10),
+    // HMR by default; RSPACK_LIVE_RELOAD=true swaps to full-page reload on rebuild (webpack `serve`).
+    hot: !liveReloadOnly,
+    liveReload: true,
     historyApiFallback: true,
-    client: { overlay: true }
+    client: { overlay: true },
+    // serve the prebuilt plugin dists so the iframes resolve at /plugins/<dep>/
+    static: pluginStaticPatterns
   },
   performance: { hints: false },
   devtool: isProd ? false : 'eval-cheap-module-source-map'

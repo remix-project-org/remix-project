@@ -9,9 +9,17 @@
  *      into dist/rspack-pilot/remix-ide/plugins/<dep>  (see pluginCopyPatterns in that config)
  *   3. serve dist/rspack-pilot/remix-ide statically (SPA fallback) so the whole IDE + plugins run
  *
- * This is a standalone pilot runner — it is NOT wired into package.json/Nx/CI. Nothing is cut over.
+ * With --hot: builds the 8 plugin apps once (they live in iframes, rarely edited), then hands off
+ * to `rspack serve` for the remix-ide shell — giving true React Fast Refresh / HMR on the shell.
+ * The prebuilt plugin dists are served as dev-server static content (see devServer.static in the
+ * config). Edit a shell source file and it hot-updates in the browser without a full reload.
  *
- *   Usage:  node apps/remix-ide/rspack-serve-all.js [--no-build] [--port=8080]
+ * This is a standalone pilot runner — it is NOT wired into Nx/CI. Nothing is cut over.
+ *
+ *   Usage:  node apps/remix-ide/rspack-serve-all.js [--no-build] [--hot|--reload] [--port=8080]
+ *     (no flag) production build + static serve (no watch)
+ *     --hot     dev server with React Fast Refresh (HMR, state-preserving)
+ *     --reload  dev server with full-page live-reload on change (webpack `yarn serve` equivalent)
  */
 const path = require('path')
 const fs = require('fs')
@@ -24,6 +32,8 @@ const RSPACK = path.resolve(ROOT, 'node_modules/.bin/rspack')
 
 const args = process.argv.slice(2)
 const noBuild = args.includes('--no-build')
+const hot = args.includes('--hot')
+const reload = args.includes('--reload') // dev server, full-page live-reload instead of HMR
 const portArg = args.find((a) => a.startsWith('--port='))
 const PORT = portArg ? parseInt(portArg.split('=')[1], 10) : parseInt(process.env.RSPACK_COMPOSITE_PORT || '8080', 10)
 
@@ -43,6 +53,28 @@ function build(app) {
     ['--max-old-space-size=8192', RSPACK, 'build', '-c', config],
     { stdio: 'inherit', env: { ...process.env, NODE_ENV: 'production' }, cwd: ROOT }
   )
+}
+
+if (hot || reload) {
+  // Dev-server mode: build the plugin iframes once (unless --no-build), then let `rspack serve`
+  // own the remix-ide shell. --hot => React Fast Refresh (state-preserving); --reload => full-page
+  // reload on rebuild (webpack `yarn serve` equivalent). The config's devServer.static exposes the
+  // prebuilt plugin dists at /plugins/<dep>/, so the shell must be built AFTER the plugins exist.
+  if (!noBuild) {
+    for (const dep of implicitDependencies) build(dep)
+  }
+  const config = path.resolve(ROOT, 'apps/remix-ide/rspack.config.js')
+  const mode = reload ? 'full-page live-reload' : 'HMR / Fast Refresh'
+  console.log(`\n=== serving remix-ide shell with ${mode} at http://localhost:${PORT} (Ctrl-C to stop) ===\n`)
+  // dev mode (NOT production); RSPACK_LIVE_RELOAD toggles HMR vs full-page reload in the config.
+  const env = { ...process.env, RSPACK_COMPOSITE_PORT: String(PORT), RSPACK_LIVE_RELOAD: reload ? 'true' : 'false' }
+  delete env.NODE_ENV
+  execFileSync(
+    process.execPath,
+    ['--max-old-space-size=8192', RSPACK, 'serve', '-c', config, '--port', String(PORT)],
+    { stdio: 'inherit', env, cwd: ROOT }
+  )
+  return
 }
 
 if (!noBuild) {
