@@ -26,7 +26,7 @@ export function CustomTooltip({ children, placement, tooltipId, tooltipClasses, 
 
   // If hidden or globally disabled, just return children without tooltip
   if (hide || globalDisable) {
-    return <>{children}</>
+    return <>{children as any}</>
   }
 
   return (

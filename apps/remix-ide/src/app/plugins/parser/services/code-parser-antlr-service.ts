@@ -94,7 +94,7 @@ export default class CodeParserAntlrService {
   }
 
   disableWorker() {
-    clearInterval(this.workerTimer)
+    clearInterval(this.workerTimer as any)
   }
 
   async parseWithWorker(text: string, file: string) {

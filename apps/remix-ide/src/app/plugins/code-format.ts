@@ -91,9 +91,13 @@ export class CodeFormat extends Plugin {
     this.preloadPromise = (async () => {
       try {
         this.prettier = await import('prettier/standalone')
+        // @ts-ignore prettier v3 subpath unresolved under moduleResolution:"node" (fix in Stage B -> "bundler")
         this.ts = await import('prettier/parser-typescript')
+        // @ts-ignore prettier v3 subpath unresolved under moduleResolution:"node" (fix in Stage B -> "bundler")
         this.babel = await import('prettier/parser-babel')
+        // @ts-ignore prettier v3 subpath unresolved under moduleResolution:"node" (fix in Stage B -> "bundler")
         this.espree = await import('prettier/parser-espree')
+        // @ts-ignore prettier v3 subpath unresolved under moduleResolution:"node" (fix in Stage B -> "bundler")
         this.yml = await import('prettier/parser-yaml')
         this.sol = (await import('prettier-plugin-solidity')).default
       } catch (error) {
@@ -112,9 +116,13 @@ export class CodeFormat extends Plugin {
     // lazy load if not already preloaded
     if (!this.prettier) {
       this.prettier = await import('prettier/standalone')
+      // @ts-ignore prettier v3 subpath unresolved under moduleResolution:"node" (fix in Stage B -> "bundler")
       this.ts = await import('prettier/parser-typescript')
+      // @ts-ignore prettier v3 subpath unresolved under moduleResolution:"node" (fix in Stage B -> "bundler")
       this.babel = await import('prettier/parser-babel')
+      // @ts-ignore prettier v3 subpath unresolved under moduleResolution:"node" (fix in Stage B -> "bundler")
       this.espree = await import('prettier/parser-espree')
+      // @ts-ignore prettier v3 subpath unresolved under moduleResolution:"node" (fix in Stage B -> "bundler")
       this.yml = await import('prettier/parser-yaml')
       this.sol = (await import('prettier-plugin-solidity')).default
     }
