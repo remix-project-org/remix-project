@@ -430,6 +430,7 @@
     "react-refresh": "^0.14.0",
     "request": "^2.83.0",
     "rimraf": "^2.6.1",
+    "sass-loader": "^17.0.0",
     "semver": "^7.4.0",
     "solc": "0.8.26",
     "source-map-loader": "^5.0.0",
