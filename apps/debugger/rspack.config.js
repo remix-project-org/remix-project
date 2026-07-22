@@ -90,5 +90,7 @@ module.exports = {
     historyApiFallback: true,
     client: { overlay: true }
   },
+  ignoreWarnings: [/Failed to parse source map/, /Critical dependency/, /has been mocked/, /Module parse warning/, /require function/],
+  performance: { hints: false },
   devtool: isProd ? false : 'eval-cheap-module-source-map'
 }

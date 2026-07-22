@@ -16,7 +16,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, '../../dist/rspack-pilot/doc-gen'),
     filename: '[name].js',
-    publicPath: '/'
+    publicPath: './'
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.jsx', '.js'],
@@ -65,7 +65,7 @@ module.exports = {
       }
     ]
   },
-  ignoreWarnings: [/Failed to parse source map/],
+  ignoreWarnings: [/Failed to parse source map/, /Critical dependency/, /has been mocked/, /Module parse warning/, /require function/],
   plugins: [
     new rspack.HtmlRspackPlugin({
       template: path.resolve(__dirname, 'src/index.html')
@@ -90,5 +90,6 @@ module.exports = {
     historyApiFallback: true,
     client: { overlay: true }
   },
+  performance: { hints: false },
   devtool: isProd ? false : 'eval-cheap-module-source-map'
 }

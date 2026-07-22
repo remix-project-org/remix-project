@@ -12,6 +12,22 @@ const { ReactRefreshRspackPlugin } = require('@rspack/plugin-react-refresh')
 
 const isProd = process.env.NODE_ENV === 'production'
 
+// Compose the plugin apps into /plugins/<dep>, mirroring apps/remix-ide/webpack.config.js.
+// Each Stage-D Rspack pilot builds to dist/rspack-pilot/<dep>; copy those dirs in if they exist.
+// NOTE: this reads the dirs at config-load time, so the plugin apps MUST be built BEFORE remix-ide
+// (the rspack-serve-all.js orchestrator enforces that order). Missing dirs are silently skipped,
+// exactly like the webpack config's fs.statSync guard.
+const implicitDependencies = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, 'project.json'), 'utf8')
+).implicitDependencies || []
+const pluginCopyPatterns = implicitDependencies
+  .map((dep) => {
+    const from = path.resolve(__dirname, `../../dist/rspack-pilot/${dep}`)
+    return fs.existsSync(from) ? { from, to: `plugins/${dep}` } : false
+  })
+  .filter(Boolean)
+console.log('[rspack] composing plugins:', pluginCopyPatterns.map((p) => p.to).join(', ') || '(none built yet)')
+
 const versionData = {
   version: require('../../package.json').version,
   timestamp: 0,
@@ -173,7 +189,7 @@ module.exports = {
       }
     ]
   },
-  ignoreWarnings: [/Failed to parse source map/, /require function/],
+  ignoreWarnings: [/Failed to parse source map/, /Critical dependency/, /has been mocked/, /Module parse warning/, /require function/],
   plugins: [
     new rspack.HtmlRspackPlugin({
       template: path.resolve(__dirname, 'src/index.html')
@@ -185,7 +201,8 @@ module.exports = {
         { from: path.resolve(__dirname, 'src/404.html'), to: '404.html' },
         { from: path.resolve(__dirname, 'src/favicon.ico'), to: 'favicon.ico' },
         { from: path.resolve(__dirname, 'src/robots.txt'), to: 'robots.txt' },
-        { from: path.resolve(__dirname, 'src/sitemap.xml'), to: 'sitemap.xml' }
+        { from: path.resolve(__dirname, 'src/sitemap.xml'), to: 'sitemap.xml' },
+        ...pluginCopyPatterns
       ]
     }),
     new EmitSoljsonPlugin(),
@@ -259,5 +276,6 @@ module.exports = {
     historyApiFallback: true,
     client: { overlay: true }
   },
+  performance: { hints: false },
   devtool: isProd ? false : 'eval-cheap-module-source-map'
 }

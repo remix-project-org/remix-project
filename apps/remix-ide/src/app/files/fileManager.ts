@@ -1100,5 +1100,3 @@ export default class FileManager extends Plugin {
     throw new Error('copyFolderToJson not available')
   }
 }
-
-module.exports = FileManager

@@ -820,5 +820,3 @@ const addSlash = (file) => {
   if (!file.startsWith('/')) file = '/' + file
   return file
 }
-
-module.exports = DGitProvider

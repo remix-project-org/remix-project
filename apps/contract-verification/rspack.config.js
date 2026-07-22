@@ -22,7 +22,7 @@ module.exports = {
     path: path.resolve(__dirname, '../../dist/rspack-pilot/contract-verification'),
     filename: '[name].plugin-contract-verification.[contenthash].js',
     chunkFilename: '[name].plugin-contract-verification.[contenthash].js',
-    publicPath: '/'
+    publicPath: './'
   },
   node: {
     global: true
@@ -86,7 +86,7 @@ module.exports = {
       }
     ]
   },
-  ignoreWarnings: [/Failed to parse source map/],
+  ignoreWarnings: [/Failed to parse source map/, /Critical dependency/, /has been mocked/, /Module parse warning/, /require function/],
   plugins: [
     new rspack.HtmlRspackPlugin({
       template: path.resolve(__dirname, 'src/index.html')
@@ -111,5 +111,6 @@ module.exports = {
     historyApiFallback: true,
     client: { overlay: true }
   },
+  performance: { hints: false },
   devtool: isProd ? false : 'eval-cheap-module-source-map'
 }
