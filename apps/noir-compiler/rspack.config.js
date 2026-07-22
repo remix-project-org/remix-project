@@ -5,6 +5,7 @@
 const path = require('path')
 const fs = require('fs')
 const rspack = require('@rspack/core')
+const { ReactRefreshRspackPlugin } = require('@rspack/plugin-react-refresh')
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -74,7 +75,7 @@ module.exports = {
           options: {
             jsc: {
               parser: { syntax: 'typescript', tsx: true },
-              transform: { react: { runtime: 'automatic' } }
+              transform: { react: { runtime: 'automatic', development: !isProd, refresh: !isProd } }
             }
           }
         }
@@ -107,7 +108,14 @@ module.exports = {
       WALLET_CONNECT_PROJECT_ID: JSON.stringify(process.env.WALLET_CONNECT_PROJECT_ID),
       BASE_URL: JSON.stringify(process.env.NOIR_COMPILER_BASE_URL_DEV),
       WS_URL: JSON.stringify(process.env.NOIR_COMPILER_WS_URL_DEV)
-    })
-  ],
+    }),
+    !isProd && new ReactRefreshRspackPlugin()
+  ].filter(Boolean),
+  devServer: {
+    port: 4201,
+    hot: true,
+    historyApiFallback: true,
+    client: { overlay: true }
+  },
   devtool: isProd ? false : 'eval-cheap-module-source-map'
 }

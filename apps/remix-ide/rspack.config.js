@@ -8,6 +8,7 @@
 const path = require('path')
 const fs = require('fs')
 const rspack = require('@rspack/core')
+const { ReactRefreshRspackPlugin } = require('@rspack/plugin-react-refresh')
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -137,7 +138,7 @@ module.exports = {
           options: {
             jsc: {
               parser: { syntax: 'typescript', tsx: true },
-              transform: { react: { runtime: 'automatic' } }
+              transform: { react: { runtime: 'automatic', development: !isProd, refresh: !isProd } }
             }
           }
         }
@@ -152,7 +153,7 @@ module.exports = {
           options: {
             jsc: {
               parser: { syntax: 'ecmascript', jsx: true },
-              transform: { react: { runtime: 'automatic' } }
+              transform: { react: { runtime: 'automatic', development: !isProd, refresh: !isProd } }
             }
           }
         }
@@ -249,7 +250,14 @@ module.exports = {
       } else if (replacements[module]) {
         resource.request = replacements[module]
       }
-    })
-  ],
+    }),
+    !isProd && new ReactRefreshRspackPlugin()
+  ].filter(Boolean),
+  devServer: {
+    port: 4202,
+    hot: true,
+    historyApiFallback: true,
+    client: { overlay: true }
+  },
   devtool: isProd ? false : 'eval-cheap-module-source-map'
 }

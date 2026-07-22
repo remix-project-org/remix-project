@@ -4,6 +4,7 @@
 // (Node polyfills, tsconfig path aliases, externals). Not wired into the Nx build graph.
 const path = require('path')
 const rspack = require('@rspack/core')
+const { ReactRefreshRspackPlugin } = require('@rspack/plugin-react-refresh')
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -58,7 +59,7 @@ module.exports = {
           options: {
             jsc: {
               parser: { syntax: 'typescript', tsx: true },
-              transform: { react: { runtime: 'automatic' } }
+              transform: { react: { runtime: 'automatic', development: !isProd, refresh: !isProd } }
             }
           }
         }
@@ -80,7 +81,14 @@ module.exports = {
     new rspack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
       process: require.resolve('process/browser')
-    })
-  ],
+    }),
+    !isProd && new ReactRefreshRspackPlugin()
+  ].filter(Boolean),
+  devServer: {
+    port: 4200,
+    hot: true,
+    historyApiFallback: true,
+    client: { overlay: true }
+  },
   devtool: isProd ? false : 'eval-cheap-module-source-map'
 }
