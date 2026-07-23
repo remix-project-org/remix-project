@@ -929,7 +929,7 @@ export function RemixUiTopbar() {
                 publishToGist={publishToGist}
               />
             )}
-            <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
+            {false && <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
               <span
                 className="btn btn-sm btn-warning d-flex align-items-center gap-1 ms-3 text-nowrap"
                 style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
@@ -941,8 +941,8 @@ export function RemixUiTopbar() {
               >
                 {!compactRightLabels ? <span>See Plans</span> : <span>Plans</span>}
               </span>
-            </CustomTooltip>
-            <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
+            </CustomTooltip>}
+            {false && <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
               <span
                 className="btn btn-sm btn-warning d-flex align-items-center gap-1 ms-3 text-nowrap"
                 style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
@@ -954,7 +954,7 @@ export function RemixUiTopbar() {
               >
                 {!compactRightLabels ? <span>Get AI Credits</span> : <span>AI Credits</span>}
               </span>
-            </CustomTooltip>
+            </CustomTooltip>}
           </div>
           {showJoinBetaTopButton && <BetaPromoPill plugin={plugin} />}
           <CartButton />
