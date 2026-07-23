@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PluginClient } from '@remixproject/plugin';
-import { readQuickDappContractConfig } from '@remix-ui/helper';
+import { logQuickDappBinding, readQuickDappContractConfig } from '@remix-ui/helper';
 import { DappConfig } from '../types/dapp';
 import { CreateZkDappPayload } from '../types/zkdapp';
 
@@ -236,12 +236,12 @@ export class DappManager {
         return counts;
       }, { multi: 0, 'legacy-single': 0, none: 0 });
 
-      console.info('[QDBinding] config.scan.completed', JSON.stringify({
+      logQuickDappBinding('config.scan.completed', {
         dappCount: uniqueConfigs.length,
         multiCount: bindingSources.multi,
         legacySingleCount: bindingSources['legacy-single'],
         contractFreeCount: bindingSources.none
-      }));
+      });
 
       return (uniqueConfigs || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch (e) {
