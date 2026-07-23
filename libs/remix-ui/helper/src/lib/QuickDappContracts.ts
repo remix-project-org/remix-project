@@ -21,6 +21,14 @@ export interface QuickDappContractSelection {
   primary: QuickDappContractBinding
 }
 
+export type QuickDappContractConfigSource = 'multi' | 'legacy-single' | 'none'
+
+export interface QuickDappContractConfigView {
+  bindings: QuickDappContractBinding[]
+  representativeBinding?: QuickDappContractBinding
+  source: QuickDappContractConfigSource
+}
+
 const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
 const JAVASCRIPT_RESERVED_WORDS = new Set([
   'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
@@ -152,10 +160,23 @@ export const getQuickDappContracts = (config: any): QuickDappContractBinding[] =
     }))
 }
 
-export const getPrimaryQuickDappContract = (config: any): QuickDappContractBinding | undefined => {
-  const contracts = getQuickDappContracts(config)
-  return contracts.find((contract) => contract.id === config?.primaryContractId) || contracts[0]
+export const readQuickDappContractConfig = (config: any): QuickDappContractConfigView => {
+  const bindings = getQuickDappContracts(config)
+  const source: QuickDappContractConfigSource = Array.isArray(config?.contracts) && config.contracts.length > 0
+    ? 'multi'
+    : config?.contract
+      ? 'legacy-single'
+      : 'none'
+
+  return {
+    bindings,
+    representativeBinding: bindings.find((binding) => binding.id === config?.primaryContractId) || bindings[0],
+    source
+  }
 }
+
+export const getPrimaryQuickDappContract = (config: any): QuickDappContractBinding | undefined =>
+  readQuickDappContractConfig(config).representativeBinding
 
 const toLegacyQuickDappContract = (contract: QuickDappContractBinding) => ({
   address: contract.address,
