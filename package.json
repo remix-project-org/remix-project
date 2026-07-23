@@ -221,6 +221,7 @@
     "jszip": "^3.6.0",
     "just-once": "^2.2.0",
     "langchain": "^1.0.0",
+    "langfuse-langchain": "^3.38.20",
     "latest-version": "^5.1.0",
     "lunr": "^2.3.9",
     "merge": "^2.1.1",

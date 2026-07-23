@@ -223,10 +223,18 @@ export class RemixFilesystemBackend {
   }
 
   async read(file_path: string, _offset?: number, _limit?: number): Promise<string | { error: string }> {
-    // NOTE: offset and limit parameters are ignored - always return full file content
-    // This prevents the AI from making multiple turns to read a file in chunks
     try {
-      return await this.read_file(file_path)
+      const content = await this.read_file(file_path)
+      if (typeof content !== 'string') return content
+
+      if (_offset !== undefined || _limit !== undefined) {
+        const lines = content.split('\n')
+        const start = _offset ?? 0
+        const end = _limit !== undefined ? start + _limit : undefined
+        return lines.slice(start, end).join('\n')
+      }
+
+      return content
     } catch (error) {
       return { error: `Failed to read file ${file_path}: ${error.message}` }
     }

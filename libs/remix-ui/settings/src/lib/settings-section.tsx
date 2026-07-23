@@ -83,7 +83,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
   }
 
   // Test all API keys that have values
-  const handleTestAllApiKeys = async (optionName: string, toggleOptions: { name: keyof SettingsState; type: 'text' | 'password' }[]) => {
+  const handleTestAllApiKeys = async (optionName: string, toggleOptions: { name: keyof SettingsState; type: 'text' | 'password' | 'number' }[]) => {
     const apiKeyOptions = toggleOptions.filter(opt => isApiKeySetting(opt.name as string))
     let testedCount = 0
     let validCount = 0

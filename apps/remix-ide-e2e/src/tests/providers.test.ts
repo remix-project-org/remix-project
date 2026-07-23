@@ -86,7 +86,7 @@ module.exports = {
       .click('*[data-id="compile-action"]')
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: "//span[@class='text-danger' and contains(., 'ranges over 10000 blocks are not supported on freetier')]"
+        selector: "//span[@class='text-danger' and contains(., 'ranges over 10000 blocks are not supported on free plan')]"
       }, 60000)
       .waitForElementPresent({ selector: `[data-id="selected-provider-basic-http-provider"]`, timeout: 5000 })
   }

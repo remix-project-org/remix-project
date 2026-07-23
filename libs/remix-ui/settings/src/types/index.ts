@@ -64,7 +64,7 @@ export interface SettingsSection {
       }[],
       toggleUIOptions?: {
         name: keyof SettingsState,
-        type: 'text' | 'password'
+        type: 'text' | 'password' | 'number'
       }[],
       toggleUIDescription?: string | JSX.Element,
       buttonOptions?: {
@@ -133,6 +133,8 @@ export interface SettingsState {
   'deepagent-openai-api-key': ConfigState,
   'deepagent-moonshot-api-key': ConfigState,
   'editor/code-analysis-popover': ConfigState,
+  'ai-feedback': ConfigState,
+  'ai-feedback-credit-threshold': ConfigState,
   toaster: ConfigState
 }
 export interface SettingsActionPayloadTypes {

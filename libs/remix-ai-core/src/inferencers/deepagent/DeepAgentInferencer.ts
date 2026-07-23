@@ -31,6 +31,7 @@ import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
 
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
+import { getLangfuseCallbackHandler } from '../../helpers/langfuse'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
@@ -612,6 +613,16 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         )
       }
 
+      // Attach Langfuse tracing (no-op when disabled/unconfigured).
+      const langfuseHandler = await getLangfuseCallbackHandler({
+        sessionId: this.sessionThreadId,
+        metadata: {
+          threadId: this.sessionThreadId,
+          provider: this.modelSelection.provider,
+          model: this.modelSelection.modelId
+        }
+      })
+
       const eventStream = this.agent.streamEvents(
         {
           messages: langchainMessages
@@ -622,7 +633,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
             thread_id: this.sessionThreadId
           },
           subgraphs: true,
-          signal: localAbortController.signal
+          signal: localAbortController.signal,
+          ...(langfuseHandler ? { callbacks: [langfuseHandler]} : {})
         }
       )
 

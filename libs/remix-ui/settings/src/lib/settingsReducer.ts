@@ -28,6 +28,7 @@ const deepagentMistralApiKey = config.get('settings/deepagent-mistral-api-key') 
 const deepagentOpenaiApiKey = config.get('settings/deepagent-openai-api-key') || ''
 const deepagentMoonshotApiKey = config.get('settings/deepagent-moonshot-api-key') || ''
 const enableCodeAnalysisPopover = config.get('settings/editor/code-analysis-popover')
+const aiFeedbackCreditThreshold = config.get('settings/ai-feedback-credit-threshold') || '0'
 
 let githubConfig = config.get('settings/github-config') || false
 let ipfsConfig = config.get('settings/ipfs-config') || false
@@ -42,6 +43,7 @@ let autoCompletion = config.get('settings/auto-completion')
 let showGas = config.get('settings/show-gas')
 let displayErrors = config.get('settings/display-errors')
 let saveEvmState = config.get('settings/save-evm-state')
+let aiFeedback = config.get('settings/ai-feedback')
 
 if (!githubConfig && (githubUserName || githubEmail || gistAccessToken)) {
   config.set('settings/github-config', true)
@@ -97,6 +99,10 @@ if (typeof displayErrors !== 'boolean') {
 if (typeof saveEvmState !== 'boolean') {
   config.set('settings/save-evm-state', true)
   saveEvmState = true
+}
+if (typeof aiFeedback !== 'boolean') {
+  config.set('settings/ai-feedback', true)
+  aiFeedback = true
 }
 
 let enableCodeAnalysisPopoverBoolean = enableCodeAnalysisPopover
@@ -290,6 +296,14 @@ export const initialState: SettingsState = {
   //@ts-ignore
   'editor/code-analysis-popover': {
     value: enableCodeAnalysisPopoverBoolean,
+    isLoading: false
+  },
+  'ai-feedback': {
+    value: aiFeedback,
+    isLoading: false
+  },
+  'ai-feedback-credit-threshold': {
+    value: aiFeedbackCreditThreshold,
     isLoading: false
   },
   toaster: {

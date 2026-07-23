@@ -185,6 +185,19 @@ const settingsSections: SettingsSection[] = [
         ]
       },
       {
+        title: 'settings.aiFeedbackSection',
+        options: [{
+          name: 'ai-feedback',
+          label: 'settings.aiFeedback',
+          description: 'settings.aiFeedbackDescription',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'ai-feedback-credit-threshold',
+            type: 'number'
+          }]
+        }]
+      },
+      {
         title: 'settings.mcpServersSection',
         options: [{
           name: 'mcp/servers/enable' as keyof typeof initialState,

@@ -118,5 +118,9 @@
   "settings.apiKeyAuthFailed": "Authentication failed with your API key",
   "settings.apiKeyAuthFailedDescription": "Your API key could not be authenticated. Would you like to switch to the Remix proxy server?",
   "settings.apiKeyQuotaExceeded": "API key quota exceeded",
-  "settings.apiKeyQuotaExceededDescription": "Your API key has exceeded its quota. Would you like to switch to the Remix proxy server?"
+  "settings.apiKeyQuotaExceededDescription": "Your API key has exceeded its quota. Would you like to switch to the Remix proxy server?",
+  "settings.aiFeedbackSection": "RemixAI Feedback",
+  "settings.aiFeedback": "AI feedback",
+  "settings.aiFeedbackDescription": "When enabled, RemixAI automatically activates when needed except if the amount credits left is below the following value.",
+  "settings.ai-feedback-credit-threshold": "Credit threshold"
 }
