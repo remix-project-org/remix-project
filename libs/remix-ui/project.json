@@ -1,20 +1,13 @@
 {
-    "name": "remix-ui",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-ui/src",
-    "projectType": "application",
-    "implicitDependencies": [
-    ],
-    "targets": {
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-ui/**/*.{ts,tsx,js,jsx}"],
-          "eslintConfig": "libs/remix-ui/.eslintrc"
-        }
-      }
-    },
-    "tags": []
-  }
-  
+  "name": "remix-ui",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-ui/src",
+  "projectType": "application",
+  "implicitDependencies": [],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": []
+}

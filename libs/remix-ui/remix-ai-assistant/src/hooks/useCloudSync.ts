@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ChatHistoryStorageManager, remixAILogger } from '@remix/remix-ai-core'
 import { SyncStatus } from '../lib/types'
@@ -32,7 +32,7 @@ interface UseCloudSyncReturn {
 export const useCloudSync = ({
   storageManager,
   enabled = false,
-  autoSyncInterval = 5 * 60 * 1000 // 5 minutes
+  autoSyncInterval = 5 * 60 * 1000, // 5 minutes
 }: UseCloudSyncProps): UseCloudSyncReturn => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null)
@@ -166,7 +166,6 @@ export const useCloudSync = ({
       clearInterval(syncTimerRef.current)
       syncTimerRef.current = null
     }
-
   }, [])
 
   /**
@@ -191,7 +190,7 @@ export const useCloudSync = ({
    */
   useEffect(() => {
     if (storageManager && syncEnabled) {
-      storageManager.getLastSyncTime().then(time => {
+      storageManager.getLastSyncTime().then((time) => {
         if (isMountedRef.current && time) {
           setLastSyncTime(time)
         }
@@ -250,6 +249,6 @@ export const useCloudSync = ({
     pullFromCloud,
     pushToCloud,
     enableSync,
-    disableSync
+    disableSync,
   }
 }

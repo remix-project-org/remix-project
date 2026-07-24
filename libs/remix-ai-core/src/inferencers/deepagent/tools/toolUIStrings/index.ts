@@ -30,4 +30,5 @@ export function resolveToolUIString(toolName: string, toolInput?: Record<string,
   return `${formattedName.charAt(0).toUpperCase() + formattedName.slice(1)}...`
 }
 
-export { ToolUIStringRegistry, getFileName, truncateAddress, formatToolName } from './types'
+export { getFileName, truncateAddress, formatToolName } from './types'
+export type { ToolUIStringRegistry } from './types'

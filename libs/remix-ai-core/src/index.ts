@@ -1,9 +1,11 @@
 'use strict'
 
-import { ICompletions,
-  IParams, ChatEntry, AIRequestType, IRemoteModel } from './types/types'
+import type { ICompletions,
+  IParams, ChatEntry, IRemoteModel } from './types/types'
+import { AIRequestType } from './types/types'
 import { ModelType } from './types/constants'
-import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions } from './types/models'
+import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions } from './types/models'
+import type { AIModel } from './types/models'
 import { buildChatPrompt } from './prompts/promptBuilder'
 import { RemoteInferencer } from './inferencers/remote/remoteInference'
 import { OllamaInferencer } from './inferencers/local/ollamaInferencer'
@@ -21,18 +23,20 @@ import { WeightedToolSelector, IChatMessage } from './services/weightedToolSelec
 import { remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled } from './helpers/logger'
 export {
   ChatCommandParser,
-  ModelType, ICompletions, IParams, IRemoteModel, buildChatPrompt,
+  ModelType, buildChatPrompt,
   RemoteInferencer, OllamaInferencer, MCPInferencer, DeepAgentInferencer, RemixMCPServer, isOllamaAvailable, getBestAvailableModel, listModels, discoverOllamaHost,
   getModelCapabilities, modelSupportsTools, modelSupportsThinking, listToolCapableModels,
-  FIMModelManager, FIMModelConfig, FIM_MODEL_CONFIGS, createRemixMCPServer,
+  FIMModelManager, FIM_MODEL_CONFIGS, createRemixMCPServer,
   InsertionParams, CompletionParams, GenerationParams, AssistantParams,
-  ChatEntry, AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,
+  AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,
   mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig,
-  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions,
+  ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions,
   ChatHistoryStorageManager, IndexedDBChatHistoryBackend,
-  WeightedToolSelector, IChatMessage,
+  WeightedToolSelector,
   remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled
 }
+
+export type { ICompletions, IParams, IRemoteModel, ChatEntry, AIModel, FIMModelConfig, IChatMessage }
 
 export * from './types/types'
 export * from './types/mcp'

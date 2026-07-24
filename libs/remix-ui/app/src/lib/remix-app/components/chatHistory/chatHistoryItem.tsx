@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { ConversationMetadata } from '@remix/remix-ai-core'
 import React, { useState, useEffect, useRef } from 'react'
 
@@ -11,14 +11,7 @@ interface ChatHistoryItemProps {
   theme?: string
 }
 
-export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
-  conversation,
-  active,
-  onClick,
-  onArchive,
-  onDelete,
-  theme = 'dark'
-}) => {
+export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({ conversation, active, onClick, onArchive, onDelete, theme = 'dark' }) => {
   const [showMenu, setShowMenu] = useState(false)
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const menuContainerRef = useRef<HTMLDivElement>(null)
@@ -56,19 +49,13 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
 
   const getMenuPosition = (triggerRect: DOMRect, menuWidth = 170, menuHeight = 110) => {
     const gutter = 8
-    const sidebarRect = menuButtonRef.current
-      ?.closest('[data-id="chat-history-sidebar-maximized"]')
-      ?.getBoundingClientRect()
+    const sidebarRect = menuButtonRef.current?.closest('[data-id="chat-history-sidebar-maximized"]')?.getBoundingClientRect()
     const preferredRightLeft = sidebarRect ? sidebarRect.right + gutter : triggerRect.right + gutter
-    const shouldOpenLeft =
-      preferredRightLeft + menuWidth > window.innerWidth &&
-      triggerRect.left - gutter - menuWidth >= gutter
+    const shouldOpenLeft = preferredRightLeft + menuWidth > window.innerWidth && triggerRect.left - gutter - menuWidth >= gutter
 
     return {
       top: Math.max(gutter, Math.min(triggerRect.top, window.innerHeight - menuHeight - gutter)),
-      left: shouldOpenLeft
-        ? triggerRect.left - menuWidth - gutter
-        : Math.max(gutter, Math.min(preferredRightLeft, window.innerWidth - menuWidth - gutter))
+      left: shouldOpenLeft ? triggerRect.left - menuWidth - gutter : Math.max(gutter, Math.min(preferredRightLeft, window.innerWidth - menuWidth - gutter)),
     }
   }
 
@@ -104,7 +91,7 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
       style={{
         backgroundColor: theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--bs-body-bg)',
         transition: 'background-color 0.2s ease',
-        cursor: 'pointer'
+        cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = theme.toLowerCase() === 'dark' ? '#2a2c3f' : 'var(--bs-body-bg)'
@@ -114,9 +101,7 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
       }}
     >
       <div className="d-flex align-items-center gap-2 flex-nowrap">
-        <div className={`conversation-title text-truncate flex-grow-1 mb-0 ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-dark'}`}>
-          {conversation.title}
-        </div>
+        <div className={`conversation-title text-truncate flex-grow-1 mb-0 ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-dark'}`}>{conversation.title}</div>
         <div className={`conversation-meta text-nowrap ${theme.toLowerCase() === 'dark' ? 'text-secondary' : 'text-muted'} small`}>
           {formatDate(conversation.lastAccessedAt)} · {conversation.messageCount} message{conversation.messageCount !== 1 ? 's' : ''}
         </div>
@@ -137,7 +122,7 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
             ref={menuButtonRef}
             style={{
               color: theme.toLowerCase() === 'dark' ? '#888' : 'var(--text-color)',
-              transition: 'color 0.2s ease'
+              transition: 'color 0.2s ease',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = theme.toLowerCase() === 'dark' ? '#ffffff' : 'var(--text-color)'
@@ -157,7 +142,7 @@ export const ChatHistoryItem: React.FC<ChatHistoryItemProps> = ({
               style={{
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
-                zIndex: 1100
+                zIndex: 1100,
               }}
             >
               <button

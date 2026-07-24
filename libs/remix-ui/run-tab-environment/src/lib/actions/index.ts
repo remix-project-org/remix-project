@@ -1,27 +1,27 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import React from "react"
-import { Plugin } from "@remixproject/engine"
-import { Actions, Provider, SmartAccount, WidgetState, Account } from "../types"
-import { trackMatomoEvent } from "@remix-api"
-import { IntlShape } from "react-intl"
-import { addFVSProvider } from "./providers"
-import { aaLocalStorageKey, aaSupportedNetworks, getPimlicoBundlerURL, toAddress } from "@remix-project/remix-lib"
-import * as chains from "viem/chains"
-import { custom, createWalletClient, createPublicClient, http } from "viem"
-import { BrowserProvider, BaseWallet, SigningKey, isAddress } from "ethers"
+import React from 'react'
+import { Plugin } from '@remixproject/engine'
+import { Actions, Provider, SmartAccount, WidgetState, Account } from '../types'
+import { trackMatomoEvent } from '@remix-api'
+import { IntlShape } from 'react-intl'
+import { addFVSProvider } from './providers'
+import { aaLocalStorageKey, aaSupportedNetworks, getPimlicoBundlerURL, toAddress } from '@remix-project/remix-lib'
+import * as chains from 'viem/chains'
+import { custom, createWalletClient, createPublicClient, http } from 'viem'
+import { BrowserProvider, BaseWallet, SigningKey, isAddress } from 'ethers'
 import { toChecksumAddress, bytesToHex, isZeroAddress } from '@ethereumjs/util'
 import { isAccountDeleted, getAccountAlias, deleteAccount as deleteAccountFromStorage, setAccountAlias, clearAccountPreferences, getNextAvailableAccountNumber } from '../utils/accountStorage'
 import { eip7702Constants } from '@remix-project/remix-lib'
 import { formatBalance, shortenAddress } from '@remix-ui/helper'
-export * from "./providers"
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+export * from './providers'
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { EnvironmentPlugin } from 'apps/remix-ide/src/app/udapp/udappEnv'
-import { entryPoint07Address } from "viem/account-abstraction"
-const { createSmartAccountClient } = require("permissionless") /* eslint-disable-line  @typescript-eslint/no-var-requires */
-const { toSafeSmartAccount } = require("permissionless/accounts") /* eslint-disable-line  @typescript-eslint/no-var-requires */
-const { createPimlicoClient } = require("permissionless/clients/pimlico") /* eslint-disable-line  @typescript-eslint/no-var-requires */
+import { entryPoint07Address } from 'viem/account-abstraction'
+const { createSmartAccountClient } = require('permissionless') /* eslint-disable-line  @typescript-eslint/no-var-requires */
+const { toSafeSmartAccount } = require('permissionless/accounts') /* eslint-disable-line  @typescript-eslint/no-var-requires */
+const { createPimlicoClient } = require('permissionless/clients/pimlico') /* eslint-disable-line  @typescript-eslint/no-var-requires */
 
-export async function resetVmState (plugin: EnvironmentPlugin, widgetState: WidgetState, dispatch: React.Dispatch<Actions>) {
+export async function resetVmState(plugin: EnvironmentPlugin, widgetState: WidgetState, dispatch: React.Dispatch<Actions>) {
   const context = widgetState.providers.selectedProvider
   const contextExists = await plugin.call('fileManager', 'exists', `.states/${context}/state.json`)
 
@@ -48,7 +48,7 @@ export async function resetVmState (plugin: EnvironmentPlugin, widgetState: Widg
   trackMatomoEvent(plugin, { category: 'udapp', action: 'deleteState', name: 'VM state reset', isClick: false })
 }
 
-export async function forkState (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>, currentProvider: Provider, forkName: string) {
+export async function forkState(plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>, currentProvider: Provider, forkName: string) {
   const provider = currentProvider
 
   if (!provider) {
@@ -94,7 +94,7 @@ export async function forkState (plugin: EnvironmentPlugin, dispatch: React.Disp
   trackMatomoEvent(plugin, { category: 'udapp', action: 'forkState', name: `forked from ${context}`, isClick: false })
 }
 
-export async function setExecutionContext (provider: Provider, plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
+export async function setExecutionContext(provider: Provider, plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
   try {
     plugin.blockchain.discardPreviousConnectionAttempt()
   } catch (e) {}
@@ -120,13 +120,13 @@ export async function setExecutionContext (provider: Provider, plugin: Environme
   }
 }
 
-function cleanupWalletConnectEvents (plugin: Plugin) {
+function cleanupWalletConnectEvents(plugin: Plugin) {
   plugin.off('walletconnect', 'connectionFailed')
   plugin.off('walletconnect', 'connectionDisconnected')
   plugin.off('walletconnect', 'connectionSuccessful')
 }
 
-export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
+export async function getAccountsList(plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
   let accounts = await plugin.call('blockchain', 'getAccounts')
   const provider = await plugin.call('blockchain', 'getProvider')
   let safeAddresses = []
@@ -174,14 +174,14 @@ export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: Reac
         alias: alias,
         account: account,
         balance: formatBalance(balance, 3),
-        symbol: plugin.blockchain['networkNativeCurrency'].symbol
+        symbol: plugin.blockchain['networkNativeCurrency'].symbol,
       })
     else
       defaultAccounts.push({
         alias: alias,
         account: account,
         balance: formatBalance(balance, 3),
-        symbol: plugin.blockchain['networkNativeCurrency']?.symbol || 'ETH'
+        symbol: plugin.blockchain['networkNativeCurrency']?.symbol || 'ETH',
       })
     if (safeAddresses.length && safeAddresses.includes(account)) {
       const storedSmartAccount = storedSmartAccounts[account]
@@ -192,7 +192,7 @@ export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: Reac
         salt: storedSmartAccount?.salt,
         ownerEOA: storedSmartAccount?.ownerEOA,
         timestamp: storedSmartAccount?.timestamp,
-        symbol: plugin.blockchain['networkNativeCurrency']?.symbol
+        symbol: plugin.blockchain['networkNativeCurrency']?.symbol,
       })
     }
   }
@@ -200,7 +200,7 @@ export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: Reac
   dispatch({ type: 'SET_SMART_ACCOUNTS', payload: smartAccounts })
 }
 
-export async function loadAllDelegations (plugin: EnvironmentPlugin, accounts: Account[], currentProvider: string, dispatch: React.Dispatch<Actions>) {
+export async function loadAllDelegations(plugin: EnvironmentPlugin, accounts: Account[], currentProvider: string, dispatch: React.Dispatch<Actions>) {
   // Only load delegations for EIP-7702 compatible environments
   if (currentProvider !== 'vm-prague' && currentProvider !== 'vm-osaka' && !currentProvider.includes('mainnet-fork')) {
     return
@@ -230,7 +230,7 @@ export async function loadAllDelegations (plugin: EnvironmentPlugin, accounts: A
   }
 }
 
-export async function createNewAccount (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
+export async function createNewAccount(plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
   try {
     const address = await plugin.call('blockchain', 'newAccount')
 
@@ -242,14 +242,14 @@ export async function createNewAccount (plugin: EnvironmentPlugin, dispatch: Rea
   }
 }
 
-export async function createSmartAccount (plugin: EnvironmentPlugin, widgetState: WidgetState, dispatch: React.Dispatch<Actions>) {
+export async function createSmartAccount(plugin: EnvironmentPlugin, widgetState: WidgetState, dispatch: React.Dispatch<Actions>) {
   plugin.call('notification', 'toast', `Preparing tx to sign...`)
   const currentEnv = await plugin.call('blockchain', 'getProviderObject')
   const chainId = widgetState.network.chainId
   const chain = chains[aaSupportedNetworks[chainId].name]
   const PUBLIC_NODE_URL = aaSupportedNetworks[chainId].publicNodeUrl
   const BUNDLER_URL = getPimlicoBundlerURL(chainId)
-  const safeAddresses: string[] = widgetState.accounts.smartAccounts.map(account => account.account)
+  const safeAddresses: string[] = widgetState.accounts.smartAccounts.map((account) => account.account)
   let salt: number = 0
 
   // @ts-ignore
@@ -263,13 +263,13 @@ export async function createSmartAccount (plugin: EnvironmentPlugin, widgetState
 
   const publicClient = createPublicClient({
     chain,
-    transport: http(PUBLIC_NODE_URL) // choose any provider here
+    transport: http(PUBLIC_NODE_URL), // choose any provider here
   })
 
   const safeAddressesLength = safeAddresses.length
   if (safeAddressesLength) {
     const lastSafeAddress: string = safeAddresses[safeAddressesLength - 1]
-    const lastSmartAccount = widgetState.accounts.smartAccounts.find(acc => acc.account === lastSafeAddress)
+    const lastSmartAccount = widgetState.accounts.smartAccounts.find((acc) => acc.account === lastSafeAddress)
     salt = lastSmartAccount?.salt != null ? lastSmartAccount.salt + 1 : 0
   }
 
@@ -278,18 +278,18 @@ export async function createSmartAccount (plugin: EnvironmentPlugin, widgetState
       client: publicClient,
       entryPoint: {
         address: entryPoint07Address,
-        version: "0.7",
+        version: '0.7',
       },
       owners: [walletClient],
       saltNonce: salt,
-      version: "1.4.1"
+      version: '1.4.1',
     })
 
     const paymasterClient = createPimlicoClient({
       transport: http(BUNDLER_URL),
       entryPoint: {
         address: entryPoint07Address,
-        version: "0.7",
+        version: '0.7',
       },
     })
 
@@ -300,15 +300,17 @@ export async function createSmartAccount (plugin: EnvironmentPlugin, widgetState
       bundlerTransport: http(BUNDLER_URL),
       userOperation: {
         estimateFeesPerGas: async () => (await paymasterClient.getUserOperationGasPrice()).fast,
-      }
+      },
     })
 
     // Make a dummy tx to force smart account deployment
     const useropHash = await saClient.sendUserOperation({
-      calls: [{
-        to: toAddress,
-        value: 0
-      }]
+      calls: [
+        {
+          to: toAddress,
+          value: 0,
+        },
+      ],
     })
     plugin.call('notification', 'toast', `Waiting for tx confirmation, can take 5-10 seconds...`)
     await saClient.waitForUserOperationReceipt({ hash: useropHash })
@@ -317,11 +319,11 @@ export async function createSmartAccount (plugin: EnvironmentPlugin, widgetState
 
     const sAccount: SmartAccount = {
       alias: `Smart Account ${safeAddressesLength + 1}`,
-      account : safeAccount.address,
+      account: safeAccount.address,
       balance: '0',
       salt,
       ownerEOA: account,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }
     const smartAccounts = [...widgetState.accounts.smartAccounts, sAccount]
 
@@ -353,7 +355,7 @@ export async function createSmartAccount (plugin: EnvironmentPlugin, widgetState
   }
 }
 
-export async function authorizeDelegation (contractAddress: string, plugin: EnvironmentPlugin, selectedAccount: string, allAccounts: Account[], dispatch?: React.Dispatch<Actions>) {
+export async function authorizeDelegation(contractAddress: string, plugin: EnvironmentPlugin, selectedAccount: string, allAccounts: Account[], dispatch?: React.Dispatch<Actions>) {
   try {
     if (!isAddress(toChecksumAddress(contractAddress))) {
       await plugin.call('terminal', 'log', { type: 'info', value: `Please use an ethereum address of a contract deployed in the current chain.` })
@@ -367,7 +369,7 @@ export async function authorizeDelegation (contractAddress: string, plugin: Envi
     request: async (query: any) => {
       const ret = await plugin.call('web3Provider', 'sendAsync', query)
       return ret.result
-    }
+    },
   }
 
   plugin.call('terminal', 'log', { type: 'info', value: !isZeroAddress(contractAddress) ? 'Signing and activating delegation...' : 'Removing delegation...' })
@@ -375,7 +377,7 @@ export async function authorizeDelegation (contractAddress: string, plugin: Envi
   const ethersProvider = new BrowserProvider(provider)
   const pKey = await ethersProvider.send('eth_getPKey', [selectedAccount])
   const authSignerPKey = new BaseWallet(new SigningKey(bytesToHex(pKey)), ethersProvider)
-  const auth = await authSignerPKey.authorize({ address: contractAddress, chainId: 0 });
+  const auth = await authSignerPKey.authorize({ address: contractAddress, chainId: 0 })
   const signerForAuth = allAccounts.find((a) => a.account !== selectedAccount)?.account
   const signer = await ethersProvider.getSigner(signerForAuth)
   let tx: any
@@ -384,8 +386,8 @@ export async function authorizeDelegation (contractAddress: string, plugin: Envi
     tx = await signer.sendTransaction({
       type: 4,
       to: selectedAccount,
-      authorizationList: [auth]
-    });
+      authorizationList: [auth],
+    })
   } catch (e) {
     console.error(e)
     throw e
@@ -408,25 +410,22 @@ export async function authorizeDelegation (contractAddress: string, plugin: Envi
         abi: artefact.contract.abi,
         compiler: data,
         contract: {
-          file : artefact.file,
-          object: artefact.contract
-        }
+          file: artefact.file,
+          object: artefact.contract,
+        },
       }
       await plugin.call('udappDeployedContracts', 'addInstance', selectedAccount, artefact.contract.abi, 'Delegated ' + artefact.name, contractObject)
       await plugin.call('compilerArtefacts', 'addResolvedContract', selectedAccount, data)
-      plugin.call('terminal', 'log', { type: 'info',
-        value: `Contract interation with ${selectedAccount} has been added to the deployed contracts. Please make sure the contract is pinned.` })
+      plugin.call('terminal', 'log', { type: 'info', value: `Contract interation with ${selectedAccount} has been added to the deployed contracts. Please make sure the contract is pinned.` })
     }
-    plugin.call('terminal', 'log', { type: 'info',
-      value: `Delegation for ${selectedAccount} activated. This account will be running the code located at ${contractAddress} .` })
+    plugin.call('terminal', 'log', { type: 'info', value: `Delegation for ${selectedAccount} activated. This account will be running the code located at ${contractAddress} .` })
 
     // Update delegation state
     if (dispatch) {
       dispatch({ type: 'SET_DELEGATION', payload: { account: selectedAccount, address: contractAddress } })
     }
   } else {
-    plugin.call('terminal', 'log', { type: 'info',
-      value: `Delegation for ${selectedAccount} removed.` })
+    plugin.call('terminal', 'log', { type: 'info', value: `Delegation for ${selectedAccount} removed.` })
 
     // Remove delegation from state
     if (dispatch) {
@@ -440,18 +439,13 @@ export async function authorizeDelegation (contractAddress: string, plugin: Envi
     category: 'udapp',
     action: 'authorizeDelegation',
     name: isZeroAddress(contractAddress) ? 'removed' : 'created',
-    isClick: false
+    isClick: false,
   })
 
   return { txHash: receipt.hash }
 }
 
-export async function signMessageWithAddress (
-  plugin: EnvironmentPlugin,
-  account: string,
-  message: string,
-  passphrase?: string
-): Promise<{ msgHash: string, signedData: string }> {
+export async function signMessageWithAddress(plugin: EnvironmentPlugin, account: string, message: string, passphrase?: string): Promise<{ msgHash: string; signedData: string }> {
   try {
     const result = await plugin.call('blockchain', 'signMessage', message, account, passphrase)
     trackMatomoEvent(plugin, { category: 'udapp', action: 'signUsingAccount', name: 'signed', isClick: false })
@@ -464,17 +458,10 @@ export async function signMessageWithAddress (
   }
 }
 
-export async function deleteAccountAction (
-  accountAddress: string,
-  plugin: EnvironmentPlugin,
-  widgetState: WidgetState,
-  dispatch: React.Dispatch<Actions>
-) {
+export async function deleteAccountAction(accountAddress: string, plugin: EnvironmentPlugin, widgetState: WidgetState, dispatch: React.Dispatch<Actions>) {
   // If this is the selected account, switch to the first available account
   if (widgetState.accounts.selectedAccount === accountAddress) {
-    const remainingAccounts = widgetState.accounts.defaultAccounts.filter(
-      acc => acc.account !== accountAddress
-    )
+    const remainingAccounts = widgetState.accounts.defaultAccounts.filter((acc) => acc.account !== accountAddress)
     if (remainingAccounts.length > 0) {
       dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: remainingAccounts[0].account })
     }
@@ -490,12 +477,7 @@ export async function deleteAccountAction (
   trackMatomoEvent(plugin, { category: 'udapp', action: 'deleteAccount', name: shortenAddress(accountAddress), isClick: false })
 }
 
-export async function updateAccountAlias (
-  accountAddress: string,
-  newAlias: string,
-  plugin: EnvironmentPlugin,
-  dispatch: React.Dispatch<Actions>
-) {
+export async function updateAccountAlias(accountAddress: string, newAlias: string, plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
   // Save alias to localStorage
   setAccountAlias(accountAddress, newAlias)
 
@@ -519,7 +501,7 @@ export async function updateAccountAlias (
   trackMatomoEvent(plugin, { category: 'udapp', action: 'accountAliasSaved', name: newAlias, isClick: false })
 }
 
-export async function refreshAccountBalances (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
+export async function refreshAccountBalances(plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
   const widgetState = plugin.getWidgetState()
   const allAccounts = [...(widgetState.accounts?.defaultAccounts || []), ...(widgetState.accounts?.smartAccounts || [])]
 

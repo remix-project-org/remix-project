@@ -1,10 +1,10 @@
-import { Engine, Plugin } from "@remixproject/engine"
+import { Engine, Plugin } from '@remixproject/engine'
 import { Dispatch } from 'react'
 import { CompilationResult, CompilationSourceCode } from '@remix-project/remix-solidity'
-import type { ContractData, DeployOption } from "@remix-project/core-plugin"
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+import type { ContractData, DeployOption } from '@remix-project/core-plugin'
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import type { DeployPlugin } from 'apps/remix-ide/src/app/udapp/udappDeploy'
-import { SolcInput, SolcOutput } from "@openzeppelin/upgrades-core"
+import { SolcInput, SolcOutput } from '@openzeppelin/upgrades-core'
 
 type FilePath = string
 
@@ -18,7 +18,7 @@ export interface DeployAppContextType {
 export interface DeployWidgetState {
   contracts: {
     contractList: (CompiledContractPayload & {
-      isCompiled: boolean,
+      isCompiled: boolean
       isCompiling: boolean
     })[]
   }
@@ -37,23 +37,23 @@ export interface DeployWidgetState {
 }
 
 export interface ActionPayloadTypes {
-  ADD_CONTRACT_FILE: FilePath,
-  UPDATE_COMPILED_CONTRACT: CompiledContractPayload,
-  REMOVE_CONTRACT_FILE: FilePath,
-  CLEAR_ALL_CONTRACT_FILES: void,
-  SET_SELECTED_CONTRACT_INDEX: number | null,
-  SET_VALUE: string,
-  SET_VALUE_UNIT: 'wei' | 'gwei' | 'finney' | 'ether',
-  SET_GAS_LIMIT: number,
-  SET_COMPILING: FilePath,
-  SET_COMPILING_FAILED: FilePath,
-  SET_GAS_PRICE_STATUS: boolean,
-  SET_CONFIRM_SETTINGS: boolean,
-  SET_MAX_PRIORITY_FEE: string,
-  SET_GAS_PRICE: string,
-  SET_MAX_FEE: string,
-  SET_BASE_FEE_PER_GAS: string,
-  SET_LAST_LOADED_WORKSPACE: string,
+  ADD_CONTRACT_FILE: FilePath
+  UPDATE_COMPILED_CONTRACT: CompiledContractPayload
+  REMOVE_CONTRACT_FILE: FilePath
+  CLEAR_ALL_CONTRACT_FILES: void
+  SET_SELECTED_CONTRACT_INDEX: number | null
+  SET_VALUE: string
+  SET_VALUE_UNIT: 'wei' | 'gwei' | 'finney' | 'ether'
+  SET_GAS_LIMIT: number
+  SET_COMPILING: FilePath
+  SET_COMPILING_FAILED: FilePath
+  SET_GAS_PRICE_STATUS: boolean
+  SET_CONFIRM_SETTINGS: boolean
+  SET_MAX_PRIORITY_FEE: string
+  SET_GAS_PRICE: string
+  SET_MAX_FEE: string
+  SET_BASE_FEE_PER_GAS: string
+  SET_LAST_LOADED_WORKSPACE: string
   SET_DETECTED_NETWORK: string
 }
 
@@ -62,63 +62,63 @@ export interface Action<T extends keyof ActionPayloadTypes> {
   payload: ActionPayloadTypes[T]
 }
 
-export type Actions = {[A in keyof ActionPayloadTypes]: Action<A>}[keyof ActionPayloadTypes]
+export type Actions = { [A in keyof ActionPayloadTypes]: Action<A> }[keyof ActionPayloadTypes]
 
 export type CompilationRawResult = {
-  file: string,
-  source: CompilationSourceCode,
-  languageVersion: string,
-  data: CompilationResult,
+  file: string
+  source: CompilationSourceCode
+  languageVersion: string
+  data: CompilationResult
   input?: any
 }
 
 export type VisitedContract = {
-  name: string,
-  object: any,
+  name: string
+  object: any
   file: string
 }
 
 export type CompiledContractPayload = {
-  name: string,
-  filePath: FilePath,
-  contractData: ContractData,
-  isUpgradeable: boolean,
+  name: string
+  filePath: FilePath
+  contractData: ContractData
+  isUpgradeable: boolean
   deployOptions?: DeployOption['inputs']
 }
 
 export type DeployUdappTx = {
-  from: string,
-  to: string,
-  data: string,
+  from: string
+  to: string
+  data: string
   gasLimit?: string
 }
 
 export type DeployUdappNetwork = {
-  name: string,
+  name: string
   lastBlock: {
     baseFeePerGas: string
   }
 }
 
 export type OZDeployMode = {
-  deployWithProxy: boolean,
-  upgradeWithProxy: boolean,
+  deployWithProxy: boolean
+  upgradeWithProxy: boolean
   deployArgs?: string
 }
 export interface NetworkDeploymentFile {
-  id: string,
-  network: string,
+  id: string
+  network: string
   deployments: {
-      [proxyAddress: string]: {
-          date: Date,
-          contractName: string,
-          fork: string,
-          implementationAddress: string
-      }
+    [proxyAddress: string]: {
+      date: Date
+      contractName: string
+      fork: string
+      implementationAddress: string
+    }
   }[]
 }
 
 export interface SolcBuildFile {
-  solcInput: SolcInput,
+  solcInput: SolcInput
   solcOutput: SolcOutput
 }

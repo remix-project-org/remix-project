@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useContext, useEffect, useState } from 'react'
 import { CustomTooltip } from '@remix-ui/helper'
 import { PendingCheckout } from '@remix-api'
@@ -30,7 +30,8 @@ export function CartButton({ className = '' }: CartButtonProps) {
     plugin.on('planManager', 'pendingCheckoutsChanged', handleChanged)
 
     // Initial fetch (best-effort — the event keeps us updated afterwards).
-    plugin.call('planManager', 'getPendingCheckouts')
+    plugin
+      .call('planManager', 'getPendingCheckouts')
       .then((items: PendingCheckout[]) => setCheckouts(Array.isArray(items) ? items : []))
       .catch(() => {})
 
@@ -46,22 +47,12 @@ export function CartButton({ className = '' }: CartButtonProps) {
     plugin.call('planManager', 'open')
   }
 
-  const tooltip = count === 1
-    ? 'You have an unfinished checkout — click to resume'
-    : `You have ${count} unfinished checkouts — click to resume`
+  const tooltip = count === 1 ? 'You have an unfinished checkout — click to resume' : `You have ${count} unfinished checkouts — click to resume`
 
   return (
     <CustomTooltip placement="bottom" tooltipText={tooltip}>
-      <span
-        className={`d-inline-flex align-items-center position-relative ms-3 ${className}`}
-        style={{ cursor: 'pointer' }}
-        onClick={onClick}
-        data-id="topbar-cartBtn"
-      >
-        <span
-          className="position-relative"
-          style={{ fontSize: '1rem', color: 'var(--bs-body-color, #a2a3bd)', padding: '4px 8px' }}
-        >
+      <span className={`d-inline-flex align-items-center position-relative ms-3 ${className}`} style={{ cursor: 'pointer' }} onClick={onClick} data-id="topbar-cartBtn">
+        <span className="position-relative" style={{ fontSize: '1rem', color: 'var(--bs-body-color, #a2a3bd)', padding: '4px 8px' }}>
           <i className="fas fa-bag-shopping"></i>
           <span
             className="position-absolute"
@@ -78,7 +69,7 @@ export function CartButton({ className = '' }: CartButtonProps) {
               textAlign: 'center',
               borderRadius: '10px',
               padding: '0 4px',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
             }}
             data-id="topbar-cartBadge"
           >

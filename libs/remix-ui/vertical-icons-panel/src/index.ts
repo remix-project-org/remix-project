@@ -1,2 +1,2 @@
 export { default as RemixUiVerticalIconsPanel } from './lib/remix-ui-vertical-icons-panel'
-export { IconRecord } from './lib/types'
+export type { IconRecord } from './lib/types'

@@ -5,8 +5,7 @@
     "allowJs": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    // "strict": true
+    "resolveJsonModule": true
   },
   "files": [],
   "include": [],

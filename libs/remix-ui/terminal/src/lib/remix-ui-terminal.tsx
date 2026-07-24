@@ -624,7 +624,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
             >
               <div>{getKeyOf(item)}</div>
               <div>
-                <>{getValueOf(item)}</>
+                <>{getValueOf(item) as any}</>
               </div>
             </div>
           )

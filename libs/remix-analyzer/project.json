@@ -1,35 +1,23 @@
 {
-    "name": "remix-analyzer",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-analyzer/src",
-    "projectType": "library",
-    "implicitDependencies": [
-      "remix-astwalker",
-      "remix-lib"
-    ],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/remix-analyzer",
-          "main": "libs/remix-analyzer/src/index.ts",
-          "tsConfig": "libs/remix-analyzer/tsconfig.lib.json",
-          "assets": [
-            "libs/remix-analyzer/*.md"
-          ],
-          "updateBuildableProjectDepsInPackageJson": false
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-analyzer/**/*.ts"],
-          "eslintConfig": "libs/remix-analyzer/.eslintrc"
-        }
+  "name": "remix-analyzer",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-analyzer/src",
+  "projectType": "library",
+  "implicitDependencies": ["remix-astwalker", "remix-lib"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-analyzer",
+        "main": "libs/remix-analyzer/src/index.ts",
+        "tsConfig": "libs/remix-analyzer/tsconfig.lib.json",
+        "assets": ["libs/remix-analyzer/*.md"]
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": []
+}

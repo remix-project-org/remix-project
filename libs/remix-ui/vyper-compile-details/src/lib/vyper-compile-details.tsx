@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState } from 'react'
 import VyperCompile from './vyperCompile'
 import { ThemeKeys, ThemeObject } from '@microlink/react-json-view'
@@ -17,18 +17,14 @@ export function RemixUiVyperCompileDetails({ payload, theme, themeStyle }: Remix
   const bcode = compileResult.bytecode ? compileResult.bytecode.object : ''
   const runtimeBcode = compileResult.runtimeBytecode ? compileResult.runtimeBytecode.object : ''
   const ir = compileResult.ir
-  const methodIdentifiers= compileResult.methodIdentifiers
-  const abi= compileResult.abi
+  const methodIdentifiers = compileResult.methodIdentifiers
+  const abi = compileResult.abi
   const compilerVersion = compileResult?.version ?? ''
   const emvVersion = compileResult?.evmVersion ?? ''
 
   return (
     <>
-      <VyperCompile
-        result={{ bytecode: bcode, bytecodeRuntime: runtimeBcode, ir: ir, methodIdentifiers: methodIdentifiers, abi: abi, compilerVersion: compilerVersion, evmVersion: emvVersion }}
-        theme={theme}
-        themeStyle={themeStyle}
-      />
+      <VyperCompile result={{ bytecode: bcode, bytecodeRuntime: runtimeBcode, ir: ir, methodIdentifiers: methodIdentifiers, abi: abi, compilerVersion: compilerVersion, evmVersion: emvVersion }} theme={theme} themeStyle={themeStyle} />
     </>
   )
 }

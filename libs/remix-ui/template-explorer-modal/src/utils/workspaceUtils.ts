@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { GenAiStrategy, WizardStrategy, GenericStrategy, RemixDefaultStrategy, TemplateCategoryStrategy, CookbookStrategy, ScriptsStrategy } from '../../stategies/templateCategoryStrategy'
 import { TemplateExplorerWizardAction, TemplateItem, TemplateCategory, TemplateExplorerWizardState, ContractWizardAction } from '../../types/template-explorer-types'
 import { createWorkspace, getWorkspaces } from 'libs/remix-ui/workspace/src/lib/actions/workspace'
@@ -15,8 +15,7 @@ export class TemplateExplorerModalFacade {
   dispatch: (action: any) => void
   uniqueWorkspaceName: string
 
-  constructor(plugin: any, appContext: appProviderContextType,
-    dispatch: (action: any) => void, state: TemplateExplorerWizardState) {
+  constructor(plugin: any, appContext: appProviderContextType, dispatch: (action: any) => void, state: TemplateExplorerWizardState) {
     this.plugin = plugin
     this.appContext = appContext
     this.dispatch = dispatch
@@ -31,7 +30,7 @@ export class TemplateExplorerModalFacade {
         id: 'workspaceAlreadyExistsError',
         title: 'Workspace already exists',
         message: 'Please choose a different workspace name',
-        type: 'error'
+        type: 'error',
       })
       return
     }
@@ -50,7 +49,7 @@ export class TemplateExplorerModalFacade {
   }
 
   async setUniqueWorkspaceName(workspaceName: string) {
-    const uniqueName = await this.plugin.call('filePanel', 'getAvailableWorkspaceName', workspaceName) as string
+    const uniqueName = (await this.plugin.call('filePanel', 'getAvailableWorkspaceName', workspaceName)) as string
     this.uniqueWorkspaceName = uniqueName
     this.dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: workspaceName })
   }
@@ -96,7 +95,7 @@ export class TemplateExplorerModalFacade {
     const contentImport = {
       import: (url, loadingCb, cb) => {
         this.plugin.call('contentImport', 'import', url, loadingCb, cb)
-      }
+      },
     }
     const workspaceProvider = {
       exists: async (path) => {
@@ -105,7 +104,7 @@ export class TemplateExplorerModalFacade {
       addExternal: async (path, content, url) => {
         const workspaceProvider = await this.plugin.call('fileManager', 'getProviderByName', 'workspace')
         return await workspaceProvider.addExternal(path, content, url)
-      }
+      },
     }
     await processLoading({
       type,
@@ -123,16 +122,16 @@ export class TemplateExplorerModalFacade {
           id: 'importError',
           title: 'Import Error',
           message: typeof err === 'string' ? err : err.message,
-          type: 'error'
+          type: 'error',
         })
-      }
+      },
     })
   }
 
   async closeWizard() {
     this.appContext.appStateDispatch({
       type: appActionTypes.showGenericModal,
-      payload: false
+      payload: false,
     })
     this.dispatch({ type: TemplateExplorerWizardAction.RESET_STATE })
     await this.plugin.call('templateexplorermodal', 'resetFileMode')
@@ -176,7 +175,7 @@ export class TemplateExplorerModalFacade {
     }
 
     // Legacy check for file-only categories (for backward compatibility)
-    if (template.name.toLowerCase().includes('github actions') || template.name.toLowerCase().includes('contract verification') || template.name.toLowerCase().includes('solidity create2') || template.name.toLowerCase().includes( 'generic zkp')) {
+    if (template.name.toLowerCase().includes('github actions') || template.name.toLowerCase().includes('contract verification') || template.name.toLowerCase().includes('solidity create2') || template.name.toLowerCase().includes('generic zkp')) {
       templateCategoryStrategy.setStrategy(new ScriptsStrategy())
       templateCategoryStrategy.switchScreen(dispatch)
       await this.plugin.call('templateexplorermodal', 'addArtefactsToWorkspace', item.value, {}, false, (err: Error) => {
@@ -224,7 +223,7 @@ export class TemplateExplorerModalFacade {
     dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'reset' })
     dispatch({ type: TemplateExplorerWizardAction.SELECT_TEMPLATE, payload: '' })
     dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE_GROUP, payload: '' })
-    dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: '' });
+    dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: '' })
     await this.plugin.call('templateexplorermodal', 'resetFileMode')
     await this.plugin.call('templateexplorermodal', 'resetIpfsMode')
     await this.plugin.call('templateexplorermodal', 'resetHttpsMode')

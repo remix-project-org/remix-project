@@ -199,25 +199,29 @@ export class CompileTabLogic {
     try {
       this.api.saveCurrentFile()
       if (this.api.getFileManagerMode() === 'localhost' || this.api.isDesktop()) {
+        // `_matomoManagerInstance` is injected on `window` by the host app (remix-ide's
+        // MatomoManager). Reach it via a cast rather than a global Window augmentation: the app
+        // already declares it typed as `MatomoManager`, and a second global declaration in this
+        // lib would conflict when both compile together in the remix-ide build.
         if (externalCompType === 'hardhat') {
-          if (window._matomoManagerInstance) {
-            window._matomoManagerInstance.trackEvent('compiler', 'runCompile', 'compileWithHardhat')
+          if ((window as any)._matomoManagerInstance) {
+            (window as any)._matomoManagerInstance.trackEvent('compiler', 'runCompile', 'compileWithHardhat')
           }
           this.api.compileWithHardhat().then((result) => {
           }).catch((error) => {
             this.api.logToTerminal({ type: 'error', value: error })
           })
         } else if (externalCompType === 'truffle') {
-          if (window._matomoManagerInstance) {
-            window._matomoManagerInstance.trackEvent('compiler', 'runCompile', 'compileWithTruffle')
+          if ((window as any)._matomoManagerInstance) {
+            (window as any)._matomoManagerInstance.trackEvent('compiler', 'runCompile', 'compileWithTruffle')
           }
           this.api.compileWithTruffle().then((result) => {
           }).catch((error) => {
             this.api.logToTerminal({ type: 'error', value: error })
           })
         } else if (externalCompType === 'foundry') {
-          if (window._matomoManagerInstance) {
-            window._matomoManagerInstance.trackEvent('compiler', 'runCompile', 'compileWithFoundry')
+          if ((window as any)._matomoManagerInstance) {
+            (window as any)._matomoManagerInstance.trackEvent('compiler', 'runCompile', 'compileWithFoundry')
           }
           this.api.compileWithFoundry().then((result) => {
           }).catch((error) => {

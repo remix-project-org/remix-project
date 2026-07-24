@@ -99,5 +99,3 @@ export default class AnalysisTab extends ViewPlugin {
     })
   }
 }
-
-module.exports = AnalysisTab

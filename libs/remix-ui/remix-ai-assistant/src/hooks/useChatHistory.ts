@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { useState, useEffect, useCallback } from 'react'
 import { ChatHistoryStorageManager, remixAILogger } from '@remix/remix-ai-core'
 import { ConversationMetadata, ChatMessage } from '../lib/types'
@@ -37,11 +37,7 @@ interface UseChatHistoryReturn {
  * Custom hook for managing chat history with IndexedDB storage
  * Provides all CRUD operations for conversations and messages
  */
-export const useChatHistory = ({
-  storageManager,
-  currentConversationId,
-  onConversationChange
-}: UseChatHistoryProps): UseChatHistoryReturn => {
+export const useChatHistory = ({ storageManager, currentConversationId, onConversationChange }: UseChatHistoryProps): UseChatHistoryReturn => {
   const [conversations, setConversations] = useState<ConversationMetadata[]>([])
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
@@ -60,9 +56,7 @@ export const useChatHistory = ({
       const allConversations = await storageManager.getConversations()
 
       // Sort by lastAccessedAt descending
-      const sorted = allConversations.sort((a, b) =>
-        b.lastAccessedAt - a.lastAccessedAt
-      )
+      const sorted = allConversations.sort((a, b) => b.lastAccessedAt - a.lastAccessedAt)
 
       setConversations(sorted)
     } catch (err) {
@@ -101,173 +95,189 @@ export const useChatHistory = ({
   /**
    * Load messages for a specific conversation
    */
-  const loadConversation = useCallback(async (id: string) => {
-    if (!storageManager) return
+  const loadConversation = useCallback(
+    async (id: string) => {
+      if (!storageManager) return
 
-    setLoading(true)
-    setError(null)
+      setLoading(true)
+      setError(null)
 
-    try {
-      const conversationMessages = await storageManager.getMessages(id)
-      setMessages(conversationMessages)
+      try {
+        const conversationMessages = await storageManager.getMessages(id)
+        setMessages(conversationMessages)
 
-      // Touch conversation to update lastAccessedAt
-      await storageManager.touchConversation(id)
-      await loadConversations() // Refresh to update access time
+        // Touch conversation to update lastAccessedAt
+        await storageManager.touchConversation(id)
+        await loadConversations() // Refresh to update access time
 
-      onConversationChange?.(id)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load conversation'
-      setError(errorMessage)
-      remixAILogger.error('Failed to load conversation:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [storageManager, loadConversations, onConversationChange])
+        onConversationChange?.(id)
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load conversation'
+        setError(errorMessage)
+        remixAILogger.error('Failed to load conversation:', err)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [storageManager, loadConversations, onConversationChange],
+  )
 
   /**
    * Delete a conversation
    */
-  const deleteConversation = useCallback(async (id: string) => {
-    if (!storageManager) return
+  const deleteConversation = useCallback(
+    async (id: string) => {
+      if (!storageManager) return
 
-    setLoading(true)
-    setError(null)
+      setLoading(true)
+      setError(null)
 
-    try {
-      await storageManager.deleteConversation(id)
-      await loadConversations() // Refresh list
+      try {
+        await storageManager.deleteConversation(id)
+        await loadConversations() // Refresh list
 
-      // If deleted conversation was current, clear messages
-      if (id === currentConversationId) {
-        setMessages([])
-        onConversationChange?.(null)
+        // If deleted conversation was current, clear messages
+        if (id === currentConversationId) {
+          setMessages([])
+          onConversationChange?.(null)
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to delete conversation'
+        setError(errorMessage)
+        remixAILogger.error('Failed to delete conversation:', err)
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete conversation'
-      setError(errorMessage)
-      remixAILogger.error('Failed to delete conversation:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [storageManager, currentConversationId, loadConversations, onConversationChange])
+    },
+    [storageManager, currentConversationId, loadConversations, onConversationChange],
+  )
 
   /**
    * Archive or unarchive a conversation
    */
-  const archiveConversation = useCallback(async (id: string) => {
-    if (!storageManager) return
+  const archiveConversation = useCallback(
+    async (id: string) => {
+      if (!storageManager) return
 
-    setLoading(true)
-    setError(null)
+      setLoading(true)
+      setError(null)
 
-    try {
-      const conversation = await storageManager.getConversation(id)
-      if (!conversation) {
-        throw new Error('Conversation not found')
+      try {
+        const conversation = await storageManager.getConversation(id)
+        if (!conversation) {
+          throw new Error('Conversation not found')
+        }
+
+        await storageManager.updateConversation(id, {
+          archived: !conversation.archived,
+          archivedAt: !conversation.archived ? Date.now() : undefined,
+        })
+
+        await loadConversations() // Refresh list
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to archive conversation'
+        setError(errorMessage)
+        remixAILogger.error('Failed to archive conversation:', err)
+      } finally {
+        setLoading(false)
       }
-
-      await storageManager.updateConversation(id, {
-        archived: !conversation.archived,
-        archivedAt: !conversation.archived ? Date.now() : undefined
-      })
-
-      await loadConversations() // Refresh list
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to archive conversation'
-      setError(errorMessage)
-      remixAILogger.error('Failed to archive conversation:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [storageManager, loadConversations])
+    },
+    [storageManager, loadConversations],
+  )
 
   /**
    * Add a message to the current conversation
    */
-  const addMessage = useCallback(async (message: ChatMessage) => {
-    if (!storageManager || !currentConversationId) return
+  const addMessage = useCallback(
+    async (message: ChatMessage) => {
+      if (!storageManager || !currentConversationId) return
 
-    setError(null)
+      setError(null)
 
-    try {
-      const persistedMessage = {
-        ...message,
-        conversationId: currentConversationId
+      try {
+        const persistedMessage = {
+          ...message,
+          conversationId: currentConversationId,
+        }
+
+        await storageManager.saveMessage(persistedMessage)
+
+        // Optimistically update local state
+        setMessages((prev) => [...prev, message])
+
+        // Reload conversations to update message count
+        await loadConversations()
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to add message'
+        setError(errorMessage)
+        remixAILogger.error('Failed to add message:', err)
       }
-
-      await storageManager.saveMessage(persistedMessage)
-
-      // Optimistically update local state
-      setMessages(prev => [...prev, message])
-
-      // Reload conversations to update message count
-      await loadConversations()
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to add message'
-      setError(errorMessage)
-      remixAILogger.error('Failed to add message:', err)
-    }
-  }, [storageManager, currentConversationId, loadConversations])
+    },
+    [storageManager, currentConversationId, loadConversations],
+  )
 
   /**
    * Update message sentiment (like/dislike)
    */
-  const updateMessageSentiment = useCallback(async (
-    messageId: string,
-    sentiment: 'like' | 'dislike' | 'none'
-  ) => {
-    if (!storageManager) return
+  const updateMessageSentiment = useCallback(
+    async (messageId: string, sentiment: 'like' | 'dislike' | 'none') => {
+      if (!storageManager) return
 
-    setError(null)
+      setError(null)
 
-    try {
-      await storageManager.updateMessageSentiment(messageId, sentiment)
+      try {
+        await storageManager.updateMessageSentiment(messageId, sentiment)
 
-      // Update local state
-      setMessages(prev => prev.map(msg =>
-        msg.id === messageId ? { ...msg, sentiment } : msg
-      ))
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update sentiment'
-      setError(errorMessage)
-      remixAILogger.error('Failed to update message sentiment:', err)
-    }
-  }, [storageManager])
+        // Update local state
+        setMessages((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, sentiment } : msg)))
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to update sentiment'
+        setError(errorMessage)
+        remixAILogger.error('Failed to update message sentiment:', err)
+      }
+    },
+    [storageManager],
+  )
 
   /**
    * Search conversations by title or preview
    */
-  const searchConversations = useCallback(async (query: string): Promise<ConversationMetadata[]> => {
-    if (!storageManager) return []
+  const searchConversations = useCallback(
+    async (query: string): Promise<ConversationMetadata[]> => {
+      if (!storageManager) return []
 
-    try {
-      return await storageManager.searchConversations(query)
-    } catch (err) {
-      remixAILogger.error('Failed to search conversations:', err)
-      return []
-    }
-  }, [storageManager])
+      try {
+        return await storageManager.searchConversations(query)
+      } catch (err) {
+        remixAILogger.error('Failed to search conversations:', err)
+        return []
+      }
+    },
+    [storageManager],
+  )
 
   /**
    * Auto-archive conversations older than threshold
    */
-  const autoArchive = useCallback(async (daysThreshold: number = 30): Promise<string[]> => {
-    if (!storageManager) return []
+  const autoArchive = useCallback(
+    async (daysThreshold: number = 30): Promise<string[]> => {
+      if (!storageManager) return []
 
-    try {
-      const archivedIds = await storageManager.autoArchiveOldConversations(daysThreshold)
+      try {
+        const archivedIds = await storageManager.autoArchiveOldConversations(daysThreshold)
 
-      if (archivedIds.length > 0) {
-        await loadConversations() // Refresh list
+        if (archivedIds.length > 0) {
+          await loadConversations() // Refresh list
+        }
+
+        return archivedIds
+      } catch (err) {
+        remixAILogger.error('Failed to auto-archive:', err)
+        return []
       }
-
-      return archivedIds
-    } catch (err) {
-      remixAILogger.error('Failed to auto-archive:', err)
-      return []
-    }
-  }, [storageManager, loadConversations])
+    },
+    [storageManager, loadConversations],
+  )
 
   // Load conversations on mount or when storage manager changes
   useEffect(() => {
@@ -289,6 +299,6 @@ export const useChatHistory = ({
     addMessage,
     updateMessageSentiment,
     searchConversations,
-    autoArchive
+    autoArchive,
   }
 }

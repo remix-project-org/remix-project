@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useContext, useEffect, useReducer, useState } from 'react'
 import { initialState, templateExplorerReducer } from '../../reducers/template-explorer-reducer'
 import { ContractWizardAction, TemplateExplorerWizardAction } from '../../types/template-explorer-types'
@@ -10,7 +10,6 @@ import TrackingContext from '@remix-ide/tracking'
 import { Position } from 'monaco-editor'
 
 export function GenericWorkspaceTemplate() {
-
   const { state, theme, dispatch, facade, generateUniqueWorkspaceName } = useContext(TemplateExplorerContext)
   const [readMe, setReadMe] = useState(null)
   const [uniqueWorkspaceName, setUniqueWorkspaceName] = useState(facade.getUniqueWorkspaceName())
@@ -67,7 +66,7 @@ export function GenericWorkspaceTemplate() {
     }
 
     //default
-    const defaultRule = heightConfig.rules.find(rule => rule.type === 'default')
+    const defaultRule = heightConfig.rules.find((rule) => rule.type === 'default')
     return defaultRule?.percentage || '50%'
   }
 
@@ -87,35 +86,40 @@ export function GenericWorkspaceTemplate() {
           }}
         />
       </div>
-      {readMe?.readMe && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {readMe.type === 'md'
-            ? <RemixMdRenderer markDownContent={readMe.readMe} theme={theme.name} />
-            : <p style={{ color: 'var(--bs-body-color)' }}>{readMe.readMe}</p>
-          }
-        </div>
-      )}
+      {readMe?.readMe && <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{readMe.type === 'md' ? <RemixMdRenderer markDownContent={readMe.readMe} theme={theme.name} /> : <p style={{ color: 'var(--bs-body-color)' }}>{readMe.readMe}</p>}</div>}
       <div className="tem-form-footer">
         <div className="form-check m-0">
-          <input data-id={`initializeAsGitRepo-${state.workspaceTemplateChosen.value}`} className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo}
-            onChange={(e) => dispatch({ type: ContractWizardAction.INITIALIZE_AS_GIT_REPO_UPDATE, payload: e.target.checked })} />
-          <label className="form-check-label" htmlFor="initGit">Initialize as a Git repository</label>
+          <input data-id={`initializeAsGitRepo-${state.workspaceTemplateChosen.value}`} className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo} onChange={(e) => dispatch({ type: ContractWizardAction.INITIALIZE_AS_GIT_REPO_UPDATE, payload: e.target.checked })} />
+          <label className="form-check-label" htmlFor="initGit">
+            Initialize as a Git repository
+          </label>
         </div>
-        <button className="btn btn-primary btn-sm" data-id={`validate-${state.workspaceTemplateChosen.value}workspace-button`} disabled={state.creating} onClick={async () => {
-          await facade.createWorkspace({
-            workspaceName: uniqueWorkspaceName,
-            workspaceTemplateName: state.workspaceTemplateChosen.value,
-            opts: state.contractOptions,
-            isEmpty: false,
-            isGitRepo: state.initializeAsGitRepo,
-            createCommit: true,
-            contractContent: state.contractCode,
-            contractName: state.tokenName
-          })
-          trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithGenericTemplate', name: state.workspaceTemplateChosen.value, isClick: true })
-          facade.closeWizard()
-        }}>
-          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : 'Create workspace'}
+        <button
+          className="btn btn-primary btn-sm"
+          data-id={`validate-${state.workspaceTemplateChosen.value}workspace-button`}
+          disabled={state.creating}
+          onClick={async () => {
+            await facade.createWorkspace({
+              workspaceName: uniqueWorkspaceName,
+              workspaceTemplateName: state.workspaceTemplateChosen.value,
+              opts: state.contractOptions,
+              isEmpty: false,
+              isGitRepo: state.initializeAsGitRepo,
+              createCommit: true,
+              contractContent: state.contractCode,
+              contractName: state.tokenName,
+            })
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithGenericTemplate', name: state.workspaceTemplateChosen.value, isClick: true })
+            facade.closeWizard()
+          }}
+        >
+          {state.creating ? (
+            <>
+              <i className="fas fa-spinner fa-spin me-2"></i>Creating...
+            </>
+          ) : (
+            'Create workspace'
+          )}
         </button>
       </div>
     </section>

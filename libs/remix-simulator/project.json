@@ -1,43 +1,34 @@
 {
-    "name": "remix-simulator",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-simulator/src",
-    "projectType": "library",
-    "implicitDependencies": [
-      "remix-lib"
-    ],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/remix-simulator",
-          "main": "libs/remix-simulator/src/index.ts",
-          "tsConfig": "libs/remix-simulator/tsconfig.lib.json",
-          "updateBuildableProjectDepsInPackageJson": false,
-          "assets": [
-            {
-              "glob": "ethsim",
-              "input": "libs/remix-simulator/bin/",
-              "output": "bin/"
-            },
-            {
-              "glob": "*.md",
-              "input": "libs/remix-simulator/",
-              "output": "/"
-            }
-          ]
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-simulator/**/*.ts"],
-          "eslintConfig": "libs/remix-simulator/.eslintrc"
-        }
+  "name": "remix-simulator",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-simulator/src",
+  "projectType": "library",
+  "implicitDependencies": ["remix-lib"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-simulator",
+        "main": "libs/remix-simulator/src/index.ts",
+        "tsConfig": "libs/remix-simulator/tsconfig.lib.json",
+        "assets": [
+          {
+            "glob": "ethsim",
+            "input": "libs/remix-simulator/bin/",
+            "output": "bin/"
+          },
+          {
+            "glob": "*.md",
+            "input": "libs/remix-simulator/",
+            "output": "/"
+          }
+        ]
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": []
+}

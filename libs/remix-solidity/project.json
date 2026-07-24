@@ -1,34 +1,23 @@
 {
-    "name": "remix-solidity",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-solidity/src",
-    "projectType": "library",
-    "implicitDependencies": [
-      "remix-lib"
-    ],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/remix-solidity",
-          "main": "libs/remix-solidity/src/index.ts",
-          "tsConfig": "libs/remix-solidity/tsconfig.lib.json",
-          "updateBuildableProjectDepsInPackageJson": false,
-          "assets": [
-            "libs/remix-solidity/*.md"
-          ]
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-solidity/**/*.ts"],
-          "eslintConfig": "libs/remix-solidity/.eslintrc"
-        }
+  "name": "remix-solidity",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-solidity/src",
+  "projectType": "library",
+  "implicitDependencies": ["remix-lib"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-solidity",
+        "main": "libs/remix-solidity/src/index.ts",
+        "tsConfig": "libs/remix-solidity/tsconfig.lib.json",
+        "assets": ["libs/remix-solidity/*.md"]
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": []
+}

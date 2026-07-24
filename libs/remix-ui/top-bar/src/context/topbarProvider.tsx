@@ -1,13 +1,11 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 // eslint-disable-next-line no-use-before-define
 import React, { useReducer, useState, useEffect, useContext } from 'react'
-import {Toaster} from '@remix-ui/toaster' // eslint-disable-line
-import {ModalDialog} from '@remix-ui/modal-dialog' // eslint-disable-line
+import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
+import { ModalDialog } from '@remix-ui/modal-dialog' // eslint-disable-line
 import { browserReducer, browserInitialState } from 'libs/remix-ui/workspace/src/lib/reducers/workspace'
 import { appPlatformTypes, platformContext } from '@remix-ui/app'
-import {
-  clearPopUp
-} from 'libs/remix-ui/workspace/src/lib/actions'
+import { clearPopUp } from 'libs/remix-ui/workspace/src/lib/actions'
 import { Modal } from 'libs/remix-ui/workspace/src/lib/types'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { TopbarContext } from './topbarContext'
@@ -29,7 +27,7 @@ export const TopbarProvider = (props: TopbarProviderProps) => {
     okLabel: '',
     okFn: () => {},
     cancelLabel: '',
-    cancelFn: () => {}
+    cancelFn: () => {},
   })
   const [modals, setModals] = useState<Modal[]>([])
   const [focusToaster, setFocusToaster] = useState<string>('')
@@ -77,7 +75,7 @@ export const TopbarProvider = (props: TopbarProviderProps) => {
 
   const revealRecentFolderInExplorer = async (path: string) => {
     try {
-      await plugin.call('fs', 'revealInExplorer', { path: [path]}, true)
+      await plugin.call('fs', 'revealInExplorer', { path: [path] }, true)
     } catch (error) {
       console.error('Error revealing folder in explorer:', error)
     }
@@ -88,7 +86,6 @@ export const TopbarProvider = (props: TopbarProviderProps) => {
     if (platform === appPlatformTypes.desktop) {
       // Fetch recent folders after a delay to ensure workspace is initialized
       fetchRecentFolders()
-
     }
   }, [platform])
 
@@ -102,7 +99,7 @@ export const TopbarProvider = (props: TopbarProviderProps) => {
           okLabel: modals[0].okLabel,
           okFn: modals[0].okFn,
           cancelLabel: modals[0].cancelLabel,
-          cancelFn: modals[0].cancelFn
+          cancelFn: modals[0].cancelFn,
         }
         return focusModal
       })
@@ -173,7 +170,7 @@ export const TopbarProvider = (props: TopbarProviderProps) => {
     openRecentFolderInNewWindow,
     removeRecentFolder,
     revealRecentFolderInExplorer,
-    desktopClientMode: plugin.desktopClientMode
+    desktopClientMode: plugin.desktopClientMode,
   }
 
   return (

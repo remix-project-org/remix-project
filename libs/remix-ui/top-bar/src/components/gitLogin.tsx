@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useContext, useCallback, useState } from 'react'
 import { Button, ButtonGroup, Dropdown } from 'react-bootstrap'
 import { CustomTopbarMenu } from '@remix-ui/helper'
@@ -14,13 +14,7 @@ interface GitHubLoginProps {
   theme?: 'light' | 'dark'
 }
 
-export const GitHubLogin: React.FC<GitHubLoginProps> = ({
-  cloneGitRepository,
-  logOutOfGithub,
-  publishToGist,
-  loginWithGitHub,
-  theme = 'dark'
-}) => {
+export const GitHubLogin: React.FC<GitHubLoginProps> = ({ cloneGitRepository, logOutOfGithub, publishToGist, loginWithGitHub, theme = 'dark' }) => {
   const appContext = useContext(AppContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = TopbarEvent>(event: T) => {
@@ -36,7 +30,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
     try {
       window.localStorage.setItem('gh_login', gitHubUser.login)
       window.localStorage.setItem('gh_id', String(gitHubUser.id))
-    } catch { }
+    } catch {}
   }
 
   // Simple login handler that delegates to the prop function
@@ -49,10 +43,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
   }, [loginWithGitHub])
   const [buttonHoverTheme, setButtonHoverTheme] = useState('')
   return (
-    <Dropdown
-      as={ButtonGroup}
-      align="end"
-    >
+    <Dropdown as={ButtonGroup} align="end">
       <Button
         className="btn btn-topbar btn-sm border d-flex flex-row flex-nowrap align-items-center justify-content-between github-login"
         variant={null}
@@ -60,21 +51,26 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
         onClick={isConnected ? undefined : handleLogin}
         disabled={isConnected}
         style={{
-          backgroundColor: buttonHoverTheme
+          backgroundColor: buttonHoverTheme,
         }}
-        onMouseOver={() => setButtonHoverTheme(prev => theme === 'dark' ? '#2b2c3f' : '#f9fafe')}
+        onMouseOver={() => setButtonHoverTheme((prev) => (theme === 'dark' ? '#2b2c3f' : '#f9fafe'))}
         onMouseOut={() => setButtonHoverTheme('')}
       >
         {isConnected ? (
           <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
             <i className="fab fa-github me-1"></i>
             <span>{gitHubUser.login}</span>
-            <img src={gitHubUser.avatar_url} alt="Avatar" className="ms-1" style={{
-              width: '25px',
-              height: '25px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-            }} />
+            <img
+              src={gitHubUser.avatar_url}
+              alt="Avatar"
+              className="ms-1"
+              style={{
+                width: '25px',
+                height: '25px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+              }}
+            />
           </div>
         ) : (
           <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
@@ -90,20 +86,13 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
         className="btn-topbar btn-sm"
         data-id="github-dropdown-toggle"
         style={{
-          backgroundColor: buttonHoverTheme
+          backgroundColor: buttonHoverTheme,
         }}
-        onMouseOver={() => setButtonHoverTheme(prev => theme === 'dark' ? '#2b2c3f' : '#f9fafe')}
+        onMouseOver={() => setButtonHoverTheme((prev) => (theme === 'dark' ? '#2b2c3f' : '#f9fafe'))}
         onMouseOut={() => setButtonHoverTheme('')}
-      >
-      </Dropdown.Toggle>
-      <Dropdown.Menu
-        as={CustomTopbarMenu}
-        className="custom-dropdown-items w-75 text-decoration-none bg-light"
-      >
-        <Dropdown.Item
-          data-id="github-dropdown-item-clone"
-          onClick={cloneGitRepository}
-        >
+      ></Dropdown.Toggle>
+      <Dropdown.Menu as={CustomTopbarMenu} className="custom-dropdown-items w-75 text-decoration-none bg-light">
+        <Dropdown.Item data-id="github-dropdown-item-clone" onClick={cloneGitRepository}>
           <i className="fab fa-github me-2"></i>
           <span>Clone</span>
         </Dropdown.Item>
@@ -127,7 +116,7 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
                 try {
                   window.localStorage.removeItem('gh_login')
                   window.localStorage.removeItem('gh_id')
-                } catch { }
+                } catch {}
                 trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'logout', isClick: true })
               }}
               className="text-danger"
@@ -139,5 +128,5 @@ export const GitHubLogin: React.FC<GitHubLoginProps> = ({
         )}
       </Dropdown.Menu>
     </Dropdown>
-  );
-};
+  )
+}

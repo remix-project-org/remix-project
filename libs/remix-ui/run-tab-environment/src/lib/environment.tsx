@@ -6,7 +6,7 @@ import EnvironmentPortraitView from './widgets/envPortraitView'
 import { addFVSProvider, addProvider, getAccountsList, loadAllDelegations, refreshAccountBalances, registerInjectedProvider } from './actions'
 import { ProviderDetailsEvent } from './types'
 import { formatBalance } from '@remix-ui/helper'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { EnvironmentPlugin } from 'apps/remix-ide/src/app/udapp/udappEnv'
 import { Plugin } from '@remixproject/engine'
 
@@ -37,7 +37,7 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
 
   useEffect(() => {
     if (!plugin.isAlreadyInitialized()) {
-      (async () => {
+      ;(async () => {
         dispatch({ type: 'LOADING_ALL_PROVIDERS', payload: null })
         dispatch({ type: 'LOADING_ALL_ACCOUNTS', payload: null })
         await plugin.call('blockchain', 'resetAndInit')
@@ -55,7 +55,7 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
         await addProvider({ position: 6, name: 'vm-custom-fork', displayName: 'Custom fork', category: 'VM Fork', providerConfig: { isInjected: false, isVM: true, isVMStateForked: true, isRpcForkedState: true, fork: '' }, dataId: 'settingsVMCustomMode', title: titleVM }, plugin, dispatch)
 
         if (isElectron()) {
-        // desktop host
+          // desktop host
           await addProvider({ position: 6, name: 'desktopHost', displayName: 'Browser Wallet', providerConfig: { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' } }, plugin, dispatch)
         }
 
@@ -69,13 +69,10 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
         await addProvider({ position: 22, name: 'foundry-provider', displayName: 'Foundry Provider', category: 'Dev', providerConfig: { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' } }, plugin, dispatch)
 
         // register injected providers
-        window.addEventListener(
-          "eip6963:announceProvider",
-          (event) => {
-            registerInjectedProvider(event as unknown as ProviderDetailsEvent, plugin, dispatch)
-          }
-        )
-        if (!isElectron()) window.dispatchEvent(new Event("eip6963:requestProvider"))
+        window.addEventListener('eip6963:announceProvider', (event) => {
+          registerInjectedProvider(event as unknown as ProviderDetailsEvent, plugin, dispatch)
+        })
+        if (!isElectron()) window.dispatchEvent(new Event('eip6963:requestProvider'))
         await addProvider({ position: 24, name: 'base-provider-84532', displayName: 'Base Wallet Sepolia Provider', category: 'Base', providerConfig: { isInjected: true, isVM: false, isRpcForkedState: false, fork: '' } }, plugin, dispatch)
         dispatch({ type: 'COMPLETED_LOADING_ALL_PROVIDERS', payload: null })
 
@@ -105,7 +102,7 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
       if (accounts && accounts.length > 0) {
         dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: accounts[0] })
         // Convert account addresses to Account objects for loadAllDelegations
-        const accountObjects = accounts.map((addr: string) => ({ account: addr } as any))
+        const accountObjects = accounts.map((addr: string) => ({ account: addr }) as any)
         await loadAllDelegations(plugin, accountObjects, currentProvider, dispatch)
       }
       dispatch({ type: 'COMPLETED_LOADING_ALL_ACCOUNTS', payload: null })
@@ -117,7 +114,6 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
     })
 
     plugin.on('udappDeployedContracts', 'deployedInstanceUpdated', async (deployedInstances: any[]) => {
-
       dispatch({ type: 'SET_DEPLOYED_CONTRACTS_COUNT', payload: deployedInstances.length })
     })
 

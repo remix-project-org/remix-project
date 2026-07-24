@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React from 'react'
 import { TopbarProvider } from '@remix-ui/top-bar'
 import packageJson from '../../../../../package.json'
@@ -28,8 +28,8 @@ const TopBarProfile = {
 }
 
 export class Topbar extends Plugin {
-  dispatch: React.Dispatch<any> = () => { }
-  appStateDispatch: React.Dispatch<AppAction> = () => { }
+  dispatch: React.Dispatch<any> = () => {}
+  appStateDispatch: React.Dispatch<AppAction> = () => {}
   htmlElement: HTMLDivElement
   event: EventEmitter
   topbarExpandPath: string
@@ -59,9 +59,7 @@ export class Topbar extends Plugin {
     this.renderComponent()
   }
 
-  onDeactivation(): void {
-
-  }
+  onDeactivation(): void {}
 
   getCurrentWorkspace() {
     return this.currentWorkspaceMetadata
@@ -142,7 +140,7 @@ export class Topbar extends Plugin {
     this.emit('workspaceCreated', workspace)
   }
 
-  async logInGithub () {
+  async logInGithub() {
     await this.call('menuicons', 'select', 'dgit')
     await this.call('dgit', 'open', gitUIPanels.GITHUB)
   }
@@ -156,10 +154,10 @@ export class Topbar extends Plugin {
     }
   }
 
-  async getLatestReleaseNotesUrl () {
+  async getLatestReleaseNotesUrl() {
     const response = await this.getLatestUpdates()
     const data: UpdateInfo[] = response
-    const interim = data.find(x => x.action.label.toLowerCase().includes('release notes'))
+    const interim = data.find((x) => x.action.label.toLowerCase().includes('release notes'))
     const targetUrl = interim?.action?.url
     const currentReleaseVersion = packageJson.version
     return [targetUrl, currentReleaseVersion]
@@ -190,5 +188,4 @@ export class Topbar extends Plugin {
       </div>
     )
   }
-
 }

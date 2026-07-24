@@ -1,50 +1,40 @@
 {
-    "name": "remix-ws-templates",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-ws-templates/src",
-    "projectType": "library",
-    "implicitDependencies": [
-    ],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/remix-ws-templates",
-          "main": "libs/remix-ws-templates/src/index.ts",
-          "tsConfig": "libs/remix-ws-templates/tsconfig.lib.json",
-          "updateBuildableProjectDepsInPackageJson": false,
-          "assets": [
-            {
-              "glob": "templates/**/*",
-              "ignore": [
-                "templates/**/*/index.ts"
-              ],
-              "input": "libs/remix-ws-templates/src/",
-              "output": "src/"
-            },
-            {
-              "glob": "*.md",
-              "input": "libs/remix-ws-templates/",
-              "output": "/"
-            },
-            {
-              "glob": "templates/**/.prettierrc",
-              "input": "libs/remix-ws-templates/src/",
-              "output": "src/"
-            }
-          ]
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-ws-templates/**/*.ts"],
-          "eslintConfig": "libs/remix-ws-templates/.eslintrc"
-        }
+  "name": "remix-ws-templates",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-ws-templates/src",
+  "projectType": "library",
+  "implicitDependencies": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-ws-templates",
+        "main": "libs/remix-ws-templates/src/index.ts",
+        "tsConfig": "libs/remix-ws-templates/tsconfig.lib.json",
+        "assets": [
+          {
+            "glob": "templates/**/*",
+            "ignore": ["templates/**/*/index.ts"],
+            "input": "libs/remix-ws-templates/src/",
+            "output": "src/"
+          },
+          {
+            "glob": "*.md",
+            "input": "libs/remix-ws-templates/",
+            "output": "/"
+          },
+          {
+            "glob": "templates/**/.prettierrc",
+            "input": "libs/remix-ws-templates/src/",
+            "output": "src/"
+          }
+        ]
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": []
+}

@@ -57,7 +57,7 @@ const RemixUIPanelPlugin = (props: panelPLuginProps, panelRef: any) => {
 
   return (
     <div className={`${props.pluginRecord.active ? `${props.pluginRecord.class}` : 'd-none'} ${showHighlight ? 'highlight' : ''}`} ref={panelRef || localRef}>
-      <>{view}</>
+      <>{view as any}</>
     </div>
   )
 }

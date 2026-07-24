@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React from 'react'
 import { AppAction, appActionTypes } from '@remix-ui/app'
 import { PluginViewWrapper } from '@remix-ui/helper'
@@ -19,26 +19,26 @@ const pluginProfile = {
   location: 'none',
   version: packageJson.version,
   permission: true,
-  documentation: ''
+  documentation: '',
 }
 
 export class SkillsExplorerModalPlugin extends Plugin {
   element: HTMLDivElement
-  dispatch: React.Dispatch<any> = () => { }
+  dispatch: React.Dispatch<any> = () => {}
   event: EventEmitter
-  appStateDispatch: React.Dispatch<AppAction> = () => { }
+  appStateDispatch: React.Dispatch<AppAction> = () => {}
 
   constructor() {
     super(pluginProfile)
     this.element = document.createElement('div')
     this.element.setAttribute('id', 'skills-explorer-modal')
-    this.dispatch = () => { }
+    this.dispatch = () => {}
     this.event = new EventEmitter()
   }
 
-  async onActivation(): Promise<void> { }
+  async onActivation(): Promise<void> {}
 
-  onDeactivation(): void { }
+  onDeactivation(): void {}
 
   setDispatch(dispatch: React.Dispatch<any>) {
     this.dispatch = dispatch
@@ -60,7 +60,9 @@ export class SkillsExplorerModalPlugin extends Plugin {
     // Secondary: remove from DOM via appState (works once setAppStateDispatch has been called)
     try {
       this.appStateDispatch({ type: appActionTypes.showSkillsModal, payload: false })
-    } catch (_) { /* appStateDispatch may not be set yet */ }
+    } catch (_) {
+      /* appStateDispatch may not be set yet */
+    }
   }
 
   render() {
@@ -71,7 +73,7 @@ export class SkillsExplorerModalPlugin extends Plugin {
     )
   }
 
-  async loadSkill (skillId: string) {
+  async loadSkill(skillId: string) {
     const ethSkillsApi: any = await this.call('auth' as any, 'getEthSkillsApi')
     if (!ethSkillsApi || typeof ethSkillsApi.getSkill !== 'function') {
       throw new Error('EthSkills API service is not available')
@@ -89,7 +91,7 @@ export class SkillsExplorerModalPlugin extends Plugin {
       name: data.name,
       description: data.description || '',
       content: data.content,
-      resources: data.resources || {}
+      resources: data.resources || {},
     }
     // Use the name from SKILL.md frontmatter as the directory name per convention.
     // e.g. "---\nname: my-skill\n---" → skills/my-skill/
@@ -113,13 +115,6 @@ export class SkillsExplorerModalPlugin extends Plugin {
     // isOpen defaults to true on first render (when triggered by button),
     // becomes false when closeModal() dispatches { isOpen: false }
     const isOpen = state.isOpen !== false
-    return (
-      <RemixUiSkillsExplorerModal
-        isOpen={isOpen}
-        onClose={() => this.closeModal()}
-        plugin={this}
-        loadSkill={(skillId: string) => this.loadSkill(skillId)}
-      />
-    )
+    return <RemixUiSkillsExplorerModal isOpen={isOpen} onClose={() => this.closeModal()} plugin={this} loadSkill={(skillId: string) => this.loadSkill(skillId)} />
   }
 }

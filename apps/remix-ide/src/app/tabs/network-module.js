@@ -51,7 +51,7 @@ export class NetworkModule extends Plugin {
 
   /** Add a custom network to the list of available networks */
   addNetwork (network) { // { name, url }
-    const provider = network.url === 'ipc' ? new ethers.IpcProvider() : new ethers.JsonRpcProvider(network.url)
+    const provider = network.url === 'ipc' ? new ethers.IpcSocketProvider() : new ethers.JsonRpcProvider(network.url)
     this.blockchain.addProvider({ name: network.name, provider })
   }
 

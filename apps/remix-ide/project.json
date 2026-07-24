@@ -3,26 +3,18 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/remix-ide/src",
   "projectType": "application",
-  "implicitDependencies": [
-    "doc-gen", 
-    "doc-viewer", 
-    "contract-verification", 
-    "vyper", 
-    "solhint", 
-    "circuit-compiler", 
-    "learneth", 
-    "noir-compiler"
-  ],
+  "implicitDependencies": ["doc-gen", "doc-viewer", "contract-verification", "vyper", "solhint", "circuit-compiler", "learneth", "noir-compiler"],
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
-      "dependsOn": ["^build"],
-      "outputs": ["{options.outputPath}"],
-      "inputs": [
-        "default",
-        "^default",
-        "!{projectRoot}/src/assets/version.json"
+      "executor": "@nx/webpack:webpack",
+      "dependsOn": [
+        {
+          "projects": ["doc-gen", "doc-viewer", "contract-verification", "vyper", "solhint", "circuit-compiler", "learneth", "noir-compiler"],
+          "target": "build"
+        }
       ],
+      "outputs": ["{options.outputPath}"],
+      "inputs": ["default", "^default", "!{projectRoot}/src/assets/version.json"],
       "defaultConfiguration": "development",
       "options": {
         "compiler": "babel",
@@ -32,14 +24,7 @@
         "main": "apps/remix-ide/src/index.tsx",
         "polyfills": "apps/remix-ide/src/polyfills.ts",
         "tsConfig": "apps/remix-ide/tsconfig.app.json",
-        "assets": [
-          "apps/remix-ide/src/assets",
-          "apps/remix-ide/src/index.html",
-          "apps/remix-ide/src/404.html",
-          "apps/remix-ide/src/favicon.ico",
-          "apps/remix-ide/src/robots.txt",
-          "apps/remix-ide/src/sitemap.xml"
-        ],
+        "assets": ["apps/remix-ide/src/assets", "apps/remix-ide/src/index.html", "apps/remix-ide/src/404.html", "apps/remix-ide/src/favicon.ico", "apps/remix-ide/src/robots.txt", "apps/remix-ide/src/sitemap.xml"],
         "styles": [],
         "scripts": [],
         "webpackConfig": "apps/remix-ide/webpack.config.js"
@@ -49,7 +34,6 @@
           "optimization": false,
           "generateIndexHtml": true,
           "extractCss": false
-
         },
         "production": {
           "optimization": true,
@@ -69,11 +53,10 @@
       }
     },
     "serve": {
-      "executor": "@nrwl/webpack:dev-server",
+      "executor": "@nx/webpack:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "remix-ide:build"
-
       },
       "configurations": {
         "development": {
@@ -83,7 +66,7 @@
           "hmr": false,
           "buildLibsFromSource": true
         },
-        "hot":{
+        "hot": {
           "buildTarget": "remix-ide:build:development",
           "port": 8080,
           "hmr": true,
@@ -96,12 +79,7 @@
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["apps/remix-ide/**/*.{ts,tsx,js,jsx}"],
-        "eslintConfig": "apps/remix-ide/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

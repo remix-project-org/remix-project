@@ -3,11 +3,10 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/doc-viewer/src",
   "projectType": "application",
-  "implicitDependencies": [
-  ],
+  "implicitDependencies": [],
   "targets": {
     "build": {
-      "executor": "@nrwl/webpack:webpack",
+      "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "development",
       "options": {
@@ -17,17 +16,13 @@
         "baseHref": "./",
         "main": "apps/doc-viewer/src/main.tsx",
         "tsConfig": "apps/doc-viewer/tsconfig.app.json",
-        "assets": [
-          "apps/doc-viewer/src/favicon.ico",
-          "apps/doc-viewer/src/profile.json"
-        ],
+        "assets": ["apps/doc-viewer/src/favicon.ico", "apps/doc-viewer/src/profile.json"],
         "styles": [],
         "scripts": [],
         "webpackConfig": "apps/doc-viewer/webpack.config.js"
       },
       "configurations": {
-        "development": {
-        },
+        "development": {},
         "production": {
           "fileReplacements": [
             {
@@ -39,15 +34,10 @@
       }
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["apps/doc-viewer/**/*.ts"],
-        "eslintConfig": "apps/doc-viewer/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     },
     "serve": {
-      "executor": "@nrwl/webpack:dev-server",
+      "executor": "@nx/webpack:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "doc-viewer:build",

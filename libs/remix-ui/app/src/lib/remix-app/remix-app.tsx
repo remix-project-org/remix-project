@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import './style/remix-app.css'
 import 'libs/remix-ui/remix-ai-assistant/src/css/remix-ai-assistant.css'
@@ -58,17 +58,17 @@ const RemixApp = (props: IRemixAppUi) => {
   const [resetRightTrigger, setResetRightTrigger] = useState<number>(0)
   const [leftPanelCoeff, setLeftPanelCoeff] = useState<number>(undefined)
   const [rightPanelCoeff, setRightPanelCoeff] = useState<number>(undefined)
-  const [themeTracker, setThemeTracker] = useState<{name: string, quality: string, backgroundColor: string, fillColor: string, shapeColor: string, textColor: string, url: string}>(null);
+  const [themeTracker, setThemeTracker] = useState<{ name: string; quality: string; backgroundColor: string; fillColor: string; shapeColor: string; textColor: string; url: string }>(null)
   const [showAiChatHistory, setShowAiChatHistory] = useState<boolean>(false)
 
   const [online, setOnline] = useState<boolean>(true)
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({
     width: window.innerWidth,
-    height: window.innerHeight
+    height: window.innerHeight,
   })
   const [locale, setLocale] = useState<{ code: string; messages: any }>({
     code: 'en',
-    messages: {}
+    messages: {},
   })
   const [appConfig, setAppConfig] = useState<AppConfig>({})
   const sidePanelRef = useRef(null)
@@ -86,20 +86,20 @@ const RemixApp = (props: IRemixAppUi) => {
       message: <div>Default Message</div>,
       footer: <div>Default Footer</div>,
       okLabel: 'Default Ok Label',
-      okFn: () => { },
+      okFn: () => {},
       cancelLabel: 'Default Cancel Label',
-      cancelFn: () => { },
+      cancelFn: () => {},
       width: '720px',
       height: '720px',
-      showModal: false
+      showModal: false,
     },
     aiChatHistoryState: {
       showAiChatHistory: props.app.rightSidePanel.isMaximized,
       toggleIsAiChatMaximized: props.app.remixAiAssistant.isMaximized,
-      closeAiChatHistory: props.app.remixAiAssistant.showHistorySidebar
+      closeAiChatHistory: props.app.remixAiAssistant.showHistorySidebar,
     },
     showSkillsModal: false,
-    showChecklistModal: false
+    showChecklistModal: false,
   })
   const [isAiWorkspaceBeingGenerated, setIsAiWorkspaceBeingGenerated] = useState<boolean>(false)
 
@@ -142,7 +142,7 @@ const RemixApp = (props: IRemixAppUi) => {
     const onResize = () => {
       setViewportSize({
         width: window.innerWidth,
-        height: window.innerHeight
+        height: window.innerHeight,
       })
     }
     window.addEventListener('resize', onResize)
@@ -324,7 +324,6 @@ const RemixApp = (props: IRemixAppUi) => {
     })
 
     if (!props.app.desktopClientMode) {
-
       props.app.rightSidePanel.events.on('unPinnedPlugin', () => {
         setHidePinnedPanel(true)
       })
@@ -357,7 +356,7 @@ const RemixApp = (props: IRemixAppUi) => {
     appStateDispatch: appStateDispatch,
     isAiWorkspaceBeingGenerated: isAiWorkspaceBeingGenerated,
     setIsAiWorkspaceBeingGenerated: setIsAiWorkspaceBeingGenerated,
-    appConfig
+    appConfig,
   }
 
   const showBetaTestRegisterWidget = appConfig['show_beta_test_register_widget'] !== false
@@ -366,9 +365,7 @@ const RemixApp = (props: IRemixAppUi) => {
   const sidePanelWidth = hideSidePanel ? 0 : ((sidePanelRef.current as HTMLDivElement | null)?.offsetWidth ?? 320)
   const verticalSpacing = Math.max(8, Math.round(viewportSize.height * 0.015))
   const horizontalSpacing = Math.max(8, Math.round(viewportSize.width * 0.01))
-  const preferredChatWidth = Math.round(
-    viewportSize.width * (viewportSize.width < 768 ? 0.86 : viewportSize.width < 1280 ? 0.3 : 0.24)
-  )
+  const preferredChatWidth = Math.round(viewportSize.width * (viewportSize.width < 768 ? 0.86 : viewportSize.width < 1280 ? 0.3 : 0.24))
 
   const chatWidthFraction = viewportSize.width < 768 ? 0.86 : viewportSize.width < 1920 ? 0.22 : 0.18
   const floatingChatWidth = Math.max(260, Math.round(viewportSize.width * chatWidthFraction))
@@ -381,15 +378,18 @@ const RemixApp = (props: IRemixAppUi) => {
       right: '0.8rem',
       width: `${floatingChatWidth}px`,
       height: `calc(94vh - ${height}px)`,
-      zIndex: 1050
+      zIndex: 1050,
     }
   }, [floatingChatWidth, topBarHeight])
-  const [showArchived, setShowArchived] = useState(false);
+  const [showArchived, setShowArchived] = useState(false)
 
   // Memoize callbacks to prevent unnecessary re-renders
-  const handleLoadConversation = useCallback((id: string) => {
-    props.app.remixAiAssistant.loadConversation(id)
-  }, [props.app.remixAiAssistant])
+  const handleLoadConversation = useCallback(
+    (id: string) => {
+      props.app.remixAiAssistant.loadConversation(id)
+    },
+    [props.app.remixAiAssistant],
+  )
 
   const handleToggleArchived = useCallback(() => {
     setShowArchived(!showArchived)
@@ -397,12 +397,15 @@ const RemixApp = (props: IRemixAppUi) => {
 
   const handleClose = useCallback(() => {}, [])
 
-  const handleSearch = useCallback(async (query: string) => {
-    if (props.app.remixAiAssistant.searchConversations) {
-      return await props.app.remixAiAssistant.searchConversations(query)
-    }
-    return []
-  }, [props.app.remixAiAssistant])
+  const handleSearch = useCallback(
+    async (query: string) => {
+      if (props.app.remixAiAssistant.searchConversations) {
+        return await props.app.remixAiAssistant.searchConversations(query)
+      }
+      return []
+    },
+    [props.app.remixAiAssistant],
+  )
 
   return (
     //@ts-ignore
@@ -417,84 +420,55 @@ const RemixApp = (props: IRemixAppUi) => {
               <div className="d-flex flex-column col-12 vh-100">
                 <OriginWarning />
                 {!props.app.desktopClientMode && (
-                  <div ref={topBarRef} className='top-bar'>
+                  <div ref={topBarRef} className="top-bar">
                     {props.app.topBar.render()}
                   </div>
                 )}
                 <div className={`remixIDE ${appReady ? '' : 'd-none'} ${showAiChatHistory ? 'chat-history-open' : ''}`} data-id="remixIDE">
-                  {showAiChatHistory ? <div className={`${themeTracker.name.toLowerCase() === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'} rounded-3 p-1`} style={floatingChatStyle}>
-                    <FloatingChatHistory
-                      conversations={props.app.remixAiAssistant.conversations}
-                      currentConversationId={props.app.remixAiAssistant.currentConversationId}
-                      showArchived={showArchived}
-                      onNewConversation={props.app.remixAiAssistant.newConversation}
-                      onLoadConversation={handleLoadConversation}
-                      onArchiveConversation={props.app.remixAiAssistant.archiveConversation}
-                      onDeleteConversation={props.app.remixAiAssistant.deleteConversation}
-                      onToggleArchived={handleToggleArchived}
-                      onClose={handleClose}
-                      onSearch={handleSearch}
-                      isFloating={false}
-                      isMaximized={false}
-                      panelWidth={floatingChatWidth}
-                      theme={themeTracker.name}
-                    />
-                  </div> : null}
+                  {showAiChatHistory ? (
+                    <div className={`${themeTracker.name.toLowerCase() === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'} rounded-3 p-1`} style={floatingChatStyle}>
+                      <FloatingChatHistory
+                        conversations={props.app.remixAiAssistant.conversations}
+                        currentConversationId={props.app.remixAiAssistant.currentConversationId}
+                        showArchived={showArchived}
+                        onNewConversation={props.app.remixAiAssistant.newConversation}
+                        onLoadConversation={handleLoadConversation}
+                        onArchiveConversation={props.app.remixAiAssistant.archiveConversation}
+                        onDeleteConversation={props.app.remixAiAssistant.deleteConversation}
+                        onToggleArchived={handleToggleArchived}
+                        onClose={handleClose}
+                        onSearch={handleSearch}
+                        isFloating={false}
+                        isMaximized={false}
+                        panelWidth={floatingChatWidth}
+                        theme={themeTracker.name}
+                      />
+                    </div>
+                  ) : null}
                   <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">
                     {props.app.menuicons.render()}
                   </div>
-                  <div
-                    ref={sidePanelRef}
-                    id="side-panel"
-                    data-id="remixIdeSidePanel"
-                    className={`sidepanel border-end border-start ${hideSidePanel ? 'd-none' : ''}`}
-                  >
+                  <div ref={sidePanelRef} id="side-panel" data-id="remixIdeSidePanel" className={`sidepanel border-end border-start ${hideSidePanel ? 'd-none' : ''}`}>
                     {props.app.sidePanel.render()}
                   </div>
-                  <DragBar
-                    enhanceTrigger={enhanceLeftTrigger}
-                    resetTrigger={resetLeftTrigger}
-                    maximiseTrigger={maximiseLeftTrigger}
-                    minWidth={305}
-                    refObject={sidePanelRef}
-                    hidden={hideSidePanel}
-                    setHideStatus={setHideSidePanel}
-                    layoutPosition='left'
-                    coeff={leftPanelCoeff}
-                  ></DragBar>
+                  <DragBar enhanceTrigger={enhanceLeftTrigger} resetTrigger={resetLeftTrigger} maximiseTrigger={maximiseLeftTrigger} minWidth={305} refObject={sidePanelRef} hidden={hideSidePanel} setHideStatus={setHideSidePanel} layoutPosition="left" coeff={leftPanelCoeff}></DragBar>
                   <div id="main-panel" data-id="remixIdeMainPanel" className="mainpanel d-flex">
                     <RemixUIMainPanel layout={props.app.layout}></RemixUIMainPanel>
                   </div>
                   <div id="right-side-panel" ref={pinnedPanelRef} data-id="remixIdePinnedPanel" className={`flex-row-reverse pinnedpanel border-end border-start ${hidePinnedPanel ? 'd-none' : 'd-flex'}`}>
                     {props.app.rightSidePanel.render()}
                   </div>
-                  {
-                    !hidePinnedPanel &&
-                    <DragBar
-                      enhanceTrigger={enhanceRightTrigger}
-                      resetTrigger={resetRightTrigger}
-                      maximiseTrigger={maximiseRightTrigger}
-                      minWidth={331}
-                      refObject={pinnedPanelRef}
-                      hidden={hidePinnedPanel}
-                      setHideStatus={setHidePinnedPanel}
-                      layoutPosition='right'
-                      coeff={rightPanelCoeff}
-                    ></DragBar>
-                  }
+                  {!hidePinnedPanel && <DragBar enhanceTrigger={enhanceRightTrigger} resetTrigger={resetRightTrigger} maximiseTrigger={maximiseRightTrigger} minWidth={331} refObject={pinnedPanelRef} hidden={hidePinnedPanel} setHideStatus={setHidePinnedPanel} layoutPosition="right" coeff={rightPanelCoeff}></DragBar>}
                   <div>{props.app.hiddenPanel.render()}</div>
                 </div>
                 {/* <div>{props.app.popupPanel.render()}</div> */}
                 {/* Overlay Panel - renders on top of everything */}
                 <div>{props.app.overlayPanel.render()}</div>
-                <div className="statusBar">
-                  {props.app.statusBar.render()}
-                </div>
+                <div className="statusBar">{props.app.statusBar.render()}</div>
               </div>
               <AppDialogs></AppDialogs>
               <DialogViewPlugin></DialogViewPlugin>
-              {appState.genericModalState?.showModal && props.app.templateExplorerModal.render()
-              }
+              {appState.genericModalState?.showModal && props.app.templateExplorerModal.render()}
               {appState.showSkillsModal && props.app.skillExplorerModal.render()}
               {appState.showChecklistModal && props.app.checklistExplorerModal.render()}
               {props.app.invitationManager.render()}

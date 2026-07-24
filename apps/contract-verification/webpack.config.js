@@ -1,4 +1,5 @@
-const { composePlugins, withNx } = require('@nrwl/webpack')
+const { composePlugins, withNx } = require('@nx/webpack')
+const { withReact } = require('@nx/react')
 const webpack = require('webpack')
 const TerserPlugin = require('terser-webpack-plugin')
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
@@ -8,7 +9,7 @@ const versionData = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
 }
 // Nx plugins for webpack.
-module.exports = composePlugins(withNx(), (config) => {
+module.exports = composePlugins(withNx(), withReact(), (config) => {
   // Update the webpack config as needed here.
   // e.g. `config.plugins.push(new MyPlugin())`
 
@@ -32,6 +33,7 @@ module.exports = composePlugins(withNx(), (config) => {
     child_process: false,
     buffer: require.resolve('buffer/'),
     vm: require.resolve('vm-browserify'),
+    tty: false,
   }
 
   // add externals
@@ -59,7 +61,7 @@ module.exports = composePlugins(withNx(), (config) => {
       Buffer: ['buffer', 'Buffer'],
       url: ['url', 'URL'],
       process: 'process/browser',
-    })
+    }),
   )
 
   // source-map loader

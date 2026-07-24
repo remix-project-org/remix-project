@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect } from 'react'
 import { ConversationMetadata } from '../lib/types'
 import { CustomTooltip } from '@remix-ui/helper'
@@ -21,22 +21,7 @@ interface ChatHistorySidebarProps {
   theme?: string
 }
 
-export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
-  conversations,
-  currentConversationId,
-  showArchived,
-  onNewConversation,
-  onLoadConversation,
-  onArchiveConversation,
-  onDeleteConversation,
-  onDeleteAllConversations,
-  onToggleArchived,
-  onClose,
-  onSearch,
-  isFloating = false,
-  isMaximized = false,
-  theme = 'dark'
-}) => {
+export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ conversations, currentConversationId, showArchived, onNewConversation, onLoadConversation, onArchiveConversation, onDeleteConversation, onDeleteAllConversations, onToggleArchived, onClose, onSearch, isFloating = false, isMaximized = false, theme = 'dark' }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -50,7 +35,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
         try {
           const results = await onSearch(searchQuery)
           if (!cancelled) {
-            setFilteredConversations(results.filter(conv => conv.archived === showArchived && conv.messageCount > 0))
+            setFilteredConversations(results.filter((conv) => conv.archived === showArchived && conv.messageCount > 0))
           }
         } finally {
           if (!cancelled) setIsSearching(false)
@@ -59,40 +44,30 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
       }
 
       // Local filter: archived status + title/preview
-      let filtered = conversations.filter(conv => conv.archived === showArchived && conv.messageCount > 0)
+      let filtered = conversations.filter((conv) => conv.archived === showArchived && conv.messageCount > 0)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase()
-        filtered = filtered.filter(conv =>
-          conv.title.toLowerCase().includes(query) ||
-          conv.preview.toLowerCase().includes(query)
-        )
+        filtered = filtered.filter((conv) => conv.title.toLowerCase().includes(query) || conv.preview.toLowerCase().includes(query))
       }
       if (!cancelled) setFilteredConversations(filtered)
     }
 
     doFilter()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [conversations, showArchived, searchQuery, onSearch])
 
-  const archivedCount = conversations.filter(c => c.archived && c.messageCount > 0).length
+  const archivedCount = conversations.filter((c) => c.archived && c.messageCount > 0).length
 
   return (
-    <div
-      className={`chat-history-sidebar border-0 d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating ' : isMaximized ? '' : 'w-100'}`}
-      style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: theme === 'dark' ? 'var(--bs-dark)' : 'var(--bs-light)' }}
-      data-id="chat-history-sidebar"
-      data-theme={theme?.toLowerCase()}
-    >
+    <div className={`chat-history-sidebar border-0 d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating ' : isMaximized ? '' : 'w-100'}`} style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: theme === 'dark' ? 'var(--bs-dark)' : 'var(--bs-light)' }} data-id="chat-history-sidebar" data-theme={theme?.toLowerCase()}>
       {/* Header */}
       <div className="border-0 p-3" style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
           {isMaximized && (
             <CustomTooltip tooltipText="Close sidebar">
-              <button
-                className="btn btn-sm p-0 sidebar-close-btn"
-                onClick={onClose}
-                data-id="close-sidebar-btn"
-              >
+              <button className="btn btn-sm p-0 sidebar-close-btn" onClick={onClose} data-id="close-sidebar-btn">
                 <i className="fas fa-times"></i>
               </button>
             </CustomTooltip>
@@ -102,15 +77,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
         {/* Search Bar */}
         <div className="search-bar mb-2 p-1">
           <i className={`fas ${isSearching ? 'fa-spinner fa-spin' : 'fa-search'} search-icon`}></i>
-          <input
-            type="text"
-            className="form-control search-input ps-4 "
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-id="search-conversations-input"
-            style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : '#e4e8f1', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}
-          />
+          <input type="text" className="form-control search-input ps-4 " placeholder="Search conversations..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} data-id="search-conversations-input" style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : '#e4e8f1', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }} />
         </div>
 
         <div className="d-flex justify-content-between align-items-center mb-2">
@@ -118,11 +85,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             {'Chat history'} <span className="ms-2 text-muted">{filteredConversations.length}</span>
           </h6>
           <div className="d-flex gap-2">
-            <button
-              className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`}
-              onClick={onToggleArchived}
-              data-id="toggle-archived-btn"
-            >
+            <button className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`} onClick={onToggleArchived} data-id="toggle-archived-btn">
               <i className="fas fa-archive me-2"></i>
               {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
             </button>
@@ -131,9 +94,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
                 <button
                   className="btn btn-sm btn-danger"
                   onClick={() => {
-                    const confirmMsg = showArchived
-                      ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.`
-                      : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
+                    const confirmMsg = showArchived ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.` : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
                     if (confirm(confirmMsg)) {
                       onDeleteAllConversations()
                     }
@@ -172,7 +133,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             )}
           </div>
         ) : (
-          filteredConversations.map(conv => (
+          filteredConversations.map((conv) => (
             <ConversationItem
               key={conv.id}
               conversation={conv}

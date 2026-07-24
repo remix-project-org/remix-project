@@ -2,12 +2,12 @@ import React, { useState, useEffect, useContext } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { formatUnits, parseUnits } from 'ethers'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { DeployPlugin } from 'apps/remix-ide/src/app/udapp/udappDeploy'
 import { DeployUdappTx, DeployUdappNetwork } from '../types'
 import { TrackingContext } from '@remix-ide/tracking'
 
-export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation, gasPriceValue }: { udappDeploy: DeployPlugin, tx: DeployUdappTx, network: DeployUdappNetwork, amount: string, gasEstimation: string, gasPriceValue: string }) {
+export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation, gasPriceValue }: { udappDeploy: DeployPlugin; tx: DeployUdappTx; network: DeployUdappNetwork; amount: string; gasEstimation: string; gasPriceValue: string }) {
   const intl = useIntl()
   const { trackMatomoEvent } = useContext(TrackingContext)
   const [baseFee, setBaseFee] = useState<string>('')
@@ -80,15 +80,21 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
       </div>
       <div className="mt-3">
         <div>
-          <span className="text-dark me-2"><FormattedMessage id="udapp.fromLabel" /></span>
+          <span className="text-dark me-2">
+            <FormattedMessage id="udapp.fromLabel" />
+          </span>
           <span>{tx.from}</span>
         </div>
         <div>
-          <span className="text-dark me-2"><FormattedMessage id="udapp.toLabel" /></span>
+          <span className="text-dark me-2">
+            <FormattedMessage id="udapp.toLabel" />
+          </span>
           <span>{tx.to ? tx.to : `(${intl.formatMessage({ id: 'udapp.contractCreation' })})`}</span>
         </div>
         <div className="d-flex align-items-center">
-          <span className="text-dark me-2"><FormattedMessage id="udapp.dataLabel" /></span>
+          <span className="text-dark me-2">
+            <FormattedMessage id="udapp.dataLabel" />
+          </span>
           <pre className="udapp_wrapword mb-0">
             {tx.data && tx.data.length > 50 ? tx.data.substring(0, 49) + '...' : tx.data}
             <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copy' })} content={tx.data} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyTransactionData', name: 'clicked', isClick: true })} />
@@ -119,13 +125,7 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
                 <span className="text-dark me-2 text-nowrap">
                   <FormattedMessage id="udapp.maxPriorityFee" />:
                 </span>
-                <input
-                  className="form-control me-1 text-end"
-                  style={{ height: '1.2rem', width: '6rem' }}
-                  id="maxpriorityfee"
-                  onInput={(e: any) => onMaxPriorityFeeChange(e.target.value)}
-                  defaultValue={maxPriorityFee}
-                />
+                <input className="form-control me-1 text-end" style={{ height: '1.2rem', width: '6rem' }} id="maxpriorityfee" onInput={(e: any) => onMaxPriorityFeeChange(e.target.value)} defaultValue={maxPriorityFee} />
                 <span title={intl.formatMessage({ id: 'udapp.gweiGasPriceInfo' })}>Gwei</span>
               </div>
             </div>
@@ -134,13 +134,7 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
                 <span className="text-dark me-2 text-nowrap">
                   <FormattedMessage id="udapp.maxFee" values={{ baseFeePerGas: formatUnits(BigInt(network.lastBlock.baseFeePerGas), 'gwei') }} />:
                 </span>
-                <input
-                  className="form-control me-1 text-end"
-                  style={{ height: '1.2rem', width: '6rem' }}
-                  id="maxfee"
-                  onInput={(e: any) => onMaxFeeChange(e.target.value)}
-                  defaultValue={baseFee}
-                />
+                <input className="form-control me-1 text-end" style={{ height: '1.2rem', width: '6rem' }} id="maxfee" onInput={(e: any) => onMaxFeeChange(e.target.value)} defaultValue={baseFee} />
                 <span>Gwei</span>
                 <span className="text-dark ms-2"></span>
               </div>
@@ -153,18 +147,18 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
             </span>
             <input className="form-control me-1 text-end" style={{ width: '40px', height: '28px' }} id="gasprice" onInput={(e: any) => onGasPriceChange(e.target.value)} />
             <span>
-                Gwei (
+              Gwei (
               <FormattedMessage
                 id="udapp.gweiText"
                 values={{
                   a: (
                     <a target="_blank" href="https://ethgasstation.info" rel="noreferrer">
-                        ethgasstation.info
+                      ethgasstation.info
                     </a>
-                  )
+                  ),
                 }}
               />
-                )
+              )
             </span>
           </div>
         )}
@@ -178,12 +172,7 @@ export function MainnetPrompt({ udappDeploy, tx, network, amount, gasEstimation,
         </div>
       </div>
       <div className="d-flex py-1 align-items-center form-check">
-        <input
-          className="form-check-input"
-          id="confirmsetting"
-          type="checkbox"
-          onChange={(e) => trackMatomoEvent?.({ category: 'udapp', action: 'mainnetConfirmCheckbox', name: e.target.checked ? 'checked' : 'unchecked', isClick: true })}
-        />
+        <input className="form-check-input" id="confirmsetting" type="checkbox" onChange={(e) => trackMatomoEvent?.({ category: 'udapp', action: 'mainnetConfirmCheckbox', name: e.target.checked ? 'checked' : 'unchecked', isClick: true })} />
         <label className="ms-1 mt-1 form-check-label" htmlFor="confirmsetting">
           <FormattedMessage id="udapp.mainnetText3" />
         </label>

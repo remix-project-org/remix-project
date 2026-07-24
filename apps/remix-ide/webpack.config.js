@@ -1,5 +1,5 @@
-const {composePlugins, withNx} = require('@nrwl/webpack')
-const {withReact} = require('@nrwl/react')
+const { composePlugins, withNx } = require('@nx/webpack')
+const { withReact } = require('@nx/react')
 const webpack = require('webpack')
 const CopyPlugin = require('copy-webpack-plugin')
 const version = require('../../package.json').version
@@ -7,12 +7,12 @@ const fs = require('fs')
 const TerserPlugin = require('terser-webpack-plugin')
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
 const path = require('path')
-const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
 
 const versionData = {
   version: version,
   timestamp: Date.now(),
-  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development'
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
 }
 
 const minifierParallel = (() => {
@@ -27,43 +27,40 @@ class EmitSoljsonPlugin {
     compiler.hooks.thisCompilation.tap('EmitSoljsonPlugin', (compilation) => {
       const { sources, Compilation } = compiler.webpack
       const RawSource = sources && sources.RawSource
-      compilation.hooks.processAssets.tapPromise(
-        { name: 'EmitSoljsonPlugin', stage: Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL },
-        async () => {
-          const assetName = 'assets/js/soljson.js'
-          // Check if asset already exists to avoid conflicts
-          if (compilation.getAsset(assetName)) {
-            return
-          }
-          try {
-            const defaultVersion = require('../../package.json').defaultVersion
-            const url = `https://binaries.soliditylang.org/bin/${defaultVersion}`
-            const data = await new Promise((resolve, reject) => {
-              const https = require('https')
-              const request = https
-                .get(url, (res) => {
-                  if (res.statusCode !== 200) {
-                    reject(new Error(`Failed to download soljson.js (${res.statusCode})`))
-                    return
-                  }
-                  const chunks = []
-                  res.on('data', (c) => chunks.push(c))
-                  res.on('end', () => resolve(Buffer.concat(chunks)))
-                })
-                .on('error', reject)
-              request.setTimeout(15000, () => {
-                request.destroy(new Error(`Timed out downloading soljson.js from ${url}`))
-              })
-            })
-            if (RawSource) {
-              // Match previous public path: assets/js/soljson.js
-              compilation.emitAsset(assetName, new RawSource(data))
-            }
-          } catch (e) {
-            console.warn('EmitSoljsonPlugin: skipping emit due to error:', e.message)
-          }
+      compilation.hooks.processAssets.tapPromise({ name: 'EmitSoljsonPlugin', stage: Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL }, async () => {
+        const assetName = 'assets/js/soljson.js'
+        // Check if asset already exists to avoid conflicts
+        if (compilation.getAsset(assetName)) {
+          return
         }
-      )
+        try {
+          const defaultVersion = require('../../package.json').defaultVersion
+          const url = `https://binaries.soliditylang.org/bin/${defaultVersion}`
+          const data = await new Promise((resolve, reject) => {
+            const https = require('https')
+            const request = https
+              .get(url, (res) => {
+                if (res.statusCode !== 200) {
+                  reject(new Error(`Failed to download soljson.js (${res.statusCode})`))
+                  return
+                }
+                const chunks = []
+                res.on('data', (c) => chunks.push(c))
+                res.on('end', () => resolve(Buffer.concat(chunks)))
+              })
+              .on('error', reject)
+            request.setTimeout(15000, () => {
+              request.destroy(new Error(`Timed out downloading soljson.js from ${url}`))
+            })
+          })
+          if (RawSource) {
+            // Match previous public path: assets/js/soljson.js
+            compilation.emitAsset(assetName, new RawSource(data))
+          }
+        } catch (e) {
+          console.warn('EmitSoljsonPlugin: skipping emit due to error:', e.message)
+        }
+      })
     })
   }
 }
@@ -91,8 +88,7 @@ const copyPatterns = implicitDependencies.map((dep) => {
   try {
     fs.statSync(__dirname + `/../../dist/apps/${dep}`).isDirectory()
     return { from: __dirname + `/../../dist/apps/${dep}`, to: `plugins/${dep}` }
-  }
-  catch (e) {
+  } catch (e) {
     console.log('error', e)
     return false
   }
@@ -126,7 +122,8 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     readline: false,
     child_process: false,
     buffer: require.resolve('buffer/'),
-    vm: require.resolve('vm-browserify')
+    vm: require.resolve('vm-browserify'),
+    tty: false,
   }
 
   // add externals
@@ -134,7 +131,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     ...config.externals,
     solc: 'solc',
     // Do not bundle Monaco: it's copied as static assets and loaded by @monaco-editor/react
-    'monaco-editor': 'monaco'
+    'monaco-editor': 'monaco',
     // NOTE: @langchain packages (including @langchain/anthropic) MUST be bundled, not externalized
   }
 
@@ -148,7 +145,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
 
   // use the web build instead of the node.js build
   // we do like that because using "config.resolve.alias" doesn't work
-  let  pkgVerkle = fs.readFileSync(path.resolve(__dirname, '../../node_modules/rust-verkle-wasm/package.json'), 'utf8')
+  let pkgVerkle = fs.readFileSync(path.resolve(__dirname, '../../node_modules/rust-verkle-wasm/package.json'), 'utf8')
   pkgVerkle = pkgVerkle.replace('"main": "./nodejs/rust_verkle_wasm.js",', '"main": "./web/rust_verkle_wasm.js",')
   fs.writeFileSync(path.resolve(__dirname, '../../node_modules/rust-verkle-wasm/package.json'), pkgVerkle)
 
@@ -166,14 +163,13 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     '@so-ric/colorspace': false,
     // 'rust-verkle-wasm$': path.resolve(__dirname, '../../node_modules/rust-verkle-wasm/web/run_verkle_wasm.js')
     // Explicitly alias os to os-browserify for DeepAgent
-    'os': path.resolve(__dirname, '../../node_modules/os-browserify/browser.js')
+    os: path.resolve(__dirname, '../../node_modules/os-browserify/browser.js'),
   }
 
-
   // add public path
-  if(process.env.NX_DESKTOP_FROM_DIST){
+  if (process.env.NX_DESKTOP_FROM_DIST) {
     config.output.publicPath = './'
-  }else{
+  } else {
     config.output.publicPath = '/'
   }
 
@@ -187,10 +183,10 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
       patterns: [
         {
           from: '../../node_modules/monaco-editor/min/vs',
-          to: 'assets/js/monaco-editor/min/vs'
+          to: 'assets/js/monaco-editor/min/vs',
         },
-        ...copyPatterns
-      ].filter(Boolean)
+        ...copyPatterns,
+      ].filter(Boolean),
     }),
     new EmitSoljsonPlugin(),
     new EmitVersionJsonPlugin(),
@@ -198,8 +194,8 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
       url: ['url', 'URL'],
-      process: 'process/browser'
-    })
+      process: 'process/browser',
+    }),
   )
 
   // Optional: generate static bundle analysis when ANALYZE env var is set
@@ -211,7 +207,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
         reportFilename: 'bundle-report.html',
         generateStatsFile: true,
         statsFilename: 'bundle-stats.json',
-      })
+      }),
     )
   }
 
@@ -222,8 +218,8 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
       'process.env.NX_ENDPOINTS_URL': JSON.stringify(process.env.NX_ENDPOINTS_URL),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
       'process.version': JSON.stringify('v18.0.0'),
-      'process.versions': JSON.stringify({ node: '18.0.0' })
-    })
+      'process.versions': JSON.stringify({ node: '18.0.0' }),
+    }),
   )
 
   // Ignore node: prefix imports and provide fallbacks
@@ -233,42 +229,50 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
 
       // Map node: prefixed modules to their polyfills or empty modules
       const replacements = {
-        'fs': 'fs-mock',
+        fs: 'fs-mock',
         'fs/promises': 'fs-mock',
-        'child_process': 'child-process-mock',
-        'worker_threads': 'worker-threads-mock',
-        'perf_hooks': 'perf-hooks-mock',
-        'async_hooks': 'async-hooks-mock',
-        'path': 'path-browserify',
-        'os': 'os-browserify/browser',
-        'crypto': 'crypto-browserify',
-        'stream': 'stream-browserify',
-        'util': 'util/',
-        'buffer': 'buffer/',
+        child_process: 'child-process-mock',
+        worker_threads: 'worker-threads-mock',
+        perf_hooks: 'perf-hooks-mock',
+        async_hooks: 'async-hooks-mock',
+        path: 'path-browserify',
+        os: 'os-browserify/browser',
+        crypto: 'crypto-browserify',
+        stream: 'stream-browserify',
+        util: 'util/',
+        buffer: 'buffer/',
       }
 
       if (replacements[module] === 'fs-mock') {
         // Use the fs-shim.js file which provides readFile via fetch for WASM loading
         resource.request = path.resolve(__dirname, 'src/fs-shim.js')
       } else if (replacements[module] === 'child-process-mock') {
-        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+        resource.request =
+          'data:text/javascript,' +
+          encodeURIComponent(`
           export const spawn = () => { throw new Error('child_process not available in browser'); };
           export const fork = () => { throw new Error('child_process not available in browser'); };
           export const exec = () => { throw new Error('child_process not available in browser'); };
           export default { spawn, fork, exec };
         `)
       } else if (replacements[module] === 'worker-threads-mock') {
-        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+        resource.request =
+          'data:text/javascript,' +
+          encodeURIComponent(`
           export const Worker = class {};
           export default { Worker };
         `)
       } else if (replacements[module] === 'perf-hooks-mock') {
-        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+        resource.request =
+          'data:text/javascript,' +
+          encodeURIComponent(`
           export const performance = { now: () => Date.now() };
           export default { performance };
         `)
       } else if (replacements[module] === 'async-hooks-mock') {
-        resource.request = 'data:text/javascript,' + encodeURIComponent(`
+        resource.request =
+          'data:text/javascript,' +
+          encodeURIComponent(`
           export class AsyncLocalStorage { constructor() {} run(store, callback, ...args) { return callback(...args); } getStore() { return undefined; } }
           export const executionAsyncId = () => 0;
           export const executionAsyncResource = () => ({});
@@ -277,14 +281,14 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
       } else if (replacements[module]) {
         resource.request = replacements[module]
       }
-    })
+    }),
   )
 
   // source-map loader
   config.module.rules.push({
     test: /\.js$/,
     use: ['source-map-loader'],
-    enforce: 'pre'
+    enforce: 'pre',
   })
 
   config.ignoreWarnings = [/Failed to parse source map/, /require function/] // ignore source-map-loader warnings & AST warnings
@@ -298,24 +302,23 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
         compress: false,
         mangle: false,
         format: {
-          comments: false
-        }
+          comments: false,
+        },
       },
-      extractComments: false
+      extractComments: false,
     }),
     new CssMinimizerPlugin({
-      parallel: minifierParallel
-    })
+      parallel: minifierParallel,
+    }),
   ]
 
   // minify code
-  if(process.env.NX_DESKTOP_FROM_DIST)
-    config.optimization.minimize = true
+  if (process.env.NX_DESKTOP_FROM_DIST) config.optimization.minimize = true
 
   config.watchOptions = {
     ignored: /node_modules/,
     aggregateTimeout: 300,
-    poll: false
+    poll: false,
   }
 
   // Reduce memory usage in development by using cheaper source maps
@@ -328,11 +331,11 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
   // Allow ngrok and other tunneling services
   config.devServer = {
     ...config.devServer,
-    allowedHosts: 'all'
+    allowedHosts: 'all',
   }
 
-  return config;
-});
+  return config
+})
 
 class CopyFileAfterBuild {
   apply(compiler) {

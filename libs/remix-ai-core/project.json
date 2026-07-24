@@ -3,29 +3,10 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/remix-ai-core/src",
   "projectType": "library",
-  "implicitDependencies": [
-  ],
+  "implicitDependencies": [],
   "targets": {
-    "build": {
-      "executor": "@nrwl/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/remix-ai-core",
-        "main": "libs/remix-ai-core/src/index.ts",
-        "tsConfig": "libs/remix-ai-core/tsconfig.lib.json",
-        "updateBuildableProjectDepsInPackageJson": false,
-        "assets": [
-          "libs/remix-ai-core/*.md"
-        ]
-      }
-    },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["libs/remix-ai-core/**/*.ts"],
-        "eslintConfig": "libs/remix-ai-core/.eslintrc"
-      }
+      "executor": "@nx/eslint:lint"
     }
   },
   "tags": []

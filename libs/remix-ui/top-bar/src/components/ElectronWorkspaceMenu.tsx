@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useContext, useState, useEffect } from 'react'
 import { Button, Dropdown } from 'react-bootstrap'
 import { TopbarContext } from '../context/topbarContext'
@@ -13,12 +13,7 @@ interface ElectronWorkspaceMenuProps {
   createWorkspace: () => void
 }
 
-export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
-  showMain,
-  setShowMain,
-  openFolder,
-  createWorkspace
-}) => {
+export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({ showMain, setShowMain, openFolder, createWorkspace }) => {
   const [showAllRecent, setShowAllRecent] = useState(false)
   const global = useContext(TopbarContext)
   const platform = useContext(platformContext)
@@ -39,18 +34,11 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
   }
 
   return (
-    <Dropdown.Menu
-      style={{ minWidth: '100%' }}
-      className="px-2"
-      data-id="topbar-custom-dropdown-items"
-      show={showMain}
-    >
+    <Dropdown.Menu style={{ minWidth: '100%' }} className="px-2" data-id="topbar-custom-dropdown-items" show={showMain}>
       {/* Recent Folders Section */}
       {recentFolders && recentFolders.length > 0 && (
         <>
-          <div className="px-2 py-1 small text-muted">
-            Recent Folders
-          </div>
+          <div className="px-2 py-1 small text-muted">Recent Folders</div>
           <div className="recent-folders-section" style={{ maxHeight: '200px', overflowY: 'auto' }}>
             {(showAllRecent ? recentFolders : recentFolders.slice(0, 8)).map((folder, index) => {
               const folderName = path.basename(folder)
@@ -59,7 +47,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                   key={index}
                   className="d-flex align-items-center mb-1 px-1 py-1 rounded"
                   style={{
-                    cursor: 'pointer'
+                    cursor: 'pointer',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = 'rgba(0, 123, 255, 0.1)'
@@ -69,11 +57,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                   }}
                 >
                   <div className="flex-grow-1 d-flex align-items-center">
-                    <CustomTooltip
-                      placement="top"
-                      tooltipId="recent-folder-open-tooltip"
-                      tooltipText={`Open ${folder}`}
-                    >
+                    <CustomTooltip placement="top" tooltipId="recent-folder-open-tooltip" tooltipText={`Open ${folder}`}>
                       <Button
                         variant="link"
                         className="flex-grow-1 d-flex align-items-center py-1 px-2 text-start text-truncate"
@@ -86,18 +70,14 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                           color: 'inherit',
                           textDecoration: 'none',
                           border: 'none',
-                          boxShadow: 'none'
+                          boxShadow: 'none',
                         }}
                       >
                         <i className="fas fa-folder me-2"></i>
                         <span className="text-truncate">{folderName}</span>
                       </Button>
                     </CustomTooltip>
-                    <CustomTooltip
-                      placement="top"
-                      tooltipId="recent-folder-new-window-tooltip"
-                      tooltipText="Open in new window"
-                    >
+                    <CustomTooltip placement="top" tooltipId="recent-folder-new-window-tooltip" tooltipText="Open in new window">
                       <Button
                         variant="link"
                         size="sm"
@@ -107,7 +87,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                           openRecentFolderInNewWindow(folder)
                           setShowMain(false)
                         }}
-                        style={{ }}
+                        style={{}}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.opacity = '1'
                         }}
@@ -118,11 +98,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                         <i className="fas fa-clone"></i>
                       </Button>
                     </CustomTooltip>
-                    <CustomTooltip
-                      placement="top"
-                      tooltipId="recent-folder-reveal-tooltip"
-                      tooltipText="Show in Folder"
-                    >
+                    <CustomTooltip placement="top" tooltipId="recent-folder-reveal-tooltip" tooltipText="Show in Folder">
                       <Button
                         variant="link"
                         size="sm"
@@ -131,7 +107,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                           e.stopPropagation()
                           revealRecentFolderInExplorer(folder)
                         }}
-                        style={{ }}
+                        style={{}}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.opacity = '1'
                         }}
@@ -143,11 +119,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                       </Button>
                     </CustomTooltip>
                   </div>
-                  <CustomTooltip
-                    placement="top"
-                    tooltipId="recent-folder-remove-tooltip"
-                    tooltipText="Remove from recent"
-                  >
+                  <CustomTooltip placement="top" tooltipId="recent-folder-remove-tooltip" tooltipText="Remove from recent">
                     <Button
                       variant="link"
                       size="sm"
@@ -156,7 +128,7 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
                         e.stopPropagation()
                         removeRecentFolder(folder)
                       }}
-                      style={{ }}
+                      style={{}}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.opacity = '1'
                         e.currentTarget.style.color = '#dc3545'
@@ -174,24 +146,16 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
             })}
             {recentFolders.length > 8 && !showAllRecent && (
               <div className="px-2 py-1 text-center">
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="text-muted p-1"
-                  onClick={() => setShowAllRecent(true)}
-                >
-                  <small>Show {recentFolders.length - 8} more recent folder{recentFolders.length - 8 > 1 ? 's' : ''}</small>
+                <Button variant="link" size="sm" className="text-muted p-1" onClick={() => setShowAllRecent(true)}>
+                  <small>
+                    Show {recentFolders.length - 8} more recent folder{recentFolders.length - 8 > 1 ? 's' : ''}
+                  </small>
                 </Button>
               </div>
             )}
             {recentFolders.length > 8 && showAllRecent && (
               <div className="px-2 py-1 text-center">
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="text-muted p-1"
-                  onClick={() => setShowAllRecent(false)}
-                >
+                <Button variant="link" size="sm" className="text-muted p-1" onClick={() => setShowAllRecent(false)}>
                   <small>Show less</small>
                 </Button>
               </div>

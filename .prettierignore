@@ -11,3 +11,7 @@
 
 # Ignore all json files
 **/*.json
+
+/.nx/cache
+/.nx/workspace-data
+.nx/self-healing

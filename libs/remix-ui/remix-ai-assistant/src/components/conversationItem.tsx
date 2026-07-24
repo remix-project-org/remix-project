@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useRef } from 'react'
 import { ConversationMetadata } from '../lib/types'
 
@@ -11,14 +11,7 @@ interface ConversationItemProps {
   theme?: string
 }
 
-export const ConversationItem: React.FC<ConversationItemProps> = ({
-  conversation,
-  active,
-  onClick,
-  onArchive,
-  onDelete,
-  theme
-}) => {
+export const ConversationItem: React.FC<ConversationItemProps> = ({ conversation, active, onClick, onArchive, onDelete, theme }) => {
   const [showMenu, setShowMenu] = useState(false)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const menuContainerRef = useRef<HTMLDivElement>(null)
@@ -56,15 +49,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
   const getMenuPosition = (triggerRect: DOMRect, menuWidth = 170, menuHeight = 110) => {
     const gutter = 8
-    const shouldOpenLeft =
-      triggerRect.right + gutter + menuWidth > window.innerWidth &&
-      triggerRect.left - gutter - menuWidth >= gutter
+    const shouldOpenLeft = triggerRect.right + gutter + menuWidth > window.innerWidth && triggerRect.left - gutter - menuWidth >= gutter
 
     return {
       top: Math.max(gutter, Math.min(triggerRect.top, window.innerHeight - menuHeight - gutter)),
-      left: shouldOpenLeft
-        ? triggerRect.left - menuWidth - gutter
-        : Math.max(gutter, Math.min(triggerRect.right + gutter, window.innerWidth - menuWidth - gutter))
+      left: shouldOpenLeft ? triggerRect.left - menuWidth - gutter : Math.max(gutter, Math.min(triggerRect.right + gutter, window.innerWidth - menuWidth - gutter)),
     }
   }
 
@@ -92,12 +81,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   }, [showMenu])
 
   return (
-    <div
-      className={`conversation-item p-3 mb-1 rounded-3 cursor-pointer position-relative ${active ? 'conversation-item-active' : ''}`}
-      onClick={onClick}
-      data-id={`conversation-item-${conversation.id}`}
-      data-theme={theme?.toLowerCase()}
-    >
+    <div className={`conversation-item p-3 mb-1 rounded-3 cursor-pointer position-relative ${active ? 'conversation-item-active' : ''}`} onClick={onClick} data-id={`conversation-item-${conversation.id}`} data-theme={theme?.toLowerCase()}>
       <div className="d-flex justify-content-between align-items-start">
         <div className="flex-grow-1 overflow-hidden pe-2">
           <div className="conversation-title text-truncate mb-1 text-light-emphasis" data-id="conversation-item-title">
@@ -134,7 +118,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               style={{
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
-                zIndex: 1100
+                zIndex: 1100,
               }}
             >
               <button

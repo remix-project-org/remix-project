@@ -1,18 +1,18 @@
-import React, { useState, useContext } from "react"
-import { FormattedMessage, useIntl } from "react-intl"
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
-import { EnvironmentPlugin } from "apps/remix-ide/src/app/udapp/udappEnv"
+import React, { useState, useContext } from 'react'
+import { FormattedMessage, useIntl } from 'react-intl'
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { EnvironmentPlugin } from 'apps/remix-ide/src/app/udapp/udappEnv'
 import { TrackingContext } from '@remix-ide/tracking'
 
 const EIP712_Example = {
   domain: {
     chainId: 1,
-    name: "Example App",
-    verifyingContract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
-    version: "1",
+    name: 'Example App',
+    verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+    version: '1',
   },
   message: {
-    prompt: "Welcome! In order to authenticate to this website, sign this request and your public address will be sent to the server in a verifiable way.",
+    prompt: 'Welcome! In order to authenticate to this website, sign this request and your public address will be sent to the server in a verifiable way.',
     createdAt: 1718570375196,
   },
   primaryType: 'AuthRequest',
@@ -30,15 +30,7 @@ const EIP712_Example = {
   },
 }
 
-export function SignMessagePrompt ({
-  onMessageChange,
-  plugin,
-  defaultMessage = ''
-}: {
-  onMessageChange: (message: string) => void
-  plugin: EnvironmentPlugin
-  defaultMessage?: string
-}) {
+export function SignMessagePrompt({ onMessageChange, plugin, defaultMessage = '' }: { onMessageChange: (message: string) => void; plugin: EnvironmentPlugin; defaultMessage?: string }) {
   const intl = useIntl()
   const { trackMatomoEvent } = useContext(TrackingContext)
   const [message, setMessage] = useState(defaultMessage)
@@ -64,13 +56,18 @@ export function SignMessagePrompt ({
         title: intl.formatMessage({ id: 'udapp.eip712ModalTitle' }),
         message: (
           <div>
-            <div>{intl.formatMessage({ id: 'udapp.EIP712-2' }, {
-              a: (chunks) => (
-                <a href='https://eips.ethereum.org/EIPS/eip-712' target="_blank" rel="noreferrer">
-                  {chunks}
-                </a>
-              )
-            })}</div>
+            <div>
+              {intl.formatMessage(
+                { id: 'udapp.EIP712-2' },
+                {
+                  a: (chunks) => (
+                    <a href="https://eips.ethereum.org/EIPS/eip-712" target="_blank" rel="noreferrer">
+                      {chunks}
+                    </a>
+                  ),
+                },
+              )}
+            </div>
             <div>{intl.formatMessage({ id: 'udapp.EIP712-3' })}</div>
           </div>
         ),
@@ -79,7 +76,7 @@ export function SignMessagePrompt ({
         okFn: async () => {
           await plugin.call('fileManager', 'writeFileNoRewrite', 'EIP-712-data.json', JSON.stringify(EIP712_Example, null, '\t'))
           await plugin.call('fileManager', 'open', 'EIP-712-data.json')
-        }
+        },
       })
     }, 100)
   }
@@ -87,23 +84,12 @@ export function SignMessagePrompt ({
   return (
     <div>
       <FormattedMessage id="udapp.enterAMessageToSign" />
-      <textarea
-        id="prompt_text"
-        className="bg-light form-control"
-        data-id="signMessageTextarea"
-        style={{ width: '100%' }}
-        rows={4}
-        cols={50}
-        onChange={handleInputChange}
-        defaultValue={message}
-      ></textarea>
-      <div className='mt-2'>
-        <span><FormattedMessage id="udapp.otherwiseLabel" /></span>
-        <button
-          className='ms-2 modal-ok btn btn-sm border-primary'
-          data-id="sign-eip-712"
-          onClick={handleEIP712Click}
-        >
+      <textarea id="prompt_text" className="bg-light form-control" data-id="signMessageTextarea" style={{ width: '100%' }} rows={4} cols={50} onChange={handleInputChange} defaultValue={message}></textarea>
+      <div className="mt-2">
+        <span>
+          <FormattedMessage id="udapp.otherwiseLabel" />
+        </span>
+        <button className="ms-2 modal-ok btn btn-sm border-primary" data-id="sign-eip-712" onClick={handleEIP712Click}>
           <FormattedMessage id="udapp.signWithEip712Button" />
         </button>
       </div>
@@ -111,7 +97,7 @@ export function SignMessagePrompt ({
   )
 }
 
-export function SignedMessagePrompt ({ msgHash, signedData }: { msgHash: string, signedData: string }) {
+export function SignedMessagePrompt({ msgHash, signedData }: { msgHash: string; signedData: string }) {
   return (
     <div className="d-flex flex-column">
       <label className="text-uppercase">

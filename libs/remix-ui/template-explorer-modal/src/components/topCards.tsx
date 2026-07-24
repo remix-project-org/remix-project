@@ -1,4 +1,4 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import isElectron from 'is-electron'
 import React, { useContext, useState, useRef, useEffect } from 'react'
 import { TemplateExplorerContext } from '../../context/template-explorer-context'
@@ -27,11 +27,10 @@ export function TopCards() {
   const { showCloneModal } = useCloneRepositoryModal({
     plugin,
     intl,
-    platform
-  });
+    platform,
+  })
 
   const ImportOptions = () => {
-
     return (
       <ul
         className="list-unstyled d-flex flex-column gap-1"
@@ -113,7 +112,8 @@ export function TopCards() {
           }}
           data-id="importOptionsMenuIPFS"
         >
-          <i className="me-2 far fa-cube"></i><span className="fw-light">Import from IPFS</span>
+          <i className="me-2 far fa-cube"></i>
+          <span className="fw-light">Import from IPFS</span>
         </li>
         <li
           className="d-flex flex-row align-items-center import-option-item"
@@ -127,7 +127,9 @@ export function TopCards() {
           }}
           data-id="importOptionsMenuHTTPS"
         >
-          <i className="me-2 fa-solid fa-link"></i><span className="fw-light">Import from HTTPS</span></li>
+          <i className="me-2 fa-solid fa-link"></i>
+          <span className="fw-light">Import from HTTPS</span>
+        </li>
       </ul>
     )
   }
@@ -139,7 +141,7 @@ export function TopCards() {
         className="tem-topcard"
         onClick={async () => {
           if (state.manageCategory === 'Template') {
-            dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE, payload: { value: 'blank', displayName: 'Blank', tagList: ["Blank", "Solidity"], description: 'A blank project' } })
+            dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE, payload: { value: 'blank', displayName: 'Blank', tagList: ['Blank', 'Solidity'], description: 'A blank project' } })
             dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE_GROUP, payload: 'Generic' })
             dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: 'Blank' })
             dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'generic' })
@@ -207,11 +209,11 @@ export function TopCards() {
         onClick={() => {
           if (state.manageCategory === 'Template') {
             dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
-            facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract' }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
+            facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ['ERC20', 'Solidity'], description: 'A customizable fungible token contract' }, { name: 'OpenZeppelin', items: [] }, templateCategoryStrategy)
             trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizard', isClick: true })
           } else {
             dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
-            facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract', requiresCustomization: true }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
+            facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ['ERC20', 'Solidity'], description: 'A customizable fungible token contract', requiresCustomization: true }, { name: 'OpenZeppelin', items: [] }, templateCategoryStrategy)
             trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizardCreateFile', isClick: true })
           }
         }}

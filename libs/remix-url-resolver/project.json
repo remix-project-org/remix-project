@@ -1,33 +1,23 @@
 {
-    "name": "remix-url-resolver",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/remix-url-resolver/src",
-    "projectType": "library",
-    "implicitDependencies": [
-    ],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/remix-url-resolver",
-          "main": "libs/remix-url-resolver/src/index.ts",
-          "tsConfig": "libs/remix-url-resolver/tsconfig.lib.json",
-          "updateBuildableProjectDepsInPackageJson": false,
-          "assets": [
-            "libs/remix-url-resolver/*.md"
-          ]
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/remix-url-resolver/**/*.ts"],
-          "eslintConfig": "libs/remix-url-resolver/.eslintrc"
-        }
+  "name": "remix-url-resolver",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-url-resolver/src",
+  "projectType": "library",
+  "implicitDependencies": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/remix-url-resolver",
+        "main": "libs/remix-url-resolver/src/index.ts",
+        "tsConfig": "libs/remix-url-resolver/tsconfig.lib.json",
+        "assets": ["libs/remix-url-resolver/*.md"]
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": []
+}

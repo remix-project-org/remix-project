@@ -333,7 +333,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
               )}
               {compileErrors[currentFile].error &&
                 compileErrors[currentFile].error.mode === 'panic' &&
-                modal('Error', panicMessage(compileErrors[currentFile].error.formattedMessage), 'Close', null, false)}
+                (modal('Error', panicMessage(compileErrors[currentFile].error.formattedMessage), 'Close', null, false) as any)}
               {compileErrors[currentFile].errors &&
                 compileErrors[currentFile].errors.length > 0 &&
                 compileErrors[currentFile].errors.map((err, index) => {

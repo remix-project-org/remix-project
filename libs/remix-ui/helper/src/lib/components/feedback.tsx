@@ -18,7 +18,7 @@ export function CompilerFeedback ({ feedback, filePathToId, hideWarnings, openEr
           <div className="circuit_errors_box">
             <RenderIf condition={ (typeof feedback === "string") && showException }>
               <div className="circuit_feedback error alert alert-danger" data-id="circuit_feedback">
-                <span> <>{ feedback }</> </span>
+                <span> <>{ feedback as any }</> </span>
                 <div className="close" data-id="renderer" onClick={handleCloseException}>
                   <i className="fas fa-times"></i>
                 </div>

@@ -1,32 +1,23 @@
 {
-    "name": "ghaction-helper",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/ghaction-helper/src",
-    "projectType": "library",
-    "implicitDependencies": [
-      "remix-solidity"
-    ],
-    "targets": {
-      "build": {
-        "executor": "@nrwl/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist/libs/ghaction-helper",
-          "main": "libs/ghaction-helper/src/index.ts",
-          "tsConfig": "libs/ghaction-helper/tsconfig.lib.json",
-          "assets": [],
-          "updateBuildableProjectDepsInPackageJson": false
-        }
-      },
-      "lint": {
-        "executor": "@nrwl/linter:eslint",
-        "outputs": ["{options.outputFile}"],
-        "options": {
-          "lintFilePatterns": ["libs/ghaction-helper/**/*.ts"],
-          "eslintConfig": "libs/ghaction-helper/.eslintrc"
-        }
+  "name": "ghaction-helper",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ghaction-helper/src",
+  "projectType": "library",
+  "implicitDependencies": ["remix-solidity"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/ghaction-helper",
+        "main": "libs/ghaction-helper/src/index.ts",
+        "tsConfig": "libs/ghaction-helper/tsconfig.lib.json",
+        "assets": []
       }
     },
-    "tags": []
-  }
-  
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  },
+  "tags": []
+}

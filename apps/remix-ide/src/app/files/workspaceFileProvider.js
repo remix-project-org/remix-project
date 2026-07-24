@@ -88,5 +88,3 @@ export default class WorkspaceFileProvider extends FileProvider {
     }
   }
 }
-
-module.exports = WorkspaceFileProvider

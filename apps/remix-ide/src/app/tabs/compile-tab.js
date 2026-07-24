@@ -196,5 +196,3 @@ export default class CompileTab extends CompilerApiMixin(ViewPlugin) { // implem
     }
   }
 }
-
-module.exports = CompileTab

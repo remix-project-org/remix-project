@@ -1,8 +1,8 @@
-/* eslint-disable @nrwl/nx/enforce-module-boundaries */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { ViewPlugin } from '@remixproject/engine-web'
 import React from 'react'
 import { trackMatomoEvent } from '@remix-api'
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { RemixUiSolidityUmlGen } from '@remix-ui/solidity-uml-gen'
 import { ISolidityUmlGen, ThemeQualityType, ThemeSummary } from 'libs/remix-ui/solidity-uml-gen/src/types'
 import { RemixAppManager } from 'libs/remix-ui/plugin-manager/src/types'
@@ -21,7 +21,7 @@ const profile = {
   description: 'Generates UML diagram in svg format from last compiled contract',
   location: 'mainPanel',
   methods: ['showUmlDiagram', 'generateUml', 'generateCustomAction'],
-  events: []
+  events: [],
 }
 
 /**
@@ -84,7 +84,7 @@ export class SolidityUmlGen extends ViewPlugin implements ISolidityUmlGen {
           backColor: this.activeTheme.backgroundColor,
           textColor: this.activeTheme.textColor,
           shapeColor: this.activeTheme.shapeColor,
-          fillColor: this.activeTheme.fillColor
+          fillColor: this.activeTheme.fillColor,
         })
         const payload = vizRenderStringSync(umlDot)
         this.updatedSvg = payload
@@ -110,7 +110,7 @@ export class SolidityUmlGen extends ViewPlugin implements ISolidityUmlGen {
         backColor: this.activeTheme.backgroundColor,
         textColor: this.activeTheme.textColor,
         shapeColor: this.activeTheme.shapeColor,
-        fillColor: this.activeTheme.fillColor
+        fillColor: this.activeTheme.fillColor,
       })
       this.updatedSvg = vizRenderStringSync(umlDot)
       this.renderComponent()
@@ -180,22 +180,12 @@ export class SolidityUmlGen extends ViewPlugin implements ISolidityUmlGen {
       themeDark: this.themeDark,
       fileName: this.currentFile,
       themeCollection: this.themeCollection,
-      activeTheme: this.activeTheme
+      activeTheme: this.activeTheme,
     })
   }
 
   updateComponent(state: any) {
-    return (
-      <RemixUiSolidityUmlGen
-        updatedSvg={state.updatedSvg}
-        loading={state.loading}
-        themeSelected={state.currentlySelectedTheme}
-        themeName={state.themeName}
-        fileName={state.fileName}
-        themeCollection={state.themeCollection}
-        themeDark={state.themeDark}
-      />
-    )
+    return <RemixUiSolidityUmlGen updatedSvg={state.updatedSvg} loading={state.loading} themeSelected={state.currentlySelectedTheme} themeName={state.themeName} fileName={state.fileName} themeCollection={state.themeCollection} themeDark={state.themeDark} />
   }
 }
 
