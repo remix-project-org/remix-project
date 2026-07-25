@@ -33,7 +33,11 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
   const progress = generationProgress;
   const generatedFiles = progress?.generatedFiles || [];
   const currentFile = progress?.filename;
-  const networkLabel = dapp.appKind === 'graph-only' ? 'The Graph' : dapp?.contract?.networkName || 'Remix VM';
+  const networkLabel = dapp.appKind === 'graph-only'
+    ? 'The Graph'
+    : dapp.appKind === 'zk-circuit'
+      ? 'ZK Circuit'
+      : dapp?.contract?.networkName || 'Remix VM';
   const isCreating = dapp.status === 'creating' || (!progress && isProcessing && dapp.status !== 'updating');
   const loadingText = isCreating ? 'AI Creating...' : 'AI Updating...';
 

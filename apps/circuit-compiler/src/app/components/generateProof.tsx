@@ -3,6 +3,8 @@ import { FormattedMessage } from "react-intl"
 import { generateProof } from "../actions"
 import { CircuitAppContext } from "../contexts"
 import { useContext } from "react"
+import { ZkVerifyButton } from "./zkVerifyButton"
+import { CreateZkDappButton } from "./createZkDappButton"
 
 export function GenerateProof () {
   const circuitApp = useContext(CircuitAppContext)
@@ -33,6 +35,8 @@ export function GenerateProof () {
         </RenderIf>
         <FormattedMessage id="circuit.generateProof" />
       </button>
+      <ZkVerifyButton />
+      <CreateZkDappButton />
     </div>
   )
 }

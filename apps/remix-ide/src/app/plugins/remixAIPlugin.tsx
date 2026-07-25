@@ -47,7 +47,8 @@ const profile = {
     'onToolCall', 'onSubagentStart', 'onSubagentComplete',
     'onTaskStart', 'onTaskComplete', 'onTodoUpdate',
     'onTodoError', 'onAgentError', 'onApiError',
-    'onToolApprovalRequired', 'ollamaModelDiscovered'
+    'onToolApprovalRequired', 'ollamaModelDiscovered',
+    'requestCancelled'
   ],
   icon: 'assets/img/remix-logo-blue.png',
   description: 'RemixAI provides AI services to Remix IDE.',
@@ -1171,6 +1172,9 @@ export class RemixAIPlugin extends Plugin {
     } else if (this.remoteInferencer) {
       (this.remoteInferencer as RemoteInferencer).cancelRequest()
     }
+    // Emit requestCancelled event to notify other components (like code analysis popover)
+    // that a user-initiated cancellation occurred and the AI is now available again
+    this.emit('requestCancelled')
   }
 
   private async refreshMCPServersOnAuthChange(authState: any): Promise<void> {

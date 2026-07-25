@@ -21,7 +21,13 @@ export default function App() {
     <>
       <div className="bg-light p-5">
         <button className="btn btn-sm border mb-2" onClick={edit}>EDIT</button>
-        <ReactMarkdown children={contents} remarkPlugins={[remarkGfm]} />
+        <ReactMarkdown
+          children={contents}
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h1: ({node, ...props}) => <h1 className="lh-sm" {...props} />
+          }}
+        />
       </div>
     </>
   )

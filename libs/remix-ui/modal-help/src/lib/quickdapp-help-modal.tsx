@@ -353,7 +353,7 @@ const StepDescribe: React.FC = () => (
             readOnly
             style={{ width: 10, height: 10, accentColor: c.bl, pointerEvents: "none" }}
           />
-          <span style={{ fontSize: 9, color: c.td }}>Base Mini App (Farcaster Frame)</span>
+          <span style={{ fontSize: 9, color: c.td }}>Base mini app</span>
         </div>
         {/* Generate button */}
         <div

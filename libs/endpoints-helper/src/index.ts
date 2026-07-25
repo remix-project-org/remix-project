@@ -29,6 +29,7 @@ export type EndpointUrls = {
   sso: string;
   billing: string;
   products: string;
+  checkouts: string;
   credits: string;
   audio: string;
   storage: string;
@@ -51,7 +52,9 @@ export type EndpointUrls = {
   ensContractNames: string;
   learneth: string;
   rss: string;
-  langchain: string
+  langchain: string;
+  langfuse: string
+  zkverify: string;
 };
 
 /**
@@ -76,6 +79,7 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   sso: 'sso',
   billing: 'billing',
   products: 'products',
+  checkouts: 'checkouts',
   credits: 'credits',
   audio: 'ai/audio',
   storage: 'storage',
@@ -97,7 +101,9 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   ensContractNames: 'endpoints/contract-ens',
   learneth: 'learneth',
   rss: 'endpoints/rss',
-  langchain: 'ai/langchain'
+  langchain: 'ai/langchain',
+  langfuse: 'ai/langfuse',
+  zkverify: 'zkverify'
 };
 
 /** Build all endpoint URLs from a single base URL */

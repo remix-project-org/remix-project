@@ -102,6 +102,39 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       }
     };
 
+    const handleCreateZkDapp = async (payload: any) => {
+      if (quickdappEnabledRef.current === false) {
+        plugin.call('notification', 'toast', 'QuickDapp is not available yet.')
+        return
+      }
+      try {
+        console.log('[QuickDapp] handleCreateZkDapp called', { circuitName: payload.circuitName });
+
+        const newDapp = await dappManager.createZkDapp({
+          circuitName: payload.circuitName,
+          circuitPath: payload.circuitPath,
+          provingScheme: payload.provingScheme,
+          primeValue: payload.primeValue,
+          signalInputs: payload.signalInputs,
+          wasmPath: payload.wasmPath,
+          zkeyPath: payload.zkeyPath,
+          verificationKey: payload.verificationKey,
+          zkVerifyNetwork: payload.zkVerifyNetwork,
+          userDescription: payload.userDescription
+        });
+
+        dispatch({ type: 'SET_ACTIVE_DAPP', payload: newDapp });
+        dispatch({ type: 'SET_DAPPS', payload: [newDapp, ...dappsRef.current]});
+        dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: newDapp.slug, isProcessing: true } });
+        dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
+
+        console.log('[QuickDapp] handleCreateZkDapp done, workspace:', newDapp.workspaceName);
+      } catch (error: any) {
+        console.error('[QuickDapp] handleCreateZkDapp failed:', error);
+        plugin.call('notification', 'toast', `Failed to create ZK DApp: ${error.message}`);
+      }
+    };
+
     const handleOpenDapp = async (workspaceName: string) => {
       const dapp = dappsRef.current.find((d: DappConfig) => d.workspaceName === workspaceName);
       if (dapp) {
@@ -119,27 +152,28 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       if (data?.workspaceName) {
         clearQuickDappWorkspaceLock(data.workspaceName);
       }
-      if (!data.workspaceName || !data.slug) {
-        console.log('[QuickDapp] handleDappGenerated: missing workspaceName or slug');
+      if (!data.slug) {
+        console.log('[QuickDapp] handleDappGenerated: missing slug');
         return;
       }
 
       const { workspaceName, slug } = data;
 
       try {
-        console.log('[QuickDapp] Refreshing dashboard for:', workspaceName);
+        console.log('[QuickDapp] Refreshing dashboard for slug:', slug);
 
         // Files already saved by handler — refresh dashboard state
         const freshDapps = await dappManagerRef.current.getDapps();
         console.log('[QuickDapp] Fetched', freshDapps.length, 'dapps from disk');
         dispatch({ type: 'SET_DAPPS', payload: freshDapps });
 
-        const thisDapp = freshDapps.find((d: DappConfig) => d.slug === slug || d.workspaceName === workspaceName);
+        // Match by slug only to avoid matching wrong DApp
+        const thisDapp = freshDapps.find((d: DappConfig) => d.slug === slug);
         if (thisDapp) {
-          console.log('[QuickDapp] Found matching dapp:', thisDapp.name, thisDapp.workspaceName);
+          console.log('[QuickDapp] Found matching dapp:', thisDapp.name, thisDapp.slug);
           dispatch({ type: 'SET_ACTIVE_DAPP', payload: thisDapp });
         } else {
-          console.log('[QuickDapp] No matching dapp found for workspace:', workspaceName);
+          console.log('[QuickDapp] No matching dapp found for slug:', slug);
         }
 
         dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug, isProcessing: false } });
@@ -244,12 +278,34 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
         if (enrichedData.slug) {
           console.log('[QuickDapp] generationProgress preparing — refreshing dapps and setting processing=true for slug:', enrichedData.slug);
           // Refresh dapp list from disk so the new card appears in dashboard
+          let freshDapps: DappConfig[] = [];
           try {
-            const freshDapps = await dappManagerRef.current.getDapps();
-            dispatch({ type: 'SET_DAPPS', payload: freshDapps });
+            // Invalidate cache to ensure we get the latest workspaces
+            dappManagerRef.current.invalidateCache();
+            freshDapps = await dappManagerRef.current.getDapps();
           } catch (e) {
             console.warn('[QuickDapp] Failed to refresh dapps on preparing:', e);
           }
+          // Match by slug only to avoid matching wrong DApp
+          const newDappInList = freshDapps.find((d: DappConfig) => d.slug === enrichedData.slug);
+
+          if (!newDappInList && enrichedData.workspaceName) {
+            console.log('[QuickDapp] New dapp not found in list, trying to read config directly from workspace:', enrichedData.workspaceName);
+            try {
+              // Try to read the config directly from the workspace
+              const configContent = await plugin.call('filePanel' as any, 'readFileFromWorkspace', enrichedData.workspaceName, 'dapp.config.json');
+              if (configContent) {
+                const config = JSON.parse(configContent);
+                config.workspaceName = config.workspaceName || enrichedData.workspaceName;
+                freshDapps = [config, ...freshDapps];
+                console.log('[QuickDapp] Successfully read config for new dapp:', config.name);
+              }
+            } catch (e) {
+              console.warn('[QuickDapp] Failed to read config directly:', e);
+            }
+          }
+
+          dispatch({ type: 'SET_DAPPS', payload: freshDapps });
           dispatch({ type: 'SET_DAPP_PROCESSING', payload: { slug: enrichedData.slug, isProcessing: true } });
           dispatch({ type: 'SET_VIEW', payload: 'dashboard' });
         }
@@ -277,6 +333,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     };
 
     plugin.event.on('createDapp', handleCreateDapp);
+    plugin.event.on('createZkDapp', handleCreateZkDapp);
     plugin.event.on('openDapp', handleOpenDapp);
     plugin.event.on('startAiLoading', handleStartAiLoading);
     plugin.event.on('dappGenerated', handleDappGenerated);
@@ -288,13 +345,18 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
     const pending = plugin.consumePendingCreateDapp?.();
     if (pending) {
       if (quickdappEnabledRef.current !== false) {
-        handleCreateDapp(pending);
+        if (pending.isZkDapp) {
+          handleCreateZkDapp(pending);
+        } else {
+          handleCreateDapp(pending);
+        }
       }
     }
 
     // Cleanup function to remove event listeners
     return () => {
       plugin.event.off('createDapp', handleCreateDapp);
+      plugin.event.off('createZkDapp', handleCreateZkDapp);
       plugin.event.off('openDapp', handleOpenDapp);
       plugin.event.off('startAiLoading', handleStartAiLoading);
       plugin.event.off('dappGenerated', handleDappGenerated);

@@ -62,6 +62,8 @@ import {
   CancelSubscriptionResponse,
   ReactivateSubscriptionResponse,
   TransactionStatusResponse,
+  PendingCheckoutsResponse,
+  VerifyCheckoutResponse,
   CreditsUsageQuery,
   UsageReport,
   UserSubscriptionResponse,
@@ -908,6 +910,55 @@ export class BillingApiService {
    */
   static filterFeatureProducts(products: FeatureAccessProduct[], recurring: boolean): FeatureAccessProduct[] {
     return products.filter(p => p.isRecurring === recurring)
+  }
+}
+
+/**
+ * Checkouts API Service — served from its own `/checkouts` base URL (NOT under
+ * `/billing`). Powers the "resume your abandoned checkout" flow.
+ */
+export class CheckoutsApiService {
+  constructor(private apiClient: IApiClient) {}
+
+  setToken(token: string): void {
+    this.apiClient.setToken(token)
+  }
+
+  /**
+   * List the authenticated user's unfinished checkouts (most recent first).
+   * GET /checkouts/pending
+   *
+   * Deliberately small — not completed, not canceled, last 7 days, capped at
+   * 5. Use to render a "resume your checkout" nudge. Empty state is
+   * `{ checkouts: [] }`. Fire in parallel with /permissions — never merge it
+   * into the (hot, cached) authz payload.
+   */
+  async getPendingCheckouts(): Promise<ApiResponse<PendingCheckoutsResponse>> {
+    return this.apiClient.get<PendingCheckoutsResponse>('/pending')
+  }
+
+  /**
+   * Verify the logged-in user owns a given transaction before booting Paddle
+   * for it. GET /checkouts/:transactionId
+   *
+   * Returns the checkout only if it belongs to the user; `404` otherwise
+   * (unknown vs not-yours are intentionally indistinguishable). Call this
+   * before opening a checkout from a `transaction_id`/`_ptxn` you didn't just
+   * create in-session (e.g. a deep link or resume link).
+   */
+  async verifyCheckout(transactionId: string): Promise<ApiResponse<VerifyCheckoutResponse>> {
+    return this.apiClient.get<VerifyCheckoutResponse>(`/${encodeURIComponent(transactionId)}`)
+  }
+
+  /**
+   * Discard an unfinished checkout so it no longer shows up in the resume
+   * nudge / cart. DELETE /checkouts/:transactionId
+   *
+   * Only affects the caller's own pending checkout; safe to call for a
+   * transaction that's already gone (backend treats it idempotently).
+   */
+  async deleteCheckout(transactionId: string): Promise<ApiResponse<GenericSuccessResponse>> {
+    return this.apiClient.delete<GenericSuccessResponse>(`/${encodeURIComponent(transactionId)}`)
   }
 }
 

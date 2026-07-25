@@ -18,7 +18,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: [],
-  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'openDapp', 'consumePendingCreateDapp', 'listDapps']
+  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'createZkDapp', 'createZkDappWorkspace', 'openDapp', 'consumePendingCreateDapp', 'listDapps']
 }
 
 export class QuickDappV2 extends ViewPlugin {
@@ -148,6 +148,161 @@ export class QuickDappV2 extends ViewPlugin {
     const payload = this.pendingCreateDapp
     this.pendingCreateDapp = null
     return payload
+  }
+
+  /**
+   * Create a ZK DApp from a circom circuit.
+   * Called from circuit-compiler when user clicks "Create ZK DApp".
+   */
+  async createZkDapp(payload: {
+    circuitName: string;
+    circuitPath: string;
+    provingScheme: 'groth16';
+    primeValue: 'bn128' | 'bls12381';
+    signalInputs: string[];
+    wasmPath: string;
+    zkeyPath: string;
+    verificationKey: Record<string, any>;
+    zkVerifyNetwork?: 'testnet' | 'mainnet';
+    userDescription?: string;
+  }): Promise<void> {
+    if (!(await this.isQuickDappEnabled())) {
+      this.call('notification', 'toast', 'QuickDapp is coming soon. Stay tuned!')
+      return
+    }
+    if (this.event.listenerCount('createZkDapp') > 0) {
+      this.event.emit('createZkDapp', payload)
+    } else {
+      this.pendingCreateDapp = { ...payload, isZkDapp: true }
+    }
+  }
+
+  /**
+   * Create a ZK DApp workspace — callable from MCP handlers.
+   * Returns the workspace slug so the handler can write files into it.
+   */
+  async createZkDappWorkspace(payload: {
+    circuitName: string;
+    circuitPath: string;
+    provingScheme: 'groth16';
+    primeValue: 'bn128' | 'bls12381';
+    signalInputs: string[];
+    wasmPath: string;
+    zkeyPath: string;
+    verificationKey: Record<string, any>;
+    zkVerifyNetwork?: 'testnet' | 'mainnet';
+    userDescription?: string;
+  }): Promise<{ slug: string; workspaceName: string }> {
+    const DAPP_WORKSPACE_PREFIX = 'dapp-';
+
+    const name = payload.circuitName || 'ZkCircuit';
+    const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    const slug = `zk-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${id.slice(0, 6)}`;
+    const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
+    const timestamp = Date.now();
+
+    let sourceWorkspaceName = 'default_workspace';
+    try {
+      const currentWs = await this.call('filePanel', 'getCurrentWorkspace');
+      sourceWorkspaceName = currentWs?.name || 'default_workspace';
+    } catch (e) { /* fallback */ }
+
+    // Guard: Block DApp creation from within a DApp workspace
+    if (sourceWorkspaceName.startsWith(DAPP_WORKSPACE_PREFIX)) {
+      throw new Error(
+        'Cannot create a ZK DApp from within a DApp workspace. ' +
+        'Please switch to the original circuit workspace first.'
+      );
+    }
+
+    // Read circuit artifacts before switching workspace
+    let wasmContent: Uint8Array | null = null;
+    let zkeyContent: Uint8Array | null = null;
+
+    try {
+      const wasmData = await this.call('fileManager', 'readFile', payload.wasmPath, { encoding: null });
+      wasmContent = wasmData instanceof Uint8Array ? wasmData : new TextEncoder().encode(wasmData as string);
+    } catch (e) {
+      remixAILogger.warn('[QuickDapp] Failed to read wasm file:', e);
+    }
+
+    try {
+      const zkeyData = await this.call('fileManager', 'readFile', payload.zkeyPath, { encoding: null });
+      zkeyContent = zkeyData instanceof Uint8Array ? zkeyData : new TextEncoder().encode(zkeyData as string);
+    } catch (e) {
+      remixAILogger.warn('[QuickDapp] Failed to read zkey file:', e);
+    }
+
+    // Create the new workspace
+    await this.call('filePanel', 'createWorkspace', workspaceName, true);
+    await this.call('filePanel' as any, 'switchToWorkspace', { name: workspaceName, isLocalhost: false });
+    await new Promise(r => setTimeout(r, 300));
+
+    // Create zk folder and copy artifacts
+    try { await this.call('fileManager', 'mkdir', 'zk'); } catch (_) {}
+
+    if (wasmContent) {
+      try {
+        await this.call('fileManager', 'writeFile', 'zk/circuit.wasm', wasmContent);
+      } catch (e) {
+        remixAILogger.warn('[QuickDapp] Failed to write wasm file:', e);
+      }
+    }
+
+    if (zkeyContent) {
+      try {
+        await this.call('fileManager', 'writeFile', 'zk/circuit.zkey', zkeyContent);
+      } catch (e) {
+        remixAILogger.warn('[QuickDapp] Failed to write zkey file:', e);
+      }
+    }
+
+    // Write verification key
+    try {
+      await this.call('fileManager', 'writeFile', 'zk/verification_key.json', JSON.stringify(payload.verificationKey, null, 2));
+    } catch (e) {
+      remixAILogger.warn('[QuickDapp] Failed to write verification key:', e);
+    }
+
+    const initialConfig = {
+      _warning: 'DO NOT EDIT THIS FILE MANUALLY. MANAGED BY QUICK DAPP.',
+      id,
+      slug: workspaceName,
+      name,
+      workspaceName,
+      appKind: 'zk-circuit',
+      zkCircuit: {
+        circuitName: payload.circuitName,
+        circuitPath: payload.circuitPath,
+        provingScheme: payload.provingScheme,
+        primeValue: payload.primeValue,
+        signalInputs: payload.signalInputs,
+        zkArtifacts: {
+          wasmPath: 'zk/circuit.wasm',
+          zkeyPath: 'zk/circuit.zkey',
+          vkeyPath: 'zk/verification_key.json'
+        },
+        zkVerifyConfig: payload.zkVerifyNetwork ? { network: payload.zkVerifyNetwork } : undefined
+      },
+      sourceWorkspace: {
+        name: sourceWorkspaceName,
+        filePath: payload.circuitPath
+      },
+      status: 'creating',
+      processingStartedAt: timestamp,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      config: {
+        title: name,
+        details: payload.userDescription || 'ZK DApp with in-browser proof generation and zkVerify verification'
+      }
+    };
+
+    await this.call('fileManager', 'writeFile', 'dapp.config.json', JSON.stringify(initialConfig, null, 2));
+    try { await this.call('fileManager', 'mkdir', 'src'); } catch (_) {}
+
+    remixAILogger.log('[QuickDapp] createZkDappWorkspace done', { slug: workspaceName });
+    return { slug: workspaceName, workspaceName };
   }
 
   /**

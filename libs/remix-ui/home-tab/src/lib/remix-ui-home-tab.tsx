@@ -266,6 +266,13 @@ contract HelloWorld {
               </button>
             </div>
 
+            {/* Terms and conditions */}
+            <div className="ht-section">
+              <a href="https://remix.live/termsandconditions" target="_blank" rel="noreferrer" className="ht-terms-link">
+                <FormattedMessage id="home.termsAndConditions" defaultMessage="Terms and Conditions" />
+              </a>
+            </div>
+
           </div>
 
         </div>

@@ -1288,6 +1288,19 @@
   color: var(--bs-body-color);
 }
 
+.pm-topup__total-num {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  opacity: 0.85;
+}
+
+.pm-topup__total-label {
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
 .pm-topup__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -1678,6 +1691,38 @@
   background: color-mix(in srgb, var(--pm-state) 10%, var(--custom-onsurface-layer-1));
 }
 
+/* Resume abandoned checkout — informational, not urgent. Uses the primary
+   accent so it reads as an opportunity rather than a warning, and reserves
+   room on the right for the dismiss affordance. */
+.pm-alert--resume {
+  --pm-state: var(--bs-primary);
+  padding-right: 52px;
+}
+
+.pm-alert__dismiss {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--bs-border-radius);
+  background: transparent;
+  color: var(--bs-secondary-color, var(--pm-state));
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity .15s ease, background .15s ease;
+}
+
+.pm-alert__dismiss:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--pm-state) 14%, transparent);
+}
+
 @keyframes pm-alert-in {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -1788,6 +1833,22 @@
 
 .pm-alert__btn--solid:hover {
   background: color-mix(in srgb, var(--pm-state) 88%, white);
+}
+
+/* Low-emphasis text button — used for the "Discard" action on the resume
+   banner so it reads as a secondary escape hatch, not a primary action. */
+.pm-alert__btn--link {
+  background: transparent;
+  border: none;
+  padding: 11px 10px;
+  color: var(--bs-body-color);
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+.pm-alert__btn--link:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 /* ─── Dev scenario switcher ─── */
@@ -3541,6 +3602,67 @@
   min-height: 500px;
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
+}
+
+/* Recoverable, non-destructive notice shown above the still-open Paddle frame
+   (invalid field, declined payment, …). The user can correct in-frame; this is
+   NOT the fatal "restart" result screen. */
+.pm-inline-checkout__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.pm-inline-checkout__notice > i {
+  font-size: 12px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.pm-inline-checkout__notice-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pm-inline-checkout__notice-help {
+  color: var(--bs-body-color);
+  opacity: 0.85;
+}
+.pm-inline-checkout__notice-help a {
+  color: var(--bs-link-color);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pm-inline-checkout__notice-help a:hover {
+  text-decoration: underline;
+}
+.pm-inline-checkout__notice-help a i {
+  margin-right: 3px;
+}
+.pm-inline-checkout__notice--error {
+  color: var(--bs-danger);
+  background: color-mix(in srgb, var(--bs-danger) 10%, transparent);
+}
+.pm-inline-checkout__notice--warning {
+  color: var(--bs-warning);
+  background: color-mix(in srgb, var(--bs-warning) 12%, transparent);
+}
+.pm-inline-checkout__notice-dismiss {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.pm-inline-checkout__notice-dismiss:hover {
+  opacity: 1;
 }
 
 @media (max-width: 720px) {

@@ -91,7 +91,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
         <div className="d-flex gap-2 mt-3 mt-md-0 qd-header-buttons">
           <Button variant="primary" onClick={onCreateNew} data-id="create-new-dapp-btn">
-            <i className="fas fa-plus me-2"></i> Create a new DApp
+            <i className="fas fa-plus me-2"></i> How to create a DApp
           </Button>
           {dapps.length > 0 && (
             <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)} data-id="delete-all-dapps-btn">

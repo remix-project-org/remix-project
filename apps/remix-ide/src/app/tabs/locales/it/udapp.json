@@ -103,7 +103,6 @@
   "udapp.tooltipText13": "Deploiato",
   "udapp._comment_universalDappUI.tsx": "libs/remix-ui/run-tab/src/lib/components/universalDappUI.tsx",
   "udapp.tooltipTextRemove": "Rimuovi permanentemente dall'elenco",
-  "udapp.tooltipTextEdit": "Crea una dApp con questo contratto, nel pannello principale",
   "udapp.tooltipTextPin": "Fissa il contratto per l'area di lavoro e la rete attuali, affinché persista dopo aver ricaricato",
   "udapp.tooltipText8": "Fare clic per i documenti sull'uso di 'receive'/'fallback'",
   "udapp.tooltipText9": "Il Calldata per inviare alla funzione di fallback del contratto.",

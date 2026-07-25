@@ -83,7 +83,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
   }
 
   // Test all API keys that have values
-  const handleTestAllApiKeys = async (optionName: string, toggleOptions: { name: keyof SettingsState; type: 'text' | 'password' }[]) => {
+  const handleTestAllApiKeys = async (optionName: string, toggleOptions: { name: keyof SettingsState; type: 'text' | 'password' | 'number' | 'select' }[]) => {
     const apiKeyOptions = toggleOptions.filter(opt => isApiKeySetting(opt.name as string))
     let testedCount = 0
     let validCount = 0
@@ -324,15 +324,29 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                         return state[toggleOption.name] && (
                           <div key={toggleOptionIndex}>
                             <div className={`${isDark ? 'text-white' : 'text-black'} ${isLastOption ? 'mt-2 mb-0' : 'my-2'}`}>
-                              <input
-                                name={toggleOption.name}
-                                data-id={`settingsTab${toggleOption.name}`}
-                                type={toggleOption.type}
-                                className="form-control"
-                                onChange={(e) => handleFormUIData(option.name, toggleOption.name, e.target.value)}
-                                defaultValue={inputValue}
-                                placeholder={intl.formatMessage({ id: `settings.${toggleOption.name}` })}
-                              />
+                              {toggleOption.type === 'select' && toggleOption.selectOptions ? (
+                                <select
+                                  name={toggleOption.name}
+                                  data-id={`settingsTab${toggleOption.name}`}
+                                  className="form-select"
+                                  onChange={(e) => handleFormUIData(option.name, toggleOption.name, e.target.value)}
+                                  value={inputValue || toggleOption.selectOptions[0]?.value}
+                                >
+                                  {toggleOption.selectOptions.map((selectOpt, idx) => (
+                                    <option key={idx} value={selectOpt.value}>{selectOpt.label}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  name={toggleOption.name}
+                                  data-id={`settingsTab${toggleOption.name}`}
+                                  type={toggleOption.type}
+                                  className="form-control"
+                                  onChange={(e) => handleFormUIData(option.name, toggleOption.name, e.target.value)}
+                                  defaultValue={inputValue}
+                                  placeholder={intl.formatMessage({ id: `settings.${toggleOption.name}` })}
+                                />
+                              )}
                             </div>
                             {/* Show validation error for API keys */}
                             {isApiKeySetting(toggleOption.name as string) && apiKeyErrors[toggleOption.name as string] && (

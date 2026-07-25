@@ -63,7 +63,7 @@
   "settings.accountDescription": "Manage your connected authentication providers and account settings.",
   "settings.analyticsDescription": "Control how Remix uses AI and analytics to improve your experience.",
   "settings.aiDescription": "The RemixAI Assistant enhances your coding experience with smart suggestions and automated insights. Manage how RemixAI interacts with your code and data.",
-  "settings.servicesDescription": "Configure the settings for connected services, including Github, IPFS, Swarm, Sindri, Etherscan and The Graph.",
+  "settings.servicesDescription": "Configure the settings for connected services, including Github, IPFS, Swarm, Sindri, Etherscan, The Graph and zkVerify.",
   "settings.linkedAccounts": "Linked Accounts",
   "settings.linkedAccountsDescription": "View and manage your connected authentication providers. All linked accounts share the same credits and subscriptions.",
   "settings.matomoAnalyticsNoCookies": "Matomo Analytics (necessary, no cookies)",
@@ -118,5 +118,15 @@
   "settings.apiKeyAuthFailed": "Authentication failed with your API key",
   "settings.apiKeyAuthFailedDescription": "Your API key could not be authenticated. Would you like to switch to the Remix proxy server?",
   "settings.apiKeyQuotaExceeded": "API key quota exceeded",
-  "settings.apiKeyQuotaExceededDescription": "Your API key has exceeded its quota. Would you like to switch to the Remix proxy server?"
+  "settings.apiKeyQuotaExceededDescription": "Your API key has exceeded its quota. Would you like to switch to the Remix proxy server?",
+  "settings.aiFeedbackSection": "RemixAI Feedback",
+  "settings.aiFeedback": "AI feedback",
+  "settings.aiFeedbackDescription": "When enabled, RemixAI automatically activates when needed except if the amount credits left is below the following value.",
+  "settings.ai-feedback-credit-threshold": "Credit threshold",
+  "settings.zkverifyTitle": "zkVerify (Kurier)",
+  "settings.zkverifyAccessTokenText": "The API key is used to verify ZK proofs via the zkVerify network (Kurier service).",
+  "settings.zkverifyAccessTokenText2": "Get your API key",
+  "settings.zkverifyAccessTokenText3": "from the Kurier portal and save it here.",
+  "settings.zkverify-api-key": "API Key",
+  "settings.zkverify-network": "Network"
 }

@@ -894,7 +894,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       this._tools.registerBatch(skillTools);
       */
 
-      // Register DApp Generator tools
+      // Register DApp Generator tools (includes contract, graph-only, and ZK DApp generators)
       const dappGeneratorTools = createDAppGeneratorTools();
       this._tools.registerBatch(dappGeneratorTools);
 

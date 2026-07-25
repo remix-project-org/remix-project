@@ -273,7 +273,7 @@ export const AIRequestForm = ({
               <FormattedMessage id="udapp.aiCreateBaseMiniApp" />
             </label>
             <div className="form-text text-muted" style={{ fontSize: '0.75rem' }}>
-              <FormattedMessage id="udapp.aiFigmaIncludesFarcaster" />
+              <FormattedMessage id="udapp.aiFigmaIncludesBaseMiniApp" />
             </div>
           </div>
         </div>

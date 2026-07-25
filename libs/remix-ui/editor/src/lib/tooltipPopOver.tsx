@@ -574,7 +574,20 @@ Use empty array if no relevant trusted docs.`
     }
 
     fetchKeywordInfo()
-  }, [keyword, visible, plugin, contextLines, isSelectedText])
+
+    // Listen for request cancellation - retry analysis if showing "Assistant Busy"
+    const handleRequestCancelled = () => {
+      if (data?.title === 'RemixAI Assistant Busy') {
+        fetchKeywordInfo()
+      }
+    }
+
+    plugin.on('remixAI', 'requestCancelled', handleRequestCancelled)
+
+    return () => {
+      plugin.off('remixAI', 'requestCancelled', handleRequestCancelled)
+    }
+  }, [keyword, visible, plugin, contextLines, isSelectedText, data?.title])
 
   // Position adjustment effect
   useEffect(() => {

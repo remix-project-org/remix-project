@@ -79,8 +79,11 @@ const SAFE_TOOLS = new Set([
   // --- AMP (read-only queries) ---
   'amp_query', 'amp_dataset_manifest',
 
-  // --- DApp generation (new creation is safe; update requires confirmation) ---
+  // --- DApp generation/update setup ---
+  // update_dapp only prepares the target workspace and returns file-edit instructions.
+  // Actual source changes still go through write_file/edit_file approval.
   'generate_dapp',
+  'update_dapp',
   'fetch_figma_design',
 ])
 

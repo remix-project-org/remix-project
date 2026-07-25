@@ -4,7 +4,7 @@ import { ActionPayloadTypes, AppState, ICircuitAppContext } from "../types"
 import { GROTH16_VERIFIER, PLONK_VERIFIER } from './constant'
 import { extractNameFromKey, extractParentFromKey } from '@remix-ui/helper'
 import { trackMatomoEvent } from '@remix-api'
-import isElectron from 'is-electron'
+import { ZkVerifyService, KurierNetwork, ProofType } from '@remix-project/remix-zkverify-core'
 
 export const compileCircuit = async (plugin: CircomPluginClient, appState: AppState) => {
   try {
@@ -77,6 +77,14 @@ export const runSetupAndExport = async (plugin: CircomPluginClient, appState: Ap
         await plugin.call('fileManager', 'writeFile', `${extractParentFromKey(appState.filePath)}/groth16/zk/build/zk_verifier.sol`, solidityContract)
         trackMatomoEvent(plugin, { category: 'circuit-compiler', action: 'runSetupAndExport', name: 'zKey.exportSolidityVerifier', value: `${extractParentFromKey(appState.filePath)}/groth16/zk/build/zk_verifier.sol`, isClick: true })
       }
+
+      if ((zkey_final as any).data) {
+        const circuitName = fileName.replace('.circom', '')
+        const zkeyPath = `${extractParentFromKey(appState.filePath)}/groth16/zk/keys/${circuitName}_final.zkey`
+        // @ts-ignore - fileManager.writeFile accepts Uint8Array at runtime for binary files
+        await plugin.call('fileManager', 'writeFile', zkeyPath, new Uint8Array((zkey_final as any).data))
+        trackMatomoEvent(plugin, { category: 'circuit-compiler', action: 'runSetupAndExport', name: 'zKey.writeZkey', value: zkeyPath, isClick: true })
+      }
       dispatch({ type: 'SET_ZKEY', payload: zkey_final })
       dispatch({ type: 'SET_VERIFICATION_KEY', payload: vKey })
     } else if (appState.provingScheme === 'plonk') {
@@ -94,6 +102,14 @@ export const runSetupAndExport = async (plugin: CircomPluginClient, appState: Ap
 
         await plugin.call('fileManager', 'writeFile', `${extractParentFromKey(appState.filePath)}/plonk/zk/build/zk_verifier.sol`, solidityContract)
         trackMatomoEvent(plugin, { category: 'circuit-compiler', action: 'runSetupAndExport', name: 'zKey.exportSolidityVerifier', value: `${extractParentFromKey(appState.filePath)}/plonk/zk/build/zk_verifier.sol`, isClick: true })
+      }
+
+      if ((zkey_final as any).data) {
+        const circuitName = fileName.replace('.circom', '')
+        const zkeyPath = `${extractParentFromKey(appState.filePath)}/plonk/zk/keys/${circuitName}_final.zkey`
+        // @ts-ignore - fileManager.writeFile accepts Uint8Array at runtime for binary files
+        await plugin.call('fileManager', 'writeFile', zkeyPath, new Uint8Array((zkey_final as any).data))
+        trackMatomoEvent(plugin, { category: 'circuit-compiler', action: 'runSetupAndExport', name: 'zKey.writeZkey', value: zkeyPath, isClick: true })
       }
       dispatch({ type: 'SET_ZKEY', payload: zkey_final })
       dispatch({ type: 'SET_VERIFICATION_KEY', payload: vKey })
@@ -132,6 +148,7 @@ export const generateProof = async (plugin: CircomPluginClient, appState: AppSta
       const verified = await snarkjs.groth16.verify(vKey, publicSignals, proof, zkLogger(plugin, dispatch, 'SET_PROOF_FEEDBACK'))
 
       plugin.call('fileManager', 'writeFile', `${extractParentFromKey(appState.filePath)}/groth16/zk/build/proof.json`, JSON.stringify(proof, null, 2))
+      plugin.call('fileManager', 'writeFile', `${extractParentFromKey(appState.filePath)}/groth16/zk/build/public.json`, JSON.stringify(publicSignals, null, 2))
       plugin.call('terminal', 'log', { type: 'log', value: 'zk proof validity ' + verified })
       trackMatomoEvent(plugin, { category: 'circuit-compiler', action: 'generateProof', name: 'groth16.prove', value: verified, isClick: true })
       if (appState.exportVerifierCalldata) {
@@ -145,6 +162,7 @@ export const generateProof = async (plugin: CircomPluginClient, appState: AppSta
       const verified = await snarkjs.plonk.verify(vKey, publicSignals, proof, zkLogger(plugin, dispatch, 'SET_PROOF_FEEDBACK'))
 
       plugin.call('fileManager', 'writeFile', `${extractParentFromKey(appState.filePath)}/plonk/zk/build/proof.json`, JSON.stringify(proof, null, 2))
+      plugin.call('fileManager', 'writeFile', `${extractParentFromKey(appState.filePath)}/plonk/zk/build/public.json`, JSON.stringify(publicSignals, null, 2))
       plugin.call('terminal', 'log', { type: 'log', value: 'zk proof validity ' + verified })
       trackMatomoEvent(plugin, { category: 'circuit-compiler', action: 'generateProof', name: 'plonk.prove', value: verified, isClick: true })
       if (appState.exportVerifierCalldata) {
@@ -172,5 +190,104 @@ function zkLogger(plugin: CircomPluginClient, dispatch: ICircuitAppContext['disp
       dispatch({ type: dispatchType as any, payload: args.join(' ') })
       plugin.emit('statusChanged', { key: args.length, title: `You have ${args.length} problem${args.length === 1 ? '' : 's'}`, type: 'error' })
     }
+  }
+}
+
+export const verifyProofWithKurier = async (plugin: CircomPluginClient, appState: AppState, dispatch: ICircuitAppContext['dispatch']) => {
+  try {
+    dispatch({ type: 'SET_ZKVERIFY_STATUS', payload: 'verifying' })
+    dispatch({ type: 'SET_ZKVERIFY_ATTESTATION', payload: null })
+    // @ts-ignore
+    const apiKey = await plugin.call('settings', 'get', 'settings/zkverify-api-key')
+    // @ts-ignore
+    const network = (await plugin.call('settings', 'get', 'settings/zkverify-network') || 'testnet') as KurierNetwork
+
+    if (!apiKey) {
+      throw new Error('zkVerify API key not configured. Please add it in Settings > Connected Services > zkVerify (Kurier).')
+    }
+    if (appState.provingScheme !== 'groth16') {
+      throw new Error('zkVerify only supports groth16 proving scheme.')
+    }
+
+    const zkService = new ZkVerifyService({ network, apiKey })
+    const proofType: ProofType = 'groth16'
+    const proofDir = appState.provingScheme
+    const basePath = `${extractParentFromKey(appState.filePath)}/${proofDir}/zk`
+    const proofPath = `${basePath}/build/proof.json`
+    const vkPath = `${basePath}/keys/verification_key.json`
+    const publicSignalsPath = `${basePath}/build/public.json`
+    let proofJson: string
+    let vkJson: string
+    let publicSignalsJson: string
+
+    try {
+      proofJson = await plugin.call('fileManager', 'readFile', proofPath)
+    } catch (e) {
+      throw new Error(`Proof file not found at ${proofPath}. Generate a proof first.`)
+    }
+
+    try {
+      vkJson = await plugin.call('fileManager', 'readFile', vkPath)
+    } catch (e) {
+      throw new Error(`Verification key not found at ${vkPath}. Run setup first.`)
+    }
+
+    try {
+      publicSignalsJson = await plugin.call('fileManager', 'readFile', publicSignalsPath)
+    } catch (e) {
+      throw new Error(`Public signals file not found at ${publicSignalsPath}. Generate a proof first.`)
+    }
+
+    const proofData = JSON.parse(proofJson)
+    const vk = JSON.parse(vkJson)
+    const rawPublicSignals: any[] = JSON.parse(publicSignalsJson)
+
+    if (!proofData.protocol) {
+      throw new Error('Invalid proof format in proof.json. Missing protocol field.')
+    }
+    const proof = proofData
+    const publicSignals: string[] = rawPublicSignals.map((signal: any) => String(signal))
+
+    if (publicSignals.length === 0) {
+      plugin.call('terminal', 'log', { type: 'warn', value: 'Warning: No public signals found. This may cause verification to fail.' })
+    }
+    plugin.call('terminal', 'log', { type: 'log', value: `${proof.protocol} proof loaded` })
+    plugin.call('terminal', 'log', { type: 'log', value: `Public signals (${publicSignals.length}): ${JSON.stringify(publicSignals)}` })
+    plugin.call('terminal', 'log', { type: 'log', value: `VK keys: ${Object.keys(vk).join(', ')}` })
+    plugin.call('terminal', 'log', { type: 'log', value: 'Submitting proof to zkVerify...' })
+
+    const proofOptions = {
+      library: 'snarkjs',
+      curve: appState.primeValue === 'bn128' ? 'bn128' : 'bls12381'
+    } as const
+    const result = await zkService.verifyProof(proofType, proof, publicSignals, vk, false, proofOptions, (status) => {
+      plugin.call('terminal', 'log', { type: 'log', value: `Verification status: ${status.status}` })
+    })
+
+    if (result.success) {
+      dispatch({ type: 'SET_ZKVERIFY_STATUS', payload: 'verified' })
+      dispatch({ type: 'SET_ZKVERIFY_ATTESTATION', payload: result.jobId })
+      plugin.call('terminal', 'log', { type: 'info', value: `Proof verified on zkVerify! Job ID: ${result.jobId}` })
+
+      const attestationPath = `${extractParentFromKey(appState.filePath)}/${proofDir}/zk/build/zkverify_attestation.json`
+
+      await plugin.call('fileManager', 'writeFile', attestationPath, JSON.stringify({
+        attestationId: result.attestationId,
+        jobId: result.jobId,
+        transactionHash: result.transactionHash,
+        network,
+        proofType,
+        verifiedAt: new Date().toISOString()
+      }, null, 2))
+
+      trackMatomoEvent(plugin, { category: 'circuit-compiler', action: 'zkverify', name: 'verifyProof.success', value: result.jobId, isClick: true })
+    } else {
+      throw new Error(result.error || 'Verification failed')
+    }
+  } catch (e) {
+    dispatch({ type: 'SET_ZKVERIFY_STATUS', payload: 'failed' })
+    plugin.call('terminal', 'log', { type: 'error', value: `zkVerify error: ${e.message}` })
+    trackMatomoEvent(plugin, { category: 'circuit-compiler', action: 'zkverify', name: 'verifyProof.error', value: e.message, isClick: true })
+    console.error(e)
   }
 }
