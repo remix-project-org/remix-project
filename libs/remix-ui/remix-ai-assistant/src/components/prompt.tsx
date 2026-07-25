@@ -397,7 +397,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   // Contextual hint for a just-inserted command (e.g. "/compile ") so the user
   const activeCommandHint = useMemo(() => {
     const name = getActiveCommandName(input)
-    console.log(name)
     if (!name) return null
     const cmd = AVAILABLE_COMMANDS.find(c => c.name.toLowerCase() === name.toLowerCase())
     return cmd?.hint ?? null

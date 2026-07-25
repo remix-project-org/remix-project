@@ -1,7 +1,7 @@
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useState, useReducer, useEffect, useContext, useMemo } from 'react' // eslint-disable-line
 import Fuse from 'fuse.js'
-import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription } from '@remix-ui/helper'
+import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription, ZkVerifyCredentialsDescription } from '@remix-ui/helper'
 import { AppConfig, FeatureGroup } from '@remix-api'
 import { AppContext, useAuth } from '@remix-ui/app'
 
@@ -185,6 +185,19 @@ const settingsSections: SettingsSection[] = [
         ]
       },
       {
+        title: 'settings.aiFeedbackSection',
+        options: [{
+          name: 'ai-feedback',
+          label: 'settings.aiFeedback',
+          description: 'settings.aiFeedbackDescription',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'ai-feedback-credit-threshold',
+            type: 'number'
+          }]
+        }]
+      },
+      {
         title: 'settings.mcpServersSection',
         options: [{
           name: 'mcp/servers/enable' as keyof typeof initialState,
@@ -303,6 +316,22 @@ const settingsSections: SettingsSection[] = [
           toggleUIOptions: [{
             name: 'thegraph-access-token',
             type: 'password'
+          }]
+        }, {
+          name: 'zkverify-config',
+          label: 'settings.zkverifyTitle',
+          type: 'toggle',
+          toggleUIDescription: <ZkVerifyCredentialsDescription />,
+          toggleUIOptions: [{
+            name: 'zkverify-api-key',
+            type: 'password'
+          }, {
+            name: 'zkverify-network',
+            type: 'select',
+            selectOptions: [
+              { label: 'Testnet', value: 'testnet' },
+              { label: 'Mainnet', value: 'mainnet' }
+            ]
           }]
         }]
       }]

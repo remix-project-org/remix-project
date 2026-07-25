@@ -4,7 +4,7 @@ import { PluginViewWrapper } from '@remix-ui/helper'
 import { NudgeEngine, all, any } from '@remix-project/remix-lib'
 import { PRO_DEMOS } from '@remix-ui/modal-help'
 import type { NudgeRule, NudgeAction, SerializedNudgeRule } from '@remix-project/remix-lib'
-import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent, Features } from '@remix-api'
+import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent, Features, PendingCheckout } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 import './nudge-widget.css'
 
@@ -250,6 +250,14 @@ export class NudgePlugin extends Plugin {
     // File saved
     this.on('fileManager', 'fileSaved', (path: string) => {
       this.engine_.fire('file:saved')
+    })
+
+    this.on('planManager', 'pendingCheckoutsChanged', (items: PendingCheckout[]) => {
+      if (Array.isArray(items) && items.length > 0) {
+        this.engine_.fire('user:unfinished_checkout')
+      } else {
+        this.engine_.unfire('user:unfinished_checkout')
+      }
     })
 
     // Plan purchased — user is no longer on free plan, retire the upgrade nudge
@@ -540,7 +548,7 @@ export class NudgePlugin extends Plugin {
           title,
           message,
           actionLabel: 'See Plans',
-          actionTarget: 'planManager::open',
+          actionTarget: 'planManager::open::plans',
           icon: 'fas fa-arrow-up-right-dots',
           widgetColor: '#8b5cf6',
           widgetBg: 'rgba(139, 92, 246, 0.1)',
@@ -877,6 +885,26 @@ export class NudgePlugin extends Plugin {
         widgetBg: 'rgba(47, 191, 177, 0.1)'
       },
       showOnce: 'session',
+      priority: 20
+    })
+
+    // unfinished checkout nudge
+    this.engine_.addRule({
+      id: 'unfinished-checkout',
+      condition: 'user:unfinished_checkout',
+      action: {
+        type: 'widget',
+        position: 'right',
+        hidePermanentDismiss: true,
+        title: 'Complete Your Upgrade',
+        message: 'You have an unfinished checkout. Complete it now to unlock premium features and higher limits.',
+        actionLabel: 'Complete Checkout',
+        actionTarget: 'planManager::open',
+        icon: 'fas fa-bag-shopping',
+        widgetColor: '#f6ae5c',
+        widgetBg: 'rgba(246, 174, 92, 0.1)'
+      },
+      showOnce: false,
       priority: 20
     })
 

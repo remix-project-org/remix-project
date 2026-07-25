@@ -6,6 +6,7 @@ import {
   getActiveQuickDappGenerationContext,
   getQuickDappGenerationContext
 } from '../../helpers/quickDappGenerationContext'
+import { clearQuickDappDocsContext, getQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
 
 // File size limit for auto-summarization (100KB)
 const MAX_FILE_SIZE = 100 * 1024
@@ -222,10 +223,18 @@ export class RemixFilesystemBackend {
   }
 
   async read(file_path: string, _offset?: number, _limit?: number): Promise<string | { error: string }> {
-    // NOTE: offset and limit parameters are ignored - always return full file content
-    // This prevents the AI from making multiple turns to read a file in chunks
     try {
-      return await this.read_file(file_path)
+      const content = await this.read_file(file_path)
+      if (typeof content !== 'string') return content
+
+      if (_offset !== undefined || _limit !== undefined) {
+        const lines = content.split('\n')
+        const start = _offset ?? 0
+        const end = _limit !== undefined ? start + _limit : undefined
+        return lines.slice(start, end).join('\n')
+      }
+
+      return content
     } catch (error) {
       return { error: `Failed to read file ${file_path}: ${error.message}` }
     }
@@ -248,6 +257,17 @@ export class RemixFilesystemBackend {
         }
       } catch (e) { /* ignore workspace check failure */ }
       if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath
+      const isQuickDappDocsWrite = this.isQuickDappDocumentationPath(normalizedPath)
+      const docsContext = isQuickDappDocsWrite ? getQuickDappDocsContext() : undefined
+      if (docsContext && currentWorkspaceName !== docsContext.workspaceName) {
+        clearQuickDappDocsContext()
+        return {
+          error:
+            `DAPP_DOCS_WORKSPACE_MISMATCH: Refusing to write ${normalizedPath} in workspace ` +
+            `"${currentWorkspaceName || 'unknown'}". Expected "${docsContext.workspaceName}". ` +
+            `Run generate_dapp_docs again for the intended workspace.`
+        }
+      }
       const activeQuickDappContext = getActiveQuickDappGenerationContext()
       const activeWorkspacePrefix = activeQuickDappContext?.workspaceName ? `/${activeQuickDappContext.workspaceName}/` : ''
       if (activeWorkspacePrefix && normalizedPath.startsWith(activeWorkspacePrefix)) {
@@ -258,17 +278,17 @@ export class RemixFilesystemBackend {
       const managedConfigWrite = this.getQuickDappManagedConfigWriteError(normalizedPath)
       if (managedConfigWrite) return managedConfigWrite
       const isQuickDappCandidatePath = this.isQuickDappCandidatePath(normalizedPath)
-      const hasWeb3DappContent = this.hasQuickDappWeb3Content(content)
+      const hasWeb3DappContent = !this.isQuickDappDocumentationPath(normalizedPath) && this.hasQuickDappWeb3Content(content)
       const shouldEnforceQuickDappRouting =
-        hasWeb3DappContent ||
+        (isQuickDappCandidatePath && hasWeb3DappContent) ||
         normalizedPath.startsWith('/frontend/') ||
         normalizedPath.startsWith('/dapp/') ||
         /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(normalizedPath)
-      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, isQuickDappCandidatePath || hasWeb3DappContent)
+      const workspaceMismatch = await this.getQuickDappWorkspaceMismatch(normalizedPath, isQuickDappCandidatePath)
       if (workspaceMismatch) return workspaceMismatch
       const pathMismatch = this.getQuickDappPathMismatch(normalizedPath, shouldEnforceQuickDappRouting)
       if (pathMismatch) return pathMismatch
-      if (isQuickDappCandidatePath || hasWeb3DappContent) {
+      if (isQuickDappCandidatePath) {
         const activeQuickDappContext = currentWorkspaceName
           ? getQuickDappGenerationContext(currentWorkspaceName)
           : undefined
@@ -292,6 +312,7 @@ export class RemixFilesystemBackend {
       const result = await this.requestWriteApproval(normalizedPath, oldContent, content, 'write_file')
 
       if (!result.approved) {
+        if (isQuickDappDocsWrite) clearQuickDappDocsContext()
         if (result.timedOut) {
           return { error: `TIMEOUT: No user input within 60 seconds for writing to ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
         }
@@ -300,12 +321,38 @@ export class RemixFilesystemBackend {
 
       const finalContent = result.modifiedContent || content
       const graphGatewayWrite = this.getQuickDappGraphGatewayWriteError(normalizedPath, finalContent)
-      if (graphGatewayWrite) return graphGatewayWrite
+      if (graphGatewayWrite) {
+        if (isQuickDappDocsWrite) clearQuickDappDocsContext()
+        return graphGatewayWrite
+      }
+      if (docsContext) {
+        const writeWorkspaceName = await this.getCurrentWorkspaceName()
+        if (writeWorkspaceName !== docsContext.workspaceName) {
+          clearQuickDappDocsContext()
+          return {
+            error:
+              `DAPP_DOCS_WORKSPACE_MISMATCH: Refusing to write ${normalizedPath} in workspace ` +
+              `"${writeWorkspaceName || 'unknown'}". Expected "${docsContext.workspaceName}". ` +
+              `Run generate_dapp_docs again for the intended workspace.`
+          }
+        }
+      }
 
       await this.writeFileInternal(normalizedPath, finalContent)
+      if (isQuickDappDocsWrite) {
+        clearQuickDappDocsContext()
+        if (docsContext) {
+          try {
+            await this.plugin.call('fileManager', 'open', normalizedPath)
+          } catch (error) {
+            remixAILogger.warn(`[QuickDapp] Failed to open ${normalizedPath} after generation`, error)
+          }
+        }
+      }
 
       return { success: true }
     } catch (error) {
+      if (this.isQuickDappDocumentationPath(path)) clearQuickDappDocsContext()
       remixAILogger.error('[HITL][Backend] write_file ERROR:', path, error)
       return { error: `Failed to write file ${path}: ${error.message}` }
     }
@@ -533,6 +580,11 @@ export class RemixFilesystemBackend {
       path.startsWith('/frontend/') ||
       path.startsWith('/dapp/') ||
       /[-_.]dapp\.(html|jsx?|tsx?|css)$/i.test(path)
+  }
+
+  private isQuickDappDocumentationPath(path: string): boolean {
+    const normalizedPath = path.startsWith('/') ? path : this.normalizePath(path)
+    return normalizedPath === '/dapp-docs.md'
   }
 
   private getQuickDappManagedConfigWriteError(path: string): { error: string } | undefined {

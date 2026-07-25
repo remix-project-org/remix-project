@@ -1,5 +1,24 @@
 export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
 export type DappMode = 'workspace' | 'inline';
+export type ProvingScheme = 'groth16';
+export type PrimeValue = 'bn128' | 'bls12381';
+export type ZkVerifyNetwork = 'testnet' | 'mainnet';
+
+export interface ZkCircuitConfig {
+  circuitName: string;
+  circuitPath: string;
+  provingScheme: ProvingScheme;
+  primeValue: PrimeValue;
+  signalInputs: string[];
+  zkArtifacts: {
+    wasmPath: string;
+    zkeyPath: string;
+    vkeyPath: string;
+  };
+  zkVerifyConfig?: {
+    network: ZkVerifyNetwork;
+  };
+}
 
 export interface DappConfig {
   _warning?: string;
@@ -7,7 +26,7 @@ export interface DappConfig {
   name: string;
   workspaceName: string;
   mode?: DappMode;
-  appKind?: 'contract' | 'graph-only';
+  appKind?: 'contract' | 'graph-only' | 'zk-circuit';
 
   contract?: {
     address: string;
@@ -16,6 +35,8 @@ export interface DappConfig {
     chainId: number | string;
     networkName: string;
   };
+
+  zkCircuit?: ZkCircuitConfig;
 
   sourceWorkspace?: {
     name: string;

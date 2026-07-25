@@ -62,6 +62,37 @@
   color: var(--custom-primary);
 }
 
+/* AI assistant icon in the top-right of the top bar.
+   Three states (see design):
+   - inactive (AI panel closed): dim border, dim interior
+   - inactive rollover (hover): border gets brighter, interior stays the same
+   - active (AI panel open): bright border, brighter interior */
+.remixai-topbar-icon {
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background-color: rgba(91, 207, 207, 0.07);
+  border: 1px solid rgba(91, 207, 207, 0.25);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* inactive rollover: only the border brightens, interior unchanged */
+.remixai-topbar-icon:hover {
+  border-color: rgba(91, 207, 207, 1);
+  box-shadow: 0 0 8px -1px rgba(91, 207, 207, 0.75);
+}
+
+/* active state: bright border and brighter interior */
+.remixai-topbar-icon.active {
+  background-color: rgba(91, 207, 207, 0.18);
+  border-color: rgba(91, 207, 207, 0.7);
+}
+
 .top-bar-dropdownItem {
   color: var(--text);
   cursor: pointer;

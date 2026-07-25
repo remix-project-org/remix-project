@@ -5,7 +5,7 @@ import { TemplateExplorerContext } from '../../context/template-explorer-context
 import { cloneRepository } from 'libs/remix-ui/workspace/src/lib/actions'
 
 export function GitCloneScreen() {
-  const { state, dispatch, facade, theme } = useContext(TemplateExplorerContext)
+  const { state, dispatch, facade } = useContext(TemplateExplorerContext)
   const [url, setUrl] = useState('')
 
   const handleClone = () => {
@@ -15,20 +15,27 @@ export function GitCloneScreen() {
   }
   const type = url !== '' && (url.startsWith('https://') || url.startsWith('git@')) ? true : false
   return (
-    <>
-      <section className="d-flex flex-column gap-3 bg-light h-75">
-        <div className={`pt-3 mx-3 form-label fs-6 ${theme?.name === 'Dark' ? 'text-white-force' : 'text-dark'}`}>
-          Paste a valid git repository URL and press 'Clone' to start the process.
-        </div>
-        <div className="pt-1 mx-3 d-flex flex-row align-items-center text-dark">
-          <input data-id="git-clone-screen-url-input" type="text" className="form-control form-control-lg" value={url} onChange={(e) => setUrl(e.target.value)} />
-        </div>
-        <div className="pt-3 mx-3">
-          <button data-id="git-clone-screen-clone-btn" className="btn btn-primary btn-lg w-100" onClick={handleClone} disabled={!type}>
-            Clone
-          </button>
-        </div>
-      </section>
-    </>
+    <section className="tem-form-body">
+      <div className="d-flex flex-column gap-2">
+        <label className="tem-form-label">Repository URL</label>
+        <input
+          data-id="git-clone-screen-url-input"
+          type="text"
+          className="form-control tem-form-input"
+          value={url}
+          placeholder="https://github.com/username/repository"
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <p className="tem-form-desc">Supported: <code>https://</code> and <code>git@</code> URLs</p>
+      </div>
+      <button
+        data-id="git-clone-screen-clone-btn"
+        className="btn btn-primary align-self-end"
+        onClick={handleClone}
+        disabled={!type}
+      >
+        Clone
+      </button>
+    </section>
   )
 }

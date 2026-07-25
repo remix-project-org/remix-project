@@ -276,3 +276,13 @@ a.ht-cta-secondary:hover {
   color: var(--bs-secondary-color);
   line-height: 1.4;
 }
+
+.ht-terms-link {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  text-decoration: none;
+}
+
+.ht-terms-link:hover {
+  text-decoration: underline;
+}

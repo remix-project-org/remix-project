@@ -23869,6 +23869,28 @@ langchain@^1.0.0, langchain@^1.2.39:
     uuid "^11.1.0"
     zod "^3.25.76 || ^4"
 
+langfuse-core@^3.38.20:
+  version "3.38.20"
+  resolved "https://registry.yarnpkg.com/langfuse-core/-/langfuse-core-3.38.20.tgz#c47a2e66de11b07a3362961a4e1b89c21074c936"
+  integrity sha512-zBKVmQN/1oT5VWZUBYlWzvokIlkC/6mnpgr/2atMyTeAm+jR3ia7w2iJMjlrF5/oG8ukO1s8+LDRCzJpF1QeEA==
+  dependencies:
+    mustache "^4.2.0"
+
+langfuse-langchain@^3.38.20:
+  version "3.38.20"
+  resolved "https://registry.yarnpkg.com/langfuse-langchain/-/langfuse-langchain-3.38.20.tgz#89aa361748cc1fced799e82693ba90338755ce8a"
+  integrity sha512-JocqAWSoJM8NFQ2nBcdEkkT+pZZwcruqMqcs8f3ctvttjVF+ZXrv9Zr+jL7HnZGJ14+T94Qf6bRfaocJpAEhXA==
+  dependencies:
+    langfuse "^3.38.20"
+    langfuse-core "^3.38.20"
+
+langfuse@^3.38.20:
+  version "3.38.20"
+  resolved "https://registry.yarnpkg.com/langfuse/-/langfuse-3.38.20.tgz#6076b28c68fa1915c467de4cf09f677981d261c1"
+  integrity sha512-MAmBAASSzJtmK1O9HQegA1mFsQhT8Yf+OJRGvE7FXkyv3g/eiBE0glLD0Ohg3pkxhoPdggM5SejK7ue9ctlaMA==
+  dependencies:
+    langfuse-core "^3.38.20"
+
 "langsmith@>=0.5.0 <1.0.0":
   version "0.5.16"
   resolved "https://registry.yarnpkg.com/langsmith/-/langsmith-0.5.16.tgz#11285033f4c4da4e1dc9c8f1e4765cded0123b8f"

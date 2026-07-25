@@ -31,6 +31,7 @@ import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
 
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
+import { getLangfuseCallbackHandler } from '../../helpers/langfuse'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
@@ -38,6 +39,7 @@ import { Features } from '@remix-api'
 import { flattenJSON, renderTree } from './helpers/project'
 import { clearAllQuickDappWorkspaceLocks } from '@remix-ui/helper'
 import { clearAllQuickDappGenerationContexts } from '../../helpers/quickDappGenerationContext'
+import { clearQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
 
 export const notSuitableForCodeGeneration = ['mistral-medium-latest', 'mistral-small-latest', 'ministral-3b', 'ministral-8b-latest']
 
@@ -611,6 +613,16 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         )
       }
 
+      // Attach Langfuse tracing (no-op when disabled/unconfigured).
+      const langfuseHandler = await getLangfuseCallbackHandler({
+        sessionId: this.sessionThreadId,
+        metadata: {
+          threadId: this.sessionThreadId,
+          provider: this.modelSelection.provider,
+          model: this.modelSelection.modelId
+        }
+      })
+
       const eventStream = this.agent.streamEvents(
         {
           messages: langchainMessages
@@ -621,7 +633,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
             thread_id: this.sessionThreadId
           },
           subgraphs: true,
-          signal: localAbortController.signal
+          signal: localAbortController.signal,
+          ...(langfuseHandler ? { callbacks: [langfuseHandler]} : {})
         }
       )
 
@@ -775,6 +788,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       throw error
     } finally {
+      clearQuickDappDocsContext()
       this.streamEventHandler.stopInactivityTracking()
       // Only null out if still one of this run's controllers (a new request might have started)
       if (this.currentAbortController && thisRunControllers.has(this.currentAbortController)) {
@@ -1039,6 +1053,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     try {
       clearAllQuickDappWorkspaceLocks()
       clearAllQuickDappGenerationContexts()
+      clearQuickDappDocsContext()
       remixAILogger.log('[QuickDapp][WorkspaceLock] cleared on AI cancel')
       this.plugin.emit('generationProgress', null)
     } catch (_) { /* best-effort cleanup */ }

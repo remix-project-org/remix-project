@@ -60,7 +60,6 @@ const darkTheme = EditorView.theme({
 }, { dark: true })
 
 export function ContractWizard () {
-  const [showEditModal, setShowEditModal] = useState(false)
   const { state, dispatch, theme, facade, generateUniqueWorkspaceName, trackMatomoEvent } = useContext(TemplateExplorerContext)
   const [uniqueWorkspaceName, setUniqueWorkspaceName] = useState(state.workspaceName)
   const strategy = state
@@ -156,76 +155,82 @@ export function ContractWizard () {
   }
 
   return (
-    <section className="container-fluid">
-      <div className="row g-3">
-        <div className="col-12 d-flex align-items-center justify-content-between">
-          {state.manageCategory === 'Template' ? <div className="d-flex align-items-center gap-2">
-            {showEditModal ? <input data-id="contract-wizard-workspace-name-input" className="form-control form-control-sm" value={uniqueWorkspaceName} onChange={(e) => {
-              setUniqueWorkspaceName(e.target.value)
-            }} /> : <span data-id="contract-wizard-workspace-name-span" className={`fw-semibold fs-6 ${theme?.name === 'Light' ? 'text-dark' : 'text-white'}`}>
-              {uniqueWorkspaceName}
-            </span>}
-            <i data-id="contract-wizard-edit-icon" className={`${showEditModal ? 'fas fa-lock ms-2' : " ms-2 fas fa-edit"}`} onClick={() => setShowEditModal(!showEditModal)}></i>
-          </div> : <div className="w-50"></div>}
-          <ContractTagSelector switching={switching} />
-        </div>
+    <section className="tem-wizard">
+      <div className="tem-wizard-header">
+        {state.manageCategory === 'Template' ? (
+          <div className="d-flex flex-column gap-1">
+            <label className="tem-form-label">Workspace name</label>
+            <input
+              data-id="contract-wizard-workspace-name-input"
+              className="form-control form-control-sm tem-form-input"
+              value={uniqueWorkspaceName}
+              onChange={(e) => setUniqueWorkspaceName(e.target.value)}
+            />
+          </div>
+        ) : <div />}
+        <ContractTagSelector switching={switching} />
+      </div>
 
-        <div data-id="contract-wizard-container" className="col-12 col-lg-3">
-          <div data-id="contract-wizard-settings-container" className="border rounded p-3 h-100">
-            <div className="mb-3">
-              <div className="fw-semibold mb-2">Contract settings</div>
-              <label data-id="contract-wizard-token-name-label" className="form-label text-uppercase small mb-1">Token name</label>
-              <input data-id="contract-wizard-token-name-input" className="form-control form-control-sm" value={state.tokenName} onChange={(e) => updateContractName(e.target.value)} />
-            </div>
+      <div className="tem-wizard-content">
+        <div data-id="contract-wizard-container" className="tem-wizard-sidebar">
+          <div className="d-flex flex-column gap-1">
+            <label data-id="contract-wizard-token-name-label" className="tem-form-label">Token name</label>
+            <input data-id="contract-wizard-token-name-input" className="form-control form-control-sm tem-form-input" value={state.tokenName} onChange={(e) => updateContractName(e.target.value)} />
+          </div>
 
-            <div className="mb-3">
-              <div data-id="contract-wizard-features-title" className="text-uppercase small fw-semibold mb-2">Features</div>
-              <div className="form-check mb-1">
-                <input data-id="contract-wizard-mintable-checkbox" className="form-check-input" type="checkbox" id="featMintable" checked={strategy.contractOptions.mintable} onChange={() => {
-                  toggleContractOption('mintable')}
-                } />
+          <div className="d-flex flex-column gap-2">
+            <p data-id="contract-wizard-features-title" className="tem-form-label">Features</p>
+            <div className="d-flex flex-column gap-1">
+              <div className="form-check m-0">
+                <input data-id="contract-wizard-mintable-checkbox" className="form-check-input" type="checkbox" id="featMintable" checked={strategy.contractOptions.mintable} onChange={() => toggleContractOption('mintable')} />
                 <label className="form-check-label" htmlFor="featMintable">Mintable</label>
               </div>
-              <div className="form-check mb-1">
+              <div className="form-check m-0">
                 <input data-id="contract-wizard-burnable-checkbox" className="form-check-input" type="checkbox" id="featBurnable" checked={strategy.contractOptions.burnable} onChange={() => toggleContractOption('burnable')} />
                 <label className="form-check-label" htmlFor="featBurnable">Burnable</label>
               </div>
-              <div className="form-check mb-1">
+              <div className="form-check m-0">
                 <input data-id="contract-wizard-pausable-checkbox" className="form-check-input" type="checkbox" id="featPausable" checked={strategy.contractOptions.pausable} onChange={() => toggleContractOption('pausable')} />
                 <label className="form-check-label" htmlFor="featPausable">Pausable</label>
               </div>
-              {strategy.contractType === 'erc20' && <div className="form-check mb-1">
-                <input data-id="contract-wizard-permit-checkbox" className="form-check-input" type="checkbox" id="featPermit" checked={strategy.contractOptions.permit} onChange={() => toggleContractOption('permit')} />
-                <label className="form-check-label" htmlFor="featPermit">Permit</label>
-              </div>}
+              {strategy.contractType === 'erc20' && (
+                <div className="form-check m-0">
+                  <input data-id="contract-wizard-permit-checkbox" className="form-check-input" type="checkbox" id="featPermit" checked={strategy.contractOptions.permit} onChange={() => toggleContractOption('permit')} />
+                  <label className="form-check-label" htmlFor="featPermit">Permit</label>
+                </div>
+              )}
             </div>
+          </div>
 
-            <div className="mb-3">
-              <div className="text-uppercase small fw-semibold mb-2">Access control</div>
-              <div className="form-check mb-1">
+          <div className="d-flex flex-column gap-2">
+            <p className="tem-form-label">Access control</p>
+            <div className="d-flex flex-column gap-1">
+              <div className="form-check m-0">
                 <input data-id="contract-wizard-access-ownable-radio" className="form-check-input" type="radio" name="accessControl" id="accessOwnable" checked={strategy.contractAccessControl==='ownable'} onChange={() => switchAccessControl('ownable')} />
                 <label className="form-check-label" htmlFor="accessOwnable">Ownable</label>
               </div>
-              <div className="form-check mb-1">
+              <div className="form-check m-0">
                 <input data-id="contract-wizard-access-roles-radio" className="form-check-input" type="radio" name="accessControl" id="accessRoles" checked={strategy.contractAccessControl==='roles'} onChange={() => switchAccessControl('roles')} />
                 <label className="form-check-label" htmlFor="accessRoles">Roles</label>
               </div>
-              <div className="form-check">
+              <div className="form-check m-0">
                 <input data-id="contract-wizard-access-managed-radio" className="form-check-input" type="radio" name="accessControl" id="accessManaged" checked={strategy.contractAccessControl==='managed'} onChange={() => switchAccessControl('managed')} />
                 <label className="form-check-label" htmlFor="accessManaged">Managed</label>
               </div>
             </div>
+          </div>
 
-            <div className="mb-3">
-              <div className="text-uppercase small fw-semibold mb-2">Upgradability</div>
-              <div className="form-check mb-1">
+          <div className="d-flex flex-column gap-2">
+            <p className="tem-form-label">Upgradability</p>
+            <div className="d-flex flex-column gap-1">
+              <div className="form-check m-0">
                 <input data-id="contract-wizard-upgradability-uups-checkbox" className="form-check-input" type="checkbox" id="featUups" checked={strategy.contractUpgradability.uups} onChange={() => {
                   dispatch({ type: ContractWizardAction.CONTRACT_UPGRADABILITY_UPDATE, payload: { ...strategy.contractUpgradability, uups: !strategy.contractUpgradability.uups } })
                   dispatch({ type: ContractWizardAction.CONTRACT_ACCESS_CONTROL_UPDATE, payload: strategy.contractAccessControl })
                 }} />
                 <label className="form-check-label" htmlFor="featUups">UUPS</label>
               </div>
-              <div className="form-check">
+              <div className="form-check m-0">
                 <input data-id="contract-wizard-upgradability-transparent-checkbox" className="form-check-input" type="checkbox" id="featTransparent" checked={strategy.contractUpgradability.transparent} onChange={() => dispatch({ type: ContractWizardAction.CONTRACT_UPGRADABILITY_UPDATE, payload: { ...strategy.contractUpgradability, transparent: !strategy.contractUpgradability.transparent } })} />
                 <label className="form-check-label" htmlFor="featTransparent">Transparent</label>
               </div>
@@ -233,48 +238,45 @@ export function ContractWizard () {
           </div>
         </div>
 
-        <div className="col-12 col-lg-9">
-          <div className="border rounded p-0 h-100">
-            <CodeMirror
-              data-id="contract-wizard-editor"
-              value={strategy.contractCode as string}
-              lang="typescript"
-              height="460px"
-              theme={theme?.name === 'Light' ? vscodeLight : darkTheme }
-              readOnly={true}
-              basicSetup={{
-                lineNumbers: false,
-                syntaxHighlighting: true,
-                foldGutter: false,
-                highlightActiveLine: true,
-                highlightActiveLineGutter: false,
-                indentOnInput: false,
-                tabSize: 2
-              }}
-              extensions={[javascript({ typescript: true }),vscodeDark, darkTheme]}
-            />
-            <div className="d-flex mt-5 justify-content-between align-items-center gap-3 mb-2">
-              {state.manageCategory === 'Template' ? <div className="form-check ms-2">
-                <>
-                  <input data-id="contract-wizard-initialize-as-git-repo-checkbox" className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo}
-                    onChange={(e) => dispatch({ type: ContractWizardAction.INITIALIZE_AS_GIT_REPO_UPDATE, payload: e.target.checked })} />
-                  <label className="form-check-label" htmlFor="initGit">Initialize as a Git repository</label>
-                </>
-              </div> : <div className="w-50"></div>}
-
-              <button data-id="contract-wizard-validate-workspace-button" className="btn btn-primary btn-sm me-2 justify-content-end" disabled={state.creating} onClick={async () => {
-                if (state.manageCategory === 'Files') {
-                  await validateAndCreateContractFile()
-                } else {
-                  await validateAndCreateWorkspace()
-                }
-              }}
-              >
-                {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-check me-2"></i>{state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}</>}
-              </button>
-            </div>
-          </div>
+        <div data-id="contract-wizard-editor-container" className="tem-wizard-editor">
+          <CodeMirror
+            data-id="contract-wizard-editor"
+            value={strategy.contractCode as string}
+            lang="typescript"
+            height="460px"
+            theme={theme?.name === 'Light' ? vscodeLight : darkTheme}
+            readOnly={true}
+            basicSetup={{
+              lineNumbers: false,
+              syntaxHighlighting: true,
+              foldGutter: false,
+              highlightActiveLine: true,
+              highlightActiveLineGutter: false,
+              indentOnInput: false,
+              tabSize: 2
+            }}
+            extensions={[javascript({ typescript: true }), vscodeDark, darkTheme]}
+          />
         </div>
+      </div>
+
+      <div className="tem-form-footer">
+        {state.manageCategory === 'Template' ? (
+          <div className="form-check m-0">
+            <input data-id="contract-wizard-initialize-as-git-repo-checkbox" className="form-check-input" type="checkbox" id="initGit" checked={state.initializeAsGitRepo}
+              onChange={(e) => dispatch({ type: ContractWizardAction.INITIALIZE_AS_GIT_REPO_UPDATE, payload: e.target.checked })} />
+            <label className="form-check-label" htmlFor="initGit">Initialize as a Git repository</label>
+          </div>
+        ) : <div />}
+        <button data-id="contract-wizard-validate-workspace-button" className="btn btn-primary btn-sm" disabled={state.creating} onClick={async () => {
+          if (state.manageCategory === 'Files') {
+            await validateAndCreateContractFile()
+          } else {
+            await validateAndCreateWorkspace()
+          }
+        }}>
+          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-check me-2"></i>{state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}</>}
+        </button>
       </div>
     </section>
   )

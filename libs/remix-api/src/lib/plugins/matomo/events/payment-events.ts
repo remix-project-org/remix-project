@@ -34,6 +34,8 @@ export interface CheckoutEvent extends MatomoEventBase {
     // Outcomes / lifecycle
     | 'error'             // any checkout failure (value = reason)
     | 'closed'            // user closed the checkout without completing
+    | 'resume'            // reopened an unfinished checkout (name = surface: banner|cart)
+    | 'discard'           // discarded an unfinished checkout (name = surface)
     | 'change_plan'       // switched an existing subscription to another plan
     | 'cancel'            // cancelled a subscription (value = effectiveFrom)
     | 'reactivate'        // un-cancelled a pending cancellation

@@ -12,7 +12,7 @@
  * Rules:
  *   - MUST NEVER throw into the checkout flow (every call is wrapped).
  *   - MUST NEVER block the UI — the fetch is fired with `keepalive` so it
- *     survives the `_ptxn` navigation / tab close and we never await it.
+ *     survives navigation / tab close and we never await it.
  *   - Auth is optional; when we have a JWT we attach it so the admin viewer
  *     can filter by user. When we don't, the event is still recorded.
  */
@@ -28,6 +28,8 @@ import { planManagerLogger } from './plan-manager-logger'
  */
 export type CheckoutTelemetryEvent =
   | 'script.blocked' // Paddle.js failed to load (adblock / CSP / tracking-protection)
+  | 'paddle.init.ok' // * Paddle SDK initialized successfully (config fetched + SDK ready)
+  | 'paddle.config.missing' // * getPaddleConfig returned no clientToken (no token / billing config call failing)
   | 'checkout.loaded' // Paddle overlay actually rendered
   | 'checkout.payment.selected' // user picked a payment method
   | 'checkout.payment.initiated' // user submitted payment (clicked "Pay")
@@ -39,7 +41,10 @@ export type CheckoutTelemetryEvent =
   | 'transaction.created' // * backend returned a transactionId, about to open Paddle
   | 'transaction.error' // * backend never produced a checkout ref — overlay never shown
   | 'checkout.hosted_fallback' // * opened the hosted URL instead of the inline overlay
+  | 'checkout.load_timeout' // * overlay never fired checkout.loaded within the watchdog window
   | 'checkout.abandoned' // * user closed the Remix modal hosting the Paddle frame
+  | 'checkout.resume' // * user reopened an unfinished checkout (resume banner / top-bar cart)
+  | 'checkout.discard' // * user discarded an unfinished checkout
 
 export interface CheckoutTelemetryFields {
   message?: string

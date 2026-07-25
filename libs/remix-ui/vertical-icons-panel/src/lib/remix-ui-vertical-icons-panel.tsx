@@ -96,7 +96,7 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
           <IconList
             theme={theme}
             icons={icons.filter((p) => {
-              return !p.isRequired && p.profile.name !== 'settings' && p.profile.name !== 'walkthrough'
+              return !p.isRequired && p.profile.name !== 'settings' && p.profile.name !== 'walkthrough' && p.profile.name !== 'pluginManager'
             })}
             verticalIconsPlugin={verticalIconsPlugin}
             itemContextAction={itemContextAction}

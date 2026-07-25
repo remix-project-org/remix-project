@@ -24,6 +24,7 @@ import {
   buildExistingGraphDataSourceBlock,
   buildQuickDappGraphDataSourceInstructions
 } from '../prompts/quickDappTheGraphPrompts'
+import { GenerateDAppDocsHandler } from './DAppDocsHandler'
 
 const isLocalVMChainId = (chainId: number | string): boolean => {
   const n = Number(chainId)
@@ -2313,6 +2314,556 @@ export class FetchFigmaDesignHandler extends BaseToolHandler {
 }
 
 // ──────────────────────────────────────────────
+// ZK DApp Generator Tool Handler
+// For ZK circuits with in-browser proof generation and zkVerify verification
+// ──────────────────────────────────────────────
+
+// Build rules for ZK DApps with snarkjs integration
+const QUICKDAPP_ZK_BUILD_RULES =
+  `IMPORT RULES (CRITICAL - violations crash the build):\n` +
+  `- Use BARE SPECIFIERS: import React from 'react'; import * as snarkjs from 'snarkjs'. The index.html import map resolves these.\n` +
+  `- NEVER use full URLs in imports (e.g. import React from 'https://esm.sh/react@18'). This crashes the bundler.\n` +
+  `- ALWAYS include .jsx extension in local imports: import App from './App.jsx' (not './App')\n` +
+  `- NEVER repeat src/ in relative paths inside src/: import App from './App.jsx' NOT './src/App.jsx'\n` +
+  `- EVERY .jsx file using JSX MUST import React from 'react' at the top.\n` +
+  `- Do NOT use react-router-dom. Use hash-based routing: useState(window.location.hash).\n\n` +
+  `FILE STRUCTURE (minimum required):\n` +
+  `- index.html: import map (react, react-dom/client, snarkjs via esm.sh), Tailwind CDN, window.__ZK_DAPP_CONFIG__ init, <script type="module" src="./src/main.jsx">\n` +
+  `- src/main.jsx: React entry with ReactDOM.createRoot\n` +
+  `- src/App.jsx: Main component with proof generation UI\n` +
+  `- src/index.css: Custom styles\n\n` +
+  `INDEX.HTML IMPORT MAP (must include):\n` +
+  `<script type="importmap">{ "imports": { "react": "https://esm.sh/react@18.2.0", "react-dom/client": "https://esm.sh/react-dom@18.2.0/client", "snarkjs": "https://esm.sh/snarkjs@0.7.4" } }</script>\n\n` +
+  `SNARKJS PROOF GENERATION RULES:\n` +
+  `- Get artifact paths from window.__ZK_DAPP_CONFIG__.zkArtifacts: { wasmPath, zkeyPath, vkeyPath }\n` +
+  `- FETCH ALL artifacts at runtime - they are NOT embedded in the config, only paths are provided:\n` +
+  `  * const wasmResponse = await fetch(config.zkArtifacts.wasmPath)\n` +
+  `  * const zkeyResponse = await fetch(config.zkArtifacts.zkeyPath)\n` +
+  `  * const vkResponse = await fetch(config.zkArtifacts.vkeyPath); const vk = await vkResponse.json()\n` +
+  `- NEVER hardcode paths like '/zk/circuit.wasm' - ALWAYS use config.zkArtifacts paths\n` +
+  `- NEVER access config.verificationKey directly - it does not exist, fetch from vkeyPath instead\n` +
+  `- Use snarkjs.groth16.fullProve(inputs, wasmBuffer, zkeyBuffer) for proof generation\n` +
+  `- Public signals are in the result.publicSignals array\n` +
+  `- The proof object contains pi_a, pi_b, pi_c arrays\n` +
+  `- The verification key (vk) has properties like nPublic - get it from fetched vk, not config\n` +
+  `- Use window.__ZK_DAPP_CONFIG__ for circuit metadata (signalInputs, circuitName, etc.)\n\n` +
+  `ZKVERIFY INTEGRATION (proxy mode only - NEVER hardcode API keys):\n` +
+  `- Read zkVerify config from window.__ZK_DAPP_CONFIG__.zkVerify\n` +
+  `- The config contains: { network, proxyEndpoint?, proxyToken? }\n` +
+  `- If proxyEndpoint && proxyToken do NOT exist: Show message "Configure zkVerify API key in Remix settings to enable verification"\n` +
+  `- SUBMIT PROOF (POST to proxyEndpoint):\n` +
+  `  Request body: { token: proxyToken, proofType: 'groth16', proofData: { proof, publicSignals, vk }, proofOptions: { library: 'snarkjs', curve: config.primeValue } }\n` +
+  `  CRITICAL: Use config.primeValue ('bn128' or 'bls12381') from window.__ZK_DAPP_CONFIG__ - do NOT hardcode the curve value\n` +
+  `  Response: { jobId: '...', status: '...' }\n` +
+  `- POLL JOB STATUS (GET {proxyEndpoint.replace('/submit-proof', '/job-status')}/{jobId}):\n` +
+  `  Headers: { 'x-zkverify-token': proxyToken }\n` +
+  `  Response: { status: '...', attestationId?: '...' }\n` +
+  `- Success statuses: 'Completed', 'Finalized', 'Aggregated'\n` +
+  `- Display attestation ID on success\n` +
+  `- NEVER tell users to replace API keys in code - the runtime config handles this automatically\n\n` +
+  `SIGNAL INPUT FORM:\n` +
+  `- Generate form inputs based on window.__ZK_DAPP_CONFIG__.signalInputs array\n` +
+  `- All inputs should be BigInt-compatible (use strings for large numbers)\n` +
+  `- Show clear labels for each signal input\n` +
+  `- Validate inputs before proof generation\n\n` +
+  `DYNAMIC CONTENT:\n` +
+  `- Use window.__ZK_DAPP_CONFIG__ for title/circuitName/details. Do NOT hardcode app names.\n` +
+  `- Fallback: config.title || 'ZK DApp'\n`
+
+// Design rules for ZK DApps (lower priority than build correctness)
+const QUICKDAPP_ZK_DESIGN_RULES =
+  `DESIGN QUALITY RULES (LOWER PRIORITY THAN BUILD/PROOF CORRECTNESS):\n` +
+  `- These design rules must NEVER override valid imports, file paths, React entry structure, snarkjs integration, zkVerify API calls, or window.__ZK_DAPP_CONFIG__ usage.\n` +
+  `- Create a clean, functional UI focused on proof generation and verification\n` +
+  `- Show clear loading states during proof generation (can take several seconds)\n` +
+  `- Display proof generation progress and zkVerify verification status\n` +
+  `- Use appropriate error handling and user feedback\n` +
+  `- Make the signal input form intuitive and accessible\n`
+
+// Wallet integration rules for ZK DApps (only included when enableWalletConnect is true)
+const QUICKDAPP_ZK_WALLET_RULES =
+  `WALLET INTEGRATION RULES (CRITICAL - use EXACT pattern below):\n` +
+  `- Use window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum for wallet discovery (EIP-6963).\n` +
+  `- This calls into the rich multi-wallet picker (EIP-6963 discovery + Coinbase Smart Wallet + selection modal) that QuickDapp already injects into the deployed page. It handles multi-wallet discovery, the selection UI, and localStorage-based reconnection on its own.\n` +
+  `- Do NOT hand-roll a separate EIP-6963 announceProvider/requestProvider listener or a custom wallet-picker modal - window.__qdapp_getProvider already does this.\n` +
+  `- Store the raw provider returned by window.__qdapp_getProvider() in a React ref for reuse (e.g. for network switching).\n\n` +
+  `WALLET CONNECTION IMPLEMENTATION:\n` +
+  `- Create a useWallet hook or context that provides: { address, chainId, balance, nonce, isConnected, connect, disconnect }\n` +
+  `- connect() should do: const rawProvider = window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum; const provider = new ethers.BrowserProvider(rawProvider); await provider.send('eth_requestAccounts', []); const signer = await provider.getSigner();\n` +
+  `- Use ethers.js via esm.sh: import { ethers } from 'https://esm.sh/ethers@6'\n` +
+  `- Add to import map: "ethers": "https://esm.sh/ethers@6"\n` +
+  `- Show "Connect Wallet" button when not connected\n` +
+  `- Display truncated address (0x1234...5678) when connected\n` +
+  `- Allow disconnect/switch wallet\n\n` +
+  `WALLET DATA AS SIGNAL INPUTS:\n` +
+  `- When wallet data is used as signal input, auto-populate the field but allow manual override\n` +
+  `- Convert address to BigInt: BigInt(address) for circuit input\n` +
+  `- Clearly label which inputs come from wallet vs manual entry\n` +
+  `- Show wallet icon next to auto-populated fields\n\n` +
+  `PRIVACY-PRESERVING INTERACTION PATTERNS (Tornado Cash style):\n` +
+  `- Commitment generation: Generate random secret + nullifier, hash them for commitment\n` +
+  `- Note management: Allow users to save/export encrypted notes for later use\n` +
+  `- Withdrawal flow: User provides note, generates proof of valid commitment without revealing which deposit\n` +
+  `- NEVER expose secrets in UI or logs - only show commitments and nullifier hashes\n` +
+  `- Use crypto.getRandomValues() for secure random number generation\n` +
+  `- Consider adding "Download Note" functionality for users to save their commitment data\n\n` +
+  `CHAIN-SPECIFIC CONSIDERATIONS:\n` +
+  `- Display current network name and warn if on wrong network\n` +
+  `- For DApps using on-chain data, fetch necessary data after wallet connection\n` +
+  `- Handle chain switching gracefully\n`
+
+interface GenerateZkDAppArgs {
+  description: string
+  circuitName: string
+  circuitPath: string
+  signalInputs: string[]
+  provingScheme: 'groth16'
+  primeValue: 'bn128' | 'bls12381'
+  wasmPath: string
+  zkeyPath: string
+  verificationKey: Record<string, any>
+  frontendMode?: 'workspace' | 'inline'
+  setupOptionsConfirmed?: boolean
+  setupOptionsSummary?: string
+  confirmOverwrite?: boolean
+  // New fields for enhanced DApp creation
+  interactionDescription?: string
+  enableWalletConnect?: boolean
+  walletDataFields?: ('address' | 'chainId' | 'balance' | 'nonce')[]
+}
+
+export class GenerateZkDAppHandler extends BaseToolHandler {
+  name = 'generate_zk_dapp'
+  description = 'Create a new DApp frontend for a ZK circuit with in-browser proof generation and zkVerify verification. PREREQUISITE: The circuit must be compiled and trusted setup must be complete with groth16 proving scheme. The tool will generate React code that loads the circuit artifacts from /zk folder and allows users to generate and verify proofs.'
+  inputSchema = {
+    type: 'object',
+    properties: {
+      description: {
+        type: 'string',
+        description: 'Description of the ZK DApp to generate, including any design preferences and features'
+      },
+      circuitName: {
+        type: 'string',
+        description: 'Name of the circom circuit'
+      },
+      circuitPath: {
+        type: 'string',
+        description: 'Path to the circom circuit file'
+      },
+      signalInputs: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Array of signal input names from the circuit (e.g., ["a", "b"] for a multiplier circuit)'
+      },
+      provingScheme: {
+        type: 'string',
+        enum: ['groth16'],
+        description: 'Proving scheme (only groth16 is supported for zkVerify)'
+      },
+      primeValue: {
+        type: 'string',
+        enum: ['bn128', 'bls12381'],
+        description: 'Prime field used in the circuit'
+      },
+      wasmPath: {
+        type: 'string',
+        description: 'Path to the compiled circuit wasm file'
+      },
+      zkeyPath: {
+        type: 'string',
+        description: 'Path to the proving key (zkey) file'
+      },
+      verificationKey: {
+        type: 'object',
+        description: 'The verification key object from the trusted setup'
+      },
+      frontendMode: {
+        type: 'string',
+        enum: ['workspace', 'inline'],
+        description: 'Where to create the frontend: "workspace" (new dedicated workspace, default) or "inline" (in /frontend folder of current workspace)'
+      },
+      setupOptionsConfirmed: {
+        type: 'boolean',
+        description: 'Set to true after confirming setup options with the user'
+      },
+      setupOptionsSummary: {
+        type: 'string',
+        description: 'Summary of confirmed setup options'
+      },
+      confirmOverwrite: {
+        type: 'boolean',
+        description: 'Set to true to confirm overwriting existing files in inline mode'
+      },
+      interactionDescription: {
+        type: 'string',
+        description: 'Description of how users should interact with the DApp to generate proofs. For example: "Users deposit ETH and receive a commitment note, then use the note to withdraw privately" (like Tornado Cash). If not provided, a simple form-based input UI will be generated.'
+      },
+      enableWalletConnect: {
+        type: 'boolean',
+        description: 'Enable wallet connection in the DApp. Useful for DApps that use wallet data (address, balance, transaction history) as inputs for proof generation.'
+      },
+      walletDataFields: {
+        type: 'array',
+        items: { type: 'string', enum: ['address', 'chainId', 'balance', 'nonce']},
+        description: 'Which wallet data fields to make available as potential signal inputs. Only used if enableWalletConnect is true.'
+      }
+    },
+    required: ['description', 'circuitName', 'circuitPath', 'signalInputs', 'provingScheme', 'primeValue', 'wasmPath', 'zkeyPath', 'verificationKey']
+  }
+
+  getPermissions(): string[] {
+    return ['workspace:write', 'file:write']
+  }
+
+  validate(args: GenerateZkDAppArgs): boolean | string {
+    if (!args.description) return 'Missing required argument: description'
+    if (!args.circuitName) return 'Missing required argument: circuitName'
+    if (!args.circuitPath) return 'Missing required argument: circuitPath'
+    if (!Array.isArray(args.signalInputs) || args.signalInputs.length === 0) {
+      return 'signalInputs must be a non-empty array of signal names'
+    }
+    if (args.provingScheme !== 'groth16') {
+      return 'Only groth16 proving scheme is supported for zkVerify'
+    }
+    if (!['bn128', 'bls12381'].includes(args.primeValue)) {
+      return 'primeValue must be bn128 or bls12381'
+    }
+    if (!args.verificationKey || typeof args.verificationKey !== 'object') {
+      return 'verificationKey must be a valid object'
+    }
+    if (args.frontendMode && args.frontendMode !== 'workspace' && args.frontendMode !== 'inline') {
+      return 'frontendMode must be "workspace" or "inline"'
+    }
+    return true
+  }
+
+  async execute(args: GenerateZkDAppArgs, plugin: Plugin): Promise<IMCPToolResult> {
+    remixAILogger.log('[ZkDAppGenerator] execute called', {
+      circuitName: args.circuitName,
+      circuitPath: args.circuitPath,
+      signalInputs: args.signalInputs,
+      provingScheme: args.provingScheme,
+      primeValue: args.primeValue,
+      frontendMode: args.frontendMode,
+      setupOptionsConfirmed: args.setupOptionsConfirmed
+    })
+
+    const isDesktop = isElectron()
+    let dappOps: DappOperations | null = null
+    let progressSlug: string = ''
+
+    try {
+      // If setup options not confirmed, ask user first
+      if (!args.setupOptionsConfirmed) {
+        const locationLine = isDesktop
+          ? '- Location: Inline in /frontend only (Remix Desktop requirement)'
+          : '- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)'
+
+        return this.createSuccessResult({
+          action: 'request_setup_options',
+          message: 'Before generating the ZK DApp, please confirm the following options:',
+          options: {
+            circuitName: args.circuitName,
+            signalInputs: args.signalInputs,
+            provingScheme: args.provingScheme,
+            primeValue: args.primeValue
+          },
+          instructions: `Ask the user ALL of these questions:\n\n` +
+            `"How should I create your ZK DApp?"\n\n` +
+            `1. **Location**: ${isDesktop ? 'Inline in /frontend (Remix Desktop requirement)' : 'Workspace (new dedicated workspace, default) or Inline (/frontend folder)?'}\n\n` +
+            `2. **DApp Description** (optional): How should users interact with your DApp to generate proofs? For example: "Users deposit ETH and receive a commitment note, then use the note to withdraw privately" (like Tornado Cash). If you skip this, I'll create a simple form with the signal inputs: ${args.signalInputs.join(', ')}.\n\n` +
+            `3. **Wallet Connection**: Should users be able to connect their wallet? This is useful if your DApp uses wallet data (address, balance, etc.) as inputs for proof generation.\n` +
+            `   - No (default)\n` +
+            `   - Yes (if yes, which data: address, chainId, balance, nonce?)\n\n` +
+            `4. **Design**: Any style preferences or UI description? Or use defaults?\n\n` +
+            `After the user replies, call this tool again with:\n` +
+            `- setupOptionsConfirmed=true\n` +
+            `- setupOptionsSummary: summary of their choices\n` +
+            `- frontendMode: "workspace" or "inline"\n` +
+            `- interactionDescription: their DApp description (if provided, otherwise omit)\n` +
+            `- enableWalletConnect: true/false\n` +
+            `- walletDataFields: ["address", "balance", etc.] if wallet enabled`
+        })
+      }
+
+      // Determine target mode
+      const targetMode = isDesktop ? 'inline' : (args.frontendMode || 'workspace')
+      remixAILogger.log('[ZkDAppGenerator] Target mode:', targetMode)
+
+      const sourceWorkspaceInfo = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
+      const sourceWorkspaceName = sourceWorkspaceInfo?.name || ''
+
+      // ── Workspace Setup ──
+      if (targetMode === 'inline') {
+        if (!sourceWorkspaceName) {
+          throw new Error('Could not get current workspace for inline mode')
+        }
+
+        dappOps = new DappOperations('inline', sourceWorkspaceName, plugin, args.circuitName)
+        progressSlug = dappOps.getSlug()
+        remixAILogger.log('[ZkDAppGenerator] Using inline mode in workspace:', sourceWorkspaceName)
+
+        // Check if frontend folder exists and has files
+        try {
+          const folderPath = dappOps.getSourceRoot().substring(1) // Remove leading slash (e.g., 'frontend')
+          const files = await plugin.call('fileManager', 'readdir', folderPath)
+          const fileCount = files ? Object.keys(files).length : 0
+
+          if (fileCount > 0 && !args.confirmOverwrite) {
+            remixAILogger.log(`[ZkDAppGenerator] /frontend folder exists with ${fileCount} files, requesting user confirmation`)
+            const overwriteOptions = isDesktop
+              ? `**Option 1: Overwrite existing files**\n` +
+                `- Call generate_zk_dapp again with the SAME parameters PLUS confirmOverwrite=true, frontendMode="inline", and setupOptionsConfirmed=true\n\n` +
+                `**Option 2: Cancel**\n` +
+                `- Do not proceed with DApp generation\n\n`
+              : `**Option 1: Overwrite existing files**\n` +
+                `- Call generate_zk_dapp again with the SAME parameters PLUS confirmOverwrite=true and setupOptionsConfirmed=true\n\n` +
+                `**Option 2: Create in new workspace (RECOMMENDED - safer)**\n` +
+                `- Call generate_zk_dapp again with the SAME parameters BUT change frontendMode="workspace" and keep setupOptionsConfirmed=true\n` +
+                `- This creates a separate workspace and keeps existing /frontend files intact\n\n` +
+                `**Option 3: Cancel**\n` +
+                `- Do not proceed with DApp generation\n\n`
+            return this.createErrorResult(
+              `⚠️ **OVERWRITE WARNING - USER CONFIRMATION REQUIRED**\n\n` +
+              `The /frontend folder in workspace "${sourceWorkspaceName}" already exists and contains ${fileCount} file(s).\n\n` +
+              `**These files will be PERMANENTLY DELETED and replaced with the new ZK DApp.**\n\n` +
+              `ASK THE USER which option they prefer:\n\n` +
+              overwriteOptions +
+              `⚠️ DO NOT PROCEED without user confirmation. Ask the user which option they want.`
+            )
+          }
+          if (fileCount > 0) {
+            remixAILogger.log('[ZkDAppGenerator] User confirmed overwrite of', fileCount, 'files in /frontend')
+          }
+        } catch (checkErr: any) {
+          const errorMsg = checkErr?.message || String(checkErr)
+          if (errorMsg.includes('not exist') || errorMsg.includes('ENOENT') || errorMsg.includes('no such file')) {
+            remixAILogger.log('[ZkDAppGenerator] /frontend folder does not exist, proceeding with creation')
+          } else {
+            remixAILogger.warn('[ZkDAppGenerator] Could not check /frontend folder:', errorMsg)
+          }
+        }
+      } else {
+        // Workspace mode: create new workspace via quick-dapp-v2
+        try {
+          const wsResult = await plugin.call('quick-dapp-v2' as any, 'createZkDappWorkspace', {
+            circuitName: args.circuitName,
+            circuitPath: args.circuitPath,
+            provingScheme: args.provingScheme,
+            primeValue: args.primeValue,
+            signalInputs: args.signalInputs,
+            wasmPath: args.wasmPath,
+            zkeyPath: args.zkeyPath,
+            verificationKey: args.verificationKey,
+            userDescription: args.description
+          })
+          dappOps = new DappOperations('workspace', wsResult.workspaceName, plugin, args.circuitName)
+          progressSlug = wsResult.slug || wsResult.workspaceName
+          remixAILogger.log('[ZkDAppGenerator] Created new workspace:', wsResult.workspaceName)
+        } catch (wsErr: any) {
+          remixAILogger.error('[ZkDAppGenerator] createZkDappWorkspace failed:', wsErr?.message || wsErr)
+          return this.createErrorResult(`Failed to create ZK DApp workspace: ${wsErr.message}`)
+        }
+      }
+
+      // Set workspace lock
+      setQuickDappWorkspaceLock({
+        workspaceName: dappOps.getWorkspaceName(),
+        slug: progressSlug || dappOps.getSlug(),
+        operation: 'generate',
+        reason: 'generate_zk_dapp'
+      })
+      remixAILogger.log('[ZkDAppGenerator][WorkspaceLock] locked workspace for generation', {
+        workspaceName: dappOps.getWorkspaceName(),
+        slug: progressSlug || dappOps.getSlug(),
+        mode: targetMode
+      })
+
+      // Open dashboard so React UI is mounted and event listeners are ready
+      try {
+        remixAILogger.log('[ZkDAppGenerator] Opening dashboard...')
+        await plugin.call('manager' as any, 'activatePlugin', 'quick-dapp-v2')
+        await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
+        await new Promise(r => setTimeout(r, 300))
+        remixAILogger.log('[ZkDAppGenerator] Dashboard opened')
+      } catch (e: any) {
+        remixAILogger.warn('[ZkDAppGenerator] Dashboard focus failed (non-critical):', e?.message)
+      }
+
+      // For inline mode, create config and copy artifacts
+      if (targetMode === 'inline') {
+        const timestamp = Date.now()
+        const dappConfig = {
+          _warning: 'DO NOT EDIT THIS FILE MANUALLY. MANAGED BY QUICK DAPP.',
+          slug: dappOps.getSlug(),
+          name: args.circuitName,
+          workspaceName: sourceWorkspaceName,
+          mode: 'inline',
+          appKind: 'zk-circuit',
+          zkCircuit: {
+            circuitName: args.circuitName,
+            circuitPath: args.circuitPath,
+            provingScheme: args.provingScheme,
+            primeValue: args.primeValue,
+            signalInputs: args.signalInputs,
+            zkArtifacts: {
+              wasmPath: 'frontend/zk/circuit.wasm',
+              zkeyPath: 'frontend/zk/circuit.zkey',
+              vkeyPath: 'frontend/zk/verification_key.json'
+            }
+          },
+          status: 'creating',
+          processingStartedAt: timestamp,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          config: {
+            title: args.circuitName,
+            details: args.description || 'ZK DApp with in-browser proof generation and zkVerify verification'
+          }
+        }
+
+        await plugin.call('fileManager', 'writeFile', 'dapp.config.json', JSON.stringify(dappConfig, null, 2))
+
+        // Create frontend folder structure and copy artifacts
+        try { await plugin.call('fileManager', 'mkdir', 'frontend') } catch (_) {}
+        try { await plugin.call('fileManager', 'mkdir', 'frontend/src') } catch (_) {}
+        try { await plugin.call('fileManager', 'mkdir', 'frontend/zk') } catch (_) {}
+
+        // Copy circuit artifacts to frontend/zk
+        await this.copyCircuitArtifacts(plugin, args, 'frontend/zk')
+      }
+
+      // Emit progress event (use plugin.emit() directly, same as regular dapp flow)
+      plugin.emit('generationProgress', {
+        status: 'preparing',
+        slug: progressSlug || dappOps.getSlug(),
+        workspaceName: dappOps.getWorkspaceName(),
+        message: 'Setting up ZK DApp workspace...'
+      })
+
+      // Mark generation context so write_file can validate paths correctly
+      markQuickDappGenerationContext({
+        workspaceName: dappOps.getWorkspaceName(),
+        isInlineMode: dappOps.isInline(),
+        sourceRoot: dappOps.getSourceRoot(),
+        operation: 'generate'
+      })
+
+      // Generate the delegation message for the AI to create the code
+      const targetWorkspaceForInstructions = dappOps.getWorkspaceName()
+      const sourceRoot = dappOps.getSourceRoot()
+      const zkFolder = targetMode === 'inline' ? 'frontend/zk' : 'zk'
+      const fileWritePaths = targetMode === 'inline'
+        ? '/frontend/index.html, /frontend/src/main.jsx, /frontend/src/App.jsx, /frontend/src/index.css'
+        : '/index.html, /src/main.jsx, /src/App.jsx, /src/index.css'
+      const correctPathExample = targetMode === 'inline'
+        ? 'Correct: /frontend/src/App.jsx. Wrong: /' + targetWorkspaceForInstructions + '/frontend/src/App.jsx'
+        : 'Correct: /src/App.jsx. Wrong: /' + targetWorkspaceForInstructions + '/src/App.jsx'
+
+      const signalInputsList = args.signalInputs.map(s => `  - ${s}`).join('\n')
+
+      // Build interaction section
+      const interactionSection = args.interactionDescription
+        ? `USER INTERACTION FLOW:\n${args.interactionDescription}\n\n`
+        : `DEFAULT INTERACTION: Simple form with signal inputs (${args.signalInputs.join(', ')}) for proof generation.\n\n`
+
+      // Build wallet section
+      const walletSection = args.enableWalletConnect
+        ? `WALLET INTEGRATION: ENABLED\n` +
+          `- Wallet data fields available: ${args.walletDataFields?.join(', ') || 'address'}\n` +
+          `- Auto-populate signal inputs with wallet data where applicable\n` +
+          `- Allow users to connect/disconnect wallet\n\n`
+        : ''
+
+      // Include wallet rules only if wallet connection is enabled
+      const walletRules = args.enableWalletConnect ? `\n${QUICKDAPP_ZK_WALLET_RULES}\n` : ''
+
+      return this.createSuccessResult({
+        success: true,
+        action: 'generate_zk_dapp_files',
+        workspaceName: targetWorkspaceForInstructions,
+        slug: progressSlug || dappOps.getSlug(),
+        sourceRoot,
+        mode: targetMode,
+        circuitName: args.circuitName,
+        signalInputs: args.signalInputs,
+        provingScheme: args.provingScheme,
+        primeValue: args.primeValue,
+        zkFolder,
+        enableWalletConnect: args.enableWalletConnect || false,
+        walletDataFields: args.walletDataFields || [],
+        delegationMessage:
+          `TASK: Generate a new ZK DApp frontend${targetMode === 'inline' ? ' in /frontend folder (inline mode)' : ''}\n` +
+          `APP NAME: ${args.circuitName}\n` +
+          `CIRCUIT INFO:\n` +
+          `- Proving Scheme: ${args.provingScheme}\n` +
+          `- Prime Field: ${args.primeValue}\n` +
+          `- Signal Inputs:\n${signalInputsList}\n\n` +
+          `${interactionSection}` +
+          `${walletSection}` +
+          `USER DESIGN REQUEST: ${args.description}\n` +
+          `${args.setupOptionsSummary ? `CONFIRMED OPTIONS: ${args.setupOptionsSummary}\n` : ''}` +
+          `\n${QUICKDAPP_ZK_BUILD_RULES}\n` +
+          `${walletRules}` +
+          `\n${QUICKDAPP_ZK_DESIGN_RULES}\n` +
+          `CRITICAL PATH RULES:\n` +
+          `- All file paths must start with / and be relative to workspace root. ${correctPathExample}\n` +
+          `- NEVER include workspace name "${targetWorkspaceForInstructions}" in paths. The workspace is already active.\n` +
+          `- Circuit artifacts (circuit.wasm, circuit.zkey, verification_key.json) are already in /${zkFolder}\n\n` +
+          `STEPS:\n` +
+          `1. Write files using write_file with paths: ${fileWritePaths}\n` +
+          `2. The DApp should work entirely in the browser with no backend required.\n` +
+          `3. Show loading states during proof generation (can take 5-30 seconds).\n` +
+          `4. NEVER create or modify dapp.config.json — it is managed by the system.\n` +
+          `5. After ALL files are written, call finalize_dapp_generation with workspaceName="${targetWorkspaceForInstructions}" only.\n` +
+          `---`
+      })
+
+    } catch (error: any) {
+      if (dappOps?.getWorkspaceName()) {
+        clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
+      }
+      plugin.emit('dappGenerationError', {
+        workspaceName: dappOps?.getWorkspaceName(),
+        error: error.message
+      })
+      remixAILogger.error('[ZkDAppGenerator] execute failed', error)
+      return this.createErrorResult(`Failed to generate ZK DApp: ${error.message || error}`)
+    }
+  }
+
+  private async copyCircuitArtifacts(plugin: Plugin, args: GenerateZkDAppArgs, targetPath: string): Promise<void> {
+    // Copy wasm file
+    try {
+      const wasmData = await plugin.call('fileManager', 'readFile', args.wasmPath, { encoding: null })
+      const wasmContent = wasmData instanceof Uint8Array ? wasmData : new TextEncoder().encode(wasmData as string)
+      await plugin.call('fileManager', 'writeFile', `${targetPath}/circuit.wasm`, wasmContent)
+      remixAILogger.log('[ZkDAppGenerator] Copied wasm file to', `${targetPath}/circuit.wasm`)
+    } catch (e: any) {
+      remixAILogger.warn('[ZkDAppGenerator] Failed to copy wasm file:', e?.message)
+    }
+
+    // Copy zkey file
+    try {
+      const zkeyData = await plugin.call('fileManager', 'readFile', args.zkeyPath, { encoding: null })
+      const zkeyContent = zkeyData instanceof Uint8Array ? zkeyData : new TextEncoder().encode(zkeyData as string)
+      await plugin.call('fileManager', 'writeFile', `${targetPath}/circuit.zkey`, zkeyContent)
+      remixAILogger.log('[ZkDAppGenerator] Copied zkey file to', `${targetPath}/circuit.zkey`)
+    } catch (e: any) {
+      remixAILogger.warn('[ZkDAppGenerator] Failed to copy zkey file:', e?.message)
+    }
+
+    // Write verification key
+    try {
+      await plugin.call('fileManager', 'writeFile', `${targetPath}/verification_key.json`, JSON.stringify(args.verificationKey, null, 2))
+      remixAILogger.log('[ZkDAppGenerator] Wrote verification key to', `${targetPath}/verification_key.json`)
+    } catch (e: any) {
+      remixAILogger.warn('[ZkDAppGenerator] Failed to write verification key:', e?.message)
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
 // Tool Definition Factory
 // ──────────────────────────────────────────────
 
@@ -2343,8 +2894,16 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
       handler: new GenerateGraphDAppHandler()
     },
     {
+      name: 'generate_zk_dapp',
+      description: 'Create a new DApp frontend for a ZK circuit with in-browser proof generation and zkVerify verification. PREREQUISITE: The circuit must be compiled and trusted setup must be complete with groth16 proving scheme. First ask setup options (Location, Design), then call with setupOptionsConfirmed=true. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
+      inputSchema: new GenerateZkDAppHandler().inputSchema,
+      category: ToolCategory.WORKSPACE,
+      permissions: ['dapp:generate', 'file:write'],
+      handler: new GenerateZkDAppHandler()
+    },
+    {
       name: 'finalize_dapp_generation',
-      description: 'Finalize a DApp after ALL files have been written using write_file. Updates config, refreshes dashboard, and opens DApp preview. MUST be called after generate_dapp or generate_graph_dapp + write_file sequence.',
+      description: 'Finalize a DApp after ALL files have been written using write_file. Updates config, refreshes dashboard, and opens DApp preview. MUST be called after generate_dapp, generate_graph_dapp, or generate_zk_dapp + write_file sequence.',
       inputSchema: new FinalizeDAppGenerationHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:generate', 'file:write'],
@@ -2357,6 +2916,14 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:update', 'file:write'],
       handler: new UpdateDAppHandler()
+    },
+    {
+      name: 'generate_dapp_docs',
+      description: new GenerateDAppDocsHandler().description,
+      inputSchema: new GenerateDAppDocsHandler().inputSchema,
+      category: ToolCategory.WORKSPACE,
+      permissions: ['dapp:read', 'file:write'],
+      handler: new GenerateDAppDocsHandler()
     },
     {
       name: 'fetch_figma_design',

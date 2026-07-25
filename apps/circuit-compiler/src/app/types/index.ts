@@ -5,6 +5,8 @@ import { CompilerReport } from '@remix-ui/helper'
 
 export type CompilerStatus = "compiling" | "computing" | "idle" | "errored" | "warning" | "exporting" | "proving"
 
+export type ZkVerifyStatus = 'idle' | 'verifying' | 'verified' | 'failed'
+
 export type ProvingScheme = 'groth16' | 'plonk'
 
 export type SetupExportStatus = 'done' | 'update'
@@ -45,7 +47,9 @@ export interface ActionPayloadTypes {
   SET_EXPORT_WTNS_JSON: boolean,
   SET_SETUP_EXPORT_STATUS: SetupExportStatus,
   SET_VERIFICATION_KEY: Record<string, any>,
-  SET_ZKEY: any
+  SET_ZKEY: any,
+  SET_ZKVERIFY_STATUS: ZkVerifyStatus,
+  SET_ZKVERIFY_ATTESTATION: string | null
 }
 export interface Action<T extends keyof ActionPayloadTypes> {
   type: T
@@ -78,7 +82,9 @@ export interface AppState {
   exportVerifierCalldata: boolean,
   exportWtnsJson: boolean,
   verificationKey: Record<string, any>,
-  zKey: Uint8Array
+  zKey: Uint8Array,
+  zkVerifyStatus: ZkVerifyStatus,
+  zkVerifyAttestation: string | null
 }
 
 export type CompilationConfig = {
