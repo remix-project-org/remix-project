@@ -11,7 +11,7 @@ import { appActionTypes, AppAction } from '@remix-ui/app'
 const profile = {
   name: 'remixaiassistant',
   displayName: 'RemixAI Assistant',
-  icon: 'assets/img/remixai-logoAI.webp',
+  icon: 'assets/img/remixai-logoAI.svg',
   description: 'AI code assistant for Remix IDE',
   kind: '',
   location: 'sidePanel',
