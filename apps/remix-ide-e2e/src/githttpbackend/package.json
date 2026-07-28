@@ -3,7 +3,7 @@
     "start:server": "tsc && node ./dist/server.js"
   },
   "dependencies": {
-    "body-parser": "^1.20.3",
+    "body-parser": "^1.20.6",
     "child_process": "^1.0.2",
     "express": "^4.20.0",
     "git-http-backend": "^1.1.2",
