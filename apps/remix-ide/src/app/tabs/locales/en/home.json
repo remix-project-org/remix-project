@@ -77,7 +77,7 @@
   "home.gitCloneTooltip": "Clone a Github repo to a new Workspace",
   "home.gistTooltip": "Open Gist repo",
   "home.newFileTooltip": "Add a new file to a Workspace",
-  "home.createNewWorkspace": "Create a new Workspace",
+  "home.createNewWorkspace": "Create a new workspace",
   "home.startLearning": "Start Learning",
   "home.exploreAllPlugins": "Explore all plugins",
   "home.maintainedByRemix": "Maintained by Remix",
