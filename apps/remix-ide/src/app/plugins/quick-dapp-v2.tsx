@@ -6,7 +6,7 @@ import { RemixUiQuickDappV2, getNetworkName } from '@remix-ui/quick-dapp-v2'
 import { EventEmitter } from 'events'
 import { remixAILogger } from '@remix/remix-ai-core'
 
-const profile = {
+export const profile = {
   name: 'quick-dapp-v2',
   displayName: 'QuickDApp',
   icon: 'assets/img/quickdappv2.webp',

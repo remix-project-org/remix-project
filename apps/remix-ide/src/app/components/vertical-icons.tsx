@@ -6,6 +6,7 @@ import { EventEmitter } from 'events'
 import { IconRecord, RemixUiVerticalIconsPanel } from '@remix-ui/vertical-icons-panel'
 import { Profile } from '@remixproject/plugin-utils'
 import { PluginViewWrapper } from '@remix-ui/helper'
+import { profile as quickDappProfile } from '../plugins/quick-dapp-v2'
 
 const profile = {
   name: 'menuicons',
@@ -32,7 +33,7 @@ export class VerticalIcons extends Plugin {
   renderComponent() {
     // These three icons must always appear last, in this order, no matter what.
     const lastOrder = ['helpPlugin', 'planManager']
-    const fixedOrder = ['remixaiassistant', 'quick-dapp-v2', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting']
+    const fixedOrder = ['remixaiassistant', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting', 'quick-dapp-v2']
 
     const divived = Object.values(this.icons)
       .map((value) => {
@@ -78,6 +79,10 @@ export class VerticalIcons extends Plugin {
 
   onActivation() {
     this.renderComponent()
+    // quick-dapp-v2 lives in the mainPanel (it's a tab, not a sidePanel view) so it never
+    // goes through sidePanel.addView -> menuicons.linkContent like other icons do. Register
+    // it here so it still gets a rail icon; the icon's click handler activates/focuses the tab.
+    this.linkContent(quickDappProfile)
     this.on('sidePanel', 'focusChanged', (name: string) => {
       Object.keys(this.icons).map((o) => {
         this.icons[o].active = false

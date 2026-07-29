@@ -63,6 +63,29 @@
     padding: 4px;
   }
 
+  .remixui_icon_labeled {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 52px;
+    height: auto;
+    min-height: 36px;
+    padding-bottom: 4px;
+  }
+
+  .remixui_icon_label {
+    font-size: 10px;
+    line-height: 1.15;
+    width: 100%;
+    margin-top: 2px;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+    color: var(--bs-secondary-color);
+  }
+
   .remixui_icon .selected-dark {
     filter: invert(1) grayscale(1);
   }
@@ -149,6 +172,13 @@
   .remixui_default-icons-container {
     border-bottom: 2px solid #3f4455;
     text-align: center;
+  }
+  /* divider between the fixed/required icons and everything below — always visible,
+     regardless of whether .remixui_default-icons-container's overflow border is also active */
+  .remixui_requiredSection {
+    border-bottom: 1px solid var(--bs-border-color);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
   }
   .remixui_icon-chevron {
     z-index: 1000;
