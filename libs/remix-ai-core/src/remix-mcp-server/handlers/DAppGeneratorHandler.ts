@@ -2322,8 +2322,38 @@ export class FetchFigmaDesignHandler extends BaseToolHandler {
 // For ZK circuits with in-browser proof generation and zkVerify verification
 // ──────────────────────────────────────────────
 
+// Proof verification integration rules - depends on which method was chosen up front
+// (via the ZkVerificationMethodModal in circuit-compiler, before this tool is ever called).
+const QUICKDAPP_ZK_VERIFY_INTEGRATION_RULES =
+  `ZKVERIFY INTEGRATION (proxy mode only - NEVER hardcode API keys):\n` +
+  `- Read zkVerify config from window.__ZK_DAPP_CONFIG__.zkVerify\n` +
+  `- The config contains: { network, proxyEndpoint?, proxyToken? }\n` +
+  `- If proxyEndpoint && proxyToken do NOT exist: Show message "Configure zkVerify API key in Remix settings to enable verification"\n` +
+  `- SUBMIT PROOF (POST to proxyEndpoint):\n` +
+  `  Request body: { token: proxyToken, proofType: 'groth16', proofData: { proof, publicSignals, vk }, proofOptions: { library: 'snarkjs', curve: config.primeValue } }\n` +
+  `  CRITICAL: Use config.primeValue ('bn128' or 'bls12381') from window.__ZK_DAPP_CONFIG__ - do NOT hardcode the curve value\n` +
+  `  Response: { jobId: '...', status: '...' }\n` +
+  `- POLL JOB STATUS (GET {proxyEndpoint.replace('/submit-proof', '/job-status')}/{jobId}):\n` +
+  `  Headers: { 'x-zkverify-token': proxyToken }\n` +
+  `  Response: { status: '...', attestationId?: '...' }\n` +
+  `- Success statuses: 'Completed', 'Finalized', 'Aggregated'\n` +
+  `- Display attestation ID on success\n` +
+  `- NEVER tell users to replace API keys in code - the runtime config handles this automatically\n\n`
+
+const QUICKDAPP_ZK_ONCHAIN_VERIFY_INTEGRATION_RULES =
+  `ON-CHAIN VERIFIER INTEGRATION (read-only contract call - no relay service involved):\n` +
+  `- Read the verifier config from window.__ZK_DAPP_CONFIG__.onChainVerifier: { address, abi, chainId }\n` +
+  `- This DApp has wallet connect enabled (see WALLET INTEGRATION RULES below) - reuse the same provider for verification.\n` +
+  `- After snarkjs.groth16.fullProve(...) produces { proof, publicSignals }, get Solidity calldata: const calldataStr = await snarkjs.groth16.exportSolidityCallData(proof, publicSignals)\n` +
+  `- Parse it into arguments: const [a, b, c, input] = JSON.parse('[' + calldataStr + ']')\n` +
+  `- Build a read-only contract instance: const provider = new ethers.BrowserProvider(rawProvider); const verifier = new ethers.Contract(config.onChainVerifier.address, config.onChainVerifier.abi, provider)\n` +
+  `- Before calling, check the connected network matches: const network = await provider.getNetwork(); if (network.chainId.toString() !== String(config.onChainVerifier.chainId)) show a "switch network" prompt/button instead of calling.\n` +
+  `- Call it as a view/read - no signer, no gas, no transaction: const isValid = await verifier.verifyProof(a, b, c, input)\n` +
+  `- Display the boolean result directly (true = proof verified on-chain, false = invalid proof)\n` +
+  `- Wrap the call in try/catch - a revert or network mismatch should surface as a clear error message, not a crash\n\n`
+
 // Build rules for ZK DApps with snarkjs integration
-const QUICKDAPP_ZK_BUILD_RULES =
+const getZkBuildRules = (verificationMethod: 'zkverify' | 'onchain'): string =>
   `IMPORT RULES (CRITICAL - violations crash the build):\n` +
   `- Use BARE SPECIFIERS: import React from 'react'; import * as snarkjs from 'snarkjs'. The index.html import map resolves these.\n` +
   `- NEVER use full URLs in imports (e.g. import React from 'https://esm.sh/react@18'). This crashes the bundler.\n` +
@@ -2351,20 +2381,7 @@ const QUICKDAPP_ZK_BUILD_RULES =
   `- The proof object contains pi_a, pi_b, pi_c arrays\n` +
   `- The verification key (vk) has properties like nPublic - get it from fetched vk, not config\n` +
   `- Use window.__ZK_DAPP_CONFIG__ for circuit metadata (signalInputs, circuitName, etc.)\n\n` +
-  `ZKVERIFY INTEGRATION (proxy mode only - NEVER hardcode API keys):\n` +
-  `- Read zkVerify config from window.__ZK_DAPP_CONFIG__.zkVerify\n` +
-  `- The config contains: { network, proxyEndpoint?, proxyToken? }\n` +
-  `- If proxyEndpoint && proxyToken do NOT exist: Show message "Configure zkVerify API key in Remix settings to enable verification"\n` +
-  `- SUBMIT PROOF (POST to proxyEndpoint):\n` +
-  `  Request body: { token: proxyToken, proofType: 'groth16', proofData: { proof, publicSignals, vk }, proofOptions: { library: 'snarkjs', curve: config.primeValue } }\n` +
-  `  CRITICAL: Use config.primeValue ('bn128' or 'bls12381') from window.__ZK_DAPP_CONFIG__ - do NOT hardcode the curve value\n` +
-  `  Response: { jobId: '...', status: '...' }\n` +
-  `- POLL JOB STATUS (GET {proxyEndpoint.replace('/submit-proof', '/job-status')}/{jobId}):\n` +
-  `  Headers: { 'x-zkverify-token': proxyToken }\n` +
-  `  Response: { status: '...', attestationId?: '...' }\n` +
-  `- Success statuses: 'Completed', 'Finalized', 'Aggregated'\n` +
-  `- Display attestation ID on success\n` +
-  `- NEVER tell users to replace API keys in code - the runtime config handles this automatically\n\n` +
+  (verificationMethod === 'onchain' ? QUICKDAPP_ZK_ONCHAIN_VERIFY_INTEGRATION_RULES : QUICKDAPP_ZK_VERIFY_INTEGRATION_RULES) +
   `SIGNAL INPUT FORM:\n` +
   `- Generate form inputs based on window.__ZK_DAPP_CONFIG__.signalInputs array\n` +
   `- All inputs should be BigInt-compatible (use strings for large numbers)\n` +
@@ -2434,6 +2451,10 @@ interface GenerateZkDAppArgs {
   interactionDescription?: string
   enableWalletConnect?: boolean
   walletDataFields?: ('address' | 'chainId' | 'balance' | 'nonce')[]
+  // Verification method chosen up front (via ZkVerificationMethodModal in circuit-compiler),
+  // before this tool is ever called. Defaults to 'zkverify' when absent.
+  verificationMethod?: 'zkverify' | 'onchain'
+  onChainVerifier?: { address: string; abi: any[]; chainId: string | number; networkName?: string; contractName?: string }
 }
 
 export class GenerateZkDAppHandler extends BaseToolHandler {
@@ -2510,6 +2531,15 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         type: 'array',
         items: { type: 'string', enum: ['address', 'chainId', 'balance', 'nonce']},
         description: 'Which wallet data fields to make available as potential signal inputs. Only used if enableWalletConnect is true.'
+      },
+      verificationMethod: {
+        type: 'string',
+        enum: ['zkverify', 'onchain'],
+        description: 'How generated proofs are verified: "zkverify" (off-chain relay service, default) or "onchain" (call a deployed verifier contract directly). Chosen up front by the user before this tool is called - do not ask for it again.'
+      },
+      onChainVerifier: {
+        type: 'object',
+        description: 'Deployed verifier contract to call when verificationMethod is "onchain": { address, abi, chainId, networkName? }. Provided by the user\'s prior selection - use as-is.'
       }
     },
     required: ['description', 'circuitName', 'circuitPath', 'signalInputs', 'provingScheme', 'primeValue', 'wasmPath', 'zkeyPath', 'verificationKey']
@@ -2562,6 +2592,14 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         const locationLine = isDesktop
           ? '- Location: Inline in /frontend only (Remix Desktop requirement)'
           : '- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)'
+        const isOnChainSetup = args.verificationMethod === 'onchain'
+
+        const walletQuestionBlock = isOnChainSetup
+          ? '' // On-chain verification requires calling a contract - wallet connect is forced on, not asked about.
+          : `3. **Wallet Connection**: Should users be able to connect their wallet? This is useful if your DApp uses wallet data (address, balance, etc.) as inputs for proof generation.\n` +
+            `   - No (default)\n` +
+            `   - Yes (if yes, which data: address, chainId, balance, nonce?)\n\n`
+        const designQuestionNumber = isOnChainSetup ? 3 : 4
 
         return this.createSuccessResult({
           action: 'request_setup_options',
@@ -2576,17 +2614,20 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
             `"How should I create your ZK DApp?"\n\n` +
             `1. **Location**: ${isDesktop ? 'Inline in /frontend (Remix Desktop requirement)' : 'Workspace (new dedicated workspace, default) or Inline (/frontend folder)?'}\n\n` +
             `2. **DApp Description** (optional): How should users interact with your DApp to generate proofs? For example: "Users deposit ETH and receive a commitment note, then use the note to withdraw privately" (like Tornado Cash). If you skip this, I'll create a simple form with the signal inputs: ${args.signalInputs.join(', ')}.\n\n` +
-            `3. **Wallet Connection**: Should users be able to connect their wallet? This is useful if your DApp uses wallet data (address, balance, etc.) as inputs for proof generation.\n` +
-            `   - No (default)\n` +
-            `   - Yes (if yes, which data: address, chainId, balance, nonce?)\n\n` +
-            `4. **Design**: Any style preferences or UI description? Or use defaults?\n\n` +
+            walletQuestionBlock +
+            `${designQuestionNumber}. **Design**: Any style preferences or UI description? Or use defaults?\n\n` +
+            (isOnChainSetup ? `Do not ask about wallet connection - this DApp verifies proofs on-chain, so wallet connect is required and already enabled.\n\n` : '') +
             `After the user replies, call this tool again with:\n` +
             `- setupOptionsConfirmed=true\n` +
             `- setupOptionsSummary: summary of their choices\n` +
             `- frontendMode: "workspace" or "inline"\n` +
             `- interactionDescription: their DApp description (if provided, otherwise omit)\n` +
-            `- enableWalletConnect: true/false\n` +
-            `- walletDataFields: ["address", "balance", etc.] if wallet enabled`
+            (isOnChainSetup
+              ? `- enableWalletConnect: true (always true - required for on-chain verification)\n`
+              : `- enableWalletConnect: true/false\n`) +
+            `- walletDataFields: ["address", "balance", etc.] if wallet enabled\n` +
+            `- verificationMethod: "${args.verificationMethod || 'zkverify'}" (unchanged from this call)\n` +
+            (args.onChainVerifier ? `- onChainVerifier: unchanged from this call\n` : '')
         })
       }
 
@@ -2659,7 +2700,9 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
             wasmPath: args.wasmPath,
             zkeyPath: args.zkeyPath,
             verificationKey: args.verificationKey,
-            userDescription: args.description
+            userDescription: args.description,
+            verificationMethod: args.verificationMethod || 'zkverify',
+            onChainVerifier: args.verificationMethod === 'onchain' ? args.onChainVerifier : undefined
           })
           dappOps = new DappOperations('workspace', wsResult.workspaceName, plugin, args.circuitName)
           progressSlug = wsResult.slug || wsResult.workspaceName
@@ -2765,6 +2808,10 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         : 'Correct: /src/App.jsx. Wrong: /' + targetWorkspaceForInstructions + '/src/App.jsx'
 
       const signalInputsList = args.signalInputs.map(s => `  - ${s}`).join('\n')
+      const verificationMethod: 'zkverify' | 'onchain' = args.verificationMethod === 'onchain' ? 'onchain' : 'zkverify'
+      // On-chain verification calls a contract, so wallet connect is mandatory regardless of what
+      // was passed through - this is a safety net in case the LLM didn't set it as instructed.
+      const walletConnectEnabled = verificationMethod === 'onchain' ? true : !!args.enableWalletConnect
 
       // Build interaction section
       const interactionSection = args.interactionDescription
@@ -2772,7 +2819,7 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         : `DEFAULT INTERACTION: Simple form with signal inputs (${args.signalInputs.join(', ')}) for proof generation.\n\n`
 
       // Build wallet section
-      const walletSection = args.enableWalletConnect
+      const walletSection = walletConnectEnabled
         ? `WALLET INTEGRATION: ENABLED\n` +
           `- Wallet data fields available: ${args.walletDataFields?.join(', ') || 'address'}\n` +
           `- Auto-populate signal inputs with wallet data where applicable\n` +
@@ -2780,7 +2827,7 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         : ''
 
       // Include wallet rules only if wallet connection is enabled
-      const walletRules = args.enableWalletConnect ? `\n${QUICKDAPP_ZK_WALLET_RULES}\n` : ''
+      const walletRules = walletConnectEnabled ? `\n${QUICKDAPP_ZK_WALLET_RULES}\n` : ''
 
       return this.createSuccessResult({
         success: true,
@@ -2794,8 +2841,9 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         provingScheme: args.provingScheme,
         primeValue: args.primeValue,
         zkFolder,
-        enableWalletConnect: args.enableWalletConnect || false,
+        enableWalletConnect: walletConnectEnabled,
         walletDataFields: args.walletDataFields || [],
+        verificationMethod,
         delegationMessage:
           `TASK: Generate a new ZK DApp frontend${targetMode === 'inline' ? ' in /frontend folder (inline mode)' : ''}\n` +
           `APP NAME: ${args.circuitName}\n` +
@@ -2807,7 +2855,7 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
           `${walletSection}` +
           `USER DESIGN REQUEST: ${args.description}\n` +
           `${args.setupOptionsSummary ? `CONFIRMED OPTIONS: ${args.setupOptionsSummary}\n` : ''}` +
-          `\n${QUICKDAPP_ZK_BUILD_RULES}\n` +
+          `\n${getZkBuildRules(verificationMethod)}\n` +
           `${walletRules}` +
           `\n${QUICKDAPP_ZK_DESIGN_RULES}\n` +
           `CRITICAL PATH RULES:\n` +

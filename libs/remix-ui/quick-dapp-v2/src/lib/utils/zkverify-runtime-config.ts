@@ -110,11 +110,17 @@ export interface ZkRuntimeConfig {
     zkeyPath: string;
     vkeyPath: string;
   };
-  zkVerify: {
+  verificationMethod: 'zkverify' | 'onchain';
+  zkVerify?: {
     network: 'testnet' | 'mainnet';
     apiKey?: string;
     proxyEndpoint?: string;
     proxyToken?: string;
+  };
+  onChainVerifier?: {
+    address: string;
+    abi: any[];
+    chainId: number | string;
   };
 }
 
@@ -130,22 +136,35 @@ export const buildZkRuntimeConfigScript = async (
   const zkCircuit = getZkCircuitConfig(activeDapp);
   if (!zkCircuit) return '';
 
-  const network = zkCircuit.zkVerifyConfig?.network || await getZkVerifyNetwork(plugin);
-  let apiKey = await getZkVerifyApiKey(plugin);
-  let proxyToken: string | undefined;
-  let proxyEndpoint: string | undefined;
+  const verificationMethod: 'zkverify' | 'onchain' = zkCircuit.verificationMethod || 'zkverify';
 
-  // For deployment, create a sealed proxy token instead of exposing the API key
-  const zkverifyEndpoint = getZkVerifyEndpoint();
+  let zkVerify: ZkRuntimeConfig['zkVerify'];
 
-  if (!options.includeApiKey && apiKey) {
-    try {
-      proxyToken = await createZkVerifyProxyToken(apiKey, network);
-      proxyEndpoint = `${zkverifyEndpoint}/submit-proof`;
-      apiKey = ''; // Clear API key for deployed version
-    } catch (error: any) {
-      // Continue without proxy token - DApp will need manual API key
+  if (verificationMethod === 'zkverify') {
+    const network = zkCircuit.zkVerifyConfig?.network || await getZkVerifyNetwork(plugin);
+    let apiKey = await getZkVerifyApiKey(plugin);
+    let proxyToken: string | undefined;
+    let proxyEndpoint: string | undefined;
+
+    // For deployment, create a sealed proxy token instead of exposing the API key
+    const zkverifyEndpoint = getZkVerifyEndpoint();
+
+    if (!options.includeApiKey && apiKey) {
+      try {
+        proxyToken = await createZkVerifyProxyToken(apiKey, network);
+        proxyEndpoint = `${zkverifyEndpoint}/submit-proof`;
+        apiKey = ''; // Clear API key for deployed version
+      } catch (error: any) {
+        // Continue without proxy token - DApp will need manual API key
+      }
     }
+
+    zkVerify = {
+      network,
+      ...(options.includeApiKey && apiKey ? { apiKey } : {}),
+      ...(proxyEndpoint ? { proxyEndpoint } : {}),
+      ...(proxyToken ? { proxyToken } : {})
+    };
   }
 
   // For IPFS deployment, use root-level paths since IPFS endpoint doesn't support subdirectories.
@@ -183,12 +202,15 @@ export const buildZkRuntimeConfigScript = async (
     primeValue: zkCircuit.primeValue,
     signalInputs: zkCircuit.signalInputs || [],
     zkArtifacts,
-    zkVerify: {
-      network,
-      ...(options.includeApiKey && apiKey ? { apiKey } : {}),
-      ...(proxyEndpoint ? { proxyEndpoint } : {}),
-      ...(proxyToken ? { proxyToken } : {})
-    }
+    verificationMethod,
+    ...(zkVerify ? { zkVerify } : {}),
+    ...(verificationMethod === 'onchain' && zkCircuit.onChainVerifier ? {
+      onChainVerifier: {
+        address: zkCircuit.onChainVerifier.address,
+        abi: zkCircuit.onChainVerifier.abi,
+        chainId: zkCircuit.onChainVerifier.chainId
+      }
+    } : {})
   };
 
   return `<script>window.__ZK_DAPP_CONFIG__=${safeScriptJson(runtimeConfig)};</script>`;
@@ -202,6 +224,8 @@ export const getZkDappSummary = (activeDapp: any): {
   circuitName?: string;
   provingScheme?: string;
   signalCount?: number;
+  verificationMethod?: 'zkverify' | 'onchain';
+  onChainVerifier?: { address: string; chainId: number | string; networkName?: string };
 } => {
   const zkCircuit = getZkCircuitConfig(activeDapp);
   if (!zkCircuit) {
@@ -212,6 +236,10 @@ export const getZkDappSummary = (activeDapp: any): {
     hasZkCircuit: true,
     circuitName: zkCircuit.circuitName,
     provingScheme: zkCircuit.provingScheme,
-    signalCount: zkCircuit.signalInputs?.length || 0
+    signalCount: zkCircuit.signalInputs?.length || 0,
+    verificationMethod: zkCircuit.verificationMethod || 'zkverify',
+    onChainVerifier: zkCircuit.onChainVerifier
+      ? { address: zkCircuit.onChainVerifier.address, chainId: zkCircuit.onChainVerifier.chainId, networkName: zkCircuit.onChainVerifier.networkName }
+      : undefined
   };
 };

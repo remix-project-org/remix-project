@@ -1,4 +1,4 @@
-import { ProvingScheme, PrimeValue, ZkVerifyNetwork } from './dapp';
+import { ProvingScheme, PrimeValue, ZkVerifyNetwork, ZkVerificationMethod, ZkOnChainVerifierConfig } from './dapp';
 
 export interface CreateZkDappPayload {
   circuitName: string;
@@ -11,6 +11,8 @@ export interface CreateZkDappPayload {
   verificationKey: Record<string, any>;
   zkVerifyNetwork?: ZkVerifyNetwork;
   userDescription?: string;
+  verificationMethod?: ZkVerificationMethod;
+  onChainVerifier?: ZkOnChainVerifierConfig;
 }
 
 export interface ZkProofResult {

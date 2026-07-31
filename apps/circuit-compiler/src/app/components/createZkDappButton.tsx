@@ -2,6 +2,7 @@ import { useContext, useState } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { CircuitAppContext } from '../contexts'
 import { CustomTooltip } from '@remix-ui/helper'
+import { ZkVerificationMethodResult } from '@remix-ui/quick-dapp-v2'
 import { buildCreateZkDappPrompt, QuickDappZkPromptContext } from '@remix/remix-ai-core/quick-dapp-zk-prompts'
 import isElectron from 'is-electron'
 
@@ -45,6 +46,13 @@ export function CreateZkDappButton() {
   const handleCreateZkDapp = async () => {
     if (isCreating) return
 
+    const result: ZkVerificationMethodResult | null = await (plugin as any).call('notification', 'showZkVerificationMethodModal')
+    if (!result) return
+
+    await handleVerificationMethodContinue(result)
+  }
+
+  const handleVerificationMethodContinue = async (result: ZkVerificationMethodResult) => {
     setIsCreating(true)
     try {
       const circuitName = extractCircuitName(appState.filePath)
@@ -57,7 +65,9 @@ export function CreateZkDappButton() {
         signalInputs: appState.signalInputs,
         wasmPath: deriveWasmPath(appState.filePath),
         zkeyPath: deriveZkeyPath(appState.filePath),
-        verificationKey: appState.verificationKey
+        verificationKey: appState.verificationKey,
+        verificationMethod: result.verificationMethod,
+        onChainVerifier: result.onChainVerifier
       }
 
       // Build the prompt for the AI assistant

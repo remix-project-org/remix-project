@@ -3,6 +3,16 @@ export type ProvingScheme = 'groth16';
 export type PrimeValue = 'bn128' | 'bls12381';
 export type ZkVerifyNetwork = 'testnet' | 'mainnet';
 
+export type ZkVerificationMethod = 'zkverify' | 'onchain';
+
+export interface ZkOnChainVerifierConfig {
+  address: string;
+  abi: any[];
+  chainId: number | string;
+  networkName?: string;
+  contractName?: string;
+}
+
 export interface ZkCircuitConfig {
   circuitName: string;
   circuitPath: string;
@@ -17,6 +27,10 @@ export interface ZkCircuitConfig {
   zkVerifyConfig?: {
     network: ZkVerifyNetwork;
   };
+  // Optional for back-compat with dapps created before verification-method selection existed;
+  // treated as 'zkverify' when absent.
+  verificationMethod?: ZkVerificationMethod;
+  onChainVerifier?: ZkOnChainVerifierConfig;
 }
 
 export interface DappConfig {
