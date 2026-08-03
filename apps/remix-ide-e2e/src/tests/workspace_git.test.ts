@@ -557,7 +557,6 @@ module.exports = {
       .click('*[data-id="initializeAsGitRepo-uniswapV4Template"]')
       .click('*[data-id="validate-uniswapV4Templateworkspace-button"]')
       .pause(2000)
-      .clickLaunchIcon('filePanel')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemsrc"]')
       .openFile('src')
       .openFile('src/Counter.sol')
