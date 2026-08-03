@@ -490,7 +490,6 @@ module.exports = {
       .click('*[data-id="contract-wizard-pausable-checkbox"]')
       .assert.selected('*[data-id="contract-wizard-access-ownable-radio"]', 'checked')
       .click('*[data-id="contract-wizard-validate-workspace-button"]')
-      .clickLaunchIcon('filePanel')
       .pause(1000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken_test.sol"]')
   },
