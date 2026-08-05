@@ -7,7 +7,7 @@
     align-self: center;
 }
   .remixui_homeIcon:hover {
-    box-shadow: 0px 0px 14px -7px;
+    /* box-shadow: 0px 0px 14px -7px; */
   }
 
   .remixui_homeIcon svg path {
@@ -20,17 +20,15 @@
     display: flex;
     flex-flow: column nowrap;
   }
-  .remixui_icon:hover {
-    box-shadow: 0px 0px 14px -7px;
-  }
-
   .remixui_icon {
+    position: relative;
+    display: flex;
     cursor: pointer;
     width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    /* height: 36px; */
     align-items: center;
-     animation: highlight 2s forwards ;
+    justify-content: center;
+     /* animation: highlight 2s forwards ; */
   }
 
   @keyframes highlight {
@@ -39,27 +37,25 @@
   }
 
   .remixui_icon img {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     padding: 4px;
     filter: invert(0.5);
   }
 
   .remixui_icon_ai {
+    position: relative;
+    display: flex;
     cursor: pointer;
     width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    /* height: 36px; */
     align-items: center;
-  }
-
-  .remixui_icon_ai:hover {
-    box-shadow: 0px 0px 14px -7px;
+    justify-content: center;
   }
 
   .remixui_icon_ai svg {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     padding: 4px;
   }
 
@@ -70,7 +66,7 @@
     justify-content: flex-start;
     width: 52px;
     height: auto;
-    min-height: 36px;
+    /* min-height: 36px; */
     padding-bottom: 4px;
   }
 
@@ -94,9 +90,36 @@
     filter: invert(0) grayscale(1);
   }
 
+  /* hover/active background now lives on the row (.remixui_icon_row) so the highlight spans
+     the full row width, not just the icon's own box */
+  .remixui_icon_row {
+    transition: background-color 0.12s ease;
+  }
+  /* half of Bootstrap's py-1 (0.25rem) — labeled rows are already taller from the label text */
+  .remixui_icon_row--compact {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .remixui_icon_row:hover {
+    background-color: color-mix(in srgb, var(--bs-body-color) 10%, transparent);
+  }
+  .remixui_icon_row--active {
+    background-color: color-mix(in srgb, var(--icon-accent, var(--custom-primary)) 14%, transparent);
+  }
+  .remixui_icon_row--active:hover {
+    background-color: color-mix(in srgb, var(--icon-accent, var(--custom-primary)) 20%, transparent);
+  }
+  /* only recolors icons already converted to inline SVG with fill: var(--bs-secondary-color) —
+     raster <img> icons keep their existing invert-filter based selected state below */
+  .remixui_icon.remixui_icon--active svg path,
+  .remixui_icon.remixui_icon--active svg g path {
+    fill: var(--custom-primary);
+  }
+
+
   .remixui_icon svg {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     padding: 4px;
   }
   .remixui_icon[title='Settings'] {
@@ -104,12 +127,12 @@
     align-self: center;
     bottom: 0;
   }
+  /* absolutely positioned so a status badge (compiling/compiled/error…) never adds to the
+     icon's own box height — it anchors to .remixui_icon/.remixui_icon_ai (position: relative) */
   .remixui_status {
-    position: relative;
-    bottom: 0;
-    right: 0;
-    left: 12px;
-    top: -13px;
+    position: absolute;
+    top: -4px;
+    right: -4px;
   }
   .remixui_statusCheck {
     font-size: 1.2em;
@@ -129,9 +152,9 @@
   .remixui_verticalIconContextcontainer {
     display: block;
     position: fixed;
-    border-radius: 2px;
+    /* border-radius: 2px; */
     z-index: 1000;
-    box-shadow: 0 0 4px var(--dark);
+    /* box-shadow: 0 0 4px var(--dark); */
   }
   .remixui_verticalIconContextcontainer:focus {
     outline: 0;
@@ -179,6 +202,10 @@
     border-bottom: 1px solid var(--bs-border-color);
     padding-bottom: 4px;
     margin-bottom: 4px;
+  }
+  .remixui_ai-divider {
+    border-bottom: 1px solid var(--bs-border-color);
+    /* margin: 4px 8px; */
   }
   .remixui_icon-chevron {
     z-index: 1000;

@@ -7,6 +7,7 @@ import { iconBadgeReducer, IconBadgeReducerAction } from '../reducers/iconBadgeR
 import { Plugin } from '@remixproject/engine'
 import { IconRecord } from '../types'
 import { CustomTooltip } from '@remix-ui/helper'
+import { iconGlyphs } from './icon-glyphs'
 
 export interface IconStatus {
   key: string | number
@@ -25,6 +26,8 @@ interface IconProps {
   contextMenuAction: (evt: any, profileName: string, documentation: string) => void
   theme: string
   showLabel?: boolean
+  rightPanelHidden?: boolean
+  leftPanelHidden?: boolean
 }
 
 // short, single-word labels for the fixed/required icon rail — full names are too wide for the column
@@ -47,7 +50,7 @@ const initialState = {
   pluginName: ''
 }
 
-const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLabel }: IconProps) => {
+const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLabel, rightPanelHidden, leftPanelHidden }: IconProps) => {
   const intl = useIntl()
   const { displayName, name, icon, documentation, description } = iconRecord.profile
   const [title] = useState(() => {
@@ -109,13 +112,21 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
     }
   }, [])
 
-  const stylePC = iconRecord.active ? 'flex-start' : 'center'
+  // "active"/"pinned" only track which plugin was last focused/assigned to a panel, not
+  // whether that panel is actually visible right now — closing a panel via its own icon
+  // shouldn't leave a stale highlight behind
+  const isLeftActive = iconRecord.active && !leftPanelHidden
+  const isRightActive = iconRecord.pinned && !rightPanelHidden
+  const isHighlighted = isLeftActive || isRightActive
+  const stylePC = isHighlighted ? 'flex-start' : 'center'
+  // the AI assistant highlights with its own brand color rather than the generic primary accent
+  const accentStyle = name === 'remixaiassistant' ? ({ '--icon-accent': 'var(--custom-ai-color)' } as React.CSSProperties) : undefined
   return (
     <>
-      <div className='d-flex py-1' style={{ width: 'auto', placeContent: stylePC }}>
+      <div className={`d-flex remixui_icon_row ${showLabel ? 'remixui_icon_row--compact' : 'py-1'} ${isHighlighted ? 'remixui_icon_row--active' : ''}`} style={{ width: 'auto', placeContent: stylePC, ...accentStyle }}>
         <div
-          className={`pt-1 ${iconRecord.active ? 'bg-primary' : 'bg-transparent'}`}
-          style={{ width: "6px", height: "36px", position: 'relative', borderRadius: '24%' }}
+          className="pt-1"
+          style={{ width: "6px", position: 'relative', borderRadius: '1000px', backgroundColor: isLeftActive ? 'var(--icon-accent, var(--custom-primary))' : 'transparent' }}
         ></div>
         <CustomTooltip
           placement="right"
@@ -125,10 +136,12 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
           {
             name === 'remixaiassistant' ? (
               <div
-                className={`remixui_icon_ai pt-1 ${showLabel ? 'remixui_icon_labeled' : ''}`}
+                className={`remixui_icon_ai py-1 ${showLabel ? 'remixui_icon_labeled' : ''} ${isHighlighted ? 'remixui_icon--active' : ''}`}
                 onClick={() => {
                   if (iconRecord.pinned) {
-                    verticalIconPlugin.call('rightSidePanel', 'highlight')
+                    // highlight() only ever shows the panel — togglePanel() actually
+                    // closes it too, so re-clicking an already-open pinned icon closes it
+                    verticalIconPlugin.call('rightSidePanel', 'togglePanel')
                   } else {
                     (verticalIconPlugin as any).toggle(name)
                   }
@@ -155,7 +168,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
               </div>
             ) : (
               <div
-                className={`remixui_icon m-0 pt-1 ${showLabel ? 'remixui_icon_labeled' : ''}`}
+                className={`remixui_icon m-0 py-1 ${showLabel ? 'remixui_icon_labeled' : ''} ${isHighlighted ? 'remixui_icon--active' : ''}`}
                 onClick={async () => {
                   if (iconRecord.pinned) {
                     verticalIconPlugin.call('rightSidePanel', 'highlight')
@@ -181,12 +194,16 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
                 id={`verticalIconsKind${name}`}
                 ref={iconRef}
               >
-                <img
-                  data-id={iconRecord.active ? `selected` : ''}
-                  className={`${theme === 'dark' ? 'invert' : ''} ${theme} remixui_image ${iconRecord.active || iconRecord.pinned ? `selected-${theme}-${name}` : ''}`}
-                  src={icon}
-                  alt={name}
-                />
+                {iconGlyphs[name] ? (
+                  React.cloneElement(iconGlyphs[name], { 'data-id': iconRecord.active ? 'selected' : '', 'aria-label': name })
+                ) : (
+                  <img
+                    data-id={iconRecord.active ? `selected` : ''}
+                    className={`${theme === 'dark' ? 'invert' : ''} ${theme} remixui_image ${iconRecord.active || iconRecord.pinned ? `selected-${theme}-${name}` : ''}`}
+                    src={icon}
+                    alt={name}
+                  />
+                )}
                 <Badge badgeStatus={badgeStatus} />
                 {showLabel ? <div className="remixui_icon_label">{label}</div> : null}
               </div>
@@ -206,8 +223,8 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
           />
         ) : null}
         <div
-          className={`pt-1 ${iconRecord.pinned ? 'bg-primary' : 'bg-transparent'}`}
-          style={{ width: "6px", height: "36px", position: 'relative', borderRadius: '24%', marginLeft: 'auto' }}
+          className="pt-1"
+          style={{ width: "6px", position: 'relative', borderRadius: '1000px', marginLeft: 'auto', backgroundColor: isRightActive ? 'var(--icon-accent, var(--custom-primary))' : 'transparent' }}
         ></div>
       </div>
     </>

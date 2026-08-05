@@ -17,6 +17,8 @@ import { FormattedMessage } from 'react-intl'
 export interface RemixUiVerticalIconsPanelProps {
   verticalIconsPlugin: Plugin
   icons: IconRecord[]
+  rightPanelHidden?: boolean
+  leftPanelHidden?: boolean
 }
 
 const initialState = {
@@ -28,7 +30,7 @@ const initialState = {
 // pinned at the very bottom of the rail, above the Help & Resources button
 const bottomPinned = ['planManager', 'helpPlugin']
 
-const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVerticalIconsPanelProps) => {
+const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons, rightPanelHidden, leftPanelHidden }: RemixUiVerticalIconsPanelProps) => {
   const scrollableRef = useRef<any>()
   const iconPanelRef = useRef<any>()
   const [activateScroll, dispatchScrollAction] = useReducer(verticalScrollReducer, initialState)
@@ -92,11 +94,13 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
     <div id="iconsP" className="h-100">
       <div className="remixui_icons d-flex flex-column remixui_icons_height" ref={iconPanelRef}>
         <div className={scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? 'remixui_default-icons-container remixui_requiredSection' : activateScroll && activateScroll.scrollState ? 'remixui_default-icons-container remixui_requiredSection' : 'remixui_requiredSection'}>
-          <IconList theme={theme} icons={icons.filter((p) => p.isRequired && p.profile.name !== 'pluginManager')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} showLabels />
+          <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'remixaiassistant')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} showLabels rightPanelHidden={rightPanelHidden} leftPanelHidden={leftPanelHidden} />
+          <div className="remixui_ai-divider"></div>
+          <IconList theme={theme} icons={icons.filter((p) => p.isRequired && p.profile.name !== 'pluginManager' && p.profile.name !== 'remixaiassistant')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} showLabels leftPanelHidden={leftPanelHidden} />
           {scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? <Chevron direction="up" divElementRef={scrollableRef} cssRule={'fa fa-chevron-up remixui_icon-chevron my-0'} /> : null}
         </div>
         <div id="remixuiScrollable" className={scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? 'remixui_default-icons-container remixui_scrollable-container remixui_scrollbar remixui_hide-scroll' : activateScroll && activateScroll.scrollState ? 'remixui_default-icons-container remixui_scrollable-container remixui_scrollbar remixui_hide-scroll' : 'remixui_scrollable-container remixui_scrollbar remixui_hide-scroll'} ref={scrollableRef}>
-          <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'pluginManager')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} showLabels />
+          <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'pluginManager')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} showLabels leftPanelHidden={leftPanelHidden} />
           <IconList
             theme={theme}
             icons={icons.filter((p) => {
@@ -104,8 +108,9 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
             })}
             verticalIconsPlugin={verticalIconsPlugin}
             itemContextAction={itemContextAction}
+            leftPanelHidden={leftPanelHidden}
           />
-          <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'settings' || p.profile.name === 'walkthrough')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} />
+          <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'settings' || p.profile.name === 'walkthrough')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} leftPanelHidden={leftPanelHidden} />
           <IconList
             theme={theme}
             icons={icons
@@ -113,6 +118,7 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons }: RemixUiVertic
               .sort((a, b) => bottomPinned.indexOf(a.profile.name) - bottomPinned.indexOf(b.profile.name))}
             verticalIconsPlugin={verticalIconsPlugin}
             itemContextAction={itemContextAction}
+            leftPanelHidden={leftPanelHidden}
           />
         </div>
         <div className="remixui_default-icons-container border-0 pb-3">

@@ -10,13 +10,15 @@ interface OtherIconsProps {
   icons: IconRecord[]
   theme: string
   showLabels?: boolean
+  rightPanelHidden?: boolean
+  leftPanelHidden?: boolean
 }
 
-function IconList({ verticalIconsPlugin, itemContextAction, icons, theme, showLabels }: OtherIconsProps) {
+function IconList({ verticalIconsPlugin, itemContextAction, icons, theme, showLabels, rightPanelHidden, leftPanelHidden }: OtherIconsProps) {
   return (
     <div id="otherIcons" className="position-relative">
       {icons.map((p) => (
-        <Icon theme={theme} iconRecord={p} verticalIconPlugin={verticalIconsPlugin} contextMenuAction={itemContextAction} key={p.profile.name} showLabel={showLabels} />
+        <Icon theme={theme} iconRecord={p} verticalIconPlugin={verticalIconsPlugin} contextMenuAction={itemContextAction} key={p.profile.name} showLabel={showLabels} rightPanelHidden={rightPanelHidden} leftPanelHidden={leftPanelHidden} />
       ))}
     </div>
   )

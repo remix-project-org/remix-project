@@ -23,6 +23,8 @@ export class VerticalIcons extends Plugin {
   icons: Record<string, IconRecord> = {}
   dispatch: React.Dispatch<any> = () => {}
   pendingPinnedPlugin: any = null
+  rightPanelHidden = false
+  leftPanelHidden = false
   constructor() {
     super(profile)
     this.events = new EventEmitter()
@@ -69,7 +71,9 @@ export class VerticalIcons extends Plugin {
 
     this.dispatch({
       verticalIconsPlugin: this,
-      icons: sorted
+      icons: sorted,
+      rightPanelHidden: this.rightPanelHidden,
+      leftPanelHidden: this.leftPanelHidden
     })
   }
 
@@ -94,6 +98,18 @@ export class VerticalIcons extends Plugin {
       this.renderComponent()
     })
 
+    // same reasoning as rightSidePanel below: "active" only reflects which plugin was last
+    // focused, not whether the panel is actually visible — closing it via its own icon
+    // shouldn't leave that icon's highlight behind
+    this.on('sidePanel', 'leftSidePanelShown', () => {
+      this.leftPanelHidden = false
+      this.renderComponent()
+    })
+    this.on('sidePanel', 'leftSidePanelHidden', () => {
+      this.leftPanelHidden = true
+      this.renderComponent()
+    })
+
     this.on('rightSidePanel', 'pinnedPlugin', (profile) => {
       if (this.icons[profile.name]) {
         Object.keys(this.icons).map((icon) => {
@@ -114,6 +130,21 @@ export class VerticalIcons extends Plugin {
       if (this.icons[profile.name]) {
         this.icons[profile.name].pinned = false
       }
+      this.renderComponent()
+    })
+
+    // whichever plugin is pinned to rightSidePanel only reads as "active" while that panel
+    // is actually visible — collapsing/hiding it shouldn't leave a stale highlight behind
+    this.on('rightSidePanel', 'rightSidePanelShown', () => {
+      this.rightPanelHidden = false
+      this.renderComponent()
+    })
+    this.on('rightSidePanel', 'rightSidePanelRestored', () => {
+      this.rightPanelHidden = false
+      this.renderComponent()
+    })
+    this.on('rightSidePanel', 'rightSidePanelHidden', () => {
+      this.rightPanelHidden = true
       this.renderComponent()
     })
   }
@@ -254,7 +285,7 @@ export class VerticalIcons extends Plugin {
   }
 
   updateComponent(state: any) {
-    return <RemixUiVerticalIconsPanel verticalIconsPlugin={state.verticalIconsPlugin} icons={state.icons} />
+    return <RemixUiVerticalIconsPanel verticalIconsPlugin={state.verticalIconsPlugin} icons={state.icons} rightPanelHidden={state.rightPanelHidden} leftPanelHidden={state.leftPanelHidden} />
   }
 
   render() {
