@@ -20,6 +20,7 @@ import {
   extractNameFromKey,
   getPrimaryQuickDappContract,
   getQuickDappContracts,
+  logQuickDappBinding,
   normalizeQuickDappEnvironment,
   QuickDappContractBinding,
   QuickDappContractInput,
@@ -1410,7 +1411,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
 export class UpdateDAppHandler extends BaseToolHandler {
   name = 'update_dapp'
-  description = 'Update an existing DApp without changing its contract bindings. Contract addresses, ABIs, chain, primary contract, and contract count are fixed at creation. If the request changes any binding, do not call this tool, generate_dapp, or file tools; tell the user to create a new DApp. Direct chat prerequisite: call list_dapps first and wait for the user to select a workspace. If the prompt already provides an exact DApp update target workspaceName, use that exact workspaceName without calling list_dapps. Never substitute a different workspaceName. Never call generate_dapp for an update.'
+  description = 'Update an existing DApp without changing its contract bindings or managed ZK circuit metadata. Contract addresses, ABIs, chain, primary contract, and contract count are fixed at creation. For ZK DApps, only UI/source updates are allowed; app kind, circuit metadata, signal inputs, proving scheme, prime field, zkVerify config, and artifact files/paths are fixed. If the request changes an immutable binding, do not call this tool, a DApp generation tool, or file tools; tell the user to create a new DApp. Direct chat prerequisite: call list_dapps first and wait for the user to select a workspace. If the prompt already provides an exact DApp update target workspaceName, use that exact workspaceName without calling list_dapps. Never substitute a different workspaceName. Never call generate_dapp, generate_graph_dapp, or generate_zk_dapp for an update.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -1623,8 +1624,21 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
       const targetConfig = targetConfigLookup.config || {}
       const isGraphOnlyUpdate = targetConfig.appKind === 'graph-only'
+      const isZkCircuitUpdate = targetConfig.appKind === 'zk-circuit'
+      const isContractUpdate = !isGraphOnlyUpdate && !isZkCircuitUpdate
+      const zkCircuit = isZkCircuitUpdate ? targetConfig.zkCircuit : undefined
+      if (isZkCircuitUpdate && (!zkCircuit || typeof zkCircuit !== 'object' || !zkCircuit.zkArtifacts)) {
+        return this.createErrorResult('The ZK DApp config is missing required zkCircuit metadata and cannot be updated safely.')
+      }
+
+      logQuickDappBinding('update.target.classified', {
+        workspaceName: targetWorkspace,
+        appKind: isGraphOnlyUpdate ? 'graph-only' : isZkCircuitUpdate ? 'zk-circuit' : 'contract',
+        contractResolutionRequired: isContractUpdate
+      })
+
       let contractResolved: ResolvedQuickDappContractInfo | undefined
-      if (!isGraphOnlyUpdate) {
+      if (isContractUpdate) {
         try {
           contractResolved = this.resolveContractInfo(args, targetConfig)
         } catch (error: any) {
@@ -1717,15 +1731,34 @@ export class UpdateDAppHandler extends BaseToolHandler {
       const examplePaths = dappOps.resolvePath('src/App.jsx')
       const correctPathExample = `Correct: ${examplePaths}`
       const isMultiContractUpdate = Boolean(contractResolved && contractResolved.contracts.length > 1)
-      const appKindLine = isMultiContractUpdate
-        ? `CONTRACT BINDINGS (immutable, chain ${contractResolved.chainId}${isLocalVM ? ', Remix VM' : ''}):\n` +
-          contractResolved.contracts.map((contract) =>
-            `- ${contract.alias}${contract.address.toLowerCase() === contractResolved.address.toLowerCase() ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
-          ).join('\n') + '\n'
-        : contractResolved
-          ? `CONTRACT ADDRESS: ${contractResolved.address} on chain ${contractResolved.chainId}${isLocalVM ? ' (Remix VM)' : ''}\n`
-          : `APP KIND: Graph-only read-only DApp\n`
-      const buildRules = isGraphOnlyUpdate ? QUICKDAPP_GRAPH_ONLY_BUILD_RULES : QUICKDAPP_BUILD_RULES
+      const zkSignalInputs = Array.isArray(zkCircuit?.signalInputs) && zkCircuit.signalInputs.length > 0
+        ? zkCircuit.signalInputs.join(', ')
+        : 'not recorded'
+      const appKindLine = isZkCircuitUpdate
+        ? `APP KIND: ZK circuit DApp\n` +
+          `ZK CIRCUIT BINDING (immutable):\n` +
+          `- Circuit: ${zkCircuit.circuitName || 'not recorded'}\n` +
+          `- Circuit source: ${zkCircuit.circuitPath || 'not recorded'}\n` +
+          `- Proving scheme: ${zkCircuit.provingScheme || 'not recorded'}\n` +
+          `- Prime field: ${zkCircuit.primeValue || 'not recorded'}\n` +
+          `- Signal inputs: ${zkSignalInputs}\n` +
+          `- Artifact paths: wasm=${zkCircuit.zkArtifacts.wasmPath || 'not recorded'}, zkey=${zkCircuit.zkArtifacts.zkeyPath || 'not recorded'}, vkey=${zkCircuit.zkArtifacts.vkeyPath || 'not recorded'}\n` +
+          `- zkVerify network: ${zkCircuit.zkVerifyConfig?.network || 'not recorded'}\n`
+        : isMultiContractUpdate
+          ? `CONTRACT BINDINGS (immutable, chain ${contractResolved.chainId}${isLocalVM ? ', Remix VM' : ''}):\n` +
+            contractResolved.contracts.map((contract) =>
+              `- ${contract.alias}${contract.address.toLowerCase() === contractResolved.address.toLowerCase() ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
+            ).join('\n') + '\n'
+          : contractResolved
+            ? `CONTRACT ADDRESS: ${contractResolved.address} on chain ${contractResolved.chainId}${isLocalVM ? ' (Remix VM)' : ''}\n`
+            : `APP KIND: Graph-only read-only DApp\n`
+      const buildRules = isGraphOnlyUpdate
+        ? QUICKDAPP_GRAPH_ONLY_BUILD_RULES
+        : isZkCircuitUpdate
+          ? QUICKDAPP_ZK_BUILD_RULES
+          : QUICKDAPP_BUILD_RULES
+      const designRules = isZkCircuitUpdate ? QUICKDAPP_ZK_DESIGN_RULES : QUICKDAPP_DESIGN_RULES
+      const zkArtifactRoot = isInlineMode ? '/frontend/zk' : '/zk'
       const logicPreservation = isGraphOnlyUpdate
         ? `LOGIC PRESERVATION (MANDATORY):\n` +
           `- This is a Graph-only read-only DApp. Update UI/source files only.\n` +
@@ -1735,7 +1768,17 @@ export class UpdateDAppHandler extends BaseToolHandler {
           `- You MAY restructure JSX layout, change CSS classes, and add read-only UI features.\n` +
           `- If the user asks to change contract address, ABI, chain, add contracts, or add transactions, do not implement that in this update. Keep the app Graph-only and explain that contract binding changes require a separate migration flow.\n` +
           `- When returning a file, return the COMPLETE file content — not just the changed portion.\n\n`
-        : `LOGIC PRESERVATION (MANDATORY):\n` +
+        : isZkCircuitUpdate
+          ? `LOGIC PRESERVATION (MANDATORY):\n` +
+          `- This is a ZK circuit DApp. Update UI/source files only: index.html and files under src/.\n` +
+          `- Preserve window.__ZK_DAPP_CONFIG__, snarkjs proof generation, zkVerify proxy/runtime integration, and any existing wallet behavior.\n` +
+          `- NEVER create, modify, or delete dapp.config.json or change appKind/zkCircuit metadata, including circuitName, circuitPath, provingScheme, primeValue, signalInputs, zkArtifacts, or zkVerifyConfig.\n` +
+          `- NEVER write, replace, move, or delete files under ${zkArtifactRoot}, including circuit.wasm, circuit.zkey, and verification_key.json.\n` +
+          `- NEVER convert this DApp to contract-backed or Graph-only.\n` +
+          `- If the user asks to change an immutable ZK field or artifact, do not implement it. Explain that they must create a new ZK DApp with the desired circuit configuration.\n` +
+          `- You MAY restructure JSX layout, change CSS classes, and improve loading, error, proof result, and verification status UI without changing the proof flow.\n` +
+          `- When returning a file, return the COMPLETE file content — not just the changed portion.\n\n`
+          : `LOGIC PRESERVATION (MANDATORY):\n` +
           `- NEVER remove existing ethers.js contract integrations, useState, useEffect, or ABI calls.\n` +
           `- NEVER remove wallet connection code or window.__QUICK_DAPP_CONFIG__ integration.\n` +
           (isMultiContractUpdate ? `- Preserve the complete contract set and continue reading contracts and primaryContractId from window.__QUICK_DAPP_CONFIG__.\n` : '') +
@@ -1773,7 +1816,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
           appKindLine +
           `FILES IN WORKSPACE:\n${fileList}\n\n` +
           `${buildRules}\n` +
-          `\n${QUICKDAPP_DESIGN_RULES}\n` +
+          `\n${designRules}\n` +
           graphDataSourceBlock +
           `CRITICAL PATH RULES:\n` +
           `- All file paths are relative to workspace root. Use ${examplePaths}, NOT ${dappOps.getWorkspaceName()}${examplePaths}\n` +
@@ -2401,9 +2444,14 @@ export class ListDAppsHandler extends BaseToolHandler {
 
           const contractBindings = getQuickDappContracts(config)
           const primaryContract = getPrimaryQuickDappContract(config)
+          const appKind = config.appKind || 'contract'
           dapps.push({
             workspaceName: wsName,
             name: config.name || 'Untitled',
+            appKind,
+            ...(appKind === 'zk-circuit'
+              ? { circuitName: config.zkCircuit?.circuitName || config.name || 'Unknown circuit' }
+              : {}),
             contractAddress: primaryContract?.address || 'unknown',
             contractName: primaryContract?.name || 'unknown',
             chainId: primaryContract?.chainId || 'unknown',
@@ -2449,7 +2497,7 @@ export class ListDAppsHandler extends BaseToolHandler {
         success: true,
         dapps,
         count: dapps.length,
-        message: `Found ${dapps.length} updatable DApp(s). Present this list to the user and ask which one they want to work with. Include the exact workspaceName, DApp name, primary contract, contract bindings when there is more than one, status, and mode for each. When the user selects one, call update_dapp with that exact workspaceName.`
+        message: `Found ${dapps.length} updatable DApp(s). Present this list to the user and ask which one they want to work with. Include the exact workspaceName, DApp name, app kind, status, and mode for each. For contract DApps, include the primary contract and contract bindings when there is more than one. For ZK DApps, include the circuit name. When the user selects one, call update_dapp with that exact workspaceName.`
       })
     } catch (error: any) {
       remixAILogger.error('[QuickDapp] list_dapps failed:', error)
@@ -3111,7 +3159,7 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
     },
     {
       name: 'update_dapp',
-      description: 'Update an existing DApp without changing contract bindings. If the request adds, removes, replaces, or reprioritizes contracts, or changes an address, ABI, or chain, do not call this tool, generate_dapp, or file tools; tell the user to create a new DApp. Otherwise, use the exact target workspaceName supplied by the prompt, or call list_dapps and wait for the user to select one. Never substitute a different workspaceName. Never call generate_dapp for an update.',
+      description: 'Update an existing DApp without changing contract bindings or managed ZK circuit metadata. If the request adds, removes, replaces, or reprioritizes contracts, changes an address, ABI, or chain, or changes a ZK DApp app kind, circuit metadata, signal inputs, proving scheme, prime field, zkVerify config, or artifact files/paths, do not call this tool, a DApp generation tool, or file tools; tell the user to create a new DApp. Otherwise, use the exact target workspaceName supplied by the prompt, or call list_dapps and wait for the user to select one. Never substitute a different workspaceName. Never call generate_dapp, generate_graph_dapp, or generate_zk_dapp for an update.',
       inputSchema: new UpdateDAppHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:update', 'file:write'],

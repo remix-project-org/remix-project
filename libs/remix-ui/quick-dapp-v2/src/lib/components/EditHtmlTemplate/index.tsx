@@ -566,6 +566,9 @@ window.addEventListener('unhandledrejection', function(e) {
     const contractBindings = getQuickDappContracts(activeDapp);
     const primaryContract = getPrimaryQuickDappContract(activeDapp);
     const isGraphOnlyTarget = activeDapp.appKind === 'graph-only';
+    const isZkCircuitTarget = activeDapp.appKind === 'zk-circuit';
+    const zkCircuit = activeDapp.zkCircuit;
+    const targetAppKind = isGraphOnlyTarget ? 'graph-only' : isZkCircuitTarget ? 'zk-circuit' : 'contract';
     const graphSources = Array.isArray(activeDapp.dataSources?.theGraph) ? activeDapp.dataSources.theGraph : [];
     const promptParts = [
       `DApp update target context:`,
@@ -576,7 +579,7 @@ window.addEventListener('unhandledrejection', function(e) {
       `Target slug: "${activeDapp.slug}"`,
       `Target mode: "${targetMode}"`,
       `Target source root: "${targetSourceRoot}"`,
-      `Target app kind: "${isGraphOnlyTarget ? 'graph-only' : 'contract'}"`,
+      `Target app kind: "${targetAppKind}"`,
       ``,
     ];
 
@@ -584,6 +587,19 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(
         `Contract: none (Graph-only read-only DApp)`,
         `Update scope: UI/source updates only. Preserve Graph data fetching and do not add contract, wallet, provider, signer, ethers, transaction, or network switching code.`
+      );
+    } else if (isZkCircuitTarget) {
+      promptParts.push(
+        `Contract: none (ZK circuit DApp)`,
+        `ZK circuit binding is fixed at creation:`,
+        `- Circuit: ${zkCircuit?.circuitName || activeDapp.name || 'not recorded'}`,
+        `- Circuit source: ${zkCircuit?.circuitPath || 'not recorded'}`,
+        `- Proving scheme: ${zkCircuit?.provingScheme || 'not recorded'}`,
+        `- Prime field: ${zkCircuit?.primeValue || 'not recorded'}`,
+        `- Signal inputs: ${zkCircuit?.signalInputs?.join(', ') || 'none recorded'}`,
+        `- Artifact paths: wasm=${zkCircuit?.zkArtifacts?.wasmPath || 'not recorded'}, zkey=${zkCircuit?.zkArtifacts?.zkeyPath || 'not recorded'}, vkey=${zkCircuit?.zkArtifacts?.vkeyPath || 'not recorded'}`,
+        `- zkVerify network: ${zkCircuit?.zkVerifyConfig?.network || 'not recorded'}`,
+        `Update scope: UI/source updates only. Preserve window.__ZK_DAPP_CONFIG__, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, circuit metadata, and artifact files.`
       );
     } else if (contractBindings.length > 1) {
       promptParts.push(
@@ -608,15 +624,19 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(``, `Current DApp files:`, ...fileList.map(f => `- ${f}`));
     }
 
+    const immutableUpdateCheck = isZkCircuitTarget
+      ? `After my next reply, first check whether I asked to add a contract or change the app kind, circuit source, circuit name, proving scheme, prime field, signal inputs, zkVerify network, or ZK artifact files/paths. If so, do not call update_dapp or any file tool; explain that I must create a new ZK DApp.`
+      : `After my next reply, first check whether I asked to add, remove, replace, or reprioritize contracts, or change an address, ABI, or chain. If so, do not call update_dapp or any file tool; explain that I must create a new DApp.`;
+
     promptParts.push(
       ``,
       `I want to update this exact DApp.`,
-      `For this first response, do not call list_dapps, update_dapp, generate_dapp, read_file, write_file, or finalize_dapp_generation.`,
+      `For this first response, do not call list_dapps, update_dapp, generate_dapp, generate_graph_dapp, generate_zk_dapp, read_file, write_file, or finalize_dapp_generation.`,
       `Only ask me one concise question: what changes would I like to make?`,
-      `After my next reply, first check whether I asked to add, remove, replace, or reprioritize contracts, or change an address, ABI, or chain. If so, do not call update_dapp or any file tool; explain that I must create a new DApp.`,
+      immutableUpdateCheck,
       `Otherwise, call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to my requested changes.`,
       `Use exactly the target workspaceName above if calling update_dapp.`,
-      `Never call generate_dapp for this update flow.`
+      `Never call a DApp generation tool for this update flow.`
     );
 
     const prompt = promptParts.join('\n');
@@ -649,6 +669,9 @@ window.addEventListener('unhandledrejection', function(e) {
     const contractBindings = getQuickDappContracts(activeDapp);
     const primaryContract = getPrimaryQuickDappContract(activeDapp);
     const isGraphOnlyTarget = activeDapp.appKind === 'graph-only';
+    const isZkCircuitTarget = activeDapp.appKind === 'zk-circuit';
+    const zkCircuit = activeDapp.zkCircuit;
+    const targetAppKind = isGraphOnlyTarget ? 'graph-only' : isZkCircuitTarget ? 'zk-circuit' : 'contract';
     const graphSources = Array.isArray(activeDapp.dataSources?.theGraph) ? activeDapp.dataSources.theGraph : [];
 
     const promptParts = [
@@ -660,7 +683,7 @@ window.addEventListener('unhandledrejection', function(e) {
       `Target slug: "${activeDapp.slug}"`,
       `Target mode: "${targetMode}"`,
       `Target source root: "${targetSourceRoot}"`,
-      `Target app kind: "${isGraphOnlyTarget ? 'graph-only' : 'contract'}"`,
+      `Target app kind: "${targetAppKind}"`,
       `Base mini app: ${activeDapp.config?.isBaseMiniApp ? 'yes' : 'no'}`,
       `Deployment status: "${activeDapp.status || 'unknown'}"`,
       ``
@@ -670,6 +693,19 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(
         `Contract: none (Graph-only read-only DApp)`,
         `Fix scope: UI/source fixes only. Preserve Graph data fetching and do not add contract, wallet, provider, signer, ethers, transaction, or network switching code.`
+      );
+    } else if (isZkCircuitTarget) {
+      promptParts.push(
+        `Contract: none (ZK circuit DApp)`,
+        `ZK circuit binding is fixed at creation:`,
+        `- Circuit: ${zkCircuit?.circuitName || activeDapp.name || 'not recorded'}`,
+        `- Circuit source: ${zkCircuit?.circuitPath || 'not recorded'}`,
+        `- Proving scheme: ${zkCircuit?.provingScheme || 'not recorded'}`,
+        `- Prime field: ${zkCircuit?.primeValue || 'not recorded'}`,
+        `- Signal inputs: ${zkCircuit?.signalInputs?.join(', ') || 'none recorded'}`,
+        `- Artifact paths: wasm=${zkCircuit?.zkArtifacts?.wasmPath || 'not recorded'}, zkey=${zkCircuit?.zkArtifacts?.zkeyPath || 'not recorded'}, vkey=${zkCircuit?.zkArtifacts?.vkeyPath || 'not recorded'}`,
+        `- zkVerify network: ${zkCircuit?.zkVerifyConfig?.network || 'not recorded'}`,
+        `Fix scope: UI/source fixes only. Preserve window.__ZK_DAPP_CONFIG__, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, circuit metadata, and artifact files.`
       );
     } else if (contractBindings.length > 1) {
       promptParts.push(
@@ -692,6 +728,10 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(...buildQuickDappUpdateGraphContextBlock(graphSources));
     }
 
+    const previewPreservationInstruction = isZkCircuitTarget
+      ? `Preserve window.__ZK_DAPP_CONFIG__, circuit metadata, ZK artifact paths/files, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, and deployment configuration.`
+      : `Preserve the existing contract bindings, Graph, Base mini app, and deployment configuration.`;
+
     promptParts.push(
       ``,
       `Observed preview issue type: "${previewIssue.type}"`,
@@ -702,8 +742,8 @@ window.addEventListener('unhandledrejection', function(e) {
       `Call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to a concise summary of the preview issue above.`,
       `Fix only the cause of this preview issue.`,
       `Do not redesign the DApp or change unrelated UI/behavior.`,
-      `Preserve the existing contract bindings, Graph, Base mini app, and deployment configuration.`,
-      `Never call generate_dapp for this fix flow.`,
+      previewPreservationInstruction,
+      `Never call a DApp generation tool for this fix flow.`,
       `After editing files, finalize the DApp update.`
     );
 
