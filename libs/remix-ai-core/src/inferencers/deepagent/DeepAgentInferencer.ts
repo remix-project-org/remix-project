@@ -799,7 +799,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   }
 
   public async getProjectStructure(): Promise<string> {
-    console.log('[DeepAgentInferencer] Attempting to retrieve project structure from MCP...')
     if (!this.mcpInferencer) {
       return ''
     }

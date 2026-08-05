@@ -123,6 +123,8 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     module: false,
     tls: false,
     net: false,
+    http2: false,
+    dns: false,
     readline: false,
     child_process: false,
     buffer: require.resolve('buffer/'),
@@ -154,6 +156,9 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
 
   // Prefer browser/Esm entry points where available
   config.resolve.mainFields = ['browser', 'module', 'main']
+
+  // Honor the `browser` field remaps in package.json (object form) for the AWS SDK
+  config.resolve.aliasFields = ['browser']
 
   config.resolve.alias = {
     ...config.resolve.alias,
@@ -276,6 +281,8 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
         `)
       } else if (replacements[module]) {
         resource.request = replacements[module]
+      } else {
+        resource.request = module
       }
     })
   )

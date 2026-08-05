@@ -29,5 +29,8 @@
   "circuit.groth16": "Groth16",
   "circuit.plonk": "Plonk",
   "circuit.ptauTooltip": "To choose the from the list of ptau files",
-  "circuit.setupAndExportTooltip": "Click to setup and export verification keys"
+  "circuit.setupAndExportTooltip": "Click to setup and export verification keys",
+  "circuit.createZkDapp": "Create ZK DApp",
+  "circuit.creatingZkDapp": "Creating ZK DApp...",
+  "circuit.createZkDappTooltip": "Generate a DApp with in-browser proof generation and zkVerify verification"
 }

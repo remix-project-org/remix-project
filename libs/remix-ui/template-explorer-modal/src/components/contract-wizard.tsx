@@ -275,7 +275,7 @@ export function ContractWizard () {
             await validateAndCreateWorkspace()
           }
         }}>
-          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-check me-2"></i>{state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}</>}
+          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-plus me-1"></i>{state.manageCategory === 'Files' ? 'Create contract file' : 'Create workspace'}</>}
         </button>
       </div>
     </section>

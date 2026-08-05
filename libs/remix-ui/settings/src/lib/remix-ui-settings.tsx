@@ -1,7 +1,7 @@
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useState, useReducer, useEffect, useContext, useMemo } from 'react' // eslint-disable-line
 import Fuse from 'fuse.js'
-import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription } from '@remix-ui/helper'
+import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription, ZkVerifyCredentialsDescription } from '@remix-ui/helper'
 import { AppConfig, FeatureGroup } from '@remix-api'
 import { AppContext, useAuth } from '@remix-ui/app'
 
@@ -237,6 +237,9 @@ const settingsSections: SettingsSection[] = [
           }, {
             name: 'deepagent-moonshot-api-key' as keyof typeof initialState,
             type: 'password'
+          }, {
+            name: 'deepagent-bedrock-bearer-token' as keyof typeof initialState,
+            type: 'password'
           }]
         }]
       }]
@@ -317,6 +320,22 @@ const settingsSections: SettingsSection[] = [
             name: 'thegraph-access-token',
             type: 'password'
           }]
+        }, {
+          name: 'zkverify-config',
+          label: 'settings.zkverifyTitle',
+          type: 'toggle',
+          toggleUIDescription: <ZkVerifyCredentialsDescription />,
+          toggleUIOptions: [{
+            name: 'zkverify-api-key',
+            type: 'password'
+          }, {
+            name: 'zkverify-network',
+            type: 'select',
+            selectOptions: [
+              { label: 'Testnet', value: 'testnet' },
+              { label: 'Mainnet', value: 'mainnet' }
+            ]
+          }]
         }]
       }]
   }
@@ -343,7 +362,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
   // Check if user can use their own API keys based on their plan
   const canUseOwnApiKeys = useMemo(() => {
     return features['ai:api-key']?.is_enabled === true
-  }, [featureGroups])
+  }, [features, featureGroups])
 
   // Check if user has access to contextual editor feature (code analysis popover)
   const hasContextualEditorFeature = useMemo(() => {

@@ -334,6 +334,8 @@ const _createWorkspaceInternal = async (
       if (isHidden) {
         await plugin.call('sidePanel', 'togglePanel')
       }
+      // Select the File Explorer plugin
+      await plugin.call('menuicons', 'select', 'filePanel')
     } catch (e) {
       console.log('Could not check/update side panel visibility:', e)
     }

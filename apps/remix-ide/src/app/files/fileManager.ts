@@ -612,11 +612,16 @@ export default class FileManager extends Plugin {
     const provider = this.fileProviderOf(path)
 
     if (!provider) throw createError({ code: 'ENOENT', message: `${path} not available` })
+    // binary reads must never be served from the editor's (text-only) buffer
+    const wantsBinary = options && options.encoding === null
     // TODO: change provider to Promise
     return new Promise((resolve, reject) => {
-      if (this.currentFile() === path) {
+      if (!wantsBinary && this.currentFile() === path) {
         const editorContent = this.editor.currentContent()
-        if (editorContent) resolve(editorContent)
+        if (editorContent) {
+          resolve(editorContent)
+          return
+        }
       }
       provider.get(path, (err, content) => {
         if (err) reject(err)
@@ -771,6 +776,8 @@ export default class FileManager extends Plugin {
       }
       if (provider.isReadOnly(file)) {
         await this.editor.openReadOnly(file, content)
+      } else if (file?.endsWith('.wasm')) {
+        await this.editor.displayEmptyReadOnlySession(file, 'This file cannot be previewed in the editor.')
       } else {
         await this.editor.open(file, content)
       }
@@ -855,9 +862,11 @@ export default class FileManager extends Plugin {
   async saveCurrentFile() {
     const currentFile = this._deps.config.get('currentFile')
     if (currentFile && this.editor.current()) {
+      if (currentFile.endsWith('.wasm')) return
+      const provider = this.fileProviderOf(currentFile)
+      if (provider?.isReadOnly(currentFile)) return
       const input = this.editor.get(currentFile)
       if ((input !== null) && (input !== undefined)) {
-        const provider = this.fileProviderOf(currentFile)
         if (provider) {
           // use old content as default if save operation fails.
           provider.get(currentFile, (error, oldContent) => {

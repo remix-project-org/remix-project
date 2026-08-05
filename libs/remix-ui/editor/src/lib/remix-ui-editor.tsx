@@ -527,6 +527,7 @@ export const EditorUI = (props: EditorUIProps) => {
     props.plugin.call('fileManager', 'getUrlFromPath', currentFileRef.current).then((url) => (currentUrlRef.current = url.file))
 
     const file = editorModelsState[props.currentFile]
+    if (!file?.model) return
 
     props.isDiff && diffEditorRef && diffEditorRef.current && diffEditorRef.current.setModel({
       original: editorModelsState[props.currentDiffFile].model,
@@ -560,7 +561,7 @@ export const EditorUI = (props: EditorUIProps) => {
     } else if (file.language === 'md') {
       monacoRef.current.editor.setModelLanguage(file.model, 'markdown')
     }
-  }, [props.currentFile, props.isDiff])
+  }, [props.currentFile, props.isDiff, editorModelsState[props.currentFile]?.readOnly])
 
   // Load and sync diff sessions
   useEffect(() => {
@@ -2043,7 +2044,7 @@ export const EditorUI = (props: EditorUIProps) => {
           keepCurrentModel={true}
           options={{
             glyphMargin: true,
-            readOnly: (!editorRef.current || !props.currentFile) && editorModelsState[props.currentFile]?.readOnly,
+            readOnly: editorModelsState[props.currentFile]?.readOnly ?? false,
             inlineSuggest: { enabled: true },
             minimap: { enabled: false }
           }}

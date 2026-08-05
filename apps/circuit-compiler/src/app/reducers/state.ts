@@ -36,7 +36,9 @@ export const appInitialState: AppState = {
   exportVerifierCalldata: true,
   exportWtnsJson: false,
   verificationKey: null,
-  zKey: null
+  zKey: null,
+  zkVerifyStatus: 'idle',
+  zkVerifyAttestation: null
 }
 
 export const appReducer = (state = appInitialState, action: Actions): AppState => {
@@ -178,6 +180,18 @@ export const appReducer = (state = appInitialState, action: Actions): AppState =
     return {
       ...state,
       versionDownloadList: state.versionDownloadList.filter(version => version !== action.payload)
+    }
+
+  case 'SET_ZKVERIFY_STATUS':
+    return {
+      ...state,
+      zkVerifyStatus: action.payload
+    }
+
+  case 'SET_ZKVERIFY_ATTESTATION':
+    return {
+      ...state,
+      zkVerifyAttestation: action.payload
     }
 
   default:

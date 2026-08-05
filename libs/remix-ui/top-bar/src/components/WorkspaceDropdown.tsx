@@ -561,7 +561,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                 className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
                 onClick={() => { downloadWorkspaces(); setDropdownOpen(false) }}
               >
-                <i className="far fa-download text-body-secondary fws-action-icon" />
+                <i className="fas fa-download text-body-secondary fws-action-icon" />
                 <span>Backup</span>
               </button>
               <button
