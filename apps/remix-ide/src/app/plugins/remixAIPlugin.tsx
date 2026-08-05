@@ -3,7 +3,7 @@ import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent, Features, ChatPromptMetadata } from '@remix-api'
 import { remixAILogger, RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig } from '@remix/remix-ai-core';
-import { MCPInferencer, DeepAgentInferencer, onApiKeysChange } from '@remix/remix-ai-core';
+import { MCPInferencer, DeepAgentInferencer, onApiKeysChange, isUsingOwnKeyForProvider } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
 import { AIModel } from '@remix/remix-ai-core';
@@ -493,8 +493,9 @@ export class RemixAIPlugin extends Plugin {
           remixAILogger.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent')
         }
 
-        // Don't use remote fallback for Ollama - user explicitly chose local models
-        const fallbackInferencer = this.selectedModel.provider === 'ollama' ? null : this.remoteInferencer
+        const fallbackInferencer = (this.selectedModel.provider === 'ollama' || isUsingOwnKeyForProvider(this.selectedModel.provider, userApiKeys))
+          ? null
+          : this.remoteInferencer
 
         // Clean up old instance if it exists
         if (this.deepAgentInferencer && typeof this.deepAgentInferencer.cleanup === 'function') {
@@ -512,7 +513,7 @@ export class RemixAIPlugin extends Plugin {
           },
           fallbackInferencer,
           this.mcpInferencer, // Pass MCPInferencer to gather external MCP client tools
-          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama', modelId: this.selectedModelId } // Pass selected model
+          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama' | 'bedrock', modelId: this.selectedModelId } // Pass selected model
         )
         await this.deepAgentInferencer.initialize()
         // Set up DeepAgent event listeners for streaming (once only)
@@ -743,6 +744,7 @@ export class RemixAIPlugin extends Plugin {
         }
       }
       remixAILogger.log('[answer][route-flow]', routeFlow)
+      console.log('[answer][route-flow] route', route)
       if (!remoteRouteCheck && route === 'remote') {
         remixAILogger.warn('[answer][route-flow] remote route selected but remoteInferencer is missing')
       }

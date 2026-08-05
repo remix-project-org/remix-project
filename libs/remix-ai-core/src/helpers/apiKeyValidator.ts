@@ -79,6 +79,16 @@ export function validateApiKeyFormat(provider: ModelProvider, apiKey: string): A
     }
     break
 
+  case 'bedrock':
+    if (trimmedKey.length < 20) {
+      return {
+        isValid: false,
+        provider,
+        error: 'AWS Bedrock API key appears to be too short'
+      }
+    }
+    break
+
   case 'ollama':
     return {
       isValid: true,
@@ -116,6 +126,9 @@ export async function testApiKey(provider: ModelProvider, apiKey: string): Promi
 
     case 'moonshot':
       return await testMoonshotKey(trimmedKey)
+
+    case 'bedrock':
+      return await testBedrockKey(trimmedKey)
 
     case 'ollama':
       return { isValid: true, provider }
@@ -311,7 +324,63 @@ async function testMoonshotKey(apiKey: string): Promise<ApiKeyValidationResult> 
   }
 }
 
+async function testBedrockKey(apiKey: string): Promise<ApiKeyValidationResult> {
+  const region = 'us-east-1'
+  const modelId = 'amazon.nova-micro-v1:0'
+  try {
+    const response = await fetch(
+      `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(modelId)}/converse`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: [{ text: 'ping' }]}],
+          inferenceConfig: { maxTokens: 1 }
+        })
+      }
+    )
+
+    // Authenticated and served.
+    if (response.ok) {
+      return { isValid: true, provider: 'bedrock' }
+    }
+
+    // Bad / expired / unrecognized token.
+    if (response.status === 401 || response.status === 403) {
+      const errorData = await response.json().catch(() => ({} as any))
+      return {
+        isValid: false,
+        provider: 'bedrock',
+        error: errorData?.message || errorData?.Message || 'Invalid API key - authentication failed'
+      }
+    }
+
+    // Throttled, or a request-shape validation error — the token still
+    // authenticated (an invalid one is rejected with 401/403 first).
+    if (response.status === 429 || response.status === 400) {
+      return { isValid: true, provider: 'bedrock' }
+    }
+
+    const errorData = await response.json().catch(() => ({} as any))
+    return {
+      isValid: false,
+      provider: 'bedrock',
+      error: errorData?.message || errorData?.Message || `API returned status ${response.status}`
+    }
+  } catch (error: any) {
+    return {
+      isValid: false,
+      provider: 'bedrock',
+      error: error?.message || 'Network error testing API key'
+    }
+  }
+}
+
 export function getProviderFromSettingKey(settingKey: string): ModelProvider | null {
+  if (settingKey.includes('bedrock')) return 'bedrock'
   if (settingKey.includes('anthropic')) return 'anthropic'
   if (settingKey.includes('openai')) return 'openai'
   if (settingKey.includes('mistral')) return 'mistralai'

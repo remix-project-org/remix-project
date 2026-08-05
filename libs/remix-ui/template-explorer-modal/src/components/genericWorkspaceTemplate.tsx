@@ -115,7 +115,7 @@ export function GenericWorkspaceTemplate() {
           trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'createWorkspaceWithGenericTemplate', name: state.workspaceTemplateChosen.value, isClick: true })
           facade.closeWizard()
         }}>
-          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : 'Create workspace'}
+          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-plus me-1"></i>Create workspace</>}
         </button>
       </div>
     </section>

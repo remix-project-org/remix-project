@@ -1,4 +1,4 @@
-export type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama'
+export type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama' | 'bedrock'
 
 export interface ModelSelection {
   provider: ModelProvider
@@ -14,6 +14,32 @@ export interface IUserApiKeyConfig {
   mistralApiKey?: string
   openaiApiKey?: string
   moonshotApiKey?: string
+  // AWS Bedrock API key (bearer token) for the `bedrock` provider. Bedrock has
+  // no Remix proxy, so this is always user-provided. The key is region-scoped
+  // at creation (see DEFAULT_BEDROCK_REGION in ModelFactory).
+  bedrockBearerToken?: string
+}
+
+export function isUsingOwnKeyForProvider(
+  provider: ModelProvider | string,
+  keys?: IUserApiKeyConfig
+): boolean {
+  if (!keys) return false
+  switch (provider) {
+  case 'bedrock':
+    // Bedrock has no proxy — a configured key means own-key, always.
+    return !!keys.bedrockBearerToken
+  case 'anthropic':
+    return !!(keys.useOwnKeys && keys.anthropicApiKey)
+  case 'mistralai':
+    return !!(keys.useOwnKeys && keys.mistralApiKey)
+  case 'openai':
+    return !!(keys.useOwnKeys && keys.openaiApiKey)
+  case 'moonshot':
+    return !!(keys.useOwnKeys && keys.moonshotApiKey)
+  default:
+    return false
+  }
 }
 
 /**

@@ -98,7 +98,7 @@
 }
 
 .sub-category-header:hover {
-  background-color: var(--bs-gray-100) !important;
+  background-color: rgba(var(--bs-primary-rgb), 0.12) !important;
 }
 
 .cursor-pointer {

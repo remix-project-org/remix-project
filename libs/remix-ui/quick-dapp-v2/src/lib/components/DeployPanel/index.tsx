@@ -12,6 +12,7 @@ import { generateWalletSelectionScript } from '../../utils/wallet-selection-scri
 import { validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
 import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
+import { buildZkRuntimeConfigScript, hasZkCircuit } from '../../utils/zkverify-runtime-config';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
@@ -320,6 +321,7 @@ function DeployPanel(): JSX.Element {
         details
       });
       const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'ipfs-deploy' });
+      const zkRuntimeScript = await buildZkRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'ipfs-deploy' });
       const walletScript = generateWalletSelectionScript();
 
       // Escape text for safe use in HTML attribute values (OG/Twitter meta tags)
@@ -380,19 +382,65 @@ function DeployPanel(): JSX.Element {
       ].filter(Boolean).join('\n    ');
 
       let modifiedHtml = indexHtmlContent;
-      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n${graphRuntimeScript}\n    ${ogTags}\n</head>`);
-      else modifiedHtml = `<html><head>${injectionScript}\n${graphRuntimeScript}\n${ogTags}</head>${modifiedHtml}</html>`;
+      if (modifiedHtml.includes('</head>')) modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n${graphRuntimeScript}\n${zkRuntimeScript}\n    ${ogTags}\n</head>`);
+      else modifiedHtml = `<html><head>${injectionScript}\n${graphRuntimeScript}\n${zkRuntimeScript}\n${ogTags}</head>${modifiedHtml}</html>`;
 
       const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
       modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
       modifiedHtml = modifiedHtml.replace(/<link rel="stylesheet"[^>]*href="(?:\/|\.\/)?src\/index\.css"[^>]*>/, '');
 
-      // Step 3: Final IPFS deploy with HTML + screenshot
+      // Step 3: Final IPFS deploy with HTML + screenshot + ZK artifacts
       const formData = new FormData();
       const htmlBlob = new Blob([modifiedHtml], { type: 'text/html' });
       formData.append('files', htmlBlob, 'index.html');
       if (screenshotBlob) {
         formData.append('files', screenshotBlob, 'screenshot.png');
+      }
+
+      // Include ZK artifacts if this is a ZK DApp
+      // Note: Files are uploaded at root level (no subdirectories) because IPFS endpoint
+      // doesn't support directory structures. The runtime config paths are adjusted accordingly.
+      if (hasZkCircuit(activeDapp)) {
+        const zkCircuit = activeDapp?.zkCircuit;
+        const zkArtifacts = zkCircuit?.zkArtifacts;
+
+        // Use paths from config, with fallbacks based on mode
+        const isInlineMode = activeDapp?.mode === 'inline';
+        const defaultFolder = isInlineMode ? 'frontend/zk' : 'zk';
+        const wasmPath = zkArtifacts?.wasmPath || `${defaultFolder}/circuit.wasm`;
+        const zkeyPath = zkArtifacts?.zkeyPath || `${defaultFolder}/circuit.zkey`;
+        const vkeyPath = zkArtifacts?.vkeyPath || `${defaultFolder}/verification_key.json`;
+
+        console.log('[IPFS Deploy] ZK artifacts paths:', { wasmPath, zkeyPath, vkeyPath, mode: activeDapp?.mode });
+
+        // Read and append circuit.wasm (at root level for IPFS compatibility)
+        try {
+          const wasmData = await plugin.call('fileManager', 'readFile', wasmPath, { encoding: null });
+          const wasmContent = wasmData instanceof Uint8Array ? new Uint8Array(wasmData) : new TextEncoder().encode(wasmData as string);
+          const wasmBlob = new Blob([wasmContent.buffer], { type: 'application/wasm' });
+          formData.append('files', wasmBlob, 'circuit.wasm');
+        } catch (e) {
+          console.error('[IPFS Deploy] Failed to read circuit.wasm from', wasmPath, ':', e);
+        }
+
+        // Read and append circuit.zkey (at root level for IPFS compatibility)
+        try {
+          const zkeyData = await plugin.call('fileManager', 'readFile', zkeyPath, { encoding: null });
+          const zkeyContent = zkeyData instanceof Uint8Array ? new Uint8Array(zkeyData) : new TextEncoder().encode(zkeyData as string);
+          const zkeyBlob = new Blob([zkeyContent.buffer], { type: 'application/octet-stream' });
+          formData.append('files', zkeyBlob, 'circuit.zkey');
+        } catch (e) {
+          console.error('[IPFS Deploy] Failed to read circuit.zkey from', zkeyPath, ':', e);
+        }
+
+        // Read and append verification_key.json (at root level for IPFS compatibility)
+        try {
+          const vkeyData = await plugin.call('fileManager', 'readFile', vkeyPath);
+          const vkeyBlob = new Blob([vkeyData], { type: 'application/json' });
+          formData.append('files', vkeyBlob, 'verification_key.json');
+        } catch (e) {
+          console.error('[IPFS Deploy] Failed to read verification_key.json from', vkeyPath, ':', e);
+        }
       }
 
       const uploadHeaders: Record<string, string> = {};

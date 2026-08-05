@@ -1676,6 +1676,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       // stopped turn — otherwise new chunks could append into an old
       // bubble that belongs to a different conversation/turn.
       streamingAssistantIdRef.current = null
+      // Clear any error notice from a previous turn so the old warning
+      // doesn't linger while a new request is in flight. If this request
+      // also fails, refreshChatNotice picks up the fresh notice afterwards.
+      dismissChatNotice()
 
       // optimistic user message
       const userMsg: ChatMessage = {
@@ -2092,7 +2096,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         ])
       }
     },
-    [isStreaming, props.plugin, selectedModel, assistantChoice]
+    [isStreaming, props.plugin, selectedModel, assistantChoice, dismissChatNotice]
   )
 
   const handleSend = useCallback(async () => {
@@ -2162,6 +2166,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [])
 
   const handleModelSelection = useCallback(async (modelId: string) => {
+    setChatNotice(null)
     // Handle auto mode selection
     if (modelId === 'auto') {
       setAutoModeEnabled(true)
@@ -2211,6 +2216,33 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     if (!model.available) {
       handleLockedModelClick(model.id, model.displayName)
       return
+    }
+
+    if (model.requireAPIKey) {
+      const settingKeyByProvider: Record<string, string> = {
+        bedrock: 'deepagent-bedrock-bearer-token'
+      }
+      const settingKey = settingKeyByProvider[model.provider]
+      let hasKey = true
+      if (settingKey) {
+        try {
+          const value = await props.plugin.call('settings' as any, 'get', `settings/${settingKey}`)
+          hasKey = !!(value && String(value).trim())
+        } catch {
+          hasKey = false
+        }
+      }
+      if (!hasKey) {
+        setChatNotice({
+          severity: 'warning',
+          code: 'API_KEY_REQUIRED',
+          title: `${model.displayName} needs an API key`,
+          message: 'Add the required API key under Settings → RemixAI Assistant -> Bring Your Own API Keys, then select this model again.',
+          actionable: false
+        })
+        setShowModelSelector(false)
+        return
+      }
     }
 
     setSelectedModelId(modelId)

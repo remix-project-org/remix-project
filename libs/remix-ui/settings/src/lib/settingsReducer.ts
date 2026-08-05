@@ -27,8 +27,11 @@ const deepagentAnthropicApiKey = config.get('settings/deepagent-anthropic-api-ke
 const deepagentMistralApiKey = config.get('settings/deepagent-mistral-api-key') || ''
 const deepagentOpenaiApiKey = config.get('settings/deepagent-openai-api-key') || ''
 const deepagentMoonshotApiKey = config.get('settings/deepagent-moonshot-api-key') || ''
+const deepagentBedrockBearerToken = config.get('settings/deepagent-bedrock-bearer-token') || ''
 const enableCodeAnalysisPopover = config.get('settings/editor/code-analysis-popover')
 const aiFeedbackCreditThreshold = config.get('settings/ai-feedback-credit-threshold') || '0'
+const zkverifyApiKey = config.get('settings/zkverify-api-key') || ''
+const zkverifyNetwork = config.get('settings/zkverify-network') || 'testnet'
 
 let githubConfig = config.get('settings/github-config') || false
 let ipfsConfig = config.get('settings/ipfs-config') || false
@@ -76,9 +79,14 @@ if (!thegraphConfig && thegraphAccessToken) {
 // }
 // Auto-enable deepagent API keys config if any API key is set
 let deepagentApiKeysConfigAuto = deepagentApiKeysConfig
-if (!deepagentApiKeysConfigAuto && (deepagentAnthropicApiKey || deepagentMistralApiKey || deepagentOpenaiApiKey || deepagentMoonshotApiKey)) {
+if (!deepagentApiKeysConfigAuto && (deepagentAnthropicApiKey || deepagentMistralApiKey || deepagentOpenaiApiKey || deepagentMoonshotApiKey || deepagentBedrockBearerToken)) {
   config.set('settings/deepagent-api-keys-config', true)
   deepagentApiKeysConfigAuto = true
+}
+let zkverifyConfig = config.get('settings/zkverify-config') || false
+if (!zkverifyConfig && zkverifyApiKey) {
+  config.set('settings/zkverify-config', true)
+  zkverifyConfig = true
 }
 if (typeof generateContractMetadata !== 'boolean') {
   config.set('settings/generate-contract-metadata', true)
@@ -293,9 +301,25 @@ export const initialState: SettingsState = {
     value: deepagentMoonshotApiKey,
     isLoading: false
   },
+  'deepagent-bedrock-bearer-token': {
+    value: deepagentBedrockBearerToken,
+    isLoading: false
+  },
   //@ts-ignore
   'editor/code-analysis-popover': {
     value: enableCodeAnalysisPopoverBoolean,
+    isLoading: false,
+  },
+  'zkverify-config': {
+    value: zkverifyConfig,
+    isLoading: false
+  },
+  'zkverify-api-key': {
+    value: zkverifyApiKey,
+    isLoading: false
+  },
+  'zkverify-network': {
+    value: zkverifyNetwork,
     isLoading: false
   },
   'ai-feedback': {
@@ -331,7 +355,8 @@ export const settingReducer = (state: SettingsState, action: SettingsActions): S
         action.payload.name === 'deepagent-anthropic-api-key' ||
         action.payload.name === 'deepagent-mistral-api-key' ||
         action.payload.name === 'deepagent-openai-api-key' ||
-        action.payload.name === 'deepagent-moonshot-api-key') {
+        action.payload.name === 'deepagent-moonshot-api-key' ||
+        action.payload.name === 'deepagent-bedrock-bearer-token') {
       try {
         onDeepAgentApiKeysChanged();
       } catch (error) {

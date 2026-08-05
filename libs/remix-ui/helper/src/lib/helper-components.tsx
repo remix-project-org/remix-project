@@ -222,6 +222,7 @@ export const gitAccessTokenLink = 'https://github.com/settings/tokens/new?scopes
 export const etherscanTokenLink = 'https://etherscan.io/myapikey'
 export const sindriAccessTokenLink = 'https://sindri.app'
 export const thegraphApiKeyLink = 'https://thegraph.com/studio/apikeys/'
+export const zkverifyAccessTokenLink = 'https://testnet.kurier.xyz'
 
 export const GitHubCredentialsDescription = () => {
   const intl = useIntl()
@@ -347,3 +348,18 @@ export const checkSumWarning = () => (
     />
   </span>
 )
+
+export const ZkVerifyCredentialsDescription = () => {
+  const intl = useIntl()
+
+  return (
+    <>
+      <p className="mb-1">
+        <FormattedMessage id="settings.zkverifyAccessTokenText" />
+      </p>
+      <p className="mb-1">
+        <a href={zkverifyAccessTokenLink} target="_blank" rel="noopener noreferrer" className="text-primary">{intl.formatMessage({ id: 'settings.zkverifyAccessTokenText2' })}</a> <FormattedMessage id="settings.zkverifyAccessTokenText3" />
+      </p>
+    </>
+  )
+}

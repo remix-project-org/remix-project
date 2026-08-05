@@ -61,45 +61,64 @@ export class ApiKeySettingsHelper {
    */
   async getUserApiKeysConfig(): Promise<IUserApiKeyConfig | undefined> {
     try {
-      // First check if user has permission to use own API keys
+      // Whether the user may swap the Remix proxy for their own keys on the
+      // proxy-backed providers (anthropic / mistral / openai / moonshot).
       const hasPermission = await this.canUseOwnApiKeys()
-      if (!hasPermission) {
-        remixAILogger.log('[ApiKeySettingsHelper] User does not have permission to use own API keys')
-        return undefined
-      }
 
-      // Read settings via plugin calls (parallel for performance)
-      const [useOwnKeysValue, anthropicApiKey, mistralApiKey, openaiApiKey, moonshotApiKey] = await Promise.all([
+      // Read settings via plugin calls (parallel for performance). We read the
+      // Bedrock API key regardless of `hasPermission`, because Bedrock has no
+      // Remix proxy: if the user entered a key it must be used, there's no
+      // proxy alternative to gate it against. The permission flag only governs
+      // the proxy-backed providers below.
+      const [
+        useOwnKeysValue,
+        anthropicApiKey,
+        mistralApiKey,
+        openaiApiKey,
+        moonshotApiKey,
+        bedrockBearerToken
+      ] = await Promise.all([
         this.getSetting('deepagent-api-keys-config'),
         this.getSetting('deepagent-anthropic-api-key'),
         this.getSetting('deepagent-mistral-api-key'),
         this.getSetting('deepagent-openai-api-key'),
-        this.getSetting('deepagent-moonshot-api-key')
+        this.getSetting('deepagent-moonshot-api-key'),
+        this.getSetting('deepagent-bedrock-bearer-token')
       ])
 
       const useOwnKeys = useOwnKeysValue === 'true' || useOwnKeysValue === true
 
+      const hasBedrockKey = !!bedrockBearerToken
+
+      // Proxy-provider own keys are gated behind the permission; the Bedrock
+      // key is not (see above).
+      const anthropic = hasPermission ? String(anthropicApiKey || '') : ''
+      const mistral = hasPermission ? String(mistralApiKey || '') : ''
+      const openai = hasPermission ? String(openaiApiKey || '') : ''
+      const moonshot = hasPermission ? String(moonshotApiKey || '') : ''
+      const hasAnyProxyKey = !!(anthropic || mistral || openai || moonshot)
+
       // Debug logging
       remixAILogger.log('[ApiKeySettingsHelper] Reading API keys from settings:', {
+        hasPermission,
         useOwnKeys,
-        hasAnthropicKey: !!anthropicApiKey,
-        hasMistralKey: !!mistralApiKey,
-        hasOpenaiKey: !!openaiApiKey,
-        hasMoonshotKey: !!moonshotApiKey
+        hasAnyProxyKey,
+        hasBedrockKey
       })
 
-      // Auto-enable if any API key is set
-      const hasAnyKey = anthropicApiKey || mistralApiKey || openaiApiKey || moonshotApiKey
-      if (!useOwnKeys && !hasAnyKey) {
+      // Nothing to contribute → callers fall back to the proxy.
+      //  - No Bedrock key AND no proxy-provider own keys in play.
+      if (!hasBedrockKey && !hasAnyProxyKey && !(useOwnKeys && hasPermission)) {
         return undefined
       }
 
       return {
-        useOwnKeys: useOwnKeys || !!hasAnyKey,
-        anthropicApiKey: String(anthropicApiKey || ''),
-        mistralApiKey: String(mistralApiKey || ''),
-        openaiApiKey: String(openaiApiKey || ''),
-        moonshotApiKey: String(moonshotApiKey || '')
+        useOwnKeys: (useOwnKeys && hasPermission) || hasAnyProxyKey || hasBedrockKey,
+        anthropicApiKey: anthropic,
+        mistralApiKey: mistral,
+        openaiApiKey: openai,
+        moonshotApiKey: moonshot,
+        bedrockBearerToken: String(bedrockBearerToken || '')
       }
     } catch (error) {
       remixAILogger.warn('[ApiKeySettingsHelper] Failed to read user API keys config:', error)
@@ -112,6 +131,12 @@ export class ApiKeySettingsHelper {
    */
   async isUsingOwnApiKeyForProvider(provider: string): Promise<boolean> {
     try {
+      // Bedrock has no proxy — it's always "own key" when a Bedrock API key is
+      // present, independent of the proxy-vs-own-key toggle.
+      if (provider === 'bedrock') {
+        return !!(await this.getSetting('deepagent-bedrock-bearer-token'))
+      }
+
       const useOwnKeysValue = await this.getSetting('deepagent-api-keys-config')
       const useOwnKeys = useOwnKeysValue === 'true' || useOwnKeysValue === true
 

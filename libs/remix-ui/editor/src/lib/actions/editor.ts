@@ -21,7 +21,12 @@ export const reducerActions = (models = initialState, action: Action) => {
     const value = action.payload.value
     const language = action.payload.language
     const readOnly = action.payload.readOnly
-    if (models[uri]) return models // already existing
+    if (models[uri]) {
+      if (models[uri].readOnly !== readOnly) {
+        return { ...models, [uri]: { ...models[uri], readOnly } }
+      }
+      return models
+    }
     models[uri] = { language, uri, readOnly }
     let model
 

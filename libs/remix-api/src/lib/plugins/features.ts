@@ -74,6 +74,9 @@ export const AI_PROVIDER_ANTHROPIC = 'ai:Anthropic' as const
 /** OpenAI provider access. */
 export const AI_PROVIDER_OPENAI = 'ai:OpenAI' as const
 
+/** AWS Bedrock provider access. */
+export const AI_PROVIDER_BEDROCK = 'ai:bedrock' as const
+
 // ─── MCP Features ───────────────────────────────────────────────────────────────
 
 /** Basic external MCP integrations. */
@@ -167,6 +170,7 @@ export const Features = {
   AI_PROVIDER_MISTRAL,
   AI_PROVIDER_ANTHROPIC,
   AI_PROVIDER_OPENAI,
+  AI_PROVIDER_BEDROCK,
 
   // MCP
   MCP_BASIC_EXTERNAL,
@@ -226,6 +230,7 @@ export const FEATURE_LABELS: Partial<Record<FeatureKey, string>> = {
   [AI_PROVIDER_MISTRAL]:    'Mistral',
   [AI_PROVIDER_ANTHROPIC]:  'Anthropic',
   [AI_PROVIDER_OPENAI]:     'OpenAI',
+  [AI_PROVIDER_BEDROCK]:    'AWS Bedrock',
   // MCP
   [MCP_BASIC_EXTERNAL]:     'External MCP Integrations',
   [MCP_THEGRAPH]:           'The Graph',

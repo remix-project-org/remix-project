@@ -103,7 +103,7 @@ export function WorkspaceDetails(props: WorkspaceDetailsProps) {
           facade.closeWizard()
           dispatch({ type: TemplateExplorerWizardAction.RESET_STATE })
         }}>
-          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-plus me-2"></i>Create a new workspace</>}
+          {state.creating ? <><i className="fas fa-spinner fa-spin me-2"></i>Creating...</> : <><i className="far fa-plus me-1"></i>Create workspace</>}
         </button>
       </div>
     </section>

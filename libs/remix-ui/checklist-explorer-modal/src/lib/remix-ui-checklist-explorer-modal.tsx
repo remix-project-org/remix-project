@@ -532,7 +532,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                               {isExpanded && (
                                 <div className="category-items p-3 bg-light border border-secondary rounded-bottom">
                                   {collectChecklistItems(mainCategory.data).slice(0, 3).map((item) => (
-                                    <div key={item.id} className="item-preview mb-2 p-2 bg-white border rounded">
+                                    <div key={item.id} className="item-preview mb-2 p-2 border rounded">
                                       <div className="fw-bold small text-dark">{item.question}</div>
                                       <div className="text-muted small">{item.description.substring(0, 100)}...</div>
                                     </div>
@@ -563,7 +563,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                                   return (
                                     <div key={categoryPath} className="sub-category border-bottom">
                                       <div
-                                        className={`sub-category-header p-3 d-flex justify-content-between align-items-center cursor-pointer bg-light`}
+                                        className={`sub-category-header p-3 d-flex justify-content-between align-items-center cursor-pointer`}
                                         onClick={() => toggleCategory(categoryPath)}
                                         style={isSelected ? { backgroundColor: 'rgba(var(--bs-primary-rgb), 0.12)', boxShadow: 'inset 4px 0 0 var(--bs-primary)' } : isLoaded ? { boxShadow: 'inset 4px 0 0 var(--bs-success)' } : {}}
                                       >
@@ -595,9 +595,9 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                                       </div>
 
                                       {isExpanded && (
-                                        <div className="category-items p-3 bg-light-subtle">
+                                        <div className="category-items p-3">
                                           {collectChecklistItems(subCategory.data).slice(0, 3).map((item) => (
-                                            <div key={item.id} className="item-preview mb-2 p-2 bg-white border rounded">
+                                            <div key={item.id} className="item-preview mb-2 p-2 border rounded">
                                               <div className="fw-bold small text-dark">{item.question}</div>
                                               <div className="text-muted small">{item.description.substring(0, 100)}...</div>
                                             </div>

@@ -14,7 +14,7 @@ const profile = {
   name: 'editor',
   description: 'service - editor',
   version: packageJson.version,
-  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints', 'acceptDiff', 'discardDiff', 'getDiffSessions', 'setActiveDiff', 'closeDiffSession', 'openSplitView', 'closeSplitView'],
+  methods: ['highlight', 'discardHighlight', 'clearAnnotations', 'addLineText', 'discardLineTexts', 'addAnnotation', 'gotoLine', 'revealRange', 'getCursorPosition', 'open', 'addModel','addErrorMarker', 'clearErrorMarkers', 'getText', 'getPositionAt', 'openReadOnly', 'displayEmptyReadOnlySession', 'showCustomDiff', 'hasUnacceptedChanges', 'clearAllBreakpoints', 'acceptDiff', 'discardDiff', 'getDiffSessions', 'setActiveDiff', 'closeDiffSession', 'openSplitView', 'closeSplitView'],
 }
 
 export default class Editor extends Plugin {
@@ -696,12 +696,15 @@ export default class Editor extends Plugin {
   }
 
   /**
-   * Display an Empty read-only session
+   * Display an Empty read-only session, with an optional message shown in place of the file's content.
+   * @param {string} path Path of the file this session stands in for.
+   * @param {string} message Message to display in the editor instead of the file's content.
    */
-  displayEmptyReadOnlySession () {
+  displayEmptyReadOnlySession (path, message = '') {
     if (!this.activated) return
-    this.currentFile = null
-    this.emit('addModel', '', 'text', '_blank', true)
+    this.readOnlySessions[path] = true
+    this.emit('addModel', message, 'text', path, true)
+    this._switchSession(path)
   }
 
   /**
@@ -754,9 +757,9 @@ export default class Editor extends Plugin {
    * @param {string} content Content of the document or update.
    */
   async openReadOnly (path, content) {
+    this.readOnlySessions[path] = true
     if (!this.sessions[path]) {
-      this.readOnlySessions[path] = true
-      const session = await this._createSession(path, content, this._getMode(path))
+      const session = await this._createSession(path, content, this._getMode(path), true)
       this.sessions[path] = session
     }
     this.setIsDiff(false)

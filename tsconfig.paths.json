@@ -197,6 +197,9 @@
             "@remix/remix-ai-core/quick-dapp-thegraph-prompts": [
               "libs/remix-ai-core/src/remix-mcp-server/prompts/quickDappTheGraphPrompts.ts"
             ],
+            "@remix/remix-ai-core/quick-dapp-zk-prompts": [
+              "libs/remix-ai-core/src/remix-mcp-server/prompts/quickDappZkPrompts.ts"
+            ],
             "@remix-ui/git": [
               "libs/remix-ui/git/src/index.ts"
             ],
@@ -256,6 +259,9 @@
             ],
             "@remix-ui/thegraph": [
               "libs/remix-ui/thegraph/src/index.ts"
+            ],
+            "@remix-project/remix-zkverify-core": [
+              "libs/remix-zkverify-core/src/index.ts"
             ]
         }
     }
