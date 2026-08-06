@@ -14,12 +14,14 @@ import { ToolCategory, RemixToolDefinition } from '../types/mcpTools'
 import { Plugin } from '@remixproject/engine'
 import {
   buildQuickDappContractConfigFields,
+  classifyQuickDappEnvironment,
   clearQuickDappWorkspaceLock,
   createQuickDappContractSelection,
   DappOperations,
   extractNameFromKey,
   getPrimaryQuickDappContract,
   getQuickDappContracts,
+  isQuickDappRemixVMIdentifier,
   logQuickDappBinding,
   normalizeQuickDappEnvironment,
   QuickDappContractBinding,
@@ -42,7 +44,13 @@ const isLocalVMChainId = (chainId: number | string): boolean => {
 
 const isInvalidQuickDappChainId = (chainId: number | string | undefined | null): boolean => {
   const value = String(chainId ?? '').trim().toLowerCase()
-  return !value || value === '-' || value === 'undefined' || value === 'unknown' || value === 'null' || value === 'nan'
+  if (isQuickDappRemixVMIdentifier(value)) return false
+  if (!/^(?:0x[0-9a-f]+|[0-9]+)$/.test(value)) return true
+  try {
+    return BigInt(value) <= 0n
+  } catch (_) {
+    return true
+  }
 }
 
 const getDappModeFromConfig = (config: any): 'workspace' | 'inline' => {
@@ -690,7 +698,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
   private async resolveGenerateChainId(args: GenerateDAppArgs, plugin: Plugin): Promise<{
     chainId: number | string
     providerName?: string
-    source: 'unchanged' | 'current_vm_provider' | 'invalid_from_provider'
+    source: 'unchanged' | 'current_vm_provider' | 'invalid_from_rpc'
     matchedDeployedContract: boolean
   }> {
     const originalChainId = args.chainId
@@ -716,7 +724,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
     }
 
     let matchedDeployedContract = false
-    if (providerName?.startsWith('vm') || invalidChainId) {
+    if (isQuickDappRemixVMIdentifier(providerName) || invalidChainId) {
       try {
         const deployedContracts = await plugin.call('udappDeployedContracts' as any, 'getDeployedContracts')
         if (Array.isArray(deployedContracts)) {
@@ -730,7 +738,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       }
     }
 
-    if (providerName?.startsWith('vm') && (matchedDeployedContract || invalidChainId)) {
+    if (isQuickDappRemixVMIdentifier(providerName) && (matchedDeployedContract || invalidChainId)) {
       return {
         chainId: providerName,
         providerName,
@@ -739,13 +747,21 @@ export class GenerateDAppHandler extends BaseToolHandler {
       }
     }
 
-    if (invalidChainId && providerName) {
-      return {
-        chainId: providerName,
-        providerName,
-        source: 'invalid_from_provider',
-        matchedDeployedContract
+    if (invalidChainId) {
+      try {
+        const rpcChainId = await plugin.call('blockchain' as any, 'sendRpc', 'eth_chainId') as string
+        if (!isInvalidQuickDappChainId(rpcChainId)) {
+          return {
+            chainId: rpcChainId,
+            providerName,
+            source: 'invalid_from_rpc',
+            matchedDeployedContract
+          }
+        }
+      } catch (_) {
+        // Fall through to the explicit error below.
       }
+      throw new Error('Could not resolve the current execution environment chain ID')
     }
 
     return {
@@ -779,7 +795,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
     )
 
     const actualProvider = await plugin.call('blockchain' as any, 'getProvider') as string
-    const currentEnvironment = actualProvider?.startsWith('vm')
+    const currentEnvironment = isQuickDappRemixVMIdentifier(actualProvider)
       ? actualProvider
       : await plugin.call('blockchain' as any, 'sendRpc', 'eth_chainId') as string
     if (currentEnvironment === undefined ||
@@ -930,6 +946,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       remixAILogger.log('[GenerateDApp] Received args:', getGenerateDAppArgsTrace(args))
       const isDesktop = isElectron()
       const targetMode = isDesktop ? 'inline' : (args.frontendMode || 'workspace')
+      const hasAdditionalContracts = Array.isArray(args.additionalContracts) && args.additionalContracts.length > 0
       args.frontendMode = targetMode
       this.normalizeGraphContext(args)
 
@@ -976,8 +993,9 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
       const chainResolution = await this.resolveGenerateChainId(args, plugin)
       args.chainId = chainResolution.chainId
+      const environmentKind = classifyQuickDappEnvironment(chainResolution.providerName, args.chainId)
 
-      if (args.additionalContracts?.length) {
+      if (hasAdditionalContracts) {
         try {
           contractSelection = await this.resolveMultiContractSelection(args, plugin)
           args.contractAbi = contractSelection.primary.abi
@@ -1070,6 +1088,24 @@ export class GenerateDAppHandler extends BaseToolHandler {
         }
       }
 
+      if (!contractSelection) {
+        let networkName = 'Unknown Network'
+        try {
+          const network = await plugin.call('udappEnv' as any, 'getNetwork')
+          networkName = network?.name || networkName
+        } catch (_) {
+          // Keep the fallback network name.
+        }
+        contractSelection = createQuickDappContractSelection([{
+          name: args.contractName,
+          address: args.contractAddress,
+          abi: args.contractAbi as any[],
+          chainId: args.chainId,
+          networkName
+        }])
+        args.contractAbi = contractSelection.primary.abi
+      }
+
       // ── Workspace Setup ──
       if (targetMode === 'inline') {
         const currentWs = await plugin.call('filePanel', 'getCurrentWorkspace')
@@ -1089,7 +1125,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
           if (fileCount > 0 && !args.confirmOverwrite) {
             remixAILogger.log(`[QuickDapp] /frontend folder exists with ${fileCount} files, requesting user confirmation`)
-            const retryParameters = contractSelection
+            const retryParameters = hasAdditionalContracts
               ? 'the SAME parameters (including additionalContracts)'
               : 'the SAME parameters'
             const overwriteOptions = isDesktop
@@ -1133,7 +1169,9 @@ export class GenerateDAppHandler extends BaseToolHandler {
             address: args.contractAddress,
             abi: args.contractAbi,
             chainId: args.chainId,
-            ...(contractSelection ? {
+            networkName: contractSelection.primary.networkName,
+            sourceFilePath: contractSelection.primary.sourceFilePath,
+            ...(hasAdditionalContracts ? {
               contracts: contractSelection.contracts,
               primaryContractId: contractSelection.primaryContractId
             } : {}),
@@ -1177,13 +1215,6 @@ export class GenerateDAppHandler extends BaseToolHandler {
         try {
           const configPath = 'dapp.config.json'
           remixAILogger.log(`[QuickDapp] Creating DApp config at ${configPath}`)
-          let networkName = 'Unknown Network'
-          try {
-            const network = await plugin.call('udappEnv', 'getNetwork')
-            networkName = network?.name || 'Unknown Network'
-          } catch (e) {
-            remixAILogger.warn('[QuickDapp] Could not get network name:', e)
-          }
 
           // Get actual workspace name - on remixdesktop get the folder name from working directory
           let actualWorkspaceName = dappOps.getWorkspaceName()
@@ -1200,17 +1231,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
           }
 
           const timestamp = Date.now()
-          const contractConfigFields = contractSelection
-            ? buildQuickDappContractConfigFields(contractSelection)
-            : {
-              contract: {
-                name: args.contractName,
-                address: args.contractAddress,
-                abi: args.contractAbi,
-                chainId: args.chainId,
-                networkName
-              }
-            }
+          const contractConfigFields = buildQuickDappContractConfigFields(contractSelection)
 
           const dappConfig = {
             _warning: 'DO NOT EDIT THIS FILE MANUALLY. MANAGED BY QUICK DAPP.',
@@ -1236,7 +1257,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
             processingStartedAt: timestamp
           }
 
-          if (contractSelection) {
+          if (hasAdditionalContracts) {
             try { await plugin.call('fileManager', 'mkdir', '.deploys') } catch (_) {}
             try { await plugin.call('fileManager', 'mkdir', '.deploys/pinned-contracts') } catch (_) {}
             for (const contract of contractSelection.contracts) {
@@ -1262,15 +1283,24 @@ export class GenerateDAppHandler extends BaseToolHandler {
           await plugin.call('fileManager', 'writeFile', configPath, JSON.stringify(dappConfig, null, 2))
           remixAILogger.log(`[QuickDapp] DApp config created at ${configPath}`)
         } catch (configErr) {
-          if (contractSelection) {
+          if (hasAdditionalContracts) {
             for (const pinPath of createdInlinePinPaths) {
               try { await plugin.call('fileManager', 'remove', pinPath) } catch (_) {}
             }
-            throw configErr
           }
-          remixAILogger.warn('[QuickDapp] Config creation failed (non-critical):', configErr)
+          throw configErr
         }
       }
+
+      logQuickDappBinding('generation.runtime_config.completed', {
+        workspaceName: dappOps.getWorkspaceName(),
+        mode: targetMode,
+        bindingMode: 'runtime',
+        bindingCount: contractSelection.contracts.length,
+        environment: normalizeQuickDappEnvironment(args.chainId),
+        environmentKind,
+        chainResolutionSource: chainResolution.source
+      })
 
       // Notify React UI that a new DApp is being created (sets processing spinner on card)
       const progressPayload = { status: 'preparing', contractAddress: args.contractAddress, workspaceName: dappOps.getWorkspaceName(), slug: progressSlug || dappOps.getSlug() }
@@ -1280,26 +1310,17 @@ export class GenerateDAppHandler extends BaseToolHandler {
       // Do NOT include the full system prompt or file dumps — they cause tool result overflow.
       // The agent/subagent already knows DApp frontend patterns.
 
-      // Extract contract ABI summary for concise context
-      const abiSummary = (args.contractAbi || [])
-        .filter((item: any) => item.type === 'function')
-        .map((item: any) => `${item.name}(${(item.inputs || []).map((i: any) => `${i.type} ${i.name}`).join(', ')}) → ${(item.outputs || []).map((o: any) => o.type).join(', ') || 'void'} [${item.stateMutability}]`)
-        .join('\n')
-      const multiContractBlock = contractSelection
-        ? `CONTRACTS (fixed at creation):\n${contractSelection.contracts.map((contract) => {
-          const primaryLabel = contract.id === contractSelection.primaryContractId ? ' (primary)' : ''
-          const functions = contract.abi
-            .filter((item: any) => item.type === 'function')
-            .map((item: any) => `  - ${item.name}(${(item.inputs || []).map((input: any) => input.type).join(', ')}) [${item.stateMutability}]`)
-            .join('\n')
-          return `- ${contract.alias}${primaryLabel}: ${contract.name} at ${contract.address}\n${functions}`
-        }).join('\n')}\n`
-        : `CONTRACT: ${args.contractName} at ${args.contractAddress} on chain ${args.chainId}${isLocalVMChainId(args.chainId) ? ' (Remix VM)' : ''}\nFUNCTIONS:\n${abiSummary}\n`
-      const contractGenerationStep = contractSelection
-        ? `2. Read the immutable bindings from window.__QUICK_DAPP_CONFIG__: contracts is an array of { id, alias, name, address, abi, chainId }, not an object keyed by alias. Resolve each binding with contracts.find((contract) => contract.alias === '<alias>') and the primary with contracts.find((contract) => contract.id === config.primaryContractId). Create one shared provider/signer and one ethers.Contract instance per binding. Never hardcode contract addresses or ABIs.\n`
-        : `2. Use ethers.js v6 (BrowserProvider, Contract). Embed full ABI and contract address in code.\n`
+      const contractBindingBlock = `CONTRACTS (fixed at creation):\n${contractSelection.contracts.map((contract) => {
+        const primaryLabel = contract.id === contractSelection.primaryContractId ? ' (primary)' : ''
+        const functions = contract.abi
+          .filter((item: any) => item.type === 'function')
+          .map((item: any) => `  - ${item.name}(${(item.inputs || []).map((input: any) => input.type).join(', ')}) [${item.stateMutability}]`)
+          .join('\n')
+        return `- ${contract.alias}${primaryLabel}: ${contract.name} at ${contract.address}\n${functions}`
+      }).join('\n')}\n`
+      const contractGenerationStep = `2. Read the immutable bindings from window.__QUICK_DAPP_CONFIG__: contracts is an array of { id, alias, name, address, abi, chainId }, not an object keyed by alias. Resolve each binding with contracts.find((contract) => contract.alias === '<alias>') and the representative binding with contracts.find((contract) => contract.id === config.primaryContractId). Create one shared provider/signer and one ethers.Contract instance per binding. Never hardcode contract addresses or ABIs. Do not put any literal deployed address or ABI array in source code, including fallback values. If a configured binding, address, or ABI is missing or invalid, show a configuration error and do not create or call an ethers.Contract.\n`
 
-      const isLocalVM = isLocalVMChainId(args.chainId)
+      const isRemixVM = environmentKind === 'remix-vm'
       // Build optional Figma context line for subagent
       const figmaLine = figmaDesign
         ? `\nFIGMA: Design preflight succeeded for "${figmaDesign.fileName}"${figmaDesign.nodeId ? ` (node ${figmaDesign.nodeId})` : ''}. Use the simplified design data below as the visual reference. Do NOT call fetch_figma_design again for this URL unless the user explicitly asks.\nFIGMA DESIGN DATA:\n${figmaDesign.designData}\n`
@@ -1339,7 +1360,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
           `Now proceed to generate the DApp files directly using write_file.\n\n` +
           `---\n` +
           `TASK: Generate a new DApp frontend${isInlineMode ? ' in /frontend folder (inline mode)' : ''}\n` +
-          `${multiContractBlock}\n` +
+          `${contractBindingBlock}\n` +
           `USER DESIGN REQUEST: ${typeof args.description === 'string' ? args.description : JSON.stringify(args.description)}\n` +
           (args.isBaseMiniApp
             ? `\nBase mini-app RULES:\n` +
@@ -1370,7 +1391,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
           `1. Write files using write_file: ${fileWriteExamples}\n` +
           contractGenerationStep +
           `3. NEVER create or modify dapp.config.json — it is managed by the system.\n` +
-          (isLocalVM
+          (isRemixVM
             ? `\nREMIX VM RULES (LOCAL DEV MODE - CRITICAL):\n` +
             `- Use window.ethereum directly: new ethers.BrowserProvider(window.ethereum). The Remix IDE preview provides it automatically.\n` +
             `- Do NOT use window.__qdapp_getProvider(). Do NOT call wallet_switchEthereumChain or wallet_addEthereumChain.\n` +
@@ -1380,8 +1401,11 @@ export class GenerateDAppHandler extends BaseToolHandler {
             : `\nREAL NETWORK WALLET RULES (CRITICAL - use EXACT values below):\n` +
             `- The contract is deployed on chain ${args.chainId}. Set TARGET_CHAIN_ID = ${args.chainId} in the generated code.\n` +
             `- For wallet_switchEthereumChain, use chainId: '0x${Number(args.chainId).toString(16)}'. Do NOT use '0x1' or any other chain.\n` +
-            `- Use window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum for wallet discovery (EIP-6963).\n` +
-            `- Store raw provider in a React ref for reuse in network switching.\n` +
+            `- In the Connect handler, first declare const rawProvider = window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum. Resolve it exactly once per Connect action, and throw a wallet-not-found error if rawProvider?.request is unavailable.\n` +
+            `- Before creating ethers.BrowserProvider or calling getNetwork(), call const accounts = await rawProvider.request({ method: 'eth_requestAccounts' }). Then create const provider = new ethers.BrowserProvider(rawProvider), and only after that call provider.getNetwork() and provider.getSigner().\n` +
+            `- Store the selected raw provider in a React ref for reuse in network switching. Attach accountsChanged and chainChanged listeners to that exact raw provider, never to a different window.ethereum provider. Remove only those exact callbacks before replacing the provider, on explicit Disconnect, and on unmount; never call removeAllListeners().\n` +
+            `- On explicit Disconnect, clear wallet/provider/signer state and the raw provider ref, and remove only localStorage key '__qdapp_wallet_rdns'. On accountsChanged, update the visible account and any signer/contract state; if no accounts remain, clear the connected session. On chainChanged, update the decimal chain state and any dependent signer/contract state.\n` +
+            `- Log wallet connection milestones with the single filter keyword: console.info('[QDBinding] wallet.connect', { stage: 'provider-selected' }) after provider selection, then the same call with stage 'accounts-authorized' after the account request resolves, then 'connected' after network and signer resolution. Do not log account addresses or provider objects.\n` +
             `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`) +
           `4. After ALL files written, call finalize_dapp_generation with workspaceName="${dappOps.getWorkspaceName()}" and contractAddress="${args.contractAddress}"\n` +
           `---`
@@ -1730,7 +1754,9 @@ export class UpdateDAppHandler extends BaseToolHandler {
       // Build path examples based on mode
       const examplePaths = dappOps.resolvePath('src/App.jsx')
       const correctPathExample = `Correct: ${examplePaths}`
-      const isMultiContractUpdate = Boolean(contractResolved && contractResolved.contracts.length > 1)
+      const hasRuntimeContractBindings = Boolean(
+        contractResolved && Array.isArray(targetConfig.contracts) && targetConfig.contracts.length > 0
+      )
       const zkSignalInputs = Array.isArray(zkCircuit?.signalInputs) && zkCircuit.signalInputs.length > 0
         ? zkCircuit.signalInputs.join(', ')
         : 'not recorded'
@@ -1744,7 +1770,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
           `- Signal inputs: ${zkSignalInputs}\n` +
           `- Artifact paths: wasm=${zkCircuit.zkArtifacts.wasmPath || 'not recorded'}, zkey=${zkCircuit.zkArtifacts.zkeyPath || 'not recorded'}, vkey=${zkCircuit.zkArtifacts.vkeyPath || 'not recorded'}\n` +
           `- zkVerify network: ${zkCircuit.zkVerifyConfig?.network || 'not recorded'}\n`
-        : isMultiContractUpdate
+        : hasRuntimeContractBindings
           ? `CONTRACT BINDINGS (immutable, chain ${contractResolved.chainId}${isLocalVM ? ', Remix VM' : ''}):\n` +
             contractResolved.contracts.map((contract) =>
               `- ${contract.alias}${contract.address.toLowerCase() === contractResolved.address.toLowerCase() ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
@@ -1779,9 +1805,12 @@ export class UpdateDAppHandler extends BaseToolHandler {
           `- You MAY restructure JSX layout, change CSS classes, and improve loading, error, proof result, and verification status UI without changing the proof flow.\n` +
           `- When returning a file, return the COMPLETE file content — not just the changed portion.\n\n`
           : `LOGIC PRESERVATION (MANDATORY):\n` +
-          `- NEVER remove existing ethers.js contract integrations, useState, useEffect, or ABI calls.\n` +
+          `- Preserve existing ethers.js contract functionality, React state behavior, and ABI calls. Replace obsolete provider/listener wiring when required by the wallet rules below; do not keep duplicate listeners.\n` +
           `- NEVER remove wallet connection code or window.__QUICK_DAPP_CONFIG__ integration.\n` +
-          (isMultiContractUpdate ? `- Preserve the complete contract set and continue reading contracts and primaryContractId from window.__QUICK_DAPP_CONFIG__.\n` : '') +
+          (hasRuntimeContractBindings
+            ? `- Preserve the complete contract set and continue resolving bindings from window.__QUICK_DAPP_CONFIG__.contracts and primaryContractId.\n` +
+              `- Do not introduce or retain literal contract addresses or ABI arrays, including fallback values. If a configured binding, address, or ABI is missing or invalid, show a configuration error and do not create or call an ethers.Contract.\n`
+            : '') +
           `- You MAY restructure JSX layout, change CSS classes, and add new features.\n` +
           `- If the user asks to change contract address, ABI, chain, add contracts, or convert app kind, do not modify dapp.config.json or fake the config change. Explain that they must create a new DApp.\n` +
           `- When returning a file, return the COMPLETE file content — not just the changed portion.\n\n`
@@ -1794,10 +1823,14 @@ export class UpdateDAppHandler extends BaseToolHandler {
           `- Do NOT show "Install MetaMask", "Wrong Network" warnings, or chain ID checks.\n` +
           `- MUST listen for window.ethereum accountsChanged and immediately update the visible connected account, signer, and contract instance when Deploy & Run account changes. Do not require a preview refresh.\n`
           : `\nREAL NETWORK WALLET RULES (CRITICAL - use EXACT values below):\n` +
+          `- If wallet connection code is not part of the requested update and is already functional, preserve it unchanged. If it is changed or repaired, follow the remaining rules exactly.\n` +
           `- The contract is deployed on chain ${contractResolved.chainId}. Set TARGET_CHAIN_ID = ${contractResolved.chainId} in the generated code.\n` +
           `- For wallet_switchEthereumChain, use chainId: '0x${Number(contractResolved.chainId).toString(16)}'. Do NOT use '0x1' or any other chain.\n` +
-          `- Use window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum for wallet discovery (EIP-6963).\n` +
-          `- Store raw provider in a React ref for reuse in network switching.\n` +
+          `- In the Connect handler, first declare const rawProvider = window.__qdapp_getProvider ? await window.__qdapp_getProvider() : window.ethereum. Resolve it exactly once per Connect action, and throw a wallet-not-found error if rawProvider?.request is unavailable.\n` +
+          `- Before creating ethers.BrowserProvider or calling getNetwork(), call const accounts = await rawProvider.request({ method: 'eth_requestAccounts' }). Then create const provider = new ethers.BrowserProvider(rawProvider), and only after that call provider.getNetwork() and provider.getSigner().\n` +
+          `- Store the selected raw provider in a React ref for reuse in network switching. Attach accountsChanged and chainChanged listeners to that exact raw provider, never to a different window.ethereum provider. Remove only those exact callbacks before replacing the provider, on explicit Disconnect, and on unmount; never call removeAllListeners().\n` +
+          `- On explicit Disconnect, clear wallet/provider/signer state and the raw provider ref, and remove only localStorage key '__qdapp_wallet_rdns'. On accountsChanged, update the visible account and any signer/contract state; if no accounts remain, clear the connected session. On chainChanged, update the decimal chain state and any dependent signer/contract state.\n` +
+          `- Log wallet connection milestones with the single filter keyword: console.info('[QDBinding] wallet.connect', { stage: 'provider-selected' }) after provider selection, then the same call with stage 'accounts-authorized' after the account request resolves, then 'connected' after network and signer resolution. Do not log account addresses or provider objects.\n` +
           `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`
       const finalizeInstruction = contractResolved
         ? `4. Call finalize_dapp_generation with workspaceName="${targetWorkspace}", contractAddress="${contractResolved.address}", isUpdate=true\n`

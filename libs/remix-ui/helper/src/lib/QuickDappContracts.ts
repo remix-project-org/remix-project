@@ -29,6 +29,8 @@ export interface QuickDappContractConfigView {
   source: QuickDappContractConfigSource
 }
 
+export type QuickDappEnvironmentKind = 'remix-vm' | 'local-rpc' | 'network-rpc' | 'unknown'
+
 const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
 const JAVASCRIPT_RESERVED_WORDS = new Set([
   'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
@@ -49,6 +51,36 @@ export const normalizeQuickDappEnvironment = (chainId: number | string): string 
     }
   }
   return value
+}
+
+export const isQuickDappRemixVMIdentifier = (value: number | string | null | undefined): boolean =>
+  /^vm-/.test(String(value ?? '').trim().toLowerCase())
+
+export const classifyQuickDappEnvironment = (
+  providerName: string | null | undefined,
+  chainId: number | string | null | undefined
+): QuickDappEnvironmentKind => {
+  if (isQuickDappRemixVMIdentifier(chainId)) {
+    return 'remix-vm'
+  }
+
+  const normalizedProvider = String(providerName ?? '').trim().toLowerCase()
+  const normalizedChainId = normalizeQuickDappEnvironment(chainId ?? '')
+  if (
+    normalizedProvider === 'hardhat-provider' ||
+    normalizedProvider === 'ganache-provider' ||
+    normalizedProvider === 'foundry-provider' ||
+    normalizedChainId === '1337' ||
+    normalizedChainId === '31337' ||
+    normalizedChainId === '5777'
+  ) {
+    return 'local-rpc'
+  }
+
+  if (normalizedChainId === '0') return 'unknown'
+  if (/^[0-9]+$/.test(normalizedChainId)) return 'network-rpc'
+  if (isQuickDappRemixVMIdentifier(providerName)) return 'remix-vm'
+  return 'unknown'
 }
 
 const getQuickDappContractId = (chainId: number | string, address: string): string =>
