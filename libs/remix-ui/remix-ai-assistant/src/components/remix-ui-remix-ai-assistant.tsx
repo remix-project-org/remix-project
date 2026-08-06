@@ -9,7 +9,7 @@ import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse,
 //@ts-ignore
 import '../css/color.css'
 import { ModalTypes } from '@remix-ui/app'
-import { MatomoEvent, AIEvent, Features, PublicPlan } from '@remix-api'
+import { MatomoEvent, AIEvent, Features, PublicPlan, ChatPromptMetadata } from '@remix-api'
 //@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
 import { ChatHistoryComponent } from './chat'
@@ -28,7 +28,7 @@ import { ToolApprovalModal } from './ToolApprovalModal'
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
   isInitializing?: boolean
-  queuedMessage: { text: string; isEditorCodeAnalysis?: boolean; timestamp: number } | null
+  queuedMessage: { text: string; isEditorCodeAnalysis?: boolean; timestamp: number; metadata?: ChatPromptMetadata } | null
   initialMessages?: ChatMessage[]
   onMessagesChange?: (msgs: ChatMessage[]) => void
   /** optional callback whenever the user or AI does something */
@@ -50,8 +50,9 @@ export interface RemixUiRemixAiAssistantProps {
 }
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
-  sendChat: (prompt: string, isEditorCodeAnalysis?: boolean) => Promise<void>
-  /** Clears local chat history (parent receives onMessagesChange([])) */
+  sendChat: (prompt: string, isEditorCodeAnalysis?: boolean, metadata?: ChatPromptMetadata) => Promise<void>
+  submitCurrentInput: () => Promise<void>
+  addAssistantMessage: (text: string) => void
   clearChat: () => void
   /** Returns current chat history array */
   getHistory: () => ChatMessage[]
@@ -87,6 +88,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [messages, setMessages] = useState<ChatMessage[]>(props.initialMessages || [])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
+  // sendPrompt is memoized without `messages` / `currentConversationId` in its
+  // deps, so its closure goes stale (e.g. after starting a new chat mid-session).
+  // Mirror the live values in a ref so the first-message detection stays correct.
+  const firstPromptStateRef = useRef({ count: (props.initialMessages || []).length, conversationId: props.currentConversationId })
+  useEffect(() => {
+    firstPromptStateRef.current = { count: messages.length, conversationId: props.currentConversationId }
+  }, [messages, props.currentConversationId])
   const [isThinking, setIsThinking] = useState(false)
   const [showModelSelector, setShowModelSelector] = useState(false)
   const [assistantChoice, setAssistantChoice] = useState<'openai' | 'mistralai' | 'anthropic' | 'ollama'>(
@@ -254,9 +262,34 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     [props.onActivity]
   )
 
+  /**
+   * Emit prompt-provenance + engagement activities for a single send.
+   * Distinguishes user-typed from preset prompts and reports conversation
+   * depth. NEVER passes the prompt text — only derived metadata (source,
+   * presetId, length, message count).
+   */
+  const trackPromptActivity = useCallback(
+    (metadata: ChatPromptMetadata | undefined, length: number, priorMessageCount: number) => {
+      const source = metadata?.source ?? 'user'
+      const isPreset = !!(metadata && (metadata.presetId || (metadata.source && metadata.source !== 'user')))
+      // Retained for dashboard continuity — provenance only, no prompt text.
+      dispatchActivity('promptSend', { source, length })
+      dispatchActivity(isPreset ? 'prompt_preset' : 'prompt_typed', {
+        source,
+        presetId: metadata?.presetId,
+        length
+      })
+      // Engagement depth — number of messages in the conversation including this turn.
+      dispatchActivity('conversation_size', priorMessageCount + 1)
+    },
+    [dispatchActivity]
+  )
+
   useEffect(() => {
-    if (props.plugin.externalMessage) {
-      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: props.plugin.externalMessage, timestamp: Date.now(), sentiment: 'none' }])
+    const external = props.plugin.externalMessage
+    if (external?.text) {
+      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: external.text, timestamp: external.timestamp, sentiment: 'none' }])
+      props.plugin.externalMessage = null
     }
   }, [props.plugin.externalMessage])
 
@@ -990,8 +1023,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       setHasSkillsPermission(isOn(Features.AI_SKILLS))
 
       const nextPillStates = {
-        upgrade: comingSoon ? 'coming_soon' : isOn(Features.AI_UPGRADE_AVAILABLE) ? 'available' : 'hidden',
-        buyCredits: comingSoon ? 'hidden' : isOn(Features.AI_BUY_CREDITS) ? 'available' : 'hidden'
+        upgrade: (comingSoon || isOn(Features.AI_UPGRADE_AVAILABLE)) ? 'available' : 'hidden',
+        buyCredits: isOn(Features.AI_BUY_CREDITS) ? 'available' : 'hidden'
       } as const
       setPillStates(nextPillStates)
       void refreshCooldown()
@@ -1483,7 +1516,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // Push a queued message (if any) into history once props update
   useEffect(() => {
     if (props.queuedMessage) {
-      const { text, isEditorCodeAnalysis, timestamp } = props.queuedMessage
+      const { text, isEditorCodeAnalysis, timestamp, metadata } = props.queuedMessage
       setMessages(prev => [
         ...prev,
         {
@@ -1493,8 +1526,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           timestamp
         }
       ])
+      // This path bypasses sendPrompt (it only paints the bubble), so emit the
+      // prompt-provenance + engagement activities here too. Preset prompts
+      // queued before the panel mounts would otherwise go untracked.
+      trackPromptActivity(metadata, (text || '').trim().length, firstPromptStateRef.current.count)
     }
-  }, [props.queuedMessage])
+  }, [props.queuedMessage, trackPromptActivity])
 
   // Stop ongoing request - ALWAYS execute stop logic regardless of abort controller state
   const stopRequest = useCallback(() => {
@@ -1609,7 +1646,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   // reusable sender (used by both UI button and imperative ref)
   const sendPrompt = useCallback(
-    async (prompt: string, isEditorCodeAnalysis: boolean = false) => {
+    async (prompt: string, isEditorCodeAnalysis: boolean = false, metadata?: ChatPromptMetadata) => {
       const trimmed = prompt.trim()
       if (!trimmed || isStreaming) return
 
@@ -1621,7 +1658,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (!ready) return
       } catch { /* assistantState not active — fall through to legacy behaviour */ }
 
-      dispatchActivity('promptSend', trimmed)
+      // firstPromptStateRef holds the live message count — sendPrompt is
+      // intentionally memoized without `messages`, so its closure value is stale.
+      trackPromptActivity(metadata, trimmed.length, firstPromptStateRef.current.count)
 
       // Reset the per-turn "stream consumed" flag — it gates the
       // post-await duplicate-bubble guard further down.
@@ -1637,6 +1676,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       // stopped turn — otherwise new chunks could append into an old
       // bubble that belongs to a different conversation/turn.
       streamingAssistantIdRef.current = null
+      // Clear any error notice from a previous turn so the old warning
+      // doesn't linger while a new request is in flight. If this request
+      // also fails, refreshChatNotice picks up the fresh notice afterwards.
+      dismissChatNotice()
 
       // optimistic user message
       const userMsg: ChatMessage = {
@@ -1647,9 +1690,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
       setMessages(prev => [...prev, userMsg])
 
-      // If this is the first message in the conversation, optimistically show it in the sidebar
-      if (messages.length === 0 && props.currentConversationId) {
-        props.plugin.onFirstPromptSent(props.currentConversationId, trimmed)
+      const { count: priorMessageCount, conversationId: activeConversationId } = firstPromptStateRef.current
+      if (priorMessageCount === 0 && activeConversationId) {
+        props.plugin.onFirstPromptSent(activeConversationId, trimmed)
       }
 
       /** append streaming chunks helper - clears tool status when content arrives */
@@ -2053,7 +2096,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         ])
       }
     },
-    [isStreaming, props.plugin, selectedModel, assistantChoice]
+    [isStreaming, props.plugin, selectedModel, assistantChoice, dismissChatNotice]
   )
 
   const handleSend = useCallback(async () => {
@@ -2074,7 +2117,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     } catch { /* assistantState not active — fall through, sendPrompt will retry the check */ }
 
     setInput('')
-    await sendPrompt(trimmed)
+    await sendPrompt(trimmed, false, { source: 'user' })
   }, [input, isStreaming, props.plugin, sendPrompt])
 
   /*
@@ -2123,6 +2166,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [])
 
   const handleModelSelection = useCallback(async (modelId: string) => {
+    setChatNotice(null)
     // Handle auto mode selection
     if (modelId === 'auto') {
       setAutoModeEnabled(true)
@@ -2172,6 +2216,33 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     if (!model.available) {
       handleLockedModelClick(model.id, model.displayName)
       return
+    }
+
+    if (model.requireAPIKey) {
+      const settingKeyByProvider: Record<string, string> = {
+        bedrock: 'deepagent-bedrock-bearer-token'
+      }
+      const settingKey = settingKeyByProvider[model.provider]
+      let hasKey = true
+      if (settingKey) {
+        try {
+          const value = await props.plugin.call('settings' as any, 'get', `settings/${settingKey}`)
+          hasKey = !!(value && String(value).trim())
+        } catch {
+          hasKey = false
+        }
+      }
+      if (!hasKey) {
+        setChatNotice({
+          severity: 'warning',
+          code: 'API_KEY_REQUIRED',
+          title: `${model.displayName} needs an API key`,
+          message: 'Add the required API key under Settings → RemixAI Assistant -> Bring Your Own API Keys, then select this model again.',
+          actionable: false
+        })
+        setShowModelSelector(false)
+        return
+      }
     }
 
     setSelectedModelId(modelId)
@@ -2331,7 +2402,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     } catch {
       // skill endpoint unavailable — proceed without it
     }
-    props.plugin.chatPipe('Start gas optimization checks. Use the skill solidity-gas-optimization for reference and propose me to go over some specific focussed areas instead of general checks. Ask me which contract file to optimize.', true)
+    props.plugin.chatPipe('Start gas optimization checks. Use the skill solidity-gas-optimization for reference and propose me to go over some specific focussed areas instead of general checks. Ask me which contract file to optimize.', true, { source: 'ai-assistant', presetId: 'gas-optimization-audit' })
   }, [props.plugin])
 
   const handleGenerateWorkspace = useCallback(async () => {
@@ -2355,7 +2426,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       })
 
       if (description && description.trim()) {
-        sendPrompt(`/generate ${description.trim()}`)
+        sendPrompt(`/generate ${description.trim()}`, false, { source: 'ai-assistant', presetId: 'generate-workspace-modal' })
         trackMatomoEvent<AIEvent>({ category: 'ai', action: 'GenerateNewAIWorkspaceFromModal', name: description, isClick: true })
       }
     } catch {
@@ -2366,15 +2437,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   useImperativeHandle(
     ref,
     () => ({
-      sendChat: async (prompt: string, isEditorCodeAnalysis?: boolean) => {
-        await sendPrompt(prompt, isEditorCodeAnalysis)
+      sendChat: async (prompt: string, isEditorCodeAnalysis?: boolean, metadata?: ChatPromptMetadata) => {
+        await sendPrompt(prompt, isEditorCodeAnalysis, metadata)
+      },
+      submitCurrentInput: async () => {
+        await handleSend()
+      },
+      addAssistantMessage: (text: string) => {
+        if (!text) return
+        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: text, timestamp: Date.now(), sentiment: 'none' }])
       },
       clearChat: () => {
         setMessages([])
       },
       getHistory: () => messages
     }),
-    [sendPrompt, messages]
+    [sendPrompt, handleSend, messages]
   )
   const chatHistoryRef = useRef<HTMLElement | null>(null)
 
@@ -2549,6 +2627,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     </div>
   )
 
+  const currentConversationTitle = props.conversations?.find(c => c.id === props.currentConversationId)?.title
+  const headerChatTitle = (currentConversationTitle && currentConversationTitle !== 'New Conversation')
+    ? currentConversationTitle
+    : messages.find(m => m.role === 'user')?.content
+
   return (
     props.isInitializing ? (
       <div
@@ -2607,7 +2690,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 showButton={showButton}
                 setShowButton={setShowButton}
                 theme={themeTracker?.name}
-                chatTitle={messages.find(m => m.role === 'user')?.content}
+                chatTitle={headerChatTitle}
                 isAiChatMaximized={isAiChatMaximized}
                 setIsAiChatMaximized={setIsAiChatMaximized}
               />
@@ -2726,7 +2809,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   showButton={showButton}
                   setShowButton={setShowButton}
                   theme={themeTracker?.name}
-                  chatTitle={messages.find(m => m.role === 'user')?.content}
+                  chatTitle={headerChatTitle}
                   isAiChatMaximized={isAiChatMaximized}
                   setIsAiChatMaximized={setIsAiChatMaximized}
                 />

@@ -22,6 +22,10 @@ import isElectron from 'is-electron'
 const txHelper = remixLib.execution.txHelper
 const txFormat = remixLib.execution.txFormat
 const highlightedContracts = new Set<string>()
+const QUICKDAPP_SUBGRAPH_SETUP_OPTION = '- Subgraph: None (default) or a .subgraph file path/name'
+const QUICKDAPP_SUBGRAPH_SETUP_RULE = 'Subgraph defaults to None. If I choose to use a .subgraph, ask me for the .subgraph file path/name and pass it to generate_dapp as subgraphFilePath. Do not redirect me to the .subgraph context menu and do not invent graphContext.'
+const QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG = '- subgraphFilePath: include only if I chose a .subgraph file path/name; graphContext: include only if a validated graphContext was already provided by The Graph handoff'
+const QUICKDAPP_SCOPE_NOTICE = 'Before listing setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage, and selected contract bindings are fixed after creation."'
 
 interface DeployedContractItemProps {
   contract: DeployedContract
@@ -382,11 +386,14 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   }
 
   const handleCreateDapp = async (contract: DeployedContract) => {
-    if (onKebabMenuToggle) {
-      onKebabMenuToggle(false)
-    }
+    if (isGenerating.current) return
+    isGenerating.current = true
 
     try {
+      if (onKebabMenuToggle) {
+        onKebabMenuToggle(false)
+      }
+
       // Permission gate: non-beta users see the QuickDapp lock screen
       if (!hasQuickdappAccess) {
         await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
@@ -417,11 +424,14 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
         ? `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:
 
 STEP 1 - ASK FOR SETUP OPTIONS:
+${QUICKDAPP_SCOPE_NOTICE}
 Location is fixed to Inline in /frontend for this request. Ask me once for:
 - Base mini-app: No (default) or Yes
 - Design: defaults, style notes, or a Figma URL
+${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
 
 Ask exactly those setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+${QUICKDAPP_SUBGRAPH_SETUP_RULE}
 After asking, STOP and wait for my next reply. Do not check files, call generate_dapp, or write files in the same turn as this setup question.
 In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
 
@@ -437,6 +447,7 @@ After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate
 - frontendMode: "inline"
 - isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
 - figmaUrl and figmaToken only if I provided them
+${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
 - confirmOverwrite: true only if I confirmed overwrite
 - setupOptionsConfirmed: true
 - setupOptionsSummary: a short summary of my confirmed setup choices
@@ -445,12 +456,15 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
         : `I want to create a DApp frontend. Follow these steps exactly:
 
 STEP 1 - ASK FOR SETUP OPTIONS:
+${QUICKDAPP_SCOPE_NOTICE}
 Ask me once: "How should I create your DApp?"
 - Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)
 - Base mini-app: No (default) or Yes
 - Design: defaults, style notes, or a Figma URL
+${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
 
-Ask exactly those three setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+${QUICKDAPP_SUBGRAPH_SETUP_RULE}
 After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.
 In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
 
@@ -466,6 +480,7 @@ After I answer, you MUST call generate_dapp with:
 - frontendMode: "inline" or "workspace" based on my Location answer
 - isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
 - figmaUrl and figmaToken only if I provided them
+${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
 - confirmOverwrite: true only if I chose Inline and confirmed overwrite
 - setupOptionsConfirmed: true
 - setupOptionsSummary: a short summary of my confirmed setup choices
@@ -486,7 +501,7 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
 
       // Send prompt to AI Assistant
       console.log('[QuickDapp] calling chatPipe...');
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'run-tab', presetId: 'dapp-from-deployed-contract' })
       console.log('[QuickDapp] chatPipe returned');
 
       trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'create_dapp_via_ai', isClick: true })

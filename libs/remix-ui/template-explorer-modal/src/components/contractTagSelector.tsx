@@ -1,4 +1,3 @@
-import { Dropdown, DropdownButton } from 'react-bootstrap'
 import { TemplateExplorerContext } from '../../context/template-explorer-context'
 import React, { useContext, useEffect } from 'react'
 
@@ -11,19 +10,31 @@ export function ContractTagSelector (props: any) {
 
   return (
     <div className="d-flex align-items-center gap-2">
-      <DropdownButton id="contract-wizard-language-dropdown" data-id="contract-wizard-language-dropdown" variant="secondary" title="Solidity">
-        <Dropdown.Item>Solidity</Dropdown.Item>
-      </DropdownButton>
-      <DropdownButton
-        id="contract-wizard-contract-type-dropdown"
-        data-id="contract-wizard-contract-type-dropdown"
-        title={`${state.contractTag}`}
-        variant="secondary"
-      >
-        <Dropdown.Item data-id="contract-wizard-contract-type-dropdown-item-erc20" onClick={() => props.switching('erc20')}>ERC20</Dropdown.Item>
-        <Dropdown.Item data-id="contract-wizard-contract-type-dropdown-item-erc721" onClick={() => props.switching('erc721')}>ERC721</Dropdown.Item>
-        <Dropdown.Item data-id="contract-wizard-contract-type-dropdown-item-erc1155" onClick={() => props.switching('erc1155')}>ERC1155</Dropdown.Item>
-      </DropdownButton>
+      <div className="tem-wizard-select-wrapper">
+        <select
+          id="contract-wizard-language-dropdown"
+          data-id="contract-wizard-language-dropdown"
+          className="tem-wizard-select"
+          disabled
+        >
+          <option>Solidity</option>
+        </select>
+        <i className="fa-solid fa-chevron-down tem-wizard-select-arrow"></i>
+      </div>
+      <div className="tem-wizard-select-wrapper">
+        <select
+          id="contract-wizard-contract-type-dropdown"
+          data-id="contract-wizard-contract-type-dropdown"
+          className="tem-wizard-select"
+          value={state.contractTag}
+          onChange={(e) => props.switching(e.target.value.toLowerCase() as 'erc20' | 'erc721' | 'erc1155')}
+        >
+          <option data-id="contract-wizard-contract-type-dropdown-item-erc20" value="ERC20">ERC20</option>
+          <option data-id="contract-wizard-contract-type-dropdown-item-erc721" value="ERC721">ERC721</option>
+          <option data-id="contract-wizard-contract-type-dropdown-item-erc1155" value="ERC1155">ERC1155</option>
+        </select>
+        <i className="fa-solid fa-chevron-down tem-wizard-select-arrow"></i>
+      </div>
     </div>
   )
 }

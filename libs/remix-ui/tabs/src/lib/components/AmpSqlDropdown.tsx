@@ -32,7 +32,7 @@ const AmpSqlDropdown: React.FC<AmpSqlDropdownProps> = ({ plugin, disabled, onNot
       }
       await plugin.call('menuicons', 'select', 'remixaiassistant')
 
-      plugin.call('remixaiassistant', 'chatPipe', message)
+      plugin.call('remixaiassistant', 'chatPipe', message, false, { source: 'amp-sql', presetId: 'query-analysis' })
     }, borderBottom: true, dataId: 'run-askai-menu-item' },
     { label: 'Start generating a visualization', icon: <ArrowRightBig />, onClick: async () => {
       const path = await plugin.call('fileManager', 'getCurrentFile')
@@ -80,7 +80,7 @@ const AmpSqlDropdown: React.FC<AmpSqlDropdownProps> = ({ plugin, disabled, onNot
       }
       await plugin.call('menuicons', 'select', 'remixaiassistant')
 
-      plugin.call('remixaiassistant', 'chatPipe', message)
+      plugin.call('remixaiassistant', 'chatPipe', message, false, { source: 'amp-sql', presetId: 'visualization' })
     }, dataId: 'run-with-default-menu-item' },
     { label: 'Ask RemixAI about the current dataset manifest', icon: <ArrowRightBig />, onClick: async () => {
       onNotify?.('Getting the manifest')
@@ -94,7 +94,7 @@ const AmpSqlDropdown: React.FC<AmpSqlDropdownProps> = ({ plugin, disabled, onNot
       }
       await plugin.call('menuicons', 'select', 'remixaiassistant')
 
-      plugin.call('remixaiassistant', 'chatPipe', message)
+      plugin.call('remixaiassistant', 'chatPipe', message, false, { source: 'amp-sql', presetId: 'manifest-query' })
     }, dataId: 'run-with-default-menu-item' },
     { label: 'Download the list of public datasets list', icon: <ArrowRightBig />, onClick: async () => {
       const response = await plugin.call('amp', 'listDatasets')

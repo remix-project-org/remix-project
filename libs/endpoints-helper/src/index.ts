@@ -29,6 +29,7 @@ export type EndpointUrls = {
   sso: string;
   billing: string;
   products: string;
+  checkouts: string;
   credits: string;
   audio: string;
   storage: string;
@@ -45,12 +46,15 @@ export type EndpointUrls = {
   mcp: string;
   ethskills: string;
   quickdappIpfs: string;
+  quickdappGraph: string;
   ensService: string;
   ccipRead: string;
   ensContractNames: string;
   learneth: string;
   rss: string;
-  langchain: string
+  langchain: string;
+  langfuse: string
+  zkverify: string;
 };
 
 /**
@@ -75,6 +79,7 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   sso: 'sso',
   billing: 'billing',
   products: 'products',
+  checkouts: 'checkouts',
   credits: 'credits',
   audio: 'ai/audio',
   storage: 'storage',
@@ -90,12 +95,15 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   mcp: 'mcp',
   ethskills: 'mcp/ethskills',
   quickdappIpfs: 'endpoints/quickdapp-ipfs',
+  quickdappGraph: 'quickdapp-graph',
   ensService: 'endpoints/ens-service',
   ccipRead: 'endpoints/ccip-read',
   ensContractNames: 'endpoints/contract-ens',
   learneth: 'learneth',
   rss: 'endpoints/rss',
-  langchain: 'ai/langchain'
+  langchain: 'ai/langchain',
+  langfuse: 'ai/langfuse',
+  zkverify: 'zkverify'
 };
 
 /** Build all endpoint URLs from a single base URL */
@@ -191,7 +199,7 @@ export function updateEndpoints(config: RemixConfig): void {
     endpointUrls.mcpCorsProxy = `${base}${config.services.mcp}`;
   } // SSO must always point to auth.api.remix.live (separate auth domain)
   //endpointUrls.sso = 'https://auth.api.remix.live/sso';
- }
+}
 
 /**
  * Initialize endpoints from service discovery.

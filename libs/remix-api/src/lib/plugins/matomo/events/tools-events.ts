@@ -221,7 +221,8 @@ export interface CircuitCompilerEvent extends MatomoEventBase {
     | 'generateR1cs'
     | 'compiler.generate_witness'
     | 'template'
-    | 'runSetupAndExport';
+    | 'runSetupAndExport'
+    | 'zkverify';
 }
 
 /**

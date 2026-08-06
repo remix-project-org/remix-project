@@ -334,6 +334,8 @@ const _createWorkspaceInternal = async (
       if (isHidden) {
         await plugin.call('sidePanel', 'togglePanel')
       }
+      // Select the File Explorer plugin
+      await plugin.call('menuicons', 'select', 'filePanel')
     } catch (e) {
       console.log('Could not check/update side panel visibility:', e)
     }
@@ -750,19 +752,23 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
           try {
             const uniqueFileName = await createNonClashingNameAsync(file, plugin.fileManager)
             if (file === 'remix.config.json') {
-              const remixConfig = JSON.parse(files[file])
-
+              let remixConfig = JSON.parse(files[file])
+              if (uniqueFileName !== file) {
+                try {
+                  remixConfig = { ...JSON.parse(await plugin.fileManager.readFile(file)), ...remixConfig }
+                } catch (_) { /* existing config unreadable — fall back to the template config */ }
+              }
               remixConfig.project = template
               remixConfig.version = projectVersion
               remixConfig.IDE = window.location.hostname
-              await writeToTargetWorkspace(uniqueFileName, JSON.stringify(remixConfig, null, 2))
+              await writeToTargetWorkspace(file, JSON.stringify(remixConfig, null, 2))
             } else {
               await writeToTargetWorkspace(uniqueFileName, files[file])
-            }
-            if ((uniqueFileName.indexOf('contracts/') >= 0 || uniqueFileName.indexOf('src/') >= 0) && !openPath) {
-              openPath = uniqueFileName
-            } else if (isReadme(uniqueFileName)) {
-              openPath = uniqueFileName
+              if ((uniqueFileName.indexOf('contracts/') >= 0 || uniqueFileName.indexOf('src/') >= 0) && !openPath) {
+                openPath = uniqueFileName
+              } else if (isReadme(uniqueFileName)) {
+                openPath = uniqueFileName
+              }
             }
           } catch (error) {
             console.error(error)

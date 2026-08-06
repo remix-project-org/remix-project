@@ -64,6 +64,14 @@ export default function (browser: NightwatchBrowser, callback: VoidFunction, url
           #scamDetails {
             display: none !important;
           }
+          #nudge-widget-container,
+          .nudge-widget,
+          .nudge-modal-backdrop,
+          .nudge-decoration {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+          }
         `);
 
         // Additionally, programmatically disable all Bootstrap 5 tooltips

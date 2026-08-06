@@ -3,7 +3,7 @@
 import { ICompletions,
   IParams, ChatEntry, AIRequestType, IRemoteModel } from './types/types'
 import { ModelType } from './types/constants'
-import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions } from './types/models'
+import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, BEDROCK_MODELS, getModelById, parseAIModelsFromPermissions } from './types/models'
 import { buildChatPrompt } from './prompts/promptBuilder'
 import { RemoteInferencer } from './inferencers/remote/remoteInference'
 import { OllamaInferencer } from './inferencers/local/ollamaInferencer'
@@ -28,7 +28,7 @@ export {
   InsertionParams, CompletionParams, GenerationParams, AssistantParams,
   ChatEntry, AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,
   mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig,
-  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions,
+  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, BEDROCK_MODELS, getModelById, parseAIModelsFromPermissions,
   ChatHistoryStorageManager, IndexedDBChatHistoryBackend,
   WeightedToolSelector, IChatMessage,
   remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled
@@ -39,6 +39,7 @@ export * from './types/mcp'
 export * from './helpers/streamHandler'
 export * from './helpers/apiKeyValidator'
 export * from './helpers/logger'
+export * from './helpers/langfuse'
 export * from './agents/codeExplainAgent'
 export * from './agents/completionAgent'
 export * from './agents/securityAgent'
@@ -51,3 +52,5 @@ export * from './inferencers/deepagent'
 export { onDeepAgentApiKeysChanged, onApiKeysChange } from './inferencers/deepagent/deepAgentSettingsEvents'
 export * from './types/deepagent'
 export * from './types/humanInTheLoop'
+export * from './remix-mcp-server/prompts/quickDappTheGraphPrompts'
+export * from './remix-mcp-server/prompts/quickDappZkPrompts'

@@ -37,7 +37,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     const networks = new Set<string>();
     validDapps.forEach(dapp => {
       try {
-        if (dapp.contract.networkName) {
+        if (dapp.appKind === 'graph-only') {
+          networks.add('The Graph');
+        } else if (dapp.contract?.networkName) {
           networks.add(dapp.contract.networkName);
         } else {
           networks.add('Unknown Network');
@@ -54,7 +56,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     if (selectedNetwork !== 'All Chains') {
       result = result.filter(dapp =>
-        (dapp.contract.networkName || 'Unknown Network') === selectedNetwork
+        (dapp.appKind === 'graph-only' ? 'The Graph' : dapp.contract?.networkName || 'Unknown Network') === selectedNetwork
       );
     }
 
@@ -89,7 +91,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
         <div className="d-flex gap-2 mt-3 mt-md-0 qd-header-buttons">
           <Button variant="primary" onClick={onCreateNew} data-id="create-new-dapp-btn">
-            <i className="fas fa-plus me-2"></i> Create a new DApp
+            <i className="fas fa-plus me-2"></i> How to create a DApp
           </Button>
           {dapps.length > 0 && (
             <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)} data-id="delete-all-dapps-btn">

@@ -260,7 +260,10 @@ export function filterOutFileOperationTools(tools: DynamicStructuredTool[]): Dyn
 export function getQuickDappToolsForQuickDappSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const quickDappToolNames = [
     'generate_dapp',
+    'generate_graph_dapp',
+    'generate_zk_dapp',
     'update_dapp',
+    'generate_dapp_docs',
     'list_dapps',
     'finalize_dapp_generation',
     'fetch_figma_design',

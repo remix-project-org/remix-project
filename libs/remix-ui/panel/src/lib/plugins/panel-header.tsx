@@ -111,25 +111,6 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
           {plugin?.profile?.name && <FormattedMessage id={`${plugin.profile.name}.displayName`} defaultMessage={plugin?.profile?.displayName || plugin?.profile?.name} />}
         </h6>
         <div className="d-flex flex-row">
-          <div className="d-flex flex-row">
-            { plugin?.profile?.maintainedBy?.toLowerCase() === 'remix' ? (
-              <CustomTooltip placement="auto" tooltipId="maintainedByTooltipRemix" tooltipText={<FormattedMessage id="home.maintainedByRemix" />}>
-                <i className="text-success mt-1 px-1 fa-solid fa-shield-halved"></i>
-              </CustomTooltip>) :
-              plugin?.profile?.maintainedBy ?
-                (<CustomTooltip placement="auto" tooltipId={"maintainedByTooltip" + plugin?.profile?.maintainedBy} tooltipText={intl.formatMessage({ id: 'panel.maintainedByLabel' }) + ' ' + plugin?.profile?.maintainedBy}>
-                  <i aria-hidden="true" className="mt-1 px-1 text-secondary fa-solid fa-shield-halved"></i>
-                </CustomTooltip>)
-                : (<CustomTooltip placement="auto" tooltipId="maintainedByTooltipRemixUnknown" tooltipText={<FormattedMessage id="panel.maintainedExternally" />}>
-                  <i aria-hidden="true" className="mt-1 px-1 text-secondary fa-solid fa-shield-halved"></i>
-                </CustomTooltip>)
-            }
-          </div>
-          <div className="swapitHeaderInfoSection d-flex justify-content-between" data-id="swapitHeaderInfoSectionId" onClick={toggleClass}>
-            <CustomTooltip placement="auto-end" tooltipText={<FormattedMessage id="panel.pluginInfo" />} tooltipId="pluginInfoTooltip" tooltipClasses="text-nowrap">
-              {tooltipChild}
-            </CustomTooltip>
-          </div>
           {
             plugin && plugin.profile.name !== 'filePanel' && (
               <RenderIfNot condition={plugin.profile.name === 'filePanel'}>

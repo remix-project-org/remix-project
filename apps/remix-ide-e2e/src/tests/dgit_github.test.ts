@@ -392,7 +392,6 @@ module.exports = {
       .setValue('*[data-id="clone-branch"]', 'master')
       .waitForElementVisible('*[data-id="clone-btn"]')
       .click('*[data-id="clone-btn"]')
-      .clickLaunchIcon('filePanel')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemREADME.md"]')
   },
   'Update settings for git #group3': function (browser: NightwatchBrowser) {

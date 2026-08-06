@@ -2,8 +2,9 @@ import { Plugin } from '@remixproject/engine'
 import React from 'react'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import { NudgeEngine, all, any } from '@remix-project/remix-lib'
+import { PRO_DEMOS } from '@remix-ui/modal-help'
 import type { NudgeRule, NudgeAction, SerializedNudgeRule } from '@remix-project/remix-lib'
-import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent } from '@remix-api'
+import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent, Features, PendingCheckout } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 import './nudge-widget.css'
 
@@ -15,6 +16,28 @@ declare global {
 const MCP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="4.5" cy="4.5" r="2"/><circle cx="19.5" cy="4.5" r="2"/><circle cx="4.5" cy="19.5" r="2"/><circle cx="19.5" cy="19.5" r="2"/><line x1="6.3" y1="6.3" x2="10" y2="10"/><line x1="17.7" y1="6.3" x2="14" y2="10"/><line x1="6.3" y1="17.7" x2="10" y2="14"/><line x1="17.7" y1="17.7" x2="14" y2="14"/></svg>`
 
 const CLAUDE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor"><path d="M164.4 404.5L265.1 348L266.8 343.1L265.1 340.4L260.2 340.4L243.4 339.4L185.9 337.8L136 335.7L87.7 333.1L75.5 330.5L64.1 315.5L65.3 308L75.5 301.1L90.2 302.4C109.1 303.7 136.1 305.5 171.2 308L206.4 310.1L258.6 315.5L266.9 315.5L268.1 312.1L265.3 310L263.1 307.9L212.8 273.8L158.4 237.8L129.9 217.1L114.5 206.6L106.7 196.8L103.3 175.3L117.3 159.9L136.1 161.2L140.9 162.5L159.9 177.2L200.6 208.7L253.7 247.8L261.5 254.3L264.6 252.1L265 250.5L261.5 244.7L232.6 192.5L201.8 139.4L188.1 117.4L184.5 104.2C183.2 98.8 182.3 94.2 182.3 88.7L198.2 67.1L207 64.3L228.2 67.1L237.1 74.9L250.3 105.1L271.7 152.6L304.9 217.2L314.6 236.4L319.8 254.2L321.7 259.6L325.1 259.6L325.1 256.5L327.8 220.1L332.8 175.4L337.7 117.9L339.4 101.7L347.4 82.3L363.3 71.8L375.7 77.7L385.9 92.4L384.5 101.9L378.4 141.4L366.5 203.3L358.7 244.8L363.2 244.8L368.4 239.6L389.4 211.8L424.6 167.7L440.1 150.2L458.2 130.9L469.8 121.7L491.8 121.7L508 145.8L500.7 170.7L478 199.4L459.2 223.8L432.2 260.1L415.4 289.1L417 291.4L421 291L481.9 278L514.8 272.1L554.1 265.4L571.9 273.7L573.8 282.1L566.8 299.3L524.8 309.7L475.6 319.5L402.3 336.8L401.4 337.5L402.4 338.8L435.4 341.9L449.5 342.7L484.1 342.7L548.5 347.5L565.3 358.6L575.4 372.2L573.7 382.6L547.8 395.8C532.3 392.1 493.4 382.9 431.2 368.1L403.2 361.1L399.3 361.1L399.3 363.4L422.6 386.2L465.3 424.8L518.8 474.6L521.5 486.9L514.6 496.6L507.3 495.6L460.3 460.2L442.2 444.3L401.1 409.7L398.4 409.7L398.4 413.3L407.9 427.2L457.9 502.4L460.5 525.4L456.9 532.9L443.9 537.4L429.7 534.8L400.4 493.7L370.2 447.4L345.8 405.9L342.8 407.6L328.4 562.4L321.7 570.3L306.2 576.2L293.2 566.4L286.3 550.5L293.2 519L301.5 477.9L308.2 445.2L314.3 404.6L317.9 391.1L317.7 390.2L314.7 390.6L284.1 432.6L237.6 495.5L200.8 534.9L192 538.4L176.7 530.5L178.1 516.4L186.6 503.8L237.5 439L268.2 398.8L288 375.6L287.9 372.2L286.7 372.2L151.4 460L127.3 463.1L116.9 453.4L118.2 437.5L123.1 432.3L163.8 404.3L163.7 404.4L163.7 404.5z"/></svg>`
+
+/* ─── Helpers ─── */
+
+/**
+ * Resolve whether a feature is enabled in an `auth.getAllPermissions()`
+ * response. Tolerates both the array shape (`[{ feature_name, allowed }]`)
+ * and the object/map shape (`{ 'ai:auditor': { is_enabled } }`).
+ */
+function hasPermFeature(permissions: any, name: string): boolean {
+  if (!permissions) return false
+  const f = permissions.features
+  if (Array.isArray(f)) {
+    const hit = f.find((p: any) => p?.feature_name === name)
+    return hit?.allowed === true || hit?.is_enabled === true
+  }
+  if (f && typeof f === 'object') {
+    const v = f[name]
+    if (typeof v === 'boolean') return v
+    if (v && typeof v === 'object') return v.allowed === true || v.is_enabled === true
+  }
+  return false
+}
 
 /* ─── Plugin profile ─── */
 
@@ -55,6 +78,14 @@ export class NudgePlugin extends Plugin {
   engine_: NudgeEngine
   private state: NudgePluginState
   debug: boolean
+  // Epoch ms until which the "Running low on credits" nudge is suppressed
+  // (set right after an upgrade so a freshly-paid user isn't warned).
+  private _suppressLowCreditsUntil = 0
+  // Plan label shown in the post-upgrade celebration nudge (e.g. "Remix Pro").
+  private _upgradedPlanLabel = 'Remix Pro'
+  // After a successful upgrade, the help guide to open once the plan-manager
+  // panel closes (so it doesn't fight the still-open checkout panel).
+  private _pendingPlanGuide: string | null = null
 
   // Type-safe tracker defaulting to NudgeEvent
   private trackMatomoEvent = <T extends MatomoEvent = NudgeEvent>(event: T) => {
@@ -111,10 +142,10 @@ export class NudgePlugin extends Plugin {
 
   private _setupEventListeners(): void {
     // Auth state changes
-    this.on('auth', 'authStateChanged', (state: { isAuthenticated: boolean }) => {
+    this.on('auth', 'authStateChanged', (state: { isAuthenticated: boolean; isNewUser?: boolean; isFreshLogin?: boolean }) => {
       if (state?.isAuthenticated) {
         this._setAuthState(true)
-        this._checkBetaMembership()
+        this._checkBetaMembership({ isNewUser: state.isNewUser, isFreshLogin: !!state.isFreshLogin })
       } else {
         this._setAuthState(false)
       }
@@ -221,15 +252,66 @@ export class NudgePlugin extends Plugin {
       this.engine_.fire('file:saved')
     })
 
+    this.on('planManager', 'pendingCheckoutsChanged', (items: PendingCheckout[]) => {
+      if (Array.isArray(items) && items.length > 0) {
+        this.engine_.fire('user:unfinished_checkout')
+      } else {
+        this.engine_.unfire('user:unfinished_checkout')
+      }
+    })
+
     // Plan purchased — user is no longer on free plan, retire the upgrade nudge
-    this.on('planManager' as any, 'purchaseConfirmed', () => {
+    this.on('planManager' as any, 'purchaseConfirmed', (info?: { intent?: string; label?: string }) => {
       this.engine_.unfire('user:on_free_plan')
       this.engine_.disableRule('free-plan-upgrade')
+
+      // Only celebrate / suppress for an actual plan upgrade (not top-ups,
+      // cancellations or reactivations).
+      if (info?.intent && info.intent !== 'subscription') return
+
+      this._suppressLowCreditsUntil = Date.now() + 60_000
+      this.engine_.unfire('user:credits_low')
+      this.engine_.disableRule('credits-low-topup')
+
+      // Celebrate the upgrade and point at the newly unlocked features. The
+      // rule is (re)registered with the resolved plan name baked in, then fired.
+      const planLabel = (info?.label || 'Pro').replace(/\s*\+.*$/, '') // strip any "+ N add-ons"
+      this._upgradedPlanLabel = /^remix/i.test(planLabel) ? planLabel : `Remix ${planLabel}`
+      this.engine_.fire('user:plan_upgraded')
+
+      const planLower = planLabel.toLowerCase()
+      if (/pro/.test(planLower)) {
+        this._pendingPlanGuide = 'pro-guide'
+      } else if (/starter/.test(planLower)) {
+        this._pendingPlanGuide = 'starter-guide'
+      } else {
+        this.call('auth' as any, 'refreshPermissions')
+          .then(() => this.call('auth' as any, 'getAllPermissions'))
+          .then((perms: any) => {
+            this._pendingPlanGuide = hasPermFeature(perms, Features.AI_AUDITOR)
+              ? 'pro-guide'
+              : hasPermFeature(perms, Features.AI_SOLCODER)
+                ? 'starter-guide'
+                : null
+          })
+          .catch(() => { /* permissions unavailable — skip the guide */ })
+      }
+    })
+
+    this.on('planManager' as any, 'checkoutResultChanged', (result: any) => {
+      if (!result) this._openPendingPlanGuide()
+    })
+
+    // …or when the user closes the plan panel outright after an upgrade.
+    this.on('planManager' as any, 'closed', () => {
+      this._openPendingPlanGuide()
     })
 
     // Credits updated — check if balance is low and nudge to top up
     this.on('auth' as any, 'creditsUpdated', async (credits: any) => {
       this.engine_.fire('user:credits_updated')
+      // Don't warn about low credits right after an upgrade (see above).
+      if (Date.now() < this._suppressLowCreditsUntil) return
       const balance = typeof credits?.balance === 'number' ? credits.balance : (credits ?? 0)
       const permissions = await this.call('auth' as any, 'getAllPermissions')
       // Users with quotas already have included AI usage — the low-balance
@@ -288,6 +370,63 @@ export class NudgePlugin extends Plugin {
     }
   }
 
+  private _openPendingPlanGuide(): void {
+    const topic = this._pendingPlanGuide
+    if (!topic) return
+    this._pendingPlanGuide = null
+    this.call('helpPlugin' as any, 'showModal', topic).catch(() => { /* help plugin unavailable */ })
+  }
+
+  private _isBlockingModalOpen(): boolean {
+    try {
+      const dialogs = Array.from(document.querySelectorAll('.modal')) as HTMLElement[]
+      if (dialogs.some(d => getComputedStyle(d).display !== 'none')) return true
+      if (document.querySelector('.pm-backdrop, .skills-explorer-modal-background, .checklist-explorer-modal-background')) return true
+    } catch { /* DOM not ready / unavailable — treat as "no modal" */ }
+    return false
+  }
+
+  private _waitForModalsToClose(timeoutMs = 5 * 60_000): Promise<boolean> {
+    return new Promise(resolve => {
+      const start = Date.now()
+      const tick = () => {
+        if (!this._isBlockingModalOpen()) return resolve(true)
+        if (Date.now() - start > timeoutMs) return resolve(false)
+        setTimeout(tick, 500)
+      }
+      setTimeout(tick, 2500)
+    })
+  }
+
+  private async _maybeShowFreeWelcome({ isNewUser, isFreshLogin }: { isNewUser?: boolean; isFreshLogin?: boolean }): Promise<void> {
+    // Only ever on a real login/registration event, never a session restore.
+    if (!isFreshLogin) return
+    if (isNewUser === false) return
+
+    let key = 'remix:free-welcome-shown'
+    try {
+      const user = await this.call('auth' as any, 'getUser')
+      if (user?.sub) key = `remix:free-welcome-shown:${user.sub}`
+    } catch { /* no user id available — fall back to the shared key */ }
+
+    try {
+      if (localStorage.getItem(key)) {
+        this.log('[NudgePlugin] free welcome already shown for', key)
+        return
+      }
+    } catch {
+      return // storage blocked — don't risk repeating the popup every load
+    }
+
+    this.log('[NudgePlugin] free welcome: waiting for modals to close', { isNewUser, isFreshLogin })
+    const clear = await this._waitForModalsToClose()
+    if (!clear) return // still blocked after the cap — retry on a later session
+
+    this.call('helpPlugin' as any, 'showModal', 'free-guide')
+      .then(() => { try { localStorage.setItem(key, '1') } catch { /* storage blocked */ } })
+      .catch(() => { /* help plugin unavailable — retry next session */ })
+  }
+
   private _setAuthState(isAuthenticated: boolean): void {
     if (isAuthenticated) {
       this.engine_.unfire('user:not_logged_in')
@@ -300,7 +439,7 @@ export class NudgePlugin extends Plugin {
     this.engine_.fire('user:not_logged_in')
   }
 
-  private async _checkBetaMembership(): Promise<void> {
+  private async _checkBetaMembership(opts: { isNewUser?: boolean; isFreshLogin?: boolean } = {}): Promise<void> {
     try {
       const permissions = await this.call('auth' as any, 'getAllPermissions')
       this.log('User permissions:', permissions)
@@ -316,6 +455,8 @@ export class NudgePlugin extends Plugin {
         // Non-beta logged-in user — check if they're on the free plan
         // and show an upgrade nudge with live discount copy.
         this._checkFreePlanNudge().catch(() => {})
+        // First registration only: introduce the free features via the help guide.
+        this._maybeShowFreeWelcome(opts).catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check
@@ -407,7 +548,7 @@ export class NudgePlugin extends Plugin {
           title,
           message,
           actionLabel: 'See Plans',
-          actionTarget: 'planManager::open',
+          actionTarget: 'planManager::open::plans',
           icon: 'fas fa-arrow-up-right-dots',
           widgetColor: '#8b5cf6',
           widgetBg: 'rgba(139, 92, 246, 0.1)',
@@ -727,6 +868,68 @@ export class NudgePlugin extends Plugin {
       priority: 5
     })
 
+    // After plan upgrade
+    this.engine_.addRule({
+      id: 'plan-upgraded-welcome',
+      condition: 'user:plan_upgraded',
+      action: {
+        type: 'widget',
+        position: 'right',
+        hidePermanentDismiss: true,
+        title: `You're on ${this._upgradedPlanLabel}!`,
+        message: 'Your upgrade is live — premium AI models, higher limits, and the audit tools are unlocked. Open the AI assistant to put them to work.',
+        actionLabel: 'Open AI Assistant',
+        actionTarget: 'menuicons::select::remixaiassistant',
+        icon: 'fas fa-circle-check',
+        widgetColor: '#2fbfb1',
+        widgetBg: 'rgba(47, 191, 177, 0.1)'
+      },
+      showOnce: 'session',
+      priority: 20
+    })
+
+    // unfinished checkout nudge
+    this.engine_.addRule({
+      id: 'unfinished-checkout',
+      condition: 'user:unfinished_checkout',
+      action: {
+        type: 'widget',
+        position: 'right',
+        hidePermanentDismiss: true,
+        title: 'Complete Your Upgrade',
+        message: 'You have an unfinished checkout. Complete it now to unlock premium features and higher limits.',
+        actionLabel: 'Complete Checkout',
+        actionTarget: 'planManager::open',
+        icon: 'fas fa-bag-shopping',
+        widgetColor: '#f6ae5c',
+        widgetBg: 'rgba(246, 174, 92, 0.1)'
+      },
+      showOnce: false,
+      priority: 20
+    })
+
+    // Promote plans with random PRO_DEMOS content
+    // Select a random demo to feature
+    const randomDemo = PRO_DEMOS[Math.floor(Math.random() * PRO_DEMOS.length)]
+    this.engine_.addRule({
+      id: 'promote-plans',
+      condition: 'app:time-to-promote-plans',
+      action: {
+        type: 'modal',
+        position: 'right',
+        hidePermanentDismiss: true,
+        title: randomDemo.name,
+        message: randomDemo.desc + '\n' + randomDemo.mockReply,
+        actionLabel: 'Upgrade Plan',
+        actionTarget: 'planManager::open::plans',
+        icon: 'fas fa-circle-check',
+        widgetColor: randomDemo.color,
+        widgetBg: `rgba(${parseInt(randomDemo.color.slice(1, 3), 16)}, ${parseInt(randomDemo.color.slice(3, 5), 16)}, ${parseInt(randomDemo.color.slice(5, 7), 16)}, 0.1)`
+      },
+      showOnce: false,
+      priority: 20
+    })
+
     /* ─── Hint decorations (pulsating dots / glows on UI elements) ─── */
 
   }
@@ -924,10 +1127,19 @@ function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecor
 
   return (
     <>
-      {/* Corner widget for active nudges */}
+      {/* Modal backdrop for modal-type nudges */}
+      {nudge && nudge.action.type === 'modal' && (
+        <div className="nudge-modal-backdrop" onClick={onDismiss} />
+      )}
+
+      {/* Corner widget or modal for active nudges */}
       {nudge && nudge.action.type !== 'hint' && (
         <div
-          className={`nudge-widget${nudge.action.position === 'right' ? ' nudge-widget--right' : ''}${state.animateOut ? ' nudge-widget--out' : ''}`}
+          className={`nudge-widget${
+            nudge.action.type === 'modal' ? ' nudge-widget--modal' : ''
+          }${nudge.action.position === 'right' ? ' nudge-widget--right' : ''}${
+            state.animateOut ? ' nudge-widget--out' : ''
+          }`}
           data-id="nudge-widget"
           style={{
             ...(nudge.action.widgetColor ? { '--nw-accent': nudge.action.widgetColor } as React.CSSProperties : {}),
@@ -962,7 +1174,15 @@ function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecor
             {nudge.action.title && (
               <h6 className="nudge-widget-title">{nudge.action.title}</h6>
             )}
-            <p className="nudge-widget-desc">{nudge.action.message}</p>
+            {/* Render HTML for modal nudges, plain text for others */}
+            {nudge.action.type === 'modal' ? (
+              <div
+                className="nudge-widget-desc nudge-widget-desc--html"
+                dangerouslySetInnerHTML={{ __html: nudge.action.message }}
+              />
+            ) : (
+              <p className="nudge-widget-desc">{nudge.action.message}</p>
+            )}
 
             {nudge.action.actionLabel && (
               <span className="nudge-widget-cta">

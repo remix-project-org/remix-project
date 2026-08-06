@@ -14,16 +14,14 @@ import { createNewFile } from 'libs/remix-ui/workspace/src/lib/actions'
 
 export function TopCards() {
   const intl = useIntl()
-  const { dispatch, facade, templateCategoryStrategy, plugin, theme, generateUniqueWorkspaceName, state, trackMatomoEvent } = useContext(TemplateExplorerContext)
+  const { dispatch, facade, templateCategoryStrategy, plugin, generateUniqueWorkspaceName, state, trackMatomoEvent } = useContext(TemplateExplorerContext)
   const platform = useContext(platformContext)
   const enableDirUpload = { directory: '', webkitdirectory: '' }
   const [importFiles, setImportFiles] = useState(false)
-  const [importOptionsPosition, setImportOptionsPosition] = useState({ top: 0, left: 0 })
   const importCardRef = useRef<HTMLDivElement>(null)
-  const importOptionRef = useRef(null)
   const importFileInputRef = useRef(null)
   const importFolderInputRef = useRef<HTMLInputElement>(null)
-  useOnClickOutside([importCardRef, importOptionRef], () => setImportFiles(false))
+  useOnClickOutside([importCardRef], () => setImportFiles(false))
 
   // Use the clone repository modal hook
   const { showCloneModal } = useCloneRepositoryModal({
@@ -32,41 +30,22 @@ export function TopCards() {
     platform
   });
 
-  useEffect(() => {
-    if (importFiles && importCardRef.current) {
-      const card = importCardRef.current
-      const container = card.offsetParent as HTMLElement
-
-      if (container) {
-        const cardRect = card.getBoundingClientRect()
-        const containerRect = container.getBoundingClientRect()
-
-        setImportOptionsPosition({
-          top: cardRect.bottom - containerRect.top - 8, // 8px gap below the card
-          left: cardRect.left - containerRect.left
-        })
-      } else {
-        // Fallback: use offsetTop/offsetLeft if offsetParent is not available
-        setImportOptionsPosition({
-          top: card.offsetTop + card.offsetHeight - 8, // 8px gap below the card
-          left: card.offsetLeft
-        })
-      }
-    }
-  }, [importFiles])
-
   const ImportOptions = () => {
 
     return (
       <ul
-        className="list-unstyled p-3 gap-2 d-flex flex-column align-items-start justify-content-end bg-light position-absolute"
-        ref={importOptionRef}
+        className="list-unstyled d-flex flex-column gap-1"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          borderRadius: '10px',
+          position: 'absolute',
+          top: 'calc(100% + 4px)',
+          left: 0,
+          right: 0,
           zIndex: 1000,
-          top: `${importOptionsPosition.top}px`,
-          left: `${importOptionsPosition.left}px`,
-          width: '298px'
+          borderRadius: '8px',
+          background: 'var(--custom-onsurface-layer-1)',
+          border: '1px solid var(--bs-border-color)',
+          padding: '0.25rem',
         }}
         data-id="importOptionsMenu"
       >
@@ -154,235 +133,169 @@ export function TopCards() {
   }
 
   return (
-    <div className="title">
-      <div className="row g-3 mb-1" style={{ position: 'relative' }}>
-        <div className="col-12 col-md-6">
-          <div
-            data-id="create-blank-workspace-topcard"
-            className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
-            onClick={async () => {
-              if (state.manageCategory === 'Template') {
-                dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE, payload: { value: 'blank', displayName: 'Blank', tagList: ["Blank", "Solidity"], description: 'A blank project' } })
-                dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE_GROUP, payload: 'Generic' })
-                dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: 'Blank' })
-                dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'generic' })
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateBlankWorkspace', isClick: true })
-              } else {
-                await createNewFile('blank', '/')
-                facade.closeWizard()
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateBlankFile', isClick: true })
-                plugin.call('notification', 'toast', 'File created successfully')
-              }
-            }}
-            style={{
-              borderRadius: '10px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
-              e.currentTarget.style.transform = 'translateY(-2px)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-              e.currentTarget.style.transform = 'translateY(0)'
-            }}
-          >
-            <span className="d-flex flex-shrink-0">
-              <i className={`fa-2x fas fa-plus`}></i>
-            </span>
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
-              <p className="mb-0 fw-semibold">Create blank</p>
-              <p className="mb-0 fw-light text-wrap">{state.manageCategory === 'Template' ? 'Create an empty workspace' : 'Create a blank file'}</p>
-            </span>
-          </div>
-        </div>
-        <div className="col-12 col-md-6">
-          <div
-            data-id="create-with-ai-topcard"
-            className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
-            onClick={async () => {
-              let aiPluginProfile = await plugin.call('remixaiassistant', 'getProfile')
-              if (state.manageCategory === 'Template') {
-                dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'genAI' })
-                const hiddenPlugin = await plugin.call('rightSidePanel', 'getHiddenPlugin')
-                if (hiddenPlugin && hiddenPlugin.name === aiPluginProfile.name) {
-                  await plugin.call('rightSidePanel', 'togglePanel')
-                } else {
-                  await plugin.call('menuicons', 'select', 'remixaiassistant')
-                  await new Promise((resolve) => setTimeout(resolve, 500))
-                }
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateWithAi', isClick: true })
-              } else {
-                const hiddenPlugin = await plugin.call('rightSidePanel', 'getHiddenPlugin')
-                if (hiddenPlugin && hiddenPlugin.name === aiPluginProfile.name) {
-                  await plugin.call('rightSidePanel', 'togglePanel')
-                  await plugin.call('remixaiassistant', 'handleExternalMessage', 'What file do you want me to create?')
-                } else {
-                  await plugin.call('menuicons', 'select', 'remixaiassistant')
-                  await plugin.call('remixaiassistant', 'handleExternalMessage', 'What file do you want me to create?')
-                  await new Promise((resolve) => setTimeout(resolve, 500))
-                }
-                facade.closeWizard()
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateFileWithAi', isClick: true })
-              }
-              aiPluginProfile = null
-            }}
-            style={{
-              borderRadius: '10px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
-              e.currentTarget.style.transform = 'translateY(-2px)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-              e.currentTarget.style.transform = 'translateY(0)'
-            }}
-          >
-            <span className="d-flex flex-shrink-0">
-              <img src={'assets/img/remixai-logoDefault.webp'} className="img-fluid" style={{ width: '20px', height: '20px' }} />
-            </span>
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
-              <p className="mb-0 fw-semibold">Create with AI</p>
-              <p className="mb-0 fw-light text-wrap">{state.manageCategory === 'Template' ? 'Generate a workspace with AI' : 'Generate files with AI'}</p>
-            </span>
-          </div>
-        </div>
-        <div className="col-12 col-md-6">
-          <div
-            data-id="contract-wizard-topcard"
-            className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
-            onClick={() => {
-              if (state.manageCategory === 'Template') {
-                dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
-                facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract' }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizard', isClick: true })
-              } else {
-                dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
-                facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract', requiresCustomization: true }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
-                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizardCreateFile', isClick: true })
-              }
-            }}
-            style={{
-              borderRadius: '10px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
-              e.currentTarget.style.transform = 'translateY(-2px)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-              e.currentTarget.style.transform = 'translateY(0)'
-            }}
-          >
-            <span className="d-flex flex-shrink-0">
-              <img src={'assets/img/openzeppelin-logo.png'} className="img-fluid" style={{ width: '20px', height: '20px' }} />
-            </span>
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
-              <p className="mb-0 fw-semibold">Contract Wizard</p>
-              <p className="mb-0 fw-light text-wrap">{state.manageCategory === 'Template' ? 'Create a new workspace with the OpenZeppelin Wizard' : 'Create a contract file with the OpenZeppelin Wizard'}</p>
-            </span>
-          </div>
-        </div>
-        {(!isElectron() || state.manageCategory !== 'Template') && <div className="col-12 col-md-6">
-          <div
-            ref={importCardRef}
-            data-id="import-project-topcard"
-            className={`explora-topcard d-flex flex-row align-items-center p-3  shadow-sm import-files border border-light h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
-            style={{
-              backgroundColor: 'transparent',
-              transition: 'background 0.3s, transform 0.2s, box-shadow 0.2s',
-              borderRadius: '10px'
-            }}
-            onClick={() => {
-              if (state.manageCategory === 'Template') {
-                document.getElementById('importProjectInput')?.click()
-              } else {
-                setImportFiles(!importFiles)
-              }
-            }}
-
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            {state.manageCategory === 'Template' ? (
-              <input
-                type="file"
-                id="importProjectInput"
-                multiple
-                className="d-none"
-                onChange={async (e) => {
-                  e.stopPropagation()
-                  if (e.target.files.length === 0 || !e.target.files) return
-                  let relativePath = e.target.files[0].webkitRelativePath
-                  let targetFolder = relativePath.split('/')[0]
-                  const result = await generateUniqueWorkspaceName(targetFolder)
-                  await createWorkspace(result, 'emtpy ' as any, {}, false, undefined, false, false, null, null)
-                  await switchToWorkspace(result)
-                  const remixconfigExists = await plugin.call('fileManager', 'exists', '/remix.config.json')
-                  const prettierrcExists = await plugin.call('fileManager', 'exists', '.prettierrc.json')
-                  if (remixconfigExists && prettierrcExists) {
-                    await plugin.call('fileManager', 'remove', 'remix.config.json')
-                    await plugin.call('fileManager', 'remove', '.prettierrc.json')
-                  }
-                  await uploadFolderExcludingRootFolder(e.target, '/')
-                  facade.closeWizard()
-                  relativePath = null
-                  targetFolder = null
-                  trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardImportProject', isClick: true })
-                }}
-                {...enableDirUpload}
-              />) : null
-            }
-
-            <span className="d-flex flex-shrink-0">
-              <i className="fa-2x fas fa-upload"></i>
-            </span>
-
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
-              <p className="mb-0 fw-semibold">{state.manageCategory === 'Template' ? 'Import Project' : 'Import Files'}</p>
-              <p className="mb-0 fw-light text-wrap">{state.manageCategory === 'Template' ? 'Import an existing project' : 'Import existing files'}</p>
-            </span>
-          </div>
-        </div>}
-        {importFiles && <ImportOptions />}
-        {state.manageCategory === 'Template' && <div className="col-12 col-md-6">
-          <div
-            data-id="create-git-clone"
-            className={`explora-topcard d-flex flex-row align-items-center bg-light p-3 p-md-4 shadow-sm border-0 h-100 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'text-dark'}`}
-            onClick={async () => {
-              // facade.closeWizard()
-              // showCloneModal()
-              dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'gitClone' })
-              trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardGitClone', isClick: true })
-            }}
-            style={{
-              borderRadius: '10px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
-              e.currentTarget.style.transform = 'translateY(-2px)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-              e.currentTarget.style.transform = 'translateY(0)'
-            }}
-          >
-            <span className="d-flex flex-shrink-0">
-              <i className={`fa-2x fab fa-github`}></i>
-            </span>
-            <span className="d-flex flex-column flex-grow-1 ms-2 ms-md-3">
-              <p className="mb-0 fw-semibold">Git Clone</p>
-              <p className="mb-0 fw-light text-wrap">Clone a git repository</p>
-            </span>
-          </div>
-        </div>}
+    <div className="tem-topcard-grid">
+      <div
+        data-id="create-blank-workspace-topcard"
+        className="tem-topcard"
+        onClick={async () => {
+          if (state.manageCategory === 'Template') {
+            dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE, payload: { value: 'blank', displayName: 'Blank', tagList: ["Blank", "Solidity"], description: 'A blank project' } })
+            dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_TEMPLATE_GROUP, payload: 'Generic' })
+            dispatch({ type: TemplateExplorerWizardAction.SET_WORKSPACE_NAME, payload: 'Blank' })
+            dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'generic' })
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateBlankWorkspace', isClick: true })
+          } else {
+            await createNewFile('blank', '/')
+            facade.closeWizard()
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateBlankFile', isClick: true })
+            plugin.call('notification', 'toast', 'File created successfully')
+          }
+        }}
+      >
+        <span className="tem-topcard-icon">
+          <i className="fas fa-plus"></i>
+        </span>
+        <span className="tem-topcard-text">
+          <strong>Create blank</strong>
+          <span>{state.manageCategory === 'Template' ? 'Create an empty workspace' : 'Create a blank file'}</span>
+        </span>
       </div>
+
+      <div
+        data-id="create-with-ai-topcard"
+        className="tem-topcard"
+        onClick={async () => {
+          let aiPluginProfile = await plugin.call('remixaiassistant', 'getProfile')
+          if (state.manageCategory === 'Template') {
+            dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'genAI' })
+            const hiddenPlugin = await plugin.call('rightSidePanel', 'getHiddenPlugin')
+            if (hiddenPlugin && hiddenPlugin.name === aiPluginProfile.name) {
+              await plugin.call('rightSidePanel', 'togglePanel')
+            } else {
+              await plugin.call('menuicons', 'select', 'remixaiassistant')
+              await new Promise((resolve) => setTimeout(resolve, 500))
+            }
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateWithAi', isClick: true })
+          } else {
+            const hiddenPlugin = await plugin.call('rightSidePanel', 'getHiddenPlugin')
+            if (hiddenPlugin && hiddenPlugin.name === aiPluginProfile.name) {
+              await plugin.call('rightSidePanel', 'togglePanel')
+              await plugin.call('remixaiassistant', 'handleExternalMessage', 'What file do you want me to create?')
+            } else {
+              await plugin.call('menuicons', 'select', 'remixaiassistant')
+              await plugin.call('remixaiassistant', 'handleExternalMessage', 'What file do you want me to create?')
+              await new Promise((resolve) => setTimeout(resolve, 500))
+            }
+            facade.closeWizard()
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardCreateFileWithAi', isClick: true })
+          }
+          aiPluginProfile = null
+        }}
+      >
+        <span className="tem-topcard-icon">
+          <img src={'assets/img/remixai-logoDefault.webp'} style={{ width: '16px', height: '16px' }} />
+        </span>
+        <span className="tem-topcard-text">
+          <strong>Create with AI</strong>
+          <span>{state.manageCategory === 'Template' ? 'Generate a workspace with AI' : 'Generate files with AI'}</span>
+        </span>
+      </div>
+
+      <div
+        data-id="contract-wizard-topcard"
+        className="tem-topcard"
+        onClick={() => {
+          if (state.manageCategory === 'Template') {
+            dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
+            facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract' }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizard', isClick: true })
+          } else {
+            dispatch({ type: ContractWizardAction.CONTRACT_CODE_UPDATE, payload: getErc20ContractCode('erc20', state) })
+            facade.switchWizardScreen(dispatch, { value: 'ozerc20', displayName: 'ERC20', tagList: ["ERC20", "Solidity"], description: 'A customizable fungible token contract', requiresCustomization: true }, { name: 'OpenZeppelin', items: []}, templateCategoryStrategy)
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardContractWizardCreateFile', isClick: true })
+          }
+        }}
+      >
+        <span className="tem-topcard-icon">
+          <img src={'assets/img/openzeppelin-logo.png'} style={{ width: '16px', height: '16px' }} />
+        </span>
+        <span className="tem-topcard-text">
+          <strong>Contract Wizard</strong>
+          <span>{state.manageCategory === 'Template' ? 'Create a new workspace with the OpenZeppelin Wizard' : 'Create a contract file with the OpenZeppelin Wizard'}</span>
+        </span>
+      </div>
+
+      {(!isElectron() || state.manageCategory !== 'Template') && (
+        <div
+          ref={importCardRef}
+          data-id="import-project-topcard"
+          className="tem-topcard tem-topcard--import"
+          onClick={() => {
+            if (state.manageCategory === 'Template') {
+              document.getElementById('importProjectInput')?.click()
+            } else {
+              setImportFiles(!importFiles)
+            }
+          }}
+        >
+          {state.manageCategory === 'Template' ? (
+            <input
+              type="file"
+              id="importProjectInput"
+              multiple
+              className="d-none"
+              onChange={async (e) => {
+                e.stopPropagation()
+                if (e.target.files.length === 0 || !e.target.files) return
+                let relativePath = e.target.files[0].webkitRelativePath
+                let targetFolder = relativePath.split('/')[0]
+                const result = await generateUniqueWorkspaceName(targetFolder)
+                await createWorkspace(result, 'emtpy ' as any, {}, false, undefined, false, false, null, null)
+                await switchToWorkspace(result)
+                const remixconfigExists = await plugin.call('fileManager', 'exists', '/remix.config.json')
+                const prettierrcExists = await plugin.call('fileManager', 'exists', '.prettierrc.json')
+                if (remixconfigExists && prettierrcExists) {
+                  await plugin.call('fileManager', 'remove', 'remix.config.json')
+                  await plugin.call('fileManager', 'remove', '.prettierrc.json')
+                }
+                await uploadFolderExcludingRootFolder(e.target, '/')
+                facade.closeWizard()
+                relativePath = null
+                targetFolder = null
+                trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardImportProject', isClick: true })
+              }}
+              {...enableDirUpload}
+            />
+          ) : null}
+          <span className="tem-topcard-icon">
+            <i className="fas fa-upload"></i>
+          </span>
+          <span className="tem-topcard-text">
+            <strong>{state.manageCategory === 'Template' ? 'Import Project' : 'Import Files'}</strong>
+            <span>{state.manageCategory === 'Template' ? 'Import an existing project' : 'Import existing files'}</span>
+          </span>
+          {importFiles && <ImportOptions />}
+        </div>
+      )}
+
+      {state.manageCategory === 'Template' && (
+        <div
+          data-id="create-git-clone"
+          className="tem-topcard tem-topcard--import"
+          onClick={async () => {
+            dispatch({ type: TemplateExplorerWizardAction.SET_WIZARD_STEP, payload: 'gitClone' })
+            trackMatomoEvent({ category: MatomoCategories.TEMPLATE_EXPLORER_MODAL, action: 'topCardGitClone', isClick: true })
+          }}
+        >
+          <span className="tem-topcard-icon">
+            <i className="fab fa-github"></i>
+          </span>
+          <span className="tem-topcard-text">
+            <strong>Git Clone</strong>
+            <span>Clone a git repository</span>
+          </span>
+        </div>
+      )}
     </div>
   )
 }

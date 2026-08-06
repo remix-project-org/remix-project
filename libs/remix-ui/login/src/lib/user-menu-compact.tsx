@@ -334,7 +334,7 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
                   }}
                 >
                   <i className="fab fa-discord user-menu-item-icon" style={{ color: '#5865F2' }}></i>
-                  Beta Feedback Channel
+                  Feedback Channel
                 </button>
               )}
 

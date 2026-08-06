@@ -488,6 +488,17 @@ export class RemixAppManager extends BaseRemixAppManager {
       group: 2,
       multiselect: false
     })
+    this.call('filePanel', 'registerContextMenuItem', {
+      id: 'thegraph',
+      name: 'createDappFromSubgraphFile',
+      label: 'Create DApp from Subgraph Query',
+      type: [],
+      extension: ['.subgraph'],
+      path: [],
+      pattern: [],
+      group: 2,
+      multiselect: false
+    })
     if (Registry.getInstance().get('platform').api.isDesktop()) {
       await this.call('filePanel', 'registerContextMenuItem', {
         id: 'fs',

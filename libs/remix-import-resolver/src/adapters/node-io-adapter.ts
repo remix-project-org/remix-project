@@ -1,7 +1,7 @@
 import type { IOAdapter } from './io-adapter'
 import { promises as fs } from 'fs'
 import { dirname } from 'path'
-import { toHttpUrl } from '../utils/to-http-url'
+import { toHttpUrls } from '../utils/to-http-url'
 import {
   isHttpUrl,
   isDepsPath,
@@ -42,10 +42,24 @@ export class NodeIOAdapter implements IOAdapter {
   }
 
   async fetch(url: string): Promise<string> {
-    const finalUrl = toHttpUrl(url)
-    const res = await fetch(finalUrl)
-    if (!res.ok) throw new Error(`Fetch failed ${res.status} for ${finalUrl}`)
-    return await res.text()
+    const urls = toHttpUrls(url)
+    let lastError: Error | undefined
+    for (const finalUrl of urls) {
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 5000)
+        try {
+          const res = await fetch(finalUrl, { signal: controller.signal })
+          if (!res.ok) throw new Error(`Fetch failed ${res.status} for ${finalUrl}`)
+          return await res.text()
+        } finally {
+          clearTimeout(timeout)
+        }
+      } catch (err) {
+        lastError = err as Error
+      }
+    }
+    throw lastError
   }
 
   async resolveAndSave(url: string, targetPath?: string, _useOriginal?: boolean): Promise<string> {

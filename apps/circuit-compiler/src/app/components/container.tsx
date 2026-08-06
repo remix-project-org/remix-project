@@ -80,7 +80,7 @@ export function Container () {
           `
         await circuitApp.plugin.call('menuicons' as any, 'select', 'remixaiassistant')
         setTimeout(async () => {
-          await circuitApp.plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
+          await (circuitApp.plugin as any).call('remixAI', 'chatPipe', 'error_explaining', message, undefined, undefined, { source: 'circuit-compiler', presetId: 'error-explain' })
         }, 500)
       } else {
         const message = `
@@ -90,7 +90,7 @@ export function Container () {
           `
         await circuitApp.plugin.call('menuicons' as any, 'select', 'remixaiassistant')
         setTimeout(async () => {
-          await circuitApp.plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
+          await (circuitApp.plugin as any).call('remixAI', 'chatPipe', 'error_explaining', message, undefined, undefined, { source: 'circuit-compiler', presetId: 'error-explain' })
         }, 500)
       }
     } else {
@@ -102,7 +102,7 @@ export function Container () {
       `
       await circuitApp.plugin.call('menuicons' as any, 'select', 'remixaiassistant')
       setTimeout(async () => {
-        await circuitApp.plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
+        await (circuitApp.plugin as any).call('remixAI', 'chatPipe', 'error_explaining', message, undefined, undefined, { source: 'circuit-compiler', presetId: 'error-explain' })
       }, 500)
     }
   }

@@ -9,6 +9,8 @@ export interface Command {
   action?: () => void
   disabled?: boolean
   requiredFeatures: string[] // List of required features for this command
+  /** Contextual hint shown below the input after the command is inserted (prompt-template commands only) */
+  hint?: string
 }
 
 interface AutocompletePanelProps {
@@ -31,7 +33,7 @@ interface AutocompletePanelProps {
 }
 
 // Available commands - this could be moved to a config file or fetched dynamically
-const AVAILABLE_COMMANDS: Command[] = [
+export const AVAILABLE_COMMANDS: Command[] = [
   // Core commands
   // { name: 'generate', description: 'Generate smart contracts or code', shortcut: '/g', category: 'Generate' },
   // { name: 'workspace', description: 'Generate a new workspace', shortcut: '/w', category: 'Generate' },
@@ -39,13 +41,13 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'ollama', description: 'Configure Ollama integration', category: 'Settings' },
 
   // Compilation & Analysis
-  { name: 'compile', description: 'Compile contract', category: 'Build', requiredFeatures: [Features.AI_SOLCODER]},
+  { name: 'compile', description: 'Compile contract', category: 'Build', hint: 'optional instructions, or leave blank to compile the current file', requiredFeatures: [Features.AI_SOLCODER]},
   // { name: 'slither', description: 'Run Slither security analysis', category: 'Analysis' },
   // { name: 'mythril', description: 'Run Mythril security scan', category: 'Analysis' },
 
   // Deployment & Verification
-  { name: 'deploy', description: 'Deploy contract to network', category: 'Deploy', requiredFeatures: [Features.AI_SOLCODER]},
-  { name: 'etherscan', description: 'Fetch contract from Etherscan and call the Etherscan service', category: 'Import', requiredFeatures: [Features.MCP_ETHERSCAN]},
+  { name: 'deploy', description: 'Deploy contract to network', category: 'Deploy', hint: 'name the contract and any constructor arguments, or leave blank to deploy the current one', requiredFeatures: [Features.AI_SOLCODER]},
+  { name: 'etherscan', description: 'Fetch contract from Etherscan and call the Etherscan service', category: 'Import', hint: 'paste a contract address (with network) to fetch and analyze it', requiredFeatures: [Features.MCP_ETHERSCAN]},
   // { name: 'verify', description: 'Verify contract on block explorer', category: 'Deploy' },
 
   // Testing & Debugging
@@ -53,9 +55,9 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'debug', description: 'Debug transaction', category: 'Debug' },
 
   // DeFi & Integrations
-  { name: 'thegraph', description: 'Fetch data from The Graph', category: 'Data', requiredFeatures: [Features.MCP_THEGRAPH]},
-  { name: 'alchemy', description: 'Fetch data from Alchemy', category: 'Data', requiredFeatures: [Features.MCP_ALCHEMY]},
-  { name: 'circle', description: 'Circle integration', category: 'DeFi', requiredFeatures: [Features.MCP_CIRCLE]},
+  { name: 'thegraph', description: 'Fetch data from The Graph', category: 'Data', hint: 'describe the data to query from a subgraph', requiredFeatures: [Features.MCP_THEGRAPH]},
+  { name: 'alchemy', description: 'Fetch data from Alchemy', category: 'Data', hint: 'describe the on-chain data to fetch (address, network, …)', requiredFeatures: [Features.MCP_ALCHEMY]},
+  { name: 'circle', description: 'Circle integration', category: 'DeFi', hint: 'describe the Circle API task', requiredFeatures: [Features.MCP_CIRCLE]},
   // { name: 'uniswap', description: 'Uniswap integration', category: 'DeFi' },
   // { name: 'aave', description: 'Aave integration', category: 'DeFi' },
 
@@ -64,9 +66,7 @@ const AVAILABLE_COMMANDS: Command[] = [
   // { name: 'docs', description: 'Open documentation', category: 'Help' },
 
   // Frontend & UI
-  { name: 'create a dapp [quickdapp agent]', description: 'DApp development', category: 'Frontend', requiredFeatures: [Features.DAPP_QUICKDAPP]},
-
-  { name: 'audit a contract. I am going to give you the actual file name.', description: 'Contract auditing', category: 'Security', requiredFeatures: [Features.AI_AUDITOR]},
+  { name: 'create-dapp', description: 'Create a DApp frontend (QuickDapp agent)', category: 'Frontend', hint: 'describe your DApp, or leave blank to build from your deployed contracts', requiredFeatures: [Features.DAPP_QUICKDAPP]},
 ]
 
 export const AutocompletePanel: React.FC<AutocompletePanelProps> = ({

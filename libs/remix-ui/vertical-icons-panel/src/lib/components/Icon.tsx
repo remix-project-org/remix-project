@@ -39,12 +39,14 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme }: Icon
   const { displayName, name, icon, documentation } = iconRecord.profile
   const [title] = useState(() => {
     const temp = name ? intl.formatMessage({ id: `${name}.displayName`, defaultMessage: displayName || name }) : null
+    // @ts-ignore
     return temp.replace(/^\w/, (word: string) => word.toUpperCase())
   })
   const [links, setLinks] = useState<{
     Documentation: string
     CanDeactivate: boolean
   }>({} as {Documentation: string; CanDeactivate: boolean})
+  // @ts-ignore
   const [badgeStatus, dispatchStatusUpdate] = useReducer(iconBadgeReducer, initialState)
   // @ts-ignore
   const [pageX, setPageX] = useState<number>(null)
@@ -59,6 +61,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme }: Icon
     if (documentation && documentation.length > 0 && deactivationState) {
       setLinks({ Documentation: documentation, CanDeactivate: deactivationState })
     } else {
+      //@ts-ignore
       setLinks({ Documentation: documentation, CanDeactivate: deactivationState })
     }
     setShowContext(false)
@@ -77,6 +80,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme }: Icon
         type: name,
         payload: { status: iconStatus, verticalIconPlugin: verticalIconPlugin }
       }
+      //@ts-ignore
       dispatchStatusUpdate(action)
     })
     return () => {
@@ -94,7 +98,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme }: Icon
         ></div>
         <CustomTooltip
           placement={name === 'settings' ? 'right' : name === 'search' ? 'top' : name === 'udapp' ? 'bottom' : 'top'}
-          tooltipText={title}
+          tooltipText={title === 'Help & Guides' ? `${title.split('&')[1]}` : title}
           delay={{ show: 1000, hide: 0 }}
         >
           {

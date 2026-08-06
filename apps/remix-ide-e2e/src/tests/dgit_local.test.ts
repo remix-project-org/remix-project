@@ -53,7 +53,6 @@ module.exports = {
       .setValue('*[data-id="clone-url"]', 'http://localhost:6868/bare.git')
       .waitForElementVisible('*[data-id="clone-btn"]')
       .click('*[data-id="clone-btn"]')
-      .clickLaunchIcon('filePanel')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemREADME.md"]')
   },
 

@@ -175,7 +175,7 @@ export class RemixURLResolver {
     for (let i = 0; i < npm_urls.length; i++) {
       try {
         const req = npm_urls[i] + fetchUrl
-        const response: AxiosResponse = await axios.get(req, { transformResponse: []})
+        const response: AxiosResponse = await axios.get(req, { transformResponse: [], timeout: 5000 })
         content = response.data
         break
       } catch (e) {

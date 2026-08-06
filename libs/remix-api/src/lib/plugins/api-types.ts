@@ -858,6 +858,97 @@ export interface TransactionCompletedResponse {
 
 export type TransactionStatusResponse = TransactionPendingResponse | TransactionCompletedResponse
 
+// ===== Resume abandoned checkouts (GET /billing/checkouts/*) ==================
+
+/** Drives copy/icon for a resumable checkout. */
+export type CheckoutProductKind = 'credits' | 'subscription' | 'other'
+
+/**
+ * A single unfinished checkout the user can pick back up. Deliberately
+ * minimal — internal identifiers (row id, product_id, paddle_customer_id) are
+ * NOT exposed by the backend.
+ */
+export interface PendingCheckout {
+  /** Paddle transaction id (`txn_...`); use to boot Paddle.js. */
+  transaction_id: string
+  /** Product family — drives copy/icon. */
+  product_kind: CheckoutProductKind
+  /** Display name, e.g. "Pro Pack". May be null. */
+  product_name: string | null
+  /** Machine slug, e.g. "pro-pack". May be null. */
+  product_slug: string | null
+  /** Credits granted — only meaningful for `product_kind: 'credits'`. */
+  credits: number | null
+  /** ISO currency for `amount_total`. May be null if Paddle hadn't priced yet. */
+  currency: string | null
+  /** Total in minor units (cents). May be null for very early drafts. */
+  amount_total: number | null
+  /**
+   * App URL carrying Paddle's `?_ptxn=<transaction_id>`; loading it makes
+   * Paddle.js reopen the overlay. May be null for early drafts — build it from
+   * `transaction_id` (`<app-origin>/?_ptxn=<transaction_id>`) or open Paddle.js
+   * manually.
+   */
+  resume_link: string | null
+  /** ISO timestamp of the last activity — good for "started 2 days ago" copy. */
+  last_event_at: string
+  /**
+   * Raw Paddle transaction line items, dumped straight from Paddle by the
+   * backend (no server-side reshaping). The client maps these onto its own
+   * cart model to reconstruct the full order summary on resume — including
+   * bundled credit add-ons that the top-level `product_*` fields don't carry.
+   * May be null/absent for very early drafts Paddle hadn't priced yet.
+   */
+  line_items?: PendingCheckoutLineItem[] | null
+}
+
+/**
+ * A single raw Paddle transaction line item as stored/returned by the backend.
+ * Only the fields the client consumes are typed; Paddle sends more (proration,
+ * taxRate, unitTotals, timestamps…) which we ignore. All money values are
+ * strings in minor units (cents), per Paddle's API.
+ */
+export interface PendingCheckoutLineItem {
+  /** Paddle price id (`pri_...`). */
+  priceId?: string | null
+  quantity?: number | null
+  /** Line totals in minor units (string). `subtotal` is pre-tax, pre-discount. */
+  totals?: {
+    subtotal?: string | null
+    discount?: string | null
+    tax?: string | null
+    total?: string | null
+  } | null
+  product?: {
+    name?: string | null
+    /**
+     * Remix-owned metadata Paddle echoes back on the product. `slug` is the
+     * join key onto the catalog; `product_type` distinguishes plan vs package.
+     * Null for ad-hoc lines (e.g. an intro free-gift product with no metadata).
+     */
+    customData?: {
+      slug?: string | null
+      product_type?: 'subscription_plan' | 'credit_package' | string | null
+      credits?: string | number | null
+      billing_interval?: 'month' | 'year' | string | null
+    } | null
+  } | null
+}
+
+/** Response for GET /billing/checkouts/pending. Empty state: `{ checkouts: [] }`. */
+export interface PendingCheckoutsResponse {
+  checkouts: PendingCheckout[]
+}
+
+/**
+ * Response for GET /billing/checkouts/:transactionId. Returns the checkout only
+ * if it belongs to the logged-in user; 404 otherwise (unknown OR not-yours are
+ * intentionally indistinguishable).
+ */
+export interface VerifyCheckoutResponse {
+  checkout: PendingCheckout
+}
+
 // ===== Usage reporting (GET /billing/credits/usage) ==========================
 
 export type UsageGroupByDimension = 'day' | 'service' | 'provider' | 'model' | 'user'
@@ -920,6 +1011,39 @@ export interface IntroDiscount {
   recur: boolean
   /** How many billing intervals the discount applies for (null = forever). */
   maxRecurringIntervals: number | null
+  /**
+   * Paddle discount id (`dsc_...`) to pass as `discountId` in a Paddle
+   * `PricePreview` request so the in-app cart can show the same localized,
+   * discounted totals the hosted checkout will charge.
+   */
+  paddleDiscountId?: string | null
+  /**
+   * Paddle product/price IDs (`pro_...` / `pri_...`) the discount is
+   * restricted to. When populated the discount only applies to those line
+   * items (e.g. the subscription); `null`/empty means it applies to the
+   * whole cart. Informational only — Paddle applies the restriction itself
+   * when we pass `discountId` to PricePreview.
+   */
+  restrictTo?: string[] | null
+  /** Raw Paddle discount object as synced from the backend, when available. */
+  paddleRaw?: IntroDiscountPaddleRaw | null
+}
+
+/**
+ * Raw Paddle discount payload echoed by the backend under
+ * `intro_discounts[].paddle_raw`. Only the fields we read are typed; the
+ * rest is preserved via the index signature.
+ */
+export interface IntroDiscountPaddleRaw {
+  id: string
+  type?: string
+  amount?: string
+  currencyCode?: string | null
+  recur?: boolean
+  maximumRecurringIntervals?: number | null
+  restrictTo?: string[] | null
+  enabledForCheckout?: boolean
+  [key: string]: unknown
 }
 
 /**

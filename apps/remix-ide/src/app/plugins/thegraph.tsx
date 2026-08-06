@@ -3,6 +3,11 @@
 
 import { Plugin } from '@remixproject/engine'
 import { parseGraphQLFile, validateGraphQLSyntax } from '@remix-ui/thegraph'
+import {
+  buildCreateDappFromSubgraphPrompt,
+  buildSubgraphFixPrompt
+} from '@remix/remix-ai-core/quick-dapp-thegraph-prompts'
+import isElectron from 'is-electron'
 import * as packageJson from '../../../../../package.json'
 
 interface SubgraphSettings {
@@ -22,6 +27,54 @@ interface QueryResult {
   executionTime: number
 }
 
+type SubgraphEndpointKind = 'local' | 'thegraph-gateway' | 'generic-graphql'
+type SubgraphValidationError = 'missing-endpoint' | 'missing-query' | 'invalid-query' | 'invalid-variables-json'
+type SubgraphValidationWarning = 'missing-network' | 'missing-description' | 'endpoint-needs-api-key' | 'local-endpoint'
+
+interface SubgraphFileValidation {
+  canGenerateDapp: boolean
+  errors: SubgraphValidationError[]
+  warnings: SubgraphValidationWarning[]
+  missingFields: string[]
+}
+
+interface SubgraphFileContext {
+  source: 'subgraph-file'
+  filePath: string
+  endpoint?: string
+  endpointKind?: SubgraphEndpointKind
+  endpointNeedsApiKey: boolean
+  apiKeySource: 'remix-settings' | 'none'
+  subgraphId?: string
+  network?: string
+  description?: string
+  query: string
+  variables?: Record<string, any>
+  operationName?: string
+  operationType?: 'query' | 'mutation' | 'subscription'
+  validation: SubgraphFileValidation
+}
+
+interface EndpointAnalysis {
+  endpoint?: string
+  endpointKind?: SubgraphEndpointKind
+  endpointNeedsApiKey: boolean
+  apiKeySource: 'remix-settings' | 'none'
+  subgraphId?: string
+}
+
+interface QuickDappContractCandidate {
+  name: string
+  address: string
+  chainId: string
+}
+
+interface QuickDappContractHandoffContext {
+  candidates: QuickDappContractCandidate[]
+  chainId: string
+  mode: 'none' | 'single' | 'multiple'
+}
+
 const profile = {
   name: 'thegraph',
   displayName: 'The Graph',
@@ -30,7 +83,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: ['queryExecuted'],
-  methods: ['runSubgraphFile', 'executeQuery', 'getSettings', 'saveSettings', 'getDefaultEndpoint', 'setDefaultEndpoint']
+  methods: ['runSubgraphFile', 'getSubgraphFileContext', 'createDappFromSubgraphFile', 'executeQuery', 'getSettings', 'saveSettings', 'getDefaultEndpoint', 'setDefaultEndpoint']
 }
 
 /**
@@ -62,7 +115,7 @@ export class TheGraphPlugin extends Plugin {
    * @param pathOrCmd - Either a file path string or a context menu command object
    */
   async runSubgraphFile(pathOrCmd: string | { path: string[] }): Promise<QueryResult> {
-    const path = typeof pathOrCmd === 'string' ? pathOrCmd : pathOrCmd.path[0]
+    const path = this.getPathFromCommand(pathOrCmd)
 
     try {
       await this.call('terminal', 'log', {
@@ -106,6 +159,88 @@ export class TheGraphPlugin extends Plugin {
     } catch (error: any) {
       const errorMsg = `[TheGraph] Error executing query: ${error.message}`
       await this.call('terminal', 'log', { type: 'error', value: errorMsg })
+      throw error
+    }
+  }
+
+  /**
+   * Build a sanitized, generation-ready context from a .subgraph file.
+   * This never returns The Graph API key values.
+   */
+  async getSubgraphFileContext(pathOrCmd: string | { path: string[] }): Promise<SubgraphFileContext> {
+    const path = this.getPathFromCommand(pathOrCmd)
+
+    const content = await this.call('fileManager', 'readFile', path)
+    const parsed = parseGraphQLFile(content)
+    const variablesParseError = this.getVariablesParseError(content)
+    const endpoint = parsed.metadata.endpoint || this.settings.defaultEndpoint
+    const endpointInfo = this.analyzeEndpoint(endpoint)
+    const validation = this.validateSubgraphContext({
+      endpoint: endpointInfo.endpoint,
+      query: parsed.query,
+      network: parsed.metadata.network,
+      description: parsed.metadata.description,
+      endpointKind: endpointInfo.endpointKind,
+      endpointNeedsApiKey: endpointInfo.endpointNeedsApiKey,
+      variablesParseError
+    })
+    const context: SubgraphFileContext = {
+      source: 'subgraph-file',
+      filePath: path,
+      endpoint: endpointInfo.endpoint,
+      endpointKind: endpointInfo.endpointKind,
+      endpointNeedsApiKey: endpointInfo.endpointNeedsApiKey,
+      apiKeySource: endpointInfo.apiKeySource,
+      subgraphId: endpointInfo.subgraphId,
+      network: parsed.metadata.network,
+      description: parsed.metadata.description,
+      query: parsed.query,
+      variables: parsed.metadata.variables,
+      operationName: parsed.operationName,
+      operationType: parsed.operationType,
+      validation
+    }
+
+    return context
+  }
+
+  /**
+   * Open RemixAI with a QuickDapp handoff prompt for the selected .subgraph file.
+   * Incomplete subgraph files are routed to a repair prompt instead of generation.
+   */
+  async createDappFromSubgraphFile(pathOrCmd: string | { path: string[] }): Promise<void> {
+    const path = this.getPathFromCommand(pathOrCmd)
+
+    try {
+      const context = await this.getSubgraphFileContext(path)
+      const contractContext = context.validation.canGenerateDapp
+        ? await this.getQuickDappContractHandoffContext()
+        : undefined
+      const graphContext = this.getPromptGraphContext(context)
+      const prompt = context.validation.canGenerateDapp
+        ? buildCreateDappFromSubgraphPrompt({ graphContext, contractContext, isDesktop: isElectron() })
+        : buildSubgraphFixPrompt({ graphContext, validation: context.validation })
+
+      await this.openRemixAiAssistant()
+      await this.call('remixaiassistant' as any, 'chatPipe', prompt)
+    } catch (error: any) {
+      const message = error?.message || 'Failed to create DApp from subgraph file.'
+
+      try {
+        await this.call('terminal', 'log', {
+          type: 'error',
+          value: `[TheGraph] ${message}`
+        })
+      } catch {
+        // Best effort only.
+      }
+
+      try {
+        await this.call('notification' as any, 'toast', 'Error opening RemixAI for this subgraph file.')
+      } catch {
+        // Best effort only.
+      }
+
       throw error
     }
   }
@@ -241,5 +376,227 @@ export class TheGraphPlugin extends Plugin {
   async setDefaultEndpoint(endpoint: string): Promise<void> {
     this.settings.defaultEndpoint = endpoint
     await this.saveSettings(this.settings)
+  }
+
+  private getPathFromCommand(pathOrCmd: string | { path: string[] }): string {
+    const path = typeof pathOrCmd === 'string' ? pathOrCmd : pathOrCmd?.path?.[0]
+
+    if (!path) {
+      throw new Error('No subgraph file path provided')
+    }
+
+    return path
+  }
+
+  private async openRemixAiAssistant(): Promise<void> {
+    try {
+      await this.call('manager' as any, 'activatePlugin', 'remix-ai-assistant')
+    } catch {
+      // The assistant may already be active.
+    }
+
+    try {
+      await this.call('rightSidePanel' as any, 'focusPanel')
+    } catch {
+      // Focusing the panel is best effort.
+    }
+  }
+
+  private async getQuickDappContractHandoffContext(): Promise<QuickDappContractHandoffContext> {
+    let chainId = 'unknown'
+
+    try {
+      const providerObject = await this.call('blockchain' as any, 'getProviderObject')
+      const providerName = providerObject?.name || 'vm-unknown'
+      if (providerName.startsWith('vm')) {
+        chainId = providerName
+      } else {
+        const network = await this.call('network' as any, 'detectNetwork')
+        chainId = network?.id?.toString() || providerName
+      }
+    } catch {
+      // Best effort only. If chain detection fails, keep the unknown chain label.
+    }
+
+    try {
+      const deployedContracts = await this.call('udappDeployedContracts' as any, 'getDeployedContracts')
+      const candidates = Array.isArray(deployedContracts)
+        ? deployedContracts
+          .filter((contract: any) => typeof contract?.name === 'string' && typeof contract?.address === 'string')
+          .slice(0, 8)
+          .map((contract: any) => ({
+            name: contract.name,
+            address: contract.address,
+            chainId
+          }))
+        : []
+      const mode = candidates.length === 0 ? 'none' : candidates.length === 1 ? 'single' : 'multiple'
+
+      return { candidates, chainId, mode }
+    } catch {
+      return { candidates: [], chainId, mode: 'none' }
+    }
+  }
+
+  private getPromptGraphContext(context: SubgraphFileContext): Record<string, any> {
+    return JSON.parse(JSON.stringify({
+      source: context.source,
+      filePath: context.filePath,
+      endpoint: context.endpoint,
+      endpointKind: context.endpointKind,
+      endpointNeedsApiKey: context.endpointNeedsApiKey,
+      apiKeySource: context.apiKeySource,
+      subgraphId: context.subgraphId,
+      network: context.network,
+      description: context.description,
+      query: context.query,
+      variables: context.variables || {},
+      operationName: context.operationName,
+      operationType: context.operationType,
+      validation: context.validation
+    }))
+  }
+
+  private analyzeEndpoint(endpoint?: string): EndpointAnalysis {
+    if (!endpoint || !endpoint.trim()) {
+      return {
+        endpoint: undefined,
+        endpointNeedsApiKey: false,
+        apiKeySource: 'none'
+      }
+    }
+
+    const trimmedEndpoint = endpoint.trim()
+    const gatewayWithKeyPattern = /^https:\/\/gateway\.thegraph\.com\/api\/([^/]+)\/subgraphs\/id\/([^/?#]+).*$/i
+    const gatewayWithoutKeyPattern = /^https:\/\/gateway\.thegraph\.com\/api\/subgraphs\/id\/([^/?#]+).*$/i
+    const gatewayWithKeyMatch = trimmedEndpoint.match(gatewayWithKeyPattern)
+    const gatewayWithoutKeyMatch = trimmedEndpoint.match(gatewayWithoutKeyPattern)
+
+    if (gatewayWithoutKeyMatch) {
+      const subgraphId = gatewayWithoutKeyMatch[1]
+      return {
+        endpoint: `https://gateway.thegraph.com/api/subgraphs/id/${subgraphId}`,
+        endpointKind: 'thegraph-gateway',
+        endpointNeedsApiKey: true,
+        apiKeySource: 'remix-settings',
+        subgraphId
+      }
+    }
+
+    if (gatewayWithKeyMatch) {
+      const subgraphId = gatewayWithKeyMatch[2]
+      return {
+        endpoint: `https://gateway.thegraph.com/api/subgraphs/id/${subgraphId}`,
+        endpointKind: 'thegraph-gateway',
+        endpointNeedsApiKey: true,
+        apiKeySource: 'remix-settings',
+        subgraphId
+      }
+    }
+
+    const endpointKind = this.isLocalEndpoint(trimmedEndpoint) ? 'local' : 'generic-graphql'
+    const endpointNeedsApiKey = this.hasEndpointPlaceholder(trimmedEndpoint)
+
+    return {
+      endpoint: trimmedEndpoint,
+      endpointKind,
+      endpointNeedsApiKey,
+      apiKeySource: endpointNeedsApiKey ? 'remix-settings' : 'none'
+    }
+  }
+
+  private validateSubgraphContext(args: {
+    endpoint?: string
+    query: string
+    network?: string
+    description?: string
+    endpointKind?: SubgraphEndpointKind
+    endpointNeedsApiKey: boolean
+    variablesParseError?: string
+  }): SubgraphFileValidation {
+    const errors: SubgraphValidationError[] = []
+    const warnings: SubgraphValidationWarning[] = []
+    const missingFields: string[] = []
+
+    if (!args.endpoint) {
+      errors.push('missing-endpoint')
+      missingFields.push('endpoint')
+    }
+
+    if (!args.query.trim()) {
+      errors.push('missing-query')
+      missingFields.push('query')
+    } else {
+      const queryValidation = validateGraphQLSyntax(args.query)
+      if (!queryValidation.valid) {
+        errors.push('invalid-query')
+      }
+    }
+
+    if (args.variablesParseError) {
+      errors.push('invalid-variables-json')
+      missingFields.push('variables')
+    }
+
+    if (!args.network) {
+      warnings.push('missing-network')
+    }
+
+    if (!args.description) {
+      warnings.push('missing-description')
+    }
+
+    if (args.endpointNeedsApiKey) {
+      warnings.push('endpoint-needs-api-key')
+    }
+
+    if (args.endpointKind === 'local') {
+      warnings.push('local-endpoint')
+    }
+
+    return {
+      canGenerateDapp: errors.length === 0,
+      errors,
+      warnings,
+      missingFields
+    }
+  }
+
+  private getVariablesParseError(content: string): string | undefined {
+    const variablesMatch = content.match(/^#\s*@variables:\s*(.+)$/m)
+    if (!variablesMatch) return undefined
+
+    try {
+      JSON.parse(variablesMatch[1].trim())
+      return undefined
+    } catch (e: any) {
+      return e?.message || 'Invalid variables JSON'
+    }
+  }
+
+  private hasEndpointPlaceholder(endpoint: string): boolean {
+    return /\[[^\]]*\]|\{[^}]*\}/g.test(endpoint)
+  }
+
+  private isLocalEndpoint(endpoint: string): boolean {
+    if (/^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(endpoint)) {
+      return true
+    }
+
+    try {
+      const parsed = new URL(endpoint)
+      return ['localhost', '127.0.0.1', '0.0.0.0', '[::1]', '::1'].includes(parsed.hostname)
+    } catch {
+      return /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:|\/|$)/i.test(endpoint)
+    }
+  }
+
+  private async hasTheGraphApiKey(): Promise<boolean> {
+    try {
+      const apiKey = await this.call('config', 'getAppParameter', 'settings/thegraph-access-token')
+      return Boolean(apiKey)
+    } catch {
+      return false
+    }
   }
 }

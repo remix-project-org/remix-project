@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-use-before-define
-import React, { useContext, useEffect, useState, useRef, useCallback } from 'react'
+import React, { useContext, useEffect, useState, useCallback } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import IpfsHttpClient from 'ipfs-http-client'
 import { UdappProps } from '../types'
@@ -31,16 +31,6 @@ export function UniversalDappUI(props: UdappProps) {
   const [calldataValue, setCalldataValue] = useState<string>('')
   const [evmBC, setEvmBC] = useState(null)
   const [instanceBalance, setInstanceBalance] = useState(0)
-
-  const isGenerating = useRef(false)
-  const [selectedProvider, setSelectedProvider] = useState<string>('')
-
-  useEffect(() => {
-    (async () => {
-      const selectedProvider = await props.plugin.call('udappEnv', 'getSelectedProvider')
-      setSelectedProvider(selectedProvider)
-    })()
-  }, [])
 
   useEffect(() => {
     if (!props.instance.abi) {
@@ -300,60 +290,6 @@ export function UniversalDappUI(props: UdappProps) {
             <span className="remixui_runtabBalancelabel run-tab">
               <b><FormattedMessage id="udapp.balance" />:</b> {instanceBalance} ETH
             </span>
-            <div></div>
-            <div className="btn d-flex p-0 align-self-center">
-
-              {/* [V2 Logic] AI Builder Mode (Sparkles) */}
-              {selectedProvider && (
-                <CustomTooltip placement="top" tooltipClasses="text-nowrap" tooltipId="udapp_udappEditTooltip" tooltipText={<FormattedMessage id="udapp.tooltipTextEdit" />}>
-                  <i
-                    data-id="instanceEditIcon"
-                    className="fas fa-sparkles"
-                    onClick={async () => {
-                      try {
-                        console.log('[QuickDapp] Sparkle button clicked', { name: props.instance.name, address, timestamp: Date.now() });
-
-                        // [QuickDapp] Open AI Assistant with contract details + generate directly with defaults.
-                        const abi = props.instance.abi || props.instance.contractData?.abi || []
-                        const abiJson = JSON.stringify(abi)
-
-                        const prompt = `I want to create a DApp frontend for my deployed contract. Here are the contract details you'll need when calling generate_dapp:
-
-contractName: ${props.instance.name}
-contractAddress: ${address}
-chainId: ${props.plugin.REACT_API.chainId}
-contractAbi: ${abiJson}
-
-Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers.js. Generate the DApp directly without asking additional questions.`
-
-                        // Activate and focus AI Assistant
-                        try {
-                          await props.plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
-                        } catch (e) { /* may already be active */ }
-
-                        // Open the right side panel (AI Assistant)
-                        try {
-                          await props.plugin.call('rightSidePanel', 'focusPanel')
-                        } catch (e) { /* best-effort */ }
-
-                        // Send prompt to AI Assistant
-                        console.log('[QuickDapp] calling chatPipe from sparkle...');
-                        await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt)
-                        console.log('[QuickDapp] chatPipe returned from sparkle');
-
-                        trackMatomoEvent({ category: 'udapp', action: 'sendTransaction-from-gui', name: 'create_dapp_sparkle', isClick: true })
-                      } catch (error) {
-                        if (error.message !== 'Canceled' && error.message !== 'Hide') {
-                          console.error('[QuickDapp] Error:', error)
-                          await props.plugin.call('terminal', 'log', { type: 'error', value: error.message })
-                        }
-                      }
-                    }}
-                  ></i>
-                </CustomTooltip>
-              )}
-
-            </div>
           </div>
           { props.instance.isPinned && props.instance.pinnedAt ? (
             <div className="d-flex" data-id="instanceContractPinnedAt">
@@ -470,4 +406,3 @@ Use defaults: React framework, modern dark mode UI, single-page DApp with Ethers
 }
 
 // [QuickDapp] Legacy generateAIDappWithPlugin removed — DApp creation now handled via AI Assistant chatPipe → generate_dapp MCP tool
-

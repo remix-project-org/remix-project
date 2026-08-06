@@ -29,6 +29,15 @@ pre {
   width              : 50px;
   user-select        : none;
 }
+/* Inner #icon-panel rendered by the VerticalIcons plugin: make it fill the
+   flex column so the panel's #iconsP h-100 chain resolves to the real
+   available height instead of collapsing to content height. */
+.iconpanel > #icon-panel {
+  display            : flex;
+  flex-direction     : column;
+  flex               : 1 1 auto;
+  min-height         : 0;
+}
 .sidepanel           {
   display            : flex;
   flex-direction     : row-reverse;

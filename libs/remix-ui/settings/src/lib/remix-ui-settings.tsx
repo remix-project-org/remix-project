@@ -1,10 +1,9 @@
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useState, useReducer, useEffect, useContext, useMemo } from 'react' // eslint-disable-line
 import Fuse from 'fuse.js'
-import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription } from '@remix-ui/helper'
+import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription, ZkVerifyCredentialsDescription } from '@remix-ui/helper'
 import { AppConfig, FeatureGroup } from '@remix-api'
 import { AppContext, useAuth } from '@remix-ui/app'
-import { API_KEYS_ALLOWED_PLANS } from '@remix/remix-ai-core'
 
 import { initialState, settingReducer } from './settingsReducer'
 import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
@@ -186,6 +185,19 @@ const settingsSections: SettingsSection[] = [
         ]
       },
       {
+        title: 'settings.aiFeedbackSection',
+        options: [{
+          name: 'ai-feedback',
+          label: 'settings.aiFeedback',
+          description: 'settings.aiFeedbackDescription',
+          type: 'toggle',
+          toggleUIOptions: [{
+            name: 'ai-feedback-credit-threshold',
+            type: 'number'
+          }]
+        }]
+      },
+      {
         title: 'settings.mcpServersSection',
         options: [{
           name: 'mcp/servers/enable' as keyof typeof initialState,
@@ -224,6 +236,9 @@ const settingsSections: SettingsSection[] = [
             type: 'password'
           }, {
             name: 'deepagent-moonshot-api-key' as keyof typeof initialState,
+            type: 'password'
+          }, {
+            name: 'deepagent-bedrock-bearer-token' as keyof typeof initialState,
             type: 'password'
           }]
         }]
@@ -305,6 +320,22 @@ const settingsSections: SettingsSection[] = [
             name: 'thegraph-access-token',
             type: 'password'
           }]
+        }, {
+          name: 'zkverify-config',
+          label: 'settings.zkverifyTitle',
+          type: 'toggle',
+          toggleUIDescription: <ZkVerifyCredentialsDescription />,
+          toggleUIOptions: [{
+            name: 'zkverify-api-key',
+            type: 'password'
+          }, {
+            name: 'zkverify-network',
+            type: 'select',
+            selectOptions: [
+              { label: 'Testnet', value: 'testnet' },
+              { label: 'Mainnet', value: 'mainnet' }
+            ]
+          }]
         }]
       }]
   }
@@ -330,8 +361,8 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
 
   // Check if user can use their own API keys based on their plan
   const canUseOwnApiKeys = useMemo(() => {
-    return featureGroups.some(fg => API_KEYS_ALLOWED_PLANS.includes(fg.name))
-  }, [featureGroups])
+    return features['ai:api-key']?.is_enabled === true
+  }, [features, featureGroups])
 
   // Check if user has access to contextual editor feature (code analysis popover)
   const hasContextualEditorFeature = useMemo(() => {
@@ -397,6 +428,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
               ...subSection,
               options: subSection.options.filter(option => {
                 // Filter out code analysis popover if user doesn't have the feature
+                //@ts-ignore
                 if (!hasContextualEditor && option.name === 'editor/code-analysis-popover') {
                   return false
                 }

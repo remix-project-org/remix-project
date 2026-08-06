@@ -78,6 +78,7 @@ import { HardhatHandleDesktop } from './app/plugins/electron/hardhatPlugin'
 import { circomPlugin } from './app/plugins/electron/circomElectronPlugin'
 import { GitHubAuthHandler } from './app/plugins/electron/gitHubAuthHandler'
 import { DesktopAuthHandler as DesktopAuthHandlerPlugin } from './app/plugins/electron/desktopAuthHandler'
+import { DesktopBillingHandler as DesktopBillingHandlerPlugin } from './app/plugins/electron/desktopBillingHandler'
 import { GitPlugin } from './app/plugins/git'
 import { Matomo } from './app/plugins/matomo'
 import { DesktopClient } from './app/plugins/desktop-client'
@@ -621,6 +622,8 @@ class AppComponent {
       this.engine.register([githubAuthHandler])
       const desktopAuthHandler = new DesktopAuthHandlerPlugin()
       this.engine.register([desktopAuthHandler])
+      const desktopBillingHandler = new DesktopBillingHandlerPlugin()
+      this.engine.register([desktopBillingHandler])
     } else {
       //---- desktop client
       const desktopClient = new DesktopClient(blockchain)
@@ -807,7 +810,7 @@ class AppComponent {
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
     if (isElectron()) {
-      await this.appManager.activatePlugin(['isogit', 'electronconfig', 'electronTemplates', 'xterm', 'ripgrep', 'appUpdater', 'slither', 'foundry', 'hardhat', 'circom', 'githubAuthHandler']) // 'remixAID'
+      await this.appManager.activatePlugin(['isogit', 'electronconfig', 'electronTemplates', 'xterm', 'ripgrep', 'appUpdater', 'slither', 'foundry', 'hardhat', 'circom', 'githubAuthHandler', 'desktopBillingHandler']) // 'remixAID'
     }
 
     // ─── Lifecycle event bridges ────────────────────────────────────

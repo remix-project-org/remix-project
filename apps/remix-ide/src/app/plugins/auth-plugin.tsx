@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, ProductsApiService, InviteApiService, TestPoolApiService, EthSkillsApiService, Credits, InviteValidateResponse, InviteRedeemResponse, RegistrationMode, RegistrationModeResponse, LoginMode, LoginModeResponse, ACCESS_POLICY_ERROR_CODES, AccessPolicy, AccessPolicyResponse, AppConfig, PublicPlan, PoolCheckoutResponse, PoolReleaseResponse, PoolStatusResponse } from '@remix-api'
+import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, ProductsApiService, CheckoutsApiService, InviteApiService, TestPoolApiService, EthSkillsApiService, Credits, InviteValidateResponse, InviteRedeemResponse, RegistrationMode, RegistrationModeResponse, LoginMode, LoginModeResponse, ACCESS_POLICY_ERROR_CODES, AccessPolicy, AccessPolicyResponse, AppConfig, PublicPlan, PoolCheckoutResponse, PoolReleaseResponse, PoolStatusResponse } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { QueryParams } from '@remix-project/remix-lib'
 import { getAddress } from 'ethers'
@@ -9,7 +9,7 @@ const profile = {
   name: 'auth',
   displayName: 'Authentication',
   description: 'Handles SSO authentication and credits',
-  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'getProductsApi', 'getEthSkillsApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'getPublicPlans', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
+  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'getProductsApi', 'getCheckoutsApi', 'getEthSkillsApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'getPublicPlans', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
   events: ['authStateChanged', 'creditsUpdated', 'accountLinked', 'gitHubTokenReady', 'inviteTokenDetected', 'inviteTokenRedeemed', 'registrationModeChanged', 'loginModeChanged', 'accessPolicyChanged', 'appConfigChanged']
 }
 
@@ -23,11 +23,20 @@ export class AuthPlugin extends Plugin {
   private permissionsApi: PermissionsApiService
   private billingApi: BillingApiService
   private productsApi: ProductsApiService
+  private checkoutsApi: CheckoutsApiService
   private inviteApi: InviteApiService
   private ethSkillsApi: EthSkillsApiService
   private testPoolApi: TestPoolApiService | null = null
   private activePoolSession: { sessionId: string; accountId: string } | null = null
   private refreshTimer: number | null = null
+  // How long to wait before retrying a token refresh that failed for a
+  // transient reason (404 / 5xx / network) rather than an expired refresh
+  // token (401). We keep retrying on this cadence until we get a fresh token.
+  private readonly refreshRetryMs = 10_000
+  // Set when session restore at startup found an expired access token but the
+  // refresh failed transiently. The scheduled retry then emits the full
+  // authStateChanged(true) once it recovers, instead of a bare tokenRefreshed.
+  private authRestorePending = false
   private pendingInviteToken: string | null = null
   private cachedRegistrationMode: RegistrationMode | null = null
   private cachedLoginMode: LoginMode | null = null
@@ -71,6 +80,10 @@ export class AuthPlugin extends Plugin {
     const productsClient = new ApiClient(endpointUrls.products)
     this.productsApi = new ProductsApiService(productsClient)
 
+    // Checkouts API (separate base URL: /checkouts) — resume abandoned checkouts
+    const checkoutsClient = new ApiClient(endpointUrls.checkouts)
+    this.checkoutsApi = new CheckoutsApiService(checkoutsClient)
+
     // Invite API (no auth required for validation, but needed for redemption)
     const inviteClient = new ApiClient(endpointUrls.invite)
     this.inviteApi = new InviteApiService(inviteClient)
@@ -85,6 +98,7 @@ export class AuthPlugin extends Plugin {
     permissionsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     billingClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     productsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
+    checkoutsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     inviteClient.setTokenRefreshCallback(() => this.refreshAccessToken())
     ethSkillsClient.setTokenRefreshCallback(() => this.refreshAccessToken())
   }
@@ -124,6 +138,23 @@ export class AuthPlugin extends Plugin {
     this.refreshTimer = window.setTimeout(() => {
       this.refreshAccessToken().catch(() => {/* handled in method */ })
     }, delay)
+  }
+
+  /**
+   * Schedule a retry of a token refresh that failed for a *transient* reason
+   * (404 / 5xx / network) — as opposed to a 401, which means the refresh
+   * token itself is dead and we log out. We don't have a fresh access token
+   * to compute an expiry from, so we retry on a fixed cadence until we get a
+   * new token (with a TTL we can schedule against) or the server returns 401.
+   */
+  private scheduleRefreshRetry(reason: string) {
+    // No refresh token → nothing to retry with; leave the session as-is.
+    if (!localStorage.getItem('remix_refresh_token')) return
+    this.clearRefreshTimer()
+    this.log(`[AuthPlugin] Token refresh will retry in ${this.refreshRetryMs / 1000}s (${reason})`)
+    this.refreshTimer = window.setTimeout(() => {
+      this.refreshAccessToken().catch(() => {/* handled in method */ })
+    }, this.refreshRetryMs)
   }
 
   /**
@@ -169,12 +200,26 @@ export class AuthPlugin extends Plugin {
   }
 
   /**
+   * Get the typed Checkouts API service (resume abandoned checkouts)
+   */
+  async getCheckoutsApi(): Promise<CheckoutsApiService> {
+    return this.checkoutsApi
+  }
+
+  /**
    * Get Paddle configuration for checkout (fetched from backend)
    */
   async getPaddleConfig(): Promise<{ clientToken: string | null; environment: 'sandbox' | 'production' }> {
     try {
       // Ensure we have a token set
-      await this.getToken()
+      const token = await this.getToken()
+
+      // The billing /config endpoint requires auth. When the user isn't logged
+      // in there is nothing to fetch — skip the request instead of firing a
+      // guaranteed 401 (which also needlessly trips the token-refresh path).
+      if (!token) {
+        return { clientToken: null, environment: 'sandbox' }
+      }
 
       const response = await this.billingApi.getConfig()
       if (response.ok && response.data?.paddle) {
@@ -763,7 +808,7 @@ export class AuthPlugin extends Plugin {
       }
 
       // Wait for message from popup
-      const result = await new Promise<{ user: AuthUser; accessToken: string; refreshToken: string; providerToken?: string }>((resolve, reject) => {
+      const result = await new Promise<{ user: AuthUser; accessToken: string; refreshToken: string; providerToken?: string; isNewUser?: boolean }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           cleanup()
           reject(new Error('Login timeout'))
@@ -793,7 +838,8 @@ export class AuthPlugin extends Plugin {
               user: event.data.user,
               accessToken: event.data.accessToken,
               refreshToken: event.data.refreshToken,
-              providerToken: event.data.providerToken
+              providerToken: event.data.providerToken,
+              isNewUser: event.data.isNewUser
             })
           } else if (event.data.type === 'sso-auth-error') {
             cleanup()
@@ -870,11 +916,12 @@ export class AuthPlugin extends Plugin {
       // Schedule proactive refresh based on access token expiry
       this.scheduleRefresh(result.accessToken)
 
-      // Emit auth state change
       this.emit('authStateChanged', {
         isAuthenticated: true,
         user: result.user,
-        token: result.accessToken
+        token: result.accessToken,
+        isNewUser: result.isNewUser,
+        isFreshLogin: true
       })
       this.call('nudgePlugin', 'fire', 'user:logged_in')
 
@@ -1135,6 +1182,7 @@ export class AuthPlugin extends Plugin {
     this.permissionsApi.setToken(token)
     this.billingApi.setToken(token)
     this.productsApi.setToken(token)
+    this.checkoutsApi.setToken(token)
     this.inviteApi.setToken(token)
     this.ethSkillsApi.setToken(token)
   }
@@ -1147,6 +1195,7 @@ export class AuthPlugin extends Plugin {
     this.permissionsApi.setToken('')
     this.billingApi.setToken('')
     this.productsApi.setToken('')
+    this.checkoutsApi.setToken('')
     this.inviteApi.setToken('')
     this.ethSkillsApi.setToken('')
   }
@@ -1184,17 +1233,29 @@ export class AuthPlugin extends Plugin {
           localStorage.setItem('remix_refresh_token', response.data.refresh_token)
         }
 
-        // Update all API clients
-        this.apiClient.setToken(newAccessToken)
-        this.creditsApi.setToken(newAccessToken)
-        this.permissionsApi.setToken(newAccessToken)
-        this.billingApi.setToken(newAccessToken)
-        this.inviteApi.setToken(newAccessToken)
-        this.ethSkillsApi.setToken(newAccessToken)
+        // Update all API clients (single source of truth so no client is ever
+        // missed and left sending a stale Bearer token after a refresh).
+        this.applyAuthTokenToApiClients(newAccessToken)
 
         this.log('[AuthPlugin] Access token refreshed successfully')
         // Reschedule next proactive refresh
         this.scheduleRefresh(newAccessToken)
+
+        if (this.authRestorePending) {
+          // A transient failure had deferred session restore at startup — now
+          // that we have a valid token, complete the restore with a full
+          // authStateChanged so consumers initialize their authed state.
+          this.authRestorePending = false
+          const userStr = localStorage.getItem('remix_user')
+          const user = userStr ? JSON.parse(userStr) : null
+          if (user) {
+            this.emit('authStateChanged', { isAuthenticated: true, user, token: newAccessToken })
+            this.refreshCredits().catch(console.error)
+          } else {
+            this.emit('tokenRefreshed', { token: newAccessToken })
+          }
+          return newAccessToken
+        }
 
         // Notify all listeners about the new token
         // Only emit tokenRefreshed — NOT authStateChanged.
@@ -1206,14 +1267,24 @@ export class AuthPlugin extends Plugin {
         return newAccessToken
       }
 
-      console.warn('[AuthPlugin] Token refresh failed:', response.error)
+      // The refresh call did not succeed. Distinguish a dead refresh token
+      // (401 → tokens are unusable, log out) from a transient failure
+      // (404 / 5xx / network with status 0 → keep the session and retry every
+      // ~10s until we get a fresh token with a TTL, or the server says 401).
+      if (response.status === 401) {
+        console.warn('[AuthPlugin] Refresh token rejected (401) — logging out')
+        await this.logout()
+        return null
+      }
 
-      // Any failed refresh means tokens are no longer usable — log out
-      await this.logout()
-
+      console.warn(`[AuthPlugin] Token refresh failed (status ${response.status}): ${response.error} — scheduling retry`)
+      this.scheduleRefreshRetry(`status ${response.status}`)
       return null
     } catch (error) {
       console.error('[AuthPlugin] Token refresh error:', error)
+      // Unexpected/network exception is transient — retry rather than logging
+      // the user out over a blip.
+      this.scheduleRefreshRetry('exception')
       return null
     }
   }
@@ -1381,7 +1452,7 @@ export class AuthPlugin extends Plugin {
    *   2. Emit `authStateChanged` so CloudProvider (and others) react
    *   3. Fetch credits
    */
-  async notifyEmailOtpLogin(user: any, accessToken: string): Promise<void> {
+  async notifyEmailOtpLogin(user: any, accessToken: string, isNewUser?: boolean): Promise<void> {
     this.scheduleRefresh(accessToken)
 
     const refreshToken = localStorage.getItem('remix_refresh_token')
@@ -1392,7 +1463,9 @@ export class AuthPlugin extends Plugin {
     this.emit('authStateChanged', {
       isAuthenticated: true,
       user,
-      token: accessToken
+      token: accessToken,
+      isNewUser,
+      isFreshLogin: true
     })
 
     this.refreshCredits().catch(console.error)
@@ -1418,6 +1491,17 @@ export class AuthPlugin extends Plugin {
         this.log('[AuthPlugin] Token expired, attempting refresh...')
         const refreshed = await this.refreshAccessToken()
         if (!refreshed) {
+          // If the refresh token is still present, the failure was transient
+          // (404 / 5xx / network) and refreshAccessToken has already scheduled
+          // a retry — keep the stored session and let that retry complete the
+          // restore (it will emit authStateChanged once it succeeds). Only a
+          // hard 401 clears the refresh token (via logout), so an absent token
+          // means the session is genuinely gone.
+          if (localStorage.getItem('remix_refresh_token')) {
+            this.authRestorePending = true
+            this.log('[AuthPlugin] Refresh temporarily unavailable at startup — keeping session, will retry')
+            return
+          }
           this.log('[AuthPlugin] Refresh failed, clearing session')
           this.clearStoredAuth()
           this.emit('authStateChanged', {
@@ -1491,6 +1575,12 @@ export class AuthPlugin extends Plugin {
             })
             this.refreshCredits().catch(console.error)
           }
+        } else if (localStorage.getItem('remix_refresh_token')) {
+          // Transient refresh failure (404 / 5xx / network) — refreshAccessToken
+          // scheduled a retry and kept our tokens. Keep the session and let the
+          // retry complete the restore rather than forcing a re-login.
+          this.authRestorePending = true
+          this.log('[AuthPlugin] Refresh temporarily unavailable at startup — keeping session, will retry')
         } else {
           this.log('[AuthPlugin] Refresh failed, clearing session')
           this.clearStoredAuth()
@@ -1857,11 +1947,12 @@ export class AuthPlugin extends Plugin {
       // Schedule proactive token refresh
       this.scheduleRefresh(result.token)
 
-      // Emit auth state changed
       this.emit('authStateChanged', {
         isAuthenticated: true,
         user: result.user,
-        token: result.token
+        token: result.token,
+        isNewUser: result.isNewUser,
+        isFreshLogin: true
       })
 
       // If launched via desktop bridge, send tokens back to the desktop app.
@@ -1997,12 +2088,12 @@ export class AuthPlugin extends Plugin {
       }
 
       console.log('[Base] Login successful!')
-
-      // Emit auth state changed
       this.emit('authStateChanged', {
         isAuthenticated: true,
         user: result.user,
-        token: result.token
+        token: result.token,
+        isNewUser: result.isNewUser,
+        isFreshLogin: true
       })
 
       // If launched via desktop bridge, send tokens back to the desktop app.

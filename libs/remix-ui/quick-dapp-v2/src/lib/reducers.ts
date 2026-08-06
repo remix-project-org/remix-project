@@ -74,8 +74,8 @@ export const appReducer = (state = appInitialState, action: AppAction): AppState
       instance: {
         ...state.instance,
         name: dapp.name,
-        address: dapp.contract.address,
-        abi: dapp.contract.abi,
+        address: dapp.contract?.address || '',
+        abi: dapp.contract?.abi || {},
         title: dapp.config?.title || '',
         details: dapp.config?.details || '',
         logo: dapp.config?.logo || null,

@@ -2,10 +2,10 @@ import { ViewPlugin } from '@remixproject/engine-web'
 import React from 'react'
 import { PluginViewWrapper, DISCORD_URL, REMIX_DOCS_URL } from '@remix-ui/helper'
 import { useAuth } from '@remix-ui/app'
-import { trackMatomoEvent as baseTrackMatomoEvent, HelpEvent, MatomoEvent } from '@remix-api'
+import { trackMatomoEvent as baseTrackMatomoEvent, HelpEvent, MatomoEvent, Features } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 
-export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell'
+export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell' | 'free-guide' | 'starter-guide' | 'pro-guide'
 
 /**
  * Survey users complete to unlock their 50% off Pro reward. Kept here
@@ -153,6 +153,12 @@ interface TopicDef {
   icon: string
   color: string
   tag?: string
+  /**
+   * Feature keys the user must have for this guide to be visible. When set,
+   * the card only renders if every listed feature is enabled (plan-gated
+   * guides). When omitted, the guide is treated as beta-only.
+   */
+  requiredFeatures?: string[]
 }
 
 const TOPICS: TopicDef[] = [
@@ -203,6 +209,174 @@ const TOPICS: TopicDef[] = [
     color: '#e86baf',
     tag: 'Reward'
   },
+  {
+    // The RemixAI assistant is the free baseline, so this shows for everyone
+    // signed in with the assistant.
+    id: 'free-guide',
+    title: 'What you get for free',
+    description: 'RemixAI Assistant, QuickDApp generation, basic AI skills, usage-based models, and bring-your-own API key.',
+    icon: 'fas fa-gift',
+    color: '#6bdb8a',
+    tag: 'Free',
+    requiredFeatures: [Features.AI_SOLCODER]
+  },
+  {
+    // "Full AI Skills" (advanced skills) marks Starter and up.
+    id: 'starter-guide',
+    title: 'Get started with Starter',
+    description: 'Full AI skills, the Code Helper, Web Search & OpenZeppelin connectors, local LLMs (Ollama), ENS/Enscribe naming, and cloud workspaces.',
+    icon: 'fas fa-seedling',
+    color: '#5b9cf5',
+    tag: 'Starter',
+    requiredFeatures: [Features.AI_SOLCODER]
+  },
+  {
+    // The auditor agent is Pro-only.
+    id: 'pro-guide',
+    title: 'Unlock Pro features',
+    description: 'Everything in Starter, plus the auditor agent, gas-consumption checks, The Graph / Etherscan / Alchemy connectors, and unlimited dapp hosting.',
+    icon: 'fas fa-crown',
+    color: '#f0a030',
+    tag: 'Pro',
+    requiredFeatures: [Features.AI_SOLCODER]
+  },
+]
+
+/* ─── Plan guide demo content (static, like the MCP/QuickDApp demos) ─── */
+
+import type { PlanGuideDemo } from './plan-guide-modal'
+
+const FREE_DEMOS: PlanGuideDemo[] = [
+  {
+    key: 'assistant', name: 'RemixAI Assistant', color: '#5b9cf5',
+    desc: 'Ask anything — generate contracts, explain code, and fix errors right in the editor.',
+    prompt: 'Write an ERC-20 token with a capped supply and an owner-only mint function.',
+    mockReply: 'Drafting <span class="plg-hl">CappedToken.sol</span>…\n\n' +
+      '  • OpenZeppelin ERC20 + Ownable\n  • `cap` enforced in `_update`\n  • owner-only `mint`\n\n' +
+      'Created the file in your workspace — hit Compile to try it.'
+  },
+  {
+    key: 'quickdapp', name: 'QuickDApp Generation', color: '#6bdb8a',
+    desc: 'Generate a frontend wired to your contract from a prompt (hosting is a paid add-on).',
+    prompt: 'Generate a frontend dapp for my deployed contract with connect-wallet and the main calls.',
+    mockReply: `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/create-dapp.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
+  },
+  {
+    key: 'skills', name: 'Basic AI Skills', color: '#9b7dff',
+    desc: 'Load curated basic skills so the assistant follows proven workflows.',
+    prompt: 'Load the available basic skills and apply one that fits writing a secure ERC-721.',
+    mockReply: `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/load-skills.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
+  },
+  {
+    key: 'models', name: 'Usage-based Models', color: '#2fbfb1',
+    desc: 'Pay-as-you-go access to AI models — you only pay for what you use.',
+    mockReply: 'You now have access to <span class="plg-hl">usage-based</span> models — you\'re billed per request from your credit balance, with no monthly fee. Upgrade for a monthly credit gift.'
+  },
+  {
+    key: 'apikey', name: 'Bring Your Own API Keys', color: '#f0a030',
+    desc: 'Plug in your own provider API key to use the assistant with your own account.',
+    mockReply: 'You now have access to <span class="plg-hl">bring-your-own API keys</span>. Open <span class="plg-hl">Settings → RemixAI Assistant</span>, scroll to the far bottom, and activate it — paste your provider key there and the assistant will route requests through your account.'
+  }
+]
+
+const STARTER_DEMOS: PlanGuideDemo[] = [
+  {
+    key: 'skills', name: 'Full AI Skills', color: '#6bdb8a',
+    desc: 'Starter unlocks the full skills library — load and import any advanced skill.',
+    mockReply: `You now have access to the <span class="plg-hl">full AI skills library</span>. Load and import any advanced skill into <span class="plg-hl">skills/</span>, and the assistant will follow its expert workflow. <video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/load-skills.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
+  },
+  {
+    key: 'codehelper', name: 'RemixAI Code Helper', color: '#5b9cf5',
+    desc: 'A focused coding helper that writes, refactors, and fixes Solidity alongside you.',
+    prompt: 'How do I use the code helper to analyze my code?',
+    mockReply: 'Select a function or snippet in the editor, then a `Code Analysis` block will appear with suggestions.\n\n' +
+      `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/code-helper.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
+  },
+  {
+    key: 'connectors', name: 'Web Search & OpenZeppelin', color: '#9b7dff',
+    desc: 'Starter connectors: live Web Search and the OpenZeppelin library, built in.',
+    prompt: 'Use the OpenZeppelin connector to scaffold a mintable, pausable ERC20, and web-search the latest best practices.',
+    mockReply: 'Pulling from the <span class="plg-hl">OpenZeppelin</span> connector…\n\n' +
+      'Generated `Token.sol` (ERC20 + ERC20Pausable + Ownable). Web Search confirms it matches current OZ v5 guidance.'
+  },
+  {
+    key: 'ollama', name: 'Local & Private LLMs', color: '#2fbfb1',
+    desc: 'Run models locally and privately with Ollama or llama-server — your code never leaves your machine.',
+    mockReply: 'You now have access to the <span class="plg-hl">Ollama</span> integration. Connect to a local Ollama or llama-server instance and the assistant runs fully on your machine — private, offline-capable, and your code never leaves it.'
+  },
+  {
+    key: 'ens', name: 'Name with ENS/Enscribe', color: '#f0a030',
+    desc: 'Give your deployed contracts a human-readable ENS / Enscribe name.',
+    mockReply: `You now have access to <span class="plg-hl">ENS / Enscribe</span> naming. Give your deployed contracts a human-readable name like <span class="plg-hl">mytoken.eth</span> so they're reachable by name instead of a raw address.
+    <video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/ens-registration.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
+  },
+  {
+    key: 'cloud', name: 'Cloud Workspaces', color: '#5b9cf5',
+    desc: 'Sync your projects to the cloud and open any workspace from any device.',
+    mockReply: `You now have access to <span class="plg-hl">cloud workspaces</span>. Sync your projects to your cloud account and open any workspace from any device — sign in anywhere and it'll be waiting for you.<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/cloud-workspace.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
+  }
+]
+
+export const PRO_DEMOS: PlanGuideDemo[] = [
+  {
+    key: 'auditor', name: 'Auditor Agent', color: '#f0a030',
+    desc: 'The RemixAI auditor agent reviews your contract against curated security checklists.',
+    prompt: '<span class="plg-hl">/audit</span>  a contract — audit the open file against the security checklists in audits/.',
+    mockReply: `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/audit-contract.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
+  },
+  {
+    key: 'gas', name: 'Gas Consumption Checks', color: '#6bdb8a',
+    desc: 'Profile your contract and get concrete gas savings with before/after numbers.',
+    prompt: 'Run a gas-consumption check on the active contract and suggest concrete savings with estimates.',
+    mockReply: `<video width="500" height="300" controls autoPlay muted style="border:none;outline:none; margin-left:-33px;margin-top:5px" }}>
+  <source src="https://github.com/remix-project-org/remix-dynamics/raw/refs/heads/main/gifs/gas-optimization.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>`
+  },
+  {
+    key: 'connectors', name: 'TheGraph / Etherscan / Alchemy', color: '#5b9cf5',
+    desc: 'Pro adds The Graph, Etherscan and Alchemy — live on-chain data and verification in chat.',
+    prompt: 'Use Etherscan to verify the contract I just deployed on Sepolia and show the status.',
+    mockReply: 'Connecting to <span class="plg-hl">Etherscan (Sepolia)</span>…\n\n' +
+      'Contract verified ✓ — source matches, compiler 0.8.20, MIT.\n\nThe Graph and Alchemy connectors are ready too — just ask.'
+  },
+  {
+    key: 'hosting', name: 'Unlimited Dapp Hosting', color: '#9b7dff',
+    desc: 'Generate and host your dapps with QuickDApp — unlimited hosting on Pro.',
+    mockReply: 'You now have access to <span class="plg-hl">unlimited dapp hosting</span>. Generate a frontend with QuickDApp and host it to get a shareable URL like <span class="plg-hl">https://your-dapp.remix.host</span> — ship as many dapps as you like.'
+  },
+  {
+    key: 'commands', name: 'Advanced Commands', color: '#e86baf',
+    desc: 'Pro unlocks advanced slash commands for the auditor and gas agents. Type “/” to reach them.',
+    prompt: '/audit a contract',
+    mockReply: 'Advanced commands are enabled:\n\n' +
+      '  • <span class="plg-hl">/audit</span> — security audit against checklists\n' +
+      '  • <span class="plg-hl">/gas-audit</span> — gas-consumption check\n' +
+      '  • <span class="plg-hl">/load-audit-checklist</span> — load curated checklists\n\n' +
+      'Just type “/” in the assistant to use them.'
+  },
+  ...STARTER_DEMOS.map((d) => (d.key === 'connectors' ? { ...d, key: 'starter-connectors' } : d))
 ]
 
 /* ─── Side-panel React UI ─── */
@@ -210,25 +384,51 @@ const TOPICS: TopicDef[] = [
 import './help-panel.css'
 
 const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
-  const { featureGroups } = useAuth()
+  const { featureGroups, features } = useAuth()
   const isBeta = featureGroups?.some(fg => fg.name === 'beta')
   const activeModal = plugin.activeModal
+
+  const hasFeat = (f: string): boolean => {
+    const e = features?.[f]
+    if (e == null) return false
+    if (typeof e === 'boolean') return e
+    return e.is_enabled !== false && e.allowed !== false
+  }
+
+  const visibleTopics = TOPICS.filter(t =>
+    t.requiredFeatures && t.requiredFeatures.length
+      ? t.requiredFeatures.every(hasFeat)
+      : isBeta
+  )
 
   // Type-safe tracker defaulting to HelpEvent
   const trackMatomoEvent = <T extends MatomoEvent = HelpEvent>(event: T) => {
     baseTrackMatomoEvent(plugin, event)
   }
 
-  if (!isBeta) {
+  // The modal overlay must render independently of the topic cards: a guide
+  // can be auto-opened (e.g. the post-login free guide or a post-upgrade plan
+  // guide) before the user's features have loaded, when the panel would
+  // otherwise show its locked/empty state.
+  const modalOverlay = activeModal && (
+    <HelpModalOverlay
+      topic={activeModal}
+      plugin={plugin}
+      onClose={() => plugin.closeModal()}
+    />
+  )
+
+  if (visibleTopics.length === 0) {
     return (
       <div className="help-panel help-panel--locked">
         <div className="help-panel-locked-icon">
           <i className="fas fa-lock"></i>
         </div>
-        <h5 className="help-panel-locked-title">Beta Required</h5>
+        <h5 className="help-panel-locked-title">No guides yet</h5>
         <p className="help-panel-locked-desc">
-          Sign in with a beta account to access guides and feature walkthroughs.
+          Sign in with a paid plan or beta account to unlock guides and feature walkthroughs.
         </p>
+        {modalOverlay}
       </div>
     )
   }
@@ -239,7 +439,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
       <div className="help-panel-header">
         <div className="help-panel-header-badge">
           <span className="help-panel-header-dot" />
-          Beta Guides
+          {isBeta ? 'Beta Guides' : 'Guides'}
         </div>
         <button
           className="help-panel-discord-btn"
@@ -249,7 +449,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
           }}
         >
           <i className="fab fa-discord"></i>
-          Beta Feedback
+          User Feedback
         </button>
       </div>
       <p className="help-panel-header-sub">
@@ -258,7 +458,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
 
       {/* Topic cards */}
       <div className="help-panel-topics">
-        {TOPICS.map((topic) => (
+        {visibleTopics.map((topic) => (
           <div
             key={topic.id}
             className="help-panel-card"
@@ -285,13 +485,7 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
       </div>
 
       {/* ── Modal overlay ── */}
-      {activeModal && (
-        <HelpModalOverlay
-          topic={activeModal}
-          plugin={plugin}
-          onClose={() => plugin.closeModal()}
-        />
-      )}
+      {modalOverlay}
     </div>
   )
 }
@@ -304,6 +498,7 @@ import BetaFarewellModal, { FarewellDismissKind } from './beta-farewell-modal'
 import McpHelpModal from './mcp-help-modal'
 import CloudHelpModal from './cloud-help-modal'
 import QuickDAppHelpModal from './quickdapp-help-modal'
+import PlanGuideModal from './plan-guide-modal'
 
 /** Snooze duration when the user picks "Remind me later" on the farewell modal. */
 const BETA_FAREWELL_REMIND_DELAY_MS = 24 * 60 * 60 * 1000 // 1 day
@@ -387,6 +582,42 @@ const HelpModalOverlay: React.FC<{
           }
         }}
       />
+    case 'free-guide':
+      return (
+        <PlanGuideModal
+          open
+          onClose={onClose}
+          onShowReel={showReel}
+          planName="Remix Free"
+          accent="#6bdb8a"
+          intro="Welcome to Remix! On the free plan you get the RemixAI assistant, QuickDApp frontend generation, basic AI skills, usage-based models, and the option to bring your own API key. Click any feature to see it in action."
+          demos={FREE_DEMOS}
+        />
+      )
+    case 'starter-guide':
+      return (
+        <PlanGuideModal
+          open
+          onClose={onClose}
+          onShowReel={showReel}
+          planName="Remix Starter"
+          accent="#5b9cf5"
+          intro="Your Starter plan adds full AI skills, the Code Helper, Web Search & OpenZeppelin connectors, local LLMs via Ollama, ENS/Enscribe naming, cloud workspaces, and a 40,000-credit ($4) gift. Try a demo of each below."
+          demos={STARTER_DEMOS}
+        />
+      )
+    case 'pro-guide':
+      return (
+        <PlanGuideModal
+          open
+          onClose={onClose}
+          onShowReel={showReel}
+          planName="Remix Pro"
+          accent="#f0a030"
+          intro="You're on Pro — everything in Starter, plus the RemixAI auditor agent, gas-consumption checks, The Graph / Etherscan / Alchemy connectors, unlimited dapp hosting, and a 120,000-credit ($12) gift. Try a demo of each below."
+          demos={PRO_DEMOS}
+        />
+      )
     case 'mcp':
       return <McpHelpModal open onClose={onClose} onShowReel={showReel} />
     case 'cloud':

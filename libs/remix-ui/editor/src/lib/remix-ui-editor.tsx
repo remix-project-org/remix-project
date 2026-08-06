@@ -527,6 +527,7 @@ export const EditorUI = (props: EditorUIProps) => {
     props.plugin.call('fileManager', 'getUrlFromPath', currentFileRef.current).then((url) => (currentUrlRef.current = url.file))
 
     const file = editorModelsState[props.currentFile]
+    if (!file?.model) return
 
     props.isDiff && diffEditorRef && diffEditorRef.current && diffEditorRef.current.setModel({
       original: editorModelsState[props.currentDiffFile].model,
@@ -560,7 +561,7 @@ export const EditorUI = (props: EditorUIProps) => {
     } else if (file.language === 'md') {
       monacoRef.current.editor.setModelLanguage(file.model, 'markdown')
     }
-  }, [props.currentFile, props.isDiff])
+  }, [props.currentFile, props.isDiff, editorModelsState[props.currentFile]?.readOnly])
 
   // Load and sync diff sessions
   useEffect(() => {
@@ -1053,7 +1054,7 @@ export const EditorUI = (props: EditorUIProps) => {
           // Start new timeout for this position
           hoverTimeoutRef.current = setTimeout(() => {
             openContextualTooltip(position, editorRef, monacoRef, setTooltipData, trackMatomoEvent, props.plugin)
-          }, 2500) // 2.5 seconds
+          }, 1250) // 1.25 seconds
         }
       }
     })
@@ -1104,7 +1105,7 @@ export const EditorUI = (props: EditorUIProps) => {
             (async () => {
               await props.plugin.call('popupPanel', 'showPopupPanel', true)
               setTimeout(async () => {
-                props.plugin.call('remixAI', 'chatPipe', 'vulnerability_check', pastedCodePrompt)
+                (props.plugin as any).call('remixAI', 'chatPipe', 'vulnerability_check', pastedCodePrompt, undefined, undefined, { source: 'editor', presetId: 'paste-vulnerability-check' })
               }, 500)
               trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'vulnerability_check_pasted_code', isClick: true })
             })();
@@ -1320,7 +1321,7 @@ export const EditorUI = (props: EditorUIProps) => {
           if (isPanelHidden) {
             await props.plugin.call('rightSidePanel', 'togglePanel')
           }
-          await props.plugin.call('remixAI' as any, 'chatPipe', 'code_explaining', message, context)
+          await (props.plugin as any).call('remixAI', 'chatPipe', 'code_explaining', message, context, undefined, { source: 'editor', presetId: 'explain-function' })
         }, 500)
         trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'explainFunction', isClick: true })
       },
@@ -1349,7 +1350,7 @@ export const EditorUI = (props: EditorUIProps) => {
           if (isPanelHidden) {
             await props.plugin.call('rightSidePanel', 'togglePanel')
           }
-          await props.plugin.call('remixAI' as any, 'chatPipe', 'code_explaining', selectedCode, content, pipeMessage)
+          await (props.plugin as any).call('remixAI', 'chatPipe', 'code_explaining', selectedCode, content, pipeMessage, { source: 'editor', presetId: 'explain-solidity' })
         }, 500)
         trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'explainFunction', isClick: true })
       },
@@ -2043,7 +2044,7 @@ export const EditorUI = (props: EditorUIProps) => {
           keepCurrentModel={true}
           options={{
             glyphMargin: true,
-            readOnly: (!editorRef.current || !props.currentFile) && editorModelsState[props.currentFile]?.readOnly,
+            readOnly: editorModelsState[props.currentFile]?.readOnly ?? false,
             inlineSuggest: { enabled: true },
             minimap: { enabled: false }
           }}

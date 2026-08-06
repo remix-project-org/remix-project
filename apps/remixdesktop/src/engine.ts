@@ -18,6 +18,7 @@ import { isE2E } from './main';
 import { DesktopHostPlugin } from './plugins/desktopHost';
 import { GitHubAuthHandler } from './plugins/githubAuthHandler';
 import { DesktopAuthHandler } from './plugins/desktopAuthHandler';
+import { DesktopBillingHandler } from './plugins/desktopBillingHandler';
 
 const engine = new Engine()
 const appManager = new PluginManager()
@@ -36,6 +37,7 @@ const circomPlugin = new CircomElectronPlugin()
 const desktopHostPlugin = new DesktopHostPlugin()
 export const githubAuthHandlerPlugin  = new GitHubAuthHandler()
 export const desktopAuthHandlerPlugin = new DesktopAuthHandler()
+export const desktopBillingHandlerPlugin = new DesktopBillingHandler()
 
 engine.register(appManager)
 engine.register(fsPlugin)
@@ -53,6 +55,7 @@ engine.register(circomPlugin)
 engine.register(desktopHostPlugin)
 engine.register(githubAuthHandlerPlugin)
 engine.register(desktopAuthHandlerPlugin)
+engine.register(desktopBillingHandlerPlugin)
 
 appManager.activatePlugin('electronconfig')
 appManager.activatePlugin('fs')

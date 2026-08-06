@@ -1,5 +1,24 @@
 export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
 export type DappMode = 'workspace' | 'inline';
+export type ProvingScheme = 'groth16';
+export type PrimeValue = 'bn128' | 'bls12381';
+export type ZkVerifyNetwork = 'testnet' | 'mainnet';
+
+export interface ZkCircuitConfig {
+  circuitName: string;
+  circuitPath: string;
+  provingScheme: ProvingScheme;
+  primeValue: PrimeValue;
+  signalInputs: string[];
+  zkArtifacts: {
+    wasmPath: string;
+    zkeyPath: string;
+    vkeyPath: string;
+  };
+  zkVerifyConfig?: {
+    network: ZkVerifyNetwork;
+  };
+}
 
 export interface DappConfig {
   _warning?: string;
@@ -7,14 +26,17 @@ export interface DappConfig {
   name: string;
   workspaceName: string;
   mode?: DappMode;
+  appKind?: 'contract' | 'graph-only' | 'zk-circuit';
 
-  contract: {
+  contract?: {
     address: string;
     name: string;
     abi: any[];
     chainId: number | string;
     networkName: string;
   };
+
+  zkCircuit?: ZkCircuitConfig;
 
   sourceWorkspace?: {
     name: string;
@@ -40,5 +62,25 @@ export interface DappConfig {
     isBaseMiniApp?: boolean;
   };
 
+  dataSources?: {
+    theGraph?: QuickDappGraphContext[];
+  };
+
   thumbnailPath?: string;
+}
+
+export interface QuickDappGraphContext {
+  source: 'subgraph-file' | 'remixai-chat' | 'manual';
+  filePath?: string;
+  endpoint: string;
+  endpointKind?: 'local' | 'thegraph-gateway' | 'generic-graphql';
+  endpointNeedsApiKey?: boolean;
+  apiKeySource?: 'remix-settings' | 'none';
+  subgraphId?: string;
+  network?: string;
+  description?: string;
+  query: string;
+  variables?: Record<string, any>;
+  operationName?: string;
+  operationType?: 'query' | 'mutation' | 'subscription';
 }

@@ -7,6 +7,7 @@
 
 import { initializePaddle, Paddle, PaddleEventData, CheckoutEventNames } from '@paddle/paddle-js'
 import { planManagerLogger, setPlanManagerLoggingEnabled } from './plan-manager-logger'
+import { reportCheckoutTelemetry } from './checkout-telemetry'
 
 type Environment = 'sandbox' | 'production'
 
@@ -219,21 +220,33 @@ export function openCheckoutWithTransaction(
   const displayMode = options?.settings?.displayMode || 'overlay'
   planManagerLogger.log('[Paddle] Opening checkout for transaction:', transactionId, '| mode:', displayMode)
 
-  paddle.Checkout.open({
-    transactionId,
-    settings: {
-      displayMode,
-      theme: options?.settings?.theme || 'light',
-      locale: options?.settings?.locale || 'en',
-      allowLogout: false,
-      ...(displayMode === 'inline' && {
-        frameTarget: options?.settings?.frameTarget || 'paddle-checkout-container',
-        frameInitialHeight: options?.settings?.frameInitialHeight || 450,
-        frameStyle: options?.settings?.frameStyle || 'width: 100%; min-width: 312px; background-color: transparent; border: none;',
-      }),
-      ...(options?.settings?.variant && { variant: options.settings.variant }),
-    }
-  })
+  try {
+    paddle.Checkout.open({
+      transactionId,
+      settings: {
+        displayMode,
+        theme: options?.settings?.theme || 'light',
+        locale: options?.settings?.locale || 'en',
+        allowLogout: false,
+        ...(displayMode === 'inline' && {
+          frameTarget: options?.settings?.frameTarget || 'paddle-checkout-container',
+          frameInitialHeight: options?.settings?.frameInitialHeight || 450,
+          frameStyle: options?.settings?.frameStyle || 'width: 100%; min-width: 312px; background-color: transparent; border: none;',
+        }),
+        ...(options?.settings?.variant && { variant: options.settings.variant }),
+      }
+    })
+  } catch (err: any) {
+    // Our own open() call threw before Paddle could take over — record it so
+    // the admin viewer can distinguish "we never opened" from "overlay never
+    // rendered" (script.blocked) or "user closed" (checkout.closed).
+    reportCheckoutTelemetry('open.error', {
+      transactionId,
+      message: err?.message || String(err),
+      detail: { displayMode, stack: err?.stack },
+    })
+    throw err
+  }
 }
 
 /**
@@ -292,6 +305,58 @@ export function isPaddleReady(): boolean {
   return !!cache.instance
 }
 
+/** A single item to price-preview — Paddle expects camelCase fields. */
+export interface PricePreviewItemInput {
+  priceId: string
+  quantity: number
+}
+
+/** Request shape for {@link previewPrices}. Mirrors Paddle.PricePreview(). */
+export interface PricePreviewInput {
+  items: PricePreviewItemInput[]
+  /** Paddle discount id (`dsc_...`). Paddle applies any `restrictTo` itself. */
+  discountId?: string
+  /** Override auto IP geo-location with an explicit address. */
+  address?: { countryCode: string; postalCode?: string }
+  /** Force a currency instead of letting Paddle localize. */
+  currencyCode?: string
+}
+
+/**
+ * Preview localized prices for a set of items.
+ *
+ * Thin wrapper over `Paddle.PricePreview()`. When `address`/`currencyCode`
+ * are omitted, Paddle auto-detects the visitor's location from their IP and
+ * returns prices (and discounts) localized to that region — which is exactly
+ * what the hosted checkout will charge. Returns the raw Paddle response so
+ * callers can read `data.currencyCode` and `data.details.lineItems[]`.
+ *
+ * @param paddle - Initialized Paddle instance (from `getPaddle()`)
+ * @param input - Items + optional discount/location
+ */
+export async function previewPrices(
+  paddle: Paddle,
+  input: PricePreviewInput
+): Promise<any> {
+  if (!paddle) {
+    throw new Error('Paddle not initialized')
+  }
+  if (!input.items || input.items.length === 0) {
+    throw new Error('PricePreview requires at least one item')
+  }
+  const request: Record<string, unknown> = {
+    items: input.items.map((i) => ({ priceId: i.priceId, quantity: i.quantity }))
+  }
+  if (input.discountId) request.discountId = input.discountId
+  if (input.address) request.address = input.address
+  if (input.currencyCode) request.currencyCode = input.currencyCode
+
+  // `PricePreview` exists on the runtime instance; the published types lag
+  // behind in some @paddle/paddle-js releases, so reach through `any`.
+  return (paddle as unknown as { PricePreview: (req: unknown) => Promise<any> })
+    .PricePreview(request)
+}
+
 /**
  * Reset Paddle singleton (useful for testing)
  */
@@ -301,3 +366,4 @@ export function resetPaddle(): void {
   cache.key = undefined
   cache.listeners = []
 }
+

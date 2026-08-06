@@ -173,7 +173,7 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
       await plugin.call('menuicons', 'select', 'remixaiassistant')
       await new Promise((resolve) => setTimeout(resolve, 500))
       const content = await plugin.call('fileManager', 'readFile', currentFilePath)
-      await plugin.call('remixAI', 'chatPipe', 'code_explaining', content + "\n\nExplain briefly the snipped above!")
+      await (plugin as any).call('remixAI', 'chatPipe', 'code_explaining', content + "\n\nExplain briefly the snipped above!", undefined, undefined, { source: 'status-bar', presetId: 'explain-contract' })
     } catch (err) {
       console.error('Explain failed:', err)
     }

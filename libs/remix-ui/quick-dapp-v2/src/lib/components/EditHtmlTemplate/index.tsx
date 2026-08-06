@@ -7,9 +7,17 @@ import { AppContext } from '../../contexts';
 import DeployPanel from '../DeployPanel';
 // remixClient removed - using plugin from context instead
 import { InBrowserVite } from '../../InBrowserVite';
+import { buildGraphRuntimeConfigScript } from '../../utils/graph-runtime-config';
+import { buildZkRuntimeConfigScript } from '../../utils/zkverify-runtime-config';
+import { buildQuickDappUpdateGraphContextBlock } from '@remix/remix-ai-core/quick-dapp-thegraph-prompts';
 
 interface Pages {
   [key: string]: string
+}
+
+interface PreviewIssue {
+  type: 'runtime' | 'build' | 'preview'
+  message: string
 }
 
 export const readDappFiles = async (
@@ -153,6 +161,10 @@ function EditHtmlTemplate(): JSX.Element {
 
   const handleDeleteDapp = async () => {
     if (!activeDapp || !dappManager) return;
+    if (isAiUpdating) {
+      await plugin.call('notification', 'toast', 'Please wait until the AI update finishes before deleting this DApp.');
+      return;
+    }
 
     // Hide modal immediately to prevent UI hang during async deletion
     setShowDeleteModal(false);
@@ -332,6 +344,8 @@ function EditHtmlTemplate(): JSX.Element {
         };
       </script>
     `;
+    const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: true, target: 'preview' });
+    const zkRuntimeScript = await buildZkRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'preview' });
     const debugScript = `<script>
 window.onerror = function(msg, url, line, col, error) {
   try { parent.console.error('[DApp-iframe] Error:', msg, 'at', url, 'line', line); } catch(e) {}
@@ -411,9 +425,11 @@ window.addEventListener('unhandledrejection', function(e) {
       if (hasBuildableFiles) {
         const result = await builder.build(mapFiles, '/src/main.jsx');
         if (!result.success) {
+          const buildError = result.error || 'Unknown build error';
           doc.open();
-          doc.write(`<pre style="color: red; white-space: pre-wrap;">${result.error || 'Unknown build error'}</pre>`);
+          doc.write('');
           doc.close();
+          setIframeError(`Build Error: ${buildError}`);
           setIsBuilding(false);
           return;
         }
@@ -421,9 +437,9 @@ window.addEventListener('unhandledrejection', function(e) {
         let finalHtml = indexHtmlContent || '<html><body><div id="root"></div></body></html>';
 
         if (finalHtml.includes('</head>')) {
-          finalHtml = finalHtml.replace('</head>', `${debugScript}\n${injectionScript}\n${ext}\n</head>`);
+          finalHtml = finalHtml.replace('</head>', `${debugScript}\n${injectionScript}\n${graphRuntimeScript}\n${zkRuntimeScript}\n${ext}\n</head>`);
         } else {
-          finalHtml = `<html><head>${debugScript}${injectionScript}${ext}</head>${finalHtml}</html>`;
+          finalHtml = `<html><head>${debugScript}${injectionScript}${graphRuntimeScript}${zkRuntimeScript}${ext}</head>${finalHtml}</html>`;
         }
 
         const scriptTag = `\n<script type="module">\n${result.js}\n</script>\n`;
@@ -443,7 +459,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
       } else {
         let finalHtml = indexHtmlContent;
-        finalHtml = finalHtml.replace('</head>', `${debugScript}\n${injectionScript}\n${ext}\n</head>`);
+        finalHtml = finalHtml.replace('</head>', `${debugScript}\n${injectionScript}\n${graphRuntimeScript}\n${zkRuntimeScript}\n${ext}\n</head>`);
         doc.open();
         doc.write(finalHtml);
         doc.close();
@@ -470,19 +486,58 @@ window.addEventListener('unhandledrejection', function(e) {
   // Keep runBuildRef updated so event handlers always call the latest version
   runBuildRef.current = runBuild;
 
+  const isAiAssistantStreaming = () => {
+    const streamingEl = document.querySelector('[data-id="remix-ai-streaming"]');
+    return streamingEl?.getAttribute('data-streaming') === 'true';
+  };
+
+  const showAiAssistantBusyNotification = () => {
+    setNotificationModal({
+      show: true,
+      title: 'AI Assistant Busy',
+      message: 'The AI Assistant is currently processing a request. Please wait for it to finish, then try again.',
+      variant: 'warning'
+    });
+  };
+
+  const openAiAssistantPanel = async () => {
+    try {
+      await plugin.call('manager', 'activatePlugin', 'remix-ai-assistant');
+    } catch (e) { /* may already be active */ }
+    try {
+      await plugin.call('rightSidePanel', 'focusPanel');
+    } catch (e) { /* best-effort */ }
+  };
+
+  const getFixablePreviewIssue = (): PreviewIssue | null => {
+    const latestRuntimeError = runtimeErrors[runtimeErrors.length - 1];
+    if (latestRuntimeError) {
+      return { type: 'runtime', message: latestRuntimeError };
+    }
+
+    const previewError = iframeError.trim();
+    if (!previewError) return null;
+
+    if (
+      previewError === 'Builder is initializing...' ||
+      previewError.startsWith('Failed to initialize builder:')
+    ) {
+      return null;
+    }
+
+    return {
+      type: previewError.startsWith('Build Error:') ? 'build' : 'preview',
+      message: previewError
+    };
+  };
+
   const handleOpenAIAssistant = async () => {
     if (!activeDapp || !plugin) return;
     console.log('[QuickDapp] Opening AI Assistant for DApp update:', activeDapp.slug);
 
     // Check if AI is currently busy (streaming)
-    const streamingEl = document.querySelector('[data-id="remix-ai-streaming"]');
-    if (streamingEl?.getAttribute('data-streaming') === 'true') {
-      setNotificationModal({
-        show: true,
-        title: 'AI Assistant Busy',
-        message: 'The AI Assistant is currently processing a request. Please wait for it to finish, then try again.',
-        variant: 'warning'
-      });
+    if (isAiAssistantStreaming()) {
+      showAiAssistantBusyNotification();
       return;
     }
 
@@ -510,6 +565,8 @@ window.addEventListener('unhandledrejection', function(e) {
     // Build rich context prompt
     const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
     const contractInfo = activeDapp.contract;
+    const isGraphOnlyTarget = activeDapp.appKind === 'graph-only';
+    const graphSources = Array.isArray(activeDapp.dataSources?.theGraph) ? activeDapp.dataSources.theGraph : [];
     const promptParts = [
       `DApp update target context:`,
       `Use the target details below exactly. Do not infer or substitute a different workspace.`,
@@ -519,10 +576,25 @@ window.addEventListener('unhandledrejection', function(e) {
       `Target slug: "${activeDapp.slug}"`,
       `Target mode: "${targetMode}"`,
       `Target source root: "${targetSourceRoot}"`,
+      `Target app kind: "${isGraphOnlyTarget ? 'graph-only' : 'contract'}"`,
       ``,
-      `Contract: ${contractInfo?.name || 'Unknown'} at ${contractInfo?.address || 'unknown'}`,
-      `Chain: ${contractInfo?.chainId || 'unknown'}`,
     ];
+
+    if (isGraphOnlyTarget) {
+      promptParts.push(
+        `Contract: none (Graph-only read-only DApp)`,
+        `Update scope: UI/source updates only. Preserve Graph data fetching and do not add contract, wallet, provider, signer, ethers, transaction, or network switching code.`
+      );
+    } else {
+      promptParts.push(
+        `Contract: ${contractInfo?.name || 'Unknown'} at ${contractInfo?.address || 'unknown'}`,
+        `Chain: ${contractInfo?.chainId || 'unknown'}`
+      );
+    }
+
+    if (graphSources.length > 0) {
+      promptParts.push(...buildQuickDappUpdateGraphContextBlock(graphSources));
+    }
 
     if (fileList.length > 0) {
       promptParts.push(``, `Current DApp files:`, ...fileList.map(f => `- ${f}`));
@@ -540,19 +612,89 @@ window.addEventListener('unhandledrejection', function(e) {
 
     const prompt = promptParts.join('\n');
 
-    // Activate and focus AI Assistant
-    try {
-      await plugin.call('manager', 'activatePlugin', 'remix-ai-assistant');
-    } catch (e) { /* may already be active */ }
-    try {
-      await plugin.call('rightSidePanel', 'focusPanel');
-    } catch (e) { /* best-effort */ }
+    await openAiAssistantPanel();
 
     // Send prompt to AI
     try {
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt);
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-update' });
     } catch (e) {
       console.warn('[QuickDapp] Could not send prompt to AI Assistant:', e);
+    }
+  };
+
+  const handleFixPreviewIssue = async () => {
+    if (!activeDapp || !plugin || isAiUpdating) return;
+
+    const previewIssue = getFixablePreviewIssue();
+    if (!previewIssue) return;
+
+    if (isAiAssistantStreaming()) {
+      showAiAssistantBusyNotification();
+      return;
+    }
+
+    const targetMode = activeDapp.mode || (activeDapp.inlineMode ? 'inline' : 'workspace');
+    const targetSourceRoot = targetMode === 'inline' ? '/frontend' : '/';
+    const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
+    const contractInfo = activeDapp.contract;
+    const isGraphOnlyTarget = activeDapp.appKind === 'graph-only';
+    const graphSources = Array.isArray(activeDapp.dataSources?.theGraph) ? activeDapp.dataSources.theGraph : [];
+
+    const promptParts = [
+      `QuickDapp preview fix request:`,
+      `Use the target details below exactly. Do not infer or substitute a different workspace.`,
+      ``,
+      `Target DApp: "${dappName}"`,
+      `Target workspaceName: "${activeDapp.workspaceName}"`,
+      `Target slug: "${activeDapp.slug}"`,
+      `Target mode: "${targetMode}"`,
+      `Target source root: "${targetSourceRoot}"`,
+      `Target app kind: "${isGraphOnlyTarget ? 'graph-only' : 'contract'}"`,
+      `Base mini app: ${activeDapp.config?.isBaseMiniApp ? 'yes' : 'no'}`,
+      `Deployment status: "${activeDapp.status || 'unknown'}"`,
+      ``
+    ];
+
+    if (isGraphOnlyTarget) {
+      promptParts.push(
+        `Contract: none (Graph-only read-only DApp)`,
+        `Fix scope: UI/source fixes only. Preserve Graph data fetching and do not add contract, wallet, provider, signer, ethers, transaction, or network switching code.`
+      );
+    } else {
+      promptParts.push(
+        `Contract: ${contractInfo?.name || 'Unknown'} at ${contractInfo?.address || 'unknown'}`,
+        `Chain: ${contractInfo?.chainId || 'unknown'}`,
+        `Network: ${contractInfo?.networkName || 'unknown'}`
+      );
+    }
+
+    if (graphSources.length > 0) {
+      promptParts.push(...buildQuickDappUpdateGraphContextBlock(graphSources));
+    }
+
+    promptParts.push(
+      ``,
+      `Observed preview issue type: "${previewIssue.type}"`,
+      `Observed preview issue:`,
+      previewIssue.message,
+      ``,
+      `Task:`,
+      `Call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to a concise summary of the preview issue above.`,
+      `Fix only the cause of this preview issue.`,
+      `Do not redesign the DApp or change unrelated UI/behavior.`,
+      `Preserve the existing contract, Graph, Base mini app, and deployment configuration.`,
+      `Never call generate_dapp for this fix flow.`,
+      `After editing files, finalize the DApp update.`
+    );
+
+    const prompt = promptParts.join('\n');
+
+    await openAiAssistantPanel();
+
+    try {
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-fix-preview' });
+    } catch (e) {
+      console.warn('[QuickDapp] Could not send preview fix prompt to AI Assistant:', e);
     }
   };
 
@@ -577,6 +719,8 @@ window.addEventListener('unhandledrejection', function(e) {
   }, []);
 
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
+  const isGraphOnly = activeDapp?.appKind === 'graph-only';
+  const dappNetworkLabel = isGraphOnly ? 'The Graph' : activeDapp?.contract?.networkName || 'Unknown Network';
   const [isCurrentProviderVM, setIsCurrentProviderVM] = useState(false);
   const [vmContractStatus, setVmContractStatus] = useState<'checking' | 'deployed' | 'not-found'>('checking');
 
@@ -824,6 +968,8 @@ window.addEventListener('unhandledrejection', function(e) {
 
   if (!activeDapp) return <div className="p-3">No active dapp selected.</div>;
 
+  const currentPreviewIssue = getFixablePreviewIssue();
+
   return (
     <div className="d-flex flex-column h-100">
       <div className="py-2 px-3 border-bottom d-flex align-items-center flex-shrink-0">
@@ -840,7 +986,7 @@ window.addEventListener('unhandledrejection', function(e) {
             {activeDapp.config.title || activeDapp.name}
           </span>
           <span className="badge bg-secondary opacity-75">
-            {activeDapp.contract.networkName}
+            {dappNetworkLabel}
           </span>
           <div className="vr mx-1 text-secondary opacity-50" style={{ height: '1.2rem' }}></div>
           <div className="d-flex align-items-center text-muted" title="Location in File Explorer">
@@ -876,6 +1022,7 @@ window.addEventListener('unhandledrejection', function(e) {
               size="sm"
               onClick={handleOpenAIAssistant}
               disabled={isAiUpdating}
+              title={isGraphOnly ? 'AI update is limited to Graph-only UI/source changes.' : undefined}
               data-id="update-with-ai-btn"
             >
               <i className="fas fa-robot me-1"></i>
@@ -894,7 +1041,7 @@ window.addEventListener('unhandledrejection', function(e) {
               variant="outline-danger"
               size="sm"
               onClick={() => setShowDeleteModal(true)}
-              disabled={isBuilding || isCapturing}
+              disabled={isBuilding || isCapturing || isAiUpdating}
               data-id="delete-dapp-editor-btn"
             >
               <i className="fas fa-trash me-1"></i> Delete DApp
@@ -916,7 +1063,7 @@ window.addEventListener('unhandledrejection', function(e) {
                       <ul className="mb-0 ps-3">
                         <li>AI code might not be perfect. If the preview is broken:</li>
                         <li><strong>Option 1:</strong> Edit code manually in the <strong>File Explorer</strong> (left panel), then click <strong>Refresh Preview</strong>.</li>
-                        <li><strong>Option 2:</strong> Click the <strong>Ask AI to Update</strong> button to ask the AI Assistant to fix it.</li>
+                        <li><strong>Option 2:</strong> Click <strong>Ask AI to fix</strong> in the preview error, or use <strong>Ask AI to Update</strong> for broader changes.</li>
                       </ul>
                     </div>
                   )}
@@ -940,7 +1087,7 @@ window.addEventListener('unhandledrejection', function(e) {
                         )}
                         <div className="mt-1 text-danger">
                           <i className="fas fa-exclamation-triangle me-1"></i>
-                          You can deploy to IPFS, but the deployed DApp will not function — Remix VM only runs locally in this browser and is not accessible externally.
+                          IPFS deployment is not available for Remix VM contracts. Deploy your contract to a public network first.
                         </div>
                         <div className="mt-1 text-warning">
                           <i className="fas fa-info-circle me-1"></i>
@@ -956,6 +1103,7 @@ window.addEventListener('unhandledrejection', function(e) {
                         const progress = appState.generationProgress;
                         const generatedFiles = progress?.generatedFiles || [];
                         const currentFile = progress?.filename;
+                        const fallbackStatusText = activeDapp?.status === 'creating' ? 'Creating DApp' : 'Updating DApp';
                         const statusText = progress?.status === 'generating_file' && currentFile
                           ? `Writing ${currentFile}`
                           : progress?.status === 'validating'
@@ -964,7 +1112,9 @@ window.addEventListener('unhandledrejection', function(e) {
                               ? 'Parsing generated output'
                               : progress?.status === 'calling_llm'
                                 ? 'Waiting for AI response'
-                                : 'Updating DApp';
+                                : progress?.status === 'preparing'
+                                  ? 'Preparing...'
+                                  : fallbackStatusText;
 
                         return (
                           <div className="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center qd-progress-overlay" data-id="ai-updating-overlay">
@@ -997,6 +1147,17 @@ window.addEventListener('unhandledrejection', function(e) {
                             <span className="text-break flex-grow-1">
                               <strong>Runtime Error:</strong> {runtimeErrors[runtimeErrors.length - 1]}
                             </span>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              className="ms-2 py-0 px-2 flex-shrink-0 text-nowrap"
+                              onClick={handleFixPreviewIssue}
+                              disabled={isAiUpdating}
+                              data-id="fix-preview-error-btn"
+                            >
+                              <i className="fas fa-robot me-1"></i>
+                              Ask AI to fix
+                            </Button>
                             <button className="btn-close ms-2 flex-shrink-0" style={{ fontSize: '0.6rem' }} onClick={() => setRuntimeErrors([])}></button>
                           </div>
                         </div>
@@ -1007,6 +1168,17 @@ window.addEventListener('unhandledrejection', function(e) {
                             <i className="fas fa-exclamation-triangle text-warning mb-2" style={{ fontSize: '2rem' }}></i>
                             <h6 className="text-muted mb-2">Preview Error</h6>
                             <p className="text-muted small">{iframeError}</p>
+                            {currentPreviewIssue && !isAiUpdating && (
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={handleFixPreviewIssue}
+                                data-id="fix-preview-error-btn"
+                              >
+                                <i className="fas fa-robot me-1"></i>
+                                Ask AI to fix
+                              </Button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1047,7 +1219,7 @@ window.addEventListener('unhandledrejection', function(e) {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDeleteDapp} data-id="confirm-delete-dapp-btn">Yes, Delete</Button>
+          <Button variant="danger" onClick={handleDeleteDapp} disabled={isAiUpdating} data-id="confirm-delete-dapp-btn">Yes, Delete</Button>
         </Modal.Footer>
       </Modal>
     </div>

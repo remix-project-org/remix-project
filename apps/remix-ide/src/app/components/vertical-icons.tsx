@@ -30,13 +30,16 @@ export class VerticalIcons extends Plugin {
   }
 
   renderComponent() {
-    const fixedOrder = ['remixaiassistant', 'quick-dapp-v2', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting', 'pluginManager']
+    // These three icons must always appear last, in this order, no matter what.
+    const lastOrder = ['helpPlugin', 'planManager']
+    const fixedOrder = ['remixaiassistant', 'quick-dapp-v2', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting']
 
     const divived = Object.values(this.icons)
       .map((value) => {
         return {
           ...value,
-          isRequired: fixedOrder.indexOf(value.profile.name) > -1
+          isRequired: fixedOrder.indexOf(value.profile.name) > -1,
+          isLast: lastOrder.indexOf(value.profile.name) > -1
         }
       })
       .sort((a, b) => {
@@ -49,11 +52,18 @@ export class VerticalIcons extends Plugin {
         return fixedOrder.indexOf(a.profile.name) - fixedOrder.indexOf(b.profile.name)
       })
 
+    const last = divived
+      .filter((value) => value.isLast)
+      .sort((a, b) => {
+        return lastOrder.indexOf(a.profile.name) - lastOrder.indexOf(b.profile.name)
+      })
+
     const sorted: IconRecord[] = [
       ...required,
       ...divived.filter((value) => {
-        return !value.isRequired
-      })
+        return !value.isRequired && !value.isLast
+      }),
+      ...last
     ]
 
     this.dispatch({

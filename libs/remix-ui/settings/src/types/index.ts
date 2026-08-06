@@ -64,7 +64,11 @@ export interface SettingsSection {
       }[],
       toggleUIOptions?: {
         name: keyof SettingsState,
-        type: 'text' | 'password'
+        type: 'text' | 'password' | 'number' | 'select',
+        selectOptions?: {
+          label: string,
+          value: string
+        }[]
       }[],
       toggleUIDescription?: string | JSX.Element,
       buttonOptions?: {
@@ -132,7 +136,13 @@ export interface SettingsState {
   'deepagent-mistral-api-key': ConfigState,
   'deepagent-openai-api-key': ConfigState,
   'deepagent-moonshot-api-key': ConfigState,
+  'deepagent-bedrock-bearer-token': ConfigState,
   'editor/code-analysis-popover': ConfigState,
+  'ai-feedback': ConfigState,
+  'ai-feedback-credit-threshold': ConfigState,
+  'zkverify-config': ConfigState,
+  'zkverify-api-key': ConfigState,
+  'zkverify-network': ConfigState,
   toaster: ConfigState
 }
 export interface SettingsActionPayloadTypes {

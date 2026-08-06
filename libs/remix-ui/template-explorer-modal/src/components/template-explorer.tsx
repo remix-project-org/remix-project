@@ -6,40 +6,38 @@ import { MatomoCategories, trackMatomoEvent } from '@remix-api'
 
 export function TemplateExplorer() {
 
-  const { metadata, dedupedTemplates, plugin, dispatch, facade, templateCategoryStrategy, theme, trackMatomoEvent } = useContext(TemplateExplorerContext)
+  const { metadata, dedupedTemplates, plugin, dispatch, facade, templateCategoryStrategy, trackMatomoEvent } = useContext(TemplateExplorerContext)
 
   return (
 
-    <div data-id="template-explorer-template-container" className={theme?.name === 'Dark' ? 'text-white-force' : 'text-dark'} style={{ overflowY: 'scroll', height: '85%' }}>
+    <div data-id="template-explorer-template-container" className="tem-template-list">
 
       {dedupedTemplates?.map((template: TemplateCategory, templateIndex) => (
-        <div key={template.name} className="template-category mb-4" data-id={`template-category-${template.name}`}>
-          <h4 className={theme?.name === 'Dark' ? 'category-title mb-3 text-white-force' : 'category-title mb-3 text-dark'}>
+        <div key={template.name} className="tem-template-category" data-id={`template-category-${template.name}`}>
+          <p className="ht-section-title">
             {template.name.toUpperCase()}
-          </h4>
+          </p>
 
           {template.description && (
-            <p className="category-description mb-2 text-secondary">
+            <p className="category-description">
               {template.description}
             </p>
           )}
 
-          <div className="template-items-container d-flex flex-wrap gap-3 mb-4">
+          <div className="template-items-container">
             {template.items.map((item: TemplateItem, itemIndex) => {
-              // Add template metadata
               item.templateType = metadata[item.value]
 
-              // Skip disabled items
               if (item.templateType && item.templateType.disabled === true) return null
-
-              // Skip desktop incompatible items in electron
               if (item.templateType && item.templateType.desktopCompatible === false && isElectron()) return null
+
+              const hasFooter = (item.opts && Object.keys(item.opts).length > 0) || (item.tagList && item.tagList.length > 0)
 
               return (
                 <div
                   data-id={`template-card-${item.value}-${itemIndex}`}
                   key={`${templateIndex}-${itemIndex}`}
-                  className={theme?.name === 'Dark'? "template-card bg-light border-0 px-3 py-3" : "template-card bg-dark border-0 px-3 py-3"}
+                  className="tem-card"
                   onClick={async () => {
                     if (item.value === 'cookbook') {
                       await plugin.call('manager', 'activatePlugin', 'cookbookdev')
@@ -56,54 +54,25 @@ export function TemplateExplorer() {
                     }
                   }}
                 >
-                  <div className="card-header mb-1">
-                    <h6 className={`card-title mb-1 ${theme?.name === 'Dark' ? 'text-white-dimmed' : 'card-title-light'}`}>
-                      {item.displayName || item.value}
-                    </h6>
-
-                  </div>
-                  <div className="card-body d-flex flex-column justify-content-between overflow-y-auto">
-                    {item.description && (
-                      <p className={theme?.name === 'Dark' ? 'card-description mb-1 text-dark text-wrap text-truncate overflow-hidden' : 'card-description mb-1 text-dark text-wrap text-truncate overflow-hidden'}>
-                        {item.description}
-                      </p>
-                    )}
-
-                    {item.opts && Object.keys(item.opts).length > 0 && (
-                      <div className="options-badges d-flex flex-wrap">
-                        {item.opts.upgradeable && (
-                          <span className="badge bg-success badge-uups">
-                      UUPS
-                          </span>
-                        )}
-                        {item.opts.mintable && (
-                          <span className="badge bg-warning text-dark badge-mint">
-                      Mint
-                          </span>
-                        )}
-                        {item.opts.burnable && (
-                          <span className="badge bg-danger badge-burn">
-                      Burn
-                          </span>
-                        )}
-                        {item.opts.pausable && (
-                          <span className="badge bg-secondary badge-pause">
-                      Pause
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {item.tagList && item.tagList.length > 0 && (
-                      <div className="tag-list d-flex flex-wrap gap-1 align-items-end">
-                        {item.tagList.map((tag, tagIndex) => (
-                          <span key={tagIndex} className="badge template-tag-badge">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <strong className="tem-card-title">{item.displayName || item.value}</strong>
+                  {item.description && (
+                    <p className="tem-card-desc">{item.description}</p>
+                  )}
+                  {hasFooter && (
+                    <div className="tem-card-footer">
+                      {item.opts && Object.keys(item.opts).length > 0 && (
+                        <>
+                          {item.opts.upgradeable && <span className="tem-card-badge tem-card-badge-success">UUPS</span>}
+                          {item.opts.mintable && <span className="tem-card-badge tem-card-badge-warning">Mint</span>}
+                          {item.opts.burnable && <span className="tem-card-badge tem-card-badge-danger">Burn</span>}
+                          {item.opts.pausable && <span className="tem-card-badge tem-card-badge-muted">Pause</span>}
+                        </>
+                      )}
+                      {item.tagList && item.tagList.length > 0 && item.tagList.map((tag, tagIndex) => (
+                        <span key={tagIndex} className="tem-card-tag">{tag}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}

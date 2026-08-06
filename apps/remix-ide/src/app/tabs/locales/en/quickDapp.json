@@ -8,7 +8,6 @@
   "quickDapp.enterNetwork": "Enter network",
   "quickDapp.submit": "Submit",
   "quickDapp.text1": "QuickDapp only work for Injected Provider currently. More providers will be adapted in further iterations.",
-  "quickDapp.text2": "Click the sparkling star icon in a deployed contract will input the parameters automatically.",
   "quickDapp.admin": "Admin",
   "quickDapp.resetFunctions": "Reset Functions",
   "quickDapp.deleteDapp": "Delete Dapp",
