@@ -1,4 +1,16 @@
-<p align="center">
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.0/contracts/token/ERC20/ERC20.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.0/contracts/access/Ownable.sol";
+
+contract NakamaCoin is ERC20, Ownable {
+    constructor() ERC20("87 Nakama Coin", "87NKM") Ownable(msg.sender) {
+        // 100 কোটি কয়েন = 1000000000
+        // 18 টা 0 দশমিক এর জন্য
+        _mint(msg.sender, 1000000 * 10 ** decimals());
+    }
+}<p align="center">
   <img src="./apps/remix-ide/src/assets/img/icon.png" alt="Remix Logo" width="200"/>
 </p>
 <h3 align="center">Remix Project</h3>
