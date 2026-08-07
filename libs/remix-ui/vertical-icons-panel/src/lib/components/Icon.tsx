@@ -114,10 +114,15 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
 
   // "active"/"pinned" only track which plugin was last focused/assigned to a panel, not
   // whether that panel is actually visible right now — closing a panel via its own icon
-  // shouldn't leave a stale highlight behind
-  const isLeftActive = iconRecord.active && !leftPanelHidden
+  // shouldn't leave a stale highlight behind.
+  const isMainPanelIcon = (iconRecord.profile as any).location === 'mainPanel'
+  // the left accent bar specifically represents "shown in the left sidePanel" — mainPanel
+  // plugins (tabs, e.g. quick-dapp-v2) are never in that panel, so they never get the bar,
+  // even though they still get the general highlight below
+  const isSidePanelActive = iconRecord.active && !leftPanelHidden && !isMainPanelIcon
+  const isMainPanelActive = iconRecord.active && isMainPanelIcon
   const isRightActive = iconRecord.pinned && !rightPanelHidden
-  const isHighlighted = isLeftActive || isRightActive
+  const isHighlighted = isSidePanelActive || isMainPanelActive || isRightActive
   const stylePC = isHighlighted ? 'flex-start' : 'center'
   // the AI assistant highlights with its own brand color rather than the generic primary accent
   const accentStyle = name === 'remixaiassistant' ? ({ '--icon-accent': 'var(--custom-ai-color)' } as React.CSSProperties) : undefined
@@ -126,7 +131,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
       <div className={`d-flex remixui_icon_row ${showLabel ? 'remixui_icon_row--compact' : 'py-1'} ${isHighlighted ? 'remixui_icon_row--active' : ''}`} style={{ width: 'auto', placeContent: stylePC, ...accentStyle }}>
         <div
           className="pt-1"
-          style={{ width: "6px", position: 'relative', borderRadius: '1000px', backgroundColor: isLeftActive ? 'var(--icon-accent, var(--custom-primary))' : 'transparent' }}
+          style={{ width: "6px", position: 'relative', borderRadius: '1000px', backgroundColor: isSidePanelActive ? 'var(--icon-accent, var(--custom-primary))' : 'transparent' }}
         ></div>
         <CustomTooltip
           placement="right"
@@ -205,6 +210,7 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
                   />
                 )}
                 <Badge badgeStatus={badgeStatus} />
+                {name === 'planManager' ? <span className="remixui_icon_ping" aria-hidden="true"></span> : null}
                 {showLabel ? <div className="remixui_icon_label">{label}</div> : null}
               </div>
             )

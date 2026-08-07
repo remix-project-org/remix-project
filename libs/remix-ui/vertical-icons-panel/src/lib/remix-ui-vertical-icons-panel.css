@@ -134,6 +134,30 @@
     top: -4px;
     right: -4px;
   }
+  /* attention-drawing dot for Plan & Credits — a solid dot plus an expanding, fading ring */
+  .remixui_icon_ping {
+    position: absolute;
+    top: 0;
+    right: 4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--custom-primary);
+  }
+  .remixui_icon_ping::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background-color: var(--custom-primary);
+    animation: remixui_ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  @keyframes remixui_ping {
+    75%, 100% {
+      transform: scale(2.4);
+      opacity: 0;
+    }
+  }
   .remixui_statusCheck {
     font-size: 1.2em;
   }

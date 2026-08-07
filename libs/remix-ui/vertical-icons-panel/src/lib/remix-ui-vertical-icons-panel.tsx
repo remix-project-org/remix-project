@@ -111,6 +111,8 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons, rightPanelHidde
             leftPanelHidden={leftPanelHidden}
           />
           <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'settings' || p.profile.name === 'walkthrough')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} leftPanelHidden={leftPanelHidden} />
+        </div>
+        <div className="remixui_default-icons-container border-0">
           <IconList
             theme={theme}
             icons={icons

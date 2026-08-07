@@ -110,6 +110,21 @@ export class VerticalIcons extends Plugin {
       this.renderComponent()
     })
 
+    // mainPanel plugins (currently just quick-dapp-v2) are tabs, not sidePanel views, so their
+    // "active" state tracks which tab is focused instead of sidePanel's focusChanged. Scoped to
+    // location === 'mainPanel' only, so this never touches sidePanel/rightSidePanel icons.
+    this.on('tabs', 'switchApp', (name: string) => {
+      let changed = false
+      Object.keys(this.icons).forEach((key) => {
+        if ((this.icons[key].profile as any).location === 'mainPanel') {
+          const active = key === name
+          if (this.icons[key].active !== active) changed = true
+          this.icons[key].active = active
+        }
+      })
+      if (changed) this.renderComponent()
+    })
+
     this.on('rightSidePanel', 'pinnedPlugin', (profile) => {
       if (this.icons[profile.name]) {
         Object.keys(this.icons).map((icon) => {
@@ -193,6 +208,15 @@ export class VerticalIcons extends Plugin {
   }
 
   unlinkContent(profile: Profile) {
+    // quick-dapp-v2's icon is manually pinned in onActivation (see linkContent(quickDappProfile)
+    // above) since it's a mainPanel tab, not a sidePanel view — closing its tab still runs
+    // through the normal removeView -> unlinkContent flow, but the icon should stay in the
+    // rail regardless, just no longer "active"
+    if (profile.name === quickDappProfile.name) {
+      if (this.icons[profile.name]) this.icons[profile.name].active = false
+      this.renderComponent()
+      return
+    }
     delete this.icons[profile.name]
     this.renderComponent()
   }
