@@ -13,7 +13,8 @@ interface EnsRegistrationModalProps {
   onHide: () => void;
   ensName: string;
   contentHash: string;
-  onSuccess: (result: { txHash: string; domain: string; owner: string }) => void;
+  onSuccess: (result: { txHash: string; domain: string; owner: string }) => void | Promise<void>;
+  onRegistrationStateChange?: (isRegistering: boolean) => void;
   plugin: PluginClient;
 }
 
@@ -23,6 +24,7 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
   ensName,
   contentHash,
   onSuccess,
+  onRegistrationStateChange,
   plugin,
 }) => {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -32,26 +34,27 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
   const handleRegister = async () => {
     setError('');
     setNoWallet(false);
-
-    let ownerAddress: string;
+    setIsRegistering(true);
+    onRegistrationStateChange?.(true);
 
     try {
-      const currentEnv = await (plugin as any).call('blockchain', 'getProviderObject')
-      const [account] = await currentEnv.provider.request({ method: 'eth_requestAccounts' })
+      let ownerAddress: string;
 
-      if (!account || currentEnv?.name?.startsWith('vm-')) {
-        setNoWallet(true);
+      try {
+        const currentEnv = await (plugin as any).call('blockchain', 'getProviderObject')
+        const [account] = await currentEnv.provider.request({ method: 'eth_requestAccounts' })
+
+        if (!account || currentEnv?.name?.startsWith('vm-')) {
+          setNoWallet(true);
+          return;
+        }
+
+        ownerAddress = account;
+      } catch (e: any) {
+        setError(parseEnsRegistrationError(e));
         return;
       }
 
-      ownerAddress = account;
-    } catch (e: any) {
-      setError(parseEnsRegistrationError(e));
-      return;
-    }
-
-    setIsRegistering(true);
-    try {
       const authToken = typeof localStorage !== 'undefined'
         ? localStorage.getItem('remix_access_token')
         : null;
@@ -74,11 +77,12 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
         throw { message: data.error, details: data.details };
       }
 
-      onSuccess({ txHash: data.txHash, domain: data.domain, owner: ownerAddress });
+      await onSuccess({ txHash: data.txHash, domain: data.domain, owner: ownerAddress });
     } catch (e: any) {
       setError(parseEnsRegistrationError(e));
     } finally {
       setIsRegistering(false);
+      onRegistrationStateChange?.(false);
     }
   };
 

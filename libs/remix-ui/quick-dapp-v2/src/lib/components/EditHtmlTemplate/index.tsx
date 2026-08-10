@@ -10,8 +10,9 @@ import { InBrowserVite } from '../../InBrowserVite';
 import { buildGraphRuntimeConfigScript } from '../../utils/graph-runtime-config';
 import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 import { buildZkRuntimeConfigScript } from '../../utils/zkverify-runtime-config';
+import { getQuickDappPublishState } from '../../utils/publish-state';
 import { buildQuickDappUpdateGraphContextBlock } from '@remix/remix-ai-core/quick-dapp-thegraph-prompts';
-import { getPrimaryQuickDappContract, getQuickDappContracts } from '@remix-ui/helper';
+import { getPrimaryQuickDappContract, getQuickDappContracts, getQuickDappWorkspaceLock } from '@remix-ui/helper';
 
 interface Pages {
   [key: string]: string
@@ -60,10 +61,15 @@ function EditHtmlTemplate(): JSX.Element {
   const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
 
   const isAiUpdating = activeDapp ? (appState.dappProcessing[activeDapp.slug] || false) : false;
+  const isActiveDappPublishing = () => {
+    const lock = getQuickDappWorkspaceLock();
+    return lock?.operation === 'publish' && lock.workspaceName === activeDapp?.workspaceName;
+  };
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const builderRef = useRef<InBrowserVite | null>(null);
   const runBuildRef = useRef<(showNotification?: boolean) => Promise<void>>();
+  const deleteInFlightRef = useRef(false);
 
   const [notificationModal, setNotificationModal] = useState({
     show: false,
@@ -92,7 +98,7 @@ function EditHtmlTemplate(): JSX.Element {
           payload: { slug: activeDapp.slug, isProcessing: false }
         });
 
-        if (activeDapp.status === 'deployed') {
+        if (getQuickDappPublishState(activeDapp) !== 'created') {
           setNotificationModal({
             show: true,
             title: 'Code Updated',
@@ -101,8 +107,7 @@ function EditHtmlTemplate(): JSX.Element {
                 <p>The AI has successfully updated your dapp code.</p>
                 <div className="alert alert-warning mb-0">
                   <i className="fas fa-exclamation-triangle me-2"></i>
-                  <strong>Action Required:</strong> The live IPFS deployment is outdated.
-                  Please <strong>"Deploy to IPFS"</strong> again.
+                  <strong>Published · Unpublished changes.</strong> Publish again to update the live IPFS deployment.
                 </div>
               </div>
             ),
@@ -167,10 +172,15 @@ function EditHtmlTemplate(): JSX.Element {
       await plugin.call('notification', 'toast', 'Please wait until the AI update finishes before deleting this DApp.');
       return;
     }
+    if (isActiveDappPublishing()) {
+      await plugin.call('notification', 'toast', 'Please wait until publishing finishes before deleting this DApp.');
+      return;
+    }
 
+    const slugToDelete = activeDapp.slug;
+    deleteInFlightRef.current = true;
     // Hide modal immediately to prevent UI hang during async deletion
     setShowDeleteModal(false);
-    const slugToDelete = activeDapp.slug;
 
     try {
       await dappManager.deleteDapp(slugToDelete);
@@ -188,6 +198,8 @@ function EditHtmlTemplate(): JSX.Element {
 
     } catch (e: any) {
       console.error('[QuickDapp] Delete failed:', e);
+    } finally {
+      deleteInFlightRef.current = false;
     }
   };
 
@@ -196,6 +208,10 @@ function EditHtmlTemplate(): JSX.Element {
   };
 
   const handleBack = async () => {
+    if (isActiveDappPublishing()) {
+      await plugin.call('notification', 'toast', 'Please wait until publishing finishes before returning to the dashboard.');
+      return;
+    }
     if (!isAiUpdating && !isBuilding) {
       await captureAndSaveThumbnail();
     }
@@ -212,6 +228,11 @@ function EditHtmlTemplate(): JSX.Element {
       } catch (e) {
         console.warn('[EditHtmlTemplate] Failed to update single dapp config', e);
       }
+    }
+
+    if (isActiveDappPublishing()) {
+      await plugin.call('notification', 'toast', 'Please wait until publishing finishes before returning to the dashboard.');
+      return;
     }
 
     dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
@@ -1255,7 +1276,7 @@ window.addEventListener('unhandledrejection', function(e) {
             </Col>
             <Col xs={12} lg={4} className="d-flex flex-column qd-side-col">
               <div className="flex-shrink-0">
-                <DeployPanel />
+                <DeployPanel isDeleteInFlight={() => deleteInFlightRef.current} />
               </div>
             </Col>
           </Row>

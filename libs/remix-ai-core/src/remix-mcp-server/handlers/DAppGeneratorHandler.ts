@@ -27,7 +27,8 @@ import {
   QuickDappContractBinding,
   QuickDappContractInput,
   QuickDappContractSelection,
-  setQuickDappWorkspaceLock
+  setQuickDappWorkspaceLock,
+  trySetQuickDappWorkspaceLock
 } from '@remix-ui/helper'
 import isElectron from 'is-electron'
 import { clearQuickDappGenerationContext, markQuickDappGenerationContext } from '../../helpers/quickDappGenerationContext'
@@ -1672,11 +1673,18 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
       dappOps = new DappOperations(targetMode, targetWorkspace, plugin)
       const isInlineMode = dappOps.isInline()
-      setQuickDappWorkspaceLock({
+      const updateLock = trySetQuickDappWorkspaceLock({
         workspaceName: dappOps.getWorkspaceName(),
         operation: 'update',
         reason: 'update_dapp'
       })
+      if (!updateLock) {
+        logQuickDappBinding('operation.blocked', {
+          workspaceName: dappOps.getWorkspaceName(),
+          requestedOperation: 'update'
+        })
+        return this.createErrorResult('Another QuickDapp operation is already in progress. Wait for it to finish before updating this DApp.')
+      }
       remixAILogger.log('[QuickDapp][WorkspaceLock] locked workspace for update', {
         workspaceName: dappOps.getWorkspaceName()
       })
@@ -1872,6 +1880,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
       }
       plugin.emit('dappGenerationError', {
         workspaceName: dappOps?.getWorkspaceName() || args.workspaceName,
+        isUpdate: true,
         error: error.message
       })
       return this.createErrorResult(`DApp update failed: ${error.message}`)
@@ -1945,7 +1954,14 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
           config.workspaceName = dappOps.getWorkspaceName()
         }
 
-        config.status = 'created'
+        const wasPublished = !!config.deployment?.ipfsCid
+        config.status = isUpdate && wasPublished ? 'deployed' : 'created'
+        if (isUpdate && wasPublished) {
+          config.deployment = {
+            ...config.deployment,
+            hasUnpublishedChanges: true
+          }
+        }
         config.processingStartedAt = null
         config.updatedAt = Date.now()
 
@@ -1985,8 +2001,15 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
         } else {
           await dappOps.writeConfig(config)
         }
-        remixAILogger.log('[QuickDapp] Config updated to created')
+        if (isUpdate) {
+          logQuickDappBinding('update.completed', {
+            workspaceName: dappOps.getWorkspaceName(),
+            publishState: wasPublished ? 'published-with-unpublished-changes' : 'created'
+          })
+        }
+        remixAILogger.log('[QuickDapp] Config status updated after finalization')
       } catch (configErr) {
+        if (isUpdate) throw configErr
         remixAILogger.warn('[QuickDapp] Config update failed (non-critical):', configErr)
       }
       const slugToUse = configSlug || dappOps.getSlug()
@@ -2031,6 +2054,7 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
       remixAILogger.error('[QuickDapp] finalize_dapp_generation failed:', error)
       plugin.emit('dappGenerationError', {
         workspaceName: dappOps?.getWorkspaceName() || workspaceName,
+        isUpdate: !!isUpdate,
         error: error.message
       })
       if (dappOps?.getWorkspaceName()) {

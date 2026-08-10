@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Form, Button, Alert, Card, Spinner, Modal, ListGroup, Badge, InputGroup } from 'react-bootstrap';
 
 import { toPng } from 'html-to-image';
@@ -10,6 +10,13 @@ import { validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
 import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 import { buildZkRuntimeConfigScript, hasZkCircuit } from '../../utils/zkverify-runtime-config';
+import { getQuickDappPublishLabel, getQuickDappPublishState } from '../../utils/publish-state';
+import {
+  clearQuickDappWorkspaceLock,
+  getQuickDappWorkspaceLock,
+  logQuickDappBinding,
+  trySetQuickDappWorkspaceLock
+} from '@remix-ui/helper';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
@@ -32,7 +39,12 @@ interface BaseAppWizardState {
   history: DeploymentRecord[];
 }
 
-const BaseAppWizard: React.FC = () => {
+interface BaseAppWizardProps {
+  isConfigSaveInFlight?: () => boolean;
+  isDeleteInFlight?: () => boolean;
+}
+
+const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isDeleteInFlight }) => {
   const { appState, dispatch, dappManager, plugin } = useContext(AppContext);
   const { activeDapp } = appState;
   const { title, details, logo } = appState.instance;
@@ -52,12 +64,41 @@ const BaseAppWizard: React.FC = () => {
   const [copiedField, setCopiedField] = useState('');
   const [showEnsModal, setShowEnsModal] = useState(false);
   const [pendingEnsData, setPendingEnsData] = useState<{ cid: string; mode: 'initial' | 'update' } | null>(null);
+  const publishLockRef = useRef<{ workspaceName: string; operationId: string } | null>(null);
+  const isMountedRef = useRef(true);
+  const publishRequestInFlightRef = useRef(false);
+  const ensRegistrationInFlightRef = useRef(false);
 
   const isInlineMode = activeDapp?.mode === 'inline';
   const indexHtmlPath = isInlineMode ? 'frontend/index.html' : 'index.html';
   const dappRootPath = isInlineMode ? '/frontend' : '/';
   const rootPathLength = isInlineMode ? '/frontend'.length : 0;
   const hasGraphGateway = hasTheGraphGatewaySources(activeDapp);
+  const isAiUpdating = activeDapp ? (appState.dappProcessing[activeDapp.slug] || false) : false;
+  const publishState = getQuickDappPublishState(activeDapp);
+  const publishLabel = getQuickDappPublishLabel(activeDapp);
+  const hasUnpublishedChanges = publishState === 'published-with-unpublished-changes';
+  const isUpdateLocked = () => {
+    const lock = getQuickDappWorkspaceLock();
+    return lock?.operation === 'update' && lock.workspaceName === activeDapp?.workspaceName;
+  };
+
+  const clearBasePublishLock = () => {
+    const publishLock = publishLockRef.current;
+    if (!publishLock) return;
+    clearQuickDappWorkspaceLock(publishLock.workspaceName, publishLock.operationId);
+    publishLockRef.current = null;
+  };
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    if (publishRequestInFlightRef.current || ensRegistrationInFlightRef.current) return;
+    const publishLock = publishLockRef.current;
+    if (publishLock) {
+      clearQuickDappWorkspaceLock(publishLock.workspaceName, publishLock.operationId);
+      publishLockRef.current = null;
+    }
+  }, []);
 
   const ensureActiveDappWorkspace = async () => {
     if (!activeDapp?.workspaceName) return;
@@ -69,6 +110,11 @@ const BaseAppWizard: React.FC = () => {
         isLocalhost: false
       });
       await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    const confirmedWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+    if (confirmedWorkspace?.name !== activeDapp.workspaceName) {
+      throw new Error(`Could not switch to DApp workspace "${activeDapp.workspaceName}"`);
     }
   };
 
@@ -85,7 +131,12 @@ const BaseAppWizard: React.FC = () => {
         setViewStep(saved.currentStep);
       } else {
         const existingEns = activeDapp.deployment?.ensDomain?.split('.')[0] || '';
-        setSavedWizardState(prev => ({ ...prev, ensName: existingEns }));
+        setSavedWizardState({
+          currentStep: 1,
+          ensName: existingEns,
+          appIdMeta: '',
+          history: []
+        });
         setViewStep(1);
       }
     }
@@ -224,17 +275,20 @@ const BaseAppWizard: React.FC = () => {
 
   const handleIpfsDeploy = async (): Promise<string | null> => {
     if (!activeDapp) return null;
-
-    trackMatomoEvent(plugin as any, {
-      category: 'quick-dapp-v2',
-      action: 'deploy_ipfs',
-      name: 'start',
-      isClick: true
-    });
+    if (isAiUpdating || isUpdateLocked()) {
+      await plugin.call('notification', 'toast', 'Please wait until the AI update finishes before publishing.');
+      return null;
+    }
 
     let builder: InBrowserVite;
 
     try {
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'start',
+        isClick: true
+      });
       await ensureActiveDappWorkspace();
       builder = new InBrowserVite();
       await builder.initialize();
@@ -345,12 +399,27 @@ const BaseAppWizard: React.FC = () => {
       const data = await response.json();
 
       if (dappManager) {
-        await dappManager.updateDappConfig(activeDapp.slug, {
+        const publishedAt = Date.now();
+        const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
           status: 'deployed',
-          lastDeployedAt: Date.now(),
-          deployment: { ...activeDapp.deployment, ipfsCid: data.ipfsHash, gatewayUrl: data.gatewayUrl },
+          lastDeployedAt: publishedAt,
+          deployment: {
+            ipfsCid: data.ipfsHash,
+            gatewayUrl: data.gatewayUrl,
+            hasUnpublishedChanges: false
+          },
           config: { ...activeDapp.config, title: title || '', details: details || '', logo: logoDataUrl || undefined }
         });
+        if (updatedConfig) {
+          dispatch({ type: 'SET_ACTIVE_DAPP', payload: updatedConfig });
+          logQuickDappBinding('publish.completed', {
+            workspaceName: updatedConfig.workspaceName,
+            outcome: 'success',
+            isRepublish: Boolean(activeDapp.deployment?.ipfsCid),
+            cidChanged: Boolean(activeDapp.deployment?.ipfsCid && activeDapp.deployment.ipfsCid !== data.ipfsHash),
+            publishStateAfter: 'published'
+          });
+        }
       }
 
       trackMatomoEvent(plugin as any, {
@@ -364,11 +433,33 @@ const BaseAppWizard: React.FC = () => {
 
     } catch (e: any) {
       console.error('[BaseAppWizard] IPFS Deploy Error:', e);
+      logQuickDappBinding('publish.completed', {
+        workspaceName: activeDapp.workspaceName,
+        outcome: 'failed',
+        isRepublish: Boolean(activeDapp.deployment?.ipfsCid),
+        cidChanged: false,
+        publishStateAfter: activeDapp.deployment?.ipfsCid
+          ? activeDapp.deployment.hasUnpublishedChanges ? 'unpublished-changes' : 'published'
+          : 'not-published'
+      });
       return null;
     }
   };
 
   const executeBaseAppAction = async (mode: 'initial' | 'update') => {
+    if (!activeDapp) return;
+    if (isDeleteInFlight?.()) {
+      await plugin.call('notification', 'toast', 'Please wait until DApp deletion finishes before publishing.');
+      return;
+    }
+    if (isConfigSaveInFlight?.()) {
+      await plugin.call('notification', 'toast', 'Please wait until configuration saving finishes before publishing.');
+      return;
+    }
+    if (isAiUpdating || isUpdateLocked()) {
+      await plugin.call('notification', 'toast', 'Please wait until the AI update finishes before publishing.');
+      return;
+    }
     if (!savedWizardState.ensName) {
       // @ts-ignore
       await plugin.call('notification', 'toast', 'ENS Name is required.');
@@ -384,11 +475,34 @@ const BaseAppWizard: React.FC = () => {
       }
     }
 
+    const publishOperationId = `publish-base-${Date.now().toString(36)}`;
+    const publishLock = trySetQuickDappWorkspaceLock({
+      workspaceName: activeDapp.workspaceName,
+      slug: activeDapp.slug,
+      operationId: publishOperationId,
+      operation: 'publish',
+      reason: 'base_publish_flow'
+    });
+    if (!publishLock) {
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDapp operation finishes.');
+      return;
+    }
+    publishLockRef.current = {
+      workspaceName: publishLock.workspaceName,
+      operationId: publishOperationId
+    };
+
     try {
       setBaseFlowLoading(true);
 
+      publishRequestInFlightRef.current = true;
       const newCid = await handleIpfsDeploy();
+      publishRequestInFlightRef.current = false;
       if (!newCid) throw new Error("IPFS Deployment Failed.");
+      if (!isMountedRef.current) {
+        clearBasePublishLock();
+        return;
+      }
 
       // Store pending data and show ENS modal
       setPendingEnsData({ cid: newCid, mode });
@@ -401,9 +515,13 @@ const BaseAppWizard: React.FC = () => {
       setShowEnsModal(true);
 
     } catch (e: any) {
-      // @ts-ignore
-      await plugin.call('notification', 'toast', `Error: ${e.message}`);
-      setBaseFlowLoading(false);
+      publishRequestInFlightRef.current = false;
+      if (isMountedRef.current) {
+        // @ts-ignore
+        await plugin.call('notification', 'toast', `Error: ${e.message}`);
+        setBaseFlowLoading(false);
+      }
+      clearBasePublishLock();
     }
   };
 
@@ -420,24 +538,38 @@ const BaseAppWizard: React.FC = () => {
         isClick: false
       });
 
-      if (dappManager) {
-        const fullDomain = `${savedWizardState.ensName}.remixdapp.eth`;
-        const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
-          deployment: {
-            ...activeDapp.deployment,
-            ensDomain: fullDomain
-          }
-        });
-        if (updatedConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: updatedConfig });
-      }
-
       const actionLabel = mode === 'initial' ? 'Initial Deploy' : 'Code Update';
+      const newRecord: DeploymentRecord = {
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        action: actionLabel,
+        cid: newCid,
+        txHash: result.txHash
+      };
+      const nextWizardState: BaseAppWizardState = {
+        ...savedWizardState,
+        currentStep: mode === 'initial' ? Math.max(savedWizardState.currentStep, 3) : savedWizardState.currentStep,
+        history: [newRecord, ...savedWizardState.history]
+      };
 
-      await addHistoryRecord(actionLabel, newCid, result.txHash);
-      await savePersistentState({ ensName: savedWizardState.ensName });
+      if (!dappManager) throw new Error('DApp manager is unavailable.');
+
+      const fullDomain = `${savedWizardState.ensName}.remixdapp.eth`;
+      const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
+        deployment: {
+          ensDomain: fullDomain
+        },
+        config: {
+          baseAppConfig: nextWizardState
+        }
+      });
+      if (!updatedConfig) throw new Error('Failed to save Base app deployment state.');
+
+      setSavedWizardState(nextWizardState);
+      dispatch({ type: 'SET_ACTIVE_DAPP', payload: updatedConfig });
 
       if (mode === 'initial') {
-        completeStepAndGoNext(3);
+        setViewStep(3);
         setSuccessModalContent({
           title: 'Deploy Complete',
           body: `Your app is deployed to IPFS and ENS linked.\n\nNext: Go to Base.dev and verify your URL to complete the setup.`
@@ -457,6 +589,7 @@ const BaseAppWizard: React.FC = () => {
     } finally {
       setBaseFlowLoading(false);
       setPendingEnsData(null);
+      clearBasePublishLock();
     }
   };
 
@@ -553,7 +686,7 @@ const BaseAppWizard: React.FC = () => {
           <Card className="border-success mb-3 shadow-sm" data-id="live-app-dashboard">
             <Card.Header className="bg-success text-white fw-bold d-flex justify-content-between align-items-center">
               <span><i className="fas fa-check-circle me-2"></i>Live App Dashboard</span>
-              <span className="badge bg-white text-success">Active</span>
+              <span className={`badge ${hasUnpublishedChanges ? 'bg-warning text-dark' : 'bg-white text-success'}`}>{publishLabel}</span>
             </Card.Header>
             <Card.Body>
               <div className="text-center py-3 bg-light rounded mb-4 border">
@@ -563,7 +696,7 @@ const BaseAppWizard: React.FC = () => {
                 </a>
               </div>
               <div className="d-grid gap-3 mb-4">
-                <Button variant="primary" className="py-2" onClick={() => executeBaseAppAction('update')} disabled={baseFlowLoading}>
+                <Button variant="primary" className="py-2" onClick={() => executeBaseAppAction('update')} disabled={baseFlowLoading || isAiUpdating}>
                   {baseFlowLoading ? <><Spinner as="span" animation="border" size="sm" className="me-2" />Updating...</> : <><i className="fas fa-sync-alt me-2"></i>Publish Changes</>}
                 </Button>
                 <div className="alert border small text-muted mb-0">
@@ -748,7 +881,7 @@ const BaseAppWizard: React.FC = () => {
 
                     <div className="d-flex gap-2">
                       <Button variant="secondary" onClick={() => navigateToStep(1)}>Back</Button>
-                      <Button variant="primary" className="flex-grow-1" onClick={() => executeBaseAppAction('initial')} disabled={baseFlowLoading}>
+                      <Button variant="primary" className="flex-grow-1" onClick={() => executeBaseAppAction('initial')} disabled={baseFlowLoading || isAiUpdating}>
                         {baseFlowLoading ? 'Deploying & Registering...' : 'Deploy & Next'}
                       </Button>
                     </div>
@@ -827,10 +960,15 @@ const BaseAppWizard: React.FC = () => {
           setShowEnsModal(false);
           setBaseFlowLoading(false);
           setPendingEnsData(null);
+          clearBasePublishLock();
         }}
         ensName={savedWizardState.ensName}
         contentHash={pendingEnsData?.cid || ''}
         plugin={plugin}
+        onRegistrationStateChange={(isRegistering) => {
+          ensRegistrationInFlightRef.current = isRegistering;
+          if (!isRegistering && !isMountedRef.current) clearBasePublishLock();
+        }}
         onSuccess={handleEnsRegistrationSuccess}
       />
     </>
