@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Dropdown } from 'react-bootstrap';
 import { getPrimaryQuickDappContract, getQuickDappContracts } from '@remix-ui/helper';
 import { DappConfig, GenerationProgress } from '../types';
+import { getQuickDappPublishLabel, getQuickDappPublishState } from '../utils/publish-state';
 
 interface DappCardProps {
   dapp: DappConfig;
@@ -28,8 +29,16 @@ const timeAgo = (date: number) => {
 
 const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgress, onClick, onDelete }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const statusColor = dapp.status === 'deployed' ? 'text-success' : 'text-warning';
-  const statusIcon = dapp.status === 'deployed' ? 'fa-check-circle' : 'fa-pen-square';
+  const publishState = getQuickDappPublishState(dapp);
+  const publishLabel = getQuickDappPublishLabel(dapp);
+  const isPublished = publishState !== 'created';
+  const hasUnpublishedChanges = publishState === 'published-with-unpublished-changes';
+  const statusColor = publishState === 'published' ? 'text-success' : 'text-warning';
+  const statusIcon = hasUnpublishedChanges
+    ? 'fa-exclamation-triangle'
+    : isPublished
+      ? 'fa-check-circle'
+      : 'fa-pen-square';
 
   const contractBindings = dapp.appKind === 'graph-only' ? [] : getQuickDappContracts(dapp);
   const primaryContract = getPrimaryQuickDappContract(dapp);
@@ -165,15 +174,15 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
             </small>
             <div className={`d-flex align-items-center ${statusColor}`} data-id={`dapp-status-${dapp.slug}`}>
               <i className={`fas ${statusIcon} me-1 small`}></i>
-              <small className="fw-bold text-uppercase" style={{ fontSize: '0.75rem' }}>
-                {dapp.status}
+              <small className="fw-bold" style={{ fontSize: '0.75rem' }}>
+                {publishLabel}
               </small>
             </div>
           </div>
 
           <div className="text-end mt-1">
             <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-              {dapp.status === 'deployed' ? 'Deployed' : 'Created'} {timeAgo(dapp.createdAt)}
+              {isPublished ? 'Published' : 'Created'} {timeAgo(isPublished ? dapp.lastDeployedAt || dapp.createdAt : dapp.createdAt)}
             </small>
           </div>
         </div>

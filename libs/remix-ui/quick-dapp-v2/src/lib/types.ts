@@ -56,6 +56,7 @@ export interface DappConfig {
     ipfsCid?: string;
     gatewayUrl?: string;
     ensDomain?: string;
+    hasUnpublishedChanges?: boolean;
   };
 
   config: {

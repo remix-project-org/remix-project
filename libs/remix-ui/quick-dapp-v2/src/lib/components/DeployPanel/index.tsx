@@ -13,6 +13,13 @@ import { validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
 import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 import { buildZkRuntimeConfigScript, hasZkCircuit } from '../../utils/zkverify-runtime-config';
+import { getQuickDappPublishLabel, getQuickDappPublishState } from '../../utils/publish-state';
+import {
+  clearQuickDappWorkspaceLock,
+  getQuickDappWorkspaceLock,
+  logQuickDappBinding,
+  trySetQuickDappWorkspaceLock
+} from '@remix-ui/helper';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
@@ -31,7 +38,11 @@ import {
 
 const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
 
-function DeployPanel(): JSX.Element {
+interface DeployPanelProps {
+  isDeleteInFlight?: () => boolean;
+}
+
+function DeployPanel({ isDeleteInFlight }: DeployPanelProps): JSX.Element {
   const { features } = useAuth()
   const hasQuickdappPublishPermission = features[Features.DAPP_PUBLISH]?.is_enabled === true
   const intl = useIntl();
@@ -40,6 +51,14 @@ function DeployPanel(): JSX.Element {
   const { title, details, logo } = appState.instance;
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
   const hasGraphGateway = hasTheGraphGatewaySources(activeDapp);
+  const isAiUpdating = activeDapp ? (appState.dappProcessing[activeDapp.slug] || false) : false;
+  const publishState = getQuickDappPublishState(activeDapp);
+  const publishLabel = getQuickDappPublishLabel(activeDapp);
+  const hasUnpublishedChanges = publishState === 'published-with-unpublished-changes';
+  const isUpdateLocked = () => {
+    const lock = getQuickDappWorkspaceLock();
+    return lock?.operation === 'update' && lock.workspaceName === activeDapp?.workspaceName;
+  };
 
   const [deployResult, setDeployResult] = useState({
     cid: activeDapp?.deployment?.ipfsCid || '',
@@ -68,25 +87,44 @@ function DeployPanel(): JSX.Element {
   const [isShareOpen, setIsShareOpen] = useState(true);
   const [copiedField, setCopiedField] = useState('');
   const [showEnsModal, setShowEnsModal] = useState(false);
+  const ensPublishLockRef = useRef<{ workspaceName: string; operationId: string } | null>(null);
+  const ensRegistrationInFlightRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const configSaveInFlightRef = useRef(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (activeDapp?.deployment) {
-      setDeployResult(prev => ({
-        ...prev,
-        cid: activeDapp.deployment?.ipfsCid || prev.cid,
-        gatewayUrl: activeDapp.deployment?.gatewayUrl || prev.gatewayUrl
-      }));
-      if (activeDapp.deployment.ensDomain) {
-        setEnsResult(prev => ({
-          ...prev,
-          success: `Linked: ${activeDapp.deployment.ensDomain}`,
-          domain: activeDapp.deployment.ensDomain!
-        }));
-      }
+  const clearEnsPublishLock = () => {
+    const publishLock = ensPublishLockRef.current;
+    if (!publishLock) return;
+    clearQuickDappWorkspaceLock(publishLock.workspaceName, publishLock.operationId);
+    ensPublishLockRef.current = null;
+  };
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    if (ensRegistrationInFlightRef.current) return;
+    const publishLock = ensPublishLockRef.current;
+    if (publishLock) {
+      clearQuickDappWorkspaceLock(publishLock.workspaceName, publishLock.operationId);
+      ensPublishLockRef.current = null;
     }
+  }, []);
+
+  useEffect(() => {
+    const deployment = activeDapp?.deployment;
+    setDeployResult({
+      cid: deployment?.ipfsCid || '',
+      gatewayUrl: deployment?.gatewayUrl || '',
+      error: ''
+    });
+    setEnsResult({
+      success: deployment?.ensDomain ? `Linked: ${deployment.ensDomain}` : '',
+      error: '',
+      txHash: '',
+      domain: deployment?.ensDomain || ''
+    });
   }, [activeDapp?.slug, activeDapp?.deployment]);
 
   useEffect(() => {
@@ -135,6 +173,13 @@ function DeployPanel(): JSX.Element {
 
   const handleSaveConfig = async () => {
     if (!dappManager || !activeDapp) return;
+    const activeLock = getQuickDappWorkspaceLock();
+    if (activeLock?.workspaceName === activeDapp.workspaceName) {
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDapp operation finishes before saving configuration.');
+      return;
+    }
+    if (configSaveInFlightRef.current) return;
+    configSaveInFlightRef.current = true;
     setIsSavingConfig(true);
     try {
       const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
@@ -155,6 +200,7 @@ function DeployPanel(): JSX.Element {
       // @ts-ignore
       await plugin.call('notification', 'toast', 'Failed to save configuration: ' + e.message);
     } finally {
+      configSaveInFlightRef.current = false;
       setIsSavingConfig(false);
     }
   };
@@ -169,6 +215,24 @@ function DeployPanel(): JSX.Element {
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const ensureActiveDappWorkspace = async () => {
+    if (!activeDapp?.workspaceName) throw new Error('DApp workspace is not configured');
+
+    const currentWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+    if (currentWorkspace?.name !== activeDapp.workspaceName) {
+      await plugin.call('filePanel', 'switchToWorkspace', {
+        name: activeDapp.workspaceName,
+        isLocalhost: false
+      });
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    const confirmedWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+    if (confirmedWorkspace?.name !== activeDapp.workspaceName) {
+      throw new Error(`Could not switch to DApp workspace "${activeDapp.workspaceName}"`);
     }
   };
 
@@ -282,19 +346,43 @@ function DeployPanel(): JSX.Element {
       return
     }
     if (!activeDapp) return;
+    if (isDeleteInFlight?.()) {
+      await plugin.call('notification', 'toast', 'Please wait until DApp deletion finishes before publishing.');
+      return;
+    }
+    if (configSaveInFlightRef.current) {
+      await plugin.call('notification', 'toast', 'Please wait until configuration saving finishes before publishing.');
+      return;
+    }
+    if (isAiUpdating || isUpdateLocked()) {
+      await plugin.call('notification', 'toast', 'Please wait until the AI update finishes before publishing.');
+      return;
+    }
+    const publishOperationId = `publish-${Date.now().toString(36)}`;
+    const publishLock = trySetQuickDappWorkspaceLock({
+      workspaceName: activeDapp.workspaceName,
+      slug: activeDapp.slug,
+      operationId: publishOperationId,
+      operation: 'publish',
+      reason: 'ipfs_publish'
+    });
+    if (!publishLock) {
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDapp operation finishes.');
+      return;
+    }
     setDeployResult({ cid: '', gatewayUrl: '', error: '' });
     setIsDeploying(true);
-
-    trackMatomoEvent(plugin as any, {
-      category: 'quick-dapp-v2',
-      action: 'deploy_ipfs',
-      name: 'start',
-      isClick: true
-    });
 
     let builder: InBrowserVite;
 
     try {
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'start',
+        isClick: true
+      });
+      await ensureActiveDappWorkspace();
       builder = new InBrowserVite();
       await builder.initialize();
       const isInlineMode = activeDapp?.mode === 'inline';
@@ -460,19 +548,43 @@ function DeployPanel(): JSX.Element {
       });
 
       if (dappManager) {
+        const publishedAt = Date.now();
         const newConfig = await dappManager.updateDappConfig(activeDapp.slug, {
           status: 'deployed',
-          lastDeployedAt: Date.now(),
-          deployment: { ...activeDapp.deployment, ipfsCid: data.ipfsHash, gatewayUrl: data.gatewayUrl },
+          lastDeployedAt: publishedAt,
+          deployment: {
+            ipfsCid: data.ipfsHash,
+            gatewayUrl: data.gatewayUrl,
+            hasUnpublishedChanges: false
+          },
           config: { ...activeDapp.config, title: title || '', details: details || '', logo: logoDataUrl || undefined }
         });
-        if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+        if (newConfig) {
+          dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+          logQuickDappBinding('publish.completed', {
+            workspaceName: newConfig.workspaceName,
+            outcome: 'success',
+            isRepublish: Boolean(activeDapp.deployment?.ipfsCid),
+            cidChanged: Boolean(activeDapp.deployment?.ipfsCid && activeDapp.deployment.ipfsCid !== data.ipfsHash),
+            publishStateAfter: 'published'
+          });
+        }
       }
 
     } catch (e: any) {
       console.error(e);
+      logQuickDappBinding('publish.completed', {
+        workspaceName: activeDapp.workspaceName,
+        outcome: 'failed',
+        isRepublish: Boolean(activeDapp.deployment?.ipfsCid),
+        cidChanged: false,
+        publishStateAfter: activeDapp.deployment?.ipfsCid
+          ? activeDapp.deployment.hasUnpublishedChanges ? 'unpublished-changes' : 'published'
+          : 'not-published'
+      });
       setDeployResult({ cid: '', gatewayUrl: '', error: `Upload failed: ${e.message}` });
     } finally {
+      clearQuickDappWorkspaceLock(activeDapp.workspaceName, publishOperationId);
       setIsDeploying(false);
     }
   };
@@ -508,7 +620,7 @@ function DeployPanel(): JSX.Element {
             <div className="mb-3">
               <div className="text-uppercase text-muted mb-1">Summary</div>
               {renderInfoRow('Type', getAppKindLabel(activeDapp))}
-              {renderInfoRow('Status', activeDapp.status)}
+              {renderInfoRow('Status', publishLabel)}
               {renderInfoRow('Mode', getDappMode(activeDapp))}
               {renderInfoRow('Source root', sourceRoot, true)}
               {renderInfoRow('Updated', formatTimestamp(activeDapp.updatedAt))}
@@ -632,7 +744,10 @@ function DeployPanel(): JSX.Element {
       <div data-id="deploy-panel">
         {renderDappInfo()}
         {renderDappDocs()}
-        <BaseAppWizard />
+        <BaseAppWizard
+          isConfigSaveInFlight={() => configSaveInFlightRef.current}
+          isDeleteInFlight={isDeleteInFlight}
+        />
       </div>
     );
   }
@@ -660,7 +775,7 @@ function DeployPanel(): JSX.Element {
         </Card.Header>
         <Collapse in={isPublishOpen}>
           <Card.Body>
-            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying || isVM} data-id="deploy-ipfs-btn">
+            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying || isVM || isAiUpdating} data-id="deploy-ipfs-btn">
               {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
             </Button>
             {isVM && (
@@ -676,9 +791,10 @@ function DeployPanel(): JSX.Element {
               </Alert>
             )}
             {displayCid && (
-              <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
-                <div className="fw-bold">Deployed Successfully!</div>
+              <Alert variant={hasUnpublishedChanges ? 'warning' : 'success'} className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
+                <div className="fw-bold">{publishLabel}</div>
                 <div><strong>CID:</strong> {displayCid}</div>
+                {hasUnpublishedChanges && <div className="mt-1">Publish again to update the live IPFS deployment.</div>}
                 {displayGateway && <div className="mt-1"><a href={displayGateway} target="_blank" rel="noopener noreferrer" className="text-primary fw-bold text-decoration-underline">View DApp</a></div>}
               </Alert>
             )}
@@ -707,7 +823,19 @@ function DeployPanel(): JSX.Element {
                 </div>
                 {ensNameError && <small className="text-danger mt-1 d-block">{ensNameError}</small>}
               </Form.Group>
-              <Button variant="secondary" className="w-100" onClick={() => {
+              <Button variant="secondary" className="w-100" onClick={async () => {
+                if (isDeleteInFlight?.()) {
+                  plugin.call('notification', 'toast', 'Please wait until DApp deletion finishes before publishing.');
+                  return
+                }
+                if (configSaveInFlightRef.current) {
+                  plugin.call('notification', 'toast', 'Please wait until configuration saving finishes before publishing.');
+                  return
+                }
+                if (isAiUpdating || isUpdateLocked()) {
+                  plugin.call('notification', 'toast', 'Please wait until the AI update finishes before publishing.')
+                  return
+                }
                 if (!hasQuickdappPublishPermission) {
                   plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.DAPP_PUBLISH })
                   return
@@ -719,26 +847,60 @@ function DeployPanel(): JSX.Element {
                   name: 'start',
                   isClick: true
                 });
+                const ensPublishOperationId = `publish-ens-${Date.now().toString(36)}`;
+                const ensPublishLock = trySetQuickDappWorkspaceLock({
+                  workspaceName: activeDapp.workspaceName,
+                  slug: activeDapp.slug,
+                  operationId: ensPublishOperationId,
+                  operation: 'publish',
+                  reason: 'ens_registration'
+                });
+                if (!ensPublishLock) {
+                  plugin.call('notification', 'toast', 'Please wait until the current QuickDapp operation finishes.');
+                  return;
+                }
+                ensPublishLockRef.current = {
+                  workspaceName: ensPublishLock.workspaceName,
+                  operationId: ensPublishOperationId
+                };
+                try {
+                  await ensureActiveDappWorkspace();
+                } catch (error: any) {
+                  clearEnsPublishLock();
+                  await plugin.call('notification', 'toast', `Could not open the DApp workspace: ${error.message || error}`);
+                  return;
+                }
                 setShowEnsModal(true);
-              }} disabled={!displayCid || !ensName || !!ensNameError}>{ensButtonText}</Button>
+              }} disabled={!displayCid || !ensName || !!ensNameError || isAiUpdating}>{ensButtonText}</Button>
               <EnsRegistrationModal
                 show={showEnsModal}
-                onHide={() => setShowEnsModal(false)}
+                onHide={() => {
+                  setShowEnsModal(false);
+                  clearEnsPublishLock();
+                }}
                 ensName={ensName}
                 contentHash={deployResult.cid || activeDapp?.deployment?.ipfsCid || ''}
                 plugin={plugin}
+                onRegistrationStateChange={(isRegistering) => {
+                  ensRegistrationInFlightRef.current = isRegistering;
+                  if (!isRegistering && !isMountedRef.current) clearEnsPublishLock();
+                }}
                 onSuccess={async (result) => {
                   setShowEnsModal(false);
-                  setEnsResult({ success: 'Success!', error: '', txHash: result.txHash, domain: result.domain });
-                  trackMatomoEvent(plugin as any, {
-                    category: 'quick-dapp-v2',
-                    action: 'register_ens',
-                    name: 'success',
-                    isClick: false
-                  });
-                  if (dappManager) {
-                    const newConfig = await dappManager.updateDappConfig(activeDapp.slug, { deployment: { ...activeDapp.deployment, ensDomain: result.domain } });
-                    if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+                  try {
+                    setEnsResult({ success: 'Success!', error: '', txHash: result.txHash, domain: result.domain });
+                    trackMatomoEvent(plugin as any, {
+                      category: 'quick-dapp-v2',
+                      action: 'register_ens',
+                      name: 'success',
+                      isClick: false
+                    });
+                    if (dappManager) {
+                      const newConfig = await dappManager.updateDappConfig(activeDapp.slug, { deployment: { ensDomain: result.domain } });
+                      if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+                    }
+                  } finally {
+                    clearEnsPublishLock();
                   }
                 }}
               />
