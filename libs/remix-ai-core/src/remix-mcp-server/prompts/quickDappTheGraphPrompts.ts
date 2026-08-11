@@ -33,7 +33,7 @@ export interface QuickDappContractHandoffPromptContext {
   mode: 'none' | 'single' | 'multiple'
 }
 
-const QUICKDAPP_SCOPE_NOTICE = 'Before listing setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage, and selected contract bindings are fixed after creation."'
+const QUICKDAPP_SCOPE_NOTICE = 'Before listing setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage. Contract changes require explicit confirmation from the target DApp update flow."'
 const QUICKDAPP_GRAPH_ONLY_SCOPE_NOTICE = 'Before listing setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage. This Graph-only DApp is read-only."'
 
 const formatContractCandidatesForPrompt = (candidates: QuickDappContractPromptCandidate[]): string[] =>
@@ -95,7 +95,7 @@ const buildContractHandoffPrompt = (
       '',
       'STEP 2 - GENERATE DAPP:',
       'After I answer, call generate_dapp with the primary in contractName/contractAddress/chainId and the remaining selected contracts in additionalContracts, plus the confirmed setup options.',
-      'The selected contract set is fixed after creation.',
+      'Do not change the selected contract set during creation; later changes require explicit confirmation from the target DApp update flow.',
       'Include graphContext exactly from the GRAPH_CONTEXT_JSON below. Do not ask for the selected .subgraph file path again.'
     ]
   }

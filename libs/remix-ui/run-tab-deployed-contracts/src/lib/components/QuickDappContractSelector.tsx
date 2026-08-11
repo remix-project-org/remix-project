@@ -107,7 +107,7 @@ export function QuickDappContractSelector({
         </div>
 
         <p className="small text-secondary mt-3 mb-0">
-          Contract bindings are fixed after creation.
+          Contract changes require confirmation from the target DApp update flow.
         </p>
       </Modal.Body>
       <Modal.Footer>

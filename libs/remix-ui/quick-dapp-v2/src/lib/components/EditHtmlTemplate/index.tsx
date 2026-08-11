@@ -13,6 +13,7 @@ import { buildZkRuntimeConfigScript } from '../../utils/zkverify-runtime-config'
 import { getQuickDappPublishState } from '../../utils/publish-state';
 import { buildQuickDappUpdateGraphContextBlock } from '@remix/remix-ai-core/quick-dapp-thegraph-prompts';
 import { getPrimaryQuickDappContract, getQuickDappContracts, getQuickDappWorkspaceLock } from '@remix-ui/helper';
+import DappUpdateModal, { DappUpdateRequest } from './DappUpdateModal';
 
 interface Pages {
   [key: string]: string
@@ -79,6 +80,7 @@ function EditHtmlTemplate(): JSX.Element {
   });
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const [showVmTips, setShowVmTips] = useState(false);
 
@@ -550,7 +552,7 @@ window.addEventListener('unhandledrejection', function(e) {
     };
   };
 
-  const handleOpenAIAssistant = async () => {
+  const handleOpenAIAssistant = async (request: DappUpdateRequest) => {
     if (!activeDapp || !plugin) return;
     console.log('[QuickDapp] Opening AI Assistant for DApp update:', activeDapp.slug);
 
@@ -624,7 +626,7 @@ window.addEventListener('unhandledrejection', function(e) {
       );
     } else if (contractBindings.length > 1) {
       promptParts.push(
-        `Contract bindings are fixed at creation:`,
+        `Current contract bindings:`,
         ...contractBindings.map((contract) =>
           `- ${contract.alias}${contract.id === primaryContract?.id ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
         ),
@@ -645,18 +647,27 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(``, `Current DApp files:`, ...fileList.map(f => `- ${f}`));
     }
 
-    const immutableUpdateCheck = isZkCircuitTarget
-      ? `After my next reply, first check whether I asked to add a contract or change the app kind, circuit source, circuit name, proving scheme, prime field, signal inputs, zkVerify network, or ZK artifact files/paths. If so, do not call update_dapp or any file tool; explain that I must create a new ZK DApp.`
-      : `After my next reply, first check whether I asked to add, remove, replace, or reprioritize contracts, or change an address, ABI, or chain. If so, do not call update_dapp or any file tool; explain that I must create a new DApp.`;
-
     promptParts.push(
       ``,
-      `I want to update this exact DApp.`,
-      `For this first response, do not call list_dapps, update_dapp, generate_dapp, generate_graph_dapp, generate_zk_dapp, read_file, write_file, or finalize_dapp_generation.`,
-      `Only ask me one concise question: what changes would I like to make?`,
-      immutableUpdateCheck,
-      `Otherwise, call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to my requested changes.`,
-      `Use exactly the target workspaceName above if calling update_dapp.`,
+      `The user confirmed these update options in the QuickDapp UI.`,
+      `Requested changes: ${JSON.stringify(request.description)}`
+    );
+
+    if (request.bindingChange) {
+      promptParts.push(
+        `Confirmed contract binding change: ${JSON.stringify(request.bindingChange)}`,
+        `Call update_dapp now with workspaceName="${activeDapp.workspaceName}", description=${JSON.stringify(request.description)}, bindingChange set to the exact confirmed object above, and bindingChangeConfirmed=true.`,
+        `Do not ask the user to select another contract and do not substitute an address, target binding, or workspace.`
+      );
+    } else {
+      promptParts.push(
+        `Call update_dapp now with workspaceName="${activeDapp.workspaceName}" and description=${JSON.stringify(request.description)}.`,
+        `Do not add, remove, replace, or reprioritize contracts, and do not change an address, ABI, chain, app kind, or managed ZK metadata.`
+      );
+    }
+
+    promptParts.push(
+      `Use exactly the target workspaceName above.`,
       `Never call a DApp generation tool for this update flow.`
     );
 
@@ -1105,7 +1116,17 @@ window.addEventListener('unhandledrejection', function(e) {
             <Button
               variant="success"
               size="sm"
-              onClick={handleOpenAIAssistant}
+              onClick={async () => {
+                if (isActiveDappPublishing()) {
+                  await plugin.call('notification', 'toast', 'Please wait until publishing finishes before updating this DApp.');
+                  return;
+                }
+                if (isAiAssistantStreaming()) {
+                  showAiAssistantBusyNotification();
+                  return;
+                }
+                setShowUpdateModal(true);
+              }}
               disabled={isAiUpdating}
               title={isGraphOnly ? 'AI update is limited to Graph-only UI/source changes.' : undefined}
               data-id="update-with-ai-btn"
@@ -1282,6 +1303,17 @@ window.addEventListener('unhandledrejection', function(e) {
           </Row>
         </div>
       </div>
+
+      <DappUpdateModal
+        show={showUpdateModal}
+        dapp={activeDapp}
+        plugin={plugin}
+        onCancel={() => setShowUpdateModal(false)}
+        onConfirm={(request) => {
+          setShowUpdateModal(false);
+          void handleOpenAIAssistant(request);
+        }}
+      />
 
       <Modal show={notificationModal.show} onHide={closeNotificationModal} centered data-id="notification-modal">
         <Modal.Header closeButton>
